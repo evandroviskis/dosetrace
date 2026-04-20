@@ -31,6 +31,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -39,3 +40,17 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# temp build/analysis scripts
+analyze_unused.js
+check_syntax.js
+final_check.txt
+
+# temp logo design files
+logo-option*.svg
+logo-dosetrace.svg
+logo-options.html
+icon-1024.png
+
+# misc
+1eas

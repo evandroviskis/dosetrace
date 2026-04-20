@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DoseTrace — Hormone Therapy Tracker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1a1a2e;
+      background: #f8f9fa;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #00B4D8, #0077B6);
+      color: white;
+      padding: 60px 20px;
+      text-align: center;
+    }
+    header h1 { font-size: 2.5em; margin-bottom: 10px; }
+    header p { font-size: 1.2em; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+    .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+    section { margin-bottom: 40px; }
+    h2 {
+      font-size: 1.5em;
+      margin-bottom: 15px;
+      color: #0077B6;
+    }
+    p { margin-bottom: 12px; }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .feature {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .feature h3 { color: #0077B6; margin-bottom: 8px; }
+    .contact-box {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      text-align: center;
+    }
+    .contact-box a {
+      color: #0077B6;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .privacy { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .privacy h3 { margin-top: 20px; margin-bottom: 8px; color: #333; }
+    .privacy h3:first-child { margin-top: 0; }
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #888;
+      font-size: 0.9em;
+    }
+    @media (max-width: 600px) {
+      .features { grid-template-columns: 1fr; }
+      header h1 { font-size: 1.8em; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>DoseTrace</h1>
+  <p>The all-in-one companion app for hormone replacement therapy. Track doses, monitor bloodwork, optimize your protocol.</p>
+</header>
+
+<div class="container">
+
+  <section>
+    <h2>Features</h2>
+    <div class="features">
+      <div class="feature">
+        <h3>Dose Logging</h3>
+        <p>Log every injection, cream, or patch with date, time, compound, and dosage.</p>
+      </div>
+      <div class="feature">
+        <h3>Bloodwork Tracking</h3>
+        <p>Upload lab results as PDFs or enter values manually. Track biomarkers over time.</p>
+      </div>
+      <div class="feature">
+        <h3>Protocol Management</h3>
+        <p>Set up your full protocol with multiple compounds, frequencies, and dosages.</p>
+      </div>
+      <div class="feature">
+        <h3>Serum Curves</h3>
+        <p>Visualize estimated serum levels based on your schedule and compound half-lives.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Support</h2>
+    <div class="contact-box">
+      <p>Need help or have a question? We're here for you.</p>
+      <p>Email us at <a href="mailto:jootaerre@gmail.com">jootaerre@gmail.com</a></p>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <h2>Privacy Policy</h2>
+    <div class="privacy">
+      <p><strong>Last updated: April 7, 2026</strong></p>
+
+      <h3>Overview</h3>
+      <p>DoseTrace ("the App") is developed by Evandro G Santos. We take your privacy seriously. This policy explains what data we collect, how we use it, and your rights.</p>
+
+      <h3>Data We Collect</h3>
+      <p>DoseTrace collects the following data to provide its core functionality:</p>
+      <p>Account information (email address) for authentication purposes. Health-related data you voluntarily enter, including dose logs, bloodwork values, and protocol details. This data is stored securely in our cloud database to enable syncing across devices.</p>
+
+      <h3>How We Use Your Data</h3>
+      <p>Your data is used solely to provide the app's functionality: storing your dose history, displaying your bloodwork trends, and managing your protocols. We do not sell, share, or rent your personal data to third parties.</p>
+
+      <h3>Data Storage and Security</h3>
+      <p>Your data is stored on secure, encrypted servers provided by Supabase. We use industry-standard security measures to protect your information, including encrypted connections (HTTPS) and secure authentication.</p>
+
+      <h3>Third-Party Services</h3>
+      <p>DoseTrace uses the following third-party services: Supabase for authentication and data storage, and RevenueCat for subscription management. Each service has its own privacy policy governing the data they process.</p>
+
+      <h3>Data Deletion</h3>
+      <p>You can delete your account and all associated data at any time from within the app's settings. Upon deletion, all your personal data will be permanently removed from our servers.</p>
+
+      <h3>Children's Privacy</h3>
+      <p>DoseTrace is not intended for use by children under the age of 17. We do not knowingly collect data from children.</p>
+
+      <h3>Changes to This Policy</h3>
+      <p>We may update this privacy policy from time to time. Any changes will be reflected on this page with an updated revision date.</p>
+
+      <h3>Contact</h3>
+      <p>If you have questions about this privacy policy, contact us at <a href="mailto:jootaerre@gmail.com">jootaerre@gmail.com</a>.</p>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  &copy; 2026 Evandro G Santos. All rights reserved.
+</footer>
+
+</body>
+</html>

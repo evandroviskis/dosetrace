@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "DoseSync",
-    "slug": "DoseSync",
+    "name": "DoseTrace",
+    "slug": "dosetrace",
+    "scheme": "dosetrace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,17 +14,43 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "io.outcom.dosetrace",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSDocumentPickerUsageDescription": "DoseTrace needs access to your files to upload bloodwork PDFs.",
+        "NSPhotoLibraryUsageDescription": "DoseTrace needs photo library access to upload bloodwork documents.",
+        "UIFileSharingEnabled": true,
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "io.outcom.dosetrace"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#185FA5"
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4780e120-5f45-4482-8e95-b443929b6f8a"
+      }
     }
   }
 }
