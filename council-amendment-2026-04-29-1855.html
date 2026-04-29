@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Council Amendment — Corrected Verdict</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --rule: #e5e5e0;
+    --accent: #0077B6;
+    --accent-soft: #e8f3f9;
+    --warn: #b54845;
+    --warn-soft: #fbeceb;
+    --good: #2d6a4f;
+    --good-soft: #e3f1ea;
+    --amend: #6f4e1f;
+    --amend-soft: #fff7e6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 16px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+  header.title { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 32px; }
+  .eyebrow { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--amend); font-weight: 700; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 8px 0 12px; font-weight: 700; }
+  .subtitle { color: var(--muted); font-size: 15px; }
+
+  .banner {
+    background: var(--amend-soft); border: 1px solid #f4d99b; border-left: 4px solid var(--amend);
+    padding: 18px 22px; border-radius: 6px; margin-bottom: 36px;
+  }
+  .banner .lbl { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--amend); font-weight: 700; margin-bottom: 6px; }
+  .banner p { margin: 0 0 6px; }
+
+  h2.sec { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 36px 0 14px; }
+
+  .correction { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 22px 26px; margin-bottom: 18px; }
+  .correction h3 { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+  .correction .corr-meta { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 12px; }
+  .correction .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .correction .row .col { padding: 12px 14px; border-radius: 6px; font-size: 14.5px; }
+  .correction .row .before { background: var(--warn-soft); border: 1px solid #f0c8c6; }
+  .correction .row .after { background: var(--good-soft); border: 1px solid #c2e0d2; }
+  .correction .row .col .lbl { font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
+  .correction .row .before .lbl { color: var(--warn); }
+  .correction .row .after .lbl { color: var(--good); }
+
+  .revised-plan { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 24px 28px; margin-bottom: 28px; }
+  .revised-plan table { width: 100%; border-collapse: collapse; font-size: 14.5px; margin-top: 8px; }
+  .revised-plan th, .revised-plan td { border: 1px solid var(--rule); padding: 10px 12px; text-align: left; vertical-align: top; }
+  .revised-plan th { background: #f4f4f0; font-weight: 700; font-size: 13px; }
+  .revised-plan .ver { font-weight: 700; white-space: nowrap; }
+  .revised-plan .v1 { color: var(--good); }
+  .revised-plan .v15 { color: #5a3eb6; }
+  .revised-plan .v2 { color: var(--accent); }
+  .revised-plan .v3 { color: #936412; }
+  .revised-plan .v4 { color: var(--muted); }
+  .revised-plan .kill { color: var(--warn); }
+  .revised-plan .changed { background: #fffaeb; }
+
+  .what-stays { background: var(--accent-soft); border-radius: 6px; padding: 18px 22px; margin: 8px 0 28px; border-left: 3px solid var(--accent); }
+  .what-stays h3 { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+  .what-stays ul { margin: 0; padding-left: 20px; }
+
+  .residual { background: var(--warn-soft); border: 1px solid #f0c8c6; border-radius: 6px; padding: 18px 22px; margin: 16px 0 28px; }
+  .residual h3 { margin: 0 0 8px; font-size: 15px; font-weight: 700; color: var(--warn); }
+
+  footer { margin-top: 48px; padding-top: 22px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; text-align: center; }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 28px 18px 60px; }
+    h1 { font-size: 22px; }
+    .correction .row { grid-template-columns: 1fr; }
+    .revised-plan, .correction { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="title">
+  <div class="eyebrow">Amendment to LLM Council Round 2</div>
+  <h1>Three corrections, one revised plan</h1>
+  <div class="subtitle">Founder pushback identified three places where the council's R2 verdict was based on incomplete information. This amendment supersedes those specific recommendations.</div>
+</header>
+
+<div class="banner">
+  <div class="lbl">What this amendment does</div>
+  <p>The Round 2 report flagged three things that, given full context, were wrong. This document records what the council assumed, what's actually true, and what the revised plan looks like. Everything <strong>not</strong> mentioned in this amendment still stands from Round 2.</p>
+</div>
+
+<h2 class="sec">Three Corrections</h2>
+
+<div class="correction">
+  <h3>1. The vendor-conflict argument was overstated</h3>
+  <div class="corr-meta">Affected advisor: The Contrarian · Affected verdict section: "Where the Council Clashes"</div>
+  <div class="row">
+    <div class="col before">
+      <div class="lbl">Council assumed</div>
+      Evandro was building DoseTrace as an extension of his peptide-vending business — visible link, shared brand, cross-promotion inside the app. The Contrarian framed this as a "liability magnet" and "trust inversion."
+    </div>
+    <div class="col after">
+      <div class="lbl">What's actually true</div>
+      DoseTrace is owned by Outcom, a separate legal entity. EvoxBiolabs (peptide sales) is not mentioned anywhere in the app, the website, or the company. The two businesses are operationally and legally independent. Evandro plans to exit peptide sales. The customer base is a launch springboard — not a permanent funnel.
+    </div>
+  </div>
+  <p style="margin: 14px 0 0; font-size: 14.5px;"><strong>Revised reading:</strong> the liability profile is closer to "indie founder cold-emails his existing network at launch" than to "pharmacy operates a clinical tracker." The Contrarian's underlying caution still has a residue (see "What still needs care" below), but the strategic case it argued against doesn't apply.</p>
+</div>
+
+<div class="correction">
+  <h3>2. The serum curve visualizer IS differentiated</h3>
+  <div class="corr-meta">Affected advisor: Chairman (competitive sweep) · Affected verdict section: V4 plan + "What you're overthinking"</div>
+  <div class="row">
+    <div class="col before">
+      <div class="lbl">Council assumed</div>
+      DoseTrace's planned "serum curve visualizer" was the same product TRT Plus already ships: a generic half-life chart from compound research data. Conclusion: drop it, you won't differentiate.
+    </div>
+    <div class="col after">
+      <div class="lbl">What's actually planned</div>
+      The DoseTrace version overlays the user's <em>actual bloodwork values</em> on their <em>own dosing timeline</em>. Example: "Your testosterone was 850 ng/dL on Apr 15; you injected on Apr 8; here's YOUR personalized PK curve." That's bloodwork-grounded, not research-grounded. None of the surveyed competitors do this.
+    </div>
+  </div>
+  <p style="margin: 14px 0 0; font-size: 14.5px;"><strong>Revised reading:</strong> this is the single most defensible premium feature DoseTrace could build, because it's the only one that <em>requires</em> bloodwork uploads (which everyone else has) PLUS dose logs (which everyone else has) PLUS the math to fit a personal PK model. The combination is what makes it hard to copy. Reposition from "drop it" to "this is your premium hero in V2."</p>
+</div>
+
+<div class="correction">
+  <h3>3. The 6-language launch is justified</h3>
+  <div class="corr-meta">Affected advisors: The Outsider, The Executor · Affected verdict section: "Where the Council Agrees" + V1 plan</div>
+  <div class="row">
+    <div class="col before">
+      <div class="lbl">Council assumed</div>
+      Six languages on day 1 was "marketing theatre" for an English-speaking US audience. Recommended cutting to English (Outsider) or English + Spanish (Executor). Saved engineering time.
+    </div>
+    <div class="col after">
+      <div class="lbl">What's actually true</div>
+      Brazil consumes peptides at a scale comparable to the US, including grey-market imports from Paraguay. Customers report discomfort discussing peptide dosing in non-native languages. The 6 chosen languages (EN, ES, PT, FR, DE, IT) map directly to Evandro's existing customer-nationality distribution. Influencer marketing in BRL/EUR markets costs <strong>3.5–4.5× less</strong> than in USD — the localized markets aren't just optional, they're <em>cheaper to acquire</em> than the US market.
+    </div>
+  </div>
+  <p style="margin: 14px 0 0; font-size: 14.5px;"><strong>Revised reading:</strong> ship all 6 languages at V1. The translations exist, the cost to maintain them at this stage is marginal, and they unlock currency-leveraged distribution channels that the US-only frame missed entirely. The Outsider's "theatre" call was a cultural blind spot.</p>
+</div>
+
+<h2 class="sec">The Revised V1 / V1.5 / V2 / V3 / V4 Plan</h2>
+
+<div class="revised-plan">
+  <table>
+    <thead>
+      <tr><th>Stage</th><th>Trigger</th><th>What ships</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="ver v1">V1</td>
+        <td>14–21 days</td>
+        <td>
+          Reconstitution calculator (hero) · Dose log + reminders · Vial tracker · ~20 compound presets · Streaks · Free 5 protocols / paid unlimited · <span class="changed"><strong>All 6 languages at launch (EN, ES, PT, FR, DE, IT)</strong></span> · Email auth working · Android first, iOS within 7 days · No mention of EvoxBiolabs anywhere
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v15">V1.5</td>
+        <td>30 days post-launch</td>
+        <td>
+          Injection site rotation + body map <em>(verify legality under FDA / ANVISA / EU MDR first — Evandro flagged this; it's the right instinct)</em> · Custom symptom tracking · Protocol sharing via link/QR
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v2">V2</td>
+        <td>1,000 active users OR 100 paid subs</td>
+        <td>
+          Bloodwork PDF upload · <span class="changed"><strong>Personalized PK curve from bloodwork (the differentiated serum visualizer — premium hero feature, not a parity feature)</strong></span> · Apple Watch (only if iOS users specifically request) · Doctor-shareable PDF report
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v3">V3</td>
+        <td>5,000 active users OR $5k MRR</td>
+        <td>
+          Apple Health / Google Fit · Mood diary · Persistent escalating alarms · Barcode scanning
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v4">V4</td>
+        <td>Probably never, or only with legal counsel</td>
+        <td>
+          Family / dependent profiles · Voice reminders · <em>(Removed: serum curve was here in R2 — now correctly placed at V2)</em>
+        </td>
+      </tr>
+      <tr>
+        <td class="ver kill">KILL</td>
+        <td>—</td>
+        <td>
+          Drug interaction checker (regulatory cliff) · Vitamin causal-correlation in this app (different audience, different mental model)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 class="sec">What still stands from Round 2</h2>
+
+<div class="what-stays">
+  <h3>Recommendations unchanged</h3>
+  <ul>
+    <li>Reconstitution calculator is the hero feature; build the launch around it</li>
+    <li>Cut bloodwork upload from V1 (sexy, no V1 demand — moved to V2)</li>
+    <li>Cut vitamin tracking entirely (different audience, different mental model — Outsider was right on this one)</li>
+    <li>Drop the drug interaction checker forever</li>
+    <li>Build the ~20 compound presets (this is the highest-leverage missing feature)</li>
+    <li>Ship in 14–30 days using existing distribution</li>
+    <li>Android first, iOS within 7 days</li>
+    <li>The Executor's 30-day operational plan still applies</li>
+    <li>20-50k users / 5 years is a fully achievable goal on this base</li>
+  </ul>
+</div>
+
+<h2 class="sec">What still needs care (residual from the Contrarian's R2 critique)</h2>
+
+<div class="residual">
+  <h3>Three risks that remain even with the legal separation</h3>
+  <ol>
+    <li><strong>The implicit link in your network.</strong> When you message your 150-member WhatsApp group "I built an app, check it out," the recipients know who you are. Even without a public corporate link, those users will associate "the peptide guy" with "the app guy." That's fine — but be deliberate about which hat you're wearing in each touchpoint. Don't blur them in messaging; don't use peptide-sale language to promote the app.</li>
+    <li><strong>Discovery in litigation.</strong> If a DoseTrace user is harmed and sues, discovery can still reach the founder's connected businesses regardless of corporate structure. The legal separation is real but not absolute. Standard mitigations (clear app disclaimers, no clinical claims, no "this app makes dosing safer" language, terms of service that limit liability) still matter.</li>
+    <li><strong>The exit timing question.</strong> If DoseTrace is the exit vehicle from peptide sales, the order of operations matters. Building DoseTrace credibility while still operating EvoxBiolabs creates a quiet phase where the link could surface. Plan the EvoxBiolabs wind-down explicitly — don't let it drift.</li>
+  </ol>
+</div>
+
+<h2 class="sec">The One Thing to Do First (unchanged)</h2>
+
+<p>Today, before anything else: <strong>list the 20 most-asked compounds in your peptide vendor business.</strong> Tomorrow, build them as one-tap presets in the Protocols screen. That single feature will move install→active conversion more than anything else for your existing customers, and it remains the single biggest visible gap vs your competitors. The amendment doesn't change this.</p>
+
+<footer>
+  Generated 2026-04-29 · Amendment to Round 2 · Round 1 + Round 2 reports and transcripts saved alongside this file.
+</footer>
+
+</div>
+</body>
+</html>

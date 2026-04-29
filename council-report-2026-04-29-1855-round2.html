@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Council Round 2 — DoseTrace V1 Scope</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --rule: #e5e5e0;
+    --accent: #0077B6;
+    --accent-soft: #e8f3f9;
+    --warn: #b54845;
+    --warn-soft: #fbeceb;
+    --good: #2d6a4f;
+    --good-soft: #e3f1ea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.55; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 80px; }
+  header.title { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 32px; }
+  .eyebrow { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 8px 0 12px; font-weight: 700; }
+  .subtitle { color: var(--muted); font-size: 15px; }
+  .question {
+    background: var(--card); border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+    padding: 18px 22px; border-radius: 6px; margin-bottom: 20px; font-size: 15.5px;
+  }
+  .question .lbl { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
+
+  .new-context {
+    background: #fffaeb; border: 1px solid #f4d99b; border-radius: 6px; padding: 18px 22px; margin-bottom: 36px;
+  }
+  .new-context .lbl { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: #a06a14; font-weight: 700; margin-bottom: 8px; }
+  .new-context ul { margin: 0; padding-left: 20px; }
+  .new-context li { margin-bottom: 5px; }
+
+  .verdict { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 28px 30px; margin-bottom: 36px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+  .verdict h2 { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0 0 18px; }
+  .verdict h3 { font-size: 17px; margin: 22px 0 10px; font-weight: 700; color: var(--ink); }
+  .verdict h3:first-of-type { margin-top: 0; }
+  .verdict p { margin: 0 0 12px; }
+  .verdict ol, .verdict ul { padding-left: 20px; margin: 0 0 12px; }
+  .verdict li { margin-bottom: 8px; }
+  .verdict strong { color: var(--ink); }
+
+  .scope-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14.5px; }
+  .scope-table th, .scope-table td { border: 1px solid var(--rule); padding: 10px 12px; text-align: left; vertical-align: top; }
+  .scope-table th { background: #f4f4f0; font-weight: 700; font-size: 13px; }
+  .scope-table .ver { font-weight: 700; white-space: nowrap; }
+  .scope-table .v1 { color: var(--good); }
+  .scope-table .v15 { color: #5a3eb6; }
+  .scope-table .v2 { color: var(--accent); }
+  .scope-table .v3 { color: #936412; }
+  .scope-table .v4 { color: var(--muted); }
+  .scope-table .kill { color: var(--warn); text-decoration: line-through; }
+
+  .competitive { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 24px 28px; margin-bottom: 36px; }
+  .competitive h2 { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0 0 14px; }
+  .competitive .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .comp-card { border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; background: #fdfdfb; font-size: 14px; }
+  .comp-card .name { font-weight: 700; margin-bottom: 4px; }
+  .comp-card .desc { color: var(--muted); font-size: 13px; }
+  .comp-card .threat { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-top: 6px; font-weight: 700; }
+  .comp-card .threat.high { background: var(--warn-soft); color: var(--warn); }
+  .comp-card .threat.med { background: #fff4d6; color: #936412; }
+  .comp-card .threat.low { background: var(--good-soft); color: var(--good); }
+
+  .one-thing { background: #fff7e6; border: 1px solid #f4d99b; border-radius: 6px; padding: 18px 22px; margin-top: 16px; }
+  .one-thing .lbl { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: #a06a14; font-weight: 700; margin-bottom: 6px; }
+
+  .recommendation { background: var(--accent-soft); border-radius: 6px; padding: 18px 22px; margin: 16px 0 0; border-left: 3px solid var(--accent); }
+
+  details { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+  details > summary { padding: 14px 20px; cursor: pointer; font-weight: 600; list-style: none; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::after { content: "+"; font-size: 20px; color: var(--muted); font-weight: 400; }
+  details[open] > summary::after { content: "−"; }
+  details[open] > summary { border-bottom: 1px solid var(--rule); }
+  .advisor-body { padding: 18px 20px 22px; font-size: 15px; }
+  .advisor-body p { margin: 0 0 12px; }
+  .advisor-body p:last-child { margin-bottom: 0; }
+  .summary-line { color: var(--muted); font-size: 14px; margin-left: 12px; font-weight: 400; }
+
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 14px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0; border: 1px solid var(--rule); background: #fff; }
+  .chip.contrarian { background: var(--warn-soft); color: var(--warn); border-color: #f0c8c6; }
+  .chip.firstprinciples { background: #efeafa; color: #5a3eb6; border-color: #d6cdf0; }
+  .chip.expansionist { background: var(--good-soft); color: var(--good); border-color: #c2e0d2; }
+  .chip.outsider { background: #fff4d6; color: #936412; border-color: #ecd9a3; }
+  .chip.executor { background: var(--accent-soft); color: var(--accent); border-color: #b6d8e8; }
+
+  .section-head { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 36px 0 14px; }
+
+  footer { margin-top: 48px; padding-top: 22px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; text-align: center; }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 28px 18px 60px; }
+    h1 { font-size: 24px; }
+    .competitive .comp-grid { grid-template-columns: 1fr; }
+    .verdict, .competitive { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="title">
+  <div class="eyebrow">LLM Council · Round 2 · Scope Decision</div>
+  <h1>DoseTrace — V1 scope, what's missing, what's overthought</h1>
+  <div class="subtitle">Continuation of the Round 1 pressure test, with new founder context and a competitive app-store sweep.</div>
+</header>
+
+<div style="background:#fff7e6;border:1px solid #f4d99b;border-left:4px solid #6f4e1f;padding:14px 18px;border-radius:6px;margin-bottom:28px;font-size:14.5px;">
+  <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#6f4e1f;font-weight:700;margin-bottom:6px;">Amended 2026-04-29</div>
+  Three of this report's recommendations were based on incomplete information about (1) the legal separation between DoseTrace/Outcom and EvoxBiolabs, (2) how the planned serum curve visualizer differs from competitors' generic charts, and (3) the business case for launching in 6 languages. The corrections, the revised V1/V2 plan, and the residual risks are documented in the <strong>amendment file</strong> saved alongside this report (<code>council-amendment-2026-04-29-1855.html</code>). Treat the amendment as superseding this report on those three points; everything else here still stands.
+</div>
+
+<div class="question">
+  <div class="lbl">The Round 2 Question</div>
+  Given confirmed warm distribution, founder-market fit, and a 20-50k user / 5-year goal: what's the right V1 scope to ship NOW vs defer to V2/V3/V4? What's missing? What's overthought? What does the competitive landscape say?
+</div>
+
+<div class="new-context">
+  <div class="lbl">What changed since Round 1</div>
+  <ul>
+    <li><strong>The 4 testers were family for visual QA</strong> — not market validation. Round 1's "0 opted in" reading was wrong.</li>
+    <li><strong>Evandro is a peptide vendor.</strong> 60 customers/week, 500-person consumer list, 150-member WhatsApp channel.</li>
+    <li><strong>Founder-market fit is unusually tight</strong> — sees customer reconstitution-math confusion daily.</li>
+    <li><strong>Doesn't need revenue.</strong> Goal: 20-50k users / 5 years. Reinvest 100%.</li>
+    <li><strong>Audience clarified:</strong> peptide reconstitutors, multi-peptide stackers, TRT feel-trackers, vitamin causal trackers.</li>
+    <li><strong>Hypothesis:</strong> US may un-ban peptides like epitalon, GHK-Cu — potential tailwind.</li>
+  </ul>
+</div>
+
+<div class="verdict">
+  <h2>Chairman's Verdict — Round 2</h2>
+
+  <h3>Where the Council Agrees (R2)</h3>
+  <ul>
+    <li><strong>Cut the six languages.</strong> Three of five advisors said it independently. Outsider was sharpest: "i18n on day 1 is theatre." Ship English only. Add Spanish at V2 trigger.</li>
+    <li><strong>The reconstitution calculator is the hero, not a side feature.</strong> First Principles called it "the entire product." Build the launch around it. Free, prominent, top-of-funnel.</li>
+    <li><strong>Cut bloodwork uploads, vitamins, and most of the V2 list from V1.</strong> Outsider, First Principles, and Executor converged: V1 is calc + dose log + vial tracker + reminders + presets. Period.</li>
+    <li><strong>The vendor + app combo is your wedge — but cannot be hidden.</strong> Outsider: "you're pretending it's just a wellness app... own the ecosystem angle." Expansionist: "Don't hide that you're a vendor. Lean into it." First Principles: it's a customer-retention tool for your peptide business.</li>
+    <li><strong>Ship in 14-30 days using existing distribution.</strong> Executor's plan: fix Supabase auth, EAS build, closed beta with 10 testers + 2 real customers, ship to stores, send WhatsApp link.</li>
+  </ul>
+
+  <h3>Where the Council Clashes (R2)</h3>
+  <p><strong>Is the vendor + tracker combo an asset or a liability?</strong> The Contrarian sees liability — "trust inversion, discovery in lawsuits, regulators noticing" — and recommends shipping the app from a separate entity. The other four see the opposite: vertical integration is the moat. Resolution: the Contrarian's risk is real but mitigable. <strong>Don't cross-promote your peptide sales inside the app. Disclose the vendor relationship in About/legal. Don't claim the app makes dosing safer.</strong> If you do those three things, your liability is closer to a forum operator's than a pharmacy's.</p>
+  <p><strong>Public virality vs captive audience for V1?</strong> Expansionist wants protocol-sharing QR codes from day 1. Outsider says "build for the 60 you have, scale is later." Resolution: ship V1 to your captive audience (60/500/150). Add protocol-sharing as V1.5 once those users are sticky.</p>
+
+  <h3>What the Competitive Sweep Revealed (Chairman addition)</h3>
+  <p>The space has 15+ direct competitors on the App Store / Play Store today. Two findings particularly matter:</p>
+  <ul>
+    <li><strong>TRT Plus already ships compound half-life charting with peak/steady-state/clearance visualization.</strong> That's exactly DoseTrace's planned "serum curve visualizer" V2 premium feature. <em>You will not differentiate on this.</em> Drop it from the roadmap or make it free as a check-the-box parity feature.</li>
+    <li><strong>None of the 15 competitors are simultaneously a peptide vendor with 60 weekly buyers.</strong> That's a moat no app-store-only competitor can replicate. Your distribution is the single hardest thing they cannot copy.</li>
+  </ul>
+  <p>Two specific feature gaps you have versus competitors that should move into V1.5 (not V2):</p>
+  <ul>
+    <li><strong>Injection site rotation + visual body map</strong> — TRT Tracker, OptiPin both have this. Cheap to build, expected by serious users.</li>
+    <li><strong>Compound presets / one-tap setup</strong> — TRT Plus has 80+ pre-configured compounds. DoseTrace requires manual entry. For peptide noobs (your exact audience), one-tap "BPC-157 protocol" presets remove the biggest onboarding friction.</li>
+  </ul>
+
+  <h3>The V1 / V1.5 / V2 / V3 / V4 Plan</h3>
+
+  <table class="scope-table">
+    <thead>
+      <tr><th>Stage</th><th>Trigger</th><th>What ships</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="ver v1">V1</td>
+        <td>14 days</td>
+        <td>
+          Reconstitution calculator (hero) · Dose log + reminders · Vial tracker · ~20 compound presets (BPC-157, TB-500, semaglutide, tirzepatide, retatrutide, ipamorelin, CJC-1295, sermorelin, MOTS-c, NAD+, GHK-Cu, epitalon, testosterone enanthate/cypionate, HCG, T3, T4, B12) · Streaks · Free 5 protocols / paid unlimited · <strong>English only</strong> · Email auth working · <strong>Android first, iOS within 7 days</strong> · Vendor disclosure in About
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v15">V1.5</td>
+        <td>30 days post-launch (only if V1 ships clean)</td>
+        <td>
+          Injection site rotation + body map (parity) · Custom symptom tracking ("how do you feel today?") · Protocol sharing via link/QR (Expansionist's viral hook)
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v2">V2</td>
+        <td>1,000 active users OR 100 paid subs</td>
+        <td>
+          Spanish + Portuguese · Bloodwork PDF upload (no OCR) · Apple Watch (only if iOS users specifically request) · Doctor-shareable PDF report
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v3">V3</td>
+        <td>5,000 active users OR $5k MRR</td>
+        <td>
+          Apple Health / Google Fit integration · Mood diary · Persistent escalating alarms · Barcode scanning
+        </td>
+      </tr>
+      <tr>
+        <td class="ver v4">V4</td>
+        <td>Probably never, or only with legal counsel</td>
+        <td>
+          Family / dependent profiles (only if data shows demand) · Voice reminders · Serum curve visualizer (competitors already have it; only build if you can do it 10× better)
+        </td>
+      </tr>
+      <tr>
+        <td class="ver kill">KILL</td>
+        <td>—</td>
+        <td>
+          Drug interaction checker (regulatory cliff) · Six-language launch (theatre) · Vitamin causal-correlation in this app (different audience, different mental model — likely a separate product)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>What you're MISSING that the competitive sweep flagged</h3>
+  <ul>
+    <li>Compound presets / one-tap setup for the 20 most-asked peptides</li>
+    <li>Injection site rotation with body map</li>
+    <li>Custom symptom tracking (the "TRT users tracking how they feel" use case isn't actually built)</li>
+    <li>A clear, public statement that you're a peptide vendor (turn it into a trust feature, not a hidden one)</li>
+  </ul>
+
+  <h3>What you're OVERTHINKING</h3>
+  <ul>
+    <li>Six-language launch</li>
+    <li>Bloodwork upload in V1 (sexy, no V1 demand)</li>
+    <li>Drug interaction checking (regulatory landmine — kill forever)</li>
+    <li>Apple Watch app (V2 trigger, not pre-launch)</li>
+    <li>Serum curve visualizer (competitors have it; you won't differentiate)</li>
+    <li>Vitamin tracking + peptide tracking in one app (different mental models)</li>
+    <li>Premature concern about scaling to millions (you want 20-50k / 5 years; that's tractable on the current base)</li>
+  </ul>
+
+  <div class="recommendation">
+    <h3 style="margin-top: 0;">The Recommendation</h3>
+    <p>You have a real shot. The vendor advantage, distribution advantage, and founder-market fit are genuinely uncommon. The space is crowded but YOU have inputs no app-store-only competitor can replicate (warm distribution, vendor relationship, customer pain visibility). Your modest 20-50k user 5-year goal is fully achievable on this base.</p>
+    <ol>
+      <li><strong>Drastically narrow V1.</strong> English only. Calculator + dose log + vial + reminders + 20 presets + streaks. No bloodwork, no vitamins, no Apple Watch.</li>
+      <li><strong>Embrace and disclose the vendor relationship — but don't cross-promote sales inside the app.</strong> Walking the line legally and ethically.</li>
+      <li><strong>Ship in 14 days, not 60.</strong> Use the warm distribution this month.</li>
+      <li><strong>Build injection site rotation, custom symptom tracking, and presets for V1.5.</strong> Basic, missing, expected.</li>
+      <li><strong>Drop the drug interaction checker forever.</strong> Different game, different funding.</li>
+      <li><strong>Drop or rethink the serum curve visualizer.</strong> Competitors already have it.</li>
+    </ol>
+  </div>
+
+  <div class="one-thing">
+    <div class="lbl">The One Thing to Do First</div>
+    <p style="margin: 0;"><strong>Today, before anything else:</strong> list the 20 most-asked compounds in your peptide vendor business. Tomorrow, build them as one-tap presets in the Protocols screen. That single feature will move install→active conversion more than anything else for your existing 60 customers, and it's the biggest visible gap vs your competitors. Everything else (six languages, bloodwork uploads, Apple Watch, drug interactions) is noise compared to "tirzepatide preset, BPC-157 preset, semaglutide preset — tap once, start tracking."</p>
+  </div>
+</div>
+
+<div class="competitive">
+  <h2>Competitive Landscape (App Store / Play Store sweep)</h2>
+  <p style="color: var(--muted); font-size: 14px; margin: 0 0 16px;">15+ direct competitors found. The space is crowded but no competitor has your distribution + vendor advantage.</p>
+  <div class="comp-grid">
+    <div class="comp-card">
+      <div class="name">OptiPin · TRT Peptide Tracker</div>
+      <div class="desc">100+ medications, hormones, bloodwork, custom trackers, injection site rotation. Closest direct competitor to DoseTrace's full ambition.</div>
+      <span class="threat high">High overlap</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">TRT Plus (Android)</div>
+      <div class="desc">80+ pre-configured compounds, compound half-life charting, peak/steady-state/clearance visualization. Already ships your planned "serum curve visualizer."</div>
+      <span class="threat high">Has your V2 hero feature</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">InjectionMate</div>
+      <div class="desc">"Hormone Therapy Tracker" — same exact tagline as DoseTrace. TRT, HCG, Clomid, HRT + female estrogen/progesterone tracking.</div>
+      <span class="threat high">Tagline overlap</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">PeptIQ</div>
+      <div class="desc">Peptide tracker + injection tracker + inventory + site rotation + education content. Native iOS, Android, web.</div>
+      <span class="threat med">Strong positioning</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">PepCalc / PeptideCalc.io / Pep Pal / PeptideFox</div>
+      <div class="desc">Calculator-first apps. Some include scheduling and protocol persistence. Most are free or freemium.</div>
+      <span class="threat med">Calculator parity</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">MyTRT</div>
+      <div class="desc">25+ biomarkers across cardio, metabolic, thyroid, liver, kidney. Free + Pro upgrade. Multi-medication scheduling.</div>
+      <span class="threat med">Bloodwork strong</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">TRT Tracker · Anabolic Steroid &amp; TRT Tracker</div>
+      <div class="desc">Visual body map for injection sites, dose history, biomarker monitoring, custom reminders.</div>
+      <span class="threat med">Body map standard</span>
+    </div>
+    <div class="comp-card">
+      <div class="name">No competitor is also a peptide vendor</div>
+      <div class="desc">Your 60 customers/week + 500-list + 150-member WhatsApp channel cannot be replicated by any app-store-only player. This is your single hardest moat.</div>
+      <span class="threat low">Your moat</span>
+    </div>
+  </div>
+</div>
+
+<div class="section-head">Round 2 Advisor Responses (full)</div>
+
+<details>
+  <summary><span><span class="chip contrarian">The Contrarian</span></span><span class="summary-line">Vendor + tracker = liability magnet. Ship from someone else.</span></summary>
+  <div class="advisor-body">
+    <p><strong>The Fatal Flaw: he's selling two incompatible products simultaneously.</strong></p>
+    <p>Evandro is a peptide vendor trying to launch a health tracker for peptide users. This creates three converging disasters:</p>
+    <p><strong>1. Trust inversion.</strong> Users downloading his app will assume (correctly) he's collecting their protocol data to optimize his sales pitch and upsell them. Every bloodwork upload, every protocol they log — it's now business intelligence for his vendor operation. He can claim separation, but users won't believe it. Competitors will weaponize this. Regulators will notice.</p>
+    <p><strong>2. Liability nightmare.</strong> The app currently tracks self-administered injections. If a user logs a protocol, gets injured, and sues — discovery reveals he's the vendor who sold them the peptide. He's now liable twice: as the seller AND as the tracker that didn't warn them. The app becomes a liability magnet.</p>
+    <p><strong>3. Realistic conversion is 3-5%, not 20%.</strong> 60 weekly customers and a 500-list converting from "free tier" to "$50/yr paid" requires trust he doesn't have in this role. WhatsApp channels are notoriously low-intent. 10% opt-in × 30% paid conversion = 15 users from 500. That's a vanity metric, not a wedge.</p>
+    <p><strong>4. The tirzepatide example reveals the problem.</strong> Tirzepatide is a prescription GLP-1. GLP-1 users are a totally different audience (insurance-covered, medical supervision). His actual peptide audience (epitalon, GHK-Cu, BPC-157) is grey-market, price-sensitive, trust-paranoid — and he IS the vendor. These are irreconcilable.</p>
+    <p><strong>What he's missing:</strong> a business model that doesn't require him to be trustworthy. Sell the app anonymously or through a partner. Kill the vendor angle or kill the tracker. V1 should not ship from him. It should ship from someone else.</p>
+  </div>
+</details>
+
+<details>
+  <summary><span><span class="chip firstprinciples">First Principles</span></span><span class="summary-line">Reframe: this isn't a health app. It's a customer-retention tool.</span></summary>
+  <div class="advisor-body">
+    <p>Strip the noise: Evandro isn't building a health-tracking app. He's building a <strong>customer lock-in tool for his peptide business.</strong></p>
+    <p>The question "should we add Apple Watch in V2?" is upside-down. The real question is "what's the minimum app that makes my 60 weekly buyers stickier and reduces support friction?"</p>
+    <p>Evandro sees a daily pain: customers ask "how do I reconstitute tirzepatide?" 50 times a month. That's not a feature gap — it's a support cost he can eliminate. The calculator isn't a feature; it's <strong>a deflection mechanism that reduces his operational burden.</strong></p>
+    <p>The vial tracker, syringe guide, and reminders? Those are friction-reducers. They keep users from texting him "did I dose yesterday?" They keep him in the app while keeping buyers from switching vendors.</p>
+    <p>The 20-50k user goal isn't about app virality. It's about converting his 500-person list and leveraging his 150-member WhatsApp channel into app users. <strong>Distribution is solved.</strong></p>
+    <p><strong>V1 should be:</strong> a free tirzepatide (and common-stack) reconstitution calculator bundled with a simple dose log. That's it. Solves the named pain. Keeps users in the ecosystem. Minimal engineering. Ships in 2 weeks. 80% of the value at 5% of the scope.</p>
+    <p>The premium tier with "unlimited protocols" assumes he's selling to strangers. He's not. His margin is on peptide sales. The app is a loyalty mechanism. Multi-language? 500-person list. English first. Offline-first, voice reminders, barcode scanning — nice-to-haves at 20-50k users.</p>
+    <p><strong>The product is not a health app. It's a customer service chatbot you don't have to maintain.</strong></p>
+  </div>
+</details>
+
+<details>
+  <summary><span><span class="chip expansionist">The Expansionist</span></span><span class="summary-line">V1 should be a platform, not a tracker. Vendor angle is a moat.</span></summary>
+  <div class="advisor-body">
+    <p><strong>Ship NOW:</strong></p>
+    <p><strong>1. Reconstitution calculator as a free, standalone web tool</strong> — calc.dosetrace.io or a landing page widget. Becomes your SEO moat and top-of-funnel. Every peptide user Googling "tirzepatide reconstitution" lands here. Free, frictionless, category-defining.</p>
+    <p><strong>2. Sharing protocol recipes</strong> — Users export/share exact stacks (5mg BPC-157 + 10mg TB-500 + X syringe) as a QR or link. Sharable, viral. Each share is a conversion funnel. V1 with 5+ ready-made templates from your vendor network.</p>
+    <p><strong>3. Community + vendor integration from day 1</strong> — Don't hide that you're a vendor. Lean into it. Users see "Suggested by [vendor]" for common stacks. This builds trust AND creates a network effect where other vendors want their stacks featured. You're building the protocol layer of the peptide internet.</p>
+    <p><strong>4. Bloodwork correlation dashboard</strong> — Skip AI hype for V1. Ship a visual: "You increased TB-500 on Week 4, your WBC climbed 2 weeks later." Dead simple, no ML. Justifies premium and separates you from a generic tracker.</p>
+    <p><strong>5. Intentionally sparse feature set</strong> — Lose the FAQ and blog aspirations. No "wellness content." One screen each: protocols, today's doses, bloodwork/correlations.</p>
+    <p><strong>Defer to V2/V3:</strong> Causal inference / AI insights · Vitamin tracking (separate app) · 6-language i18n · RevenueCat complexity (just use Stripe) · Sync and offline-first.</p>
+    <p><strong>The real opportunity:</strong> 20-50k users at $25-50 ARPU = $500k-$2.5M ARR — a great bootstrapped business. Your vendor relationships + user data = the infrastructure layer. In 18 months, you're selling anonymized stack recommendations to other vendors, telehealth partnerships, and supplement affiliate. The app is the Trojan horse; the data network is the moat.</p>
+  </div>
+</details>
+
+<details>
+  <summary><span><span class="chip outsider">The Outsider</span></span><span class="summary-line">Own the vendor angle. Kill 6 languages. Kill vitamins.</span></summary>
+  <div class="advisor-body">
+    <p>You've built something more coherent than you know. The tirzepatide reconstitution pain point is real — that's not marketing, that's a genuine bottleneck your 60 weekly customers hit every time. But three concerning misdirections:</p>
+    <p><strong>The vendor-as-tracker play is weirder than it needs to be.</strong> To a stranger, you're asking people to put their dose logs into an app built by the guy selling them the raw peptide powder. Not inherently disqualifying — actually a powerful distribution moat — but you're not <em>leaning</em> into it. You're pretending it's just a wellness app. <strong>Own the ecosystem angle.</strong> Right now it reads like you're embarrassed about the source.</p>
+    <p><strong>The grey-market context is invisible to the app.</strong> Tirzepatide from powder reconstitution is legally murky — your 60-customer base knows this; your future 50k user base won't. The app needs to whisper "we know what you're really doing" without saying it. No shame. Just clarity. Your FAQ doesn't address this at all. It should.</p>
+    <p><strong>Vitamins + peptides in one app is a feature tax, not a feature.</strong> A vitamin taker tracks "did I remember? do I feel better?" A tirzepatide user tracks "is my math right? how much is left?" Different UX problems wearing the same name. You've conflated distribution (your list has both) with product. Wrong. Ship V1 as <em>the peptide tracker</em>. Vitamins are 2027.</p>
+    <p><strong>Six languages on day 1 is theatre.</strong> Your 60 core customers are English speakers. Your WhatsApp group runs in English. Shipping in 6 langs <em>because you can</em> dilutes the message. Launch in English. Make it sharp. Add Spanish in month 3 when you know what sucks.</p>
+    <p><strong>What you're getting right: the app actually exists and your customers are waiting for it.</strong> That's worth way more than feature completeness. <strong>For V1 right now:</strong> Core dose logger + vial tracker + reconstitution math (don't touch). Keep simple streak/consistency view. Cut bloodwork PDFs, doctor PDFs, drug interaction, voice reminders, barcode scanning, Apple Watch, family profiles.</p>
+    <p>Stop building for the 20-50k user you hope exists in 5 years. <strong>Build for the 60 you have right now.</strong> Get them addicted to the core experience, then let them drag friends into the WhatsApp group. That's your real product.</p>
+  </div>
+</details>
+
+<details>
+  <summary><span><span class="chip executor">The Executor</span></span><span class="summary-line">14-day ship plan. Cut langs. Fix Supabase config. Android first.</span></summary>
+  <div class="advisor-body">
+    <p><strong>Hero feature:</strong> the reconstitution syringe guide — already baked in, animated, working. <strong>Ship it unchanged.</strong></p>
+    <p><strong>Kill to ship fast:</strong></p>
+    <ul>
+      <li>Six languages → rip out, English + Spanish only (~8 days saved). Reinstate in V3.</li>
+      <li>Bloodwork upload → defer. Sexy, zero MVP demand. Delete the tab (5 min).</li>
+      <li>Streaks/fire → keep. Ultra-cheap, psychological hook. Already coded.</li>
+      <li>Email auth → fix, not kill. Google OAuth client code is in but Supabase provider is missing. <strong>One-line fix in Supabase Dashboard.</strong> If Google fails, fall back to email-only.</li>
+    </ul>
+    <p><strong>Install funnel:</strong> WhatsApp link → install → onboarding (~2 min) → first log (~10 sec) → add protocol (~1 min) → free tier 5 protocols, paywall on 6th. <strong>Revenue gate at protocol creation, not login.</strong></p>
+    <p><strong>Platform priority:</strong> Android first. Audience (peptide enthusiasts, biohackers, TRT bros) skews Pixel/Samsung. iOS second once 2k users justify Apple's 30% cut. Ship both in 14 days but feature parity on Android, iOS will lag polish.</p>
+    <p><strong>V2 trigger:</strong> Apple Watch unlocks at 2,000 active users + 40% DAU dose compliance. Drug interaction checker = V3+, regulatory nightmare, defer indefinitely.</p>
+    <p><strong>30-day plan:</strong> Days 1-3: fix Supabase Google provider, disable 6-lang UI, remove bloodwork tab. Days 4-7: EAS build, TestFlight + Play Internal. Days 8-10: closed beta with 10 testers + 2 real customers. Days 11-14: ship Android Public, iOS App Store review, send WhatsApp link to 60-customer test batch. Days 15-30: monitor DAU, install→first-dose, protocol creation, revenue. Patch bugs. Plan V2.</p>
+    <p><strong>Missing nothing in the build itself.</strong> Recon calc, dose logging, vials, reminders — all done. You're not building, you're tuning and shipping. <strong>Monday: ship to 2 real customers via WhatsApp. By Day 14, App Store. By Day 30, you'll know if your funnel converts.</strong></p>
+  </div>
+</details>
+
+<footer>
+  Generated 2026-04-29 · LLM Council Round 2 · Question: optimal V1 scope, what's missing, what's overthought · Round 1 report and full transcripts saved alongside this report.
+</footer>
+
+</div>
+</body>
+</html>

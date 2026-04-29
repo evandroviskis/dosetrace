@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Council — DoseTrace Pressure Test</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --rule: #e5e5e0;
+    --accent: #0077B6;
+    --accent-soft: #e8f3f9;
+    --warn: #b54845;
+    --warn-soft: #fbeceb;
+    --good: #2d6a4f;
+    --good-soft: #e3f1ea;
+    --neutral: #5a5a5a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 16px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+  header.title { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 32px; }
+  .eyebrow { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 8px 0 12px; font-weight: 700; }
+  .subtitle { color: var(--muted); font-size: 15px; }
+  .question {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 18px 22px;
+    border-radius: 6px;
+    margin-bottom: 36px;
+    font-size: 15.5px;
+  }
+  .question .lbl { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
+
+  .verdict {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 28px 30px;
+    margin-bottom: 36px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .verdict h2 {
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 18px;
+  }
+  .verdict h3 {
+    font-size: 17px;
+    margin: 24px 0 10px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .verdict h3:first-of-type { margin-top: 0; }
+  .verdict p { margin: 0 0 12px; }
+  .verdict ol, .verdict ul { padding-left: 20px; margin: 0 0 12px; }
+  .verdict li { margin-bottom: 8px; }
+  .verdict strong { color: var(--ink); }
+
+  .recommendation {
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin: 16px 0 0;
+    border-left: 3px solid var(--accent);
+  }
+  .one-thing {
+    background: #fff7e6;
+    border: 1px solid #f4d99b;
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin-top: 16px;
+  }
+  .one-thing .lbl {
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #a06a14;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .map {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 22px 24px 26px;
+    margin-bottom: 36px;
+  }
+  .map h2 {
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 14px;
+  }
+  .map p.intro { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .quad {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 12px 14px;
+    background: #fdfdfb;
+    min-height: 96px;
+  }
+  .quad .qhead {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 2px 4px 2px 0;
+    border: 1px solid var(--rule);
+    background: #fff;
+  }
+  .chip.contrarian { background: var(--warn-soft); color: var(--warn); border-color: #f0c8c6; }
+  .chip.firstprinciples { background: #efeafa; color: #5a3eb6; border-color: #d6cdf0; }
+  .chip.expansionist { background: var(--good-soft); color: var(--good); border-color: #c2e0d2; }
+  .chip.outsider { background: #fff4d6; color: #936412; border-color: #ecd9a3; }
+  .chip.executor { background: var(--accent-soft); color: var(--accent); border-color: #b6d8e8; }
+
+  .axis-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    margin-top: 8px;
+  }
+
+  details {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  details > summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::after {
+    content: "+";
+    font-size: 20px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  details[open] > summary::after { content: "−"; }
+  details[open] > summary { border-bottom: 1px solid var(--rule); }
+  .advisor-body { padding: 18px 20px 22px; font-size: 15px; }
+  .advisor-body p { margin: 0 0 12px; }
+  .advisor-body p:last-child { margin-bottom: 0; }
+
+  .section-head {
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 36px 0 14px;
+  }
+
+  .summary-line {
+    color: var(--muted);
+    font-size: 14px;
+    margin-left: 12px;
+    font-weight: 400;
+  }
+
+  .reviews .review-item {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .reviews .review-item:last-child { border-bottom: none; }
+  .reviews .rev-label {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 28px 18px 60px; }
+    h1 { font-size: 24px; }
+    .grid { grid-template-columns: 1fr; }
+    .verdict, .map { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="title">
+    <div class="eyebrow">LLM Council · Pressure Test</div>
+    <h1>DoseTrace — Should you keep building this?</h1>
+    <div class="subtitle">Five advisors. Independent perspectives. Anonymous peer review. One verdict.</div>
+  </header>
+
+  <div class="question">
+    <div class="lbl">The Question</div>
+    Is DoseTrace the right thing to be building? Pressure-test the entire premise — market positioning, audience, business model, regulatory strategy, technical complexity, founder capacity — and decide whether to continue, pivot, or kill.
+  </div>
+
+  <div class="verdict">
+    <h2>Chairman's Verdict</h2>
+
+    <h3>Where the Council Agrees</h3>
+    <ul>
+      <li><strong>Validation is the actual problem, not features.</strong> 4 testers / 0 opted in is the loudest signal in the data. The Contrarian, Executor, and First Principles all converged on this from different angles.</li>
+      <li><strong>The roadmap is inverted.</strong> Apple Watch, gamification, doctor PDF reports, voice reminders — multiple advisors saw this as the founder doing the comfortable work (feature spec) instead of the hard work (acquisition + retention).</li>
+      <li><strong>Solo founder + scope is mismatched.</strong> Cross-platform + 6 languages + heavy V2 + a regulatory dance does not fit one person's bandwidth. Three of five advisors raised this independently.</li>
+      <li><strong>The regulatory positioning is fragile.</strong> The Outsider felt it as legal cover, the Contrarian called it a cliff, First Principles called it a lie. Different intensities, same direction.</li>
+    </ul>
+
+    <h3>Where the Council Clashes</h3>
+    <p><strong>Is the audience a goldmine or a graveyard?</strong> The Expansionist sees a high-LTV, evangelizing tribe already spending 10x on protocols. The Contrarian sees a 50k–100k global niche with $40–80 LTV and a 1–2k organic ceiling. Both can't be right. The disagreement turns on whether the self-directed health market is "exploding" (asserted, not proven) or "small and untrackable" (also asserted). The actual data isn't here — and the founder doesn't have it either.</p>
+    <p><strong>Ship, validate, or stop?</strong> The Executor says ship this week — focus is the only variable. First Principles says ship a minimal version and decide in 30 days. The Contrarian implies the entire premise is unsalvageable. The Outsider implies the customer ambiguity is fatal.</p>
+
+    <h3>Blind Spots the Council Caught</h3>
+    <ul>
+      <li><strong>Distribution wasn't solved by anyone.</strong> Every advisor talked about product, market, and regulatory layers. None asked HOW Evandro reaches even 100 people in this niche. The Expansionist assumes virality. The Contrarian assumes a subreddit. The Executor assumes shipping = users. Distribution is the unaddressed bottleneck.</li>
+      <li><strong>Founder psychology / sunk-cost was missed by all.</strong> Two peer reviewers independently flagged it: the council debated the app, but nobody asked whether the founder can honestly pivot or quit if the data says to. That meta-question is bigger than any feature decision.</li>
+      <li><strong>The 4 existing testers are an unmined data signal.</strong> Why aren't they opting in? Is it broken auth or cold demand? The answer determines whether the right move is "ship faster" or "pivot." Without it, all advice is theoretical.</li>
+      <li><strong>Survivable repositionings weren't explored.</strong> The Outsider and Contrarian declared the regulatory posture untenable, but neither examined whether the app survives if it (a) drops the planned drug interaction checker, (b) removes peptide examples and focuses purely on prescribed HRT, (c) targets non-US markets first.</li>
+    </ul>
+
+    <div class="recommendation">
+      <h3 style="margin-top: 0;">The Recommendation</h3>
+      <p><strong>Don't kill DoseTrace, but stop building it the way you have been.</strong> The disease is treating product-market fit as assumed and execution as the only variable. It isn't. PMF is unproven. The right move is the cheapest experiment that produces real signal.</p>
+      <ol>
+        <li><strong>Ship the minimum viable thing live in 14 days.</strong> English only. Email auth working. No Google OAuth (defer). No iOS submission. No Apple Watch. Just Play Store closed → open beta with the bugs fixed.</li>
+        <li><strong>Talk to your 4 existing testers.</strong> Five-minute calls or DMs. Why haven't they opted in? Friction or apathy? Highest information-density activity available.</li>
+        <li><strong>Set a 30-day decision gate.</strong> Either ≥10 unprompted active users (paid or trial) by day 30, or a clear specific reason why and a precise next experiment. Otherwise you're in mirage territory and the right move is to pause.</li>
+        <li><strong>Pick a lane on the regulatory + ambition question.</strong> Either you're building a $10–50k/mo bootstrapped niche tool serving the audience openly (totally viable — pick your subreddit, build trust) OR you're building toward a real medical platform with proper compliance (different game, different timeline, different funding). You can't be both. Decide.</li>
+      </ol>
+      <p style="margin-bottom: 0;">The Expansionist's big vision is real but unreachable on the current trajectory. The Contrarian's regulatory cliff is real but avoidable if you discipline what you build. The Executor's "just ship" is right for the next 14 days. First Principles is right about the next 30.</p>
+    </div>
+
+    <div class="one-thing">
+      <div class="lbl">The One Thing to Do First</div>
+      <p style="margin: 0;"><strong>Today, before another line of code:</strong> write a one-sentence answer to "Who is this for, in 10 words or less, in a way they would say it themselves?" Then send that sentence to all 4 of your testers individually with a single question — "Does this describe you?" — asking for a yes/no plus one sentence why. If they don't reply, that's your data. If they do, that's your audience. Either way you get actionable signal in 48 hours and you'll know whether the next two weeks are ship-mode or pivot-mode.</p>
+    </div>
+  </div>
+
+  <div class="map">
+    <h2>The Council Map</h2>
+    <p class="intro">Where each advisor landed on the spectrum. Click any advisor below to read their full response.</p>
+
+    <div class="grid">
+      <div class="quad">
+        <div class="qhead">Bullish · Build differently</div>
+        <span class="chip expansionist">The Expansionist</span>
+        <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">Massive upside if you reframe as health infrastructure. Stop chasing fitness-app parity. Optimize for 10,000-user data story.</div>
+      </div>
+      <div class="quad">
+        <div class="qhead">Pragmatic · Ship now</div>
+        <span class="chip executor">The Executor</span>
+        <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">App can't get live. That's the only problem. Cut six languages. Fix auth this week. One paying user beats six markets.</div>
+      </div>
+      <div class="quad">
+        <div class="qhead">Skeptical · Reconsider premise</div>
+        <span class="chip firstprinciples">First Principles</span>
+        <span class="chip outsider">The Outsider</span>
+        <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">You may have spent N months optimizing a mirage. 4 testers / 0 opted in is the warning. Validate or pivot.</div>
+      </div>
+      <div class="quad">
+        <div class="qhead">Bearish · Premise may be unsalvageable</div>
+        <span class="chip contrarian">The Contrarian</span>
+        <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">Regulatory trap, severe unit economics, niche too small. You're building toward a cliff, not a business.</div>
+      </div>
+    </div>
+
+    <div class="axis-labels">
+      <span>← Reconsider · Pivot</span>
+      <span>Build · Ship →</span>
+    </div>
+  </div>
+
+  <div class="section-head">Advisor Responses (full)</div>
+
+  <details>
+    <summary><span><span class="chip contrarian">The Contrarian</span></span><span class="summary-line">Regulatory trap + severe unit economics</span></summary>
+    <div class="advisor-body">
+      <p>The fundamental problem isn't the app — it's the regulatory trap you're walking into with eyes open.</p>
+      <p>You're building a medical application (bloodwork tracking, dose management, injection protocols, planned drug interaction checking) and disguising it as a fitness app. This works until it doesn't. Google Play rejection twice already signals they see through the repositioning. The moment someone is harmed and DoseTrace's logs are discoverable, that "personal tracking tool" language becomes evidence of negligence, not protection. You've documented that you <em>know</em> this is medical software.</p>
+      <p>The regulatory risk compounds: FDA could eventually classify this as a clinical decision support system. The drug interaction checker you've roadmapped is a hard regulatory line. Once you cross it, you're a medical device. You're not building toward that — you're building toward a cliff.</p>
+      <p>Separate from that: your market has severe unit economics. $5.99/mo for tracking self-administered compounds is a low-trust, high-churn business. These users are price-sensitive (grey-market context), privacy-paranoid, and episodic — they use the app intensely for 3 months, then ghost when they cycle off. Your LTV is probably $40–80. CAC in a niche this small (50k–100k addressable globally, most untrackable) is probably $20–40 paid, or $0 organic — which means you're betting on a subreddit and you'll never scale beyond 1–2k active users.</p>
+      <p>The technical debt is real but secondary: broken email, unfinished OAuth, zero live tester adoption, V2 scope that's 2–3 years of solo work. That's fixable.</p>
+      <p>What's not fixable: you're pre-committing to either operating in regulatory gray forever (venture cap killer, acquisition blocker, personal liability) or pivoting hard when enforcement comes. Neither position builds a business.</p>
+      <p>Pressure-test this differently: <strong>What happens when the first medical board or state AG notices you?</strong></p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span><span class="chip firstprinciples">First Principles</span></span><span class="summary-line">You're asking the wrong question — validate, don't optimize</span></summary>
+    <div class="advisor-body">
+      <p>Evandro is not actually asking whether to build DoseTrace. He's asking whether he's spent the last N months solving a real problem or optimizing a mirage.</p>
+      <p>Strip away the feature list and regulatory gymnastics. What you're seeing is a solo founder who has:</p>
+      <ol>
+        <li><strong>Built a solution before validating the problem exists at scale.</strong> The target audience (self-administering HRT/peptides) is real, but how many of them actually <em>want</em> an app? How many know this app exists? Zero paying customers would tell you that. Closed testing with 4 users, 0 opted in, is not validation — it's a warning sign that even people you've explicitly asked won't engage.</li>
+        <li><strong>Chosen a regulatory minefield and then lied about it.</strong> You're building medical tracking software, repositioning it as "nutrition," and hoping app stores won't notice. This isn't agile — it's fragile. One regulatory shift, one complaint, and the entire GTM collapses. You cannot build a sustainable business on deception.</li>
+        <li><strong>Inverted the roadmap.</strong> You're planning Apple Watch, gamification, and serum curves when the core product isn't live anywhere and has zero market proof. You're optimizing for a future that may never arrive.</li>
+        <li><strong>Misunderstood your constraint.</strong> You are one person. Your constraint is not feature scope or localization — it's whether you can acquire and retain paying users. Everything else is distraction.</li>
+      </ol>
+      <p><strong>The real question:</strong> Does a paying market exist? Not "is this a good product," but do 100+ people exist who will pay $5.99/month for this <em>before</em> you build Apple Watch? Can you reach them? Will they stay?</p>
+      <p>If the answer is "I don't know," ship the minimal thing live, measure, and decide in 30 days. If the answer is "no," stop and pick something else. The regulatory complications, the technical debt, the localization work — they all assume product-market fit exists. It might not.</p>
+      <p>That's the pressure test.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span><span class="chip expansionist">The Expansionist</span></span><span class="summary-line">There's a 10,000-user health-infrastructure play hiding here</span></summary>
+    <div class="advisor-body">
+      <p>The real asset here isn't DoseTrace — it's the distribution and trust network you're building into one of the most loyal, engaged user bases in biotech: people managing their own biology across TRT, HRT, peptides, and experimental protocols.</p>
+      <p>You're sitting on a beachhead in the self-directed health movement that's exploding. DoseTrace is the wedge. The actual moat is becoming the operating system for people who don't trust conventional medicine enough to wait, but are disciplined enough to track obsessively.</p>
+      <p>Here's what you're massively undervaluing:</p>
+      <p><strong>The data layer.</strong> Six months in, you'll have protocol adherence patterns, dosing outcomes, and bloodwork correlations no pharma company or health app has. That's worth millions to researchers, supplement vendors, clinics optimizing their own protocols, and eventually to legitimate manufacturers watching the grey market.</p>
+      <p><strong>The adjacent verticals.</strong> Once you own TRT/peptide tracking, you're positioned to own supplement stacking (BPC-157 is the gateway — you've already named it), coaching marketplaces, telemedicine for the self-directed, even DTC labs and bloodwork aggregation. That's not a healthcare app; that's a health infrastructure play.</p>
+      <p><strong>The regulatory arbitrage.</strong> Filing as Health & Fitness is smart. But you're also building legitimacy. Once adoption is real, you transition to clinical validation, get partnerships with actual clinics, maybe even facilitate real clinical data. You become the infrastructure layer that makes grey-market protocols defensible.</p>
+      <p><strong>Why this scales:</strong> Your audience will pay premium pricing because they're already spending 10x on the protocols themselves. Retention is brutal because the behavior is already baked in. They'll tell their friends obsessively — these aren't casual users.</p>
+      <p>The bottleneck isn't the app. It's getting the first 10,000 people in and proving the data story. Everything else cascades from there. Stop optimizing for feature parity with fitness apps. Optimize for protocol community and outcome visibility.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span><span class="chip outsider">The Outsider</span></span><span class="summary-line">I genuinely don't know who this app is for</span></summary>
+    <div class="advisor-body">
+      <p>I'd be genuinely confused about what problem this solves for me.</p>
+      <p>The tagline says "optimize your protocol" but I don't know what that means. Are you helping me follow a doctor's prescription more carefully? Or are you helping me self-experiment with compounds? Those are <em>very</em> different things, and the app seems to blur them intentionally.</p>
+      <p>The inclusion of BPC-157 — a research peptide that isn't FDA-approved for human use — tells me this isn't really for people taking prescribed HRT under medical supervision. Those people have their doctor managing their protocol. This is for people experimenting on themselves. But the app leans hard on "not medical advice" language, which feels like legal cover rather than genuine safety positioning.</p>
+      <p>Here's what I can't figure out: <strong>Who is your actual customer?</strong> A trans person on prescribed estrogen/testosterone? A bodybuilder microdosing research peptides? A postmenopausal woman experimenting with bio-identical hormones? These people have completely different needs, risks, and whether they'd trust you. Right now, you're trying to serve everyone and being vague about all of them.</p>
+      <p>The pricing feels arbitrary. Why $5.99/month for dose logging? I could do that in Apple Health or a spreadsheet. What am I paying for that's worth $25–120 per year?</p>
+      <p>And the regulatory positioning worries me. You're in a space where people could genuinely harm themselves. Saying "we're not medical advice" doesn't shield you if someone tracks their doses wrong and it causes problems. You're either a medical device (regulated, expensive, slow) or you're a lifestyle app in a very high-stakes domain. You can't be both.</p>
+      <p>The one-person founding team is the biggest red flag. This isn't a side project — hormone tracking has liability, user safety, regulatory complexity. One person can't carry that weight.</p>
+      <p>I'd ask: Are you solving for a real audience, or are you building something that <em>feels</em> useful while avoiding the hard work of being actually responsible?</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span><span class="chip executor">The Executor</span></span><span class="summary-line">Stop strategizing. Ship this week or quit pretending.</span></summary>
+    <div class="advisor-body">
+      <p>The app isn't live and can't get live. That's your only problem right now, and it's blocking everything.</p>
+      <p>Email auth is broken. Google OAuth isn't wired. Google Play rejected you twice and the third submission is pending into void — you have zero test users opted in, which means zero feedback and zero sense of whether anyone wants this. iOS isn't even submitted. You're building in the dark.</p>
+      <p>Here's what's actually happening: you're a solo founder with two machines trying to ship a feature-complete product across two platforms in six languages. That's not a V1. That's a V3. And because it's so feature-complete, every bug — like broken email auth — becomes a total blocker instead of a minor friction point you can route around.</p>
+      <p><strong>Cut the six languages.</strong> Cut them now. Ship English only. You need one paying user in the next two weeks, not six localized markets. Six languages is marketing theater. One user is validation.</p>
+      <p>Fix email auth this week. It's a Supabase config issue, probably 30 minutes of reading docs. Then get Google OAuth working — another hour. Then submit the Play Store build again with the working auth. Don't wait for approval. Submit it this week.</p>
+      <p>Meanwhile, the V2 roadmap (Watch app, doctor reports, voice reminders, drug interaction checking, barcode scanning, offline-first architecture, serum curves) doesn't exist. Pretend it doesn't exist. It's noise that's making you feel like you're behind when you're actually just paralyzed. Delete the roadmap from your head.</p>
+      <p>Your one job this week: auth works, Play Store submission is live, and you have a path to one paying user. That's it. Everything else — including the iOS build — waits until you know someone will pay you.</p>
+      <p>The real question isn't whether DoseTrace is right. It's whether you can focus enough to ship it. Right now you can't, because you're building V3 instead of getting V1 in someone's hands.</p>
+    </div>
+  </details>
+
+  <div class="section-head">Peer Review Highlights</div>
+
+  <details>
+    <summary><span>Peer review consensus</span><span class="summary-line">5/5 picked First Principles as strongest</span></summary>
+    <div class="advisor-body reviews">
+      <div class="review-item">
+        <div class="rev-label">Strongest response</div>
+        <p style="margin: 0;"><strong>5 of 5 reviewers picked First Principles.</strong> Reasoning converged: it cuts through the surface debate to the actual disease — Evandro built before validating, and 4 testers / 0 opted in is the loudest data point in the picture. It's also the only response that gives a concrete, testable decision gate (30 days, ≥10 active users, or pivot).</p>
+      </div>
+      <div class="review-item">
+        <div class="rev-label">Biggest blind spot — The Expansionist</div>
+        <p style="margin: 0;">3 of 5 reviewers flagged the Expansionist as romanticizing distribution and trust without engaging unit economics or the chicken-and-egg problem. The "OS for self-directed health" thesis assumes solving acquisition and retention, which the 4-testers/0-conversions data directly disputes.</p>
+      </div>
+      <div class="review-item">
+        <div class="rev-label">Biggest blind spot — The Outsider</div>
+        <p style="margin: 0;">2 of 5 reviewers flagged the Outsider as treating customer ambiguity as evidence the problem doesn't exist, when it's more likely evidence of poor articulation. The Outsider also offers no path forward.</p>
+      </div>
+      <div class="review-item">
+        <div class="rev-label">What ALL five missed</div>
+        <p style="margin: 0;">Three things the council collectively skipped — even though peer reviewers caught them:</p>
+        <ul style="margin: 8px 0 0 0;">
+          <li><strong>Distribution.</strong> Nobody asked how the founder reaches 100 people. Expansionist assumes virality; Contrarian assumes a subreddit; Executor assumes shipping = users.</li>
+          <li><strong>Founder psychology / sunk cost.</strong> The council debated the app, not whether the founder can pivot or quit if the data demands it.</li>
+          <li><strong>The 4 existing testers.</strong> Why aren't they opting in? Friction or apathy? That single answer determines whether the right move is ship-mode or pivot-mode. Without it, all advice is theoretical.</li>
+          <li><strong>Survivable repositionings.</strong> Nobody examined whether the app survives if it drops drug-interaction checking, removes peptide examples, or targets non-US markets first.</li>
+        </ul>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    Generated 2026-04-29 · LLM Council pressure test · Question: should DoseTrace continue as built, or pivot?<br>
+    Full transcript saved alongside this report as <code>council-transcript-2026-04-29-1855.md</code>.
+  </footer>
+
+</div>
+</body>
+</html>

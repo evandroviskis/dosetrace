@@ -45,7 +45,8 @@
           "color": "#185FA5"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
