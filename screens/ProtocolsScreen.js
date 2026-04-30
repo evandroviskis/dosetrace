@@ -66,6 +66,28 @@ function getTypeBadge(type, t) {
   return { bg: '#f0f0f0', text: '#666', label: type };
 }
 
+// Unit compatibility: IU is only compatible with IU, mg/mcg are interconvertible
+function unitsCompatible(u1, u2) {
+  if (u1 === 'IU' || u2 === 'IU') return u1 === u2;
+  return true; // mg↔mcg are convertible
+}
+
+// Normalize dose to match compound unit (convert mcg↔mg as needed; IU stays as-is)
+function normalizeDoseValue(doseVal, compoundUnit, doseUnit) {
+  const d = parseFloat(doseVal) || 0;
+  if (compoundUnit === 'IU' && doseUnit === 'IU') return d;
+  if (compoundUnit === 'mg' && doseUnit === 'mcg') return d / 1000;
+  if (compoundUnit === 'mcg' && doseUnit === 'mg') return d * 1000;
+  return d; // same unit
+}
+
+// Format ml with adaptive precision for small peptide doses
+function formatML(rawML) {
+  if (rawML < 0.01) return rawML.toFixed(4);
+  if (rawML < 0.1) return rawML.toFixed(3);
+  return rawML.toFixed(2);
+}
+
 function ProtocolSyringeGuide({ p, t }) {
   if (p.type === 'oral') return null;
 
@@ -74,25 +96,29 @@ function ProtocolSyringeGuide({ p, t }) {
   let pDrawValid = false;
 
   if (p.type === 'recon' && p.amount && p.water && p.dose) {
-    let normalDose = parseFloat(p.dose);
-    if (p.unit === 'mg' && p.dose_unit === 'mcg') normalDose = normalDose / 1000;
-    if (p.unit === 'mcg' && p.dose_unit === 'mg') normalDose = normalDose * 1000;
-    const pConc = parseFloat(p.amount) / parseFloat(p.water);
-    if (pConc > 0) {
-      pDrawML = (normalDose / pConc).toFixed(2);
-      pDrawUnits = (parseFloat(pDrawML) * (p.syringe_size || 100)).toFixed(1);
-      pDrawValid = parseFloat(pDrawML) > 0 && parseFloat(pDrawML) <= 3;
+    if (unitsCompatible(p.unit, p.dose_unit)) {
+      const normalDose = normalizeDoseValue(p.dose, p.unit, p.dose_unit);
+      const pConc = parseFloat(p.amount) / parseFloat(p.water);
+      if (pConc > 0) {
+        const rawML = normalDose / pConc;
+        pDrawML = formatML(rawML);
+        pDrawUnits = (rawML * 100).toFixed(1);
+        pDrawValid = rawML > 0 && rawML <= 3;
+      }
     }
   }
 
   if (p.type === 'rtu' && p.concentration && p.dose) {
-    let normalDose = parseFloat(p.dose);
-    if (p.dose_unit === 'mcg') normalDose = normalDose / 1000;
-    const concVal = parseFloat(p.concentration);
-    if (concVal > 0) {
-      pDrawML = (normalDose / concVal).toFixed(2);
-      pDrawUnits = (parseFloat(pDrawML) * (p.syringe_size || 100)).toFixed(1);
-      pDrawValid = parseFloat(pDrawML) > 0 && parseFloat(pDrawML) <= 3;
+    const concUnit = p.concentration_unit || 'mg';
+    if (unitsCompatible(concUnit, p.dose_unit)) {
+      let normalDose = normalizeDoseValue(p.dose, concUnit, p.dose_unit);
+      const concVal = parseFloat(p.concentration);
+      if (concVal > 0) {
+        const rawML = normalDose / concVal;
+        pDrawML = formatML(rawML);
+        pDrawUnits = (rawML * 100).toFixed(1);
+        pDrawValid = rawML > 0 && rawML <= 3;
+      }
     }
   }
 
@@ -324,6 +350,7 @@ export default function ProtocolsScreen() {
   const [doseUnit, setDoseUnit] = useState('mg');
   const [syringeSize, setSyringeSize] = useState(100);
   const [concentration, setConcentration] = useState('');
+  const [concentrationUnit, setConcentrationUnit] = useState('mg');
   // ── Schedule state ──
   const [intervalDays, setIntervalDays] = useState(1);
   const [dosesPerDay, setDosesPerDay] = useState(1);
@@ -406,7 +433,7 @@ export default function ProtocolsScreen() {
   function resetForm() {
     setStep(1); setName(''); setType('recon'); setColor('#185FA5');
     setAmount(''); setUnit('mg'); setWater('2'); setDose('');
-    setDoseUnit('mg'); setSyringeSize(100); setConcentration('');
+    setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
     setReminderTimes([currentTimeRounded5()]); setScheduleTotal(''); setGoals([]); setNotes('');
@@ -447,6 +474,7 @@ export default function ProtocolsScreen() {
     setWater(p.water ? String(p.water) : '2'); setDose(p.dose ? String(p.dose) : '');
     setDoseUnit(p.dose_unit || 'mg'); setSyringeSize(p.syringe_size || 100);
     setConcentration(p.concentration ? String(p.concentration) : '');
+    setConcentrationUnit(p.concentration_unit || 'mg');
     const loadedInterval = p.interval_days || 1;
     setIntervalDays(loadedInterval);
     const loadedDPD = p.doses_per_day || 1;
@@ -478,17 +506,24 @@ export default function ProtocolsScreen() {
     setWater(String(next));
   }
 
-  function normalizedDose() {
-    const d = parseFloat(dose) || 0;
-    if (unit === 'mg' && doseUnit === 'mcg') return d / 1000;
-    if (unit === 'mcg' && doseUnit === 'mg') return d * 1000;
-    return d;
+  // Calculate draw volume — only if units are compatible
+  const unitsOk = type === 'recon'
+    ? unitsCompatible(unit, doseUnit)
+    : unitsCompatible(concentrationUnit || 'mg', doseUnit);
+
+  let rawDrawML = null;
+  if (type === 'recon' && unitsOk && amount && water && dose) {
+    const conc = parseFloat(amount) / parseFloat(water);
+    if (conc > 0) rawDrawML = normalizeDoseValue(dose, unit, doseUnit) / conc;
+  } else if (type === 'rtu' && unitsOk && concentration && dose) {
+    const concVal = parseFloat(concentration);
+    if (concVal > 0) rawDrawML = normalizeDoseValue(dose, concentrationUnit, doseUnit) / concVal;
   }
 
-  const conc = amount && water ? parseFloat(amount) / parseFloat(water) : null;
-  const drawML = conc && dose ? (normalizedDose() / conc).toFixed(2) : null;
-  const drawUnits = drawML ? (parseFloat(drawML) * syringeSize).toFixed(1) : null;
-  const drawValid = drawML && parseFloat(drawML) > 0 && parseFloat(drawML) <= 3;
+  const drawML = rawDrawML != null ? formatML(rawDrawML) : null;
+  const drawUnits = rawDrawML != null ? (rawDrawML * 100).toFixed(1) : null;
+  const drawValid = rawDrawML && rawDrawML > 0 && rawDrawML <= 3;
+  const unitMismatch = dose && !unitsOk;
 
   async function saveProtocol() {
     if (!name) { Alert.alert(t('protocols_missing_name'), t('protocols_missing_name_msg')); return; }
@@ -506,6 +541,7 @@ export default function ProtocolsScreen() {
         dose: parseFloat(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
         concentration: parseFloat(concentration) || null,
+        concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
         start_date: toSupabaseDateFromMD(startMonth, startDay),
@@ -528,6 +564,7 @@ export default function ProtocolsScreen() {
         dose: parseFloat(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
         concentration: parseFloat(concentration) || null,
+        concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
         start_date: toSupabaseDateFromMD(startMonth, startDay),
@@ -919,7 +956,14 @@ export default function ProtocolsScreen() {
                         </TouchableOpacity>
                       ))}
                     </View>
-                    {drawML && (
+                    {unitMismatch && (
+                      <View style={[s.calcResult, { backgroundColor: '#FEF3E2' }]}>
+                        <Text style={[s.calcResultText, { color: '#92400E' }]}>
+                          {t('protocols_unit_mismatch') || 'Cannot mix IU with mg/mcg. Use the same unit type for compound and dose.'}
+                        </Text>
+                      </View>
+                    )}
+                    {drawML && drawValid && !unitMismatch && (
                       <View style={s.calcResult}>
                         <Text style={s.calcResultText}>
                           {`${t('protocols_draw')}: ${drawML} ml (${drawUnits} ${t('protocols_units')})`}
@@ -955,14 +999,34 @@ export default function ProtocolsScreen() {
                       </View>
                     </View>
                     <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_conc_optional')}</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder="e.g. 200"
-                      placeholderTextColor="#aaa"
-                      keyboardType="numeric"
-                      value={concentration}
-                      onChangeText={setConcentration}
-                    />
+                    <View style={s.inputRow}>
+                      <TextInput
+                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+                        placeholder="e.g. 200"
+                        placeholderTextColor="#aaa"
+                        keyboardType="numeric"
+                        value={concentration}
+                        onChangeText={setConcentration}
+                      />
+                      <View style={s.unitPicker}>
+                        {['mg', 'mcg', 'IU'].map((u) => (
+                          <TouchableOpacity
+                            key={u}
+                            style={[s.unitBtn, concentrationUnit === u && s.unitBtnOn]}
+                            onPress={() => setConcentrationUnit(u)}
+                          >
+                            <Text style={[s.unitBtnText, concentrationUnit === u && s.unitBtnTextOn]}>{u}/ml</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                    {unitMismatch && (
+                      <View style={[s.calcResult, { backgroundColor: '#FEF3E2', marginTop: 10 }]}>
+                        <Text style={[s.calcResultText, { color: '#92400E' }]}>
+                          {t('protocols_unit_mismatch') || 'Cannot mix IU with mg/mcg. Use the same unit type for concentration and dose.'}
+                        </Text>
+                      </View>
+                    )}
                     <Text style={s.fieldLabel}>{t('protocols_notes_optional')}</Text>
                     <TextInput
                       style={[s.input, { height: 80 }]}

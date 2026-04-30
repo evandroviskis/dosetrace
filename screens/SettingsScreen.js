@@ -504,7 +504,10 @@ export default function SettingsScreen({ navigation }) {
               </View>
               {primaryGoals.length > 0 ? (
                 <View style={s.goalBadge}>
-                  <Text style={s.goalBadgeText}>{primaryGoals.slice(0, 3).map(g => t('profile_goal_' + g) || g).join(', ')}</Text>
+                  <Text style={s.goalBadgeText}>{primaryGoals.slice(0, 3).map(g => {
+                    const keyMap = { body_composition: 'body', hormonal_balance: 'hormonal', skin_collagen: 'skin', sexual_health: 'sexual', joint_bone: 'joint', cardiovascular: 'cardio' };
+                    return t('profile_goal_' + (keyMap[g] || g)) || g;
+                  }).join(', ')}</Text>
                 </View>
               ) : null}
             </View>
