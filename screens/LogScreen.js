@@ -10,18 +10,57 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getAllLogs } from '../lib/database';
+import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
+import { requestSync } from '../lib/sync';
+import { summarizeStored } from '../lib/injectionSites';
+import BodyMapModal from './components/BodyMapModal';
 
 export default function LogScreen() {
   const { t } = useLanguage();
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('All');
 
+  // Body-map editor state (tap a row to edit its injection site)
+  const [bodyMapVisible, setBodyMapVisible] = useState(false);
+  const [bodyMapTarget, setBodyMapTarget] = useState(null);
+
   useFocusEffect(
     useCallback(() => {
       fetchLogs();
     }, [])
   );
+
+  async function openSiteEditor(log) {
+    const user = await getCachedUser();
+    if (!user) return;
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    const recent = getLogsSince(user.id, since.toISOString()) || [];
+    setBodyMapTarget({
+      logId: log.id,
+      protocolName: log.protocols?.name || null,
+      initialStored: log.injection_site || null,
+      recentLogs: recent,
+    });
+    setBodyMapVisible(true);
+  }
+
+  function handleSiteSave({ stored }) {
+    if (bodyMapTarget?.logId) {
+      try {
+        updateDoseLog(bodyMapTarget.logId, { injection_site: stored });
+        requestSync();
+        fetchLogs();
+      } catch { /* ignore */ }
+    }
+    setBodyMapVisible(false);
+    setBodyMapTarget(null);
+  }
+
+  function handleSiteClose() {
+    setBodyMapVisible(false);
+    setBodyMapTarget(null);
+  }
 
   async function fetchLogs() {
     const user = await getCachedUser();
@@ -154,14 +193,21 @@ export default function LogScreen() {
               </Text>
             </View>
             {entries.map(log => (
-              <View key={log.id} style={s.logEntry}>
+              <TouchableOpacity
+                key={log.id}
+                style={s.logEntry}
+                onPress={() => openSiteEditor(log)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={t('bodymap_title')}
+              >
                 <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
                 <View style={s.logInfo}>
                   <View style={s.logNameRow}>
                     <Text style={s.logTypeIcon}>{typeIcon(log.protocols?.type)}</Text>
                     <Text style={s.logName}>{log.protocols?.name || '—'}</Text>
                   </View>
-                  {log.injection_site ? <Text style={s.logDetail}>📍 {log.injection_site}</Text> : null}
+                  {log.injection_site ? <Text style={s.logDetail}>📍 {summarizeStored(log.injection_site, t) || log.injection_site}</Text> : null}
                   {log.notes ? <Text style={s.logDetail}>📝 {log.notes}</Text> : null}
                   {log.pre_tags && log.pre_tags.length > 0 && (
                     <View style={s.tagRow}>
@@ -185,12 +231,21 @@ export default function LogScreen() {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         ))}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <BodyMapModal
+        visible={bodyMapVisible}
+        onClose={handleSiteClose}
+        onSave={handleSiteSave}
+        initialStored={bodyMapTarget?.initialStored || null}
+        protocolName={bodyMapTarget?.protocolName || null}
+        recentLogs={bodyMapTarget?.recentLogs || []}
+      />
     </SafeAreaView>
   );
 }

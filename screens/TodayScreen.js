@@ -17,10 +17,12 @@ import { Analytics } from '../lib/analytics';
 import { syncVialAlerts, scheduleDoseReminder, cancelFollowups } from '../lib/notifications';
 import {
   getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
-  insertDoseLog, deleteDoseLog, updateVial, insertVial, updateProtocol,
+  insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols,
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
+import BodyMapModal from './components/BodyMapModal';
+import { summarizeStored } from '../lib/injectionSites';
 
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 
@@ -54,6 +56,14 @@ export default function TodayScreen() {
   const [newVialMonth, setNewVialMonth] = useState(new Date().getMonth());
   const [newVialDay, setNewVialDay] = useState(String(new Date().getDate()));
 
+  // Body map (injection site picker) state
+  const [bodyMapVisible, setBodyMapVisible] = useState(false);
+  const [bodyMapTarget, setBodyMapTarget] = useState(null); // { logId, protocolId, recentLogs, initialStored }
+
+  // Last-site recall chip per protocol — pure recall, NOT a recommendation.
+  // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
+  const [lastSiteByProtocol, setLastSiteByProtocol] = useState({});
+
   useFocusEffect(
     useCallback(() => {
       const hour = new Date().getHours();
@@ -71,8 +81,38 @@ export default function TodayScreen() {
       fetchTodayLogs();
       fetchStreakData();
       fetchProtocolStreaks();
+      fetchLastSites();
     }, [])
   );
+
+  // Build last-site recall map: most recent log with an injection_site, per protocol.
+  // Used by DoseCard to show "Last: Abdomen · 3d ago". This is a recall of the
+  // user's own log, not a recommendation tied to any drug or protocol.
+  async function fetchLastSites() {
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const logs = getLogsSince(user.id, since.toISOString()) || [];
+      const newest = {};
+      for (const l of logs) {
+        if (!l.injection_site) continue;
+        const prev = newest[l.protocol_id];
+        if (!prev || l.logged_at > prev.logged_at) newest[l.protocol_id] = l;
+      }
+      const out = {};
+      Object.keys(newest).forEach(pid => {
+        const l = newest[pid];
+        const summary = summarizeStored(l.injection_site, t);
+        if (!summary) return;
+        const ms = Date.now() - new Date(l.logged_at).getTime();
+        const daysAgo = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+        out[pid] = { summary, daysAgo };
+      });
+      setLastSiteByProtocol(out);
+    } catch { /* ignore */ }
+  }
 
   // Auto-cleanup: hard-delete protocols where deleted_at > 7 days ago
   function cleanupOldDeletedProtocols() {
@@ -284,6 +324,46 @@ export default function TodayScreen() {
     }
   }
 
+  // Open the body map for the just-logged dose. Cancels the undo timer
+  // so the toast stays on screen while the modal is open.
+  async function openBodyMapForUndo(undo) {
+    if (!undo || !undo.logId) return;
+    if (undo.timer) clearTimeout(undo.timer);
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const recent = getLogsSince(user.id, since.toISOString()) || [];
+      setBodyMapTarget({
+        logId: undo.logId,
+        protocolId: undo.protocolId,
+        recentLogs: recent,
+        initialStored: null,
+      });
+      setBodyMapVisible(true);
+    } catch { /* ignore */ }
+  }
+
+  function handleBodyMapClose() {
+    setBodyMapVisible(false);
+    setBodyMapTarget(null);
+    // Toast was kept open while modal was up — clear it now
+    setUndoData(null);
+  }
+
+  function handleBodyMapSave({ stored }) {
+    if (bodyMapTarget?.logId) {
+      try {
+        updateDoseLog(bodyMapTarget.logId, { injection_site: stored });
+        requestSync();
+      } catch { /* ignore */ }
+    }
+    setBodyMapVisible(false);
+    setBodyMapTarget(null);
+    setUndoData(null);
+  }
+
   async function undoTake() {
     if (!undoData) return;
     try {
@@ -448,6 +528,7 @@ export default function TodayScreen() {
     const progress = getProgress(p);
     const pStreak = protocolStreaks[p.id] || 0;
     const due = isDoseDue(p);
+    const lastSite = lastSiteByProtocol[p.id];
     return (
       <View style={[s.doseCard, isTaken && s.doseCardDone]}>
         {isTaken && (
@@ -492,6 +573,16 @@ export default function TodayScreen() {
         {progress && (
           <View style={s.progressBarOuter}>
             <View style={[s.progressBarInner, { width: `${Math.min((progress.current / progress.total) * 100, 100)}%` }]} />
+          </View>
+        )}
+        {/* Last-site recall chip — recall only, never a recommendation */}
+        {lastSite && (
+          <View style={s.lastSiteChip}>
+            <Text style={s.lastSiteText}>
+              {t('today_last_site')
+                .replace('{site}', lastSite.summary)
+                .replace('{days}', String(lastSite.daysAgo))}
+            </Text>
           </View>
         )}
         {/* Vial status line for recon protocols */}
@@ -714,9 +805,14 @@ export default function TodayScreen() {
         {undoData && (
           <View style={s.undoBar}>
             <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
-            <TouchableOpacity onPress={undoTake}>
-              <Text style={s.undoBarAction}>{t('today_undo')}</Text>
-            </TouchableOpacity>
+            <View style={s.undoBarActions}>
+              <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
+                <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={undoTake}>
+                <Text style={s.undoBarAction}>{t('today_undo')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -727,6 +823,16 @@ export default function TodayScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Body map modal — opens from undo toast "Add site" */}
+      <BodyMapModal
+        visible={bodyMapVisible}
+        onClose={handleBodyMapClose}
+        onSave={handleBodyMapSave}
+        initialStored={bodyMapTarget?.initialStored || null}
+        protocolName={protocols.find(p => p.id === bodyMapTarget?.protocolId)?.name || null}
+        recentLogs={bodyMapTarget?.recentLogs || []}
+      />
 
       {/* Vial continuation modal */}
       <Modal visible={showVialPrompt} transparent animationType="fade">
@@ -899,6 +1005,8 @@ const s = StyleSheet.create({
   miniStreakText: { fontSize: 10, color: '#92400E', fontWeight: '600' },
   vialStatus: { paddingHorizontal: 14, paddingBottom: 10 },
   vialStatusText: { fontSize: 11, color: '#666' },
+  lastSiteChip: { marginHorizontal: 14, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#E6F1FB', borderRadius: 8, alignSelf: 'flex-start' },
+  lastSiteText: { fontSize: 11, color: '#0C447C', fontWeight: '500' },
   doseActions: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#f0f0f0' },
   doseBtn: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 0.5, borderRightColor: '#f0f0f0' },
   doseBtnText: { fontSize: 12, color: '#888' },
@@ -938,6 +1046,7 @@ const s = StyleSheet.create({
   // Undo bar
   undoBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 12, backgroundColor: '#1a1a1a', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
   undoBarText: { fontSize: 13, color: '#fff', fontWeight: '500' },
+  undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
   undoBarAction: { fontSize: 13, color: '#5CB8FF', fontWeight: '700' },
   // Yesterday / Today shortcut pills
   yesterdayRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
