@@ -60,6 +60,24 @@ const COLOR_NAMES = {
   '#888780':'color_stone','#E24B4A':'color_red','#2C2C2A':'color_charcoal',
 };
 
+// Diluent options for reconstitution. Stored as canonical tokens so the label
+// renders in any language; 'other' lets the user record their own free text.
+const DILUENT_OPTIONS = [
+  { val: 'bacteriostatic_water', key: 'protocols_diluent_bac' },
+  { val: 'sterile_water', key: 'protocols_diluent_sterile' },
+  { val: 'sodium_chloride_09', key: 'protocols_diluent_nacl' },
+  { val: 'other', key: 'protocols_diluent_other' },
+];
+const DILUENT_TOKENS = DILUENT_OPTIONS.map(o => o.val);
+
+// Resolve a stored diluent value to a display label: known token → translated,
+// otherwise the user's own free text as entered.
+function diluentLabel(val, t) {
+  if (!val) return '—';
+  const opt = DILUENT_OPTIONS.find(o => o.val === val && o.val !== 'other');
+  return opt ? t(opt.key) : val;
+}
+
 function getTypeBadge(type, t) {
   if (type === 'recon') return { bg: '#E6F1FB', text: '#0C447C', label: t('protocols_type_badge_lyophilized') };
   if (type === 'rtu') return { bg: '#E1F5EE', text: '#085041', label: t('protocols_type_badge_rtu') };
@@ -256,6 +274,12 @@ function ProtocolCard({ p, expanded, setExpanded, openEdit, deleteProtocol, t })
                 <Text style={s.detailLabel}>{t('protocols_bac_water')}</Text>
                 <Text style={s.detailVal}>{p.water} ml</Text>
               </View>
+              {p.diluent && (
+                <View style={s.detailRow}>
+                  <Text style={s.detailLabel}>{t('protocols_diluent')}</Text>
+                  <Text style={s.detailVal}>{diluentLabel(p.diluent, t)}</Text>
+                </View>
+              )}
               <View style={s.detailRow}>
                 <Text style={s.detailLabel}>{t('protocols_concentration')}</Text>
                 <Text style={s.detailVal}>
@@ -348,6 +372,8 @@ export default function ProtocolsScreen() {
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('mg');
   const [water, setWater] = useState('2');
+  const [diluentChoice, setDiluentChoice] = useState('');
+  const [diluentOther, setDiluentOther] = useState('');
   const [dose, setDose] = useState('');
   const [doseUnit, setDoseUnit] = useState('mg');
   const [syringeSize, setSyringeSize] = useState(100);
@@ -445,7 +471,7 @@ export default function ProtocolsScreen() {
 
   function resetForm() {
     setStep(1); setName(''); setType('recon'); setColor('#185FA5');
-    setAmount(''); setUnit('mg'); setWater('2'); setDose('');
+    setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
@@ -484,7 +510,15 @@ export default function ProtocolsScreen() {
     setName(p.name || ''); setSearchQuery(p.name || '');
     setType(p.type || 'recon'); setColor(p.color || '#185FA5');
     setAmount(p.amount ? String(p.amount) : ''); setUnit(p.unit || 'mg');
-    setWater(p.water ? String(p.water) : '2'); setDose(p.dose ? String(p.dose) : '');
+    setWater(p.water ? String(p.water) : '2');
+    if (p.diluent && DILUENT_TOKENS.includes(p.diluent) && p.diluent !== 'other') {
+      setDiluentChoice(p.diluent); setDiluentOther('');
+    } else if (p.diluent) {
+      setDiluentChoice('other'); setDiluentOther(p.diluent);
+    } else {
+      setDiluentChoice(''); setDiluentOther('');
+    }
+    setDose(p.dose ? String(p.dose) : '');
     setDoseUnit(p.dose_unit || 'mg'); setSyringeSize(p.syringe_size || 100);
     setConcentration(p.concentration ? String(p.concentration) : '');
     setConcentrationUnit(p.concentration_unit || 'mg');
@@ -558,6 +592,12 @@ export default function ProtocolsScreen() {
   const drawValid = rawDrawML && rawDrawML > 0 && rawDrawML <= 3;
   const unitMismatch = dose && !unitsOk;
 
+  // Resolve the diluent selection to a stored value: token for a preset choice,
+  // the trimmed free text for 'other', or null if the user left it blank.
+  const resolvedDiluent = type === 'recon'
+    ? (diluentChoice === 'other' ? (diluentOther.trim() || null) : (diluentChoice || null))
+    : null;
+
   async function saveProtocol() {
     if (!name) { Alert.alert(t('protocols_missing_name'), t('protocols_missing_name_msg')); return; }
     setSaving(true);
@@ -571,6 +611,7 @@ export default function ProtocolsScreen() {
         name, type, color,
         amount: parseFloat(amount) || null, unit,
         water: parseFloat(water) || null,
+        diluent: resolvedDiluent,
         dose: parseFloat(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
         concentration: parseFloat(concentration) || null,
@@ -594,6 +635,7 @@ export default function ProtocolsScreen() {
         user_id: user.id, name, type, color,
         amount: parseFloat(amount) || null, unit,
         water: parseFloat(water) || null,
+        diluent: resolvedDiluent,
         dose: parseFloat(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
         concentration: parseFloat(concentration) || null,
@@ -942,7 +984,30 @@ export default function ProtocolsScreen() {
                         ))}
                       </View>
                     </View>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_bac_water_ml')}</Text>
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_diluent')}</Text>
+                    <View style={s.freqGrid}>
+                      {DILUENT_OPTIONS.map((opt) => (
+                        <TouchableOpacity
+                          key={opt.val}
+                          style={[s.freqBtn, diluentChoice === opt.val && s.freqBtnOn]}
+                          onPress={() => setDiluentChoice(diluentChoice === opt.val ? '' : opt.val)}
+                        >
+                          <Text style={[s.freqBtnText, diluentChoice === opt.val && s.freqBtnTextOn]}>
+                            {t(opt.key)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {diluentChoice === 'other' && (
+                      <TextInput
+                        style={[s.input, { marginTop: 8 }]}
+                        placeholder={t('protocols_diluent_other_placeholder')}
+                        placeholderTextColor="#aaa"
+                        value={diluentOther}
+                        onChangeText={setDiluentOther}
+                      />
+                    )}
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_diluent_amount')}</Text>
                     <View style={s.stepperRow}>
                       <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(-1)}>
                         <Text style={s.stepperBtnText}>−</Text>
