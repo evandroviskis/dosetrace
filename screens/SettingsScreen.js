@@ -10,10 +10,11 @@ import {
   Modal,
   Linking,
   Share,
-  Clipboard,
   TextInput,
   FlatList,
+  Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
@@ -26,7 +27,8 @@ import {
   restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   updateVial, getProtocolById,
 } from '../lib/database';
-import { stopSyncEngine, requestSync } from '../lib/sync';
+import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
+import { isPremium } from '../lib/purchases';
 import { Analytics } from '../lib/analytics';
 import { COUNTRIES } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
@@ -91,7 +93,7 @@ MEDICAL DISCLAIMER
 DoseTrace does not provide medical advice. See our Medical Disclaimer for full details.
 
 PREMIUM SUBSCRIPTION
-Premium features are available via monthly subscription at $5.99/month. Subscriptions auto-renew unless cancelled at least 24 hours before the renewal date. Manage subscriptions in your Apple ID settings.
+Premium features are available via subscription at the price shown in the app at the time of purchase. Subscriptions auto-renew unless cancelled at least 24 hours before the renewal date. Manage subscriptions in your Apple ID settings.
 
 INTELLECTUAL PROPERTY
 All content, features, and functionality of DoseTrace are owned by Outcom and protected by applicable intellectual property laws.
@@ -107,6 +109,9 @@ These terms are governed by the laws of the State of Florida, United States.
 
 CONTACT
 hello@dosetrace.io`;
+
+const APPLE_APP_ID = '6761788157'; // TODO: insert real Apple app id
+const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr',
@@ -154,6 +159,7 @@ export default function SettingsScreen({ navigation }) {
   const [referralCount, setReferralCount] = useState(0);
   const [codeCopied, setCodeCopied] = useState(false);
   const [hasCredit, setHasCredit] = useState(false);
+  const [premium, setPremium] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -180,6 +186,8 @@ export default function SettingsScreen({ navigation }) {
   async function fetchUser() {
     const user = await getCachedUser();
     setUser(user);
+    // Real subscription status (non-throwing; defaults to false on failure)
+    isPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
       // Fetch or create referral code
       let code = await getMyReferralCode(user.id);
@@ -330,30 +338,30 @@ export default function SettingsScreen({ navigation }) {
       const userName = user.user_metadata?.display_name || user.email;
       const dateRange = `${thirtyDaysAgo.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-      let report = `DOSETRACE ADHERENCE REPORT\n`;
+      let report = `${t('report_header')}\n`;
       report += `${'─'.repeat(40)}\n`;
-      report += `User: ${userName}\n`;
-      report += `Period: ${dateRange} (30 days)\n`;
-      report += `Overall adherence: ${overallAdherence}%\n`;
-      report += `Active protocols: ${protocols.length}\n`;
-      report += `Total doses logged: ${totalAll}\n`;
+      report += `${t('report_user').replace('{name}', userName)}\n`;
+      report += `${t('report_period').replace('{range}', dateRange)}\n`;
+      report += `${t('report_overall').replace('{percent}', overallAdherence)}\n`;
+      report += `${t('report_active_protocols').replace('{count}', protocols.length)}\n`;
+      report += `${t('report_total_logged').replace('{count}', totalAll)}\n`;
       report += `${'─'.repeat(40)}\n\n`;
 
       protocolStats.forEach(ps => {
         report += `${ps.name}\n`;
-        report += `  Dose: ${ps.dose} · ${ps.frequency}\n`;
-        report += `  Taken: ${ps.taken} · Skipped: ${ps.skipped} · Adherence: ${ps.adherence}%\n`;
-        report += `  Current streak: ${ps.streak} day${ps.streak !== 1 ? 's' : ''}\n`;
+        report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
+        report += `  ${t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{percent}', ps.adherence)}\n`;
+        report += `  ${t('report_streak_line').replace('{days}', ps.streak)}\n`;
         if (ps.vialRemaining !== null) {
-          report += `  Vial: ${ps.vialRemaining} doses remaining\n`;
+          report += `  ${t('report_vial_line').replace('{count}', ps.vialRemaining)}\n`;
         }
         report += `\n`;
       });
 
       report += `${'─'.repeat(40)}\n`;
-      report += `Generated by DoseTrace on ${now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}\n`;
-      report += `This is a user-generated wellness tracking summary.\n`;
-      report += `It does not constitute medical advice or a clinical record.\n`;
+      report += `${t('report_generated').replace('{date}', now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }))}\n`;
+      report += `${t('report_footer_1')}\n`;
+      report += `${t('report_footer_2')}\n`;
 
       await Share.share({
         message: report,
@@ -365,9 +373,9 @@ export default function SettingsScreen({ navigation }) {
     setExporting(false);
   }
 
-  function handleCopyCode() {
+  async function handleCopyCode() {
     if (!myReferralCode) return;
-    Clipboard.setString(myReferralCode);
+    await Clipboard.setStringAsync(myReferralCode);
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 2000);
   }
@@ -382,12 +390,17 @@ export default function SettingsScreen({ navigation }) {
   }
 
   async function handleSignOut() {
-    Alert.alert(t('settings_signout'), t('settings_signout_confirm'), [
+    Alert.alert(t('settings_signout'), t('settings_signout_confirm_local'), [
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('settings_signout'),
         style: 'destructive',
-        onPress: async () => { await supabase.auth.signOut(); },
+        onPress: async () => {
+          // Best-effort: push this user's pending changes before local data
+          // is wiped by the SIGNED_OUT handler.
+          try { await forceSync(); } catch (e) { /* best effort */ }
+          await supabase.auth.signOut();
+        },
       },
     ]);
   }
@@ -424,7 +437,7 @@ export default function SettingsScreen({ navigation }) {
   async function executeAccountDeletion() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { Alert.alert(t('error'), 'No active session'); return; }
+      if (!session) { Alert.alert(t('error'), t('error_no_session')); return; }
 
       // Call Edge Function to delete auth account (data stays in Supabase for research)
       const res = await fetch(
@@ -438,7 +451,7 @@ export default function SettingsScreen({ navigation }) {
         }
       );
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Deletion failed');
+      if (!res.ok) throw new Error(result.error || t('error_deletion_failed'));
 
       // Clear local data and sign out
       stopSyncEngine();
@@ -472,7 +485,15 @@ export default function SettingsScreen({ navigation }) {
   }
 
   function handleRateApp() {
-    Linking.openURL('https://apps.apple.com/app/dosetrace');
+    if (Platform.OS === 'android') {
+      Linking.openURL(`market://details?id=${ANDROID_PACKAGE_ID}`).catch(() => {
+        Linking.openURL(`https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}`);
+      });
+    } else {
+      Linking.openURL(`itms-apps://apps.apple.com/app/id${APPLE_APP_ID}`).catch(() => {
+        Linking.openURL(`https://apps.apple.com/app/id${APPLE_APP_ID}`);
+      });
+    }
   }
 
   const initials = displayName
@@ -500,7 +521,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.profileEmail}>{user?.email || '—'}</Text>
             <View style={s.profileBadgeRow}>
               <View style={s.planBadge}>
-                <Text style={s.planBadgeText}>{t('settings_free_plan')}</Text>
+                <Text style={s.planBadgeText}>{premium ? t('paywall_premium') : t('settings_free_plan')}</Text>
               </View>
               {primaryGoals.length > 0 ? (
                 <View style={s.goalBadge}>
@@ -515,29 +536,31 @@ export default function SettingsScreen({ navigation }) {
           <Text style={s.rowArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* PREMIUM CARD */}
-        <View style={s.premiumCard}>
-          <Text style={s.premiumTitle}>{t('settings_premium_title')}</Text>
-          <Text style={s.premiumSub}>{t('settings_premium_sub')}</Text>
-          {[
-            t('settings_premium_feat_1'),
-            t('settings_premium_feat_2'),
-            t('settings_premium_feat_3'),
-            t('settings_premium_feat_4'),
-            t('settings_premium_feat_5'),
-          ].map((f, i) => (
-            <View key={i} style={s.premiumFeat}>
-              <Text style={s.premiumCheck}>✓</Text>
-              <Text style={s.premiumFeatText}>{f}</Text>
-            </View>
-          ))}
-          <TouchableOpacity
-            style={s.premiumBtn}
-            onPress={() => navigation.navigate('Paywall')}
-          >
-            <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* PREMIUM CARD — upsell hidden for premium users */}
+        {!premium && (
+          <View style={s.premiumCard}>
+            <Text style={s.premiumTitle}>{t('settings_premium_title')}</Text>
+            <Text style={s.premiumSub}>{t('settings_premium_sub')}</Text>
+            {[
+              t('settings_premium_feat_1'),
+              t('settings_premium_feat_2'),
+              t('settings_premium_feat_3'),
+              t('settings_premium_feat_4'),
+              t('settings_premium_feat_5'),
+            ].map((f, i) => (
+              <View key={i} style={s.premiumFeat}>
+                <Text style={s.premiumCheck}>✓</Text>
+                <Text style={s.premiumFeatText}>{f}</Text>
+              </View>
+            ))}
+            <TouchableOpacity
+              style={s.premiumBtn}
+              onPress={() => navigation.navigate('Paywall')}
+            >
+              <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* REFERRAL PROGRAM */}
         <View style={s.referralCard}>
