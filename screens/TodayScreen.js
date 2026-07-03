@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -32,11 +32,96 @@ const MONTH_KEYS = [
   'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
 
+// ── Schedule math ──────────────────────────────────────────────
+// A protocol's dose times, sorted chronologically (users may enter them out of order)
+function sortedDoseTimes(p) {
+  return (p.reminder_time || '').split(',').filter(Boolean).sort();
+}
+
+// How many doses of protocol p are expected on the given date.
+// Honors start_date and interval_days, and — on the day the protocol was
+// created — only counts dose slots from the creation time onward, so a
+// protocol created at 4:30 PM never retroactively demands the 8 AM dose.
+function expectedDosesOn(p, dayDate) {
+  const dpd = p.doses_per_day || 1;
+  const interval = p.interval_days || 1;
+  const day = new Date(dayDate);
+  day.setHours(0, 0, 0, 0);
+
+  if (p.start_date) {
+    const start = new Date(p.start_date + 'T00:00:00');
+    const diffDays = Math.round((day - start) / 86400000);
+    if (diffDays < 0) return 0;
+    if (diffDays % interval !== 0) return 0;
+  }
+
+  if (p.created_at && dpd > 1) {
+    const created = new Date(p.created_at);
+    if (!isNaN(created) && created.toDateString() === day.toDateString()) {
+      const times = sortedDoseTimes(p).slice(0, dpd);
+      if (times.length === dpd) {
+        const graceMs = 60 * 60 * 1000; // a slot within the past hour still counts
+        let remaining = 0;
+        for (const t24 of times) {
+          const [h, m] = t24.split(':').map(Number);
+          const slot = new Date(day);
+          slot.setHours(h, m, 0, 0);
+          if (slot.getTime() >= created.getTime() - graceMs) remaining++;
+        }
+        return Math.min(remaining, dpd);
+      }
+    }
+  }
+  return dpd;
+}
+
+// Next date after fromDate on which p expects at least one dose
+function nextDueDate(p, fromDate) {
+  const d = new Date(fromDate);
+  d.setHours(0, 0, 0, 0);
+  for (let i = 1; i <= 60; i++) {
+    d.setDate(d.getDate() + 1);
+    if (expectedDosesOn(p, d) > 0) return new Date(d);
+  }
+  return null;
+}
+
+// Did the protocol exist on this date? Days before creation must never
+// count against streaks or adherence.
+function existedOn(p, dayDate) {
+  if (!p.created_at) return true;
+  const created = new Date(p.created_at);
+  if (isNaN(created)) return true;
+  const endOfDay = new Date(dayDate);
+  endOfDay.setHours(23, 59, 59, 999);
+  return created <= endOfDay;
+}
+
+// Build YYYY-MM-DD from month+day resolving to the most recent occurrence
+// (this year, or last year if that month/day hasn't happened yet).
+// Returns null for impossible dates like Feb 31.
+function toPastDateString(monthIdx, dayStr) {
+  const day = parseInt(dayStr) || 1;
+  const now = new Date();
+  let year = now.getFullYear();
+  let d = new Date(year, monthIdx, day);
+  if (d.getMonth() !== monthIdx || d.getDate() !== day) return null;
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  if (d > todayEnd) {
+    year -= 1;
+    d = new Date(year, monthIdx, day);
+    if (d.getMonth() !== monthIdx || d.getDate() !== day) return null;
+  }
+  return `${year}-${String(monthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export default function TodayScreen() {
   const { t } = useLanguage();
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
-  const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count }
+  const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only
+  const [skippedCounts, setSkippedCounts] = useState({}); // { protocol_id: count } — outcome 'Skipped' only
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('');
   const [userName, setUserName] = useState('');
@@ -44,7 +129,7 @@ export default function TodayScreen() {
   const [monthConsistency, setMonthAdherence] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
   const [showShareCard, setShowShareCard] = useState(false);
-  const [actionInProgress, setActionInProgress] = useState(false);
+  const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
   const [undoData, setUndoData] = useState(null); // { logId, protocolId, vialId, prevDosesTaken, timer }
   const [protocolStreaks, setProtocolStreaks] = useState({}); // { protocol_id: number }
 
@@ -52,7 +137,6 @@ export default function TodayScreen() {
   const [showVialPrompt, setShowVialPrompt] = useState(false);
   const [continuationProtocol, setContinuationProtocol] = useState(null);
   const [newVialDoses, setNewVialDoses] = useState('');
-  const currentYear = new Date().getFullYear();
   const [newVialMonth, setNewVialMonth] = useState(new Date().getMonth());
   const [newVialDay, setNewVialDay] = useState(String(new Date().getDate()));
 
@@ -63,6 +147,11 @@ export default function TodayScreen() {
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
   // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
   const [lastSiteByProtocol, setLastSiteByProtocol] = useState({});
+
+  // Clear the previous undo timer whenever it's replaced, and on unmount
+  useEffect(() => {
+    return () => { if (undoData?.timer) clearTimeout(undoData.timer); };
+  }, [undoData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -131,27 +220,31 @@ export default function TodayScreen() {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const logs = getTakenLogsSince(user.id, thirtyDaysAgo.toISOString());
+      const activeProtocols = getActiveProtocols(user.id) || [];
       if (!logs) return;
-      // Group by protocol_id → set of day strings
+      // Group by protocol_id → { dayString: count } (multi-dose aware)
       const byProtocol = {};
       logs.forEach(l => {
-        if (!byProtocol[l.protocol_id]) byProtocol[l.protocol_id] = new Set();
-        byProtocol[l.protocol_id].add(new Date(l.logged_at).toDateString());
+        const day = new Date(l.logged_at).toDateString();
+        if (!byProtocol[l.protocol_id]) byProtocol[l.protocol_id] = {};
+        byProtocol[l.protocol_id][day] = (byProtocol[l.protocol_id][day] || 0) + 1;
       });
       const streaks = {};
-      Object.keys(byProtocol).forEach(pid => {
-        const days = byProtocol[pid];
+      const now = new Date();
+      activeProtocols.forEach(p => {
+        const dayCounts = byProtocol[p.id] || {};
+        const satisfied = d => (dayCounts[d.toDateString()] || 0) >= expectedDosesOn(p, d);
         let count = 0;
-        const now = new Date();
-        // Check today first
-        if (days.has(now.toDateString())) count++;
+        if (expectedDosesOn(p, now) > 0 && satisfied(now)) count++;
         for (let i = 1; i <= 30; i++) {
           const d = new Date(now);
           d.setDate(d.getDate() - i);
-          if (days.has(d.toDateString())) count++;
+          if (!existedOn(p, d)) break;
+          if (expectedDosesOn(p, d) === 0) continue; // rest day
+          if (satisfied(d)) count++;
           else break;
         }
-        streaks[pid] = count;
+        streaks[p.id] = count;
       });
       setProtocolStreaks(streaks);
     } catch { /* ignore */ }
@@ -179,9 +272,14 @@ export default function TodayScreen() {
     if (!user) return;
     const data = getTodayLogs(user.id);
     if (data) {
-      const counts = {};
-      data.forEach(d => { counts[d.protocol_id] = (counts[d.protocol_id] || 0) + 1; });
-      setTakenCounts(counts);
+      const taken = {};
+      const skipped = {};
+      data.forEach(d => {
+        if (d.outcome === 'Taken') taken[d.protocol_id] = (taken[d.protocol_id] || 0) + 1;
+        else if (d.outcome === 'Skipped') skipped[d.protocol_id] = (skipped[d.protocol_id] || 0) + 1;
+      });
+      setTakenCounts(taken);
+      setSkippedCounts(skipped);
     }
   }
 
@@ -208,69 +306,67 @@ export default function TodayScreen() {
       takenByDay[day][l.protocol_id] = (takenByDay[day][l.protocol_id] || 0) + 1;
     });
 
-    const protocolMap = {};
-    activeProtocols.forEach(p => { protocolMap[p.id] = p; });
-    const protocolIds = new Set(activeProtocols.map(p => p.id));
-    const totalActive = protocolIds.size;
-
-    function isDayComplete(dateStr) {
-      const dayData = takenByDay[dateStr];
-      if (!dayData) return false;
-      let complete = 0;
-      protocolIds.forEach(id => {
-        const needed = protocolMap[id]?.doses_per_day || 1;
-        if ((dayData[id] || 0) >= needed) complete++;
-      });
-      return complete >= totalActive;
+    // Protocols that existed and expected at least one dose on the given date.
+    // Rest days (interval protocols) and pre-creation days never count against the user.
+    function dueOn(d) {
+      return activeProtocols.filter(p => existedOn(p, d) && expectedDosesOn(p, d) > 0);
     }
-
-    function isDayPartial(dateStr) {
-      const dayData = takenByDay[dateStr];
+    function isDayComplete(d) {
+      const due = dueOn(d);
+      if (due.length === 0) return false;
+      const dayData = takenByDay[d.toDateString()] || {};
+      return due.every(p => (dayData[p.id] || 0) >= expectedDosesOn(p, d));
+    }
+    function isDayPartial(d) {
+      const dayData = takenByDay[d.toDateString()];
       if (!dayData) return false;
-      let anyTaken = false;
-      protocolIds.forEach(id => { if (dayData[id]) anyTaken = true; });
-      return anyTaken && !isDayComplete(dateStr);
+      const anyTaken = dueOn(d).some(p => dayData[p.id]);
+      return anyTaken && !isDayComplete(d);
     }
 
     let streakCount = 0;
-    const todayStr = now.toDateString();
-    if (isDayComplete(todayStr)) streakCount++;
+    if (isDayComplete(now)) streakCount++;
     for (let i = 1; i <= 30; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      if (isDayComplete(d.toDateString())) streakCount++;
+      if (dueOn(d).length === 0) continue; // rest day — neither adds nor breaks
+      if (isDayComplete(d)) streakCount++;
       else break;
     }
     setStreak(streakCount);
 
-    let completeDays = 0;
+    // Adherence over days doses were actually due. Today only counts once
+    // complete, so a still-in-progress day doesn't drag the number down.
+    let dueDays = 0, completeDays = 0;
     for (let i = 0; i < 30; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      if (isDayComplete(d.toDateString())) completeDays++;
+      if (dueOn(d).length === 0) continue;
+      const complete = isDayComplete(d);
+      if (i === 0 && !complete) continue;
+      dueDays++;
+      if (complete) completeDays++;
     }
-    setMonthAdherence(Math.round((completeDays / 30) * 100));
+    setMonthAdherence(dueDays > 0 ? Math.round((completeDays / dueDays) * 100) : 0);
 
     const dots = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toDateString();
-      dots.push({
-        dayIndex: d.getDay(),
-        isToday: i === 0,
-        status: isDayComplete(dateStr) ? 'complete' : isDayPartial(dateStr) ? 'partial' : 'missed',
-      });
+      const status = dueOn(d).length === 0
+        ? 'rest'
+        : isDayComplete(d) ? 'complete' : isDayPartial(d) ? 'partial' : 'missed';
+      dots.push({ dayIndex: d.getDay(), isToday: i === 0, status });
     }
     setWeekDots(dots);
   }
 
   async function markTaken(protocol) {
-    if (actionInProgress) return;
-    setActionInProgress(true);
+    if (actionInProgressRef.current) return;
+    actionInProgressRef.current = true;
     try {
       const user = await getCachedUser();
-      if (!user) { setActionInProgress(false); return; }
+      if (!user) { actionInProgressRef.current = false; return; }
 
       const logId = insertDoseLog({
         user_id: user.id,
@@ -306,8 +402,7 @@ export default function TodayScreen() {
       syncVialAlerts().catch(() => {});
       requestSync();
 
-      // Setup undo (5 second window)
-      if (undoData?.timer) clearTimeout(undoData.timer);
+      // Setup undo (5 second window) — previous timer is cleared by the undoData effect
       const timer = setTimeout(() => setUndoData(null), 5000);
       setUndoData({
         logId,
@@ -317,9 +412,9 @@ export default function TodayScreen() {
         timer,
       });
 
-      setActionInProgress(false);
+      actionInProgressRef.current = false;
     } catch (err) {
-      setActionInProgress(false);
+      actionInProgressRef.current = false;
       Alert.alert(t('error'), err.message);
     }
   }
@@ -404,7 +499,7 @@ export default function TodayScreen() {
                 protocol_remote_id: protocol.remote_id || null,
                 outcome: 'Skipped',
               });
-              setTakenCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
+              setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
               Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
               requestSync();
             } catch (err) {
@@ -421,9 +516,8 @@ export default function TodayScreen() {
     try {
       const user = await getCachedUser();
       if (!user) return;
-      const m = String(newVialMonth + 1).padStart(2, '0');
-      const d = String(parseInt(newVialDay) || 1).padStart(2, '0');
-      const mixDate = `${currentYear}-${m}-${d}`;
+      const mixDate = toPastDateString(newVialMonth, newVialDay);
+      if (!mixDate) { Alert.alert(t('error'), t('today_invalid_date')); return; }
       const totalDoses = parseInt(newVialDoses) || 0;
       if (totalDoses <= 0) return;
 
@@ -462,8 +556,10 @@ export default function TodayScreen() {
     weekday: 'long', month: 'long', day: 'numeric',
   });
 
-  const doneCount = protocols.filter(p => (takenCounts[p.id] || 0) >= (p.doses_per_day || 1)).length;
-  const totalCount = protocols.length;
+  const todayDate = new Date();
+  const dueProtocols = protocols.filter(p => expectedDosesOn(p, todayDate) > 0);
+  const doneCount = dueProtocols.filter(p => (takenCounts[p.id] || 0) >= expectedDosesOn(p, todayDate)).length;
+  const totalCount = dueProtocols.length;
 
   const reconProtocols = protocols.filter(p => p.type === 'recon');
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
@@ -477,25 +573,29 @@ export default function TodayScreen() {
     return `${h12}:${String(m).padStart(2, '0')} ${period}`;
   }
 
-  // Determine next time slot label for multi-dose protocols
+  // Determine next time slot label for multi-dose protocols.
+  // On the creation day earlier slots don't count, so the label starts from
+  // the first slot that's actually expected.
   function getNextTimeLabel(p) {
-    if (!p.reminder_time || (p.doses_per_day || 1) <= 1) return null;
-    const times = p.reminder_time.split(',').filter(Boolean);
-    const dosesTakenToday = takenCounts[p.id] || 0;
-    if (dosesTakenToday < times.length) {
-      return formatTimeAMPM(times[dosesTakenToday]);
-    }
-    return null;
+    const dpd = p.doses_per_day || 1;
+    if (!p.reminder_time || dpd <= 1) return null;
+    const times = sortedDoseTimes(p).slice(0, dpd);
+    const expected = expectedDosesOn(p, new Date());
+    const taken = takenCounts[p.id] || 0;
+    if (expected === 0 || taken >= expected) return null;
+    const idx = (dpd - expected) + taken;
+    return times[idx] ? formatTimeAMPM(times[idx]) : null;
   }
 
   // Check if the next dose is due (≤5 min away or overdue)
   function isDoseDue(p) {
     if (!p.reminder_time) return false;
+    const dpd = p.doses_per_day || 1;
     const dosesTakenToday = takenCounts[p.id] || 0;
-    const dosesNeeded = p.doses_per_day || 1;
-    if (dosesTakenToday >= dosesNeeded) return false;
-    const times = p.reminder_time.split(',').filter(Boolean);
-    const nextTimeStr = times[dosesTakenToday] || times[0];
+    const dosesNeeded = expectedDosesOn(p, new Date());
+    if (dosesNeeded === 0 || dosesTakenToday >= dosesNeeded) return false;
+    const times = sortedDoseTimes(p).slice(0, dpd);
+    const nextTimeStr = times[(dpd - dosesNeeded) + dosesTakenToday] || times[0];
     if (!nextTimeStr) return false;
     const [h, m] = nextTimeStr.split(':').map(Number);
     const now = new Date();
@@ -519,10 +619,15 @@ export default function TodayScreen() {
     return { current: capped, total: p.schedule_total };
   }
 
-  function DoseCard({ p }) {
+  // Rendered as a plain function (not a nested component type) so React
+  // doesn't remount the subtree on every parent state change.
+  function renderDoseCard(p) {
     const dosesTakenToday = takenCounts[p.id] || 0;
-    const dosesNeeded = p.doses_per_day || 1;
-    const isTaken = dosesTakenToday >= dosesNeeded;
+    const dosesNeeded = expectedDosesOn(p, new Date());
+    const dueToday = dosesNeeded > 0;
+    const isTaken = dueToday && dosesTakenToday >= dosesNeeded;
+    const skippedToday = skippedCounts[p.id] || 0;
+    const nextDue = dueToday ? null : nextDueDate(p, new Date());
     const vial = vials[p.id];
     const nextTime = getNextTimeLabel(p);
     const progress = getProgress(p);
@@ -530,13 +635,26 @@ export default function TodayScreen() {
     const due = isDoseDue(p);
     const lastSite = lastSiteByProtocol[p.id];
     return (
-      <View style={[s.doseCard, isTaken && s.doseCardDone]}>
+      <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && s.doseCardDone]}>
         {isTaken && (
           <View style={s.takenBanner}>
             <Text style={s.takenBannerText}>{t('today_taken')}</Text>
           </View>
         )}
-        {!isTaken && dosesTakenToday > 0 && dosesNeeded > 1 && (
+        {!dueToday && (
+          <View style={s.restBanner}>
+            <Text style={s.restBannerText}>
+              {t('today_not_due')}
+              {nextDue ? ` · ${t('today_next_dose').replace('{date}', `${t(MONTH_KEYS[nextDue.getMonth()])} ${nextDue.getDate()}`)}` : ''}
+            </Text>
+          </View>
+        )}
+        {dueToday && !isTaken && skippedToday > 0 && (
+          <View style={s.skippedBanner}>
+            <Text style={s.skippedBannerText}>{t('today_skipped_today')}</Text>
+          </View>
+        )}
+        {dueToday && !isTaken && dosesTakenToday > 0 && dosesNeeded > 1 && (
           <View style={s.partialBanner}>
             <Text style={s.partialBannerText}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>
           </View>
@@ -607,7 +725,7 @@ export default function TodayScreen() {
             <Text style={[s.vialStatusText, { color: '#185FA5' }]}>{t('today_add_vial')}</Text>
           </TouchableOpacity>
         )}
-        {!isTaken && (
+        {dueToday && !isTaken && (
           <View style={s.doseActions}>
             <TouchableOpacity style={s.doseBtn} onPress={() => skipDose(p)}>
               <Text style={s.doseBtnText}>{t('today_skip')}</Text>
@@ -628,12 +746,12 @@ export default function TodayScreen() {
     );
   }
 
-  function CategorySection({ label, items }) {
+  function renderCategory(label, items) {
     if (items.length === 0) return null;
     return (
       <View style={s.categorySection}>
         <Text style={s.categoryLabel}>{label}</Text>
-        {items.map(p => <DoseCard key={p.id} p={p} />)}
+        {items.map(p => renderDoseCard(p))}
       </View>
     );
   }
@@ -698,6 +816,7 @@ export default function TodayScreen() {
                     dot.status === 'complete' && s.streakDotComplete,
                     dot.status === 'partial' && s.streakDotPartial,
                     dot.status === 'missed' && s.streakDotMissed,
+                    dot.status === 'rest' && s.streakDotRest,
                     dot.isToday && s.streakDotToday,
                   ]} />
                   <Text style={[s.streakDotLabel, dot.isToday && s.streakDotLabelToday]}>
@@ -755,6 +874,7 @@ export default function TodayScreen() {
                       s.shareDot,
                       dot.status === 'complete' && s.shareDotComplete,
                       dot.status === 'partial' && s.shareDotPartial,
+                      dot.status === 'rest' && s.shareDotRest,
                     ]} />
                     <Text style={s.shareDotLabel}>{t(WEEKDAY_KEYS[dot.dayIndex])}</Text>
                   </View>
@@ -795,9 +915,9 @@ export default function TodayScreen() {
 
         {protocols.length > 0 && (
           <View style={s.section}>
-            <CategorySection label={t('today_category_lyophilized')} items={reconProtocols} />
-            <CategorySection label={t('today_category_rtu')} items={rtuProtocols} />
-            <CategorySection label={t('today_category_oral')} items={oralProtocols} />
+            {renderCategory(t('today_category_lyophilized'), reconProtocols)}
+            {renderCategory(t('today_category_rtu'), rtuProtocols)}
+            {renderCategory(t('today_category_oral'), oralProtocols)}
           </View>
         )}
 
@@ -885,7 +1005,7 @@ export default function TodayScreen() {
             </ScrollView>
             <TextInput
               style={s.promptDayInput}
-              placeholder="DD"
+              placeholder={t('protocols_day_dd')}
               placeholderTextColor="#aaa"
               keyboardType="numeric"
               maxLength={2}
@@ -948,6 +1068,7 @@ const s = StyleSheet.create({
   streakDotComplete: { backgroundColor: '#1D9E75' },
   streakDotPartial: { backgroundColor: '#F5C563' },
   streakDotMissed: { backgroundColor: '#f0f0f0' },
+  streakDotRest: { backgroundColor: '#E6F1FB' },
   streakDotToday: { borderWidth: 2, borderColor: '#185FA5' },
   streakDotLabel: { fontSize: 9, color: '#aaa', fontWeight: '500' },
   streakDotLabelToday: { color: '#185FA5', fontWeight: '700' },
@@ -968,6 +1089,7 @@ const s = StyleSheet.create({
   shareDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
   shareDotComplete: { backgroundColor: '#22C55E' },
   shareDotPartial: { backgroundColor: '#F59E0B' },
+  shareDotRest: { backgroundColor: 'rgba(255,255,255,0.18)' },
   shareDotLabel: { fontSize: 9, color: '#64748B', fontWeight: '500' },
   shareBrand: { alignItems: 'center', marginBottom: 8 },
   shareBrandText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
@@ -989,6 +1111,10 @@ const s = StyleSheet.create({
   takenBannerText: { fontSize: 12, color: '#085041', fontWeight: '600' },
   partialBanner: { backgroundColor: '#FEF3E2', paddingVertical: 6, paddingHorizontal: 14 },
   partialBannerText: { fontSize: 12, color: '#92400E', fontWeight: '600' },
+  restBanner: { backgroundColor: '#f0f6ff', paddingVertical: 6, paddingHorizontal: 14 },
+  restBannerText: { fontSize: 12, color: '#185FA5', fontWeight: '500' },
+  skippedBanner: { backgroundColor: '#FEF3E2', paddingVertical: 6, paddingHorizontal: 14 },
+  skippedBannerText: { fontSize: 12, color: '#92400E', fontWeight: '500' },
   doseCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   doseDot: { width: 10, height: 10, borderRadius: 5 },
   doseInfo: { flex: 1 },

@@ -19,9 +19,10 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser } from '../lib/supabase';
+import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder } from '../lib/notifications';
@@ -53,10 +54,10 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 const COLORS = ['#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780','#E24B4A','#2C2C2A'];
 
 const COLOR_NAMES = {
-  '#185FA5':'Ocean','#1D9E75':'Forest','#D85A30':'Coral',
-  '#7F77DD':'Lavender','#BA7517':'Amber','#D4537E':'Rose',
-  '#5DCAA5':'Mint','#378ADD':'Sky','#639922':'Olive',
-  '#888780':'Stone','#E24B4A':'Red','#2C2C2A':'Charcoal',
+  '#185FA5':'color_ocean','#1D9E75':'color_forest','#D85A30':'color_coral',
+  '#7F77DD':'color_lavender','#BA7517':'color_amber','#D4537E':'color_rose',
+  '#5DCAA5':'color_mint','#378ADD':'color_sky','#639922':'color_olive',
+  '#888780':'color_stone','#E24B4A':'color_red','#2C2C2A':'color_charcoal',
 };
 
 function getTypeBadge(type, t) {
@@ -272,7 +273,7 @@ function ProtocolCard({ p, expanded, setExpanded, openEdit, deleteProtocol, t })
           {p.type === 'rtu' && p.concentration && (
             <View style={s.detailRow}>
               <Text style={s.detailLabel}>{t('protocols_concentration')}</Text>
-              <Text style={s.detailVal}>{p.concentration} mg/ml</Text>
+              <Text style={s.detailVal}>{p.concentration} {p.concentration_unit || 'mg'}/ml</Text>
             </View>
           )}
           <View style={s.detailRow}>
@@ -331,6 +332,7 @@ function ProtocolCard({ p, expanded, setExpanded, openEdit, deleteProtocol, t })
 
 export default function ProtocolsScreen() {
   const { t, language } = useLanguage();
+  const navigation = useNavigation();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -354,7 +356,6 @@ export default function ProtocolsScreen() {
   // ── Schedule state ──
   const [intervalDays, setIntervalDays] = useState(1);
   const [dosesPerDay, setDosesPerDay] = useState(1);
-  const currentYear = new Date().getFullYear();
   const [startMonth, setStartMonth] = useState(new Date().getMonth()); // 0-11
   const [startDay, setStartDay] = useState(String(new Date().getDate()));
   const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
@@ -375,8 +376,20 @@ export default function ProtocolsScreen() {
 
   // Build a Date object from month index (0-11) + day string
   function buildDate(monthIdx, dayStr) {
-    const day = parseInt(dayStr) || 1;
-    return new Date(currentYear, monthIdx, day);
+    return new Date(toSupabaseDateFromMD(monthIdx, dayStr) + 'T00:00:00');
+  }
+
+  // First-dose quick pick: is the current start date today (+offset days)?
+  function isStartOn(offset) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return startMonth === d.getMonth() && (parseInt(startDay) || 0) === d.getDate();
+  }
+  function setStartOffset(offset) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    setStartMonth(d.getMonth());
+    setStartDay(String(d.getDate()));
   }
 
   // Format "HH:MM" (24h) → "h:MM AM/PM"
@@ -494,10 +507,30 @@ export default function ProtocolsScreen() {
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
 
+  // Resolve month+day to a real date. Clamps impossible days (Feb 31),
+  // and treats dates more than ~2 months ahead as last year's — tapping
+  // "Dec 31" in January means the recent one, not 11 months from now.
   function toSupabaseDateFromMD(monthIdx, dayStr) {
-    const m = String(monthIdx + 1).padStart(2, '0');
-    const d = String(parseInt(dayStr) || 1).padStart(2, '0');
-    return `${currentYear}-${m}-${d}`;
+    const year = new Date().getFullYear();
+    const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+    const day = Math.min(parseInt(dayStr) || 1, lastDay);
+    let y = year;
+    const candidate = new Date(y, monthIdx, day);
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 60);
+    if (candidate > horizon) y -= 1;
+    return `${y}-${String(monthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  // Vials are always mixed in the past: resolve to the most recent occurrence
+  function toPastSupabaseDate(monthIdx, dayStr) {
+    const year = new Date().getFullYear();
+    const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+    const day = Math.min(parseInt(dayStr) || 1, lastDay);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const y = new Date(year, monthIdx, day) > todayEnd ? year - 1 : year;
+    return `${y}-${String(monthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
   function adjustWater(dir) {
@@ -530,7 +563,7 @@ export default function ProtocolsScreen() {
     setSaving(true);
     try {
     const user = await getCachedUser();
-    if (!user) { setSaving(false); Alert.alert(t('error'), 'Not signed in'); return; }
+    if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
 
     if (editingId) {
       const freqStr = frequencyLabel(intervalDays);
@@ -575,7 +608,7 @@ export default function ProtocolsScreen() {
       if (type === 'recon' && !skipVial) {
         insertVial({
           user_id: user.id, protocol_id: newId,
-          mixed_on: toSupabaseDateFromMD(vialMonth, vialDay),
+          mixed_on: toPastSupabaseDate(vialMonth, vialDay),
           water_ml: parseFloat(water) || null,
           total_doses: parseInt(scheduleTotal) || null,
           doses_taken: 0,
@@ -615,6 +648,19 @@ export default function ProtocolsScreen() {
   }
 
 
+  // Free tier: up to 5 active protocols; premium unlocks unlimited
+  async function openAdd() {
+    if (protocols.length >= 5 && !(await isPremium())) {
+      Alert.alert(t('protocols_limit_title'), t('protocols_limit_msg'), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('protocols_limit_upgrade'), onPress: () => navigation.navigate('Paywall') },
+      ]);
+      return;
+    }
+    resetForm();
+    setShowModal(true);
+  }
+
   const totalSteps = editingId ? 4 : type === 'recon' ? 5 : 4;
   const reconProtocols = protocols.filter(p => p.type === 'recon');
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
@@ -624,7 +670,7 @@ export default function ProtocolsScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Text style={s.headerTitle}>{t('protocols_title')}</Text>
-        <TouchableOpacity style={s.addBtn} onPress={() => { resetForm(); setShowModal(true); }}>
+        <TouchableOpacity style={s.addBtn} onPress={openAdd}>
           <Text style={s.addBtnText}>{t('protocols_add')}</Text>
         </TouchableOpacity>
       </View>
@@ -635,7 +681,7 @@ export default function ProtocolsScreen() {
             <Text style={s.emptyIcon}>🧪</Text>
             <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
             <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={() => { resetForm(); setShowModal(true); }}>
+            <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
               <Text style={s.emptyBtnText}>{t('protocols_empty_btn')}</Text>
             </TouchableOpacity>
           </View>
@@ -795,7 +841,7 @@ export default function ProtocolsScreen() {
                   <View style={[s.previewDot, { backgroundColor: color }]} />
                   <View>
                     <Text style={s.previewName}>{name || t('protocols_your_compound')}</Text>
-                    <Text style={s.previewSub}>{COLOR_NAMES[color]}</Text>
+                    <Text style={s.previewSub}>{t(COLOR_NAMES[color])}</Text>
                   </View>
                 </View>
                 <View style={s.colorGrid}>
@@ -823,7 +869,7 @@ export default function ProtocolsScreen() {
                     <View style={s.inputRow}>
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder="e.g. 500"
+                        placeholder={`${t('protocols_eg')} 500`}
                         placeholderTextColor="#aaa"
                         keyboardType="numeric"
                         value={dose}
@@ -878,7 +924,7 @@ export default function ProtocolsScreen() {
                     <View style={s.inputRow}>
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder="e.g. 5"
+                        placeholder={`${t('protocols_eg')} 5`}
                         placeholderTextColor="#aaa"
                         keyboardType="numeric"
                         value={amount}
@@ -920,7 +966,7 @@ export default function ProtocolsScreen() {
                     <View style={s.inputRow}>
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder="e.g. 0.5"
+                        placeholder={`${t('protocols_eg')} 0.5`}
                         placeholderTextColor="#aaa"
                         keyboardType="numeric"
                         value={dose}
@@ -959,7 +1005,7 @@ export default function ProtocolsScreen() {
                     {unitMismatch && (
                       <View style={[s.calcResult, { backgroundColor: '#FEF3E2' }]}>
                         <Text style={[s.calcResultText, { color: '#92400E' }]}>
-                          {t('protocols_unit_mismatch') || 'Cannot mix IU with mg/mcg. Use the same unit type for compound and dose.'}
+                          {t('protocols_unit_mismatch')}
                         </Text>
                       </View>
                     )}
@@ -980,7 +1026,7 @@ export default function ProtocolsScreen() {
                     <View style={s.inputRow}>
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder="e.g. 100"
+                        placeholder={`${t('protocols_eg')} 100`}
                         placeholderTextColor="#aaa"
                         keyboardType="numeric"
                         value={dose}
@@ -1002,7 +1048,7 @@ export default function ProtocolsScreen() {
                     <View style={s.inputRow}>
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder="e.g. 200"
+                        placeholder={`${t('protocols_eg')} 200`}
                         placeholderTextColor="#aaa"
                         keyboardType="numeric"
                         value={concentration}
@@ -1023,7 +1069,7 @@ export default function ProtocolsScreen() {
                     {unitMismatch && (
                       <View style={[s.calcResult, { backgroundColor: '#FEF3E2', marginTop: 10 }]}>
                         <Text style={[s.calcResultText, { color: '#92400E' }]}>
-                          {t('protocols_unit_mismatch') || 'Cannot mix IU with mg/mcg. Use the same unit type for concentration and dose.'}
+                          {t('protocols_unit_mismatch')}
                         </Text>
                       </View>
                     )}
@@ -1046,7 +1092,30 @@ export default function ProtocolsScreen() {
                 <Text style={s.modalStepTitle}>{t('protocols_step_schedule')}</Text>
                 <Text style={s.modalStepSub}>{t('protocols_step_schedule_sub')}</Text>
 
-                {/* 1 — Start date: month selector + day input */}
+                {/* 1 — First dose: quick pick, then custom date below */}
+                <Text style={s.fieldLabel}>{t('protocols_first_dose')}</Text>
+                <View style={s.freqGrid}>
+                  {[
+                    { offset: 0, key: 'protocols_start_today' },
+                    { offset: 1, key: 'protocols_start_tomorrow' },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[s.freqBtn, isStartOn(opt.offset) && s.freqBtnOn]}
+                      onPress={() => setStartOffset(opt.offset)}
+                    >
+                      <Text style={[s.freqBtnText, isStartOn(opt.offset) && s.freqBtnTextOn]}>
+                        {t(opt.key)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {isStartOn(0) && dosesPerDay > 1 && (
+                  <View style={[s.infoBox, { marginBottom: 12 }]}>
+                    <Text style={s.infoText}>{t('protocols_first_dose_hint')}</Text>
+                  </View>
+                )}
+
                 <Text style={s.fieldLabel}>{t('protocols_start_date')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
                   <View style={s.monthRow}>
@@ -1065,7 +1134,7 @@ export default function ProtocolsScreen() {
                 </ScrollView>
                 <TextInput
                   style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
-                  placeholder="DD"
+                  placeholder={t('protocols_day_dd')}
                   placeholderTextColor="#aaa"
                   keyboardType="numeric"
                   maxLength={2}
@@ -1222,7 +1291,7 @@ export default function ProtocolsScreen() {
                     </ScrollView>
                     <TextInput
                       style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
-                      placeholder="DD"
+                      placeholder={t('protocols_day_dd')}
                       placeholderTextColor="#aaa"
                       keyboardType="numeric"
                       maxLength={2}
@@ -1258,7 +1327,7 @@ export default function ProtocolsScreen() {
                     [t('protocols_amount_label'), `${amount} ${unit}`],
                     [t('protocols_water_label'), `${water} ml`],
                     [t('protocols_dose_label'), `${dose} ${doseUnit}`],
-                    ...(drawML && drawValid ? [[t('protocols_draw_label'), `${drawML} ml (${drawUnits} units)`]] : []),
+                    ...(drawML && drawValid ? [[t('protocols_draw_label'), `${drawML} ml (${drawUnits} ${t('protocols_units')})`]] : []),
                     [t('protocols_frequency_label'), frequencyLabel(intervalDays)],
                   ].map(([label, val], i, arr) => (
                     <View key={label} style={[s.reviewRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
