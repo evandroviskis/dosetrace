@@ -13,14 +13,86 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { getCachedUser } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Purchases from 'react-native-purchases';
+import { supabase, getCachedUser } from '../lib/supabase';
+import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers } from '../lib/database';
 import { requestSync } from '../lib/sync';
 
+// Counts successful extraction saves (not distinct report dates) so the
+// free-upload quota can't be reset by uploading two reports with the same date.
+const UPLOADS_KEY = 'dosetrace_bloodwork_uploads';
+// Client-side pre-check: reject files over 10MB before reading into memory.
+// The edge function enforces its own ~15MB base64 cap server-side.
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+// Consumable product for a single upload — must exist in App Store Connect
+// and RevenueCat before the $3.99 button can complete a purchase.
+const SINGLE_UPLOAD_PRODUCT_ID = 'dt_bloodwork_single';
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+
+async function getUploadCount() {
+  try {
+    const raw = await AsyncStorage.getItem(UPLOADS_KEY);
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function incrementUploadCount() {
+  const count = (await getUploadCount()) + 1;
+  try {
+    await AsyncStorage.setItem(UPLOADS_KEY, String(count));
+  } catch {
+    // best effort — never block a save on the counter
+  }
+  return count;
+}
+
+// Validate the edge function's extraction result before it reaches the UI/DB.
+// Coerces numeric strings, drops non-numeric rows (counted), and falls back
+// to today's date when report_date doesn't parse.
+function validateExtraction(data) {
+  const rawMarkers = Array.isArray(data?.markers) ? data.markers : [];
+  const markers = [];
+  let droppedCount = 0;
+  for (const m of rawMarkers) {
+    if (!m || typeof m.marker !== 'string' || !m.marker.trim()) {
+      droppedCount++;
+      continue;
+    }
+    let value = m.value;
+    if (typeof value !== 'number') {
+      value = parseFloat(String(value ?? '').replace(',', '.'));
+    }
+    if (!Number.isFinite(value)) {
+      droppedCount++;
+      continue;
+    }
+    markers.push({
+      marker: m.marker.trim(),
+      value,
+      unit: typeof m.unit === 'string' ? m.unit : '',
+    });
+  }
+
+  let reportDate = typeof data?.report_date === 'string' ? data.report_date.trim() : '';
+  let dateFallback = false;
+  const validShape = /^\d{4}-\d{2}-\d{2}$/.test(reportDate);
+  if (!validShape || isNaN(new Date(reportDate + 'T12:00:00').getTime())) {
+    reportDate = new Date().toISOString().split('T')[0];
+    dateFallback = true;
+  }
+
+  return { markers, reportDate, droppedCount, dateFallback };
+}
+
 export default function BloodworkScreen({ navigation }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -29,6 +101,8 @@ export default function BloodworkScreen({ navigation }) {
   const [extractedMarkers, setExtractedMarkers] = useState([]);
   const [reportDate, setReportDate] = useState('');
   const [uploadCount, setUploadCount] = useState(0);
+  const [dateWasFallback, setDateWasFallback] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
   const UPGRADE_FEATURES = [
@@ -46,6 +120,9 @@ export default function BloodworkScreen({ navigation }) {
   );
 
   async function fetchReports() {
+    // Count actual saved uploads, not distinct report dates (two same-date
+    // reports would collapse into one group and reopen the free quota).
+    setUploadCount(await getUploadCount());
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
     const data = getBiomarkers(user.id);
@@ -56,14 +133,47 @@ export default function BloodworkScreen({ navigation }) {
         grouped[row.report_date].push(row);
       });
       setReports(Object.entries(grouped));
-      setUploadCount(Object.keys(grouped).length);
     }
     setLoading(false);
   }
 
   async function handleUploadPress() {
-  setShowUpgradeModal(true);
-}
+    // Premium users: unlimited uploads, no upgrade modal.
+    if (await isPremium()) {
+      pickAndExtract();
+      return;
+    }
+    // Non-premium: 1 free upload total, then gate behind the upgrade modal.
+    const count = await getUploadCount();
+    if (count < 1) {
+      pickAndExtract();
+      return;
+    }
+    setShowUpgradeModal(true);
+  }
+
+  // "$3.99 single upload" — must complete a REAL RevenueCat purchase before
+  // any extraction happens. If the consumable isn't configured yet, block.
+  async function handleSingleUploadPurchase() {
+    if (purchasing) return;
+    setPurchasing(true);
+    try {
+      const products = await Purchases.getProducts([SINGLE_UPLOAD_PRODUCT_ID]);
+      if (!products || products.length === 0) {
+        Alert.alert(t('blood_purchases_unavailable_title'), t('blood_purchases_unavailable_sub'));
+        return;
+      }
+      await Purchases.purchaseStoreProduct(products[0]);
+      // Only a successful purchase reaches this line.
+      setShowUpgradeModal(false);
+      setTimeout(() => pickAndExtract(), 300);
+    } catch (e) {
+      if (e && e.userCancelled) return; // user backed out — stay silent
+      Alert.alert(t('error'), t('blood_purchase_failed'));
+    } finally {
+      setPurchasing(false);
+    }
+  }
 
   async function pickAndExtract() {
     try {
@@ -74,8 +184,24 @@ export default function BloodworkScreen({ navigation }) {
 
       if (result.canceled) return;
 
-      setUploading(true);
       const file = result.assets[0];
+
+      // Pre-check file size BEFORE reading the whole file into memory.
+      let fileSize = typeof file.size === 'number' ? file.size : null;
+      if (fileSize == null) {
+        try {
+          const info = await FileSystem.getInfoAsync(file.uri, { size: true });
+          if (info.exists && typeof info.size === 'number') fileSize = info.size;
+        } catch {
+          // size unknown — the edge function still enforces its own cap
+        }
+      }
+      if (fileSize != null && fileSize > MAX_FILE_BYTES) {
+        Alert.alert(t('error'), t('blood_error_file_too_large'));
+        return;
+      }
+
+      setUploading(true);
       const base64 = await FileSystem.readAsStringAsync(file.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
@@ -87,56 +213,51 @@ export default function BloodworkScreen({ navigation }) {
     }
   }
 
-  async function extractWithClaude(base64Data) {
+  async function extractWithClaude(pdfBase64) {
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'document',
-                  source: {
-                    type: 'base64',
-                    media_type: 'application/pdf',
-                    data: base64Data,
-                  },
-                },
-                {
-                  type: 'text',
-                  text: `Extract all lab values from this report. Return ONLY a JSON object with this exact structure, no other text:
-{
-  "report_date": "YYYY-MM-DD",
-  "markers": [
-    {
-      "marker": "Marker name",
-      "value": numeric_value,
-      "unit": "unit string"
-    }
-  ]
-}
-If you cannot determine the report date, use today's date. Include every lab value you can find. Do not interpret, classify, or judge any values. Do not include reference ranges, status, or any clinical assessment. Do not include any explanation or markdown.`,
-                },
-              ],
-            },
-          ],
-        }),
+      const user = await getCachedUser();
+      if (!user) {
+        setUploading(false);
+        Alert.alert(t('error'), t('blood_error_not_signed_in'));
+        return;
+      }
+
+      // The Anthropic API key lives only in the extract-bloodwork edge
+      // function; the app never talks to api.anthropic.com directly.
+      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
+        body: { pdf_base64: pdfBase64 },
       });
 
-      const data = await response.json();
-      const text = data.content?.[0]?.text || '';
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
+      if (error) {
+        setUploading(false);
+        const status = error.context?.status;
+        if (status === 401) {
+          Alert.alert(t('error'), t('blood_error_not_signed_in'));
+        } else if (status === 413) {
+          Alert.alert(t('error'), t('blood_error_file_too_large'));
+        } else {
+          Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
+        }
+        return;
+      }
 
-      setExtractedMarkers(parsed.markers || []);
-      setReportDate(parsed.report_date || new Date().toISOString().split('T')[0]);
+      const { markers, reportDate: parsedDate, droppedCount, dateFallback } = validateExtraction(data);
+
+      if (markers.length === 0) {
+        setUploading(false);
+        Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
+        return;
+      }
+
+      setExtractedMarkers(markers);
+      setReportDate(parsedDate);
+      setDateWasFallback(dateFallback);
       setUploading(false);
       setShowConfirmModal(true);
+
+      if (droppedCount > 0) {
+        Alert.alert(t('blood_dropped_title'), `${droppedCount} ${t('blood_dropped_sub')}`);
+      }
     } catch (err) {
       setUploading(false);
       Alert.alert(
@@ -149,7 +270,7 @@ If you cannot determine the report date, use today's date. Include every lab val
   async function saveMarkers() {
     try {
       const user = await getCachedUser();
-      if (!user) { Alert.alert(t('error'), 'Not signed in'); return; }
+      if (!user) { Alert.alert(t('error'), t('blood_error_not_signed_in')); return; }
       const rows = extractedMarkers.map(m => ({
         user_id: user.id,
         report_date: reportDate,
@@ -159,9 +280,12 @@ If you cannot determine the report date, use today's date. Include every lab val
       }));
 
       insertBiomarkers(rows);
+      const newCount = await incrementUploadCount();
+      setUploadCount(newCount);
       Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
       setShowConfirmModal(false);
       setExtractedMarkers([]);
+      setDateWasFallback(false);
       fetchReports();
       requestSync();
     } catch (err) {
@@ -171,7 +295,8 @@ If you cannot determine the report date, use today's date. Include every lab val
 
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const locale = LOCALE_MAP[language] || 'en-US';
+    return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
   }
 
   return (
@@ -324,11 +449,9 @@ If you cannot determine the report date, use today's date. Include every lab val
             </View>
 
             <TouchableOpacity
-  style={s.upgradeSecBtn}
-  onPress={() => {
-    setShowUpgradeModal(false);
-    setTimeout(() => pickAndExtract(), 300);
-  }}
+  style={[s.upgradeSecBtn, purchasing && { opacity: 0.5 }]}
+  disabled={purchasing}
+  onPress={handleSingleUploadPurchase}
 >
   <Text style={s.upgradeSecBtnText}>{t('blood_pay_single')}</Text>
 </TouchableOpacity>
@@ -346,7 +469,7 @@ If you cannot determine the report date, use today's date. Include every lab val
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
             <TouchableOpacity
-              onPress={() => { setShowConfirmModal(false); setExtractedMarkers([]); }}
+              onPress={() => { setShowConfirmModal(false); setExtractedMarkers([]); setDateWasFallback(false); }}
               style={{ width: 60 }}
             >
               <Text style={s.modalClose}>{t('cancel')}</Text>
@@ -363,6 +486,11 @@ If you cannot determine the report date, use today's date. Include every lab val
                 ✓ {t('blood_review_found_prefix')} {extractedMarkers.length} {t('blood_review_found_suffix')} {formatDate(reportDate)}
               </Text>
             </View>
+            {dateWasFallback && (
+              <View style={s.dateFallbackBanner}>
+                <Text style={s.dateFallbackText}>{t('blood_date_fallback_note')}</Text>
+              </View>
+            )}
             <Text style={s.confirmNote}>
               {t('blood_review_note')}
             </Text>
@@ -449,6 +577,8 @@ const s = StyleSheet.create({
   upgradeSecNote: { fontSize: 11, color: '#aaa', textAlign: 'center' },
   confirmBanner: { backgroundColor: '#E1F5EE', borderRadius: 10, padding: 12, marginBottom: 16 },
   confirmBannerText: { fontSize: 13, color: '#085041', fontWeight: '500' },
+  dateFallbackBanner: { backgroundColor: '#E6F1FB', borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 0.5, borderColor: '#c5daf5' },
+  dateFallbackText: { fontSize: 12, color: '#0C447C', lineHeight: 18 },
   confirmNote: { fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 20 },
   upgradePrimaryBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 3 },
 trialBadge: { backgroundColor: '#E1F5EE', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', marginBottom: 20 },
