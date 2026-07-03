@@ -37,8 +37,46 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use the service role client to delete the auth user
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Delete all of the user's health/app data BEFORE deleting the auth user,
+    // as promised by the in-app privacy policy ("deletion of your account and
+    // all associated data"). Ordered children-first to respect foreign keys:
+    // dose_logs and vials reference protocols; everything references auth.users.
+    const userDataTables = [
+      'dose_logs',
+      'vials',
+      'protocols',
+      'biomarkers',
+      'notification_preferences',
+      'analytics_events',
+      'referral_codes',
+    ];
+
+    for (const table of userDataTables) {
+      const { error: rowError } = await adminClient.from(table).delete().eq('user_id', user.id);
+      // 42P01 = relation does not exist — tolerate tables that were never created
+      if (rowError && rowError.code !== '42P01') {
+        return new Response(
+          JSON.stringify({ error: `Failed to delete ${table}: ${rowError.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
+    // referrals uses referrer_id/referred_id instead of user_id
+    const { error: referralsError } = await adminClient
+      .from('referrals')
+      .delete()
+      .or(`referrer_id.eq.${user.id},referred_id.eq.${user.id}`);
+    if (referralsError && referralsError.code !== '42P01') {
+      return new Response(
+        JSON.stringify({ error: `Failed to delete referrals: ${referralsError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Finally, delete the auth user itself
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
 
     if (deleteError) {
