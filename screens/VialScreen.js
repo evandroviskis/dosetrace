@@ -8,13 +8,24 @@ import {
   Modal,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { supabase } from '../lib/supabase';
+import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { syncVialAlerts } from '../lib/notifications';
+import {
+  getActiveVials,
+  getActiveProtocols,
+  getProtocolById,
+  insertVial,
+  updateVial,
+} from '../lib/database';
+import { requestSync } from '../lib/sync';
+
+const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 export default function VialScreen() {
   const [vials, setVials] = useState([]);
@@ -27,7 +38,10 @@ export default function VialScreen() {
   const [waterMl, setWaterMl] = useState('');
   const [totalDoses, setTotalDoses] = useState('');
   const [saving, setSaving] = useState(false);
-  const { t } = useLanguage();
+  const [showWaterInput, setShowWaterInput] = useState(false);
+  const [waterInput, setWaterInput] = useState('');
+  const { t, language } = useLanguage();
+  const locale = LOCALES[language] || 'en-US';
 
   useFocusEffect(
     useCallback(() => {
@@ -37,21 +51,22 @@ export default function VialScreen() {
   );
 
   async function fetchVials() {
-    const { data } = await supabase
-      .from('vials')
-      .select('*, protocols(name, color)')
-      .eq('active', true)
-      .order('created_at', { ascending: false });
-    setVials(data || []);
+    const user = await getCachedUser();
+    if (!user) { setVials([]); return; }
+    const rows = getActiveVials(user.id) || [];
+    // Join protocol name/color locally (protocol may be inactive or deleted)
+    const mapped = rows.map(v => {
+      const p = v.protocol_id ? getProtocolById(v.protocol_id) : null;
+      return { ...v, protocols: p ? { name: p.name, color: p.color } : null };
+    });
+    setVials(mapped);
   }
 
   async function fetchProtocols() {
-    const { data } = await supabase
-      .from('protocols')
-      .select('id, name, color, type, water, amount, dose')
-      .eq('active', true)
-      .eq('type', 'recon');
-    setProtocols(data || []);
+    const user = await getCachedUser();
+    if (!user) { setProtocols([]); return; }
+    const rows = getActiveProtocols(user.id) || [];
+    setProtocols(rows.filter(p => p.type === 'recon'));
   }
 
   function selectProtocol(p) {
@@ -59,29 +74,51 @@ export default function VialScreen() {
     if (p.water) setWaterMl(String(p.water));
   }
 
+  // Parse a date-only string ('YYYY-MM-DD') as local midnight, not UTC
+  function parseDateOnly(dateStr) {
+    return new Date(String(dateStr).slice(0, 10) + 'T00:00:00');
+  }
+
   function daysUntilExpiry(mixedOn) {
-    const mixed = new Date(mixedOn);
-    const expiry = new Date(mixed);
+    if (!mixedOn) return 0;
+    const expiry = parseDateOnly(mixedOn);
     expiry.setDate(expiry.getDate() + 30);
     const today = new Date();
-    return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    today.setHours(0, 0, 0, 0);
+    return Math.round((expiry - today) / (1000 * 60 * 60 * 24));
   }
 
   function expiryColor(days) {
+    if (days <= 3) return '#E24B4A';
+    if (days <= 7) return '#BA7517';
     return '#555';
   }
 
   function expiryBgColor(days) {
+    if (days <= 3) return '#FCEBEB';
+    if (days <= 7) return '#FAEEDA';
     return '#f0f0f0';
   }
 
   function formatDate(date) {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale, {
       month: 'long', day: 'numeric', year: 'numeric',
     });
   }
 
-  function toSupabaseDate(date) {
+  function formatShortDate(dateStr) {
+    if (!dateStr) return '—';
+    return parseDateOnly(dateStr).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  }
+
+  function formatExpiryDate(mixedOn) {
+    if (!mixedOn) return '—';
+    const expiry = parseDateOnly(mixedOn);
+    expiry.setDate(expiry.getDate() + 30);
+    return expiry.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  }
+
+  function toDateOnlyString(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
@@ -94,6 +131,30 @@ export default function VialScreen() {
     setWaterMl(String(next));
   }
 
+  function openNewVialModal() {
+    setSelectedProtocol(null);
+    setMixedOn(new Date());
+    setWaterMl('');
+    setTotalDoses('');
+    setShowModal(true);
+  }
+
+  function openWaterInput() {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        t('vials_water_label'),
+        '',
+        (val) => { if (val) setWaterMl(val); },
+        'plain-text',
+        waterMl,
+        'numeric'
+      );
+    } else {
+      setWaterInput(waterMl);
+      setShowWaterInput(true);
+    }
+  }
+
   async function saveVial() {
     if (!selectedProtocol) {
       Alert.alert(t('vials_select_compound'), t('vials_compound_hint'));
@@ -101,28 +162,26 @@ export default function VialScreen() {
     }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setSaving(false); Alert.alert(t('error'), 'Not signed in'); return; }
-      const { error } = await supabase.from('vials').insert({
+      const user = await getCachedUser();
+      if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
+      insertVial({
         user_id: user.id,
         protocol_id: selectedProtocol.id,
-        mixed_on: toSupabaseDate(mixedOn),
+        protocol_remote_id: selectedProtocol.remote_id || null,
+        mixed_on: toDateOnlyString(mixedOn),
         water_ml: parseFloat(waterMl) || null,
         total_doses: parseInt(totalDoses) || null,
         doses_taken: 0,
       });
       setSaving(false);
-      if (error) {
-        Alert.alert(t('error'), error.message);
-      } else {
-        setShowModal(false);
-        setSelectedProtocol(null);
-        setMixedOn(new Date());
-        setWaterMl('');
-        setTotalDoses('');
-        fetchVials();
-        syncVialAlerts().catch(() => {}); // Refresh vial expiry/supply alerts
-      }
+      setShowModal(false);
+      setSelectedProtocol(null);
+      setMixedOn(new Date());
+      setWaterMl('');
+      setTotalDoses('');
+      fetchVials();
+      syncVialAlerts().catch(() => {}); // Refresh vial expiry/supply alerts
+      requestSync();
     } catch (err) {
       setSaving(false);
       Alert.alert(t('error'), err.message);
@@ -134,9 +193,15 @@ export default function VialScreen() {
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('vials_discard'), style: 'destructive',
-        onPress: async () => {
-          await supabase.from('vials').update({ active: false }).eq('id', id);
-          fetchVials();
+        onPress: () => {
+          try {
+            updateVial(id, { active: 0 });
+            fetchVials();
+            syncVialAlerts().catch(() => {});
+            requestSync();
+          } catch (err) {
+            Alert.alert(t('error'), err.message);
+          }
         },
       },
     ]);
@@ -162,13 +227,13 @@ export default function VialScreen() {
           <View style={s.vialInfo}>
             <Text style={s.vialName}>{v.protocols?.name || '—'}</Text>
             <Text style={s.vialMeta}>
-              Mixed {new Date(v.mixed_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {t('today_vial_mixed')} {formatShortDate(v.mixed_on)}
               {v.total_doses ? ` · ${v.total_doses - v.doses_taken} ${t('vials_doses_left')}` : ''}
             </Text>
           </View>
           <View style={[s.expiryBadge, { backgroundColor: expiryBgColor(days) }]}>
             <Text style={[s.expiryBadgeText, { color: expiryColor(days) }]}>
-              {days <= 0 ? t('vials_expired') : `${days}${t('vials_days_left')}`}
+              {days <= 0 ? t('vials_expired') : `${days} ${t('vials_days_left')}`}
             </Text>
           </View>
         </View>
@@ -179,7 +244,9 @@ export default function VialScreen() {
               <View style={s.progressWrap}>
                 <View style={s.progressRow}>
                   <Text style={s.progressLabel}>{t('vials_doses_remaining')}</Text>
-                  <Text style={s.progressVal}>{v.total_doses - v.doses_taken} of {v.total_doses}</Text>
+                  <Text style={s.progressVal}>
+                    {t('vials_count_of').replace('{x}', String(v.total_doses - v.doses_taken)).replace('{y}', String(v.total_doses))}
+                  </Text>
                 </View>
                 <View style={s.progressTrack}>
                   <View style={[s.progressFill, { width: `${dosesPct}%`, backgroundColor: expiryColor(days) }]} />
@@ -189,7 +256,9 @@ export default function VialScreen() {
             <View style={s.progressWrap}>
               <View style={s.progressRow}>
                 <Text style={s.progressLabel}>{t('vials_days_until_expiry')}</Text>
-                <Text style={s.progressVal}>{Math.max(days, 0)} of 30 days</Text>
+                <Text style={s.progressVal}>
+                  {t('vials_days_of_total').replace('{x}', String(Math.max(days, 0))).replace('{y}', '30')}
+                </Text>
               </View>
               <View style={s.progressTrack}>
                 <View style={[s.progressFill, { width: `${Math.max((days / 30) * 100, 0)}%`, backgroundColor: expiryColor(days) }]} />
@@ -198,15 +267,12 @@ export default function VialScreen() {
             <View style={s.detailGrid}>
               <View style={s.detailItem}>
                 <Text style={s.detailLabel}>{t('vials_mix_date')}</Text>
-                <Text style={s.detailVal}>
-                  {new Date(v.mixed_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </Text>
+                <Text style={s.detailVal}>{formatShortDate(v.mixed_on)}</Text>
               </View>
               <View style={s.detailItem}>
                 <Text style={s.detailLabel}>{t('vials_expires')}</Text>
                 <Text style={[s.detailVal, { color: expiryColor(days) }]}>
-                  {new Date(new Date(v.mixed_on).setDate(new Date(v.mixed_on).getDate() + 30))
-                    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {formatExpiryDate(v.mixed_on)}
                 </Text>
               </View>
             </View>
@@ -214,13 +280,7 @@ export default function VialScreen() {
               <TouchableOpacity style={[s.vialBtn, s.vialBtnDanger]} onPress={() => discardVial(v.id)}>
                 <Text style={s.vialBtnDangerText}>{t('vials_discard')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.vialBtn} onPress={() => {
-                setSelectedProtocol(null);
-                setMixedOn(new Date());
-                setWaterMl('');
-                setTotalDoses('');
-                setShowModal(true);
-              }}>
+              <TouchableOpacity style={s.vialBtn} onPress={openNewVialModal}>
                 <Text style={s.vialBtnText}>{t('vials_mix_new')}</Text>
               </TouchableOpacity>
             </View>
@@ -234,13 +294,7 @@ export default function VialScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Text style={s.headerTitle}>{t('vials_title')}</Text>
-        <TouchableOpacity style={s.addBtn} onPress={() => {
-          setSelectedProtocol(null);
-          setMixedOn(new Date());
-          setWaterMl('');
-          setTotalDoses('');
-          setShowModal(true);
-        }}>
+        <TouchableOpacity style={s.addBtn} onPress={openNewVialModal}>
           <Text style={s.addBtnText}>{t('vials_new_btn')}</Text>
         </TouchableOpacity>
       </View>
@@ -272,8 +326,8 @@ export default function VialScreen() {
             <Text style={s.emptyIcon}>⚗️</Text>
             <Text style={s.emptyTitle}>{t('vials_empty_title')}</Text>
             <Text style={s.emptySub}>{t('vials_empty_sub')}</Text>
-            <TouchableOpacity style={s.addBtn} onPress={() => setShowModal(true)}>
-  <Text style={s.addBtnText}>{t('vials_add')}</Text>
+            <TouchableOpacity style={s.addBtn} onPress={openNewVialModal}>
+              <Text style={s.addBtnText}>{t('vials_add')}</Text>
             </TouchableOpacity>
             <View style={s.tipBox}>
               <Text style={s.tipTitle}>{t('vials_why_track').toUpperCase()}</Text>
@@ -344,7 +398,9 @@ export default function VialScreen() {
                     {p.name}
                   </Text>
                   {p.water && (
-                    <Text style={s.optSub}>{p.amount} mg · {p.water} ml water</Text>
+                    <Text style={s.optSub}>
+                      {t('vials_mix_summary').replace('{amount}', String(p.amount)).replace('{water}', String(p.water))}
+                    </Text>
                   )}
                 </View>
                 <View style={[s.optRadio, selectedProtocol?.id === p.id && s.optRadioOn]}>
@@ -392,16 +448,7 @@ export default function VialScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={s.stepperVal}
-                    onLongPress={() => {
-                      Alert.prompt(
-                        t('vials_water_label'),
-                        '',
-                        (val) => { if (val) setWaterMl(val); },
-                        'plain-text',
-                        waterMl,
-                        'numeric'
-                      );
-                    }}
+                    onLongPress={openWaterInput}
                   >
                     <Text style={s.stepperValText}>{waterMl || '0'} ml</Text>
                     <Text style={s.stepperHoldHint}>{t('vials_hold_type')}</Text>
@@ -435,6 +482,43 @@ export default function VialScreen() {
 
             <View style={{ height: 40 }} />
           </ScrollView>
+
+          {/* Android fallback for Alert.prompt (iOS-only): inline water input */}
+          <Modal
+            visible={showWaterInput}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowWaterInput(false)}
+          >
+            <View style={s.promptOverlay}>
+              <View style={s.promptBox}>
+                <Text style={s.promptTitle}>{t('vials_water_label')}</Text>
+                <TextInput
+                  style={s.promptInput}
+                  value={waterInput}
+                  onChangeText={setWaterInput}
+                  keyboardType="decimal-pad"
+                  autoFocus
+                  placeholder="0"
+                  placeholderTextColor="#aaa"
+                />
+                <View style={s.promptActions}>
+                  <TouchableOpacity style={s.promptBtn} onPress={() => setShowWaterInput(false)}>
+                    <Text style={s.promptBtnCancelText}>{t('cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.promptBtn, s.promptBtnPrimary]}
+                    onPress={() => {
+                      if (waterInput) setWaterMl(waterInput);
+                      setShowWaterInput(false);
+                    }}
+                  >
+                    <Text style={s.promptBtnOkText}>{t('done')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -527,4 +611,13 @@ const s = StyleSheet.create({
   noProtocols: { fontSize: 12, color: '#E24B4A', marginBottom: 14 },
   infoBox: { backgroundColor: '#E6F1FB', borderRadius: 10, padding: 12, marginTop: 4 },
   infoText: { fontSize: 12, color: '#0C447C', lineHeight: 18 },
+  promptOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 32 },
+  promptBox: { backgroundColor: '#fff', borderRadius: 14, padding: 18 },
+  promptTitle: { fontSize: 15, fontWeight: '600', color: '#111', marginBottom: 12 },
+  promptInput: { borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 16, color: '#111', backgroundColor: '#f9f9f9', marginBottom: 14 },
+  promptActions: { flexDirection: 'row', gap: 8 },
+  promptBtn: { flex: 1, padding: 11, borderRadius: 10, alignItems: 'center', borderWidth: 0.5, borderColor: '#ddd' },
+  promptBtnPrimary: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
+  promptBtnCancelText: { fontSize: 14, color: '#666' },
+  promptBtnOkText: { fontSize: 14, color: 'white', fontWeight: '600' },
 });

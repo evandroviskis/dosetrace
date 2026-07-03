@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { createReferralCode, redeemReferralCode } from '../lib/referrals';
+import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
 
 const STEPS = 7;
 
@@ -39,7 +39,8 @@ export default function OnboardingScreen() {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [referralCode, setReferralCode] = useState('');
   const [consentGiven, setConsentGiven] = useState(false);
-  const [analyticsConsent, setAnalyticsConsent] = useState(true);
+  // GDPR: analytics is opt-IN for a health app — default off
+  const [analyticsConsent, setAnalyticsConsent] = useState(false);
 
   // Profile fields
   const [displayName, setDisplayName] = useState('');
@@ -91,7 +92,24 @@ export default function OnboardingScreen() {
   }
 
   async function handleAuth() {
-    if (!email.trim() || !password.trim()) return;
+    if (!email.trim() || !password.trim()) {
+      Alert.alert(t('error'), t('auth_missing_fields'));
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      Alert.alert(t('error'), t('auth_invalid_email'));
+      return;
+    }
+    if (!isSignIn && password.trim().length < 6) {
+      Alert.alert(t('error'), t('auth_password_too_short'));
+      return;
+    }
+    // Consent is required to create an account — never record it as accepted
+    // unless the checkbox was actually checked.
+    if (!isSignIn && !consentGiven) {
+      Alert.alert(t('error'), t('consent_required'));
+      return;
+    }
     setLoading(true);
     let result;
     if (isSignIn) {
@@ -107,7 +125,7 @@ export default function OnboardingScreen() {
           data: {
             tracking_types: selectedTypes,
             onboarded_at: new Date().toISOString(),
-            consent_accepted: true,
+            consent_accepted: consentGiven,
             consent_date: new Date().toISOString(),
             analytics_opt_in: analyticsConsent,
             display_name: displayName.trim() || null,
@@ -125,16 +143,26 @@ export default function OnboardingScreen() {
     setLoading(false);
     if (result.error) {
       Alert.alert(t('error'), result.error.message);
-    } else if (!isSignIn) {
-      const newUserId = result.data?.user?.id;
-      // Generate a referral code for the new user
-      if (newUserId) createReferralCode(newUserId);
-      // Redeem referral code if entered
-      if (referralCode.trim().length === 6 && newUserId) {
-        const redemption = await redeemReferralCode(referralCode.trim(), newUserId);
-        if (!redemption.success) {
-          // Silent fail — don't block signup for referral issues
-        }
+    } else if (isSignIn) {
+      // Session exists now — redeem any pending referral / ensure own code.
+      // Best effort; App.js also runs this on SIGNED_IN.
+      redeemPendingReferral().catch(() => {});
+    } else {
+      // Supabase obfuscates duplicate signups: it returns a user with an
+      // empty identities array instead of an error. Guide the user to sign in.
+      const identities = result.data?.user?.identities;
+      if (Array.isArray(identities) && identities.length === 0) {
+        Alert.alert(t('signup_email_exists_title'), t('signup_email_exists_msg'));
+        setIsSignIn(true);
+        setStep(6);
+        setPassword('');
+        return;
+      }
+      // With email confirmation enabled there is no session yet, so referral
+      // writes would fail RLS. Stash the code; redeemPendingReferral() runs
+      // once the user signs in with a real session.
+      if (referralCode.trim().length === 6) {
+        await storePendingReferral(referralCode.trim());
       }
       Analytics.onboardingCompleted({
         trackingTypes: selectedTypes,
@@ -147,7 +175,17 @@ export default function OnboardingScreen() {
     }
   }
 
+  const profileComplete = !!(displayName.trim() && gender && birthMonth !== null && birthYear && country.trim() && primaryGoal && activityLevel && hasProvider);
+
+  // Steps with required input can't be advanced past via the top-nav "Next"
+  function canAdvance() {
+    if (step === 5) return profileComplete;
+    if (step === 6 && !isSignIn) return consentGiven; // consent is mandatory
+    return true;
+  }
+
   function nextStep() {
+    if (!canAdvance()) return;
     if (step < STEPS) setStep(step + 1);
   }
 
@@ -174,8 +212,8 @@ export default function OnboardingScreen() {
         ) : <View style={{ width: 60 }} />}
         <Text style={s.navStep}>{step} / {STEPS}</Text>
         {step < STEPS ? (
-          <TouchableOpacity onPress={nextStep}>
-            <Text style={s.navNext}>{t('next')}</Text>
+          <TouchableOpacity onPress={nextStep} disabled={!canAdvance()}>
+            <Text style={[s.navNext, !canAdvance() && { opacity: 0.35 }]}>{t('next')}</Text>
           </TouchableOpacity>
         ) : <View style={{ width: 60 }} />}
       </View>
@@ -419,9 +457,9 @@ export default function OnboardingScreen() {
             <Text style={s.profileDisclaimer}>{t('profile_data_note')}</Text>
 
             <TouchableOpacity
-              style={[s.primaryBtn, !(displayName.trim() && gender && birthMonth !== null && birthYear && country.trim() && primaryGoal && activityLevel && hasProvider) && { opacity: 0.4 }]}
+              style={[s.primaryBtn, !profileComplete && { opacity: 0.4 }]}
               onPress={nextStep}
-              disabled={!(displayName.trim() && gender && birthMonth !== null && birthYear && country.trim() && primaryGoal && activityLevel && hasProvider)}
+              disabled={!profileComplete}
             >
               <Text style={s.primaryBtnText}>{t('next')}</Text>
             </TouchableOpacity>

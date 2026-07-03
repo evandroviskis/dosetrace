@@ -14,6 +14,8 @@ import {
   getOfferings,
   purchasePackage,
   restorePurchases,
+  isPremium,
+  checkTrialEligibility,
   PRODUCT_IDS,
 } from '../lib/purchases';
 
@@ -24,6 +26,7 @@ export default function PaywallScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [trialEligibility, setTrialEligibility] = useState(null); // null = unknown
   const onSuccess = route?.params?.onSuccess;
 
   const FREE_FEATURES = [
@@ -60,6 +63,15 @@ export default function PaywallScreen({ navigation, route }) {
     const pkgs = await getOfferings();
     setPackages(pkgs);
     setLoading(false);
+
+    // Trial eligibility (iOS-only API — null means unknown, show neutral copy)
+    const subIds = [PRODUCT_IDS.MONTHLY, PRODUCT_IDS.ANNUAL].filter(id =>
+      pkgs.some(p => p.product.identifier === id)
+    );
+    if (subIds.length > 0) {
+      const eligibility = await checkTrialEligibility(subIds);
+      setTrialEligibility(eligibility);
+    }
   }
 
   function getPackageFor(type) {
@@ -69,45 +81,40 @@ export default function PaywallScreen({ navigation, route }) {
     return packages.find(p => p.product.identifier === id);
   }
 
-  // Launch promo — flip to false to disable
-  const PROMO_ACTIVE = true;
-  const PROMO_DISCOUNTS = { annual: 0.50 }; // only yearly gets a discount
+  const annualPkg = getPackageFor('annual');
+  const monthlyPkg = getPackageFor('monthly');
+  const lifetimePkg = getPackageFor('lifetime');
+  const selectedPkg = getPackageFor(selected);
+  const hasSubscription = !!(annualPkg || monthlyPkg);
+  const hasAnyPackage = !!(hasSubscription || lifetimePkg);
 
-  function getDiscount(type) {
-    return PROMO_ACTIVE ? (PROMO_DISCOUNTS[type] || 0) : 0;
+  // Only claim a free trial when eligibility is confirmed by the store
+  const trialEligible = !!(selectedPkg && trialEligibility &&
+    trialEligibility[selectedPkg.product.identifier] === true);
+
+  function monthlyEquivalent(pkg) {
+    return pkg?.product?.pricePerMonthString || null;
   }
 
-  function getDiscountLabel(type) {
-    const d = getDiscount(type);
-    return d > 0 ? `${Math.round(d * 100)}% OFF` : '';
+  function annualSavingsLabel() {
+    const a = annualPkg?.product?.price;
+    const m = monthlyPkg?.product?.price;
+    if (!a || !m) return null;
+    const pct = Math.round((1 - a / (m * 12)) * 100);
+    return pct > 0 ? t('paywall_save_pct').replace('{pct}', String(pct)) : null;
   }
 
-  // Hardcoded prices — used until real App Store Connect products exist.
-  // Once ASC products are live, replace with pkg.product.priceString / pkg.product.price.
-  const BASE_PRICES = { monthly: 5.99, annual: 49.99, lifetime: 119.99 };
-
-  function getOriginalPrice(type) {
-    return `$${BASE_PRICES[type].toFixed(2)}`;
+  function ctaSubText() {
+    if (!selectedPkg) return '';
+    const per = t(selected === 'annual' ? 'paywall_per_year' : 'paywall_per_month');
+    const price = `${selectedPkg.product.priceString} ${per}`;
+    const key = trialEligible ? 'paywall_then_price' : 'paywall_price_cancel';
+    return t(key).replace('{price}', price);
   }
 
-  function getPrice(type) {
-    const discount = getDiscount(type);
-    if (discount === 0) return getOriginalPrice(type);
-    const discounted = (BASE_PRICES[type] * (1 - discount)).toFixed(2);
-    return `$${discounted}`;
-  }
-
-  function getMonthlyEquivalent() {
-    const discount = getDiscount('annual');
-    const price = BASE_PRICES.annual * (1 - discount);
-    const monthly = (price / 12).toFixed(2);
-    return `$${monthly} / ${t('paywall_per_month').replace('/', '').trim()}`;
-  }
-
-  async function handlePurchase() {
-    const pkg = getPackageFor(selected);
+  async function doPurchase(pkg) {
     if (!pkg) {
-      Alert.alert(t('error'), 'Product not available. Please try again later.');
+      Alert.alert(t('error'), t('paywall_product_unavailable'));
       return;
     }
     setPurchasing(true);
@@ -115,29 +122,21 @@ export default function PaywallScreen({ navigation, route }) {
     setPurchasing(false);
 
     if (result.success) {
-      if (onSuccess) onSuccess();
+      // Re-check entitlement before unlocking
+      const premium = result.premium || (await isPremium());
+      if (premium && onSuccess) onSuccess();
       navigation.goBack();
     } else if (!result.cancelled) {
-      Alert.alert(t('error'), result.error || 'Purchase failed');
+      Alert.alert(t('error'), result.error || t('paywall_purchase_failed'));
     }
   }
 
-  async function handleLifetime() {
-    const pkg = getPackageFor('lifetime');
-    if (!pkg) {
-      Alert.alert(t('error'), 'Product not available. Please try again later.');
-      return;
-    }
-    setPurchasing(true);
-    const result = await purchasePackage(pkg);
-    setPurchasing(false);
+  function handlePurchase() {
+    doPurchase(selectedPkg);
+  }
 
-    if (result.success) {
-      if (onSuccess) onSuccess();
-      navigation.goBack();
-    } else if (!result.cancelled) {
-      Alert.alert(t('error'), result.error || 'Purchase failed');
-    }
+  function handleLifetime() {
+    doPurchase(lifetimePkg);
   }
 
   async function handleRestore() {
@@ -145,14 +144,17 @@ export default function PaywallScreen({ navigation, route }) {
     const result = await restorePurchases();
     setRestoring(false);
 
-    if (result.success && result.premium) {
-      Alert.alert(t('paywall_restored'), t('paywall_restored_msg'));
-      if (onSuccess) onSuccess();
-      navigation.goBack();
-    } else if (result.success && !result.premium) {
-      Alert.alert(t('paywall_no_purchases'), t('paywall_no_purchases_msg'));
+    if (result.success) {
+      const premium = result.premium || (await isPremium());
+      if (premium) {
+        Alert.alert(t('paywall_restored'), t('paywall_restored_msg'));
+        if (onSuccess) onSuccess();
+        navigation.goBack();
+      } else {
+        Alert.alert(t('paywall_no_purchases'), t('paywall_no_purchases_msg'));
+      }
     } else {
-      Alert.alert(t('error'), result.error || 'Restore failed');
+      Alert.alert(t('error'), result.error || t('paywall_restore_failed'));
     }
   }
 
@@ -176,97 +178,106 @@ export default function PaywallScreen({ navigation, route }) {
           </Text>
         </View>
 
-        {PROMO_ACTIVE && (
-          <View style={s.promoBanner}>
-            <Text style={s.promoText}>{t('paywall_promo_banner') || 'LAUNCH OFFER'}</Text>
+        {loading ? (
+          <View style={s.loadingBox}>
+            <ActivityIndicator color="#185FA5" />
           </View>
-        )}
+        ) : !hasAnyPackage ? (
+          <View style={s.loadingBox}>
+            <Text style={s.unavailableText}>{t('paywall_unavailable')}</Text>
+          </View>
+        ) : (
+          <>
+            <View style={s.planRow}>
+              {annualPkg && (
+                <TouchableOpacity
+                  style={[s.planCard, selected === 'annual' && s.planCardSelected]}
+                  onPress={() => setSelected('annual')}
+                >
+                  <View style={s.bestValueBadge}>
+                    <Text style={s.bestValueText}>{t('paywall_best_value')}</Text>
+                  </View>
+                  <View style={s.planRadio}>
+                    <View style={[s.planRadioInner, selected === 'annual' && s.planRadioInnerOn]} />
+                  </View>
+                  <Text style={s.planName}>{t('paywall_annual')}</Text>
+                  <Text style={s.planPrice}>{annualPkg.product.priceString}</Text>
+                  <Text style={s.planPer}>{t('paywall_per_year')}</Text>
+                  {annualSavingsLabel() ? (
+                    <View style={s.saveBadge}>
+                      <Text style={s.saveBadgeText}>{annualSavingsLabel()}</Text>
+                    </View>
+                  ) : (
+                    <View style={{ height: 22 }} />
+                  )}
+                  {monthlyEquivalent(annualPkg) && (
+                    <Text style={s.planMonthly}>
+                      {`${monthlyEquivalent(annualPkg)} ${t('paywall_per_month')}`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
 
-        <View style={s.planRow}>
-          <TouchableOpacity
-            style={[s.planCard, selected === 'annual' && s.planCardSelected]}
-            onPress={() => setSelected('annual')}
-          >
-            <View style={[s.bestValueBadge, getDiscount('annual') > 0 && { backgroundColor: '#E24B4A' }]}>
-              <Text style={s.bestValueText}>{getDiscountLabel('annual') || t('paywall_best_value')}</Text>
+              {monthlyPkg && (
+                <TouchableOpacity
+                  style={[s.planCard, selected === 'monthly' && s.planCardSelected]}
+                  onPress={() => setSelected('monthly')}
+                >
+                  <View style={s.planRadio}>
+                    <View style={[s.planRadioInner, selected === 'monthly' && s.planRadioInnerOn]} />
+                  </View>
+                  <Text style={s.planName}>{t('paywall_monthly')}</Text>
+                  <Text style={s.planPrice}>{monthlyPkg.product.priceString}</Text>
+                  <Text style={s.planPer}>{t('paywall_per_month')}</Text>
+                  <View style={{ height: 22 }} />
+                  <Text style={s.planMonthly}>{t('paywall_billed_monthly')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <View style={s.planRadio}>
-              <View style={[s.planRadioInner, selected === 'annual' && s.planRadioInnerOn]} />
-            </View>
-            <Text style={s.planName}>{t('paywall_annual')}</Text>
-            {getDiscount('annual') > 0 && (
-              <Text style={s.strikePrice}>{getOriginalPrice('annual')}</Text>
-            )}
-            <Text style={[s.planPrice, getDiscount('annual') > 0 && { color: '#E24B4A' }]}>{getPrice('annual')}</Text>
-            <Text style={s.planPer}>{t('paywall_per_year')}</Text>
-            <View style={s.saveBadge}>
-              <Text style={s.saveBadgeText}>{getDiscountLabel('annual') || t('paywall_save')}</Text>
-            </View>
-            <Text style={s.planMonthly}>{getMonthlyEquivalent()}</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[s.planCard, selected === 'monthly' && s.planCardSelected]}
-            onPress={() => setSelected('monthly')}
-          >
-            {getDiscount('monthly') > 0 && (
-              <View style={[s.bestValueBadge, { backgroundColor: '#E24B4A' }]}>
-                <Text style={s.bestValueText}>{getDiscountLabel('monthly')}</Text>
+            {lifetimePkg && (
+              <View style={s.lifetimeCard}>
+                <View style={s.lifetimeRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.lifetimeTitle}>{t('paywall_lifetime_title')}</Text>
+                    <Text style={s.lifetimeSub}>{t('paywall_lifetime_sub')}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[s.lifetimeBtn, purchasing && { opacity: 0.6 }]}
+                    onPress={handleLifetime}
+                    disabled={purchasing}
+                  >
+                    <Text style={s.lifetimeBtnText}>{lifetimePkg.product.priceString}</Text>
+                    <Text style={s.lifetimeBtnSub}>{t('paywall_lifetime_note')}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
-            <View style={[s.planRadio, getDiscount('monthly') > 0 && { marginTop: 8 }]}>
-              <View style={[s.planRadioInner, selected === 'monthly' && s.planRadioInnerOn]} />
-            </View>
-            <Text style={s.planName}>{t('paywall_monthly')}</Text>
-            {getDiscount('monthly') > 0 && (
-              <Text style={s.strikePrice}>{getOriginalPrice('monthly')}</Text>
+
+            {hasSubscription && (
+              <TouchableOpacity
+                style={[s.ctaBtn, purchasing && { opacity: 0.6 }]}
+                onPress={handlePurchase}
+                disabled={purchasing}
+              >
+                {purchasing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={s.ctaBtnText}>
+                      {trialEligible ? t('paywall_start_trial') : t('paywall_subscribe_now')}
+                    </Text>
+                    <Text style={s.ctaBtnSub}>{ctaSubText()}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             )}
-            <Text style={[s.planPrice, getDiscount('monthly') > 0 && { color: '#E24B4A' }]}>{getPrice('monthly')}</Text>
-            <Text style={s.planPer}>{t('paywall_per_month')}</Text>
-            <View style={{ height: 22 }} />
-            <Text style={s.planMonthly}>{t('paywall_billed_monthly')}</Text>
-          </TouchableOpacity>
-        </View>
 
-        <View style={s.lifetimeCard}>
-          <View style={s.lifetimeRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.lifetimeTitle}>{t('paywall_lifetime_title') || 'Lifetime Access'}</Text>
-              <Text style={s.lifetimeSub}>{t('paywall_lifetime_sub') || 'Pay once, unlock Pro forever.'}</Text>
-            </View>
-            <TouchableOpacity
-              style={[s.lifetimeBtn, purchasing && { opacity: 0.6 }]}
-              onPress={handleLifetime}
-              disabled={purchasing}
-            >
-              <Text style={s.lifetimeBtnText}>{getPrice('lifetime')}</Text>
-              <Text style={s.lifetimeBtnSub}>{t('paywall_lifetime_note') || 'One-time'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[s.ctaBtn, purchasing && { opacity: 0.6 }]}
-          onPress={handlePurchase}
-          disabled={purchasing}
-        >
-          {purchasing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Text style={s.ctaBtnText}>{t('paywall_start_trial')}</Text>
-              <Text style={s.ctaBtnSub}>
-                {selected === 'annual'
-                  ? t('paywall_then_annual')
-                  : t('paywall_then_monthly')}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <Text style={s.legalNote}>
-          {t('paywall_legal')}
-        </Text>
+            <Text style={s.legalNote}>
+              {trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial')}
+            </Text>
+          </>
+        )}
 
         <View style={s.divider} />
 
@@ -302,7 +313,7 @@ export default function PaywallScreen({ navigation, route }) {
           ))}
         </View>
 
-        <Text style={[s.sectionTitle, { marginTop: 20 }]}>{t('paywall_coming_soon_title') || 'Coming soon'}</Text>
+        <Text style={[s.sectionTitle, { marginTop: 20 }]}>{t('paywall_coming_soon_title')}</Text>
 
         <View style={s.featuresCard}>
           {COMING_SOON_FEATURES.map((f, i) => (
@@ -338,24 +349,24 @@ export default function PaywallScreen({ navigation, route }) {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[s.ctaBtn, { marginTop: 16 }, purchasing && { opacity: 0.6 }]}
-          onPress={handlePurchase}
-          disabled={purchasing}
-        >
-          {purchasing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Text style={s.ctaBtnText}>{t('paywall_start_trial')}</Text>
-              <Text style={s.ctaBtnSub}>
-                {selected === 'annual'
-                  ? t('paywall_then_annual')
-                  : t('paywall_then_monthly')}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {!loading && hasSubscription && (
+          <TouchableOpacity
+            style={[s.ctaBtn, { marginTop: 16 }, purchasing && { opacity: 0.6 }]}
+            onPress={handlePurchase}
+            disabled={purchasing}
+          >
+            {purchasing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={s.ctaBtnText}>
+                  {trialEligible ? t('paywall_start_trial') : t('paywall_subscribe_now')}
+                </Text>
+                <Text style={s.ctaBtnSub}>{ctaSubText()}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[s.restoreBtn, restoring && { opacity: 0.6 }]}
@@ -384,9 +395,8 @@ const s = StyleSheet.create({
   heroIcon: { fontSize: 48, marginBottom: 12 },
   heroTitle: { fontSize: 26, fontWeight: '700', color: '#111', marginBottom: 8 },
   heroSub: { fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 22 },
-  promoBanner: { backgroundColor: '#E24B4A', marginHorizontal: 16, marginTop: 12, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
-  promoText: { color: '#fff', fontSize: 13, fontWeight: '800', letterSpacing: 1 },
-  strikePrice: { fontSize: 14, color: '#aaa', textDecorationLine: 'line-through', marginBottom: 2 },
+  loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },
+  unavailableText: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20 },
   planRow: { flexDirection: 'row', gap: 12, padding: 16 },
   planCard: { flex: 1, backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: '#eee', alignItems: 'center', position: 'relative', overflow: 'visible', marginTop: 12 },
   planCardSelected: { borderColor: '#185FA5', backgroundColor: '#f0f6ff' },

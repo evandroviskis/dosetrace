@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  SectionList,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
@@ -15,8 +16,11 @@ import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
 import BodyMapModal from './components/BodyMapModal';
 
+const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+
 export default function LogScreen() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = LOCALES[language] || 'en-US';
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('All');
 
@@ -79,16 +83,44 @@ export default function LogScreen() {
     return l.outcome === filter;
   });
 
-  function groupByDate(logs) {
+  // Group by local calendar day (year included in the key so e.g. Jul 3 2025
+  // and Jul 3 2026 stay separate); returns SectionList-shaped sections.
+  function buildSections(logs) {
     const groups = {};
+    const currentYear = new Date().getFullYear();
+    const order = [];
     logs.forEach(log => {
-      const date = new Date(log.logged_at).toLocaleDateString('en-US', {
-        weekday: 'long', month: 'short', day: 'numeric',
-      });
-      if (!groups[date]) groups[date] = [];
-      groups[date].push(log);
+      const d = new Date(log.logged_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!groups[key]) {
+        groups[key] = {
+          key,
+          title: d.toLocaleDateString(locale, {
+            weekday: 'long', month: 'short', day: 'numeric',
+            ...(d.getFullYear() !== currentYear ? { year: 'numeric' } : {}),
+          }),
+          data: [],
+        };
+        order.push(key);
+      }
+      groups[key].data.push(log);
     });
-    return groups;
+    return order.map(key => groups[key]);
+  }
+
+  // pre_tags may arrive as a JSON string from the cloud — parse defensively
+  function parseTags(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
   }
 
   function outcomeColor(outcome) {
@@ -122,7 +154,7 @@ export default function LogScreen() {
     return '💉';
   }
 
-  const grouped = groupByDate(filteredLogs);
+  const sections = buildSections(filteredLogs);
 
   const takenCount = logs.filter(l => l.outcome === 'Taken').length;
   const skippedCount = logs.filter(l => l.outcome === 'Skipped').length;
@@ -173,70 +205,77 @@ export default function LogScreen() {
         ))}
       </ScrollView>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
-        {filteredLogs.length === 0 && (
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => String(item.id)}
+        showsVerticalScrollIndicator={false}
+        style={s.scroll}
+        stickySectionHeadersEnabled={false}
+        ListEmptyComponent={
           <View style={s.emptyState}>
             <Text style={s.emptyIcon}>📓</Text>
             <Text style={s.emptyTitle}>
-              {filter === 'All' ? t('log_empty_title') : `${t('log_no_filter')} ${filter.toLowerCase()}`}
+              {filter === 'All'
+                ? t('log_empty_title')
+                : `${t('log_no_filter')} ${(filters.find(f => f.key === filter)?.label || filter).toLowerCase()}`}
             </Text>
             <Text style={s.emptySub}>{t('log_empty_sub')}</Text>
           </View>
-        )}
-
-        {Object.entries(grouped).map(([date, entries]) => (
-          <View key={date} style={s.group}>
-            <View style={s.groupHeader}>
-              <Text style={s.groupDate}>{date}</Text>
-              <Text style={s.groupCount}>
-                {entries.length} {entries.length > 1 ? t('log_doses') : t('log_dose')}
-              </Text>
-            </View>
-            {entries.map(log => (
-              <TouchableOpacity
-                key={log.id}
-                style={s.logEntry}
-                onPress={() => openSiteEditor(log)}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('bodymap_title')}
-              >
-                <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
-                <View style={s.logInfo}>
-                  <View style={s.logNameRow}>
-                    <Text style={s.logTypeIcon}>{typeIcon(log.protocols?.type)}</Text>
-                    <Text style={s.logName}>{log.protocols?.name || '—'}</Text>
-                  </View>
-                  {log.injection_site ? <Text style={s.logDetail}>📍 {summarizeStored(log.injection_site, t) || log.injection_site}</Text> : null}
-                  {log.notes ? <Text style={s.logDetail}>📝 {log.notes}</Text> : null}
-                  {log.pre_tags && log.pre_tags.length > 0 && (
-                    <View style={s.tagRow}>
-                      {log.pre_tags.map(tag => (
-                        <View key={tag} style={s.tag}>
-                          <Text style={s.tagText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-                <View style={s.logRight}>
-                  <Text style={s.logTime}>
-                    {new Date(log.logged_at).toLocaleTimeString('en-US', {
-                      hour: 'numeric', minute: '2-digit',
-                    })}
-                  </Text>
-                  <View style={[s.logBadge, { backgroundColor: outcomeBg(log.outcome) }]}>
-                    <Text style={[s.logBadgeText, { color: outcomeTextColor(log.outcome) }]}>
-                      {outcomeLabel(log.outcome)}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+        }
+        renderSectionHeader={({ section }) => (
+          <View style={s.groupHeader}>
+            <Text style={s.groupDate}>{section.title}</Text>
+            <Text style={s.groupCount}>
+              {section.data.length} {section.data.length > 1 ? t('log_doses') : t('log_dose')}
+            </Text>
           </View>
-        ))}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        )}
+        renderSectionFooter={() => <View style={{ height: 20 }} />}
+        renderItem={({ item: log }) => {
+          const tags = parseTags(log.pre_tags);
+          return (
+            <TouchableOpacity
+              style={s.logEntry}
+              onPress={() => openSiteEditor(log)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('bodymap_title')}
+            >
+              <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
+              <View style={s.logInfo}>
+                <View style={s.logNameRow}>
+                  <Text style={s.logTypeIcon}>{typeIcon(log.protocols?.type)}</Text>
+                  <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
+                </View>
+                {log.injection_site ? <Text style={s.logDetail}>📍 {summarizeStored(log.injection_site, t) || log.injection_site}</Text> : null}
+                {log.notes ? <Text style={s.logDetail}>📝 {log.notes}</Text> : null}
+                {tags.length > 0 && (
+                  <View style={s.tagRow}>
+                    {tags.map(tag => (
+                      <View key={String(tag)} style={s.tag}>
+                        <Text style={s.tagText}>{String(tag)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <View style={s.logRight}>
+                <Text style={s.logTime}>
+                  {new Date(log.logged_at).toLocaleTimeString(locale, {
+                    hour: 'numeric', minute: '2-digit',
+                  })}
+                </Text>
+                <View style={[s.logBadge, { backgroundColor: outcomeBg(log.outcome) }]}>
+                  <Text style={[s.logBadgeText, { color: outcomeTextColor(log.outcome) }]}>
+                    {outcomeLabel(log.outcome)}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListFooterComponent={<View style={{ height: 40 }} />}
+      />
 
       <BodyMapModal
         visible={bodyMapVisible}
@@ -268,7 +307,6 @@ const s = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8, textAlign: 'center' },
   emptySub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20 },
-  group: { marginBottom: 20 },
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   groupDate: { fontSize: 12, fontWeight: '600', color: '#888' },
   groupCount: { fontSize: 12, color: '#aaa' },
