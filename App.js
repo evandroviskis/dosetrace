@@ -4,29 +4,55 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
-import { initPurchases } from './lib/purchases';
+import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications } from './lib/notifications';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
-import { initDatabase } from './lib/database';
+import { initDatabase, clearLocalDatabase } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
+import { redeemPendingReferral } from './lib/referrals';
+
+// ErrorBoundary renders outside LanguageProvider, so it carries its own
+// dependency-free translations for the crash screen.
+const ERROR_BOUNDARY_STRINGS = {
+  en: { title: 'Something went wrong', message: 'The app encountered an unexpected error. Please restart DoseTrace.', retry: 'Try Again' },
+  es: { title: 'Algo salió mal', message: 'La aplicación encontró un error inesperado. Por favor, reinicia DoseTrace.', retry: 'Reintentar' },
+  pt: { title: 'Algo deu errado', message: 'O aplicativo encontrou um erro inesperado. Por favor, reinicie o DoseTrace.', retry: 'Tentar novamente' },
+  fr: { title: 'Un problème est survenu', message: "L'application a rencontré une erreur inattendue. Veuillez redémarrer DoseTrace.", retry: 'Réessayer' },
+  de: { title: 'Etwas ist schiefgelaufen', message: 'Die App ist auf einen unerwarteten Fehler gestoßen. Bitte starte DoseTrace neu.', retry: 'Erneut versuchen' },
+  it: { title: 'Qualcosa è andato storto', message: "L'app ha riscontrato un errore imprevisto. Riavvia DoseTrace.", retry: 'Riprova' },
+};
 
 class ErrorBoundary extends React.Component {
-  state = { hasError: false };
+  state = { hasError: false, lang: 'en' };
   static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidMount() {
+    // Best-effort language detection — must never throw on the error path.
+    try {
+      AsyncStorage.getItem('dosetrace_language')
+        .then(saved => {
+          if (saved && ERROR_BOUNDARY_STRINGS[saved]) this.setState({ lang: saved });
+        })
+        .catch(() => {});
+    } catch {
+      // ignore — fall back to English
+    }
+  }
   render() {
     if (this.state.hasError) {
+      const str = ERROR_BOUNDARY_STRINGS[this.state.lang] || ERROR_BOUNDARY_STRINGS.en;
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 32 }}>
-          <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 12 }}>Something went wrong</Text>
+          <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 12 }}>{str.title}</Text>
           <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 24 }}>
-            The app encountered an unexpected error. Please restart DoseTrace.
+            {str.message}
           </Text>
           <TouchableOpacity
             onPress={() => this.setState({ hasError: false })}
             style={{ backgroundColor: '#185FA5', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
           >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Try Again</Text>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>{str.retry}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -154,9 +180,6 @@ export default function App() {
       setSession(session);
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
-          .catch(() => {});
 
         // If local DB is empty, import all data from cloud (first launch / new device)
         if (isLocalDBEmpty(session.user.id)) {
@@ -165,6 +188,12 @@ export default function App() {
           // Otherwise trigger a background sync to push/pull changes
           requestSync();
         }
+
+        // Schedule reminders AFTER the initial import — otherwise fresh
+        // installs sync notifications against an empty local DB.
+        requestNotificationPermissions()
+          .then(() => syncAllNotifications())
+          .catch(() => {});
       }
       setLoading(false);
     }).catch(() => {
@@ -174,14 +203,19 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (_event === 'SIGNED_OUT') {
-        cancelAllNotifications().catch(() => {});
+        // Stop sync FIRST so no final sync runs, then wipe local health data —
+        // otherwise user A's unsynced logs would upload into user B's account.
         stopSyncEngine();
+        try { clearLocalDatabase(); } catch { /* ignore */ }
+        cancelAllNotifications().catch(() => {});
+        // Reset RevenueCat identity so the next sign-in doesn't inherit it
+        logOutPurchases().catch(() => {});
       }
       if (_event === 'SIGNED_IN' && session?.user?.id) {
+        initPurchases(session.user.id, session?.user?.email).catch(() => {});
         startSyncEngine();
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
-          .catch(() => {});
+        // Redeem a referral code stashed at signup (idempotent, needs a session)
+        redeemPendingReferral().catch(() => {});
 
         // Import from cloud on sign-in if local DB is empty
         if (isLocalDBEmpty(session.user.id)) {
@@ -189,6 +223,11 @@ export default function App() {
         } else {
           requestSync();
         }
+
+        // Schedule reminders AFTER the import so they reflect the user's data
+        requestNotificationPermissions()
+          .then(() => syncAllNotifications())
+          .catch(() => {});
       }
     });
 
