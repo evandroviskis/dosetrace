@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeModules, Platform } from 'react-native';
+import * as Localization from 'expo-localization';
 import { translations, LANGUAGES } from './translations';
 
 const LanguageContext = createContext({
@@ -12,13 +12,9 @@ const LanguageContext = createContext({
 
 function getDeviceLanguage() {
   try {
-    const locale =
-      Platform.OS === 'ios'
-        ? NativeModules.SettingsManager?.settings?.AppleLocale ||
-          NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] ||
-          'en'
-        : NativeModules.I18nManager?.localeIdentifier || 'en';
-    const code = locale.substring(0, 2).toLowerCase();
+    // expo-localization works under the New Architecture, where the legacy
+    // NativeModules.SettingsManager path is often undefined
+    const code = (Localization.getLocales()?.[0]?.languageCode || 'en').toLowerCase();
     const supported = LANGUAGES.map(l => l.code);
     return supported.includes(code) ? code : 'en';
   } catch {
