@@ -55,7 +55,7 @@ function expectedDosesOn(p, dayDate) {
     if (diffDays % interval !== 0) return 0;
   }
 
-  if (p.created_at && dpd > 1) {
+  if (p.created_at) {
     const created = new Date(p.created_at);
     if (!isNaN(created) && created.toDateString() === day.toDateString()) {
       const times = sortedDoseTimes(p).slice(0, dpd);

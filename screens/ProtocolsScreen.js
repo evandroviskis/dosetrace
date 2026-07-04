@@ -32,6 +32,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
+import { unitsCompatible, computeDraw } from '../lib/doseMath';
 
 const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_peptide_t','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip'];
 
@@ -85,61 +86,19 @@ function getTypeBadge(type, t) {
   return { bg: '#f0f0f0', text: '#666', label: type };
 }
 
-// Unit compatibility: IU is only compatible with IU, mg/mcg are interconvertible
-function unitsCompatible(u1, u2) {
-  if (u1 === 'IU' || u2 === 'IU') return u1 === u2;
-  return true; // mg↔mcg are convertible
-}
-
-// Normalize dose to match compound unit (convert mcg↔mg as needed; IU stays as-is)
-function normalizeDoseValue(doseVal, compoundUnit, doseUnit) {
-  const d = parseFloat(doseVal) || 0;
-  if (compoundUnit === 'IU' && doseUnit === 'IU') return d;
-  if (compoundUnit === 'mg' && doseUnit === 'mcg') return d / 1000;
-  if (compoundUnit === 'mcg' && doseUnit === 'mg') return d * 1000;
-  return d; // same unit
-}
-
-// Format ml with adaptive precision for small peptide doses
-function formatML(rawML) {
-  if (rawML < 0.01) return rawML.toFixed(4);
-  if (rawML < 0.1) return rawML.toFixed(3);
-  return rawML.toFixed(2);
-}
-
 function ProtocolSyringeGuide({ p, t }) {
   if (p.type === 'oral') return null;
 
-  let pDrawML = null;
-  let pDrawUnits = null;
-  let pDrawValid = false;
-
-  if (p.type === 'recon' && p.amount && p.water && p.dose) {
-    if (unitsCompatible(p.unit, p.dose_unit)) {
-      const normalDose = normalizeDoseValue(p.dose, p.unit, p.dose_unit);
-      const pConc = parseFloat(p.amount) / parseFloat(p.water);
-      if (pConc > 0) {
-        const rawML = normalDose / pConc;
-        pDrawML = formatML(rawML);
-        pDrawUnits = (rawML * 100).toFixed(1);
-        pDrawValid = rawML > 0 && rawML <= 3;
-      }
-    }
-  }
-
-  if (p.type === 'rtu' && p.concentration && p.dose) {
-    const concUnit = p.concentration_unit || 'mg';
-    if (unitsCompatible(concUnit, p.dose_unit)) {
-      let normalDose = normalizeDoseValue(p.dose, concUnit, p.dose_unit);
-      const concVal = parseFloat(p.concentration);
-      if (concVal > 0) {
-        const rawML = normalDose / concVal;
-        pDrawML = formatML(rawML);
-        pDrawUnits = (rawML * 100).toFixed(1);
-        pDrawValid = rawML > 0 && rawML <= 3;
-      }
-    }
-  }
+  const draw = computeDraw({
+    type: p.type,
+    amount: p.amount, water: p.water,
+    dose: p.dose, doseUnit: p.dose_unit, unit: p.unit,
+    concentration: p.concentration, concentrationUnit: p.concentration_unit,
+    syringeSize: p.syringe_size,
+  });
+  const pDrawML = draw.drawML;
+  const pDrawUnits = draw.drawUnits;
+  const pDrawValid = draw.valid;
 
   const syringeMax = p.syringe_size || 100;
   const fillPct = pDrawValid ? Math.min((parseFloat(pDrawUnits) / syringeMax) * 100, 100) : 0;
@@ -573,24 +532,26 @@ export default function ProtocolsScreen() {
     setWater(String(next));
   }
 
-  // Calculate draw volume — only if units are compatible
+  // Calculate draw volume from the current wizard inputs (pure module).
   const unitsOk = type === 'recon'
     ? unitsCompatible(unit, doseUnit)
     : unitsCompatible(concentrationUnit || 'mg', doseUnit);
-
-  let rawDrawML = null;
-  if (type === 'recon' && unitsOk && amount && water && dose) {
-    const conc = parseFloat(amount) / parseFloat(water);
-    if (conc > 0) rawDrawML = normalizeDoseValue(dose, unit, doseUnit) / conc;
-  } else if (type === 'rtu' && unitsOk && concentration && dose) {
-    const concVal = parseFloat(concentration);
-    if (concVal > 0) rawDrawML = normalizeDoseValue(dose, concentrationUnit, doseUnit) / concVal;
-  }
-
-  const drawML = rawDrawML != null ? formatML(rawDrawML) : null;
-  const drawUnits = rawDrawML != null ? (rawDrawML * 100).toFixed(1) : null;
-  const drawValid = rawDrawML && rawDrawML > 0 && rawDrawML <= 3;
-  const unitMismatch = dose && !unitsOk;
+  const wizardDraw = computeDraw({
+    type, amount, water, dose, doseUnit, unit,
+    concentration, concentrationUnit, syringeSize,
+  });
+  const drawML = wizardDraw.drawML;
+  const drawUnits = wizardDraw.drawUnits;
+  const drawValid = wizardDraw.valid;
+  const unitMismatch = !!(dose && !unitsOk);
+  // A recon draw that overflows the chosen syringe is almost always a data-entry
+  // slip (wrong water volume, dose, or syringe). Flag it and block saving.
+  const drawExceedsSyringe = type === 'recon' && wizardDraw.exceedsSyringe;
+  // The dose step can't be left until the entered values produce a drawable dose.
+  const doseStepBlocked = unitMismatch || drawExceedsSyringe;
+  const drawExceedsMsg = t('protocols_draw_exceeds_warning')
+    .replace('{units}', drawUnits || '?')
+    .replace('{size}', String(syringeSize));
 
   // Resolve the diluent selection to a stored value: token for a preset choice,
   // the trimmed free text for 'other', or null if the user left it blank.
@@ -600,6 +561,15 @@ export default function ProtocolsScreen() {
 
   async function saveProtocol() {
     if (!name) { Alert.alert(t('protocols_missing_name'), t('protocols_missing_name_msg')); return; }
+    // Guard: never persist a protocol whose dose can't be drawn correctly.
+    if (doseStepBlocked) {
+      setStep(3);
+      Alert.alert(
+        t('protocols_check_values_title'),
+        unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
+      );
+      return;
+    }
     setSaving(true);
     try {
     const user = await getCachedUser();
@@ -786,10 +756,19 @@ export default function ProtocolsScreen() {
             </TouchableOpacity>
             <Text style={s.modalTitle}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
             <TouchableOpacity onPress={() => {
+              // Step 3 is the dose/calculator step — don't let the user leave it
+              // (or save) with values that can't be drawn correctly.
+              if (step === 3 && doseStepBlocked) {
+                Alert.alert(
+                  t('protocols_check_values_title'),
+                  unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
+                );
+                return;
+              }
               if (step < totalSteps) setStep(step + 1);
               else saveProtocol();
             }}>
-              <Text style={s.modalSave}>
+              <Text style={[s.modalSave, step === 3 && doseStepBlocked && s.modalSaveDisabled]}>
                 {step < totalSteps ? t('next') : saving ? t('protocols_saving') : t('save')}
               </Text>
             </TouchableOpacity>
@@ -1074,7 +1053,14 @@ export default function ProtocolsScreen() {
                         </Text>
                       </View>
                     )}
-                    {drawML && drawValid && !unitMismatch && (
+                    {drawExceedsSyringe && !unitMismatch && (
+                      <View style={[s.calcResult, { backgroundColor: '#FDECEA' }]}>
+                        <Text style={[s.calcResultText, { color: '#C0392B', fontWeight: '700' }]}>
+                          {drawExceedsMsg}
+                        </Text>
+                      </View>
+                    )}
+                    {drawML && drawValid && !drawExceedsSyringe && !unitMismatch && (
                       <View style={s.calcResult}>
                         <Text style={s.calcResultText}>
                           {`${t('protocols_draw')}: ${drawML} ml (${drawUnits} ${t('protocols_units')})`}
@@ -1472,6 +1458,7 @@ const s = StyleSheet.create({
   modalCancel: { fontSize: 14, color: '#888' },
   modalTitle: { fontSize: 15, fontWeight: '600', color: '#111' },
   modalSave: { fontSize: 14, color: '#185FA5', fontWeight: '600' },
+  modalSaveDisabled: { color: '#C0392B' },
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
   modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: '#eee' },
   modalProgDone: { backgroundColor: '#185FA5' },
