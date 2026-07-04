@@ -33,8 +33,9 @@ import {
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
+import { matchesQuery } from '../lib/compounds';
 
-const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_peptide_t','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip'];
+const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_peptide_t','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip','lyo_glow','lyo_klow','lyo_wolverine'];
 
 const RTU_KEYS = ['rtu_boldenone_undecylenate','rtu_cyanocobalamin','rtu_drostanolone_enanthate','rtu_drostanolone_propionate','rtu_dulaglutide','rtu_estradiol_cypionate','rtu_estradiol_valerate','rtu_hydroxocobalamin','rtu_l_carnitine','rtu_lipo_c','rtu_liraglutide','rtu_methenolone_enanthate','rtu_methylcobalamin','rtu_mic_blend','rtu_nandrolone_decanoate','rtu_nandrolone_phenylpropionate','rtu_progesterone','rtu_pyridoxine','rtu_semaglutide','rtu_stanozolol','rtu_sustanon_250','rtu_testosterone_cypionate','rtu_testosterone_enanthate','rtu_testosterone_propionate','rtu_testosterone_undecanoate','rtu_tirzepatide','rtu_trenbolone_acetate','rtu_trenbolone_enanthate'];
 
@@ -205,7 +206,7 @@ function ProtocolCard({ p, expanded, setExpanded, openEdit, deleteProtocol, t })
       <View style={s.cardTop}>
         <View style={[s.cardDot, { backgroundColor: p.color }]} />
         <View style={s.cardInfo}>
-          <Text style={s.cardName}>{p.name}</Text>
+          <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {p.frequency}</Text>
           <View style={s.badgeRow}>
             <View style={[s.badge, { backgroundColor: badge.bg }]}>
@@ -326,6 +327,9 @@ export default function ProtocolsScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [name, setName] = useState('');
+  // Canonical compound key (e.g. 'lyo_bpc_157'); null for a user-added custom
+  // compound. The display name comes from t(compoundId) when set.
+  const [compoundId, setCompoundId] = useState(null);
   const [type, setType] = useState('recon');
   const [color, setColor] = useState('#185FA5');
   const [amount, setAmount] = useState('');
@@ -428,7 +432,7 @@ export default function ProtocolsScreen() {
   }
 
   function resetForm() {
-    setStep(1); setName(''); setType('recon'); setColor('#185FA5');
+    setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor('#185FA5');
     setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
@@ -439,24 +443,47 @@ export default function ProtocolsScreen() {
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
   }
 
-  function getCompoundList() {
-    if (type === 'recon') return LYOPHILIZED_KEYS.map(k => t(k));
-    if (type === 'rtu') return RTU_KEYS.map(k => t(k));
-    if (type === 'oral') return ORAL_KEYS.map(k => t(k));
+  function getCompoundKeys() {
+    if (type === 'recon') return LYOPHILIZED_KEYS;
+    if (type === 'rtu') return RTU_KEYS;
+    if (type === 'oral') return ORAL_KEYS;
     return [];
   }
 
+  // Returns [{ key, label }] matching the search (alias-aware). An exact,
+  // already-selected match is hidden so the list doesn't echo the selection.
   function getFilteredSuggestions() {
-    const list = getCompoundList();
-    if (!searchQuery || searchQuery.length < 1) return list;
-    return list.filter(c => c.toLowerCase().includes(searchQuery.toLowerCase()));
+    return getCompoundKeys()
+      .map(key => ({ key, label: t(key) }))
+      .filter(({ key, label }) => matchesQuery(searchQuery, key, label));
   }
 
-  function selectCompound(compound) {
-    setName(compound);
-    setSearchQuery(compound);
+  // Whether the current query already equals a listed compound's name (so we
+  // don't offer "add" for something that exists).
+  function queryMatchesExisting() {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    return getCompoundKeys().some(key => t(key).toLowerCase() === q);
+  }
+
+  // Pick a canonical compound from the list — stores the key + display name.
+  function selectCompound({ key, label }) {
+    setName(label);
+    setCompoundId(key);
+    setSearchQuery(label);
     setShowSuggestions(false);
-    Analytics.compoundSearched(compound, type);
+    Analytics.compoundSearched(label, type);
+  }
+
+  // Escape hatch: record the user's own typed name as a custom (unverified)
+  // compound so a missing entry never blocks creating a protocol.
+  function addCustomCompound() {
+    const custom = (searchQuery || '').trim();
+    if (!custom) return;
+    setName(custom);
+    setCompoundId(null);
+    setShowSuggestions(false);
+    Analytics.compoundSearched(custom, type);
   }
 
   function getWellnessKeys() {
@@ -465,7 +492,8 @@ export default function ProtocolsScreen() {
 
   function openEdit(p, goToStep) {
     setEditingId(p.id);
-    setName(p.name || ''); setSearchQuery(p.name || '');
+    setName(p.name || ''); setCompoundId(p.compound_id || null);
+    setSearchQuery(p.compound_id ? t(p.compound_id) : (p.name || ''));
     setType(p.type || 'recon'); setColor(p.color || '#185FA5');
     setAmount(p.amount ? String(p.amount) : ''); setUnit(p.unit || 'mg');
     setWater(p.water ? String(p.water) : '2');
@@ -576,7 +604,7 @@ export default function ProtocolsScreen() {
     if (editingId) {
       const freqStr = frequencyLabel(intervalDays);
       updateProtocol(editingId, {
-        name, type, color,
+        name, compound_id: compoundId, type, color,
         amount: parseFloat(amount) || null, unit,
         water: parseFloat(water) || null,
         diluent: resolvedDiluent,
@@ -600,7 +628,7 @@ export default function ProtocolsScreen() {
     } else {
       const freqStr = frequencyLabel(intervalDays);
       const newId = insertProtocol({
-        user_id: user.id, name, type, color,
+        user_id: user.id, name, compound_id: compoundId, type, color,
         amount: parseFloat(amount) || null, unit,
         water: parseFloat(water) || null,
         diluent: resolvedDiluent,
@@ -801,6 +829,7 @@ export default function ProtocolsScreen() {
                       onPress={() => {
                         setType(typeOpt.val);
                         setName('');
+                        setCompoundId(null);
                         setSearchQuery('');
                         setShowSuggestions(false);
                       }}
@@ -826,30 +855,55 @@ export default function ProtocolsScreen() {
                   value={searchQuery}
                   onChangeText={(text) => {
                     setSearchQuery(text);
-                    setName(text);
+                    // Select-first: nothing is committed until the user taps a
+                    // suggestion or the "add" row.
+                    setName('');
+                    setCompoundId(null);
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}
+                  autoCorrect={false}
                 />
 
-                {showSuggestions && getFilteredSuggestions().length > 0 && (
-                  <View style={s.suggestionBox}>
-  {getFilteredSuggestions().slice(0, 8).map((item) => (
-    <TouchableOpacity
-      key={item}
-      style={s.suggestionItem}
-      onPressIn={() => selectCompound(item)}
-    >
-      <Text style={s.suggestionText}>{item}</Text>
-    </TouchableOpacity>
-  ))}
-                    {getFilteredSuggestions().length > 8 && (
-                      <Text style={s.suggestionMore}>
-                        +{getFilteredSuggestions().length - 8} {t('protocols_more_results')}
-                      </Text>
-                    )}
-                  </View>
-                )}
+                {showSuggestions && (() => {
+                  const sugg = getFilteredSuggestions();
+                  const showAdd = !!(searchQuery && searchQuery.trim()) && !queryMatchesExisting();
+                  if (sugg.length === 0 && !showAdd) return null;
+                  return (
+                    <View style={s.suggestionBox}>
+                      {sugg.slice(0, 8).map((item) => (
+                        <TouchableOpacity
+                          key={item.key}
+                          style={s.suggestionItem}
+                          onPressIn={() => selectCompound(item)}
+                        >
+                          <Text style={s.suggestionText}>{item.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                      {sugg.length > 8 && (
+                        <Text style={s.suggestionMore}>
+                          +{sugg.length - 8} {t('protocols_more_results')}
+                        </Text>
+                      )}
+                      {showAdd && (
+                        <TouchableOpacity
+                          style={s.suggestionItem}
+                          onPressIn={addCustomCompound}
+                        >
+                          <Text style={[s.suggestionText, { color: '#185FA5', fontWeight: '700' }]}>
+                            {t('protocols_add_custom').replace('{name}', searchQuery.trim())}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })()}
+
+                {name && !compoundId ? (
+                  <Text style={{ fontSize: 12, color: '#92400E', marginTop: 6 }}>
+                    {t('protocols_custom_hint')}
+                  </Text>
+                ) : null}
               </View>
             )}
 

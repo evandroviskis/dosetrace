@@ -584,7 +584,7 @@ export default function TodayScreen() {
         <View style={s.doseCardTop}>
           <View style={[s.doseDot, { backgroundColor: p.color || '#185FA5' }]} />
           <View style={s.doseInfo}>
-            <Text style={s.doseName}>{due && '🔥 '}{p.name}</Text>
+            <Text style={s.doseName}>{due && '🔥 '}{p.compound_id ? t(p.compound_id) : p.name}</Text>
             <Text style={s.doseMeta}>
               {p.dose} {p.dose_unit} · {p.frequency}
             </Text>

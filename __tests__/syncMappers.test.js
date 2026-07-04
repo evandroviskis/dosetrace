@@ -7,7 +7,7 @@ const { toCloudPayload, CLOUD_FIELDS } = require('../lib/syncMappers');
 // dropped when the payload and schema drift apart.
 const protocolRow = {
   id: 1, remote_id: 'uuid-1', user_id: 'u1',
-  name: 'BPC-157', type: 'recon', color: '#1D9E75',
+  name: 'BPC-157', compound_id: 'lyo_bpc_157', type: 'recon', color: '#1D9E75',
   amount: '10', unit: 'mg', water: '2', diluent: 'bacteriostatic_water',
   dose: '250', dose_unit: 'mcg', syringe_size: 100,
   concentration: null, concentration_unit: 'mg',
@@ -28,6 +28,7 @@ test('protocols payload includes every expected cloud field', () => {
 
 test('protocols payload carries the drift-prone fields verbatim', () => {
   const payload = toCloudPayload('protocols', protocolRow);
+  assert.equal(payload.compound_id, 'lyo_bpc_157');
   assert.equal(payload.diluent, 'bacteriostatic_water');
   assert.equal(payload.concentration_unit, 'mg');
   assert.equal(payload.schedule_total, 30);
