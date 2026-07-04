@@ -1,0 +1,20 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # The unit suite (lib/doseMath, lib/schedule, lib/syncMappers, i18n parity)
+      # is pure and dependency-free, so no `npm install` is needed — keeps CI fast
+      # and immune to native-build flakiness. Add an install step here when a tier
+      # that needs node_modules (e.g. the better-sqlite3 sync harness) is added.
+      - run: node --test
