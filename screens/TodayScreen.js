@@ -23,6 +23,7 @@ import {
 import { requestSync } from '../lib/sync';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
+import { dosesPerVial } from '../lib/doseMath';
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString,
 } from '../lib/schedule';
@@ -434,14 +435,17 @@ export default function TodayScreen() {
   }
 
   async function createNewVial() {
-    if (!continuationProtocol || !newVialDoses) return;
+    if (!continuationProtocol) return;
     try {
       const user = await getCachedUser();
       if (!user) return;
       const mixDate = toPastDateString(newVialMonth, newVialDay);
       if (!mixDate) { Alert.alert(t('error'), t('today_invalid_date')); return; }
-      const totalDoses = parseInt(newVialDoses) || 0;
-      if (totalDoses <= 0) return;
+      // Vial capacity is derived from the protocol (vial amount ÷ dose), not asked.
+      const totalDoses = dosesPerVial({
+        amount: continuationProtocol.amount, unit: continuationProtocol.unit,
+        dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
+      });
 
       insertVial({
         user_id: user.id,
@@ -453,7 +457,7 @@ export default function TodayScreen() {
         doses_taken: 0,
       });
 
-      updateProtocol(continuationProtocol.id, { schedule_total: totalDoses, start_date: mixDate });
+      updateProtocol(continuationProtocol.id, { start_date: mixDate });
 
       const updatedProtocol = getProtocolById(continuationProtocol.id);
       if (updatedProtocol) scheduleDoseReminder(updatedProtocol).catch(() => {});
@@ -938,27 +942,28 @@ export default function TodayScreen() {
               }}
             />
 
-            <Text style={[s.promptLabel, { marginTop: 12 }]}>{t('today_vial_how_many')}</Text>
-            <TextInput
-              style={s.promptDosesInput}
-              placeholder={t('today_vial_doses_placeholder')}
-              placeholderTextColor="#aaa"
-              keyboardType="numeric"
-              value={newVialDoses}
-              onChangeText={setNewVialDoses}
-            />
+            {continuationProtocol && (() => {
+              const cap = dosesPerVial({
+                amount: continuationProtocol.amount, unit: continuationProtocol.unit,
+                dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
+              });
+              return cap ? (
+                <Text style={[s.promptLabel, { marginTop: 12 }]}>
+                  {t('today_vial_new_capacity').replace('{n}', String(cap))}
+                </Text>
+              ) : null;
+            })()}
 
             <View style={s.promptActions}>
               <TouchableOpacity
                 style={s.promptBtnSecondary}
                 onPress={() => { setShowVialPrompt(false); setContinuationProtocol(null); }}
               >
-                <Text style={s.promptBtnSecondaryText}>{t('today_vial_not_now')}</Text>
+                <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.promptBtnPrimary, (!newVialDoses || parseInt(newVialDoses) <= 0) && { opacity: 0.4 }]}
+                style={s.promptBtnPrimary}
                 onPress={createNewVial}
-                disabled={!newVialDoses || parseInt(newVialDoses) <= 0}
               >
                 <Text style={s.promptBtnPrimaryText}>{t('today_vial_add')}</Text>
               </TouchableOpacity>
