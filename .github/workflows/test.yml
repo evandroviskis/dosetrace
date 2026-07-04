@@ -13,8 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      # The unit suite (lib/doseMath, lib/schedule, lib/syncMappers, i18n parity)
-      # is pure and dependency-free, so no `npm install` is needed — keeps CI fast
-      # and immune to native-build flakiness. Add an install step here when a tier
-      # that needs node_modules (e.g. the better-sqlite3 sync harness) is added.
-      - run: node --test
+          cache: 'npm'
+      # The sync harness needs better-sqlite3 (native, prebuilt binary), so we
+      # install deps. Everything else in the suite is pure JS.
+      - run: npm ci
+      - run: npm test
