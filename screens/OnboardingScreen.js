@@ -9,12 +9,15 @@ import {
   Alert,
   Platform,
   StatusBar,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
+import { COUNTRIES } from '../lib/countries';
 
 const STEPS = 7;
 
@@ -48,6 +51,8 @@ export default function OnboardingScreen() {
   const [birthMonth, setBirthMonth] = useState(null);
   const [birthYear, setBirthYear] = useState(null);
   const [country, setCountry] = useState('');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [primaryGoal, setPrimaryGoal] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
@@ -391,15 +396,14 @@ export default function OnboardingScreen() {
             </ScrollView>
 
             <Text style={s.fieldLabel}>{t('profile_country')}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={t('profile_country_placeholder')}
-              placeholderTextColor="#aaa"
-              value={country}
-              onChangeText={setCountry}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            <TouchableOpacity
+              style={[s.input, { justifyContent: 'center' }]}
+              onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
+            >
+              <Text style={{ fontSize: 15, color: country ? '#111' : '#aaa' }}>
+                {country || t('profile_country_placeholder')}
+              </Text>
+            </TouchableOpacity>
 
             <Text style={s.fieldLabel}>{t('profile_goal')}</Text>
             <View style={s.pillRow}>
@@ -683,6 +687,47 @@ export default function OnboardingScreen() {
 
         <View style={{ height: 60 }} />
       </ScrollView>
+
+      {/* Country picker — select-only from the canonical list (no free text),
+          so the same country is never stored as "USA"/"America"/"United States". */}
+      <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#eee' }}>
+            <View style={{ minWidth: 60 }} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#111' }}>{t('profile_country')}</Text>
+            <TouchableOpacity onPress={() => setShowCountryPicker(false)} style={{ minWidth: 60, alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 14, color: '#185FA5', fontWeight: '600' }}>{t('done')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+            <TextInput
+              style={s.input}
+              placeholder={t('profile_country_search')}
+              placeholderTextColor="#aaa"
+              value={countrySearch}
+              onChangeText={setCountrySearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+          </View>
+          <FlatList
+            data={COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))}
+            keyExtractor={item => item}
+            style={{ flex: 1, paddingHorizontal: 20 }}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: country === item ? '#f0f6ff' : '#f9f9f9', borderRadius: 12, marginBottom: 8, borderWidth: country === item ? 1.5 : 0.5, borderColor: country === item ? '#185FA5' : '#eee' }}
+                onPress={() => { setCountry(item); setShowCountryPicker(false); }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111', flex: 1 }}>{item}</Text>
+                {country === item && <Text style={{ fontSize: 18, color: '#185FA5', fontWeight: '600' }}>✓</Text>}
+              </TouchableOpacity>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

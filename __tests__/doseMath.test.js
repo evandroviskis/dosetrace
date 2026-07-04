@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { unitsCompatible, normalizeDoseValue, formatML, computeDraw } = require('../lib/doseMath');
+const { unitsCompatible, normalizeDoseValue, formatML, computeDraw, dosesPerVial } = require('../lib/doseMath');
 
 test('unitsCompatible: IU only pairs with IU', () => {
   assert.equal(unitsCompatible('IU', 'IU'), true);
@@ -102,6 +102,22 @@ test('computeDraw: incomplete input returns an empty, non-crashing result', () =
   assert.equal(computeDraw({ type: 'rtu' }).valid, false);
   assert.equal(computeDraw({ type: 'oral', dose: '500', doseUnit: 'mg' }).valid, false);
   assert.equal(computeDraw({}).rawML, null);
+});
+
+test('dosesPerVial: derives vial capacity from amount ÷ dose', () => {
+  // Retatrutide 20 mg vial, 2 mg dose → 10 doses (the owner's example).
+  assert.equal(dosesPerVial({ amount: '20', unit: 'mg', dose: '2', doseUnit: 'mg' }), 10);
+  // BPC 10 mg vial, 250 mcg dose → 40 doses.
+  assert.equal(dosesPerVial({ amount: '10', unit: 'mg', dose: '250', doseUnit: 'mcg' }), 40);
+  // Non-integer floors down: 5 mg / 2 mg = 2 (not 2.5).
+  assert.equal(dosesPerVial({ amount: '5', unit: 'mg', dose: '2', doseUnit: 'mg' }), 2);
+});
+
+test('dosesPerVial: returns null on incomplete or incompatible input', () => {
+  assert.equal(dosesPerVial({ amount: '', unit: 'mg', dose: '2', doseUnit: 'mg' }), null);
+  assert.equal(dosesPerVial({ amount: '10', unit: 'mg', dose: '0', doseUnit: 'mg' }), null);
+  assert.equal(dosesPerVial({ amount: '10', unit: 'mg', dose: '500', doseUnit: 'IU' }), null); // incompatible
+  assert.equal(dosesPerVial({ amount: '1', unit: 'mg', dose: '2', doseUnit: 'mg' }), null); // <1 dose
 });
 
 test('computeDraw: valid ceiling is 3 ml (arithmetic sanity bound)', () => {

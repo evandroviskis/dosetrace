@@ -32,7 +32,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
-import { unitsCompatible, computeDraw } from '../lib/doseMath';
+import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
 
 const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_peptide_t','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip'];
 
@@ -344,7 +344,6 @@ export default function ProtocolsScreen() {
   const [startMonth, setStartMonth] = useState(new Date().getMonth()); // 0-11
   const [startDay, setStartDay] = useState(String(new Date().getDate()));
   const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
-  const [scheduleTotal, setScheduleTotal] = useState('');
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -434,7 +433,7 @@ export default function ProtocolsScreen() {
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
-    setReminderTimes([currentTimeRounded5()]); setScheduleTotal(''); setGoals([]); setNotes('');
+    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes('');
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
@@ -495,7 +494,6 @@ export default function ProtocolsScreen() {
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
-    setScheduleTotal(p.schedule_total ? String(p.schedule_total) : '');
     setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || '');
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
@@ -589,7 +587,7 @@ export default function ProtocolsScreen() {
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
         start_date: toSupabaseDateFromMD(startMonth, startDay),
-        schedule_total: parseInt(scheduleTotal) || null,
+        schedule_total: null,
         goal: goals.join(','), notes,
       });
       setSaving(false);
@@ -597,7 +595,7 @@ export default function ProtocolsScreen() {
         id: editingId, name, dose: parseFloat(dose), dose_unit: doseUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay), schedule_total: parseInt(scheduleTotal) || null,
+        start_date: toSupabaseDateFromMD(startMonth, startDay), schedule_total: null,
       }).catch(() => {});
     } else {
       const freqStr = frequencyLabel(intervalDays);
@@ -613,7 +611,7 @@ export default function ProtocolsScreen() {
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
         start_date: toSupabaseDateFromMD(startMonth, startDay),
-        schedule_total: parseInt(scheduleTotal) || null,
+        schedule_total: null,
         goal: goals.join(','), notes,
       });
 
@@ -622,7 +620,8 @@ export default function ProtocolsScreen() {
           user_id: user.id, protocol_id: newId,
           mixed_on: toPastSupabaseDate(vialMonth, vialDay),
           water_ml: parseFloat(water) || null,
-          total_doses: parseInt(scheduleTotal) || null,
+          // Vial capacity is derived (vial amount ÷ dose), not asked.
+          total_doses: dosesPerVial({ amount, unit, dose, doseUnit }),
           doses_taken: 0,
         });
       }
@@ -1275,32 +1274,7 @@ export default function ProtocolsScreen() {
                   </TouchableOpacity>
                 )}
 
-                {/* 5 — Total doses */}
-                <Text style={s.fieldLabel}>{t('protocols_total_doses_schedule')}</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder={t('protocols_custom_total')}
-                  placeholderTextColor="#aaa"
-                  keyboardType="numeric"
-                  value={scheduleTotal}
-                  onChangeText={setScheduleTotal}
-                />
-                {scheduleTotal && parseInt(scheduleTotal) > 0 && (
-                  <View style={s.infoBox}>
-                    <Text style={s.infoText}>
-                      {(() => {
-                        const total = parseInt(scheduleTotal);
-                        const daysNeeded = Math.ceil(total / dosesPerDay) * intervalDays;
-                        const endDate = buildDate(startMonth, startDay);
-                        endDate.setDate(endDate.getDate() + daysNeeded);
-                        const endStr = `${t(MONTH_KEYS[endDate.getMonth()])} ${endDate.getDate()}`;
-                        return t('protocols_end_estimate').replace('{date}', endStr);
-                      })()}
-                    </Text>
-                  </View>
-                )}
-
-                {/* 6 — Wellness goals */}
+                {/* Wellness goals */}
                 <Text style={s.fieldLabel}>{t('protocols_wellness_goal')}</Text>
                 <View style={s.freqGrid}>
                   {getWellnessKeys().map((gKey) => (
