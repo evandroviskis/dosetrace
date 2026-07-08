@@ -54,3 +54,6 @@ icon-1024.png
 
 # misc
 1eas
+
+# Supabase CLI local temp files
+supabase/.temp/
