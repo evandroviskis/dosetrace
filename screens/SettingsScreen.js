@@ -35,64 +35,6 @@ import { Analytics } from '../lib/analytics';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
 
-const PRIVACY_POLICY = `PRIVACY POLICY
-
-Last updated: April 2026
-
-Outcom operates the DoseTrace mobile application.
-
-DATA WE COLLECT
-When you create an account, we collect your email address. You may optionally provide your name, gender, birth month and year, country, wellness goals, activity level, and whether you work with a healthcare provider. Protocol data, dose logs, vial records, and reminders you create are stored locally on your device. Premium users may sync this data to our secure cloud servers.
-
-HOW WE USE YOUR DATA
-We use your data to provide and personalize the DoseTrace service. Optional profile information (name, gender, age range, country, goals, activity level) may be used in aggregate and anonymized form to improve our service and develop wellness partnerships. We never share individual user data with third parties. We do not sell your personal data. We do not use your health data for advertising purposes.
-
-DATA STORAGE
-Free accounts: All data stored locally on your device only.
-Premium accounts: Data encrypted and stored on Supabase secure cloud servers in the United States.
-
-YOUR RIGHTS
-You may request deletion of your account and all associated data at any time by contacting hello@dosetrace.io.
-
-CHILDREN
-DoseTrace is not intended for use by individuals under the age of 18.
-
-CHANGES
-We may update this policy periodically. Continued use of the app constitutes acceptance of the updated policy.
-
-CONTACT
-hello@dosetrace.io`;
-
-const TERMS = `TERMS OF SERVICE
-
-Last updated: April 2026
-
-By downloading or using DoseTrace, you agree to these terms.
-
-USE OF THE APP
-DoseTrace is provided for personal wellness tracking purposes only. You must be 18 or older to use this app. You are responsible for maintaining the confidentiality of your account credentials.
-
-MEDICAL DISCLAIMER
-DoseTrace does not provide medical advice. See our Medical Disclaimer for full details.
-
-PREMIUM SUBSCRIPTION
-Premium features are available via subscription at the price shown in the app at the time of purchase. Subscriptions auto-renew unless cancelled at least 24 hours before the renewal date. Manage subscriptions in your Apple ID settings.
-
-INTELLECTUAL PROPERTY
-All content, features, and functionality of DoseTrace are owned by Outcom and protected by applicable intellectual property laws.
-
-LIMITATION OF LIABILITY
-Outcom shall not be liable for any indirect, incidental, or consequential damages arising from your use of DoseTrace.
-
-TERMINATION
-We reserve the right to terminate accounts that violate these terms.
-
-GOVERNING LAW
-These terms are governed by the laws of the State of Florida, United States.
-
-CONTACT
-hello@dosetrace.io`;
-
 const APPLE_APP_ID = '6761788157'; // TODO: insert real Apple app id
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
 
@@ -937,14 +879,14 @@ export default function SettingsScreen({ navigation }) {
         visible={showPrivacy}
         onClose={() => setShowPrivacy(false)}
         title={t('settings_privacy_policy')}
-        content={PRIVACY_POLICY}
+        content={t('settings_privacy_body')}
         doneLabel={t('done')}
       />
       <LegalModal
         visible={showTerms}
         onClose={() => setShowTerms(false)}
         title={t('settings_terms')}
-        content={TERMS}
+        content={t('settings_terms_body')}
         doneLabel={t('done')}
       />
 
