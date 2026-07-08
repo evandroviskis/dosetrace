@@ -702,6 +702,18 @@ export default function ProtocolsScreen() {
         start_date: toSupabaseDateFromMD(startMonth, startDay), schedule_total: null,
       }).catch(() => {});
     } else {
+      // Safety net: never persist beyond the free limit even if the wizard was
+      // somehow opened over it (stale count, reopened modal). Checks the live
+      // DB count, so the extra protocol is never created — the block happens
+      // before insert, not after.
+      const activeCount = (getActiveProtocols(user.id) || []).length;
+      if (activeCount >= 5 && !(await isPremium())) {
+        setSaving(false);
+        setShowModal(false);
+        resetForm();
+        promptUpgrade();
+        return;
+      }
       const freqStr = frequencyLabel(intervalDays);
       const newId = insertProtocol({
         user_id: user.id, name, compound_id: compoundId, type, color,
@@ -764,15 +776,24 @@ export default function ProtocolsScreen() {
   }
 
 
-  // Free tier: up to 5 active protocols; premium unlocks unlimited
+  // Free tier: up to 5 active protocols; premium unlocks unlimited. The gate
+  // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
+  // second Add right after a save can't slip an extra protocol through.
+  function promptUpgrade() {
+    Alert.alert(t('protocols_limit_title'), t('protocols_limit_msg'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('protocols_limit_upgrade'), onPress: () => navigation.navigate('Paywall') },
+    ]);
+  }
+
+  async function isOverFreeLimit() {
+    const user = await getCachedUser();
+    const count = user ? (getActiveProtocols(user.id) || []).length : protocols.length;
+    return count >= 5 && !(await isPremium());
+  }
+
   async function openAdd() {
-    if (protocols.length >= 5 && !(await isPremium())) {
-      Alert.alert(t('protocols_limit_title'), t('protocols_limit_msg'), [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('protocols_limit_upgrade'), onPress: () => navigation.navigate('Paywall') },
-      ]);
-      return;
-    }
+    if (await isOverFreeLimit()) { promptUpgrade(); return; }
     resetForm();
     setShowModal(true);
   }
