@@ -178,7 +178,7 @@ export default function SettingsScreen({ navigation }) {
   const [countrySearch, setCountrySearch] = useState('');
   // Collapsible Settings sections (remembered). All start collapsed — the user
   // opens only what they need, so the screen stays clean.
-  const ALL_COLLAPSED = { preferences: true, notifications: true, privacy: true, support: true, deleted: true, account: true };
+  const ALL_COLLAPSED = { notifications: true, privacy: true, support: true, deleted: true, account: true };
   const [collapsed, setCollapsed] = useState(ALL_COLLAPSED);
 
   useEffect(() => {
@@ -625,26 +625,6 @@ export default function SettingsScreen({ navigation }) {
           )}
         </View>
 
-        {/* PREFERENCES */}
-        {renderSectionHeader('settings_preferences', 'preferences')}
-        {!collapsed.preferences && (
-        <View style={s.group}>
-          <TouchableOpacity
-            style={[s.row, { borderBottomWidth: 0 }]}
-            onPress={() => setShowLanguagePicker(true)}
-          >
-            <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🌐</Text>
-              <View>
-                <Text style={s.rowLabel}>{t('settings_language')}</Text>
-                <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
-              </View>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-        )}
-
         {/* NOTIFICATIONS */}
         {renderSectionHeader('settings_notifications', 'notifications')}
         {!collapsed.notifications && (
@@ -851,10 +831,20 @@ export default function SettingsScreen({ navigation }) {
           </>
         )}
 
-        {/* ACCOUNT */}
-        {renderSectionHeader('settings_account', 'account')}
+        {/* ACCOUNT & PREFERENCES */}
+        {renderSectionHeader('settings_account_prefs', 'account')}
         {!collapsed.account && (
         <View style={s.group}>
+          <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
+            <View style={s.rowLeft}>
+              <Text style={s.rowIcon}>🌐</Text>
+              <View>
+                <Text style={s.rowLabel}>{t('settings_language')}</Text>
+                <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
+              </View>
+            </View>
+            <Text style={s.rowArrow}>›</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
               <Text style={s.rowIcon}>🚪</Text>
