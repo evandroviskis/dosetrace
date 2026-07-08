@@ -11,14 +11,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelFollowups } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelFollowups, cancelDoseReminder } from '../lib/notifications';
 import {
   getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
-  getProtocolById, hardDeleteOldProtocols,
+  getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import BodyMapModal from './components/BodyMapModal';
@@ -59,6 +60,9 @@ export default function TodayScreen() {
   // Vial continuation state
   const [showVialPrompt, setShowVialPrompt] = useState(false);
   const [continuationProtocol, setContinuationProtocol] = useState(null);
+  // Inactivity nudge: a protocol with no doses logged for a while → "still going?"
+  const [inactiveProtocol, setInactiveProtocol] = useState(null);
+  const [showInactivePrompt, setShowInactivePrompt] = useState(false);
   const [newVialDoses, setNewVialDoses] = useState('');
   const [newVialMonth, setNewVialMonth] = useState(new Date().getMonth());
   const [newVialDay, setNewVialDay] = useState(String(new Date().getDate()));
@@ -94,8 +98,67 @@ export default function TodayScreen() {
       fetchStreakData();
       fetchProtocolStreaks();
       fetchLastSites();
+      checkTreatmentStillActive();
     }, [])
   );
+
+  // Inactivity nudge: if an active protocol hasn't had a dose logged for a while
+  // (max of 7 days or 3× its interval), gently ask whether it's finished — so
+  // reminders don't nag forever for an abandoned/completed protocol. Never
+  // blocks; snoozed per-protocol so it doesn't re-ask on every app open.
+  async function checkTreatmentStillActive() {
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const protocols = getActiveProtocols(user.id) || [];
+      if (protocols.length === 0) return;
+      const since = new Date();
+      since.setDate(since.getDate() - 90);
+      const logs = getTakenLogsSince(user.id, since.toISOString()) || [];
+      const lastLog = {};
+      for (const l of logs) {
+        if (!lastLog[l.protocol_id] || l.logged_at > lastLog[l.protocol_id]) {
+          lastLog[l.protocol_id] = l.logged_at;
+        }
+      }
+      const now = Date.now();
+      for (const p of protocols) {
+        // Not started yet → don't nudge.
+        if (p.start_date && new Date(p.start_date + 'T00:00:00').getTime() > now) continue;
+        const thresholdDays = Math.max(7, (p.interval_days || 1) * 3);
+        const refIso = lastLog[p.id] || p.created_at || p.start_date;
+        if (!refIso) continue;
+        const daysSince = (now - new Date(refIso).getTime()) / 86400000;
+        if (daysSince < thresholdDays) continue;
+        // Skip if snoozed within the last threshold window.
+        const snoozedAt = await AsyncStorage.getItem(`dosetrace_tx_check_${p.id}`);
+        if (snoozedAt && (now - new Date(snoozedAt).getTime()) / 86400000 < thresholdDays) continue;
+        setInactiveProtocol(p);
+        setShowInactivePrompt(true);
+        return; // one at a time
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function endInactiveProtocol() {
+    const p = inactiveProtocol;
+    if (!p) return;
+    softDeleteProtocol(p.id);
+    deactivateVialsByProtocol(p.id);
+    cancelDoseReminder(p.id).catch(() => {});
+    AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
+    setShowInactivePrompt(false);
+    setInactiveProtocol(null);
+    fetchProtocols();
+    requestSync();
+  }
+
+  async function snoozeInactiveProtocol() {
+    const p = inactiveProtocol;
+    if (p) AsyncStorage.setItem(`dosetrace_tx_check_${p.id}`, new Date().toISOString()).catch(() => {});
+    setShowInactivePrompt(false);
+    setInactiveProtocol(null);
+  }
 
   // Build last-site recall map: most recent log with an injection_site, per protocol.
   // Used by DoseCard to show "Last: Abdomen · 3d ago". This is a recall of the
@@ -966,6 +1029,29 @@ export default function TodayScreen() {
                 onPress={createNewVial}
               >
                 <Text style={s.promptBtnPrimaryText}>{t('today_vial_add')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Inactivity nudge: "is this protocol finished?" */}
+      <Modal visible={showInactivePrompt} transparent animationType="fade">
+        <View style={s.promptOverlay}>
+          <View style={s.promptCard}>
+            <Text style={s.promptTitle}>{t('today_tx_over_title')}</Text>
+            {inactiveProtocol && (
+              <Text style={s.promptProtocolName}>
+                {inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name}
+              </Text>
+            )}
+            <Text style={s.promptSub}>{t('today_tx_over_body')}</Text>
+            <View style={s.promptActions}>
+              <TouchableOpacity style={s.promptBtnSecondary} onPress={snoozeInactiveProtocol}>
+                <Text style={s.promptBtnSecondaryText}>{t('today_tx_over_keep')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.promptBtnPrimary} onPress={endInactiveProtocol}>
+                <Text style={s.promptBtnPrimaryText}>{t('today_tx_over_end')}</Text>
               </TouchableOpacity>
             </View>
           </View>
