@@ -61,3 +61,41 @@ test('interpolation placeholders match English for every key', () => {
   }
   assert.equal(problems.length, 0, `placeholder mismatches: ${problems.slice(0, 20).join(', ')}`);
 });
+
+// Guards against the "dialog shows a raw key like settings_delete_protocol_title"
+// bug: every static t('key') used in the app must exist in the English map (and
+// therefore, via the parity test above, in all 6 languages). Keys ending in "_"
+// are concatenation prefixes (e.g. t('profile_goal_' + value)) whose expansions
+// are checked separately — real keys never end in "_", so we skip those.
+test('every static t() key used in code exists in translations', () => {
+  const SRC_DIRS = ['../screens', '../lib'];
+  const SRC_FILES = ['../App.js'];
+  const files = [];
+  for (const d of SRC_DIRS) {
+    const dir = path.join(__dirname, d);
+    for (const rel of fs.readdirSync(dir, { recursive: true })) {
+      if (String(rel).endsWith('.js')) files.push(path.join(dir, String(rel)));
+    }
+  }
+  for (const f of SRC_FILES) files.push(path.join(__dirname, f));
+
+  // Match a real t(...) call: `t` must not be part of a longer identifier
+  // (so logEvent('x'), format('x') etc. don't match).
+  const re = /(?<![A-Za-z0-9_])t\((['"`])([A-Za-z0-9_]+)\1/g;
+  const used = new Set();
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8');
+    let m;
+    while ((m = re.exec(src)) !== null) used.add(m[2]);
+  }
+
+  const enKeys = translations[BASE];
+  const missing = [...used]
+    .filter((k) => !k.endsWith('_')) // skip concat prefixes
+    .filter((k) => !(k in enKeys))
+    .sort();
+  assert.equal(
+    missing.length, 0,
+    `t() keys used in code but missing from translations (would render raw): ${missing.join(', ')}`
+  );
+});
