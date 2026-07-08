@@ -176,13 +176,14 @@ export default function SettingsScreen({ navigation }) {
   const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  // Collapsible Settings sections (remembered). Recently-Deleted starts collapsed
-  // so it doesn't clutter the screen.
-  const [collapsed, setCollapsed] = useState({ deleted: true });
+  // Collapsible Settings sections (remembered). All start collapsed — the user
+  // opens only what they need, so the screen stays clean.
+  const ALL_COLLAPSED = { preferences: true, notifications: true, privacy: true, support: true, deleted: true, account: true };
+  const [collapsed, setCollapsed] = useState(ALL_COLLAPSED);
 
   useEffect(() => {
     AsyncStorage.getItem('dosetrace_settings_collapsed')
-      .then(v => { if (v) { try { setCollapsed(JSON.parse(v)); } catch {} } })
+      .then(v => { if (v) { try { setCollapsed({ ...ALL_COLLAPSED, ...JSON.parse(v) }); } catch {} } })
       .catch(() => {});
   }, []);
 
