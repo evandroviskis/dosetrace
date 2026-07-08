@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
+import { useTheme } from '../lib/theme';
 
 const STEPS = 7;
 
@@ -33,6 +34,8 @@ const MONTH_KEYS = [
 
 export default function OnboardingScreen() {
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -350,7 +353,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={s.input}
               placeholder={t('profile_name_placeholder')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={displayName}
               onChangeText={setDisplayName}
               autoCapitalize="words"
@@ -407,7 +410,7 @@ export default function OnboardingScreen() {
               style={[s.input, { justifyContent: 'center' }]}
               onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
             >
-              <Text style={{ fontSize: 15, color: country ? '#111' : '#aaa' }}>
+              <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
                 {country ? countryLabel(country, language) : t('profile_country_placeholder')}
               </Text>
             </TouchableOpacity>
@@ -582,7 +585,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={s.input}
               placeholder={t('onboarding_email')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -592,7 +595,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={s.input}
               placeholder={t('onboarding_password') || 'Password'}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -629,7 +632,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={s.input}
               placeholder={t('onboarding_email')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -639,7 +642,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={s.input}
               placeholder={t('onboarding_password') || 'Password'}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -651,7 +654,7 @@ export default function OnboardingScreen() {
               <TextInput
                 style={[s.input, s.referralInput]}
                 placeholder={t('referral_enter_placeholder')}
-                placeholderTextColor="#ccc"
+                placeholderTextColor={colors.textFaint}
                 value={referralCode}
                 onChangeText={(text) => setReferralCode(text.toUpperCase().slice(0, 6))}
                 autoCapitalize="characters"
@@ -682,7 +685,7 @@ export default function OnboardingScreen() {
             <Text style={s.bigEmoji}>📧</Text>
             <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
             <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
-            <Text style={[s.sub, { fontSize: 13, color: '#999', marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
+            <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
             <TouchableOpacity
               style={s.primaryBtn}
               onPress={() => { setSignupDone(false); setIsSignIn(true); setStep(6); setPassword(''); }}
@@ -698,19 +701,19 @@ export default function OnboardingScreen() {
       {/* Country picker — select-only from the canonical list (no free text),
           so the same country is never stored as "USA"/"America"/"United States". */}
       <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#eee' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
             <View style={{ minWidth: 60 }} />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#111' }}>{t('profile_country')}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{t('profile_country')}</Text>
             <TouchableOpacity onPress={() => setShowCountryPicker(false)} style={{ minWidth: 60, alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 14, color: '#185FA5', fontWeight: '600' }}>{t('done')}</Text>
+              <Text style={{ fontSize: 14, color: colors.accent, fontWeight: '600' }}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
           <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
             <TextInput
               style={s.input}
               placeholder={t('profile_country_search')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={countrySearch}
               onChangeText={setCountrySearch}
               autoCapitalize="none"
@@ -728,11 +731,11 @@ export default function OnboardingScreen() {
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: country === item ? '#f0f6ff' : '#f9f9f9', borderRadius: 12, marginBottom: 8, borderWidth: country === item ? 1.5 : 0.5, borderColor: country === item ? '#185FA5' : '#eee' }}
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: country === item ? colors.accentSoft : colors.card2, borderRadius: 12, marginBottom: 8, borderWidth: country === item ? 1.5 : 0.5, borderColor: country === item ? colors.accent : colors.border }}
                 onPress={() => { setCountry(item); setShowCountryPicker(false); }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111', flex: 1 }}>{countryLabel(item, language)}</Text>
-                {country === item && <Text style={{ fontSize: 18, color: '#185FA5', fontWeight: '600' }}>✓</Text>}
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, flex: 1 }}>{countryLabel(item, language)}</Text>
+                {country === item && <Text style={{ fontSize: 18, color: colors.accent, fontWeight: '600' }}>✓</Text>}
               </TouchableOpacity>
             )}
           />
@@ -742,86 +745,86 @@ export default function OnboardingScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 },
   progressBar: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingTop: 12 },
-  progressSegment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: '#eee' },
-  progressSegmentActive: { backgroundColor: '#185FA5' },
+  progressSegment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
+  progressSegmentActive: { backgroundColor: c.accent },
   nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  navBack: { fontSize: 14, color: '#185FA5', paddingVertical: 8, paddingHorizontal: 4 },
-  navStep: { fontSize: 12, color: '#aaa', fontWeight: '500' },
-  navNext: { fontSize: 14, color: '#185FA5', fontWeight: '600', paddingVertical: 8, paddingHorizontal: 4 },
+  navBack: { fontSize: 14, color: c.accent, paddingVertical: 8, paddingHorizontal: 4 },
+  navStep: { fontSize: 12, color: c.textFaint, fontWeight: '500' },
+  navNext: { fontSize: 14, color: c.accent, fontWeight: '600', paddingVertical: 8, paddingHorizontal: 4 },
   scroll: { flex: 1 },
   stepContent: { padding: 28 },
   bigEmoji: { fontSize: 56, marginBottom: 20 },
-  title: { fontSize: 28, fontWeight: '700', color: '#111', marginBottom: 12, lineHeight: 34 },
-  sub: { fontSize: 15, color: '#888', lineHeight: 24, marginBottom: 28 },
-  primaryBtn: { backgroundColor: '#185FA5', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
-  primaryBtnText: { color: 'white', fontSize: 16, fontWeight: '600' },
+  title: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 12, lineHeight: 34 },
+  sub: { fontSize: 15, color: c.textMuted, lineHeight: 24, marginBottom: 28 },
+  primaryBtn: { backgroundColor: c.accent, padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
+  primaryBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
   secondaryBtn: { padding: 14, alignItems: 'center' },
-  secondaryBtnText: { color: '#185FA5', fontSize: 14 },
+  secondaryBtnText: { color: c.accent, fontSize: 14 },
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   langList: { gap: 10 },
-  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, backgroundColor: '#f9f9f9', borderRadius: 12, borderWidth: 0.5, borderColor: '#eee' },
-  langRowSelected: { backgroundColor: '#f0f6ff', borderColor: '#185FA5', borderWidth: 1.5 },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, backgroundColor: c.card2, borderRadius: 12, borderWidth: 0.5, borderColor: c.border },
+  langRowSelected: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
   langFlag: { fontSize: 28 },
   langInfo: { flex: 1 },
-  langNative: { fontSize: 15, fontWeight: '600', color: '#111' },
-  langName: { fontSize: 12, color: '#888', marginTop: 1 },
-  langCheck: { fontSize: 18, color: '#185FA5', fontWeight: '600' },
+  langNative: { fontSize: 15, fontWeight: '600', color: c.text },
+  langName: { fontSize: 12, color: c.textMuted, marginTop: 1 },
+  langCheck: { fontSize: 18, color: c.accent, fontWeight: '600' },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  typeCard: { width: '47%', backgroundColor: '#f9f9f9', borderRadius: 14, padding: 18, alignItems: 'center', borderWidth: 1.5, borderColor: '#eee', position: 'relative' },
-  typeCardSelected: { backgroundColor: '#f0f6ff', borderColor: '#185FA5' },
+  typeCard: { width: '47%', backgroundColor: c.card2, borderRadius: 14, padding: 18, alignItems: 'center', borderWidth: 1.5, borderColor: c.border, position: 'relative' },
+  typeCardSelected: { backgroundColor: c.accentSoft, borderColor: c.accent },
   typeEmoji: { fontSize: 32, marginBottom: 10 },
-  typeLabel: { fontSize: 13, fontWeight: '600', color: '#444', textAlign: 'center' },
-  typeLabelSelected: { color: '#185FA5' },
-  typeCheck: { position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: 10, backgroundColor: '#185FA5', alignItems: 'center', justifyContent: 'center' },
-  typeCheckText: { color: 'white', fontSize: 11, fontWeight: '700' },
-  readyFeatures: { backgroundColor: '#f9f9f9', borderRadius: 14, padding: 18, marginBottom: 28, gap: 14 },
+  typeLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, textAlign: 'center' },
+  typeLabelSelected: { color: c.accent },
+  typeCheck: { position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  typeCheckText: { color: c.accentText, fontSize: 11, fontWeight: '700' },
+  readyFeatures: { backgroundColor: c.card2, borderRadius: 14, padding: 18, marginBottom: 28, gap: 14 },
   readyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   readyEmoji: { fontSize: 20 },
-  readyText: { fontSize: 14, color: '#444', fontWeight: '500' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 12, padding: 14, fontSize: 15, color: '#111', marginBottom: 14, backgroundColor: '#fafafa' },
+  readyText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
+  input: { borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, marginBottom: 14, backgroundColor: c.card2 },
   switchBtn: { padding: 12, alignItems: 'center' },
-  switchBtnText: { fontSize: 14, color: '#185FA5' },
-  referralRow: { marginBottom: 4, marginTop: 8, padding: 14, backgroundColor: '#f9f9f9', borderRadius: 12, borderWidth: 0.5, borderColor: '#eee' },
-  referralLabel: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 8 },
-  referralInput: { marginBottom: 4, letterSpacing: 2, fontWeight: '600', fontSize: 16, backgroundColor: '#fff' },
-  referralHint: { fontSize: 12, color: '#999', marginBottom: 4, marginTop: 2 },
+  switchBtnText: { fontSize: 14, color: c.accent },
+  referralRow: { marginBottom: 4, marginTop: 8, padding: 14, backgroundColor: c.card2, borderRadius: 12, borderWidth: 0.5, borderColor: c.border },
+  referralLabel: { fontSize: 14, fontWeight: '600', color: c.textMuted, marginBottom: 8 },
+  referralInput: { marginBottom: 4, letterSpacing: 2, fontWeight: '600', fontSize: 16, backgroundColor: c.card },
+  referralHint: { fontSize: 12, color: c.textFaint, marginBottom: 4, marginTop: 2 },
   // Consent
-  consentCard: { backgroundColor: '#f9f9f9', borderRadius: 14, padding: 18, marginBottom: 20, borderWidth: 0.5, borderColor: '#eee' },
-  consentSectionTitle: { fontSize: 13, fontWeight: '700', color: '#333', marginBottom: 8 },
+  consentCard: { backgroundColor: c.card2, borderRadius: 14, padding: 18, marginBottom: 20, borderWidth: 0.5, borderColor: c.border },
+  consentSectionTitle: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 8 },
   consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
-  consentDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#185FA5', marginTop: 6, flexShrink: 0 },
-  consentText: { fontSize: 13, color: '#555', lineHeight: 19, flex: 1 },
+  consentDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent, marginTop: 6, flexShrink: 0 },
+  consentText: { fontSize: 13, color: c.textMuted, lineHeight: 19, flex: 1 },
   consentToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, marginBottom: 6 },
-  consentCheckbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center' },
-  consentCheckboxOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  consentCheckMark: { color: 'white', fontSize: 14, fontWeight: '700' },
-  consentToggleText: { fontSize: 13, color: '#333', flex: 1, lineHeight: 19 },
-  consentFooter: { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 10, lineHeight: 16 },
+  consentCheckbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  consentCheckboxOn: { backgroundColor: c.accent, borderColor: c.accent },
+  consentCheckMark: { color: c.accentText, fontSize: 14, fontWeight: '700' },
+  consentToggleText: { fontSize: 13, color: c.text, flex: 1, lineHeight: 19 },
+  consentFooter: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 10, lineHeight: 16 },
   // Profile step
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: '#555', marginBottom: 6, marginTop: 12 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 12 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  pill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 0.5, borderColor: '#ddd' },
-  pillOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  pillText: { fontSize: 13, color: '#555', fontWeight: '500' },
-  pillTextOn: { color: '#fff', fontWeight: '600' },
+  pill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  pillOn: { backgroundColor: c.accent, borderColor: c.accent },
+  pillText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  pillTextOn: { color: c.accentText, fontWeight: '600' },
   monthScroll: { marginBottom: 8 },
   yearScroll: { marginBottom: 4, maxHeight: 42 },
   monthRow: { flexDirection: 'row', gap: 6 },
-  profileDisclaimer: { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 16, marginBottom: 8, lineHeight: 16 },
+  profileDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 16, marginBottom: 8, lineHeight: 16 },
   // Google Sign-In button
-  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fff', marginBottom: 16, gap: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 2 },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card, marginBottom: 16, gap: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 2 },
   googleBtnIcon: { fontSize: 20, fontWeight: '700', color: '#4285F4' },
-  googleBtnText: { fontSize: 16, fontWeight: '600', color: '#333' },
+  googleBtnText: { fontSize: 16, fontWeight: '600', color: c.text },
   // OR divider
   orDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
-  orLine: { flex: 1, height: 1, backgroundColor: '#e0e0e0' },
-  orText: { fontSize: 13, color: '#999', fontWeight: '500' },
+  orLine: { flex: 1, height: 1, backgroundColor: c.border },
+  orText: { fontSize: 13, color: c.textFaint, fontWeight: '500' },
   // Sign-in link on step 4
   signinLink: { padding: 16, alignItems: 'center', marginTop: 4 },
-  signinLinkText: { fontSize: 15, color: '#185FA5', fontWeight: '500' },
+  signinLinkText: { fontSize: 15, color: c.accent, fontWeight: '500' },
   // Forgot password
-  forgotPassword: { fontSize: 13, color: '#185FA5', textAlign: 'right', marginBottom: 16, marginTop: -6 },
+  forgotPassword: { fontSize: 13, color: c.accent, textAlign: 'right', marginBottom: 16, marginTop: -6 },
 });
