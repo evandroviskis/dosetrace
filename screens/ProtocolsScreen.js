@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,7 @@ import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
 import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate } from '../lib/schedule';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
+import { useTheme } from '../lib/theme';
 
 // Protocols list sort options. 'type' keeps the compound-type sections; the
 // rest render a single flat list.
@@ -102,6 +103,8 @@ function getTypeBadge(type, t) {
 }
 
 function ProtocolSyringeGuide({ p, t }) {
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   if (p.type === 'oral') return null;
 
   const draw = computeDraw({
@@ -163,7 +166,7 @@ function ProtocolSyringeGuide({ p, t }) {
     <View style={s.syringeWrap}>
       <Text style={s.syringeTitle}>{t('protocols_syringe_title')}</Text>
       <Text style={s.syringeSubtitle}>
-        {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '700', color: '#185FA5' }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
+        {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
       </Text>
       <View style={s.syringeOuter}>
         <View style={s.syringeBody}>
@@ -209,6 +212,8 @@ function ProtocolSyringeGuide({ p, t }) {
 }
 
 function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, t }) {
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const badge = getTypeBadge(p.type, t);
   const isExpanded = expanded === p.id;
   const vialDaysLeft = (p.type === 'recon' && vial)
@@ -340,6 +345,8 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
 
 export default function ProtocolsScreen() {
   const { t, language } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -927,7 +934,7 @@ export default function ProtocolsScreen() {
                     type === 'rtu' ? t('protocols_search_injectables') :
                     t('protocols_search_supplements')
                   }
-                  placeholderTextColor="#aaa"
+                  placeholderTextColor={colors.textFaint}
                   value={searchQuery}
                   onChangeText={(text) => {
                     setSearchQuery(text);
@@ -966,7 +973,7 @@ export default function ProtocolsScreen() {
                           style={s.suggestionItem}
                           onPressIn={addCustomCompound}
                         >
-                          <Text style={[s.suggestionText, { color: '#185FA5', fontWeight: '700' }]}>
+                          <Text style={[s.suggestionText, { color: colors.accent, fontWeight: '700' }]}>
                             {t('protocols_add_custom').replace('{name}', searchQuery.trim())}
                           </Text>
                         </TouchableOpacity>
@@ -1020,7 +1027,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 500`}
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textFaint}
                         keyboardType="numeric"
                         value={dose}
                         onChangeText={setDose}
@@ -1060,7 +1067,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={[s.input, { height: 70 }]}
                       placeholder={t('protocols_instructions_placeholder')}
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={colors.textFaint}
                       multiline
                       value={notes}
                       onChangeText={setNotes}
@@ -1075,7 +1082,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 5`}
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textFaint}
                         keyboardType="numeric"
                         value={amount}
                         onChangeText={setAmount}
@@ -1110,7 +1117,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { marginTop: 8 }]}
                         placeholder={t('protocols_diluent_other_placeholder')}
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textFaint}
                         value={diluentOther}
                         onChangeText={setDiluentOther}
                       />
@@ -1140,7 +1147,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 0.5`}
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textFaint}
                         keyboardType="numeric"
                         value={dose}
                         onChangeText={setDose}
@@ -1207,7 +1214,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 100`}
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textFaint}
                         keyboardType="numeric"
                         value={dose}
                         onChangeText={setDose}
@@ -1229,7 +1236,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 200`}
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textFaint}
                         keyboardType="numeric"
                         value={concentration}
                         onChangeText={setConcentration}
@@ -1257,7 +1264,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={[s.input, { height: 80 }]}
                       placeholder={t('protocols_notes_placeholder')}
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={colors.textFaint}
                       multiline
                       value={notes}
                       onChangeText={setNotes}
@@ -1315,7 +1322,7 @@ export default function ProtocolsScreen() {
                 <TextInput
                   style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
                   placeholder={t('protocols_day_dd')}
-                  placeholderTextColor="#aaa"
+                  placeholderTextColor={colors.textFaint}
                   keyboardType="numeric"
                   maxLength={2}
                   value={startDay}
@@ -1447,7 +1454,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
                       placeholder={t('protocols_day_dd')}
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={colors.textFaint}
                       keyboardType="numeric"
                       maxLength={2}
                       value={vialDay}
@@ -1460,7 +1467,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={[s.input, { width: 100, textAlign: 'center' }]}
                       placeholder={String(DEFAULT_VALID_DAYS)}
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={colors.textFaint}
                       keyboardType="numeric"
                       maxLength={3}
                       value={vialValidDays}
@@ -1513,142 +1520,142 @@ export default function ProtocolsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: '#111' },
-  addBtn: { backgroundColor: '#185FA5', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
-  addBtnText: { color: 'white', fontSize: 13, fontWeight: '600' },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
+  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
   sortRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
-  sortLabel: { fontSize: 12, fontWeight: '600', color: '#888' },
-  sortPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f0f0', borderWidth: 0.5, borderColor: '#e0e0e0', marginRight: 8 },
-  sortPillOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  sortPillText: { fontSize: 12, color: '#555', fontWeight: '500' },
-  sortPillTextOn: { color: '#fff', fontWeight: '600' },
+  sortLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted },
+  sortPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, marginRight: 8 },
+  sortPillOn: { backgroundColor: c.accent, borderColor: c.accent },
+  sortPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  sortPillTextOn: { color: c.accentText, fontWeight: '600' },
   emptyState: { alignItems: 'center', paddingTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
-  emptySub: { fontSize: 13, color: '#888', textAlign: 'center', marginBottom: 24 },
-  emptyBtn: { backgroundColor: '#185FA5', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
-  emptyBtnText: { color: 'white', fontSize: 14, fontWeight: '600' },
-  card: { backgroundColor: '#fff', borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
+  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 24 },
+  emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
+  emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  card: { backgroundColor: c.card, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   cardDot: { width: 10, height: 10, borderRadius: 5 },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: '600', color: '#111' },
-  cardMeta: { fontSize: 11, color: '#888', marginTop: 2 },
+  cardName: { fontSize: 14, fontWeight: '600', color: c.text },
+  cardMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   badgeText: { fontSize: 10, fontWeight: '500' },
   badgeGoal: { backgroundColor: '#FAEEDA', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   badgeGoalText: { fontSize: 10, color: '#633806', fontWeight: '500' },
-  chevron: { fontSize: 11, color: '#aaa' },
-  cardBody: { borderTopWidth: 0.5, borderTopColor: '#f0f0f0', padding: 14 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: '#f5f5f5' },
-  detailLabel: { fontSize: 12, color: '#888' },
-  detailVal: { fontSize: 12, fontWeight: '500', color: '#111' },
+  chevron: { fontSize: 11, color: c.textFaint },
+  cardBody: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  detailLabel: { fontSize: 12, color: c.textMuted },
+  detailVal: { fontSize: 12, fontWeight: '500', color: c.text },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: '#ddd', alignItems: 'center' },
-  actionBtnText: { fontSize: 12, color: '#666' },
-  actionBtnDanger: { borderColor: '#E24B4A' },
-  actionBtnDangerText: { fontSize: 12, color: '#E24B4A' },
-  syringeWrap: { backgroundColor: '#f0f6ff', borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 4 },
-  syringeTitle: { fontSize: 12, fontWeight: '600', color: '#0C447C', marginBottom: 4 },
-  syringeSubtitle: { fontSize: 13, color: '#185FA5', marginBottom: 12 },
-  syringeNoData: { fontSize: 12, color: '#888', lineHeight: 18 },
+  actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
+  actionBtnText: { fontSize: 12, color: c.textMuted },
+  actionBtnDanger: { borderColor: c.danger },
+  actionBtnDangerText: { fontSize: 12, color: c.danger },
+  syringeWrap: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 4 },
+  syringeTitle: { fontSize: 12, fontWeight: '600', color: c.accentSoftText, marginBottom: 4 },
+  syringeSubtitle: { fontSize: 13, color: c.accent, marginBottom: 12 },
+  syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
   syringeOuter: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   syringeBody: { flex: 1, height: 48 },
   syringeTicks: { flexDirection: 'row', justifyContent: 'space-between', height: 16, alignItems: 'flex-end', marginBottom: 2 },
   tickGroup: { alignItems: 'center', flex: 1 },
-  tick: { width: 1, height: 6, backgroundColor: '#aaa' },
-  tickMajor: { height: 10, backgroundColor: '#666', width: 1.5 },
-  tickLabel: { fontSize: 8, color: '#888', marginTop: 1 },
-  syringeTrack: { height: 22, backgroundColor: '#e8eef5', borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#b0c8e8' },
-  syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: '#185FA5', opacity: 0.35, borderRadius: 3 },
-  plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: '#185FA5', borderRadius: 2 },
-  syringeNeedle: { width: 24, height: 4, backgroundColor: '#aaa', borderRadius: 2, marginLeft: 2 },
+  tick: { width: 1, height: 6, backgroundColor: c.textFaint },
+  tickMajor: { height: 10, backgroundColor: c.textMuted, width: 1.5 },
+  tickLabel: { fontSize: 8, color: c.textMuted, marginTop: 1 },
+  syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
+  syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.35, borderRadius: 3 },
+  plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: c.accent, borderRadius: 2 },
+  syringeNeedle: { width: 24, height: 4, backgroundColor: c.textFaint, borderRadius: 2, marginLeft: 2 },
   syringeInfo: { flexDirection: 'row', justifyContent: 'space-between' },
   syringeInfoItem: { alignItems: 'center' },
-  syringeInfoLabel: { fontSize: 9, color: '#888', textTransform: 'uppercase', letterSpacing: 0.3 },
-  syringeInfoVal: { fontSize: 13, fontWeight: '600', color: '#0C447C', marginTop: 2 },
-  syringeDisclaimer: { fontSize: 9, color: '#999', marginTop: 10, textAlign: 'center', lineHeight: 13 },
-  modal: { flex: 1, backgroundColor: '#fff' },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  modalCancel: { fontSize: 14, color: '#888' },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: '#111' },
-  modalSave: { fontSize: 14, color: '#185FA5', fontWeight: '600' },
-  modalSaveDisabled: { color: '#C0392B' },
+  syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
+  syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
+  modal: { flex: 1, backgroundColor: c.card },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  modalCancel: { fontSize: 14, color: c.textMuted },
+  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  modalSave: { fontSize: 14, color: c.accent, fontWeight: '600' },
+  modalSaveDisabled: { color: c.danger },
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
-  modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: '#eee' },
-  modalProgDone: { backgroundColor: '#185FA5' },
+  modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
+  modalProgDone: { backgroundColor: c.accent },
   modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
-  modalStepTitle: { fontSize: 20, fontWeight: '600', color: '#111', marginBottom: 6, marginTop: 8 },
-  modalStepSub: { fontSize: 13, color: '#888', marginBottom: 20 },
-  fieldLabel: { fontSize: 11, color: '#888', marginBottom: 6 },
-  fieldHint: { fontSize: 11, color: '#aaa', marginTop: 4, marginBottom: 12 },
-  doseTimeLabel: { fontSize: 12, fontWeight: '600', color: '#666', marginTop: 8, marginBottom: 2 },
-  input: { borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 13, color: '#111', backgroundColor: '#f9f9f9', marginBottom: 14 },
+  modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
+  modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
+  fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
+  fieldHint: { fontSize: 11, color: c.textFaint, marginTop: 4, marginBottom: 12 },
+  doseTimeLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 2 },
+  input: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 13, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
   inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   unitPicker: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  unitBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 0.5, borderColor: '#ddd', backgroundColor: '#f9f9f9' },
-  unitBtnOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  unitBtnText: { fontSize: 12, color: '#666' },
-  unitBtnTextOn: { color: 'white', fontWeight: '600' },
+  unitBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
+  unitBtnOn: { backgroundColor: c.accent, borderColor: c.accent },
+  unitBtnText: { fontSize: 12, color: c.textMuted },
+  unitBtnTextOn: { color: c.accentText, fontWeight: '600' },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
-  stepperBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 0.5, borderColor: '#ddd', backgroundColor: '#f9f9f9', alignItems: 'center', justifyContent: 'center' },
-  stepperBtnText: { fontSize: 24, color: '#185FA5', fontWeight: '400' },
-  stepperVal: { flex: 1, backgroundColor: '#E6F1FB', borderRadius: 10, padding: 12, alignItems: 'center' },
-  stepperValText: { fontSize: 20, fontWeight: '600', color: '#0C447C' },
-  stepperHoldHint: { fontSize: 10, color: '#185FA5', marginTop: 2 },
-  stepperHint: { fontSize: 10, color: '#aaa', marginBottom: 8 },
-  calcResult: { backgroundColor: '#E6F1FB', borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
-  calcResultText: { fontSize: 13, color: '#0C447C', fontWeight: '500' },
-  calcDisclaimer: { fontSize: 10, color: '#888', marginTop: 6, lineHeight: 14 },
+  stepperBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  stepperBtnText: { fontSize: 24, color: c.accent, fontWeight: '400' },
+  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, alignItems: 'center' },
+  stepperValText: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
+  stepperHoldHint: { fontSize: 10, color: c.accent, marginTop: 2 },
+  stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
+  calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
+  calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
+  calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: '#ddd', backgroundColor: '#f9f9f9', alignItems: 'center' },
-  typeBtnOn: { borderWidth: 2, borderColor: '#185FA5', backgroundColor: '#E6F1FB' },
+  typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },
+  typeBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
   typeEmoji: { fontSize: 20, marginBottom: 4 },
-  typeBtnLabel: { fontSize: 11, fontWeight: '600', color: '#444' },
-  typeBtnLabelOn: { color: '#0C447C' },
-  typeBtnSub: { fontSize: 9, color: '#aaa', marginTop: 1 },
+  typeBtnLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
+  typeBtnLabelOn: { color: c.accentSoftText },
+  typeBtnSub: { fontSize: 9, color: c.textFaint, marginTop: 1 },
   colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
   colorSwatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  colorSwatchOn: { borderWidth: 3, borderColor: '#111' },
+  colorSwatchOn: { borderWidth: 3, borderColor: c.text },
   colorCheck: { color: 'white', fontSize: 16, fontWeight: '700' },
-  previewPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f5f5f5', borderRadius: 10, padding: 12, marginBottom: 20 },
+  previewPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card2, borderRadius: 10, padding: 12, marginBottom: 20 },
   previewDot: { width: 14, height: 14, borderRadius: 7 },
-  previewName: { fontSize: 14, fontWeight: '600', color: '#111' },
-  previewSub: { fontSize: 11, color: '#888' },
+  previewName: { fontSize: 14, fontWeight: '600', color: c.text },
+  previewSub: { fontSize: 11, color: c.textMuted },
   freqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  freqBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 0.5, borderColor: '#ddd', backgroundColor: '#f9f9f9' },
-  freqBtnOn: { borderWidth: 2, borderColor: '#185FA5', backgroundColor: '#E6F1FB' },
-  freqBtnText: { fontSize: 12, color: '#666' },
-  freqBtnTextOn: { color: '#0C447C', fontWeight: '600' },
-  dateBtn: { backgroundColor: '#f9f9f9', borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 14 },
-  dateBtnText: { fontSize: 14, color: '#111' },
+  freqBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
+  freqBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
+  freqBtnText: { fontSize: 12, color: c.textMuted },
+  freqBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
+  dateBtn: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 14, marginBottom: 14 },
+  dateBtnText: { fontSize: 14, color: c.text },
   monthScroll: { marginBottom: 4 },
   monthRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
-  monthPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#f0f0f0', borderWidth: 0.5, borderColor: '#ddd' },
-  monthPillOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  monthPillText: { fontSize: 12, color: '#666', fontWeight: '500' },
-  monthPillTextOn: { color: '#fff', fontWeight: '600' },
-  doneBtn: { backgroundColor: '#185FA5', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
-  doneBtnText: { color: 'white', fontSize: 14, fontWeight: '600' },
+  monthPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  monthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
+  monthPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  monthPillTextOn: { color: c.accentText, fontWeight: '600' },
+  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
+  doneBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   skipVialBtn: { alignItems: 'center', paddingVertical: 12, marginBottom: 16 },
-  skipVialBtnText: { fontSize: 13, color: '#185FA5' },
-  skippedBox: { backgroundColor: '#f9f9f9', borderRadius: 10, padding: 14, marginBottom: 16, alignItems: 'center' },
-  skippedText: { fontSize: 13, color: '#888', textAlign: 'center', marginBottom: 10, lineHeight: 20 },
-  infoBox: { backgroundColor: '#E6F1FB', borderRadius: 10, padding: 12, marginBottom: 16 },
-  infoText: { fontSize: 12, color: '#0C447C', lineHeight: 18 },
-  reviewCard: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, marginTop: 8 },
-  reviewTitle: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 10 },
-  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  reviewLabel: { fontSize: 12, color: '#888' },
-  reviewVal: { fontSize: 12, fontWeight: '500', color: '#111' },
-  suggestionBox: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 0.5, borderColor: '#ddd', marginBottom: 14 },
-  suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' },
-  suggestionText: { fontSize: 13, color: '#111' },
-  suggestionMore: { fontSize: 11, color: '#aaa', padding: 10, textAlign: 'center' },
+  skipVialBtnText: { fontSize: 13, color: c.accent },
+  skippedBox: { backgroundColor: c.card2, borderRadius: 10, padding: 14, marginBottom: 16, alignItems: 'center' },
+  skippedText: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 10, lineHeight: 20 },
+  infoBox: { backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, marginBottom: 16 },
+  infoText: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
+  reviewCard: { backgroundColor: c.card2, borderRadius: 12, padding: 14, marginTop: 8 },
+  reviewTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
+  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  reviewLabel: { fontSize: 12, color: c.textMuted },
+  reviewVal: { fontSize: 12, fontWeight: '500', color: c.text },
+  suggestionBox: { backgroundColor: c.card, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, marginBottom: 14 },
+  suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  suggestionText: { fontSize: 13, color: c.text },
+  suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },
 });
