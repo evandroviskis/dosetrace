@@ -234,6 +234,13 @@ export default function OnboardingScreen() {
             <TouchableOpacity style={s.primaryBtn} onPress={nextStep}>
               <Text style={s.primaryBtnText}>{t('onboarding_welcome_btn')}</Text>
             </TouchableOpacity>
+            {/* Returning from another device → jump straight to sign-in */}
+            <TouchableOpacity
+              style={s.signinLink}
+              onPress={() => { setIsSignIn(true); setStep(6); }}
+            >
+              <Text style={s.signinLinkText}>{t('onboarding_already_have_account')}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
