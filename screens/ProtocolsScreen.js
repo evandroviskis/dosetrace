@@ -36,6 +36,7 @@ import { requestSync } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
 import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate } from '../lib/schedule';
+import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 
 // Protocols list sort options. 'type' keeps the compound-type sections; the
 // rest render a single flat list.
@@ -207,9 +208,12 @@ function ProtocolSyringeGuide({ p, t }) {
   );
 }
 
-function ProtocolCard({ p, expanded, setExpanded, openEdit, deleteProtocol, t }) {
+function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, t }) {
   const badge = getTypeBadge(p.type, t);
   const isExpanded = expanded === p.id;
+  const vialDaysLeft = (p.type === 'recon' && vial)
+    ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
+    : null;
 
   return (
     <TouchableOpacity
@@ -221,6 +225,13 @@ function ProtocolCard({ p, expanded, setExpanded, openEdit, deleteProtocol, t })
         <View style={s.cardInfo}>
           <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {p.frequency}</Text>
+          {vialDaysLeft != null && (
+            <Text style={[s.cardMeta, { color: expiryColor(vialDaysLeft), fontWeight: '600' }]}>
+              {vialDaysLeft <= 0
+                ? t('protocols_vial_past')
+                : t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft))}
+            </Text>
+          )}
           <View style={s.badgeRow}>
             <View style={[s.badge, { backgroundColor: badge.bg }]}>
               <Text style={[s.badgeText, { color: badge.text }]}>{badge.label}</Text>
@@ -433,6 +444,7 @@ export default function ProtocolsScreen() {
   }
   const [vialMonth, setVialMonth] = useState(new Date().getMonth()); // 0-11
   const [vialDay, setVialDay] = useState(String(new Date().getDate()));
+  const [vialValidDays, setVialValidDays] = useState(String(DEFAULT_VALID_DAYS));
   const [totalDoses, setTotalDoses] = useState('');
   const [skipVial, setSkipVial] = useState(false);
 
@@ -500,7 +512,7 @@ export default function ProtocolsScreen() {
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
     setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes('');
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
-    setTotalDoses(''); setSkipVial(false);
+    setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
   }
 
@@ -584,6 +596,7 @@ export default function ProtocolsScreen() {
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
     setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || '');
+    setVialValidDays(String(p.vial_valid_days || DEFAULT_VALID_DAYS));
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
 
@@ -677,6 +690,7 @@ export default function ProtocolsScreen() {
         interval_days: intervalDays, doses_per_day: dosesPerDay,
         start_date: toSupabaseDateFromMD(startMonth, startDay),
         schedule_total: null,
+        vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes,
       });
       setSaving(false);
@@ -701,6 +715,7 @@ export default function ProtocolsScreen() {
         interval_days: intervalDays, doses_per_day: dosesPerDay,
         start_date: toSupabaseDateFromMD(startMonth, startDay),
         schedule_total: null,
+        vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes,
       });
 
@@ -768,7 +783,7 @@ export default function ProtocolsScreen() {
 
   const renderCard = (p) => (
     <ProtocolCard
-      key={p.id} p={p}
+      key={p.id} p={p} vial={vialsByProtocol[p.id]}
       expanded={expanded} setExpanded={setExpanded}
       openEdit={openEdit} deleteProtocol={deleteProtocol}
       t={t}
@@ -1441,6 +1456,17 @@ export default function ProtocolsScreen() {
                         if (val === '' || (num >= 1 && num <= 31)) setVialDay(val);
                       }}
                     />
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_vial_valid')}</Text>
+                    <TextInput
+                      style={[s.input, { width: 100, textAlign: 'center' }]}
+                      placeholder={String(DEFAULT_VALID_DAYS)}
+                      placeholderTextColor="#aaa"
+                      keyboardType="numeric"
+                      maxLength={3}
+                      value={vialValidDays}
+                      onChangeText={(val) => { if (val === '' || /^\d+$/.test(val)) setVialValidDays(val); }}
+                    />
+                    <Text style={s.stepperHint}>{t('protocols_vial_valid_hint')}</Text>
                     <View style={[s.infoBox, { marginTop: 8 }]}>
                       <Text style={s.infoText}>
                         {t('protocols_bac_info')}

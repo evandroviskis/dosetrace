@@ -25,6 +25,7 @@ import { requestSync, addSyncListener } from '../lib/sync';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
+import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
 } from '../lib/schedule';
@@ -723,11 +724,20 @@ export default function TodayScreen() {
             ? vial.total_doses
             : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
           const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
+          const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
           return (
             <View style={s.vialStatus}>
               <Text style={s.vialStatusText}>
                 {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
                 {remaining != null ? ` · ${remaining} ${t('today_vial_remaining')}` : ''}
+                {daysLeft != null ? '  ·  ' : ''}
+                {daysLeft != null && (
+                  <Text style={{ color: expiryColor(daysLeft), fontWeight: '600' }}>
+                    {daysLeft <= 0
+                      ? t('protocols_vial_past')
+                      : t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
+                  </Text>
+                )}
               </Text>
             </View>
           );
