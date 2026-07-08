@@ -797,16 +797,6 @@ export default function SettingsScreen({ navigation }) {
         {renderSectionHeader('settings_account_prefs', 'account')}
         {!collapsed.account && (
         <View style={s.group}>
-          <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
-            <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🌐</Text>
-              <View>
-                <Text style={s.rowLabel}>{t('settings_language')}</Text>
-                <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
-              </View>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
           <View style={s.row}>
             <View style={s.rowLeft}>
               <Text style={s.rowIcon}>🎨</Text>
@@ -828,6 +818,16 @@ export default function SettingsScreen({ navigation }) {
               ))}
             </View>
           </View>
+          <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
+            <View style={s.rowLeft}>
+              <Text style={s.rowIcon}>🌐</Text>
+              <View>
+                <Text style={s.rowLabel}>{t('settings_language')}</Text>
+                <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
+              </View>
+            </View>
+            <Text style={s.rowArrow}>›</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
               <Text style={s.rowIcon}>🚪</Text>
