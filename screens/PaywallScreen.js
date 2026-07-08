@@ -19,6 +19,7 @@ import {
   PRODUCT_IDS,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
+import { friendlyError } from '../lib/friendlyError';
 
 export default function PaywallScreen({ navigation, route }) {
   const { t } = useLanguage();
@@ -130,7 +131,7 @@ export default function PaywallScreen({ navigation, route }) {
       if (premium && onSuccess) onSuccess();
       navigation.goBack();
     } else if (!result.cancelled) {
-      Alert.alert(t('error'), result.error || t('paywall_purchase_failed'));
+      Alert.alert(t('error'), friendlyError(result.error, t, 'paywall_purchase_failed'));
     }
   }
 
@@ -157,7 +158,7 @@ export default function PaywallScreen({ navigation, route }) {
         Alert.alert(t('paywall_no_purchases'), t('paywall_no_purchases_msg'));
       }
     } else {
-      Alert.alert(t('error'), result.error || t('paywall_restore_failed'));
+      Alert.alert(t('error'), friendlyError(result.error, t, 'paywall_restore_failed'));
     }
   }
 

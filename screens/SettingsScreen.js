@@ -34,6 +34,7 @@ import { isPremium } from '../lib/purchases';
 import { Analytics } from '../lib/analytics';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
+import { friendlyError } from '../lib/friendlyError';
 
 const APPLE_APP_ID = '6761788157'; // TODO: insert real Apple app id
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -206,7 +207,7 @@ export default function SettingsScreen({ navigation }) {
       setShowEditProfile(false);
       fetchUser();
     } catch (e) {
-      Alert.alert(t('error'), e.message);
+      Alert.alert(t('error'), friendlyError(e, t, 'error_save_failed'));
     }
   }
 
@@ -328,7 +329,7 @@ export default function SettingsScreen({ navigation }) {
         title: t('settings_report_title'),
       });
     } catch (e) {
-      Alert.alert(t('error'), e.message);
+      Alert.alert(t('error'), friendlyError(e, t));
     }
     setExporting(false);
   }
@@ -418,7 +419,7 @@ export default function SettingsScreen({ navigation }) {
       clearLocalDatabase();
       await supabase.auth.signOut();
     } catch (e) {
-      Alert.alert(t('error'), e.message);
+      Alert.alert(t('error'), friendlyError(e, t, 'error_deletion_failed'));
     }
   }
 

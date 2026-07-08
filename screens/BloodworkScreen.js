@@ -22,6 +22,7 @@ import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
+import { friendlyError } from '../lib/friendlyError';
 
 // Counts successful extraction saves (not distinct report dates) so the
 // free-upload quota can't be reset by uploading two reports with the same date.
@@ -292,7 +293,7 @@ export default function BloodworkScreen({ navigation }) {
       fetchReports();
       requestSync();
     } catch (err) {
-      Alert.alert(t('error'), err.message);
+      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
   }
 

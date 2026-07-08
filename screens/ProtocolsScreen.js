@@ -27,6 +27,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
+import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveProtocols, insertProtocol, updateProtocol,
@@ -740,7 +741,7 @@ export default function ProtocolsScreen() {
     fetchProtocols();
     } catch (err) {
       setSaving(false);
-      Alert.alert(t('error'), err.message);
+      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
   }
 

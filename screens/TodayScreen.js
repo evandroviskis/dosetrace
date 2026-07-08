@@ -27,6 +27,7 @@ import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
+import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
@@ -426,7 +427,7 @@ export default function TodayScreen() {
       actionInProgressRef.current = false;
     } catch (err) {
       actionInProgressRef.current = false;
-      Alert.alert(t('error'), err.message);
+      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
   }
 
@@ -514,7 +515,7 @@ export default function TodayScreen() {
               Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
               requestSync();
             } catch (err) {
-              Alert.alert(t('error'), err.message);
+              Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
             }
           },
         },
@@ -556,7 +557,7 @@ export default function TodayScreen() {
       syncVialAlerts().catch(() => {});
       requestSync();
     } catch (err) {
-      Alert.alert(t('error'), err.message);
+      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
   }
 

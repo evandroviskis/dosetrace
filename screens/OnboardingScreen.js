@@ -19,6 +19,7 @@ import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { useTheme } from '../lib/theme';
+import { friendlyError } from '../lib/friendlyError';
 
 const STEPS = 7;
 
@@ -78,7 +79,7 @@ export default function OnboardingScreen() {
     const { error } = await signInWithGoogle();
     setLoading(false);
     if (error) {
-      Alert.alert(t('error'), error.message);
+      Alert.alert(t('error'), friendlyError(error, t));
     }
     // If successful, App.js auth listener will pick up the session automatically
   }
@@ -93,7 +94,7 @@ export default function OnboardingScreen() {
     const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
     setLoading(false);
     if (error) {
-      Alert.alert(t('error'), error.message);
+      Alert.alert(t('error'), friendlyError(error, t));
     } else {
       Alert.alert(t('forgot_password_sent_title'), t('forgot_password_sent_msg').replace('{email}', trimmed));
     }
@@ -150,7 +151,7 @@ export default function OnboardingScreen() {
     }
     setLoading(false);
     if (result.error) {
-      Alert.alert(t('error'), result.error.message);
+      Alert.alert(t('error'), friendlyError(result.error, t));
     } else if (isSignIn) {
       // Session exists now — redeem any pending referral / ensure own code.
       // Best effort; App.js also runs this on SIGNED_IN.
