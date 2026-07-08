@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Council — Compound Data Foundation</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e6; --bg:#fafafa; --card:#fff;
+    --accent:#185FA5; --agree:#1D9E75; --clash:#D85A30; --blind:#7F77DD; --do:#BA7517;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;padding:40px 22px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:8px}
+  .kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  h1{font-size:26px;margin:8px 0 6px;line-height:1.2}
+  .q{font-size:15px;color:#333;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:16px 18px;margin:22px 0}
+  .q b{color:var(--accent)}
+  h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin:34px 0 12px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:12px 0}
+  .card.lead{border-left:4px solid var(--accent)}
+  ul{margin:8px 0 0;padding-left:20px}
+  li{margin:7px 0}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 9px;border-radius:20px;color:#fff;margin-right:6px;vertical-align:middle}
+  .t-agree{background:var(--agree)} .t-clash{background:var(--clash)}
+  .t-blind{background:var(--blind)} .t-do{background:var(--do)} .t-rec{background:var(--accent)}
+  .grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}
+  .adv{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--card)}
+  .adv .name{font-weight:700;font-size:14px}
+  .adv .pos{font-size:13px;color:#444;margin-top:3px}
+  .spectrum{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:10px;flex-wrap:wrap}
+  .spectrum .end{flex:1;min-width:180px;padding:12px 14px;font-size:13px}
+  .spectrum .left{background:#eef6f1;border-right:1px solid var(--line)}
+  .spectrum .right{background:#fdf0e9}
+  .spectrum .lbl{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .spectrum .left .lbl{color:var(--agree)} .spectrum .right .lbl{color:var(--clash)}
+  .rec{background:#f2f7fc;border:1px solid #cfe0f0;border-radius:12px;padding:18px 20px}
+  .first{background:#1a1a1a;color:#fff;border-radius:12px;padding:20px 22px;margin-top:14px}
+  .first .lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#bbb;font-weight:700}
+  .first p{margin:8px 0 0;font-size:16px}
+  .first code{background:#333;padding:1px 6px;border-radius:5px;font-size:14px}
+  details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:0 16px}
+  details[open]{padding-bottom:12px}
+  summary{cursor:pointer;font-weight:600;font-size:14px;padding:13px 0;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--accent)}
+  details[open] summary::before{content:"▾ "}
+  .adv-body{font-size:14px;color:#333}
+  .rev{font-size:14px;color:#333;border-top:1px dashed var(--line);padding-top:10px;margin-top:10px}
+  .rev:first-of-type{border-top:none}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">LLM Council · DoseTrace</div>
+    <h1>Compound data foundation — build it right, or build it small?</h1>
+  </header>
+
+  <div class="q">
+    <b>The question:</b> Today a protocol stores the compound's <b>localized display name</b> and lets users <b>free-type</b> it — so data is dirty (mistypes like "Blow" for the blend "Klow"; the same compound stored differently per language). How should the compound-selection foundation be built <b>now</b> to serve a future B2B version (trainers/doctors sourcing protocols) and near-term PDF export — without over-building or prematurely committing to a regulated model?
+  </div>
+
+  <h2><span class="tag t-agree">Agree</span> High-confidence signals</h2>
+  <div class="card">
+    <ul>
+      <li><b>Store a stable, language-independent <code>compound_id</code> on the protocol — not the display name.</b> Unanimous, and the <em>only irreversible</em> decision. Dirty strings can't be un-mixed later.</li>
+      <li><b>Localization is a display layer over the id.</b> "Retatrutida" is an <em>alias</em>, not a stored value or a 6th translation block.</li>
+      <li><b>"Select-only" vs "never block" is a false choice.</b> Resolve it with an always-available "can't find it? add it" that mints an <em>attributed, unverified</em> record — never free text into the name field.</li>
+      <li><b>Alias / nickname search is the primary find path.</b> People know the supplier nickname ("Klow"), not the canonical name — this is what actually kills the Blow-vs-Klow problem.</li>
+      <li><b>Don't over-build for B2B pre-launch.</b> Defer component-ratio models, the server registry, provider metadata, and the exhaustive research pass.</li>
+      <li><b>The B2B / PDF-to-doctor direction needs legal review before it ships.</b> It strains "not medical advice."</li>
+    </ul>
+  </div>
+
+  <h2><span class="tag t-clash">Clash</span> Where reasonable advisors disagree</h2>
+  <div class="card">
+    <p style="margin:0 0 6px"><b>The Expansionist vs everyone else — on timing and on blend component ratios.</b></p>
+    <div class="spectrum">
+      <div class="end left">
+        <div class="lbl">Four advisors + all reviewers</div>
+        Minimal now. A curated database asserting gray-market blend ratios is <b>legal exposure</b>, not just an asset. Build the moat later, after legal clearance.
+      </div>
+      <div class="end right">
+        <div class="lbl">The Expansionist</div>
+        The registry <b>is</b> the sellable asset — build component ratios + versioning now; the clean taxonomy is a real moat nobody in the space has.
+      </div>
+    </div>
+    <p style="font-size:13px;color:#444;margin:12px 0 0">Resolution: it's a <b>sequencing</b> call, not a true conflict. The moat is real but belongs post-legal-review. The one Expansionist idea to adopt cheaply today: capture unmatched/added entries as a roadmap signal queue.</p>
+  </div>
+
+  <h2><span class="tag t-blind">Blind spots</span> Only caught in peer review</h2>
+  <div class="card">
+    <ul>
+      <li><b>Authorship is the real regulatory hinge.</b> Free text is the <em>user's</em> claim about what they took. A canonical record with component ratios is <em>your</em> claim — the app now asserts "this is what KLOW contains" about unverified products across 6 jurisdictions. Framing an "added" compound as the user's own label preserves user authorship until legal review.</li>
+      <li><b>Merge/relabel silently rewrites history.</b> Re-mapping a user's custom entry to a canonical id later changes their <em>historical dose log</em> — a data-integrity and evidentiary problem if it's been exported to a doctor. Needs a dedup/authority policy before dirty records pile up.</li>
+      <li>A doctor-facing PDF may need <b>jurisdiction-specific disclaiming</b>, not one global "not medical advice."</li>
+      <li>Offline / local-first sync of a growing registry across 700 users (a later, but real, concern).</li>
+    </ul>
+  </div>
+
+  <h2><span class="tag t-rec">Recommendation</span></h2>
+  <div class="rec">
+    <p style="margin:0 0 8px"><b>Build the minimal canonical layer now; defer the asset/B2B ambitions.</b></p>
+    <ul style="margin-top:4px">
+      <li>Compound record: <code>{ id, slug, canonicalName, category, aliases[] }</code>. A <code>components[]</code> field may exist but stays <b>empty</b> — do not publish blend ratios.</li>
+      <li>Store <code>compound_id</code> on the protocol (dual-write alongside the existing name during the pre-launch transition; trivial backfill).</li>
+      <li>Picker = <b>select-first with alias search</b> + always-available "Can't find it? Add it" that mints an attributed, unverified record framed as <em>the user's own label</em>.</li>
+      <li>Log unmatched/added entries as a roadmap queue.</li>
+      <li><b>Do not</b> model component ratios, build the server registry, run the exhaustive research pass, or build provider/B2B features. Get legal eyes on the doctor PDF + B2B before either ships.</li>
+    </ul>
+    <p style="font-size:13px;color:#33526e;margin:12px 0 0">This <b>refines</b> the owner's plan: storing the id was the right instinct; the council pulls back component-lists/registry/exhaustive-research as premature and legally hot, resolves select-only with an attributed escape hatch, and flags authorship as the thing to clear legally before the pivot.</p>
+  </div>
+
+  <div class="first">
+    <div class="lbl">◆ The one thing to do first</div>
+    <p>Define the compound record schema and <b>store <code>compound_id</code> on the protocol (dual-write)</b>. Transcribe the existing 122 compounds into a <code>compounds.js</code> registry with ids + aliases, add the field, switch the picker to write the id. Everything else grows around that one irreversible move.</p>
+  </div>
+
+  <h2>Advisor positions</h2>
+  <div class="grid">
+    <div class="adv"><div class="name">🔴 The Contrarian <span style="font-size:11px;color:var(--agree)">— peer-rated strongest</span></div><div class="pos">Select-only ⊥ never-block; use an attributed <code>canonical:false</code> escape hatch. The B2B reframe is a <b>liability</b> problem, not a schema problem. Ship id + name + aliases; skip the rest until legally cleared.</div></div>
+    <div class="adv"><div class="name">🟣 The First Principles Thinker</div><div class="pos">The false tension: "not in list" = a coverage bug (99%) vs genuinely-novel (1%). Answer both with a "request/add" that mints a record. Store id; localization is display-only. You're building B2B infra for a launch-week autocomplete problem.</div></div>
+    <div class="adv"><div class="name">🟢 The Expansionist <span style="font-size:11px;color:var(--clash)">— peer-rated biggest blind spot</span></div><div class="pos">The registry is the product. Add component ratios + versioning; unmatched entries = your roadmap. (Council: gold-plating, and publishing gray-market ratios is the most legally exposed move on the table.)</div></div>
+    <div class="adv"><div class="name">🔵 The Outsider</div><div class="pos">A logbook that blocks you from logging is broken. Nickname search is the primary path — many only know "Klow." Always offer "add unlisted" as unverified. The doctor PDF strains "not medical advice" — review before shipping.</div></div>
+    <div class="adv"><div class="name">🟠 The Executor</div><div class="pos">Do id + store-id + select-only; defer the rest. Transcribe the 122 you have into <code>compounds.json</code> (one afternoon), dual-write <code>compound_id</code>. The trap: treating foreign names as translation blocks instead of aliases.</div></div>
+  </div>
+
+  <h2>Full transcript</h2>
+  <details><summary>The Contrarian — full response</summary><div class="adv-body">Store the id, not the display name — correct and cheap. Everything else is where the flaw is. "Select-only, no free text" directly contradicts "never block a user." You can't have both. In a 700-person network, underground blends not in your list will appear weekly; a select-only picker becomes a wall, and you've guaranteed it by forbidding the escape hatch. Answer: allow a "custom compound" that writes a real record with <code>source:user</code>, <code>canonical:false</code> — dirty but attributed and mergeable later. Don't pretend you can enumerate an adversarial, ever-changing gray-market catalog. The harder question you're avoiding: the B2B/medical reframe isn't a data-model problem, it's a liability problem. The instant a provider "sources protocols and follows doses," you're no longer a personal log — you're dosing infrastructure for controlled/unapproved substances across 6 jurisdictions. A cleaner component list makes your data more useful as evidence, not less. Minimum viable, no regret: canonical id + display name + aliases. Skip component-lists, categories, server-registry scaffolding until B2B is validated and legally cleared. The regret isn't under-structuring — it's spending launch runway architecting for a pivot regulation may forbid.</div></details>
+  <details><summary>The First Principles Thinker — full response</summary><div class="adv-body">Store the id, kill the free-text field — not over-engineering; it's the only irreversible decision, because dirty free-text can't be un-mixed later. But the question smuggles a false framing. "Select-only clean data" vs "never block" isn't a real tension — "not in our list" is two problems: (1) compound exists, uncatalogued → a coverage bug on YOUR side; (2) user genuinely has something novel. Case 1 is 99% of a 700-person network sharing ~120 compounds. The answer isn't free text — it's a fast "request/add compound" path that mints a canonical record; the user picks from a growing list, you never lose the string to a display name. Sharper cut: you're building B2B regulatory infrastructure to solve a launch-week autocomplete problem. Component lists, provider metadata — answering a question no user has asked. Minimum viable: canonical record { id, canonicalName, aliases[], category }; store id on protocol (non-negotiable); localization is a display layer over the id, never stored; leave components[] nullable, populate never until a real B2B requirement defines the shape. The regret you're avoiding isn't "we didn't model components" — it's "we stored 'Retatrutida' as a string."</div></details>
+  <details><summary>The Expansionist — full response</summary><div class="adv-body">Build the canonical registry — but framing this as "clean data foundation" is thinking too small. The registry is the actual asset that makes the B2B pivot defensible. A curated, alias-mapped, multilingual, blend-decomposed compound database is itself a product; nobody in the peptide space has clean canonical data with component breakdowns (KLOW → its constituents at real ratios). Trainers/clinicians will pay for that structure. Go further: add a components model with per-component dose ratios; version the registry from day one (schema_version + per-record updated_at) so a server registry can push new compounds to 700 users without an app release; capture user free-text as signal, not dirt — route unmatched entries to an "unmapped" queue that becomes your roadmap. Resolve the tension: select-only for matched compounds, "request/add new" for the rest. The medical direction shouldn't just shape the model — the model should become the thing you sell.</div></details>
+  <details><summary>The Outsider — full response</summary><div class="adv-body">Store the ID, not the typed text — right, do it before launch. Everything else is heavier than the problem. A normal user opens the app and wants to log what they injected in under ten seconds. The scary failure isn't duplicate spelling — it's "my compound isn't listed, so the app won't let me log it, so I stop using the app." A logbook that blocks you is broken. Never make the list a wall: always offer "can't find it? add your own," store as free-text flagged "unverified," merge into a real ID later. Assumptions a stranger wouldn't make: (1) people may know only the supplier's nickname ("Klow") — search-by-nickname is the PRIMARY way people find things. (2) "Blow" vs "Klow" may be an ordering/mis-tap problem, not spelling — confirm the choice with a second detail before saving. (3) the PDF-for-a-doctor goal strains "not medical advice" — get it reviewed before it ships. Simplest non-regret: pick-from-list with nickname search, permanent IDs, always-available "add unlisted." Skip the trainer/doctor platform for now.</div></details>
+  <details><summary>The Executor — full response</summary><div class="adv-body">MVP that avoids regret: canonical-record + store-id + select-only picker. Defer the "exhaustive" ambition. The regret-proof core is stable IDs on protocols. Sequence: (1) schema { id, slug, canonicalName, category, aliases[], components[]? }; ship compounds.json with the ~122 you already have — you're transcribing existing arrays into IDs (one afternoon). (2) Add compound_id column alongside the existing name field; write both — kills migration risk. (3) Rebuild picker as select-only over the JSON, search matching canonicalName + aliases; free text goes behind a "Can't find it? Request" button that logs the string. (4) Ship; backfill compound_id on the few pre-launch rows, retire name field later. Defer: blend components, server registry, exhaustive research, full 6-language names. The real trap: translations — canonical names mostly don't need translating; treat "Retatrutida" as an alias, NOT a 6th translation block.</div></details>
+
+  <details><summary>Peer-review highlights (3 reviewers)</summary>
+    <div class="rev"><b>Reviewer 1</b> — Strongest: C (names the irreversible decision; reframes B2B as liability across 6 jurisdictions; attributed mergeable record). Blind spot: A (gold-plating + publishing gray-market ratios is the most exposed move; never notices). All missed: <b>data authorship/ownership</b> — who owns a user-minted compound and how it propagates once B2B sharing begins; the merge model needs a dedup/authority policy.</div>
+    <div class="rev"><b>Reviewer 2</b> — Strongest: C (only one naming the liability stakes; warns runway shouldn't fund a pivot regulation may forbid). Blind spot: A (registry-as-asset maximizes C's risk). All missed: <b>merge/relabel rewrites history</b> — re-mapping silently changes the user's historical dose log (evidentiary if exported); no local-first sync story; PDF may need jurisdiction-specific disclaimers.</div>
+    <div class="rev"><b>Reviewer 3</b> — Strongest: C (liability across jurisdictions; select-only ⊥ never-block). Blind spot: A (a curated gray-market dosing database is potential evidence of facilitating unapproved dosing). All missed: <b>who curates and is accountable</b> — a canonical id + ratios means the app asserts "this is what KLOW contains," shifting authorship from user to app. The real regulatory hinge.</div>
+  </details>
+
+  <footer>
+    LLM Council · 5 advisors → anonymized peer review → chairman synthesis · 2026-07-03 21:40 ·
+    Counciled: how to build DoseTrace's compound data foundation for a future B2B/medical direction without over-building or prematurely entering a regulated model. Full detail in <code>council-transcript-2026-07-03-2140.md</code>.
+  </footer>
+</div>
+</body>
+</html>
