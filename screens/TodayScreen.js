@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
+import { useTheme } from '../lib/theme';
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
 } from '../lib/schedule';
@@ -43,6 +44,8 @@ const MONTH_KEYS = [
 
 export default function TodayScreen() {
   const { t } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
   const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only
@@ -673,7 +676,7 @@ export default function TodayScreen() {
           </View>
         )}
         <View style={s.doseCardTop}>
-          <View style={[s.doseDot, { backgroundColor: p.color || '#185FA5' }]} />
+          <View style={[s.doseDot, { backgroundColor: p.color || colors.accent }]} />
           <View style={s.doseInfo}>
             <Text style={s.doseName}>{due && '🔥 '}{p.compound_id ? t(p.compound_id) : p.name}</Text>
             <Text style={s.doseMeta}>
@@ -753,7 +756,7 @@ export default function TodayScreen() {
               setShowVialPrompt(true);
             }}
           >
-            <Text style={[s.vialStatusText, { color: '#185FA5' }]}>{t('today_add_vial')}</Text>
+            <Text style={[s.vialStatusText, { color: colors.accent }]}>{t('today_add_vial')}</Text>
           </TouchableOpacity>
         )}
         {dueToday && !isTaken && (
@@ -1035,7 +1038,7 @@ export default function TodayScreen() {
             <TextInput
               style={s.promptDayInput}
               placeholder={t('protocols_day_dd')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               keyboardType="numeric"
               maxLength={2}
               value={newVialDay}
@@ -1101,32 +1104,32 @@ export default function TodayScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 },
-  date: { fontSize: 11, color: '#aaa', marginBottom: 2 },
-  greeting: { fontSize: 28, fontWeight: '700', color: '#111', marginBottom: 4 },
-  sub: { fontSize: 13, color: '#888' },
-  streakCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: '#eee' },
+  date: { fontSize: 11, color: c.textFaint, marginBottom: 2 },
+  greeting: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 4 },
+  sub: { fontSize: 13, color: c.textMuted },
+  streakCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.card, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: c.border },
   streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   streakFire: { fontSize: 28 },
-  streakCount: { fontSize: 16, fontWeight: '700', color: '#111' },
-  streakSub: { fontSize: 11, color: '#888', marginTop: 1 },
+  streakCount: { fontSize: 16, fontWeight: '700', color: c.text },
+  streakSub: { fontSize: 11, color: c.textMuted, marginTop: 1 },
   streakBadge: { backgroundColor: '#FEF3E2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   streakBadgeText: { fontSize: 11, fontWeight: '600', color: '#92400E' },
   streakDots: { flexDirection: 'row', justifyContent: 'space-between' },
   streakDotCol: { alignItems: 'center', gap: 4 },
-  streakDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#f0f0f0' },
+  streakDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.card2 },
   streakDotComplete: { backgroundColor: '#1D9E75' },
   streakDotPartial: { backgroundColor: '#F5C563' },
-  streakDotMissed: { backgroundColor: '#f0f0f0' },
-  streakDotRest: { backgroundColor: '#E6F1FB' },
-  streakDotToday: { borderWidth: 2, borderColor: '#185FA5' },
-  streakDotLabel: { fontSize: 9, color: '#aaa', fontWeight: '500' },
-  streakDotLabelToday: { color: '#185FA5', fontWeight: '700' },
-  shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: '#f0f6ff', borderRadius: 20 },
-  shareToggleText: { fontSize: 12, color: '#185FA5', fontWeight: '600' },
+  streakDotMissed: { backgroundColor: c.card2 },
+  streakDotRest: { backgroundColor: c.accentSoft },
+  streakDotToday: { borderWidth: 2, borderColor: c.accent },
+  streakDotLabel: { fontSize: 9, color: c.textFaint, fontWeight: '500' },
+  streakDotLabelToday: { color: c.accent, fontWeight: '700' },
+  shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
+  shareToggleText: { fontSize: 12, color: c.accent, fontWeight: '600' },
   shareCard: { marginHorizontal: 16, marginBottom: 16 },
   shareCardInner: { backgroundColor: '#0F172A', borderRadius: 20, padding: 24, alignItems: 'center' },
   shareEmoji: { fontSize: 40, marginBottom: 8 },
@@ -1149,86 +1152,86 @@ const s = StyleSheet.create({
   shareBrandSub: { fontSize: 10, color: '#64748B', marginTop: 2 },
   shareDisclaimer: { fontSize: 8, color: '#475569', textAlign: 'center' },
   statsRow: { flexDirection: 'row', gap: 8, padding: 16 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 0.5, borderColor: '#eee' },
-  statHighlight: { backgroundColor: '#E6F1FB' },
-  statVal: { fontSize: 20, fontWeight: '600', color: '#111' },
-  statValBlue: { fontSize: 20, fontWeight: '600', color: '#0C447C' },
-  statLbl: { fontSize: 10, color: '#888', marginTop: 2 },
-  statLblBlue: { fontSize: 10, color: '#185FA5', marginTop: 2 },
+  statCard: { flex: 1, backgroundColor: c.card, borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 0.5, borderColor: c.border },
+  statHighlight: { backgroundColor: c.accentSoft },
+  statVal: { fontSize: 20, fontWeight: '600', color: c.text },
+  statValBlue: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
+  statLbl: { fontSize: 10, color: c.textMuted, marginTop: 2 },
+  statLblBlue: { fontSize: 10, color: c.accent, marginTop: 2 },
   section: { paddingHorizontal: 16 },
   categorySection: { marginBottom: 8 },
-  categoryLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 8, marginTop: 8 },
-  doseCard: { backgroundColor: '#fff', borderRadius: 14, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: '#eee' },
+  categoryLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 8, marginTop: 8 },
+  doseCard: { backgroundColor: c.card, borderRadius: 14, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
   doseCardDone: { opacity: 0.6 },
   takenBanner: { backgroundColor: '#E1F5EE', paddingVertical: 6, paddingHorizontal: 14 },
   takenBannerText: { fontSize: 12, color: '#085041', fontWeight: '600' },
   partialBanner: { backgroundColor: '#FEF3E2', paddingVertical: 6, paddingHorizontal: 14 },
   partialBannerText: { fontSize: 12, color: '#92400E', fontWeight: '600' },
-  restBanner: { backgroundColor: '#f0f6ff', paddingVertical: 6, paddingHorizontal: 14 },
-  restBannerText: { fontSize: 12, color: '#185FA5', fontWeight: '500' },
+  restBanner: { backgroundColor: c.accentSoft, paddingVertical: 6, paddingHorizontal: 14 },
+  restBannerText: { fontSize: 12, color: c.accent, fontWeight: '500' },
   skippedBanner: { backgroundColor: '#FEF3E2', paddingVertical: 6, paddingHorizontal: 14 },
   skippedBannerText: { fontSize: 12, color: '#92400E', fontWeight: '500' },
   doseCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   doseDot: { width: 10, height: 10, borderRadius: 5 },
   doseInfo: { flex: 1 },
-  doseName: { fontSize: 14, fontWeight: '600', color: '#111' },
-  doseMeta: { fontSize: 11, color: '#888', marginTop: 2 },
+  doseName: { fontSize: 14, fontWeight: '600', color: c.text },
+  doseMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   doseRight: { alignItems: 'flex-end', gap: 4 },
   doseTime: { alignItems: 'flex-end' },
-  doseTimeVal: { fontSize: 12, fontWeight: '500', color: '#888' },
-  doseTimeLbl: { fontSize: 10, color: '#aaa' },
-  progressText: { fontSize: 10, color: '#185FA5', marginTop: 2, fontWeight: '500' },
-  progressBarOuter: { height: 3, backgroundColor: '#f0f0f0', marginHorizontal: 14, marginBottom: 8, borderRadius: 2 },
-  progressBarInner: { height: 3, backgroundColor: '#185FA5', borderRadius: 2 },
+  doseTimeVal: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  doseTimeLbl: { fontSize: 10, color: c.textFaint },
+  progressText: { fontSize: 10, color: c.accent, marginTop: 2, fontWeight: '500' },
+  progressBarOuter: { height: 3, backgroundColor: c.card2, marginHorizontal: 14, marginBottom: 8, borderRadius: 2 },
+  progressBarInner: { height: 3, backgroundColor: c.accent, borderRadius: 2 },
   miniStreak: { backgroundColor: '#FEF3E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   miniStreakText: { fontSize: 10, color: '#92400E', fontWeight: '600' },
   vialStatus: { paddingHorizontal: 14, paddingBottom: 10 },
-  vialStatusText: { fontSize: 11, color: '#666' },
-  lastSiteChip: { marginHorizontal: 14, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#E6F1FB', borderRadius: 8, alignSelf: 'flex-start' },
-  lastSiteText: { fontSize: 11, color: '#0C447C', fontWeight: '500' },
-  doseActions: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#f0f0f0' },
-  doseBtn: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 0.5, borderRightColor: '#f0f0f0' },
-  doseBtnText: { fontSize: 12, color: '#888' },
-  doseBtnPrimary: { backgroundColor: '#f0f6ff', borderRightWidth: 0 },
-  doseBtnPrimaryText: { fontSize: 12, color: '#185FA5', fontWeight: '600' },
-  disclaimer: { fontSize: 10, color: '#bbb', textAlign: 'center', marginTop: 16, marginHorizontal: 32, lineHeight: 15 },
+  vialStatusText: { fontSize: 11, color: c.textMuted },
+  lastSiteChip: { marginHorizontal: 14, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.accentSoft, borderRadius: 8, alignSelf: 'flex-start' },
+  lastSiteText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
+  doseActions: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: c.border },
+  doseBtn: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 0.5, borderRightColor: c.border },
+  doseBtnText: { fontSize: 12, color: c.textMuted },
+  doseBtnPrimary: { backgroundColor: c.accentSoft, borderRightWidth: 0 },
+  doseBtnPrimaryText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  disclaimer: { fontSize: 10, color: c.textFaint, textAlign: 'center', marginTop: 16, marginHorizontal: 32, lineHeight: 15 },
   emptyState: { padding: 20, alignItems: 'center' },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
-  emptySub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  tipBox: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, width: '100%', borderWidth: 0.5, borderColor: '#eee' },
-  tipTitle: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 10 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
+  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  tipBox: { backgroundColor: c.card2, borderRadius: 12, padding: 14, width: '100%', borderWidth: 0.5, borderColor: c.border },
+  tipTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  tipNum: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#185FA5', alignItems: 'center', justifyContent: 'center' },
-  tipNumText: { fontSize: 10, color: 'white', fontWeight: '600' },
-  tipText: { fontSize: 12, color: '#666', flex: 1, lineHeight: 18 },
+  tipNum: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  tipNumText: { fontSize: 10, color: c.accentText, fontWeight: '600' },
+  tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
   // Vial continuation modal
-  promptOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  promptCard: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 },
-  promptTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 4 },
-  promptProtocolName: { fontSize: 14, fontWeight: '600', color: '#185FA5', marginBottom: 6 },
-  promptSub: { fontSize: 13, color: '#888', marginBottom: 20, lineHeight: 19 },
-  promptLabel: { fontSize: 11, color: '#888', marginBottom: 6 },
+  promptOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  promptCard: { backgroundColor: c.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 },
+  promptTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 4 },
+  promptProtocolName: { fontSize: 14, fontWeight: '600', color: c.accent, marginBottom: 6 },
+  promptSub: { fontSize: 13, color: c.textMuted, marginBottom: 20, lineHeight: 19 },
+  promptLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
   promptMonthScroll: { marginBottom: 8 },
   promptMonthRow: { flexDirection: 'row', gap: 6 },
-  promptMonthPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: '#f0f0f0', borderWidth: 0.5, borderColor: '#ddd' },
-  promptMonthPillOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  promptMonthText: { fontSize: 11, color: '#666', fontWeight: '500' },
-  promptMonthTextOn: { color: '#fff', fontWeight: '600' },
-  promptDayInput: { borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10, padding: 10, fontSize: 14, color: '#111', backgroundColor: '#f9f9f9', width: 70, textAlign: 'center' },
-  promptDosesInput: { borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 14, color: '#111', backgroundColor: '#f9f9f9' },
+  promptMonthPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  promptMonthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
+  promptMonthText: { fontSize: 11, color: c.textMuted, fontWeight: '500' },
+  promptMonthTextOn: { color: c.accentText, fontWeight: '600' },
+  promptDayInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 10, fontSize: 14, color: c.text, backgroundColor: c.card2, width: 70, textAlign: 'center' },
+  promptDosesInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 14, color: c.text, backgroundColor: c.card2 },
   promptActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  promptBtnSecondary: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 0.5, borderColor: '#ddd', alignItems: 'center' },
-  promptBtnSecondaryText: { fontSize: 14, color: '#888' },
-  promptBtnPrimary: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#185FA5', alignItems: 'center' },
-  promptBtnPrimaryText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  promptBtnSecondary: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
+  promptBtnSecondaryText: { fontSize: 14, color: c.textMuted },
+  promptBtnPrimary: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center' },
+  promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
   // Undo bar
-  undoBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 12, backgroundColor: '#1a1a1a', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  undoBarText: { fontSize: 13, color: '#fff', fontWeight: '500' },
+  undoBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 12, backgroundColor: c.toast, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  undoBarText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
   undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
   undoBarAction: { fontSize: 13, color: '#5CB8FF', fontWeight: '700' },
   // Yesterday / Today shortcut pills
   yesterdayRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  yesterdayPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#f0f6ff', borderWidth: 0.5, borderColor: '#cde0f5' },
-  yesterdayPillText: { fontSize: 11, color: '#185FA5', fontWeight: '600' },
+  yesterdayPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: c.accentSoft, borderWidth: 0.5, borderColor: c.border },
+  yesterdayPillText: { fontSize: 11, color: c.accent, fontWeight: '600' },
 });
