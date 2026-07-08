@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useTheme } from '../lib/theme';
 
 export default function FAQScreen({ navigation }) {
   const { t } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [openItem, setOpenItem] = useState(null);
 
   const faqData = t('faq_categories') || [];
@@ -72,24 +75,24 @@ export default function FAQScreen({ navigation }) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: '#fff' },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: c.card },
   backBtn: { width: 60 },
-  backText: { fontSize: 14, color: '#185FA5' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
+  backText: { fontSize: 14, color: c.accent },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: c.text },
   scroll: { flex: 1 },
-  intro: { fontSize: 13, color: '#888', lineHeight: 20, margin: 16, marginBottom: 8 },
+  intro: { fontSize: 13, color: c.textMuted, lineHeight: 20, margin: 16, marginBottom: 8 },
   section: { marginBottom: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginLeft: 16, marginTop: 16, marginBottom: 8 },
-  item: { backgroundColor: '#fff', marginHorizontal: 16, marginBottom: 6, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: '#eee' },
-  itemOpen: { borderColor: '#185FA5', borderWidth: 1 },
+  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginLeft: 16, marginTop: 16, marginBottom: 8 },
+  item: { backgroundColor: c.card, marginHorizontal: 16, marginBottom: 6, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: c.border },
+  itemOpen: { borderColor: c.accent, borderWidth: 1 },
   itemHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  itemQ: { fontSize: 13, fontWeight: '600', color: '#111', flex: 1, lineHeight: 20 },
-  itemChevron: { fontSize: 10, color: '#aaa', marginTop: 2, flexShrink: 0 },
-  itemA: { fontSize: 13, color: '#444', lineHeight: 22, marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: '#f0f0f0' },
-  footer: { margin: 16, padding: 16, backgroundColor: '#E6F1FB', borderRadius: 16, alignItems: 'center' },
-  footerTitle: { fontSize: 14, fontWeight: '600', color: '#0C447C', marginBottom: 6 },
-  footerText: { fontSize: 13, color: '#185FA5', textAlign: 'center', lineHeight: 20 },
+  itemQ: { fontSize: 13, fontWeight: '600', color: c.text, flex: 1, lineHeight: 20 },
+  itemChevron: { fontSize: 10, color: c.textFaint, marginTop: 2, flexShrink: 0 },
+  itemA: { fontSize: 13, color: c.textMuted, lineHeight: 22, marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
+  footer: { margin: 16, padding: 16, backgroundColor: c.accentSoft, borderRadius: 16, alignItems: 'center' },
+  footerTitle: { fontSize: 14, fontWeight: '600', color: c.accentSoftText, marginBottom: 6 },
+  footerText: { fontSize: 13, color: c.accent, textAlign: 'center', lineHeight: 20 },
   footerEmail: { fontWeight: '600' },
 });

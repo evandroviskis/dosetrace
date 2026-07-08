@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers } from '../lib/database';
 import { requestSync } from '../lib/sync';
+import { useTheme } from '../lib/theme';
 
 // Counts successful extraction saves (not distinct report dates) so the
 // free-upload quota can't be reset by uploading two reports with the same date.
@@ -93,6 +94,8 @@ function validateExtraction(data) {
 
 export default function BloodworkScreen({ navigation }) {
   const { t, language } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -310,7 +313,7 @@ export default function BloodworkScreen({ navigation }) {
 
       {uploading && (
         <View style={s.uploadingBanner}>
-          <ActivityIndicator size="small" color="#185FA5" />
+          <ActivityIndicator size="small" color={colors.accent} />
           <Text style={s.uploadingText}>{t('blood_uploading')}</Text>
         </View>
       )}
@@ -476,7 +479,7 @@ export default function BloodworkScreen({ navigation }) {
             </TouchableOpacity>
             <Text style={s.modalTitle}>{t('blood_review_title')}</Text>
             <TouchableOpacity onPress={saveMarkers} style={{ width: 60, alignItems: 'flex-end' }}>
-              <Text style={[s.modalClose, { color: '#185FA5', fontWeight: '600' }]}>{t('save')}</Text>
+              <Text style={[s.modalClose, { color: colors.accent, fontWeight: '600' }]}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -515,71 +518,71 @@ export default function BloodworkScreen({ navigation }) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: '#111' },
-  addBtn: { backgroundColor: '#185FA5', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
-  addBtnText: { color: 'white', fontSize: 13, fontWeight: '600' },
-  uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#E6F1FB', paddingHorizontal: 20, paddingVertical: 10 },
-  uploadingText: { fontSize: 13, color: '#185FA5' },
-  premiumBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#E6F1FB', borderBottomWidth: 0.5, borderBottomColor: '#c5daf5' },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
+  uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
+  uploadingText: { fontSize: 13, color: c.accent },
+  premiumBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.accentSoft, borderBottomWidth: 0.5, borderBottomColor: c.border },
   premiumBannerLeft: { flex: 1, marginRight: 12 },
-  premiumBannerTitle: { fontSize: 12, fontWeight: '600', color: '#0C447C', marginBottom: 2 },
-  premiumBannerSub: { fontSize: 11, color: '#185FA5', lineHeight: 16 },
-  premiumBannerBtn: { backgroundColor: '#185FA5', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  premiumBannerBtnText: { color: 'white', fontSize: 12, fontWeight: '600' },
+  premiumBannerTitle: { fontSize: 12, fontWeight: '600', color: c.accentSoftText, marginBottom: 2 },
+  premiumBannerSub: { fontSize: 11, color: c.accent, lineHeight: 16 },
+  premiumBannerBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  premiumBannerBtnText: { color: c.accentText, fontSize: 12, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   emptyState: { alignItems: 'center', paddingTop: 40 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
-  emptySub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 24, paddingHorizontal: 20 },
-  emptyBtn: { backgroundColor: '#185FA5', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, marginBottom: 24 },
-  emptyBtnText: { color: 'white', fontSize: 14, fontWeight: '600' },
-  tipBox: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, width: '100%', borderWidth: 0.5, borderColor: '#eee' },
-  tipTitle: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 10 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
+  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 24, paddingHorizontal: 20 },
+  emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, marginBottom: 24 },
+  emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  tipBox: { backgroundColor: c.card2, borderRadius: 12, padding: 14, width: '100%', borderWidth: 0.5, borderColor: c.border },
+  tipTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#185FA5', marginTop: 5, flexShrink: 0 },
-  tipText: { fontSize: 12, color: '#666', flex: 1, lineHeight: 18 },
-  reportGroup: { backgroundColor: '#fff', borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
+  tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginTop: 5, flexShrink: 0 },
+  tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
+  reportGroup: { backgroundColor: c.card, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
   reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
-  reportDate: { fontSize: 14, fontWeight: '600', color: '#111' },
-  reportCount: { fontSize: 11, color: '#888', marginTop: 2 },
+  reportDate: { fontSize: 14, fontWeight: '600', color: c.text },
+  reportCount: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   reportBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  chevron: { fontSize: 11, color: '#aaa', marginLeft: 4 },
-  markerList: { borderTopWidth: 0.5, borderTopColor: '#f0f0f0' },
-  markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 0.5, borderBottomColor: '#f5f5f5' },
+  chevron: { fontSize: 11, color: c.textFaint, marginLeft: 4 },
+  markerList: { borderTopWidth: 0.5, borderTopColor: c.border },
+  markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   markerLeft: { flex: 1 },
-  markerName: { fontSize: 13, fontWeight: '500', color: '#111' },
+  markerName: { fontSize: 13, fontWeight: '500', color: c.text },
   markerRight: { alignItems: 'flex-end' },
-  markerValue: { fontSize: 13, fontWeight: '600', color: '#333' },
-  modal: { flex: 1, backgroundColor: '#fff' },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: '#111' },
-  modalClose: { fontSize: 14, color: '#888' },
+  markerValue: { fontSize: 13, fontWeight: '600', color: c.text },
+  modal: { flex: 1, backgroundColor: c.card },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  modalClose: { fontSize: 14, color: c.textMuted },
   modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
   upgradeHero: { alignItems: 'center', marginBottom: 24 },
   upgradeIcon: { fontSize: 48, marginBottom: 12 },
-  upgradeTitle: { fontSize: 20, fontWeight: '600', color: '#111', marginBottom: 8, textAlign: 'center' },
-  upgradeSub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20 },
-  upgradeFeats: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, marginBottom: 20 },
+  upgradeTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 8, textAlign: 'center' },
+  upgradeSub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
+  upgradeFeats: { backgroundColor: c.card2, borderRadius: 12, padding: 14, marginBottom: 20 },
   upgradeFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   upgradeCheck: { color: '#1D9E75', fontWeight: '600', fontSize: 14 },
-  upgradeFeatText: { fontSize: 13, color: '#444', flex: 1, lineHeight: 20 },
-  upgradePrimaryBtn: { backgroundColor: '#185FA5', padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
-  upgradePrimaryBtnText: { color: 'white', fontSize: 15, fontWeight: '600' },
-  upgradeTrialNote: { fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 20 },
+  upgradeFeatText: { fontSize: 13, color: c.textMuted, flex: 1, lineHeight: 20 },
+  upgradePrimaryBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
+  upgradePrimaryBtnText: { color: c.accentText, fontSize: 15, fontWeight: '600' },
+  upgradeTrialNote: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 20 },
   upgradeDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  upgradeDividerLine: { flex: 1, height: 0.5, backgroundColor: '#ddd' },
-  upgradeDividerText: { fontSize: 12, color: '#aaa' },
-  upgradeSecBtn: { borderWidth: 1, borderColor: '#ddd', padding: 13, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
-  upgradeSecBtnText: { fontSize: 14, color: '#666', fontWeight: '500' },
-  upgradeSecNote: { fontSize: 11, color: '#aaa', textAlign: 'center' },
+  upgradeDividerLine: { flex: 1, height: 0.5, backgroundColor: c.border },
+  upgradeDividerText: { fontSize: 12, color: c.textFaint },
+  upgradeSecBtn: { borderWidth: 1, borderColor: c.border, padding: 13, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
+  upgradeSecBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
+  upgradeSecNote: { fontSize: 11, color: c.textFaint, textAlign: 'center' },
   confirmBanner: { backgroundColor: '#E1F5EE', borderRadius: 10, padding: 12, marginBottom: 16 },
   confirmBannerText: { fontSize: 13, color: '#085041', fontWeight: '500' },
-  dateFallbackBanner: { backgroundColor: '#E6F1FB', borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 0.5, borderColor: '#c5daf5' },
-  dateFallbackText: { fontSize: 12, color: '#0C447C', lineHeight: 18 },
-  confirmNote: { fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 20 },
+  dateFallbackBanner: { backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 0.5, borderColor: c.border },
+  dateFallbackText: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
+  confirmNote: { fontSize: 13, color: c.textMuted, marginBottom: 16, lineHeight: 20 },
   upgradePrimaryBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 3 },
 trialBadge: { backgroundColor: '#E1F5EE', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', marginBottom: 20 },
 trialBadgeText: { fontSize: 13, color: '#085041', fontWeight: '600' },
