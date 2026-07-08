@@ -76,8 +76,18 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function TabIcon({ emoji, focused }) {
+  const { colors, isDark } = useTheme();
+  // color themes any monochrome glyph icons (e.g. ⊞) — color emoji ignore it.
+  // Inactive icons dim via opacity; keep it higher in dark mode so they don't
+  // look muddy/"tinted" against the dark tab bar.
   return (
-    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.35 }}>
+    <Text
+      style={{
+        fontSize: 22,
+        color: focused ? colors.accent : colors.tabInactive,
+        opacity: focused ? 1 : (isDark ? 0.7 : 0.45),
+      }}
+    >
       {emoji}
     </Text>
   );
