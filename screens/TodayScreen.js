@@ -582,11 +582,21 @@ export default function TodayScreen() {
   const dailyOrder = [...protocols].sort((a, b) =>
     nextDoseAt(a, takenCounts[a.id] || 0, new Date()) - nextDoseAt(b, takenCounts[b.id] || 0, new Date())
   );
-  // Split into TODAY (has a dose due today, incl. already-taken) and UPCOMING
-  // (nothing due today). Both keep the nextDoseAt ordering: today by dose time,
-  // upcoming soonest-first.
+  // Near-term agenda, bucketed by when the next dose lands. Anything beyond the
+  // next 5 days isn't shown here (it lives in the Protocols tab) so Today stays
+  // focused. All buckets keep the nextDoseAt ordering (soonest first).
+  const startOfToday = new Date(todayDate); startOfToday.setHours(0, 0, 0, 0);
+  const daysUntilNext = (p) => {
+    const nd = nextDueDate(p, todayDate);
+    if (!nd) return Infinity;
+    const d = new Date(nd); d.setHours(0, 0, 0, 0);
+    return Math.round((d - startOfToday) / 86400000);
+  };
   const todayCards = dailyOrder.filter(p => expectedDosesOn(p, todayDate) > 0);
-  const upcomingCards = dailyOrder.filter(p => expectedDosesOn(p, todayDate) === 0);
+  const notToday = dailyOrder.filter(p => expectedDosesOn(p, todayDate) === 0);
+  const tomorrowCards = notToday.filter(p => daysUntilNext(p) === 1);
+  const next5Cards = notToday.filter(p => { const d = daysUntilNext(p); return d >= 2 && d <= 6; });
+  const laterCount = notToday.filter(p => daysUntilNext(p) > 6).length;
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language);
@@ -956,7 +966,11 @@ export default function TodayScreen() {
         {protocols.length > 0 && (
           <View style={s.section}>
             {renderCategory(t('today_section_today'), todayCards)}
-            {renderCategory(t('today_section_upcoming'), upcomingCards)}
+            {renderCategory(t('today_section_tomorrow'), tomorrowCards)}
+            {renderCategory(t('today_section_next5'), next5Cards)}
+            {laterCount > 0 && (
+              <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>
+            )}
           </View>
         )}
 
@@ -1168,6 +1182,7 @@ const makeStyles = (c) => StyleSheet.create({
   section: { paddingHorizontal: 16 },
   categorySection: { marginBottom: 8 },
   categoryLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 8, marginTop: 8 },
+  laterHint: { fontSize: 12, color: c.textFaint, textAlign: 'center', paddingVertical: 12 },
   doseCard: { backgroundColor: c.card, borderRadius: 14, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
   takenBanner: { backgroundColor: c.successSoft, paddingVertical: 6, paddingHorizontal: 14 },
   takenBannerText: { fontSize: 12, color: c.successSoftText, fontWeight: '600' },
