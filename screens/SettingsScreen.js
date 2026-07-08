@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -175,6 +176,36 @@ export default function SettingsScreen({ navigation }) {
   const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  // Collapsible Settings sections (remembered). Recently-Deleted starts collapsed
+  // so it doesn't clutter the screen.
+  const [collapsed, setCollapsed] = useState({ deleted: true });
+
+  useEffect(() => {
+    AsyncStorage.getItem('dosetrace_settings_collapsed')
+      .then(v => { if (v) { try { setCollapsed(JSON.parse(v)); } catch {} } })
+      .catch(() => {});
+  }, []);
+
+  function toggleSection(key) {
+    setCollapsed(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      AsyncStorage.setItem('dosetrace_settings_collapsed', JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }
+
+  function renderSectionHeader(labelKey, sectionKey) {
+    return (
+      <TouchableOpacity
+        style={s.sectionHeaderRow}
+        activeOpacity={0.6}
+        onPress={() => toggleSection(sectionKey)}
+      >
+        <Text style={s.sectionLabel}>{t(labelKey).toUpperCase()}</Text>
+        <Text style={s.sectionChevron}>{collapsed[sectionKey] ? '▸' : '▾'}</Text>
+      </TouchableOpacity>
+    );
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -594,7 +625,8 @@ export default function SettingsScreen({ navigation }) {
         </View>
 
         {/* PREFERENCES */}
-        <Text style={s.sectionLabel}>{t('settings_preferences')}</Text>
+        {renderSectionHeader('settings_preferences', 'preferences')}
+        {!collapsed.preferences && (
         <View style={s.group}>
           <TouchableOpacity
             style={[s.row, { borderBottomWidth: 0 }]}
@@ -610,9 +642,11 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* NOTIFICATIONS */}
-        <Text style={s.sectionLabel}>{t('settings_notifications').toUpperCase()}</Text>
+        {renderSectionHeader('settings_notifications', 'notifications')}
+        {!collapsed.notifications && (
         <View style={s.group}>
           <View style={s.row}>
             <View style={s.rowLeft}>
@@ -685,9 +719,11 @@ export default function SettingsScreen({ navigation }) {
             />
           </View>
         </View>
+        )}
 
         {/* DATA & PRIVACY */}
-        <Text style={s.sectionLabel}>{t('settings_data_privacy')}</Text>
+        {renderSectionHeader('settings_data_privacy', 'privacy')}
+        {!collapsed.privacy && (
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
             <View style={s.rowLeft}>
@@ -753,9 +789,11 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* SUPPORT */}
-        <Text style={s.sectionLabel}>{t('settings_support')}</Text>
+        {renderSectionHeader('settings_support', 'support')}
+        {!collapsed.support && (
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
             <View style={s.rowLeft}>
@@ -782,11 +820,13 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* RECENTLY DELETED PROTOCOLS */}
         {deletedProtocols.length > 0 && (
           <>
-            <Text style={s.sectionLabel}>{t('settings_recently_deleted')}</Text>
+            {renderSectionHeader('settings_recently_deleted', 'deleted')}
+            {!collapsed.deleted && (
             <View style={s.group}>
               {deletedProtocols.map((p, idx) => (
                 <View key={p.id} style={[s.row, idx === deletedProtocols.length - 1 && { borderBottomWidth: 0 }]}>
@@ -806,11 +846,13 @@ export default function SettingsScreen({ navigation }) {
                 </View>
               ))}
             </View>
+            )}
           </>
         )}
 
         {/* ACCOUNT */}
-        <Text style={s.sectionLabel}>{t('settings_account')}</Text>
+        {renderSectionHeader('settings_account', 'account')}
+        {!collapsed.account && (
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
@@ -830,6 +872,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[s.rowArrow, { color: '#E24B4A' }]}>›</Text>
           </TouchableOpacity>
         </View>
+        )}
 
         <Text style={s.version}>
           {t('settings_version')}{'\n'}
@@ -1139,7 +1182,9 @@ const s = StyleSheet.create({
   premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
   premiumBtn: { backgroundColor: 'white', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginLeft: 16, marginTop: 20, marginBottom: 8 },
+  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
+  sectionChevron: { fontSize: 12, color: '#aaa' },
   group: { marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 0.5, borderColor: '#eee', overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
