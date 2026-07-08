@@ -30,7 +30,7 @@ import {
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
 import { isPremium } from '../lib/purchases';
 import { Analytics } from '../lib/analytics';
-import { COUNTRIES } from '../lib/countries';
+import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
 
 const MEDICAL_DISCLAIMER = `WELLNESS DISCLAIMER
@@ -982,7 +982,7 @@ export default function SettingsScreen({ navigation }) {
               onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
             >
               <Text style={{ fontSize: 15, color: country ? '#111' : '#aaa' }}>
-                {country || t('profile_country_placeholder')}
+                {country ? countryLabel(country, language) : t('profile_country_placeholder')}
               </Text>
             </TouchableOpacity>
 
@@ -1094,7 +1094,10 @@ export default function SettingsScreen({ navigation }) {
             />
           </View>
           <FlatList
-            data={COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))}
+            data={COUNTRIES.filter(c => {
+              const q = countrySearch.toLowerCase();
+              return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
+            })}
             keyExtractor={item => item}
             style={{ flex: 1, paddingHorizontal: 20 }}
             keyboardShouldPersistTaps="handled"
@@ -1106,7 +1109,7 @@ export default function SettingsScreen({ navigation }) {
                   setShowCountryPicker(false);
                 }}
               >
-                <Text style={[s.langNative, { flex: 1 }]}>{item}</Text>
+                <Text style={[s.langNative, { flex: 1 }]}>{countryLabel(item, language)}</Text>
                 {country === item && <Text style={s.langCheck}>✓</Text>}
               </TouchableOpacity>
             )}

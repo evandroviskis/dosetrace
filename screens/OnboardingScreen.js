@@ -17,7 +17,7 @@ import { supabase, signInWithGoogle } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
-import { COUNTRIES } from '../lib/countries';
+import { COUNTRIES, countryLabel } from '../lib/countries';
 
 const STEPS = 7;
 
@@ -401,7 +401,7 @@ export default function OnboardingScreen() {
               onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
             >
               <Text style={{ fontSize: 15, color: country ? '#111' : '#aaa' }}>
-                {country || t('profile_country_placeholder')}
+                {country ? countryLabel(country, language) : t('profile_country_placeholder')}
               </Text>
             </TouchableOpacity>
 
@@ -712,7 +712,10 @@ export default function OnboardingScreen() {
             />
           </View>
           <FlatList
-            data={COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))}
+            data={COUNTRIES.filter(c => {
+              const q = countrySearch.toLowerCase();
+              return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
+            })}
             keyExtractor={item => item}
             style={{ flex: 1, paddingHorizontal: 20 }}
             keyboardShouldPersistTaps="handled"
@@ -721,7 +724,7 @@ export default function OnboardingScreen() {
                 style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: country === item ? '#f0f6ff' : '#f9f9f9', borderRadius: 12, marginBottom: 8, borderWidth: country === item ? 1.5 : 0.5, borderColor: country === item ? '#185FA5' : '#eee' }}
                 onPress={() => { setCountry(item); setShowCountryPicker(false); }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111', flex: 1 }}>{item}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111', flex: 1 }}>{countryLabel(item, language)}</Text>
                 {country === item && <Text style={{ fontSize: 18, color: '#185FA5', fontWeight: '600' }}>✓</Text>}
               </TouchableOpacity>
             )}
