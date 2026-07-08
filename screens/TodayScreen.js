@@ -389,7 +389,11 @@ export default function TodayScreen() {
       if (vial) {
         const newTaken = (vial.doses_taken || 0) + 1;
         updateVial(vial.id, { doses_taken: newTaken });
-        if (vial.total_doses && newTaken >= vial.total_doses) {
+        // Capacity: stored if known, else derived (older vials have null total_doses).
+        const capacity = (vial.total_doses && vial.total_doses > 0)
+          ? vial.total_doses
+          : dosesPerVial({ amount: protocol.amount, unit: protocol.unit, dose: protocol.dose, doseUnit: protocol.dose_unit });
+        if (capacity && newTaken >= capacity) {
           updateVial(vial.id, { active: 0 });
           if (protocol.type === 'recon') {
             setContinuationProtocol(protocol);
@@ -712,13 +716,22 @@ export default function TodayScreen() {
           </View>
         )}
         {/* Vial status line for recon protocols */}
-        {p.type === 'recon' && vial && (
-          <View style={s.vialStatus}>
-            <Text style={s.vialStatusText}>
-              {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)} · {(vial.total_doses || 0) - (vial.doses_taken || 0)} {t('today_vial_remaining')}
-            </Text>
-          </View>
-        )}
+        {p.type === 'recon' && vial && (() => {
+          // Capacity: stored count if known, else derived from vial size ÷ dose
+          // (older vials predate the derivation and have a null total_doses).
+          const capacity = (vial.total_doses && vial.total_doses > 0)
+            ? vial.total_doses
+            : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+          const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
+          return (
+            <View style={s.vialStatus}>
+              <Text style={s.vialStatusText}>
+                {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
+                {remaining != null ? ` · ${remaining} ${t('today_vial_remaining')}` : ''}
+              </Text>
+            </View>
+          );
+        })()}
         {p.type === 'recon' && !vial && (
           <TouchableOpacity
             style={s.vialStatus}
