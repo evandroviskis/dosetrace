@@ -550,9 +550,29 @@ export default function TodayScreen() {
   const doneCount = dueProtocols.filter(p => (takenCounts[p.id] || 0) >= expectedDosesOn(p, todayDate)).length;
   const totalCount = dueProtocols.length;
 
-  const reconProtocols = protocols.filter(p => p.type === 'recon');
-  const rtuProtocols = protocols.filter(p => p.type === 'rtu');
-  const oralProtocols = protocols.filter(p => p.type === 'oral');
+  // Order the daily list by "what's next to take", across all compounds:
+  //   tier 0 — due today and not yet complete (ordered by next scheduled time)
+  //   tier 1 — upcoming on a later day (ordered by next due date)
+  //   tier 2 — already complete today (sinks to the bottom)
+  function urgencyKey(p) {
+    const now = new Date();
+    const need = expectedDosesOn(p, now);
+    const taken = takenCounts[p.id] || 0;
+    if (need > 0 && taken < need) {
+      const dpd = p.doses_per_day || 1;
+      const times = sortedDoseTimes(p).slice(0, dpd);
+      const slot = times[(dpd - need) + taken] || times[0] || '00:00';
+      const [h, m] = slot.split(':').map(Number);
+      return [0, (h * 60 + m)];
+    }
+    if (need > 0 && taken >= need) return [2, 0]; // done today
+    const nd = nextDueDate(p, now);
+    return [1, nd ? nd.getTime() : Infinity];
+  }
+  const dailyOrder = [...protocols].sort((a, b) => {
+    const ka = urgencyKey(a), kb = urgencyKey(b);
+    return ka[0] - kb[0] || ka[1] - kb[1];
+  });
 
   function formatTimeAMPM(time24) {
     if (!time24) return '—';
@@ -904,9 +924,7 @@ export default function TodayScreen() {
 
         {protocols.length > 0 && (
           <View style={s.section}>
-            {renderCategory(t('today_category_lyophilized'), reconProtocols)}
-            {renderCategory(t('today_category_rtu'), rtuProtocols)}
-            {renderCategory(t('today_category_oral'), oralProtocols)}
+            {dailyOrder.map(p => renderDoseCard(p))}
           </View>
         )}
 

@@ -26,14 +26,27 @@ import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder } from '../lib/notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveProtocols, insertProtocol, updateProtocol,
-  softDeleteProtocol, getProtocolById,
+  softDeleteProtocol, getProtocolById, getActiveVials,
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
 import { matchesQuery } from '../lib/compounds';
+import { expectedDosesOn, nextDueDate } from '../lib/schedule';
+
+// Protocols list sort options. 'type' keeps the compound-type sections; the
+// rest render a single flat list.
+const SORT_OPTIONS = [
+  { key: 'due', label: 'protocols_sort_due' },
+  { key: 'az', label: 'protocols_sort_az' },
+  { key: 'vial', label: 'protocols_sort_vial' },
+  { key: 'added', label: 'protocols_sort_added' },
+  { key: 'type', label: 'protocols_sort_type' },
+];
+const SORT_STORAGE_KEY = 'dosetrace_protocols_sort';
 
 const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_peptide_t','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip','lyo_glow','lyo_klow','lyo_wolverine'];
 
@@ -319,6 +332,8 @@ export default function ProtocolsScreen() {
   const navigation = useNavigation();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('due');
+  const [vialsByProtocol, setVialsByProtocol] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(1);
   const [expanded, setExpanded] = useState(null);
@@ -423,12 +438,58 @@ export default function ProtocolsScreen() {
 
   useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
 
+  useEffect(() => {
+    AsyncStorage.getItem(SORT_STORAGE_KEY)
+      .then(v => { if (v && SORT_OPTIONS.some(o => o.key === v)) setSortBy(v); })
+      .catch(() => {});
+  }, []);
+
+  function changeSort(key) {
+    setSortBy(key);
+    AsyncStorage.setItem(SORT_STORAGE_KEY, key).catch(() => {});
+  }
+
   async function fetchProtocols() {
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
     const data = getActiveProtocols(user.id);
     setProtocols(data || []);
+    // Active vial per protocol (latest first from the query) for the vial-age sort.
+    const vials = getActiveVials(user.id) || [];
+    const byProtocol = {};
+    for (const v of vials) if (!byProtocol[v.protocol_id]) byProtocol[v.protocol_id] = v;
+    setVialsByProtocol(byProtocol);
     setLoading(false);
+  }
+
+  // Display name follows the user's language via the canonical compound key.
+  function protocolName(p) {
+    return p.compound_id ? t(p.compound_id) : (p.name || '');
+  }
+
+  // Next scheduled dose date, counting today if a dose is expected today.
+  function nextDoseDate(p) {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    if (expectedDosesOn(p, d) > 0) return d;
+    return nextDueDate(p, d);
+  }
+
+  function sortedProtocols() {
+    const arr = [...protocols];
+    if (sortBy === 'az') return arr.sort((a, b) => protocolName(a).localeCompare(protocolName(b)));
+    if (sortBy === 'added') return arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    if (sortBy === 'due') return arr.sort((a, b) => {
+      const na = nextDoseDate(a), nb = nextDoseDate(b);
+      return (na ? na.getTime() : Infinity) - (nb ? nb.getTime() : Infinity);
+    });
+    if (sortBy === 'vial') return arr.sort((a, b) => {
+      // Oldest mixed vial first (closest to the 30-day mark); no vial → end.
+      const va = vialsByProtocol[a.id], vb = vialsByProtocol[b.id];
+      const ta = va?.mixed_on ? new Date(va.mixed_on).getTime() : Infinity;
+      const tb = vb?.mixed_on ? new Date(vb.mixed_on).getTime() : Infinity;
+      return ta - tb;
+    });
+    return arr;
   }
 
   function resetForm() {
@@ -705,6 +766,15 @@ export default function ProtocolsScreen() {
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
   const oralProtocols = protocols.filter(p => p.type === 'oral');
 
+  const renderCard = (p) => (
+    <ProtocolCard
+      key={p.id} p={p}
+      expanded={expanded} setExpanded={setExpanded}
+      openEdit={openEdit} deleteProtocol={deleteProtocol}
+      t={t}
+    />
+  );
+
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
@@ -726,47 +796,38 @@ export default function ProtocolsScreen() {
           </View>
         )}
 
-        {reconProtocols.length > 0 && (
+        {protocols.length > 0 && (
+          <View style={s.sortRow}>
+            <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {SORT_OPTIONS.map(o => (
+                <TouchableOpacity
+                  key={o.key}
+                  style={[s.sortPill, sortBy === o.key && s.sortPillOn]}
+                  onPress={() => changeSort(o.key)}
+                >
+                  <Text style={[s.sortPillText, sortBy === o.key && s.sortPillTextOn]}>{t(o.label)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {protocols.length > 0 && sortBy === 'type' && (
           <>
-            <Text style={s.sectionLabel}>{t('protocols_section_lyophilized')}</Text>
-            {reconProtocols.map(p => (
-              <ProtocolCard
-                key={p.id} p={p}
-                expanded={expanded} setExpanded={setExpanded}
-                openEdit={openEdit} deleteProtocol={deleteProtocol}
-                t={t}
-              />
-            ))}
+            {reconProtocols.length > 0 && (
+              <><Text style={s.sectionLabel}>{t('protocols_section_lyophilized')}</Text>{reconProtocols.map(renderCard)}</>
+            )}
+            {rtuProtocols.length > 0 && (
+              <><Text style={s.sectionLabel}>{t('protocols_section_rtu')}</Text>{rtuProtocols.map(renderCard)}</>
+            )}
+            {oralProtocols.length > 0 && (
+              <><Text style={s.sectionLabel}>{t('protocols_section_oral')}</Text>{oralProtocols.map(renderCard)}</>
+            )}
           </>
         )}
 
-        {rtuProtocols.length > 0 && (
-          <>
-            <Text style={s.sectionLabel}>{t('protocols_section_rtu')}</Text>
-            {rtuProtocols.map(p => (
-              <ProtocolCard
-                key={p.id} p={p}
-                expanded={expanded} setExpanded={setExpanded}
-                openEdit={openEdit} deleteProtocol={deleteProtocol}
-                t={t}
-              />
-            ))}
-          </>
-        )}
-
-        {oralProtocols.length > 0 && (
-          <>
-            <Text style={s.sectionLabel}>{t('protocols_section_oral')}</Text>
-            {oralProtocols.map(p => (
-              <ProtocolCard
-                key={p.id} p={p}
-                expanded={expanded} setExpanded={setExpanded}
-                openEdit={openEdit} deleteProtocol={deleteProtocol}
-                t={t}
-              />
-            ))}
-          </>
-        )}
+        {protocols.length > 0 && sortBy !== 'type' && sortedProtocols().map(renderCard)}
 
 
         <View style={{ height: 40 }} />
@@ -1434,6 +1495,12 @@ const s = StyleSheet.create({
   addBtnText: { color: 'white', fontSize: 13, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
+  sortRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
+  sortLabel: { fontSize: 12, fontWeight: '600', color: '#888' },
+  sortPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f0f0', borderWidth: 0.5, borderColor: '#e0e0e0', marginRight: 8 },
+  sortPillOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
+  sortPillText: { fontSize: 12, color: '#555', fontWeight: '500' },
+  sortPillTextOn: { color: '#fff', fontWeight: '600' },
   emptyState: { alignItems: 'center', paddingTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8 },
