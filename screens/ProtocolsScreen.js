@@ -26,6 +26,7 @@ import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder } from '../lib/notifications';
+import { formatTime } from '../lib/timeFormat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveProtocols, insertProtocol, updateProtocol,
@@ -213,6 +214,7 @@ function ProtocolSyringeGuide({ p, t }) {
 
 function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, t }) {
   const { colors } = useTheme();
+  const { language } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const badge = getTypeBadge(p.type, t);
   const isExpanded = expanded === p.id;
@@ -295,12 +297,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           </View>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('protocols_reminder')}</Text>
-            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => {
-              const [h, m] = t24.split(':').map(Number);
-              const period = h >= 12 ? 'PM' : 'AM';
-              const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-              return `${h12}:${String(m).padStart(2, '0')} ${period}`;
-            }).join('  ·  ')}</Text>
+            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language)).join('  ·  ')}</Text>
           </View>
           {p.schedule_total && (
             <View style={s.detailRow}>
@@ -413,13 +410,9 @@ export default function ProtocolsScreen() {
     setStartDay(String(d.getDate()));
   }
 
-  // Format "HH:MM" (24h) → "h:MM AM/PM"
+  // Format "HH:MM" (24h) → locale-aware time (AM/PM in en, 24h in de/fr/it, …)
   function formatTimeAMPM(time24) {
-    if (!time24) return '—';
-    const [h, m] = time24.split(':').map(Number);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+    return formatTime(time24, language);
   }
 
   // Build a human-readable frequency string from interval_days

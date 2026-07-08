@@ -26,6 +26,7 @@ import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
+import { formatTime } from '../lib/timeFormat';
 import { useTheme } from '../lib/theme';
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
@@ -43,7 +44,7 @@ const MONTH_KEYS = [
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
 
 export default function TodayScreen() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [protocols, setProtocols] = useState([]);
@@ -582,11 +583,7 @@ export default function TodayScreen() {
   );
 
   function formatTimeAMPM(time24) {
-    if (!time24) return '—';
-    const [h, m] = time24.split(':').map(Number);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+    return formatTime(time24, language);
   }
 
   // Determine next time slot label for multi-dose protocols.
