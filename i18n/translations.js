@@ -257,6 +257,9 @@ export const translations = {
     settings_delete_final_confirm: 'Yes, delete everything',
     settings_send_email: 'Send email',
     settings_recently_deleted: 'RECENTLY DELETED PROTOCOLS',
+    settings_delete_forever: "Delete forever",
+    settings_delete_protocol_title: "Delete permanently?",
+    settings_delete_protocol_msg: "\"{name}\" will be permanently deleted. This can’t be undone.",
     settings_version: 'DoseTrace v1.0',
     settings_not_medical: 'Not medical advice. For informational purposes only.',
 
@@ -1278,6 +1281,9 @@ export const translations = {
     settings_delete_final_confirm: 'Sí, eliminar todo',
     settings_send_email: 'Enviar correo',
     settings_recently_deleted: 'PROTOCOLOS ELIMINADOS RECIENTEMENTE',
+    settings_delete_forever: "Eliminar para siempre",
+    settings_delete_protocol_title: "¿Eliminar permanentemente?",
+    settings_delete_protocol_msg: "\"{name}\" se eliminará permanentemente. Esta acción no se puede deshacer.",
     settings_version: 'DoseTrace v1.0',
     settings_not_medical: 'No es un consejo médico. Solo para fines informativos.',
 
@@ -2299,6 +2305,9 @@ export const translations = {
     settings_delete_final_confirm: 'Sim, deletar tudo',
     settings_send_email: 'Enviar e-mail',
     settings_recently_deleted: 'PROTOCOLOS DELETADOS RECENTEMENTE',
+    settings_delete_forever: "Excluir para sempre",
+    settings_delete_protocol_title: "Excluir permanentemente?",
+    settings_delete_protocol_msg: "\"{name}\" será excluído permanentemente. Esta ação não pode ser desfeita.",
     settings_version: 'DoseTrace v1.0',
     settings_not_medical: 'Só para informação. Não substitui um médico!',
 
@@ -3319,6 +3328,9 @@ export const translations = {
     settings_delete_final_confirm: 'Oui, supprimer tout',
     settings_send_email: 'Envoyer un e-mail',
     settings_recently_deleted: 'PROTOCOLES RÉCEMMENT SUPPRIMÉS',
+    settings_delete_forever: "Supprimer définitivement",
+    settings_delete_protocol_title: "Supprimer définitivement ?",
+    settings_delete_protocol_msg: "« {name} » sera définitivement supprimé. Cette action est irréversible.",
     settings_version: 'DoseTrace v1.0',
     settings_not_medical: 'Pas un conseil médical. À titre informatif uniquement.',
 
@@ -4339,6 +4351,9 @@ export const translations = {
     settings_delete_final_confirm: 'Ja, alles löschen',
     settings_send_email: 'E-Mail senden',
     settings_recently_deleted: 'KÜRZLICH GELÖSCHTE PROTOKOLLE',
+    settings_delete_forever: "Endgültig löschen",
+    settings_delete_protocol_title: "Endgültig löschen?",
+    settings_delete_protocol_msg: "„{name}“ wird endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.",
     settings_version: 'DoseTrace v1.0',
     settings_not_medical: 'Keine medizinische Beratung. Nur zu Informationszwecken.',
 
@@ -5360,6 +5375,9 @@ export const translations = {
     settings_delete_final_confirm: 'Sì, elimina tutto',
     settings_send_email: 'Invia email',
     settings_recently_deleted: 'PROTOCOLLI ELIMINATI DI RECENTE',
+    settings_delete_forever: "Elimina per sempre",
+    settings_delete_protocol_title: "Eliminare definitivamente?",
+    settings_delete_protocol_msg: "\"{name}\" verrà eliminato definitivamente. L’azione non può essere annullata.",
     settings_version: 'DoseTrace v1.0',
     settings_not_medical: 'Non è un consiglio medico. Solo a scopo informativo.',
 

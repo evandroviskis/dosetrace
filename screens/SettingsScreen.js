@@ -16,6 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
@@ -27,7 +28,7 @@ import {
   getLogsSince, getActiveVials as getLocalVials,
   clearLocalDatabase, getDeletedProtocols as getLocalDeletedProtocols,
   restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
-  updateVial, getProtocolById,
+  updateVial, getProtocolById, permanentlyDeleteProtocol,
 } from '../lib/database';
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
 import { isPremium } from '../lib/purchases';
@@ -440,6 +441,27 @@ export default function SettingsScreen({ navigation }) {
     requestSync();
   }
 
+  // Permanently remove a soft-deleted protocol before the 7-day auto-purge.
+  // Irreversible, so it always goes through a confirm dialog.
+  function confirmPermanentDelete(p) {
+    Alert.alert(
+      t('settings_delete_protocol_title'),
+      t('settings_delete_protocol_msg').replace('{name}', p.name),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('settings_delete_forever'),
+          style: 'destructive',
+          onPress: () => {
+            permanentlyDeleteProtocol(p.id);
+            fetchDeletedProtocols();
+            requestSync();
+          },
+        },
+      ]
+    );
+  }
+
   function handleContactSupport() {
     Linking.openURL('mailto:hello@dosetrace.io?subject=DoseTrace Support');
   }
@@ -737,23 +759,61 @@ export default function SettingsScreen({ navigation }) {
             {renderSectionHeader('settings_recently_deleted', 'deleted')}
             {!collapsed.deleted && (
             <View style={s.group}>
-              {deletedProtocols.map((p, idx) => (
-                <View key={p.id} style={[s.row, idx === deletedProtocols.length - 1 && { borderBottomWidth: 0 }]}>
-                  <View style={s.rowLeft}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.rowLabel}>{p.name}</Text>
-                      <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
+              {deletedProtocols.map((p, idx) => {
+                const isLast = idx === deletedProtocols.length - 1;
+                // Opaque bg so the iOS swipe reveals the red action beneath, not the card.
+                const row = (
+                  <View style={[s.row, { backgroundColor: colors.card }, isLast && { borderBottomWidth: 0 }]}>
+                    <View style={s.rowLeft}>
+                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.rowLabel}>{p.name}</Text>
+                        <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => restoreProtocol(p.id)}
+                        style={{ backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('protocols_restore')}</Text>
+                      </TouchableOpacity>
+                      {/* Android equivalent of the iOS swipe: an explicit delete button */}
+                      {Platform.OS !== 'ios' && (
+                        <TouchableOpacity
+                          onPress={() => confirmPermanentDelete(p)}
+                          accessibilityLabel={t('settings_delete_forever')}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{ paddingHorizontal: 8, paddingVertical: 6 }}
+                        >
+                          <Text style={{ fontSize: 17 }}>🗑️</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => restoreProtocol(p.id)}
-                    style={{ backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('protocols_restore')}</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+                // iOS: swipe left to reveal "Delete forever"
+                if (Platform.OS === 'ios') {
+                  return (
+                    <Swipeable
+                      key={p.id}
+                      overshootRight={false}
+                      renderRightActions={() => (
+                        <TouchableOpacity
+                          onPress={() => confirmPermanentDelete(p)}
+                          accessibilityLabel={t('settings_delete_forever')}
+                          style={{ backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', width: 104, paddingHorizontal: 8 }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t('settings_delete_forever')}</Text>
+                        </TouchableOpacity>
+                      )}
+                    >
+                      {row}
+                    </Swipeable>
+                  );
+                }
+                return <View key={p.id}>{row}</View>;
+              })}
             </View>
             )}
           </>
