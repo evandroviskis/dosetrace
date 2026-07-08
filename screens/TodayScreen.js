@@ -648,9 +648,9 @@ export default function TodayScreen() {
     const pStreak = protocolStreaks[p.id] || 0;
     const due = isDoseDue(p);
     const lastSite = lastSiteByProtocol[p.id];
+    // Fade done/not-due cards in light mode only — on dark it just greys the
+    // text and hurts readability; the colored banner already signals state.
     return (
-      {/* Fade done/not-due cards in light mode only — on dark it just greys the
-          text and hurts readability; the colored banner already signals state. */}
       <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && !isDark && s.doseCardDone]}>
         {isTaken && (
           <View style={s.takenBanner}>
