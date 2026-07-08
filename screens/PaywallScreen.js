@@ -40,9 +40,8 @@ export default function PaywallScreen({ navigation, route }) {
     { label: t('paywall_free_feat_4'), included: true },   // Injection log & vial tracker
     { label: t('paywall_free_feat_5'), included: true },   // Reminders
     { label: t('paywall_free_feat_6'), included: true },   // Oral supplement tracking
-    { label: t('paywall_free_feat_7'), included: true },   // 1 free bloodwork upload
     { label: t('paywall_free_feat_9'), included: false },  // Unlimited protocols
-    { label: t('paywall_free_feat_10'), included: false },  // Unlimited bloodwork uploads
+    { label: t('paywall_free_feat_7'), included: false },  // Bloodwork analysis (Premium-only)
   ];
 
   const PREMIUM_FEATURES = [
@@ -326,31 +325,6 @@ export default function PaywallScreen({ navigation, route }) {
               <Text style={[s.featText, { color: colors.textMuted }]}>{f}</Text>
             </View>
           ))}
-        </View>
-
-        <View style={s.divider} />
-
-        <View style={s.bloodworkCard}>
-          <Text style={s.bloodworkTitle}>{t('paywall_bloodwork_title')}</Text>
-          <Text style={s.bloodworkSub}>
-            {t('paywall_bloodwork_sub')}
-          </Text>
-          <View style={s.bloodworkOptions}>
-            <View style={s.bloodworkOption}>
-              <Text style={s.bloodworkOptionTitle}>{t('paywall_bloodwork_free_label')}</Text>
-              <Text style={s.bloodworkOptionPrice}>{t('paywall_bloodwork_free_price')}</Text>
-              <Text style={s.bloodworkOptionPer}>{t('paywall_bloodwork_per_upload')}</Text>
-            </View>
-            <View style={s.bloodworkDivider} />
-            <View style={[s.bloodworkOption, { alignItems: 'flex-end' }]}>
-              <Text style={[s.bloodworkOptionTitle, { color: colors.accent }]}>{t('paywall_bloodwork_premium_label')}</Text>
-              <Text style={[s.bloodworkOptionPrice, { color: colors.accent }]}>{t('paywall_bloodwork_premium_price')}</Text>
-              <Text style={[s.bloodworkOptionPer, { color: colors.accent }]}>{t('paywall_bloodwork_included')}</Text>
-            </View>
-          </View>
-          <Text style={s.bloodworkNote}>
-            {t('paywall_bloodwork_note')}
-          </Text>
         </View>
 
         {!loading && hasSubscription && (

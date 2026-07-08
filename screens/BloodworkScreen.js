@@ -13,8 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Purchases from 'react-native-purchases';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -24,36 +22,10 @@ import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
 
-// Counts successful extraction saves (not distinct report dates) so the
-// free-upload quota can't be reset by uploading two reports with the same date.
-const UPLOADS_KEY = 'dosetrace_bloodwork_uploads';
 // Client-side pre-check: reject files over 10MB before reading into memory.
 // The edge function enforces its own ~15MB base64 cap server-side.
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-// Consumable product for a single upload — must exist in App Store Connect
-// and RevenueCat before the $3.99 button can complete a purchase.
-const SINGLE_UPLOAD_PRODUCT_ID = 'dt_bloodwork_single';
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
-
-async function getUploadCount() {
-  try {
-    const raw = await AsyncStorage.getItem(UPLOADS_KEY);
-    const n = parseInt(raw, 10);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  } catch {
-    return 0;
-  }
-}
-
-async function incrementUploadCount() {
-  const count = (await getUploadCount()) + 1;
-  try {
-    await AsyncStorage.setItem(UPLOADS_KEY, String(count));
-  } catch {
-    // best effort — never block a save on the counter
-  }
-  return count;
-}
 
 // Validate the edge function's extraction result before it reaches the UI/DB.
 // Coerces numeric strings, drops non-numeric rows (counted), and falls back
@@ -104,9 +76,8 @@ export default function BloodworkScreen({ navigation }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [extractedMarkers, setExtractedMarkers] = useState([]);
   const [reportDate, setReportDate] = useState('');
-  const [uploadCount, setUploadCount] = useState(0);
+  const [premium, setPremium] = useState(false);
   const [dateWasFallback, setDateWasFallback] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
   const UPGRADE_FEATURES = [
@@ -124,9 +95,7 @@ export default function BloodworkScreen({ navigation }) {
   );
 
   async function fetchReports() {
-    // Count actual saved uploads, not distinct report dates (two same-date
-    // reports would collapse into one group and reopen the free quota).
-    setUploadCount(await getUploadCount());
+    setPremium(await isPremium());
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
     const data = getBiomarkers(user.id);
@@ -142,41 +111,14 @@ export default function BloodworkScreen({ navigation }) {
   }
 
   async function handleUploadPress() {
-    // Premium users: unlimited uploads, no upgrade modal.
+    // Bloodwork analysis is Premium-only. Non-premium users see the upsell
+    // (which routes to the paywall + 7-day trial) — no free upload, no
+    // per-upload purchase.
     if (await isPremium()) {
       pickAndExtract();
       return;
     }
-    // Non-premium: 1 free upload total, then gate behind the upgrade modal.
-    const count = await getUploadCount();
-    if (count < 1) {
-      pickAndExtract();
-      return;
-    }
     setShowUpgradeModal(true);
-  }
-
-  // "$3.99 single upload" — must complete a REAL RevenueCat purchase before
-  // any extraction happens. If the consumable isn't configured yet, block.
-  async function handleSingleUploadPurchase() {
-    if (purchasing) return;
-    setPurchasing(true);
-    try {
-      const products = await Purchases.getProducts([SINGLE_UPLOAD_PRODUCT_ID]);
-      if (!products || products.length === 0) {
-        Alert.alert(t('blood_purchases_unavailable_title'), t('blood_purchases_unavailable_sub'));
-        return;
-      }
-      await Purchases.purchaseStoreProduct(products[0]);
-      // Only a successful purchase reaches this line.
-      setShowUpgradeModal(false);
-      setTimeout(() => pickAndExtract(), 300);
-    } catch (e) {
-      if (e && e.userCancelled) return; // user backed out — stay silent
-      Alert.alert(t('error'), t('blood_purchase_failed'));
-    } finally {
-      setPurchasing(false);
-    }
   }
 
   async function pickAndExtract() {
@@ -284,8 +226,6 @@ export default function BloodworkScreen({ navigation }) {
       }));
 
       insertBiomarkers(rows);
-      const newCount = await incrementUploadCount();
-      setUploadCount(newCount);
       Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
       setShowConfirmModal(false);
       setExtractedMarkers([]);
@@ -319,22 +259,20 @@ export default function BloodworkScreen({ navigation }) {
         </View>
       )}
 
-      <View style={s.premiumBanner}>
-        <View style={s.premiumBannerLeft}>
-          <Text style={s.premiumBannerTitle}>{t('blood_premium_badge')}</Text>
-          <Text style={s.premiumBannerSub}>
-            {uploadCount === 0
-              ? t('blood_first_free')
-              : t('blood_unlimited')}
-          </Text>
+      {!premium && (
+        <View style={s.premiumBanner}>
+          <View style={s.premiumBannerLeft}>
+            <Text style={s.premiumBannerTitle}>{t('blood_premium_badge')}</Text>
+            <Text style={s.premiumBannerSub}>{t('blood_premium_only')}</Text>
+          </View>
+          <TouchableOpacity
+            style={s.premiumBannerBtn}
+            onPress={() => setShowUpgradeModal(true)}
+          >
+            <Text style={s.premiumBannerBtnText}>{t('blood_upgrade')}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={s.premiumBannerBtn}
-          onPress={() => navigation.navigate('Paywall')}
-        >
-          <Text style={s.premiumBannerBtnText}>{t('blood_upgrade')}</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
 
@@ -445,23 +383,6 @@ export default function BloodworkScreen({ navigation }) {
 <View style={s.trialBadge}>
   <Text style={s.trialBadgeText}>{t('blood_trial_badge')}</Text>
 </View>
-
-            <View style={s.upgradeDivider}>
-              <View style={s.upgradeDividerLine} />
-              <Text style={s.upgradeDividerText}>{t('blood_or')}</Text>
-              <View style={s.upgradeDividerLine} />
-            </View>
-
-            <TouchableOpacity
-  style={[s.upgradeSecBtn, purchasing && { opacity: 0.5 }]}
-  disabled={purchasing}
-  onPress={handleSingleUploadPurchase}
->
-  <Text style={s.upgradeSecBtnText}>{t('blood_pay_single')}</Text>
-</TouchableOpacity>
-            <Text style={s.upgradeSecNote}>
-              {t('blood_pay_note')}
-            </Text>
 
             <View style={{ height: 40 }} />
           </ScrollView>
