@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useTheme } from '../lib/theme';
 import { getMyReferralCode, getReferralStats, createReferralCode } from '../lib/referrals';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
@@ -125,6 +126,8 @@ const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
 
 function LegalModal({ visible, onClose, title, content, doneLabel }) {
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={s.modal}>
@@ -146,6 +149,8 @@ function LegalModal({ visible, onClose, title, content, doneLabel }) {
 
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, t, LANGUAGES } = useLanguage();
+  const { colors, mode, setMode } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [user, setUser] = useState(null);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [doseReminders, setDoseReminders] = useState(true);
@@ -640,7 +645,7 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={doseReminders}
               onValueChange={(v) => toggleNotificationPref('dose_reminders', v, setDoseReminders)}
-              trackColor={{ true: '#185FA5' }}
+              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
@@ -654,7 +659,7 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={checkinReminders}
               onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
-              trackColor={{ true: '#185FA5' }}
+              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
@@ -668,7 +673,7 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={vialAlerts}
               onValueChange={(v) => toggleNotificationPref('vial_alerts', v, setVialAlerts)}
-              trackColor={{ true: '#185FA5' }}
+              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
@@ -682,7 +687,7 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={silentMode}
               onValueChange={(v) => toggleNotificationPref('silent_mode', v, setSilentMode)}
-              trackColor={{ true: '#185FA5' }}
+              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={[s.row, { borderBottomWidth: 0 }]}>
@@ -696,7 +701,7 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={persistentReminders}
               onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
-              trackColor={{ true: '#185FA5' }}
+              trackColor={{ true: colors.switchTrack }}
             />
           </View>
         </View>
@@ -738,7 +743,7 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={analyticsEnabled}
               onValueChange={toggleAnalytics}
-              trackColor={{ true: '#185FA5' }}
+              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <TouchableOpacity
@@ -812,7 +817,7 @@ export default function SettingsScreen({ navigation }) {
               {deletedProtocols.map((p, idx) => (
                 <View key={p.id} style={[s.row, idx === deletedProtocols.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={s.rowLeft}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || '#999' }} />
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} />
                     <View style={{ flex: 1 }}>
                       <Text style={s.rowLabel}>{p.name}</Text>
                       <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
@@ -820,9 +825,9 @@ export default function SettingsScreen({ navigation }) {
                   </View>
                   <TouchableOpacity
                     onPress={() => restoreProtocol(p.id)}
-                    style={{ backgroundColor: '#E6F1FB', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
+                    style={{ backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#185FA5' }}>{t('protocols_restore')}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('protocols_restore')}</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -845,6 +850,27 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <Text style={s.rowIcon}>🎨</Text>
+              <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
+            </View>
+            <View style={s.themePillRow}>
+              {[
+                { key: 'light', label: t('settings_theme_light') },
+                { key: 'dark', label: t('settings_theme_dark') },
+                { key: 'system', label: t('settings_theme_system') },
+              ].map(o => (
+                <TouchableOpacity
+                  key={o.key}
+                  style={[s.themePill, mode === o.key && s.themePillOn]}
+                  onPress={() => setMode(o.key)}
+                >
+                  <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
               <Text style={s.rowIcon}>🚪</Text>
@@ -858,9 +884,9 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={s.rowLeft}>
               <Text style={s.rowIcon}>🗑️</Text>
-              <Text style={[s.rowLabel, { color: '#E24B4A' }]}>{t('settings_delete')}</Text>
+              <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
             </View>
-            <Text style={[s.rowArrow, { color: '#E24B4A' }]}>›</Text>
+            <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
           </TouchableOpacity>
         </View>
         )}
@@ -891,7 +917,7 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 20 }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 20 }}>
               {t('settings_language_sub')}
             </Text>
             {LANGUAGES.map((lang) => (
@@ -958,7 +984,7 @@ export default function SettingsScreen({ navigation }) {
             <TextInput
               style={s.editInput}
               placeholder={t('profile_name_placeholder')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={displayName}
               onChangeText={setDisplayName}
               autoCapitalize="words"
@@ -1015,13 +1041,13 @@ export default function SettingsScreen({ navigation }) {
               style={s.editInput}
               onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
             >
-              <Text style={{ fontSize: 15, color: country ? '#111' : '#aaa' }}>
+              <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
                 {country ? countryLabel(country, language) : t('profile_country_placeholder')}
               </Text>
             </TouchableOpacity>
 
             <Text style={s.editLabel}>{t('profile_goal')}</Text>
-            <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>{t('profile_goal_multi_hint')}</Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8 }}>{t('profile_goal_multi_hint')}</Text>
             <View style={[s.editPillRow, { flexWrap: 'wrap' }]}>
               {[
                 { key: 'fitness', label: t('profile_goal_fitness') },
@@ -1119,7 +1145,7 @@ export default function SettingsScreen({ navigation }) {
             <TextInput
               style={[s.editInput, { marginBottom: 0 }]}
               placeholder={t('profile_country_search')}
-              placeholderTextColor="#aaa"
+              placeholderTextColor={colors.textFaint}
               value={countrySearch}
               onChangeText={setCountrySearch}
               autoCapitalize="none"
@@ -1154,18 +1180,18 @@ export default function SettingsScreen({ navigation }) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
-  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: '#111' },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 0.5, borderColor: '#eee' },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#185FA5', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: 'white', fontSize: 18, fontWeight: '600' },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 16, borderWidth: 0.5, borderColor: c.border },
+  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
   profileInfo: { flex: 1 },
-  profileEmail: { fontSize: 14, fontWeight: '500', color: '#111', marginBottom: 4 },
-  planBadge: { backgroundColor: '#E6F1FB', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
-  planBadgeText: { fontSize: 11, color: '#0C447C', fontWeight: '500' },
-  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: '#185FA5', borderRadius: 16 },
+  profileEmail: { fontSize: 14, fontWeight: '500', color: c.text, marginBottom: 4 },
+  planBadge: { backgroundColor: c.accentSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
+  planBadgeText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
+  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 16 },
   premiumTitle: { fontSize: 16, fontWeight: '600', color: 'white', marginBottom: 6 },
   premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 14, lineHeight: 18 },
   premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
@@ -1173,58 +1199,64 @@ const s = StyleSheet.create({
   premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
   premiumBtn: { backgroundColor: 'white', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5 },
+  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
-  sectionChevron: { fontSize: 12, color: '#aaa' },
-  group: { marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 0.5, borderColor: '#eee', overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' },
+  sectionChevron: { fontSize: 12, color: c.textFaint },
+  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, borderWidth: 0.5, borderColor: c.border, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
-  rowLabel: { fontSize: 14, color: '#111' },
-  rowSub: { fontSize: 11, color: '#aaa', marginTop: 1 },
-  rowArrow: { fontSize: 18, color: '#ccc' },
-  version: { textAlign: 'center', fontSize: 11, color: '#aaa', marginTop: 24, lineHeight: 18 },
-  modal: { flex: 1, backgroundColor: '#fff' },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: '#111' },
-  modalClose: { fontSize: 14, color: '#185FA5', fontWeight: '600' },
+  rowLabel: { fontSize: 14, color: c.text },
+  rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
+  rowArrow: { fontSize: 18, color: c.textFaint },
+  version: { textAlign: 'center', fontSize: 11, color: c.textFaint, marginTop: 24, lineHeight: 18 },
+  modal: { flex: 1, backgroundColor: c.card },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  modalClose: { fontSize: 14, color: c.accent, fontWeight: '600' },
   modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
-  legalText: { fontSize: 13, color: '#444', lineHeight: 22 },
-  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, backgroundColor: '#f9f9f9', borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: '#eee' },
-  langRowSelected: { backgroundColor: '#f0f6ff', borderColor: '#185FA5', borderWidth: 1.5 },
+  legalText: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, backgroundColor: c.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
+  langRowSelected: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
   langFlag: { fontSize: 28 },
   langInfo: { flex: 1 },
-  langNative: { fontSize: 15, fontWeight: '600', color: '#111' },
-  langName: { fontSize: 12, color: '#888', marginTop: 1 },
-  langCheck: { fontSize: 18, color: '#185FA5', fontWeight: '600' },
+  langNative: { fontSize: 15, fontWeight: '600', color: c.text },
+  langName: { fontSize: 12, color: c.textMuted, marginTop: 1 },
+  langCheck: { fontSize: 18, color: c.accent, fontWeight: '600' },
+  // Theme toggle
+  themePillRow: { flexDirection: 'row', gap: 8 },
+  themePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  themePillOn: { backgroundColor: c.accent, borderColor: c.accent },
+  themePillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  themePillTextOn: { color: c.accentText, fontWeight: '600' },
   // Referral
-  referralCard: { marginHorizontal: 16, marginTop: 8, marginBottom: 8, padding: 18, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#185FA5' },
-  referralTitle: { fontSize: 16, fontWeight: '700', color: '#185FA5', marginBottom: 4 },
-  referralSub: { fontSize: 12, color: '#666', lineHeight: 18, marginBottom: 14 },
+  referralCard: { marginHorizontal: 16, marginTop: 8, marginBottom: 8, padding: 18, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.accent },
+  referralTitle: { fontSize: 16, fontWeight: '700', color: c.accent, marginBottom: 4 },
+  referralSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
   referralCreditBanner: { backgroundColor: '#E8F5E9', padding: 10, borderRadius: 8, marginBottom: 14 },
   referralCreditText: { fontSize: 13, fontWeight: '600', color: '#2E7D32', textAlign: 'center' },
-  referralCodeLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', letterSpacing: 0.5, marginBottom: 6 },
+  referralCodeLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 6 },
   referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  referralCodeText: { fontSize: 28, fontWeight: '700', color: '#111', letterSpacing: 6 },
-  referralCopyBtn: { backgroundColor: '#E6F1FB', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  referralCopyBtnText: { fontSize: 12, fontWeight: '600', color: '#185FA5' },
-  referralStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: '#eee', marginBottom: 12 },
-  referralStatsLabel: { fontSize: 13, color: '#666' },
-  referralStatsValue: { fontSize: 18, fontWeight: '700', color: '#185FA5' },
-  referralShareBtn: { backgroundColor: '#185FA5', padding: 14, borderRadius: 10, alignItems: 'center' },
-  referralShareBtnText: { color: 'white', fontSize: 14, fontWeight: '600' },
+  referralCodeText: { fontSize: 28, fontWeight: '700', color: c.text, letterSpacing: 6 },
+  referralCopyBtn: { backgroundColor: c.accentSoft, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  referralCopyBtnText: { fontSize: 12, fontWeight: '600', color: c.accent },
+  referralStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: c.border, marginBottom: 12 },
+  referralStatsLabel: { fontSize: 13, color: c.textMuted },
+  referralStatsValue: { fontSize: 18, fontWeight: '700', color: c.accent },
+  referralShareBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 10, alignItems: 'center' },
+  referralShareBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   // Profile enhancements
-  profileName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 2 },
+  profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   goalBadge: { backgroundColor: '#FEF3E2', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   goalBadgeText: { fontSize: 11, color: '#92400E', fontWeight: '500' },
   // Edit profile modal
-  editLabel: { fontSize: 12, fontWeight: '600', color: '#555', marginBottom: 6, marginTop: 16 },
-  editInput: { borderWidth: 0.5, borderColor: '#ddd', borderRadius: 12, padding: 14, fontSize: 15, color: '#111', backgroundColor: '#fafafa', marginBottom: 4 },
+  editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 16 },
+  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, backgroundColor: c.card2, marginBottom: 4 },
   editPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  editPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 0.5, borderColor: '#ddd' },
-  editPillOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  editPillText: { fontSize: 13, color: '#555', fontWeight: '500' },
-  editPillTextOn: { color: '#fff', fontWeight: '600' },
-  editDisclaimer: { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 20, lineHeight: 16 },
+  editPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  editPillOn: { backgroundColor: c.accent, borderColor: c.accent },
+  editPillText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  editPillTextOn: { color: c.accentText, fontWeight: '600' },
+  editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
 });

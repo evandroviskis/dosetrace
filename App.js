@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +9,7 @@ import { supabase } from './lib/supabase';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications } from './lib/notifications';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
+import { ThemeProvider, useTheme } from './lib/theme';
 import { initDatabase, clearLocalDatabase } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
 import { redeemPendingReferral } from './lib/referrals';
@@ -93,19 +94,20 @@ function MainTabs() {
     { name: 'Settings', label: t('tab_settings'), emoji: '👤', component: SettingsScreen },
   ];
 
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#185FA5',
-        tabBarInactiveTintColor: '#888',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: {
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0.06,
           shadowRadius: 12,
           shadowOffset: { width: 0, height: -4 },
-          backgroundColor: '#fff',
+          backgroundColor: colors.card,
           paddingBottom: 22,
           paddingTop: 8,
           height: 84,
@@ -141,6 +143,45 @@ function MainStack() {
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
     </Stack.Navigator>
+  );
+}
+
+// Rendered inside ThemeProvider so it can theme the status bar + navigation
+// chrome (fixes white flashes during transitions in dark mode).
+function ThemedRoot({ session, navigationRef }) {
+  const { colors, isDark } = useTheme();
+  const base = isDark ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: colors.bg,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.accent,
+    },
+  };
+  return (
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!session ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : (
+          <Stack.Screen name="Main" component={MainStack} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+function ThemedLoading() {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
+      <ActivityIndicator size="large" color={colors.accent} />
+    </View>
   );
 }
 
@@ -241,9 +282,9 @@ export default function App() {
   if (loading) {
     return (
       <LanguageProvider>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-          <ActivityIndicator size="large" color="#185FA5" />
-        </View>
+        <ThemeProvider>
+          <ThemedLoading />
+        </ThemeProvider>
       </LanguageProvider>
     );
   }
@@ -251,16 +292,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <LanguageProvider>
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar style="auto" />
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!session ? (
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            ) : (
-              <Stack.Screen name="Main" component={MainStack} />
-            )}
-          </Stack.Navigator>
-        </NavigationContainer>
+        <ThemeProvider>
+          <ThemedRoot session={session} navigationRef={navigationRef} />
+        </ThemeProvider>
       </LanguageProvider>
     </ErrorBoundary>
   );
