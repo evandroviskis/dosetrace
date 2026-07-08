@@ -29,6 +29,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useTheme } from '../../lib/theme';
 import {
   SITES,
   suggestNextSite,
@@ -51,6 +52,8 @@ export default function BodyMapModal({
   recentLogs = [],
 }) {
   const { t } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [view, setView] = useState('front');
   const [type, setType] = useState('subq');
   const [selected, setSelected] = useState([]);
@@ -255,10 +258,10 @@ export default function BodyMapModal({
   );
 }
 
-const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+const makeStyles = (c) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
@@ -268,7 +271,7 @@ const s = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: '#ddd',
+    backgroundColor: c.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
@@ -281,32 +284,32 @@ const s = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 4,
   },
-  title: { fontSize: 17, fontWeight: '700', color: '#111' },
-  close: { fontSize: 26, color: '#888', paddingHorizontal: 4, lineHeight: 26 },
-  subtitle: { fontSize: 12, color: '#888', marginBottom: 10 },
+  title: { fontSize: 17, fontWeight: '700', color: c.text },
+  close: { fontSize: 26, color: c.textMuted, paddingHorizontal: 4, lineHeight: 26 },
+  subtitle: { fontSize: 12, color: c.textMuted, marginBottom: 10 },
   segWrap: {
     flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: c.card2,
     borderRadius: 10,
     padding: 3,
     marginBottom: 8,
   },
   seg: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  segOn: { backgroundColor: '#fff' },
-  segText: { fontSize: 13, color: '#888', fontWeight: '500' },
-  segTextOn: { color: '#111', fontWeight: '600' },
+  segOn: { backgroundColor: c.card },
+  segText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  segTextOn: { color: c.text, fontWeight: '600' },
   viewToggle: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   viewBtn: {
     flex: 1,
     paddingVertical: 6,
     borderWidth: 0.5,
-    borderColor: '#ddd',
+    borderColor: c.border,
     borderRadius: 8,
     alignItems: 'center',
   },
-  viewBtnOn: { borderColor: '#185FA5', backgroundColor: '#E6F1FB' },
-  viewBtnText: { fontSize: 12, color: '#888', fontWeight: '500' },
-  viewBtnTextOn: { color: '#0C447C', fontWeight: '600' },
+  viewBtnOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
+  viewBtnText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  viewBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
   bodyContainer: {
     width: W,
     height: H,
@@ -373,17 +376,17 @@ const s = StyleSheet.create({
     borderColor: '#185FA5',
     borderStyle: 'dashed',
   },
-  legendText: { fontSize: 11, color: '#666' },
+  legendText: { fontSize: 11, color: c.textMuted },
   summary: {
     fontSize: 13,
-    color: '#0C447C',
+    color: c.accentSoftText,
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '500',
   },
   disclaimer: {
     fontSize: 10,
-    color: '#aaa',
+    color: c.textFaint,
     textAlign: 'center',
     marginVertical: 8,
     lineHeight: 14,
@@ -395,16 +398,16 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 0.5,
-    borderColor: '#ddd',
+    borderColor: c.border,
     alignItems: 'center',
   },
-  btnSecondaryText: { fontSize: 14, color: '#888', fontWeight: '500' },
+  btnSecondaryText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   btnPrimary: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#185FA5',
+    backgroundColor: c.accent,
     alignItems: 'center',
   },
-  btnPrimaryText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  btnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
 });

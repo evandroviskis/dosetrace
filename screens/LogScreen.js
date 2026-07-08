@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,14 @@ import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
 import BodyMapModal from './components/BodyMapModal';
+import { useTheme } from '../lib/theme';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 export default function LogScreen() {
   const { t, language } = useLanguage();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALES[language] || 'en-US';
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('All');
@@ -289,39 +292,39 @@ export default function LogScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
-  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: '#111' },
-  statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: '#fff', borderBottomWidth: 0.5, borderBottomColor: '#eee' },
+const makeStyles = (c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
   statCard: { flex: 1, borderRadius: 14, padding: 10, alignItems: 'center' },
   statVal: { fontSize: 20, fontWeight: '600' },
   statLbl: { fontSize: 10, marginTop: 2 },
-  filterBar: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 12, borderWidth: 0.5, borderColor: '#ddd', marginRight: 8, backgroundColor: '#f9f9f9' },
-  filterBtnOn: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  filterBtnText: { fontSize: 12, color: '#666' },
-  filterBtnTextOn: { color: 'white', fontWeight: '600' },
+  filterBar: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 12, borderWidth: 0.5, borderColor: c.border, marginRight: 8, backgroundColor: c.card2 },
+  filterBtnOn: { backgroundColor: c.accent, borderColor: c.accent },
+  filterBtnText: { fontSize: 12, color: c.textMuted },
+  filterBtnTextOn: { color: c.accentText, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 8, textAlign: 'center' },
-  emptySub: { fontSize: 13, color: '#888', textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
+  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  groupDate: { fontSize: 12, fontWeight: '600', color: '#888' },
-  groupCount: { fontSize: 12, color: '#aaa' },
-  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: '#fff', borderRadius: 14, borderWidth: 0.5, borderColor: '#eee', marginBottom: 6 },
+  groupDate: { fontSize: 12, fontWeight: '600', color: c.textMuted },
+  groupCount: { fontSize: 12, color: c.textFaint },
+  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 14, borderWidth: 0.5, borderColor: c.border, marginBottom: 6 },
   logDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, flexShrink: 0 },
   logInfo: { flex: 1 },
   logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   logTypeIcon: { fontSize: 12 },
-  logName: { fontSize: 13, fontWeight: '600', color: '#111' },
-  logDetail: { fontSize: 11, color: '#888', marginTop: 2 },
+  logName: { fontSize: 13, fontWeight: '600', color: c.text },
+  logDetail: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-  tag: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  tagText: { fontSize: 10, color: '#666' },
+  tag: { backgroundColor: c.card2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  tagText: { fontSize: 10, color: c.textMuted },
   logRight: { alignItems: 'flex-end', gap: 4 },
-  logTime: { fontSize: 11, color: '#888' },
+  logTime: { fontSize: 11, color: c.textMuted },
   logBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   logBadgeText: { fontSize: 10, fontWeight: '500' },
 });
