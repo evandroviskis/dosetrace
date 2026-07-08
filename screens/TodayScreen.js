@@ -1104,7 +1104,7 @@ export default function TodayScreen() {
 
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 },
+  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, backgroundColor: c.card },
   date: { fontSize: 11, color: c.textFaint, marginBottom: 2 },
   greeting: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 4 },
   sub: { fontSize: 13, color: c.textMuted },
