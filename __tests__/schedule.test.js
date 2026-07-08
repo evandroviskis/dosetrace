@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
 } = require('../lib/schedule');
 
 // A protocol created well in the past so the creation-day grace never applies.
@@ -79,6 +79,34 @@ test('existedOn: false before creation, true on/after', () => {
   assert.equal(existedOn(p, new Date('2024-06-10T00:00:00')), true);
   assert.equal(existedOn(p, new Date('2024-07-01T00:00:00')), true);
   assert.equal(existedOn({}, new Date('2000-01-01')), true); // no created_at → always existed
+});
+
+test('nextDoseAt: a dose due today (untaken) sorts before an upcoming one', () => {
+  const now = new Date('2024-06-15T09:00:00');
+  const dueToday = { start_date: '2024-06-15', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', created_at: OLD };
+  const dueTomorrow = { start_date: '2024-06-14', interval_days: 2, doses_per_day: 1, reminder_time: '08:00', created_at: OLD };
+  assert.ok(nextDoseAt(dueToday, 0, now) < nextDoseAt(dueTomorrow, 0, now));
+});
+
+test('nextDoseAt: a protocol taken today sorts by TOMORROW, before one due in 2 days (the reported bug)', () => {
+  const now = new Date('2024-06-15T12:00:00');
+  // Daily protocol, today's single dose already taken → next dose is tomorrow (6/16).
+  const takenToday = { start_date: '2024-06-01', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', created_at: OLD };
+  // Every-3-days protocol whose next dose is 2 days out (6/17), none due today.
+  const dueIn2Days = { start_date: '2024-06-14', interval_days: 3, doses_per_day: 1, reminder_time: '08:00', created_at: OLD };
+  // Sanity: dueIn2Days is NOT due today, takenToday WAS due today.
+  assert.equal(expectedDosesOn(dueIn2Days, now), 0);
+  assert.equal(expectedDosesOn(takenToday, now), 1);
+  // The taken-today protocol (next dose tomorrow) must sort BEFORE the 2-days-out one.
+  assert.ok(nextDoseAt(takenToday, 1, now) < nextDoseAt(dueIn2Days, 0, now),
+    'tomorrow (even if today was taken) must come before in-2-days');
+});
+
+test('nextDoseAt: overdue morning slot sorts earliest', () => {
+  const now = new Date('2024-06-15T20:00:00'); // 8 PM
+  const overdue = { start_date: '2024-06-15', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', created_at: OLD };
+  const laterToday = { start_date: '2024-06-15', interval_days: 1, doses_per_day: 1, reminder_time: '21:00', created_at: OLD };
+  assert.ok(nextDoseAt(overdue, 0, now) < nextDoseAt(laterToday, 0, now));
 });
 
 test('toPastDateString: rejects impossible dates, formats valid ones', () => {

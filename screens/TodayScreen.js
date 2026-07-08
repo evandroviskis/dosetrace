@@ -26,7 +26,7 @@ import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
 } from '../lib/schedule';
 
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
@@ -566,29 +566,12 @@ export default function TodayScreen() {
   const doneCount = dueProtocols.filter(p => (takenCounts[p.id] || 0) >= expectedDosesOn(p, todayDate)).length;
   const totalCount = dueProtocols.length;
 
-  // Order the daily list by "what's next to take", across all compounds:
-  //   tier 0 — due today and not yet complete (ordered by next scheduled time)
-  //   tier 1 — upcoming on a later day (ordered by next due date)
-  //   tier 2 — already complete today (sinks to the bottom)
-  function urgencyKey(p) {
-    const now = new Date();
-    const need = expectedDosesOn(p, now);
-    const taken = takenCounts[p.id] || 0;
-    if (need > 0 && taken < need) {
-      const dpd = p.doses_per_day || 1;
-      const times = sortedDoseTimes(p).slice(0, dpd);
-      const slot = times[(dpd - need) + taken] || times[0] || '00:00';
-      const [h, m] = slot.split(':').map(Number);
-      return [0, (h * 60 + m)];
-    }
-    if (need > 0 && taken >= need) return [2, 0]; // done today
-    const nd = nextDueDate(p, now);
-    return [1, nd ? nd.getTime() : Infinity];
-  }
-  const dailyOrder = [...protocols].sort((a, b) => {
-    const ka = urgencyKey(a), kb = urgencyKey(b);
-    return ka[0] - kb[0] || ka[1] - kb[1];
-  });
+  // Order the daily list purely by "what's next to take" across all compounds:
+  // overdue/now → later today → tomorrow → in 2 days … (see nextDoseAt). A dose
+  // already taken today sorts by its NEXT dose, not to the bottom.
+  const dailyOrder = [...protocols].sort((a, b) =>
+    nextDoseAt(a, takenCounts[a.id] || 0, new Date()) - nextDoseAt(b, takenCounts[b.id] || 0, new Date())
+  );
 
   function formatTimeAMPM(time24) {
     if (!time24) return '—';
