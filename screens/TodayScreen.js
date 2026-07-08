@@ -46,7 +46,7 @@ const MONTH_KEYS = [
 
 export default function TodayScreen() {
   const { t, language } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
@@ -649,7 +649,9 @@ export default function TodayScreen() {
     const due = isDoseDue(p);
     const lastSite = lastSiteByProtocol[p.id];
     return (
-      <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && s.doseCardDone]}>
+      {/* Fade done/not-due cards in light mode only — on dark it just greys the
+          text and hurts readability; the colored banner already signals state. */}
+      <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && !isDark && s.doseCardDone]}>
         {isTaken && (
           <View style={s.takenBanner}>
             <Text style={s.takenBannerText}>{t('today_taken')}</Text>
