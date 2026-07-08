@@ -35,25 +35,6 @@ import { Analytics } from '../lib/analytics';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
 
-const MEDICAL_DISCLAIMER = `WELLNESS DISCLAIMER
-
-DoseTrace is a personal wellness tracking tool designed for informational and organizational purposes only.
-
-DoseTrace does not provide medical advice, diagnosis, or treatment recommendations. All content within this app is for general informational purposes only.
-
-Nothing in this app should be construed as medical advice or used as a substitute for professional medical advice, diagnosis, or treatment. Always seek the guidance of a qualified healthcare provider before starting, adjusting, or stopping any wellness regimen.
-
-All features within DoseTrace are passive data recording utilities. They help you log and visualize your own self-reported data. They do not validate, endorse, or recommend any specific protocol, dosage, or outcome. All mathematical calculations are estimates based on user-provided inputs and are not biological predictions.
-
-By using DoseTrace, you acknowledge that:
-
-- You are using this app at your own risk
-- You take full responsibility for any decisions made based on information recorded in this app
-- DoseTrace and Outcom are not liable for any harm arising from use of this app
-- This app is not intended to diagnose, treat, cure, or prevent any disease or medical condition
-
-If you are experiencing a medical emergency, call emergency services immediately.`;
-
 const PRIVACY_POLICY = `PRIVACY POLICY
 
 Last updated: April 2026
@@ -949,7 +930,7 @@ export default function SettingsScreen({ navigation }) {
         visible={showDisclaimer}
         onClose={() => setShowDisclaimer(false)}
         title={t('settings_disclaimer')}
-        content={MEDICAL_DISCLAIMER}
+        content={t('settings_disclaimer_body')}
         doneLabel={t('done')}
       />
       <LegalModal
