@@ -21,7 +21,7 @@ import {
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
 } from '../lib/database';
-import { requestSync } from '../lib/sync';
+import { requestSync, addSyncListener } from '../lib/sync';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
@@ -101,6 +101,22 @@ export default function TodayScreen() {
       checkTreatmentStillActive();
     }, [])
   );
+
+  // Refresh when a cloud import/sync finishes — after logging in on a new device
+  // the import runs in the background, so the first focus-fetch can hit an empty
+  // local DB. Re-fetch on completion instead of requiring a manual tab switch.
+  useEffect(() => {
+    const unsub = addSyncListener((e) => {
+      if (e.type === 'import_complete' || e.type === 'sync_complete') {
+        fetchProtocols();
+        fetchTodayLogs();
+        fetchStreakData();
+        fetchProtocolStreaks();
+        fetchLastSites();
+      }
+    });
+    return unsub;
+  }, []);
 
   // Inactivity nudge: if an active protocol hasn't had a dose logged for a while
   // (max of 7 days or 3× its interval), gently ask whether it's finished — so
