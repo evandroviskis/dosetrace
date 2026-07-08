@@ -648,10 +648,11 @@ export default function TodayScreen() {
     const pStreak = protocolStreaks[p.id] || 0;
     const due = isDoseDue(p);
     const lastSite = lastSiteByProtocol[p.id];
-    // Fade done/not-due cards in light mode only — on dark it just greys the
-    // text and hurts readability; the colored banner already signals state.
+    // Fade done/not-due cards so actionable (near-dose) cards stand out. Dark
+    // mode uses a gentler fade (0.8 vs 0.6) so the name stays readable — 0.6 on
+    // a dark bg greyed the text too much.
     return (
-      <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && !isDark && s.doseCardDone]}>
+      <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && { opacity: isDark ? 0.8 : 0.6 }]}>
         {isTaken && (
           <View style={s.takenBanner}>
             <Text style={s.takenBannerText}>{t('today_taken')}</Text>
@@ -1162,7 +1163,6 @@ const makeStyles = (c) => StyleSheet.create({
   categorySection: { marginBottom: 8 },
   categoryLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 8, marginTop: 8 },
   doseCard: { backgroundColor: c.card, borderRadius: 14, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
-  doseCardDone: { opacity: 0.6 },
   takenBanner: { backgroundColor: c.successSoft, paddingVertical: 6, paddingHorizontal: 14 },
   takenBannerText: { fontSize: 12, color: c.successSoftText, fontWeight: '600' },
   partialBanner: { backgroundColor: c.warningSoft, paddingVertical: 6, paddingHorizontal: 14 },
