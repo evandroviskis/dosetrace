@@ -97,11 +97,11 @@ function diluentLabel(val, t) {
   return opt ? t(opt.key) : val;
 }
 
-function getTypeBadge(type, t) {
-  if (type === 'recon') return { bg: '#E6F1FB', text: '#0C447C', label: t('protocols_type_badge_lyophilized') };
-  if (type === 'rtu') return { bg: '#E1F5EE', text: '#085041', label: t('protocols_type_badge_rtu') };
-  if (type === 'oral') return { bg: '#FEF3E2', text: '#92400E', label: t('protocols_type_badge_oral') };
-  return { bg: '#f0f0f0', text: '#666', label: type };
+function getTypeBadge(type, t, c) {
+  if (type === 'recon') return { bg: c.accentSoft, text: c.accentSoftText, label: t('protocols_type_badge_lyophilized') };
+  if (type === 'rtu') return { bg: c.successSoft, text: c.successSoftText, label: t('protocols_type_badge_rtu') };
+  if (type === 'oral') return { bg: c.warningSoft, text: c.warningSoftText, label: t('protocols_type_badge_oral') };
+  return { bg: c.card2, text: c.textMuted, label: type };
 }
 
 function ProtocolSyringeGuide({ p, t }) {
@@ -217,7 +217,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
   const { colors } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const badge = getTypeBadge(p.type, t);
+  const badge = getTypeBadge(p.type, t, colors);
   const isExpanded = expanded === p.id;
   const vialDaysLeft = (p.type === 'recon' && vial)
     ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
@@ -977,7 +977,7 @@ export default function ProtocolsScreen() {
                 })()}
 
                 {name && !compoundId ? (
-                  <Text style={{ fontSize: 12, color: '#92400E', marginTop: 6 }}>
+                  <Text style={{ fontSize: 12, color: colors.warningSoftText, marginTop: 6 }}>
                     {t('protocols_custom_hint')}
                   </Text>
                 ) : null}
@@ -1177,15 +1177,15 @@ export default function ProtocolsScreen() {
                       ))}
                     </View>
                     {unitMismatch && (
-                      <View style={[s.calcResult, { backgroundColor: '#FEF3E2' }]}>
-                        <Text style={[s.calcResultText, { color: '#92400E' }]}>
+                      <View style={[s.calcResult, { backgroundColor: colors.warningSoft }]}>
+                        <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
                           {t('protocols_unit_mismatch')}
                         </Text>
                       </View>
                     )}
                     {drawExceedsSyringe && !unitMismatch && (
-                      <View style={[s.calcResult, { backgroundColor: '#FDECEA' }]}>
-                        <Text style={[s.calcResultText, { color: '#C0392B', fontWeight: '700' }]}>
+                      <View style={[s.calcResult, { backgroundColor: colors.dangerSoft }]}>
+                        <Text style={[s.calcResultText, { color: colors.dangerSoftText, fontWeight: '700' }]}>
                           {drawExceedsMsg}
                         </Text>
                       </View>
@@ -1248,8 +1248,8 @@ export default function ProtocolsScreen() {
                       </View>
                     </View>
                     {unitMismatch && (
-                      <View style={[s.calcResult, { backgroundColor: '#FEF3E2', marginTop: 10 }]}>
-                        <Text style={[s.calcResultText, { color: '#92400E' }]}>
+                      <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 10 }]}>
+                        <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
                           {t('protocols_unit_mismatch')}
                         </Text>
                       </View>
@@ -1543,8 +1543,8 @@ const makeStyles = (c) => StyleSheet.create({
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   badgeText: { fontSize: 10, fontWeight: '500' },
-  badgeGoal: { backgroundColor: '#FAEEDA', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeGoalText: { fontSize: 10, color: '#633806', fontWeight: '500' },
+  badgeGoal: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  badgeGoalText: { fontSize: 10, color: c.warningSoftText, fontWeight: '500' },
   chevron: { fontSize: 11, color: c.textFaint },
   cardBody: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },

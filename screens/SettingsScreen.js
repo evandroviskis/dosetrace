@@ -1191,8 +1191,8 @@ const makeStyles = (c) => StyleSheet.create({
   referralCard: { marginHorizontal: 16, marginTop: 8, marginBottom: 8, padding: 18, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.accent },
   referralTitle: { fontSize: 16, fontWeight: '700', color: c.accent, marginBottom: 4 },
   referralSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
-  referralCreditBanner: { backgroundColor: '#E8F5E9', padding: 10, borderRadius: 8, marginBottom: 14 },
-  referralCreditText: { fontSize: 13, fontWeight: '600', color: '#2E7D32', textAlign: 'center' },
+  referralCreditBanner: { backgroundColor: c.successSoft, padding: 10, borderRadius: 8, marginBottom: 14 },
+  referralCreditText: { fontSize: 13, fontWeight: '600', color: c.successSoftText, textAlign: 'center' },
   referralCodeLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 6 },
   referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   referralCodeText: { fontSize: 28, fontWeight: '700', color: c.text, letterSpacing: 6 },
@@ -1206,8 +1206,8 @@ const makeStyles = (c) => StyleSheet.create({
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  goalBadge: { backgroundColor: '#FEF3E2', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  goalBadgeText: { fontSize: 11, color: '#92400E', fontWeight: '500' },
+  goalBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
+  goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
   // Edit profile modal
   editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 16 },
   editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, backgroundColor: c.card2, marginBottom: 4 },

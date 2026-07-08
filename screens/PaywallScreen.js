@@ -296,10 +296,10 @@ export default function PaywallScreen({ navigation, route }) {
           {FREE_FEATURES.map((f, i) => (
             <View key={i} style={[s.compareRow, i === FREE_FEATURES.length - 1 && { borderBottomWidth: 0 }]}>
               <Text style={[s.compareLabel, { flex: 2 }]}>{f.label}</Text>
-              <Text style={[s.compareVal, { color: f.included ? '#1D9E75' : '#E24B4A' }]}>
+              <Text style={[s.compareVal, { color: f.included ? colors.success : colors.danger }]}>
                 {f.included ? '✓' : '✕'}
               </Text>
-              <Text style={[s.compareVal, { color: '#1D9E75' }]}>✓</Text>
+              <Text style={[s.compareVal, { color: colors.success }]}>✓</Text>
             </View>
           ))}
         </View>
@@ -412,8 +412,8 @@ const makeStyles = (c) => StyleSheet.create({
   planName: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },
   planPrice: { fontSize: 28, fontWeight: '700', color: c.text },
   planPer: { fontSize: 11, color: c.textMuted, marginBottom: 8 },
-  saveBadge: { backgroundColor: '#E1F5EE', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, marginBottom: 6 },
-  saveBadgeText: { fontSize: 11, fontWeight: '600', color: '#085041' },
+  saveBadge: { backgroundColor: c.successSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, marginBottom: 6 },
+  saveBadgeText: { fontSize: 11, fontWeight: '600', color: c.successSoftText },
   planMonthly: { fontSize: 11, color: c.textMuted },
   lifetimeCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
   lifetimeRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -430,7 +430,7 @@ const makeStyles = (c) => StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginHorizontal: 16, marginTop: 16, marginBottom: 12 },
   featuresCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, overflow: 'hidden' },
   featRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 13, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  featCheck: { color: '#1D9E75', fontWeight: '700', fontSize: 14, width: 16 },
+  featCheck: { color: c.success, fontWeight: '700', fontSize: 14, width: 16 },
   featText: { fontSize: 13, color: c.text, flex: 1, lineHeight: 20 },
   compareCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, overflow: 'hidden' },
   compareHeader: { flexDirection: 'row', padding: 12, backgroundColor: c.card2, borderBottomWidth: 0.5, borderBottomColor: c.border },
@@ -447,13 +447,13 @@ const makeStyles = (c) => StyleSheet.create({
   bloodworkOptionPrice: { fontSize: 24, fontWeight: '700', color: c.text },
   bloodworkOptionPer: { fontSize: 11, color: c.textMuted },
   bloodworkDivider: { width: 0.5, height: 50, backgroundColor: c.border, marginHorizontal: 16 },
-  bloodworkNote: { fontSize: 12, color: '#BA7517', backgroundColor: '#FAEEDA', borderRadius: 8, padding: 10, lineHeight: 18 },
+  bloodworkNote: { fontSize: 12, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, padding: 10, lineHeight: 18 },
   singleUploadCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: c.border },
   singleUploadTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 6 },
   singleUploadSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 12 },
   singleUploadBtn: { borderWidth: 1, borderColor: c.accent, borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },
   singleUploadBtnText: { fontSize: 13, color: c.accent, fontWeight: '600' },
-  singleUploadNote: { fontSize: 11, color: '#BA7517', textAlign: 'center' },
+  singleUploadNote: { fontSize: 11, color: c.warningSoftText, textAlign: 'center' },
   restoreBtn: { alignItems: 'center', paddingVertical: 14 },
   restoreBtnText: { fontSize: 13, color: c.textMuted },
 });

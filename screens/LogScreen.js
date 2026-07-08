@@ -127,21 +127,21 @@ export default function LogScreen() {
   }
 
   function outcomeColor(outcome) {
-    if (outcome === 'Taken') return '#1D9E75';
-    if (outcome === 'Skipped') return '#E24B4A';
-    return '#BA7517';
+    if (outcome === 'Taken') return colors.success;
+    if (outcome === 'Skipped') return colors.danger;
+    return colors.warning;
   }
 
   function outcomeBg(outcome) {
-    if (outcome === 'Taken') return '#E1F5EE';
-    if (outcome === 'Skipped') return '#FCEBEB';
-    return '#FAEEDA';
+    if (outcome === 'Taken') return colors.successSoft;
+    if (outcome === 'Skipped') return colors.dangerSoft;
+    return colors.warningSoft;
   }
 
   function outcomeTextColor(outcome) {
-    if (outcome === 'Taken') return '#085041';
-    if (outcome === 'Skipped') return '#A32D2D';
-    return '#633806';
+    if (outcome === 'Taken') return colors.successSoftText;
+    if (outcome === 'Skipped') return colors.dangerSoftText;
+    return colors.warningSoftText;
   }
 
   function outcomeLabel(outcome) {
@@ -177,17 +177,17 @@ export default function LogScreen() {
       </View>
 
       <View style={s.statsRow}>
-        <View style={[s.statCard, { backgroundColor: '#E1F5EE' }]}>
-          <Text style={[s.statVal, { color: '#085041' }]}>{takenCount}</Text>
-          <Text style={[s.statLbl, { color: '#0F6E56' }]}>{t('log_taken')}</Text>
+        <View style={[s.statCard, { backgroundColor: colors.successSoft }]}>
+          <Text style={[s.statVal, { color: colors.successSoftText }]}>{takenCount}</Text>
+          <Text style={[s.statLbl, { color: colors.successSoftText }]}>{t('log_taken')}</Text>
         </View>
-        <View style={[s.statCard, { backgroundColor: '#FCEBEB' }]}>
-          <Text style={[s.statVal, { color: '#A32D2D' }]}>{skippedCount}</Text>
-          <Text style={[s.statLbl, { color: '#A32D2D' }]}>{t('log_skipped')}</Text>
+        <View style={[s.statCard, { backgroundColor: colors.dangerSoft }]}>
+          <Text style={[s.statVal, { color: colors.dangerSoftText }]}>{skippedCount}</Text>
+          <Text style={[s.statLbl, { color: colors.dangerSoftText }]}>{t('log_skipped')}</Text>
         </View>
-        <View style={[s.statCard, { backgroundColor: '#FAEEDA' }]}>
-          <Text style={[s.statVal, { color: '#633806' }]}>{delayedCount}</Text>
-          <Text style={[s.statLbl, { color: '#BA7517' }]}>{t('log_delayed')}</Text>
+        <View style={[s.statCard, { backgroundColor: colors.warningSoft }]}>
+          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{delayedCount}</Text>
+          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_delayed')}</Text>
         </View>
       </View>
 
