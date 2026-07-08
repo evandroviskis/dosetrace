@@ -582,6 +582,11 @@ export default function TodayScreen() {
   const dailyOrder = [...protocols].sort((a, b) =>
     nextDoseAt(a, takenCounts[a.id] || 0, new Date()) - nextDoseAt(b, takenCounts[b.id] || 0, new Date())
   );
+  // Split into TODAY (has a dose due today, incl. already-taken) and UPCOMING
+  // (nothing due today). Both keep the nextDoseAt ordering: today by dose time,
+  // upcoming soonest-first.
+  const todayCards = dailyOrder.filter(p => expectedDosesOn(p, todayDate) > 0);
+  const upcomingCards = dailyOrder.filter(p => expectedDosesOn(p, todayDate) === 0);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language);
@@ -785,7 +790,7 @@ export default function TodayScreen() {
     if (items.length === 0) return null;
     return (
       <View style={s.categorySection}>
-        <Text style={s.categoryLabel}>{label}</Text>
+        <Text style={s.categoryLabel}>{label.toUpperCase()}</Text>
         {items.map(p => renderDoseCard(p))}
       </View>
     );
@@ -950,7 +955,8 @@ export default function TodayScreen() {
 
         {protocols.length > 0 && (
           <View style={s.section}>
-            {dailyOrder.map(p => renderDoseCard(p))}
+            {renderCategory(t('today_section_today'), todayCards)}
+            {renderCategory(t('today_section_upcoming'), upcomingCards)}
           </View>
         )}
 
