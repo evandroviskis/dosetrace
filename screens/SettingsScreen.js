@@ -16,7 +16,6 @@ import {
   Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
@@ -761,9 +760,8 @@ export default function SettingsScreen({ navigation }) {
             <View style={s.group}>
               {deletedProtocols.map((p, idx) => {
                 const isLast = idx === deletedProtocols.length - 1;
-                // Opaque bg so the iOS swipe reveals the red action beneath, not the card.
-                const row = (
-                  <View style={[s.row, { backgroundColor: colors.card }, isLast && { borderBottomWidth: 0 }]}>
+                return (
+                  <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
                     <View style={s.rowLeft}>
                       <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} />
                       <View style={{ flex: 1 }}>
@@ -771,48 +769,24 @@ export default function SettingsScreen({ navigation }) {
                         <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <TouchableOpacity
                         onPress={() => restoreProtocol(p.id)}
                         style={{ backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
                       >
                         <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('protocols_restore')}</Text>
                       </TouchableOpacity>
-                      {/* Android equivalent of the iOS swipe: an explicit delete button */}
-                      {Platform.OS !== 'ios' && (
-                        <TouchableOpacity
-                          onPress={() => confirmPermanentDelete(p)}
-                          accessibilityLabel={t('settings_delete_forever')}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          style={{ paddingHorizontal: 8, paddingVertical: 6 }}
-                        >
-                          <Text style={{ fontSize: 17 }}>🗑️</Text>
-                        </TouchableOpacity>
-                      )}
+                      <TouchableOpacity
+                        onPress={() => confirmPermanentDelete(p)}
+                        accessibilityLabel={t('settings_delete_forever')}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                      >
+                        <Text style={{ fontSize: 17 }}>🗑️</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
-                // iOS: swipe left to reveal "Delete forever"
-                if (Platform.OS === 'ios') {
-                  return (
-                    <Swipeable
-                      key={p.id}
-                      overshootRight={false}
-                      renderRightActions={() => (
-                        <TouchableOpacity
-                          onPress={() => confirmPermanentDelete(p)}
-                          accessibilityLabel={t('settings_delete_forever')}
-                          style={{ backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', width: 104, paddingHorizontal: 8 }}
-                        >
-                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t('settings_delete_forever')}</Text>
-                        </TouchableOpacity>
-                      )}
-                    >
-                      {row}
-                    </Swipeable>
-                  );
-                }
-                return <View key={p.id}>{row}</View>;
               })}
             </View>
             )}

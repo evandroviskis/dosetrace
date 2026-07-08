@@ -1,6 +1,3 @@
-// Must be the very first import so gesture-handler installs its native handlers
-// before anything renders (required for Swipeable, etc.).
-import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

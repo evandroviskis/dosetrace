@@ -4,7 +4,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
 import { initPurchases, logOutPurchases } from './lib/purchases';
@@ -291,14 +290,12 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        <LanguageProvider>
-          <ThemeProvider>
-            <ThemedRoot session={session} navigationRef={navigationRef} />
-          </ThemeProvider>
-        </LanguageProvider>
-      </ErrorBoundary>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <ThemeProvider>
+          <ThemedRoot session={session} navigationRef={navigationRef} />
+        </ThemeProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }
