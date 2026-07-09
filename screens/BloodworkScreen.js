@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -22,10 +23,34 @@ import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
 
+// One free bloodwork analysis, then Premium required. Counts successful saves
+// (not distinct report dates) so re-uploading the same date can't reopen the
+// free slot.
+const UPLOADS_KEY = 'dosetrace_bloodwork_uploads';
 // Client-side pre-check: reject files over 10MB before reading into memory.
 // The edge function enforces its own ~15MB base64 cap server-side.
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+
+async function getUploadCount() {
+  try {
+    const raw = await AsyncStorage.getItem(UPLOADS_KEY);
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function incrementUploadCount() {
+  const count = (await getUploadCount()) + 1;
+  try {
+    await AsyncStorage.setItem(UPLOADS_KEY, String(count));
+  } catch {
+    // best effort — never block a save on the counter
+  }
+  return count;
+}
 
 // Validate the edge function's extraction result before it reaches the UI/DB.
 // Coerces numeric strings, drops non-numeric rows (counted), and falls back
@@ -77,6 +102,7 @@ export default function BloodworkScreen({ navigation }) {
   const [extractedMarkers, setExtractedMarkers] = useState([]);
   const [reportDate, setReportDate] = useState('');
   const [premium, setPremium] = useState(false);
+  const [uploadCount, setUploadCount] = useState(0);
   const [dateWasFallback, setDateWasFallback] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
@@ -96,6 +122,7 @@ export default function BloodworkScreen({ navigation }) {
 
   async function fetchReports() {
     setPremium(await isPremium());
+    setUploadCount(await getUploadCount());
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
     const data = getBiomarkers(user.id);
@@ -111,10 +138,14 @@ export default function BloodworkScreen({ navigation }) {
   }
 
   async function handleUploadPress() {
-    // Bloodwork analysis is Premium-only. Non-premium users see the upsell
-    // (which routes to the paywall + 7-day trial) — no free upload, no
-    // per-upload purchase.
+    // Premium: unlimited. Everyone else gets ONE free analysis to try it, then
+    // it's Premium-only (upsell → paywall + 7-day trial). No per-upload charge.
     if (await isPremium()) {
+      pickAndExtract();
+      return;
+    }
+    const count = await getUploadCount();
+    if (count < 1) {
       pickAndExtract();
       return;
     }
@@ -226,6 +257,8 @@ export default function BloodworkScreen({ navigation }) {
       }));
 
       insertBiomarkers(rows);
+      const newCount = await incrementUploadCount();
+      setUploadCount(newCount);
       Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
       setShowConfirmModal(false);
       setExtractedMarkers([]);
@@ -263,7 +296,9 @@ export default function BloodworkScreen({ navigation }) {
         <View style={s.premiumBanner}>
           <View style={s.premiumBannerLeft}>
             <Text style={s.premiumBannerTitle}>{t('blood_premium_badge')}</Text>
-            <Text style={s.premiumBannerSub}>{t('blood_premium_only')}</Text>
+            <Text style={s.premiumBannerSub}>
+              {uploadCount === 0 ? t('blood_first_free') : t('blood_premium_only')}
+            </Text>
           </View>
           <TouchableOpacity
             style={s.premiumBannerBtn}

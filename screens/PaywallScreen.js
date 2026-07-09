@@ -40,8 +40,9 @@ export default function PaywallScreen({ navigation, route }) {
     { label: t('paywall_free_feat_4'), included: true },   // Injection log & vial tracker
     { label: t('paywall_free_feat_5'), included: true },   // Reminders
     { label: t('paywall_free_feat_6'), included: true },   // Oral supplement tracking
+    { label: t('paywall_free_feat_7'), included: true },   // 1 free bloodwork upload
     { label: t('paywall_free_feat_9'), included: false },  // Unlimited protocols
-    { label: t('paywall_free_feat_7'), included: false },  // Bloodwork analysis (Premium-only)
+    { label: t('paywall_free_feat_10'), included: false },  // Unlimited bloodwork uploads
   ];
 
   const PREMIUM_FEATURES = [
