@@ -70,6 +70,10 @@ const WELLNESS_KEYS_INJECTABLE = ['wt_anabolic','wt_antioxidant','wt_appetite','
 
 const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','wt_neuro_wellness','wt_cognitive_vit','wt_electrolyte','wt_digestive_wellness','wt_blood_sugar_wellness','wt_liver_wellness','wt_stress_adaptation','wt_immune','wt_joint_health','wt_mental','wt_cellular_opt','wt_kidney_wellness','wt_sleep_quality','wt_stress_mgmt'];
 
+// Free tier: max active protocols before Premium is required. If you change
+// this, update the copy in protocols_limit_msg + paywall_free_feat_3.
+const FREE_PROTOCOL_LIMIT = 3;
+
 const COLORS = ['#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780','#E24B4A','#2C2C2A'];
 
 const COLOR_NAMES = {
@@ -707,7 +711,7 @@ export default function ProtocolsScreen() {
       // DB count, so the extra protocol is never created — the block happens
       // before insert, not after.
       const activeCount = (getActiveProtocols(user.id) || []).length;
-      if (activeCount >= 5 && !(await isPremium())) {
+      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await isPremium())) {
         setSaving(false);
         setShowModal(false);
         resetForm();
@@ -789,7 +793,7 @@ export default function ProtocolsScreen() {
   async function isOverFreeLimit() {
     const user = await getCachedUser();
     const count = user ? (getActiveProtocols(user.id) || []).length : protocols.length;
-    return count >= 5 && !(await isPremium());
+    return count >= FREE_PROTOCOL_LIMIT && !(await isPremium());
   }
 
   async function openAdd() {
