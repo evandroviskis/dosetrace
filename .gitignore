@@ -57,3 +57,7 @@ icon-1024.png
 
 # Supabase CLI local temp files
 supabase/.temp/
+
+# Intermediate store-screenshot renders (HTML sources in screenshots_v2/ are committed;
+# the PNGs regenerate via headless Chrome, and the finals live in screenshots/ + store_assets/)
+screenshots_v2/*.png
