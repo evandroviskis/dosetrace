@@ -15,14 +15,22 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
+import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import {
-  computeBMR, tdee, goalCalories, proteinTarget, ACTIVITY_LEVELS, lbToKg, inToCm,
+  computeBMR, tdee, goalCalories, proteinTarget, ACTIVITY_LEVELS, realityCheckTDEE,
+  lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
+import ProgressChart from './ProgressChart';
+
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+const todayISO = () => new Date().toISOString().split('T')[0];
+const SNAP_CAP = 50;
+const CHART_WIDTH = Dimensions.get('window').width - 64;
 
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
 const GOALS = ['lose', 'maintain', 'gain'];
@@ -31,9 +39,11 @@ const round5 = n => Math.round(n / 5) * 5;
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
 
 export default function CalculatorSection() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const locale = LOCALE_MAP[language] || 'en-US';
 
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
   const [weight, setWeight] = useState('');
@@ -47,13 +57,25 @@ export default function CalculatorSection() {
   const [resistance, setResistance] = useState(false);
   const [waist, setWaist] = useState('');
   const [expl, setExpl] = useState(null);           // which explainer is open
+  const [premium, setPremium] = useState(false);
+  const [snapshots, setSnapshots] = useState([]);
+  const [snapMsg, setSnapMsg] = useState(false);
+  // Reality-check inputs (display units).
+  const [rcThen, setRcThen] = useState('');
+  const [rcNow, setRcNow] = useState('');
+  const [rcDays, setRcDays] = useState('');
+  const [rcIntake, setRcIntake] = useState('');
+  const [rc, setRc] = useState(null);               // { status, tdee }
   const loadedRef = useRef(false);
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
+    setPremium(await isPremium());
     if (loadedRef.current) return;
     const user = await getCachedUser();
+    const snaps = user?.user_metadata?.calc_snapshots;
+    if (Array.isArray(snaps)) setSnapshots(snaps);
     const saved = user?.user_metadata?.calc_inputs;
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
@@ -112,6 +134,58 @@ export default function CalculatorSection() {
   const wUnit = unit === 'imperial' ? t('cal_unit_lb') : t('cal_unit_kg');
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');
   const isUnknown = bfSource === 'unknown';
+
+  const waistCm = useMemo(() => {
+    const w = num(waist);
+    if (w == null) return null;
+    return unit === 'imperial' ? inToCm(w) : w;
+  }, [waist, unit]);
+
+  // ── Snapshots (premium) ──────────────────────────────────────────
+  function saveSnapshot() {
+    if (!result || metric.weightKg == null) return;
+    const snap = {
+      date: todayISO(),
+      weightKg: metric.weightKg,
+      waistCm,
+      bodyFatPct: isUnknown ? null : num(bodyFat),
+      lbm: result.lbm,
+      bmr: Math.round(result.bmr),
+      tdee: Math.round(result.tdeeVal),
+    };
+    // One snapshot per day (latest wins); keep the newest SNAP_CAP, sorted.
+    const next = [...snapshots.filter(x => x.date !== snap.date), snap]
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+      .slice(-SNAP_CAP);
+    setSnapshots(next);
+    supabase.auth.updateUser({ data: { calc_snapshots: next } }).catch(() => {});
+    setSnapMsg(true);
+    setTimeout(() => setSnapMsg(false), 2500);
+  }
+
+  const chartSeries = useMemo(() => {
+    const toW = kg => unit === 'imperial' ? kgToLb(kg) : kg;
+    const toL = cm => unit === 'imperial' ? cmToIn(cm) : cm;
+    const weightPts = snapshots.filter(x => x.weightKg != null).map(x => ({ date: x.date, value: toW(x.weightKg) }));
+    const waistPts = snapshots.filter(x => x.waistCm != null).map(x => ({ date: x.date, value: toL(x.waistCm) }));
+    return [
+      { key: 'weight', label: t('cal_snap_weight'), color: colors.accent, unit: wUnit, points: weightPts },
+      { key: 'waist', label: t('cal_snap_waist'), color: colors.warning, unit: hUnit, points: waistPts },
+    ].filter(sr => sr.points.length > 0);
+  }, [snapshots, unit]);
+
+  const snapPointCount = chartSeries.reduce((n, sr) => Math.max(n, sr.points.length), 0);
+
+  // ── Reality check (premium) ──────────────────────────────────────
+  function computeReality() {
+    const thenKg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
+    const nowKg = num(rcNow) == null ? null : (unit === 'imperial' ? lbToKg(num(rcNow)) : num(rcNow));
+    const days = num(rcDays);
+    const intake = num(rcIntake);
+    if (thenKg == null || nowKg == null || !days || intake == null) { setRc(null); return; }
+    // weightChangeKg = amount lost (positive when weight went down).
+    setRc(realityCheckTDEE({ avgDailyCalories: intake, weightChangeKg: thenKg - nowKg, days }));
+  }
 
   const EXPLAINERS = [
     { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
@@ -237,6 +311,78 @@ export default function CalculatorSection() {
         <View style={s.results}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
       )}
 
+      {/* Reality check (premium) */}
+      <View style={s.premCard}>
+        <Text style={s.premTitle}>{t('cal_rc_title')}</Text>
+        <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
+        {premium ? (
+          <>
+            <Text style={s.label}>{t('cal_rc_weight_then')} ({wUnit})</Text>
+            <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+            <Text style={s.label}>{t('cal_rc_weight_now')} ({wUnit})</Text>
+            <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+            <View style={s.row}>
+              <View style={s.rowCol}>
+                <Text style={s.label}>{t('cal_rc_days')}</Text>
+                <TextInput style={s.input} value={rcDays} onChangeText={setRcDays} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+              </View>
+              <View style={s.rowCol}>
+                <Text style={s.label}>{t('cal_rc_intake')}</Text>
+                <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+              </View>
+            </View>
+            <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
+              <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>
+            </TouchableOpacity>
+
+            {rc && rc.status === 'ok' && (
+              <View style={s.rcResult}>
+                <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')} {round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+                {result ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(result.tdeeVal)} {t('cal_kcal')}.</Text> : null}
+                <Text style={s.rcWhyTitle}>{t('cal_rc_why_title')}</Text>
+                {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.rcWhy}>•  {t(`cal_rc_why_${i}`)}</Text>)}
+                <Text style={s.rcNote}>{t('cal_rc_unreliable_note')}</Text>
+              </View>
+            )}
+            {rc && rc.status !== 'ok' && (
+              <View style={s.rcResult}><Text style={s.rcGuard}>{t(`cal_rc_${rc.status}`)}</Text></View>
+            )}
+          </>
+        ) : (
+          <View style={s.locked}>
+            <Text style={s.lockedText}>🔒  {t('cal_premium_locked')}</Text>
+            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
+              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Progress snapshots (premium) */}
+      <View style={s.premCard}>
+        <Text style={s.premTitle}>{t('cal_snap_title')}</Text>
+        <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
+        {premium ? (
+          <>
+            <TouchableOpacity style={[s.computeBtn, !result && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!result}>
+              <Text style={s.computeBtnText}>{snapMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_snap_save')}</Text>
+            </TouchableOpacity>
+            {snapPointCount >= 2 ? (
+              <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
+            ) : (
+              <Text style={s.premSub}>{t('cal_snap_need_more')}</Text>
+            )}
+          </>
+        ) : (
+          <View style={s.locked}>
+            <Text style={s.lockedText}>🔒  {t('cal_premium_locked')}</Text>
+            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
+              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       {/* Explainers */}
       <Text style={[s.label, { marginTop: 24 }]}>{t('cal_learn')}</Text>
       {EXPLAINERS.map(e => (
@@ -294,6 +440,23 @@ const makeStyles = (c) => StyleSheet.create({
   resHeadlineVal: { fontSize: 22, fontWeight: '700', color: c.accent },
   resHeadlineSub: { fontSize: 11, color: c.textFaint, marginTop: 3 },
   estimateNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 14 },
+  premCard: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 16, borderWidth: 0.5, borderColor: c.border },
+  premTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 4 },
+  premSub: { fontSize: 12, color: c.textMuted, lineHeight: 17, marginBottom: 4 },
+  computeBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
+  computeBtnDisabled: { opacity: 0.4 },
+  computeBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  rcResult: { marginTop: 16, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
+  rcHeadline: { fontSize: 16, fontWeight: '700', color: c.accent, lineHeight: 22 },
+  rcVs: { fontSize: 13, color: c.textMuted, marginTop: 4 },
+  rcWhyTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, marginTop: 16, marginBottom: 8 },
+  rcWhy: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 4 },
+  rcNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 12 },
+  rcGuard: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
+  locked: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
+  lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
+  lockedBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
+  lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   learn: {},
   explCard: { backgroundColor: c.card, borderRadius: 12, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
   explHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },

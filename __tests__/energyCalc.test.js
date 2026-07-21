@@ -69,18 +69,27 @@ test('proteinTarget uses LBM basis when known, else bodyweight', () => {
   approx(byWeight.low, 1.6 * 80);
 });
 
-test('realityCheckTDEE: usable estimate', () => {
-  // Ate 2000/day, lost 1 kg over 28 days → 2000 + (−1×7700/28) = 1725
-  const r = realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: -1, days: 28 });
+test('realityCheckTDEE: usable estimate (maintenance sits above intake in a deficit)', () => {
+  // Ate 2000/day, LOST 1 kg over 28 days (change = +1) → 2000 + 7700/28 ≈ 2275
+  const r = realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: 1, days: 28 });
   assert.equal(r.status, 'ok');
-  approx(r.tdee, 2000 - 7700 / 28, 1);
+  approx(r.tdee, 2000 + 7700 / 28, 1);
+  assert.ok(r.tdee > 2000, 'maintenance must be above intake when losing weight');
+});
+
+test('realityCheckTDEE: gaining weight puts maintenance below intake', () => {
+  // Ate 3000/day, GAINED 1 kg over 28 days (change = −1) → 3000 − 7700/28 ≈ 2725
+  const r = realityCheckTDEE({ avgDailyCalories: 3000, weightChangeKg: -1, days: 28 });
+  assert.equal(r.status, 'ok');
+  approx(r.tdee, 3000 - 7700 / 28, 1);
+  assert.ok(r.tdee < 3000);
 });
 
 test('realityCheckTDEE guards: short window, maintenance, implausible', () => {
-  assert.equal(realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: -1, days: 10 }).status, 'too_short');
+  assert.equal(realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: 1, days: 10 }).status, 'too_short');
   assert.equal(realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: 0.1, days: 28 }).status, 'maintenance');
-  // Absurdly low reported intake with big loss → implausible (under-reporting)
-  const imp = realityCheckTDEE({ avgDailyCalories: 300, weightChangeKg: -0.3, days: 28 });
+  // Big reported loss with very low intake → implausibly low TDEE (under-reporting)
+  const imp = realityCheckTDEE({ avgDailyCalories: 300, weightChangeKg: 0.3, days: 28 });
   assert.equal(imp.status, 'implausible');
 });
 
