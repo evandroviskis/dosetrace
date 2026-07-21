@@ -423,7 +423,7 @@ export default function BodyScreen({ navigation }) {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>{t('blood_title')}</Text>
+        <Text style={s.headerTitle}>{t('tab_body')}</Text>
         <View style={s.headerActions}>
           {(section === 'labs' || section === 'vaccines') && (
             <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>

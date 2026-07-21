@@ -176,6 +176,24 @@ export default function CalculatorSection() {
 
   const snapPointCount = chartSeries.reduce((n, sr) => Math.max(n, sr.points.length), 0);
 
+  // A one-line "since your first snapshot" delta for the overview panel.
+  const progressSummary = useMemo(() => {
+    if (snapshots.length < 2) return null;
+    const sorted = [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const first = sorted[0], last = sorted[sorted.length - 1];
+    const toW = kg => unit === 'imperial' ? kgToLb(kg) : kg;
+    const toL = cm => unit === 'imperial' ? cmToIn(cm) : cm;
+    const wDelta = (first.weightKg != null && last.weightKg != null) ? toW(last.weightKg) - toW(first.weightKg) : null;
+    const waistDelta = (first.waistCm != null && last.waistCm != null) ? toL(last.waistCm) - toL(first.waistCm) : null;
+    return { firstDate: first.date, wDelta, waistDelta };
+  }, [snapshots, unit]);
+
+  const signed = d => (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d).toFixed(1);
+  const fmtDate = iso => {
+    const d = new Date(iso + 'T12:00:00');
+    return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   // ── Reality check (premium) ──────────────────────────────────────
   function computeReality() {
     const thenKg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
@@ -195,6 +213,56 @@ export default function CalculatorSection() {
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} keyboardShouldPersistTaps="handled">
+      {/* Intro — what this is */}
+      <View style={s.introCard}>
+        <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
+        <Text style={s.introBody}>{t('cal_intro_body')}</Text>
+      </View>
+
+      {/* Overview — the user's current situation */}
+      {result ? (
+        <View style={s.overview}>
+          <View style={s.overviewTop}>
+            <Text style={s.overviewTitle}>{t('cal_overview_title')}</Text>
+            <View style={s.goalBadge}><Text style={s.goalBadgeText}>{t(`cal_goal_${goal}`)}</Text></View>
+          </View>
+
+          <View style={s.overviewHeadline}>
+            <Text style={s.overviewHeadlineLabel}>{t('cal_target')}</Text>
+            <Text style={s.overviewHeadlineVal}>
+              {goal === 'maintain'
+                ? `${round10(result.cals.mid)} ${t('cal_kcal')}`
+                : `${round10(result.cals.low)}–${round10(result.cals.high)} ${t('cal_kcal')}`}
+            </Text>
+          </View>
+          <View style={s.overviewHeadline}>
+            <Text style={s.overviewHeadlineLabel}>{t('cal_protein')}</Text>
+            <Text style={s.overviewHeadlineVal}>{round5(result.protein.rec)} {t('cal_g_day')}</Text>
+            <Text style={s.overviewHeadlineSub}>{t('cal_range')} {round5(result.protein.low)}–{round5(result.protein.high)} {t('cal_g_day')} · {t(`cal_protein_basis_${result.protein.basis}`)}</Text>
+          </View>
+
+          <View style={s.overviewStats}>
+            <View style={s.overviewStat}><Text style={s.overviewStatVal}>{round10(result.bmr)}</Text><Text style={s.overviewStatLabel}>{t('cal_bmr')}</Text></View>
+            <View style={s.overviewStatDiv} />
+            <View style={s.overviewStat}><Text style={s.overviewStatVal}>{round10(result.tdeeVal)}</Text><Text style={s.overviewStatLabel}>{t('cal_tdee')}</Text></View>
+          </View>
+
+          {progressSummary && (
+            <View style={s.deltaRow}>
+              <Text style={s.deltaText}>
+                {t('cal_since')} {fmtDate(progressSummary.firstDate)}:  {t('cal_snap_weight')} {progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}
+                {progressSummary.waistDelta != null ? `   ·   ${t('cal_snap_waist')} ${signed(progressSummary.waistDelta)} ${hUnit}` : ''}
+              </Text>
+            </View>
+          )}
+
+          <Text style={s.estimateNote}>{t('cal_estimate_note')}</Text>
+        </View>
+      ) : (
+        <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
+      )}
+
+      <Text style={[s.label, { marginTop: 20 }]}>{t('cal_your_details')}</Text>
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* Units */}
@@ -281,35 +349,6 @@ export default function CalculatorSection() {
       <Text style={s.label}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
       <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
       <Text style={s.hint}>{t('cal_waist_hint')}</Text>
-
-      {/* Results */}
-      {result ? (
-        <View style={s.results}>
-          <Text style={s.resultsTitle}>{t('cal_results_title')}</Text>
-
-          <View style={s.resRow}><Text style={s.resLabel}>{t('cal_bmr')}</Text><Text style={s.resVal}>{round10(result.bmr)} {t('cal_kcal')}</Text></View>
-          <View style={s.resRow}><Text style={s.resLabel}>{t('cal_tdee')}</Text><Text style={s.resVal}>{round10(result.tdeeVal)} {t('cal_kcal')}</Text></View>
-
-          <View style={s.resHeadline}>
-            <Text style={s.resHeadlineLabel}>{t(`cal_goal_${goal}`)} · {t('cal_target')}</Text>
-            <Text style={s.resHeadlineVal}>
-              {goal === 'maintain'
-                ? `${round10(result.cals.mid)} ${t('cal_kcal')}`
-                : `${round10(result.cals.low)}–${round10(result.cals.high)} ${t('cal_kcal')}`}
-            </Text>
-          </View>
-
-          <View style={s.resHeadline}>
-            <Text style={s.resHeadlineLabel}>{t('cal_protein')}</Text>
-            <Text style={s.resHeadlineVal}>{round5(result.protein.rec)} {t('cal_g_day')}</Text>
-            <Text style={s.resHeadlineSub}>{t('cal_range')} {round5(result.protein.low)}–{round5(result.protein.high)} {t('cal_g_day')} · {t(`cal_protein_basis_${result.protein.basis}`)}</Text>
-          </View>
-
-          <Text style={s.estimateNote}>{t('cal_estimate_note')}</Text>
-        </View>
-      ) : (
-        <View style={s.results}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
-      )}
 
       {/* Reality check (premium) */}
       <View style={s.premCard}>
@@ -429,6 +468,25 @@ const makeStyles = (c) => StyleSheet.create({
   radioOn: { borderColor: c.accent, backgroundColor: c.accent },
   actText: { flex: 1, fontSize: 13, color: c.textMuted },
   actTextOn: { color: c.text, fontWeight: '500' },
+  introCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginBottom: 4 },
+  introTitle: { fontSize: 14, fontWeight: '700', color: c.accentSoftText, marginBottom: 4 },
+  introBody: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
+  overview: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 0.5, borderColor: c.border },
+  overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  overviewTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5 },
+  goalBadge: { backgroundColor: c.accent, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
+  goalBadgeText: { color: c.accentText, fontSize: 12, fontWeight: '700' },
+  overviewHeadline: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
+  overviewHeadlineLabel: { fontSize: 12, color: c.textMuted, marginBottom: 3 },
+  overviewHeadlineVal: { fontSize: 24, fontWeight: '800', color: c.accent },
+  overviewHeadlineSub: { fontSize: 11, color: c.textFaint, marginTop: 3 },
+  overviewStats: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
+  overviewStat: { flex: 1, alignItems: 'center' },
+  overviewStatVal: { fontSize: 17, fontWeight: '700', color: c.text },
+  overviewStatLabel: { fontSize: 11, color: c.textMuted, marginTop: 2, textAlign: 'center' },
+  overviewStatDiv: { width: 0.5, height: 34, backgroundColor: c.border },
+  deltaRow: { marginTop: 14, backgroundColor: c.card2, borderRadius: 10, padding: 10 },
+  deltaText: { fontSize: 12, color: c.text, fontWeight: '500' },
   results: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 20, borderWidth: 0.5, borderColor: c.border },
   resultsTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, marginBottom: 12 },
   resultsHint: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 8 },
