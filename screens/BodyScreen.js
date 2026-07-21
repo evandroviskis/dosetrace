@@ -20,7 +20,7 @@ import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, getAllDataForExport } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML } from '../lib/exportRecords';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
@@ -122,8 +122,9 @@ export default function BodyScreen({ navigation }) {
   const [favOnly, setFavOnly] = useState(false);
   const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
   const [tagDraft, setTagDraft] = useState('');
-  const [section, setSection] = useState('labs');       // 'labs' | 'vaccines' | 'calc'
+  const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
   const [exporting, setExporting] = useState(false);
+  const [vaxCount, setVaxCount] = useState(0);
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -188,6 +189,7 @@ export default function BodyScreen({ navigation }) {
     setReportTags(tags && typeof tags === 'object' ? tags : {});
     const data = getBiomarkers(user.id);
     setRows(data || []);
+    setVaxCount((getVaccines(user.id) || []).length);
     setLoading(false);
   }
 
@@ -420,10 +422,69 @@ export default function BodyScreen({ navigation }) {
     return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
   }
 
+  const sectionTitle = section === 'labs' ? t('body_card_labs_title')
+    : section === 'vaccines' ? t('body_card_vax_title')
+    : section === 'calc' ? t('body_card_calc_title') : '';
+  const testCount = new Set(rows.map(r => r.report_date)).size;
+  const labStat = testCount > 0
+    ? `${testCount} ${testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}`
+    : t('body_stat_none');
+  const vaxStat = vaxCount > 0
+    ? `${vaxCount} ${vaxCount === 1 ? t('body_stat_vaccine') : t('body_stat_vaccines')}`
+    : t('body_stat_none');
+
   return (
     <SafeAreaView style={s.container}>
+      {section === null ? (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={s.hubHeader}>
+            <Text style={s.headerTitle}>{t('tab_body')}</Text>
+            <Text style={s.hubSubtitle}>{t('body_hub_subtitle')}</Text>
+          </View>
+          <View style={s.hubBody}>
+            <Text style={s.hubIntro}>{t('body_hub_intro')}</Text>
+
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => setSection('labs')}>
+              <Text style={s.hubCardIcon}>🩸</Text>
+              <View style={s.hubCardMain}>
+                <Text style={s.hubCardTitle}>{t('body_card_labs_title')}</Text>
+                <Text style={s.hubCardDesc}>{t('body_card_labs_desc')}</Text>
+                <Text style={s.hubCardStat}>{labStat}</Text>
+              </View>
+              <Text style={s.hubCardChevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => setSection('vaccines')}>
+              <Text style={s.hubCardIcon}>💉</Text>
+              <View style={s.hubCardMain}>
+                <Text style={s.hubCardTitle}>{t('body_card_vax_title')}</Text>
+                <Text style={s.hubCardDesc}>{t('body_card_vax_desc')}</Text>
+                <Text style={s.hubCardStat}>{vaxStat}</Text>
+              </View>
+              <Text style={s.hubCardChevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => setSection('calc')}>
+              <Text style={s.hubCardIcon}>🔥</Text>
+              <View style={s.hubCardMain}>
+                <Text style={s.hubCardTitle}>{t('body_card_calc_title')}</Text>
+                <Text style={s.hubCardDesc}>{t('body_card_calc_desc')}</Text>
+                <Text style={s.hubCardStat}>{t('body_card_calc_tag')}</Text>
+              </View>
+              <Text style={s.hubCardChevron}>›</Text>
+            </TouchableOpacity>
+
+            <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
+            <View style={{ height: 30 }} />
+          </View>
+        </ScrollView>
+      ) : (
+      <>
       <View style={s.header}>
-        <Text style={s.headerTitle}>{t('tab_body')}</Text>
+        <TouchableOpacity onPress={() => { setSection(null); fetchReports(); }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} style={s.backBtn}>
+          <Text style={s.backArrow}>‹</Text>
+        </TouchableOpacity>
+        <Text style={s.headerTitleSm} numberOfLines={1}>{sectionTitle}</Text>
         <View style={s.headerActions}>
           {(section === 'labs' || section === 'vaccines') && (
             <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>
@@ -436,27 +497,6 @@ export default function BodyScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
-      </View>
-
-      <View style={s.sectionTabs}>
-        <TouchableOpacity
-          style={[s.sectionTab, section === 'labs' && s.sectionTabOn]}
-          onPress={() => setSection('labs')}
-        >
-          <Text style={[s.sectionTabText, section === 'labs' && s.sectionTabTextOn]}>{t('body_section_labs')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.sectionTab, section === 'vaccines' && s.sectionTabOn]}
-          onPress={() => setSection('vaccines')}
-        >
-          <Text style={[s.sectionTabText, section === 'vaccines' && s.sectionTabTextOn]}>{t('body_section_vaccines')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.sectionTab, section === 'calc' && s.sectionTabOn]}
-          onPress={() => setSection('calc')}
-        >
-          <Text style={[s.sectionTabText, section === 'calc' && s.sectionTabTextOn]}>{t('body_section_calc')}</Text>
-        </TouchableOpacity>
       </View>
 
       {section === 'vaccines' ? (
@@ -788,6 +828,8 @@ export default function BodyScreen({ navigation }) {
       </Modal>
       </>
       )}
+      </>
+      )}
     </SafeAreaView>
   );
 }
@@ -801,6 +843,22 @@ const makeStyles = (c) => StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exportBtn: { backgroundColor: c.card2, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 0.5, borderColor: c.border },
   exportBtnText: { color: c.accent, fontSize: 13, fontWeight: '600' },
+  backBtn: { paddingRight: 8, paddingVertical: 2 },
+  backArrow: { fontSize: 30, lineHeight: 30, color: c.accent, fontWeight: '400' },
+  headerTitleSm: { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
+  // Hub landing
+  hubHeader: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6, backgroundColor: c.card },
+  hubSubtitle: { fontSize: 13, color: c.textMuted, marginTop: 4 },
+  hubBody: { padding: 16 },
+  hubIntro: { fontSize: 12, color: c.textFaint, lineHeight: 17, marginBottom: 14 },
+  hubCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 0.5, borderColor: c.border },
+  hubCardIcon: { fontSize: 30, marginRight: 14 },
+  hubCardMain: { flex: 1 },
+  hubCardTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 4 },
+  hubCardDesc: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
+  hubCardStat: { fontSize: 12, color: c.accent, fontWeight: '600', marginTop: 8 },
+  hubCardChevron: { fontSize: 24, color: c.textFaint, marginLeft: 8 },
+  hubFootnote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 6, textAlign: 'center', paddingHorizontal: 8 },
   uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
   uploadingText: { fontSize: 13, color: c.accent },
   premiumBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.accentSoft, borderBottomWidth: 0.5, borderBottomColor: c.border },
