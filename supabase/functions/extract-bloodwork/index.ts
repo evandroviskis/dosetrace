@@ -48,6 +48,38 @@ Rules:
 - Do NOT wrap the JSON in code fences or add any commentary.
 `;
 
+// Vaccine-record extraction (vaccine card, immunization record, or a doctor's
+// sheet). Same regulatory stance: extract what is printed, never advise.
+const VACCINE_PROMPT = `You are extracting vaccination records from a document — a vaccine card,
+an immunization record, or a doctor's sheet. It may be in any language and any layout
+(tables, columns, handwritten cards, single or multi-page, photos or PDFs). Handle all of them.
+
+Return ONLY a single JSON object with this exact structure, and nothing else — no markdown
+fences, no prose, no explanations:
+
+{
+  "vaccines": [
+    { "name": "Vaccine name", "date_given": "YYYY-MM-DD", "next_due": "YYYY-MM-DD or null", "notes": "string" }
+  ]
+}
+
+Rules:
+- One entry per dose listed. Boosters and repeat doses are separate entries.
+- "name" is the vaccine in ENGLISH when a widely-recognized English name exists
+  (e.g., "Tétano" -> "Tetanus"; "Gripe"/"Influenza" -> "Influenza (flu)";
+  "Hepatite B" -> "Hepatitis B"; "Febre amarela" -> "Yellow fever"). Otherwise keep
+  the original name from the document.
+- "date_given" is the date that dose was administered, in ISO-8601 (YYYY-MM-DD).
+  Interpret local date formats correctly: DD/MM/YYYY (Brazil, EU) vs MM/DD/YYYY (US).
+  If a dose has no readable administration date, omit that entry entirely.
+- "next_due" is the next-dose or booster-due date ONLY if it is explicitly printed;
+  otherwise null. Never infer, schedule, or recommend a date.
+- "notes" holds brief printed extras for that dose (lot/batch number, manufacturer or
+  brand, dose number, injection site). Empty string if none.
+- Do NOT include patient identifiers, physician names, or addresses.
+- Do NOT wrap the JSON in code fences or add any commentary.
+`;
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -82,12 +114,14 @@ Deno.serve(async (req) => {
     // Parse and validate the request body. Accepts either a PDF (pdf_base64)
     // or a photo of a report (image_base64 + media_type) — the "snap a report"
     // path. Claude's vision handles both.
-    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown };
+    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown; kind?: unknown };
     try {
       body = await req.json();
     } catch {
       return jsonResponse({ error: 'Invalid JSON body', code: 'bad_request' }, 400);
     }
+
+    const isVaccines = body?.kind === 'vaccines';
 
     const pdfBase64 = body?.pdf_base64;
     const imageBase64 = body?.image_base64;
@@ -134,7 +168,7 @@ Deno.serve(async (req) => {
               sourceBlock,
               {
                 type: 'text',
-                text: EXTRACTION_PROMPT,
+                text: isVaccines ? VACCINE_PROMPT : EXTRACTION_PROMPT,
               },
             ],
           },
@@ -153,11 +187,18 @@ Deno.serve(async (req) => {
     const text = anthropicData?.content?.[0]?.text ?? '';
     const clean = String(text).replace(/```json|```/g, '').trim();
 
-    let parsed: { report_date?: unknown; markers?: unknown };
+    let parsed: { report_date?: unknown; markers?: unknown; vaccines?: unknown };
     try {
       parsed = JSON.parse(clean);
     } catch {
       return jsonResponse({ error: 'Extraction output was not valid JSON', code: 'invalid_extraction' }, 502);
+    }
+
+    if (isVaccines) {
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.vaccines)) {
+        return jsonResponse({ error: 'Extraction output had unexpected shape', code: 'invalid_extraction' }, 502);
+      }
+      return jsonResponse({ vaccines: parsed.vaccines }, 200);
     }
 
     if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.markers)) {
