@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
@@ -186,6 +186,7 @@ export default function BloodworkScreen({ navigation }) {
       await extractWithClaude(base64);
     } catch (err) {
       setUploading(false);
+      if (__DEV__) console.warn('[bloodwork] pickAndExtract failed:', err);
       Alert.alert(t('error'), t('blood_error_read'));
     }
   }
