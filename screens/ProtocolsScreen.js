@@ -948,11 +948,7 @@ export default function ProtocolsScreen() {
                 <Text style={s.fieldLabel}>{t('protocols_compound_name')}</Text>
                 <TextInput
                   style={s.input}
-                  placeholder={
-                    type === 'recon' ? t('protocols_search_peptides') :
-                    type === 'rtu' ? t('protocols_search_injectables') :
-                    t('protocols_search_supplements')
-                  }
+                  placeholder={t('protocols_name_placeholder')}
                   placeholderTextColor={colors.textFaint}
                   value={searchQuery}
                   onChangeText={(text) => {
@@ -968,6 +964,9 @@ export default function ProtocolsScreen() {
                 />
 
                 {showSuggestions && (() => {
+                  // Blank until the user types — the app never surfaces a compound
+                  // unprompted. Matching here is spelling help, not a suggestion.
+                  if (searchQuery.trim().length < 2) return null;
                   const sugg = getFilteredSuggestions();
                   const showAdd = !!(searchQuery && searchQuery.trim()) && !queryMatchesExisting();
                   if (sugg.length === 0 && !showAdd) return null;
@@ -1000,6 +999,10 @@ export default function ProtocolsScreen() {
                     </View>
                   );
                 })()}
+
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, lineHeight: 15 }}>
+                  {t('protocols_spelling_note')}
+                </Text>
 
                 {name && !compoundId ? (
                   <Text style={{ fontSize: 12, color: colors.warningSoftText, marginTop: 6 }}>
