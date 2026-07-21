@@ -23,7 +23,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, getAllDataForExport, getVaccines } from '../lib/database';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { buildRecordsCSV, buildRecordsHTML } from '../lib/exportRecords';
+import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
@@ -35,21 +35,6 @@ import CalculatorSection from './components/CalculatorSection';
 // Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
 const CHART_WIDTH = Dimensions.get('window').width - 32 - 28;
 
-// Merge minor naming variants of the same marker (case, punctuation, word
-// order) so its history stays one continuous series even when labs or languages
-// label it slightly differently. The extraction prompt already normalizes names
-// to English; this catches the residue (e.g. "Testosterone, Total" ⇄ "Total
-// Testosterone"). Display keeps the user's most recent original label.
-function canonicalMarker(name) {
-  return String(name || '')
-    .toLowerCase()
-    .replace(/[.,;:()/\-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .sort()
-    .join(' ');
-}
 
 // One free bloodwork analysis, then Premium required. Counts successful saves
 // (not distinct report dates) so re-uploading the same date can't reopen the
@@ -144,6 +129,11 @@ export default function BodyScreen({ navigation }) {
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
   const [exporting, setExporting] = useState(false);
   const [vaxCount, setVaxCount] = useState(0);
+  const [vaccineList, setVaccineList] = useState([]);
+  // Export selection
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [selMarkers, setSelMarkers] = useState(() => new Set());
+  const [selVaccines, setSelVaccines] = useState(() => new Set());
   // Editing a stored marker (correcting an extracted value).
   const [mEdit, setMEdit] = useState(null);
   const [mName, setMName] = useState('');
@@ -218,9 +208,14 @@ export default function BodyScreen({ navigation }) {
     setReportTags(tags && typeof tags === 'object' ? tags : {});
     const data = getBiomarkers(user.id);
     setRows(data || []);
-    setVaxCount((getVaccines(user.id) || []).length);
+    const vlist = getVaccines(user.id) || [];
+    setVaccineList(vlist);
+    setVaxCount(vlist.length);
     setLoading(false);
   }
+
+  // Distinct markers available to include in an export (canonical-merged).
+  const exportMarkers = useMemo(() => buildMarkerSeries(rows), [rows]);
 
   // Favorite markers live in Supabase user_metadata (per-user, multi-device).
   // Update optimistically; the write is fire-and-forget.
@@ -492,15 +487,15 @@ export default function BodyScreen({ navigation }) {
     fetchReports();
   }
 
-  // Export the user's health records (labs + vaccines). PDF is Premium; CSV is
-  // free. Label the PDF option so Premium status is clear before tapping.
-  async function handleExport() {
-    const canPdf = await isPremium();
-    Alert.alert(t('export_records'), t('export_choose'), [
-      { text: canPdf ? 'PDF' : `PDF · ${t('export_premium_tag')}`, onPress: () => doExport('pdf') },
-      { text: 'CSV', onPress: () => doExport('csv') },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
+  // Open the export picker with everything preselected — the user then chooses
+  // which markers and vaccines actually go in the report.
+  function handleExport() {
+    setSelMarkers(new Set(exportMarkers.map(m => m.key)));
+    setSelVaccines(new Set(vaccineList.map(v => v.id)));
+    setExportModalOpen(true);
+  }
+  function toggleSel(setFn, value) {
+    setFn(prev => { const n = new Set(prev); n.has(value) ? n.delete(value) : n.add(value); return n; });
   }
 
   async function doExport(kind) {
@@ -514,11 +509,13 @@ export default function BodyScreen({ navigation }) {
       ]);
       return;
     }
+    setExportModalOpen(false);
     setExporting(true);
     try {
       const user = await getCachedUser();
       if (!user) { setExporting(false); return; }
       const data = getAllDataForExport(user.id);
+      const selection = { selectedMarkers: selMarkers, selectedVaccineIds: selVaccines, formatDate };
       const labels = {
         labsHeading: t('export_labs'), vaccinesHeading: t('body_section_vaccines'),
         colDate: t('export_col_date'), colMarker: t('export_col_marker'),
@@ -533,7 +530,7 @@ export default function BodyScreen({ navigation }) {
       let uri, mime;
 
       if (kind === 'csv') {
-        const csv = buildRecordsCSV(data, labels);
+        const csv = buildRecordsCSV(data, { labels, ...selection });
         uri = FileSystem.documentDirectory + 'dosetrace_records.csv';
         await FileSystem.writeAsStringAsync(uri, csv);
         mime = 'text/csv';
@@ -543,6 +540,7 @@ export default function BodyScreen({ navigation }) {
           title: t('export_title'),
           exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
           disclaimer: t('export_disclaimer'),
+          ...selection,
         });
         // Confirm the native module exists BEFORE requiring expo-print, whose
         // top-level requireNativeModule('ExpoPrint') would otherwise throw.
@@ -1001,6 +999,84 @@ export default function BodyScreen({ navigation }) {
       </>
       )}
 
+      {/* CHOOSE WHAT TO EXPORT */}
+      <Modal visible={exportModalOpen} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <TouchableOpacity onPress={() => setExportModalOpen(false)} style={{ width: 70 }}>
+              <Text style={s.modalClose}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t('export_pick_title')}</Text>
+            <View style={{ width: 70 }} />
+          </View>
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={s.exportPickSub}>{t('export_pick_sub')}</Text>
+
+            {exportMarkers.length > 0 && (
+              <>
+                <View style={s.exportSecHead}>
+                  <Text style={s.exportSecTitle}>{t('export_labs')}</Text>
+                  <TouchableOpacity onPress={() => setSelMarkers(selMarkers.size === exportMarkers.length ? new Set() : new Set(exportMarkers.map(m => m.key)))}>
+                    <Text style={s.selectAll}>{selMarkers.size === exportMarkers.length ? t('export_none') : t('export_all')}</Text>
+                  </TouchableOpacity>
+                </View>
+                {exportMarkers.map(m => (
+                  <TouchableOpacity key={m.key} style={s.checkRow} onPress={() => toggleSel(setSelMarkers, m.key)}>
+                    <View style={[s.checkbox, selMarkers.has(m.key) && s.checkboxOn]}>{selMarkers.has(m.key) ? <Text style={s.checkMark}>✓</Text> : null}</View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.checkName}>{m.display}</Text>
+                      <Text style={s.checkMeta}>{m.points.length} {m.points.length === 1 ? t('blood_reading') : t('blood_readings')}{m.unit ? ` · ${m.unit}` : ''}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {vaccineList.length > 0 && (
+              <>
+                <View style={s.exportSecHead}>
+                  <Text style={s.exportSecTitle}>{t('body_section_vaccines')}</Text>
+                  <TouchableOpacity onPress={() => setSelVaccines(selVaccines.size === vaccineList.length ? new Set() : new Set(vaccineList.map(v => v.id)))}>
+                    <Text style={s.selectAll}>{selVaccines.size === vaccineList.length ? t('export_none') : t('export_all')}</Text>
+                  </TouchableOpacity>
+                </View>
+                {vaccineList.map(v => (
+                  <TouchableOpacity key={v.id} style={s.checkRow} onPress={() => toggleSel(setSelVaccines, v.id)}>
+                    <View style={[s.checkbox, selVaccines.has(v.id) && s.checkboxOn]}>{selVaccines.has(v.id) ? <Text style={s.checkMark}>✓</Text> : null}</View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.checkName}>{v.name}</Text>
+                      <Text style={s.checkMeta}>{formatDate(v.date_given)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {exportMarkers.length === 0 && vaccineList.length === 0 && (
+              <Text style={s.exportPickSub}>{t('export_nothing')}</Text>
+            )}
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          <View style={s.exportFooter}>
+            <TouchableOpacity
+              style={[s.exportFooterBtn, s.exportFooterSecondary, (selMarkers.size + selVaccines.size === 0) && s.exportBtnDisabled]}
+              disabled={selMarkers.size + selVaccines.size === 0}
+              onPress={() => doExport('csv')}
+            >
+              <Text style={s.exportFooterSecondaryText}>CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.exportFooterBtn, s.exportFooterPrimary, (selMarkers.size + selVaccines.size === 0) && s.exportBtnDisabled]}
+              disabled={selMarkers.size + selVaccines.size === 0}
+              onPress={() => doExport('pdf')}
+            >
+              <Text style={s.exportFooterPrimaryText}>{premium ? 'PDF' : `PDF · ${t('export_premium_tag')}`}</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       {/* EDIT / DELETE A STORED MARKER */}
       <Modal visible={!!mEdit} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={s.modal}>
@@ -1159,6 +1235,23 @@ const makeStyles = (c) => StyleSheet.create({
   editDateText: { fontSize: 15, color: c.text },
   editDeleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
   editDeleteText: { color: c.danger, fontSize: 14, fontWeight: '600' },
+  exportPickSub: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginBottom: 8 },
+  exportSecHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 6 },
+  exportSecTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5 },
+  selectAll: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: c.accent, borderColor: c.accent },
+  checkMark: { color: c.accentText, fontSize: 13, fontWeight: '700' },
+  checkName: { fontSize: 14, color: c.text, fontWeight: '500' },
+  checkMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  exportFooter: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card },
+  exportFooterBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  exportFooterSecondary: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  exportFooterSecondaryText: { color: c.accent, fontSize: 15, fontWeight: '600' },
+  exportFooterPrimary: { backgroundColor: c.accent },
+  exportFooterPrimaryText: { color: c.accentText, fontSize: 15, fontWeight: '700' },
+  exportBtnDisabled: { opacity: 0.4 },
   exRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   exName: { flex: 1, paddingVertical: 9 },
   exVal: { width: 74, paddingVertical: 9, textAlign: 'right' },
