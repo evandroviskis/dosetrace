@@ -125,6 +125,8 @@ export default function BodyScreen({ navigation }) {
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
   const [exporting, setExporting] = useState(false);
   const [vaxCount, setVaxCount] = useState(0);
+  const [greeting, setGreeting] = useState('');
+  const [userName, setUserName] = useState('');
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -190,6 +192,9 @@ export default function BodyScreen({ navigation }) {
     const data = getBiomarkers(user.id);
     setRows(data || []);
     setVaxCount((getVaccines(user.id) || []).length);
+    const hour = new Date().getHours();
+    setGreeting(hour < 12 ? t('today_greeting_morning') : hour < 18 ? t('today_greeting_afternoon') : t('today_greeting_evening'));
+    setUserName(user.user_metadata?.display_name ? user.user_metadata.display_name.split(/\s+/)[0] : '');
     setLoading(false);
   }
 
@@ -437,42 +442,28 @@ export default function BodyScreen({ navigation }) {
     <SafeAreaView style={s.container}>
       {section === null ? (
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={s.hubHeader}>
-            <Text style={s.headerTitle}>{t('tab_body')}</Text>
-            <Text style={s.hubSubtitle}>{t('body_hub_subtitle')}</Text>
+          <View style={s.hubHero}>
+            <Text style={s.hubGreeting}>{greeting ? `${greeting}${userName ? `, ${userName}` : ''} 👋` : t('tab_body')}</Text>
+            <Text style={s.hubHeroSub}>{t('body_hub_welcome')}</Text>
           </View>
           <View style={s.hubBody}>
-            <Text style={s.hubIntro}>{t('body_hub_intro')}</Text>
-
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => setSection('labs')}>
-              <Text style={s.hubCardIcon}>🩸</Text>
-              <View style={s.hubCardMain}>
-                <Text style={s.hubCardTitle}>{t('body_card_labs_title')}</Text>
-                <Text style={s.hubCardDesc}>{t('body_card_labs_desc')}</Text>
-                <Text style={s.hubCardStat}>{labStat}</Text>
-              </View>
-              <Text style={s.hubCardChevron}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => setSection('vaccines')}>
-              <Text style={s.hubCardIcon}>💉</Text>
-              <View style={s.hubCardMain}>
-                <Text style={s.hubCardTitle}>{t('body_card_vax_title')}</Text>
-                <Text style={s.hubCardDesc}>{t('body_card_vax_desc')}</Text>
-                <Text style={s.hubCardStat}>{vaxStat}</Text>
-              </View>
-              <Text style={s.hubCardChevron}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => setSection('calc')}>
-              <Text style={s.hubCardIcon}>🔥</Text>
-              <View style={s.hubCardMain}>
-                <Text style={s.hubCardTitle}>{t('body_card_calc_title')}</Text>
-                <Text style={s.hubCardDesc}>{t('body_card_calc_desc')}</Text>
-                <Text style={s.hubCardStat}>{t('body_card_calc_tag')}</Text>
-              </View>
-              <Text style={s.hubCardChevron}>›</Text>
-            </TouchableOpacity>
+            {[
+              { key: 'labs', icon: '🩸', bg: colors.dangerSoft, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
+              { key: 'vaccines', icon: '💉', bg: colors.accentSoft, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
+              { key: 'calc', icon: '🔥', bg: colors.warningSoft, title: t('body_card_calc_title'), desc: t('body_card_calc_desc'), stat: t('body_card_calc_tag') },
+            ].map(card => (
+              <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => setSection(card.key)}>
+                <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
+                  <Text style={s.hubBadgeIcon}>{card.icon}</Text>
+                </View>
+                <View style={s.hubCardMain}>
+                  <Text style={s.hubCardTitle}>{card.title}</Text>
+                  <Text style={s.hubCardDesc}>{card.desc}</Text>
+                  <Text style={s.hubCardStat}>{card.stat}</Text>
+                </View>
+                <Text style={s.hubCardChevron}>›</Text>
+              </TouchableOpacity>
+            ))}
 
             <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
             <View style={{ height: 30 }} />
@@ -846,19 +837,20 @@ const makeStyles = (c) => StyleSheet.create({
   backBtn: { paddingRight: 8, paddingVertical: 2 },
   backArrow: { fontSize: 30, lineHeight: 30, color: c.accent, fontWeight: '400' },
   headerTitleSm: { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
-  // Hub landing
-  hubHeader: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6, backgroundColor: c.card },
-  hubSubtitle: { fontSize: 13, color: c.textMuted, marginTop: 4 },
-  hubBody: { padding: 16 },
-  hubIntro: { fontSize: 12, color: c.textFaint, lineHeight: 17, marginBottom: 14 },
-  hubCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 0.5, borderColor: c.border },
-  hubCardIcon: { fontSize: 30, marginRight: 14 },
+  // Hub landing — warm hero + colored cards
+  hubHero: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, backgroundColor: c.card },
+  hubGreeting: { fontSize: 26, fontWeight: '800', color: c.text, letterSpacing: -0.3 },
+  hubHeroSub: { fontSize: 14, color: c.textMuted, marginTop: 8, lineHeight: 20 },
+  hubBody: { padding: 16, paddingTop: 18 },
+  hubCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginBottom: 12, borderWidth: 0.5, borderColor: c.border },
+  hubBadge: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  hubBadgeIcon: { fontSize: 26 },
   hubCardMain: { flex: 1 },
   hubCardTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 4 },
   hubCardDesc: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
   hubCardStat: { fontSize: 12, color: c.accent, fontWeight: '600', marginTop: 8 },
   hubCardChevron: { fontSize: 24, color: c.textFaint, marginLeft: 8 },
-  hubFootnote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 6, textAlign: 'center', paddingHorizontal: 8 },
+  hubFootnote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, textAlign: 'center', paddingHorizontal: 8 },
   uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
   uploadingText: { fontSize: 13, color: c.accent },
   premiumBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.accentSoft, borderBottomWidth: 0.5, borderBottomColor: c.border },
