@@ -172,7 +172,7 @@ function ProtocolSyringeGuide({ p, t }) {
     <View style={s.syringeWrap}>
       <Text style={s.syringeTitle}>{t('protocols_syringe_title')}</Text>
       <Text style={s.syringeSubtitle}>
-        {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
+        {t('protocols_syringe_based_on')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
       </Text>
       <View style={s.syringeOuter}>
         <View style={s.syringeBody}>
