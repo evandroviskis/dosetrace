@@ -24,6 +24,7 @@ import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, getAllDataForExport, getVaccines } from '../lib/database';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { buildRecordsCSV, buildRecordsHTML } from '../lib/exportRecords';
+import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
@@ -282,12 +283,11 @@ export default function BodyScreen({ navigation }) {
   }
 
   async function pickImageAndExtract(fromCamera) {
-    // Lazy-load: the native module is only present in a build that includes
-    // expo-image-picker. If it's missing (older dev/standalone build), degrade
-    // gracefully — PDF upload still works.
-    let ImagePicker;
-    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert(t('error'), t('blood_needs_build')); return; }
-    if (!ImagePicker?.launchCameraAsync) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    // Confirm the native module exists BEFORE requiring expo-image-picker,
+    // whose top-level requireNativeModule('ExponentImagePicker') would otherwise
+    // throw in a build that lacks it. PDF/photo upload still works via other paths.
+    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    const ImagePicker = require('expo-image-picker');
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -544,9 +544,10 @@ export default function BodyScreen({ navigation }) {
           exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
           disclaimer: t('export_disclaimer'),
         });
-        let Print;
-        try { Print = require('expo-print'); } catch { Print = null; }
-        if (!Print?.printToFileAsync) { setExporting(false); Alert.alert(t('error'), t('blood_needs_build')); return; }
+        // Confirm the native module exists BEFORE requiring expo-print, whose
+        // top-level requireNativeModule('ExpoPrint') would otherwise throw.
+        if (!hasNativeModule('ExpoPrint')) { setExporting(false); Alert.alert(t('error'), t('blood_needs_build')); return; }
+        const Print = require('expo-print');
         const res = await Print.printToFileAsync({ html });
         uri = res.uri;
         mime = 'application/pdf';

@@ -26,6 +26,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
 import { requestSync } from '../../lib/sync';
+import { hasNativeModule } from '../../lib/nativeModule';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -95,9 +96,8 @@ export default function VaccinesSection() {
   }
 
   async function pickImageAndExtract(fromCamera) {
-    let ImagePicker;
-    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert(t('error'), t('blood_needs_build')); return; }
-    if (!ImagePicker?.launchCameraAsync) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    const ImagePicker = require('expo-image-picker');
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
