@@ -125,8 +125,6 @@ export default function BodyScreen({ navigation }) {
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
   const [exporting, setExporting] = useState(false);
   const [vaxCount, setVaxCount] = useState(0);
-  const [greeting, setGreeting] = useState('');
-  const [userName, setUserName] = useState('');
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -192,9 +190,6 @@ export default function BodyScreen({ navigation }) {
     const data = getBiomarkers(user.id);
     setRows(data || []);
     setVaxCount((getVaccines(user.id) || []).length);
-    const hour = new Date().getHours();
-    setGreeting(hour < 12 ? t('today_greeting_morning') : hour < 18 ? t('today_greeting_afternoon') : t('today_greeting_evening'));
-    setUserName(user.user_metadata?.display_name ? user.user_metadata.display_name.split(/\s+/)[0] : '');
     setLoading(false);
   }
 
@@ -443,8 +438,8 @@ export default function BodyScreen({ navigation }) {
       {section === null ? (
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={s.hubHero}>
-            <Text style={s.hubGreeting}>{greeting ? `${greeting}${userName ? `, ${userName}` : ''} 👋` : t('tab_body')}</Text>
-            <Text style={s.hubHeroSub}>{t('body_hub_welcome')}</Text>
+            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+            <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
           </View>
           <View style={s.hubBody}>
             {[
