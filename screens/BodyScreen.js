@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,7 +22,8 @@ import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, getAllDataForExport, getVaccines } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, getAllDataForExport, getVaccines } from '../lib/database';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { buildRecordsCSV, buildRecordsHTML } from '../lib/exportRecords';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
@@ -142,6 +144,13 @@ export default function BodyScreen({ navigation }) {
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
   const [exporting, setExporting] = useState(false);
   const [vaxCount, setVaxCount] = useState(0);
+  // Editing a stored marker (correcting an extracted value).
+  const [mEdit, setMEdit] = useState(null);
+  const [mName, setMName] = useState('');
+  const [mValue, setMValue] = useState('');
+  const [mUnit, setMUnit] = useState('');
+  const [mDate, setMDate] = useState('');
+  const [mDatePicker, setMDatePicker] = useState(false);
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -170,7 +179,7 @@ export default function BodyScreen({ navigation }) {
     const favSet = new Set(favorites);
     let series = Object.values(byKey).map(rs => {
       const sorted = rs.slice().sort((a, b) => (a.report_date < b.report_date ? -1 : a.report_date > b.report_date ? 1 : 0));
-      const points = sorted.map(r => ({ date: r.report_date, value: r.value, unit: r.unit }));
+      const points = sorted.map(r => ({ id: r.id, marker: r.marker, date: r.report_date, value: r.value, unit: r.unit }));
       const latest = points[points.length - 1];
       const display = sorted[sorted.length - 1].marker; // most recent original label
       const names = new Set(rs.map(r => r.marker));
@@ -423,6 +432,36 @@ export default function BodyScreen({ navigation }) {
     } catch (err) {
       Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
+  }
+
+  // Open the marker editor for a stored row (from either view). `obj` carries
+  // the biomarker id plus its current marker/value/unit/date.
+  function openMarkerEdit(obj) {
+    setMEdit(obj);
+    setMName(obj.marker || '');
+    setMValue(obj.value != null ? String(obj.value) : '');
+    setMUnit(obj.unit || '');
+    setMDate(obj.date || obj.report_date || '');
+    setMDatePicker(false);
+  }
+  function saveMarkerEdit() {
+    if (!mEdit) return;
+    const value = parseFloat(String(mValue).replace(',', '.'));
+    if (!mName.trim() || !Number.isFinite(value)) {
+      Alert.alert(t('error'), t('blood_edit_invalid'));
+      return;
+    }
+    updateBiomarker(mEdit.id, { marker: mName.trim(), value, unit: mUnit.trim(), report_date: mDate });
+    requestSync();
+    setMEdit(null);
+    fetchReports();
+  }
+  function deleteMarkerEdit() {
+    if (!mEdit) return;
+    deleteBiomarker(mEdit.id);
+    requestSync();
+    setMEdit(null);
+    fetchReports();
   }
 
   // Export the user's health records (labs + vaccines) as PDF or CSV.
@@ -712,7 +751,7 @@ export default function BodyScreen({ navigation }) {
                       </View>
                     </View>
                     {markers.map((m, j) => (
-                      <View key={j} style={s.markerRow}>
+                      <TouchableOpacity key={j} style={s.markerRow} onPress={() => openMarkerEdit(m)}>
                         <View style={s.markerLeft}>
                           <Text style={s.markerName}>{m.marker}</Text>
                         </View>
@@ -720,8 +759,9 @@ export default function BodyScreen({ navigation }) {
                           <Text style={s.markerValue}>
                             {m.value} {m.unit}
                           </Text>
+                          <Text style={s.markerEdit}>✎</Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 )}
@@ -765,10 +805,13 @@ export default function BodyScreen({ navigation }) {
                     )}
                     <View style={s.markerHistory}>
                       {mk.points.slice().reverse().map((p, j) => (
-                        <View key={j} style={s.markerRow}>
+                        <TouchableOpacity key={j} style={s.markerRow} onPress={() => openMarkerEdit(p)}>
                           <Text style={s.markerName}>{formatDate(p.date)}</Text>
-                          <Text style={s.markerValue}>{p.value} {p.unit}</Text>
-                        </View>
+                          <View style={s.markerRight}>
+                            <Text style={s.markerValue}>{p.value} {p.unit}</Text>
+                            <Text style={s.markerEdit}>✎</Text>
+                          </View>
+                        </TouchableOpacity>
                       ))}
                     </View>
                   </View>
@@ -880,6 +923,56 @@ export default function BodyScreen({ navigation }) {
       )}
       </>
       )}
+
+      {/* EDIT / DELETE A STORED MARKER */}
+      <Modal visible={!!mEdit} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <TouchableOpacity onPress={() => setMEdit(null)} style={{ width: 70 }}>
+              <Text style={s.modalClose}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t('blood_edit_title')}</Text>
+            <TouchableOpacity onPress={saveMarkerEdit} style={{ width: 70, alignItems: 'flex-end' }}>
+              <Text style={[s.modalClose, { color: colors.accent, fontWeight: '600' }]}>{t('save')}</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={s.editLabel}>{t('blood_edit_marker')}</Text>
+            <TextInput style={s.editInput} value={mName} onChangeText={setMName} placeholderTextColor={colors.textFaint} />
+            <View style={s.editRow2}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={s.editLabel}>{t('blood_edit_value')}</Text>
+                <TextInput style={s.editInput} value={mValue} onChangeText={setMValue} keyboardType="decimal-pad" placeholderTextColor={colors.textFaint} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.editLabel}>{t('blood_edit_unit')}</Text>
+                <TextInput style={s.editInput} value={mUnit} onChangeText={setMUnit} autoCapitalize="none" placeholderTextColor={colors.textFaint} />
+              </View>
+            </View>
+            <Text style={s.editLabel}>{t('blood_edit_date')}</Text>
+            <TouchableOpacity style={s.editDateBtn} onPress={() => setMDatePicker(v => !v)}>
+              <Text style={s.editDateText}>📅  {mDate ? formatDate(mDate) : '—'}</Text>
+            </TouchableOpacity>
+            {mDatePicker && (
+              <DateTimePicker
+                value={new Date((mDate || new Date().toISOString().split('T')[0]) + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(event, d) => {
+                  setMDatePicker(Platform.OS === 'ios');
+                  if (event.type === 'dismissed') { setMDatePicker(false); return; }
+                  if (d) setMDate(d.toISOString().split('T')[0]);
+                }}
+              />
+            )}
+            <TouchableOpacity style={s.editDeleteBtn} onPress={deleteMarkerEdit}>
+              <Text style={s.editDeleteText}>{t('blood_edit_delete')}</Text>
+            </TouchableOpacity>
+            <View style={{ height: 60 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -979,8 +1072,16 @@ const makeStyles = (c) => StyleSheet.create({
   markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   markerLeft: { flex: 1 },
   markerName: { fontSize: 13, fontWeight: '500', color: c.text },
-  markerRight: { alignItems: 'flex-end' },
+  markerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   markerValue: { fontSize: 13, fontWeight: '600', color: c.text },
+  markerEdit: { fontSize: 13, color: c.textFaint },
+  editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 16 },
+  editInput: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  editRow2: { flexDirection: 'row' },
+  editDateBtn: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 0.5, borderColor: c.border },
+  editDateText: { fontSize: 15, color: c.text },
+  editDeleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
+  editDeleteText: { color: c.danger, fontSize: 14, fontWeight: '600' },
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
