@@ -115,6 +115,8 @@ export default function BodyScreen({ navigation }) {
   const [viewMode, setViewMode] = useState('date');     // 'date' | 'marker'
   const [search, setSearch] = useState('');
   const [newestFirst, setNewestFirst] = useState(true);
+  const [favorites, setFavorites] = useState([]);       // marker names, from user_metadata
+  const [favOnly, setFavOnly] = useState(false);
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -139,17 +141,20 @@ export default function BodyScreen({ navigation }) {
     for (const row of rows) {
       (byMarker[row.marker] ||= []).push(row);
     }
+    const favSet = new Set(favorites);
     let series = Object.entries(byMarker).map(([marker, rs]) => {
       const points = rs
         .map(r => ({ date: r.report_date, value: r.value, unit: r.unit }))
         .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
       const latest = points[points.length - 1];
-      return { marker, points, latest, unit: latest?.unit || '' };
+      return { marker, points, latest, unit: latest?.unit || '', isFav: favSet.has(marker) };
     });
     if (q) series = series.filter(x => x.marker.toLowerCase().includes(q));
-    series.sort((a, b) => a.marker.localeCompare(b.marker));
+    if (favOnly) series = series.filter(x => x.isFav);
+    // Favorites first, then alphabetical within each group.
+    series.sort((a, b) => (b.isFav - a.isFav) || a.marker.localeCompare(b.marker));
     return series;
-  }, [rows, q]);
+  }, [rows, q, favorites, favOnly]);
 
   const UPGRADE_FEATURES = [
     t('blood_upgrade_feat_1'),
@@ -170,9 +175,23 @@ export default function BodyScreen({ navigation }) {
     setUploadCount(await getUploadCount());
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
+    const favs = user.user_metadata?.favorite_markers;
+    setFavorites(Array.isArray(favs) ? favs : []);
     const data = getBiomarkers(user.id);
     setRows(data || []);
     setLoading(false);
+  }
+
+  // Favorite markers live in Supabase user_metadata (per-user, multi-device).
+  // Update optimistically; the write is fire-and-forget.
+  function toggleFavorite(marker) {
+    setFavorites(prev => {
+      const next = prev.includes(marker)
+        ? prev.filter(m => m !== marker)
+        : [...prev, marker];
+      supabase.auth.updateUser({ data: { favorite_markers: next } }).catch(() => {});
+      return next;
+    });
   }
 
   async function handleUploadPress() {
@@ -412,6 +431,15 @@ export default function BodyScreen({ navigation }) {
                   <Text style={s.sortBtnText}>{newestFirst ? t('blood_sort_newest') : t('blood_sort_oldest')}</Text>
                 </TouchableOpacity>
               )}
+              {viewMode === 'marker' && (
+                <TouchableOpacity
+                  style={[s.sortBtn, favOnly && s.sortBtnOn]}
+                  onPress={() => setFavOnly(v => !v)}
+                  accessibilityLabel={t('blood_favorites')}
+                >
+                  <Text style={[s.sortBtnText, favOnly && s.sortBtnTextOn]}>★ {t('blood_favorites')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {viewMode === 'date' && reports.length === 0 && (
@@ -457,21 +485,31 @@ export default function BodyScreen({ navigation }) {
 
             {viewMode === 'marker' && markerSeries.map((mk) => (
               <View key={mk.marker} style={s.reportGroup}>
-                <TouchableOpacity
-                  style={s.reportHeader}
-                  onPress={() => setExpandedMarker(expandedMarker === mk.marker ? null : mk.marker)}
-                >
-                  <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={s.reportDate}>{mk.marker}</Text>
-                    <Text style={s.reportCount}>
-                      {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
-                    </Text>
-                  </View>
-                  <View style={s.reportBadges}>
-                    <Text style={s.markerLatest}>{mk.latest.value} {mk.unit}</Text>
-                    <Text style={s.chevron}>{expandedMarker === mk.marker ? '▲' : '▶'}</Text>
-                  </View>
-                </TouchableOpacity>
+                <View style={s.markerHeaderRow}>
+                  <TouchableOpacity
+                    style={s.starBtn}
+                    onPress={() => toggleFavorite(mk.marker)}
+                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                    accessibilityLabel={t('blood_favorites')}
+                  >
+                    <Text style={[s.star, mk.isFav && s.starOn]}>{mk.isFav ? '★' : '☆'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.markerHeaderMain}
+                    onPress={() => setExpandedMarker(expandedMarker === mk.marker ? null : mk.marker)}
+                  >
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={s.reportDate}>{mk.marker}</Text>
+                      <Text style={s.reportCount}>
+                        {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
+                      </Text>
+                    </View>
+                    <View style={s.reportBadges}>
+                      <Text style={s.markerLatest}>{mk.latest.value} {mk.unit}</Text>
+                      <Text style={s.chevron}>{expandedMarker === mk.marker ? '▲' : '▶'}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
 
                 {expandedMarker === mk.marker && (
                   <View style={s.markerExpanded}>
@@ -632,7 +670,14 @@ const makeStyles = (c) => StyleSheet.create({
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   searchInput: { flex: 1, backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border },
   sortBtn: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 0.5, borderColor: c.border },
+  sortBtnOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
   sortBtnText: { fontSize: 12, fontWeight: '600', color: c.accent },
+  sortBtnTextOn: { color: c.accent },
+  markerHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  starBtn: { paddingLeft: 12, paddingRight: 4, paddingVertical: 14 },
+  star: { fontSize: 18, color: c.textFaint },
+  starOn: { color: c.warning },
+  markerHeaderMain: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 14, paddingVertical: 14, paddingLeft: 4 },
   noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
   markerLatest: { fontSize: 13, fontWeight: '700', color: c.text, marginRight: 6 },
   markerExpanded: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
