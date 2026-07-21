@@ -69,7 +69,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 // VialScreen removed from tabs — vial tracking now in TodayScreen
 import FAQScreen from './screens/FAQScreen';
-import BloodworkScreen from './screens/BloodworkScreen';
+import BodyScreen from './screens/BodyScreen';
 import PaywallScreen from './screens/PaywallScreen';
 
 const Tab = createBottomTabNavigator();
@@ -99,7 +99,7 @@ function MainTabs() {
   const tabs = [
     { name: 'Today', label: t('tab_today'), emoji: '⊞', component: TodayScreen },
     { name: 'Protocols', label: t('tab_protocols'), emoji: '💊', component: ProtocolsScreen },
-    { name: 'Blood', label: t('tab_blood'), emoji: '🩸', component: BloodworkScreen },
+    { name: 'Body', label: t('tab_body'), emoji: '🧍', component: BodyScreen },
     { name: 'Settings', label: t('tab_settings'), emoji: '👤', component: SettingsScreen },
   ];
 

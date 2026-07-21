@@ -23,7 +23,7 @@ export const translations = {
     tab_protocols: 'Protocols',
     tab_log: 'Log',
     tab_vials: 'Vials',
-    tab_blood: 'Blood',
+    tab_body: 'Body',
     tab_settings: 'Settings',
 
     // TODAY
@@ -1067,7 +1067,7 @@ export const translations = {
     tab_protocols: 'Protocolos',
     tab_log: 'Registro',
     tab_vials: 'Viales',
-    tab_blood: 'Sangre',
+    tab_body: 'Cuerpo',
     tab_settings: 'Configuración',
 
     // TODAY
@@ -2111,7 +2111,7 @@ export const translations = {
     tab_protocols: 'Protocolos',
     tab_log: 'Registro',
     tab_vials: 'Frascos',
-    tab_blood: 'Exame',
+    tab_body: 'Corpo',
     tab_settings: 'Configurações',
 
     // TODAY
@@ -3154,7 +3154,7 @@ export const translations = {
     tab_protocols: 'Protocoles',
     tab_log: 'Journal',
     tab_vials: 'Fioles',
-    tab_blood: 'Examen',
+    tab_body: 'Corps',
     tab_settings: 'Paramètres',
 
     // TODAY
@@ -4197,7 +4197,7 @@ export const translations = {
     tab_protocols: 'Protokolle',
     tab_log: 'Protokoll',
     tab_vials: 'Fläschchen',
-    tab_blood: 'Blutuntersuchung',
+    tab_body: 'Körper',
     tab_settings: 'Einstellungen',
 
     // TODAY
@@ -5241,7 +5241,7 @@ export const translations = {
     tab_protocols: 'Protocolli',
     tab_log: 'Registro',
     tab_vials: 'Flaconi',
-    tab_blood: 'Analisi',
+    tab_body: 'Corpo',
     tab_settings: 'Impostazioni',
 
     // TODAY

@@ -90,7 +90,7 @@ function validateExtraction(data) {
   return { markers, reportDate, droppedCount, dateFallback };
 }
 
-export default function BloodworkScreen({ navigation }) {
+export default function BodyScreen({ navigation }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
