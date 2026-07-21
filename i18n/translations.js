@@ -20,10 +20,10 @@ export const translations = {
 
     // TABS
     tab_today: 'Today',
-    tab_protocols: 'Protocols',
+    tab_protocols: 'My Protocols',
     tab_log: 'Log',
     tab_vials: 'Vials',
-    tab_body: 'Body',
+    tab_body: 'My Body',
     tab_settings: 'Settings',
 
     // TODAY
@@ -674,7 +674,7 @@ export const translations = {
     paywall_no_purchases_msg: 'We could not find any previous purchases associated with your account.',
 
     // PROTOCOLS
-    protocols_title: 'My protocols',
+    protocols_title: 'My Protocols',
     protocols_add: '+ Add',
     protocols_empty_title: 'No protocols yet',
     protocols_empty_sub: 'Add your first compound to get started.',
@@ -1219,10 +1219,10 @@ export const translations = {
 
     // TABS
     tab_today: 'Hoy',
-    tab_protocols: 'Protocolos',
+    tab_protocols: 'Mis protocolos',
     tab_log: 'Registro',
     tab_vials: 'Viales',
-    tab_body: 'Cuerpo',
+    tab_body: 'Mi cuerpo',
     tab_settings: 'Configuración',
 
     // TODAY
@@ -2418,10 +2418,10 @@ export const translations = {
 
     // TABS
     tab_today: 'Hoje',
-    tab_protocols: 'Protocolos',
+    tab_protocols: 'Meus protocolos',
     tab_log: 'Registro',
     tab_vials: 'Frascos',
-    tab_body: 'Corpo',
+    tab_body: 'Meu corpo',
     tab_settings: 'Configurações',
 
     // TODAY
@@ -3616,10 +3616,10 @@ export const translations = {
 
     // TABS
     tab_today: 'Aujourd\'hui',
-    tab_protocols: 'Protocoles',
+    tab_protocols: 'Mes protocoles',
     tab_log: 'Journal',
     tab_vials: 'Fioles',
-    tab_body: 'Corps',
+    tab_body: 'Mon corps',
     tab_settings: 'Paramètres',
 
     // TODAY
@@ -4814,10 +4814,10 @@ export const translations = {
 
     // TABS
     tab_today: 'Heute',
-    tab_protocols: 'Protokolle',
+    tab_protocols: 'Meine Protokolle',
     tab_log: 'Protokoll',
     tab_vials: 'Fläschchen',
-    tab_body: 'Körper',
+    tab_body: 'Mein Körper',
     tab_settings: 'Einstellungen',
 
     // TODAY
@@ -6013,10 +6013,10 @@ export const translations = {
 
     // TABS
     tab_today: 'Oggi',
-    tab_protocols: 'Protocolli',
+    tab_protocols: 'I miei protocolli',
     tab_log: 'Registro',
     tab_vials: 'Flaconi',
-    tab_body: 'Corpo',
+    tab_body: 'Il mio corpo',
     tab_settings: 'Impostazioni',
 
     // TODAY
