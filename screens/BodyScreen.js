@@ -117,6 +117,8 @@ export default function BodyScreen({ navigation }) {
   const [newestFirst, setNewestFirst] = useState(true);
   const [favorites, setFavorites] = useState([]);       // marker names, from user_metadata
   const [favOnly, setFavOnly] = useState(false);
+  const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
+  const [tagDraft, setTagDraft] = useState('');
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -177,6 +179,8 @@ export default function BodyScreen({ navigation }) {
     if (!user) { setLoading(false); return; }
     const favs = user.user_metadata?.favorite_markers;
     setFavorites(Array.isArray(favs) ? favs : []);
+    const tags = user.user_metadata?.report_tags;
+    setReportTags(tags && typeof tags === 'object' ? tags : {});
     const data = getBiomarkers(user.id);
     setRows(data || []);
     setLoading(false);
@@ -192,6 +196,28 @@ export default function BodyScreen({ navigation }) {
       supabase.auth.updateUser({ data: { favorite_markers: next } }).catch(() => {});
       return next;
     });
+  }
+
+  // Per-test labels ("baseline", "week 8", …). The user's own categorization,
+  // stored per-user in user_metadata keyed by report date. Never interpreted.
+  function saveReportTags(next) {
+    setReportTags(next);
+    supabase.auth.updateUser({ data: { report_tags: next } }).catch(() => {});
+  }
+  function addReportTag(date) {
+    const tag = tagDraft.trim();
+    if (!tag) return;
+    const cur = reportTags[date] || [];
+    if (!cur.some(x => x.toLowerCase() === tag.toLowerCase())) {
+      saveReportTags({ ...reportTags, [date]: [...cur, tag] });
+    }
+    setTagDraft('');
+  }
+  function removeReportTag(date, tag) {
+    const nextTags = (reportTags[date] || []).filter(x => x !== tag);
+    const next = { ...reportTags };
+    if (nextTags.length) next[date] = nextTags; else delete next[date];
+    saveReportTags(next);
   }
 
   async function handleUploadPress() {
@@ -455,9 +481,16 @@ export default function BodyScreen({ navigation }) {
                   style={s.reportHeader}
                   onPress={() => setExpanded(expanded === date ? null : date)}
                 >
-                  <View>
+                  <View style={{ flex: 1, marginRight: 10 }}>
                     <Text style={s.reportDate}>{formatDate(date)}</Text>
                     <Text style={s.reportCount}>{markers.length} {t('blood_markers')}</Text>
+                    {(reportTags[date] || []).length > 0 && (
+                      <View style={s.tagChipsPreview}>
+                        {(reportTags[date] || []).map((tg, k) => (
+                          <View key={k} style={s.tagChip}><Text style={s.tagChipText}>{tg}</Text></View>
+                        ))}
+                      </View>
+                    )}
                   </View>
                   <View style={s.reportBadges}>
                     <Text style={s.chevron}>{expanded === date ? '▲' : '▶'}</Text>
@@ -466,6 +499,32 @@ export default function BodyScreen({ navigation }) {
 
                 {expanded === date && (
                   <View style={s.markerList}>
+                    <View style={s.tagEditor}>
+                      <Text style={s.tagEditorLabel}>{t('blood_tags_title')}</Text>
+                      <View style={s.tagEditorChips}>
+                        {(reportTags[date] || []).map((tg, k) => (
+                          <TouchableOpacity key={k} style={s.tagChipEditable} onPress={() => removeReportTag(date, tg)}>
+                            <Text style={s.tagChipText}>{tg}</Text>
+                            <Text style={s.tagChipX}> ✕</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <View style={s.tagInputRow}>
+                        <TextInput
+                          style={s.tagInput}
+                          placeholder={t('blood_tag_ph')}
+                          placeholderTextColor={colors.textFaint}
+                          value={expanded === date ? tagDraft : ''}
+                          onChangeText={setTagDraft}
+                          onSubmitEditing={() => addReportTag(date)}
+                          returnKeyType="done"
+                          autoCapitalize="none"
+                        />
+                        <TouchableOpacity style={s.tagAddBtn} onPress={() => addReportTag(date)}>
+                          <Text style={s.tagAddBtnText}>{t('blood_tag_add')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                     {markers.map((m, j) => (
                       <View key={j} style={s.markerRow}>
                         <View style={s.markerLeft}>
@@ -680,6 +739,18 @@ const makeStyles = (c) => StyleSheet.create({
   markerHeaderMain: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 14, paddingVertical: 14, paddingLeft: 4 },
   noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
   markerLatest: { fontSize: 13, fontWeight: '700', color: c.text, marginRight: 6 },
+  tagChipsPreview: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  tagChip: { backgroundColor: c.accentSoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  tagChipText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
+  tagEditor: { padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border, backgroundColor: c.card2 },
+  tagEditorLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, marginBottom: 8 },
+  tagEditorChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  tagChipEditable: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.accentSoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  tagChipX: { fontSize: 10, color: c.accentSoftText },
+  tagInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tagInput: { flex: 1, backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 13, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  tagAddBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+  tagAddBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
   markerExpanded: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
   singlePointHint: { fontSize: 12, color: c.textMuted, textAlign: 'center', paddingVertical: 18, lineHeight: 18 },
   markerHistory: { marginTop: 8 },
