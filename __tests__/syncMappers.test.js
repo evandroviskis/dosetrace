@@ -62,3 +62,8 @@ test('biomarkers payload includes every expected field', () => {
   const bm = toCloudPayload('biomarkers', { report_date: '2024-06-01', marker: 'TT', value: 800, unit: 'ng/dL' });
   for (const field of CLOUD_FIELDS.biomarkers) assert.ok(field in bm, `biomarkers payload missing "${field}"`);
 });
+
+test('vaccines payload includes every expected field', () => {
+  const vx = toCloudPayload('vaccines', { name: 'Tetanus', date_given: '2024-06-01', next_due: '2034-06-01', notes: 'left arm' });
+  for (const field of CLOUD_FIELDS.vaccines) assert.ok(field in vx, `vaccines payload missing "${field}"`);
+});

@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       'vials',
       'protocols',
       'biomarkers',
+      'vaccines',
       'notification_preferences',
       'analytics_events',
       'referral_codes',

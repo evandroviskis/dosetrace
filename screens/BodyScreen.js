@@ -25,6 +25,7 @@ import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
 import MarkerChart from './components/MarkerChart';
+import VaccinesSection from './components/VaccinesSection';
 
 // Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
 const CHART_WIDTH = Dimensions.get('window').width - 32 - 28;
@@ -119,6 +120,7 @@ export default function BodyScreen({ navigation }) {
   const [favOnly, setFavOnly] = useState(false);
   const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
   const [tagDraft, setTagDraft] = useState('');
+  const [section, setSection] = useState('labs');       // 'labs' | 'vaccines'
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -364,11 +366,32 @@ export default function BodyScreen({ navigation }) {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Text style={s.headerTitle}>{t('blood_title')}</Text>
-        <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
-          <Text style={s.addBtnText}>{t('blood_upload')}</Text>
+        {section === 'labs' && (
+          <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
+            <Text style={s.addBtnText}>{t('blood_upload')}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={s.sectionTabs}>
+        <TouchableOpacity
+          style={[s.sectionTab, section === 'labs' && s.sectionTabOn]}
+          onPress={() => setSection('labs')}
+        >
+          <Text style={[s.sectionTabText, section === 'labs' && s.sectionTabTextOn]}>{t('body_section_labs')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.sectionTab, section === 'vaccines' && s.sectionTabOn]}
+          onPress={() => setSection('vaccines')}
+        >
+          <Text style={[s.sectionTabText, section === 'vaccines' && s.sectionTabTextOn]}>{t('body_section_vaccines')}</Text>
         </TouchableOpacity>
       </View>
 
+      {section === 'vaccines' ? (
+        <VaccinesSection />
+      ) : (
+      <>
       {uploading && (
         <View style={s.uploadingBanner}>
           <ActivityIndicator size="small" color={colors.accent} />
@@ -690,6 +713,8 @@ export default function BodyScreen({ navigation }) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+      </>
+      )}
     </SafeAreaView>
   );
 }
@@ -720,6 +745,11 @@ const makeStyles = (c) => StyleSheet.create({
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginTop: 5, flexShrink: 0 },
   tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
+  sectionTabs: { flexDirection: 'row', backgroundColor: c.card, paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  sectionTab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: c.card2 },
+  sectionTabOn: { backgroundColor: c.accent },
+  sectionTabText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  sectionTabTextOn: { color: c.accentText },
   hubDisclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 12 },
   segment: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 10, padding: 3, marginBottom: 10 },
   segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },

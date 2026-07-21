@@ -36,7 +36,7 @@ function makeDb() {
 
 // ── In-memory fake cloud (same interface as the Supabase adapter) ─
 function makeCloud() {
-  const store = { protocols: new Map(), vials: new Map(), dose_logs: new Map(), biomarkers: new Map() };
+  const store = { protocols: new Map(), vials: new Map(), dose_logs: new Map(), biomarkers: new Map(), vaccines: new Map() };
   let clock = 0;
   // Monotonic, string-sortable cloud timestamps (so `updated_at > since` works).
   const stamp = () => String(++clock).padStart(6, '0');
