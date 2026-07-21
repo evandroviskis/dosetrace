@@ -429,7 +429,7 @@ export default function BodyScreen({ navigation }) {
 
   const sectionTitle = section === 'labs' ? t('body_card_labs_title')
     : section === 'vaccines' ? t('body_card_vax_title')
-    : section === 'calc' ? t('body_card_calc_title') : '';
+    : section === 'calc' ? t('body_calc_header') : '';
   const testCount = new Set(rows.map(r => r.report_date)).size;
   const labStat = testCount > 0
     ? `${testCount} ${testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}`
