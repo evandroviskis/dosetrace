@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
@@ -283,6 +282,12 @@ export default function BodyScreen({ navigation }) {
   }
 
   async function pickImageAndExtract(fromCamera) {
+    // Lazy-load: the native module is only present in a build that includes
+    // expo-image-picker. If it's missing (older dev/standalone build), degrade
+    // gracefully — PDF upload still works.
+    let ImagePicker;
+    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    if (!ImagePicker?.launchCameraAsync) { Alert.alert(t('error'), t('blood_needs_build')); return; }
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -518,7 +523,9 @@ export default function BodyScreen({ navigation }) {
           exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
           disclaimer: t('export_disclaimer'),
         });
-        const Print = require('expo-print');
+        let Print;
+        try { Print = require('expo-print'); } catch { Print = null; }
+        if (!Print?.printToFileAsync) { setExporting(false); Alert.alert(t('error'), t('blood_needs_build')); return; }
         const res = await Print.printToFileAsync({ html });
         uri = res.uri;
         mime = 'application/pdf';

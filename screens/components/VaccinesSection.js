@@ -18,7 +18,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
@@ -96,6 +95,9 @@ export default function VaccinesSection() {
   }
 
   async function pickImageAndExtract(fromCamera) {
+    let ImagePicker;
+    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    if (!ImagePicker?.launchCameraAsync) { Alert.alert(t('error'), t('blood_needs_build')); return; }
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
