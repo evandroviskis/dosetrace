@@ -20,7 +20,8 @@ import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, getAllDataForExport } from '../lib/database';
+import { buildRecordsCSV, buildRecordsHTML } from '../lib/exportRecords';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
@@ -121,7 +122,8 @@ export default function BodyScreen({ navigation }) {
   const [favOnly, setFavOnly] = useState(false);
   const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
   const [tagDraft, setTagDraft] = useState('');
-  const [section, setSection] = useState('labs');       // 'labs' | 'vaccines'
+  const [section, setSection] = useState('labs');       // 'labs' | 'vaccines' | 'calc'
+  const [exporting, setExporting] = useState(false);
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -357,6 +359,61 @@ export default function BodyScreen({ navigation }) {
     }
   }
 
+  // Export the user's health records (labs + vaccines) as PDF or CSV.
+  function handleExport() {
+    Alert.alert(t('export_records'), t('export_choose'), [
+      { text: 'PDF', onPress: () => doExport('pdf') },
+      { text: 'CSV', onPress: () => doExport('csv') },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }
+
+  async function doExport(kind) {
+    setExporting(true);
+    try {
+      const user = await getCachedUser();
+      if (!user) { setExporting(false); return; }
+      const data = getAllDataForExport(user.id);
+      const labels = {
+        labsHeading: t('export_labs'), vaccinesHeading: t('body_section_vaccines'),
+        colDate: t('export_col_date'), colMarker: t('export_col_marker'),
+        colValue: t('export_col_value'), colUnit: t('export_col_unit'),
+        colVaccine: t('vax_name_label'), colGiven: t('vax_date_given'),
+        colNextDue: t('vax_next_due'), colNotes: t('vax_notes'),
+        noLabs: t('export_no_labs'), noVaccines: t('export_no_vaccines'),
+      };
+      const locale = LOCALE_MAP[language] || 'en-US';
+      const dateStr = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+      const Sharing = require('expo-sharing');
+      let uri, mime;
+
+      if (kind === 'csv') {
+        const csv = buildRecordsCSV(data, labels);
+        uri = FileSystem.documentDirectory + 'dosetrace_records.csv';
+        await FileSystem.writeAsStringAsync(uri, csv);
+        mime = 'text/csv';
+      } else {
+        const html = buildRecordsHTML(data, {
+          labels,
+          title: t('export_title'),
+          exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
+          disclaimer: t('export_disclaimer'),
+        });
+        const Print = require('expo-print');
+        const res = await Print.printToFileAsync({ html });
+        uri = res.uri;
+        mime = 'application/pdf';
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: mime, dialogTitle: t('export_records') });
+      }
+    } catch (e) {
+      Alert.alert(t('error'), t('export_error'));
+    }
+    setExporting(false);
+  }
+
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T12:00:00');
     const locale = LOCALE_MAP[language] || 'en-US';
@@ -367,11 +424,18 @@ export default function BodyScreen({ navigation }) {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Text style={s.headerTitle}>{t('blood_title')}</Text>
-        {section === 'labs' && (
-          <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
-            <Text style={s.addBtnText}>{t('blood_upload')}</Text>
-          </TouchableOpacity>
-        )}
+        <View style={s.headerActions}>
+          {(section === 'labs' || section === 'vaccines') && (
+            <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>
+              <Text style={s.exportBtnText}>{exporting ? '…' : `⬆ ${t('export_records')}`}</Text>
+            </TouchableOpacity>
+          )}
+          {section === 'labs' && (
+            <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
+              <Text style={s.addBtnText}>{t('blood_upload')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={s.sectionTabs}>
@@ -734,6 +798,9 @@ const makeStyles = (c) => StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
   addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
   addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exportBtn: { backgroundColor: c.card2, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 0.5, borderColor: c.border },
+  exportBtnText: { color: c.accent, fontSize: 13, fontWeight: '600' },
   uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
   uploadingText: { fontSize: 13, color: c.accent },
   premiumBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.accentSoft, borderBottomWidth: 0.5, borderBottomColor: c.border },
