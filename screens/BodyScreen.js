@@ -424,7 +424,7 @@ export default function BodyScreen({ navigation }) {
 
   const sectionTitle = section === 'labs' ? t('body_card_labs_title')
     : section === 'vaccines' ? t('body_card_vax_title')
-    : section === 'calc' ? t('body_calc_header') : '';
+    : section === 'calc' ? t('body_card_calc_title') : '';
   const testCount = new Set(rows.map(r => r.report_date)).size;
   const labStat = testCount > 0
     ? `${testCount} ${testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}`
@@ -470,7 +470,7 @@ export default function BodyScreen({ navigation }) {
         <TouchableOpacity onPress={() => { setSection(null); fetchReports(); }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} style={s.backBtn}>
           <Text style={s.backArrow}>‹</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitleSm} numberOfLines={1}>{sectionTitle}</Text>
+        <Text style={s.headerTitleSm} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{sectionTitle}</Text>
         <View style={s.headerActions}>
           {(section === 'labs' || section === 'vaccines') && (
             <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>
