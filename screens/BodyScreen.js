@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
@@ -31,6 +32,22 @@ import CalculatorSection from './components/CalculatorSection';
 
 // Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
 const CHART_WIDTH = Dimensions.get('window').width - 32 - 28;
+
+// Merge minor naming variants of the same marker (case, punctuation, word
+// order) so its history stays one continuous series even when labs or languages
+// label it slightly differently. The extraction prompt already normalizes names
+// to English; this catches the residue (e.g. "Testosterone, Total" ⇄ "Total
+// Testosterone"). Display keeps the user's most recent original label.
+function canonicalMarker(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[.,;:()/\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .sort()
+    .join(' ');
+}
 
 // One free bloodwork analysis, then Premium required. Counts successful saves
 // (not distinct report dates) so re-uploading the same date can't reopen the
@@ -145,17 +162,19 @@ export default function BodyScreen({ navigation }) {
   // Marker view: one entry per distinct marker name, with its full value
   // history (oldest → newest for the chart) and the latest reading.
   const markerSeries = useMemo(() => {
-    const byMarker = {};
+    // Group by canonical key so naming variants merge into one series.
+    const byKey = {};
     for (const row of rows) {
-      (byMarker[row.marker] ||= []).push(row);
+      (byKey[canonicalMarker(row.marker)] ||= []).push(row);
     }
     const favSet = new Set(favorites);
-    let series = Object.entries(byMarker).map(([marker, rs]) => {
-      const points = rs
-        .map(r => ({ date: r.report_date, value: r.value, unit: r.unit }))
-        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    let series = Object.values(byKey).map(rs => {
+      const sorted = rs.slice().sort((a, b) => (a.report_date < b.report_date ? -1 : a.report_date > b.report_date ? 1 : 0));
+      const points = sorted.map(r => ({ date: r.report_date, value: r.value, unit: r.unit }));
       const latest = points[points.length - 1];
-      return { marker, points, latest, unit: latest?.unit || '', isFav: favSet.has(marker) };
+      const display = sorted[sorted.length - 1].marker; // most recent original label
+      const names = new Set(rs.map(r => r.marker));
+      return { marker: display, points, latest, unit: latest?.unit || '', isFav: [...names].some(n => favSet.has(n)) };
     });
     if (q) series = series.filter(x => x.marker.toLowerCase().includes(q));
     if (favOnly) series = series.filter(x => x.isFav);
@@ -231,15 +250,57 @@ export default function BodyScreen({ navigation }) {
     // Premium: unlimited. Everyone else gets ONE free analysis to try it, then
     // it's Premium-only (upsell → paywall + 7-day trial). No per-upload charge.
     if (await isPremium()) {
-      pickAndExtract();
+      chooseSource();
       return;
     }
     const count = await getUploadCount();
     if (count < 1) {
-      pickAndExtract();
+      chooseSource();
       return;
     }
     setShowUpgradeModal(true);
+  }
+
+  // Let the user snap a photo, pick an image, or choose a PDF. Any lab, any
+  // language — extraction handles all of them.
+  function chooseSource() {
+    Alert.alert(t('blood_upload_choose_title'), t('blood_upload_choose_sub'), [
+      { text: t('blood_source_camera'), onPress: () => pickImageAndExtract(true) },
+      { text: t('blood_source_photo'), onPress: () => pickImageAndExtract(false) },
+      { text: t('blood_source_pdf'), onPress: () => pickAndExtract() },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }
+
+  async function pickImageAndExtract(fromCamera) {
+    try {
+      if (fromCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { Alert.alert(t('error'), t('blood_camera_denied')); return; }
+      }
+      const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const base64 = asset?.base64;
+      if (!base64) { Alert.alert(t('error'), t('blood_error_read')); return; }
+      if (base64.length > MAX_FILE_BYTES * 1.4) {
+        Alert.alert(t('error'), t('blood_error_file_too_large'));
+        return;
+      }
+      const mediaType = asset.mimeType
+        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+
+      setUploading(true);
+      await extractWithClaude(base64, { image: true, mediaType });
+    } catch (err) {
+      setUploading(false);
+      if (__DEV__) console.warn('[bloodwork] pickImageAndExtract failed:', err);
+      Alert.alert(t('error'), t('blood_error_read'));
+    }
   }
 
   async function pickAndExtract() {
@@ -281,7 +342,7 @@ export default function BodyScreen({ navigation }) {
     }
   }
 
-  async function extractWithClaude(pdfBase64) {
+  async function extractWithClaude(base64, opts) {
     try {
       const user = await getCachedUser();
       if (!user) {
@@ -292,8 +353,11 @@ export default function BodyScreen({ navigation }) {
 
       // The Anthropic API key lives only in the extract-bloodwork edge
       // function; the app never talks to api.anthropic.com directly.
+      const reqBody = opts?.image
+        ? { image_base64: base64, media_type: opts.mediaType }
+        : { pdf_base64: base64 };
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
-        body: { pdf_base64: pdfBase64 },
+        body: reqBody,
       });
 
       if (error) {

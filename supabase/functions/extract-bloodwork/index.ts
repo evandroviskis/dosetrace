@@ -10,18 +10,43 @@ const MAX_BASE64_LENGTH = 15 * 1024 * 1024;
 
 // IMPORTANT: this prompt is deliberately regulatory-safe (no interpretation,
 // classification, or clinical assessment). Do not alter its instructions.
-const EXTRACTION_PROMPT = `Extract all lab values from this report. Return ONLY a JSON object with this exact structure, no other text:
+const EXTRACTION_PROMPT = `You are extracting numeric lab values from a laboratory report.
+The report may be in any language (English, Portuguese, Spanish, French, German, Italian,
+Chinese, Japanese, Arabic, or others). It may come from any laboratory in any country,
+in any layout — tables, columnar reports, prose paragraphs, single or multi-page, digital
+PDFs or scans. Handle all of them.
+
+Return ONLY a single JSON object with this exact structure, and nothing else — no markdown
+fences, no prose, no explanations before or after:
+
 {
   "report_date": "YYYY-MM-DD",
   "markers": [
-    {
-      "marker": "Marker name",
-      "value": numeric_value,
-      "unit": "unit string"
-    }
+    { "marker": "Marker name", "value": numeric_value, "unit": "unit string" }
   ]
 }
-If you cannot determine the report date, use today's date. Include every lab value you can find. Do not interpret, classify, or judge any values. Do not include reference ranges, status, or any clinical assessment. Do not include any explanation or markdown.`;
+
+Rules:
+- Include every lab value you can find in the document. Do not skip any.
+- "marker" is the name of the test/analyte in ENGLISH when a widely-recognized English
+  translation exists (e.g., "Glicose" -> "Glucose"; "Colesterol total" -> "Total
+  Cholesterol"; "Testosterona total" -> "Testosterone, Total"). Otherwise keep the
+  original name from the report.
+- "value" is a number (not a string). Convert decimal comma to decimal point
+  (e.g., "5,4" -> 5.4). If the value is a non-numeric qualitative result
+  ("Negative", "Positive", "Reactive"), skip that marker entirely.
+- "unit" is a string exactly as printed on the report, preserving case
+  (e.g., "mg/dL", "ng/dL", "mmol/L", "pg/mL", "IU/L", "%"). If no unit is printed
+  for a value, use an empty string.
+- "report_date" is the collection date if present, otherwise the report date, in
+  ISO-8601 (YYYY-MM-DD). Interpret local date formats correctly:
+  DD/MM/YYYY (Brazil, EU) vs MM/DD/YYYY (US). If ambiguous or missing, use today's date.
+- Do NOT include reference ranges, normal ranges, flags (H/L), status labels,
+  interpretations, or any clinical assessment. Extract raw values only.
+- Do NOT include patient identifiers, physician names, addresses, or any information
+  that is not a lab measurement.
+- Do NOT wrap the JSON in code fences or add any commentary.
+`;
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -54,8 +79,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid session', code: 'unauthorized' }, 401);
     }
 
-    // Parse and validate the request body
-    let body: { pdf_base64?: unknown };
+    // Parse and validate the request body. Accepts either a PDF (pdf_base64)
+    // or a photo of a report (image_base64 + media_type) — the "snap a report"
+    // path. Claude's vision handles both.
+    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown };
     try {
       body = await req.json();
     } catch {
@@ -63,12 +90,26 @@ Deno.serve(async (req) => {
     }
 
     const pdfBase64 = body?.pdf_base64;
-    if (typeof pdfBase64 !== 'string' || pdfBase64.length === 0) {
-      return jsonResponse({ error: 'Missing pdf_base64', code: 'bad_request' }, 400);
+    const imageBase64 = body?.image_base64;
+    const isPdf = typeof pdfBase64 === 'string' && pdfBase64.length > 0;
+    const isImage = typeof imageBase64 === 'string' && imageBase64.length > 0;
+
+    if (!isPdf && !isImage) {
+      return jsonResponse({ error: 'Missing pdf_base64 or image_base64', code: 'bad_request' }, 400);
     }
-    if (pdfBase64.length > MAX_BASE64_LENGTH) {
+
+    const dataB64 = isImage ? (imageBase64 as string) : (pdfBase64 as string);
+    if (dataB64.length > MAX_BASE64_LENGTH) {
       return jsonResponse({ error: 'File too large', code: 'file_too_large' }, 413);
     }
+
+    // Whitelist image media types; default to JPEG for anything unexpected.
+    const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    const imageMediaType = ALLOWED_IMAGE.includes(String(body?.media_type)) ? String(body?.media_type) : 'image/jpeg';
+
+    const sourceBlock = isImage
+      ? { type: 'image', source: { type: 'base64', media_type: imageMediaType, data: dataB64 } }
+      : { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: dataB64 } };
 
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) {
@@ -85,19 +126,12 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
+        max_tokens: 8192,
         messages: [
           {
             role: 'user',
             content: [
-              {
-                type: 'document',
-                source: {
-                  type: 'base64',
-                  media_type: 'application/pdf',
-                  data: pdfBase64,
-                },
-              },
+              sourceBlock,
               {
                 type: 'text',
                 text: EXTRACTION_PROMPT,
