@@ -366,6 +366,15 @@ export default function BodyScreen({ navigation }) {
         return;
       }
 
+      // Robust gate: free tier gets ONE extraction. Re-check at the action
+      // point (fresh premium + upload count) so the paid extraction never runs
+      // for an over-limit free user, regardless of how this was reached.
+      if (!(await isPremium()) && (await getUploadCount()) >= 1) {
+        setUploading(false);
+        setShowUpgradeModal(true);
+        return;
+      }
+
       // The Anthropic API key lives only in the extract-bloodwork edge
       // function; the app never talks to api.anthropic.com directly.
       const reqBody = opts?.image
@@ -483,16 +492,28 @@ export default function BodyScreen({ navigation }) {
     fetchReports();
   }
 
-  // Export the user's health records (labs + vaccines) as PDF or CSV.
-  function handleExport() {
+  // Export the user's health records (labs + vaccines). PDF is Premium; CSV is
+  // free. Label the PDF option so Premium status is clear before tapping.
+  async function handleExport() {
+    const canPdf = await isPremium();
     Alert.alert(t('export_records'), t('export_choose'), [
-      { text: 'PDF', onPress: () => doExport('pdf') },
+      { text: canPdf ? 'PDF' : `PDF · ${t('export_premium_tag')}`, onPress: () => doExport('pdf') },
       { text: 'CSV', onPress: () => doExport('csv') },
       { text: t('cancel'), style: 'cancel' },
     ]);
   }
 
   async function doExport(kind) {
+    // Robust gate: PDF is Premium-only, enforced at the action point with a
+    // fresh isPremium() check — the file is never generated for a free user,
+    // even if this is reached by dismissing a dialog. CSV stays free.
+    if (kind === 'pdf' && !(await isPremium())) {
+      Alert.alert(t('export_premium_title'), t('export_premium_sub'), [
+        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
+        { text: t('cancel'), style: 'cancel' },
+      ]);
+      return;
+    }
     setExporting(true);
     try {
       const user = await getCachedUser();

@@ -137,6 +137,16 @@ export default function VaccinesSection() {
   }
 
   async function extractVaccines(source) {
+    // Robust gate: vaccine scanning is Premium-only. Re-check at the action
+    // point (fresh isPremium) so the paid extraction never runs for a free user.
+    if (!(await isPremium())) {
+      setUploading(false);
+      Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
+        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
+        { text: t('cancel'), style: 'cancel' },
+      ]);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
         body: { kind: 'vaccines', ...source },
