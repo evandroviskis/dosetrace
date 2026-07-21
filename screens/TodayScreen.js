@@ -425,6 +425,13 @@ export default function TodayScreen() {
         timer,
       });
 
+      // Injectables (lyophilized / ready-to-use): prompt for the injection
+      // site right after logging, instead of leaving it as an optional step.
+      // Oral supplements have no site, so they skip this.
+      if (protocol.type === 'recon' || protocol.type === 'rtu') {
+        openBodyMapForUndo({ logId, protocolId: protocol.id, timer });
+      }
+
       actionInProgressRef.current = false;
     } catch (err) {
       actionInProgressRef.current = false;
@@ -1015,7 +1022,8 @@ export default function TodayScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Body map modal — opens from undo toast "Add site" */}
+      {/* Body map modal — auto-opens after taking an injectable dose,
+          and re-openable from the undo toast "Add site" button */}
       <BodyMapModal
         visible={bodyMapVisible}
         onClose={handleBodyMapClose}
