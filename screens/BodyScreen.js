@@ -4,10 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Modal,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +24,10 @@ import { getBiomarkers, insertBiomarkers } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
+import MarkerChart from './components/MarkerChart';
+
+// Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
+const CHART_WIDTH = Dimensions.get('window').width - 32 - 28;
 
 // One free bloodwork analysis, then Premium required. Counts successful saves
 // (not distinct report dates) so re-uploading the same date can't reopen the
@@ -94,7 +100,7 @@ export default function BodyScreen({ navigation }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const [reports, setReports] = useState([]);
+  const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -104,7 +110,46 @@ export default function BodyScreen({ navigation }) {
   const [premium, setPremium] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
   const [dateWasFallback, setDateWasFallback] = useState(false);
-  const [expanded, setExpanded] = useState(null);
+  const [expanded, setExpanded] = useState(null);       // date view: expanded report date
+  const [expandedMarker, setExpandedMarker] = useState(null); // marker view: expanded marker name
+  const [viewMode, setViewMode] = useState('date');     // 'date' | 'marker'
+  const [search, setSearch] = useState('');
+  const [newestFirst, setNewestFirst] = useState(true);
+
+  const locale = LOCALE_MAP[language] || 'en-US';
+  const q = search.trim().toLowerCase();
+
+  // Date view: reports grouped by date, each filtered by the marker search,
+  // sorted by the chosen order. Reports with no matching marker are dropped.
+  const reports = useMemo(() => {
+    const grouped = {};
+    for (const row of rows) {
+      if (q && !row.marker.toLowerCase().includes(q)) continue;
+      (grouped[row.report_date] ||= []).push(row);
+    }
+    const entries = Object.entries(grouped);
+    entries.sort((a, b) => (a[0] < b[0] ? 1 : -1) * (newestFirst ? 1 : -1));
+    return entries;
+  }, [rows, q, newestFirst]);
+
+  // Marker view: one entry per distinct marker name, with its full value
+  // history (oldest → newest for the chart) and the latest reading.
+  const markerSeries = useMemo(() => {
+    const byMarker = {};
+    for (const row of rows) {
+      (byMarker[row.marker] ||= []).push(row);
+    }
+    let series = Object.entries(byMarker).map(([marker, rs]) => {
+      const points = rs
+        .map(r => ({ date: r.report_date, value: r.value, unit: r.unit }))
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      const latest = points[points.length - 1];
+      return { marker, points, latest, unit: latest?.unit || '' };
+    });
+    if (q) series = series.filter(x => x.marker.toLowerCase().includes(q));
+    series.sort((a, b) => a.marker.localeCompare(b.marker));
+    return series;
+  }, [rows, q]);
 
   const UPGRADE_FEATURES = [
     t('blood_upgrade_feat_1'),
@@ -126,14 +171,7 @@ export default function BodyScreen({ navigation }) {
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
     const data = getBiomarkers(user.id);
-    if (data) {
-      const grouped = {};
-      data.forEach(row => {
-        if (!grouped[row.report_date]) grouped[row.report_date] = [];
-        grouped[row.report_date].push(row);
-      });
-      setReports(Object.entries(grouped));
-    }
+    setRows(data || []);
     setLoading(false);
   }
 
@@ -312,7 +350,7 @@ export default function BodyScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
 
-        {reports.length === 0 && !loading && (
+        {rows.length === 0 && !loading && (
           <View style={s.emptyState}>
             <Text style={s.emptyIcon}>🩸</Text>
             <Text style={s.emptyTitle}>{t('blood_empty_title')}</Text>
@@ -340,39 +378,122 @@ export default function BodyScreen({ navigation }) {
           </View>
         )}
 
-        {reports.map(([date, markers], i) => (
-          <View key={i} style={s.reportGroup}>
-            <TouchableOpacity
-              style={s.reportHeader}
-              onPress={() => setExpanded(expanded === date ? null : date)}
-            >
-              <View>
-                <Text style={s.reportDate}>{formatDate(date)}</Text>
-                <Text style={s.reportCount}>{markers.length} {t('blood_markers')}</Text>
-              </View>
-              <View style={s.reportBadges}>
-                <Text style={s.chevron}>{expanded === date ? '▲' : '▶'}</Text>
-              </View>
-            </TouchableOpacity>
+        {rows.length > 0 && (
+          <>
+            <Text style={s.hubDisclaimer}>{t('blood_hub_disclaimer')}</Text>
 
-            {expanded === date && (
-              <View style={s.markerList}>
-                {markers.map((m, j) => (
-                  <View key={j} style={s.markerRow}>
-                    <View style={s.markerLeft}>
-                      <Text style={s.markerName}>{m.marker}</Text>
-                    </View>
-                    <View style={s.markerRight}>
-                      <Text style={s.markerValue}>
-                        {m.value} {m.unit}
-                      </Text>
+            <View style={s.segment}>
+              <TouchableOpacity
+                style={[s.segmentBtn, viewMode === 'date' && s.segmentBtnOn]}
+                onPress={() => setViewMode('date')}
+              >
+                <Text style={[s.segmentText, viewMode === 'date' && s.segmentTextOn]}>{t('blood_view_by_date')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.segmentBtn, viewMode === 'marker' && s.segmentBtnOn]}
+                onPress={() => setViewMode('marker')}
+              >
+                <Text style={[s.segmentText, viewMode === 'marker' && s.segmentTextOn]}>{t('blood_view_by_marker')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.controlsRow}>
+              <TextInput
+                style={s.searchInput}
+                placeholder={t('blood_search_ph')}
+                placeholderTextColor={colors.textFaint}
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {viewMode === 'date' && (
+                <TouchableOpacity style={s.sortBtn} onPress={() => setNewestFirst(v => !v)}>
+                  <Text style={s.sortBtnText}>{newestFirst ? t('blood_sort_newest') : t('blood_sort_oldest')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {viewMode === 'date' && reports.length === 0 && (
+              <Text style={s.noResults}>{t('blood_no_results')}</Text>
+            )}
+            {viewMode === 'marker' && markerSeries.length === 0 && (
+              <Text style={s.noResults}>{t('blood_no_results')}</Text>
+            )}
+
+            {viewMode === 'date' && reports.map(([date, markers], i) => (
+              <View key={date} style={s.reportGroup}>
+                <TouchableOpacity
+                  style={s.reportHeader}
+                  onPress={() => setExpanded(expanded === date ? null : date)}
+                >
+                  <View>
+                    <Text style={s.reportDate}>{formatDate(date)}</Text>
+                    <Text style={s.reportCount}>{markers.length} {t('blood_markers')}</Text>
+                  </View>
+                  <View style={s.reportBadges}>
+                    <Text style={s.chevron}>{expanded === date ? '▲' : '▶'}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {expanded === date && (
+                  <View style={s.markerList}>
+                    {markers.map((m, j) => (
+                      <View key={j} style={s.markerRow}>
+                        <View style={s.markerLeft}>
+                          <Text style={s.markerName}>{m.marker}</Text>
+                        </View>
+                        <View style={s.markerRight}>
+                          <Text style={s.markerValue}>
+                            {m.value} {m.unit}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+
+            {viewMode === 'marker' && markerSeries.map((mk) => (
+              <View key={mk.marker} style={s.reportGroup}>
+                <TouchableOpacity
+                  style={s.reportHeader}
+                  onPress={() => setExpandedMarker(expandedMarker === mk.marker ? null : mk.marker)}
+                >
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={s.reportDate}>{mk.marker}</Text>
+                    <Text style={s.reportCount}>
+                      {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
+                    </Text>
+                  </View>
+                  <View style={s.reportBadges}>
+                    <Text style={s.markerLatest}>{mk.latest.value} {mk.unit}</Text>
+                    <Text style={s.chevron}>{expandedMarker === mk.marker ? '▲' : '▶'}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {expandedMarker === mk.marker && (
+                  <View style={s.markerExpanded}>
+                    {mk.points.length >= 2 ? (
+                      <MarkerChart points={mk.points} unit={mk.unit} locale={locale} width={CHART_WIDTH} />
+                    ) : (
+                      <Text style={s.singlePointHint}>{t('blood_need_more')}</Text>
+                    )}
+                    <View style={s.markerHistory}>
+                      {mk.points.slice().reverse().map((p, j) => (
+                        <View key={j} style={s.markerRow}>
+                          <Text style={s.markerName}>{formatDate(p.date)}</Text>
+                          <Text style={s.markerValue}>{p.value} {p.unit}</Text>
+                        </View>
+                      ))}
                     </View>
                   </View>
-                ))}
+                )}
               </View>
-            )}
-          </View>
-        ))}
+            ))}
+          </>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -502,6 +623,21 @@ const makeStyles = (c) => StyleSheet.create({
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginTop: 5, flexShrink: 0 },
   tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
+  hubDisclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 12 },
+  segment: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 10, padding: 3, marginBottom: 10 },
+  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  segmentBtnOn: { backgroundColor: c.card, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  segmentText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  segmentTextOn: { color: c.text },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  searchInput: { flex: 1, backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  sortBtn: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 0.5, borderColor: c.border },
+  sortBtnText: { fontSize: 12, fontWeight: '600', color: c.accent },
+  noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
+  markerLatest: { fontSize: 13, fontWeight: '700', color: c.text, marginRight: 6 },
+  markerExpanded: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
+  singlePointHint: { fontSize: 12, color: c.textMuted, textAlign: 'center', paddingVertical: 18, lineHeight: 18 },
+  markerHistory: { marginTop: 8 },
   reportGroup: { backgroundColor: c.card, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
   reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
   reportDate: { fontSize: 14, fontWeight: '600', color: c.text },
