@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
@@ -22,6 +22,7 @@ const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE
 export default function LogScreen() {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALES[language] || 'en-US';
   const [logs, setLogs] = useState([]);
@@ -173,7 +174,16 @@ export default function LogScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common_back')}
+        >
+          <Text style={s.headerBack}>‹</Text>
+        </TouchableOpacity>
         <Text style={s.headerTitle}>{t('log_title')}</Text>
+        <View style={s.headerSpacer} />
       </View>
 
       <View style={s.statsRow}>
@@ -294,8 +304,10 @@ export default function LogScreen() {
 
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: c.card },
+  headerBack: { fontSize: 34, lineHeight: 34, color: c.accent, fontWeight: '400', width: 34 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: c.text },
+  headerSpacer: { width: 34 },
   statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
   statCard: { flex: 1, borderRadius: 14, padding: 10, alignItems: 'center' },
   statVal: { fontSize: 20, fontWeight: '600' },

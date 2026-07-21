@@ -99,7 +99,6 @@ function MainTabs() {
   const tabs = [
     { name: 'Today', label: t('tab_today'), emoji: '⊞', component: TodayScreen },
     { name: 'Protocols', label: t('tab_protocols'), emoji: '💊', component: ProtocolsScreen },
-    { name: 'Log', label: t('tab_log'), emoji: '📋', component: LogScreen },
     { name: 'Blood', label: t('tab_blood'), emoji: '🩸', component: BloodworkScreen },
     { name: 'Settings', label: t('tab_settings'), emoji: '👤', component: SettingsScreen },
   ];
@@ -150,6 +149,7 @@ function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Log" component={LogScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
     </Stack.Navigator>
@@ -220,7 +220,7 @@ export default function App() {
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
         } else if (data.type === 'checkin_reminder' && navigationRef.current) {
-          navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Log' } });
+          navigationRef.current.navigate('Main', { screen: 'Log' });
         }
       });
     } catch {

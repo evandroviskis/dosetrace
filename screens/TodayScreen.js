@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -47,6 +47,7 @@ const MONTH_KEYS = [
 export default function TodayScreen() {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
@@ -835,7 +836,13 @@ export default function TodayScreen() {
         </View>
 
         {protocols.length > 0 && weekDots.length > 0 && (
-          <View style={s.streakCard}>
+          <TouchableOpacity
+            style={s.streakCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Log')}
+            accessibilityRole="button"
+            accessibilityLabel={t('today_view_log')}
+          >
             <View style={s.streakTop}>
               <View style={s.streakLeft}>
                 <Text style={s.streakFire}>{streak > 0 ? '🔥' : '💤'}</Text>
@@ -873,7 +880,11 @@ export default function TodayScreen() {
                 </View>
               ))}
             </View>
-          </View>
+            <View style={s.streakLogRow}>
+              <Text style={s.streakLogText}>{t('today_view_log')}</Text>
+              <Text style={s.streakLogChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
         )}
 
         {protocols.length > 0 && weekDots.length > 0 && (
@@ -1156,6 +1167,9 @@ const makeStyles = (c) => StyleSheet.create({
   streakDotToday: { borderWidth: 2, borderColor: c.accent },
   streakDotLabel: { fontSize: 9, color: c.textFaint, fontWeight: '500' },
   streakDotLabelToday: { color: c.accent, fontWeight: '700' },
+  streakLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: 12, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: c.border },
+  streakLogText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  streakLogChevron: { fontSize: 15, color: c.accent, fontWeight: '600', marginTop: -1 },
   shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
   shareToggleText: { fontSize: 12, color: c.accent, fontWeight: '600' },
   shareCard: { marginHorizontal: 16, marginBottom: 16 },

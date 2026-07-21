@@ -157,6 +157,8 @@ export const translations = {
 
     // LOG
     log_title: 'Dose log',
+    today_view_log: 'View history',
+    common_back: 'Back',
     log_all: 'All',
     log_taken: 'Taken',
     log_skipped: 'Skipped',
@@ -1199,6 +1201,8 @@ export const translations = {
 
     // LOG
     log_title: 'Registro de dosis',
+    today_view_log: 'Ver historial',
+    common_back: 'Atrás',
     log_all: 'Todas',
     log_taken: 'Tomadas',
     log_skipped: 'Omitidas',
@@ -2241,6 +2245,8 @@ export const translations = {
 
     // LOG
     log_title: 'Registro de doses',
+    today_view_log: 'Ver histórico',
+    common_back: 'Voltar',
     log_all: 'Todos',
     log_taken: 'Tomadas',
     log_skipped: 'Puladas',
@@ -3282,6 +3288,8 @@ export const translations = {
 
     // LOG
     log_title: 'Journal des doses',
+    today_view_log: 'Voir l\'historique',
+    common_back: 'Retour',
     log_all: 'Tous',
     log_taken: 'Prises',
     log_skipped: 'Passées',
@@ -4323,6 +4331,8 @@ export const translations = {
 
     // LOG
     log_title: 'Dosisprotokoll',
+    today_view_log: 'Verlauf ansehen',
+    common_back: 'Zurück',
     log_all: 'Alle',
     log_taken: 'Eingenommen',
     log_skipped: 'Übersprungen',
@@ -5365,6 +5375,8 @@ export const translations = {
 
     // LOG
     log_title: 'Registro delle dosi',
+    today_view_log: 'Vedi cronologia',
+    common_back: 'Indietro',
     log_all: 'Tutto',
     log_taken: 'Assunte',
     log_skipped: 'Saltate',
