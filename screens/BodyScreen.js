@@ -151,6 +151,7 @@ export default function BodyScreen({ navigation }) {
   const [mUnit, setMUnit] = useState('');
   const [mDate, setMDate] = useState('');
   const [mDatePicker, setMDatePicker] = useState(false);
+  const [confirmDatePicker, setConfirmDatePicker] = useState(false);
 
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
@@ -408,17 +409,30 @@ export default function BodyScreen({ navigation }) {
     }
   }
 
+  // Inline edits in the review sheet before saving.
+  function updateExtractedMarker(i, field, val) {
+    setExtractedMarkers(prev => prev.map((m, idx) => (idx === i ? { ...m, [field]: val } : m)));
+  }
+  function removeExtractedMarker(i) {
+    setExtractedMarkers(prev => prev.filter((_, idx) => idx !== i));
+  }
+
   async function saveMarkers() {
     try {
       const user = await getCachedUser();
       if (!user) { Alert.alert(t('error'), t('blood_error_not_signed_in')); return; }
-      const rows = extractedMarkers.map(m => ({
-        user_id: user.id,
-        report_date: reportDate,
-        marker: m.marker,
-        value: m.value,
-        unit: m.unit || '',
-      }));
+      // Coerce edited values to numbers; drop rows with no name or no number.
+      const rows = extractedMarkers
+        .map(m => ({
+          user_id: user.id,
+          report_date: reportDate,
+          marker: String(m.marker || '').trim(),
+          value: parseFloat(String(m.value).replace(',', '.')),
+          unit: String(m.unit || '').trim(),
+        }))
+        .filter(r => r.marker && Number.isFinite(r.value));
+
+      if (rows.length === 0) { Alert.alert(t('error'), t('blood_edit_invalid')); return; }
 
       insertBiomarkers(rows);
       const newCount = await incrementUploadCount();
@@ -891,7 +905,7 @@ export default function BodyScreen({ navigation }) {
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
             <View style={s.confirmBanner}>
               <Text style={s.confirmBannerText}>
-                ✓ {t('blood_review_found_prefix')} {extractedMarkers.length} {t('blood_review_found_suffix')} {formatDate(reportDate)}
+                ✓ {t('blood_review_found_prefix')} {extractedMarkers.length} {t('blood_review_found_suffix')}
               </Text>
             </View>
             {dateWasFallback && (
@@ -900,19 +914,53 @@ export default function BodyScreen({ navigation }) {
               </View>
             )}
             <Text style={s.confirmNote}>
-              {t('blood_review_note')}
+              {t('blood_review_note_edit')}
             </Text>
 
+            <Text style={s.editLabel}>{t('blood_edit_date')}</Text>
+            <TouchableOpacity style={s.editDateBtn} onPress={() => setConfirmDatePicker(v => !v)}>
+              <Text style={s.editDateText}>📅  {reportDate ? formatDate(reportDate) : '—'}</Text>
+            </TouchableOpacity>
+            {confirmDatePicker && (
+              <DateTimePicker
+                value={new Date((reportDate || new Date().toISOString().split('T')[0]) + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(event, d) => {
+                  setConfirmDatePicker(Platform.OS === 'ios');
+                  if (event.type === 'dismissed') { setConfirmDatePicker(false); return; }
+                  if (d) setReportDate(d.toISOString().split('T')[0]);
+                }}
+              />
+            )}
+
+            <Text style={[s.editLabel, { marginBottom: 4 }]}>{t('blood_review_markers')}</Text>
             {extractedMarkers.map((m, i) => (
-              <View key={i} style={s.markerRow}>
-                <View style={s.markerLeft}>
-                  <Text style={s.markerName}>{m.marker}</Text>
-                </View>
-                <View style={s.markerRight}>
-                  <Text style={s.markerValue}>
-                    {m.value} {m.unit}
-                  </Text>
-                </View>
+              <View key={i} style={s.exRow}>
+                <TextInput
+                  style={[s.editInput, s.exName]}
+                  value={String(m.marker ?? '')}
+                  onChangeText={v => updateExtractedMarker(i, 'marker', v)}
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TextInput
+                  style={[s.editInput, s.exVal]}
+                  value={String(m.value ?? '')}
+                  onChangeText={v => updateExtractedMarker(i, 'value', v)}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TextInput
+                  style={[s.editInput, s.exUnit]}
+                  value={String(m.unit ?? '')}
+                  onChangeText={v => updateExtractedMarker(i, 'unit', v)}
+                  autoCapitalize="none"
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TouchableOpacity onPress={() => removeExtractedMarker(i)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+                  <Text style={s.exRemove}>✕</Text>
+                </TouchableOpacity>
               </View>
             ))}
             <View style={{ height: 40 }} />
@@ -1082,6 +1130,11 @@ const makeStyles = (c) => StyleSheet.create({
   editDateText: { fontSize: 15, color: c.text },
   editDeleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
   editDeleteText: { color: c.danger, fontSize: 14, fontWeight: '600' },
+  exRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  exName: { flex: 1, paddingVertical: 9 },
+  exVal: { width: 74, paddingVertical: 9, textAlign: 'right' },
+  exUnit: { width: 64, paddingVertical: 9 },
+  exRemove: { fontSize: 16, color: c.danger, paddingHorizontal: 4 },
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },

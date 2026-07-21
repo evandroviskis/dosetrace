@@ -391,12 +391,18 @@ export default function VaccinesSection() {
             <Text style={s.reviewNote}>{t('vax_review_note').replace('{n}', String(extracted.length))}</Text>
             {extracted.map((v, i) => (
               <View key={i} style={s.reviewCard}>
-                <Text style={s.cardName}>{v.name}</Text>
-                <Text style={s.cardDate}>{formatDate(v.date_given)}</Text>
-                {v.next_due ? <Text style={s.cardDue}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text> : null}
-                {v.notes ? <Text style={s.cardNotes}>{v.notes}</Text> : null}
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <Text style={s.cardName}>{v.name}</Text>
+                  <Text style={s.cardDate}>{formatDate(v.date_given)}</Text>
+                  {v.next_due ? <Text style={s.cardDue}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text> : null}
+                  {v.notes ? <Text style={s.cardNotes}>{v.notes}</Text> : null}
+                </View>
+                <TouchableOpacity onPress={() => setExtracted(prev => prev.filter((_, idx) => idx !== i))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={s.reviewRemove}>✕</Text>
+                </TouchableOpacity>
               </View>
             ))}
+            {extracted.length === 0 && <Text style={s.reviewHint}>{t('vax_review_empty')}</Text>}
             <Text style={s.reviewHint}>{t('vax_review_hint')}</Text>
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -419,7 +425,8 @@ const makeStyles = (c) => StyleSheet.create({
   uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginBottom: 12 },
   uploadingText: { fontSize: 13, color: c.accent },
   reviewNote: { fontSize: 13, color: c.text, fontWeight: '600', marginBottom: 12 },
-  reviewCard: { backgroundColor: c.card2, borderRadius: 12, padding: 14, marginBottom: 10 },
+  reviewCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card2, borderRadius: 12, padding: 14, marginBottom: 10 },
+  reviewRemove: { fontSize: 16, color: c.danger, paddingHorizontal: 4 },
   reviewHint: { fontSize: 12, color: c.textFaint, lineHeight: 17, marginTop: 6 },
   searchInput: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border, marginBottom: 12 },
   empty: { alignItems: 'center', paddingTop: 30 },
