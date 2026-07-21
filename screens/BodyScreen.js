@@ -26,6 +26,7 @@ import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
+import CalculatorSection from './components/CalculatorSection';
 
 // Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
 const CHART_WIDTH = Dimensions.get('window').width - 32 - 28;
@@ -386,10 +387,18 @@ export default function BodyScreen({ navigation }) {
         >
           <Text style={[s.sectionTabText, section === 'vaccines' && s.sectionTabTextOn]}>{t('body_section_vaccines')}</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.sectionTab, section === 'calc' && s.sectionTabOn]}
+          onPress={() => setSection('calc')}
+        >
+          <Text style={[s.sectionTabText, section === 'calc' && s.sectionTabTextOn]}>{t('body_section_calc')}</Text>
+        </TouchableOpacity>
       </View>
 
       {section === 'vaccines' ? (
         <VaccinesSection />
+      ) : section === 'calc' ? (
+        <CalculatorSection />
       ) : (
       <>
       {uploading && (
