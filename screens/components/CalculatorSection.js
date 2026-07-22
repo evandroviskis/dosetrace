@@ -135,6 +135,23 @@ export default function CalculatorSection() {
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');
   const isUnknown = bfSource === 'unknown';
 
+  // Switching units must CONVERT the values already typed, not just relabel
+  // them — otherwise "80" silently jumps from 80 kg to 80 lb and every result
+  // changes. Body fat % and calories are unit-agnostic and stay put.
+  function changeUnit(next) {
+    if (next === unit) return;
+    const toImp = next === 'imperial';
+    const fmt = v => (v == null ? '' : String(Math.round(v * 10) / 10));
+    const cw = str => { const n = num(str); return n == null ? str : fmt(toImp ? kgToLb(n) : lbToKg(n)); };
+    const ch = str => { const n = num(str); return n == null ? str : fmt(toImp ? cmToIn(n) : inToCm(n)); };
+    setWeight(cw(weight));
+    setHeight(ch(height));
+    setWaist(ch(waist));
+    setRcThen(cw(rcThen));
+    setRcNow(cw(rcNow));
+    setUnit(next);
+  }
+
   const waistCm = useMemo(() => {
     const w = num(waist);
     if (w == null) return null;
@@ -268,7 +285,7 @@ export default function CalculatorSection() {
       {/* Units */}
       <View style={s.segment}>
         {['metric', 'imperial'].map(u => (
-          <TouchableOpacity key={u} style={[s.segBtn, unit === u && s.segBtnOn]} onPress={() => setUnit(u)}>
+          <TouchableOpacity key={u} style={[s.segBtn, unit === u && s.segBtnOn]} onPress={() => changeUnit(u)}>
             <Text style={[s.segText, unit === u && s.segTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
           </TouchableOpacity>
         ))}
