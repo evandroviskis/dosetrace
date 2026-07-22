@@ -33,6 +33,7 @@ import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
 } from '../lib/schedule';
 
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 
 const MONTH_KEYS = [
@@ -54,7 +55,6 @@ export default function TodayScreen() {
   const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only
   const [skippedCounts, setSkippedCounts] = useState({}); // { protocol_id: count } — outcome 'Skipped' only
   const [loading, setLoading] = useState(true);
-  const [greeting, setGreeting] = useState('');
   const [userName, setUserName] = useState('');
   const [streak, setStreak] = useState(0);
   const [monthConsistency, setMonthAdherence] = useState(0);
@@ -89,10 +89,6 @@ export default function TodayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const hour = new Date().getHours();
-      if (hour < 12) setGreeting(t('today_greeting_morning'));
-      else if (hour < 18) setGreeting(t('today_greeting_afternoon'));
-      else setGreeting(t('today_greeting_evening'));
       // Fetch display name
       getCachedUser().then(user => {
         if (user?.user_metadata?.display_name) {
@@ -575,7 +571,10 @@ export default function TodayScreen() {
     return `${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`;
   }
 
-  const today = new Date().toLocaleDateString(undefined, {
+  // Computed in render (not cached in state) so both follow the app language.
+  const _hour = new Date().getHours();
+  const greeting = t(_hour < 12 ? 'today_greeting_morning' : _hour < 18 ? 'today_greeting_afternoon' : 'today_greeting_evening');
+  const today = new Date().toLocaleDateString(LOCALE_MAP[language] || 'en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
   });
 
