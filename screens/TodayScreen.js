@@ -592,6 +592,10 @@ export default function TodayScreen() {
   const dueProtocols = protocols.filter(p => expectedDosesOn(p, todayDate) > 0);
   const doneCount = dueProtocols.filter(p => (takenCounts[p.id] || 0) >= expectedDosesOn(p, todayDate)).length;
   const totalCount = dueProtocols.length;
+  // Dose-based totals: every scheduled dose counts (a 2×/day vitamin = 2), taken
+  // capped at expected so extra taps can't overshoot.
+  const totalDoses = dueProtocols.reduce((sum, p) => sum + expectedDosesOn(p, todayDate), 0);
+  const doneDoses = dueProtocols.reduce((sum, p) => sum + Math.min(takenCounts[p.id] || 0, expectedDosesOn(p, todayDate)), 0);
 
   // Order the daily list purely by "what's next to take" across all compounds:
   // overdue/now → later today → tomorrow → in 2 days … (see nextDoseAt). A dose
@@ -830,7 +834,7 @@ export default function TodayScreen() {
           <Text style={s.sub}>
             {totalCount === 0
               ? t('today_no_protocols')
-              : `${doneCount} / ${totalCount} ${t('today_done_of')}`}
+              : `${doneDoses} / ${totalDoses} ${t('today_doses')}`}
           </Text>
         </View>
 
@@ -838,7 +842,7 @@ export default function TodayScreen() {
 
         <View style={s.statsRow}>
           <View style={[s.statCard, s.statHighlight]}>
-            <Text style={s.statValBlue}>{doneCount}</Text>
+            <Text style={s.statValBlue}>{doneDoses}</Text>
             <Text style={s.statLblBlue}>{t('today_done')}</Text>
           </View>
           <View style={s.statCard}>
@@ -847,7 +851,7 @@ export default function TodayScreen() {
           </View>
           <View style={s.statCard}>
             <Text style={s.statVal}>
-              {totalCount > 0 ? Math.round((doneCount / totalCount) * 100) + '%' : '—'}
+              {totalDoses > 0 ? Math.round((doneDoses / totalDoses) * 100) + '%' : '—'}
             </Text>
             <Text style={s.statLbl}>{t('today_done_of')}</Text>
           </View>
