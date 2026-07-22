@@ -574,9 +574,19 @@ export default function TodayScreen() {
   // Computed in render (not cached in state) so both follow the app language.
   const _hour = new Date().getHours();
   const greeting = t(_hour < 12 ? 'today_greeting_morning' : _hour < 18 ? 'today_greeting_afternoon' : 'today_greeting_evening');
-  const today = new Date().toLocaleDateString(LOCALE_MAP[language] || 'en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+  // Localized date. toLocaleDateString with an explicit locale can throw on
+  // some Hermes builds, which would blank the whole header — so guard it and
+  // fall back to the app's own localized month/weekday keys (always works).
+  let today;
+  try {
+    today = new Date().toLocaleDateString(LOCALE_MAP[language] || 'en-US', {
+      weekday: 'long', month: 'long', day: 'numeric',
+    });
+  } catch { today = ''; }
+  if (!today) {
+    const _d = new Date();
+    today = `${t(WEEKDAY_KEYS[_d.getDay()])}, ${t(MONTH_KEYS[_d.getMonth()])} ${_d.getDate()}`;
+  }
 
   const todayDate = new Date();
   const dueProtocols = protocols.filter(p => expectedDosesOn(p, todayDate) > 0);
@@ -886,6 +896,7 @@ export default function TodayScreen() {
                 </View>
               ))}
             </View>
+            <Text style={s.streakExplainer}>{t('today_streak_explainer')}</Text>
             <View style={s.streakLogRow}>
               <Text style={s.streakLogText}>{t('today_view_log')}</Text>
               <Text style={s.streakLogChevron}>›</Text>
@@ -1174,7 +1185,8 @@ const makeStyles = (c) => StyleSheet.create({
   streakDotToday: { borderWidth: 2, borderColor: c.accent },
   streakDotLabel: { fontSize: 9, color: c.textFaint, fontWeight: '500' },
   streakDotLabelToday: { color: c.accent, fontWeight: '700' },
-  streakLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: 12, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: c.border },
+  streakExplainer: { fontSize: 11, color: c.textMuted, lineHeight: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
+  streakLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: 10 },
   streakLogText: { fontSize: 12, color: c.accent, fontWeight: '600' },
   streakLogChevron: { fontSize: 15, color: c.accent, fontWeight: '600', marginTop: -1 },
   shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
