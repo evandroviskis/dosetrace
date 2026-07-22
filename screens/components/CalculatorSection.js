@@ -238,7 +238,7 @@ export default function CalculatorSection() {
           <View style={s.overviewHeadline}>
             <Text style={s.overviewHeadlineLabel}>{t('cal_protein')}</Text>
             <Text style={s.overviewHeadlineVal}>{round5(result.protein.rec)} {t('cal_g_day')}</Text>
-            <Text style={s.overviewHeadlineSub}>{t('cal_range')} {round5(result.protein.low)}–{round5(result.protein.high)} {t('cal_g_day')} · {t(`cal_protein_basis_${result.protein.basis}`)}</Text>
+            <Text style={s.overviewHeadlineSub}>{t('cal_range')} {round5(result.protein.low)}–{round5(result.protein.high)} {t('cal_g_day')} · {t(`cal_protein_basis_${result.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
           </View>
 
           <View style={s.overviewStats}>
