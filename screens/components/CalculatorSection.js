@@ -249,6 +249,24 @@ export default function CalculatorSection() {
     return Math.abs(Math.round(v * 10) / 10);
   };
 
+  // ── Scoreboard ───────────────────────────────────────────────────
+  // The number to headline for the reality check: the live result if it's
+  // valid, otherwise the most recent saved check.
+  const scoreCheck = useMemo(() => {
+    if (rc && rc.status === 'ok') return { tdee: rc.tdee, ratePerWeekKg: rc.ratePerWeekKg };
+    if (realityLog.length) {
+      const l = realityLog[realityLog.length - 1];
+      return { tdee: l.tdee, ratePerWeekKg: l.ratePerWeekKg };
+    }
+    return null;
+  }, [rc, realityLog]);
+
+  // Tap a scoreboard tile → jump down to the calculator that produced it.
+  const scrollRef = useRef(null);
+  const detailsY = useRef(0);
+  const rcY = useRef(0);
+  const scrollTo = yRef => scrollRef.current?.scrollTo({ y: Math.max((yRef.current || 0) - 8, 0), animated: true });
+
   const EXPLAINERS = [
     { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
     { key: 'deficit', title: t('cal_expl_deficit_title'), body: t('cal_expl_deficit_body') },
@@ -256,7 +274,7 @@ export default function CalculatorSection() {
   ];
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} keyboardShouldPersistTaps="handled">
       {/* Intro — what this is */}
       <View style={s.introCard}>
         <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
@@ -306,7 +324,48 @@ export default function CalculatorSection() {
         <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
       )}
 
-      <Text style={[s.label, { marginTop: 20 }]}>{t('cal_your_details')}</Text>
+      {/* Scoreboard — reality-check tile (numbers, or greyed Premium → paywall) */}
+      <TouchableOpacity
+        style={s.sbReality}
+        activeOpacity={0.7}
+        onPress={() => (premium ? scrollTo(rcY) : navigation.navigate('Paywall'))}
+      >
+        <View style={s.sbRealityMain}>
+          <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
+          {premium ? (
+            scoreCheck ? (
+              <Text style={s.sbRealityVal}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+            ) : (
+              <Text style={s.sbRealityMuted}>{t('cal_rc_sb_run')}</Text>
+            )
+          ) : (
+            <Text style={s.sbRealityMuted}>{t('cal_rc_sb_locked')}</Text>
+          )}
+        </View>
+        <View style={s.sbRealityRight}>
+          {premium && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
+            <Text style={s.sbRealityRate}>
+              {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
+            </Text>
+          ) : null}
+          <Text style={s.sbArrow}>{premium ? '›' : '🔒'}</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* Scoreboard — jump to the calculators that produce these numbers */}
+      <View style={s.sbActions}>
+        <TouchableOpacity style={[s.sbActionBtn, { marginRight: 10 }]} activeOpacity={0.7} onPress={() => scrollTo(detailsY)}>
+          <Text style={s.sbActionText}>{t('cal_sb_open_bmr')}  ↓</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.sbActionBtn} activeOpacity={0.7} onPress={() => (premium ? scrollTo(rcY) : navigation.navigate('Paywall'))}>
+          <Text style={s.sbActionText}>{t('cal_sb_open_reality')}  ↓</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text
+        style={[s.label, { marginTop: 20 }]}
+        onLayout={e => { detailsY.current = e.nativeEvent.layout.y; }}
+      >{t('cal_your_details')}</Text>
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* Units */}
@@ -395,7 +454,7 @@ export default function CalculatorSection() {
       <Text style={s.hint}>{t('cal_waist_hint')}</Text>
 
       {/* Reality check (premium) */}
-      <View style={s.premCard}>
+      <View style={s.premCard} onLayout={e => { rcY.current = e.nativeEvent.layout.y; }}>
         <Text style={s.premTitle}>{t('cal_rc_title')}</Text>
         <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
         {premium ? (
@@ -590,6 +649,17 @@ const makeStyles = (c) => StyleSheet.create({
   lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
   lockedBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
   lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 0.5, borderColor: c.border },
+  sbRealityMain: { flex: 1 },
+  sbRealityLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.3, marginBottom: 4 },
+  sbRealityVal: { fontSize: 18, fontWeight: '800', color: c.accent },
+  sbRealityMuted: { fontSize: 14, fontWeight: '600', color: c.textFaint },
+  sbRealityRight: { alignItems: 'flex-end', marginLeft: 10 },
+  sbRealityRate: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 2 },
+  sbArrow: { fontSize: 18, color: c.textFaint },
+  sbActions: { flexDirection: 'row', marginTop: 10 },
+  sbActionBtn: { flex: 1, backgroundColor: c.card, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 0.5, borderColor: c.border },
+  sbActionText: { fontSize: 13, fontWeight: '600', color: c.accent },
   rcRate: { fontSize: 14, fontWeight: '600', color: c.text, marginTop: 6 },
   rcLog: { marginTop: 18, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
   rcLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: c.border },
