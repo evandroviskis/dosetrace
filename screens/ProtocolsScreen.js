@@ -219,7 +219,7 @@ function ProtocolSyringeGuide({ p, t }) {
 
 function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, t }) {
   const { colors } = useTheme();
-  const { language } = useLanguage();
+  const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const badge = getTypeBadge(p.type, t, colors);
   const isExpanded = expanded === p.id;
@@ -302,7 +302,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           </View>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('protocols_reminder')}</Text>
-            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language)).join('  ·  ')}</Text>
+            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  ')}</Text>
           </View>
           {p.schedule_total && (
             <View style={s.detailRow}>
@@ -346,7 +346,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
 }
 
 export default function ProtocolsScreen() {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
@@ -417,7 +417,7 @@ export default function ProtocolsScreen() {
 
   // Format "HH:MM" (24h) → locale-aware time (AM/PM in en, 24h in de/fr/it, …)
   function formatTimeAMPM(time24) {
-    return formatTime(time24, language);
+    return formatTime(time24, language, timeFormat);
   }
 
   // Build a human-readable frequency string from interval_days

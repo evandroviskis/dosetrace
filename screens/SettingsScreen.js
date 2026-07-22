@@ -72,7 +72,7 @@ function LegalModal({ visible, onClose, title, content, doneLabel }) {
 }
 
 export default function SettingsScreen({ navigation }) {
-  const { language, setLanguage, t, LANGUAGES } = useLanguage();
+  const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [user, setUser] = useState(null);
@@ -815,6 +815,27 @@ export default function SettingsScreen({ navigation }) {
                   onPress={() => setMode(o.key)}
                 >
                   <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <Text style={s.rowIcon}>🕐</Text>
+              <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
+            </View>
+            <View style={s.themePillRow}>
+              {[
+                { key: 'auto', label: t('settings_time_auto') },
+                { key: '12h', label: t('settings_time_12h') },
+                { key: '24h', label: t('settings_time_24h') },
+              ].map(o => (
+                <TouchableOpacity
+                  key={o.key}
+                  style={[s.themePill, timeFormat === o.key && s.themePillOn]}
+                  onPress={() => setTimeFormat(o.key)}
+                >
+                  <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>

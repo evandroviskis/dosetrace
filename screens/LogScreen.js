@@ -14,17 +14,20 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
+import { hour12Pref } from '../lib/timeFormat';
 import BodyMapModal from './components/BodyMapModal';
 import { useTheme } from '../lib/theme';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 export default function LogScreen() {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALES[language] || 'en-US';
+  const timeOpts = { hour: 'numeric', minute: '2-digit' };
+  { const _h12 = hour12Pref(timeFormat); if (_h12 !== undefined) timeOpts.hour12 = _h12; }
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('All');
 
@@ -274,9 +277,7 @@ export default function LogScreen() {
               </View>
               <View style={s.logRight}>
                 <Text style={s.logTime}>
-                  {new Date(log.logged_at).toLocaleTimeString(locale, {
-                    hour: 'numeric', minute: '2-digit',
-                  })}
+                  {new Date(log.logged_at).toLocaleTimeString(locale, timeOpts)}
                 </Text>
                 <View style={[s.logBadge, { backgroundColor: outcomeBg(log.outcome) }]}>
                   <Text style={[s.logBadgeText, { color: outcomeTextColor(log.outcome) }]}>

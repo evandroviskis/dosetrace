@@ -46,7 +46,7 @@ const MONTH_KEYS = [
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
 
 export default function TodayScreen() {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -623,7 +623,7 @@ export default function TodayScreen() {
   const allDoneToday = todayCards.length === 0 && totalCount > 0;
 
   function formatTimeAMPM(time24) {
-    return formatTime(time24, language);
+    return formatTime(time24, language, timeFormat);
   }
 
   // Determine next time slot label for multi-dose protocols.
