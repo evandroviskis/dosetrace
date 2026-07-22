@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   lbmFromBodyFat, bmrKatch, bmrCunningham, bmrMifflin, computeBMR,
-  tdee, goalCalories, proteinTarget, realityCheckTDEE, lbToKg, inToCm,
+  tdee, goalCalories, proteinTarget, realityCheckTDEE, weeklyRateKg, lbToKg, inToCm,
 } = require('../lib/energyCalc');
 
 const approx = (a, b, eps = 0.5) => assert.ok(Math.abs(a - b) <= eps, `${a} ≈ ${b}`);
@@ -91,6 +91,14 @@ test('realityCheckTDEE guards: short window, maintenance, implausible', () => {
   // Big reported loss with very low intake → implausibly low TDEE (under-reporting)
   const imp = realityCheckTDEE({ avgDailyCalories: 300, weightChangeKg: 0.3, days: 28 });
   assert.equal(imp.status, 'implausible');
+});
+
+test('weeklyRateKg: positive weight change = loss per week', () => {
+  // Lost 2 kg over 28 days ⇒ 0.5 kg/week.
+  approx(weeklyRateKg({ weightChangeKg: 2, days: 28 }), 0.5, 0.001);
+  // Gained 1 kg over 14 days ⇒ −0.5 kg/week.
+  approx(weeklyRateKg({ weightChangeKg: -1, days: 14 }), -0.5, 0.001);
+  assert.equal(weeklyRateKg({ weightChangeKg: 2, days: 0 }), null);
 });
 
 test('unit conversions round-trip sanely', () => {

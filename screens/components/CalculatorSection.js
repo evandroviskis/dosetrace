@@ -22,7 +22,7 @@ import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import {
-  computeBMR, tdee, goalCalories, proteinTarget, ACTIVITY_LEVELS, realityCheckTDEE,
+  computeBMR, tdee, goalCalories, proteinTarget, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
 import ProgressChart from './ProgressChart';
@@ -65,7 +65,9 @@ export default function CalculatorSection() {
   const [rcNow, setRcNow] = useState('');
   const [rcDays, setRcDays] = useState('');
   const [rcIntake, setRcIntake] = useState('');
-  const [rc, setRc] = useState(null);               // { status, tdee }
+  const [rc, setRc] = useState(null);               // { status, tdee, ratePerWeekKg }
+  const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
+  const [rcSavedMsg, setRcSavedMsg] = useState(false);
   const loadedRef = useRef(false);
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -76,6 +78,8 @@ export default function CalculatorSection() {
     const user = await getCachedUser();
     const snaps = user?.user_metadata?.calc_snapshots;
     if (Array.isArray(snaps)) setSnapshots(snaps);
+    const checks = user?.user_metadata?.calc_reality_checks;
+    if (Array.isArray(checks)) setRealityLog(checks);
     const saved = user?.user_metadata?.calc_inputs;
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
@@ -219,8 +223,31 @@ export default function CalculatorSection() {
     const intake = num(rcIntake);
     if (thenKg == null || nowKg == null || !days || intake == null) { setRc(null); return; }
     // weightChangeKg = amount lost (positive when weight went down).
-    setRc(realityCheckTDEE({ avgDailyCalories: intake, weightChangeKg: thenKg - nowKg, days }));
+    const weightChangeKg = thenKg - nowKg;
+    const res = realityCheckTDEE({ avgDailyCalories: intake, weightChangeKg, days });
+    setRc({ ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg, days }) });
   }
+
+  // Save the current valid check so its weekly rate can be tracked over time
+  // (one per day, latest wins) — this is how "1 kg/week → 2.5 kg/week" surfaces.
+  function saveRealityCheck() {
+    if (!rc || rc.status !== 'ok') return;
+    const entry = { date: todayISO(), tdee: Math.round(rc.tdee), ratePerWeekKg: rc.ratePerWeekKg };
+    const next = [...realityLog.filter(x => x.date !== entry.date), entry]
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+      .slice(-SNAP_CAP);
+    setRealityLog(next);
+    supabase.auth.updateUser({ data: { calc_reality_checks: next } }).catch(() => {});
+    setRcSavedMsg(true);
+    setTimeout(() => setRcSavedMsg(false), 2500);
+  }
+
+  // Weekly rate → display units, one decimal, absolute value (sign drives the label).
+  const rateDisplay = kg => {
+    if (kg == null) return null;
+    const v = unit === 'imperial' ? kgToLb(kg) : kg;
+    return Math.abs(Math.round(v * 10) / 10);
+  };
 
   const EXPLAINERS = [
     { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
@@ -394,7 +421,15 @@ export default function CalculatorSection() {
             {rc && rc.status === 'ok' && (
               <View style={s.rcResult}>
                 <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')} {round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+                {rc.ratePerWeekKg != null && Math.abs(rc.ratePerWeekKg) >= 0.05 ? (
+                  <Text style={s.rcRate}>
+                    {t('cal_rc_rate_losing')} {rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')} {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
+                  </Text>
+                ) : null}
                 {result ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(result.tdeeVal)} {t('cal_kcal')}.</Text> : null}
+                <TouchableOpacity style={[s.computeBtn, { marginTop: 14 }]} onPress={saveRealityCheck}>
+                  <Text style={s.computeBtnText}>{rcSavedMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_rc_save')}</Text>
+                </TouchableOpacity>
                 <Text style={s.rcWhyTitle}>{t('cal_rc_why_title')}</Text>
                 {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.rcWhy}>•  {t(`cal_rc_why_${i}`)}</Text>)}
                 <Text style={s.rcNote}>{t('cal_rc_unreliable_note')}</Text>
@@ -403,12 +438,35 @@ export default function CalculatorSection() {
             {rc && rc.status !== 'ok' && (
               <View style={s.rcResult}><Text style={s.rcGuard}>{t(`cal_rc_${rc.status}`)}</Text></View>
             )}
+
+            {realityLog.length > 0 && (
+              <View style={s.rcLog}>
+                <Text style={s.rcWhyTitle}>{t('cal_rc_log_title')}</Text>
+                {[...realityLog].reverse().map((c) => (
+                  <View key={c.date} style={s.rcLogRow}>
+                    <Text style={s.rcLogDate}>{fmtDate(c.date)}</Text>
+                    <Text style={s.rcLogRate}>
+                      {c.ratePerWeekKg != null
+                        ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
+                        : '—'}
+                    </Text>
+                    <Text style={s.rcLogTdee}>{round10(c.tdee)} {t('cal_kcal')}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </>
         ) : (
-          <View style={s.locked}>
-            <Text style={s.lockedText}>🔒  {t('cal_premium_locked')}</Text>
+          <View style={s.rcLocked}>
+            <Text style={s.rcLockedIntro}>{t('cal_rc_locked_intro')}</Text>
+            <Text style={s.rcLockedLead}>{t('cal_rc_locked_lead')}</Text>
+            <Text style={s.rcLockedItem}>1.  {t('cal_rc_weight_then')}</Text>
+            <Text style={s.rcLockedItem}>2.  {t('cal_rc_weight_now')}</Text>
+            <Text style={s.rcLockedItem}>3.  {t('cal_rc_intake')}</Text>
+            <Text style={s.rcLockedItem}>4.  {t('cal_rc_days')}</Text>
+            <Text style={s.rcLockedPayoff}>{t('cal_rc_locked_payoff')}</Text>
             <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
+              <Text style={s.lockedBtnText}>🔒  {t('cal_premium_cta')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -532,6 +590,17 @@ const makeStyles = (c) => StyleSheet.create({
   lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
   lockedBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
   lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  rcRate: { fontSize: 14, fontWeight: '600', color: c.text, marginTop: 6 },
+  rcLog: { marginTop: 18, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
+  rcLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  rcLogDate: { fontSize: 13, color: c.textMuted, flex: 1 },
+  rcLogRate: { fontSize: 13, fontWeight: '700', color: c.text, flex: 1, textAlign: 'center' },
+  rcLogTdee: { fontSize: 12, color: c.textFaint, flex: 1, textAlign: 'right' },
+  rcLocked: { marginTop: 8 },
+  rcLockedIntro: { fontSize: 13, color: c.textMuted, lineHeight: 20 },
+  rcLockedLead: { fontSize: 13, fontWeight: '600', color: c.text, marginTop: 12, marginBottom: 6 },
+  rcLockedItem: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
+  rcLockedPayoff: { fontSize: 13, color: c.text, lineHeight: 20, marginTop: 12, marginBottom: 16 },
   learn: {},
   explCard: { backgroundColor: c.card, borderRadius: 12, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
   explHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
