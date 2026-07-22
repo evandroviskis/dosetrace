@@ -834,6 +834,8 @@ export default function TodayScreen() {
           </Text>
         </View>
 
+        <Text style={s.progressHeader}>{t('today_section_progress').toUpperCase()}</Text>
+
         <View style={s.statsRow}>
           <View style={[s.statCard, s.statHighlight]}>
             <Text style={s.statValBlue}>{doneCount}</Text>
@@ -1212,6 +1214,7 @@ const makeStyles = (c) => StyleSheet.create({
   shareBrandText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
   shareBrandSub: { fontSize: 10, color: '#64748B', marginTop: 2 },
   shareDisclaimer: { fontSize: 8, color: '#475569', textAlign: 'center' },
+  progressHeader: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginHorizontal: 16, marginTop: 12, marginBottom: -4 },
   statsRow: { flexDirection: 'row', gap: 8, padding: 16 },
   statCard: { flex: 1, backgroundColor: c.card, borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 0.5, borderColor: c.border },
   statHighlight: { backgroundColor: c.accentSoft },
