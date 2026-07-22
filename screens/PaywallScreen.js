@@ -35,28 +35,25 @@ export default function PaywallScreen({ navigation, route }) {
 
   const FREE_FEATURES = [
     { label: t('paywall_free_feat_1'), included: true },   // Reconstitution calculator
-    { label: t('paywall_free_feat_2'), included: true },   // Syringe guide
-    { label: t('paywall_free_feat_3'), included: true },   // Up to 5 protocols
+    { label: t('paywall_free_feat_3'), included: true },   // Up to 3 protocols
     { label: t('paywall_free_feat_4'), included: true },   // Injection log & vial tracker
     { label: t('paywall_free_feat_5'), included: true },   // Reminders
-    { label: t('paywall_free_feat_6'), included: true },   // Oral supplement tracking
-    { label: t('paywall_free_feat_7'), included: true },   // 1 free bloodwork upload
-    { label: t('paywall_free_feat_9'), included: false },  // Unlimited protocols
-    { label: t('paywall_free_feat_10'), included: false },  // Unlimited bloodwork uploads
+    { label: t('pw_free_labvax'), included: true },        // Lab & vaccine journals (manual)
+    { label: t('pw_free_calc'), included: true },          // Energy & protein calculator
+    { label: t('pw_free_scan1'), included: true },         // 1 free lab scan
+    { label: t('pw_free_sync'), included: true },          // Cloud backup & sync (free)
+    { label: t('paywall_feat_4'), included: false },       // Unlimited protocols
+    { label: t('pw_prem_scan'), included: false },         // Unlimited lab & vaccine scanning
+    { label: t('pw_prem_pdf'), included: false },          // PDF export
+    { label: t('pw_prem_reality'), included: false },      // Reality check + progress
   ];
 
   const PREMIUM_FEATURES = [
-    t('paywall_feat_1'),   // Everything in Free
-    t('paywall_feat_4'),   // Unlimited protocols
-    t('paywall_feat_5'),   // Unlimited bloodwork uploads
-  ];
-
-  const COMING_SOON_FEATURES = [
-    t('paywall_coming_1'),  // Cloud backup & sync
-    t('paywall_coming_2'),  // Serum curve & protocol timeline
-    t('paywall_coming_3'),  // Cycle planner
-    t('paywall_coming_4'),  // Apple Health & Watch
-    t('paywall_coming_5'),  // PDF export
+    t('paywall_feat_1'),        // Everything in Free
+    t('paywall_feat_4'),        // Unlimited protocols
+    t('pw_prem_scan_full'),     // Unlimited lab & vaccine scanning — photo/PDF, any language
+    t('pw_prem_pdf'),           // PDF export for your doctor
+    t('pw_prem_reality'),       // Reality check & progress tracking
   ];
 
   useEffect(() => {
@@ -313,17 +310,6 @@ export default function PaywallScreen({ navigation, route }) {
             <View key={i} style={[s.featRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border }]}>
               <Text style={s.featCheck}>✓</Text>
               <Text style={s.featText}>{f}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={[s.sectionTitle, { marginTop: 20 }]}>{t('paywall_coming_soon_title')}</Text>
-
-        <View style={s.featuresCard}>
-          {COMING_SOON_FEATURES.map((f, i) => (
-            <View key={i} style={[s.featRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border }]}>
-              <Text style={{ fontSize: 14, width: 16 }}>🔜</Text>
-              <Text style={[s.featText, { color: colors.textMuted }]}>{f}</Text>
             </View>
           ))}
         </View>
