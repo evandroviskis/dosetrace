@@ -19,7 +19,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
@@ -350,6 +350,7 @@ export default function ProtocolsScreen() {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
+  const route = useRoute();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
@@ -454,6 +455,16 @@ export default function ProtocolsScreen() {
   const [skipVial, setSkipVial] = useState(false);
 
   useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
+
+  // Deep-link from the Today screen: open (expand) a specific protocol, then
+  // clear the param so it doesn't re-fire on the next focus.
+  useFocusEffect(useCallback(() => {
+    const openId = route.params?.openProtocolId;
+    if (openId != null) {
+      setExpanded(openId);
+      navigation.setParams({ openProtocolId: undefined });
+    }
+  }, [route.params?.openProtocolId]));
 
   useEffect(() => {
     AsyncStorage.getItem(SORT_STORAGE_KEY)

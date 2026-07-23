@@ -710,7 +710,12 @@ export default function TodayScreen() {
             <Text style={s.partialBannerText}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>
           </View>
         )}
-        <View style={s.doseCardTop}>
+        {/* Tapping the header row opens this protocol in the Protocols tab. */}
+        <TouchableOpacity
+          style={s.doseCardTop}
+          activeOpacity={0.6}
+          onPress={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
+        >
           <View style={[s.doseDot, { backgroundColor: p.color || colors.accent }]} />
           <View style={s.doseInfo}>
             <Text style={s.doseName}>{due && '🔥 '}{p.compound_id ? t(p.compound_id) : p.name}</Text>
@@ -737,7 +742,8 @@ export default function TodayScreen() {
               </View>
             )}
           </View>
-        </View>
+          <Text style={s.doseOpenChevron}>›</Text>
+        </TouchableOpacity>
         {/* Progress bar */}
         {progress && (
           <View style={s.progressBarOuter}>
@@ -1247,6 +1253,7 @@ const makeStyles = (c) => StyleSheet.create({
   doseName: { fontSize: 14, fontWeight: '600', color: c.text },
   doseMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   doseRight: { alignItems: 'flex-end', gap: 4 },
+  doseOpenChevron: { fontSize: 20, color: c.textFaint, fontWeight: '600', marginLeft: 2 },
   doseTime: { alignItems: 'flex-end' },
   doseTimeVal: { fontSize: 12, fontWeight: '500', color: c.textMuted },
   doseTimeLbl: { fontSize: 10, color: c.textFaint },
