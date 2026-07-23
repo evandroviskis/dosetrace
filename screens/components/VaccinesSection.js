@@ -163,24 +163,41 @@ export default function VaccinesSection() {
         Alert.alert(t('vax_scan_error'), t('vax_scan_none'));
         return;
       }
-      setExtracted(clean);
-      setReviewOpen(true);
+
+      // Auto-save everything the AI read, dated from the document — no
+      // record-by-record approval. The user edits later via the list. Entries
+      // whose administration date couldn't be read are dropped (never dated to
+      // today) and reported.
+      const saved = await persistVaccines(clean);
+      const dropped = raw.length - clean.length;
+      const lines = [t('vax_imported_body').replace('{count}', String(saved))];
+      if (dropped > 0) lines.push(t('vax_imported_dropped').replace('{count}', String(dropped)));
+      lines.push(t('vax_imported_hint'));
+      Alert.alert(t('vax_imported_title'), lines.join('\n\n'));
     } catch (err) {
       setUploading(false);
       Alert.alert(t('vax_scan_error'), t('vax_scan_error_sub'));
     }
   }
 
-  async function saveExtracted() {
+  // Insert extracted vaccines straight into storage (no review gate). Returns the
+  // number saved. Dates come from each record's date_given. Shared by auto-save.
+  async function persistVaccines(list) {
     const user = await getCachedUser();
-    if (!user) return;
-    for (const v of extracted) {
+    if (!user) return 0;
+    for (const v of list) {
       insertVaccine({ user_id: user.id, name: v.name, date_given: v.date_given, next_due: v.next_due, notes: v.notes || null });
     }
     requestSync();
+    fetchList();
+    return list.length;
+  }
+
+  // Retained for the (now-unreachable) review sheet; delegates to persistVaccines.
+  async function saveExtracted() {
+    await persistVaccines(extracted);
     setReviewOpen(false);
     setExtracted([]);
-    fetchList();
   }
 
   function formatDate(iso) {

@@ -400,15 +400,23 @@ export default function BodyScreen({ navigation }) {
         return;
       }
 
-      setExtractedMarkers(markers);
-      setReportDate(parsedDate);
-      setDateWasFallback(dateFallback);
       setUploading(false);
-      setShowConfirmModal(true);
 
-      if (droppedCount > 0) {
-        Alert.alert(t('blood_dropped_title'), `${droppedCount} ${t('blood_dropped_sub')}`);
+      // Auto-save everything the AI read — no marker-by-marker approval. The
+      // user curates later via the per-marker editor. Dates come from the
+      // document; a fallback (today) is surfaced so it can be corrected.
+      const saved = await persistMarkers(markers, parsedDate);
+      if (saved === 0) {
+        Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
+        return;
       }
+      const lines = [
+        t('blood_imported_body').replace('{count}', String(saved)).replace('{date}', formatDate(parsedDate)),
+      ];
+      if (dateFallback) lines.push(t('blood_imported_date_fallback'));
+      if (droppedCount > 0) lines.push(`${droppedCount} ${t('blood_dropped_sub')}`);
+      lines.push(t('blood_imported_hint'));
+      Alert.alert(t('blood_imported_title'), lines.join('\n\n'));
     } catch (err) {
       setUploading(false);
       Alert.alert(
@@ -426,32 +434,40 @@ export default function BodyScreen({ navigation }) {
     setExtractedMarkers(prev => prev.filter((_, idx) => idx !== i));
   }
 
+  // Insert extracted markers straight into storage (no review gate). Returns the
+  // number of rows saved. Coerces values to numbers; drops rows with no name or
+  // no numeric value. Shared by the auto-save upload path.
+  async function persistMarkers(markers, date) {
+    const user = await getCachedUser();
+    if (!user) { Alert.alert(t('error'), t('blood_error_not_signed_in')); return 0; }
+    const rows = markers
+      .map(m => ({
+        user_id: user.id,
+        report_date: date,
+        marker: String(m.marker || '').trim(),
+        value: parseFloat(String(m.value).replace(',', '.')),
+        unit: String(m.unit || '').trim(),
+      }))
+      .filter(r => r.marker && Number.isFinite(r.value));
+    if (rows.length === 0) return 0;
+
+    insertBiomarkers(rows);
+    const newCount = await incrementUploadCount();
+    setUploadCount(newCount);
+    Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
+    fetchReports();
+    requestSync();
+    return rows.length;
+  }
+
+  // Retained for the (now-unreachable) review sheet; delegates to persistMarkers.
   async function saveMarkers() {
     try {
-      const user = await getCachedUser();
-      if (!user) { Alert.alert(t('error'), t('blood_error_not_signed_in')); return; }
-      // Coerce edited values to numbers; drop rows with no name or no number.
-      const rows = extractedMarkers
-        .map(m => ({
-          user_id: user.id,
-          report_date: reportDate,
-          marker: String(m.marker || '').trim(),
-          value: parseFloat(String(m.value).replace(',', '.')),
-          unit: String(m.unit || '').trim(),
-        }))
-        .filter(r => r.marker && Number.isFinite(r.value));
-
-      if (rows.length === 0) { Alert.alert(t('error'), t('blood_edit_invalid')); return; }
-
-      insertBiomarkers(rows);
-      const newCount = await incrementUploadCount();
-      setUploadCount(newCount);
-      Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
+      const saved = await persistMarkers(extractedMarkers, reportDate);
+      if (saved === 0) { Alert.alert(t('error'), t('blood_edit_invalid')); return; }
       setShowConfirmModal(false);
       setExtractedMarkers([]);
       setDateWasFallback(false);
-      fetchReports();
-      requestSync();
     } catch (err) {
       Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
