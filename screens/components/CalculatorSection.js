@@ -15,7 +15,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Dimensions, Linking } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
@@ -37,6 +37,17 @@ const GOALS = ['lose', 'maintain', 'gain'];
 const round10 = n => Math.round(n / 10) * 10;
 const round5 = n => Math.round(n / 5) * 5;
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+
+// Published sources for every figure this calculator shows (App Review 1.4.1:
+// health information must cite its sources). Citation text stays in English —
+// the convention for references; the topic label (t(key)) is localized.
+const REFERENCES = [
+  { key: 'cal_src_bmr_mifflin', cite: 'Mifflin & St Jeor et al. — Am J Clin Nutr, 1990', url: 'https://doi.org/10.1093/ajcn/51.2.241' },
+  { key: 'cal_src_bmr_lbm', cite: 'Cunningham — Am J Clin Nutr, 1991', url: 'https://pubmed.ncbi.nlm.nih.gov/1957828/' },
+  { key: 'cal_src_protein', cite: 'Jäger et al. — ISSN Position Stand, 2017', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5477153/' },
+  { key: 'cal_src_glycogen', cite: 'Muscle glycogen & body water — Nutrients, 2023', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9823884/' },
+  { key: 'cal_src_energy', cite: 'Hall — Int J Obes, 2008', url: 'https://www.nature.com/articles/0803720' },
+];
 
 export default function CalculatorSection() {
   const { t, language } = useLanguage();
@@ -568,6 +579,24 @@ export default function CalculatorSection() {
         </View>
       ))}
 
+      {/* Sources — every figure above cites published research (App Review 1.4.1) */}
+      <Text style={[s.label, { marginTop: 24 }]}>{t('cal_sources_title')}</Text>
+      <Text style={[s.hint, { marginBottom: 8 }]}>{t('cal_sources_intro')}</Text>
+      {REFERENCES.map(r => (
+        <TouchableOpacity
+          key={r.key}
+          style={s.srcRow}
+          activeOpacity={0.6}
+          onPress={() => Linking.openURL(r.url).catch(() => {})}
+        >
+          <View style={s.srcText}>
+            <Text style={s.srcTopic}>{t(r.key)}</Text>
+            <Text style={s.srcCite}>{r.cite}</Text>
+          </View>
+          <Text style={s.srcArrow}>↗</Text>
+        </TouchableOpacity>
+      ))}
+
       <View style={{ height: 60 }} />
     </ScrollView>
   );
@@ -649,6 +678,11 @@ const makeStyles = (c) => StyleSheet.create({
   lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
   lockedBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
   lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
+  srcText: { flex: 1 },
+  srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },
+  srcCite: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  srcArrow: { fontSize: 16, color: c.accent, marginLeft: 10 },
   sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 0.5, borderColor: c.border },
   sbRealityMain: { flex: 1 },
   sbRealityLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.3, marginBottom: 4 },
