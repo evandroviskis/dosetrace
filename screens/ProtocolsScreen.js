@@ -457,14 +457,15 @@ export default function ProtocolsScreen() {
   useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
 
   // Deep-link from the Today screen: open (expand) a specific protocol, then
-  // clear the param so it doesn't re-fire on the next focus.
-  useFocusEffect(useCallback(() => {
+  // clear the param so it doesn't re-fire. A plain effect on the param reacts
+  // to the change directly, independent of focus timing.
+  useEffect(() => {
     const openId = route.params?.openProtocolId;
     if (openId != null) {
       setExpanded(openId);
       navigation.setParams({ openProtocolId: undefined });
     }
-  }, [route.params?.openProtocolId]));
+  }, [route.params?.openProtocolId]);
 
   useEffect(() => {
     AsyncStorage.getItem(SORT_STORAGE_KEY)
