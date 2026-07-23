@@ -149,7 +149,7 @@ export default function VaccinesSection() {
     }
     try {
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
-        body: { kind: 'vaccines', ...source },
+        body: { kind: 'vaccines', lang: language, ...source },
       });
       if (error) {
         setUploading(false);

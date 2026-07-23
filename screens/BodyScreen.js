@@ -373,8 +373,8 @@ export default function BodyScreen({ navigation }) {
       // The Anthropic API key lives only in the extract-bloodwork edge
       // function; the app never talks to api.anthropic.com directly.
       const reqBody = opts?.image
-        ? { image_base64: base64, media_type: opts.mediaType }
-        : { pdf_base64: base64 };
+        ? { image_base64: base64, media_type: opts.mediaType, lang: language }
+        : { pdf_base64: base64, lang: language };
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
         body: reqBody,
       });

@@ -40,7 +40,8 @@ Rules:
   for a value, use an empty string.
 - "report_date" is the collection date if present, otherwise the report date, in
   ISO-8601 (YYYY-MM-DD). Interpret local date formats correctly:
-  DD/MM/YYYY (Brazil, EU) vs MM/DD/YYYY (US). If ambiguous or missing, use today's date.
+  DD/MM/YYYY (Brazil, EU) vs MM/DD/YYYY (US). See the DATE ORDER note below.
+  Use today's date ONLY when no date at all is printed on the document.
 - Do NOT include reference ranges, normal ranges, flags (H/L), status labels,
   interpretations, or any clinical assessment. Extract raw values only.
 - Do NOT include patient identifiers, physician names, addresses, or any information
@@ -123,6 +124,25 @@ Deno.serve(async (req) => {
 
     const isVaccines = body?.kind === 'vaccines';
 
+    // Date-order disambiguation. The correct order depends on the DOCUMENT's
+    // origin, so the model must read the document first; the app user's region
+    // is only a last-resort tiebreaker for genuinely ambiguous dates (e.g.
+    // 03/04/2026 with no other clues). en → month-first; everyone else → day-first.
+    const DATE_CONVENTION: Record<string, string> = {
+      en: 'MM/DD/YYYY (month first)',
+      es: 'DD/MM/YYYY (day first)', pt: 'DD/MM/YYYY (day first)',
+      fr: 'DD/MM/YYYY (day first)', de: 'DD/MM/YYYY (day first)',
+      it: 'DD/MM/YYYY (day first)',
+    };
+    const lang = typeof body?.lang === 'string' ? body.lang.slice(0, 2).toLowerCase() : 'en';
+    const userConvention = DATE_CONVENTION[lang] || 'MM/DD/YYYY (month first)';
+    const dateNote = `\n\nDATE ORDER: To decide DD/MM vs MM/DD, use evidence from the ` +
+      `document itself FIRST — the report's language/country, any day number greater ` +
+      `than 12, and spelled-out month names all reveal the true order. Only if a date ` +
+      `is still genuinely ambiguous, assume the app user's regional convention: ` +
+      `${userConvention}. Never fall back to today's date just because the order is ` +
+      `ambiguous — always output the printed date in that best-guess order.`;
+
     const pdfBase64 = body?.pdf_base64;
     const imageBase64 = body?.image_base64;
     const isPdf = typeof pdfBase64 === 'string' && pdfBase64.length > 0;
@@ -168,7 +188,7 @@ Deno.serve(async (req) => {
               sourceBlock,
               {
                 type: 'text',
-                text: isVaccines ? VACCINE_PROMPT : EXTRACTION_PROMPT,
+                text: (isVaccines ? VACCINE_PROMPT : EXTRACTION_PROMPT) + dateNote,
               },
             ],
           },
