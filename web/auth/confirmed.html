@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Email confirmed — DoseTrace</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #14171c; --muted: #5b6270;
+    --accent: #185FA5; --accent-text: #ffffff; --border: rgba(0,0,0,.08);
+    --ok: #1f9254;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1013; --card: #171a1f; --text: #f2f4f7; --muted: #9aa3b2;
+      --accent: #4b91dd; --accent-text: #08111c; --border: rgba(255,255,255,.10);
+      --ok: #43c07c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .card {
+    width: 100%; max-width: 440px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px 28px; text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06);
+  }
+  .mark {
+    width: 56px; height: 56px; margin: 0 auto 18px; border-radius: 50%;
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark svg { width: 30px; height: 30px; stroke: var(--ok); }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  p { margin: 0 0 18px; color: var(--muted); font-size: 15px; }
+  .btn {
+    display: inline-block; width: 100%; padding: 14px 18px; border-radius: 11px;
+    background: var(--accent); color: var(--accent-text); text-decoration: none;
+    font-weight: 600; font-size: 16px; border: 0; cursor: pointer;
+  }
+  .hint { margin: 16px 0 0; font-size: 13px; color: var(--muted); }
+  .brand { margin-top: 24px; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </div>
+    <h1 id="title">Email confirmed</h1>
+    <p id="body">Your email address is verified. Open DoseTrace to sign in and start tracking.</p>
+    <a class="btn" id="open" href="#">Open DoseTrace</a>
+    <p class="hint" id="hint">On a computer? Open the DoseTrace app on your phone and sign in — nothing else to do here.</p>
+    <div class="brand">DOSETRACE</div>
+  </main>
+
+<script>
+(function () {
+  // Forward whatever Supabase appended (PKCE ?code=… or a #fragment) into the
+  // app's deep link, so the app can finish the exchange if it opens.
+  function deepLink() {
+    var search = window.location.search.replace(/^\?/, '');
+    var hash = window.location.hash.replace(/^#/, '');
+    var q = search || hash;
+    return 'dosetrace://confirm-email' + (q ? '?' + q : '');
+  }
+
+  var STR = {
+    en: { t: 'Email confirmed', b: 'Your email address is verified. Open DoseTrace to sign in and start tracking.', o: 'Open DoseTrace', h: 'On a computer? Open the DoseTrace app on your phone and sign in — nothing else to do here.' },
+    es: { t: 'Correo confirmado', b: 'Tu correo está verificado. Abre DoseTrace para iniciar sesión y empezar.', o: 'Abrir DoseTrace', h: '¿Estás en una computadora? Abre la app DoseTrace en tu teléfono e inicia sesión — no hay nada más que hacer aquí.' },
+    pt: { t: 'E-mail confirmado', b: 'Seu e-mail foi verificado. Abra o DoseTrace para entrar e começar.', o: 'Abrir o DoseTrace', h: 'Está no computador? Abra o app DoseTrace no seu celular e entre — não é preciso fazer mais nada aqui.' },
+    fr: { t: 'E-mail confirmé', b: 'Votre e-mail est vérifié. Ouvrez DoseTrace pour vous connecter et commencer.', o: 'Ouvrir DoseTrace', h: 'Sur un ordinateur ? Ouvrez l’app DoseTrace sur votre téléphone et connectez-vous — rien d’autre à faire ici.' },
+    de: { t: 'E-Mail bestätigt', b: 'Deine E-Mail-Adresse ist bestätigt. Öffne DoseTrace, um dich anzumelden.', o: 'DoseTrace öffnen', h: 'Am Computer? Öffne die DoseTrace-App auf deinem Handy und melde dich an — hier ist nichts weiter zu tun.' },
+    it: { t: 'Email confermata', b: 'La tua email è verificata. Apri DoseTrace per accedere e iniziare.', o: 'Apri DoseTrace', h: 'Sei al computer? Apri l’app DoseTrace sul telefono e accedi — qui non serve altro.' }
+  };
+
+  var lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+  var s = STR[lang] || STR.en;
+  document.documentElement.lang = STR[lang] ? lang : 'en';
+  document.getElementById('title').textContent = s.t;
+  document.getElementById('body').textContent = s.b;
+  document.getElementById('open').textContent = s.o;
+  document.getElementById('hint').textContent = s.h;
+  document.title = s.t + ' — DoseTrace';
+
+  var link = deepLink();
+  document.getElementById('open').setAttribute('href', link);
+
+  // On a phone, jump straight into the app. On desktop the scheme can't open,
+  // so we just leave the message on screen.
+  if (/iphone|ipad|ipod|android/i.test(navigator.userAgent)) {
+    setTimeout(function () { window.location.href = link; }, 700);
+  }
+})();
+</script>
+</body>
+</html>

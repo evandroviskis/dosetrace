@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Reset your password — DoseTrace</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #14171c; --muted: #5b6270;
+    --accent: #185FA5; --accent-text: #ffffff; --border: rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1013; --card: #171a1f; --text: #f2f4f7; --muted: #9aa3b2;
+      --accent: #4b91dd; --accent-text: #08111c; --border: rgba(255,255,255,.10);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .card {
+    width: 100%; max-width: 440px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px 28px; text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06);
+  }
+  .mark {
+    width: 56px; height: 56px; margin: 0 auto 18px; border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark svg { width: 28px; height: 28px; stroke: var(--accent); }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  p { margin: 0 0 18px; color: var(--muted); font-size: 15px; }
+  .btn {
+    display: inline-block; width: 100%; padding: 14px 18px; border-radius: 11px;
+    background: var(--accent); color: var(--accent-text); text-decoration: none;
+    font-weight: 600; font-size: 16px; border: 0; cursor: pointer;
+  }
+  .hint { margin: 16px 0 0; font-size: 13px; color: var(--muted); }
+  .brand { margin-top: 24px; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h1 id="title">Reset your password</h1>
+    <p id="body">Open DoseTrace to choose a new password. This link opens the app.</p>
+    <a class="btn" id="open" href="#">Open DoseTrace</a>
+    <p class="hint" id="hint">On a computer? Open this same email on the phone where DoseTrace is installed — the new password is set inside the app.</p>
+    <div class="brand">DOSETRACE</div>
+  </main>
+
+<script>
+(function () {
+  // The PKCE ?code=… (or #fragment) must reach the app — it's what authorises
+  // the password change — so forward the whole query into the deep link.
+  function deepLink() {
+    var search = window.location.search.replace(/^\?/, '');
+    var hash = window.location.hash.replace(/^#/, '');
+    var q = search || hash;
+    return 'dosetrace://reset-password' + (q ? '?' + q : '');
+  }
+
+  var STR = {
+    en: { t: 'Reset your password', b: 'Open DoseTrace to choose a new password. This link opens the app.', o: 'Open DoseTrace', h: 'On a computer? Open this same email on the phone where DoseTrace is installed — the new password is set inside the app.' },
+    es: { t: 'Restablece tu contraseña', b: 'Abre DoseTrace para elegir una nueva contraseña. Este enlace abre la app.', o: 'Abrir DoseTrace', h: '¿Estás en una computadora? Abre este mismo correo en el teléfono donde tienes DoseTrace — la contraseña se cambia dentro de la app.' },
+    pt: { t: 'Redefina sua senha', b: 'Abra o DoseTrace para escolher uma nova senha. Este link abre o app.', o: 'Abrir o DoseTrace', h: 'Está no computador? Abra este mesmo e-mail no celular onde o DoseTrace está instalado — a nova senha é definida dentro do app.' },
+    fr: { t: 'Réinitialisez votre mot de passe', b: 'Ouvrez DoseTrace pour choisir un nouveau mot de passe. Ce lien ouvre l’app.', o: 'Ouvrir DoseTrace', h: 'Sur un ordinateur ? Ouvrez ce même e-mail sur le téléphone où DoseTrace est installé — le mot de passe se change dans l’app.' },
+    de: { t: 'Passwort zurücksetzen', b: 'Öffne DoseTrace, um ein neues Passwort zu wählen. Dieser Link öffnet die App.', o: 'DoseTrace öffnen', h: 'Am Computer? Öffne dieselbe E-Mail auf dem Handy, auf dem DoseTrace installiert ist — das neue Passwort wird in der App gesetzt.' },
+    it: { t: 'Reimposta la password', b: 'Apri DoseTrace per scegliere una nuova password. Questo link apre l’app.', o: 'Apri DoseTrace', h: 'Sei al computer? Apri questa stessa email sul telefono dove hai DoseTrace — la nuova password si imposta nell’app.' }
+  };
+
+  var lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+  var s = STR[lang] || STR.en;
+  document.documentElement.lang = STR[lang] ? lang : 'en';
+  document.getElementById('title').textContent = s.t;
+  document.getElementById('body').textContent = s.b;
+  document.getElementById('open').textContent = s.o;
+  document.getElementById('hint').textContent = s.h;
+  document.title = s.t + ' — DoseTrace';
+
+  var link = deepLink();
+  document.getElementById('open').setAttribute('href', link);
+
+  if (/iphone|ipad|ipod|android/i.test(navigator.userAgent)) {
+    setTimeout(function () { window.location.href = link; }, 700);
+  }
+})();
+</script>
+</body>
+</html>
