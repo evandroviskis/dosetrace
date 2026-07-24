@@ -13,8 +13,38 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase, signInWithGoogle, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
+import { supabase, signInWithGoogle, signInWithApple, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
+// Apple's native module doesn't exist on Android, and importing it at module
+// scope crashes there (same class of bug as expo-print). Resolve it lazily, and
+// only on iOS, so the button simply doesn't render anywhere else.
+let _appleAuth;
+function getAppleAuth() {
+  if (Platform.OS !== 'ios') return null;
+  if (_appleAuth === undefined) {
+    try { _appleAuth = require('expo-apple-authentication'); } catch { _appleAuth = null; }
+  }
+  return _appleAuth;
+}
+
+/** Apple's own button — Guideline 4.8 requires their official styling. */
+function AppleSignInButton({ onPress, isDark, style }) {
+  const AA = getAppleAuth();
+  if (!AA?.AppleAuthenticationButton) return null;
+  return (
+    <AA.AppleAuthenticationButton
+      buttonType={AA.AppleAuthenticationButtonType.SIGN_IN}
+      buttonStyle={
+        isDark
+          ? AA.AppleAuthenticationButtonStyle.WHITE
+          : AA.AppleAuthenticationButtonStyle.BLACK
+      }
+      cornerRadius={12}
+      style={style}
+      onPress={onPress}
+    />
+  );
+}
 import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -35,7 +65,7 @@ const MONTH_KEYS = [
 
 export default function OnboardingScreen() {
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
@@ -82,6 +112,17 @@ export default function OnboardingScreen() {
       Alert.alert(t('error'), friendlyError(error, t));
     }
     // If successful, App.js auth listener will pick up the session automatically
+  }
+
+  async function handleAppleSignIn() {
+    setLoading(true);
+    const { error, canceled } = await signInWithApple();
+    setLoading(false);
+    if (canceled) return; // user dismissed the sheet — not an error
+    if (error) {
+      Alert.alert(t('error'), friendlyError(error, t));
+    }
+    // Success → App.js auth listener picks up the session
   }
 
   async function handleForgotPassword() {
@@ -326,6 +367,13 @@ export default function OnboardingScreen() {
                 {loading ? t('loading') : t('onboarding_google_signin')}
               </Text>
             </TouchableOpacity>
+
+            {/* Sign in with Apple — required by Guideline 4.8 alongside Google */}
+            <AppleSignInButton
+              onPress={handleAppleSignIn}
+              isDark={isDark}
+              style={s.appleBtn}
+            />
 
             <View style={s.orDivider}>
               <View style={s.orLine} />
@@ -582,6 +630,13 @@ export default function OnboardingScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Sign in with Apple — required by Guideline 4.8 alongside Google */}
+            <AppleSignInButton
+              onPress={handleAppleSignIn}
+              isDark={isDark}
+              style={s.appleBtn}
+            />
+
             <View style={s.orDivider}>
               <View style={s.orLine} />
               <Text style={s.orText}>{t('onboarding_or')}</Text>
@@ -822,6 +877,8 @@ const makeStyles = (c) => StyleSheet.create({
   profileDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 16, marginBottom: 8, lineHeight: 16 },
   // Google Sign-In button
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card, marginBottom: 16, gap: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 2 },
+  // Apple renders its own label/icon; height must be explicit for the native button.
+  appleBtn: { height: 52, marginBottom: 16 },
   googleBtnIcon: { fontSize: 20, fontWeight: '700', color: '#4285F4' },
   googleBtnText: { fontSize: 16, fontWeight: '600', color: c.text },
   // OR divider
