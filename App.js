@@ -3,9 +3,9 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, completePasswordResetFromUrl } from './lib/supabase';
+import { supabase, exchangeAuthCodeFromUrl } from './lib/supabase';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications } from './lib/notifications';
@@ -159,8 +159,18 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone }) {
+function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown }) {
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
+
+  // Signup confirmation came back through the deep link — the user has no other
+  // way to know it worked, so say so explicitly.
+  useEffect(() => {
+    if (!justConfirmed) return;
+    Alert.alert(t('confirm_email_done_title'), t('confirm_email_done_msg'));
+    onConfirmedShown && onConfirmedShown();
+  }, [justConfirmed]);
+
   const base = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
     ...base,
@@ -207,17 +217,27 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
+  const [justConfirmed, setJustConfirmed] = useState(false);
   const navigationRef = useRef(null);
 
-  // Password-reset deep link (dosetrace://reset-password?code=…). Exchange the
-  // PKCE code for a session, then flag recovery so the set-new-password screen
-  // is shown instead of dropping the user straight into the app.
+  // Auth deep links from emailed links. Both carry a PKCE `code` that must be
+  // exchanged for a session:
+  //   dosetrace://reset-password  → show the set-new-password screen
+  //   dosetrace://confirm-email   → signup confirmed, tell the user so
+  // Without these the links fall back to the Site URL (dosetrace.io) and the
+  // user dead-ends on the marketing site.
   useEffect(() => {
     let cancelled = false;
     const handleUrl = async (url) => {
-      if (!url || !String(url).includes('reset-password')) return;
-      const { ok } = await completePasswordResetFromUrl(url);
-      if (ok && !cancelled) setRecovering(true);
+      if (!url) return;
+      const u = String(url);
+      const isReset = u.includes('reset-password');
+      const isConfirm = u.includes('confirm-email');
+      if (!isReset && !isConfirm) return;
+      const { ok } = await exchangeAuthCodeFromUrl(u);
+      if (!ok || cancelled) return;
+      if (isReset) setRecovering(true);
+      else setJustConfirmed(true);
     };
     Linking.getInitialURL().then(handleUrl).catch(() => {});
     const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
@@ -332,6 +352,8 @@ export default function App() {
             navigationRef={navigationRef}
             recovering={recovering}
             onRecoveryDone={() => setRecovering(false)}
+            justConfirmed={justConfirmed}
+            onConfirmedShown={() => setJustConfirmed(false)}
           />
         </ThemeProvider>
       </LanguageProvider>

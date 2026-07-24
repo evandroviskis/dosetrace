@@ -13,7 +13,7 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase, signInWithGoogle, sendPasswordReset } from '../lib/supabase';
+import { supabase, signInWithGoogle, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
@@ -133,6 +133,9 @@ export default function OnboardingScreen() {
         email: email.trim(),
         password: password.trim(),
         options: {
+          // Without this the confirmation email links to the Site URL
+          // (dosetrace.io) and the user gets no "confirmed" feedback.
+          emailRedirectTo: emailConfirmRedirectUrl(),
           data: {
             tracking_types: selectedTypes,
             onboarded_at: new Date().toISOString(),
