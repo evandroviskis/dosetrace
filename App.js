@@ -3,9 +3,10 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './lib/supabase';
+import { supabase, completePasswordResetFromUrl } from './lib/supabase';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications } from './lib/notifications';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -158,7 +159,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef }) {
+function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone }) {
   const { colors, isDark } = useTheme();
   const base = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
@@ -176,7 +177,14 @@ function ThemedRoot({ session, navigationRef }) {
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!session ? (
+        {recovering ? (
+          // Opened from a password-reset email: force the set-new-password step
+          // even though the code exchange already created a session, so the user
+          // can't be silently dropped into the app with the old password.
+          <Stack.Screen name="ResetPassword">
+            {() => <ResetPasswordScreen onDone={onRecoveryDone} />}
+          </Stack.Screen>
+        ) : !session ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : (
           <Stack.Screen name="Main" component={MainStack} />
@@ -198,7 +206,23 @@ function ThemedLoading() {
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
   const navigationRef = useRef(null);
+
+  // Password-reset deep link (dosetrace://reset-password?code=…). Exchange the
+  // PKCE code for a session, then flag recovery so the set-new-password screen
+  // is shown instead of dropping the user straight into the app.
+  useEffect(() => {
+    let cancelled = false;
+    const handleUrl = async (url) => {
+      if (!url || !String(url).includes('reset-password')) return;
+      const { ok } = await completePasswordResetFromUrl(url);
+      if (ok && !cancelled) setRecovering(true);
+    };
+    Linking.getInitialURL().then(handleUrl).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => { cancelled = true; sub.remove(); };
+  }, []);
 
   useEffect(() => {
     // Initialize local SQLite database
@@ -303,7 +327,12 @@ export default function App() {
     <ErrorBoundary>
       <LanguageProvider>
         <ThemeProvider>
-          <ThemedRoot session={session} navigationRef={navigationRef} />
+          <ThemedRoot
+            session={session}
+            navigationRef={navigationRef}
+            recovering={recovering}
+            onRecoveryDone={() => setRecovering(false)}
+          />
         </ThemeProvider>
       </LanguageProvider>
     </ErrorBoundary>

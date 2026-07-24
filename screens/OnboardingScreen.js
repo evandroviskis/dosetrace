@@ -13,7 +13,7 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase, signInWithGoogle } from '../lib/supabase';
+import { supabase, signInWithGoogle, sendPasswordReset } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
@@ -91,7 +91,9 @@ export default function OnboardingScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
+    // Sends a link that deep-links back INTO the app (see sendPasswordReset) —
+    // not to the marketing site, which has no reset form.
+    const { error } = await sendPasswordReset(trimmed);
     setLoading(false);
     if (error) {
       Alert.alert(t('error'), friendlyError(error, t));
