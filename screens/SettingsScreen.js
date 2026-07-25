@@ -360,7 +360,11 @@ export default function SettingsScreen({ navigation }) {
           // Best-effort: push this user's pending changes before local data
           // is wiped by the SIGNED_OUT handler.
           try { await forceSync(); } catch (e) { /* best effort */ }
-          await supabase.auth.signOut();
+          // scope:'local' clears the session on-device without a network round-trip,
+          // so sign-out never stalls on a slow/invalid token — it just fires
+          // SIGNED_OUT, which routes back to the welcome screen.
+          try { await supabase.auth.signOut({ scope: 'local' }); }
+          catch { await supabase.auth.signOut().catch(() => {}); }
         },
       },
     ]);
@@ -414,10 +418,12 @@ export default function SettingsScreen({ navigation }) {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || t('error_deletion_failed'));
 
-      // Clear local data and sign out
+      // Clear local data and sign out (local scope — the auth account is already
+      // deleted server-side, so no global revoke is needed).
       stopSyncEngine();
       clearLocalDatabase();
-      await supabase.auth.signOut();
+      try { await supabase.auth.signOut({ scope: 'local' }); }
+      catch { await supabase.auth.signOut().catch(() => {}); }
     } catch (e) {
       Alert.alert(t('error'), friendlyError(e, t, 'error_deletion_failed'));
     }

@@ -295,34 +295,47 @@ export default function App() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
+    // IMPORTANT: keep this callback SYNCHRONOUS and update state FIRST, then defer
+    // all side-effects. Supabase holds an internal lock while this runs, and doing
+    // async work / calling supabase methods inline deadlocks the client — which is
+    // why signing out cleared the data but never routed back to the welcome screen.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session); // drives the navigator (null → Onboarding) immediately
+
       if (_event === 'SIGNED_OUT') {
-        // Stop sync FIRST so no final sync runs, then wipe local health data —
-        // otherwise user A's unsynced logs would upload into user B's account.
-        stopSyncEngine();
-        try { clearLocalDatabase(); } catch { /* ignore */ }
-        cancelAllNotifications().catch(() => {});
-        // Reset RevenueCat identity so the next sign-in doesn't inherit it
-        logOutPurchases().catch(() => {});
+        // Run OUTSIDE the auth lock so the re-render to Onboarding commits first.
+        setTimeout(() => {
+          // Stop sync FIRST so no final sync runs, then wipe local health data —
+          // otherwise user A's unsynced logs would upload into user B's account.
+          stopSyncEngine();
+          try { clearLocalDatabase(); } catch { /* ignore */ }
+          cancelAllNotifications().catch(() => {});
+          // Reset RevenueCat identity so the next sign-in doesn't inherit it
+          logOutPurchases().catch(() => {});
+        }, 0);
       }
+
       if (_event === 'SIGNED_IN' && session?.user?.id) {
-        initPurchases(session.user.id, session?.user?.email).catch(() => {});
-        startSyncEngine();
-        // Redeem a referral code stashed at signup (idempotent, needs a session)
-        redeemPendingReferral().catch(() => {});
+        // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
+        // run inline in this callback.
+        setTimeout(async () => {
+          initPurchases(session.user.id, session?.user?.email).catch(() => {});
+          startSyncEngine();
+          // Redeem a referral code stashed at signup (idempotent, needs a session)
+          redeemPendingReferral().catch(() => {});
 
-        // Import from cloud on sign-in if local DB is empty
-        if (isLocalDBEmpty(session.user.id)) {
-          await fullImportFromCloud();
-        } else {
-          requestSync();
-        }
+          // Import from cloud on sign-in if local DB is empty
+          if (isLocalDBEmpty(session.user.id)) {
+            await fullImportFromCloud();
+          } else {
+            requestSync();
+          }
 
-        // Schedule reminders AFTER the import so they reflect the user's data
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
-          .catch(() => {});
+          // Schedule reminders AFTER the import so they reflect the user's data
+          requestNotificationPermissions()
+            .then(() => syncAllNotifications())
+            .catch(() => {});
+        }, 0);
       }
     });
 
