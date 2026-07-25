@@ -46,7 +46,6 @@ function AppleSignInButton({ onPress, isDark, style }) {
   );
 }
 import { Analytics } from '../lib/analytics';
-import { storePendingReferral, redeemPendingReferral } from '../lib/referrals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
@@ -74,7 +73,6 @@ export default function OnboardingScreen() {
   const [isSignIn, setIsSignIn] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [referralCode, setReferralCode] = useState('');
   const [consentGiven, setConsentGiven] = useState(false);
   // GDPR: analytics is opt-IN for a health app — default off
   const [analyticsConsent, setAnalyticsConsent] = useState(false);
@@ -198,11 +196,7 @@ export default function OnboardingScreen() {
     setLoading(false);
     if (result.error) {
       Alert.alert(t('error'), friendlyError(result.error, t));
-    } else if (isSignIn) {
-      // Session exists now — redeem any pending referral / ensure own code.
-      // Best effort; App.js also runs this on SIGNED_IN.
-      redeemPendingReferral().catch(() => {});
-    } else {
+    } else if (!isSignIn) {
       // Supabase obfuscates duplicate signups: it returns a user with an
       // empty identities array instead of an error. Guide the user to sign in.
       const identities = result.data?.user?.identities;
@@ -213,17 +207,10 @@ export default function OnboardingScreen() {
         setPassword('');
         return;
       }
-      // With email confirmation enabled there is no session yet, so referral
-      // writes would fail RLS. Stash the code; redeemPendingReferral() runs
-      // once the user signs in with a real session.
-      if (referralCode.trim().length === 6) {
-        await storePendingReferral(referralCode.trim());
-      }
       Analytics.onboardingCompleted({
         trackingTypes: selectedTypes,
         language,
         region: Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone || null,
-        referral_code: referralCode.trim() || null,
       });
       // Show confirmation message instead of staying on the form
       setSignupDone(true);
@@ -710,20 +697,6 @@ export default function OnboardingScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <View style={s.referralRow}>
-              <Text style={s.referralLabel}>{t('referral_enter_code')}</Text>
-              <TextInput
-                style={[s.input, s.referralInput]}
-                placeholder={t('referral_enter_placeholder')}
-                placeholderTextColor={colors.textFaint}
-                value={referralCode}
-                onChangeText={(text) => setReferralCode(text.toUpperCase().slice(0, 6))}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={6}
-              />
-              <Text style={s.referralHint}>{t('referral_optional')}</Text>
-            </View>
             <TouchableOpacity
               style={[s.primaryBtn, loading && { opacity: 0.6 }]}
               onPress={handleAuth}
@@ -848,10 +821,6 @@ const makeStyles = (c) => StyleSheet.create({
   input: { borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, marginBottom: 14, backgroundColor: c.card2 },
   switchBtn: { padding: 12, alignItems: 'center' },
   switchBtnText: { fontSize: 14, color: c.accent },
-  referralRow: { marginBottom: 4, marginTop: 8, padding: 14, backgroundColor: c.card2, borderRadius: 12, borderWidth: 0.5, borderColor: c.border },
-  referralLabel: { fontSize: 14, fontWeight: '600', color: c.textMuted, marginBottom: 8 },
-  referralInput: { marginBottom: 4, letterSpacing: 2, fontWeight: '600', fontSize: 16, backgroundColor: c.card },
-  referralHint: { fontSize: 12, color: c.textFaint, marginBottom: 4, marginTop: 2 },
   // Consent
   consentCard: { backgroundColor: c.card2, borderRadius: 14, padding: 18, marginBottom: 20, borderWidth: 0.5, borderColor: c.border },
   consentSectionTitle: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 8 },

@@ -13,7 +13,6 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
 import { initDatabase, clearLocalDatabase } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
-import { redeemPendingReferral } from './lib/referrals';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -321,8 +320,6 @@ export default function App() {
         setTimeout(async () => {
           initPurchases(session.user.id, session?.user?.email).catch(() => {});
           startSyncEngine();
-          // Redeem a referral code stashed at signup (idempotent, needs a session)
-          redeemPendingReferral().catch(() => {});
 
           // Import from cloud on sign-in if local DB is empty
           if (isLocalDBEmpty(session.user.id)) {

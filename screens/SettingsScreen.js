@@ -15,13 +15,11 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
-import { getMyReferralCode, getReferralStats, createReferralCode } from '../lib/referrals';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
@@ -31,7 +29,6 @@ import {
 } from '../lib/database';
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
 import { isPremium } from '../lib/purchases';
-import { Analytics } from '../lib/analytics';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
@@ -85,10 +82,6 @@ export default function SettingsScreen({ navigation }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [myReferralCode, setMyReferralCode] = useState(null);
-  const [referralCount, setReferralCount] = useState(0);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [hasCredit, setHasCredit] = useState(false);
   const [premium, setPremium] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -150,15 +143,6 @@ export default function SettingsScreen({ navigation }) {
     // Real subscription status (non-throwing; defaults to false on failure)
     isPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
-      // Fetch or create referral code
-      let code = await getMyReferralCode(user.id);
-      if (!code) {
-        code = await createReferralCode(user.id);
-      }
-      setMyReferralCode(code);
-      const stats = await getReferralStats(user.id);
-      setReferralCount(stats.referralCount);
-      setHasCredit((user.user_metadata?.bloodwork_credits || 0) > 0);
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
       setCheckinReminders(user.user_metadata?.checkin_reminders !== false);
@@ -332,22 +316,6 @@ export default function SettingsScreen({ navigation }) {
       Alert.alert(t('error'), friendlyError(e, t));
     }
     setExporting(false);
-  }
-
-  async function handleCopyCode() {
-    if (!myReferralCode) return;
-    await Clipboard.setStringAsync(myReferralCode);
-    setCodeCopied(true);
-    setTimeout(() => setCodeCopied(false), 2000);
-  }
-
-  async function handleShareReferral() {
-    if (!myReferralCode) return;
-    const message = t('referral_share_message').replace('{code}', myReferralCode);
-    try {
-      await Share.share({ message });
-      Analytics.referralShared(myReferralCode);
-    } catch (e) { /* cancelled */ }
   }
 
   async function handleSignOut() {
@@ -549,37 +517,6 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         )}
-
-        {/* REFERRAL PROGRAM */}
-        <View style={s.referralCard}>
-          <Text style={s.referralTitle}>{t('referral_title')}</Text>
-          <Text style={s.referralSub}>{t('referral_subtitle')}</Text>
-          {hasCredit && (
-            <View style={s.referralCreditBanner}>
-              <Text style={s.referralCreditText}>{t('referral_credit')}</Text>
-            </View>
-          )}
-          {myReferralCode && (
-            <>
-              <Text style={s.referralCodeLabel}>{t('referral_your_code')}</Text>
-              <View style={s.referralCodeRow}>
-                <Text style={s.referralCodeText}>{myReferralCode}</Text>
-                <TouchableOpacity style={s.referralCopyBtn} onPress={handleCopyCode}>
-                  <Text style={s.referralCopyBtnText}>
-                    {codeCopied ? t('referral_copied') : t('referral_copy')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={s.referralStatsRow}>
-                <Text style={s.referralStatsLabel}>{t('referral_stats')}</Text>
-                <Text style={s.referralStatsValue}>{referralCount}</Text>
-              </View>
-              <TouchableOpacity style={s.referralShareBtn} onPress={handleShareReferral}>
-                <Text style={s.referralShareBtnText}>{t('referral_share')}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
 
         {/* NOTIFICATIONS */}
         {renderSectionHeader('settings_notifications', 'notifications')}
@@ -1214,22 +1151,6 @@ const makeStyles = (c) => StyleSheet.create({
   themePillOn: { backgroundColor: c.accent, borderColor: c.accent },
   themePillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   themePillTextOn: { color: c.accentText, fontWeight: '600' },
-  // Referral
-  referralCard: { marginHorizontal: 16, marginTop: 8, marginBottom: 8, padding: 18, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.accent },
-  referralTitle: { fontSize: 16, fontWeight: '700', color: c.accent, marginBottom: 4 },
-  referralSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
-  referralCreditBanner: { backgroundColor: c.successSoft, padding: 10, borderRadius: 8, marginBottom: 14 },
-  referralCreditText: { fontSize: 13, fontWeight: '600', color: c.successSoftText, textAlign: 'center' },
-  referralCodeLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 6 },
-  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  referralCodeText: { fontSize: 28, fontWeight: '700', color: c.text, letterSpacing: 6 },
-  referralCopyBtn: { backgroundColor: c.accentSoft, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  referralCopyBtnText: { fontSize: 12, fontWeight: '600', color: c.accent },
-  referralStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: c.border, marginBottom: 12 },
-  referralStatsLabel: { fontSize: 13, color: c.textMuted },
-  referralStatsValue: { fontSize: 18, fontWeight: '700', color: c.accent },
-  referralShareBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 10, alignItems: 'center' },
-  referralShareBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
