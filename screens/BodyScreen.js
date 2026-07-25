@@ -620,6 +620,21 @@ export default function BodyScreen({ navigation }) {
               </TouchableOpacity>
             ))}
 
+            {/* Coming soon — dose-accumulation model (Premium, future feature). Not tappable yet. */}
+            <View style={[s.hubCard, s.hubCardSoon]}>
+              <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
+                <Text style={s.hubBadgeIcon}>📈</Text>
+              </View>
+              <View style={s.hubCardMain}>
+                <View style={s.soonRow}>
+                  <Text style={[s.hubCardTitle, { marginBottom: 0 }]}>{t('body_card_dosing_title')}</Text>
+                  <View style={s.soonPill}><Text style={s.soonPillText}>{t('coming_soon')}</Text></View>
+                </View>
+                <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
+                <Text style={s.hubCardStat}>{t('paywall_premium')}</Text>
+              </View>
+            </View>
+
             <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
             <View style={{ height: 30 }} />
           </View>
@@ -1171,6 +1186,10 @@ const makeStyles = (c) => StyleSheet.create({
   hubCardDesc: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
   hubCardStat: { fontSize: 12, color: c.accent, fontWeight: '600', marginTop: 8 },
   hubCardChevron: { fontSize: 24, color: c.textFaint, marginLeft: 8 },
+  hubCardSoon: { borderStyle: 'dashed', borderWidth: 1, borderColor: c.accent, opacity: 0.9 },
+  soonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' },
+  soonPill: { backgroundColor: c.accentSoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  soonPillText: { fontSize: 10, fontWeight: '700', color: c.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
   hubFootnote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, textAlign: 'center', paddingHorizontal: 8 },
   uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
   uploadingText: { fontSize: 13, color: c.accent },
