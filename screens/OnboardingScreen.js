@@ -104,12 +104,20 @@ export default function OnboardingScreen() {
 
   async function handleGoogleSignIn() {
     setLoading(true);
-    const { error } = await signInWithGoogle();
-    setLoading(false);
-    if (error) {
-      Alert.alert(t('error'), friendlyError(error, t));
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        // During internal/TestFlight testing, surface the raw detail so a failed
+        // Google sign-in names the exact step that broke instead of a generic
+        // message. (Revert to friendlyError once the flow is confirmed working.)
+        Alert.alert(t('error'), error.message || friendlyError(error, t));
+      }
+      // If successful, App.js auth listener will pick up the session automatically
+    } catch (e) {
+      Alert.alert(t('error'), friendlyError(e, t));
+    } finally {
+      setLoading(false);
     }
-    // If successful, App.js auth listener will pick up the session automatically
   }
 
   async function handleAppleSignIn() {
