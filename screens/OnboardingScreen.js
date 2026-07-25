@@ -105,7 +105,8 @@ export default function OnboardingScreen() {
   async function handleGoogleSignIn() {
     setLoading(true);
     try {
-      const { error } = await signInWithGoogle();
+      const { error, canceled } = await signInWithGoogle();
+      if (canceled) return; // user backed out of the picker — not an error
       if (error) {
         // During internal/TestFlight testing, surface the raw detail so a failed
         // Google sign-in names the exact step that broke instead of a generic
