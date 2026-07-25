@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -33,7 +34,7 @@ import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 
-const APPLE_APP_ID = '6761788157'; // TODO: insert real Apple app id
+const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
 
 const MONTH_KEYS = [
@@ -814,7 +815,7 @@ export default function SettingsScreen({ navigation }) {
         )}
 
         <Text style={s.version}>
-          {t('settings_version')}{'\n'}
+          {`DoseTrace v${Constants.expoConfig?.version || '1.0.0'}`}{'\n'}
           {t('settings_not_medical')}
         </Text>
 
