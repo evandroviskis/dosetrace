@@ -2845,7 +2845,7 @@ export const translations = {
     settings_delete_final_msg: 'Esta é sua última chance. Sua conta e todos os dados associados serão permanentemente excluídos.',
     settings_delete_final_confirm: 'Sim, excluir tudo',
     settings_send_email: 'Enviar e-mail',
-    settings_recently_deleted: 'PROTOCOLOS DELETADOS RECENTEMENTE',
+    settings_recently_deleted: 'PROTOCOLOS EXCLUÍDOS RECENTEMENTE',
     settings_delete_forever: "Excluir para sempre",
     settings_delete_protocol_title: "Excluir permanentemente?",
     settings_delete_protocol_msg: "\"{name}\" será excluído permanentemente. Esta ação não pode ser desfeita.",
