@@ -40,6 +40,13 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // A table that was never created surfaces as 42P01 (Postgres "relation does
+    // not exist") OR PGRST205 (PostgREST "not found in schema cache", e.g.
+    // notification_preferences, which actually lives in user_metadata). Both mean
+    // there is nothing to delete there — tolerate them so cleanup never blocks
+    // the account deletion.
+    const tableMissing = (e) => e && (e.code === '42P01' || e.code === 'PGRST205');
+
     // Delete all of the user's health/app data BEFORE deleting the auth user,
     // as promised by the in-app privacy policy ("deletion of your account and
     // all associated data"). Ordered children-first to respect foreign keys:
@@ -57,8 +64,7 @@ Deno.serve(async (req) => {
 
     for (const table of userDataTables) {
       const { error: rowError } = await adminClient.from(table).delete().eq('user_id', user.id);
-      // 42P01 = relation does not exist — tolerate tables that were never created
-      if (rowError && rowError.code !== '42P01') {
+      if (rowError && !tableMissing(rowError)) {
         console.error(`[delete-user] failed on table "${table}":`, rowError.code, rowError.message);
         return new Response(
           JSON.stringify({ error: `Failed to delete ${table}: ${rowError.message}` }),
@@ -72,7 +78,7 @@ Deno.serve(async (req) => {
       .from('referrals')
       .delete()
       .or(`referrer_id.eq.${user.id},referred_id.eq.${user.id}`);
-    if (referralsError && referralsError.code !== '42P01') {
+    if (referralsError && !tableMissing(referralsError)) {
       console.error('[delete-user] failed on referrals:', referralsError.code, referralsError.message);
       return new Response(
         JSON.stringify({ error: `Failed to delete referrals: ${referralsError.message}` }),
