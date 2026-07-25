@@ -672,7 +672,7 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={s.switchBtn}
-              onPress={() => setIsSignIn(false)}
+              onPress={() => { setIsSignIn(false); setStep(5); }}
             >
               <Text style={s.switchBtnText}>{t('onboarding_create_account')}</Text>
             </TouchableOpacity>
