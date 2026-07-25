@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
+      console.error('[delete-user] invalid session:', userError?.message);
       return new Response(JSON.stringify({ error: 'Invalid session' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -58,6 +59,7 @@ Deno.serve(async (req) => {
       const { error: rowError } = await adminClient.from(table).delete().eq('user_id', user.id);
       // 42P01 = relation does not exist — tolerate tables that were never created
       if (rowError && rowError.code !== '42P01') {
+        console.error(`[delete-user] failed on table "${table}":`, rowError.code, rowError.message);
         return new Response(
           JSON.stringify({ error: `Failed to delete ${table}: ${rowError.message}` }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -71,6 +73,7 @@ Deno.serve(async (req) => {
       .delete()
       .or(`referrer_id.eq.${user.id},referred_id.eq.${user.id}`);
     if (referralsError && referralsError.code !== '42P01') {
+      console.error('[delete-user] failed on referrals:', referralsError.code, referralsError.message);
       return new Response(
         JSON.stringify({ error: `Failed to delete referrals: ${referralsError.message}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -81,6 +84,7 @@ Deno.serve(async (req) => {
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
 
     if (deleteError) {
+      console.error('[delete-user] admin.deleteUser failed:', deleteError.message);
       return new Response(JSON.stringify({ error: deleteError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -92,6 +96,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    console.error('[delete-user] unexpected error:', err?.message, err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
