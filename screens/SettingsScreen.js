@@ -394,7 +394,9 @@ export default function SettingsScreen({ navigation }) {
       try { await supabase.auth.signOut({ scope: 'local' }); }
       catch { await supabase.auth.signOut().catch(() => {}); }
     } catch (e) {
-      Alert.alert(t('error'), friendlyError(e, t, 'error_deletion_failed'));
+      // Surface the raw server detail during testing so a failed deletion names
+      // the exact edge-function error instead of a generic message.
+      Alert.alert(t('error'), e.message || friendlyError(e, t, 'error_deletion_failed'));
     }
   }
 
