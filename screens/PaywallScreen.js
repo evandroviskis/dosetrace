@@ -16,7 +16,6 @@ import {
   restorePurchases,
   isPremium,
   checkTrialEligibility,
-  PRODUCT_IDS,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
@@ -66,9 +65,12 @@ export default function PaywallScreen({ navigation, route }) {
     setLoading(false);
 
     // Trial eligibility (iOS-only API — null means unknown, show neutral copy)
-    const subIds = [PRODUCT_IDS.MONTHLY, PRODUCT_IDS.ANNUAL].filter(id =>
-      pkgs.some(p => p.product.identifier === id)
-    );
+    // Trial eligibility (iOS-only) is keyed by the real store product id, taken
+    // from the actual subscription packages (see getPackageFor note on Android
+    // base-plan suffixes).
+    const subIds = pkgs
+      .filter(p => p.packageType === 'MONTHLY' || p.packageType === 'ANNUAL')
+      .map(p => p.product.identifier);
     if (subIds.length > 0) {
       const eligibility = await checkTrialEligibility(subIds);
       setTrialEligibility(eligibility);
@@ -76,10 +78,14 @@ export default function PaywallScreen({ navigation, route }) {
   }
 
   function getPackageFor(type) {
-    const id = type === 'annual' ? PRODUCT_IDS.ANNUAL
-      : type === 'monthly' ? PRODUCT_IDS.MONTHLY
-      : PRODUCT_IDS.LIFETIME;
-    return packages.find(p => p.product.identifier === id);
+    // Match by RevenueCat packageType, NOT product.identifier. On Android a
+    // subscription's product.identifier carries its base-plan suffix
+    // (e.g. "monthly:p1m", "yearly:annual"), so matching the bare id hides every
+    // subscription and leaves only the suffix-less lifetime product visible.
+    const wanted = type === 'annual' ? 'ANNUAL'
+      : type === 'monthly' ? 'MONTHLY'
+      : 'LIFETIME';
+    return packages.find(p => p.packageType === wanted);
   }
 
   const annualPkg = getPackageFor('annual');
