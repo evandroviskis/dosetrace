@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -280,9 +281,12 @@ export default function PaywallScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
 
-            <Text style={s.legalNote}>
-              {trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial')}
-            </Text>
+            {hasSubscription && (
+              <Text style={s.legalNote}>
+                {(trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial'))
+                  .replace(/\{store\}/g, Platform.OS === 'ios' ? 'Apple ID' : 'Google Play')}
+              </Text>
+            )}
           </>
         )}
 
