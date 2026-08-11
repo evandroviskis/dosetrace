@@ -375,9 +375,9 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
             </View>
           )}
           {p.note ? (
-            <View style={s.detailRow}>
+            <View style={s.noteBlock}>
               <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
-              <Text style={s.detailVal}>{p.note}</Text>
+              <Text style={s.noteText}>{p.note}</Text>
             </View>
           ) : null}
 
@@ -1651,6 +1651,8 @@ const makeStyles = (c) => StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
   detailLabel: { fontSize: 12, color: c.textMuted },
   detailVal: { fontSize: 12, fontWeight: '500', color: c.text },
+  noteBlock: { paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  noteText: { fontSize: 13, color: c.text, marginTop: 3, lineHeight: 18 },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
   actionBtnText: { fontSize: 12, color: c.textMuted },
