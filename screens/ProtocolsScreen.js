@@ -11,6 +11,7 @@ import {
   Platform,
   FlatList,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -269,12 +270,21 @@ function ProtocolSyringeGuide({ p, t }) {
   );
 }
 
-function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, t }) {
+function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, t }) {
   const { colors } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const badge = getTypeBadge(p.type, t, colors);
   const isExpanded = expanded === p.id;
+
+  // Inline, editable note — saved straight from the card, no need to open Edit.
+  const [noteDraft, setNoteDraft] = useState(p.note || '');
+  useEffect(() => { setNoteDraft(p.note || ''); }, [p.note]);
+  const noteDirty = noteDraft !== (p.note || '');
+  const saveNote = () => {
+    Keyboard.dismiss();
+    onSaveNote(p.id, noteDraft);
+  };
   const vialDaysLeft = (p.type === 'recon' && vial)
     ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
     : null;
@@ -374,12 +384,27 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
               <Text style={s.detailVal}>{p.notes}</Text>
             </View>
           )}
-          {p.note ? (
-            <View style={s.noteBlock}>
-              <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
-              <Text style={s.noteText}>{p.note}</Text>
-            </View>
-          ) : null}
+          <View style={s.noteBlock}>
+            <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
+            <TextInput
+              style={s.noteEditBox}
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              placeholder={t('protocols_notes_placeholder')}
+              placeholderTextColor={colors.textFaint}
+              multiline
+            />
+            {noteDirty && (
+              <View style={s.noteEditActions}>
+                <TouchableOpacity onPress={() => setNoteDraft(p.note || '')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={s.noteCancelText}>{t('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.noteSaveBtn} onPress={saveNote}>
+                  <Text style={s.noteSaveText}>{t('save')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
           <ProtocolSyringeGuide p={p} t={t} />
 
@@ -878,11 +903,20 @@ export default function ProtocolsScreen() {
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
   const oralProtocols = protocols.filter(p => p.type === 'oral');
 
+  // Save an edited note straight from the card (inline), then refresh + sync.
+  function saveProtocolNote(id, note) {
+    const trimmed = (note || '').trim();
+    updateProtocol(id, { note: trimmed ? trimmed : null });
+    fetchProtocols();
+    requestSync();
+  }
+
   const renderCard = (p) => (
     <ProtocolCard
       key={p.id} p={p} vial={vialsByProtocol[p.id]}
       expanded={expanded} setExpanded={setExpanded}
       openEdit={openEdit} deleteProtocol={deleteProtocol}
+      onSaveNote={saveProtocolNote}
       t={t}
     />
   );
@@ -1652,7 +1686,11 @@ const makeStyles = (c) => StyleSheet.create({
   detailLabel: { fontSize: 12, color: c.textMuted },
   detailVal: { fontSize: 12, fontWeight: '500', color: c.text },
   noteBlock: { paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  noteText: { fontSize: 13, color: c.text, marginTop: 3, lineHeight: 18 },
+  noteEditBox: { marginTop: 6, minHeight: 56, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: c.text, backgroundColor: c.card2, textAlignVertical: 'top' },
+  noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 16 },
+  noteCancelText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8 },
+  noteSaveText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
   actionBtnText: { fontSize: 12, color: c.textMuted },
