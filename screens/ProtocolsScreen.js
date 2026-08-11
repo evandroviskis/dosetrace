@@ -302,6 +302,13 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   }
 
   const unitLabel = t(r.unitKey);
+  // Splittable (or whole, or continuous) → show the fraction as the answer.
+  // Otherwise the unit can't be divided, so explain what one whole unit holds.
+  const splittableOrWhole = !r.discrete || r.isWhole || r.splittable;
+  const containsMsg = t('protocols_serving_contains')
+    .replace('{strength}', r.perUnitDose)
+    .replace('{sunit}', p.dose_unit)
+    .replace('{ratio}', r.ratio);
   const containerUnits = parseFloat(p.container_units);
   const unitsTaken = parseFloat(p.units_taken) || 0;
   const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
@@ -310,14 +317,14 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   return (
     <View style={s.syringeWrap}>
       <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
-      <Text style={s.syringeSubtitle}>
-        {t('protocols_syringe_based_on')}{' '}
-        <Text style={{ fontWeight: '700', color: colors.accent }}>{r.unitsNeeded} {unitLabel}</Text>
-      </Text>
-
-      {r.discrete && !r.isWhole && !r.splittable && (
+      {splittableOrWhole ? (
+        <Text style={s.syringeSubtitle}>
+          {t('protocols_syringe_based_on')}{' '}
+          <Text style={{ fontWeight: '700', color: colors.accent }}>{r.unitsNeeded} {unitLabel}</Text>
+        </Text>
+      ) : (
         <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 8 }]}>
-          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>{t('protocols_serving_not_whole')}</Text>
+          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>{containsMsg}</Text>
         </View>
       )}
 
@@ -328,10 +335,12 @@ function ProtocolServingGuide({ p, t, onRefill }) {
       )}
 
       <View style={[s.syringeInfo, { marginTop: 12 }]}>
-        <View style={s.syringeInfoItem}>
-          <Text style={s.syringeInfoLabel}>{t('protocols_serving_take')}</Text>
-          <Text style={s.syringeInfoVal}>{r.unitsNeeded} {unitLabel}</Text>
-        </View>
+        {splittableOrWhole && (
+          <View style={s.syringeInfoItem}>
+            <Text style={s.syringeInfoLabel}>{t('protocols_serving_take')}</Text>
+            <Text style={s.syringeInfoVal}>{r.unitsNeeded} {unitLabel}</Text>
+          </View>
+        )}
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_serving_dose')}</Text>
           <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
@@ -567,6 +576,7 @@ export default function ProtocolsScreen() {
   const [servingStrengthUnit, setServingStrengthUnit] = useState('mg');
   const [servingUnits, setServingUnits] = useState('1');
   const [containerUnits, setContainerUnits] = useState('');
+  const [divisible, setDivisible] = useState(null); // null = unanswered, true/false = user's answer
   const [saving, setSaving] = useState(false);
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
@@ -709,7 +719,7 @@ export default function ProtocolsScreen() {
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
     setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
-    setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits('');
+    setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
@@ -799,6 +809,7 @@ export default function ProtocolsScreen() {
     setServingStrengthUnit(p.serving_strength_unit || 'mg');
     setServingUnits(p.serving_units != null ? String(p.serving_units) : '1');
     setContainerUnits(p.container_units != null ? String(p.container_units) : '');
+    setDivisible(p.divisible == null ? null : p.divisible === 1);
     setVialValidDays(String(p.vial_valid_days || DEFAULT_VALID_DAYS));
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
@@ -899,6 +910,7 @@ export default function ProtocolsScreen() {
         serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
         serving_units: type === 'oral' ? (parseFloat(servingUnits) || null) : null,
         container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
+        divisible: type === 'oral' ? divisible : null,
       });
       setSaving(false);
       scheduleDoseReminder({
@@ -940,6 +952,7 @@ export default function ProtocolsScreen() {
         serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
         serving_units: type === 'oral' ? (parseFloat(servingUnits) || null) : null,
         container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
+        divisible: type === 'oral' ? divisible : null,
       });
 
       if (type === 'recon' && !skipVial) {
@@ -1307,6 +1320,25 @@ export default function ProtocolsScreen() {
                         </TouchableOpacity>
                       ))}
                     </View>
+                    {['Capsule', 'Tablet', 'Softgel', 'Gummy'].includes(notes) && (
+                      <>
+                        <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_divisible_q')}</Text>
+                        <View style={s.freqGrid}>
+                          <TouchableOpacity
+                            style={[s.freqBtn, divisible === true && s.freqBtnOn]}
+                            onPress={() => setDivisible(divisible === true ? null : true)}
+                          >
+                            <Text style={[s.freqBtnText, divisible === true && s.freqBtnTextOn]}>{t('protocols_divisible_yes')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[s.freqBtn, divisible === false && s.freqBtnOn]}
+                            onPress={() => setDivisible(divisible === false ? null : false)}
+                          >
+                            <Text style={[s.freqBtnText, divisible === false && s.freqBtnTextOn]}>{t('protocols_divisible_no')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    )}
                     <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_strength')}</Text>
                     <Text style={s.fieldHint}>{t('protocols_serving_strength_hint')}</Text>
                     <View style={s.inputRow}>

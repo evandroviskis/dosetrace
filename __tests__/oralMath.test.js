@@ -23,6 +23,19 @@ test('vitamin C example: 800mg target, 1600mg per capsule → 0.5 capsule (not w
   assert.deepEqual(r.nearest, { lowUnits: 0, lowDose: 0, highUnits: 1, highDose: 1600 });
 });
 
+test('vitamin C: capsule holds 2x the dose (ratio) and is not splittable by default', () => {
+  const r = computeServings({ targetDose: 800, doseUnit: 'mg', servingStrength: 1600, servingStrengthUnit: 'mg', servingUnits: 1, form: 'Capsule' });
+  assert.equal(r.splittable, false);      // form default
+  assert.equal(r.perUnitDose, 1600);      // one capsule = 1600 mg
+  assert.equal(r.ratio, 2);               // one capsule = 2 of the 800 mg doses
+});
+
+test('divisible override: a capsule marked splittable reports splittable=true', () => {
+  const r = computeServings({ targetDose: 800, doseUnit: 'mg', servingStrength: 1600, servingStrengthUnit: 'mg', servingUnits: 1, form: 'Capsule', divisible: true });
+  assert.equal(r.splittable, true);
+  assert.equal(r.unitsNeeded, 0.5);
+});
+
 test('serving = N units: 750mg target, 500mg per serving of 2 gummies → 3 gummies', () => {
   const r = computeServings({ targetDose: 750, doseUnit: 'mg', servingStrength: 500, servingStrengthUnit: 'mg', servingUnits: 2, form: 'Gummy' });
   assert.equal(r.unitsNeeded, 3);      // 750 / (500/2) = 750/250
