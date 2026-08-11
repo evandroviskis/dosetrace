@@ -25,6 +25,7 @@ import { requestSync, addSyncListener } from '../lib/sync';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
+import { computeServings } from '../lib/oralMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
@@ -410,6 +411,21 @@ export default function TodayScreen() {
         }
         fetchProtocols();
       }
+
+      // Oral supply: subtract the calculated units-per-dose from the bottle.
+      let oralPrevUnitsTaken = null;
+      if (protocol.type === 'oral' && protocol.container_units) {
+        const r = computeServings({
+          targetDose: protocol.dose, doseUnit: protocol.dose_unit,
+          servingStrength: protocol.serving_strength, servingStrengthUnit: protocol.serving_strength_unit,
+          servingUnits: protocol.serving_units, form: protocol.notes,
+        });
+        if (r.valid && r.unitsNeeded > 0) {
+          oralPrevUnitsTaken = protocol.units_taken || 0;
+          updateProtocol(protocol.id, { units_taken: oralPrevUnitsTaken + r.unitsNeeded });
+          fetchProtocols();
+        }
+      }
       syncVialAlerts().catch(() => {});
       requestSync();
 
@@ -420,6 +436,7 @@ export default function TodayScreen() {
         protocolId: protocol.id,
         vialId: vial?.id || null,
         prevDosesTaken: prevVialDosesTaken,
+        oralPrevUnitsTaken,
         timer,
       });
 
@@ -489,6 +506,10 @@ export default function TodayScreen() {
       });
       if (undoData.vialId && undoData.prevDosesTaken !== null) {
         updateVial(undoData.vialId, { doses_taken: undoData.prevDosesTaken, active: 1 });
+        fetchProtocols();
+      }
+      if (undoData.oralPrevUnitsTaken != null) {
+        updateProtocol(undoData.protocolId, { units_taken: undoData.oralPrevUnitsTaken });
         fetchProtocols();
       }
       setUndoData(null);

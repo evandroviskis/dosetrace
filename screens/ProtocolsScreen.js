@@ -275,7 +275,7 @@ function ProtocolSyringeGuide({ p, t }) {
 // user's target dose + per-serving strength into how many units to take, and
 // (if a container size is set) how many units / days of supply remain. Pure
 // arithmetic on the user's own numbers — no recommendation.
-function ProtocolServingGuide({ p, t }) {
+function ProtocolServingGuide({ p, t, onRefill }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   if (p.type !== 'oral') return null;
@@ -350,12 +350,18 @@ function ProtocolServingGuide({ p, t }) {
         )}
       </View>
 
+      {unitsLeft != null && onRefill && unitsTaken > 0 && (
+        <TouchableOpacity style={s.newBottleBtn} onPress={() => onRefill(p.id)}>
+          <Text style={s.newBottleText}>↺ {t('protocols_serving_new_bottle')}</Text>
+        </TouchableOpacity>
+      )}
+
       <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
     </View>
   );
 }
 
-function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, t }) {
+function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, t }) {
   const { colors } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -492,7 +498,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           </View>
 
           <ProtocolSyringeGuide p={p} t={t} />
-          <ProtocolServingGuide p={p} t={t} />
+          <ProtocolServingGuide p={p} t={t} onRefill={onRefill} />
 
           <View style={s.cardActions}>
             <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)}>
@@ -1015,12 +1021,19 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
+  // Reset an oral protocol's supply counter — "opened a new bottle".
+  function refillOralBottle(id) {
+    updateProtocol(id, { units_taken: 0 });
+    fetchProtocols();
+    requestSync();
+  }
+
   const renderCard = (p) => (
     <ProtocolCard
       key={p.id} p={p} vial={vialsByProtocol[p.id]}
       expanded={expanded} setExpanded={setExpanded}
       openEdit={openEdit} deleteProtocol={deleteProtocol}
-      onSaveNote={saveProtocolNote}
+      onSaveNote={saveProtocolNote} onRefill={refillOralBottle}
       t={t}
     />
   );
@@ -1888,6 +1901,8 @@ const makeStyles = (c) => StyleSheet.create({
   fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
   fieldHint: { fontSize: 10, color: c.textFaint, marginTop: -3, marginBottom: 6, lineHeight: 13 },
   servingNearest: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
+  newBottleBtn: { alignSelf: 'center', marginTop: 12, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8, borderWidth: 1, borderColor: c.accent },
+  newBottleText: { fontSize: 12, fontWeight: '600', color: c.accent },
   fieldHint: { fontSize: 11, color: c.textFaint, marginTop: 4, marginBottom: 12 },
   doseTimeLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 2 },
   input: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 13, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
