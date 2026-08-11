@@ -192,8 +192,8 @@ function ProtocolSyringeGuide({ p, t }) {
               const isMajor = tickVal % 10 === 0;
               return (
                 <View key={i} style={[s.tickGroup, { left: `${(tickVal / syringeMax) * 100}%` }]}>
-                  <View style={[s.tick, isMajor && s.tickMajor]} />
                   {isMajor && <Text style={s.tickLabel}>{tickVal}</Text>}
+                  <View style={[s.tick, isMajor && s.tickMajor]} />
                 </View>
               );
             })}
@@ -1662,12 +1662,13 @@ const makeStyles = (c) => StyleSheet.create({
   syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
   syringeOuter: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   syringeBody: { flex: 1, height: 48 },
-  syringeTicks: { height: 16, marginBottom: 2, position: 'relative' },
-  // width:0 + alignItems center makes the tick/label center exactly on `left`.
-  tickGroup: { position: 'absolute', bottom: 0, width: 0, alignItems: 'center' },
+  syringeTicks: { height: 22, marginBottom: 2, position: 'relative' },
+  // Fixed width + negative half-margin centers the tick/label exactly on `left`.
+  // (A width:0 box collapses Text labels, so give it real width.)
+  tickGroup: { position: 'absolute', bottom: 0, width: 28, marginLeft: -14, alignItems: 'center' },
   tick: { width: 1, height: 6, backgroundColor: c.textFaint },
   tickMajor: { height: 10, backgroundColor: c.textMuted, width: 1.5 },
-  tickLabel: { fontSize: 8, color: c.textMuted, marginTop: 1 },
+  tickLabel: { fontSize: 8, color: c.textMuted, marginBottom: 1 },
   syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
   syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.35, borderRadius: 3 },
   plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: c.accent, borderRadius: 2 },
@@ -1685,7 +1686,7 @@ const makeStyles = (c) => StyleSheet.create({
   zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
   zoomScroll: { flexGrow: 0 },
   zoomTicks: { height: 48, position: 'relative', marginBottom: 0 },
-  zoomTickGroup: { position: 'absolute', bottom: 0, width: 0, alignItems: 'center' },
+  zoomTickGroup: { position: 'absolute', bottom: 0, width: 36, marginLeft: -18, alignItems: 'center' },
   zoomTick: { width: 1.5, height: 16, backgroundColor: c.textMuted },
   zoomTickMajor: { width: 2, height: 30, backgroundColor: c.text },
   zoomTickLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 3 },
