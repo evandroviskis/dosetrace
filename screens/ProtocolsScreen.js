@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   FlatList,
+  Dimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -111,6 +112,7 @@ function getTypeBadge(type, t, c) {
 function ProtocolSyringeGuide({ p, t }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const [zoom, setZoom] = useState(false);
   if (p.type === 'oral') return null;
 
   const draw = computeDraw({
@@ -125,7 +127,10 @@ function ProtocolSyringeGuide({ p, t }) {
   const pDrawValid = draw.valid;
 
   const syringeMax = p.syringe_size || 100;
-  const fillPct = pDrawValid ? Math.min((parseFloat(pDrawUnits) / syringeMax) * 100, 100) : 0;
+  const drawFrac = pDrawValid ? Math.min(parseFloat(pDrawUnits) / syringeMax, 1) : 0;
+  const fillPct = drawFrac * 100;
+  // Zoom modal: an enlarged, horizontally-scrollable ruler (~16px per unit).
+  const zoomWidth = Math.max(Dimensions.get('window').width - 72, syringeMax * 16);
 
   // Animated fill
   const fillWidth = useSharedValue(0);
@@ -174,6 +179,7 @@ function ProtocolSyringeGuide({ p, t }) {
       <Text style={s.syringeSubtitle}>
         {t('protocols_syringe_based_on')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
       </Text>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => setZoom(true)}>
       <View style={s.syringeOuter}>
         <View style={s.syringeBody}>
           <View style={s.syringeTicks}>
@@ -199,6 +205,8 @@ function ProtocolSyringeGuide({ p, t }) {
         </View>
         <View style={s.syringeNeedle} />
       </View>
+      <Text style={s.syringeZoomHint}>🔍 {t('protocols_syringe_zoom_hint')}</Text>
+      </TouchableOpacity>
       <View style={s.syringeInfo}>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_draw_to')}</Text>
@@ -218,6 +226,45 @@ function ProtocolSyringeGuide({ p, t }) {
         </View>
       </View>
       <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
+
+      <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
+        <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(false)}>
+          <TouchableOpacity style={s.zoomCard} activeOpacity={1} onPress={() => {}}>
+            <Text style={s.zoomTitle}>{p.name}</Text>
+            <Text style={s.zoomReadout}>
+              {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '800', color: colors.accent }}>{pDrawUnits}u</Text> · {pDrawML} ml
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator
+              contentOffset={{ x: Math.max(0, drawFrac * zoomWidth - (Dimensions.get('window').width - 72) / 2), y: 0 }}
+              style={s.zoomScroll}
+            >
+              <View style={{ width: zoomWidth, paddingTop: 4 }}>
+                <View style={[s.zoomTicks, { width: zoomWidth }]}>
+                  {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => {
+                    const tickVal = i * 2;
+                    const isMajor = tickVal % 10 === 0;
+                    return (
+                      <View key={i} style={[s.zoomTickGroup, { left: (tickVal / syringeMax) * zoomWidth }]}>
+                        {isMajor && <Text style={s.zoomTickLabel}>{tickVal}</Text>}
+                        <View style={[s.zoomTick, isMajor && s.zoomTickMajor]} />
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={[s.zoomBarrel, { width: zoomWidth }]}>
+                  <View style={[s.zoomFill, { width: drawFrac * zoomWidth }]} />
+                  <View style={[s.zoomPlunger, { left: drawFrac * zoomWidth }]} />
+                </View>
+              </View>
+            </ScrollView>
+            <TouchableOpacity style={s.zoomClose} onPress={() => setZoom(false)}>
+              <Text style={s.zoomCloseText}>{t('done')}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -1630,6 +1677,23 @@ const makeStyles = (c) => StyleSheet.create({
   syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
   syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
   syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
+  syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
+  // Zoom modal
+  zoomBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  zoomCard: { backgroundColor: c.card, borderRadius: 16, padding: 18, width: '100%', maxWidth: 560 },
+  zoomTitle: { fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'center' },
+  zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  zoomScroll: { flexGrow: 0 },
+  zoomTicks: { height: 48, position: 'relative', marginBottom: 0 },
+  zoomTickGroup: { position: 'absolute', bottom: 0, width: 0, alignItems: 'center' },
+  zoomTick: { width: 1.5, height: 16, backgroundColor: c.textMuted },
+  zoomTickMajor: { width: 2, height: 30, backgroundColor: c.text },
+  zoomTickLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 3 },
+  zoomBarrel: { height: 34, backgroundColor: c.card2, borderWidth: 1, borderColor: c.border, borderRadius: 6, position: 'relative', overflow: 'visible' },
+  zoomFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.32, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
+  zoomPlunger: { position: 'absolute', top: -4, bottom: -4, width: 4, marginLeft: -2, backgroundColor: c.accent, borderRadius: 2 },
+  zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 10 },
+  zoomCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalCancel: { fontSize: 14, color: c.textMuted },
