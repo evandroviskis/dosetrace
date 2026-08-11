@@ -177,13 +177,15 @@ function ProtocolSyringeGuide({ p, t }) {
       <View style={s.syringeOuter}>
         <View style={s.syringeBody}>
           <View style={s.syringeTicks}>
-            {Array.from({ length: 11 }).map((_, i) => {
-              const tickVal = Math.round((syringeMax / 10) * i);
-              const isMajor = i % 5 === 0;
-              // Anchor each tick at its true position on the 0–100% scale so the
-              // ticks line up with the fill and plunger (which use the same scale).
+            {/* One minor tick every 2 units (0.02 ml on a U-100 syringe) so a draw
+                like 18u lands on a mark; a taller, labelled tick every 10 units.
+                Positioned on the true 0–100% scale so ticks line up with the fill
+                and plunger. */}
+            {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => {
+              const tickVal = i * 2;
+              const isMajor = tickVal % 10 === 0;
               return (
-                <View key={i} style={[s.tickGroup, { left: `${i * 10}%` }]}>
+                <View key={i} style={[s.tickGroup, { left: `${(tickVal / syringeMax) * 100}%` }]}>
                   <View style={[s.tick, isMajor && s.tickMajor]} />
                   {isMajor && <Text style={s.tickLabel}>{tickVal}</Text>}
                 </View>
