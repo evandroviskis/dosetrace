@@ -179,10 +179,13 @@ function ProtocolSyringeGuide({ p, t }) {
           <View style={s.syringeTicks}>
             {Array.from({ length: 11 }).map((_, i) => {
               const tickVal = Math.round((syringeMax / 10) * i);
+              const isMajor = i % 5 === 0;
+              // Anchor each tick at its true position on the 0–100% scale so the
+              // ticks line up with the fill and plunger (which use the same scale).
               return (
-                <View key={i} style={s.tickGroup}>
-                  <View style={[s.tick, i % 5 === 0 && s.tickMajor]} />
-                  {i % 5 === 0 && <Text style={s.tickLabel}>{tickVal}</Text>}
+                <View key={i} style={[s.tickGroup, { left: `${i * 10}%` }]}>
+                  <View style={[s.tick, isMajor && s.tickMajor]} />
+                  {isMajor && <Text style={s.tickLabel}>{tickVal}</Text>}
                 </View>
               );
             })}
@@ -1610,8 +1613,9 @@ const makeStyles = (c) => StyleSheet.create({
   syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
   syringeOuter: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   syringeBody: { flex: 1, height: 48 },
-  syringeTicks: { flexDirection: 'row', justifyContent: 'space-between', height: 16, alignItems: 'flex-end', marginBottom: 2 },
-  tickGroup: { alignItems: 'center', flex: 1 },
+  syringeTicks: { height: 16, marginBottom: 2, position: 'relative' },
+  // width:0 + alignItems center makes the tick/label center exactly on `left`.
+  tickGroup: { position: 'absolute', bottom: 0, width: 0, alignItems: 'center' },
   tick: { width: 1, height: 6, backgroundColor: c.textFaint },
   tickMajor: { height: 10, backgroundColor: c.textMuted, width: 1.5 },
   tickLabel: { fontSize: 8, color: c.textMuted, marginTop: 1 },
