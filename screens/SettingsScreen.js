@@ -373,7 +373,9 @@ export default function SettingsScreen({ navigation }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { Alert.alert(t('error'), t('error_no_session')); return; }
 
-      // Call Edge Function to delete auth account (data stays in Supabase for research)
+      // Call the delete-user Edge Function: it deletes ALL of the user's data
+      // rows first, then the auth account (see supabase/functions/delete-user),
+      // matching the privacy policy's "account and all associated data" promise.
       const res = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
         {
