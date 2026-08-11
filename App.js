@@ -8,10 +8,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl } from './lib/supabase';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders } from './lib/notifications';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
-import { initDatabase, clearLocalDatabase } from './lib/database';
+import { initDatabase, clearLocalDatabase, getTodayLogs } from './lib/database';
+import { recordDoseTaken } from './lib/doseActions';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
@@ -260,6 +261,22 @@ export default function App() {
       notifResponseSub = N.addNotificationResponseReceivedListener(response => {
         const data = response?.notification?.request?.content?.data;
         if (!data) return;
+
+        // "Mark as taken" button — log the dose without opening the app.
+        if (response.actionIdentifier === 'MARK_TAKEN' && data.protocolId) {
+          try {
+            const result = recordDoseTaken(data.protocolId);
+            if (result) {
+              const logs = getTodayLogs(result.protocol.user_id) || [];
+              const takenToday = logs.filter(l => l.protocol_id === data.protocolId && l.outcome === 'Taken').length;
+              cancelTodaysDoseReminders(data.protocolId, takenToday).catch(() => {});
+              requestSync();
+              syncAllNotifications().catch(() => {});
+            }
+          } catch { /* best-effort background action */ }
+          return;
+        }
+
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
         } else if (data.type === 'checkin_reminder' && navigationRef.current) {
