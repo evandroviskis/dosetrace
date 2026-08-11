@@ -322,6 +322,12 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
               <Text style={s.detailVal}>{p.notes}</Text>
             </View>
           )}
+          {p.note ? (
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
+              <Text style={s.detailVal}>{p.note}</Text>
+            </View>
+          ) : null}
 
           <ProtocolSyringeGuide p={p} t={t} />
 
@@ -386,6 +392,7 @@ export default function ProtocolsScreen() {
   const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
@@ -527,7 +534,7 @@ export default function ProtocolsScreen() {
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
-    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes('');
+    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
@@ -612,7 +619,7 @@ export default function ProtocolsScreen() {
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
-    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || '');
+    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || '');
     setVialValidDays(String(p.vial_valid_days || DEFAULT_VALID_DAYS));
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
@@ -708,7 +715,7 @@ export default function ProtocolsScreen() {
         start_date: toSupabaseDateFromMD(startMonth, startDay),
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
-        goal: goals.join(','), notes,
+        goal: goals.join(','), notes, note,
       });
       setSaving(false);
       scheduleDoseReminder({
@@ -745,7 +752,7 @@ export default function ProtocolsScreen() {
         start_date: toSupabaseDateFromMD(startMonth, startDay),
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
-        goal: goals.join(','), notes,
+        goal: goals.join(','), notes, note,
       });
 
       if (type === 'recon' && !skipVial) {
@@ -1294,15 +1301,6 @@ export default function ProtocolsScreen() {
                         </Text>
                       </View>
                     )}
-                    <Text style={s.fieldLabel}>{t('protocols_notes_optional')}</Text>
-                    <TextInput
-                      style={[s.input, { height: 80 }]}
-                      placeholder={t('protocols_notes_placeholder')}
-                      placeholderTextColor={colors.textFaint}
-                      multiline
-                      value={notes}
-                      onChangeText={setNotes}
-                    />
                   </>
                 )}
               </View>
@@ -1458,6 +1456,17 @@ export default function ProtocolsScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {/* Free-text note — available on every protocol type */}
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_notes_optional')}</Text>
+                <TextInput
+                  style={[s.input, { height: 80 }]}
+                  placeholder={t('protocols_notes_placeholder')}
+                  placeholderTextColor={colors.textFaint}
+                  multiline
+                  value={note}
+                  onChangeText={setNote}
+                />
               </View>
             )}
 

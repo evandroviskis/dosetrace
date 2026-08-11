@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelFollowups, cancelDoseReminder } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder } from '../lib/notifications';
 import {
   getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
@@ -380,11 +380,13 @@ export default function TodayScreen() {
         outcome: 'Taken',
       });
 
+      const newTakenToday = (takenCounts[protocol.id] || 0) + 1;
       setTakenCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
       fetchStreakData();
       fetchProtocolStreaks();
       Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Taken' });
-      cancelFollowups(protocol.id).catch(() => {});
+      // Cancel today's reminder(s) for the slots now taken, so no "dose pending" fires later.
+      cancelTodaysDoseReminders(protocol.id, newTakenToday).catch(() => {});
 
       // Update vial doses_taken if this protocol has an active vial
       const vial = vials[protocol.id];
