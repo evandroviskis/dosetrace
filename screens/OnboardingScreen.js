@@ -108,10 +108,7 @@ export default function OnboardingScreen() {
       const { error, canceled } = await signInWithGoogle();
       if (canceled) return; // user backed out of the picker — not an error
       if (error) {
-        // During internal/TestFlight testing, surface the raw detail so a failed
-        // Google sign-in names the exact step that broke instead of a generic
-        // message. (Revert to friendlyError once the flow is confirmed working.)
-        Alert.alert(t('error'), error.message || friendlyError(error, t));
+        Alert.alert(t('error'), friendlyError(error, t, 'auth_signin_failed'));
       }
       // If successful, App.js auth listener will pick up the session automatically
     } catch (e) {
