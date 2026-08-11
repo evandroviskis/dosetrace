@@ -38,6 +38,7 @@ import {
 } from '../lib/database';
 import { requestSync } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
+import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate } from '../lib/schedule';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
@@ -270,6 +271,90 @@ function ProtocolSyringeGuide({ p, t }) {
   );
 }
 
+// Oral serving calculator card — the oral twin of the syringe guide. Turns the
+// user's target dose + per-serving strength into how many units to take, and
+// (if a container size is set) how many units / days of supply remain. Pure
+// arithmetic on the user's own numbers — no recommendation.
+function ProtocolServingGuide({ p, t }) {
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  if (p.type !== 'oral') return null;
+
+  const r = computeServings({
+    targetDose: p.dose,
+    doseUnit: p.dose_unit,
+    servingStrength: p.serving_strength,
+    servingStrengthUnit: p.serving_strength_unit,
+    servingUnits: p.serving_units,
+    form: p.notes, // oral form (Capsule/Tablet/…) is stored in `notes`
+  });
+
+  if (!r.valid) {
+    if (r.unitMismatch) {
+      return (
+        <View style={s.syringeWrap}>
+          <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
+          <Text style={s.syringeNoData}>{t('protocols_serving_unit_mismatch')}</Text>
+        </View>
+      );
+    }
+    return null; // not enough info yet — stay quiet
+  }
+
+  const unitLabel = t(r.unitKey);
+  const containerUnits = parseFloat(p.container_units);
+  const unitsTaken = parseFloat(p.units_taken) || 0;
+  const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
+  const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
+
+  return (
+    <View style={s.syringeWrap}>
+      <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
+      <Text style={s.syringeSubtitle}>
+        {t('protocols_syringe_based_on')}{' '}
+        <Text style={{ fontWeight: '700', color: colors.accent }}>{r.unitsNeeded} {unitLabel}</Text>
+      </Text>
+
+      {r.discrete && !r.isWhole && !r.splittable && (
+        <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 8 }]}>
+          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>{t('protocols_serving_not_whole')}</Text>
+        </View>
+      )}
+
+      {r.nearest && (
+        <Text style={s.servingNearest}>
+          {r.nearest.lowUnits} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {r.nearest.highUnits} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
+        </Text>
+      )}
+
+      <View style={[s.syringeInfo, { marginTop: 12 }]}>
+        <View style={s.syringeInfoItem}>
+          <Text style={s.syringeInfoLabel}>{t('protocols_serving_take')}</Text>
+          <Text style={s.syringeInfoVal}>{r.unitsNeeded} {unitLabel}</Text>
+        </View>
+        <View style={s.syringeInfoItem}>
+          <Text style={s.syringeInfoLabel}>{t('protocols_serving_dose')}</Text>
+          <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
+        </View>
+        {unitsLeft != null && (
+          <View style={s.syringeInfoItem}>
+            <Text style={s.syringeInfoLabel}>{t('protocols_serving_left')}</Text>
+            <Text style={s.syringeInfoVal}>{unitsLeft} {unitLabel}</Text>
+          </View>
+        )}
+        {daysLeft != null && (
+          <View style={s.syringeInfoItem}>
+            <Text style={s.syringeInfoLabel}>{t('protocols_serving_days_left')}</Text>
+            <Text style={s.syringeInfoVal}>{daysLeft}</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
+    </View>
+  );
+}
+
 function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, t }) {
   const { colors } = useTheme();
   const { language, timeFormat } = useLanguage();
@@ -407,6 +492,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           </View>
 
           <ProtocolSyringeGuide p={p} t={t} />
+          <ProtocolServingGuide p={p} t={t} />
 
           <View style={s.cardActions}>
             <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)}>
@@ -470,6 +556,11 @@ export default function ProtocolsScreen() {
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
   const [note, setNote] = useState('');
+  // Oral serving calculator + supply
+  const [servingStrength, setServingStrength] = useState('');
+  const [servingStrengthUnit, setServingStrengthUnit] = useState('mg');
+  const [servingUnits, setServingUnits] = useState('1');
+  const [containerUnits, setContainerUnits] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
@@ -612,6 +703,7 @@ export default function ProtocolsScreen() {
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
     setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
+    setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits('');
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
@@ -697,6 +789,10 @@ export default function ProtocolsScreen() {
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
     setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || '');
+    setServingStrength(p.serving_strength != null ? String(p.serving_strength) : '');
+    setServingStrengthUnit(p.serving_strength_unit || 'mg');
+    setServingUnits(p.serving_units != null ? String(p.serving_units) : '1');
+    setContainerUnits(p.container_units != null ? String(p.container_units) : '');
     setVialValidDays(String(p.vial_valid_days || DEFAULT_VALID_DAYS));
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
@@ -793,6 +889,10 @@ export default function ProtocolsScreen() {
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
+        serving_strength: type === 'oral' ? (parseFloat(servingStrength) || null) : null,
+        serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
+        serving_units: type === 'oral' ? (parseFloat(servingUnits) || null) : null,
+        container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
       });
       setSaving(false);
       scheduleDoseReminder({
@@ -830,6 +930,10 @@ export default function ProtocolsScreen() {
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
+        serving_strength: type === 'oral' ? (parseFloat(servingStrength) || null) : null,
+        serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
+        serving_units: type === 'oral' ? (parseFloat(servingUnits) || null) : null,
+        container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
       });
 
       if (type === 'recon' && !skipVial) {
@@ -1190,14 +1294,48 @@ export default function ProtocolsScreen() {
                         </TouchableOpacity>
                       ))}
                     </View>
-                    <Text style={[s.fieldLabel, { marginTop: 8 }]}>{t('protocols_instructions')}</Text>
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_strength')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_serving_strength_hint')}</Text>
+                    <View style={s.inputRow}>
+                      <TextInput
+                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+                        placeholder={`${t('protocols_eg')} 1600`}
+                        placeholderTextColor={colors.textFaint}
+                        keyboardType="numeric"
+                        value={servingStrength}
+                        onChangeText={setServingStrength}
+                      />
+                      <View style={s.unitPicker}>
+                        {['mg', 'mcg', 'IU', 'g'].map((u) => (
+                          <TouchableOpacity
+                            key={u}
+                            style={[s.unitBtn, servingStrengthUnit === u && s.unitBtnOn]}
+                            onPress={() => setServingStrengthUnit(u)}
+                          >
+                            <Text style={[s.unitBtnText, servingStrengthUnit === u && s.unitBtnTextOn]}>{u}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_units')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_serving_units_hint')}</Text>
                     <TextInput
-                      style={[s.input, { height: 70 }]}
-                      placeholder={t('protocols_instructions_placeholder')}
+                      style={s.input}
+                      placeholder="1"
                       placeholderTextColor={colors.textFaint}
-                      multiline
-                      value={notes}
-                      onChangeText={setNotes}
+                      keyboardType="numeric"
+                      value={servingUnits}
+                      onChangeText={setServingUnits}
+                    />
+                    <Text style={s.fieldLabel}>{t('protocols_container_units')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_container_units_hint')}</Text>
+                    <TextInput
+                      style={s.input}
+                      placeholder={`${t('protocols_eg')} 60`}
+                      placeholderTextColor={colors.textFaint}
+                      keyboardType="numeric"
+                      value={containerUnits}
+                      onChangeText={setContainerUnits}
                     />
                   </>
                 )}
@@ -1748,6 +1886,8 @@ const makeStyles = (c) => StyleSheet.create({
   modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
   modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
   fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
+  fieldHint: { fontSize: 10, color: c.textFaint, marginTop: -3, marginBottom: 6, lineHeight: 13 },
+  servingNearest: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
   fieldHint: { fontSize: 11, color: c.textFaint, marginTop: 4, marginBottom: 12 },
   doseTimeLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 2 },
   input: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 13, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
