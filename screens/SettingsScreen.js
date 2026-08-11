@@ -376,16 +376,24 @@ export default function SettingsScreen({ navigation }) {
       // Call the delete-user Edge Function: it deletes ALL of the user's data
       // rows first, then the auth account (see supabase/functions/delete-user),
       // matching the privacy policy's "account and all associated data" promise.
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // fetch() rejects only on a network-level failure (offline / unreachable),
+      // so a caught error here means no connection — deletion needs the server.
+      let res;
+      try {
+        res = await fetch(
+          `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      } catch {
+        Alert.alert(t('error'), t('settings_delete_offline'));
+        return;
+      }
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || t('error_deletion_failed'));
 
