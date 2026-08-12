@@ -2067,7 +2067,6 @@ const makeStyles = (c) => StyleSheet.create({
   modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
   modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
   fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
-  fieldHint: { fontSize: 10, color: c.textFaint, marginTop: -3, marginBottom: 6, lineHeight: 13 },
   servingNearest: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
   newBottleBtn: { alignSelf: 'center', marginTop: 12, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8, borderWidth: 1, borderColor: c.accent },
   newBottleText: { fontSize: 12, fontWeight: '600', color: c.accent },
