@@ -406,9 +406,14 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
     Keyboard.dismiss();
     onSaveNote(p.id, noteDraft);
   };
-  const vialDaysLeft = (p.type === 'recon' && vial)
-    ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
+  // Recon: expiry is derived from the mix date + validity window. RTU: expiry is
+  // the box date the user entered (vial.expires_on).
+  const vialDaysLeft = vial
+    ? (p.type === 'recon'
+        ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
+        : (vial.expires_on ? Math.ceil((new Date(vial.expires_on + 'T00:00:00') - new Date()) / 86400000) : null))
     : null;
+  const vialDosesLeft = vial ? Math.max(0, (vial.total_doses || 0) - (vial.doses_taken || 0)) : null;
 
   return (
     <TouchableOpacity
@@ -420,6 +425,11 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         <View style={s.cardInfo}>
           <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {p.frequency}</Text>
+          {p.type === 'rtu' && vialDosesLeft != null && (
+            <Text style={[s.cardMeta, { fontWeight: '600', color: colors.accent }]}>
+              {t('protocols_injections_left').replace('{n}', String(vialDosesLeft))}
+            </Text>
+          )}
           {vialDaysLeft != null && (
             <Text style={[s.cardMeta, { color: expiryColor(vialDaysLeft), fontWeight: '600' }]}>
               {vialDaysLeft <= 0
@@ -665,6 +675,10 @@ export default function ProtocolsScreen() {
   const [vialValidDays, setVialValidDays] = useState(String(DEFAULT_VALID_DAYS));
   const [totalDoses, setTotalDoses] = useState('');
   const [skipVial, setSkipVial] = useState(false);
+  // RTU vial tracking: bottle volume (ml) + the box's printed expiry (month/year)
+  const [vialMl, setVialMl] = useState('');
+  const [vialExpMonth, setVialExpMonth] = useState(null); // 0-11 or null
+  const [vialExpYear, setVialExpYear] = useState(null);   // full year or null
 
   useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
 
@@ -743,6 +757,7 @@ export default function ProtocolsScreen() {
     setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
+    setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
   }
 
@@ -984,6 +999,23 @@ export default function ProtocolsScreen() {
           // Vial capacity is derived (vial amount ÷ dose), not asked.
           total_doses: dosesPerVial({ amount, unit, dose, doseUnit }),
           doses_taken: 0,
+        });
+      }
+
+      // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
+      // expiry from the box (month/year → last day of that month).
+      if (type === 'rtu' && parseFloat(vialMl) > 0 && parseFloat(concentration) > 0 && parseFloat(dose) > 0) {
+        let expiresOn = null;
+        if (vialExpMonth != null && vialExpYear != null) {
+          const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
+          expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        }
+        insertVial({
+          user_id: user.id, protocol_id: newId,
+          water_ml: parseFloat(vialMl),
+          total_doses: dosesPerVial({ amount: parseFloat(concentration) * parseFloat(vialMl), unit: concentrationUnit, dose, doseUnit }),
+          doses_taken: 0,
+          expires_on: expiresOn,
         });
       }
       setSaving(false);
@@ -1591,6 +1623,47 @@ export default function ProtocolsScreen() {
                         </Text>
                       </View>
                     )}
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_vial_size')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_vial_size_hint')}</Text>
+                    <TextInput
+                      style={s.input}
+                      placeholder={`${t('protocols_eg')} 10`}
+                      placeholderTextColor={colors.textFaint}
+                      keyboardType="numeric"
+                      value={vialMl}
+                      onChangeText={setVialMl}
+                    />
+                    <Text style={s.fieldLabel}>{t('protocols_vial_expiry')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_vial_expiry_hint')}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
+                      <View style={s.monthRow}>
+                        {MONTH_KEYS.map((mk, idx) => (
+                          <TouchableOpacity
+                            key={mk}
+                            style={[s.monthPill, vialExpMonth === idx && s.monthPillOn]}
+                            onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)}
+                          >
+                            <Text style={[s.monthPillText, vialExpMonth === idx && s.monthPillTextOn]}>{t(mk)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                      <View style={s.monthRow}>
+                        {[0, 1, 2, 3, 4, 5].map((o) => {
+                          const y = new Date().getFullYear() + o;
+                          return (
+                            <TouchableOpacity
+                              key={y}
+                              style={[s.monthPill, vialExpYear === y && s.monthPillOn]}
+                              onPress={() => setVialExpYear(vialExpYear === y ? null : y)}
+                            >
+                              <Text style={[s.monthPillText, vialExpYear === y && s.monthPillTextOn]}>{y}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
                   </>
                 )}
               </View>
