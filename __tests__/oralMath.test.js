@@ -30,10 +30,27 @@ test('vitamin C: capsule holds 2x the dose (ratio) and is not splittable by defa
   assert.equal(r.ratio, 2);               // one capsule = 2 of the 800 mg doses
 });
 
-test('divisible override: a capsule marked splittable reports splittable=true', () => {
+test('divisible (scored) capsule: 0.5 is an achievable half', () => {
   const r = computeServings({ targetDose: 800, doseUnit: 'mg', servingStrength: 1600, servingStrengthUnit: 'mg', servingUnits: 1, form: 'Capsule', divisible: true });
   assert.equal(r.splittable, true);
+  assert.equal(r.step, 0.5);
   assert.equal(r.unitsNeeded, 0.5);
+  assert.equal(r.isAchievable, true); // half a scored capsule = exactly 800 mg
+  assert.equal(r.nearest, null);
+});
+
+test('divisible but not an exact half: 800mg target, 1000mg scored tablet → nearest halves ½ / 1', () => {
+  const r = computeServings({ targetDose: 800, doseUnit: 'mg', servingStrength: 1000, servingStrengthUnit: 'mg', servingUnits: 1, form: 'Tablet', divisible: true });
+  assert.equal(r.step, 0.5);
+  assert.equal(r.isAchievable, false); // 0.8 tablet isn't a clean half
+  assert.deepEqual(r.nearest, { lowUnits: 0.5, lowDose: 500, highUnits: 1, highDose: 1000 });
+});
+
+test('not divisible capsule: only whole units are achievable', () => {
+  const r = computeServings({ targetDose: 800, doseUnit: 'mg', servingStrength: 1600, servingStrengthUnit: 'mg', servingUnits: 1, form: 'Capsule', divisible: false });
+  assert.equal(r.step, 1);
+  assert.equal(r.isAchievable, false);
+  assert.deepEqual(r.nearest, { lowUnits: 0, lowDose: 0, highUnits: 1, highDose: 1600 });
 });
 
 test('serving = N units: 750mg target, 500mg per serving of 2 gummies → 3 gummies', () => {

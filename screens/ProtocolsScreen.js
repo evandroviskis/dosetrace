@@ -302,9 +302,17 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   }
 
   const unitLabel = t(r.unitKey);
-  // Splittable (or whole, or continuous) → show the fraction as the answer.
-  // Otherwise the unit can't be divided, so explain what one whole unit holds.
-  const splittableOrWhole = !r.discrete || r.isWhole || r.splittable;
+  // Pretty-print halves: 0.5 → "½", 1.5 → "1½"; anything else stays decimal.
+  const fmt = (v) => {
+    if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return String(Math.round(v * 100) / 100);
+    const whole = Math.floor(v + 1e-9);
+    const isHalf = Math.abs(v - whole - 0.5) < 1e-9;
+    if (!isHalf) return String(whole);
+    return whole > 0 ? `${whole}½` : '½';
+  };
+  // Show the amount when it's achievable (continuous, whole, or a clean half on
+  // a scored unit). Otherwise the unit can't hit the target, so explain instead.
+  const canShowAmount = !r.discrete || r.isAchievable;
   const containsMsg = t('protocols_serving_contains')
     .replace('{strength}', r.perUnitDose)
     .replace('{sunit}', p.dose_unit)
@@ -317,28 +325,30 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   return (
     <View style={s.syringeWrap}>
       <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
-      {splittableOrWhole ? (
+      {canShowAmount ? (
         <Text style={s.syringeSubtitle}>
           {t('protocols_syringe_based_on')}{' '}
-          <Text style={{ fontWeight: '700', color: colors.accent }}>{r.unitsNeeded} {unitLabel}</Text>
+          <Text style={{ fontWeight: '700', color: colors.accent }}>{fmt(r.unitsNeeded)} {unitLabel}</Text>
         </Text>
       ) : (
         <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 8 }]}>
-          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>{containsMsg}</Text>
+          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
+            {r.splittable ? t('protocols_serving_not_half') : containsMsg}
+          </Text>
         </View>
       )}
 
       {r.nearest && (
         <Text style={s.servingNearest}>
-          {r.nearest.lowUnits} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {r.nearest.highUnits} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
+          {fmt(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {fmt(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
         </Text>
       )}
 
       <View style={[s.syringeInfo, { marginTop: 12 }]}>
-        {splittableOrWhole && (
+        {canShowAmount && (
           <View style={s.syringeInfoItem}>
             <Text style={s.syringeInfoLabel}>{t('protocols_serving_take')}</Text>
-            <Text style={s.syringeInfoVal}>{r.unitsNeeded} {unitLabel}</Text>
+            <Text style={s.syringeInfoVal}>{fmt(r.unitsNeeded)} {unitLabel}</Text>
           </View>
         )}
         <View style={s.syringeInfoItem}>
