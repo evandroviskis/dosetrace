@@ -40,7 +40,7 @@ import { requestSync } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
-import { expectedDosesOn, nextDueDate } from '../lib/schedule';
+import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 
@@ -424,7 +424,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         <View style={[s.cardDot, { backgroundColor: p.color }]} />
         <View style={s.cardInfo}>
           <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-          <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {p.frequency}</Text>
+          <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}</Text>
           {p.type === 'rtu' && vialDosesLeft != null && (
             <Text style={[s.cardMeta, { fontWeight: '600', color: colors.accent }]}>
               {t('protocols_injections_left').replace('{n}', String(vialDosesLeft))}
@@ -491,7 +491,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           )}
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('protocols_frequency')}</Text>
-            <Text style={s.detailVal}>{p.frequency || '—'}</Text>
+            <Text style={s.detailVal}>{p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—')}</Text>
           </View>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('protocols_reminder')}</Text>

@@ -31,7 +31,7 @@ import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -743,7 +743,7 @@ export default function TodayScreen() {
           <View style={s.doseInfo}>
             <Text style={s.doseName}>{due && '🔥 '}{p.compound_id ? t(p.compound_id) : p.name}</Text>
             <Text style={s.doseMeta}>
-              {p.dose} {p.dose_unit} · {p.frequency}
+              {p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}
             </Text>
             {/* Progress indicator */}
             {progress && (
