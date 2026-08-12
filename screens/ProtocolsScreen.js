@@ -111,6 +111,16 @@ function getTypeBadge(type, t, c) {
   return { bg: c.card2, text: c.textMuted, label: type };
 }
 
+// The oral form is stored in `notes` as an English value (Capsule/Tablet/…);
+// map it to its localized label for display.
+const ORAL_FORM_KEY = {
+  Capsule: 'protocols_capsule', Tablet: 'protocols_tablet', Powder: 'protocols_powder',
+  Liquid: 'protocols_liquid', Gummy: 'protocols_gummy', Softgel: 'protocols_softgel',
+};
+function oralFormLabel(form, t) {
+  return ORAL_FORM_KEY[form] ? t(ORAL_FORM_KEY[form]) : form;
+}
+
 function ProtocolSyringeGuide({ p, t }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -491,7 +501,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           {p.notes && p.type === 'oral' && (
             <View style={s.detailRow}>
               <Text style={s.detailLabel}>{t('protocols_form')}</Text>
-              <Text style={s.detailVal}>{p.notes}</Text>
+              <Text style={s.detailVal}>{oralFormLabel(p.notes, t)}</Text>
             </View>
           )}
           <View style={s.noteBlock}>
