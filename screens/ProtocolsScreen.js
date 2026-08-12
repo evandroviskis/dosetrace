@@ -297,6 +297,7 @@ function ProtocolServingGuide({ p, t, onRefill }) {
     servingStrengthUnit: p.serving_strength_unit,
     servingUnits: p.serving_units,
     form: p.notes, // oral form (Capsule/Tablet/…) is stored in `notes`
+    divisible: p.divisible == null ? undefined : p.divisible === 1,
   });
 
   if (!r.valid) {
