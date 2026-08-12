@@ -1049,9 +1049,11 @@ export default function TodayScreen() {
           <View style={s.undoBar}>
             <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
             <View style={s.undoBarActions}>
-              <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
-                <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
-              </TouchableOpacity>
+              {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
+                <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
+                  <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={undoTake}>
                 <Text style={s.undoBarAction}>{t('today_undo')}</Text>
               </TouchableOpacity>

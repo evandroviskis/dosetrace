@@ -521,7 +521,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
               style={s.noteEditBox}
               value={noteDraft}
               onChangeText={setNoteDraft}
-              placeholder={t('protocols_notes_placeholder')}
+              placeholder={p.type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
               placeholderTextColor={colors.textFaint}
               multiline
             />
@@ -1866,7 +1866,7 @@ export default function ProtocolsScreen() {
                 <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_notes_optional')}</Text>
                 <TextInput
                   style={[s.input, { height: 80 }]}
-                  placeholder={t('protocols_notes_placeholder')}
+                  placeholder={type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
                   placeholderTextColor={colors.textFaint}
                   multiline
                   value={note}

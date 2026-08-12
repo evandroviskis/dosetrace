@@ -42,6 +42,8 @@ export default function LogScreen() {
   );
 
   async function openSiteEditor(log) {
+    // Oral supplements have no injection site — nothing to edit here.
+    if (!['recon', 'rtu'].includes(log.protocols?.type)) return;
     const user = await getCachedUser();
     if (!user) return;
     const since = new Date();
