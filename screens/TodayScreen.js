@@ -109,9 +109,11 @@ export default function TodayScreen() {
   // Refresh when a cloud import/sync finishes — after logging in on a new device
   // the import runs in the background, so the first focus-fetch can hit an empty
   // local DB. Re-fetch on completion instead of requiring a manual tab switch.
+  // 'data_changed' fires the instant a protocol is saved (even offline), so a
+  // reminder-time edit reflects here immediately without a tab switch.
   useEffect(() => {
     const unsub = addSyncListener((e) => {
-      if (e.type === 'import_complete' || e.type === 'sync_complete') {
+      if (e.type === 'import_complete' || e.type === 'sync_complete' || e.type === 'data_changed') {
         fetchProtocols();
         fetchTodayLogs();
         fetchStreakData();

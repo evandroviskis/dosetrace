@@ -27,7 +27,7 @@ import { getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { scheduleDoseReminder, cancelDoseReminder } from '../lib/notifications';
+import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +36,7 @@ import {
   softDeleteProtocol, getProtocolById, getActiveVials,
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
-import { requestSync } from '../lib/sync';
+import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
@@ -77,13 +77,19 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
 const FREE_PROTOCOL_LIMIT = 3;
 
-const COLORS = ['#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780','#E24B4A','#2C2C2A'];
+const COLORS = [
+  '#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780',
+  '#E24B4A','#2C2C2A','#0E8C8C','#6A3FB5','#C13A9E','#8A5A2B','#4C6E8F','#E0A500','#17B0B8','#A82E55',
+];
 
 const COLOR_NAMES = {
   '#185FA5':'color_ocean','#1D9E75':'color_forest','#D85A30':'color_coral',
   '#7F77DD':'color_lavender','#BA7517':'color_amber','#D4537E':'color_rose',
   '#5DCAA5':'color_mint','#378ADD':'color_sky','#639922':'color_olive',
   '#888780':'color_stone','#E24B4A':'color_red','#2C2C2A':'color_charcoal',
+  '#0E8C8C':'color_teal','#6A3FB5':'color_grape','#C13A9E':'color_magenta',
+  '#8A5A2B':'color_bronze','#4C6E8F':'color_slate','#E0A500':'color_gold',
+  '#17B0B8':'color_turquoise','#A82E55':'color_wine',
 };
 
 // Diluent options for reconstitution. Stored as canonical tokens so the label
@@ -944,6 +950,14 @@ export default function ProtocolsScreen() {
 
     if (editingId) {
       const freqStr = frequencyLabel(intervalDays);
+      // Did the timing actually move? Only then should we clear already-delivered
+      // banners (a rename or color change must NOT drop a still-pending reminder).
+      const prev = protocols.find(p => p.id === editingId);
+      const scheduleChanged = !prev
+        || prev.reminder_time !== reminderTimes.join(',')
+        || (prev.doses_per_day || 1) !== dosesPerDay
+        || (prev.interval_days || 1) !== intervalDays
+        || (prev.start_date || null) !== toSupabaseDateFromMD(startMonth, startDay);
       updateProtocol(editingId, {
         name, compound_id: compoundId, type, color,
         amount: parseFloat(amount) || null, unit,
@@ -982,12 +996,15 @@ export default function ProtocolsScreen() {
         }
       }
       setSaving(false);
-      scheduleDoseReminder({
-        id: editingId, name, dose: parseFloat(dose), dose_unit: doseUnit,
-        frequency: freqStr, reminder_time: reminderTimes.join(','),
-        interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay), schedule_total: null,
-      }).catch(() => {});
+      // Reschedule from the freshly-persisted row (real user_id/created_at) so
+      // the reschedule uses the new time AND correctly skips slots already logged
+      // today.
+      const editedProtocol = getProtocolById(editingId);
+      if (editedProtocol) scheduleDoseReminder(editedProtocol).catch(() => {});
+      // Only when the timing moved: clear any banner delivered under the old
+      // schedule so it stops "asking" at the previous hour. A rename/color/dose
+      // edit leaves a still-pending reminder untouched.
+      if (scheduleChanged) dismissDeliveredDoseReminders(editingId).catch(() => {});
     } else {
       // Safety net: never persist beyond the free limit even if the wizard was
       // somehow opened over it (stale count, reopened modal). Checks the live
@@ -1057,6 +1074,9 @@ export default function ProtocolsScreen() {
       Analytics.protocolCreated({ name, type, dose, dose_unit: doseUnit, frequency: frequencyLabel(intervalDays), goal: goals.join(',') });
     }
     requestSync();
+    // Refresh every mounted screen right away (Today, etc.) — don't wait for the
+    // network sync to complete, which never fires when offline.
+    notifyDataChanged('protocol');
     setShowModal(false);
     resetForm();
     fetchProtocols();
@@ -1076,8 +1096,10 @@ export default function ProtocolsScreen() {
           softDeleteProtocol(id);
           deactivateVialsByProtocol(id);
           cancelDoseReminder(id).catch(() => {});
+          dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
           if (target) Analytics.protocolDeactivated(target);
           fetchProtocols();
+          notifyDataChanged('protocol'); // refresh Today immediately
           requestSync();
         },
       },
@@ -1342,7 +1364,13 @@ export default function ProtocolsScreen() {
               </View>
             )}
 
-            {step === 2 && (
+            {step === 2 && (() => {
+              // Colors already taken by *other* active protocols (exclude the one
+              // being edited so its own color isn't flagged against itself).
+              const usedColors = new Set(
+                protocols.filter(p => p.id !== editingId && p.color).map(p => p.color)
+              );
+              return (
               <View>
                 <Text style={s.modalStepTitle}>{t('protocols_step_color')}</Text>
                 <Text style={s.modalStepSub}>{t('protocols_step_color_sub')}</Text>
@@ -1353,19 +1381,32 @@ export default function ProtocolsScreen() {
                     <Text style={s.previewSub}>{t(COLOR_NAMES[color])}</Text>
                   </View>
                 </View>
+                <Text style={s.colorTip}>{t('protocols_color_tip')}</Text>
                 <View style={s.colorGrid}>
-                  {COLORS.map((c) => (
+                  {COLORS.map((c) => {
+                    const inUse = usedColors.has(c);
+                    return (
                     <TouchableOpacity
                       key={c}
                       style={[s.colorSwatch, { backgroundColor: c }, color === c && s.colorSwatchOn]}
                       onPress={() => setColor(c)}
                     >
-                      {color === c && <Text style={s.colorCheck}>✓</Text>}
+                      {color === c
+                        ? <Text style={s.colorCheck}>✓</Text>
+                        : inUse ? <View style={s.colorInUseDot} /> : null}
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </View>
+                {usedColors.size > 0 && (
+                  <Text style={s.colorLegend}>{t('protocols_color_in_use_legend')}</Text>
+                )}
+                {usedColors.has(color) && (
+                  <Text style={s.colorDupWarn}>{t('protocols_color_dup_warning')}</Text>
+                )}
               </View>
-            )}
+              );
+            })()}
 
             {step === 3 && (
               <View>
@@ -2096,10 +2137,14 @@ const makeStyles = (c) => StyleSheet.create({
   typeBtnLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
   typeBtnLabelOn: { color: c.accentSoftText },
   typeBtnSub: { fontSize: 9, color: c.textFaint, marginTop: 1 },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   colorSwatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   colorSwatchOn: { borderWidth: 3, borderColor: c.text },
   colorCheck: { color: 'white', fontSize: 16, fontWeight: '700' },
+  colorInUseDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.28)' },
+  colorTip: { fontSize: 12.5, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
+  colorLegend: { fontSize: 12, color: c.textFaint, marginBottom: 4 },
+  colorDupWarn: { fontSize: 12.5, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginTop: 6 },
   previewPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card2, borderRadius: 10, padding: 12, marginBottom: 20 },
   previewDot: { width: 14, height: 14, borderRadius: 7 },
   previewName: { fontSize: 14, fontWeight: '600', color: c.text },
