@@ -391,7 +391,7 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   );
 }
 
-function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, t }) {
+function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
   const { colors } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -539,6 +539,12 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
 
           <ProtocolSyringeGuide p={p} t={t} />
           <ProtocolServingGuide p={p} t={t} onRefill={onRefill} />
+
+          {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
+            <TouchableOpacity style={[s.newBottleBtn, { marginTop: 4 }]} onPress={() => onRefillVial(p.id)}>
+              <Text style={s.newBottleText}>↺ {t('protocols_new_vial')}</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={s.cardActions}>
             <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)}>
@@ -1121,12 +1127,21 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
+  // Reset an RTU vial's used count — "started a new vial" (same size/expiry).
+  function refillVial(id) {
+    const v = vialsByProtocol[id];
+    if (!v) return;
+    updateVial(v.id, { doses_taken: 0, active: 1 });
+    fetchProtocols();
+    requestSync();
+  }
+
   const renderCard = (p) => (
     <ProtocolCard
       key={p.id} p={p} vial={vialsByProtocol[p.id]}
       expanded={expanded} setExpanded={setExpanded}
       openEdit={openEdit} deleteProtocol={deleteProtocol}
-      onSaveNote={saveProtocolNote} onRefill={refillOralBottle}
+      onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
       t={t}
     />
   );
