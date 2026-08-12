@@ -826,6 +826,17 @@ export default function ProtocolsScreen() {
     setDoseUnit(p.dose_unit || 'mg'); setSyringeSize(p.syringe_size || 100);
     setConcentration(p.concentration ? String(p.concentration) : '');
     setConcentrationUnit(p.concentration_unit || 'mg');
+    // RTU vial (size + box expiry) for editing
+    const editVial = vialsByProtocol[p.id];
+    if (p.type === 'rtu' && editVial) {
+      setVialMl(editVial.water_ml != null ? String(editVial.water_ml) : '');
+      if (editVial.expires_on) {
+        const ed = new Date(editVial.expires_on + 'T00:00:00');
+        setVialExpMonth(ed.getMonth()); setVialExpYear(ed.getFullYear());
+      } else { setVialExpMonth(null); setVialExpYear(null); }
+    } else {
+      setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
+    }
     const loadedInterval = p.interval_days || 1;
     setIntervalDays(loadedInterval);
     const loadedDPD = p.doses_per_day || 1;
@@ -948,6 +959,22 @@ export default function ProtocolsScreen() {
         container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
         divisible: type === 'oral' ? divisible : null,
       });
+
+      // RTU vial: create or update from the edited size / box expiry.
+      if (type === 'rtu' && parseFloat(vialMl) > 0 && parseFloat(concentration) > 0 && parseFloat(dose) > 0) {
+        let expiresOn = null;
+        if (vialExpMonth != null && vialExpYear != null) {
+          const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
+          expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        }
+        const total = dosesPerVial({ amount: parseFloat(concentration) * parseFloat(vialMl), unit: concentrationUnit, dose, doseUnit }) || 0;
+        const existing = vialsByProtocol[editingId];
+        if (existing) {
+          updateVial(existing.id, { water_ml: parseFloat(vialMl), total_doses: total, expires_on: expiresOn, active: 1 });
+        } else {
+          insertVial({ user_id: user.id, protocol_id: editingId, water_ml: parseFloat(vialMl), total_doses: total, doses_taken: 0, expires_on: expiresOn });
+        }
+      }
       setSaving(false);
       scheduleDoseReminder({
         id: editingId, name, dose: parseFloat(dose), dose_unit: doseUnit,
