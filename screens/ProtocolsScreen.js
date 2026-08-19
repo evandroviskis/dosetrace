@@ -12,6 +12,7 @@ import {
   FlatList,
   Dimensions,
   Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -1086,6 +1087,20 @@ export default function ProtocolsScreen() {
     }
   }
 
+  // Advance one wizard step, honoring the step-3 dose-safety guard (same rule the
+  // old top-right "Next" used). Save has its own guard inside saveProtocol, so the
+  // footer's Save can be tapped from any step.
+  function goNext() {
+    if (step === 3 && doseStepBlocked) {
+      Alert.alert(
+        t('protocols_check_values_title'),
+        unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
+      );
+      return;
+    }
+    if (step < totalSteps) setStep(step + 1);
+  }
+
   async function deleteProtocol(id) {
     Alert.alert(t('protocols_delete_title'), t('protocols_delete_confirm_settings'), [
       { text: t('cancel'), style: 'cancel' },
@@ -1226,33 +1241,28 @@ export default function ProtocolsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          // Android system back (edge-swipe / nav-bar button): step back, or close
+          // from the first step — mirrors the header back arrow, so it's reachable
+          // without hitting the top of the screen.
+          if (step > 1) setStep(step - 1);
+          else { setShowModal(false); resetForm(); }
+        }}
+      >
         <SafeAreaView style={s.modal}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => {
-              if (step > 1) setStep(step - 1);
-              else { setShowModal(false); resetForm(); }
-            }}>
-              <Text style={s.modalCancel}>{step > 1 ? `← ${t('back')}` : t('cancel')}</Text>
-            </TouchableOpacity>
+            {step > 1 ? (
+              <TouchableOpacity onPress={() => setStep(step - 1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={s.modalCancel}>{`← ${t('back')}`}</Text>
+              </TouchableOpacity>
+            ) : <View style={s.modalNavSpacer} />}
             <Text style={s.modalTitle}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
-            <TouchableOpacity onPress={() => {
-              // Step 3 is the dose/calculator step — don't let the user leave it
-              // (or save) with values that can't be drawn correctly.
-              if (step === 3 && doseStepBlocked) {
-                Alert.alert(
-                  t('protocols_check_values_title'),
-                  unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
-                );
-                return;
-              }
-              if (step < totalSteps) setStep(step + 1);
-              else saveProtocol();
-            }}>
-              <Text style={[s.modalSave, step === 3 && doseStepBlocked && s.modalSaveDisabled]}>
-                {step < totalSteps ? t('next') : saving ? t('protocols_saving') : t('save')}
-              </Text>
-            </TouchableOpacity>
+            <View style={s.modalNavSpacer} />
           </View>
 
           <View style={s.modalProgress}>
@@ -2003,6 +2013,34 @@ export default function ProtocolsScreen() {
 
             <View style={{ height: 40 }} />
           </ScrollView>
+
+          {/* Bottom action bar — always visible, thumb-reachable on every step.
+              Cancel closes instantly; Save commits from any step (during an edit
+              all fields are loaded, so one changed field = one tap to Save). */}
+          <View style={s.modalFooter}>
+            <TouchableOpacity
+              style={s.footerCancel}
+              onPress={() => { setShowModal(false); resetForm(); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={s.footerCancelText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <View style={s.footerRight}>
+              {step < totalSteps && (
+                <TouchableOpacity style={s.footerNext} onPress={goNext}>
+                  <Text style={[s.footerNextText, step === 3 && doseStepBlocked && s.footerDisabledText]}>
+                    {t('next')} →
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {(editingId || step === totalSteps) && (
+                <TouchableOpacity style={s.footerSave} onPress={saveProtocol} disabled={saving}>
+                  <Text style={s.footerSaveText}>{saving ? t('protocols_saving') : t('save')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -2098,9 +2136,19 @@ const makeStyles = (c) => StyleSheet.create({
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalCancel: { fontSize: 14, color: c.textMuted },
+  modalNavSpacer: { width: 64 },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   modalSave: { fontSize: 14, color: c.accent, fontWeight: '600' },
   modalSaveDisabled: { color: c.danger },
+  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 12 : 16, borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card },
+  footerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  footerCancel: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10 },
+  footerCancelText: { fontSize: 15, color: c.textMuted, fontWeight: '600' },
+  footerNext: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: c.accent },
+  footerNextText: { fontSize: 15, color: c.accent, fontWeight: '600' },
+  footerDisabledText: { color: c.danger },
+  footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, backgroundColor: c.accent },
+  footerSaveText: { fontSize: 15, color: '#fff', fontWeight: '700' },
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
   modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
   modalProgDone: { backgroundColor: c.accent },
