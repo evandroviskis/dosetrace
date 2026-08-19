@@ -22,6 +22,7 @@ import {
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
+import { scanMissedDoses } from '../lib/doseActions';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
@@ -97,6 +98,11 @@ export default function TodayScreen() {
         }
       }).catch(() => {});
       cleanupOldDeletedProtocols();
+      // Record any dose that went 12h+ unlogged as Missed (prior days only), then
+      // refresh streaks/adherence so they reflect it. Best-effort, never blocks.
+      scanMissedDoses().then((n) => {
+        if (n > 0) { requestSync(); fetchStreakData(); fetchProtocolStreaks(); }
+      }).catch(() => {});
       fetchProtocols();
       fetchTodayLogs();
       fetchStreakData();

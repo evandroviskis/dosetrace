@@ -6,12 +6,14 @@ import {
   SectionList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
+import { scanMissedDoses } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
 import { hour12Pref } from '../lib/timeFormat';
@@ -37,9 +39,37 @@ export default function LogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchLogs();
+      // Materialize any newly-missed doses (12h+ unlogged) before listing, so
+      // they appear in history; then load. scanMissedDoses is best-effort.
+      scanMissedDoses().then((n) => {
+        if (n > 0) requestSync();
+        fetchLogs();
+      }).catch(() => fetchLogs());
     }, [])
   );
+
+  // A dose auto-marked "Missed" can be corrected here — the user took it but
+  // didn't log it in time. Changing the outcome updates the same row (no new
+  // log), so the streak/adherence recompute on the next focus.
+  function openMissedEditor(log) {
+    Alert.alert(
+      t('log_missed_edit_title'),
+      t('log_missed_edit_msg'),
+      [
+        { text: t('log_mark_taken'), onPress: () => setMissedOutcome(log.id, 'Taken') },
+        { text: t('log_mark_skipped'), onPress: () => setMissedOutcome(log.id, 'Skipped') },
+        { text: t('cancel'), style: 'cancel' },
+      ],
+    );
+  }
+
+  function setMissedOutcome(logId, outcome) {
+    try {
+      updateDoseLog(logId, { outcome });
+      requestSync();
+      fetchLogs();
+    } catch { /* ignore */ }
+  }
 
   async function openSiteEditor(log) {
     // Oral supplements have no injection site — nothing to edit here.
@@ -153,7 +183,7 @@ export default function LogScreen() {
   function outcomeLabel(outcome) {
     if (outcome === 'Taken') return t('log_taken');
     if (outcome === 'Skipped') return t('log_skipped');
-    return t('log_delayed');
+    return t('log_missed');
   }
 
   function typeIcon(type) {
@@ -167,13 +197,13 @@ export default function LogScreen() {
 
   const takenCount = logs.filter(l => l.outcome === 'Taken').length;
   const skippedCount = logs.filter(l => l.outcome === 'Skipped').length;
-  const delayedCount = logs.filter(l => l.outcome === 'Delayed').length;
+  const missedCount = logs.filter(l => l.outcome === 'Missed').length;
 
   const filters = [
     { key: 'All', label: t('log_all') },
     { key: 'Taken', label: t('log_taken') },
     { key: 'Skipped', label: t('log_skipped') },
-    { key: 'Delayed', label: t('log_delayed') },
+    { key: 'Missed', label: t('log_missed') },
   ];
 
   return (
@@ -201,8 +231,8 @@ export default function LogScreen() {
           <Text style={[s.statLbl, { color: colors.dangerSoftText }]}>{t('log_skipped')}</Text>
         </View>
         <View style={[s.statCard, { backgroundColor: colors.warningSoft }]}>
-          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{delayedCount}</Text>
-          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_delayed')}</Text>
+          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{missedCount}</Text>
+          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_missed')}</Text>
         </View>
       </View>
 
@@ -254,10 +284,10 @@ export default function LogScreen() {
           return (
             <TouchableOpacity
               style={s.logEntry}
-              onPress={() => openSiteEditor(log)}
+              onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openSiteEditor(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={t('bodymap_title')}
+              accessibilityLabel={log.outcome === 'Missed' ? t('log_missed_edit_title') : t('bodymap_title')}
             >
               <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
               <View style={s.logInfo}>
