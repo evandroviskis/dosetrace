@@ -38,7 +38,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
-import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
+import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts } from '../lib/doseMath';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule';
@@ -238,6 +238,14 @@ function ProtocolSyringeGuide({ p, t }) {
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_dose')}</Text>
           <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
+          {/* Show the dose in the other mass unit too, so the mcg↔mg equivalence
+              is visible right where the draw is read. */}
+          {(() => {
+            let alt = null;
+            if (p.dose_unit === 'mcg') { const pp = massParts(parseFloat(p.dose) / 1000); if (pp) alt = `${pp.mg} mg`; }
+            else if (p.dose_unit === 'mg') { const pp = massParts(parseFloat(p.dose)); if (pp) alt = `${pp.mcg} mcg`; }
+            return alt ? <Text style={s.syringeInfoAlt}>= {alt}</Text> : null;
+          })()}
         </View>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_size')}</Text>
@@ -602,6 +610,7 @@ export default function ProtocolsScreen() {
   const [diluentChoice, setDiluentChoice] = useState('');
   const [diluentOther, setDiluentOther] = useState('');
   const [dose, setDose] = useState('');
+  const [iuInput, setIuInput] = useState(''); // IU→mass converter (recon dose step)
   const [doseUnit, setDoseUnit] = useState('mg');
   const [syringeSize, setSyringeSize] = useState(100);
   const [concentration, setConcentration] = useState('');
@@ -763,6 +772,7 @@ export default function ProtocolsScreen() {
   function resetForm() {
     setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor('#185FA5');
     setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
+    setIuInput('');
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
@@ -835,7 +845,7 @@ export default function ProtocolsScreen() {
     } else {
       setDiluentChoice(''); setDiluentOther('');
     }
-    setDose(p.dose ? String(p.dose) : '');
+    setDose(p.dose ? String(p.dose) : ''); setIuInput('');
     setDoseUnit(p.dose_unit || 'mg'); setSyringeSize(p.syringe_size || 100);
     setConcentration(p.concentration ? String(p.concentration) : '');
     setConcentrationUnit(p.concentration_unit || 'mg');
@@ -1620,6 +1630,49 @@ export default function ProtocolsScreen() {
                         ))}
                       </View>
                     </View>
+                    {/* IU → mass converter. A trainer's protocol often reads
+                        "10 IU" (syringe units) while the peptide is measured in mg.
+                        Given the concentration (amount ÷ diluent) this shows the
+                        real mass and can fill the dose — pure conversion, stored as
+                        mass so all downstream math is unchanged. */}
+                    {['mg', 'mcg'].includes(unit) && parseFloat(amount) > 0 && parseFloat(water) > 0 && (() => {
+                      // Normalize the peptide amount to mg so the concentration is
+                      // correct even when the vial is labeled in mcg.
+                      const amountMg = unit === 'mcg' ? parseFloat(amount) / 1000 : parseFloat(amount);
+                      const iuMassMg = massFromUnits(iuInput, amountMg, water);
+                      const parts = iuMassMg != null ? massParts(iuMassMg) : null;
+                      return (
+                        <View style={s.iuConverter}>
+                          <Text style={s.iuConverterLabel}>{t('protocols_iu_label')}</Text>
+                          <Text style={s.iuConverterHint}>{t('protocols_iu_hint')}</Text>
+                          <View style={s.inputRow}>
+                            <TextInput
+                              style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+                              placeholder={`${t('protocols_eg')} 10`}
+                              placeholderTextColor={colors.textFaint}
+                              keyboardType="numeric"
+                              value={iuInput}
+                              onChangeText={setIuInput}
+                            />
+                            <View style={s.iuUnitTag}><Text style={s.iuUnitTagText}>IU</Text></View>
+                          </View>
+                          {parts && (
+                            <View style={s.iuEquivBox}>
+                              <Text style={s.iuEquivText}>{`${iuInput} IU = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
+                              <TouchableOpacity
+                                style={s.iuUseBtn}
+                                onPress={() => {
+                                  if (iuMassMg < 1) { setDose(parts.mcg); setDoseUnit('mcg'); }
+                                  else { setDose(parts.mg); setDoseUnit('mg'); }
+                                }}
+                              >
+                                <Text style={s.iuUseBtnText}>{t('protocols_iu_use')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })()}
                     <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_syringe_size_label')}</Text>
                     <View style={s.unitPicker}>
                       {[
@@ -2115,6 +2168,7 @@ const makeStyles = (c) => StyleSheet.create({
   syringeInfoItem: { alignItems: 'center' },
   syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
   syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
+  syringeInfoAlt: { fontSize: 10, color: c.textMuted, marginTop: 1 },
   syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
   syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
   // Zoom modal
@@ -2177,6 +2231,15 @@ const makeStyles = (c) => StyleSheet.create({
   stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
   calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
   calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
+  iuConverter: { marginTop: 14, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card2 },
+  iuConverterLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 2 },
+  iuConverterHint: { fontSize: 11, color: c.textMuted, marginBottom: 10 },
+  iuUnitTag: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: c.accentSoft },
+  iuUnitTagText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
+  iuEquivBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
+  iuEquivText: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
+  iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: c.accent },
+  iuUseBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },

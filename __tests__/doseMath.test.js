@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { unitsCompatible, normalizeDoseValue, formatML, computeDraw, dosesPerVial } = require('../lib/doseMath');
+const { unitsCompatible, normalizeDoseValue, formatML, computeDraw, dosesPerVial, massFromUnits, massParts } = require('../lib/doseMath');
 
 test('unitsCompatible: IU only pairs with IU', () => {
   assert.equal(unitsCompatible('IU', 'IU'), true);
@@ -125,4 +125,30 @@ test('computeDraw: valid ceiling is 3 ml (arithmetic sanity bound)', () => {
   const r = computeDraw({ type: 'rtu', concentration: '1', concentrationUnit: 'mg', dose: '4', doseUnit: 'mg' });
   assert.equal(r.rawML, 4);
   assert.equal(r.valid, false);
+});
+
+test('massFromUnits: the Ipamorelin example — 10 IU of 10mg/2.5ml = 0.4 mg', () => {
+  assert.equal(massFromUnits(10, 10, 2.5), 0.4);
+});
+
+test('massFromUnits: scales with concentration and units', () => {
+  assert.equal(massFromUnits(20, 10, 2.5), 0.8); // double the units
+  assert.equal(massFromUnits(10, 5, 2.5), 0.2);  // half the peptide
+  assert.equal(massFromUnits(10, 10, 5), 0.2);   // double the diluent
+});
+
+test('massFromUnits: null on missing/invalid input', () => {
+  assert.equal(massFromUnits(0, 10, 2.5), null);
+  assert.equal(massFromUnits(10, 0, 2.5), null);
+  assert.equal(massFromUnits(10, 10, 0), null);
+  assert.equal(massFromUnits('', '', ''), null);
+  assert.equal(massFromUnits('abc', 10, 2.5), null);
+});
+
+test('massParts: splits mg into short mcg + mg strings', () => {
+  assert.deepEqual(massParts(0.4), { mcg: '400', mg: '0.4' });
+  assert.deepEqual(massParts(0.25), { mcg: '250', mg: '0.25' });
+  assert.deepEqual(massParts(2), { mcg: '2000', mg: '2' });
+  assert.deepEqual(massParts(0.005), { mcg: '5', mg: '0.005' });
+  assert.equal(massParts(0), null);
 });
