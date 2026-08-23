@@ -15,7 +15,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Dimensions, Linking } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
@@ -30,7 +30,7 @@ import ProgressChart from './ProgressChart';
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => new Date().toISOString().split('T')[0];
 const SNAP_CAP = 50;
-const CHART_WIDTH = Dimensions.get('window').width - 64;
+// Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
 
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
 const GOALS = ['lose', 'maintain', 'gain'];
@@ -53,6 +53,8 @@ export default function CalculatorSection() {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { width: windowWidth } = useWindowDimensions();
+  const CHART_WIDTH = windowWidth - 64;
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
 

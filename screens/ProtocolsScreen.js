@@ -10,9 +10,9 @@ import {
   Alert,
   Platform,
   FlatList,
-  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -132,6 +132,7 @@ function ProtocolSyringeGuide({ p, t }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [zoom, setZoom] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
   if (p.type === 'oral') return null;
 
   const draw = computeDraw({
@@ -149,7 +150,7 @@ function ProtocolSyringeGuide({ p, t }) {
   const drawFrac = pDrawValid ? Math.min(parseFloat(pDrawUnits) / syringeMax, 1) : 0;
   const fillPct = drawFrac * 100;
   // Zoom modal: an enlarged, horizontally-scrollable ruler (~16px per unit).
-  const zoomWidth = Math.max(Dimensions.get('window').width - 72, syringeMax * 16);
+  const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
 
   // Animated fill
   const fillWidth = useSharedValue(0);
@@ -264,7 +265,7 @@ function ProtocolSyringeGuide({ p, t }) {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator
-              contentOffset={{ x: Math.max(0, drawFrac * zoomWidth - (Dimensions.get('window').width - 72) / 2), y: 0 }}
+              contentOffset={{ x: Math.max(0, drawFrac * zoomWidth - (windowWidth - 72) / 2), y: 0 }}
               style={s.zoomScroll}
             >
               <View style={{ width: zoomWidth, paddingTop: 4 }}>

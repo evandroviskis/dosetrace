@@ -280,7 +280,12 @@ export default function App() {
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
         } else if (data.type === 'checkin_reminder' && navigationRef.current) {
-          navigationRef.current.navigate('Main', { screen: 'Log' });
+          // Weekly measurements invitation — deep-link straight into the calculator
+          // section, where weight/waist logging and the trend chart live.
+          navigationRef.current.navigate('Main', {
+            screen: 'MainTabs',
+            params: { screen: 'Body', params: { initialSection: 'calc' } },
+          });
         }
       });
     } catch {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,8 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
-  Dimensions,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -33,7 +33,8 @@ import VaccinesSection from './components/VaccinesSection';
 import CalculatorSection from './components/CalculatorSection';
 
 // Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
-const CHART_WIDTH = Dimensions.get('window').width - 32 - 28;
+// Computed inside the component via useWindowDimensions so it tracks
+// fold/unfold and rotation on resizable displays.
 
 
 // One free bloodwork analysis, then Premium required. Counts successful saves
@@ -103,9 +104,11 @@ function validateExtraction(data) {
   return { markers, reportDate, droppedCount, dateFallback };
 }
 
-export default function BodyScreen({ navigation }) {
+export default function BodyScreen({ navigation, route }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const CHART_WIDTH = windowWidth - 32 - 28;
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +130,16 @@ export default function BodyScreen({ navigation }) {
   const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
   const [tagDraft, setTagDraft] = useState('');
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
+
+  // Deep link from notifications (e.g. weekly measurements check-in → 'calc').
+  // Param is consumed after use so backing out to the hub isn't re-hijacked.
+  useEffect(() => {
+    const target = route?.params?.initialSection;
+    if (target === 'labs' || target === 'vaccines' || target === 'calc') {
+      setSection(target);
+      navigation.setParams({ initialSection: undefined });
+    }
+  }, [route?.params?.initialSection]);
   const [exporting, setExporting] = useState(false);
   const [vaxCount, setVaxCount] = useState(0);
   const [vaccineList, setVaccineList] = useState([]);

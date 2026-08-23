@@ -27,8 +27,8 @@ const OUT = join(HERE, 'final');
 const TMP = join(HERE, '.tmp');
 
 // Target device frame (iPhone 6.7"). Also valid for Play phone uploads.
-const W = 1290;
-const H = 2796;
+const W = 1320;
+const H = 2868;
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -36,11 +36,14 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // Captions must not imply the app interprets, recommends, or diagnoses.
 const SHOTS = [
   { file: '01-body-hub.png', caption: 'Your health records, in one private place', bg: ['#1E5FA8', '#123E6E'] },
+  { file: '05-today.png', caption: 'Your day, and your routines, at a glance', bg: ['#3457A6', '#1E356B'] },
+  { file: '06-recon.png', caption: 'Syringe math, straight from your numbers', bg: ['#5B4BB0', '#382C7A'] },
+  { file: '07-bodymap.png', caption: 'A body map to note where you injected', bg: ['#2A6FB0', '#164A7A'] },
+  { file: '08-rtu.png', caption: 'Track ready-to-use vials too', bg: ['#127C63', '#0B4A3C'] },
+  { file: '09-oral.png', caption: 'Serving math from the amounts you enter', bg: ['#B9741C', '#7A4A0E'] },
   { file: '02-lab-chart.png', caption: 'See your own lab values over time', bg: ['#127C63', '#0B4A3C'] },
   { file: '03-vaccines.png', caption: 'Keep your vaccines and boosters organized', bg: ['#2A6FB0', '#164A7A'] },
   { file: '04-calculator.png', caption: 'Estimate your daily calories & protein', bg: ['#B9741C', '#7A4A0E'] },
-  { file: '05-today.png', caption: 'Your day, and your routines, at a glance', bg: ['#3457A6', '#1E356B'] },
-  { file: '06-recon.png', caption: 'Syringe math, straight from your numbers', bg: ['#5B4BB0', '#382C7A'] },
 ];
 
 function pageHTML({ caption, bg, dataUri }) {
