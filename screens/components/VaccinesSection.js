@@ -21,6 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
+import { requestAIConsent } from '../../lib/aiConsent';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
@@ -87,6 +88,9 @@ export default function VaccinesSection() {
       ]);
       return;
     }
+    // Consent gate: the card photo/PDF goes to a third-party AI service —
+    // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending.
+    if (!(await requestAIConsent(t))) return;
     Alert.alert(t('vax_scan_choose_title'), t('vax_scan_choose_sub'), [
       { text: t('blood_source_camera'), onPress: () => pickImageAndExtract(true) },
       { text: t('blood_source_photo'), onPress: () => pickImageAndExtract(false) },

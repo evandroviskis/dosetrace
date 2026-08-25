@@ -26,6 +26,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
+import { requestAIConsent } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
 import MarkerChart from './components/MarkerChart';
@@ -280,8 +281,11 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   // Let the user snap a photo, pick an image, or choose a PDF. Any lab, any
-  // language — extraction handles all of them.
-  function chooseSource() {
+  // language — extraction handles all of them. Consent gate first: the file
+  // goes to a third-party AI service, and Apple 5.1.1(i)/5.1.2(i) requires
+  // explicit permission before anything is sent.
+  async function chooseSource() {
+    if (!(await requestAIConsent(t))) return;
     Alert.alert(t('blood_upload_choose_title'), t('blood_upload_choose_sub'), [
       { text: t('blood_source_camera'), onPress: () => pickImageAndExtract(true) },
       { text: t('blood_source_photo'), onPress: () => pickImageAndExtract(false) },
