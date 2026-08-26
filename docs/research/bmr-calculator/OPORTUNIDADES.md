@@ -16,7 +16,7 @@
 ## 🟢 Funcionalidades (já codificadas e testadas na referência)
 7. IMC + faixa de peso saudável (dados já coletados).
 8. Macros completos (gordura 25% kcal, piso 0,6 g/kg; carbo = resto) — fecha com a meta.
-9. Três metas lado a lado (allGoals) — a melhor ideia de UX do nutriesdras.
+9. Três metas lado a lado (allGoals) — a melhor ideia de UX do nutriesdras. ✅ ENDOSSADO pelo Evandro (2026-08-26): ele gostou explicitamente do layout de cards do resultado deles ("feio mas fácil de ler, visão completa no final"). Direção acordada p/ a tela de resultado: grid de cards com um número grande por card, metas lose/maintain/gain simultâneas, ECO DOS INPUTS no cabeçalho (o slider de altura dele não registrou no site e o resultado saiu p/ 170cm em vez de 177 — o eco previne isso), equação nomeada no card, chips de IMC/faixa + gordura/carbo, e teaser do reality check fechando a tela.
 10. Projeção de peso 4/8/12 semanas (7700 kcal/kg) — ninguém tem.
 11. Override manual de equação (default continua a nossa auto-seleção por dados).
 
