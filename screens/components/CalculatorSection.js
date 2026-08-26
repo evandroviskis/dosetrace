@@ -22,7 +22,7 @@ import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import {
-  computeBMR, tdee, goalCalories, proteinTarget, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
+  energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
 import ProgressChart from './ProgressChart';
@@ -33,7 +33,6 @@ const SNAP_CAP = 50;
 // Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
 
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
-const GOALS = ['lose', 'maintain', 'gain'];
 const round10 = n => Math.round(n / 10) * 10;
 const round5 = n => Math.round(n / 5) * 5;
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
@@ -67,7 +66,6 @@ export default function CalculatorSection() {
   const [height, setHeight] = useState('');
   const [activity, setActivity] = useState(1.375);
   const [goal, setGoal] = useState('lose');
-  const [resistance, setResistance] = useState(false);
   const [waist, setWaist] = useState('');
   const [expl, setExpl] = useState(null);           // which explainer is open
   const [premium, setPremium] = useState(false);
@@ -104,7 +102,6 @@ export default function CalculatorSection() {
       if (saved.height != null) setHeight(String(saved.height));
       if (saved.activity != null) setActivity(saved.activity);
       if (saved.goal) setGoal(saved.goal);
-      if (typeof saved.resistance === 'boolean') setResistance(saved.resistance);
       if (saved.waist != null) setWaist(String(saved.waist));
     }
     loadedRef.current = true;
@@ -122,31 +119,29 @@ export default function CalculatorSection() {
 
   const result = useMemo(() => {
     const isUnknown = bfSource === 'unknown';
-    const bmrInput = {
+    const plan = energyPlan({
       weightKg: metric.weightKg,
       heightCm: metric.heightCm,
       age: num(age),
       sex,
       bodyFatPct: isUnknown ? null : num(bodyFat),
-      resistanceTrained: resistance,
-    };
-    const { bmr, method, lbm } = computeBMR(bmrInput);
-    if (!bmr) return null;
-    const tdeeVal = tdee(bmr, activity);
-    const cals = goalCalories(tdeeVal, goal);
-    const protein = proteinTarget({ weightKg: metric.weightKg, lbmKg: lbm });
-    return { bmr, method, lbm, tdeeVal, cals, protein };
-  }, [metric, age, sex, bodyFat, bfSource, resistance, activity, goal]);
+      activity,
+      goal,
+    });
+    if (!plan.ok) return plan.warnings.length ? { invalid: true, warnings: plan.warnings } : null;
+    return plan;
+  }, [metric, age, sex, bodyFat, bfSource, activity, goal]);
+  const plan = result && !result.invalid ? result : null;
 
   // Persist inputs (debounced, fire-and-forget) once initial load is done.
   useEffect(() => {
     if (!loadedRef.current) return;
     const timer = setTimeout(() => {
-      const payload = { unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, resistance, waist };
+      const payload = { unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist };
       supabase.auth.updateUser({ data: { calc_inputs: payload } }).catch(() => {});
     }, 900);
     return () => clearTimeout(timer);
-  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, resistance, waist]);
+  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist]);
 
   const wUnit = unit === 'imperial' ? t('cal_unit_lb') : t('cal_unit_kg');
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');
@@ -177,15 +172,15 @@ export default function CalculatorSection() {
 
   // ── Snapshots (premium) ──────────────────────────────────────────
   function saveSnapshot() {
-    if (!result || metric.weightKg == null) return;
+    if (!plan || metric.weightKg == null) return;
     const snap = {
       date: todayISO(),
       weightKg: metric.weightKg,
       waistCm,
       bodyFatPct: isUnknown ? null : num(bodyFat),
-      lbm: result.lbm,
-      bmr: Math.round(result.bmr),
-      tdee: Math.round(result.tdeeVal),
+      lbm: plan.lbm,
+      bmr: Math.round(plan.bmr),
+      tdee: Math.round(plan.tdeeVal),
     };
     // One snapshot per day (latest wins); keep the newest SNAP_CAP, sorted.
     const next = [...snapshots.filter(x => x.date !== snap.date), snap]
@@ -280,6 +275,33 @@ export default function CalculatorSection() {
   const rcY = useRef(0);
   const scrollTo = yRef => scrollRef.current?.scrollTo({ y: Math.max((yRef.current || 0) - 8, 0), animated: true });
 
+  // Warning codes from the engine → localized copy.
+  const warnText = w => {
+    if (w.code === 'calorie_floor' || w.code === 'bmr_floor') {
+      return t(`cal_warn_${w.code}`).replace('{kcal}', String(round10(w.values?.kcal ?? 0)));
+    }
+    if (w.code === 'protein_cap') return t('cal_warn_protein_cap').replace('{g}', String(w.values?.g ?? ''));
+    if (w.code === 'protein_adjusted') return t('cal_warn_protein_adjusted');
+    return null;
+  };
+
+  // Echo the inputs the math actually used — a wrong/stale input should be
+  // visible right next to the results, not discovered weeks later.
+  const echoParts = useMemo(() => {
+    const parts = [];
+    if (num(weight) != null) parts.push(`${weight} ${wUnit}`);
+    if (!isUnknown && num(bodyFat) != null) parts.push(`${bodyFat}% ${t('cal_bf_short')}`);
+    if (isUnknown) {
+      parts.push(t(`cal_sex_${sex}`));
+      if (num(age) != null) parts.push(`${age} ${t('cal_yr')}`);
+      if (num(height) != null) parts.push(`${height} ${hUnit}`);
+    }
+    parts.push(`×${activity}`);
+    return parts;
+  }, [weight, bodyFat, isUnknown, sex, age, height, activity, unit, language]);
+
+  const toDisplayW = kg => (unit === 'imperial' ? kgToLb(kg) : kg);
+
   const EXPLAINERS = [
     { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
     { key: 'deficit', title: t('cal_expl_deficit_title'), body: t('cal_expl_deficit_body') },
@@ -295,32 +317,59 @@ export default function CalculatorSection() {
       </View>
 
       {/* Overview — the user's current situation */}
-      {result ? (
+      {result && result.invalid ? (
+        <View style={s.overview}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
+      ) : plan ? (
         <View style={s.overview}>
           <View style={s.overviewTop}>
             <Text style={s.overviewTitle}>{t('cal_overview_title')}</Text>
-            <View style={s.goalBadge}><Text style={s.goalBadgeText}>{t(`cal_goal_${goal}`)}</Text></View>
+            <View style={s.echoChip}><Text style={s.echoChipText}>{echoParts.join(' · ')}</Text></View>
           </View>
 
-          <View style={s.overviewHeadline}>
-            <Text style={s.overviewHeadlineLabel}>{t('cal_target')}</Text>
-            <Text style={s.overviewHeadlineVal}>
-              {goal === 'maintain'
-                ? `${round10(result.cals.mid)} ${t('cal_kcal')}`
-                : `${round10(result.cals.low)}–${round10(result.cals.high)} ${t('cal_kcal')}`}
-            </Text>
-          </View>
-          <View style={s.overviewHeadline}>
-            <Text style={s.overviewHeadlineLabel}>{t('cal_protein')}</Text>
-            <Text style={s.overviewHeadlineVal}>{round5(result.protein.rec)} {t('cal_g_day')}</Text>
-            <Text style={s.overviewHeadlineSub}>{t('cal_range')} {round5(result.protein.low)}–{round5(result.protein.high)} {t('cal_g_day')} · {t(`cal_protein_basis_${result.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
+          {/* Hero cards — daily burn + protein */}
+          <View style={s.heroRow}>
+            <View style={s.heroCard}>
+              <Text style={s.heroLabel}>🔥 {t('cal_tdee')}</Text>
+              <Text style={s.heroVal}>{round10(plan.tdeeVal)} <Text style={s.heroUnit}>{t('cal_kcal')}</Text></Text>
+              <Text style={s.heroSub}>{t(`cal_eq_${plan.method}`)} · {t('cal_bmr')} {round10(plan.bmr)}</Text>
+            </View>
+            <View style={s.heroCard}>
+              <Text style={s.heroLabel}>🍗 {t('cal_protein')}</Text>
+              <Text style={s.heroVal}>{round5(plan.protein.rec)} <Text style={s.heroUnit}>{t('cal_g_day')}</Text></Text>
+              <Text style={s.heroSub}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
+            </View>
           </View>
 
-          <View style={s.overviewStats}>
-            <View style={s.overviewStat}><Text style={s.overviewStatVal}>{round10(result.bmr)}</Text><Text style={s.overviewStatLabel}>{t('cal_bmr')}</Text></View>
-            <View style={s.overviewStatDiv} />
-            <View style={s.overviewStat}><Text style={s.overviewStatVal}>{round10(result.tdeeVal)}</Text><Text style={s.overviewStatLabel}>{t('cal_tdee')}</Text></View>
+          {/* All three goals, side by side — tap to choose */}
+          <View style={s.goalRow}>
+            {['lose', 'maintain', 'gain'].map(g => {
+              const on = goal === g;
+              const gc = plan.allGoals[g];
+              return (
+                <TouchableOpacity key={g} style={[s.goalCard, on && s.goalCardOn]} onPress={() => setGoal(g)} activeOpacity={0.7}>
+                  <Text style={[s.goalLabel, on && s.goalLabelOn]}>{t(`cal_goal_${g}`)}</Text>
+                  <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid)}</Text>
+                  <Text style={s.goalSub}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
+
+          {/* Context chips — BMI + macros */}
+          <View style={s.chipRow}>
+            {plan.bmi != null && plan.healthyRange && (
+              <View style={s.chip}><Text style={s.chipText}>{t('cal_bmi')} {(Math.round(plan.bmi * 10) / 10).toFixed(1)} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
+            )}
+            {plan.macros && (
+              <View style={s.chip}><Text style={s.chipText}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
+            )}
+          </View>
+
+          {/* Safety notes from the engine */}
+          {plan.warnings.map(w => {
+            const txt = warnText(w);
+            return txt ? <View key={w.code} style={s.warnBox}><Text style={s.warnText}>{txt}</Text></View> : null;
+          })}
 
           {progressSummary && (
             <View style={s.deltaRow}>
@@ -434,14 +483,6 @@ export default function CalculatorSection() {
         </>
       )}
 
-      {/* Resistance-trained flag (switches Katch → Cunningham) */}
-      {!isUnknown && (
-        <TouchableOpacity style={s.checkRow} onPress={() => setResistance(v => !v)}>
-          <View style={[s.checkbox, resistance && s.checkboxOn]}>{resistance ? <Text style={s.checkMark}>✓</Text> : null}</View>
-          <Text style={s.checkLabel}>{t('cal_resistance')}</Text>
-        </TouchableOpacity>
-      )}
-
       {/* Activity */}
       <Text style={s.label}>{t('cal_activity')}</Text>
       {ACTIVITY_LEVELS.map(a => (
@@ -450,16 +491,6 @@ export default function CalculatorSection() {
           <Text style={[s.actText, activity === a.value && s.actTextOn]}>{t(a.key)}</Text>
         </TouchableOpacity>
       ))}
-
-      {/* Goal */}
-      <Text style={s.label}>{t('cal_goal')}</Text>
-      <View style={s.segment}>
-        {GOALS.map(g => (
-          <TouchableOpacity key={g} style={[s.segBtn, goal === g && s.segBtnOn]} onPress={() => setGoal(g)}>
-            <Text style={[s.segText, goal === g && s.segTextOn]}>{t(`cal_goal_${g}`)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {/* Optional waist — the headline non-scale metric */}
       <Text style={s.label}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
@@ -498,7 +529,7 @@ export default function CalculatorSection() {
                     {t('cal_rc_rate_losing')} {rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')} {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
                   </Text>
                 ) : null}
-                {result ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(result.tdeeVal)} {t('cal_kcal')}.</Text> : null}
+                {plan ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
                 <TouchableOpacity style={[s.computeBtn, { marginTop: 14 }]} onPress={saveRealityCheck}>
                   <Text style={s.computeBtnText}>{rcSavedMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_rc_save')}</Text>
                 </TouchableOpacity>
@@ -550,7 +581,7 @@ export default function CalculatorSection() {
         <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
         {premium ? (
           <>
-            <TouchableOpacity style={[s.computeBtn, !result && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!result}>
+            <TouchableOpacity style={[s.computeBtn, !plan && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!plan}>
               <Text style={s.computeBtnText}>{snapMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_snap_save')}</Text>
             </TouchableOpacity>
             {snapPointCount >= 2 ? (
@@ -637,8 +668,29 @@ const makeStyles = (c) => StyleSheet.create({
   introTitle: { fontSize: 14, fontWeight: '700', color: c.accentSoftText, marginBottom: 4 },
   introBody: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
   overview: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 0.5, borderColor: c.border },
-  overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
   overviewTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5 },
+  echoChip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexShrink: 1 },
+  echoChipText: { fontSize: 11, color: c.textMuted },
+  heroRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  heroCard: { flex: 1, backgroundColor: c.card2, borderRadius: 12, padding: 12 },
+  heroLabel: { fontSize: 11, color: c.textMuted, marginBottom: 4 },
+  heroVal: { fontSize: 22, fontWeight: '800', color: c.text },
+  heroUnit: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  heroSub: { fontSize: 10, color: c.textFaint, marginTop: 3 },
+  goalRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  goalCard: { flex: 1, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 10, alignItems: 'center' },
+  goalCardOn: { borderColor: c.accent, borderWidth: 2, backgroundColor: c.accentSoft },
+  goalLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
+  goalLabelOn: { color: c.accent },
+  goalVal: { fontSize: 17, fontWeight: '700', color: c.text, marginTop: 2 },
+  goalValOn: { color: c.accent },
+  goalSub: { fontSize: 9, color: c.textFaint, marginTop: 2 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  chip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  chipText: { fontSize: 11, color: c.textMuted },
+  warnBox: { backgroundColor: c.warningSoft, borderRadius: 10, padding: 10, marginTop: 8 },
+  warnText: { fontSize: 11, color: c.warningSoftText, lineHeight: 16 },
   goalBadge: { backgroundColor: c.accent, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   goalBadgeText: { color: c.accentText, fontSize: 12, fontWeight: '700' },
   overviewHeadline: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
