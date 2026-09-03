@@ -157,7 +157,17 @@ export default function VaccinesSection() {
       });
       if (error) {
         setUploading(false);
-        Alert.alert(t('vax_scan_error'), t('vax_scan_error_sub'));
+        // Same distinction as lab scanning: a service outage is not the user's card.
+        const status = error.context?.status;
+        let code = null;
+        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
+          || (code == null && [500, 502, 503].includes(status));
+        if (serviceDown) {
+          Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
+        } else {
+          Alert.alert(t('vax_scan_error'), t('vax_scan_error_sub'));
+        }
         return;
       }
       const raw = Array.isArray(data?.vaccines) ? data.vaccines : [];

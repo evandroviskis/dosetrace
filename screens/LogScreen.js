@@ -218,7 +218,14 @@ export default function LogScreen() {
           <Text style={s.headerBack}>‹</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('log_title')}</Text>
-        <View style={s.headerSpacer} />
+        <TouchableOpacity
+          style={s.curveBtn}
+          onPress={() => navigation.navigate('SerumCurve')}
+          accessibilityRole="button"
+          accessibilityLabel={t('curve_btn')}
+        >
+          <Text style={s.curveBtnText}>📈 {t('curve_btn')}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={s.statsRow}>
@@ -341,6 +348,13 @@ const makeStyles = (c) => StyleSheet.create({
   headerBack: { fontSize: 34, lineHeight: 34, color: c.accent, fontWeight: '400', width: 34 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: c.text },
   headerSpacer: { width: 34 },
+  curveBtn: {
+    backgroundColor: c.accent,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  curveBtnText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
   statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
   statCard: { flex: 1, borderRadius: 14, padding: 10, alignItems: 'center' },
   statVal: { fontSize: 20, fontWeight: '600' },

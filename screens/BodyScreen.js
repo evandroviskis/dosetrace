@@ -399,10 +399,19 @@ export default function BodyScreen({ navigation, route }) {
       if (error) {
         setUploading(false);
         const status = error.context?.status;
+        // The edge function tags failures with a `code`. Distinguish a
+        // service-side failure (Anthropic down, key/credit) from an actual
+        // unreadable file, so we never blame the user's PDF for our outage.
+        let code = null;
+        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
+          || (code == null && [500, 502, 503].includes(status));
         if (status === 401) {
           Alert.alert(t('error'), t('blood_error_not_signed_in'));
         } else if (status === 413) {
           Alert.alert(t('error'), t('blood_error_file_too_large'));
+        } else if (serviceDown) {
+          Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
         } else {
           Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
         }
@@ -637,20 +646,18 @@ export default function BodyScreen({ navigation, route }) {
               </TouchableOpacity>
             ))}
 
-            {/* Coming soon — dose-accumulation model (Premium, future feature). Not tappable yet. */}
-            <View style={[s.hubCard, s.hubCardSoon]}>
+            {/* Dose-accumulation / serum-curve model (educational estimate). */}
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => navigation.navigate('SerumCurve')}>
               <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
                 <Text style={s.hubBadgeIcon}>📈</Text>
               </View>
               <View style={s.hubCardMain}>
-                <View style={s.soonRow}>
-                  <Text style={[s.hubCardTitle, { marginBottom: 0 }]}>{t('body_card_dosing_title')}</Text>
-                  <View style={s.soonPill}><Text style={s.soonPillText}>{t('coming_soon')}</Text></View>
-                </View>
+                <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
                 <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
-                <Text style={s.hubCardStat}>{t('paywall_premium')}</Text>
+                <Text style={s.hubCardStat}>{t('curve_title')}</Text>
               </View>
-            </View>
+              <Text style={s.hubCardChevron}>›</Text>
+            </TouchableOpacity>
 
             <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
             <View style={{ height: 30 }} />

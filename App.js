@@ -68,10 +68,10 @@ import ProtocolsScreen from './screens/ProtocolsScreen';
 import LogScreen from './screens/LogScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
-// VialScreen removed from tabs — vial tracking now in TodayScreen
 import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import SerumCurveScreen from './screens/SerumCurveScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -151,6 +151,7 @@ function MainStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Log" component={LogScreen} />
+      <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
     </Stack.Navigator>
