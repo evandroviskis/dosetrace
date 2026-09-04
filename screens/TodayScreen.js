@@ -49,11 +49,13 @@ const MONTH_KEYS = [
 // ── Today alerts config ────────────────────────────────────────
 const BLOODWORK_INTERVAL_DAYS = 182; // ~6 months
 const SUPPLY_LOW_DOSES = 3;          // flag a vial with this many doses left or fewer
+const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many days
 const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
 // How long "delete" hides a DERIVED alert (reality-check delete cancels instead).
 const ALERT_SNOOZE_MS = {
   bloodwork_due: 14 * 86400000,
   supply_low: 3 * 86400000,
+  vial_expiry: 2 * 86400000,
 };
 
 // ── Schedule math ──────────────────────────────────────────────
@@ -781,6 +783,38 @@ export default function TodayScreen() {
               : t('today_alert_supply_many').replace('{count}', String(low.length)),
           onPress: () => navigation.navigate('Protocols'),
           onRemove: () => snoozeAlert('supply_low'),
+        });
+      }
+    }
+    // 4) Vial expiring soon (recon: mix date + validity; rtu: box expiry date).
+    if (!(alertSnooze.vial_expiry && nowMs < alertSnooze.vial_expiry)) {
+      const exp = [];
+      for (const p of protocols) {
+        const v = vials[p.id];
+        if (!v) continue;
+        let daysLeft = null;
+        if (p.type === 'recon') {
+          daysLeft = daysUntilExpiry(v.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+        } else if (v.expires_on) {
+          daysLeft = Math.ceil((new Date(v.expires_on + 'T00:00:00').getTime() - nowMs) / 86400000);
+        }
+        if (daysLeft != null && daysLeft <= VIAL_EXPIRY_SOON_DAYS) {
+          exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft });
+        }
+      }
+      if (exp.length) {
+        exp.sort((a, b) => a.daysLeft - b.daysLeft);
+        const soonest = exp[0];
+        const body = exp.length === 1
+          ? (soonest.daysLeft <= 0
+              ? t('today_alert_vial_expired_one').replace('{name}', soonest.name)
+              : t('today_alert_vial_expiry_one').replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
+          : t('today_alert_vial_expiry_many').replace('{count}', String(exp.length));
+        list.push({
+          id: 'vial_expiry', icon: '⏳', due: true,
+          title: t('today_alert_vial_title'), body,
+          onPress: () => navigation.navigate('Protocols'),
+          onRemove: () => snoozeAlert('vial_expiry'),
         });
       }
     }
