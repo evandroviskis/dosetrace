@@ -126,11 +126,11 @@ export default function SerumCurveScreen() {
   const plotRight = chartWidth;
   const stepMs = STEP_HOURS * 3600 * 1000;
 
-  // Shared plot mappers (used by the curves, the NOW dots, and the y-axis ticks).
-  const yForLevel = (lv) => {
-    if (!model || model.max <= 0) return PLOT_BOTTOM;
-    return PLOT_BOTTOM - (lv / model.max) * (PLOT_BOTTOM - PLOT_TOP);
-  };
+  // Shared plot mappers. Scale to a "nice" ceiling (plotMax) that sits ABOVE the
+  // peak, so the highest spike never clips the top edge; set just after `model`.
+  let plotMax = 1;
+  let yStep = 1;
+  const yForLevel = (lv) => PLOT_BOTTOM - (lv / plotMax) * (PLOT_BOTTOM - PLOT_TOP);
   const xForIndex = (i) => {
     const n = model ? model.nSteps : 1;
     return plotLeft + (i / (n || 1)) * (plotRight - plotLeft);
@@ -226,14 +226,18 @@ export default function SerumCurveScreen() {
     return points.map((lv, i) => `${xForIndex(i).toFixed(1)},${yForLevel(lv).toFixed(1)}`).join(' ');
   }
 
-  // "Nice" mg tick values for the y-axis (0 → peak, rounded to readable steps).
-  function yTicks() {
-    if (!model || model.max <= 0) return [];
+  // Round the axis up to a readable ceiling above the peak (so nothing clips).
+  if (model && model.max > 0) {
     const raw = model.max / 4;
     const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const step = (raw / mag >= 5 ? 5 : raw / mag >= 2 ? 2 : 1) * mag;
+    yStep = (raw / mag >= 5 ? 5 : raw / mag >= 2 ? 2 : 1) * mag;
+    plotMax = Math.ceil(model.max / yStep) * yStep;
+  }
+  // mg tick values for the y-axis, 0 → plotMax.
+  function yTicks() {
+    if (!model || model.max <= 0) return [];
     const ticks = [];
-    for (let v = 0; v <= model.max + 0.001; v += step) ticks.push(v);
+    for (let v = 0; v <= plotMax + 0.001; v += yStep) ticks.push(v);
     return ticks;
   }
 
@@ -369,10 +373,14 @@ export default function SerumCurveScreen() {
               ))}
             </Svg>
 
-            <View style={[s.axisRow, { marginLeft: AXIS_W }]}>
-              <Text style={s.axisLabel}>−{PAST_DAYS}d</Text>
-              <Text style={[s.axisLabel, { color: colors.text, fontWeight: '700' }]}>{t('curve_now')}</Text>
-              <Text style={s.axisLabel}>+{futureDays}d</Text>
+            <View style={{ height: 16, marginLeft: AXIS_W, marginTop: 6 }}>
+              <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{PAST_DAYS}d</Text>
+              <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]}>+{futureDays}d</Text>
+              {model && (
+                <Text style={[s.axisLabel, { position: 'absolute', left: Math.max(0, (nowX - AXIS_W) - 14), color: colors.text, fontWeight: '700' }]}>
+                  {t('curve_now')}
+                </Text>
+              )}
             </View>
 
             {/* Projection horizon selector */}
