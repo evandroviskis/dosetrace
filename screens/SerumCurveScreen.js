@@ -22,7 +22,7 @@ import { getHalfLifeEntry } from '../lib/halfLives';
 import { useTheme } from '../lib/theme';
 
 const PAST_DAYS = 14;
-const FUTURE_DAYS = 7;
+const FUTURE_PRESETS = [7, 14, 30, 60, 90];
 const STEP_HOURS = 6;
 
 // Matching must run on the ENGLISH compound name: compound_id renders localized
@@ -68,6 +68,7 @@ export default function SerumCurveScreen() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showCombined, setShowCombined] = useState(true);
+  const [futureDays, setFutureDays] = useState(7);   // projection horizon
 
   useFocusEffect(
     useCallback(() => {
@@ -126,7 +127,7 @@ export default function SerumCurveScreen() {
     if (!selected.length) return null;
     const now = Date.now();
     const start = now - PAST_DAYS * 24 * 3600 * 1000;
-    const end = now + FUTURE_DAYS * 24 * 3600 * 1000;
+    const end = now + futureDays * 24 * 3600 * 1000;
     const nSteps = Math.round((end - start) / stepMs);
 
     const DAY_MS = 86400000;
@@ -198,7 +199,7 @@ export default function SerumCurveScreen() {
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
     const nowIdx = Math.min(nSteps, Math.round((now - start) / stepMs));
     return { series, combined, max, nowIdx, nSteps };
-  }, [protocols, selectedIds, t, colors.accent, showCombined]);
+  }, [protocols, selectedIds, t, colors.accent, showCombined, futureDays]);
 
   function polylineFor(points) {
     if (!model || model.max <= 0) return '';
@@ -272,7 +273,7 @@ export default function SerumCurveScreen() {
           <View style={s.card}>
             <View style={s.cardTopRow}>
               <Text style={s.rangeLabel}>
-                {t('curve_last_days')} {PAST_DAYS}d · +{FUTURE_DAYS}d {t('curve_projection')}
+                {t('curve_last_days')} {PAST_DAYS}d · +{futureDays}d {t('curve_projection')}
                 {model && model.max > 0 ? `  ·  ${t('curve_peak')} ≈ ${mgLabel(model.max)} mg` : ''}
               </Text>
               {single && (
@@ -328,7 +329,26 @@ export default function SerumCurveScreen() {
             <View style={[s.axisRow, { marginLeft: AXIS_W }]}>
               <Text style={s.axisLabel}>−{PAST_DAYS}d</Text>
               <Text style={[s.axisLabel, { color: colors.text, fontWeight: '700' }]}>{t('curve_now')}</Text>
-              <Text style={s.axisLabel}>+{FUTURE_DAYS}d</Text>
+              <Text style={s.axisLabel}>+{futureDays}d</Text>
+            </View>
+
+            {/* Projection horizon selector */}
+            <View style={s.horizonRow}>
+              <Text style={s.horizonLabel}>{t('curve_project_ahead')}</Text>
+              <View style={s.horizonChips}>
+                {FUTURE_PRESETS.map(d => {
+                  const on = futureDays === d;
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      style={[s.horizonChip, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+                      onPress={() => setFutureDays(d)}
+                    >
+                      <Text style={[s.horizonChipText, on && { color: colors.accentText }]}>+{d}d</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           </View>
 
@@ -455,6 +475,11 @@ function makeStyles(colors) {
     tierBadgeText: { fontSize: 11, fontWeight: '700' },
     axisRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
     axisLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
+    horizonRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flexWrap: 'wrap', gap: 6 },
+    horizonLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+    horizonChips: { flexDirection: 'row', gap: 6 },
+    horizonChip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+    horizonChipText: { fontSize: 12.5, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
 
     statsRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
     statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, alignItems: 'center' },
