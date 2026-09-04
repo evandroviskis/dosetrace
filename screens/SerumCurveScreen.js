@@ -605,7 +605,7 @@ function makeStyles(colors) {
 
     dot: { width: 11, height: 11, borderRadius: 6, marginRight: 9 },
 
-    card: { backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
+    card: { backgroundColor: colors.card, borderRadius: 18, padding: 14, ...colors.shadowSoft },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 },
     rangeLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
     tierBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
@@ -619,21 +619,21 @@ function makeStyles(colors) {
     horizonChipText: { fontSize: 12.5, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
 
     statsRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-    statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, alignItems: 'center' },
+    statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, alignItems: 'center', ...colors.shadowSoft },
     statVal: { fontSize: 18, fontWeight: '800', color: colors.text },
     statLbl: { fontSize: 11, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
 
-    legend: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: 12, paddingHorizontal: 12, paddingVertical: 4 },
+    legend: { backgroundColor: colors.card, borderRadius: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, ...colors.shadowSoft },
     legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
     legendName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
     legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
     legendHalf: { fontSize: 12, color: colors.textMuted, width: 74, textAlign: 'right' },
     combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
-    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12 },
+    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, ...colors.shadowSoft },
     toggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
     toggleHint: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
 
-    readoutCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginTop: 12 },
+    readoutCard: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginTop: 12, ...colors.shadowSoft },
     readoutTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 10 },
     readoutDateBtn: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
     readoutDateText: { fontSize: 14, color: colors.text, fontWeight: '600' },

@@ -25,10 +25,18 @@ import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
+import { syncRealityCheckReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../../lib/notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressChart from './ProgressChart';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => new Date().toISOString().split('T')[0];
+// Whole days between two YYYY-MM-DD dates (noon-anchored to dodge DST).
+const daysBetween = (fromISO, toISO) => {
+  const a = new Date(fromISO + 'T12:00:00').getTime();
+  const b = new Date(toISO + 'T12:00:00').getTime();
+  return Math.max(0, Math.round((b - a) / 86400000));
+};
 const SNAP_CAP = 50;
 // Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
 
@@ -72,11 +80,12 @@ export default function CalculatorSection() {
   const [snapshots, setSnapshots] = useState([]);
   const [snapMsg, setSnapMsg] = useState(false);
   // Reality-check inputs (display units).
-  const [rcThen, setRcThen] = useState('');
-  const [rcNow, setRcNow] = useState('');
-  const [rcDays, setRcDays] = useState('');
+  const [rcThen, setRcThen] = useState('');         // phase-1 starting weight
+  const [rcNow, setRcNow] = useState('');           // phase-2 current weight
   const [rcIntake, setRcIntake] = useState('');
   const [rc, setRc] = useState(null);               // { status, tdee, ratePerWeekKg }
+  const [rcStart, setRcStart] = useState(null);     // { date, weightKg } — open check-in
+  const [rcOpen, setRcOpen] = useState(false);      // collapsible panel under the goal
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
   const [rcSavedMsg, setRcSavedMsg] = useState(false);
   const loadedRef = useRef(false);
@@ -91,6 +100,11 @@ export default function CalculatorSection() {
     if (Array.isArray(snaps)) setSnapshots(snaps);
     const checks = user?.user_metadata?.calc_reality_checks;
     if (Array.isArray(checks)) setRealityLog(checks);
+    try {
+      const raw = await AsyncStorage.getItem(RC_START_KEY);
+      const rcs = raw ? JSON.parse(raw) : null;
+      if (rcs && rcs.date && typeof rcs.weightKg === 'number') setRcStart(rcs);
+    } catch { /* ignore */ }
     const saved = user?.user_metadata?.calc_inputs;
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
@@ -224,20 +238,54 @@ export default function CalculatorSection() {
   };
 
   // ── Reality check (premium) ──────────────────────────────────────
+  // Auto days-between the two weigh-ins; null until phase 2.
+  const rcElapsedDays = rcStart ? daysBetween(rcStart.date, todayISO()) : null;
+  // The date the day-21 reminder is set for (display only).
+  const rcRemindOn = useMemo(() => {
+    if (!rcStart) return null;
+    const d = new Date(rcStart.date + 'T12:00:00');
+    d.setDate(d.getDate() + REALITY_CHECK_DAYS);
+    return d.toISOString().split('T')[0];
+  }, [rcStart]);
+
+  // Phase 1 — log today's starting weight and arm the +21-day reminder.
+  async function startRealityCheck() {
+    const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
+    if (kg == null) return;
+    const start = { date: todayISO(), weightKg: kg };
+    setRcStart(start);
+    setRcThen('');
+    setRc(null);
+    await AsyncStorage.setItem(RC_START_KEY, JSON.stringify(start)).catch(() => {});
+    syncRealityCheckReminder().catch(() => {});
+  }
+
+  // Clear the open check-in and cancel its reminder (back to phase 1).
+  async function resetRealityCheck() {
+    setRcStart(null);
+    setRcNow('');
+    setRc(null);
+    await AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+    syncRealityCheckReminder().catch(() => {});
+  }
+
+  // Phase 2 — compute from the stored starting weight + today's weight, using the
+  // auto-measured elapsed days.
   function computeReality() {
-    const thenKg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
+    if (!rcStart) { setRc(null); return; }
     const nowKg = num(rcNow) == null ? null : (unit === 'imperial' ? lbToKg(num(rcNow)) : num(rcNow));
-    const days = num(rcDays);
+    const days = rcElapsedDays;
     const intake = num(rcIntake);
-    if (thenKg == null || nowKg == null || !days || intake == null) { setRc(null); return; }
+    if (nowKg == null || !days || intake == null) { setRc(null); return; }
     // weightChangeKg = amount lost (positive when weight went down).
-    const weightChangeKg = thenKg - nowKg;
+    const weightChangeKg = rcStart.weightKg - nowKg;
     const res = realityCheckTDEE({ avgDailyCalories: intake, weightChangeKg, days });
     setRc({ ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg, days }) });
   }
 
   // Save the current valid check so its weekly rate can be tracked over time
   // (one per day, latest wins) — this is how "1 kg/week → 2.5 kg/week" surfaces.
+  // Completing a check closes the current window; the user can start a fresh one.
   function saveRealityCheck() {
     if (!rc || rc.status !== 'ok') return;
     const entry = { date: todayISO(), tdee: Math.round(rc.tdee), ratePerWeekKg: rc.ratePerWeekKg };
@@ -248,6 +296,19 @@ export default function CalculatorSection() {
     supabase.auth.updateUser({ data: { calc_reality_checks: next } }).catch(() => {});
     setRcSavedMsg(true);
     setTimeout(() => setRcSavedMsg(false), 2500);
+  }
+
+  // Roll straight into the next window using today's weight as the new start —
+  // this is the "1st → 2nd → 3rd measurement" sequence, always 3 weeks apart.
+  async function startNextRealityCheck() {
+    const kg = num(rcNow) == null ? null : (unit === 'imperial' ? lbToKg(num(rcNow)) : num(rcNow));
+    setRc(null);
+    setRcNow('');
+    if (kg == null) { await resetRealityCheck(); return; }
+    const start = { date: todayISO(), weightKg: kg };
+    setRcStart(start);
+    await AsyncStorage.setItem(RC_START_KEY, JSON.stringify(start)).catch(() => {});
+    syncRealityCheckReminder().catch(() => {});
   }
 
   // Weekly rate → display units, one decimal, absolute value (sign drives the label).
@@ -272,7 +333,6 @@ export default function CalculatorSection() {
   // Tap a scoreboard tile → jump down to the calculator that produced it.
   const scrollRef = useRef(null);
   const detailsY = useRef(0);
-  const rcY = useRef(0);
   const scrollTo = yRef => scrollRef.current?.scrollTo({ y: Math.max((yRef.current || 0) - 8, 0), animated: true });
 
   // Warning codes from the engine → localized copy.
@@ -328,10 +388,10 @@ export default function CalculatorSection() {
 
           {/* Hero cards — daily burn + protein */}
           <View style={s.heroRow}>
-            <View style={s.heroCard}>
-              <Text style={s.heroLabel}>🔥 {t('cal_tdee')}</Text>
-              <Text style={s.heroVal}>{round10(plan.tdeeVal)} <Text style={s.heroUnit}>{t('cal_kcal')}</Text></Text>
-              <Text style={s.heroSub}>{t(`cal_eq_${plan.method}`)} · {t('cal_bmr')} {round10(plan.bmr)}</Text>
+            <View style={[s.heroCard, s.heroCardPrimary]}>
+              <Text style={s.heroLabelPrimary}>🔥 {t('cal_tdee')}</Text>
+              <Text style={[s.heroVal, s.heroValAccent]}>{round10(plan.tdeeVal)} <Text style={s.heroUnitAccent}>{t('cal_kcal')}</Text></Text>
+              <Text style={s.heroSubPrimary}>{t(`cal_eq_${plan.method}`)} · {t('cal_bmr')} {round10(plan.bmr)}</Text>
             </View>
             <View style={s.heroCard}>
               <Text style={s.heroLabel}>🍗 {t('cal_protein')}</Text>
@@ -386,17 +446,19 @@ export default function CalculatorSection() {
         <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
       )}
 
-      {/* Scoreboard — reality-check tile (numbers, or greyed Premium → paywall) */}
+      {/* Reality check — tap to expand its panel right here (collapsible). */}
       <TouchableOpacity
         style={s.sbReality}
         activeOpacity={0.7}
-        onPress={() => (premium ? scrollTo(rcY) : navigation.navigate('Paywall'))}
+        onPress={() => (premium ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
       >
         <View style={s.sbRealityMain}>
           <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
           {premium ? (
             scoreCheck ? (
               <Text style={s.sbRealityVal}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+            ) : rcStart ? (
+              <Text style={s.sbRealityMuted}>{t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}</Text>
             ) : (
               <Text style={s.sbRealityMuted}>{t('cal_rc_sb_run')}</Text>
             )
@@ -410,34 +472,120 @@ export default function CalculatorSection() {
               {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
             </Text>
           ) : null}
-          <Text style={s.sbArrow}>{premium ? '›' : '🔒'}</Text>
+          <Text style={s.sbArrow}>{premium ? (rcOpen ? '▾' : '›') : '🔒'}</Text>
         </View>
       </TouchableOpacity>
 
-      {/* Scoreboard — jump to the calculators that produce these numbers */}
-      <View style={s.sbActions}>
-        <TouchableOpacity style={[s.sbActionBtn, { marginRight: 10 }]} activeOpacity={0.7} onPress={() => scrollTo(detailsY)}>
-          <Text style={s.sbActionText}>{t('cal_sb_open_bmr')}  ↓</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.sbActionBtn} activeOpacity={0.7} onPress={() => (premium ? scrollTo(rcY) : navigation.navigate('Paywall'))}>
-          <Text style={s.sbActionText}>{t('cal_sb_open_reality')}  ↓</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Collapsible reality-check panel — lives right under the goal/scoreboard. */}
+      {rcOpen && (
+        <View style={s.premCard}>
+          <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
+          {premium ? (
+            <>
+              {!rcStart ? (
+                // ── Phase 1: log today's starting weight, arm the 3-week reminder ──
+                <>
+                  <Text style={s.label}>{t('cal_rc_start_weight')} ({wUnit})</Text>
+                  <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                  <TouchableOpacity style={s.computeBtn} onPress={startRealityCheck}>
+                    <Text style={s.computeBtnText}>{t('cal_rc_start_btn')}</Text>
+                  </TouchableOpacity>
+                  <Text style={s.rcNote}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+                </>
+              ) : (
+                // ── Phase 2: return, log current weight; days are auto-measured ──
+                <>
+                  <View style={s.rcTracking}>
+                    <Text style={s.rcTrackingLine}>
+                      ①  {Math.round((unit === 'imperial' ? kgToLb(rcStart.weightKg) : rcStart.weightKg) * 10) / 10} {wUnit}  ·  {fmtDate(rcStart.date)}
+                    </Text>
+                    <Text style={s.rcTrackingSub}>
+                      {t('cal_rc_remind_on').replace('{date}', fmtDate(rcRemindOn))}  ·  {t('cal_rc_elapsed').replace('{n}', String(rcElapsedDays))}
+                    </Text>
+                  </View>
+                  <Text style={s.label}>{t('cal_rc_current_weight')} ({wUnit})</Text>
+                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                  <Text style={s.label}>{t('cal_rc_intake')}</Text>
+                  <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                  <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
+                    <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.rcReset} onPress={resetRealityCheck}>
+                    <Text style={s.rcResetText}>{t('cal_rc_reset')}</Text>
+                  </TouchableOpacity>
 
-      <Text
-        style={[s.label, { marginTop: 20 }]}
-        onLayout={e => { detailsY.current = e.nativeEvent.layout.y; }}
-      >{t('cal_your_details')}</Text>
+                  {rc && rc.status === 'ok' && (
+                    <View style={s.rcResult}>
+                      <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')} {round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+                      {rc.ratePerWeekKg != null && Math.abs(rc.ratePerWeekKg) >= 0.05 ? (
+                        <Text style={s.rcRate}>
+                          {t('cal_rc_rate_losing')} {rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')} {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
+                        </Text>
+                      ) : null}
+                      {plan ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
+                      <TouchableOpacity style={[s.computeBtn, { marginTop: 14 }]} onPress={saveRealityCheck}>
+                        <Text style={s.computeBtnText}>{rcSavedMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_rc_save')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[s.rcReset, { marginTop: 10 }]} onPress={startNextRealityCheck}>
+                        <Text style={s.rcResetText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+                      </TouchableOpacity>
+                      <Text style={s.rcWhyTitle}>{t('cal_rc_why_title')}</Text>
+                      {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.rcWhy}>•  {t(`cal_rc_why_${i}`)}</Text>)}
+                      <Text style={s.rcNote}>{t('cal_rc_unreliable_note')}</Text>
+                    </View>
+                  )}
+                  {rc && rc.status !== 'ok' && (
+                    <View style={s.rcResult}><Text style={s.rcGuard}>{t(`cal_rc_${rc.status}`)}</Text></View>
+                  )}
+                </>
+              )}
+
+              {realityLog.length > 0 && (
+                <View style={s.rcLog}>
+                  <Text style={s.rcWhyTitle}>{t('cal_rc_log_title')}</Text>
+                  {[...realityLog].reverse().map((c) => (
+                    <View key={c.date} style={s.rcLogRow}>
+                      <Text style={s.rcLogDate}>{fmtDate(c.date)}</Text>
+                      <Text style={s.rcLogRate}>
+                        {c.ratePerWeekKg != null
+                          ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
+                          : '—'}
+                      </Text>
+                      <Text style={s.rcLogTdee}>{round10(c.tdee)} {t('cal_kcal')}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : (
+            <View style={s.rcLocked}>
+              <Text style={s.rcLockedIntro}>{t('cal_rc_locked_intro')}</Text>
+              <Text style={s.rcLockedLead}>{t('cal_rc_locked_lead')}</Text>
+              <Text style={s.rcLockedItem}>1.  {t('cal_rc_start_weight')}</Text>
+              <Text style={s.rcLockedItem}>2.  {t('cal_rc_current_weight')}</Text>
+              <Text style={s.rcLockedItem}>3.  {t('cal_rc_intake')}</Text>
+              <Text style={s.rcLockedPayoff}>{t('cal_rc_locked_payoff')}</Text>
+              <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
+                <Text style={s.lockedBtnText}>🔒  {t('cal_premium_cta')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Calculator inputs start here. Title makes the start obvious; the unit
+          switch is a quiet setting on the right, not a headline control. */}
+      <View style={s.detailsHeaderRow}>
+        <Text style={s.detailsTitle}>{t('cal_your_details')}</Text>
+        <View style={s.unitToggle}>
+          {['metric', 'imperial'].map(u => (
+            <TouchableOpacity key={u} style={[s.unitPill, unit === u && s.unitPillOn]} onPress={() => changeUnit(u)}>
+              <Text style={[s.unitPillText, unit === u && s.unitPillTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
-
-      {/* Units */}
-      <View style={s.segment}>
-        {['metric', 'imperial'].map(u => (
-          <TouchableOpacity key={u} style={[s.segBtn, unit === u && s.segBtnOn]} onPress={() => changeUnit(u)}>
-            <Text style={[s.segText, unit === u && s.segTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {/* Weight */}
       <Text style={s.label}>{t('cal_weight')} ({wUnit})</Text>
@@ -496,84 +644,6 @@ export default function CalculatorSection() {
       <Text style={s.label}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
       <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
       <Text style={s.hint}>{t('cal_waist_hint')}</Text>
-
-      {/* Reality check (premium) */}
-      <View style={s.premCard} onLayout={e => { rcY.current = e.nativeEvent.layout.y; }}>
-        <Text style={s.premTitle}>{t('cal_rc_title')}</Text>
-        <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
-        {premium ? (
-          <>
-            <Text style={s.label}>{t('cal_rc_weight_then')} ({wUnit})</Text>
-            <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-            <Text style={s.label}>{t('cal_rc_weight_now')} ({wUnit})</Text>
-            <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-            <View style={s.row}>
-              <View style={s.rowCol}>
-                <Text style={s.label}>{t('cal_rc_days')}</Text>
-                <TextInput style={s.input} value={rcDays} onChangeText={setRcDays} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-              </View>
-              <View style={s.rowCol}>
-                <Text style={s.label}>{t('cal_rc_intake')}</Text>
-                <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-              </View>
-            </View>
-            <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
-              <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>
-            </TouchableOpacity>
-
-            {rc && rc.status === 'ok' && (
-              <View style={s.rcResult}>
-                <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')} {round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
-                {rc.ratePerWeekKg != null && Math.abs(rc.ratePerWeekKg) >= 0.05 ? (
-                  <Text style={s.rcRate}>
-                    {t('cal_rc_rate_losing')} {rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')} {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
-                  </Text>
-                ) : null}
-                {plan ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
-                <TouchableOpacity style={[s.computeBtn, { marginTop: 14 }]} onPress={saveRealityCheck}>
-                  <Text style={s.computeBtnText}>{rcSavedMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_rc_save')}</Text>
-                </TouchableOpacity>
-                <Text style={s.rcWhyTitle}>{t('cal_rc_why_title')}</Text>
-                {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.rcWhy}>•  {t(`cal_rc_why_${i}`)}</Text>)}
-                <Text style={s.rcNote}>{t('cal_rc_unreliable_note')}</Text>
-              </View>
-            )}
-            {rc && rc.status !== 'ok' && (
-              <View style={s.rcResult}><Text style={s.rcGuard}>{t(`cal_rc_${rc.status}`)}</Text></View>
-            )}
-
-            {realityLog.length > 0 && (
-              <View style={s.rcLog}>
-                <Text style={s.rcWhyTitle}>{t('cal_rc_log_title')}</Text>
-                {[...realityLog].reverse().map((c) => (
-                  <View key={c.date} style={s.rcLogRow}>
-                    <Text style={s.rcLogDate}>{fmtDate(c.date)}</Text>
-                    <Text style={s.rcLogRate}>
-                      {c.ratePerWeekKg != null
-                        ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
-                        : '—'}
-                    </Text>
-                    <Text style={s.rcLogTdee}>{round10(c.tdee)} {t('cal_kcal')}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </>
-        ) : (
-          <View style={s.rcLocked}>
-            <Text style={s.rcLockedIntro}>{t('cal_rc_locked_intro')}</Text>
-            <Text style={s.rcLockedLead}>{t('cal_rc_locked_lead')}</Text>
-            <Text style={s.rcLockedItem}>1.  {t('cal_rc_weight_then')}</Text>
-            <Text style={s.rcLockedItem}>2.  {t('cal_rc_weight_now')}</Text>
-            <Text style={s.rcLockedItem}>3.  {t('cal_rc_intake')}</Text>
-            <Text style={s.rcLockedItem}>4.  {t('cal_rc_days')}</Text>
-            <Text style={s.rcLockedPayoff}>{t('cal_rc_locked_payoff')}</Text>
-            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-              <Text style={s.lockedBtnText}>🔒  {t('cal_premium_cta')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
 
       {/* Progress snapshots (premium) */}
       <View style={s.premCard}>
@@ -648,6 +718,14 @@ const makeStyles = (c) => StyleSheet.create({
   segBtnOn: { backgroundColor: c.accent },
   segText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
   segTextOn: { color: c.accentText },
+  // Calculator start: clear section title + a quiet, compact unit toggle
+  detailsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 4 },
+  detailsTitle: { fontSize: 17, fontWeight: '800', color: c.text, letterSpacing: -0.2 },
+  unitToggle: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 8, padding: 2 },
+  unitPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
+  unitPillOn: { backgroundColor: c.card },
+  unitPillText: { fontSize: 12, fontWeight: '600', color: c.textFaint },
+  unitPillTextOn: { color: c.accent, fontWeight: '700' },
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: { backgroundColor: c.card, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 0.5, borderColor: c.border },
   pillOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
@@ -667,17 +745,23 @@ const makeStyles = (c) => StyleSheet.create({
   introCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginBottom: 4 },
   introTitle: { fontSize: 14, fontWeight: '700', color: c.accentSoftText, marginBottom: 4 },
   introBody: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
-  overview: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 0.5, borderColor: c.border },
+  overview: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
   overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
-  overviewTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5 },
+  overviewTitle: { fontSize: 13, fontWeight: '800', color: c.text, letterSpacing: 0.5 },
   echoChip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexShrink: 1 },
   echoChipText: { fontSize: 11, color: c.textMuted },
   heroRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   heroCard: { flex: 1, backgroundColor: c.card2, borderRadius: 12, padding: 12 },
+  // Primary (daily-burn) card carries the accent so the key number has life.
+  heroCardPrimary: { backgroundColor: c.accentSoft },
   heroLabel: { fontSize: 11, color: c.textMuted, marginBottom: 4 },
+  heroLabelPrimary: { fontSize: 11, color: c.accentSoftText, fontWeight: '600', marginBottom: 4 },
   heroVal: { fontSize: 22, fontWeight: '800', color: c.text },
+  heroValAccent: { color: c.accent },
   heroUnit: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  heroUnitAccent: { fontSize: 12, fontWeight: '600', color: c.accent },
   heroSub: { fontSize: 10, color: c.textFaint, marginTop: 3 },
+  heroSubPrimary: { fontSize: 10, color: c.accentSoftText, opacity: 0.8, marginTop: 3 },
   goalRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   goalCard: { flex: 1, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 10, alignItems: 'center' },
   goalCardOn: { borderColor: c.accent, borderWidth: 2, backgroundColor: c.accentSoft },
@@ -704,7 +788,7 @@ const makeStyles = (c) => StyleSheet.create({
   overviewStatDiv: { width: 0.5, height: 34, backgroundColor: c.border },
   deltaRow: { marginTop: 14, backgroundColor: c.card2, borderRadius: 10, padding: 10 },
   deltaText: { fontSize: 12, color: c.text, fontWeight: '500' },
-  results: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 20, borderWidth: 0.5, borderColor: c.border },
+  results: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 20, ...c.shadowSoft },
   resultsTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, marginBottom: 12 },
   resultsHint: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 8 },
   resRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
@@ -715,10 +799,10 @@ const makeStyles = (c) => StyleSheet.create({
   resHeadlineVal: { fontSize: 22, fontWeight: '700', color: c.accent },
   resHeadlineSub: { fontSize: 11, color: c.textFaint, marginTop: 3 },
   estimateNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 14 },
-  premCard: { backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 16, borderWidth: 0.5, borderColor: c.border },
+  premCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 16, ...c.shadowSoft },
   premTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 4 },
   premSub: { fontSize: 12, color: c.textMuted, lineHeight: 17, marginBottom: 4 },
-  computeBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
+  computeBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
   computeBtnDisabled: { opacity: 0.4 },
   computeBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   rcResult: { marginTop: 16, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
@@ -728,16 +812,22 @@ const makeStyles = (c) => StyleSheet.create({
   rcWhy: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 4 },
   rcNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 12 },
   rcGuard: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
+  // Phase-2 "tracking" banner + reset/next links
+  rcTracking: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginTop: 8, marginBottom: 4 },
+  rcTrackingLine: { fontSize: 15, fontWeight: '700', color: c.accentSoftText },
+  rcTrackingSub: { fontSize: 12, color: c.accentSoftText, opacity: 0.85, marginTop: 3 },
+  rcReset: { alignItems: 'center', paddingVertical: 10, marginTop: 8 },
+  rcResetText: { fontSize: 13, color: c.textMuted, fontWeight: '600' },
   locked: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
   lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
-  lockedBtn: { backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
+  lockedBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
   lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
+  srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, ...c.shadowSoft },
   srcText: { flex: 1 },
   srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },
   srcCite: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   srcArrow: { fontSize: 16, color: c.accent, marginLeft: 10 },
-  sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 0.5, borderColor: c.border },
+  sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
   sbRealityMain: { flex: 1 },
   sbRealityLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.3, marginBottom: 4 },
   sbRealityVal: { fontSize: 18, fontWeight: '800', color: c.accent },
@@ -760,7 +850,7 @@ const makeStyles = (c) => StyleSheet.create({
   rcLockedItem: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
   rcLockedPayoff: { fontSize: 13, color: c.text, lineHeight: 20, marginTop: 12, marginBottom: 16 },
   learn: {},
-  explCard: { backgroundColor: c.card, borderRadius: 12, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
+  explCard: { backgroundColor: c.card, borderRadius: 16, marginBottom: 8, overflow: 'hidden', ...c.shadowSoft },
   explHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
   explTitle: { flex: 1, fontSize: 13, fontWeight: '600', color: c.text, marginRight: 10 },
   explChevron: { fontSize: 11, color: c.textFaint },

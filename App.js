@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl } from './lib/supabase';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -11,6 +12,11 @@ import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders } from './lib/notifications';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
+import { installFontMapping, useAppFonts } from './lib/fonts';
+
+// Route every fontWeight in the app to Plus Jakarta Sans. Installed at module
+// load, before any component renders.
+installFontMapping();
 import { initDatabase, clearLocalDatabase, getTodayLogs } from './lib/database';
 import { recordDoseTaken } from './lib/doseActions';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
@@ -76,32 +82,70 @@ import SerumCurveScreen from './screens/SerumCurveScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function TabIcon({ emoji, focused }) {
-  const { colors, isDark } = useTheme();
-  // color themes any monochrome glyph icons (e.g. ⊞) — color emoji ignore it.
-  // Inactive icons dim via opacity; keep it higher in dark mode so they don't
-  // look muddy/"tinted" against the dark tab bar.
+// ── Tab-bar line icons ─────────────────────────────────────────
+// Clean monochrome SVG icons that tint with the accent. Active tabs get a
+// filled glyph, inactive a stroked outline — consistent weight across all four
+// (replaces the old mismatched emoji set).
+function TodayGlyph({ color, focused }) {
+  // Four rounded squares — filled when active, outlined when not.
   return (
-    <Text
-      style={{
-        fontSize: 22,
-        color: focused ? colors.accent : colors.tabInactive,
-        opacity: focused ? 1 : (isDark ? 0.7 : 0.45),
-      }}
-    >
-      {emoji}
-    </Text>
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      {[[3, 3], [14, 3], [3, 14], [14, 14]].map(([x, y], i) => (
+        <Rect key={i} x={x} y={y} width={7} height={7} rx={2.2}
+          fill={focused ? color : 'none'} stroke={color} strokeWidth={focused ? 0 : 1.9} />
+      ))}
+    </Svg>
   );
+}
+function ProtocolsGlyph({ color, focused }) {
+  // Capsule / pill.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z"
+        stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinejoin="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.16 : 0} />
+      <Path d="M8.5 8.5 15.5 15.5" stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function BodyGlyph({ color, focused }) {
+  // Person / torso.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={7.5} r={3.6}
+        fill={focused ? color : 'none'} stroke={color} strokeWidth={focused ? 0 : 1.9} />
+      <Path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"
+        stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinecap="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.16 : 0} />
+    </Svg>
+  );
+}
+function SettingsGlyph({ color, focused }) {
+  // Gear.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"
+        stroke={color} strokeWidth={focused ? 2 : 1.7} strokeLinejoin="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.14 : 0} />
+      <Circle cx={12} cy={12} r={3} stroke={color} strokeWidth={focused ? 2 : 1.7}
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.5 : 0} />
+    </Svg>
+  );
+}
+
+function TabIcon({ Glyph, focused }) {
+  const { colors } = useTheme();
+  return <Glyph color={focused ? colors.accent : colors.tabInactive} focused={focused} />;
 }
 
 function MainTabs() {
   const { t } = useLanguage();
 
   const tabs = [
-    { name: 'Today', label: t('tab_today'), emoji: '⊞', component: TodayScreen },
-    { name: 'Protocols', label: t('tab_protocols'), emoji: '💊', component: ProtocolsScreen },
-    { name: 'Body', label: t('tab_body'), emoji: '🧍', component: BodyScreen },
-    { name: 'Settings', label: t('tab_settings'), emoji: '👤', component: SettingsScreen },
+    { name: 'Today', label: t('tab_today'), Glyph: TodayGlyph, component: TodayScreen },
+    { name: 'Protocols', label: t('tab_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
+    { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
+    { name: 'Settings', label: t('tab_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
   ];
 
   const { colors } = useTheme();
@@ -114,18 +158,22 @@ function MainTabs() {
         tabBarStyle: {
           borderTopWidth: 0,
           elevation: 0,
-          shadowOpacity: 0.06,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: -4 },
+          shadowColor: '#12233B',
+          shadowOpacity: 0.10,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: -6 },
           backgroundColor: colors.card,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
           paddingBottom: 22,
-          paddingTop: 8,
-          height: 84,
+          paddingTop: 10,
+          height: 86,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
+          fontSize: 10.5,
+          fontWeight: '700',
           letterSpacing: 0.2,
+          marginTop: 2,
         },
       }}
     >
@@ -137,7 +185,7 @@ function MainTabs() {
           options={{
             tabBarLabel: tab.label,
             tabBarIcon: ({ focused }) => (
-              <TabIcon emoji={tab.emoji} focused={focused} />
+              <TabIcon Glyph={tab.Glyph} focused={focused} />
             ),
           }}
         />
@@ -220,6 +268,7 @@ export default function App() {
   const [recovering, setRecovering] = useState(false);
   const [justConfirmed, setJustConfirmed] = useState(false);
   const navigationRef = useRef(null);
+  const fontsLoaded = useAppFonts();
 
   // Auth deep links from emailed links. Both carry a PKCE `code` that must be
   // exchanged for a session:
@@ -280,9 +329,9 @@ export default function App() {
 
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
-        } else if (data.type === 'checkin_reminder' && navigationRef.current) {
-          // Weekly measurements invitation — deep-link straight into the calculator
-          // section, where weight/waist logging and the trend chart live.
+        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check') && navigationRef.current) {
+          // Measurements / reality-check invitation — deep-link straight into the
+          // calculator section, where weight/waist logging and the reality check live.
           navigationRef.current.navigate('Main', {
             screen: 'MainTabs',
             params: { screen: 'Body', params: { initialSection: 'calc' } },
@@ -366,7 +415,9 @@ export default function App() {
     };
   }, []);
 
-  if (loading) {
+  // Gate the UI on fonts too, so the app never flashes the system font and
+  // then reflows into Plus Jakarta Sans.
+  if (loading || !fontsLoaded) {
     return (
       <LanguageProvider>
         <ThemeProvider>

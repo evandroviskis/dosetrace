@@ -572,7 +572,7 @@ const makeStyles = (c) => StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
   emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 16 },
   noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 14, padding: 14, marginBottom: 10 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 14, marginBottom: 10 },
   cardName: { fontSize: 15, fontWeight: '600', color: c.text },
   cardDate: { fontSize: 12, color: c.textMuted, marginTop: 3 },
   cardMeta: { fontSize: 12, color: c.text, marginTop: 3, fontWeight: '500' },

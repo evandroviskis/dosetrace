@@ -85,7 +85,7 @@ const makeStyles = (c) => StyleSheet.create({
   intro: { fontSize: 13, color: c.textMuted, lineHeight: 20, margin: 16, marginBottom: 8 },
   section: { marginBottom: 8 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginLeft: 16, marginTop: 16, marginBottom: 8 },
-  item: { backgroundColor: c.card, marginHorizontal: 16, marginBottom: 6, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: c.border },
+  item: { backgroundColor: c.card, marginHorizontal: 16, marginBottom: 6, borderRadius: 18, padding: 14, ...c.shadowSoft },
   itemOpen: { borderColor: c.accent, borderWidth: 1 },
   itemHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   itemQ: { fontSize: 13, fontWeight: '600', color: c.text, flex: 1, lineHeight: 20 },

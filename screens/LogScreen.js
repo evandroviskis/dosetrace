@@ -372,7 +372,7 @@ const makeStyles = (c) => StyleSheet.create({
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   groupDate: { fontSize: 12, fontWeight: '600', color: c.textMuted },
   groupCount: { fontSize: 12, color: c.textFaint },
-  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 14, borderWidth: 0.5, borderColor: c.border, marginBottom: 6 },
+  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 18, marginBottom: 6, ...c.shadowSoft },
   logDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, flexShrink: 0 },
   logInfo: { flex: 1 },
   logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },

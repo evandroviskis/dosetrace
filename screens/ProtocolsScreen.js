@@ -432,6 +432,15 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         : (vial.expires_on ? Math.ceil((new Date(vial.expires_on + 'T00:00:00') - new Date()) / 86400000) : null))
     : null;
   const vialDosesLeft = vial ? Math.max(0, (vial.total_doses || 0) - (vial.doses_taken || 0)) : null;
+  // Low-supply flag — must match the Today "Supply low" alert. Capacity uses the
+  // stored count, else derived from vial size ÷ dose (older vials have no count).
+  const supplyCapacity = vial
+    ? ((vial.total_doses && vial.total_doses > 0)
+        ? vial.total_doses
+        : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }))
+    : null;
+  const dosesRemaining = (vial && supplyCapacity) ? Math.max(0, supplyCapacity - (vial.doses_taken || 0)) : null;
+  const lowSupply = dosesRemaining != null && dosesRemaining > 0 && dosesRemaining <= 3;
 
   return (
     <TouchableOpacity
@@ -456,6 +465,11 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
             </Text>
           )}
           <View style={s.badgeRow}>
+            {lowSupply && (
+              <View style={s.badgeLow}>
+                <Text style={s.badgeLowText}>⚠️ {t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
+              </View>
+            )}
             <View style={[s.badge, { backgroundColor: badge.bg }]}>
               <Text style={[s.badgeText, { color: badge.text }]}>{badge.label}</Text>
             </View>
@@ -2158,7 +2172,7 @@ const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
   addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
@@ -2174,7 +2188,7 @@ const makeStyles = (c) => StyleSheet.create({
   emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 24 },
   emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
   emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  card: { backgroundColor: c.card, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
+  card: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, ...c.shadowSoft },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   cardDot: { width: 10, height: 10, borderRadius: 5 },
   cardInfo: { flex: 1 },
@@ -2185,6 +2199,8 @@ const makeStyles = (c) => StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '500' },
   badgeGoal: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   badgeGoalText: { fontSize: 10, color: c.warningSoftText, fontWeight: '500' },
+  badgeLow: { backgroundColor: c.dangerSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  badgeLowText: { fontSize: 10, color: c.dangerSoftText, fontWeight: '700' },
   chevron: { fontSize: 11, color: c.textFaint },
   cardBody: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
@@ -2194,7 +2210,7 @@ const makeStyles = (c) => StyleSheet.create({
   noteEditBox: { marginTop: 6, minHeight: 56, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: c.text, backgroundColor: c.card2, textAlignVertical: 'top' },
   noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 16 },
   noteCancelText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
-  noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8 },
+  noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 12 },
   noteSaveText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
@@ -2227,7 +2243,7 @@ const makeStyles = (c) => StyleSheet.create({
   syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
   // Zoom modal
   zoomBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  zoomCard: { backgroundColor: c.card, borderRadius: 16, padding: 18, width: '100%', maxWidth: 560 },
+  zoomCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, width: '100%', maxWidth: 560 },
   zoomTitle: { fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'center' },
   zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
   zoomScroll: { flexGrow: 0 },
@@ -2239,7 +2255,7 @@ const makeStyles = (c) => StyleSheet.create({
   zoomBarrel: { height: 34, backgroundColor: c.card2, borderWidth: 1, borderColor: c.border, borderRadius: 6, position: 'relative', overflow: 'visible' },
   zoomFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.32, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
   zoomPlunger: { position: 'absolute', top: -4, bottom: -4, width: 4, marginLeft: -2, backgroundColor: c.accent, borderRadius: 2 },
-  zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 10 },
+  zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 12 },
   zoomCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
@@ -2255,7 +2271,7 @@ const makeStyles = (c) => StyleSheet.create({
   footerNext: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: c.accent },
   footerNextText: { fontSize: 15, color: c.accent, fontWeight: '600' },
   footerDisabledText: { color: c.danger },
-  footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, backgroundColor: c.accent },
+  footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: c.accent },
   footerSaveText: { fontSize: 15, color: '#fff', fontWeight: '700' },
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
   modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
@@ -2292,7 +2308,7 @@ const makeStyles = (c) => StyleSheet.create({
   iuUnitTagText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
   iuEquivBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
   iuEquivText: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
-  iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: c.accent },
+  iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.accent },
   iuUseBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
@@ -2330,7 +2346,7 @@ const makeStyles = (c) => StyleSheet.create({
   monthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
   monthPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   monthPillTextOn: { color: c.accentText, fontWeight: '600' },
-  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
+  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 14 },
   doneBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   skipVialBtn: { alignItems: 'center', paddingVertical: 12, marginBottom: 16 },
   skipVialBtnText: { fontSize: 13, color: c.accent },
@@ -2343,7 +2359,7 @@ const makeStyles = (c) => StyleSheet.create({
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
   reviewLabel: { fontSize: 12, color: c.textMuted },
   reviewVal: { fontSize: 12, fontWeight: '500', color: c.text },
-  suggestionBox: { backgroundColor: c.card, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, marginBottom: 14 },
+  suggestionBox: { backgroundColor: c.card, borderRadius: 10, ...c.shadowSoft, marginBottom: 14 },
   suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   suggestionText: { fontSize: 13, color: c.text },
   suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },
