@@ -40,6 +40,14 @@ function doseInMg(protocol) {
   return (protocol.dose_unit || '').toLowerCase() === 'mcg' ? dose / 1000 : dose;
 }
 
+// Estimated amount still in the body (mg), from the summed-decay model. Rough,
+// not a serum concentration — the disclaimer says so.
+function mgLabel(v) {
+  if (!isFinite(v) || v <= 0) return '0';
+  if (v < 10) return v.toFixed(1);
+  return String(Math.round(v));
+}
+
 function halfLifeLabel(hours) {
   if (hours == null) return '—';
   if (hours >= 48) {
@@ -232,6 +240,7 @@ export default function SerumCurveScreen() {
             <View style={s.cardTopRow}>
               <Text style={s.rangeLabel}>
                 {t('curve_last_days')} {PAST_DAYS}d · +{FUTURE_DAYS}d {t('curve_projection')}
+                {model && model.max > 0 ? `  ·  ${t('curve_peak')} ≈ ${mgLabel(model.max)} mg` : ''}
               </Text>
               {single && (
                 <View style={[s.tierBadge, { backgroundColor: tierCfg[single.entry.tier].bg }]}>
@@ -285,9 +294,7 @@ export default function SerumCurveScreen() {
             // One compound → the 3-stat detail row.
             <View style={s.statsRow}>
               <View style={s.statCard}>
-                <Text style={s.statVal}>
-                  {model.max > 0 ? `${Math.round((single.points[model.nowIdx] / model.max) * 100)}%` : '—'}
-                </Text>
+                <Text style={s.statVal}>{mgLabel(single.points[model.nowIdx])} mg</Text>
                 <Text style={s.statLbl}>{t('curve_current_level')}</Text>
               </View>
               <View style={s.statCard}>
@@ -306,9 +313,7 @@ export default function SerumCurveScreen() {
                 <View key={ser.id} style={s.legendRow}>
                   <View style={[s.dot, { backgroundColor: ser.color }]} />
                   <Text style={s.legendName} numberOfLines={1}>{ser.name}</Text>
-                  <Text style={s.legendLevel}>
-                    {model.max > 0 ? `${Math.round((ser.points[model.nowIdx] / model.max) * 100)}%` : '—'}
-                  </Text>
+                  <Text style={s.legendLevel}>{mgLabel(ser.points[model.nowIdx])} mg</Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
                 </View>
               ))}
@@ -318,9 +323,7 @@ export default function SerumCurveScreen() {
                   <Text style={[s.legendName, { fontWeight: '800' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>
-                    {model.max > 0 ? `${Math.round((c.points[model.nowIdx] / model.max) * 100)}%` : '—'}
-                  </Text>
+                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.points[model.nowIdx])} mg</Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
@@ -419,8 +422,8 @@ function makeStyles(colors) {
     legend: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: 12, paddingHorizontal: 12, paddingVertical: 4 },
     legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
     legendName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
-    legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 52, textAlign: 'right', fontVariant: ['tabular-nums'] },
-    legendHalf: { fontSize: 12, color: colors.textMuted, width: 78, textAlign: 'right' },
+    legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
+    legendHalf: { fontSize: 12, color: colors.textMuted, width: 74, textAlign: 'right' },
     combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
     toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12 },
     toggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },

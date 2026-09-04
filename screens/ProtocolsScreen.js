@@ -618,6 +618,10 @@ export default function ProtocolsScreen() {
   const [concentrationUnit, setConcentrationUnit] = useState('mg');
   // ── Schedule state ──
   const [intervalDays, setIntervalDays] = useState(1);
+  // Custom (typed) dosing interval — for schedules longer than the presets,
+  // e.g. testosterone cypionate every 10-14 days or undecanoate every ~12 weeks.
+  const [customIntervalOpen, setCustomIntervalOpen] = useState(false);
+  const [customIntervalText, setCustomIntervalText] = useState('');
   const [dosesPerDay, setDosesPerDay] = useState(1);
   const [startMonth, setStartMonth] = useState(new Date().getMonth()); // 0-11
   const [startDay, setStartDay] = useState(String(new Date().getDate()));
@@ -776,6 +780,7 @@ export default function ProtocolsScreen() {
     setIuInput('');
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
+    setCustomIntervalOpen(false); setCustomIntervalText('');
     setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
     setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
     setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
@@ -863,6 +868,12 @@ export default function ProtocolsScreen() {
     }
     const loadedInterval = p.interval_days || 1;
     setIntervalDays(loadedInterval);
+    // Open the custom field when the saved interval isn't one of the presets.
+    if (![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(loadedInterval)) {
+      setCustomIntervalOpen(true); setCustomIntervalText(String(loadedInterval));
+    } else {
+      setCustomIntervalOpen(false); setCustomIntervalText('');
+    }
     const loadedDPD = p.doses_per_day || 1;
     setDosesPerDay(loadedDPD);
     if (p.start_date) {
@@ -1874,21 +1885,55 @@ export default function ProtocolsScreen() {
                   }}
                 />
 
-                {/* 2 — Interval: every X days */}
+                {/* 2 — Interval: every X days (presets + typed custom for long TRT intervals) */}
                 <Text style={s.fieldLabel}>{t('protocols_how_often')}</Text>
                 <View style={s.freqGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                    <TouchableOpacity
-                      key={d}
-                      style={[s.freqBtn, intervalDays === d && s.freqBtnOn]}
-                      onPress={() => handleIntervalChange(d)}
-                    >
-                      <Text style={[s.freqBtnText, intervalDays === d && s.freqBtnTextOn]}>
-                        {d === 1 ? t('protocols_every_day') : t('protocols_every_x_days').replace('{x}', d)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {[1, 2, 3, 4, 5, 6, 7, 10, 14].map((d) => {
+                    const on = !customIntervalOpen && intervalDays === d;
+                    return (
+                      <TouchableOpacity
+                        key={d}
+                        style={[s.freqBtn, on && s.freqBtnOn]}
+                        onPress={() => { setCustomIntervalOpen(false); handleIntervalChange(d); }}
+                      >
+                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>
+                          {d === 1 ? t('protocols_every_day') : t('protocols_every_x_days').replace('{x}', d)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {(() => {
+                    const on = customIntervalOpen || ![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(intervalDays);
+                    return (
+                      <TouchableOpacity
+                        style={[s.freqBtn, on && s.freqBtnOn]}
+                        onPress={() => { setCustomIntervalText(String(intervalDays)); setCustomIntervalOpen(true); }}
+                      >
+                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_custom')}</Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
                 </View>
+                {(customIntervalOpen || ![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(intervalDays)) && (
+                  <View style={s.customIntervalRow}>
+                    <Text style={s.customIntervalEvery}>{t('protocols_every_word')}</Text>
+                    <TextInput
+                      style={s.customIntervalInput}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                      value={customIntervalText}
+                      placeholder="14"
+                      placeholderTextColor={colors.textFaint}
+                      onChangeText={(v) => {
+                        const digits = v.replace(/[^0-9]/g, '');
+                        setCustomIntervalText(digits);
+                        const n = parseInt(digits, 10);
+                        if (Number.isFinite(n) && n > 0) handleIntervalChange(n);
+                      }}
+                    />
+                    <Text style={s.customIntervalEvery}>{t('protocols_days_word')}</Text>
+                  </View>
+                )}
 
                 {/* 3 — Doses per day (only for interval <= 2) */}
                 {intervalDays <= 2 && (
@@ -2264,6 +2309,9 @@ const makeStyles = (c) => StyleSheet.create({
   freqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   freqBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
   freqBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
+  customIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4, marginBottom: 16 },
+  customIntervalEvery: { fontSize: 14, color: c.text },
+  customIntervalInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, fontWeight: '700', color: c.text, backgroundColor: c.card2, width: 72, textAlign: 'center' },
   freqBtnText: { fontSize: 12, color: c.textMuted },
   freqBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
   dateBtn: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 14, marginBottom: 14 },
