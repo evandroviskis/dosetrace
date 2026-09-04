@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Modal,
   Pressable,
+  Switch,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,6 +60,7 @@ export default function SerumCurveScreen() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [logs, setLogs] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [showCombined, setShowCombined] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -135,10 +137,31 @@ export default function SerumCurveScreen() {
       };
     });
 
-    const max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
+    // Auto-group by shared active substance (e.g. two testosterone esters).
+    // A "combined" line sums the point-by-point levels of a group's members —
+    // meaningful only within one active substance, which is why ungrouped
+    // compounds (no `substance` tag) never contribute to a total.
+    const bySubstance = {};
+    for (const ser of series) {
+      const sub = ser.entry.substance;
+      if (!sub) continue;
+      (bySubstance[sub] ||= []).push(ser);
+    }
+    const combined = Object.entries(bySubstance)
+      .filter(([, members]) => members.length >= 2)
+      .map(([sub, members]) => {
+        const points = new Array(nSteps + 1).fill(0);
+        for (const ser of members) for (let i = 0; i <= nSteps; i++) points[i] += ser.points[i];
+        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points };
+      });
+
+    // Shared vertical scale spans the individual series and, when shown, the
+    // (taller) combined totals — so every line is directly comparable.
+    let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
+    if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
     const nowIdx = Math.min(nSteps, Math.round((now - start) / stepMs));
-    return { series, max, nowIdx, nSteps };
-  }, [protocols, selectedIds, logs, t, colors.accent]);
+    return { series, combined, max, nowIdx, nSteps };
+  }, [protocols, selectedIds, logs, t, colors.accent, showCombined]);
 
   function polylineFor(points) {
     if (!model || model.max <= 0) return '';
@@ -238,6 +261,17 @@ export default function SerumCurveScreen() {
                   strokeDasharray={ser.entry.tier === 'estimated' ? '6,4' : '0'}
                 />
               ))}
+              {/* combined total per substance group — bold, on top */}
+              {model && model.max > 0 && showCombined && model.combined.map(c => (
+                <Polyline
+                  key={c.id}
+                  points={polylineFor(c.points)}
+                  fill="none"
+                  stroke={colors.text}
+                  strokeWidth={3.5}
+                  strokeDasharray="0"
+                />
+              ))}
             </Svg>
 
             <View style={s.axisRow}>
@@ -278,6 +312,33 @@ export default function SerumCurveScreen() {
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
                 </View>
               ))}
+              {showCombined && model && model.combined.map(c => (
+                <View key={c.id} style={s.legendRow}>
+                  <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
+                  <Text style={[s.legendName, { fontWeight: '800' }]} numberOfLines={1}>
+                    {t('curve_combined')} · {t(`substance_${c.substance}`)}
+                  </Text>
+                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>
+                    {model.max > 0 ? `${Math.round((c.points[model.nowIdx] / model.max) * 100)}%` : '—'}
+                  </Text>
+                  <Text style={s.legendHalf}> </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Combined-total toggle — only when a same-substance group exists */}
+          {model && model.combined.length > 0 && (
+            <View style={s.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.toggleLabel}>{t('curve_combined_toggle')}</Text>
+                <Text style={s.toggleHint}>{t('curve_combined_hint')}</Text>
+              </View>
+              <Switch
+                value={showCombined}
+                onValueChange={setShowCombined}
+                trackColor={{ true: colors.accent, false: colors.border }}
+              />
             </View>
           )}
 
@@ -360,6 +421,10 @@ function makeStyles(colors) {
     legendName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
     legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 52, textAlign: 'right', fontVariant: ['tabular-nums'] },
     legendHalf: { fontSize: 12, color: colors.textMuted, width: 78, textAlign: 'right' },
+    combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
+    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12 },
+    toggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
+    toggleHint: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
 
     disclaimerBox: { backgroundColor: colors.warningSoft, borderRadius: 12, padding: 12, marginTop: 12 },
     disclaimerText: { fontSize: 12, lineHeight: 17, color: colors.warningSoftText },
