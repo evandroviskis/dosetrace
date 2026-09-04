@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,18 +12,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import Svg, { Polyline, Line, Rect } from 'react-native-svg';
+import Svg, { Polyline, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translations } from '../i18n/translations';
-import { getActiveProtocols, getTakenLogsSince } from '../lib/database';
+import { getActiveProtocols } from '../lib/database';
+import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry } from '../lib/halfLives';
 import { useTheme } from '../lib/theme';
 
 const PAST_DAYS = 14;
 const FUTURE_DAYS = 7;
 const STEP_HOURS = 6;
-const FETCH_DAYS = 28; // look back further than the window so the curve starts realistic
 
 // Matching must run on the ENGLISH compound name: compound_id renders localized
 // via t(), but the half-life table is keyed in English.
@@ -66,7 +66,6 @@ export default function SerumCurveScreen() {
 
   const [protocols, setProtocols] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [logs, setLogs] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showCombined, setShowCombined] = useState(true);
 
@@ -88,10 +87,6 @@ export default function SerumCurveScreen() {
       const kept = prev.filter(id => active.some(p => p.id === id));
       return kept.length ? kept : (active[0] ? [active[0].id] : []);
     });
-
-    const since = new Date();
-    since.setDate(since.getDate() - FETCH_DAYS);
-    setLogs(getTakenLogsSince(user.id, since.toISOString()) || []);
   }
 
   function toggle(id) {
@@ -106,7 +101,22 @@ export default function SerumCurveScreen() {
 
   const chartWidth = windowWidth - 32 - 28;
   const chartHeight = 220;
+  const AXIS_W = 38;            // left gutter for mg labels
+  const PLOT_TOP = 8;           // headroom above the peak
+  const PLOT_BOTTOM = chartHeight - 4;
+  const plotLeft = AXIS_W;
+  const plotRight = chartWidth;
   const stepMs = STEP_HOURS * 3600 * 1000;
+
+  // Shared plot mappers (used by the curves, the NOW dots, and the y-axis ticks).
+  const yForLevel = (lv) => {
+    if (!model || model.max <= 0) return PLOT_BOTTOM;
+    return PLOT_BOTTOM - (lv / model.max) * (PLOT_BOTTOM - PLOT_TOP);
+  };
+  const xForIndex = (i) => {
+    const n = model ? model.nSteps : 1;
+    return plotLeft + (i / (n || 1)) * (plotRight - plotLeft);
+  };
 
   // One decay series per selected compound, all on a SHARED time axis and a
   // SHARED vertical scale (max across every selected series) so overlaid curves
@@ -119,14 +129,33 @@ export default function SerumCurveScreen() {
     const end = now + FUTURE_DAYS * 24 * 3600 * 1000;
     const nSteps = Math.round((end - start) / stepMs);
 
+    const DAY_MS = 86400000;
     const series = selected.map(p => {
       const entry = getHalfLifeEntry(matchName(p));
       const doseMg = doseInMg(p);
       const halfLifeMs = entry.hours * 3600 * 1000;
-      const doses = logs
-        .filter(l => l.protocol_id === p.id)
-        .map(l => new Date(l.logged_at).getTime())
-        .filter(ts => isFinite(ts));
+      // Dose events come from the protocol's SCHEDULE (start date + interval +
+      // doses/day), not from hand-logged doses — so the curve reflects the
+      // protocol automatically, past and projected. Scan back far enough that
+      // long esters' earlier doses still contribute at the window start.
+      const lookbackDays = Math.min(365, Math.max(PAST_DAYS + 2, Math.ceil(6 * entry.hours / 24)));
+      let scanStart = now - lookbackDays * DAY_MS;
+      if (p.start_date) {
+        const sd = new Date(p.start_date + 'T00:00:00').getTime();
+        if (isFinite(sd) && sd > scanStart) scanStart = sd;
+      }
+      const scanStartDay = new Date(scanStart); scanStartDay.setHours(0, 0, 0, 0);
+      const doses = [];
+      for (let dts = scanStartDay.getTime(); dts <= end; dts += DAY_MS) {
+        const day = new Date(dts);
+        // Count of scheduled doses that day (reminder-time-independent); place
+        // them at midday so the daily accumulation is captured at 6h sampling.
+        const cnt = expectedDosesOn(p, day);
+        if (cnt > 0) {
+          const dd = new Date(day); dd.setHours(12, 0, 0, 0);
+          for (let k = 0; k < cnt; k++) doses.push(dd.getTime());
+        }
+      }
       const points = [];
       for (let i = 0; i <= nSteps; i++) {
         const ts = start + i * stepMs;
@@ -169,21 +198,25 @@ export default function SerumCurveScreen() {
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
     const nowIdx = Math.min(nSteps, Math.round((now - start) / stepMs));
     return { series, combined, max, nowIdx, nSteps };
-  }, [protocols, selectedIds, logs, t, colors.accent, showCombined]);
+  }, [protocols, selectedIds, t, colors.accent, showCombined]);
 
   function polylineFor(points) {
     if (!model || model.max <= 0) return '';
-    const n = points.length;
-    return points
-      .map((lv, i) => {
-        const x = (i / (n - 1)) * chartWidth;
-        const y = chartHeight - (lv / model.max) * (chartHeight - 12) - 4;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
+    return points.map((lv, i) => `${xForIndex(i).toFixed(1)},${yForLevel(lv).toFixed(1)}`).join(' ');
   }
 
-  const nowX = model ? (model.nowIdx / model.nSteps) * chartWidth : 0;
+  // "Nice" mg tick values for the y-axis (0 → peak, rounded to readable steps).
+  function yTicks() {
+    if (!model || model.max <= 0) return [];
+    const raw = model.max / 4;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = (raw / mag >= 5 ? 5 : raw / mag >= 2 ? 2 : 1) * mag;
+    const ticks = [];
+    for (let v = 0; v <= model.max + 0.001; v += step) ticks.push(v);
+    return ticks;
+  }
+
+  const nowX = model ? xForIndex(model.nowIdx) : plotLeft;
   const single = model && model.series.length === 1 ? model.series[0] : null;
 
   // Dropdown button label: the single compound's name, or "N compounds".
@@ -252,11 +285,20 @@ export default function SerumCurveScreen() {
             </View>
 
             <Svg width={chartWidth} height={chartHeight}>
-              <Rect x={nowX} y={0} width={Math.max(0, chartWidth - nowX)} height={chartHeight} fill={colors.accentSoft} opacity={0.55} />
-              {[0.25, 0.5, 0.75].map(f => (
-                <Line key={f} x1={0} y1={chartHeight * f} x2={chartWidth} y2={chartHeight * f} stroke={colors.border} strokeWidth={1} />
+              {/* future projection zone */}
+              <Rect x={nowX} y={PLOT_TOP} width={Math.max(0, plotRight - nowX)} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.accentSoft} opacity={0.55} />
+              {/* y-axis: mg gridlines + labels */}
+              {yTicks().map((v, i) => (
+                <React.Fragment key={i}>
+                  <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.border} strokeWidth={1} />
+                  <SvgText x={plotLeft - 6} y={yForLevel(v) + 3.5} fontSize={9} fill={colors.textMuted} textAnchor="end">
+                    {mgLabel(v)}
+                  </SvgText>
+                </React.Fragment>
               ))}
-              <Line x1={nowX} y1={0} x2={nowX} y2={chartHeight} stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" />
+              <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">mg</SvgText>
+              {/* NOW line */}
+              <Line x1={nowX} y1={PLOT_TOP} x2={nowX} y2={PLOT_BOTTOM} stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" />
               {/* one overlaid curve per selected compound */}
               {model && model.max > 0 && model.series.map(ser => (
                 <Polyline
@@ -272,18 +314,18 @@ export default function SerumCurveScreen() {
               ))}
               {/* combined total per substance group — bold, on top */}
               {model && model.max > 0 && showCombined && model.combined.map(c => (
-                <Polyline
-                  key={c.id}
-                  points={polylineFor(c.points)}
-                  fill="none"
-                  stroke={colors.text}
-                  strokeWidth={3.5}
-                  strokeDasharray="0"
-                />
+                <Polyline key={c.id} points={polylineFor(c.points)} fill="none" stroke={colors.text} strokeWidth={3.5} strokeDasharray="0" />
+              ))}
+              {/* dots marking each line's level right now */}
+              {model && model.max > 0 && model.series.map(ser => (
+                <Circle key={`d-${ser.id}`} cx={nowX} cy={yForLevel(ser.points[model.nowIdx])} r={3.5} fill={ser.color} />
+              ))}
+              {model && model.max > 0 && showCombined && model.combined.map(c => (
+                <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.points[model.nowIdx])} r={4} fill={colors.text} />
               ))}
             </Svg>
 
-            <View style={s.axisRow}>
+            <View style={[s.axisRow, { marginLeft: AXIS_W }]}>
               <Text style={s.axisLabel}>−{PAST_DAYS}d</Text>
               <Text style={[s.axisLabel, { color: colors.text, fontWeight: '700' }]}>{t('curve_now')}</Text>
               <Text style={s.axisLabel}>+{FUTURE_DAYS}d</Text>
