@@ -262,6 +262,7 @@ export default function SerumCurveScreen() {
   const readoutInWindow = readoutT >= winStart && readoutT <= winEnd;
   const readoutX = model ? xForIndex((readoutT - winStart) / stepMs) : plotLeft;
   const isToday = readoutISO === todayISO();
+  const readoutShort = new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' });
 
   // Dropdown button label: the single compound's name, or "N compounds".
   const selCount = selectedIds.length;
@@ -343,9 +344,29 @@ export default function SerumCurveScreen() {
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">mg</SvgText>
               {/* NOW line */}
               <Line x1={nowX} y1={PLOT_TOP} x2={nowX} y2={PLOT_BOTTOM} stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" />
-              {/* readout date marker (a chosen blood-draw date) */}
+              {/* readout date marker (a chosen blood-draw date) — labeled so a
+                  screenshot shows which date and level it represents */}
               {model && model.max > 0 && readoutInWindow && !isToday && (
-                <Line x1={readoutX} y1={PLOT_TOP} x2={readoutX} y2={PLOT_BOTTOM} stroke={colors.accent} strokeWidth={1.5} strokeDasharray="2,3" />
+                <>
+                  <Line x1={readoutX} y1={PLOT_TOP + 12} x2={readoutX} y2={PLOT_BOTTOM} stroke={colors.accent} strokeWidth={1.5} strokeDasharray="2,3" />
+                  <SvgText
+                    x={Math.min(Math.max(readoutX, plotLeft + 20), plotRight - 20)}
+                    y={PLOT_TOP + 8}
+                    fontSize={10}
+                    fontWeight="700"
+                    fill={colors.accent}
+                    textAnchor="middle"
+                  >
+                    {readoutShort}
+                  </SvgText>
+                  {/* dots where the chosen date crosses each line */}
+                  {model.series.map(ser => (
+                    <Circle key={`ro-dot-${ser.id}`} cx={readoutX} cy={yForLevel(levelAtDate(ser, readoutT))} r={3} fill={ser.color} stroke={colors.card} strokeWidth={1} />
+                  ))}
+                  {showCombined && model.combined.map(c => (
+                    <Circle key={`ro-dot-${c.id}`} cx={readoutX} cy={yForLevel(c.members.reduce((s, mid) => s + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} r={3.5} fill={colors.accent} stroke={colors.card} strokeWidth={1} />
+                  ))}
+                </>
               )}
               {/* one overlaid curve per selected compound */}
               {model && model.max > 0 && model.series.map(ser => (
