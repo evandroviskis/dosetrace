@@ -40,7 +40,16 @@ function validateVaccine(v) {
   if (!dateGiven) return null;
   const nextDue = typeof v.next_due === 'string' && iso.test(v.next_due) ? v.next_due : null;
   const notes = typeof v.notes === 'string' ? v.notes.trim() : '';
-  return { name: v.name.trim(), date_given: dateGiven, next_due: nextDue, notes };
+  // Structured detail fields — captured if the extractor provides them (kept
+  // backward-compatible: today's edge function only returns name/date/notes).
+  const str = (x) => (typeof x === 'string' && x.trim() ? x.trim() : null);
+  const doseNum = Number.isInteger(v.dose_number) ? v.dose_number
+    : (typeof v.dose_number === 'string' && /^\d+$/.test(v.dose_number.trim()) ? parseInt(v.dose_number.trim(), 10) : null);
+  return {
+    name: v.name.trim(), date_given: dateGiven, next_due: nextDue, notes,
+    manufacturer: str(v.manufacturer), batch_lot: str(v.batch_lot),
+    dose_number: doseNum, provider: str(v.provider), location: str(v.location),
+  };
 }
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -64,6 +73,11 @@ export default function VaccinesSection() {
   const [dateGiven, setDateGiven] = useState(todayISO());
   const [nextDue, setNextDue] = useState('');   // '' = none
   const [notes, setNotes] = useState('');
+  const [manufacturer, setManufacturer] = useState('');
+  const [doseNumber, setDoseNumber] = useState('');   // string in the input; parsed to int on save
+  const [batchLot, setBatchLot] = useState('');
+  const [provider, setProvider] = useState('');
+  const [location, setLocation] = useState('');
   const [pickerFor, setPickerFor] = useState(null); // 'given' | 'due' | null
   const [premium, setPremium] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -200,7 +214,11 @@ export default function VaccinesSection() {
     const user = await getCachedUser();
     if (!user) return 0;
     for (const v of list) {
-      insertVaccine({ user_id: user.id, name: v.name, date_given: v.date_given, next_due: v.next_due, notes: v.notes || null });
+      insertVaccine({
+        user_id: user.id, name: v.name, date_given: v.date_given, next_due: v.next_due, notes: v.notes || null,
+        manufacturer: v.manufacturer || null, batch_lot: v.batch_lot || null,
+        dose_number: v.dose_number ?? null, provider: v.provider || null, location: v.location || null,
+      });
     }
     requestSync();
     fetchList();
@@ -224,6 +242,7 @@ export default function VaccinesSection() {
   function openAdd() {
     setEditingId(null);
     setName(''); setDateGiven(todayISO()); setNextDue(''); setNotes('');
+    setManufacturer(''); setDoseNumber(''); setBatchLot(''); setProvider(''); setLocation('');
     setModalOpen(true);
   }
 
@@ -233,6 +252,11 @@ export default function VaccinesSection() {
     setDateGiven(v.date_given || todayISO());
     setNextDue(v.next_due || '');
     setNotes(v.notes || '');
+    setManufacturer(v.manufacturer || '');
+    setDoseNumber(v.dose_number != null ? String(v.dose_number) : '');
+    setBatchLot(v.batch_lot || '');
+    setProvider(v.provider || '');
+    setLocation(v.location || '');
     setModalOpen(true);
   }
 
@@ -241,11 +265,18 @@ export default function VaccinesSection() {
     if (!trimmed) return;
     const user = await getCachedUser();
     if (!user) return;
+    // dose_number is an integer column — keep only digits, null if empty/invalid.
+    const doseInt = /^\d+$/.test(doseNumber.trim()) ? parseInt(doseNumber.trim(), 10) : null;
     const payload = {
       name: trimmed,
       date_given: dateGiven || null,
       next_due: nextDue || null,
       notes: notes.trim() || null,
+      manufacturer: manufacturer.trim() || null,
+      batch_lot: batchLot.trim() || null,
+      dose_number: doseInt,
+      provider: provider.trim() || null,
+      location: location.trim() || null,
     };
     if (editingId) {
       updateVaccine(editingId, payload);
@@ -318,6 +349,15 @@ export default function VaccinesSection() {
             <View style={{ flex: 1, marginRight: 10 }}>
               <Text style={s.cardName}>{v.name}</Text>
               <Text style={s.cardDate}>{formatDate(v.date_given)}</Text>
+              {(v.dose_number != null || v.manufacturer || v.batch_lot) ? (
+                <Text style={s.cardMeta}>
+                  {[
+                    v.dose_number != null ? `${t('vax_dose_short')} ${v.dose_number}` : null,
+                    v.manufacturer || null,
+                    v.batch_lot ? `${t('vax_lot_short')} ${v.batch_lot}` : null,
+                  ].filter(Boolean).join('  ·  ')}
+                </Text>
+              ) : null}
               {v.next_due ? (
                 <Text style={s.cardDue}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text>
               ) : null}
@@ -396,6 +436,61 @@ export default function VaccinesSection() {
                 }}
               />
             )}
+
+            <Text style={s.sectionLabel}>{t('vax_details_section')}</Text>
+
+            <View style={s.fieldRow}>
+              <View style={s.fieldCol}>
+                <Text style={s.fieldLabel}>{t('vax_manufacturer')}</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder={t('vax_manufacturer_ph')}
+                  placeholderTextColor={colors.textFaint}
+                  value={manufacturer}
+                  onChangeText={setManufacturer}
+                />
+              </View>
+              <View style={s.fieldColNarrow}>
+                <Text style={s.fieldLabel}>{t('vax_dose_number')}</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="1"
+                  placeholderTextColor={colors.textFaint}
+                  value={doseNumber}
+                  onChangeText={(v) => setDoseNumber(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+            </View>
+
+            <Text style={s.fieldLabel}>{t('vax_batch_lot')}</Text>
+            <TextInput
+              style={s.input}
+              placeholder={t('vax_batch_lot_ph')}
+              placeholderTextColor={colors.textFaint}
+              value={batchLot}
+              onChangeText={setBatchLot}
+              autoCapitalize="characters"
+            />
+
+            <Text style={s.fieldLabel}>{t('vax_provider')}</Text>
+            <TextInput
+              style={s.input}
+              placeholder={t('vax_provider_ph')}
+              placeholderTextColor={colors.textFaint}
+              value={provider}
+              onChangeText={setProvider}
+            />
+
+            <Text style={s.fieldLabel}>{t('vax_location')}</Text>
+            <TextInput
+              style={s.input}
+              placeholder={t('vax_location_ph')}
+              placeholderTextColor={colors.textFaint}
+              value={location}
+              onChangeText={setLocation}
+            />
 
             <Text style={s.fieldLabel}>{t('vax_notes')}</Text>
             <TextInput
@@ -480,6 +575,7 @@ const makeStyles = (c) => StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 14, padding: 14, marginBottom: 10 },
   cardName: { fontSize: 15, fontWeight: '600', color: c.text },
   cardDate: { fontSize: 12, color: c.textMuted, marginTop: 3 },
+  cardMeta: { fontSize: 12, color: c.text, marginTop: 3, fontWeight: '500' },
   cardDue: { fontSize: 12, color: c.accent, marginTop: 3 },
   cardNotes: { fontSize: 12, color: c.textMuted, marginTop: 4, lineHeight: 17 },
   cardChevron: { fontSize: 22, color: c.textFaint },
@@ -489,6 +585,10 @@ const makeStyles = (c) => StyleSheet.create({
   modalClose: { fontSize: 14, color: c.textMuted },
   modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 14 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 24, marginBottom: 2 },
+  fieldRow: { flexDirection: 'row', gap: 12 },
+  fieldCol: { flex: 1 },
+  fieldColNarrow: { width: 96 },
   input: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border },
   notesInput: { minHeight: 70, textAlignVertical: 'top' },
   dateBtn: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 0.5, borderColor: c.border },
