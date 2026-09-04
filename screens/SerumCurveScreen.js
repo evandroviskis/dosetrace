@@ -8,15 +8,17 @@ import {
   Modal,
   Pressable,
   Switch,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Svg, { Polyline, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translations } from '../i18n/translations';
-import { getActiveProtocols } from '../lib/database';
+import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry } from '../lib/halfLives';
 import { useTheme } from '../lib/theme';
@@ -42,6 +44,13 @@ function doseInMg(protocol) {
 
 // Estimated amount still in the body (mg), from the summed-decay model. Rough,
 // not a serum concentration — the disclaimer says so.
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+
+function todayISO() {
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  return d.toISOString().split('T')[0];
+}
+
 function mgLabel(v) {
   if (!isFinite(v) || v <= 0) return '0';
   if (v < 10) return v.toFixed(1);
@@ -58,7 +67,7 @@ function halfLifeLabel(hours) {
 }
 
 export default function SerumCurveScreen() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { width: windowWidth } = useWindowDimensions();
@@ -69,6 +78,10 @@ export default function SerumCurveScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showCombined, setShowCombined] = useState(true);
   const [futureDays, setFutureDays] = useState(7);   // projection horizon
+  // Readout: estimate levels on a chosen date, e.g. a blood-draw date.
+  const [readoutDate, setReadoutDate] = useState(null); // ISO 'YYYY-MM-DD'; null = today
+  const [showReadoutPicker, setShowReadoutPicker] = useState(false);
+  const [labDates, setLabDates] = useState([]);         // distinct blood-exam dates
 
   useFocusEffect(
     useCallback(() => {
@@ -88,6 +101,10 @@ export default function SerumCurveScreen() {
       const kept = prev.filter(id => active.some(p => p.id === id));
       return kept.length ? kept : (active[0] ? [active[0].id] : []);
     });
+    // Distinct blood-exam dates (most recent first) to cross-reference against.
+    const marks = getBiomarkers(user.id) || [];
+    const uniq = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
+    setLabDates(uniq);
   }
 
   function toggle(id) {
@@ -172,6 +189,9 @@ export default function SerumCurveScreen() {
         entry,
         points,
         dosesInWindow,
+        doses,       // raw dose timestamps, for date-readout math
+        doseMg,
+        halfLifeMs,
       };
     });
 
@@ -219,6 +239,25 @@ export default function SerumCurveScreen() {
 
   const nowX = model ? xForIndex(model.nowIdx) : plotLeft;
   const single = model && model.series.length === 1 ? model.series[0] : null;
+
+  // ── Date readout (cross-reference a blood-draw date) ──
+  const now = Date.now();
+  const winStart = now - PAST_DAYS * 24 * 3600 * 1000;
+  const winEnd = now + futureDays * 24 * 3600 * 1000;
+  const readoutISO = readoutDate || todayISO();
+  const readoutT = new Date(readoutISO + 'T12:00:00').getTime();
+  // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
+  const levelAtDate = (ser, T) => {
+    let lv = 0;
+    for (const d of ser.doses) if (d <= T) lv += ser.doseMg * Math.exp((-Math.LN2 * (T - d)) / ser.halfLifeMs);
+    return lv;
+  };
+  const seriesById = {};
+  if (model) for (const ser of model.series) seriesById[ser.id] = ser;
+  // Marker x only when the readout date sits inside the plotted window.
+  const readoutInWindow = readoutT >= winStart && readoutT <= winEnd;
+  const readoutX = model ? xForIndex((readoutT - winStart) / stepMs) : plotLeft;
+  const isToday = readoutISO === todayISO();
 
   // Dropdown button label: the single compound's name, or "N compounds".
   const selCount = selectedIds.length;
@@ -300,6 +339,10 @@ export default function SerumCurveScreen() {
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">mg</SvgText>
               {/* NOW line */}
               <Line x1={nowX} y1={PLOT_TOP} x2={nowX} y2={PLOT_BOTTOM} stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" />
+              {/* readout date marker (a chosen blood-draw date) */}
+              {model && model.max > 0 && readoutInWindow && !isToday && (
+                <Line x1={readoutX} y1={PLOT_TOP} x2={readoutX} y2={PLOT_BOTTOM} stroke={colors.accent} strokeWidth={1.5} strokeDasharray="2,3" />
+              )}
               {/* one overlaid curve per selected compound */}
               {model && model.max > 0 && model.series.map(ser => (
                 <Polyline
@@ -407,6 +450,71 @@ export default function SerumCurveScreen() {
             </View>
           )}
 
+          {/* ── Estimate on a date (cross-reference a blood draw) ── */}
+          <View style={s.readoutCard}>
+            <Text style={s.readoutTitle}>{t('curve_readout_title')}</Text>
+            <TouchableOpacity style={s.readoutDateBtn} onPress={() => setShowReadoutPicker(v => !v)}>
+              <Text style={s.readoutDateText}>
+                📅  {new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </TouchableOpacity>
+            {showReadoutPicker && (
+              <DateTimePicker
+                value={new Date(readoutISO + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date(winEnd)}
+                onChange={(event, d) => {
+                  setShowReadoutPicker(Platform.OS === 'ios');
+                  if (event.type === 'dismissed') { setShowReadoutPicker(false); return; }
+                  if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setReadoutDate(x.toISOString().split('T')[0]); }
+                }}
+              />
+            )}
+
+            {labDates.length > 0 && (
+              <>
+                <Text style={s.readoutLabHint}>{t('curve_readout_lab_hint')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.labChipRow}>
+                  {labDates.map(d => {
+                    const on = readoutISO === d;
+                    return (
+                      <TouchableOpacity
+                        key={d}
+                        style={[s.labChip, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+                        onPress={() => setReadoutDate(d)}
+                      >
+                        <Text style={[s.labChipText, on && { color: colors.accentText }]}>
+                          🩸 {new Date(d + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' })}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
+            {/* per-line estimate on the chosen date */}
+            {model && model.series.map(ser => (
+              <View key={`ro-${ser.id}`} style={s.readoutRow}>
+                <View style={[s.dot, { backgroundColor: ser.color }]} />
+                <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
+                <Text style={s.readoutVal}>{mgLabel(levelAtDate(ser, readoutT))} mg</Text>
+              </View>
+            ))}
+            {showCombined && model && model.combined.map(c => (
+              <View key={`ro-${c.id}`} style={s.readoutRow}>
+                <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
+                <Text style={[s.readoutName, { fontWeight: '800' }]} numberOfLines={1}>
+                  {t('curve_combined')} · {t(`substance_${c.substance}`)}
+                </Text>
+                <Text style={[s.readoutVal, { fontWeight: '800' }]}>
+                  {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} mg
+                </Text>
+              </View>
+            ))}
+          </View>
+
           <View style={s.disclaimerBox}>
             <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
           </View>
@@ -496,6 +604,17 @@ function makeStyles(colors) {
     toggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
     toggleHint: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
 
+    readoutCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginTop: 12 },
+    readoutTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 10 },
+    readoutDateBtn: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
+    readoutDateText: { fontSize: 14, color: colors.text, fontWeight: '600' },
+    readoutLabHint: { fontSize: 12, color: colors.textMuted, marginTop: 12, marginBottom: 6 },
+    labChipRow: { gap: 8, paddingVertical: 2 },
+    labChip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+    labChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
+    readoutRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+    readoutName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+    readoutVal: { fontSize: 14, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] },
     disclaimerBox: { backgroundColor: colors.warningSoft, borderRadius: 12, padding: 12, marginTop: 12 },
     disclaimerText: { fontSize: 12, lineHeight: 17, color: colors.warningSoftText },
 
