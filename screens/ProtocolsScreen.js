@@ -45,6 +45,8 @@ import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+
 // Protocols list sort options. 'type' keeps the compound-type sections; the
 // rest render a single flat list.
 const SORT_OPTIONS = [
@@ -623,8 +625,13 @@ export default function ProtocolsScreen() {
   const [customIntervalOpen, setCustomIntervalOpen] = useState(false);
   const [customIntervalText, setCustomIntervalText] = useState('');
   const [dosesPerDay, setDosesPerDay] = useState(1);
-  const [startMonth, setStartMonth] = useState(new Date().getMonth()); // 0-11
-  const [startDay, setStartDay] = useState(String(new Date().getDate()));
+  // First-dose / start date as a full ISO date (YYYY-MM-DD). Defaults to today;
+  // any past or future date is allowed so a protocol can be scheduled ahead.
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  });
+  const [showStartPicker, setShowStartPicker] = useState(false);
   const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
@@ -652,17 +659,26 @@ export default function ProtocolsScreen() {
     return new Date(toSupabaseDateFromMD(monthIdx, dayStr) + 'T00:00:00');
   }
 
+  function todayISO() {
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  }
+  function isoWithOffset(offset) {
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+  }
   // First-dose quick pick: is the current start date today (+offset days)?
   function isStartOn(offset) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    return startMonth === d.getMonth() && (parseInt(startDay) || 0) === d.getDate();
+    return startDate === isoWithOffset(offset);
   }
   function setStartOffset(offset) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    setStartMonth(d.getMonth());
-    setStartDay(String(d.getDate()));
+    setStartDate(isoWithOffset(offset));
+  }
+  function formatStartDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   // Format "HH:MM" (24h) → locale-aware time (AM/PM in en, 24h in de/fr/it, …)
@@ -781,7 +797,7 @@ export default function ProtocolsScreen() {
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setCustomIntervalOpen(false); setCustomIntervalText('');
-    setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
+    setStartDate(todayISO()); setShowStartPicker(false);
     setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
     setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
@@ -877,10 +893,9 @@ export default function ProtocolsScreen() {
     const loadedDPD = p.doses_per_day || 1;
     setDosesPerDay(loadedDPD);
     if (p.start_date) {
-      const sd = new Date(p.start_date + 'T00:00:00');
-      setStartMonth(sd.getMonth()); setStartDay(String(sd.getDate()));
+      setStartDate(p.start_date);
     } else {
-      setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
+      setStartDate(todayISO());
     }
     const times = (p.reminder_time || currentTimeRounded5()).split(',').filter(Boolean);
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
@@ -980,7 +995,7 @@ export default function ProtocolsScreen() {
         || prev.reminder_time !== reminderTimes.join(',')
         || (prev.doses_per_day || 1) !== dosesPerDay
         || (prev.interval_days || 1) !== intervalDays
-        || (prev.start_date || null) !== toSupabaseDateFromMD(startMonth, startDay);
+        || (prev.start_date || null) !== startDate;
       updateProtocol(editingId, {
         name, compound_id: compoundId, type, color,
         amount: parseFloat(amount) || null, unit,
@@ -992,7 +1007,7 @@ export default function ProtocolsScreen() {
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay),
+        start_date: startDate,
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
@@ -1053,7 +1068,7 @@ export default function ProtocolsScreen() {
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay),
+        start_date: startDate,
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
@@ -1857,33 +1872,26 @@ export default function ProtocolsScreen() {
                 )}
 
                 <Text style={s.fieldLabel}>{t('protocols_start_date')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
-                  <View style={s.monthRow}>
-                    {MONTH_KEYS.map((mk, idx) => (
-                      <TouchableOpacity
-                        key={mk}
-                        style={[s.monthPill, startMonth === idx && s.monthPillOn]}
-                        onPress={() => setStartMonth(idx)}
-                      >
-                        <Text style={[s.monthPillText, startMonth === idx && s.monthPillTextOn]}>
-                          {t(mk)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-                <TextInput
-                  style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
-                  placeholder={t('protocols_day_dd')}
-                  placeholderTextColor={colors.textFaint}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  value={startDay}
-                  onChangeText={(val) => {
-                    const num = parseInt(val);
-                    if (val === '' || (num >= 1 && num <= 31)) setStartDay(val);
-                  }}
-                />
+                <TouchableOpacity style={s.dateBtn} onPress={() => setShowStartPicker(v => !v)}>
+                  <Text style={s.dateBtnText}>📅  {formatStartDate(startDate)}</Text>
+                </TouchableOpacity>
+                {showStartPicker && (
+                  <DateTimePicker
+                    value={new Date(startDate + 'T12:00:00')}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, d) => {
+                      setShowStartPicker(Platform.OS === 'ios');
+                      if (event.type === 'dismissed') { setShowStartPicker(false); return; }
+                      if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
+                    }}
+                  />
+                )}
+                {Platform.OS === 'ios' && showStartPicker && (
+                  <TouchableOpacity style={s.doneBtn} onPress={() => setShowStartPicker(false)}>
+                    <Text style={s.doneBtnText}>{t('done')}</Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* 2 — Interval: every X days (presets + typed custom for long TRT intervals) */}
                 <Text style={s.fieldLabel}>{t('protocols_how_often')}</Text>
