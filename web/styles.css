@@ -270,11 +270,11 @@ p { margin: 0; }
 
   .hero { padding-top: 30px; }
   .phone-wrap { margin-top: 20px; }
-  /* Narrow the phone a touch so the badge can sit beside the screen, not over it */
+  /* Narrow the phone a touch so the badge can hang off the top-right side */
   .phone { width: min(248px, 66vw); }
-  .phone .ring { right: -46px; top: auto; bottom: 150px; width: 72px; height: 72px; }
-  .phone .ring svg { width: 54px; height: 54px; }
-  .phone .ring .ring-label { font-size: 12.5px; }
+  .phone .ring { right: -42px; top: 112px; width: 76px; height: 76px; }
+  .phone .ring svg { width: 58px; height: 58px; }
+  .phone .ring .ring-label { font-size: 13px; }
 }
 
 /* ---------- Trust strip ---------- */
