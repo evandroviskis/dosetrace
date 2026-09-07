@@ -252,8 +252,29 @@ p { margin: 0; }
   .hero-grid { grid-template-columns: 1fr; text-align: center; }
   .hero .lead { margin-inline: auto; }
   .hero-cta .stores, .hero-note { justify-content: center; }
-  .phone-wrap { order: -1; margin-bottom: 8px; }
-  .phone .ring { right: 4%; }
+  /* Headline + explanation come first; the app mockup follows it */
+  .phone-wrap { margin-top: 26px; }
+  .phone .ring { right: -20px; }
+}
+
+/* Compact header + hero for phones */
+@media (max-width: 600px) {
+  .nav-inner { height: 60px; }
+  .brand { font-size: 17px; gap: 8px; }
+  .brand .mark { height: 26px; }
+  .nav-actions { gap: 8px; }
+  .lang-btn { height: 38px; padding: 0 10px; }
+  .theme-toggle { width: 38px; height: 38px; }
+  /* The download CTA is served by the hero store badges right below */
+  .nav-actions .btn-primary { display: none; }
+
+  .hero { padding-top: 30px; }
+  .phone-wrap { margin-top: 20px; }
+  /* Narrow the phone a touch so the badge can sit beside the screen, not over it */
+  .phone { width: min(248px, 66vw); }
+  .phone .ring { right: -46px; top: auto; bottom: 150px; width: 72px; height: 72px; }
+  .phone .ring svg { width: 54px; height: 54px; }
+  .phone .ring .ring-label { font-size: 12.5px; }
 }
 
 /* ---------- Trust strip ---------- */
