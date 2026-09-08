@@ -53,11 +53,19 @@
 
 <script>
 (function(){
-  // Pull the magic-link token from the URL fragment so it never lands in server
-  // logs or the Referer header, then scrub it from the visible address bar.
+  // Pull the magic-link token from the URL — fragment (#t=) is preferred because
+  // it never reaches the server, but we also accept a query string (?t=) since
+  // some link handlers drop the fragment. Either way we stash it in
+  // sessionStorage (survives reloads) and scrub the URL immediately.
   var token = '';
-  var m = location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/);
-  if (m) token = decodeURIComponent(m[1]);
+  var hm = location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/);
+  var qm = location.search.match(/(?:^\?|&)(?:t|token)=([^&]+)/);
+  if (hm) token = decodeURIComponent(hm[1]);
+  else if (qm) token = decodeURIComponent(qm[1]);
+  try {
+    if (token) sessionStorage.setItem('dt_adm_token', token);
+    else token = sessionStorage.getItem('dt_adm_token') || '';
+  } catch(e) {}
   try { history.replaceState(null, '', location.pathname); } catch(e){}
 
   var app = document.getElementById('app');
