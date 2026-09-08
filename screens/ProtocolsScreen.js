@@ -113,6 +113,38 @@ function diluentLabel(val, t) {
   return opt ? t(opt.key) : val;
 }
 
+// Trim a computed number to a clean display value (20, not 20.00; 2.5 stays 2.5).
+function trimNum(n) {
+  if (!isFinite(n)) return null;
+  return Number.isInteger(n) ? n : Number(n.toFixed(2));
+}
+
+// Collapsed-card "size" descriptor: the total compound in the container, so every
+// injectable reads the same way ("10 mg vial"). recon and rtu both store that total
+// in `amount` (RTU has no dilution — its amount = concentration × bottle volume,
+// computed at save). Before an RTU vial exists we recompute from the active vial's
+// volume if present, else fall back to concentration ("10 mg/ml"). oral → the
+// per-unit strength ("500 mg"). Returns null when nothing is entered yet.
+function sizeLabel(p, vial, t) {
+  if (p.type === 'recon') {
+    if (p.amount == null || p.amount === '') return null;
+    return `${p.amount} ${p.unit || 'mg'} ${t('protocols_vial_noun')}`;
+  }
+  if (p.type === 'rtu') {
+    if (p.concentration == null || p.concentration === '') return null;
+    const ml = vial && vial.water_ml != null ? parseFloat(vial.water_ml) : null;
+    const total = ml ? trimNum(parseFloat(p.concentration) * ml)
+      : (p.amount != null && p.amount !== '' ? trimNum(parseFloat(p.amount)) : null);
+    if (total) return `${total} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
+    return `${p.concentration} ${p.concentration_unit || 'mg'}/ml`;
+  }
+  if (p.type === 'oral') {
+    if (p.serving_strength == null || p.serving_strength === '') return null;
+    return `${p.serving_strength} ${p.serving_strength_unit || 'mg'}`;
+  }
+  return null;
+}
+
 function getTypeBadge(type, t, c) {
   if (type === 'recon') return { bg: c.accentSoft, text: c.accentSoftText, label: t('protocols_type_badge_lyophilized') };
   if (type === 'rtu') return { bg: c.successSoft, text: c.successSoftText, label: t('protocols_type_badge_rtu') };
@@ -431,7 +463,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
         : (vial.expires_on ? Math.ceil((new Date(vial.expires_on + 'T00:00:00') - new Date()) / 86400000) : null))
     : null;
-  const vialDosesLeft = vial ? Math.max(0, (vial.total_doses || 0) - (vial.doses_taken || 0)) : null;
+  const isInjectable = p.type === 'recon' || p.type === 'rtu';
   // Low-supply flag — must match the Today "Supply low" alert. Capacity uses the
   // stored count, else derived from vial size ÷ dose (older vials have no count).
   const supplyCapacity = vial
@@ -440,6 +472,12 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }))
     : null;
   const dosesRemaining = (vial && supplyCapacity) ? Math.max(0, supplyCapacity - (vial.doses_taken || 0)) : null;
+  // Doses a full vial yields, shown for every injectable (lyophilized or RTU) even
+  // before a vial is opened: the stored/derived vial capacity, else — with no vial —
+  // derived from the vial's total compound ÷ dose (both types store that in `amount`).
+  const vialDoseCapacity = supplyCapacity != null
+    ? supplyCapacity
+    : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
   const lowSupply = dosesRemaining != null && dosesRemaining > 0 && dosesRemaining <= 3;
 
   return (
@@ -451,10 +489,15 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         <View style={[s.cardDot, { backgroundColor: p.color }]} />
         <View style={s.cardInfo}>
           <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-          <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}</Text>
-          {p.type === 'rtu' && vialDosesLeft != null && (
+          <Text style={s.cardMeta}>
+            {(() => { const sz = sizeLabel(p, vial, t); return sz ? `${sz} · ` : ''; })()}
+            {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+          </Text>
+          {isInjectable && vialDoseCapacity != null && (
             <Text style={[s.cardMeta, { fontWeight: '600', color: colors.accent }]}>
-              {t('protocols_injections_left').replace('{n}', String(vialDosesLeft))}
+              {dosesRemaining != null
+                ? t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
+                : t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}
             </Text>
           )}
           {vialDaysLeft != null && (
@@ -887,9 +930,13 @@ export default function ProtocolsScreen() {
     setConcentrationUnit(p.concentration_unit || 'mg');
     // RTU vial (size + box expiry) for editing
     const editVial = vialsByProtocol[p.id];
-    if (p.type === 'rtu' && editVial) {
-      setVialMl(editVial.water_ml != null ? String(editVial.water_ml) : '');
-      if (editVial.expires_on) {
+    if (p.type === 'rtu') {
+      // Prefer the active vial's volume; else rebuild it from the stored vial total
+      // (amount ÷ concentration) so re-saving keeps the size.
+      const ml = editVial && editVial.water_ml != null ? editVial.water_ml
+        : (p.amount && p.concentration ? trimNum(parseFloat(p.amount) / parseFloat(p.concentration)) : null);
+      setVialMl(ml != null ? String(ml) : '');
+      if (editVial && editVial.expires_on) {
         const ed = new Date(editVial.expires_on + 'T00:00:00');
         setVialExpMonth(ed.getMonth()); setVialExpYear(ed.getFullYear());
       } else { setVialExpMonth(null); setVialExpYear(null); }
@@ -1000,6 +1047,11 @@ export default function ProtocolsScreen() {
     const user = await getCachedUser();
     if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
 
+    // RTU has no dilution: the vial's total compound is concentration × bottle volume.
+    // Store it in `amount` (like recon's vial amount) so the card shows "X mg vial".
+    const rtuVialMg = (type === 'rtu' && parseFloat(concentration) > 0 && parseFloat(vialMl) > 0)
+      ? parseFloat(concentration) * parseFloat(vialMl) : null;
+
     if (editingId) {
       const freqStr = frequencyLabel(intervalDays);
       // Did the timing actually move? Only then should we clear already-delivered
@@ -1012,7 +1064,8 @@ export default function ProtocolsScreen() {
         || (prev.start_date || null) !== startDate;
       updateProtocol(editingId, {
         name, compound_id: compoundId, type, color,
-        amount: parseFloat(amount) || null, unit,
+        amount: type === 'rtu' ? rtuVialMg : (parseFloat(amount) || null),
+        unit: type === 'rtu' ? concentrationUnit : unit,
         water: parseFloat(water) || null,
         diluent: resolvedDiluent,
         dose: parseFloat(dose) || null, dose_unit: doseUnit,
@@ -1073,7 +1126,8 @@ export default function ProtocolsScreen() {
       const freqStr = frequencyLabel(intervalDays);
       const newId = insertProtocol({
         user_id: user.id, name, compound_id: compoundId, type, color,
-        amount: parseFloat(amount) || null, unit,
+        amount: type === 'rtu' ? rtuVialMg : (parseFloat(amount) || null),
+        unit: type === 'rtu' ? concentrationUnit : unit,
         water: parseFloat(water) || null,
         diluent: resolvedDiluent,
         dose: parseFloat(dose) || null, dose_unit: doseUnit,
