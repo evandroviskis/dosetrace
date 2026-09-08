@@ -171,10 +171,21 @@
     }
 
     // Stores
-    html += '<h2>Stores</h2><div class="grid two">';
-    html += '<div class="card">Google Play '+statusPill(gp.status)+'<div class="muted" style="margin-top:6px">'+esc(gp.message||'')+'</div></div>';
-    html += '<div class="card">Apple App Store '+statusPill(ap.status)+'<div class="muted" style="margin-top:6px">'+esc(ap.message||'')+'</div></div>';
+    html += '<h2>Stores</h2>';
+    html += '<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b>Google Play</b> '+statusPill(gp.status)+'</div>';
+    if(gp.status==='ok' && gp.data){
+      var g=gp.data;
+      html += '<div class="grid kpis" style="margin-top:12px">'
+        + kpi('Total installs', fmt(g.total_user_installs))
+        + kpi('Active devices', fmt(g.active_device_installs))
+        + kpi('Installs · this month', fmt(g.installs_this_month))
+        + kpi('Avg rating', g.total_average_rating!=null ? Number(g.total_average_rating).toFixed(2)+' ★' : '—')
+        + '</div>';
+    } else {
+      html += '<div class="muted" style="margin-top:6px">'+esc(gp.message||'')+'</div>';
+    }
     html += '</div>';
+    html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Apple App Store</b> '+statusPill(ap.status)+'</div><div class="muted" style="margin-top:6px">'+esc(ap.message||'')+'</div></div>';
 
     app.innerHTML = html;
     var rb = document.getElementById('refresh');

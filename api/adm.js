@@ -62,6 +62,79 @@ async function fetchRevenueCat() {
   }
 }
 
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Mint a Google OAuth access token from a service-account JSON (RS256, no deps).
+async function googleAccessToken(sa, scope) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claim = b64url(JSON.stringify({ iss: sa.client_email, scope, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+  const input = header + '.' + claim;
+  const sig = crypto.sign('RSA-SHA256', Buffer.from(input), sa.private_key)
+    .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' + input + '.' + sig,
+  });
+  const j = await r.json();
+  if (!j.access_token) throw new Error('google token: ' + (j.error_description || j.error || 'none'));
+  return j.access_token;
+}
+
+/**
+ * Google Play install/rating stats come from the Play statistics export — a
+ * Cloud Storage bucket of monthly UTF-16 CSVs — not from an API. The service
+ * account (GOOGLE_PLAY_SA_JSON) needs the Play Console "View app information and
+ * download bulk reports (read-only)" permission to read the bucket.
+ */
+async function fetchGooglePlay() {
+  const raw = process.env.GOOGLE_PLAY_SA_JSON;
+  const bucket = process.env.GOOGLE_PLAY_BUCKET;
+  const pkg = process.env.GOOGLE_PLAY_PACKAGE || 'io.outcom.dosetrace';
+  if (!raw || !bucket) return { status: 'not_configured' };
+  try {
+    const sa = JSON.parse(raw);
+    const at = await googleAccessToken(sa, 'https://www.googleapis.com/auth/devstorage.read_only');
+    const col = (hdr, name) => hdr.findIndex(h => h.replace(/"/g, '').trim().toLowerCase() === name.toLowerCase());
+    const num = v => { const n = Number(String(v == null ? '' : v).replace(/"/g, '').trim()); return isFinite(n) ? n : null; };
+    async function latestCsv(prefix) {
+      const listUrl = `https://storage.googleapis.com/storage/v1/b/${bucket}/o?prefix=${encodeURIComponent(prefix)}`;
+      const lr = await fetch(listUrl, { headers: { Authorization: 'Bearer ' + at } });
+      if (!lr.ok) throw new Error('list ' + lr.status + ': ' + (await lr.text()).slice(0, 140));
+      const lj = await lr.json();
+      if (!lj.items || !lj.items.length) return null;
+      const name = lj.items.map(i => i.name).sort().pop();
+      const dr = await fetch(`https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(name)}?alt=media`, { headers: { Authorization: 'Bearer ' + at } });
+      const text = Buffer.from(await dr.arrayBuffer()).toString('utf16le').replace(/^﻿/, '');
+      const rows = text.split(/\r?\n/).filter(x => x.length).map(l => l.split(','));
+      return { name, header: rows[0] || [], rows: rows.slice(1) };
+    }
+    const data = {};
+    const installs = await latestCsv('stats/installs/installs_' + pkg);
+    if (installs && installs.rows.length) {
+      const last = installs.rows[installs.rows.length - 1];
+      const gi = n => { const i = col(installs.header, n); return i >= 0 ? num(last[i]) : null; };
+      data.total_user_installs = gi('Total User Installs');
+      data.active_device_installs = gi('Active Device Installs');
+      const di = col(installs.header, 'Daily Device Installs');
+      if (di >= 0) data.installs_this_month = installs.rows.reduce((s, r) => s + (num(r[di]) || 0), 0);
+      data.month = (installs.name.match(/_(\d{6})_/) || [])[1] || null;
+    }
+    const ratings = await latestCsv('stats/ratings/ratings_' + pkg);
+    if (ratings && ratings.rows.length) {
+      const last = ratings.rows[ratings.rows.length - 1];
+      const ti = col(ratings.header, 'Total Average Rating');
+      if (ti >= 0) data.total_average_rating = num(last[ti]);
+    }
+    return { status: 'ok', data };
+  } catch (e) {
+    return { status: 'error', message: String(e && e.message || e) };
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -76,14 +149,14 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const [supabase, revenuecat] = await Promise.all([fetchSupabase(), fetchRevenueCat()]);
+  const [supabase, revenuecat, google_play] = await Promise.all([fetchSupabase(), fetchRevenueCat(), fetchGooglePlay()]);
 
   res.status(200).json({
     generated_at: new Date().toISOString(),
     sources: {
       supabase,
       revenuecat,
-      google_play: { status: 'planned', message: 'Add Play Developer Reporting API credentials to activate (phase 2).' },
+      google_play,
       apple: { status: 'planned', message: 'Add an App Store Connect API key to activate (phase 2).' },
     },
   });
