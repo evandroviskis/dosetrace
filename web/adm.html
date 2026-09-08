@@ -103,6 +103,11 @@
     return '<span class="pill off">not set up</span>';
   }
 
+  var GOAL_LABELS={wellness:'Wellness',fitness:'Fitness',body_composition:'Body composition',longevity:'Longevity',athletic:'Athletic performance',strength:'Strength & power',fat_loss:'Fat loss',endurance:'Endurance',energy:'Energy & vitality',sleep:'Sleep quality',hormonal_balance:'Hormonal balance',immune:'Immune function',recovery:'Recovery & healing',skin_collagen:'Skin & collagen',mood:'Mood & mental health',sexual_health:'Sexual health',joint_bone:'Joint & bone health',cardiovascular:'Cardiovascular health',stress:'Stress management'};
+  var ACTIVITY_LABELS={sedentary:'Sedentary',moderate:'Moderate',active:'Active',very_active:'Very active'};
+  function titleCase(k){ if(k==null||k==='(unset)'||k==='') return 'Not set'; return String(k).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
+  function relabel(list, map){ return (list||[]).map(function(x){ return {k: (x.k!=null && map[x.k]) ? map[x.k] : titleCase(x.k), n:x.n}; }); }
+
   function render(payload){
     var sb = payload.sources.supabase || {};
     var rc = payload.sources.revenuecat || {};
@@ -147,11 +152,11 @@
       // demographics
       var dem=d.demographics||{};
       html += '<h2>Who they are</h2><div class="grid two">';
-      html += '<div class="card"><div class="label muted">Country</div><div style="margin-top:8px">'+rows(dem.country,'k')+'</div></div>';
-      html += '<div class="card"><div class="label muted">Primary goal</div><div style="margin-top:8px">'+rows(dem.goal,'k')+'</div></div>';
+      html += '<div class="card"><div class="label muted">Country</div><div style="margin-top:8px">'+rows((dem.country||[]).map(function(x){return {k:(x.k==='(unset)'?'Not set':x.k),n:x.n};}),'k')+'</div></div>';
+      html += '<div class="card"><div class="label muted">Primary goal</div><div style="margin-top:8px">'+rows(relabel(dem.goal, GOAL_LABELS),'k')+'</div></div>';
       html += '</div>';
       html += '<div class="grid two" style="margin-top:12px">';
-      html += '<div class="card"><div class="label muted">Activity level</div><div style="margin-top:8px">'+rows(dem.activity,'k')+'</div></div>';
+      html += '<div class="card"><div class="label muted">Activity level</div><div style="margin-top:8px">'+rows(relabel(dem.activity, ACTIVITY_LABELS),'k')+'</div></div>';
       html += '<div class="card"><div class="label muted">Plan (Supabase field)</div><div style="margin-top:8px">'+rows(d.plans,'plan')
         + '<div class="muted" style="margin-top:8px;font-size:12px">Real subscription status comes from RevenueCat below.</div></div></div>';
       html += '</div>';
