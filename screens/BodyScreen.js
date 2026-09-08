@@ -646,17 +646,22 @@ export default function BodyScreen({ navigation, route }) {
               </TouchableOpacity>
             ))}
 
-            {/* Dose-accumulation / serum-curve model (educational estimate). */}
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => navigation.navigate('SerumCurve')}>
+            {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall')}>
               <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
                 <Text style={s.hubBadgeIcon}>📈</Text>
               </View>
               <View style={s.hubCardMain}>
-                <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
+                  {!premium && (
+                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>PRO</Text>
+                  )}
+                </View>
                 <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
                 <Text style={s.hubCardStat}>{t('curve_title')}</Text>
               </View>
-              <Text style={s.hubCardChevron}>›</Text>
+              <Text style={s.hubCardChevron}>{premium ? '›' : '🔒'}</Text>
             </TouchableOpacity>
 
             <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>

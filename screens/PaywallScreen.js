@@ -46,6 +46,7 @@ export default function PaywallScreen({ navigation, route }) {
     { label: t('pw_prem_scan'), included: false },         // Unlimited lab & vaccine scanning
     { label: t('pw_prem_pdf'), included: false },          // PDF export
     { label: t('pw_prem_reality'), included: false },      // Reality check + progress
+    { label: t('body_card_dosing_title'), included: false }, // Dose accumulation / serum curve
   ];
 
   const PREMIUM_FEATURES = [
@@ -54,6 +55,7 @@ export default function PaywallScreen({ navigation, route }) {
     t('pw_prem_scan_full'),     // Unlimited lab & vaccine scanning — photo/PDF, any language
     t('pw_prem_pdf'),           // PDF export for your doctor
     t('pw_prem_reality'),       // Reality check & progress tracking
+    t('body_card_dosing_title'), // Dose accumulation / serum curve
   ];
 
   useEffect(() => {

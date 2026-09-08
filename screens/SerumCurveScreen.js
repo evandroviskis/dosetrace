@@ -22,6 +22,7 @@ import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry } from '../lib/halfLives';
 import { useTheme } from '../lib/theme';
+import { isPremium } from '../lib/purchases';
 
 const PAST_DAYS = 14;
 const FUTURE_PRESETS = [7, 14, 30, 60, 90];
@@ -85,8 +86,18 @@ export default function SerumCurveScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
-    }, [])
+      let isMounted = true;
+      (async () => {
+        // Dose accumulation / serum curve is a Premium feature. Guard here so no
+        // entry path (deep link, back-stack) can reach it without an entitlement.
+        if (!(await isPremium())) {
+          if (isMounted) navigation.replace('Paywall');
+          return;
+        }
+        if (isMounted) fetchData();
+      })();
+      return () => { isMounted = false; };
+    }, [navigation])
   );
 
   async function fetchData() {
