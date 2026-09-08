@@ -34,14 +34,17 @@ async function fetchSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return { status: 'not_configured' };
+  const base = url.replace(/\/$/, '');
+  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   try {
-    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/rpc/admin_metrics`, {
-      method: 'POST',
-      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!r.ok) return { status: 'error', message: `Supabase ${r.status}: ${(await r.text()).slice(0, 200)}` };
-    return { status: 'ok', data: await r.json() };
+    const [mr, ar] = await Promise.all([
+      fetch(`${base}/rest/v1/rpc/admin_metrics`, { method: 'POST', headers, body: '{}' }),
+      fetch(`${base}/rest/v1/rpc/admin_activity`, { method: 'POST', headers, body: '{}' }),
+    ]);
+    if (!mr.ok) return { status: 'error', message: `Supabase ${mr.status}: ${(await mr.text()).slice(0, 200)}` };
+    const data = await mr.json();
+    if (ar.ok) { try { data.activity_events = await ar.json(); } catch (e) { /* optional */ } }
+    return { status: 'ok', data };
   } catch (e) {
     return { status: 'error', message: String(e && e.message || e) };
   }

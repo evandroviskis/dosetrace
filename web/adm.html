@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex,nofollow" />
 <title>DoseTrace Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0C1B2E; --surface:#12263C; --surface2:#183454; --line:#22405f;
@@ -13,215 +14,318 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1100px;margin:0 auto;padding:24px 20px 60px}
-  header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.01em}
+  a{color:var(--accent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 20px 80px}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.01em}
   .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
   .meta{color:var(--muted);font-size:12.5px}
-  button{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer}
+  button{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
   button:hover{border-color:var(--accent)}
-  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:28px 0 12px;font-weight:700}
+  button.on{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:700}
+  nav.sections{position:sticky;top:0;z-index:40;background:rgba(12,27,46,.92);backdrop-filter:blur(6px);display:flex;gap:6px;flex-wrap:wrap;padding:10px 0;margin:6px 0 4px;border-bottom:1px solid var(--line)}
+  nav.sections a{color:var(--muted);text-decoration:none;font-weight:600;font-size:13.5px;padding:6px 11px;border-radius:8px}
+  nav.sections a.active,nav.sections a:hover{color:var(--ink);background:var(--surface)}
+  section{padding-top:22px;margin-top:8px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;font-weight:700;display:flex;align-items:center;gap:8px}
+  h3{font-size:13.5px;margin:0 0 10px;color:var(--ink);font-weight:700}
   .grid{display:grid;gap:12px}
   .kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .two{grid-template-columns:1fr 1fr}.three{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:820px){.two,.three{grid-template-columns:1fr}}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
   .kpi .label{color:var(--muted);font-size:12px;font-weight:600}
-  .kpi .val{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+  .kpi .val{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
   .kpi .sub{color:var(--muted);font-size:12px;margin-top:2px}
-  .two{grid-template-columns:1fr 1fr}
-  @media(max-width:720px){.two{grid-template-columns:1fr}}
-  .bars{display:flex;align-items:flex-end;gap:3px;height:90px;margin-top:8px}
-  .bars .b{flex:1;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;min-height:2px;position:relative}
-  .bars .b:hover::after{content:attr(data-l);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#000;color:#fff;font-size:11px;padding:2px 6px;border-radius:5px;white-space:nowrap}
   .row{display:flex;align-items:center;gap:10px;margin:7px 0}
-  .row .k{width:150px;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .row .track{flex:1;background:var(--surface2);border-radius:6px;height:16px;overflow:hidden}
+  .row .k{width:160px;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .track{flex:1;background:var(--surface2);border-radius:6px;height:15px;overflow:hidden}
   .row .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
-  .row .n{width:44px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .row .n{width:52px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  table.cmp{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  table.cmp th,table.cmp td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);font-size:13.5px}
+  table.cmp th:first-child,table.cmp td:first-child{text-align:left;color:var(--muted);font-weight:600}
+  table.cmp th{color:var(--muted);font-weight:600;font-size:12px}
+  .delta{font-size:11.5px;font-weight:700;margin-left:6px}
+  .up{color:var(--good)}.down{color:var(--bad)}.flat{color:var(--muted)}
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px}
   .pill.ok{background:rgba(44,211,167,.15);color:var(--good)}
   .pill.off{background:rgba(143,166,189,.15);color:var(--muted)}
   .pill.err{background:rgba(232,119,107,.15);color:var(--bad)}
   .muted{color:var(--muted)}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 11px;font-size:12.5px;font-weight:600}
+  .chip button{padding:0 6px;background:none;border:none;color:var(--muted);font-size:14px;line-height:1}
+  .chip button:hover{color:var(--bad)}
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;position:sticky;top:48px;z-index:30}
+  input[type=date]{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+  canvas{max-width:100%}
+  .info{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-size:10px;font-weight:800;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+  .info:hover{color:var(--ink);border-color:var(--accent)}
+  .heat td{padding:6px 8px;text-align:center;border-radius:6px;font-variant-numeric:tabular-nums;font-size:12.5px}
   .center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
   code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:12.5px}
+  #gloss{position:fixed;inset:0;background:rgba(4,10,18,.6);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  #gloss .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;max-width:420px;padding:20px 22px}
+  #gloss h4{margin:0 0 8px;font-size:16px}
+  #gloss p{margin:0;color:var(--muted);line-height:1.55}
+  #gloss button{margin-top:16px}
 </style>
 </head>
 <body>
-<div class="wrap" id="app">
-  <div class="center" id="boot">Loading…</div>
-</div>
+<div class="wrap" id="app"><div class="center" id="boot">Loading…</div></div>
+<div id="gloss"><div class="box"><h4 id="gloss-t"></h4><p id="gloss-p"></p><button onclick="document.getElementById('gloss').style.display='none'">Close</button></div></div>
 
 <script>
 (function(){
-  // Pull the magic-link token from the URL — fragment (#t=) is preferred because
-  // it never reaches the server, but we also accept a query string (?t=) since
-  // some link handlers drop the fragment. Either way we stash it in
-  // sessionStorage (survives reloads) and scrub the URL immediately.
-  var token = '';
-  var hm = location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/);
-  var qm = location.search.match(/(?:^\?|&)(?:t|token)=([^&]+)/);
-  if (hm) token = decodeURIComponent(hm[1]);
-  else if (qm) token = decodeURIComponent(qm[1]);
-  try {
-    if (token) sessionStorage.setItem('dt_adm_token', token);
-    else token = sessionStorage.getItem('dt_adm_token') || '';
-  } catch(e) {}
-  try { history.replaceState(null, '', location.pathname); } catch(e){}
+  var token=''; var hm=location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/); var qm=location.search.match(/(?:^\?|&)(?:t|token)=([^&]+)/);
+  if(hm) token=decodeURIComponent(hm[1]); else if(qm) token=decodeURIComponent(qm[1]);
+  try{ if(token) sessionStorage.setItem('dt_adm_token',token); else token=sessionStorage.getItem('dt_adm_token')||''; }catch(e){}
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  var app=document.getElementById('app');
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var fmt=function(n){return (n==null||isNaN(n))?'—':Number(n).toLocaleString();};
+  var pct=function(n){return (n==null||isNaN(n))?'—':(Math.round(n*10)/10)+'%';};
+  var charts=[]; function clearCharts(){charts.forEach(function(c){try{c.destroy();}catch(e){}});charts=[];}
 
-  var app = document.getElementById('app');
-  var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
-  var fmt = function(n){ return (n==null?'—':Number(n).toLocaleString()); };
+  // ---- glossary ----
+  var GLOSSARY={
+    dau:['DAU — Daily Active Users','The number of unique users who did something in the app on a given day.'],
+    wau:['WAU — Weekly Active Users','Unique users active at least once in the last 7 days.'],
+    mau:['MAU — Monthly Active Users','Unique users active at least once in the last 30 days.'],
+    stick:['Stickiness (DAU/MAU)','Average DAU divided by MAU. Higher means people come back more often; ~20%+ is healthy for most apps.'],
+    mrr:['MRR — Monthly Recurring Revenue','Normalized predictable subscription revenue per month.'],
+    arpu:['ARPU — Average Revenue Per User','Revenue divided by number of users over a period.'],
+    ltv:['LTV — Lifetime Value','Total revenue you expect from an average customer over their lifetime.'],
+    retention:['Retention (D1/D7/D30 · weekly)','Of the people who signed up in a given period (a "cohort"), the share still active N days/weeks later. The core measure of whether the product keeps people.'],
+    cohort:['Cohort','A group of users bucketed by when they signed up (here, by signup week), tracked over time.'],
+    funnel:['Activation funnel','The steps a new user takes toward value: sign up → complete profile → create a protocol → log a dose → scan labs. Drop-off shows where you lose people.'],
+    adherence:['Adherence','Of logged doses, the share marked Taken (vs Missed/Skipped) — how consistently users follow their protocol.'],
+    anr:['ANR — Application Not Responding','An Android stability event where the UI froze; tracked as an app-health signal alongside crashes.'],
+    proceeds:['Proceeds','What you actually earn after the store’s cut — Apple/Google keep 15–30%.'],
+    active:['Active users','Unique users who triggered any tracked event in the selected period.']
+  };
+  window.showGloss=function(term){var g=GLOSSARY[term];if(!g)return;document.getElementById('gloss-t').textContent=g[0];document.getElementById('gloss-p').textContent=g[1];document.getElementById('gloss').style.display='flex';};
+  function iBtn(term){return '<button class="info" onclick="showGloss(\''+term+'\')" title="What is this?">i</button>';}
 
-  function deny(msg){ app.innerHTML = '<div class="center">'+esc(msg)+'</div>'; }
-
-  function bars(trend){
-    if(!trend||!trend.length) return '';
-    var max = Math.max.apply(null, trend.map(function(d){return d.n;}).concat([1]));
-    return '<div class="bars">'+trend.map(function(d){
-      var h = Math.round((d.n/max)*100);
-      return '<div class="b" style="height:'+h+'%" data-l="'+esc(d.day)+': '+d.n+'"></div>';
-    }).join('')+'</div>';
+  // ---- date helpers ----
+  function pd(s){var p=String(s).split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+  function inR(dateStr,start,end){var d=pd(dateStr);return d>=start&&d<end;}
+  function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);x.setHours(0,0,0,0);return x;}
+  function monMid(d){var x=new Date(d);x.setHours(0,0,0,0);var day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x;}
+  function monthStart(d){return new Date(d.getFullYear(),d.getMonth(),1);}
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtD(d){return MON[d.getMonth()]+' '+d.getDate();}
+  function periodFor(gran,anchor){
+    var a=new Date(anchor);a.setHours(0,0,0,0);
+    if(gran==='day')return {label:fmtD(a),start:a,end:addDays(a,1)};
+    if(gran==='week'){var s=monMid(a);return {label:'Wk '+fmtD(s),start:s,end:addDays(s,7)};}
+    var s2=monthStart(a);return {label:MON[s2.getMonth()]+' '+s2.getFullYear(),start:s2,end:new Date(s2.getFullYear(),s2.getMonth()+1,1)};
   }
-  function rows(list, keyName){
-    if(!list||!list.length) return '<div class="muted">No data.</div>';
-    var max = Math.max.apply(null, list.map(function(x){return x.n;}).concat([1]));
-    return list.map(function(x){
-      var label = x[keyName]!=null ? x[keyName] : (x.event||x.plan||x.k);
-      return '<div class="row"><div class="k" title="'+esc(label)+'">'+esc(label)+'</div>'
-        +'<div class="track"><div class="fill" style="width:'+Math.round((x.n/max)*100)+'%"></div></div>'
-        +'<div class="n">'+fmt(x.n)+'</div></div>';
-    }).join('');
-  }
-  function kpi(label,val,sub){
-    return '<div class="card kpi"><div class="label">'+esc(label)+'</div><div class="val">'+val+'</div>'
-      +(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';
-  }
-  function statusPill(s){
-    if(s==='ok') return '<span class="pill ok">live</span>';
-    if(s==='error') return '<span class="pill err">error</span>';
-    if(s==='planned') return '<span class="pill off">phase 2</span>';
-    return '<span class="pill off">not set up</span>';
+  function presets(gran){
+    var now=new Date();
+    if(gran==='day')return [periodFor('day',now),periodFor('day',addDays(now,-1))];
+    if(gran==='week')return [periodFor('week',now),periodFor('week',addDays(now,-7))];
+    return [periodFor('month',now),periodFor('month',new Date(now.getFullYear(),now.getMonth()-1,1))];
   }
 
+  // ---- state ----
+  var D={}, RC={}, AP={}, GP={}, gran='week', periods=[];
+  var KPI=[], ACT=[], UDIM=[], SEARCH=[], PROTO=[];
+
+  function kpiFor(p){
+    var s={signups:0,doses:0,protocols_created:0,scans:0,active:0};
+    KPI.forEach(function(r){if(inR(r.date,p.start,p.end)){s.signups+=r.signups;s.doses+=r.doses;s.protocols_created+=r.protocols_created;s.scans+=r.scans;}});
+    var u={};ACT.forEach(function(e){if(inR(e.d,p.start,p.end))u[e.u]=1;});s.active=Object.keys(u).length;
+    return s;
+  }
+  function tally(list,keyFn,periodStart,periodEnd,dateKey){
+    var m={};list.forEach(function(x){if(periodStart&&!inR(x[dateKey],periodStart,periodEnd))return;var k=keyFn(x);if(k==null||k==='')return;String(k).split(',').forEach(function(part){part=part.trim();if(part)m[part]=(m[part]||0)+1;});});
+    return Object.keys(m).map(function(k){return {k:k,n:m[k]};}).sort(function(a,b){return b.n-a.n;});
+  }
+
+  // ---- render primitives ----
+  var METRICS=[{k:'signups',l:'Signups'},{k:'active',l:'Active users',t:'active'},{k:'doses',l:'Doses logged'},{k:'protocols_created',l:'Protocols created'},{k:'scans',l:'AI lab scans'}];
+  function deltaHTML(cur,base){if(base==null||base===0)return cur>0?'<span class="delta up">new</span>':'';var d=Math.round((cur-base)/base*1000)/10;var cls=d>0?'up':(d<0?'down':'flat');var sign=d>0?'+':'';return '<span class="delta '+cls+'">'+sign+d+'%</span>';}
+  function rows(list,max){if(!list||!list.length)return '<div class="muted">No data.</div>';max=max||Math.max.apply(null,list.map(function(x){return x.n;}).concat([1]));return list.map(function(x){return '<div class="row"><div class="k" title="'+esc(x.k)+'">'+esc(x.k)+'</div><div class="track"><div class="fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="n">'+fmt(x.n)+'</div></div>';}).join('');}
+  function kpiCard(label,val,sub,term){return '<div class="card kpi"><div class="label">'+esc(label)+(term?' '+iBtn(term):'')+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';}
+  function statusPill(s){if(s==='ok')return '<span class="pill ok">live</span>';if(s==='error')return '<span class="pill err">error</span>';if(s==='planned'||s==='pending')return '<span class="pill off">pending</span>';return '<span class="pill off">not set up</span>';}
+
+  // ---- goal labels ----
   var GOAL_LABELS={wellness:'Wellness',fitness:'Fitness',body_composition:'Body composition',longevity:'Longevity',athletic:'Athletic performance',strength:'Strength & power',fat_loss:'Fat loss',endurance:'Endurance',energy:'Energy & vitality',sleep:'Sleep quality',hormonal_balance:'Hormonal balance',immune:'Immune function',recovery:'Recovery & healing',skin_collagen:'Skin & collagen',mood:'Mood & mental health',sexual_health:'Sexual health',joint_bone:'Joint & bone health',cardiovascular:'Cardiovascular health',stress:'Stress management'};
-  var ACTIVITY_LABELS={sedentary:'Sedentary',moderate:'Moderate',active:'Active',very_active:'Very active'};
-  function titleCase(k){ if(k==null||k==='(unset)'||k==='') return 'Not set'; return String(k).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
-  function relabel(list, map){ return (list||[]).map(function(x){ return {k: (x.k!=null && map[x.k]) ? map[x.k] : titleCase(x.k), n:x.n}; }); }
+  var ACT_LABELS={sedentary:'Sedentary',moderate:'Moderate',active:'Active',very_active:'Very active'};
+  function titleCase(k){if(k==null||k==='(unset)'||k==='')return 'Not set';return String(k).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
+  function relabel(list,map){return (list||[]).map(function(x){return {k:(x.k!=null&&map[x.k])?map[x.k]:titleCase(x.k),n:x.n};});}
 
-  function render(payload){
-    var sb = payload.sources.supabase || {};
-    var rc = payload.sources.revenuecat || {};
-    var gp = payload.sources.google_play || {};
-    var ap = payload.sources.apple || {};
-    var d = (sb.status==='ok' && sb.data) ? sb.data : null;
+  function makeChart(id,cfg){var el=document.getElementById(id);if(!el||!window.Chart)return;var c=new Chart(el,cfg);charts.push(c);}
+  var GRID={color:'rgba(255,255,255,.06)'},TICK={color:'#8FA6BD',font:{size:11}};
+  function lineDS(label,data,color){return {label:label,data:data,borderColor:color,backgroundColor:color+'22',tension:.3,fill:true,pointRadius:0,borderWidth:2};}
 
-    var html = '';
-    html += '<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div>'
-      + '<div style="display:flex;align-items:center;gap:12px"><span class="meta">Updated '
-      + esc(new Date(payload.generated_at).toLocaleString()) + '</span>'
-      + '<button id="refresh">Refresh</button></div></header>';
-
-    if(!d){
-      html += '<div class="card">Supabase '+statusPill(sb.status)+' '
-        + (sb.message?('<div class="muted" style="margin-top:6px">'+esc(sb.message)+'</div>'):'') + '</div>';
-    } else {
-      var u=d.users||{}, a=d.active||{}, pc=d.profile_completeness||{};
-      var pcPct = pc.total ? Math.round((pc.complete/pc.total)*100) : 0;
-      // KPIs
-      html += '<h2>Users &amp; engagement · Supabase '+statusPill('ok')+'</h2>';
-      html += '<div class="grid kpis">'
-        + kpi('Total users', fmt(u.total), '+'+fmt(u.new_1d)+' today')
-        + kpi('New · 7 days', fmt(u.new_7d), 'last 30d: '+fmt(u.new_30d))
-        + kpi('Active · WAU', fmt(a.wau), 'DAU '+fmt(a.dau)+' · MAU '+fmt(a.mau))
-        + kpi('Profiles complete', pcPct+'%', fmt(pc.complete)+' of '+fmt(pc.total))
-        + '</div>';
-      // signup trend + events
-      html += '<div class="grid two" style="margin-top:12px">';
-      html += '<div class="card"><div class="label muted">New signups · 30 days</div>'+bars(d.signup_trend)+'</div>';
-      html += '<div class="card"><div class="label muted">Top events · 30 days</div><div style="margin-top:8px">'+rows(d.events_30d,'event')+'</div></div>';
-      html += '</div>';
-      // usage
-      var usg=d.usage||{};
-      html += '<h2>Feature usage</h2><div class="grid kpis">'
-        + kpi('Protocols', fmt(usg.protocols), '+'+fmt(usg.protocols_7d)+' · 7d')
-        + kpi('Dose logs', fmt(usg.dose_logs), '+'+fmt(usg.dose_logs_7d)+' · 7d')
-        + kpi('Biomarkers', fmt(usg.biomarkers))
-        + kpi('Vaccines', fmt(usg.vaccines))
-        + kpi('Referral codes', fmt(usg.referral_codes), fmt(usg.referrals)+' referrals')
-        + '</div>';
-      // demographics
-      var dem=d.demographics||{};
-      html += '<h2>Who they are</h2><div class="grid two">';
-      html += '<div class="card"><div class="label muted">Country</div><div style="margin-top:8px">'+rows((dem.country||[]).map(function(x){return {k:(x.k==='(unset)'?'Not set':x.k),n:x.n};}),'k')+'</div></div>';
-      html += '<div class="card"><div class="label muted">Primary goal</div><div style="margin-top:8px">'+rows(relabel(dem.goal, GOAL_LABELS),'k')+'</div></div>';
-      html += '</div>';
-      html += '<div class="grid two" style="margin-top:12px">';
-      html += '<div class="card"><div class="label muted">Activity level</div><div style="margin-top:8px">'+rows(relabel(dem.activity, ACTIVITY_LABELS),'k')+'</div></div>';
-      html += '<div class="card"><div class="label muted">Plan (Supabase field)</div><div style="margin-top:8px">'+rows(d.plans,'plan')
-        + '<div class="muted" style="margin-top:8px;font-size:12px">Real subscription status comes from RevenueCat below.</div></div></div>';
-      html += '</div>';
-    }
-
-    // Revenue
-    html += '<h2>Revenue · RevenueCat '+statusPill(rc.status)+'</h2>';
-    if(rc.status==='ok' && rc.data && rc.data.metrics){
-      html += '<div class="grid kpis">'+rc.data.metrics.map(function(mm){
-        var val = mm.unit === '$'
-          ? '$' + Number(mm.value||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})
-          : fmt(mm.value);
-        return kpi(mm.name||mm.id, val, mm.description||'');
-      }).join('')+'</div>';
-    } else {
-      html += '<div class="card muted">'+(rc.message?esc(rc.message):'Add <code>REVENUECAT_API_KEY</code> and <code>REVENUECAT_PROJECT_ID</code> in Vercel to activate.')+'</div>';
-    }
-
-    // Stores
-    html += '<h2>Stores</h2>';
-    html += '<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b>Google Play</b> '+statusPill(gp.status)+'</div>';
-    if(gp.status==='ok' && gp.data){
-      var g=gp.data;
-      html += '<div class="grid kpis" style="margin-top:12px">'
-        + kpi('Total installs', fmt(g.total_user_installs))
-        + kpi('Active devices', fmt(g.active_device_installs))
-        + kpi('Installs · this month', fmt(g.installs_this_month))
-        + kpi('Avg rating', g.total_average_rating!=null ? Number(g.total_average_rating).toFixed(2)+' ★' : '—')
-        + '</div>';
-    } else {
-      html += '<div class="muted" style="margin-top:6px">'+esc(gp.message||'')+'</div>';
-    }
-    html += '</div>';
-    html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Apple App Store</b> '+statusPill(ap.status)+'</div>';
-    if(ap.status==='ok' && ap.data){
-      var a2=ap.data;
-      html += '<div class="grid kpis" style="margin-top:12px">'
-        + kpi('Downloads · 30d', fmt(a2.downloads_30d))
-        + kpi('Updates · 30d', fmt(a2.updates_30d))
-        + kpi('Latest day', a2.latest_day_downloads!=null ? fmt(a2.latest_day_downloads)+' dl' : '—', a2.latest_day||'')
-        + '</div>';
-    } else {
-      html += '<div class="muted" style="margin-top:6px">'+esc(ap.message||'')+'</div>';
-    }
-    html += '</div>';
-
-    app.innerHTML = html;
-    var rb = document.getElementById('refresh');
-    if(rb) rb.onclick = load;
+  // ---- sections ----
+  function secOverview(){
+    var t=D.totals||{},f=D.funnel||{};
+    var last=KPI[KPI.length-1]||{};
+    var s7=KPI.slice(-7).reduce(function(a,r){return a+r.signups;},0);
+    var s30=KPI.slice(-30).reduce(function(a,r){return a+r.signups;},0);
+    var actSet=function(days){var u={},cut=addDays(new Date(),-days);ACT.forEach(function(e){if(pd(e.d)>=cut)u[e.u]=1;});return Object.keys(u).length;};
+    var dau=actSet(1),wau=actSet(7),mau=actSet(30);
+    var pcComplete=t.users?Math.round(f.profile_complete/t.users*100):0;
+    var h='<section id="overview"><h2>Overview</h2><div class="grid kpis">'
+      +kpiCard('Total users',fmt(t.users),'+'+fmt(last.signups)+' today')
+      +kpiCard('New · 7 / 30 days',fmt(s7)+' / '+fmt(s30))
+      +kpiCard('WAU',fmt(wau),'DAU '+fmt(dau)+' · MAU '+fmt(mau),'wau')
+      +kpiCard('Stickiness',mau?pct(dau/mau*100):'—','DAU/MAU','stick')
+      +kpiCard('Profiles complete',pcComplete+'%',fmt(f.profile_complete)+' of '+fmt(t.users))
+      +'</div>';
+    h+='<div class="card" style="margin-top:12px"><h3>Signups & active users · 90 days</h3><canvas id="c-overview" height="90"></canvas></div>';
+    h+='<div class="grid three" style="margin-top:12px">'
+      +kpiCard('Protocols',fmt(t.protocols),fmt(t.protocols_active)+' active')
+      +kpiCard('Dose logs',fmt(t.dose_logs))
+      +kpiCard('Biomarkers',fmt(t.biomarkers))+'</div>';
+    h+='</section>';
+    return h;
   }
+  function drawOverview(){
+    var d=KPI.slice(-90);
+    makeChart('c-overview',{type:'line',data:{labels:d.map(function(r){return r.date;}),datasets:[lineDS('Signups',d.map(function(r){return r.signups;}),'#4FA3E8'),lineDS('DAU',d.map(function(r){return r.dau;}),'#2CD3A7')]},options:{responsive:true,plugins:{legend:{labels:{color:'#EAF2FB',boxWidth:12}}},scales:{x:{grid:GRID,ticks:{color:'#8FA6BD',maxTicksLimit:8,font:{size:10}}},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}});
+  }
+
+  function comparator(){
+    var chips=periods.map(function(p,i){return '<span class="chip">'+esc(p.label)+'<button onclick="rmPeriod('+i+')">×</button></span>';}).join('');
+    return '<div class="toolbar"><span class="muted" style="font-weight:700">Compare</span>'
+      +['day','week','month'].map(function(g){return '<button class="'+(gran===g?'on':'')+'" onclick="setGran(\''+g+'\')">'+g.charAt(0).toUpperCase()+g.slice(1)+'</button>';}).join('')
+      +'<span style="width:1px;height:22px;background:var(--line)"></span>'+chips
+      +'<input type="date" id="addp" /><button onclick="addPeriod()">+ Add period</button></div>';
+  }
+  function cmpTable(){
+    var vals=periods.map(kpiFor);
+    var head='<tr><th>Metric</th>'+periods.map(function(p){return '<th>'+esc(p.label)+'</th>';}).join('')+'</tr>';
+    var body=METRICS.map(function(m){
+      var cells=vals.map(function(v,i){var val=v[m.k];var dd=i>0?deltaHTML(val,vals[0][m.k]):'';return '<td>'+fmt(val)+dd+'</td>';}).join('');
+      return '<tr><td>'+m.l+(m.t?' '+iBtn(m.t):'')+'</td>'+cells+'</tr>';
+    }).join('');
+    return '<div class="card"><h3>Period comparison</h3><table class="cmp">'+head+body+'</table></div>';
+  }
+  function drawCmp(){
+    var vals=periods.map(kpiFor);var palette=['#4FA3E8','#2CD3A7','#E8B54F','#E8776B','#9E7BE8','#46C6EE'];
+    makeChart('c-cmp',{type:'bar',data:{labels:METRICS.map(function(m){return m.l;}),datasets:periods.map(function(p,i){return {label:p.label,data:METRICS.map(function(m){return vals[i][m.k];}),backgroundColor:palette[i%palette.length]};})},options:{responsive:true,plugins:{legend:{labels:{color:'#EAF2FB',boxWidth:12}}},scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}});
+  }
+
+  function secEngagement(){
+    var a=D.adherence||{};var arate=a.total?Math.round(a.taken/a.total*100):0;
+    var h='<section id="engagement"><h2>Engagement &amp; activation</h2>';
+    h+='<div class="grid two"><div class="card"><h3>Adherence '+iBtn('adherence')+'</h3><canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+arate+'% of '+fmt(a.total)+' logged doses taken</div></div>';
+    h+='<div class="card"><h3>Activation funnel '+iBtn('funnel')+'</h3><canvas id="c-funnel" height="150"></canvas></div></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>Doses logged · 90 days</h3><canvas id="c-doses" height="80"></canvas></div>';
+    h+='</section>';return h;
+  }
+  function drawEngagement(){
+    var a=D.adherence||{};
+    makeChart('c-adh',{type:'doughnut',data:{labels:['Taken','Missed','Skipped'],datasets:[{data:[a.taken||0,a.missed||0,a.skipped||0],backgroundColor:['#2CD3A7','#E8776B','#E8B54F'],borderWidth:0}]},options:{plugins:{legend:{labels:{color:'#EAF2FB',boxWidth:12}}}}});
+    var f=D.funnel||{};var stages=[['Signed up',f.signed_up],['Profile complete',f.profile_complete],['Created protocol',f.created_protocol],['Logged dose',f.logged_dose],['Scanned labs',f.scanned]];
+    makeChart('c-funnel',{type:'bar',data:{labels:stages.map(function(x){return x[0];}),datasets:[{data:stages.map(function(x){return x[1];}),backgroundColor:'#4FA3E8'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:GRID,ticks:TICK,beginAtZero:true},y:{grid:{display:false},ticks:{color:'#EAF2FB',font:{size:11}}}}}});
+    var d=KPI.slice(-90);
+    makeChart('c-doses',{type:'bar',data:{labels:d.map(function(r){return r.date;}),datasets:[{label:'Doses',data:d.map(function(r){return r.doses;}),backgroundColor:'#46C6EE'}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:GRID,ticks:{color:'#8FA6BD',maxTicksLimit:8,font:{size:10}}},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}});
+  }
+
+  function secRetention(){
+    var cohorts=(D.retention&&D.retention.cohorts)||[];
+    if(!cohorts.length)return '<section id="retention"><h2>Retention '+iBtn('retention')+'</h2><div class="card muted">Not enough cohort data yet.</div></section>';
+    var maxWk=0;cohorts.forEach(function(c){Object.keys(c.cells||{}).forEach(function(k){maxWk=Math.max(maxWk,+k);});});
+    var head='<tr><td style="text-align:left;color:var(--muted)">Cohort (week)</td><td style="color:var(--muted)">Users</td>';
+    for(var w=0;w<=maxWk;w++)head+='<td style="color:var(--muted)">W'+w+'</td>';head+='</tr>';
+    var body=cohorts.map(function(c){
+      var tds='';for(var w=0;w<=maxWk;w++){var a=(c.cells||{})[w];if(a==null){tds+='<td class="muted">·</td>';continue;}var p=c.size?Math.round(a/c.size*100):0;var bg='rgba(79,163,232,'+(0.12+0.6*(p/100)).toFixed(2)+')';tds+='<td style="background:'+bg+'">'+p+'%</td>';}
+      return '<tr><td style="text-align:left">'+esc(c.cohort)+'</td><td>'+fmt(c.size)+'</td>'+tds+'</tr>';
+    }).join('');
+    return '<section id="retention"><h2>Retention — weekly cohorts '+iBtn('retention')+'</h2><div class="card" style="overflow-x:auto"><table class="cmp heat">'+head+body+'</table><div class="sub muted" style="margin-top:8px">Each row = users who signed up that week. W0 = signup week; cells show the % still active N weeks later.</div></div></section>';
+  }
+
+  function secProduct(){
+    var p0=periods[0];
+    var comp=tally(PROTO,function(x){return x.compound;},p0&&p0.start,p0&&p0.end,'date');
+    var srch=tally(SEARCH,function(x){return x.query;},p0&&p0.start,p0&&p0.end,'date');
+    var types=tally(PROTO,function(x){return x.type;},p0&&p0.start,p0&&p0.end,'date').map(function(x){return {k:x.k==='recon'?'Reconstituted':(x.k==='rtu'?'Ready-to-use':titleCase(x.k)),n:x.n};});
+    var scope=p0?('· '+p0.label):'';
+    var h='<section id="product"><h2>Product '+scope+'</h2><div class="grid two">';
+    h+='<div class="card"><h3>Top compounds created</h3>'+rows(comp.slice(0,10))+'</div>';
+    h+='<div class="card"><h3>Top searches</h3>'+rows(srch.slice(0,10))+'</div></div>';
+    h+='<div class="grid two" style="margin-top:12px"><div class="card"><h3>Protocol type</h3>'+rows(types)+'</div>';
+    h+='<div class="card"><h3>Top biomarkers (all time)</h3>'+rows((D.top_biomarkers||[]).map(function(x){return {k:titleCase(x.k),n:x.n};}).slice(0,10))+'</div></div>';
+    h+='<div class="sub muted" style="margin-top:8px">Top compounds/searches reflect the first selected period ('+esc(p0?p0.label:'all')+'). Change it in the Compare bar.</div></section>';
+    return h;
+  }
+
+  function secRevenue(){
+    var h='<section id="revenue"><h2>Revenue · RevenueCat '+statusPill(RC.status)+'</h2>';
+    if(RC.status==='ok'&&RC.data&&RC.data.metrics){
+      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;return kpiCard(m.name||m.id,v,m.description||'',term);}).join('')+'</div>';
+    } else h+='<div class="card muted">'+esc(RC.message||'Not configured.')+'</div>';
+    h+='<div class="card" style="margin-top:12px"><h3>Plan (Supabase field)</h3>'+rows((D.plans||[]).map(function(x){return {k:x.plan,n:x.n};}))+'<div class="sub muted" style="margin-top:6px">Authoritative subscription status is RevenueCat above.</div></div>';
+    h+='</section>';return h;
+  }
+
+  function secAudience(){
+    var p0=periods[0];var use=UDIM;
+    if(p0)use=UDIM.filter(function(u){return inR(u.signup_date,p0.start,p0.end);});
+    var country=tally(use,function(x){return x.country;},null,null,'signup_date');
+    var goal=relabel(tally(use,function(x){return x.goal;},null,null,'signup_date'),GOAL_LABELS);
+    var activity=relabel(tally(use,function(x){return x.activity;},null,null,'signup_date'),ACT_LABELS);
+    var gender=tally(use,function(x){return x.gender;},null,null,'signup_date').map(function(x){return {k:titleCase(x.k),n:x.n};});
+    var ageBuckets={};use.forEach(function(u){if(u.age==null){ageBuckets['Not set']=(ageBuckets['Not set']||0)+1;return;}var b=u.age<25?'18–24':u.age<35?'25–34':u.age<45?'35–44':u.age<55?'45–54':'55+';ageBuckets[b]=(ageBuckets[b]||0)+1;});
+    var age=Object.keys(ageBuckets).map(function(k){return {k:k,n:ageBuckets[k]};}).sort(function(a,b){return b.n-a.n;});
+    var scope=p0?('signups · '+p0.label):'all users';
+    var h='<section id="audience"><h2>Audience — '+esc(scope)+' ('+use.length+')</h2><div class="grid two">';
+    h+='<div class="card"><h3>Country</h3>'+rows(country.slice(0,10).map(function(x){return {k:x.k==='(unset)'?'Not set':x.k,n:x.n};}))+'</div>';
+    h+='<div class="card"><h3>Primary goal</h3>'+rows(goal.slice(0,12))+'</div></div>';
+    h+='<div class="grid three" style="margin-top:12px"><div class="card"><h3>Activity</h3>'+rows(activity)+'</div><div class="card"><h3>Gender</h3>'+rows(gender)+'</div><div class="card"><h3>Age</h3>'+rows(age)+'</div></div></section>';
+    return h;
+  }
+
+  function secStores(){
+    var h='<section id="stores"><h2>Stores</h2>';
+    h+='<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b>Apple App Store</b> '+statusPill(AP.status)+'</div>';
+    if(AP.status==='ok'&&AP.data){var a=AP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard('Downloads · 30d',fmt(a.downloads_30d))+kpiCard('Updates · 30d',fmt(a.updates_30d))+kpiCard('Latest day',a.latest_day_downloads!=null?fmt(a.latest_day_downloads)+' dl':'—',a.latest_day||'')+'</div>';}
+    else h+='<div class="muted" style="margin-top:6px">'+esc(AP.message||'')+'</div>';
+    h+='</div><div class="card"><div style="display:flex;justify-content:space-between"><b>Google Play</b> '+statusPill(GP.status)+'</div>';
+    if(GP.status==='ok'&&GP.data){var g=GP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard('Total installs',fmt(g.total_user_installs))+kpiCard('Active devices',fmt(g.active_device_installs))+kpiCard('Installs · month',fmt(g.installs_this_month))+kpiCard('Avg rating',g.total_average_rating!=null?Number(g.total_average_rating).toFixed(2)+' ★':'—')+'</div>';}
+    else h+='<div class="muted" style="margin-top:6px">'+esc(GP.message||'')+'</div>';
+    h+='</div></section>';return h;
+  }
+
+  var NAV=[['overview','Overview'],['compare','Compare'],['engagement','Engagement'],['retention','Retention'],['product','Product'],['revenue','Revenue'],['audience','Audience'],['stores','Stores']];
+  function render(){
+    clearCharts();
+    var h='<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div><div style="display:flex;gap:12px;align-items:center"><span class="meta">Updated '+esc(new Date(D.generated_at||Date.now()).toLocaleString())+'</span><button id="refresh">Refresh</button></div></header>';
+    h+='<nav class="sections">'+NAV.map(function(n){return '<a href="#'+n[0]+'">'+n[1]+'</a>';}).join('')+'</nav>';
+    h+=secOverview();
+    h+='<section id="compare"><h2>Compare periods</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>Side-by-side</h3><canvas id="c-cmp" height="90"></canvas></div></section>';
+    h+=secEngagement();h+=secRetention();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();
+    app.innerHTML=h;
+    drawOverview();drawCmp();drawEngagement();
+    document.getElementById('refresh').onclick=load;
+  }
+  // re-render only the period-aware bits when periods change
+  window.setGran=function(g){gran=g;periods=presets(g);render();};
+  window.addPeriod=function(){var el=document.getElementById('addp');if(!el||!el.value)return;periods.push(periodFor(gran,pd(el.value)));render();};
+  window.rmPeriod=function(i){periods.splice(i,1);if(!periods.length)periods=presets(gran);render();};
 
   function load(){
-    app.innerHTML = '<div class="center">Loading…</div>';
-    fetch('/api/adm', { headers: { Authorization: 'Bearer ' + token } })
-      .then(function(r){
-        if(r.status===401) throw new Error('Unauthorized — the magic link is missing or wrong.');
-        if(r.status===503) throw new Error('Panel not configured yet (ADMIN_TOKEN not set in Vercel).');
-        if(!r.ok) throw new Error('Request failed ('+r.status+').');
-        return r.json();
-      })
-      .then(render)
-      .catch(function(e){ deny(String(e.message||e)); });
+    app.innerHTML='<div class="center">Loading…</div>';
+    fetch('/api/adm',{headers:{Authorization:'Bearer '+token}}).then(function(r){
+      if(r.status===401)throw new Error('Unauthorized — the magic link is missing or wrong.');
+      if(r.status===503)throw new Error('Panel not configured yet (ADMIN_TOKEN not set).');
+      if(!r.ok)throw new Error('Request failed ('+r.status+').');return r.json();
+    }).then(function(payload){
+      var S=payload.sources||{};var sb=S.supabase||{};
+      RC=S.revenuecat||{};AP=S.apple||{};GP=S.google_play||{};
+      if(sb.status!=='ok'||!sb.data){app.innerHTML='<div class="center">Supabase '+esc(sb.status||'')+(sb.message?(' — '+esc(sb.message)):'')+'</div>';return;}
+      D=sb.data;D.generated_at=payload.generated_at||D.generated_at;
+      KPI=D.kpi_timeseries||[];ACT=D.activity_events||[];UDIM=D.users_dim||[];SEARCH=D.searches||[];PROTO=D.protocols_created_events||[];
+      periods=presets(gran);
+      render();
+    }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'</div>';});
   }
-
-  if(!token){ deny('This page needs a magic link.'); return; }
+  if(!token){app.innerHTML='<div class="center">This page needs a magic link.</div>';return;}
   load();
 })();
 </script>
