@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, exchangeAuthCodeFromUrl } from './lib/supabase';
+import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders } from './lib/notifications';
@@ -74,6 +74,7 @@ import ProtocolsScreen from './screens/ProtocolsScreen';
 import LogScreen from './screens/LogScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
+import CompleteProfileScreen from './screens/CompleteProfileScreen';
 import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
 import PaywallScreen from './screens/PaywallScreen';
@@ -245,6 +246,12 @@ function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justCo
           </Stack.Screen>
         ) : !session ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : !isProfileComplete(session.user) ? (
+          // A session with no minimum profile (name / country / goal / activity)
+          // — e.g. a Google/Apple sign-in, which skips the email flow's profile
+          // step — must complete it before reaching the app. On save, the
+          // USER_UPDATED auth event refreshes `session` and this gate clears.
+          <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
         ) : (
           <Stack.Screen name="Main" component={MainStack} />
         )}

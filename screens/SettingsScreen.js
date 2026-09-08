@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { supabase, getCachedUser } from '../lib/supabase';
+import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import {
@@ -329,6 +329,9 @@ export default function SettingsScreen({ navigation }) {
           // Best-effort: push this user's pending changes before local data
           // is wiped by the SIGNED_OUT handler.
           try { await forceSync(); } catch (e) { /* best effort */ }
+          // Clear the native Google session too, so the account chooser shows on
+          // the next sign-in instead of silently re-using this account.
+          await signOutGoogleNative();
           // scope:'local' clears the session on-device without a network round-trip,
           // so sign-out never stalls on a slow/invalid token — it just fires
           // SIGNED_OUT, which routes back to the welcome screen.
@@ -401,6 +404,10 @@ export default function SettingsScreen({ navigation }) {
       // deleted server-side, so no global revoke is needed).
       stopSyncEngine();
       clearLocalDatabase();
+      // Fully detach the native Google session (signOut + revoke) so the deleted
+      // account can't be silently re-authenticated — the next Google sign-in
+      // shows the chooser and consent, making a new account a conscious choice.
+      await signOutGoogleNative({ revoke: true });
       try { await supabase.auth.signOut({ scope: 'local' }); }
       catch { await supabase.auth.signOut().catch(() => {}); }
     } catch (e) {
