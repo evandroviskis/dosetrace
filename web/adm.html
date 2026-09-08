@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>DoseTrace Admin</title>
+<style>
+  :root{
+    --bg:#0C1B2E; --surface:#12263C; --surface2:#183454; --line:#22405f;
+    --ink:#EAF2FB; --muted:#8FA6BD; --accent:#4FA3E8; --accent2:#46C6EE;
+    --good:#2CD3A7; --warn:#E8B54F; --bad:#E8776B;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px 20px 60px}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.01em}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .meta{color:var(--muted);font-size:12.5px}
+  button{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:28px 0 12px;font-weight:700}
+  .grid{display:grid;gap:12px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .kpi .label{color:var(--muted);font-size:12px;font-weight:600}
+  .kpi .val{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+  .kpi .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .two{grid-template-columns:1fr 1fr}
+  @media(max-width:720px){.two{grid-template-columns:1fr}}
+  .bars{display:flex;align-items:flex-end;gap:3px;height:90px;margin-top:8px}
+  .bars .b{flex:1;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;min-height:2px;position:relative}
+  .bars .b:hover::after{content:attr(data-l);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#000;color:#fff;font-size:11px;padding:2px 6px;border-radius:5px;white-space:nowrap}
+  .row{display:flex;align-items:center;gap:10px;margin:7px 0}
+  .row .k{width:150px;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .track{flex:1;background:var(--surface2);border-radius:6px;height:16px;overflow:hidden}
+  .row .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .row .n{width:44px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px}
+  .pill.ok{background:rgba(44,211,167,.15);color:var(--good)}
+  .pill.off{background:rgba(143,166,189,.15);color:var(--muted)}
+  .pill.err{background:rgba(232,119,107,.15);color:var(--bad)}
+  .muted{color:var(--muted)}
+  .center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
+  code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="center" id="boot">Loading…</div>
+</div>
+
+<script>
+(function(){
+  // Pull the magic-link token from the URL fragment so it never lands in server
+  // logs or the Referer header, then scrub it from the visible address bar.
+  var token = '';
+  var m = location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/);
+  if (m) token = decodeURIComponent(m[1]);
+  try { history.replaceState(null, '', location.pathname); } catch(e){}
+
+  var app = document.getElementById('app');
+  var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
+  var fmt = function(n){ return (n==null?'—':Number(n).toLocaleString()); };
+
+  function deny(msg){ app.innerHTML = '<div class="center">'+esc(msg)+'</div>'; }
+
+  function bars(trend){
+    if(!trend||!trend.length) return '';
+    var max = Math.max.apply(null, trend.map(function(d){return d.n;}).concat([1]));
+    return '<div class="bars">'+trend.map(function(d){
+      var h = Math.round((d.n/max)*100);
+      return '<div class="b" style="height:'+h+'%" data-l="'+esc(d.day)+': '+d.n+'"></div>';
+    }).join('')+'</div>';
+  }
+  function rows(list, keyName){
+    if(!list||!list.length) return '<div class="muted">No data.</div>';
+    var max = Math.max.apply(null, list.map(function(x){return x.n;}).concat([1]));
+    return list.map(function(x){
+      var label = x[keyName]!=null ? x[keyName] : (x.event||x.plan||x.k);
+      return '<div class="row"><div class="k" title="'+esc(label)+'">'+esc(label)+'</div>'
+        +'<div class="track"><div class="fill" style="width:'+Math.round((x.n/max)*100)+'%"></div></div>'
+        +'<div class="n">'+fmt(x.n)+'</div></div>';
+    }).join('');
+  }
+  function kpi(label,val,sub){
+    return '<div class="card kpi"><div class="label">'+esc(label)+'</div><div class="val">'+val+'</div>'
+      +(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';
+  }
+  function statusPill(s){
+    if(s==='ok') return '<span class="pill ok">live</span>';
+    if(s==='error') return '<span class="pill err">error</span>';
+    if(s==='planned') return '<span class="pill off">phase 2</span>';
+    return '<span class="pill off">not set up</span>';
+  }
+
+  function render(payload){
+    var sb = payload.sources.supabase || {};
+    var rc = payload.sources.revenuecat || {};
+    var gp = payload.sources.google_play || {};
+    var ap = payload.sources.apple || {};
+    var d = (sb.status==='ok' && sb.data) ? sb.data : null;
+
+    var html = '';
+    html += '<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div>'
+      + '<div style="display:flex;align-items:center;gap:12px"><span class="meta">Updated '
+      + esc(new Date(payload.generated_at).toLocaleString()) + '</span>'
+      + '<button id="refresh">Refresh</button></div></header>';
+
+    if(!d){
+      html += '<div class="card">Supabase '+statusPill(sb.status)+' '
+        + (sb.message?('<div class="muted" style="margin-top:6px">'+esc(sb.message)+'</div>'):'') + '</div>';
+    } else {
+      var u=d.users||{}, a=d.active||{}, pc=d.profile_completeness||{};
+      var pcPct = pc.total ? Math.round((pc.complete/pc.total)*100) : 0;
+      // KPIs
+      html += '<h2>Users &amp; engagement · Supabase '+statusPill('ok')+'</h2>';
+      html += '<div class="grid kpis">'
+        + kpi('Total users', fmt(u.total), '+'+fmt(u.new_1d)+' today')
+        + kpi('New · 7 days', fmt(u.new_7d), 'last 30d: '+fmt(u.new_30d))
+        + kpi('Active · WAU', fmt(a.wau), 'DAU '+fmt(a.dau)+' · MAU '+fmt(a.mau))
+        + kpi('Profiles complete', pcPct+'%', fmt(pc.complete)+' of '+fmt(pc.total))
+        + '</div>';
+      // signup trend + events
+      html += '<div class="grid two" style="margin-top:12px">';
+      html += '<div class="card"><div class="label muted">New signups · 30 days</div>'+bars(d.signup_trend)+'</div>';
+      html += '<div class="card"><div class="label muted">Top events · 30 days</div><div style="margin-top:8px">'+rows(d.events_30d,'event')+'</div></div>';
+      html += '</div>';
+      // usage
+      var usg=d.usage||{};
+      html += '<h2>Feature usage</h2><div class="grid kpis">'
+        + kpi('Protocols', fmt(usg.protocols), '+'+fmt(usg.protocols_7d)+' · 7d')
+        + kpi('Dose logs', fmt(usg.dose_logs), '+'+fmt(usg.dose_logs_7d)+' · 7d')
+        + kpi('Biomarkers', fmt(usg.biomarkers))
+        + kpi('Vaccines', fmt(usg.vaccines))
+        + kpi('Referral codes', fmt(usg.referral_codes), fmt(usg.referrals)+' referrals')
+        + '</div>';
+      // demographics
+      var dem=d.demographics||{};
+      html += '<h2>Who they are</h2><div class="grid two">';
+      html += '<div class="card"><div class="label muted">Country</div><div style="margin-top:8px">'+rows(dem.country,'k')+'</div></div>';
+      html += '<div class="card"><div class="label muted">Primary goal</div><div style="margin-top:8px">'+rows(dem.goal,'k')+'</div></div>';
+      html += '</div>';
+      html += '<div class="grid two" style="margin-top:12px">';
+      html += '<div class="card"><div class="label muted">Activity level</div><div style="margin-top:8px">'+rows(dem.activity,'k')+'</div></div>';
+      html += '<div class="card"><div class="label muted">Plan (Supabase field)</div><div style="margin-top:8px">'+rows(d.plans,'plan')
+        + '<div class="muted" style="margin-top:8px;font-size:12px">Real subscription status comes from RevenueCat below.</div></div></div>';
+      html += '</div>';
+    }
+
+    // Revenue
+    html += '<h2>Revenue · RevenueCat '+statusPill(rc.status)+'</h2>';
+    if(rc.status==='ok' && rc.data && rc.data.metrics){
+      html += '<div class="grid kpis">'+rc.data.metrics.map(function(mm){
+        return kpi(mm.name||mm.id, fmt(mm.value), mm.period||mm.unit||'');
+      }).join('')+'</div>';
+    } else {
+      html += '<div class="card muted">'+(rc.message?esc(rc.message):'Add <code>REVENUECAT_API_KEY</code> and <code>REVENUECAT_PROJECT_ID</code> in Vercel to activate.')+'</div>';
+    }
+
+    // Stores
+    html += '<h2>Stores</h2><div class="grid two">';
+    html += '<div class="card">Google Play '+statusPill(gp.status)+'<div class="muted" style="margin-top:6px">'+esc(gp.message||'')+'</div></div>';
+    html += '<div class="card">Apple App Store '+statusPill(ap.status)+'<div class="muted" style="margin-top:6px">'+esc(ap.message||'')+'</div></div>';
+    html += '</div>';
+
+    app.innerHTML = html;
+    var rb = document.getElementById('refresh');
+    if(rb) rb.onclick = load;
+  }
+
+  function load(){
+    app.innerHTML = '<div class="center">Loading…</div>';
+    fetch('/api/adm', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(r){
+        if(r.status===401) throw new Error('Unauthorized — the magic link is missing or wrong.');
+        if(r.status===503) throw new Error('Panel not configured yet (ADMIN_TOKEN not set in Vercel).');
+        if(!r.ok) throw new Error('Request failed ('+r.status+').');
+        return r.json();
+      })
+      .then(render)
+      .catch(function(e){ deny(String(e.message||e)); });
+  }
+
+  if(!token){ deny('This page needs a magic link.'); return; }
+  load();
+})();
+</script>
+</body>
+</html>
