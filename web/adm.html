@@ -11,6 +11,13 @@
     --bg:#0C1B2E; --surface:#12263C; --surface2:#183454; --line:#22405f;
     --ink:#EAF2FB; --muted:#8FA6BD; --accent:#4FA3E8; --accent2:#46C6EE;
     --good:#2CD3A7; --warn:#E8B54F; --bad:#E8776B;
+    --navbg:rgba(12,27,46,.92); --accent-ink:#04121f; --scrim:rgba(4,10,18,.6);
+  }
+  :root[data-theme="light"]{
+    --bg:#EEF3F9; --surface:#FFFFFF; --surface2:#F1F5FA; --line:#D6E0EC;
+    --ink:#0C2340; --muted:#5A7085; --accent:#2A78C2; --accent2:#2AA0C8;
+    --good:#159A78; --warn:#B5831C; --bad:#CC4B3D;
+    --navbg:rgba(238,243,249,.92); --accent-ink:#FFFFFF; --scrim:rgba(12,27,46,.45);
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -19,11 +26,14 @@
   header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.01em}
   .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .meta{color:var(--muted);font-size:12.5px}
   button{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
   button:hover{border-color:var(--accent)}
-  button.on{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:700}
-  nav.sections{position:sticky;top:0;z-index:40;background:rgba(12,27,46,.92);backdrop-filter:blur(6px);display:flex;gap:6px;flex-wrap:wrap;padding:10px 0;margin:6px 0 4px;border-bottom:1px solid var(--line)}
+  button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+  button.icon{padding:7px 11px;font-size:15px;line-height:1}
+  select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:7px 10px;cursor:pointer}
+  nav.sections{position:sticky;top:0;z-index:40;background:var(--navbg);backdrop-filter:blur(6px);display:flex;gap:6px;flex-wrap:wrap;padding:10px 0;margin:6px 0 4px;border-bottom:1px solid var(--line)}
   nav.sections a{color:var(--muted);text-decoration:none;font-weight:600;font-size:13.5px;padding:6px 11px;border-radius:8px}
   nav.sections a.active,nav.sections a:hover{color:var(--ink);background:var(--surface)}
   section{padding-top:22px;margin-top:8px}
@@ -64,7 +74,7 @@
   .heat td{padding:6px 8px;text-align:center;border-radius:6px;font-variant-numeric:tabular-nums;font-size:12.5px}
   .center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
   code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:12.5px}
-  #gloss{position:fixed;inset:0;background:rgba(4,10,18,.6);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  #gloss{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
   #gloss .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;max-width:420px;padding:20px 22px}
   #gloss h4{margin:0 0 8px;font-size:16px}
   #gloss p{margin:0;color:var(--muted);line-height:1.55}
@@ -73,39 +83,277 @@
 </head>
 <body>
 <div class="wrap" id="app"><div class="center" id="boot">Loading…</div></div>
-<div id="gloss"><div class="box"><h4 id="gloss-t"></h4><p id="gloss-p"></p><button onclick="document.getElementById('gloss').style.display='none'">Close</button></div></div>
+<div id="gloss"><div class="box"><h4 id="gloss-t"></h4><p id="gloss-p"></p><button id="gloss-close" onclick="document.getElementById('gloss').style.display='none'">Close</button></div></div>
 
 <script>
 (function(){
+  // ---------------------------------------------------------------------------
+  // i18n — every user-facing string. {placeholders} are filled by t(key, vars).
+  // ---------------------------------------------------------------------------
+  var LANGS=[['en','English'],['es','Español'],['pt','Português'],['fr','Français'],['de','Deutsch'],['it','Italiano']];
+  var T={
+    en:{
+      updated:'Updated {d}', refresh:'Refresh', loading:'Loading…', close:'Close',
+      need_link:'This page needs a magic link.',
+      err_unauth:'Unauthorized — the magic link is missing or wrong.',
+      err_notconf:'Panel not configured yet (ADMIN_TOKEN not set).',
+      err_failed:'Request failed ({n}).', supabase_status:'Supabase {s}',
+      theme_light:'Switch to light theme', theme_dark:'Switch to dark theme',
+      nav_overview:'Overview', nav_compare:'Compare', nav_engagement:'Engagement', nav_retention:'Retention', nav_product:'Product', nav_revenue:'Revenue', nav_audience:'Audience', nav_stores:'Stores',
+      sec_overview:'Overview', sec_compare:'Compare periods', sec_engagement:'Engagement & activation', sec_retention:'Retention — weekly cohorts', sec_retention_short:'Retention', sec_product:'Product', sec_revenue:'Revenue · RevenueCat', sec_audience:'Audience', sec_stores:'Stores',
+      k_total_users:'Total users', today_plus:'+{n} today', k_new_7_30:'New · 7 / 30 days', k_wau:'WAU', dau_mau_sub:'DAU {dau} · MAU {mau}', k_stickiness:'Stickiness', dau_mau:'DAU/MAU', k_profiles_complete:'Profiles complete', of_n:'{a} of {b}', k_protocols:'Protocols', n_active:'{n} active', k_dose_logs:'Dose logs', k_biomarkers:'Biomarkers', chart_signups_active:'Signups & active users · 90 days',
+      cmp_compare:'Compare', g_day:'Day', g_week:'Week', g_month:'Month', wk:'Wk', add_period:'+ Add period', period_comparison:'Period comparison', metric:'Metric', side_by_side:'Side-by-side',
+      m_signups:'Signups', m_active:'Active users', m_doses:'Doses logged', m_protocols_created:'Protocols created', m_scans:'AI lab scans',
+      eng_adherence:'Adherence', adh_sub:'{p}% of {n} logged doses taken', eng_funnel:'Activation funnel', doses_90:'Doses logged · 90 days',
+      taken:'Taken', missed:'Missed', skipped:'Skipped',
+      st_signed_up:'Signed up', st_profile_complete:'Profile complete', st_created_protocol:'Created protocol', st_logged_dose:'Logged dose', st_scanned:'Scanned labs',
+      ret_nodata:'Not enough cohort data yet.', ret_cohort_week:'Cohort (week)', ret_users:'Users', ret_footer:'Each row = users who signed up that week. W0 = signup week; cells show the % still active N weeks later.',
+      prod_top_compounds:'Top compounds created', prod_top_searches:'Top searches', prod_type:'Protocol type', prod_top_biomarkers:'Top biomarkers (all time)', type_recon:'Reconstituted', type_rtu:'Ready-to-use', prod_footer:'Top compounds/searches reflect the first selected period ({label}). Change it in the Compare bar.',
+      rev_plan:'Plan (Supabase field)', rev_plan_note:'Authoritative subscription status is RevenueCat above.', not_configured:'Not configured.',
+      aud_scope_signups:'signups · {label}', aud_scope_all:'all users', aud_country:'Country', aud_goal:'Primary goal', aud_activity:'Activity', aud_gender:'Gender', aud_age:'Age', not_set:'Not set',
+      store_apple:'Apple App Store', store_google:'Google Play', k_downloads_30:'Downloads · 30d', k_updates_30:'Updates · 30d', k_latest_day:'Latest day', n_dl:'{n} dl', k_total_installs:'Total installs', k_active_devices:'Active devices', k_installs_month:'Installs · month', k_avg_rating:'Avg rating',
+      pill_live:'live', pill_error:'error', pill_pending:'pending', pill_notset:'not set up', no_data:'No data.',
+      goal_wellness:'Wellness', goal_fitness:'Fitness', goal_body_composition:'Body composition', goal_longevity:'Longevity', goal_athletic:'Athletic performance', goal_strength:'Strength & power', goal_fat_loss:'Fat loss', goal_endurance:'Endurance', goal_energy:'Energy & vitality', goal_sleep:'Sleep quality', goal_hormonal_balance:'Hormonal balance', goal_immune:'Immune function', goal_recovery:'Recovery & healing', goal_skin_collagen:'Skin & collagen', goal_mood:'Mood & mental health', goal_sexual_health:'Sexual health', goal_joint_bone:'Joint & bone health', goal_cardiovascular:'Cardiovascular health', goal_stress:'Stress management',
+      act_sedentary:'Sedentary', act_moderate:'Moderate', act_active:'Active', act_very_active:'Very active',
+      gl_dau_t:'DAU — Daily Active Users', gl_dau_d:'The number of unique users who did something in the app on a given day.',
+      gl_wau_t:'WAU — Weekly Active Users', gl_wau_d:'Unique users active at least once in the last 7 days.',
+      gl_mau_t:'MAU — Monthly Active Users', gl_mau_d:'Unique users active at least once in the last 30 days.',
+      gl_stick_t:'Stickiness (DAU/MAU)', gl_stick_d:'Average DAU divided by MAU. Higher means people come back more often; ~20%+ is healthy for most apps.',
+      gl_mrr_t:'MRR — Monthly Recurring Revenue', gl_mrr_d:'Normalized predictable subscription revenue per month.',
+      gl_arpu_t:'ARPU — Average Revenue Per User', gl_arpu_d:'Revenue divided by number of users over a period.',
+      gl_ltv_t:'LTV — Lifetime Value', gl_ltv_d:'Total revenue you expect from an average customer over their lifetime.',
+      gl_retention_t:'Retention (D1/D7/D30 · weekly)', gl_retention_d:'Of the people who signed up in a given period (a "cohort"), the share still active N days/weeks later. The core measure of whether the product keeps people.',
+      gl_cohort_t:'Cohort', gl_cohort_d:'A group of users bucketed by when they signed up (here, by signup week), tracked over time.',
+      gl_funnel_t:'Activation funnel', gl_funnel_d:'The steps a new user takes toward value: sign up → complete profile → create a protocol → log a dose → scan labs. Drop-off shows where you lose people.',
+      gl_adherence_t:'Adherence', gl_adherence_d:'Of logged doses, the share marked Taken (vs Missed/Skipped) — how consistently users follow their protocol.',
+      gl_anr_t:'ANR — Application Not Responding', gl_anr_d:'An Android stability event where the UI froze; tracked as an app-health signal alongside crashes.',
+      gl_proceeds_t:'Proceeds', gl_proceeds_d:'What you actually earn after the store’s cut — Apple/Google keep 15–30%.',
+      gl_active_t:'Active users', gl_active_d:'Unique users who triggered any tracked event in the selected period.'
+    },
+    es:{
+      updated:'Actualizado {d}', refresh:'Actualizar', loading:'Cargando…', close:'Cerrar',
+      need_link:'Esta página necesita un enlace mágico.',
+      err_unauth:'No autorizado — falta el enlace mágico o es incorrecto.',
+      err_notconf:'El panel aún no está configurado (ADMIN_TOKEN no definido).',
+      err_failed:'La solicitud falló ({n}).', supabase_status:'Supabase {s}',
+      theme_light:'Cambiar a tema claro', theme_dark:'Cambiar a tema oscuro',
+      nav_overview:'Resumen', nav_compare:'Comparar', nav_engagement:'Interacción', nav_retention:'Retención', nav_product:'Producto', nav_revenue:'Ingresos', nav_audience:'Audiencia', nav_stores:'Tiendas',
+      sec_overview:'Resumen', sec_compare:'Comparar periodos', sec_engagement:'Interacción y activación', sec_retention:'Retención — cohortes semanales', sec_retention_short:'Retención', sec_product:'Producto', sec_revenue:'Ingresos · RevenueCat', sec_audience:'Audiencia', sec_stores:'Tiendas',
+      k_total_users:'Usuarios totales', today_plus:'+{n} hoy', k_new_7_30:'Nuevos · 7 / 30 días', k_wau:'WAU', dau_mau_sub:'DAU {dau} · MAU {mau}', k_stickiness:'Fidelidad', dau_mau:'DAU/MAU', k_profiles_complete:'Perfiles completos', of_n:'{a} de {b}', k_protocols:'Protocolos', n_active:'{n} activos', k_dose_logs:'Registros de dosis', k_biomarkers:'Biomarcadores', chart_signups_active:'Registros y usuarios activos · 90 días',
+      cmp_compare:'Comparar', g_day:'Día', g_week:'Semana', g_month:'Mes', wk:'Sem', add_period:'+ Añadir periodo', period_comparison:'Comparación de periodos', metric:'Métrica', side_by_side:'Lado a lado',
+      m_signups:'Registros', m_active:'Usuarios activos', m_doses:'Dosis registradas', m_protocols_created:'Protocolos creados', m_scans:'Escaneos de análisis IA',
+      eng_adherence:'Adherencia', adh_sub:'{p}% de {n} dosis registradas tomadas', eng_funnel:'Embudo de activación', doses_90:'Dosis registradas · 90 días',
+      taken:'Tomada', missed:'Omitida', skipped:'Saltada',
+      st_signed_up:'Registrado', st_profile_complete:'Perfil completo', st_created_protocol:'Protocolo creado', st_logged_dose:'Dosis registrada', st_scanned:'Análisis escaneados',
+      ret_nodata:'Aún no hay suficientes datos de cohortes.', ret_cohort_week:'Cohorte (semana)', ret_users:'Usuarios', ret_footer:'Cada fila = usuarios registrados esa semana. S0 = semana de registro; las celdas muestran el % aún activo N semanas después.',
+      prod_top_compounds:'Compuestos más creados', prod_top_searches:'Búsquedas principales', prod_type:'Tipo de protocolo', prod_top_biomarkers:'Biomarcadores principales (histórico)', type_recon:'Reconstituido', type_rtu:'Listo para usar', prod_footer:'Los compuestos/búsquedas reflejan el primer periodo seleccionado ({label}). Cámbialo en la barra Comparar.',
+      rev_plan:'Plan (campo de Supabase)', rev_plan_note:'El estado de suscripción autorizado es el de RevenueCat de arriba.', not_configured:'No configurado.',
+      aud_scope_signups:'registros · {label}', aud_scope_all:'todos los usuarios', aud_country:'País', aud_goal:'Objetivo principal', aud_activity:'Actividad', aud_gender:'Género', aud_age:'Edad', not_set:'Sin definir',
+      store_apple:'App Store de Apple', store_google:'Google Play', k_downloads_30:'Descargas · 30d', k_updates_30:'Actualizaciones · 30d', k_latest_day:'Último día', n_dl:'{n} desc.', k_total_installs:'Instalaciones totales', k_active_devices:'Dispositivos activos', k_installs_month:'Instalaciones · mes', k_avg_rating:'Valoración media',
+      pill_live:'en vivo', pill_error:'error', pill_pending:'pendiente', pill_notset:'sin configurar', no_data:'Sin datos.',
+      goal_wellness:'Bienestar', goal_fitness:'Fitness', goal_body_composition:'Composición corporal', goal_longevity:'Longevidad', goal_athletic:'Rendimiento atlético', goal_strength:'Fuerza y potencia', goal_fat_loss:'Pérdida de grasa', goal_endurance:'Resistencia', goal_energy:'Energía y vitalidad', goal_sleep:'Calidad del sueño', goal_hormonal_balance:'Equilibrio hormonal', goal_immune:'Función inmune', goal_recovery:'Recuperación y sanación', goal_skin_collagen:'Piel y colágeno', goal_mood:'Ánimo y salud mental', goal_sexual_health:'Salud sexual', goal_joint_bone:'Salud articular y ósea', goal_cardiovascular:'Salud cardiovascular', goal_stress:'Manejo del estrés',
+      act_sedentary:'Sedentario', act_moderate:'Moderado', act_active:'Activo', act_very_active:'Muy activo',
+      gl_dau_t:'DAU — Usuarios activos diarios', gl_dau_d:'Número de usuarios únicos que hicieron algo en la app en un día dado.',
+      gl_wau_t:'WAU — Usuarios activos semanales', gl_wau_d:'Usuarios únicos activos al menos una vez en los últimos 7 días.',
+      gl_mau_t:'MAU — Usuarios activos mensuales', gl_mau_d:'Usuarios únicos activos al menos una vez en los últimos 30 días.',
+      gl_stick_t:'Fidelidad (DAU/MAU)', gl_stick_d:'DAU medio dividido por MAU. Más alto significa que la gente vuelve más a menudo; ~20%+ es saludable para la mayoría de apps.',
+      gl_mrr_t:'MRR — Ingresos recurrentes mensuales', gl_mrr_d:'Ingresos de suscripción predecibles y normalizados por mes.',
+      gl_arpu_t:'ARPU — Ingreso medio por usuario', gl_arpu_d:'Ingresos divididos por el número de usuarios en un periodo.',
+      gl_ltv_t:'LTV — Valor de por vida', gl_ltv_d:'Ingresos totales que esperas de un cliente medio durante su vida útil.',
+      gl_retention_t:'Retención (D1/D7/D30 · semanal)', gl_retention_d:'De las personas que se registraron en un periodo (una "cohorte"), la proporción aún activa N días/semanas después. La medida clave de si el producto retiene a la gente.',
+      gl_cohort_t:'Cohorte', gl_cohort_d:'Un grupo de usuarios agrupados por cuándo se registraron (aquí, por semana de registro), seguidos en el tiempo.',
+      gl_funnel_t:'Embudo de activación', gl_funnel_d:'Los pasos que da un usuario nuevo hacia el valor: registrarse → completar perfil → crear un protocolo → registrar una dosis → escanear análisis. La caída muestra dónde pierdes gente.',
+      gl_adherence_t:'Adherencia', gl_adherence_d:'De las dosis registradas, la proporción marcada como Tomada (frente a Omitida/Saltada) — cómo de constante es el seguimiento del protocolo.',
+      gl_anr_t:'ANR — La aplicación no responde', gl_anr_d:'Un evento de estabilidad en Android donde la interfaz se congeló; se registra como señal de salud junto a los fallos.',
+      gl_proceeds_t:'Ingresos netos', gl_proceeds_d:'Lo que ganas de verdad tras la comisión de la tienda — Apple/Google se quedan un 15–30%.',
+      gl_active_t:'Usuarios activos', gl_active_d:'Usuarios únicos que activaron algún evento registrado en el periodo seleccionado.'
+    },
+    pt:{
+      updated:'Atualizado {d}', refresh:'Atualizar', loading:'Carregando…', close:'Fechar',
+      need_link:'Esta página precisa de um link mágico.',
+      err_unauth:'Não autorizado — o link mágico está ausente ou incorreto.',
+      err_notconf:'O painel ainda não está configurado (ADMIN_TOKEN não definido).',
+      err_failed:'A solicitação falhou ({n}).', supabase_status:'Supabase {s}',
+      theme_light:'Mudar para tema claro', theme_dark:'Mudar para tema escuro',
+      nav_overview:'Visão geral', nav_compare:'Comparar', nav_engagement:'Engajamento', nav_retention:'Retenção', nav_product:'Produto', nav_revenue:'Receita', nav_audience:'Público', nav_stores:'Lojas',
+      sec_overview:'Visão geral', sec_compare:'Comparar períodos', sec_engagement:'Engajamento e ativação', sec_retention:'Retenção — coortes semanais', sec_retention_short:'Retenção', sec_product:'Produto', sec_revenue:'Receita · RevenueCat', sec_audience:'Público', sec_stores:'Lojas',
+      k_total_users:'Usuários totais', today_plus:'+{n} hoje', k_new_7_30:'Novos · 7 / 30 dias', k_wau:'WAU', dau_mau_sub:'DAU {dau} · MAU {mau}', k_stickiness:'Fidelidade', dau_mau:'DAU/MAU', k_profiles_complete:'Perfis completos', of_n:'{a} de {b}', k_protocols:'Protocolos', n_active:'{n} ativos', k_dose_logs:'Registros de dose', k_biomarkers:'Biomarcadores', chart_signups_active:'Cadastros e usuários ativos · 90 dias',
+      cmp_compare:'Comparar', g_day:'Dia', g_week:'Semana', g_month:'Mês', wk:'Sem', add_period:'+ Adicionar período', period_comparison:'Comparação de períodos', metric:'Métrica', side_by_side:'Lado a lado',
+      m_signups:'Cadastros', m_active:'Usuários ativos', m_doses:'Doses registradas', m_protocols_created:'Protocolos criados', m_scans:'Escaneamentos de exames IA',
+      eng_adherence:'Adesão', adh_sub:'{p}% de {n} doses registradas tomadas', eng_funnel:'Funil de ativação', doses_90:'Doses registradas · 90 dias',
+      taken:'Tomada', missed:'Perdida', skipped:'Pulada',
+      st_signed_up:'Cadastrado', st_profile_complete:'Perfil completo', st_created_protocol:'Protocolo criado', st_logged_dose:'Dose registrada', st_scanned:'Exames escaneados',
+      ret_nodata:'Ainda não há dados suficientes de coortes.', ret_cohort_week:'Coorte (semana)', ret_users:'Usuários', ret_footer:'Cada linha = usuários cadastrados naquela semana. S0 = semana do cadastro; as células mostram o % ainda ativo N semanas depois.',
+      prod_top_compounds:'Compostos mais criados', prod_top_searches:'Buscas principais', prod_type:'Tipo de protocolo', prod_top_biomarkers:'Biomarcadores principais (histórico)', type_recon:'Reconstituído', type_rtu:'Pronto para uso', prod_footer:'Os compostos/buscas refletem o primeiro período selecionado ({label}). Altere na barra Comparar.',
+      rev_plan:'Plano (campo do Supabase)', rev_plan_note:'O status de assinatura oficial é o do RevenueCat acima.', not_configured:'Não configurado.',
+      aud_scope_signups:'cadastros · {label}', aud_scope_all:'todos os usuários', aud_country:'País', aud_goal:'Objetivo principal', aud_activity:'Atividade', aud_gender:'Gênero', aud_age:'Idade', not_set:'Não definido',
+      store_apple:'App Store da Apple', store_google:'Google Play', k_downloads_30:'Downloads · 30d', k_updates_30:'Atualizações · 30d', k_latest_day:'Último dia', n_dl:'{n} down.', k_total_installs:'Instalações totais', k_active_devices:'Dispositivos ativos', k_installs_month:'Instalações · mês', k_avg_rating:'Avaliação média',
+      pill_live:'ao vivo', pill_error:'erro', pill_pending:'pendente', pill_notset:'não configurado', no_data:'Sem dados.',
+      goal_wellness:'Bem-estar', goal_fitness:'Fitness', goal_body_composition:'Composição corporal', goal_longevity:'Longevidade', goal_athletic:'Desempenho atlético', goal_strength:'Força e potência', goal_fat_loss:'Perda de gordura', goal_endurance:'Resistência', goal_energy:'Energia e vitalidade', goal_sleep:'Qualidade do sono', goal_hormonal_balance:'Equilíbrio hormonal', goal_immune:'Função imunológica', goal_recovery:'Recuperação e cura', goal_skin_collagen:'Pele e colágeno', goal_mood:'Humor e saúde mental', goal_sexual_health:'Saúde sexual', goal_joint_bone:'Saúde óssea e articular', goal_cardiovascular:'Saúde cardiovascular', goal_stress:'Gestão do estresse',
+      act_sedentary:'Sedentário', act_moderate:'Moderado', act_active:'Ativo', act_very_active:'Muito ativo',
+      gl_dau_t:'DAU — Usuários ativos diários', gl_dau_d:'O número de usuários únicos que fizeram algo no app em um dado dia.',
+      gl_wau_t:'WAU — Usuários ativos semanais', gl_wau_d:'Usuários únicos ativos ao menos uma vez nos últimos 7 dias.',
+      gl_mau_t:'MAU — Usuários ativos mensais', gl_mau_d:'Usuários únicos ativos ao menos uma vez nos últimos 30 dias.',
+      gl_stick_t:'Fidelidade (DAU/MAU)', gl_stick_d:'DAU médio dividido por MAU. Mais alto significa que as pessoas voltam mais; ~20%+ é saudável para a maioria dos apps.',
+      gl_mrr_t:'MRR — Receita recorrente mensal', gl_mrr_d:'Receita de assinatura previsível e normalizada por mês.',
+      gl_arpu_t:'ARPU — Receita média por usuário', gl_arpu_d:'Receita dividida pelo número de usuários em um período.',
+      gl_ltv_t:'LTV — Valor vitalício', gl_ltv_d:'Receita total esperada de um cliente médio ao longo de sua vida útil.',
+      gl_retention_t:'Retenção (D1/D7/D30 · semanal)', gl_retention_d:'Das pessoas que se cadastraram em um período (uma "coorte"), a fração ainda ativa N dias/semanas depois. A medida central de se o produto retém as pessoas.',
+      gl_cohort_t:'Coorte', gl_cohort_d:'Um grupo de usuários agrupados por quando se cadastraram (aqui, por semana de cadastro), acompanhados ao longo do tempo.',
+      gl_funnel_t:'Funil de ativação', gl_funnel_d:'Os passos que um novo usuário dá rumo ao valor: cadastrar → completar perfil → criar um protocolo → registrar uma dose → escanear exames. A queda mostra onde você perde pessoas.',
+      gl_adherence_t:'Adesão', gl_adherence_d:'Das doses registradas, a fração marcada como Tomada (vs Perdida/Pulada) — quão consistentemente os usuários seguem o protocolo.',
+      gl_anr_t:'ANR — Aplicativo não responde', gl_anr_d:'Um evento de estabilidade no Android em que a interface travou; registrado como sinal de saúde junto às falhas.',
+      gl_proceeds_t:'Receita líquida', gl_proceeds_d:'O que você realmente ganha após a comissão da loja — Apple/Google ficam com 15–30%.',
+      gl_active_t:'Usuários ativos', gl_active_d:'Usuários únicos que dispararam qualquer evento registrado no período selecionado.'
+    },
+    fr:{
+      updated:'Mis à jour {d}', refresh:'Actualiser', loading:'Chargement…', close:'Fermer',
+      need_link:'Cette page nécessite un lien magique.',
+      err_unauth:"Non autorisé — le lien magique est absent ou incorrect.",
+      err_notconf:"Le panneau n'est pas encore configuré (ADMIN_TOKEN non défini).",
+      err_failed:'Échec de la requête ({n}).', supabase_status:'Supabase {s}',
+      theme_light:'Passer au thème clair', theme_dark:'Passer au thème sombre',
+      nav_overview:'Aperçu', nav_compare:'Comparer', nav_engagement:'Engagement', nav_retention:'Rétention', nav_product:'Produit', nav_revenue:'Revenus', nav_audience:'Audience', nav_stores:'Boutiques',
+      sec_overview:'Aperçu', sec_compare:'Comparer les périodes', sec_engagement:'Engagement et activation', sec_retention:'Rétention — cohortes hebdomadaires', sec_retention_short:'Rétention', sec_product:'Produit', sec_revenue:'Revenus · RevenueCat', sec_audience:'Audience', sec_stores:'Boutiques',
+      k_total_users:'Utilisateurs totaux', today_plus:"+{n} aujourd'hui", k_new_7_30:'Nouveaux · 7 / 30 jours', k_wau:'WAU', dau_mau_sub:'DAU {dau} · MAU {mau}', k_stickiness:'Fidélité', dau_mau:'DAU/MAU', k_profiles_complete:'Profils complets', of_n:'{a} sur {b}', k_protocols:'Protocoles', n_active:'{n} actifs', k_dose_logs:'Journaux de dose', k_biomarkers:'Biomarqueurs', chart_signups_active:'Inscriptions et utilisateurs actifs · 90 jours',
+      cmp_compare:'Comparer', g_day:'Jour', g_week:'Semaine', g_month:'Mois', wk:'Sem', add_period:'+ Ajouter une période', period_comparison:'Comparaison de périodes', metric:'Métrique', side_by_side:'Côte à côte',
+      m_signups:'Inscriptions', m_active:'Utilisateurs actifs', m_doses:'Doses enregistrées', m_protocols_created:'Protocoles créés', m_scans:'Scans d’analyses IA',
+      eng_adherence:'Observance', adh_sub:'{p}% de {n} doses enregistrées prises', eng_funnel:'Entonnoir d’activation', doses_90:'Doses enregistrées · 90 jours',
+      taken:'Prise', missed:'Manquée', skipped:'Sautée',
+      st_signed_up:'Inscrit', st_profile_complete:'Profil complet', st_created_protocol:'Protocole créé', st_logged_dose:'Dose enregistrée', st_scanned:'Analyses scannées',
+      ret_nodata:'Pas encore assez de données de cohorte.', ret_cohort_week:'Cohorte (semaine)', ret_users:'Utilisateurs', ret_footer:'Chaque ligne = utilisateurs inscrits cette semaine. S0 = semaine d’inscription ; les cellules montrent le % encore actif N semaines plus tard.',
+      prod_top_compounds:'Composés les plus créés', prod_top_searches:'Recherches principales', prod_type:'Type de protocole', prod_top_biomarkers:'Biomarqueurs principaux (tout temps)', type_recon:'Reconstitué', type_rtu:'Prêt à l’emploi', prod_footer:'Les composés/recherches reflètent la première période sélectionnée ({label}). Modifiez-la dans la barre Comparer.',
+      rev_plan:'Forfait (champ Supabase)', rev_plan_note:'Le statut d’abonnement faisant foi est celui de RevenueCat ci-dessus.', not_configured:'Non configuré.',
+      aud_scope_signups:'inscriptions · {label}', aud_scope_all:'tous les utilisateurs', aud_country:'Pays', aud_goal:'Objectif principal', aud_activity:'Activité', aud_gender:'Genre', aud_age:'Âge', not_set:'Non défini',
+      store_apple:'App Store d’Apple', store_google:'Google Play', k_downloads_30:'Téléchargements · 30j', k_updates_30:'Mises à jour · 30j', k_latest_day:'Dernier jour', n_dl:'{n} tél.', k_total_installs:'Installations totales', k_active_devices:'Appareils actifs', k_installs_month:'Installations · mois', k_avg_rating:'Note moyenne',
+      pill_live:'en direct', pill_error:'erreur', pill_pending:'en attente', pill_notset:'non configuré', no_data:'Aucune donnée.',
+      goal_wellness:'Bien-être', goal_fitness:'Forme', goal_body_composition:'Composition corporelle', goal_longevity:'Longévité', goal_athletic:'Performance athlétique', goal_strength:'Force et puissance', goal_fat_loss:'Perte de graisse', goal_endurance:'Endurance', goal_energy:'Énergie et vitalité', goal_sleep:'Qualité du sommeil', goal_hormonal_balance:'Équilibre hormonal', goal_immune:'Fonction immunitaire', goal_recovery:'Récupération et guérison', goal_skin_collagen:'Peau et collagène', goal_mood:'Humeur et santé mentale', goal_sexual_health:'Santé sexuelle', goal_joint_bone:'Santé articulaire et osseuse', goal_cardiovascular:'Santé cardiovasculaire', goal_stress:'Gestion du stress',
+      act_sedentary:'Sédentaire', act_moderate:'Modéré', act_active:'Actif', act_very_active:'Très actif',
+      gl_dau_t:'DAU — Utilisateurs actifs quotidiens', gl_dau_d:'Le nombre d’utilisateurs uniques ayant fait quelque chose dans l’app un jour donné.',
+      gl_wau_t:'WAU — Utilisateurs actifs hebdomadaires', gl_wau_d:'Utilisateurs uniques actifs au moins une fois durant les 7 derniers jours.',
+      gl_mau_t:'MAU — Utilisateurs actifs mensuels', gl_mau_d:'Utilisateurs uniques actifs au moins une fois durant les 30 derniers jours.',
+      gl_stick_t:'Fidélité (DAU/MAU)', gl_stick_d:'DAU moyen divisé par MAU. Plus c’est élevé, plus les gens reviennent ; ~20%+ est sain pour la plupart des apps.',
+      gl_mrr_t:'MRR — Revenu récurrent mensuel', gl_mrr_d:'Revenu d’abonnement prévisible et normalisé par mois.',
+      gl_arpu_t:'ARPU — Revenu moyen par utilisateur', gl_arpu_d:'Revenu divisé par le nombre d’utilisateurs sur une période.',
+      gl_ltv_t:'LTV — Valeur à vie', gl_ltv_d:'Revenu total attendu d’un client moyen sur toute sa durée de vie.',
+      gl_retention_t:'Rétention (J1/J7/J30 · hebdo)', gl_retention_d:'Parmi les personnes inscrites sur une période (une « cohorte »), la part encore active N jours/semaines plus tard. La mesure centrale de la capacité du produit à retenir.',
+      gl_cohort_t:'Cohorte', gl_cohort_d:'Un groupe d’utilisateurs regroupés selon leur date d’inscription (ici, par semaine), suivis dans le temps.',
+      gl_funnel_t:'Entonnoir d’activation', gl_funnel_d:'Les étapes d’un nouvel utilisateur vers la valeur : s’inscrire → compléter le profil → créer un protocole → enregistrer une dose → scanner des analyses. L’abandon montre où vous perdez les gens.',
+      gl_adherence_t:'Observance', gl_adherence_d:'Parmi les doses enregistrées, la part marquée Prise (vs Manquée/Sautée) — à quel point les utilisateurs suivent leur protocole.',
+      gl_anr_t:'ANR — L’application ne répond pas', gl_anr_d:'Un événement de stabilité Android où l’interface s’est figée ; suivi comme signal de santé aux côtés des plantages.',
+      gl_proceeds_t:'Revenu net', gl_proceeds_d:'Ce que vous gagnez réellement après la commission de la boutique — Apple/Google prennent 15–30%.',
+      gl_active_t:'Utilisateurs actifs', gl_active_d:'Utilisateurs uniques ayant déclenché un événement suivi durant la période sélectionnée.'
+    },
+    de:{
+      updated:'Aktualisiert {d}', refresh:'Aktualisieren', loading:'Wird geladen…', close:'Schließen',
+      need_link:'Diese Seite benötigt einen Magic Link.',
+      err_unauth:'Nicht autorisiert — der Magic Link fehlt oder ist falsch.',
+      err_notconf:'Panel noch nicht konfiguriert (ADMIN_TOKEN nicht gesetzt).',
+      err_failed:'Anfrage fehlgeschlagen ({n}).', supabase_status:'Supabase {s}',
+      theme_light:'Zum hellen Design wechseln', theme_dark:'Zum dunklen Design wechseln',
+      nav_overview:'Übersicht', nav_compare:'Vergleich', nav_engagement:'Engagement', nav_retention:'Bindung', nav_product:'Produkt', nav_revenue:'Umsatz', nav_audience:'Zielgruppe', nav_stores:'Stores',
+      sec_overview:'Übersicht', sec_compare:'Zeiträume vergleichen', sec_engagement:'Engagement & Aktivierung', sec_retention:'Bindung — wöchentliche Kohorten', sec_retention_short:'Bindung', sec_product:'Produkt', sec_revenue:'Umsatz · RevenueCat', sec_audience:'Zielgruppe', sec_stores:'Stores',
+      k_total_users:'Nutzer gesamt', today_plus:'+{n} heute', k_new_7_30:'Neu · 7 / 30 Tage', k_wau:'WAU', dau_mau_sub:'DAU {dau} · MAU {mau}', k_stickiness:'Bindungsrate', dau_mau:'DAU/MAU', k_profiles_complete:'Vollständige Profile', of_n:'{a} von {b}', k_protocols:'Protokolle', n_active:'{n} aktiv', k_dose_logs:'Dosis-Einträge', k_biomarkers:'Biomarker', chart_signups_active:'Anmeldungen & aktive Nutzer · 90 Tage',
+      cmp_compare:'Vergleichen', g_day:'Tag', g_week:'Woche', g_month:'Monat', wk:'Wo', add_period:'+ Zeitraum hinzufügen', period_comparison:'Zeitraumvergleich', metric:'Kennzahl', side_by_side:'Nebeneinander',
+      m_signups:'Anmeldungen', m_active:'Aktive Nutzer', m_doses:'Erfasste Dosen', m_protocols_created:'Erstellte Protokolle', m_scans:'KI-Laborscans',
+      eng_adherence:'Therapietreue', adh_sub:'{p}% von {n} erfassten Dosen genommen', eng_funnel:'Aktivierungs-Funnel', doses_90:'Erfasste Dosen · 90 Tage',
+      taken:'Genommen', missed:'Verpasst', skipped:'Übersprungen',
+      st_signed_up:'Angemeldet', st_profile_complete:'Profil vollständig', st_created_protocol:'Protokoll erstellt', st_logged_dose:'Dosis erfasst', st_scanned:'Labore gescannt',
+      ret_nodata:'Noch nicht genug Kohortendaten.', ret_cohort_week:'Kohorte (Woche)', ret_users:'Nutzer', ret_footer:'Jede Zeile = Nutzer, die in dieser Woche angemeldet haben. W0 = Anmeldewoche; Zellen zeigen den % noch aktiv nach N Wochen.',
+      prod_top_compounds:'Meisterstellte Wirkstoffe', prod_top_searches:'Top-Suchen', prod_type:'Protokolltyp', prod_top_biomarkers:'Top-Biomarker (gesamt)', type_recon:'Rekonstituiert', type_rtu:'Gebrauchsfertig', prod_footer:'Wirkstoffe/Suchen zeigen den ersten gewählten Zeitraum ({label}). Ändere ihn in der Vergleichsleiste.',
+      rev_plan:'Plan (Supabase-Feld)', rev_plan_note:'Maßgeblich ist der Abo-Status von RevenueCat oben.', not_configured:'Nicht konfiguriert.',
+      aud_scope_signups:'Anmeldungen · {label}', aud_scope_all:'alle Nutzer', aud_country:'Land', aud_goal:'Hauptziel', aud_activity:'Aktivität', aud_gender:'Geschlecht', aud_age:'Alter', not_set:'Nicht gesetzt',
+      store_apple:'Apple App Store', store_google:'Google Play', k_downloads_30:'Downloads · 30T', k_updates_30:'Updates · 30T', k_latest_day:'Letzter Tag', n_dl:'{n} DL', k_total_installs:'Installationen gesamt', k_active_devices:'Aktive Geräte', k_installs_month:'Installationen · Monat', k_avg_rating:'Ø-Bewertung',
+      pill_live:'live', pill_error:'Fehler', pill_pending:'ausstehend', pill_notset:'nicht eingerichtet', no_data:'Keine Daten.',
+      goal_wellness:'Wohlbefinden', goal_fitness:'Fitness', goal_body_composition:'Körperzusammensetzung', goal_longevity:'Langlebigkeit', goal_athletic:'Sportliche Leistung', goal_strength:'Kraft & Power', goal_fat_loss:'Fettabbau', goal_endurance:'Ausdauer', goal_energy:'Energie & Vitalität', goal_sleep:'Schlafqualität', goal_hormonal_balance:'Hormonhaushalt', goal_immune:'Immunfunktion', goal_recovery:'Erholung & Heilung', goal_skin_collagen:'Haut & Kollagen', goal_mood:'Stimmung & mentale Gesundheit', goal_sexual_health:'Sexuelle Gesundheit', goal_joint_bone:'Gelenk- & Knochengesundheit', goal_cardiovascular:'Herz-Kreislauf-Gesundheit', goal_stress:'Stressbewältigung',
+      act_sedentary:'Sitzend', act_moderate:'Mäßig', act_active:'Aktiv', act_very_active:'Sehr aktiv',
+      gl_dau_t:'DAU — Täglich aktive Nutzer', gl_dau_d:'Die Zahl der eindeutigen Nutzer, die an einem Tag etwas in der App getan haben.',
+      gl_wau_t:'WAU — Wöchentlich aktive Nutzer', gl_wau_d:'Eindeutige Nutzer, die in den letzten 7 Tagen mindestens einmal aktiv waren.',
+      gl_mau_t:'MAU — Monatlich aktive Nutzer', gl_mau_d:'Eindeutige Nutzer, die in den letzten 30 Tagen mindestens einmal aktiv waren.',
+      gl_stick_t:'Bindungsrate (DAU/MAU)', gl_stick_d:'Durchschnittlicher DAU geteilt durch MAU. Höher heißt, Menschen kommen öfter zurück; ~20%+ ist für die meisten Apps gesund.',
+      gl_mrr_t:'MRR — Monatlich wiederkehrender Umsatz', gl_mrr_d:'Normalisierter, planbarer Abo-Umsatz pro Monat.',
+      gl_arpu_t:'ARPU — Durchschnittsumsatz pro Nutzer', gl_arpu_d:'Umsatz geteilt durch die Zahl der Nutzer über einen Zeitraum.',
+      gl_ltv_t:'LTV — Lebenszeitwert', gl_ltv_d:'Gesamtumsatz, den du von einem durchschnittlichen Kunden über seine Lebensdauer erwartest.',
+      gl_retention_t:'Bindung (T1/T7/T30 · wöchentlich)', gl_retention_d:'Von den in einem Zeitraum angemeldeten Personen (einer „Kohorte") der Anteil, der N Tage/Wochen später noch aktiv ist. Das Kernmaß, ob das Produkt Menschen hält.',
+      gl_cohort_t:'Kohorte', gl_cohort_d:'Eine Gruppe von Nutzern, gebündelt nach ihrem Anmeldezeitpunkt (hier nach Anmeldewoche) und über die Zeit verfolgt.',
+      gl_funnel_t:'Aktivierungs-Funnel', gl_funnel_d:'Die Schritte eines neuen Nutzers zum Nutzen: anmelden → Profil vervollständigen → Protokoll erstellen → Dosis erfassen → Labore scannen. Der Abfall zeigt, wo du Menschen verlierst.',
+      gl_adherence_t:'Therapietreue', gl_adherence_d:'Von den erfassten Dosen der Anteil „Genommen" (vs. Verpasst/Übersprungen) — wie konsequent Nutzer ihrem Protokoll folgen.',
+      gl_anr_t:'ANR — Anwendung reagiert nicht', gl_anr_d:'Ein Android-Stabilitätsereignis, bei dem die Oberfläche einfror; wird als App-Gesundheitssignal neben Abstürzen erfasst.',
+      gl_proceeds_t:'Nettoerlös', gl_proceeds_d:'Was du nach dem Store-Anteil wirklich verdienst — Apple/Google behalten 15–30%.',
+      gl_active_t:'Aktive Nutzer', gl_active_d:'Eindeutige Nutzer, die im gewählten Zeitraum ein erfasstes Ereignis ausgelöst haben.'
+    },
+    it:{
+      updated:'Aggiornato {d}', refresh:'Aggiorna', loading:'Caricamento…', close:'Chiudi',
+      need_link:'Questa pagina richiede un link magico.',
+      err_unauth:'Non autorizzato — il link magico manca o è errato.',
+      err_notconf:'Pannello non ancora configurato (ADMIN_TOKEN non impostato).',
+      err_failed:'Richiesta non riuscita ({n}).', supabase_status:'Supabase {s}',
+      theme_light:'Passa al tema chiaro', theme_dark:'Passa al tema scuro',
+      nav_overview:'Panoramica', nav_compare:'Confronta', nav_engagement:'Coinvolgimento', nav_retention:'Fidelizzazione', nav_product:'Prodotto', nav_revenue:'Ricavi', nav_audience:'Pubblico', nav_stores:'Store',
+      sec_overview:'Panoramica', sec_compare:'Confronta periodi', sec_engagement:'Coinvolgimento e attivazione', sec_retention:'Fidelizzazione — coorti settimanali', sec_retention_short:'Fidelizzazione', sec_product:'Prodotto', sec_revenue:'Ricavi · RevenueCat', sec_audience:'Pubblico', sec_stores:'Store',
+      k_total_users:'Utenti totali', today_plus:'+{n} oggi', k_new_7_30:'Nuovi · 7 / 30 giorni', k_wau:'WAU', dau_mau_sub:'DAU {dau} · MAU {mau}', k_stickiness:'Fidelizzazione', dau_mau:'DAU/MAU', k_profiles_complete:'Profili completi', of_n:'{a} di {b}', k_protocols:'Protocolli', n_active:'{n} attivi', k_dose_logs:'Registri dose', k_biomarkers:'Biomarcatori', chart_signups_active:'Iscrizioni e utenti attivi · 90 giorni',
+      cmp_compare:'Confronta', g_day:'Giorno', g_week:'Settimana', g_month:'Mese', wk:'Sett', add_period:'+ Aggiungi periodo', period_comparison:'Confronto periodi', metric:'Metrica', side_by_side:'Affiancato',
+      m_signups:'Iscrizioni', m_active:'Utenti attivi', m_doses:'Dosi registrate', m_protocols_created:'Protocolli creati', m_scans:'Scansioni analisi IA',
+      eng_adherence:'Aderenza', adh_sub:'{p}% di {n} dosi registrate assunte', eng_funnel:'Funnel di attivazione', doses_90:'Dosi registrate · 90 giorni',
+      taken:'Assunta', missed:'Persa', skipped:'Saltata',
+      st_signed_up:'Iscritto', st_profile_complete:'Profilo completo', st_created_protocol:'Protocollo creato', st_logged_dose:'Dose registrata', st_scanned:'Analisi scansionate',
+      ret_nodata:'Dati di coorte ancora insufficienti.', ret_cohort_week:'Coorte (settimana)', ret_users:'Utenti', ret_footer:'Ogni riga = utenti iscritti quella settimana. S0 = settimana di iscrizione; le celle mostrano la % ancora attiva N settimane dopo.',
+      prod_top_compounds:'Composti più creati', prod_top_searches:'Ricerche principali', prod_type:'Tipo di protocollo', prod_top_biomarkers:'Biomarcatori principali (sempre)', type_recon:'Ricostituito', type_rtu:'Pronto all’uso', prod_footer:'Composti/ricerche riflettono il primo periodo selezionato ({label}). Cambialo nella barra Confronta.',
+      rev_plan:'Piano (campo Supabase)', rev_plan_note:'Lo stato di abbonamento ufficiale è quello di RevenueCat sopra.', not_configured:'Non configurato.',
+      aud_scope_signups:'iscrizioni · {label}', aud_scope_all:'tutti gli utenti', aud_country:'Paese', aud_goal:'Obiettivo principale', aud_activity:'Attività', aud_gender:'Genere', aud_age:'Età', not_set:'Non impostato',
+      store_apple:'Apple App Store', store_google:'Google Play', k_downloads_30:'Download · 30g', k_updates_30:'Aggiornamenti · 30g', k_latest_day:'Ultimo giorno', n_dl:'{n} dl', k_total_installs:'Installazioni totali', k_active_devices:'Dispositivi attivi', k_installs_month:'Installazioni · mese', k_avg_rating:'Valutazione media',
+      pill_live:'live', pill_error:'errore', pill_pending:'in attesa', pill_notset:'non configurato', no_data:'Nessun dato.',
+      goal_wellness:'Benessere', goal_fitness:'Fitness', goal_body_composition:'Composizione corporea', goal_longevity:'Longevità', goal_athletic:'Prestazione atletica', goal_strength:'Forza e potenza', goal_fat_loss:'Perdita di grasso', goal_endurance:'Resistenza', goal_energy:'Energia e vitalità', goal_sleep:'Qualità del sonno', goal_hormonal_balance:'Equilibrio ormonale', goal_immune:'Funzione immunitaria', goal_recovery:'Recupero e guarigione', goal_skin_collagen:'Pelle e collagene', goal_mood:'Umore e salute mentale', goal_sexual_health:'Salute sessuale', goal_joint_bone:'Salute articolare e ossea', goal_cardiovascular:'Salute cardiovascolare', goal_stress:'Gestione dello stress',
+      act_sedentary:'Sedentario', act_moderate:'Moderato', act_active:'Attivo', act_very_active:'Molto attivo',
+      gl_dau_t:'DAU — Utenti attivi giornalieri', gl_dau_d:'Il numero di utenti unici che hanno fatto qualcosa nell’app in un dato giorno.',
+      gl_wau_t:'WAU — Utenti attivi settimanali', gl_wau_d:'Utenti unici attivi almeno una volta negli ultimi 7 giorni.',
+      gl_mau_t:'MAU — Utenti attivi mensili', gl_mau_d:'Utenti unici attivi almeno una volta negli ultimi 30 giorni.',
+      gl_stick_t:'Fidelizzazione (DAU/MAU)', gl_stick_d:'DAU medio diviso per MAU. Più è alto, più le persone tornano; ~20%+ è sano per la maggior parte delle app.',
+      gl_mrr_t:'MRR — Ricavo ricorrente mensile', gl_mrr_d:'Ricavo da abbonamento prevedibile e normalizzato al mese.',
+      gl_arpu_t:'ARPU — Ricavo medio per utente', gl_arpu_d:'Ricavo diviso per il numero di utenti in un periodo.',
+      gl_ltv_t:'LTV — Valore nel tempo', gl_ltv_d:'Ricavo totale atteso da un cliente medio nell’arco della sua vita.',
+      gl_retention_t:'Fidelizzazione (G1/G7/G30 · settimanale)', gl_retention_d:'Delle persone iscritte in un periodo (una "coorte"), la quota ancora attiva N giorni/settimane dopo. La misura chiave della capacità del prodotto di trattenere le persone.',
+      gl_cohort_t:'Coorte', gl_cohort_d:'Un gruppo di utenti raggruppati in base a quando si sono iscritti (qui, per settimana di iscrizione), seguiti nel tempo.',
+      gl_funnel_t:'Funnel di attivazione', gl_funnel_d:'I passi di un nuovo utente verso il valore: iscriversi → completare il profilo → creare un protocollo → registrare una dose → scansionare le analisi. Il calo mostra dove perdi le persone.',
+      gl_adherence_t:'Aderenza', gl_adherence_d:'Delle dosi registrate, la quota marcata Assunta (vs Persa/Saltata) — quanto costantemente gli utenti seguono il protocollo.',
+      gl_anr_t:'ANR — L’applicazione non risponde', gl_anr_d:'Un evento di stabilità Android in cui l’interfaccia si è bloccata; registrato come segnale di salute insieme ai crash.',
+      gl_proceeds_t:'Ricavo netto', gl_proceeds_d:'Ciò che guadagni davvero dopo la commissione dello store — Apple/Google trattengono il 15–30%.',
+      gl_active_t:'Utenti attivi', gl_active_d:'Utenti unici che hanno attivato un evento tracciato nel periodo selezionato.'
+    }
+  };
+  var LANG='en';
+  try{
+    var saved=localStorage.getItem('dt_adm_lang');
+    var nav=(navigator.language||'en').slice(0,2).toLowerCase();
+    LANG=(saved&&T[saved])?saved:(T[nav]?nav:'en');
+  }catch(e){}
+  function t(k,v){var s=(T[LANG]&&T[LANG][k]!=null)?T[LANG][k]:(T.en[k]!=null?T.en[k]:k);if(v)Object.keys(v).forEach(function(p){s=String(s).replace(new RegExp('\\{'+p+'\\}','g'),v[p]);});return s;}
+
+  // ---- theme ----
+  function curTheme(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}
+  (function initTheme(){var th='dark';try{th=localStorage.getItem('dt_adm_theme')||'dark';}catch(e){}if(th==='light')document.documentElement.setAttribute('data-theme','light');})();
+  function cc(){var l=curTheme()==='light';return {ink:l?'#0C2340':'#EAF2FB',muted:l?'#5A7085':'#8FA6BD',grid:l?'rgba(0,0,0,.08)':'rgba(255,255,255,.07)'};}
+
   var token=''; var hm=location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/); var qm=location.search.match(/(?:^\?|&)(?:t|token)=([^&]+)/);
   if(hm) token=decodeURIComponent(hm[1]); else if(qm) token=decodeURIComponent(qm[1]);
   try{ if(token) sessionStorage.setItem('dt_adm_token',token); else token=sessionStorage.getItem('dt_adm_token')||''; }catch(e){}
   try{ history.replaceState(null,'',location.pathname); }catch(e){}
   var app=document.getElementById('app');
   var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
-  var fmt=function(n){return (n==null||isNaN(n))?'—':Number(n).toLocaleString();};
+  var fmt=function(n){return (n==null||isNaN(n))?'—':Number(n).toLocaleString(LANG);};
   var pct=function(n){return (n==null||isNaN(n))?'—':(Math.round(n*10)/10)+'%';};
   var charts=[]; function clearCharts(){charts.forEach(function(c){try{c.destroy();}catch(e){}});charts=[];}
 
-  // ---- glossary ----
-  var GLOSSARY={
-    dau:['DAU — Daily Active Users','The number of unique users who did something in the app on a given day.'],
-    wau:['WAU — Weekly Active Users','Unique users active at least once in the last 7 days.'],
-    mau:['MAU — Monthly Active Users','Unique users active at least once in the last 30 days.'],
-    stick:['Stickiness (DAU/MAU)','Average DAU divided by MAU. Higher means people come back more often; ~20%+ is healthy for most apps.'],
-    mrr:['MRR — Monthly Recurring Revenue','Normalized predictable subscription revenue per month.'],
-    arpu:['ARPU — Average Revenue Per User','Revenue divided by number of users over a period.'],
-    ltv:['LTV — Lifetime Value','Total revenue you expect from an average customer over their lifetime.'],
-    retention:['Retention (D1/D7/D30 · weekly)','Of the people who signed up in a given period (a "cohort"), the share still active N days/weeks later. The core measure of whether the product keeps people.'],
-    cohort:['Cohort','A group of users bucketed by when they signed up (here, by signup week), tracked over time.'],
-    funnel:['Activation funnel','The steps a new user takes toward value: sign up → complete profile → create a protocol → log a dose → scan labs. Drop-off shows where you lose people.'],
-    adherence:['Adherence','Of logged doses, the share marked Taken (vs Missed/Skipped) — how consistently users follow their protocol.'],
-    anr:['ANR — Application Not Responding','An Android stability event where the UI froze; tracked as an app-health signal alongside crashes.'],
-    proceeds:['Proceeds','What you actually earn after the store’s cut — Apple/Google keep 15–30%.'],
-    active:['Active users','Unique users who triggered any tracked event in the selected period.']
+  // ---- glossary (keys map to gl_<term>_t / gl_<term>_d) ----
+  window.showGloss=function(term){
+    var ti=t('gl_'+term+'_t'), de=t('gl_'+term+'_d');
+    if(ti==='gl_'+term+'_t')return;
+    document.getElementById('gloss-t').textContent=ti;
+    document.getElementById('gloss-p').textContent=de;
+    document.getElementById('gloss-close').textContent=t('close');
+    document.getElementById('gloss').style.display='flex';
   };
-  window.showGloss=function(term){var g=GLOSSARY[term];if(!g)return;document.getElementById('gloss-t').textContent=g[0];document.getElementById('gloss-p').textContent=g[1];document.getElementById('gloss').style.display='flex';};
-  function iBtn(term){return '<button class="info" onclick="showGloss(\''+term+'\')" title="What is this?">i</button>';}
+  function iBtn(term){return '<button class="info" onclick="showGloss(\''+term+'\')" title="'+esc(t('close')==='Close'?'What is this?':t('gl_'+term+'_t'))+'">i</button>';}
 
   // ---- date helpers ----
   function pd(s){var p=String(s).split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
@@ -113,13 +361,13 @@
   function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);x.setHours(0,0,0,0);return x;}
   function monMid(d){var x=new Date(d);x.setHours(0,0,0,0);var day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x;}
   function monthStart(d){return new Date(d.getFullYear(),d.getMonth(),1);}
-  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  function fmtD(d){return MON[d.getMonth()]+' '+d.getDate();}
+  function fmtD(d){try{return d.toLocaleDateString(LANG,{month:'short',day:'numeric'});}catch(e){return (d.getMonth()+1)+'/'+d.getDate();}}
+  function fmtMY(d){try{return d.toLocaleDateString(LANG,{month:'short',year:'numeric'});}catch(e){return (d.getMonth()+1)+'/'+d.getFullYear();}}
   function periodFor(gran,anchor){
     var a=new Date(anchor);a.setHours(0,0,0,0);
     if(gran==='day')return {label:fmtD(a),start:a,end:addDays(a,1)};
-    if(gran==='week'){var s=monMid(a);return {label:'Wk '+fmtD(s),start:s,end:addDays(s,7)};}
-    var s2=monthStart(a);return {label:MON[s2.getMonth()]+' '+s2.getFullYear(),start:s2,end:new Date(s2.getFullYear(),s2.getMonth()+1,1)};
+    if(gran==='week'){var s=monMid(a);return {label:t('wk')+' '+fmtD(s),start:s,end:addDays(s,7)};}
+    var s2=monthStart(a);return {label:fmtMY(s2),start:s2,end:new Date(s2.getFullYear(),s2.getMonth()+1,1)};
   }
   function presets(gran){
     var now=new Date();
@@ -144,123 +392,124 @@
   }
 
   // ---- render primitives ----
-  var METRICS=[{k:'signups',l:'Signups'},{k:'active',l:'Active users',t:'active'},{k:'doses',l:'Doses logged'},{k:'protocols_created',l:'Protocols created'},{k:'scans',l:'AI lab scans'}];
+  function metrics(){return [{k:'signups',l:t('m_signups')},{k:'active',l:t('m_active'),t:'active'},{k:'doses',l:t('m_doses')},{k:'protocols_created',l:t('m_protocols_created')},{k:'scans',l:t('m_scans')}];}
   function deltaHTML(cur,base){if(base==null||base===0)return cur>0?'<span class="delta up">new</span>':'';var d=Math.round((cur-base)/base*1000)/10;var cls=d>0?'up':(d<0?'down':'flat');var sign=d>0?'+':'';return '<span class="delta '+cls+'">'+sign+d+'%</span>';}
-  function rows(list,max){if(!list||!list.length)return '<div class="muted">No data.</div>';max=max||Math.max.apply(null,list.map(function(x){return x.n;}).concat([1]));return list.map(function(x){return '<div class="row"><div class="k" title="'+esc(x.k)+'">'+esc(x.k)+'</div><div class="track"><div class="fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="n">'+fmt(x.n)+'</div></div>';}).join('');}
+  function rows(list,max){if(!list||!list.length)return '<div class="muted">'+t('no_data')+'</div>';max=max||Math.max.apply(null,list.map(function(x){return x.n;}).concat([1]));return list.map(function(x){return '<div class="row"><div class="k" title="'+esc(x.k)+'">'+esc(x.k)+'</div><div class="track"><div class="fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="n">'+fmt(x.n)+'</div></div>';}).join('');}
   function kpiCard(label,val,sub,term){return '<div class="card kpi"><div class="label">'+esc(label)+(term?' '+iBtn(term):'')+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';}
-  function statusPill(s){if(s==='ok')return '<span class="pill ok">live</span>';if(s==='error')return '<span class="pill err">error</span>';if(s==='planned'||s==='pending')return '<span class="pill off">pending</span>';return '<span class="pill off">not set up</span>';}
+  function statusPill(s){if(s==='ok')return '<span class="pill ok">'+t('pill_live')+'</span>';if(s==='error')return '<span class="pill err">'+t('pill_error')+'</span>';if(s==='planned'||s==='pending')return '<span class="pill off">'+t('pill_pending')+'</span>';return '<span class="pill off">'+t('pill_notset')+'</span>';}
 
-  // ---- goal labels ----
-  var GOAL_LABELS={wellness:'Wellness',fitness:'Fitness',body_composition:'Body composition',longevity:'Longevity',athletic:'Athletic performance',strength:'Strength & power',fat_loss:'Fat loss',endurance:'Endurance',energy:'Energy & vitality',sleep:'Sleep quality',hormonal_balance:'Hormonal balance',immune:'Immune function',recovery:'Recovery & healing',skin_collagen:'Skin & collagen',mood:'Mood & mental health',sexual_health:'Sexual health',joint_bone:'Joint & bone health',cardiovascular:'Cardiovascular health',stress:'Stress management'};
-  var ACT_LABELS={sedentary:'Sedentary',moderate:'Moderate',active:'Active',very_active:'Very active'};
-  function titleCase(k){if(k==null||k==='(unset)'||k==='')return 'Not set';return String(k).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
-  function relabel(list,map){return (list||[]).map(function(x){return {k:(x.k!=null&&map[x.k])?map[x.k]:titleCase(x.k),n:x.n};});}
+  // ---- goal / activity labels (localized) ----
+  var GOAL_KEYS={wellness:1,fitness:1,body_composition:1,longevity:1,athletic:1,strength:1,fat_loss:1,endurance:1,energy:1,sleep:1,hormonal_balance:1,immune:1,recovery:1,skin_collagen:1,mood:1,sexual_health:1,joint_bone:1,cardiovascular:1,stress:1};
+  var ACT_KEYS={sedentary:1,moderate:1,active:1,very_active:1};
+  function titleCase(k){if(k==null||k==='(unset)'||k==='')return t('not_set');return String(k).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
+  function relabelGoals(list){return (list||[]).map(function(x){return {k:(x.k!=null&&GOAL_KEYS[x.k])?t('goal_'+x.k):titleCase(x.k),n:x.n};});}
+  function relabelAct(list){return (list||[]).map(function(x){return {k:(x.k!=null&&ACT_KEYS[x.k])?t('act_'+x.k):titleCase(x.k),n:x.n};});}
 
   function makeChart(id,cfg){var el=document.getElementById(id);if(!el||!window.Chart)return;var c=new Chart(el,cfg);charts.push(c);}
-  var GRID={color:'rgba(255,255,255,.06)'},TICK={color:'#8FA6BD',font:{size:11}};
   function lineDS(label,data,color){return {label:label,data:data,borderColor:color,backgroundColor:color+'22',tension:.3,fill:true,pointRadius:0,borderWidth:2};}
 
   // ---- sections ----
   function secOverview(){
-    var t=D.totals||{},f=D.funnel||{};
+    var tt=D.totals||{},f=D.funnel||{};
     var last=KPI[KPI.length-1]||{};
     var s7=KPI.slice(-7).reduce(function(a,r){return a+r.signups;},0);
     var s30=KPI.slice(-30).reduce(function(a,r){return a+r.signups;},0);
     var actSet=function(days){var u={},cut=addDays(new Date(),-days);ACT.forEach(function(e){if(pd(e.d)>=cut)u[e.u]=1;});return Object.keys(u).length;};
     var dau=actSet(1),wau=actSet(7),mau=actSet(30);
-    var pcComplete=t.users?Math.round(f.profile_complete/t.users*100):0;
-    var h='<section id="overview"><h2>Overview</h2><div class="grid kpis">'
-      +kpiCard('Total users',fmt(t.users),'+'+fmt(last.signups)+' today')
-      +kpiCard('New · 7 / 30 days',fmt(s7)+' / '+fmt(s30))
-      +kpiCard('WAU',fmt(wau),'DAU '+fmt(dau)+' · MAU '+fmt(mau),'wau')
-      +kpiCard('Stickiness',mau?pct(dau/mau*100):'—','DAU/MAU','stick')
-      +kpiCard('Profiles complete',pcComplete+'%',fmt(f.profile_complete)+' of '+fmt(t.users))
+    var pcComplete=tt.users?Math.round(f.profile_complete/tt.users*100):0;
+    var h='<section id="overview"><h2>'+t('sec_overview')+'</h2><div class="grid kpis">'
+      +kpiCard(t('k_total_users'),fmt(tt.users),t('today_plus',{n:fmt(last.signups)}))
+      +kpiCard(t('k_new_7_30'),fmt(s7)+' / '+fmt(s30))
+      +kpiCard(t('k_wau'),fmt(wau),t('dau_mau_sub',{dau:fmt(dau),mau:fmt(mau)}),'wau')
+      +kpiCard(t('k_stickiness'),mau?pct(dau/mau*100):'—',t('dau_mau'),'stick')
+      +kpiCard(t('k_profiles_complete'),pcComplete+'%',t('of_n',{a:fmt(f.profile_complete),b:fmt(tt.users)}))
       +'</div>';
-    h+='<div class="card" style="margin-top:12px"><h3>Signups & active users · 90 days</h3><canvas id="c-overview" height="90"></canvas></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('chart_signups_active')+'</h3><canvas id="c-overview" height="90"></canvas></div>';
     h+='<div class="grid three" style="margin-top:12px">'
-      +kpiCard('Protocols',fmt(t.protocols),fmt(t.protocols_active)+' active')
-      +kpiCard('Dose logs',fmt(t.dose_logs))
-      +kpiCard('Biomarkers',fmt(t.biomarkers))+'</div>';
+      +kpiCard(t('k_protocols'),fmt(tt.protocols),t('n_active',{n:fmt(tt.protocols_active)}))
+      +kpiCard(t('k_dose_logs'),fmt(tt.dose_logs))
+      +kpiCard(t('k_biomarkers'),fmt(tt.biomarkers))+'</div>';
     h+='</section>';
     return h;
   }
   function drawOverview(){
-    var d=KPI.slice(-90);
-    makeChart('c-overview',{type:'line',data:{labels:d.map(function(r){return r.date;}),datasets:[lineDS('Signups',d.map(function(r){return r.signups;}),'#4FA3E8'),lineDS('DAU',d.map(function(r){return r.dau;}),'#2CD3A7')]},options:{responsive:true,plugins:{legend:{labels:{color:'#EAF2FB',boxWidth:12}}},scales:{x:{grid:GRID,ticks:{color:'#8FA6BD',maxTicksLimit:8,font:{size:10}}},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}});
+    var C=cc();var d=KPI.slice(-90);
+    makeChart('c-overview',{type:'line',data:{labels:d.map(function(r){return r.date;}),datasets:[lineDS(t('m_signups'),d.map(function(r){return r.signups;}),'#4FA3E8'),lineDS('DAU',d.map(function(r){return r.dau;}),'#2CD3A7')]},options:{responsive:true,plugins:{legend:{labels:{color:C.ink,boxWidth:12}}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,maxTicksLimit:8,font:{size:10}}},y:{grid:{color:C.grid},ticks:{color:C.muted,font:{size:11}},beginAtZero:true}}}});
   }
 
   function comparator(){
     var chips=periods.map(function(p,i){return '<span class="chip">'+esc(p.label)+'<button onclick="rmPeriod('+i+')">×</button></span>';}).join('');
-    return '<div class="toolbar"><span class="muted" style="font-weight:700">Compare</span>'
-      +['day','week','month'].map(function(g){return '<button class="'+(gran===g?'on':'')+'" onclick="setGran(\''+g+'\')">'+g.charAt(0).toUpperCase()+g.slice(1)+'</button>';}).join('')
+    var gl={day:t('g_day'),week:t('g_week'),month:t('g_month')};
+    return '<div class="toolbar"><span class="muted" style="font-weight:700">'+t('cmp_compare')+'</span>'
+      +['day','week','month'].map(function(g){return '<button class="'+(gran===g?'on':'')+'" onclick="setGran(\''+g+'\')">'+gl[g]+'</button>';}).join('')
       +'<span style="width:1px;height:22px;background:var(--line)"></span>'+chips
-      +'<input type="date" id="addp" /><button onclick="addPeriod()">+ Add period</button></div>';
+      +'<input type="date" id="addp" /><button onclick="addPeriod()">'+t('add_period')+'</button></div>';
   }
   function cmpTable(){
-    var vals=periods.map(kpiFor);
-    var head='<tr><th>Metric</th>'+periods.map(function(p){return '<th>'+esc(p.label)+'</th>';}).join('')+'</tr>';
-    var body=METRICS.map(function(m){
+    var M=metrics();var vals=periods.map(kpiFor);
+    var head='<tr><th>'+t('metric')+'</th>'+periods.map(function(p){return '<th>'+esc(p.label)+'</th>';}).join('')+'</tr>';
+    var body=M.map(function(m){
       var cells=vals.map(function(v,i){var val=v[m.k];var dd=i>0?deltaHTML(val,vals[0][m.k]):'';return '<td>'+fmt(val)+dd+'</td>';}).join('');
       return '<tr><td>'+m.l+(m.t?' '+iBtn(m.t):'')+'</td>'+cells+'</tr>';
     }).join('');
-    return '<div class="card"><h3>Period comparison</h3><table class="cmp">'+head+body+'</table></div>';
+    return '<div class="card"><h3>'+t('period_comparison')+'</h3><table class="cmp">'+head+body+'</table></div>';
   }
   function drawCmp(){
-    var vals=periods.map(kpiFor);var palette=['#4FA3E8','#2CD3A7','#E8B54F','#E8776B','#9E7BE8','#46C6EE'];
-    makeChart('c-cmp',{type:'bar',data:{labels:METRICS.map(function(m){return m.l;}),datasets:periods.map(function(p,i){return {label:p.label,data:METRICS.map(function(m){return vals[i][m.k];}),backgroundColor:palette[i%palette.length]};})},options:{responsive:true,plugins:{legend:{labels:{color:'#EAF2FB',boxWidth:12}}},scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}});
+    var C=cc();var M=metrics();var vals=periods.map(kpiFor);var palette=['#4FA3E8','#2CD3A7','#E8B54F','#E8776B','#9E7BE8','#46C6EE'];
+    makeChart('c-cmp',{type:'bar',data:{labels:M.map(function(m){return m.l;}),datasets:periods.map(function(p,i){return {label:p.label,data:M.map(function(m){return vals[i][m.k];}),backgroundColor:palette[i%palette.length]};})},options:{responsive:true,plugins:{legend:{labels:{color:C.ink,boxWidth:12}}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted}},y:{grid:{color:C.grid},ticks:{color:C.muted},beginAtZero:true}}}});
   }
 
   function secEngagement(){
     var a=D.adherence||{};var arate=a.total?Math.round(a.taken/a.total*100):0;
-    var h='<section id="engagement"><h2>Engagement &amp; activation</h2>';
-    h+='<div class="grid two"><div class="card"><h3>Adherence '+iBtn('adherence')+'</h3><canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+arate+'% of '+fmt(a.total)+' logged doses taken</div></div>';
-    h+='<div class="card"><h3>Activation funnel '+iBtn('funnel')+'</h3><canvas id="c-funnel" height="150"></canvas></div></div>';
-    h+='<div class="card" style="margin-top:12px"><h3>Doses logged · 90 days</h3><canvas id="c-doses" height="80"></canvas></div>';
+    var h='<section id="engagement"><h2>'+t('sec_engagement')+'</h2>';
+    h+='<div class="grid two"><div class="card"><h3>'+t('eng_adherence')+' '+iBtn('adherence')+'</h3><canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+t('adh_sub',{p:arate,n:fmt(a.total)})+'</div></div>';
+    h+='<div class="card"><h3>'+t('eng_funnel')+' '+iBtn('funnel')+'</h3><canvas id="c-funnel" height="150"></canvas></div></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('doses_90')+'</h3><canvas id="c-doses" height="80"></canvas></div>';
     h+='</section>';return h;
   }
   function drawEngagement(){
-    var a=D.adherence||{};
-    makeChart('c-adh',{type:'doughnut',data:{labels:['Taken','Missed','Skipped'],datasets:[{data:[a.taken||0,a.missed||0,a.skipped||0],backgroundColor:['#2CD3A7','#E8776B','#E8B54F'],borderWidth:0}]},options:{plugins:{legend:{labels:{color:'#EAF2FB',boxWidth:12}}}}});
-    var f=D.funnel||{};var stages=[['Signed up',f.signed_up],['Profile complete',f.profile_complete],['Created protocol',f.created_protocol],['Logged dose',f.logged_dose],['Scanned labs',f.scanned]];
-    makeChart('c-funnel',{type:'bar',data:{labels:stages.map(function(x){return x[0];}),datasets:[{data:stages.map(function(x){return x[1];}),backgroundColor:'#4FA3E8'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:GRID,ticks:TICK,beginAtZero:true},y:{grid:{display:false},ticks:{color:'#EAF2FB',font:{size:11}}}}}});
+    var C=cc();var a=D.adherence||{};
+    makeChart('c-adh',{type:'doughnut',data:{labels:[t('taken'),t('missed'),t('skipped')],datasets:[{data:[a.taken||0,a.missed||0,a.skipped||0],backgroundColor:['#2CD3A7','#E8776B','#E8B54F'],borderWidth:0}]},options:{plugins:{legend:{labels:{color:C.ink,boxWidth:12}}}}});
+    var f=D.funnel||{};var stages=[[t('st_signed_up'),f.signed_up],[t('st_profile_complete'),f.profile_complete],[t('st_created_protocol'),f.created_protocol],[t('st_logged_dose'),f.logged_dose],[t('st_scanned'),f.scanned]];
+    makeChart('c-funnel',{type:'bar',data:{labels:stages.map(function(x){return x[0];}),datasets:[{data:stages.map(function(x){return x[1];}),backgroundColor:'#4FA3E8'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted},beginAtZero:true},y:{grid:{display:false},ticks:{color:C.ink,font:{size:11}}}}}});
     var d=KPI.slice(-90);
-    makeChart('c-doses',{type:'bar',data:{labels:d.map(function(r){return r.date;}),datasets:[{label:'Doses',data:d.map(function(r){return r.doses;}),backgroundColor:'#46C6EE'}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:GRID,ticks:{color:'#8FA6BD',maxTicksLimit:8,font:{size:10}}},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}});
+    makeChart('c-doses',{type:'bar',data:{labels:d.map(function(r){return r.date;}),datasets:[{label:t('m_doses'),data:d.map(function(r){return r.doses;}),backgroundColor:'#46C6EE'}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,maxTicksLimit:8,font:{size:10}}},y:{grid:{color:C.grid},ticks:{color:C.muted},beginAtZero:true}}}});
   }
 
   function secRetention(){
     var cohorts=(D.retention&&D.retention.cohorts)||[];
-    if(!cohorts.length)return '<section id="retention"><h2>Retention '+iBtn('retention')+'</h2><div class="card muted">Not enough cohort data yet.</div></section>';
+    if(!cohorts.length)return '<section id="retention"><h2>'+t('sec_retention_short')+' '+iBtn('retention')+'</h2><div class="card muted">'+t('ret_nodata')+'</div></section>';
     var maxWk=0;cohorts.forEach(function(c){Object.keys(c.cells||{}).forEach(function(k){maxWk=Math.max(maxWk,+k);});});
-    var head='<tr><td style="text-align:left;color:var(--muted)">Cohort (week)</td><td style="color:var(--muted)">Users</td>';
+    var head='<tr><td style="text-align:left;color:var(--muted)">'+t('ret_cohort_week')+'</td><td style="color:var(--muted)">'+t('ret_users')+'</td>';
     for(var w=0;w<=maxWk;w++)head+='<td style="color:var(--muted)">W'+w+'</td>';head+='</tr>';
     var body=cohorts.map(function(c){
       var tds='';for(var w=0;w<=maxWk;w++){var a=(c.cells||{})[w];if(a==null){tds+='<td class="muted">·</td>';continue;}var p=c.size?Math.round(a/c.size*100):0;var bg='rgba(79,163,232,'+(0.12+0.6*(p/100)).toFixed(2)+')';tds+='<td style="background:'+bg+'">'+p+'%</td>';}
       return '<tr><td style="text-align:left">'+esc(c.cohort)+'</td><td>'+fmt(c.size)+'</td>'+tds+'</tr>';
     }).join('');
-    return '<section id="retention"><h2>Retention — weekly cohorts '+iBtn('retention')+'</h2><div class="card" style="overflow-x:auto"><table class="cmp heat">'+head+body+'</table><div class="sub muted" style="margin-top:8px">Each row = users who signed up that week. W0 = signup week; cells show the % still active N weeks later.</div></div></section>';
+    return '<section id="retention"><h2>'+t('sec_retention')+' '+iBtn('retention')+'</h2><div class="card" style="overflow-x:auto"><table class="cmp heat">'+head+body+'</table><div class="sub muted" style="margin-top:8px">'+t('ret_footer')+'</div></div></section>';
   }
 
   function secProduct(){
     var p0=periods[0];
     var comp=tally(PROTO,function(x){return x.compound;},p0&&p0.start,p0&&p0.end,'date');
     var srch=tally(SEARCH,function(x){return x.query;},p0&&p0.start,p0&&p0.end,'date');
-    var types=tally(PROTO,function(x){return x.type;},p0&&p0.start,p0&&p0.end,'date').map(function(x){return {k:x.k==='recon'?'Reconstituted':(x.k==='rtu'?'Ready-to-use':titleCase(x.k)),n:x.n};});
+    var types=tally(PROTO,function(x){return x.type;},p0&&p0.start,p0&&p0.end,'date').map(function(x){return {k:x.k==='recon'?t('type_recon'):(x.k==='rtu'?t('type_rtu'):titleCase(x.k)),n:x.n};});
     var scope=p0?('· '+p0.label):'';
-    var h='<section id="product"><h2>Product '+scope+'</h2><div class="grid two">';
-    h+='<div class="card"><h3>Top compounds created</h3>'+rows(comp.slice(0,10))+'</div>';
-    h+='<div class="card"><h3>Top searches</h3>'+rows(srch.slice(0,10))+'</div></div>';
-    h+='<div class="grid two" style="margin-top:12px"><div class="card"><h3>Protocol type</h3>'+rows(types)+'</div>';
-    h+='<div class="card"><h3>Top biomarkers (all time)</h3>'+rows((D.top_biomarkers||[]).map(function(x){return {k:titleCase(x.k),n:x.n};}).slice(0,10))+'</div></div>';
-    h+='<div class="sub muted" style="margin-top:8px">Top compounds/searches reflect the first selected period ('+esc(p0?p0.label:'all')+'). Change it in the Compare bar.</div></section>';
+    var h='<section id="product"><h2>'+t('sec_product')+' '+scope+'</h2><div class="grid two">';
+    h+='<div class="card"><h3>'+t('prod_top_compounds')+'</h3>'+rows(comp.slice(0,10))+'</div>';
+    h+='<div class="card"><h3>'+t('prod_top_searches')+'</h3>'+rows(srch.slice(0,10))+'</div></div>';
+    h+='<div class="grid two" style="margin-top:12px"><div class="card"><h3>'+t('prod_type')+'</h3>'+rows(types)+'</div>';
+    h+='<div class="card"><h3>'+t('prod_top_biomarkers')+'</h3>'+rows((D.top_biomarkers||[]).map(function(x){return {k:titleCase(x.k),n:x.n};}).slice(0,10))+'</div></div>';
+    h+='<div class="sub muted" style="margin-top:8px">'+t('prod_footer',{label:esc(p0?p0.label:'all')})+'</div></section>';
     return h;
   }
 
   function secRevenue(){
-    var h='<section id="revenue"><h2>Revenue · RevenueCat '+statusPill(RC.status)+'</h2>';
+    var h='<section id="revenue"><h2>'+t('sec_revenue')+' '+statusPill(RC.status)+'</h2>';
     if(RC.status==='ok'&&RC.data&&RC.data.metrics){
-      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;return kpiCard(m.name||m.id,v,m.description||'',term);}).join('')+'</div>';
-    } else h+='<div class="card muted">'+esc(RC.message||'Not configured.')+'</div>';
-    h+='<div class="card" style="margin-top:12px"><h3>Plan (Supabase field)</h3>'+rows((D.plans||[]).map(function(x){return {k:x.plan,n:x.n};}))+'<div class="sub muted" style="margin-top:6px">Authoritative subscription status is RevenueCat above.</div></div>';
+      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(LANG,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;return kpiCard(m.name||m.id,v,m.description||'',term);}).join('')+'</div>';
+    } else h+='<div class="card muted">'+esc(RC.message||t('not_configured'))+'</div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('rev_plan')+'</h3>'+rows((D.plans||[]).map(function(x){return {k:x.plan,n:x.n};}))+'<div class="sub muted" style="margin-top:6px">'+t('rev_plan_note')+'</div></div>';
     h+='</section>';return h;
   }
 
@@ -268,64 +517,71 @@
     var p0=periods[0];var use=UDIM;
     if(p0)use=UDIM.filter(function(u){return inR(u.signup_date,p0.start,p0.end);});
     var country=tally(use,function(x){return x.country;},null,null,'signup_date');
-    var goal=relabel(tally(use,function(x){return x.goal;},null,null,'signup_date'),GOAL_LABELS);
-    var activity=relabel(tally(use,function(x){return x.activity;},null,null,'signup_date'),ACT_LABELS);
+    var goal=relabelGoals(tally(use,function(x){return x.goal;},null,null,'signup_date'));
+    var activity=relabelAct(tally(use,function(x){return x.activity;},null,null,'signup_date'));
     var gender=tally(use,function(x){return x.gender;},null,null,'signup_date').map(function(x){return {k:titleCase(x.k),n:x.n};});
-    var ageBuckets={};use.forEach(function(u){if(u.age==null){ageBuckets['Not set']=(ageBuckets['Not set']||0)+1;return;}var b=u.age<25?'18–24':u.age<35?'25–34':u.age<45?'35–44':u.age<55?'45–54':'55+';ageBuckets[b]=(ageBuckets[b]||0)+1;});
+    var ageBuckets={};use.forEach(function(u){if(u.age==null){ageBuckets[t('not_set')]=(ageBuckets[t('not_set')]||0)+1;return;}var b=u.age<25?'18–24':u.age<35?'25–34':u.age<45?'35–44':u.age<55?'45–54':'55+';ageBuckets[b]=(ageBuckets[b]||0)+1;});
     var age=Object.keys(ageBuckets).map(function(k){return {k:k,n:ageBuckets[k]};}).sort(function(a,b){return b.n-a.n;});
-    var scope=p0?('signups · '+p0.label):'all users';
-    var h='<section id="audience"><h2>Audience — '+esc(scope)+' ('+use.length+')</h2><div class="grid two">';
-    h+='<div class="card"><h3>Country</h3>'+rows(country.slice(0,10).map(function(x){return {k:x.k==='(unset)'?'Not set':x.k,n:x.n};}))+'</div>';
-    h+='<div class="card"><h3>Primary goal</h3>'+rows(goal.slice(0,12))+'</div></div>';
-    h+='<div class="grid three" style="margin-top:12px"><div class="card"><h3>Activity</h3>'+rows(activity)+'</div><div class="card"><h3>Gender</h3>'+rows(gender)+'</div><div class="card"><h3>Age</h3>'+rows(age)+'</div></div></section>';
+    var scope=p0?t('aud_scope_signups',{label:p0.label}):t('aud_scope_all');
+    var h='<section id="audience"><h2>'+t('sec_audience')+' — '+esc(scope)+' ('+use.length+')</h2><div class="grid two">';
+    h+='<div class="card"><h3>'+t('aud_country')+'</h3>'+rows(country.slice(0,10).map(function(x){return {k:x.k==='(unset)'?t('not_set'):x.k,n:x.n};}))+'</div>';
+    h+='<div class="card"><h3>'+t('aud_goal')+'</h3>'+rows(goal.slice(0,12))+'</div></div>';
+    h+='<div class="grid three" style="margin-top:12px"><div class="card"><h3>'+t('aud_activity')+'</h3>'+rows(activity)+'</div><div class="card"><h3>'+t('aud_gender')+'</h3>'+rows(gender)+'</div><div class="card"><h3>'+t('aud_age')+'</h3>'+rows(age)+'</div></div></section>';
     return h;
   }
 
   function secStores(){
-    var h='<section id="stores"><h2>Stores</h2>';
-    h+='<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b>Apple App Store</b> '+statusPill(AP.status)+'</div>';
-    if(AP.status==='ok'&&AP.data){var a=AP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard('Downloads · 30d',fmt(a.downloads_30d))+kpiCard('Updates · 30d',fmt(a.updates_30d))+kpiCard('Latest day',a.latest_day_downloads!=null?fmt(a.latest_day_downloads)+' dl':'—',a.latest_day||'')+'</div>';}
+    var h='<section id="stores"><h2>'+t('sec_stores')+'</h2>';
+    h+='<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b>'+t('store_apple')+'</b> '+statusPill(AP.status)+'</div>';
+    if(AP.status==='ok'&&AP.data){var a=AP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_downloads_30'),fmt(a.downloads_30d))+kpiCard(t('k_updates_30'),fmt(a.updates_30d))+kpiCard(t('k_latest_day'),a.latest_day_downloads!=null?t('n_dl',{n:fmt(a.latest_day_downloads)}):'—',a.latest_day||'')+'</div>';}
     else h+='<div class="muted" style="margin-top:6px">'+esc(AP.message||'')+'</div>';
-    h+='</div><div class="card"><div style="display:flex;justify-content:space-between"><b>Google Play</b> '+statusPill(GP.status)+'</div>';
-    if(GP.status==='ok'&&GP.data){var g=GP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard('Total installs',fmt(g.total_user_installs))+kpiCard('Active devices',fmt(g.active_device_installs))+kpiCard('Installs · month',fmt(g.installs_this_month))+kpiCard('Avg rating',g.total_average_rating!=null?Number(g.total_average_rating).toFixed(2)+' ★':'—')+'</div>';}
+    h+='</div><div class="card"><div style="display:flex;justify-content:space-between"><b>'+t('store_google')+'</b> '+statusPill(GP.status)+'</div>';
+    if(GP.status==='ok'&&GP.data){var g=GP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_total_installs'),fmt(g.total_user_installs))+kpiCard(t('k_active_devices'),fmt(g.active_device_installs))+kpiCard(t('k_installs_month'),fmt(g.installs_this_month))+kpiCard(t('k_avg_rating'),g.total_average_rating!=null?Number(g.total_average_rating).toFixed(2)+' ★':'—')+'</div>';}
     else h+='<div class="muted" style="margin-top:6px">'+esc(GP.message||'')+'</div>';
     h+='</div></section>';return h;
   }
 
-  var NAV=[['overview','Overview'],['compare','Compare'],['engagement','Engagement'],['retention','Retention'],['product','Product'],['revenue','Revenue'],['audience','Audience'],['stores','Stores']];
+  function navItems(){return [['overview','nav_overview'],['compare','nav_compare'],['engagement','nav_engagement'],['retention','nav_retention'],['product','nav_product'],['revenue','nav_revenue'],['audience','nav_audience'],['stores','nav_stores']];}
+  function langSelect(){return '<select id="lang" title="Language">'+LANGS.map(function(l){return '<option value="'+l[0]+'"'+(l[0]===LANG?' selected':'')+'>'+l[1]+'</option>';}).join('')+'</select>';}
+  function themeBtn(){var dark=curTheme()==='dark';return '<button id="theme" class="icon" title="'+esc(dark?t('theme_light'):t('theme_dark'))+'">'+(dark?'☀':'☾')+'</button>';}
+
   function render(){
     clearCharts();
-    var h='<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div><div style="display:flex;gap:12px;align-items:center"><span class="meta">Updated '+esc(new Date(D.generated_at||Date.now()).toLocaleString())+'</span><button id="refresh">Refresh</button></div></header>';
-    h+='<nav class="sections">'+NAV.map(function(n){return '<a href="#'+n[0]+'">'+n[1]+'</a>';}).join('')+'</nav>';
+    var h='<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div>'
+      +'<div class="controls">'+langSelect()+themeBtn()
+      +'<span class="meta">'+t('updated',{d:esc(new Date(D.generated_at||Date.now()).toLocaleString(LANG))})+'</span>'
+      +'<button id="refresh">'+t('refresh')+'</button></div></header>';
+    h+='<nav class="sections">'+navItems().map(function(n){return '<a href="#'+n[0]+'">'+t(n[1])+'</a>';}).join('')+'</nav>';
     h+=secOverview();
-    h+='<section id="compare"><h2>Compare periods</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>Side-by-side</h3><canvas id="c-cmp" height="90"></canvas></div></section>';
+    h+='<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>'+t('side_by_side')+'</h3><canvas id="c-cmp" height="90"></canvas></div></section>';
     h+=secEngagement();h+=secRetention();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();
     app.innerHTML=h;
     drawOverview();drawCmp();drawEngagement();
     document.getElementById('refresh').onclick=load;
+    document.getElementById('lang').onchange=function(){LANG=this.value;try{localStorage.setItem('dt_adm_lang',LANG);}catch(e){}periods=periods.map(function(p){return periodFor(gran,p.start);});render();};
+    document.getElementById('theme').onclick=function(){var toLight=curTheme()!=='light';if(toLight)document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('dt_adm_theme',toLight?'light':'dark');}catch(e){}render();};
   }
-  // re-render only the period-aware bits when periods change
   window.setGran=function(g){gran=g;periods=presets(g);render();};
   window.addPeriod=function(){var el=document.getElementById('addp');if(!el||!el.value)return;periods.push(periodFor(gran,pd(el.value)));render();};
   window.rmPeriod=function(i){periods.splice(i,1);if(!periods.length)periods=presets(gran);render();};
 
   function load(){
-    app.innerHTML='<div class="center">Loading…</div>';
+    app.innerHTML='<div class="center">'+t('loading')+'</div>';
     fetch('/api/adm',{headers:{Authorization:'Bearer '+token}}).then(function(r){
-      if(r.status===401)throw new Error('Unauthorized — the magic link is missing or wrong.');
-      if(r.status===503)throw new Error('Panel not configured yet (ADMIN_TOKEN not set).');
-      if(!r.ok)throw new Error('Request failed ('+r.status+').');return r.json();
+      if(r.status===401)throw new Error(t('err_unauth'));
+      if(r.status===503)throw new Error(t('err_notconf'));
+      if(!r.ok)throw new Error(t('err_failed',{n:r.status}));return r.json();
     }).then(function(payload){
       var S=payload.sources||{};var sb=S.supabase||{};
       RC=S.revenuecat||{};AP=S.apple||{};GP=S.google_play||{};
-      if(sb.status!=='ok'||!sb.data){app.innerHTML='<div class="center">Supabase '+esc(sb.status||'')+(sb.message?(' — '+esc(sb.message)):'')+'</div>';return;}
+      if(sb.status!=='ok'||!sb.data){app.innerHTML='<div class="center">'+t('supabase_status',{s:esc(sb.status||'')})+(sb.message?(' — '+esc(sb.message)):'')+'</div>';return;}
       D=sb.data;D.generated_at=payload.generated_at||D.generated_at;
       KPI=D.kpi_timeseries||[];ACT=D.activity_events||[];UDIM=D.users_dim||[];SEARCH=D.searches||[];PROTO=D.protocols_created_events||[];
       periods=presets(gran);
       render();
     }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'</div>';});
   }
-  if(!token){app.innerHTML='<div class="center">This page needs a magic link.</div>';return;}
+  if(!token){app.innerHTML='<div class="center">'+t('need_link')+'</div>';return;}
   load();
 })();
 </script>
