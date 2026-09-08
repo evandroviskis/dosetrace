@@ -135,6 +135,73 @@ async function fetchGooglePlay() {
   }
 }
 
+/**
+ * Apple App Store downloads via the App Store Connect API "Sales Reports"
+ * (gzipped TSV, ES256-JWT auth). Downloads aren't a single number — we sum the
+ * last 30 daily SALES SUMMARY reports (404 = a day with no sales, skipped).
+ * Units for first-install product types are downloads; type 7* are updates.
+ * Revenue stays with RevenueCat (a free app reports $0 proceeds here anyway).
+ */
+async function fetchApple() {
+  const key = (process.env.ASC_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  const issuer = process.env.ASC_ISSUER_ID;
+  const kid = process.env.ASC_KEY_ID;
+  const vendor = process.env.ASC_VENDOR_NUMBER;
+  if (!key || !issuer || !kid || !vendor) return { status: 'not_configured' };
+  try {
+    const zlib = require('zlib');
+    const now = Math.floor(Date.now() / 1000);
+    const head = b64url(JSON.stringify({ alg: 'ES256', kid, typ: 'JWT' }));
+    const payload = b64url(JSON.stringify({ iss: issuer, iat: now, exp: now + 900, aud: 'appstoreconnect-v1' }));
+    const input = head + '.' + payload;
+    const sig = crypto.sign('SHA256', Buffer.from(input), { key, dsaEncoding: 'ieee-p1363' })
+      .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const token = input + '.' + sig;
+    const ymd = d => d.toISOString().slice(0, 10);
+    const days = [];
+    for (let b = 1; b <= 30; b++) days.push(ymd(new Date(Date.now() - b * 86400000)));
+    const reports = await Promise.all(days.map(async date => {
+      const url = 'https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=' + vendor + '&filter[reportDate]=' + date;
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/a-gzip' } });
+      if (r.status !== 200) return { date, tsv: null };
+      try { return { date, tsv: zlib.gunzipSync(Buffer.from(await r.arrayBuffer())).toString('utf8') }; }
+      catch (e) { return { date, tsv: null }; }
+    }));
+    const perDay = [];
+    for (const { date, tsv } of reports) {
+      if (!tsv) continue;
+      const lines = tsv.split(/\r?\n/).filter(Boolean);
+      if (lines.length < 2) continue;
+      const hdr = lines[0].split('\t');
+      const iType = hdr.indexOf('Product Type Identifier');
+      const iUnits = hdr.indexOf('Units');
+      let dl = 0, up = 0;
+      for (const line of lines.slice(1)) {
+        const c = line.split('\t');
+        const t = (c[iType] || '').trim();
+        const u = parseInt((c[iUnits] || '0').trim(), 10) || 0;
+        if (/^7/.test(t)) up += u;              // 7* = updates
+        else if (/^(1|F1)/.test(t)) dl += u;    // 1* / F1 = first installs (downloads)
+      }
+      perDay.push({ date, downloads: dl, updates: up });
+    }
+    perDay.sort((a, b) => (a.date < b.date ? -1 : 1));
+    const latest = perDay[perDay.length - 1] || null;
+    return {
+      status: 'ok',
+      data: {
+        downloads_30d: perDay.reduce((s, d) => s + d.downloads, 0),
+        updates_30d: perDay.reduce((s, d) => s + d.updates, 0),
+        days_with_sales: perDay.length,
+        latest_day: latest ? latest.date : null,
+        latest_day_downloads: latest ? latest.downloads : null,
+      },
+    };
+  } catch (e) {
+    return { status: 'error', message: String(e && e.message || e) };
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -149,15 +216,10 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const [supabase, revenuecat, google_play] = await Promise.all([fetchSupabase(), fetchRevenueCat(), fetchGooglePlay()]);
+  const [supabase, revenuecat, google_play, apple] = await Promise.all([fetchSupabase(), fetchRevenueCat(), fetchGooglePlay(), fetchApple()]);
 
   res.status(200).json({
     generated_at: new Date().toISOString(),
-    sources: {
-      supabase,
-      revenuecat,
-      google_play,
-      apple: { status: 'planned', message: 'Add an App Store Connect API key to activate (phase 2).' },
-    },
+    sources: { supabase, revenuecat, google_play, apple },
   });
 };

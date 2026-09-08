@@ -185,7 +185,18 @@
       html += '<div class="muted" style="margin-top:6px">'+esc(gp.message||'')+'</div>';
     }
     html += '</div>';
-    html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Apple App Store</b> '+statusPill(ap.status)+'</div><div class="muted" style="margin-top:6px">'+esc(ap.message||'')+'</div></div>';
+    html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Apple App Store</b> '+statusPill(ap.status)+'</div>';
+    if(ap.status==='ok' && ap.data){
+      var a2=ap.data;
+      html += '<div class="grid kpis" style="margin-top:12px">'
+        + kpi('Downloads · 30d', fmt(a2.downloads_30d))
+        + kpi('Updates · 30d', fmt(a2.updates_30d))
+        + kpi('Latest day', a2.latest_day_downloads!=null ? fmt(a2.latest_day_downloads)+' dl' : '—', a2.latest_day||'')
+        + '</div>';
+    } else {
+      html += '<div class="muted" style="margin-top:6px">'+esc(ap.message||'')+'</div>';
+    }
+    html += '</div>';
 
     app.innerHTML = html;
     var rb = document.getElementById('refresh');
