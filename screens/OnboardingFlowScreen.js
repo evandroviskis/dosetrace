@@ -71,10 +71,10 @@ export default function OnboardingFlowScreen({ onDone }) {
     { key: 'athletic', label: t('profile_goal_athletic') },
   ];
   const COMPOUNDS = [
-    { key: 'peptides', label: t('onboarding_compound_peptides'), emoji: '🧪' },
-    { key: 'hormones', label: t('onboarding_compound_hormones'), emoji: '💉' },
-    { key: 'glp1', label: t('onboarding_compound_glp1'), emoji: '⚖️' },
-    { key: 'oral', label: t('onboarding_compound_oral'), emoji: '💊' },
+    { key: 'peptides', label: t('onboarding_compound_peptides'), icon: 'type_vial' },
+    { key: 'hormones', label: t('onboarding_compound_hormones'), icon: 'reconstitution' },
+    { key: 'glp1', label: t('onboarding_compound_glp1'), icon: 'type_glp1' },
+    { key: 'oral', label: t('onboarding_compound_oral'), icon: 'type_capsule' },
   ];
   const ACTIVITY = [
     { key: 'sedentary', label: t('profile_activity_sedentary') },
@@ -228,8 +228,9 @@ export default function OnboardingFlowScreen({ onDone }) {
               <Text style={s.sub}>{t('onboarding_compound_sub')}</Text>
               <View style={s.pillRow}>
                 {COMPOUNDS.map((c) => (
-                  <TouchableOpacity key={c.key} style={[s.pill, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
-                    <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.emoji} {c.label}</Text>
+                  <TouchableOpacity key={c.key} style={[s.pill, { flexDirection: 'row', alignItems: 'center', gap: 8 }, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
+                    <FeatureIcon name={c.icon} size={18} color={tracking.includes(c.key) ? colors.accent : colors.textMuted} />
+                    <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

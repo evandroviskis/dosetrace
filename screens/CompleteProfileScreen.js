@@ -8,6 +8,7 @@ import { supabase, signOutGoogleNative } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { COUNTRIES, countryLabel } from '../lib/countries';
+import FeatureIcon from '../components/FeatureIcon';
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
@@ -86,10 +87,10 @@ export default function CompleteProfileScreen() {
     { key: 'female', label: t('profile_gender_female') },
   ];
   const COMPOUNDS = [
-    { key: 'peptides', label: t('onboarding_compound_peptides') },
-    { key: 'hormones', label: t('onboarding_compound_hormones') },
-    { key: 'glp1', label: t('onboarding_compound_glp1') },
-    { key: 'oral', label: t('onboarding_compound_oral') },
+    { key: 'peptides', label: t('onboarding_compound_peptides'), icon: 'type_vial' },
+    { key: 'hormones', label: t('onboarding_compound_hormones'), icon: 'reconstitution' },
+    { key: 'glp1', label: t('onboarding_compound_glp1'), icon: 'type_glp1' },
+    { key: 'oral', label: t('onboarding_compound_oral'), icon: 'type_capsule' },
   ];
   const PROVIDERS = [
     { key: 'yes', label: t('profile_provider_yes') },
@@ -233,7 +234,8 @@ export default function CompleteProfileScreen() {
         <Text style={s.fieldLabel}>{t('onboarding_compound_title')}</Text>
         <View style={s.pillRow}>
           {COMPOUNDS.map(c => (
-            <TouchableOpacity key={c.key} style={[s.pill, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
+            <TouchableOpacity key={c.key} style={[s.pill, { flexDirection: 'row', alignItems: 'center', gap: 8 }, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
+              <FeatureIcon name={c.icon} size={18} color={tracking.includes(c.key) ? colors.accent : colors.textMuted} />
               <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.label}</Text>
             </TouchableOpacity>
           ))}
