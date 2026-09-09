@@ -15,19 +15,38 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
  * "reduce motion" setting by rendering the final state instantly.
  */
 
-// Illustrative model (unitless, tuned to look like a real protocol curve).
-const HALF = 4, INTERVAL = 3, DOSE = 5, NDOSES = 6;
+// Illustrative model (unitless, tuned to look like a real protocol curve): each
+// dose is a sharp vertical spike UP, then the level decays DOWN toward the next
+// dose — the classic serum sawtooth — with a wash-out tail so the line clearly
+// comes down at the end. Half-life is short relative to the interval so the
+// "down" between doses is plainly visible, while the peaks still creep up
+// (accumulation). Returns {points, endT}: points are {t, v}, with two points
+// sharing a t at each dose to draw the vertical edge.
+const HALF = 2.2, INTERVAL = 3, DOSE = 5, NDOSES = 5;
 const K = Math.LN2 / HALF;
-const END_T = INTERVAL * (NDOSES - 1) + INTERVAL * 0.35; // stop just past the last dose's peak
-const SAMPLES = 130;
+const SEG = 22;                        // decay samples between doses
+const TAIL = INTERVAL * 0.95;          // wash-out after the last dose
 
-function levelAt(t) {
-  let sum = 0;
-  for (let i = 0; i < NDOSES; i++) {
-    const dt = t - i * INTERVAL;
-    if (dt >= 0) sum += DOSE * Math.exp(-K * dt);
+function buildSawtooth() {
+  const pts = [];
+  pts.push({ t: 0, v: 0 });            // baseline start
+  let level = DOSE;
+  pts.push({ t: 0, v: level });        // dose 1 — vertical spike up
+  for (let i = 1; i < NDOSES; i++) {
+    const t0 = (i - 1) * INTERVAL, t1 = i * INTERVAL;
+    for (let sIdx = 1; sIdx <= SEG; sIdx++) {
+      const tt = t0 + (INTERVAL * sIdx) / SEG;
+      pts.push({ t: tt, v: level * Math.exp(-K * (tt - t0)) });   // decay down
+    }
+    level = level * Math.exp(-K * INTERVAL) + DOSE;               // next dose
+    pts.push({ t: t1, v: level });     // vertical spike up
   }
-  return sum;
+  const tLast = (NDOSES - 1) * INTERVAL;
+  for (let sIdx = 1; sIdx <= SEG; sIdx++) {
+    const tt = tLast + (TAIL * sIdx) / SEG;
+    pts.push({ t: tt, v: level * Math.exp(-K * (tt - tLast)) });  // wash-out tail
+  }
+  return { points: pts, endT: tLast + TAIL };
 }
 
 export default function AccumulationHero({ width = 300, height = 140 }) {
@@ -40,25 +59,22 @@ export default function AccumulationHero({ width = 300, height = 140 }) {
   const plotH = height - PAD_T - PAD_B;
 
   // Build the curve geometry once per size.
-  const { d, length, peak, endValue, dosesX, baselineY, endPt } = useMemo(() => {
-    const pts = [];
+  const { d, length, endValue, dosesX, baselineY, endPt, cumLen, vals } = useMemo(() => {
+    const { points: pts, endT } = buildSawtooth();
     let maxV = 0;
-    for (let i = 0; i <= SAMPLES; i++) {
-      const tt = (END_T * i) / SAMPLES;
-      const v = levelAt(tt);
-      if (v > maxV) maxV = v;
-      pts.push({ t: tt, v });
-    }
-    const yTop = maxV * 1.12; // headroom so the peak isn't glued to the top edge
-    const xFor = (tt) => PAD_L + (tt / END_T) * plotW;
+    for (const p of pts) if (p.v > maxV) maxV = p.v;
+    const yTop = maxV * 1.14; // headroom so the peak isn't glued to the top edge
+    const xFor = (tt) => PAD_L + (tt / endT) * plotW;
     const yFor = (v) => PAD_T + plotH - (v / yTop) * plotH;
     const xy = pts.map((p) => ({ x: xFor(p.t), y: yFor(p.v) }));
 
     let path = `M ${xy[0].x.toFixed(2)} ${xy[0].y.toFixed(2)}`;
+    const cum = [0];
     let len = 0;
     for (let i = 1; i < xy.length; i++) {
       path += ` L ${xy[i].x.toFixed(2)} ${xy[i].y.toFixed(2)}`;
       len += Math.hypot(xy[i].x - xy[i - 1].x, xy[i].y - xy[i - 1].y);
+      cum.push(len);
     }
     const doseXs = [];
     for (let i = 0; i < NDOSES; i++) {
@@ -68,49 +84,58 @@ export default function AccumulationHero({ width = 300, height = 140 }) {
     return {
       d: path,
       length: Math.ceil(len),
-      peak: maxV,
       endValue: pts[pts.length - 1].v,
       dosesX: doseXs,
       baselineY: PAD_T + plotH,
       endPt: xy[xy.length - 1],
+      cumLen: cum,
+      vals: pts.map((p) => p.v),
     };
   }, [plotW, plotH]);
 
+  // The "Est. in body" figure tracks the pen: as the drawn length grows it rises
+  // and falls with each peak, so the number moves with the sawtooth.
+  const valueAtLength = (revealed) => {
+    if (revealed <= 0) return vals[0];
+    if (revealed >= cumLen[cumLen.length - 1]) return vals[vals.length - 1];
+    let i = 1;
+    while (i < cumLen.length && cumLen[i] < revealed) i++;
+    return vals[i];
+  };
+
   const draw = useRef(new Animated.Value(1)).current;   // 1 = fully hidden, 0 = fully drawn
   const fade = useRef(new Animated.Value(0)).current;    // fill + endpoint
-  const count = useRef(new Animated.Value(0)).current;
   const [num, setNum] = useState('0.0');
-  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    const id = count.addListener(({ value }) => setNum(value.toFixed(1)));
+    // Move the readout with the pen: revealed length = length * (1 - draw).
+    const id = draw.addListener(({ value }) => {
+      if (!mounted) return;
+      setNum(valueAtLength(length * (1 - value)).toFixed(1));
+    });
 
     AccessibilityInfo.isReduceMotionEnabled().then((rm) => {
       if (!mounted) return;
       if (rm) {
-        setReduced(true);
-        draw.setValue(0);
+        draw.setValue(0);   // fully drawn (listener sets num to endValue)
         fade.setValue(1);
-        count.setValue(endValue);
-        setNum(endValue.toFixed(1));
         return;
       }
       draw.setValue(1);
       fade.setValue(0);
-      count.setValue(0);
+      setNum(vals[0].toFixed(1));
       Animated.parallel([
-        Animated.timing(draw, { toValue: 0, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-        Animated.timing(count, { toValue: endValue, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-        Animated.timing(fade, { toValue: 1, duration: 700, delay: 900, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(draw, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(fade, { toValue: 1, duration: 700, delay: 1500, easing: Easing.out(Easing.quad), useNativeDriver: false }),
       ]).start();
     }).catch(() => {
       // If the check fails, just show the finished state — never leave it blank.
       if (!mounted) return;
-      draw.setValue(0); fade.setValue(1); count.setValue(endValue); setNum(endValue.toFixed(1));
+      draw.setValue(0); fade.setValue(1);
     });
 
-    return () => { mounted = false; count.removeListener(id); };
+    return () => { mounted = false; draw.removeListener(id); };
   }, [endValue, length]);
 
   const dashOffset = draw.interpolate({ inputRange: [0, 1], outputRange: [0, length] });
