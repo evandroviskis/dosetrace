@@ -105,6 +105,9 @@ export default function SerumCurveScreen() {
     if (!user) return;
     const active = (getActiveProtocols(user.id) || [])
       .filter(p => ['recon', 'rtu'].includes(p.type))
+      // IU-dosed compounds (HCG, insulins, HMG/FSH) can't be plotted or summed on a
+      // mg axis — IU→mg is not a unit conversion — so they're excluded from the curve.
+      .filter(p => (p.dose_unit || '').toLowerCase() !== 'iu')
       .filter(p => getHalfLifeEntry(matchName(p)) != null);
     setProtocols(active);
     // Keep any still-valid selection; otherwise default to the first compound.
@@ -340,6 +343,10 @@ export default function SerumCurveScreen() {
               )}
             </View>
 
+            <View style={s.disclaimerBox}>
+              <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
+            </View>
+
             <Svg width={chartWidth} height={chartHeight}>
               {/* future projection zone */}
               <Rect x={nowX} y={PLOT_TOP} width={Math.max(0, plotRight - nowX)} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.accentSoft} opacity={0.55} />
@@ -555,9 +562,6 @@ export default function SerumCurveScreen() {
             ))}
           </View>
 
-          <View style={s.disclaimerBox}>
-            <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
-          </View>
         </ScrollView>
       )}
 
