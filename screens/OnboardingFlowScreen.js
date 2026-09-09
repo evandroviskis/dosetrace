@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { saveOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
 import AccumulationHero from '../components/AccumulationHero';
+import FeatureIcon from '../components/FeatureIcon';
 
 /**
  * Value-before-signup onboarding. Runs on first launch (before any account),
@@ -66,11 +67,11 @@ export default function OnboardingFlowScreen({ onDone }) {
     { key: 'female', label: t('profile_gender_female') },
   ];
   const FEATURES = [
-    { icon: '💧', t: t('ob_feat1_t'), d: t('ob_feat1_d') },
-    { icon: '📈', t: t('ob_feat2_t'), d: t('ob_feat2_d') },
-    { icon: '🔔', t: t('ob_feat3_t'), d: t('ob_feat3_d') },
-    { icon: '🧬', t: t('ob_feat4_t'), d: t('ob_feat4_d') },
-    { icon: '🩸', t: t('ob_feat5_t'), d: t('ob_feat5_d') },
+    { icon: 'reconstitution', t: t('ob_feat1_t'), d: t('ob_feat1_d') },
+    { icon: 'curve', t: t('ob_feat2_t'), d: t('ob_feat2_d') },
+    { icon: 'bell', t: t('ob_feat3_t'), d: t('ob_feat3_d') },
+    { icon: 'stack', t: t('ob_feat4_t'), d: t('ob_feat4_d') },
+    { icon: 'scan', t: t('ob_feat5_t'), d: t('ob_feat5_d') },
   ];
   const TERMS = [
     { key: 'med', t: t('ob_term1_t'), d: t('ob_term1_d') },
@@ -156,7 +157,7 @@ export default function OnboardingFlowScreen({ onDone }) {
               <View style={{ marginTop: 8 }}>
                 {FEATURES.map((f, i) => (
                   <View key={i} style={s.featRow}>
-                    <View style={s.featIcon}><Text style={{ fontSize: 22 }}>{f.icon}</Text></View>
+                    <View style={s.featIcon}><FeatureIcon name={f.icon} size={24} color={colors.accent} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.featTitle}>{f.t}</Text>
                       <Text style={s.featDesc}>{f.d}</Text>
@@ -265,7 +266,7 @@ export default function OnboardingFlowScreen({ onDone }) {
 
           {name_ === 'reminders' && (
             <View style={s.centerStep}>
-              <Text style={s.bigEmoji}>🔔</Text>
+              <View style={{ marginBottom: 12 }}><FeatureIcon name="bell" size={52} color={colors.accent} /></View>
               <Text style={s.title}>{t('ob_reminders_title')}</Text>
               <Text style={s.sub}>{t('ob_reminders_sub')}</Text>
             </View>

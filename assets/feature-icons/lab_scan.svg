@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <!-- scan brackets -->
+  <path d="M215 365V250c0-28 22-50 50-50h115" class="stroke"/>
+  <path d="M809 365V250c0-28-22-50-50-50H644" class="stroke"/>
+  <path d="M215 659v115c0 28 22 50 50 50h115" class="stroke"/>
+  <path d="M809 659v115c0 28-22 50-50 50H644" class="stroke"/>
+  <!-- blood drop -->
+  <path d="M512 325c-64 103-126 174-126 260 0 78 56 139 126 139s126-61 126-139c0-86-62-157-126-260Z" class="stroke"/>
+  <path d="M456 598c10 38 32 58 64 64" class="stroke"/>
+</svg>
