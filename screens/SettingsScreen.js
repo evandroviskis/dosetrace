@@ -1008,7 +1008,7 @@ export default function SettingsScreen({ navigation }) {
                 { key: 'joint_bone', label: t('profile_goal_joint') },
                 { key: 'cardiovascular', label: t('profile_goal_cardio') },
                 { key: 'stress', label: t('profile_goal_stress') },
-              ].map(g => {
+              ].sort((a, b) => a.label.localeCompare(b.label)).map(g => {
                 const selected = primaryGoals.includes(g.key);
                 return (
                   <TouchableOpacity

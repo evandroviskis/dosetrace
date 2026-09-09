@@ -44,6 +44,7 @@ import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -1388,9 +1389,9 @@ export default function ProtocolsScreen() {
                 <Text style={s.fieldLabel}>{t('protocols_type')}</Text>
                 <View style={s.typeRow}>
                   {[
-                    { val: 'recon', emoji: '🧪', label: t('protocols_lyophilized'), sub: t('protocols_mix_with_water') },
-                    { val: 'rtu', emoji: '💉', label: t('protocols_rtu'), sub: t('protocols_pre_mixed') },
-                    { val: 'oral', emoji: '💊', label: t('protocols_oral'), sub: t('protocols_supplement') },
+                    { val: 'recon', icon: 'type_vial', label: t('protocols_lyophilized'), sub: t('protocols_mix_with_water') },
+                    { val: 'rtu', icon: 'reconstitution', label: t('protocols_rtu'), sub: t('protocols_pre_mixed') },
+                    { val: 'oral', icon: 'type_capsule', label: t('protocols_oral'), sub: t('protocols_supplement') },
                   ].map((typeOpt) => (
                     <TouchableOpacity
                       key={typeOpt.val}
@@ -1403,7 +1404,9 @@ export default function ProtocolsScreen() {
                         setShowSuggestions(false);
                       }}
                     >
-                      <Text style={s.typeEmoji}>{typeOpt.emoji}</Text>
+                      <View style={s.typeEmoji}>
+                        <FeatureIcon name={typeOpt.icon} size={26} color={type === typeOpt.val ? colors.accent : colors.textMuted} />
+                      </View>
                       <Text style={[s.typeBtnLabel, type === typeOpt.val && s.typeBtnLabelOn]}>
                         {typeOpt.label}
                       </Text>
@@ -1749,11 +1752,11 @@ export default function ProtocolsScreen() {
                               value={iuInput}
                               onChangeText={setIuInput}
                             />
-                            <View style={s.iuUnitTag}><Text style={s.iuUnitTagText}>IU</Text></View>
+                            <View style={s.iuUnitTag}><Text style={s.iuUnitTagText}>u</Text></View>
                           </View>
                           {parts && (
                             <View style={s.iuEquivBox}>
-                              <Text style={s.iuEquivText}>{`${iuInput} IU = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
+                              <Text style={s.iuEquivText}>{`${iuInput} u = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
                               <TouchableOpacity
                                 style={s.iuUseBtn}
                                 onPress={() => {
@@ -2368,7 +2371,7 @@ const makeStyles = (c) => StyleSheet.create({
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },
   typeBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
-  typeEmoji: { fontSize: 20, marginBottom: 4 },
+  typeEmoji: { height: 30, marginBottom: 4, alignItems: 'center', justifyContent: 'center' },
   typeBtnLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
   typeBtnLabelOn: { color: c.accentSoftText },
   typeBtnSub: { fontSize: 9, color: c.textFaint, marginTop: 1 },

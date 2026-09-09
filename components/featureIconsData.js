@@ -1,7 +1,5 @@
-// AUTO-GENERATED from the founder-supplied vector set (dosetrace_vector_icons_1024).
-// Single-stroke SVGs; `__C__` is replaced with the theme accent at render time so
-// the icons recolor for light/dark instead of shipping a baked color. Do not hand-edit;
-// regenerate from the source SVGs if they change.
+// AUTO-GENERATED from assets/feature-icons/*.svg (do not hand-edit; regenerate).
+// Single-stroke SVGs; `__C__` -> theme accent at render time (see FeatureIcon.js).
 export const FEATURE_ICON_XML = {
   reconstitution: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <g transform="rotate(-35 512 512)">
@@ -57,5 +55,16 @@ export const FEATURE_ICON_XML = {
   <path d="M809 659v115c0 28-22 50-50 50H644" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M512 325c-64 103-126 174-126 260 0 78 56 139 126 139s126-61 126-139c0-86-62-157-126-260Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M456 598c10 38 32 58 64 64" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+  type_vial: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+  type_capsule: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>`,
 };
