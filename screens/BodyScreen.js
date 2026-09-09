@@ -29,9 +29,56 @@ import { requestSync } from '../lib/sync';
 import { requestAIConsent } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
+import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
 import CalculatorSection from './components/CalculatorSection';
+
+// Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
+// language as the tab-bar icons in App.js, replacing the old mismatched emoji.
+function LabsGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 3.5C12 3.5 5.5 11 5.5 15.5a6.5 6.5 0 0 0 13 0C18.5 11 12 3.5 12 3.5Z"
+        stroke={color} strokeWidth={1.9} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function VaccinesGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <G transform="rotate(45 12 12)">
+        <Rect x={9} y={5.5} width={6} height={10.5} rx={2} stroke={color} strokeWidth={1.9} />
+        <Line x1={12} y1={16} x2={12} y2={20} stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Line x1={9} y1={5.5} x2={15} y2={5.5} stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Line x1={12} y1={3} x2={12} y2={5.5} stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Line x1={10.5} y1={9} x2={13.5} y2={9} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+        <Line x1={10.5} y1={11.5} x2={13.5} y2={11.5} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      </G>
+    </Svg>
+  );
+}
+function CalcGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <Rect x={5} y={3} width={14} height={18} rx={2.5} stroke={color} strokeWidth={1.9} />
+      <Rect x={8} y={6} width={8} height={3} rx={1} stroke={color} strokeWidth={1.6} />
+      {[13, 17].map(cy => [9, 12, 15].map(cx => (
+        <Circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1} fill={color} />
+      )))}
+    </Svg>
+  );
+}
+function AccumGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 20V4" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+      <Path d="M4 20h16" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+      <Polyline points="4,17 8,10 12,12 16,7 20,9" stroke={color} strokeWidth={1.9}
+        strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 // Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
 // Computed inside the component via useWindowDimensions so it tracks
@@ -630,13 +677,13 @@ export default function BodyScreen({ navigation, route }) {
           </View>
           <View style={s.hubBody}>
             {[
-              { key: 'labs', icon: '🩸', bg: colors.dangerSoft, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
-              { key: 'vaccines', icon: '💉', bg: colors.accentSoft, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
-              { key: 'calc', icon: '🔥', bg: colors.warningSoft, title: t('body_card_calc_title'), desc: t('body_card_calc_desc'), stat: t('body_card_calc_tag') },
+              { key: 'labs', Glyph: LabsGlyph, bg: colors.dangerSoft, fg: colors.dangerSoftText, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
+              { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.accentSoft, fg: colors.accentSoftText, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
+              { key: 'calc', Glyph: CalcGlyph, bg: colors.warningSoft, fg: colors.warningSoftText, title: t('body_card_calc_title'), desc: t('body_card_calc_desc'), stat: t('body_card_calc_tag') },
             ].map(card => (
               <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
                 <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
-                  <Text style={s.hubBadgeIcon}>{card.icon}</Text>
+                  <card.Glyph color={card.fg} />
                 </View>
                 <View style={s.hubCardMain}>
                   <Text style={s.hubCardTitle}>{card.title}</Text>
@@ -650,7 +697,7 @@ export default function BodyScreen({ navigation, route }) {
             {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
             <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed('serum_curve'); navigation.navigate(premium ? 'SerumCurve' : 'Paywall'); }}>
               <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
-                <Text style={s.hubBadgeIcon}>📈</Text>
+                <AccumGlyph color={colors.accentSoftText} />
               </View>
               <View style={s.hubCardMain}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
