@@ -35,7 +35,7 @@
 <main class="article">
   <a class="back" href="/"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg> Back to home</a>
   <h1>DoseTrace Privacy Policy</h1>
-  <p class="updated">Last updated: April 15, 2026</p>
+  <p class="updated">Last updated: September 9, 2026</p>
 
   <h2>Introduction</h2>
   <p>DoseTrace ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use the DoseTrace mobile application.</p>
@@ -43,7 +43,7 @@
   <h2>Information We Collect</h2>
   <p>DoseTrace collects the following information that you voluntarily provide:</p>
   <p><strong>Account Information:</strong> Email address and password when you create an account.</p>
-  <p><strong>Profile Information:</strong> Name, date of birth, country, weight, height, gender, and health goals that you optionally provide to personalize your experience.</p>
+  <p><strong>Profile Information:</strong> Name, birth month and year, country, weight, height, biological sex, activity level, and health goals that you provide to personalize your experience and to power the app's calculators.</p>
   <p><strong>Health Data:</strong> Medication and supplement protocols, dosing schedules, dose logs, vial tracking information, and biomarker data that you enter into the app.</p>
 
   <h2>How We Use Your Information</h2>
@@ -54,10 +54,14 @@
   <p>DoseTrace uses an offline-first architecture. Your data is primarily stored locally on your device using SQLite. If you create an account, your data is also synced to our cloud servers (powered by Supabase) for backup and multi-device access. Cloud data is encrypted in transit using TLS.</p>
 
   <h2>Data Sharing</h2>
-  <p>We do not sell, trade, or share your personal information with third parties. We do not display advertisements. Your health data is never shared with insurance companies, employers, or any other entity.</p>
+  <p>We do not sell or rent your personal information, and we do not display advertisements. Your health data is never shared with insurance companies, employers, advertisers, or data brokers. We share your data only with the service providers that operate DoseTrace on our behalf — our cloud host, and, only when you choose to use an optional AI scan feature, our AI processor — as described below. These providers act as our processors under contract and handle your data solely to provide the service.</p>
+
+  <h2>AI-Assisted Data Entry (Optional)</h2>
+  <p>DoseTrace offers optional features that let you scan a document — a lab report, a vaccination record, or a vial label — so you don't have to type the values by hand. If, and only if, you choose to use one of these features and grant consent when prompted, the image or PDF you select is sent to our AI processor, <strong>Anthropic PBC (United States)</strong>, whose Claude model reads the printed text and returns the values to your device.</p>
+  <p>This processing takes place on servers in the United States. Anthropic acts as our data processor for this single task: it processes the file only to extract the information you requested, does not use your data to train its models, and does not retain the file after the request completes. The AI reads what is printed — it never interprets your results or offers medical advice. We never send your data to any AI service without your explicit, per-feature consent, and these features are always optional: you can enter the same information manually instead.</p>
 
   <h2>Data Retention</h2>
-  <p>Your data is retained for as long as your account is active. If you delete your account, your authentication credentials are permanently removed. Anonymized, de-identified health data may be retained for aggregate research purposes to improve the app.</p>
+  <p>Your data is retained for as long as your account is active. You can delete your account at any time from the app's Settings screen. When you delete your account, we permanently delete your synced data — your protocols, dose logs, vial records, biomarker entries, and vaccination records — together with your authentication credentials from our servers. Data held locally on your device is removed when you delete the app.</p>
 
   <h2>Your Rights</h2>
   <p>You have the right to access, update, or delete your personal data at any time through the app's Settings screen. You can delete your account entirely from within the app, which will remove your access and authentication credentials.</p>
