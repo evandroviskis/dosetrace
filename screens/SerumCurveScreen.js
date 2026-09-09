@@ -464,7 +464,12 @@ export default function SerumCurveScreen() {
               {model && model.series.map(ser => (
                 <View key={ser.id} style={s.legendRow}>
                   <View style={[s.dot, { backgroundColor: ser.color }]} />
-                  <Text style={s.legendName} numberOfLines={1}>{ser.name}</Text>
+                  <View style={s.legendNameCol}>
+                    <Text style={s.legendNameTxt} numberOfLines={1}>{ser.name}</Text>
+                    <Text style={[s.legendTier, { color: tierCfg[ser.entry.tier].fg }]} numberOfLines={1}>
+                      {tierCfg[ser.entry.tier].label}
+                    </Text>
+                  </View>
                   <Text style={s.legendLevel}>{mgLabel(ser.points[model.nowIdx])} mg</Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
                 </View>
@@ -641,6 +646,9 @@ function makeStyles(colors) {
     legend: { backgroundColor: colors.card, borderRadius: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, ...colors.shadowSoft },
     legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
     legendName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+    legendNameCol: { flex: 1, marginRight: 6 },
+    legendNameTxt: { fontSize: 14, fontWeight: '600', color: colors.text },
+    legendTier: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
     legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
     legendHalf: { fontSize: 12, color: colors.textMuted, width: 74, textAlign: 'right' },
     combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
