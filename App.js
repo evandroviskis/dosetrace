@@ -7,6 +7,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
+import { hasSeenOnboarding, markSeenOnboarding, applyPendingProfile } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders } from './lib/notifications';
@@ -74,6 +75,7 @@ import ProtocolsScreen from './screens/ProtocolsScreen';
 import LogScreen from './screens/LogScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
+import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import CompleteProfileScreen from './screens/CompleteProfileScreen';
 import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
@@ -209,7 +211,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown }) {
+function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding }) {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
@@ -245,7 +247,18 @@ function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justCo
             {() => <ResetPasswordScreen onDone={onRecoveryDone} />}
           </Stack.Screen>
         ) : !session ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          seenOnboarding ? (
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          ) : (
+            // First launch: the value-first intro flow collects the profile
+            // (name / birthday / gender / goal / activity) BEFORE an account
+            // exists and stashes it locally. onDone marks it seen and drops the
+            // user onto the welcome/auth screen; applyPendingProfile writes the
+            // stash to the account right after SIGNED_IN.
+            <Stack.Screen name="OnboardingFlow">
+              {() => <OnboardingFlowScreen onDone={onFinishOnboarding} />}
+            </Stack.Screen>
+          )
         ) : !isProfileComplete(session.user) ? (
           // A session with no minimum profile (name / country / goal / activity)
           // — e.g. a Google/Apple sign-in, which skips the email flow's profile
@@ -274,6 +287,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
   const [justConfirmed, setJustConfirmed] = useState(false);
+  // Whether the first-launch intro flow has been completed. Assume seen until
+  // AsyncStorage answers, so the welcome screen (not the intro) shows for the
+  // brief moment before the check resolves on returning users.
+  const [seenOnboarding, setSeenOnboarding] = useState(true);
   const navigationRef = useRef(null);
   const fontsLoaded = useAppFonts();
 
@@ -349,6 +366,10 @@ export default function App() {
       // expo-notifications not available — skip listener
     }
 
+    // Resolve the first-launch intro flag before we drop the loading gate, so a
+    // brand-new install shows the intro (not the welcome screen) on first frame.
+    hasSeenOnboarding().then((seen) => setSeenOnboarding(!!seen)).catch(() => {});
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user?.id) {
@@ -400,6 +421,11 @@ export default function App() {
           initPurchases(session.user.id, session?.user?.email).catch(() => {});
           startSyncEngine();
 
+          // Write any stashed intro-flow answers (name/goal/activity/…) to the
+          // freshly-created account, then clear the stash. No-op for returning
+          // users with no stash. Deferred (never inline in onAuthStateChange).
+          applyPendingProfile(supabase).catch(() => {});
+
           // Import from cloud on sign-in if local DB is empty
           if (isLocalDBEmpty(session.user.id)) {
             await fullImportFromCloud();
@@ -445,6 +471,8 @@ export default function App() {
             onRecoveryDone={() => setRecovering(false)}
             justConfirmed={justConfirmed}
             onConfirmedShown={() => setJustConfirmed(false)}
+            seenOnboarding={seenOnboarding}
+            onFinishOnboarding={() => { markSeenOnboarding().catch(() => {}); setSeenOnboarding(true); }}
           />
         </ThemeProvider>
       </LanguageProvider>
