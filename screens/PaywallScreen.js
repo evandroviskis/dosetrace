@@ -260,9 +260,12 @@ export default function PaywallScreen({ navigation, route }) {
                     disabled={purchasing}
                   >
                     <Text style={s.lifetimeBtnText}>{lifetimePkg.product.priceString}</Text>
-                    <Text style={s.lifetimeBtnSub}>{t('paywall_lifetime_note')}</Text>
                   </TouchableOpacity>
                 </View>
+                {/* Long note lives on its own full-width line — inside the button it
+                    forced the button wide (RN flexShrink defaults to 0) and starved
+                    the description column, mangling the wrap. */}
+                <Text style={s.lifetimeNote}>{t('paywall_lifetime_note')}</Text>
               </View>
             )}
 
@@ -372,7 +375,7 @@ const makeStyles = (c) => StyleSheet.create({
   navTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   hero: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
   heroIcon: { fontSize: 48, marginBottom: 12 },
-  heroTitle: { fontSize: 26, fontWeight: '700', color: c.text, marginBottom: 8 },
+  heroTitle: { fontSize: 26, lineHeight: 34, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
   heroSub: { fontSize: 14, color: c.textMuted, textAlign: 'center', lineHeight: 22 },
   loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },
   unavailableText: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
@@ -394,9 +397,9 @@ const makeStyles = (c) => StyleSheet.create({
   lifetimeRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   lifetimeTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 2 },
   lifetimeSub: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
-  lifetimeBtn: { backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10, alignItems: 'center' },
-  lifetimeBtnText: { color: c.accentText, fontSize: 18, fontWeight: '700' },
-  lifetimeBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 10, marginTop: 2 },
+  lifetimeBtn: { flexShrink: 0, backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  lifetimeBtnText: { color: c.accentText, fontSize: 18, fontWeight: '800' },
+  lifetimeNote: { fontSize: 11.5, color: c.textFaint, lineHeight: 16, marginTop: 12 },
   ctaBtn: { marginHorizontal: 16, backgroundColor: c.accent, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 12 },
   ctaBtnText: { color: c.accentText, fontSize: 16, fontWeight: '700', marginBottom: 3 },
   ctaBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11 },
