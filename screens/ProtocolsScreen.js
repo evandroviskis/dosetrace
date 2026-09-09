@@ -12,6 +12,7 @@ import {
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import Animated, {
@@ -24,8 +25,10 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getCachedUser } from '../lib/supabase';
+import { getCachedUser, supabase } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
+import { requestAIConsent } from '../lib/aiConsent';
+import { hasNativeModule } from '../lib/nativeModule';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
@@ -676,6 +679,9 @@ export default function ProtocolsScreen() {
   const [syringeSize, setSyringeSize] = useState(100);
   const [concentration, setConcentration] = useState('');
   const [concentrationUnit, setConcentrationUnit] = useState('mg');
+  // ── Vial-label scan (AI prefill) ──
+  const [vialScanning, setVialScanning] = useState(false);
+  const [vialScanned, setVialScanned] = useState(false); // show the review banner after a scan
   // ── Schedule state ──
   const [intervalDays, setIntervalDays] = useState(1);
   // Custom (typed) dosing interval — for schedules longer than the presets,
@@ -861,6 +867,7 @@ export default function ProtocolsScreen() {
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
     setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
+    setVialScanning(false); setVialScanned(false);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
   }
 
@@ -1003,6 +1010,143 @@ export default function ProtocolsScreen() {
     const current = parseFloat(water) || 0;
     const next = Math.max(0.5, Math.round((current + dir * 0.5) * 10) / 10);
     setWater(String(next));
+  }
+
+  // ── Vial-label scan → prefill the calculator (AI, review-before-save) ──
+  // A photo of the vial label is sent to the extract edge function (kind:'vial').
+  // The model only transcribes what is printed; the app resolves the compound
+  // name deterministically and fills the fields as DRAFTS the user must review —
+  // it never auto-saves. A shared 3-scans/month budget is enforced server-side.
+  const MAX_SCAN_BYTES = 10 * 1024 * 1024;
+  const UNIT_SET = ['mg', 'mcg', 'IU'];
+
+  // Map a printed compound name to a canonical compound id, deterministically
+  // (compounds.js), failing closed to null so the LLM never picks the id that
+  // keys the dose math. `hint` biases the search toward powder (recon) vs oil (rtu).
+  function resolveScannedCompound(printed, hint) {
+    const name = String(printed || '').trim();
+    if (!name) return null;
+    const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const q = norm(name);
+    const lists = hint === 'solution' ? [RTU_KEYS, LYOPHILIZED_KEYS] : [LYOPHILIZED_KEYS, RTU_KEYS];
+    // Pass 1: exact label / id-suffix match, preferred list first.
+    for (const list of lists) {
+      const exact = list.filter((id) => norm(t(id)) === q || norm(id).endsWith(q));
+      if (exact.length === 1) return exact[0];
+      if (exact.length > 1) return null; // ambiguous → let the user choose
+    }
+    // Pass 2: alias / substring match (matchesQuery), preferred list first.
+    for (const list of lists) {
+      const hits = list.filter((id) => matchesQuery(name, id, t(id)));
+      if (hits.length === 1) return hits[0];
+      if (hits.length > 1) return null;
+    }
+    return null;
+  }
+
+  function mapAmountUnit(u) {
+    const s = String(u || '').trim();
+    return UNIT_SET.find((x) => x.toLowerCase() === s.toLowerCase()) || null;
+  }
+  function mapConcUnit(u) {
+    // Server returns e.g. "mg/mL"; take the mass part before the slash.
+    return mapAmountUnit(String(u || '').split('/')[0]);
+  }
+
+  // Apply an extracted vial payload to the wizard fields as review drafts.
+  function applyVialScan(v) {
+    if (!v) return;
+    const form = v.form === 'solution' ? 'solution' : v.form === 'powder' ? 'powder' : null;
+    // The label decides the type: a solution/oil is ready-to-use (rtu); a powder
+    // is reconstituted. Only flip when the label is unambiguous.
+    let nextType = type;
+    if (form === 'solution') nextType = 'rtu';
+    else if (form === 'powder') nextType = 'recon';
+    if (nextType !== type) setType(nextType);
+
+    // Compound identity — deterministic; set only when we resolve exactly one and
+    // the user has not already chosen one. Otherwise seed the name for the picker.
+    if (!compoundId) {
+      const id = resolveScannedCompound(v.compound_name, form);
+      if (id) { setCompoundId(id); setName(t(id)); }
+      else if (v.compound_name) setName(String(v.compound_name).slice(0, 60));
+    }
+
+    if (nextType === 'rtu') {
+      if (v.concentration != null) {
+        setConcentration(String(v.concentration));
+        const cu = mapConcUnit(v.concentration_unit);
+        if (cu) setConcentrationUnit(cu);
+      }
+      if (v.volume_ml != null) setVialMl(String(v.volume_ml));
+    } else if (v.amount != null) {
+      setAmount(String(v.amount));
+      const au = mapAmountUnit(v.amount_unit);
+      if (au) setUnit(au);
+    }
+    setVialScanned(true);
+  }
+
+  async function handleVialScanPress() {
+    // Consent gate: the label photo goes to a third-party AI processor —
+    // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending.
+    if (!(await requestAIConsent(t))) return;
+    Alert.alert(t('vial_scan_choose_title'), t('vial_scan_choose_sub'), [
+      { text: t('blood_source_camera'), onPress: () => pickVialAndExtract(true) },
+      { text: t('blood_source_photo'), onPress: () => pickVialAndExtract(false) },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }
+
+  async function pickVialAndExtract(fromCamera) {
+    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    const ImagePicker = require('expo-image-picker');
+    try {
+      if (fromCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { Alert.alert(t('error'), t('blood_camera_denied')); return; }
+      }
+      const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset?.base64) { Alert.alert(t('error'), t('blood_error_read')); return; }
+      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) { Alert.alert(t('error'), t('blood_error_file_too_large')); return; }
+      const mediaType = asset.mimeType
+        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      setVialScanning(true);
+      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
+        body: { kind: 'vial', lang: language, image_base64: asset.base64, media_type: mediaType },
+      });
+      setVialScanning(false);
+      if (error) {
+        const status = error.context?.status;
+        let code = null;
+        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        if (code === 'quota_exceeded' || status === 429) {
+          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          return;
+        }
+        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
+          || (code == null && [500, 502, 503].includes(status));
+        Alert.alert(
+          serviceDown ? t('blood_error_service') : t('vial_scan_error'),
+          serviceDown ? t('blood_error_service_sub') : t('vial_scan_error_sub'),
+        );
+        return;
+      }
+      const v = data?.vial;
+      if (!v || (v.compound_name == null && v.amount == null && v.concentration == null)) {
+        Alert.alert(t('vial_scan_error'), t('vial_scan_none'));
+        return;
+      }
+      applyVialScan(v);
+    } catch (err) {
+      setVialScanning(false);
+      Alert.alert(t('error'), t('blood_error_read'));
+    }
   }
 
   // Calculate draw volume from the current wizard inputs (pure module).
@@ -1531,6 +1675,29 @@ export default function ProtocolsScreen() {
                 <Text style={s.modalStepTitle}>{t('protocols_step_dose')}</Text>
                 <Text style={s.modalStepSub}>{t('protocols_step_dose_sub')}</Text>
 
+                {type !== 'oral' && (
+                  <TouchableOpacity
+                    style={s.vialScanBtn}
+                    onPress={handleVialScanPress}
+                    disabled={vialScanning}
+                    activeOpacity={0.8}
+                  >
+                    {vialScanning ? (
+                      <ActivityIndicator size="small" color={colors.accent} />
+                    ) : (
+                      <FeatureIcon name="type_vial" size={20} color={colors.accent} />
+                    )}
+                    <Text style={s.vialScanBtnText}>
+                      {vialScanning ? t('vial_scan_scanning') : t('vial_scan_cta')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {type !== 'oral' && vialScanned && (
+                  <View style={s.vialScanBanner}>
+                    <Text style={s.vialScanBannerText}>{t('vial_scan_review')}</Text>
+                  </View>
+                )}
+
                 {type === 'oral' && (
                   <>
                     <Text style={s.fieldLabel}>{t('protocols_dose_amount')}</Text>
@@ -1966,34 +2133,32 @@ export default function ProtocolsScreen() {
 
                 {/* 2 — Interval: every X days (presets + typed custom for long TRT intervals) */}
                 <Text style={s.fieldLabel}>{t('protocols_how_often')}</Text>
+                {/* Two choices: Every day, or Custom → type N days (any interval). */}
                 <View style={s.freqGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 10, 14].map((d) => {
-                    const on = !customIntervalOpen && intervalDays === d;
+                  {(() => {
+                    const on = !customIntervalOpen && intervalDays === 1;
                     return (
                       <TouchableOpacity
-                        key={d}
-                        style={[s.freqBtn, on && s.freqBtnOn]}
-                        onPress={() => { setCustomIntervalOpen(false); handleIntervalChange(d); }}
+                        style={[s.freqBtn, { flex: 1 }, on && s.freqBtnOn]}
+                        onPress={() => { setCustomIntervalOpen(false); handleIntervalChange(1); }}
                       >
-                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>
-                          {d === 1 ? t('protocols_every_day') : t('protocols_every_x_days').replace('{x}', d)}
-                        </Text>
+                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_every_day')}</Text>
                       </TouchableOpacity>
                     );
-                  })}
+                  })()}
                   {(() => {
-                    const on = customIntervalOpen || ![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(intervalDays);
+                    const on = customIntervalOpen || intervalDays !== 1;
                     return (
                       <TouchableOpacity
-                        style={[s.freqBtn, on && s.freqBtnOn]}
-                        onPress={() => { setCustomIntervalText(String(intervalDays)); setCustomIntervalOpen(true); }}
+                        style={[s.freqBtn, { flex: 1 }, on && s.freqBtnOn]}
+                        onPress={() => { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); }}
                       >
                         <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_custom')}</Text>
                       </TouchableOpacity>
                     );
                   })()}
                 </View>
-                {(customIntervalOpen || ![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(intervalDays)) && (
+                {(customIntervalOpen || intervalDays !== 1) && (
                   <View style={s.customIntervalRow}>
                     <Text style={s.customIntervalEvery}>{t('protocols_every_word')}</Text>
                     <TextInput
@@ -2358,6 +2523,10 @@ const makeStyles = (c) => StyleSheet.create({
   stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
   calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
   calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
+  vialScanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
+  vialScanBtnText: { fontSize: 14, fontWeight: '600', color: c.accent },
+  vialScanBanner: { marginTop: 10, padding: 11, borderRadius: 10, backgroundColor: c.warningSoft },
+  vialScanBannerText: { fontSize: 12, color: c.warningSoftText, lineHeight: 17 },
   iuConverter: { marginTop: 14, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card2 },
   iuConverterLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 2 },
   iuConverterHint: { fontSize: 11, color: c.textMuted, marginBottom: 10 },
