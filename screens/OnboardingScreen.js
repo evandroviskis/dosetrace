@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle, signInWithApple, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
+import { loadOnboarding } from '../lib/onboardingStore';
 // Apple's native module doesn't exist on Android, and importing it at module
 // scope crashes there (same class of bug as expo-print). Resolve it lazily, and
 // only on iOS, so the button simply doesn't render anywhere else.
@@ -88,6 +89,25 @@ export default function OnboardingScreen() {
   const [primaryGoal, setPrimaryGoal] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
+
+  // Prefill the profile step from the value-first intro so an email signup never
+  // re-enters what it just typed. Only fills blanks (never clobbers a live edit);
+  // country/provider aren't collected by the intro, so the user still supplies
+  // those. On Google/Apple signup this screen's profile step is skipped and
+  // applyPendingProfile writes the stash instead.
+  useEffect(() => {
+    let active = true;
+    loadOnboarding().then((d) => {
+      if (!active || !d) return;
+      if (d.display_name) setDisplayName((v) => v || String(d.display_name));
+      if (d.gender) setGender((v) => v || d.gender);
+      if (d.primary_goal) setPrimaryGoal((v) => v || d.primary_goal);
+      if (d.activity_level) setActivityLevel((v) => v || d.activity_level);
+      if (d.birth_year != null) setBirthYear((v) => (v != null ? v : d.birth_year));
+      if (d.birth_month != null) setBirthMonth((v) => (v != null ? v : d.birth_month - 1)); // stash is 1-based; picker is 0-based
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const compoundTypes = [
     { key: 'peptides', label: t('onboarding_compound_peptides'), emoji: '🧪' },

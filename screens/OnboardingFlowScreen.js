@@ -285,9 +285,17 @@ export default function OnboardingFlowScreen({ onDone }) {
       {/* footer button(s) */}
       <View style={s.footer}>
         {name_ === 'splash' && (
-          <TouchableOpacity style={s.primaryBtn} onPress={next}>
-            <Text style={s.primaryBtnText}>{t('ob_get_started')}</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={s.primaryBtn} onPress={next}>
+              <Text style={s.primaryBtnText}>{t('ob_get_started')}</Text>
+            </TouchableOpacity>
+            {/* Escape hatch: a returning / logged-out user (or anyone upgrading to
+                this build, for whom the intro reads as unseen) can jump straight
+                to the auth screen instead of being forced through all 8 steps. */}
+            <TouchableOpacity style={s.skip} onPress={() => onDone && onDone()}>
+              <Text style={s.skipText}>{t('onboarding_already_have_account')}</Text>
+            </TouchableOpacity>
+          </>
         )}
         {name_ === 'reminders' && (
           <>
