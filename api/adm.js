@@ -37,13 +37,15 @@ async function fetchSupabase() {
   const base = url.replace(/\/$/, '');
   const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   try {
-    const [mr, ar] = await Promise.all([
+    const [mr, ar, fr] = await Promise.all([
       fetch(`${base}/rest/v1/rpc/admin_metrics`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_activity`, { method: 'POST', headers, body: '{}' }),
+      fetch(`${base}/rest/v1/rpc/admin_feature_adoption`, { method: 'POST', headers, body: '{}' }),
     ]);
     if (!mr.ok) return { status: 'error', message: `Supabase ${mr.status}: ${(await mr.text()).slice(0, 200)}` };
     const data = await mr.json();
     if (ar.ok) { try { data.activity_events = await ar.json(); } catch (e) { /* optional */ } }
+    if (fr.ok) { try { data.feature_adoption = await fr.json(); } catch (e) { /* optional */ } }
     return { status: 'ok', data };
   } catch (e) {
     return { status: 'error', message: String(e && e.message || e) };
