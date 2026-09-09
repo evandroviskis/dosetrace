@@ -74,7 +74,7 @@ import TodayScreen from './screens/TodayScreen';
 import ProtocolsScreen from './screens/ProtocolsScreen';
 import LogScreen from './screens/LogScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import OnboardingScreen from './screens/OnboardingScreen';
+import AuthScreen from './screens/AuthScreen';
 import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import CompleteProfileScreen from './screens/CompleteProfileScreen';
 import FAQScreen from './screens/FAQScreen';
@@ -248,13 +248,17 @@ function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justCo
           </Stack.Screen>
         ) : !session ? (
           seenOnboarding ? (
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            // Returning / signed-out: the auth screen only (sign in or create).
+            // The old multi-step OnboardingScreen was deleted — the value-first
+            // intro below is the single onboarding, and AuthScreen the single
+            // auth surface.
+            <Stack.Screen name="Auth" component={AuthScreen} />
           ) : (
             // First launch: the value-first intro flow collects the profile
             // (name / birthday / gender / goal / activity) BEFORE an account
             // exists and stashes it locally. onDone marks it seen and drops the
-            // user onto the welcome/auth screen; applyPendingProfile writes the
-            // stash to the account right after SIGNED_IN.
+            // user onto AuthScreen; applyPendingProfile writes the stash to the
+            // account right after SIGNED_IN.
             <Stack.Screen name="OnboardingFlow">
               {() => <OnboardingFlowScreen onDone={onFinishOnboarding} />}
             </Stack.Screen>
