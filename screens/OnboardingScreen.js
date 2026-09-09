@@ -73,6 +73,11 @@ export default function OnboardingScreen() {
   const [loading, setLoading] = useState(false);
   const [isSignIn, setIsSignIn] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
+  // True when the user arrived from the completed value-first intro (all profile
+  // fields + consent already stashed). Then this screen shows ONLY account
+  // creation — no welcome/language/compound/profile/consent steps (those were
+  // the old duplicate flow). The returning-user sign-in path is unaffected.
+  const [fromIntro, setFromIntro] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [consentGiven, setConsentGiven] = useState(false);
   // GDPR: analytics is opt-IN for a health app — default off
@@ -105,6 +110,13 @@ export default function OnboardingScreen() {
       if (d.activity_level) setActivityLevel((v) => v || d.activity_level);
       if (d.birth_year != null) setBirthYear((v) => (v != null ? v : d.birth_year));
       if (d.birth_month != null) setBirthMonth((v) => (v != null ? v : d.birth_month - 1)); // stash is 1-based; picker is 0-based
+      if (d.country) setCountry((v) => v || String(d.country));
+      if (d.has_provider) setHasProvider((v) => v || d.has_provider);
+      if (Array.isArray(d.tracking_types) && d.tracking_types.length) setSelectedTypes((v) => (v.length ? v : d.tracking_types));
+      if (d.consent_accepted) setConsentGiven(true);
+      // The intro persists consent_accepted only at its final consent step, so it
+      // is the reliable "the whole intro ran" signal → show the compact create view.
+      if (d.consent_accepted) setFromIntro(true);
     }).catch(() => {});
     return () => { active = false; };
   }, []);
@@ -259,6 +271,51 @@ export default function OnboardingScreen() {
 
   function prevStep() {
     if (step > 1) setStep(step - 1);
+  }
+
+  // Compact create-account view for users coming from the completed intro:
+  // account creation only (Google / Apple / email), reusing the same handlers.
+  // Profile + consent are already stashed and get written at sign-up
+  // (email path via handleAuth's data payload; social via applyPendingProfile).
+  if (fromIntro && !isSignIn) {
+    return (
+      <SafeAreaView style={s.container}>
+        <ScrollView style={s.scroll} contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {!signupDone ? (
+            <View style={s.stepContent}>
+              <Text style={s.bigEmoji}>🚀</Text>
+              <Text style={s.title}>{t('onboarding_ready_title')}</Text>
+              <Text style={s.sub}>{t('onboarding_getstarted_sub')}</Text>
+              <TouchableOpacity style={[s.googleBtn, loading && { opacity: 0.6 }]} onPress={handleGoogleSignIn} disabled={loading}>
+                <Text style={s.googleBtnIcon}>G</Text>
+                <Text style={s.googleBtnText}>{loading ? t('loading') : t('onboarding_google_signin')}</Text>
+              </TouchableOpacity>
+              <AppleSignInButton onPress={handleAppleSignIn} isDark={isDark} style={s.appleBtn} />
+              <View style={s.orDivider}><View style={s.orLine} /><Text style={s.orText}>{t('onboarding_or')}</Text><View style={s.orLine} /></View>
+              <TextInput style={s.input} placeholder={t('onboarding_email')} placeholderTextColor={colors.textFaint} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+              <TextInput style={s.input} placeholder={t('onboarding_password')} placeholderTextColor={colors.textFaint} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+              <TouchableOpacity style={[s.primaryBtn, loading && { opacity: 0.6 }]} onPress={handleAuth} disabled={loading}>
+                <Text style={s.primaryBtnText}>{loading ? t('loading') : t('onboarding_create_account')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.signinLink} onPress={() => { setIsSignIn(true); setStep(6); }}>
+                <Text style={s.signinLinkText}>{t('onboarding_already_have_account')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={s.stepContent}>
+              <Text style={s.bigEmoji}>📧</Text>
+              <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
+              <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
+              <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
+              <TouchableOpacity style={s.primaryBtn} onPress={() => { setSignupDone(false); setIsSignIn(true); setStep(6); setPassword(''); }}>
+                <Text style={s.primaryBtnText}>{t('onboarding_go_signin')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={{ height: 60 }} />
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (

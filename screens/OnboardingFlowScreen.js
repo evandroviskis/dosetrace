@@ -1,43 +1,61 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image, Animated,
-  Platform, StyleSheet, useWindowDimensions,
+  StyleSheet, useWindowDimensions, Modal, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { saveOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
+import { COUNTRIES, countryLabel } from '../lib/countries';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
 
 /**
- * Value-before-signup onboarding. Runs on first launch (before any account),
- * educates on the app, collects the profile, and hands off to the auth screen
- * LAST. Answers are stashed (onboardingStore) and written to the profile right
- * after sign-up, so new users skip the post-login profile gate.
+ * The single value-before-signup onboarding. Runs on first launch (no account
+ * yet), educates on the app, collects the FULL required profile (name, age
+ * [month+year], sex, country, goal, what-you-track, activity, provider) plus
+ * binding consent, and hands off to account creation LAST. Everything is stashed
+ * (onboardingStore) and written to the account at sign-up, so there is no second
+ * profile step afterward — this replaces the old 8-intro + 7-legacy = 15 screens
+ * with one 9-screen flow. Returning users don't see this; App.js routes them to
+ * CompleteProfileScreen for only their missing fields.
  *
- * onDone() — called when the user reaches "create account"; App.js flips to the
- * auth screen. The flow never creates the account itself.
+ * onDone() — called at the end; App.js flips to the auth (create-account) screen,
+ * which reads the stash and creates the account. This flow never signs up itself.
  */
-const STEPS = ['splash', 'features', 'goal', 'about', 'activity', 'terms', 'reminders', 'ready'];
+const STEPS = ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders', 'ready'];
+
+const MONTH_KEYS = [
+  'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
+  'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
+];
+const BIRTH_YEARS = [];
+const _thisYear = new Date().getFullYear();
+for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
 
 export default function OnboardingFlowScreen({ onDone }) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage, LANGUAGES } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
-  const heroW = Math.min(420, winW - 48); // content has 24px horizontal padding
+  const heroW = Math.min(420, winW - 48);
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
+  const [tracking, setTracking] = useState([]);        // tracking_types (>=1 required)
   const [name, setName] = useState('');
-  const [birth, setBirth] = useState(null);           // Date or null
-  const [showPicker, setShowPicker] = useState(false);
+  const [birthMonth, setBirthMonth] = useState(null);  // 0-11 index
+  const [birthYear, setBirthYear] = useState(null);
   const [gender, setGender] = useState('');
+  const [country, setCountry] = useState('');
   const [activity, setActivity] = useState('');
-  const [confirmed, setConfirmed] = useState({});      // terms acknowledged
+  const [provider, setProvider] = useState('');
+  const [confirmed, setConfirmed] = useState({});      // consent terms
+  const [showLang, setShowLang] = useState(false);
+  const [showCountry, setShowCountry] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
 
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -52,16 +70,23 @@ export default function OnboardingFlowScreen({ onDone }) {
     { key: 'longevity', label: t('profile_goal_longevity') },
     { key: 'athletic', label: t('profile_goal_athletic') },
   ];
+  const COMPOUNDS = [
+    { key: 'peptides', label: t('onboarding_compound_peptides'), emoji: '🧪' },
+    { key: 'hormones', label: t('onboarding_compound_hormones'), emoji: '💉' },
+    { key: 'glp1', label: t('onboarding_compound_glp1'), emoji: '⚖️' },
+    { key: 'oral', label: t('onboarding_compound_oral'), emoji: '💊' },
+  ];
   const ACTIVITY = [
     { key: 'sedentary', label: t('profile_activity_sedentary') },
     { key: 'moderate', label: t('profile_activity_moderate') },
     { key: 'active', label: t('profile_activity_active') },
     { key: 'very_active', label: t('profile_activity_very_active') },
   ];
-  // Sex ASSIGNED AT BIRTH — a physiological input for the calorie/BMR math, not a
-  // gender-identity field. Mifflin-St Jeor and the calorie floors are sex-specific,
-  // so this must be male/female and required; there is no meaningful "other" for the
-  // formula. Stored under the existing `gender` metadata key (no data migration).
+  const PROVIDERS = [
+    { key: 'yes', label: t('profile_provider_yes') },
+    { key: 'no', label: t('profile_provider_no') },
+  ];
+  // Sex ASSIGNED AT BIRTH — a physiological input for the calorie/BMR math.
   const SEXES = [
     { key: 'male', label: t('profile_gender_male') },
     { key: 'female', label: t('profile_gender_female') },
@@ -79,13 +104,19 @@ export default function OnboardingFlowScreen({ onDone }) {
     { key: 'ai', t: t('ob_term3_t'), d: t('ob_term3_d') },
     { key: 'priv', t: t('ob_term4_t'), d: t('ob_term4_d') },
   ];
+  const consentDone = TERMS.every((x) => confirmed[x.key]);
+
+  function toggleTracking(key) {
+    setTracking((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
+  }
 
   const canContinue = () => {
-    const name_ = STEPS[step];
-    if (name_ === 'goal') return !!goal;
-    if (name_ === 'about') return !!name.trim() && !!gender;
-    if (name_ === 'activity') return !!activity;
-    if (name_ === 'terms') return TERMS.every(x => confirmed[x.key]);
+    const cur = STEPS[step];
+    if (cur === 'goal') return !!goal;
+    if (cur === 'tracking') return tracking.length > 0;
+    if (cur === 'about') return !!name.trim() && !!gender && !!country && birthMonth != null && birthYear != null;
+    if (cur === 'routine') return !!activity && !!provider;
+    if (cur === 'consent') return consentDone;
     return true;
   };
 
@@ -93,10 +124,15 @@ export default function OnboardingFlowScreen({ onDone }) {
     await saveOnboarding({
       display_name: name.trim() || undefined,
       primary_goal: goal || undefined,
-      activity_level: activity || undefined,
+      tracking_types: tracking.length ? tracking : undefined,
       gender: gender || undefined,
-      birth_year: birth ? birth.getFullYear() : undefined,
-      birth_month: birth ? birth.getMonth() + 1 : undefined,
+      country: country || undefined,
+      birth_year: birthYear != null ? birthYear : undefined,
+      birth_month: birthMonth != null ? birthMonth + 1 : undefined, // store 1-based
+      activity_level: activity || undefined,
+      has_provider: provider || undefined,
+      consent_accepted: consentDone || undefined,
+      consent_date: consentDone ? new Date().toISOString() : undefined,
     });
   }
 
@@ -111,28 +147,29 @@ export default function OnboardingFlowScreen({ onDone }) {
   async function finish() {
     await persist();
     await markSeenOnboarding();
-    onDone && onDone();       // App.js swaps to the auth (create-account) screen
+    onDone && onDone();
   }
 
   async function enableNotifications() {
-    try { await Notifications.requestPermissionsAsync(); } catch (e) { /* user can enable later */ }
+    try { await Notifications.requestPermissionsAsync(); } catch (e) { /* later */ }
     setStep(step + 1);
   }
 
-  const name_ = STEPS[step];
+  const cur = STEPS[step];
+  const filteredCountries = COUNTRIES.filter((c) => {
+    const q = countrySearch.toLowerCase();
+    return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
+  });
 
   return (
     <SafeAreaView style={s.root}>
-      {/* progress + back */}
       {step > 0 && (
         <View style={s.topBar}>
           <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Text style={s.backChevron}>‹</Text>
           </TouchableOpacity>
           <View style={s.progress}>
-            {STEPS.map((_, i) => (
-              <View key={i} style={[s.dash, i <= step && s.dashOn]} />
-            ))}
+            {STEPS.map((_, i) => (<View key={i} style={[s.dash, i <= step && s.dashOn]} />))}
           </View>
           <View style={{ width: 24 }} />
         </View>
@@ -141,15 +178,18 @@ export default function OnboardingFlowScreen({ onDone }) {
       <Animated.View style={{ flex: 1, opacity: fade }}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
-          {name_ === 'splash' && (
+          {cur === 'splash' && (
             <View style={s.splashWrap}>
+              <TouchableOpacity style={s.langChip} onPress={() => setShowLang(true)}>
+                <Text style={s.langChipText}>🌐 {String(language).toUpperCase()} ▾</Text>
+              </TouchableOpacity>
               <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" />
               <Text style={s.brand}>DoseTrace</Text>
               <Text style={s.phrase}>{t('ob_phrase')}</Text>
             </View>
           )}
 
-          {name_ === 'features' && (
+          {cur === 'features' && (
             <>
               <Text style={s.title}>{t('ob_features_title')}</Text>
               <Text style={s.sub}>{t('ob_features_sub')}</Text>
@@ -168,12 +208,12 @@ export default function OnboardingFlowScreen({ onDone }) {
             </>
           )}
 
-          {name_ === 'goal' && (
+          {cur === 'goal' && (
             <>
               <Text style={s.title}>{t('ob_goal_title')}</Text>
               <Text style={s.sub}>{t('ob_goal_sub')}</Text>
               <View style={s.pillRow}>
-                {GOALS.map(g => (
+                {GOALS.map((g) => (
                   <TouchableOpacity key={g.key} style={[s.pill, goal === g.key && s.pillOn]} onPress={() => setGoal(g.key)}>
                     <Text style={[s.pillText, goal === g.key && s.pillTextOn]}>{g.label}</Text>
                   </TouchableOpacity>
@@ -182,7 +222,21 @@ export default function OnboardingFlowScreen({ onDone }) {
             </>
           )}
 
-          {name_ === 'about' && (
+          {cur === 'tracking' && (
+            <>
+              <Text style={s.title}>{t('onboarding_compound_title')}</Text>
+              <Text style={s.sub}>{t('onboarding_compound_sub')}</Text>
+              <View style={s.pillRow}>
+                {COMPOUNDS.map((c) => (
+                  <TouchableOpacity key={c.key} style={[s.pill, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
+                    <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.emoji} {c.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {cur === 'about' && (
             <>
               <Text style={s.title}>{t('ob_about_title')}</Text>
               <Text style={s.fieldLabel}>{t('profile_name')}</Text>
@@ -192,64 +246,74 @@ export default function OnboardingFlowScreen({ onDone }) {
                 placeholderTextColor={colors.textFaint}
                 value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
               />
-              <Text style={s.fieldLabel}>{t('ob_birthday')} <Text style={s.optional}>{t('ob_optional')}</Text></Text>
-              <TouchableOpacity style={[s.input, { justifyContent: 'center' }]} onPress={() => setShowPicker(true)}>
-                <Text style={{ fontSize: 15, color: birth ? colors.text : colors.textFaint }}>
-                  {birth ? birth.toLocaleDateString() : t('ob_birthday_placeholder')}
-                </Text>
-              </TouchableOpacity>
-              {showPicker && (
-                <DateTimePicker
-                  value={birth || new Date(1995, 0, 1)}
-                  mode="date"
-                  maximumDate={new Date()}
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(e, d) => {
-                    if (Platform.OS !== 'ios') setShowPicker(false);
-                    if (d) setBirth(d);
-                  }}
-                />
-              )}
-              {Platform.OS === 'ios' && showPicker && (
-                <TouchableOpacity style={s.doneRow} onPress={() => setShowPicker(false)}>
-                  <Text style={s.doneText}>{t('done')}</Text>
-                </TouchableOpacity>
-              )}
+              <Text style={s.fieldLabel}>{t('profile_birth')}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
+                <View style={s.hRow}>
+                  {MONTH_KEYS.map((mk, idx) => (
+                    <TouchableOpacity key={mk} style={[s.chip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
+                      <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
+                <View style={s.hRow}>
+                  {BIRTH_YEARS.map((y) => (
+                    <TouchableOpacity key={y} style={[s.chip, birthYear === y && s.pillOn]} onPress={() => setBirthYear(y)}>
+                      <Text style={[s.pillText, birthYear === y && s.pillTextOn]}>{y}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
               <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
               <View style={s.pillRow}>
-                {SEXES.map(g => (
+                {SEXES.map((g) => (
                   <TouchableOpacity key={g.key} style={[s.pill, gender === g.key && s.pillOn]} onPress={() => setGender(g.key)}>
                     <Text style={[s.pillText, gender === g.key && s.pillTextOn]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
               <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+              <Text style={s.fieldLabel}>{t('profile_country')}</Text>
+              <TouchableOpacity style={[s.input, { justifyContent: 'center' }]} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
+                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                  {country ? countryLabel(country, language) : t('profile_country_placeholder')}
+                </Text>
+              </TouchableOpacity>
             </>
           )}
 
-          {name_ === 'activity' && (
+          {cur === 'routine' && (
             <>
-              <Text style={s.title}>{t('ob_activity_title')}</Text>
-              <Text style={s.sub}>{t('ob_activity_sub')}</Text>
+              <Text style={s.title}>{t('ob_routine_title')}</Text>
+              <Text style={s.fieldLabel}>{t('profile_activity')}</Text>
               <View style={s.pillRow}>
-                {ACTIVITY.map(a => (
+                {ACTIVITY.map((a) => (
                   <TouchableOpacity key={a.key} style={[s.pill, activity === a.key && s.pillOn]} onPress={() => setActivity(a.key)}>
                     <Text style={[s.pillText, activity === a.key && s.pillTextOn]}>{a.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={s.fieldLabel}>{t('profile_provider')}</Text>
+              <View style={s.pillRow}>
+                {PROVIDERS.map((p) => (
+                  <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
+                    <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </>
           )}
 
-          {name_ === 'terms' && (
+          {cur === 'consent' && (
             <>
               <Text style={s.title}>{t('ob_terms_title')}</Text>
               <Text style={s.sub}>{t('ob_terms_sub')}</Text>
-              {TERMS.map(x => (
+              {TERMS.map((x) => (
                 <TouchableOpacity
                   key={x.key}
                   style={[s.termRow, confirmed[x.key] && s.termRowOn]}
-                  onPress={() => setConfirmed(c => ({ ...c, [x.key]: !c[x.key] }))}
+                  onPress={() => setConfirmed((c) => ({ ...c, [x.key]: !c[x.key] }))}
                   activeOpacity={0.8}
                 >
                   <View style={[s.check, confirmed[x.key] && s.checkOn]}>
@@ -264,7 +328,7 @@ export default function OnboardingFlowScreen({ onDone }) {
             </>
           )}
 
-          {name_ === 'reminders' && (
+          {cur === 'reminders' && (
             <View style={s.centerStep}>
               <View style={{ marginBottom: 12 }}><FeatureIcon name="bell" size={52} color={colors.accent} /></View>
               <Text style={s.title}>{t('ob_reminders_title')}</Text>
@@ -272,7 +336,7 @@ export default function OnboardingFlowScreen({ onDone }) {
             </View>
           )}
 
-          {name_ === 'ready' && (
+          {cur === 'ready' && (
             <View style={s.centerStep}>
               <Image source={require('../assets/adaptive-icon.png')} style={s.logoSm} resizeMode="contain" />
               <Text style={s.title}>{t('ob_ready_title')}</Text>
@@ -283,22 +347,18 @@ export default function OnboardingFlowScreen({ onDone }) {
         </ScrollView>
       </Animated.View>
 
-      {/* footer button(s) */}
       <View style={s.footer}>
-        {name_ === 'splash' && (
+        {cur === 'splash' && (
           <>
             <TouchableOpacity style={s.primaryBtn} onPress={next}>
               <Text style={s.primaryBtnText}>{t('ob_get_started')}</Text>
             </TouchableOpacity>
-            {/* Escape hatch: a returning / logged-out user (or anyone upgrading to
-                this build, for whom the intro reads as unseen) can jump straight
-                to the auth screen instead of being forced through all 8 steps. */}
             <TouchableOpacity style={s.skip} onPress={() => onDone && onDone()}>
               <Text style={s.skipText}>{t('onboarding_already_have_account')}</Text>
             </TouchableOpacity>
           </>
         )}
-        {name_ === 'reminders' && (
+        {cur === 'reminders' && (
           <>
             <TouchableOpacity style={s.primaryBtn} onPress={enableNotifications}>
               <Text style={s.primaryBtnText}>{t('ob_enable_notifs')}</Text>
@@ -308,12 +368,12 @@ export default function OnboardingFlowScreen({ onDone }) {
             </TouchableOpacity>
           </>
         )}
-        {name_ === 'ready' && (
+        {cur === 'ready' && (
           <TouchableOpacity style={s.primaryBtn} onPress={finish}>
             <Text style={s.primaryBtnText}>{t('ob_create_account')}</Text>
           </TouchableOpacity>
         )}
-        {!['splash', 'reminders', 'ready'].includes(name_) && (
+        {!['splash', 'reminders', 'ready'].includes(cur) && (
           <TouchableOpacity
             style={[s.primaryBtn, !canContinue() && { opacity: 0.4 }]}
             onPress={next}
@@ -323,6 +383,56 @@ export default function OnboardingFlowScreen({ onDone }) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Language picker */}
+      <Modal visible={showLang} animationType="fade" transparent onRequestClose={() => setShowLang(false)}>
+        <TouchableOpacity style={s.langBackdrop} activeOpacity={1} onPress={() => setShowLang(false)}>
+          <View style={s.langSheet}>
+            {(LANGUAGES || []).map((l) => (
+              <TouchableOpacity key={l.code} style={[s.langOpt, language === l.code && s.langOptOn]} onPress={() => { setLanguage(l.code); setShowLang(false); }}>
+                <Text style={[s.langOptText, language === l.code && { color: colors.accent, fontWeight: '800' }]}>{l.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Country picker */}
+      <Modal visible={showCountry} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCountry(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={s.pickerHead}>
+            <View style={{ minWidth: 60 }} />
+            <Text style={s.pickerTitle}>{t('profile_country')}</Text>
+            <TouchableOpacity onPress={() => setShowCountry(false)} style={{ minWidth: 60, alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 14, color: colors.accent, fontWeight: '600' }}>{t('done')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+            <TextInput
+              style={s.input}
+              placeholder={t('profile_country_search')}
+              placeholderTextColor={colors.textFaint}
+              value={countrySearch} onChangeText={setCountrySearch}
+              autoCapitalize="none" autoCorrect={false} autoFocus
+            />
+          </View>
+          <FlatList
+            data={filteredCountries}
+            keyExtractor={(item) => item}
+            style={{ flex: 1, paddingHorizontal: 20 }}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[s.countryRow, country === item && s.countryRowOn]}
+                onPress={() => { setCountry(item); setShowCountry(false); }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, flex: 1 }}>{countryLabel(item, language)}</Text>
+                {country === item && <Text style={{ fontSize: 18, color: colors.accent, fontWeight: '600' }}>✓</Text>}
+              </TouchableOpacity>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -337,6 +447,8 @@ function makeStyles(colors) {
     dashOn: { backgroundColor: colors.accent },
     content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, flexGrow: 1 },
     splashWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 380 },
+    langChip: { position: 'absolute', top: 4, right: 0, paddingVertical: 6, paddingHorizontal: 8 },
+    langChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
     logo: { width: 128, height: 128, marginBottom: 18 },
     logoSm: { width: 84, height: 84, marginBottom: 14 },
     brand: { fontSize: 32, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
@@ -344,16 +456,16 @@ function makeStyles(colors) {
     title: { fontSize: 25, fontWeight: '800', color: colors.text, letterSpacing: -0.3, textAlign: 'center' },
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
     fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 18, marginBottom: 8 },
-    optional: { fontSize: 12, fontWeight: '500', color: colors.textFaint },
     sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     input: {
       backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
       fontSize: 15, color: colors.text, borderWidth: 0.5, borderColor: colors.border, minHeight: 48,
     },
-    doneRow: { alignItems: 'flex-end', paddingVertical: 8 },
-    doneText: { fontSize: 14, color: colors.accent, fontWeight: '700' },
+    hScroll: { maxHeight: 46, marginBottom: 2 },
+    hRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
     pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, justifyContent: 'center' },
     pill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
+    chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
     pillOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent, borderWidth: 1.5 },
     pillText: { fontSize: 14, fontWeight: '600', color: colors.text },
     pillTextOn: { color: colors.accent },
@@ -369,11 +481,19 @@ function makeStyles(colors) {
     termTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
     termDesc: { fontSize: 12.5, color: colors.textFaint, marginTop: 2, lineHeight: 17 },
     centerStep: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 340 },
-    bigEmoji: { fontSize: 46, marginBottom: 10 },
     footer: { paddingHorizontal: 24, paddingBottom: 12, paddingTop: 6 },
     primaryBtn: { backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', minHeight: 54 },
     primaryBtnText: { fontSize: 16, fontWeight: '700', color: colors.accentText },
     skip: { alignItems: 'center', paddingVertical: 14, marginTop: 2 },
     skipText: { fontSize: 14, fontWeight: '600', color: colors.textFaint },
+    langBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 40 },
+    langSheet: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 6, borderWidth: 0.5, borderColor: colors.border },
+    langOpt: { paddingVertical: 13, paddingHorizontal: 18 },
+    langOptOn: { backgroundColor: colors.accentSoft },
+    langOptText: { fontSize: 15, fontWeight: '600', color: colors.text },
+    pickerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: colors.border },
+    pickerTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
+    countryRow: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: colors.border },
+    countryRowOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent, borderWidth: 1.5 },
   });
 }
