@@ -9,12 +9,26 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 
+const MONTH_KEYS = [
+  'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
+  'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
+];
+const BIRTH_YEARS = [];
+const _thisYear = new Date().getFullYear();
+for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
+
 /**
- * Mandatory profile gate. Shown by App.js when a session exists but the minimum
- * profile (name, country, primary goal, activity level) is missing — the case
- * for Google/Apple sign-ins, which skip the email flow's profile step, and for
- * a deleted-then-recreated account. Writes to user_metadata via updateUser;
- * the resulting USER_UPDATED event lets App.js re-evaluate and route to Main.
+ * Mandatory profile gate. Shown by App.js when a session exists but the profile
+ * is incomplete — for Google/Apple sign-ins (which skip the email flow's profile
+ * step), a deleted-then-recreated account, and (since the 2026-09 gate flip) any
+ * existing account missing a now-required field.
+ *
+ * CRITICAL: this screen MUST collect every field in REQUIRED_PROFILE_FIELDS
+ * (name, age=birth month+year, sex, country, goal, activity, tracking, provider).
+ * If it omits one, a returning user saves, isProfileComplete() is still false,
+ * and App.js routes them right back here — an infinite lockout. The `complete`
+ * check below mirrors lib/supabase.js#fieldPresent exactly; keep them in sync.
+ * Present values are prefilled so a returning user only fills the gaps.
  */
 export default function CompleteProfileScreen() {
   const { t, language } = useLanguage();
@@ -22,24 +36,34 @@ export default function CompleteProfileScreen() {
   const s = useMemo(() => makeStyles(colors), [colors]);
 
   const [displayName, setDisplayName] = useState('');
+  const [birthMonth, setBirthMonth] = useState(null);   // 0-11 index (stored 1-based)
+  const [birthYear, setBirthYear] = useState(null);
+  const [sex, setSex] = useState('');                   // 'male' | 'female' — sex assigned at birth
   const [country, setCountry] = useState('');
   const [primaryGoal, setPrimaryGoal] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
-  const [sex, setSex] = useState('');   // 'male' | 'female' — sex assigned at birth, for BMR math
+  const [tracking, setTracking] = useState([]);         // tracking_types (>=1)
+  const [provider, setProvider] = useState('');         // 'yes' | 'no'
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Prefill the name from whatever the OAuth provider already gave us (Google
-  // returns full_name / name), so most users just confirm it.
+  // Prefill everything we already have so the user only completes what's missing.
   useEffect(() => {
     let active = true;
     supabase.auth.getUser().then(({ data }) => {
+      if (!active) return;
       const m = (data && data.user && data.user.user_metadata) || {};
       const guess = m.display_name || m.full_name || m.name || '';
-      if (active && guess) setDisplayName(prev => (prev ? prev : String(guess)));
-      // Prefill sex if the intro flow already stashed it (male/female only).
-      if (active && (m.gender === 'male' || m.gender === 'female')) setSex(prev => prev || m.gender);
+      if (guess) setDisplayName(prev => prev || String(guess));
+      if (m.birth_month != null) setBirthMonth(prev => (prev == null ? Number(m.birth_month) - 1 : prev)); // stored 1-based
+      if (m.birth_year != null) setBirthYear(prev => (prev == null ? Number(m.birth_year) : prev));
+      if (m.gender === 'male' || m.gender === 'female') setSex(prev => prev || m.gender);
+      if (m.country) setCountry(prev => prev || String(m.country));
+      if (m.primary_goal) setPrimaryGoal(prev => prev || String(m.primary_goal));
+      if (m.activity_level) setActivityLevel(prev => prev || String(m.activity_level));
+      if (Array.isArray(m.tracking_types) && m.tracking_types.length) setTracking(prev => (prev.length ? prev : m.tracking_types));
+      if (m.has_provider != null && String(m.has_provider).trim() !== '') setProvider(prev => prev || String(m.has_provider));
     }).catch(() => {});
     return () => { active = false; };
   }, []);
@@ -57,13 +81,37 @@ export default function CompleteProfileScreen() {
     { key: 'active', label: t('profile_activity_active') },
     { key: 'very_active', label: t('profile_activity_very_active') },
   ];
-
   const SEXES = [
     { key: 'male', label: t('profile_gender_male') },
     { key: 'female', label: t('profile_gender_female') },
   ];
+  const COMPOUNDS = [
+    { key: 'peptides', label: t('onboarding_compound_peptides') },
+    { key: 'hormones', label: t('onboarding_compound_hormones') },
+    { key: 'glp1', label: t('onboarding_compound_glp1') },
+    { key: 'oral', label: t('onboarding_compound_oral') },
+  ];
+  const PROVIDERS = [
+    { key: 'yes', label: t('profile_provider_yes') },
+    { key: 'no', label: t('profile_provider_no') },
+  ];
 
-  const complete = !!(displayName.trim() && country.trim() && primaryGoal && activityLevel && sex);
+  function toggleTracking(key) {
+    setTracking(p => (p.includes(key) ? p.filter(k => k !== key) : [...p, key]));
+  }
+
+  // Mirrors lib/supabase.js#fieldPresent for all 8 REQUIRED_PROFILE_FIELDS — if
+  // this passes, isProfileComplete() must too, so Save always releases the gate.
+  const complete = !!(
+    displayName.trim() &&
+    birthMonth != null && birthYear != null &&
+    (sex === 'male' || sex === 'female') &&
+    country.trim() &&
+    primaryGoal &&
+    activityLevel &&
+    tracking.length > 0 &&
+    (provider === 'yes' || provider === 'no')
+  );
 
   async function handleSave() {
     if (!complete || saving) return;
@@ -71,10 +119,14 @@ export default function CompleteProfileScreen() {
     const { error } = await supabase.auth.updateUser({
       data: {
         display_name: displayName.trim(),
+        birth_month: birthMonth + 1, // store 1-based, matching the onboarding flow
+        birth_year: birthYear,
+        gender: sex,
         country: country.trim(),
         primary_goal: primaryGoal,
         activity_level: activityLevel,
-        gender: sex,
+        tracking_types: tracking,
+        has_provider: provider,
         onboarded_at: new Date().toISOString(),
       },
     });
@@ -120,6 +172,36 @@ export default function CompleteProfileScreen() {
           autoCorrect={false}
         />
 
+        <Text style={s.fieldLabel}>{t('profile_birth')}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
+          <View style={s.hRow}>
+            {MONTH_KEYS.map((mk, idx) => (
+              <TouchableOpacity key={mk} style={[s.chip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
+                <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
+          <View style={s.hRow}>
+            {BIRTH_YEARS.map((y) => (
+              <TouchableOpacity key={y} style={[s.chip, birthYear === y && s.pillOn]} onPress={() => setBirthYear(y)}>
+                <Text style={[s.pillText, birthYear === y && s.pillTextOn]}>{y}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
+        <View style={s.pillRow}>
+          {SEXES.map(g => (
+            <TouchableOpacity key={g.key} style={[s.pill, sex === g.key && s.pillOn]} onPress={() => setSex(g.key)}>
+              <Text style={[s.pillText, sex === g.key && s.pillTextOn]}>{g.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+
         <Text style={s.fieldLabel}>{t('profile_country')}</Text>
         <TouchableOpacity
           style={[s.input, { justifyContent: 'center' }]}
@@ -133,11 +215,7 @@ export default function CompleteProfileScreen() {
         <Text style={s.fieldLabel}>{t('profile_goal')}</Text>
         <View style={s.pillRow}>
           {GOALS.map(g => (
-            <TouchableOpacity
-              key={g.key}
-              style={[s.pill, primaryGoal === g.key && s.pillOn]}
-              onPress={() => setPrimaryGoal(g.key)}
-            >
+            <TouchableOpacity key={g.key} style={[s.pill, primaryGoal === g.key && s.pillOn]} onPress={() => setPrimaryGoal(g.key)}>
               <Text style={[s.pillText, primaryGoal === g.key && s.pillTextOn]}>{g.label}</Text>
             </TouchableOpacity>
           ))}
@@ -146,29 +224,29 @@ export default function CompleteProfileScreen() {
         <Text style={s.fieldLabel}>{t('profile_activity')}</Text>
         <View style={s.pillRow}>
           {ACTIVITY.map(a => (
-            <TouchableOpacity
-              key={a.key}
-              style={[s.pill, activityLevel === a.key && s.pillOn]}
-              onPress={() => setActivityLevel(a.key)}
-            >
+            <TouchableOpacity key={a.key} style={[s.pill, activityLevel === a.key && s.pillOn]} onPress={() => setActivityLevel(a.key)}>
               <Text style={[s.pillText, activityLevel === a.key && s.pillTextOn]}>{a.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
+        <Text style={s.fieldLabel}>{t('onboarding_compound_title')}</Text>
         <View style={s.pillRow}>
-          {SEXES.map(g => (
-            <TouchableOpacity
-              key={g.key}
-              style={[s.pill, sex === g.key && s.pillOn]}
-              onPress={() => setSex(g.key)}
-            >
-              <Text style={[s.pillText, sex === g.key && s.pillTextOn]}>{g.label}</Text>
+          {COMPOUNDS.map(c => (
+            <TouchableOpacity key={c.key} style={[s.pill, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
+              <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+
+        <Text style={s.fieldLabel}>{t('profile_provider')}</Text>
+        <View style={s.pillRow}>
+          {PROVIDERS.map(p => (
+            <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
+              <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Text style={s.disclaimer}>{t('profile_data_note')}</Text>
 
@@ -244,6 +322,12 @@ function makeStyles(colors) {
     input: {
       backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
       fontSize: 15, color: colors.text, borderWidth: 0.5, borderColor: colors.border, minHeight: 48,
+    },
+    hScroll: { marginBottom: 8 },
+    hRow: { flexDirection: 'row', gap: 8, paddingRight: 8 },
+    chip: {
+      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999,
+      backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border,
     },
     pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     pill: {
