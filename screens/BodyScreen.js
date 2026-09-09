@@ -207,6 +207,7 @@ export default function BodyScreen({ navigation, route }) {
 
   useFocusEffect(
     useCallback(() => {
+      Analytics.viewed('body');
       fetchReports();
     }, [])
   );
@@ -633,7 +634,7 @@ export default function BodyScreen({ navigation, route }) {
               { key: 'vaccines', icon: '💉', bg: colors.accentSoft, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
               { key: 'calc', icon: '🔥', bg: colors.warningSoft, title: t('body_card_calc_title'), desc: t('body_card_calc_desc'), stat: t('body_card_calc_tag') },
             ].map(card => (
-              <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => setSection(card.key)}>
+              <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
                 <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
                   <Text style={s.hubBadgeIcon}>{card.icon}</Text>
                 </View>
@@ -647,7 +648,7 @@ export default function BodyScreen({ navigation, route }) {
             ))}
 
             {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall')}>
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed('serum_curve'); navigation.navigate(premium ? 'SerumCurve' : 'Paywall'); }}>
               <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
                 <Text style={s.hubBadgeIcon}>📈</Text>
               </View>

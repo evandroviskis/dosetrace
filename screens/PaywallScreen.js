@@ -20,6 +20,7 @@ import {
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
 import { friendlyError } from '../lib/friendlyError';
+import { Analytics } from '../lib/analytics';
 
 export default function PaywallScreen({ navigation, route }) {
   const { t } = useLanguage();
@@ -59,6 +60,7 @@ export default function PaywallScreen({ navigation, route }) {
   ];
 
   useEffect(() => {
+    Analytics.viewed('paywall');
     loadOfferings();
   }, []);
 
