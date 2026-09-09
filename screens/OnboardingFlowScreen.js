@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image, Animated,
-  Platform, StyleSheet,
+  Platform, StyleSheet, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -9,6 +9,7 @@ import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { saveOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
+import AccumulationHero from '../components/AccumulationHero';
 
 /**
  * Value-before-signup onboarding. Runs on first launch (before any account),
@@ -25,6 +26,8 @@ export default function OnboardingFlowScreen({ onDone }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const { width: winW } = useWindowDimensions();
+  const heroW = Math.min(420, winW - 48); // content has 24px horizontal padding
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
@@ -147,7 +150,8 @@ export default function OnboardingFlowScreen({ onDone }) {
             <>
               <Text style={s.title}>{t('ob_features_title')}</Text>
               <Text style={s.sub}>{t('ob_features_sub')}</Text>
-              <View style={{ marginTop: 12 }}>
+              <AccumulationHero width={heroW} height={140} />
+              <View style={{ marginTop: 8 }}>
                 {FEATURES.map((f, i) => (
                   <View key={i} style={s.featRow}>
                     <View style={s.featIcon}><Text style={{ fontSize: 22 }}>{f.icon}</Text></View>
