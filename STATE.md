@@ -55,7 +55,7 @@ Auth blast radius — do all and confirm routing each time:
 - Supabase project `dosesync` ref `mqfvnqfusqyhqhowfweh` (public anon key lives in `eas.json` prod env; profile in `auth.users.raw_user_meta_data`: display_name, country, primary_goal, activity_level, **gender** (=sex at birth, male/female), birth_year, birth_month).
 - EAS: project `@jootaerre/dosetrace`, bundle `io.outcom.dosetrace`, `appVersionSource: remote` + autoIncrement, `ascAppId 6761788157`.
 - ASC API key (for the external-TestFlight step): **`.p8 at ~/Downloads/AuthKey_N493SYFP2T.p8`** (the secret — never commit/paste), Key ID `N493SYFP2T`, Issuer `69a6de85-8f0f-47e3-e053-5b8c7c11a4d1`. eas submit uses a separate EAS-managed key.
-- RevenueCat entitlement `DoseTrace Pro`. Demo account for review: `appreview@dosetrace.io` (has a seeded Testosterona Propionato protocol + logs — clean later).
+- RevenueCat entitlement `DoseTrace Pro`. Demo account for review: `appreview@dosetrace.io` — **cleaned 2026-09-09** (removed the seeded Testosterona Propionato protocol + 26 dose logs via Supabase; no Galadriel note existed; Testosterona Enantato/AOD-9604/Test Cypionate + all real users untouched).
 - 53 real users (mostly reward-seeking testers, 0 paying). Guardrails: TestFlight-only until founder confirms; never App-Store-review unilaterally; keep all 6 languages at parity; no medical/efficacy claims; never link DoseTrace to EvoxBiolabs; STATE.md/secrets out of git.
 
 ---
