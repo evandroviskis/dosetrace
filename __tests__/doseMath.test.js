@@ -11,6 +11,16 @@ test('parseDecimal: comma is a decimal separator (most of the world)', () => {
   assert.equal(parseDecimal(0.5), 0.5);     // pass-through for numbers
 });
 
+test('parseDecimal: comma-grouped thousands are NOT read as decimals (IU vials)', () => {
+  assert.equal(parseDecimal('5,000'), 5000);    // HCG "5,000 IU" — must NOT become 5
+  assert.equal(parseDecimal('10,000'), 10000);  // "10,000 IU" — must NOT become 10
+  assert.equal(parseDecimal('1,500'), 1500);    // grouped, not 1.5
+  assert.equal(parseDecimal('100,000'), 100000);
+  // ...but a real decimal is preserved: leading zero or 1-2 trailing digits
+  assert.equal(parseDecimal('0,750'), 0.75);    // leading zero → decimal
+  assert.equal(parseDecimal('2,5'), 2.5);
+});
+
 test('parseDecimal: both separators — last one is the decimal point', () => {
   assert.equal(parseDecimal('1.234,5'), 1234.5);  // EU grouping + comma decimal
   assert.equal(parseDecimal('1,234.5'), 1234.5);  // US grouping + dot decimal

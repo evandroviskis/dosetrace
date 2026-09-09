@@ -454,7 +454,9 @@ export default function BodyScreen({ navigation, route }) {
         try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
-        if (status === 401) {
+        if (code === 'quota_exceeded' || status === 429) {
+          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+        } else if (status === 401) {
           Alert.alert(t('error'), t('blood_error_not_signed_in'));
         } else if (status === 413) {
           Alert.alert(t('error'), t('blood_error_file_too_large'));

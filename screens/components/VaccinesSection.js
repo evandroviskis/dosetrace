@@ -177,7 +177,9 @@ export default function VaccinesSection() {
         try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
-        if (serviceDown) {
+        if (code === 'quota_exceeded' || status === 429) {
+          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+        } else if (serviceDown) {
           Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
         } else {
           Alert.alert(t('vax_scan_error'), t('vax_scan_error_sub'));

@@ -19,6 +19,7 @@ import {
   checkTrialEligibility,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
 
@@ -183,7 +184,7 @@ export default function PaywallScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         <View style={s.hero}>
-          <Text style={s.heroIcon}>🚀</Text>
+          <View style={s.heroIcon}><FeatureIcon name="curve" size={52} color={colors.accent} /></View>
           <Text style={s.heroTitle}>{t('paywall_hero_title')}</Text>
           <Text style={s.heroSub}>
             {t('paywall_hero_sub')}
@@ -374,7 +375,7 @@ const makeStyles = (c) => StyleSheet.create({
   navBack: { fontSize: 14, color: c.accent, width: 60 },
   navTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   hero: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  heroIcon: { fontSize: 48, marginBottom: 12 },
+  heroIcon: { marginBottom: 12, alignItems: 'center' },
   heroTitle: { fontSize: 26, lineHeight: 34, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
   heroSub: { fontSize: 14, color: c.textMuted, textAlign: 'center', lineHeight: 22 },
   loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },

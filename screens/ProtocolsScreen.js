@@ -1049,8 +1049,13 @@ export default function ProtocolsScreen() {
     return UNIT_SET.find((x) => x.toLowerCase() === s.toLowerCase()) || null;
   }
   function mapConcUnit(u) {
-    // Server returns e.g. "mg/mL"; take the mass part before the slash.
-    return mapAmountUnit(String(u || '').split('/')[0]);
+    // Server returns e.g. "mg/mL". Only accept a per-MILLILITRE strength — the
+    // calculator's concentration is mg (or mcg/IU) per ml. A per-vial form like
+    // "mg/5mL", or a missing/odd denominator, is ambiguous → return null so we
+    // leave the field for the user rather than seed a wrong concentration.
+    const [mass, denom] = String(u || '').split('/');
+    if (denom == null || !/^\s*m?l\s*$/i.test(denom)) return null;
+    return mapAmountUnit(mass);
   }
 
   // Apply an extracted vial payload to the wizard fields as review drafts.
@@ -1073,10 +1078,13 @@ export default function ProtocolsScreen() {
     }
 
     if (nextType === 'rtu') {
-      if (v.concentration != null) {
+      // Prefill concentration ONLY when the value is present AND the unit is a
+      // clean per-ml strength; otherwise leave it for the user (never seed a
+      // wrong-but-plausible concentration that would drive every draw).
+      const cu = mapConcUnit(v.concentration_unit);
+      if (v.concentration != null && cu) {
         setConcentration(String(v.concentration));
-        const cu = mapConcUnit(v.concentration_unit);
-        if (cu) setConcentrationUnit(cu);
+        setConcentrationUnit(cu);
       }
       if (v.volume_ml != null) setVialMl(String(v.volume_ml));
     } else if (v.amount != null) {
