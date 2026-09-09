@@ -11,7 +11,7 @@
 - Uploaded to App Store Connect → processed **VALID** → added to external group **Early Birds** (group id `0980fae5-a7cf-4b29-9f15-0504f4058616`, public link **https://testflight.apple.com/join/EEsKYqta**) → **submitted for external beta review (HTTP 201)**.
 - **NOW:** awaiting Apple external-beta-review approval (hours → ~1 day). When approved it's installable on the join link; founder gets a TestFlight email.
 - **App Store 1.0.2 (build 47) is LIVE and untouched.** 1.1.0 is TestFlight-only. Do NOT promote to App Store review until the founder tests build 48 and says "clean". Release supersedes 1.0.2 — nothing is "deleted".
-- **Android: NOT built yet.** Founder was asked; pending. Play internal track flow per the play-internal memo (manual .aab or eas submit if service account present).
+- **Android: SHIPPED to Play internal track.** EAS build `v1.1.0` **versionCode 29** (build id `7c8d465e-fb49-417c-820d-7635d8e67897`) → `eas submit` to **internal** track via service account `eas-play-submit@dosetrace` (COMPLETED). ⚠️ VERIFY in Play Console that the internal track is Active + tester list saved + opt-in link live before relying on it (couldn't confirm tester enrollment from CLI — "verify the chain, don't assume"). Play production 1.0.2 untouched.
 
 ### 2. What to TEST on device (build 48)
 Auth blast radius — do all and confirm routing each time:
@@ -38,7 +38,7 @@ Auth blast radius — do all and confirm routing each time:
 
 ### 5. Open items / next steps
 1. Founder tests build 48 on device (checklist §2) → says "clean" → THEN promote 1.1.0 to App Store review + Play production.
-2. **Android** EAS build → Play internal track (not done).
+2. **Android** on Play internal track (done) — verify tester enrollment/opt-in link in Play Console.
 3. Before any App Store promotion (not TestFlight blockers): upload the **512 Play store icon** (`store_assets/app_icon_512.png`); make **ASC App-Privacy** declare health data **shared with a third party (Anthropic)** to match the in-app disclosure.
 4. **`PROFILE_GATE_SINCE`** in `lib/supabase.js` is far-future (2027-12-31) → the profile gate is INERT for all real users (sex enforced only via the intro UI + the calc point-of-use gate). Set a real go-live date when ready to enforce for new accounts.
 5. Serum-curve **Vd/CL redesign** (evidence-gated per §3) — future build; do research/engine before touching live curve math.
