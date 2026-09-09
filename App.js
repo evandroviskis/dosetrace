@@ -287,10 +287,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
   const [justConfirmed, setJustConfirmed] = useState(false);
-  // Whether the first-launch intro flow has been completed. Assume seen until
-  // AsyncStorage answers, so the welcome screen (not the intro) shows for the
-  // brief moment before the check resolves on returning users.
-  const [seenOnboarding, setSeenOnboarding] = useState(true);
+  // Whether the first-launch intro flow has been completed. null = not resolved
+  // yet; the loading gate below waits for it, so we never flash the welcome
+  // screen before the intro (or vice-versa) on first frame.
+  const [seenOnboarding, setSeenOnboarding] = useState(null);
   const navigationRef = useRef(null);
   const fontsLoaded = useAppFonts();
 
@@ -366,9 +366,10 @@ export default function App() {
       // expo-notifications not available — skip listener
     }
 
-    // Resolve the first-launch intro flag before we drop the loading gate, so a
-    // brand-new install shows the intro (not the welcome screen) on first frame.
-    hasSeenOnboarding().then((seen) => setSeenOnboarding(!!seen)).catch(() => {});
+    // Resolve the first-launch intro flag; the loading gate holds until it's
+    // non-null, so a brand-new install shows the intro (not the welcome screen)
+    // on first frame. Fail-safe to "seen" so a read error can't wedge the gate.
+    hasSeenOnboarding().then((seen) => setSeenOnboarding(!!seen)).catch(() => setSeenOnboarding(true));
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
@@ -455,7 +456,7 @@ export default function App() {
 
   // Gate the UI on fonts too, so the app never flashes the system font and
   // then reflows into Plus Jakarta Sans.
-  if (loading || !fontsLoaded) {
+  if (loading || !fontsLoaded || seenOnboarding === null) {
     return (
       <LanguageProvider>
         <ThemeProvider>

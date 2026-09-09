@@ -143,7 +143,10 @@ export default function AccumulationHero({ width = 300, height = 140 }) {
   return (
     <View style={s.card}>
       <View style={s.header}>
-        <Text style={s.label}>{t('curve_current_level')}</Text>
+        <View style={s.labelRow}>
+          <Text style={s.label}>{t('curve_current_level')}</Text>
+          <View style={s.exampleTag}><Text style={s.exampleTagText}>{t('ob_hero_tag')}</Text></View>
+        </View>
         <View style={s.readout}>
           <Text style={s.num}>{num}</Text>
           <Text style={s.unit}> mg</Text>
@@ -199,7 +202,10 @@ function makeStyles(colors) {
       borderWidth: 0.5, borderColor: colors.border, overflow: 'hidden',
     },
     header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     label: { fontSize: 12.5, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.2, textTransform: 'uppercase' },
+    exampleTag: { backgroundColor: colors.card, borderWidth: 0.5, borderColor: colors.border, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
+    exampleTagText: { fontSize: 9.5, fontWeight: '800', color: colors.textFaint, letterSpacing: 0.5, textTransform: 'uppercase' },
     readout: { flexDirection: 'row', alignItems: 'baseline' },
     num: { fontSize: 26, fontWeight: '900', color: colors.accent, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
     unit: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
