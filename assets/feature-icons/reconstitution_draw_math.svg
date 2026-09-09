@@ -5,16 +5,14 @@
     .fill { fill:#3AA9FF; }
   </style>
 
-  <!-- vial -->
-  <rect x="198" y="170" width="230" height="110" rx="28" class="stroke"/>
-  <path d="M230 280v300c0 72 48 122 100 122h-4c52 0 100-50 100-122V280" class="stroke"/>
-  <path d="M250 510h154" class="stroke"/>
-  <!-- syringe -->
-  <path d="M470 650L735 385" class="stroke"/>
-  <path d="M690 330l70 70" class="stroke"/>
-  <path d="M745 275l95-95" class="stroke"/>
-  <path d="M505 615l-88 88" class="stroke"/>
-  <path d="M385 670l70 70" class="stroke"/>
-  <path d="M555 565l72 72" class="stroke"/>
-  <path d="M610 510l72 72" class="stroke"/>
+  <!-- clean single syringe (draw math), tilted -->
+  <g transform="rotate(-35 512 512)">
+    <path d="M430 150 H594" class="stroke"/>
+    <path d="M512 150 V300" class="stroke"/>
+    <rect x="447" y="300" width="130" height="360" rx="22" class="stroke"/>
+    <path d="M472 372 H528" class="stroke"/>
+    <path d="M472 442 H528" class="stroke"/>
+    <path d="M472 512 H528" class="stroke"/>
+    <path d="M512 660 V860" class="stroke"/>
+  </g>
 </svg>
