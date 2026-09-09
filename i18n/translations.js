@@ -281,7 +281,7 @@ export const translations = {
     settings_report_empty: 'No active protocols to report on.',
     settings_data_privacy: 'DATA & PRIVACY',
     settings_privacy_policy: 'Privacy policy',
-    settings_privacy_body: "PRIVACY POLICY\n\nLast updated: April 2026\n\nOutcom operates the DoseTrace mobile application.\n\nDATA WE COLLECT\nWhen you create an account, we collect your email address. You may optionally provide your name, gender, birth month and year, country, wellness goals, activity level, and whether you work with a healthcare provider. Protocol data, dose logs, vial records, and reminders you create are stored locally on your device. Premium users may sync this data to our secure cloud servers.\n\nHOW WE USE YOUR DATA\nWe use your data to provide and personalize the DoseTrace service. Optional profile information (name, gender, age range, country, goals, activity level) may be used in aggregate and anonymized form to improve our service and develop wellness partnerships. Apart from the AI extraction described below, we do not share individual user data with third parties. We do not sell your personal data. We do not use your health data for advertising purposes.\n\nAI EXTRACTION (OPTIONAL)\nIf you choose to scan a lab report or vaccine card, the photo or PDF you select is transmitted to Anthropic PBC (the Claude AI service) for one-time text extraction, only after you give explicit permission in the app. Only the selected file is sent. It is used solely to extract the values, is not used to train AI models, and is not retained by Anthropic beyond short-term abuse monitoring. Anthropic protects this data with safeguards equivalent to this policy.\n\nDATA STORAGE\nFree accounts: All data stored locally on your device only.\nPremium accounts: Data encrypted and stored on Supabase secure cloud servers in the United States.\n\nYOUR RIGHTS\nYou may request deletion of your account and all associated data at any time by contacting hello@dosetrace.io.\n\nCHILDREN\nDoseTrace is not intended for use by individuals under the age of 18.\n\nCHANGES\nWe may update this policy periodically. Continued use of the app constitutes acceptance of the updated policy.\n\nCONTACT\nhello@dosetrace.io",
+    settings_privacy_body: "PRIVACY POLICY\n\nLast updated: April 2026\n\nOutcom operates the DoseTrace mobile application.\n\nDATA WE COLLECT\nWhen you create an account, we collect your email address. You may optionally provide your name, gender, birth month and year, country, wellness goals, activity level, and whether you work with a healthcare provider. Protocol data, dose logs, vial records, and reminders you create are saved on your device and synced — encrypted in transit — to our secure cloud (Supabase, United States), so your data is backed up and available across your devices.\n\nHOW WE USE YOUR DATA\nWe use your data to provide and personalize the DoseTrace service. Optional profile information (name, gender, age range, country, goals, activity level) may be used in aggregate and anonymized form to improve our service and develop wellness partnerships. Apart from the AI extraction described below, we do not share individual user data with third parties. We do not sell your personal data. We do not use your health data for advertising purposes.\n\nAI EXTRACTION (OPTIONAL)\nIf you choose to scan a lab report or vaccine card, the photo or PDF you select is transmitted to Anthropic PBC (the Claude AI service) for one-time text extraction, only after you give explicit permission in the app. Only the selected file is sent. It is used solely to extract the values, is not used to train AI models, and is not retained by Anthropic beyond short-term abuse monitoring. Anthropic protects this data with safeguards equivalent to this policy.\n\nDATA STORAGE\nYour data is stored on your device and synced, encrypted in transit, to Supabase secure cloud servers in the United States, so it is backed up and available across your devices.\nLab reports and vaccine cards you choose to scan are additionally sent once to Anthropic for text extraction, as described above.\n\nYOUR RIGHTS\nYou may delete your account and all associated data at any time from Settings in the app, or by contacting hello@dosetrace.io.\n\nCHILDREN\nDoseTrace is not intended for use by individuals under the age of 18.\n\nCHANGES\nWe may update this policy periodically. Continued use of the app constitutes acceptance of the updated policy.\n\nCONTACT\nhello@dosetrace.io",
     settings_terms: 'Terms of service',
     settings_terms_body: "TERMS OF SERVICE\n\nLast updated: April 2026\n\nBy downloading or using DoseTrace, you agree to these terms.\n\nUSE OF THE APP\nDoseTrace is provided for personal wellness tracking purposes only. You must be 18 or older to use this app. You are responsible for maintaining the confidentiality of your account credentials.\n\nMEDICAL DISCLAIMER\nDoseTrace does not provide medical advice. See our Medical Disclaimer for full details.\n\nPREMIUM SUBSCRIPTION\nPremium features are available via subscription at the price shown in the app at the time of purchase. Subscriptions auto-renew unless cancelled at least 24 hours before the renewal date. Manage subscriptions in your Apple ID settings.\n\nINTELLECTUAL PROPERTY\nAll content, features, and functionality of DoseTrace are owned by Outcom and protected by applicable intellectual property laws.\n\nLIMITATION OF LIABILITY\nOutcom shall not be liable for any indirect, incidental, or consequential damages arising from your use of DoseTrace.\n\nTERMINATION\nWe reserve the right to terminate accounts that violate these terms.\n\nGOVERNING LAW\nThese terms are governed by the laws of the State of Florida, United States.\n\nCONTACT\nhello@dosetrace.io",
     settings_disclaimer: 'Medical disclaimer',
@@ -333,7 +333,7 @@ export const translations = {
     onboarding_ready_feat_1: 'Reconstitution calculator',
     onboarding_ready_feat_2: 'Syringe guide',
     onboarding_ready_feat_3: 'Vial tracker',
-    onboarding_ready_feat_4: 'Bloodwork AI',
+    onboarding_ready_feat_4: 'Bloodwork scan',
     onboarding_ready_feat_5: 'Injection log',
     onboarding_create_account: 'Create account',
     onboarding_getstarted_sub: 'Sign in to your existing account or create a new one to start tracking.',
@@ -409,7 +409,7 @@ export const translations = {
           },
           {
             q: 'Is DoseTrace free?',
-            a: 'Yes! The core features are free forever. Premium unlocks cloud sync, unlimited protocols, bloodwork AI, and more.'
+            a: 'Yes! The core features are free forever — including cloud backup. Premium unlocks unlimited protocols, unlimited lab scans, the dose-accumulation curve, and PDF export.'
           },
           {
             q: 'How do I add my first protocol?',
@@ -456,7 +456,7 @@ export const translations = {
           },
           {
             q: 'Is my bloodwork data private?',
-            a: 'Yes. Free accounts store everything locally on your device. Premium accounts use encrypted cloud storage.'
+            a: 'Your data is stored on your device and synced to our secure cloud, so it is backed up across your devices. When you scan a lab report, the file is sent once to Anthropic to read the numbers, then not kept for training — see our Privacy Policy. We never sell your data or use it for ads.'
           }
         ]
       },
@@ -712,7 +712,7 @@ export const translations = {
     vax_delete: 'Delete vaccine',
     blood_upload: '+ Upload',
     blood_uploading: 'Reading your lab report...',
-    blood_premium_badge: '🩸 Bloodwork AI — Premium feature',
+    blood_premium_badge: '🩸 Bloodwork scan — Premium feature',
     blood_premium_only: "Bloodwork analysis is a Premium feature.",
     blood_first_free: 'First upload free · Pay per upload after · Unlimited with Premium',
     blood_unlimited: 'Upgrade to Premium for unlimited uploads',
@@ -788,7 +788,7 @@ export const translations = {
     paywall_back: '← Back',
     paywall_title: 'Upgrade to Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Cloud backup, unlimited protocols, bloodwork AI, PDF export and more.',
+    paywall_hero_sub: 'Dose-accumulation curves from your own log, unlimited protocols, unlimited lab scans, and PDF export.',
     paywall_annual: 'Annual',
     paywall_monthly: 'Monthly',
     paywall_per_year: 'per year',
@@ -837,7 +837,7 @@ export const translations = {
     paywall_free_feat_12: 'Protocol timeline',
     paywall_free_feat_14: 'Apple Health & Watch sync',
     paywall_free_feat_15: 'PDF export',
-    paywall_bloodwork_title: '🩸 Bloodwork AI',
+    paywall_bloodwork_title: '🩸 Bloodwork scan',
     paywall_bloodwork_sub: 'Upload any PDF lab report — LabCorp, Quest, or private clinic — and we automatically extract every biomarker value.',
     paywall_bloodwork_free_label: 'Free users',
     paywall_bloodwork_free_price: 'Pay per upload',
@@ -1719,7 +1719,7 @@ export const translations = {
     settings_report_empty: 'No hay protocolos activos para reportar.',
     settings_data_privacy: 'DATOS Y PRIVACIDAD',
     settings_privacy_policy: 'Política de privacidad',
-    settings_privacy_body: "POLÍTICA DE PRIVACIDAD\n\nÚltima actualización: abril de 2026\n\nOutcom opera la aplicación móvil DoseTrace.\n\nDATOS QUE RECOPILAMOS\nCuando creas una cuenta, recopilamos tu dirección de correo electrónico. De forma opcional, puedes proporcionar tu nombre, sexo, mes y año de nacimiento, país, objetivos de bienestar, nivel de actividad y si trabajas con un profesional sanitario. Los datos de protocolos, registros de dosis, registros de viales y recordatorios que creas se almacenan localmente en tu dispositivo. Los usuarios premium pueden sincronizar estos datos con nuestros servidores seguros en la nube.\n\nCÓMO USAMOS TUS DATOS\nUsamos tus datos para proporcionar y personalizar el servicio DoseTrace. La información opcional del perfil (nombre, sexo, rango de edad, país, objetivos, nivel de actividad) puede utilizarse de forma agregada y anonimizada para mejorar nuestro servicio y desarrollar colaboraciones de bienestar. Aparte de la extracción con IA descrita abajo, no compartimos datos individuales de usuarios con terceros. No vendemos tus datos personales. No usamos tus datos de salud con fines publicitarios.\n\nEXTRACCIÓN CON IA (OPCIONAL)\nSi decides escanear un informe de laboratorio o un carné de vacunación, la foto o el PDF que selecciones se transmite a Anthropic PBC (el servicio de IA Claude) para una extracción de texto única, solo después de que des tu permiso explícito en la app. Solo se envía el archivo seleccionado. Se usa únicamente para extraer los valores, no se utiliza para entrenar modelos de IA y Anthropic no lo conserva más allá de la supervisión antiabusos a corto plazo. Anthropic protege estos datos con garantías equivalentes a esta política.\n\nALMACENAMIENTO DE DATOS\nCuentas gratuitas: todos los datos se almacenan únicamente de forma local en tu dispositivo.\nCuentas premium: los datos se cifran y se almacenan en servidores seguros en la nube de Supabase en los Estados Unidos.\n\nTUS DERECHOS\nPuedes solicitar la eliminación de tu cuenta y de todos los datos asociados en cualquier momento escribiendo a hello@dosetrace.io.\n\nMENORES\nDoseTrace no está destinada al uso por personas menores de 18 años.\n\nCAMBIOS\nPodemos actualizar esta política periódicamente. El uso continuado de la aplicación constituye la aceptación de la política actualizada.\n\nCONTACTO\nhello@dosetrace.io",
+    settings_privacy_body: "POLÍTICA DE PRIVACIDAD\n\nÚltima actualización: abril de 2026\n\nOutcom opera la aplicación móvil DoseTrace.\n\nDATOS QUE RECOPILAMOS\nCuando creas una cuenta, recopilamos tu dirección de correo electrónico. De forma opcional, puedes proporcionar tu nombre, sexo, mes y año de nacimiento, país, objetivos de bienestar, nivel de actividad y si trabajas con un profesional sanitario. Los datos de protocolos, registros de dosis, registros de viales y recordatorios que creas se guardan en tu dispositivo y se sincronizan, cifrados en tránsito, con nuestra nube segura (Supabase, Estados Unidos), de modo que tus datos tienen copia de seguridad y están disponibles en tus dispositivos.\n\nCÓMO USAMOS TUS DATOS\nUsamos tus datos para proporcionar y personalizar el servicio DoseTrace. La información opcional del perfil (nombre, sexo, rango de edad, país, objetivos, nivel de actividad) puede utilizarse de forma agregada y anonimizada para mejorar nuestro servicio y desarrollar colaboraciones de bienestar. Aparte de la extracción con IA descrita abajo, no compartimos datos individuales de usuarios con terceros. No vendemos tus datos personales. No usamos tus datos de salud con fines publicitarios.\n\nEXTRACCIÓN CON IA (OPCIONAL)\nSi decides escanear un informe de laboratorio o un carné de vacunación, la foto o el PDF que selecciones se transmite a Anthropic PBC (el servicio de IA Claude) para una extracción de texto única, solo después de que des tu permiso explícito en la app. Solo se envía el archivo seleccionado. Se usa únicamente para extraer los valores, no se utiliza para entrenar modelos de IA y Anthropic no lo conserva más allá de la supervisión antiabusos a corto plazo. Anthropic protege estos datos con garantías equivalentes a esta política.\n\nALMACENAMIENTO DE DATOS\nTus datos se almacenan en tu dispositivo y se sincronizan, cifrados en tránsito, con los servidores seguros en la nube de Supabase en los Estados Unidos, de modo que tienen copia de seguridad y están disponibles en tus dispositivos.\nLos informes de laboratorio y carnés de vacunación que decidas escanear se envían además una sola vez a Anthropic para la extracción de texto, como se describe arriba.\n\nTUS DERECHOS\nPuedes eliminar tu cuenta y todos los datos asociados en cualquier momento desde Ajustes en la app, o escribiendo a hello@dosetrace.io.\n\nMENORES\nDoseTrace no está destinada al uso por personas menores de 18 años.\n\nCAMBIOS\nPodemos actualizar esta política periódicamente. El uso continuado de la aplicación constituye la aceptación de la política actualizada.\n\nCONTACTO\nhello@dosetrace.io",
     settings_terms: 'Términos de servicio',
     settings_terms_body: "TÉRMINOS DE SERVICIO\n\nÚltima actualización: abril de 2026\n\nAl descargar o usar DoseTrace, aceptas estos términos.\n\nUSO DE LA APLICACIÓN\nDoseTrace se ofrece únicamente con fines de seguimiento personal del bienestar. Debes tener 18 años o más para usar esta aplicación. Eres responsable de mantener la confidencialidad de las credenciales de tu cuenta.\n\nAVISO MÉDICO\nDoseTrace no proporciona asesoramiento médico. Consulta nuestro Aviso médico para más detalles.\n\nSUSCRIPCIÓN PREMIUM\nLas funciones premium están disponibles mediante suscripción al precio que se muestra en la aplicación en el momento de la compra. Las suscripciones se renuevan automáticamente salvo que se cancelen al menos 24 horas antes de la fecha de renovación. Gestiona las suscripciones en la configuración de tu ID de Apple.\n\nPROPIEDAD INTELECTUAL\nTodo el contenido, las funciones y la funcionalidad de DoseTrace son propiedad de Outcom y están protegidos por las leyes de propiedad intelectual aplicables.\n\nLIMITACIÓN DE RESPONSABILIDAD\nOutcom no será responsable de ningún daño indirecto, incidental o consecuente que surja del uso de DoseTrace.\n\nRESCISIÓN\nNos reservamos el derecho de cancelar las cuentas que infrinjan estos términos.\n\nLEY APLICABLE\nEstos términos se rigen por las leyes del estado de Florida, Estados Unidos.\n\nCONTACTO\nhello@dosetrace.io",
     settings_disclaimer: 'Aviso médico',
@@ -1771,7 +1771,7 @@ export const translations = {
     onboarding_ready_feat_1: 'Calculadora de reconstitución',
     onboarding_ready_feat_2: 'Guía de jeringa',
     onboarding_ready_feat_3: 'Rastreador de viales',
-    onboarding_ready_feat_4: 'IA de análisis de sangre',
+    onboarding_ready_feat_4: 'Escaneo de análisis',
     onboarding_ready_feat_5: 'Registro de inyecciones',
     onboarding_create_account: 'Crear cuenta',
     onboarding_getstarted_sub: 'Inicia sesión en tu cuenta existente o crea una nueva para empezar a rastrear.',
@@ -1847,7 +1847,7 @@ export const translations = {
           },
           {
             q: '¿Es DoseTrace gratis?',
-            a: 'Sí, las características principales son gratis para siempre. Premium desbloquea sincronización en la nube, protocolos ilimitados, IA de análisis de sangre y más.'
+            a: 'Sí, las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. Premium desbloquea protocolos ilimitados, escaneos de análisis ilimitados, la curva de acumulación de dosis y la exportación a PDF.'
           },
           {
             q: '¿Cómo añado mi primer protocolo?',
@@ -1894,7 +1894,7 @@ export const translations = {
           },
           {
             q: '¿Son privados mis datos de análisis de sangre?',
-            a: 'Sí. Las cuentas gratuitas almacenan todo localmente en tu dispositivo. Las cuentas Premium utilizan almacenamiento en la nube encriptado.'
+            a: 'Tus datos se guardan en tu dispositivo y se sincronizan con nuestra nube segura, de modo que tienen copia de seguridad en tus dispositivos. Cuando escaneas un informe de laboratorio, el archivo se envía una sola vez a Anthropic para leer los valores y no se conserva para entrenamiento; consulta nuestra Política de Privacidad. Nunca vendemos tus datos ni los usamos para publicidad.'
           }
         ]
       },
@@ -2150,7 +2150,7 @@ export const translations = {
     vax_delete: 'Eliminar vacuna',
     blood_upload: '+ Cargar',
     blood_uploading: 'Analizando tu examen...',
-    blood_premium_badge: '🩸 IA de análisis de sangre — Característica Premium',
+    blood_premium_badge: '🩸 Escaneo de análisis — Función Premium',
     blood_premium_only: "El análisis de sangre es una función Premium.",
     blood_first_free: 'Primera carga gratis · Luego paga por carga · Ilimitado con Premium',
     blood_unlimited: 'Mejora a Premium para cargas ilimitadas',
@@ -2226,7 +2226,7 @@ export const translations = {
     paywall_back: '← Atrás',
     paywall_title: 'Actualizar a Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Copia de seguridad en la nube, protocolos ilimitados, IA de análisis de sangre, exportación a PDF y más.',
+    paywall_hero_sub: 'Curvas de acumulación de dosis a partir de tu registro, protocolos ilimitados, escaneos de análisis ilimitados y exportación a PDF.',
     paywall_annual: 'Anual',
     paywall_monthly: 'Mensual',
     paywall_per_year: 'por año',
@@ -2275,7 +2275,7 @@ export const translations = {
     paywall_free_feat_12: 'Línea de tiempo del protocolo',
     paywall_free_feat_14: 'Sincronización de Apple Health y Watch',
     paywall_free_feat_15: 'Exportación a PDF',
-    paywall_bloodwork_title: '🩸 IA de análisis de sangre',
+    paywall_bloodwork_title: '🩸 Escaneo de análisis',
     paywall_bloodwork_sub: 'Carga cualquier informe de laboratorio en PDF — LabCorp, Quest o clínica privada — y extraemos automáticamente todos los valores de biomarcadores.',
     paywall_bloodwork_free_label: 'Usuarios gratuitos',
     paywall_bloodwork_free_price: 'Pago por carga',
@@ -3157,7 +3157,7 @@ export const translations = {
     settings_report_empty: 'Nenhum protocolo ativo para reportar.',
     settings_data_privacy: 'DADOS E PRIVACIDADE',
     settings_privacy_policy: 'Política de privacidade',
-    settings_privacy_body: "POLÍTICA DE PRIVACIDADE\n\nÚltima atualização: abril de 2026\n\nA Outcom opera o aplicativo móvel DoseTrace.\n\nDADOS QUE COLETAMOS\nAo criar uma conta, coletamos seu endereço de e-mail. Opcionalmente, você pode fornecer seu nome, sexo, mês e ano de nascimento, país, objetivos de bem-estar, nível de atividade e se você trabalha com um profissional de saúde. Os dados de protocolos, registros de doses, registros de frascos e lembretes que você cria são armazenados localmente no seu dispositivo. Usuários premium podem sincronizar esses dados com nossos servidores seguros na nuvem.\n\nCOMO USAMOS SEUS DADOS\nUsamos seus dados para fornecer e personalizar o serviço DoseTrace. As informações opcionais do perfil (nome, sexo, faixa etária, país, objetivos, nível de atividade) podem ser usadas de forma agregada e anonimizada para melhorar nosso serviço e desenvolver parcerias de bem-estar. Além da extração com IA descrita abaixo, não compartilhamos dados individuais de usuários com terceiros. Não vendemos seus dados pessoais. Não usamos seus dados de saúde para fins publicitários.\n\nEXTRAÇÃO COM IA (OPCIONAL)\nSe você optar por escanear um exame de laboratório ou carteira de vacinação, a foto ou o PDF selecionado é transmitido à Anthropic PBC (o serviço de IA Claude) para extração de texto única, somente após você dar permissão explícita no app. Apenas o arquivo selecionado é enviado. Ele é usado somente para extrair os valores, não é utilizado para treinar modelos de IA e não é retido pela Anthropic além do monitoramento antiabuso de curto prazo. A Anthropic protege esses dados com salvaguardas equivalentes a esta política.\n\nARMAZENAMENTO DE DADOS\nContas gratuitas: todos os dados são armazenados apenas localmente no seu dispositivo.\nContas premium: os dados são criptografados e armazenados em servidores seguros na nuvem da Supabase nos Estados Unidos.\n\nSEUS DIREITOS\nVocê pode solicitar a exclusão da sua conta e de todos os dados associados a qualquer momento entrando em contato com hello@dosetrace.io.\n\nCRIANÇAS\nO DoseTrace não se destina ao uso por pessoas menores de 18 anos.\n\nALTERAÇÕES\nPodemos atualizar esta política periodicamente. O uso contínuo do aplicativo constitui aceitação da política atualizada.\n\nCONTATO\nhello@dosetrace.io",
+    settings_privacy_body: "POLÍTICA DE PRIVACIDADE\n\nÚltima atualização: abril de 2026\n\nA Outcom opera o aplicativo móvel DoseTrace.\n\nDADOS QUE COLETAMOS\nAo criar uma conta, coletamos seu endereço de e-mail. Opcionalmente, você pode fornecer seu nome, sexo, mês e ano de nascimento, país, objetivos de bem-estar, nível de atividade e se você trabalha com um profissional de saúde. Os dados de protocolos, registros de doses, registros de frascos e lembretes que você cria são salvos no seu dispositivo e sincronizados, criptografados em trânsito, com nossa nuvem segura (Supabase, Estados Unidos), de modo que seus dados têm backup e ficam disponíveis em seus dispositivos.\n\nCOMO USAMOS SEUS DADOS\nUsamos seus dados para fornecer e personalizar o serviço DoseTrace. As informações opcionais do perfil (nome, sexo, faixa etária, país, objetivos, nível de atividade) podem ser usadas de forma agregada e anonimizada para melhorar nosso serviço e desenvolver parcerias de bem-estar. Além da extração com IA descrita abaixo, não compartilhamos dados individuais de usuários com terceiros. Não vendemos seus dados pessoais. Não usamos seus dados de saúde para fins publicitários.\n\nEXTRAÇÃO COM IA (OPCIONAL)\nSe você optar por escanear um exame de laboratório ou carteira de vacinação, a foto ou o PDF selecionado é transmitido à Anthropic PBC (o serviço de IA Claude) para extração de texto única, somente após você dar permissão explícita no app. Apenas o arquivo selecionado é enviado. Ele é usado somente para extrair os valores, não é utilizado para treinar modelos de IA e não é retido pela Anthropic além do monitoramento antiabuso de curto prazo. A Anthropic protege esses dados com salvaguardas equivalentes a esta política.\n\nARMAZENAMENTO DE DADOS\nSeus dados são armazenados no seu dispositivo e sincronizados, criptografados em trânsito, com os servidores seguros na nuvem da Supabase nos Estados Unidos, de modo que têm backup e ficam disponíveis em seus dispositivos.\nExames de laboratório e carteiras de vacinação que você optar por escanear são, além disso, enviados uma única vez à Anthropic para extração de texto, como descrito acima.\n\nSEUS DIREITOS\nVocê pode excluir sua conta e todos os dados associados a qualquer momento em Configurações no app, ou entrando em contato com hello@dosetrace.io.\n\nCRIANÇAS\nO DoseTrace não se destina ao uso por pessoas menores de 18 anos.\n\nALTERAÇÕES\nPodemos atualizar esta política periodicamente. O uso contínuo do aplicativo constitui aceitação da política atualizada.\n\nCONTATO\nhello@dosetrace.io",
     settings_terms: 'Termos de serviço',
     settings_terms_body: "TERMOS DE SERVIÇO\n\nÚltima atualização: abril de 2026\n\nAo baixar ou usar o DoseTrace, você concorda com estes termos.\n\nUSO DO APLICATIVO\nO DoseTrace é fornecido apenas para fins de acompanhamento pessoal de bem-estar. Você deve ter 18 anos ou mais para usar este aplicativo. Você é responsável por manter a confidencialidade das credenciais da sua conta.\n\nAVISO MÉDICO\nO DoseTrace não fornece aconselhamento médico. Consulte nosso Aviso médico para mais detalhes.\n\nASSINATURA PREMIUM\nOs recursos premium estão disponíveis por assinatura pelo preço exibido no aplicativo no momento da compra. As assinaturas são renovadas automaticamente, a menos que sejam canceladas pelo menos 24 horas antes da data de renovação. Gerencie as assinaturas nas configurações do seu ID Apple.\n\nPROPRIEDADE INTELECTUAL\nTodo o conteúdo, recursos e funcionalidades do DoseTrace pertencem à Outcom e são protegidos pelas leis de propriedade intelectual aplicáveis.\n\nLIMITAÇÃO DE RESPONSABILIDADE\nA Outcom não se responsabiliza por quaisquer danos indiretos, incidentais ou consequentes decorrentes do uso do DoseTrace.\n\nRESCISÃO\nReservamo-nos o direito de encerrar contas que violem estes termos.\n\nLEI APLICÁVEL\nEstes termos são regidos pelas leis do estado da Flórida, Estados Unidos.\n\nCONTATO\nhello@dosetrace.io",
     settings_disclaimer: 'Aviso médico',
@@ -3209,7 +3209,7 @@ export const translations = {
     onboarding_ready_feat_1: 'Calculadora de reconstituição',
     onboarding_ready_feat_2: 'Guia de seringa',
     onboarding_ready_feat_3: 'Rastreador de frasco',
-    onboarding_ready_feat_4: 'Exame de sangue com IA',
+    onboarding_ready_feat_4: 'Escaneamento de exames',
     onboarding_ready_feat_5: 'Registro de injeção',
     onboarding_create_account: 'Criar conta',
     onboarding_getstarted_sub: 'Entre na sua conta existente ou crie uma nova para começar a rastrear.',
@@ -3285,7 +3285,7 @@ export const translations = {
           },
           {
             q: 'DoseTrace é gratuito?',
-            a: 'Sim! Os recursos principais são gratuitos para sempre. Premium desbloqueia sincronização em nuvem, protocolos ilimitados, IA de exame de sangue e muito mais.'
+            a: 'Sim! Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O Premium desbloqueia protocolos ilimitados, escaneamentos de exames ilimitados, a curva de acúmulo de dose e a exportação em PDF.'
           },
           {
             q: 'Como adiciono meu primeiro protocolo?',
@@ -3332,7 +3332,7 @@ export const translations = {
           },
           {
             q: 'Meus dados de exame de sangue são privados?',
-            a: 'Sim. As contas gratuitas armazenam tudo localmente em seu dispositivo. As contas Premium usam armazenamento em nuvem criptografado.'
+            a: 'Seus dados são salvos no seu dispositivo e sincronizados com nossa nuvem segura, de modo que têm backup em seus dispositivos. Quando você escaneia um exame, o arquivo é enviado uma única vez à Anthropic para ler os valores e não é retido para treinamento; consulte nossa Política de Privacidade. Nunca vendemos seus dados nem os usamos para publicidade.'
           }
         ]
       },
@@ -3588,7 +3588,7 @@ export const translations = {
     vax_delete: 'Excluir vacina',
     blood_upload: '+ Enviar',
     blood_uploading: 'Processando seu exame...',
-    blood_premium_badge: '🩸 Análise de sangue com IA — Recurso Premium',
+    blood_premium_badge: '🩸 Escaneamento de exames — Recurso Premium',
     blood_premium_only: "A análise de sangue é um recurso Premium.",
     blood_first_free: 'Primeiro envio grátis · Depois pague por envio · Ilimitado com Premium',
     blood_unlimited: 'Faça upgrade para Premium para envios ilimitados',
@@ -3664,7 +3664,7 @@ export const translations = {
     paywall_back: '← Voltar',
     paywall_title: 'Upgrade para Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Backup na nuvem, protocolos ilimitados, análise de sangue com IA, exportação em PDF e muito mais.',
+    paywall_hero_sub: 'Curvas de acúmulo de dose a partir do seu registro, protocolos ilimitados, escaneamentos de exames ilimitados e exportação em PDF.',
     paywall_annual: 'Anual',
     paywall_monthly: 'Mensal',
     paywall_per_year: 'por ano',
@@ -3713,7 +3713,7 @@ export const translations = {
     paywall_free_feat_12: 'Timeline do protocolo',
     paywall_free_feat_14: 'Sincronização com Apple Health e Watch',
     paywall_free_feat_15: 'Exportação em PDF',
-    paywall_bloodwork_title: '🩸 Exame de sangue com IA',
+    paywall_bloodwork_title: '🩸 Escaneamento de exames',
     paywall_bloodwork_sub: 'Envie qualquer relatório de laboratório em PDF — LabCorp, Quest ou clínica privada — e extrairemos tudo automaticamente.',
     paywall_bloodwork_free_label: 'Usuários gratuitos',
     paywall_bloodwork_free_price: 'Pague por envio',
@@ -4594,7 +4594,7 @@ export const translations = {
     settings_report_empty: 'Aucun protocole actif à signaler.',
     settings_data_privacy: 'DONNÉES ET CONFIDENTIALITÉ',
     settings_privacy_policy: 'Politique de confidentialité',
-    settings_privacy_body: "POLITIQUE DE CONFIDENTIALITÉ\n\nDernière mise à jour : avril 2026\n\nOutcom exploite l'application mobile DoseTrace.\n\nDONNÉES QUE NOUS COLLECTONS\nLorsque vous créez un compte, nous collectons votre adresse e-mail. Vous pouvez éventuellement fournir votre nom, sexe, mois et année de naissance, pays, objectifs de bien-être, niveau d'activité et si vous êtes suivi par un professionnel de santé. Les données de protocoles, journaux de doses, enregistrements de flacons et rappels que vous créez sont stockés localement sur votre appareil. Les utilisateurs premium peuvent synchroniser ces données avec nos serveurs cloud sécurisés.\n\nCOMMENT NOUS UTILISONS VOS DONNÉES\nNous utilisons vos données pour fournir et personnaliser le service DoseTrace. Les informations de profil facultatives (nom, sexe, tranche d'âge, pays, objectifs, niveau d'activité) peuvent être utilisées sous forme agrégée et anonymisée pour améliorer notre service et développer des partenariats de bien-être. En dehors de l'extraction par IA décrite ci-dessous, nous ne partageons pas les données individuelles des utilisateurs avec des tiers. Nous ne vendons pas vos données personnelles. Nous n'utilisons pas vos données de santé à des fins publicitaires.\n\nEXTRACTION PAR IA (FACULTATIVE)\nSi vous choisissez de numériser un rapport de laboratoire ou un carnet de vaccination, la photo ou le PDF sélectionné est transmis à Anthropic PBC (le service d'IA Claude) pour une extraction de texte ponctuelle, uniquement après votre autorisation explicite dans l'app. Seul le fichier sélectionné est envoyé. Il sert uniquement à extraire les valeurs, n'est pas utilisé pour entraîner des modèles d'IA et n'est pas conservé par Anthropic au-delà de la surveillance antiabus à court terme. Anthropic protège ces données avec des garanties équivalentes à cette politique.\n\nSTOCKAGE DES DONNÉES\nComptes gratuits : toutes les données sont stockées uniquement localement sur votre appareil.\nComptes premium : les données sont chiffrées et stockées sur les serveurs cloud sécurisés de Supabase aux États-Unis.\n\nVOS DROITS\nVous pouvez demander la suppression de votre compte et de toutes les données associées à tout moment en écrivant à hello@dosetrace.io.\n\nENFANTS\nDoseTrace n'est pas destinée à être utilisée par des personnes de moins de 18 ans.\n\nMODIFICATIONS\nNous pouvons mettre à jour cette politique périodiquement. L'utilisation continue de l'application constitue l'acceptation de la politique mise à jour.\n\nCONTACT\nhello@dosetrace.io",
+    settings_privacy_body: "POLITIQUE DE CONFIDENTIALITÉ\n\nDernière mise à jour : avril 2026\n\nOutcom exploite l'application mobile DoseTrace.\n\nDONNÉES QUE NOUS COLLECTONS\nLorsque vous créez un compte, nous collectons votre adresse e-mail. Vous pouvez éventuellement fournir votre nom, sexe, mois et année de naissance, pays, objectifs de bien-être, niveau d'activité et si vous êtes suivi par un professionnel de santé. Les données de protocoles, journaux de doses, enregistrements de flacons et rappels que vous créez sont enregistrés sur votre appareil et synchronisés, chiffrés en transit, avec notre cloud sécurisé (Supabase, États-Unis), afin que vos données soient sauvegardées et disponibles sur vos appareils.\n\nCOMMENT NOUS UTILISONS VOS DONNÉES\nNous utilisons vos données pour fournir et personnaliser le service DoseTrace. Les informations de profil facultatives (nom, sexe, tranche d'âge, pays, objectifs, niveau d'activité) peuvent être utilisées sous forme agrégée et anonymisée pour améliorer notre service et développer des partenariats de bien-être. En dehors de l'extraction par IA décrite ci-dessous, nous ne partageons pas les données individuelles des utilisateurs avec des tiers. Nous ne vendons pas vos données personnelles. Nous n'utilisons pas vos données de santé à des fins publicitaires.\n\nEXTRACTION PAR IA (FACULTATIVE)\nSi vous choisissez de numériser un rapport de laboratoire ou un carnet de vaccination, la photo ou le PDF sélectionné est transmis à Anthropic PBC (le service d'IA Claude) pour une extraction de texte ponctuelle, uniquement après votre autorisation explicite dans l'app. Seul le fichier sélectionné est envoyé. Il sert uniquement à extraire les valeurs, n'est pas utilisé pour entraîner des modèles d'IA et n'est pas conservé par Anthropic au-delà de la surveillance antiabus à court terme. Anthropic protège ces données avec des garanties équivalentes à cette politique.\n\nSTOCKAGE DES DONNÉES\nVos données sont stockées sur votre appareil et synchronisées, chiffrées en transit, avec les serveurs cloud sécurisés de Supabase aux États-Unis, afin d’être sauvegardées et disponibles sur vos appareils.\nLes rapports d’analyses et carnets de vaccination que vous choisissez de numériser sont en outre envoyés une seule fois à Anthropic pour l’extraction de texte, comme décrit ci-dessus.\n\nVOS DROITS\nVous pouvez supprimer votre compte et toutes les données associées à tout moment depuis les Réglages de l’app, ou en écrivant à hello@dosetrace.io.\n\nENFANTS\nDoseTrace n'est pas destinée à être utilisée par des personnes de moins de 18 ans.\n\nMODIFICATIONS\nNous pouvons mettre à jour cette politique périodiquement. L'utilisation continue de l'application constitue l'acceptation de la politique mise à jour.\n\nCONTACT\nhello@dosetrace.io",
     settings_terms: 'Conditions de service',
     settings_terms_body: "CONDITIONS DE SERVICE\n\nDernière mise à jour : avril 2026\n\nEn téléchargeant ou en utilisant DoseTrace, vous acceptez ces conditions.\n\nUTILISATION DE L'APPLICATION\nDoseTrace est fournie uniquement à des fins de suivi personnel du bien-être. Vous devez avoir 18 ans ou plus pour utiliser cette application. Vous êtes responsable de la confidentialité des identifiants de votre compte.\n\nAVERTISSEMENT MÉDICAL\nDoseTrace ne fournit pas de conseils médicaux. Consultez notre Avertissement médical pour plus de détails.\n\nABONNEMENT PREMIUM\nLes fonctionnalités premium sont disponibles par abonnement au prix indiqué dans l'application au moment de l'achat. Les abonnements se renouvellent automatiquement sauf annulation au moins 24 heures avant la date de renouvellement. Gérez vos abonnements dans les réglages de votre identifiant Apple.\n\nPROPRIÉTÉ INTELLECTUELLE\nTout le contenu, les fonctionnalités et les fonctions de DoseTrace appartiennent à Outcom et sont protégés par les lois applicables en matière de propriété intellectuelle.\n\nLIMITATION DE RESPONSABILITÉ\nOutcom ne saurait être tenue responsable de tout dommage indirect, accessoire ou consécutif résultant de votre utilisation de DoseTrace.\n\nRÉSILIATION\nNous nous réservons le droit de résilier les comptes qui enfreignent ces conditions.\n\nDROIT APPLICABLE\nCes conditions sont régies par les lois de l'État de Floride, États-Unis.\n\nCONTACT\nhello@dosetrace.io",
     settings_disclaimer: 'Avertissement médical',
@@ -4646,7 +4646,7 @@ export const translations = {
     onboarding_ready_feat_1: 'Calculatrice de reconstitution',
     onboarding_ready_feat_2: 'Guide de seringue',
     onboarding_ready_feat_3: 'Suivi des fioles',
-    onboarding_ready_feat_4: 'Examen sanguin IA',
+    onboarding_ready_feat_4: 'Scan d’analyses',
     onboarding_ready_feat_5: 'Journal d\'injection',
     onboarding_create_account: 'Créer un compte',
     onboarding_getstarted_sub: 'Connectez-vous à votre compte existant ou créez-en un nouveau pour commencer le suivi.',
@@ -4722,7 +4722,7 @@ export const translations = {
           },
           {
             q: 'DoseTrace est-il gratuit?',
-            a: 'Oui! Les fonctionnalités principales sont gratuites à jamais. Premium déverrouille la synchronisation cloud, les protocoles illimités, l\'IA d\'examen sanguin et plus.'
+            a: 'Oui! Les fonctionnalités principales sont gratuites à jamais, y compris la sauvegarde cloud. Premium déverrouille les protocoles illimités, les scans d’analyses illimités, la courbe d’accumulation de dose et l’export PDF.'
           },
           {
             q: 'Comment ajouter mon premier protocole?',
@@ -4769,7 +4769,7 @@ export const translations = {
           },
           {
             q: 'Mes données d\'examen sanguin sont-elles privées?',
-            a: 'Oui. Les comptes gratuits stockent tout localement sur votre appareil. Les comptes Premium utilisent un stockage cloud crypté.'
+            a: 'Vos données sont enregistrées sur votre appareil et synchronisées avec notre cloud sécurisé, afin d’être sauvegardées sur vos appareils. Lorsque vous numérisez un rapport d’analyse, le fichier est envoyé une seule fois à Anthropic pour lire les valeurs et n’est pas conservé pour l’entraînement ; voir notre Politique de confidentialité. Nous ne vendons jamais vos données et ne les utilisons pas à des fins publicitaires.'
           }
         ]
       },
@@ -5025,7 +5025,7 @@ export const translations = {
     vax_delete: 'Supprimer le vaccin',
     blood_upload: '+ Télécharger',
     blood_uploading: 'Analyse de votre bilan en cours...',
-    blood_premium_badge: '🩸 Examen sanguin IA — Fonctionnalité Premium',
+    blood_premium_badge: '🩸 Scan d’analyses — Fonctionnalité Premium',
     blood_premium_only: "L’analyse sanguine est une fonctionnalité Premium.",
     blood_first_free: 'Premier envoi gratuit · Ensuite payez par envoi · Illimité avec Premium',
     blood_unlimited: 'Passez à Premium pour des envois illimités',
@@ -5101,7 +5101,7 @@ export const translations = {
     paywall_back: '← Retour',
     paywall_title: 'Passer à Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Sauvegarde cloud, protocoles illimités, examen sanguin IA, export PDF et plus.',
+    paywall_hero_sub: 'Courbes d’accumulation de dose à partir de votre journal, protocoles illimités, scans d’analyses illimités et export PDF.',
     paywall_annual: 'Annuel',
     paywall_monthly: 'Mensuel',
     paywall_per_year: 'par an',
@@ -5150,7 +5150,7 @@ export const translations = {
     paywall_free_feat_12: 'Chronologie du protocole',
     paywall_free_feat_14: 'Synchronisation Apple Health et Watch',
     paywall_free_feat_15: 'Exportation PDF',
-    paywall_bloodwork_title: '🩸 Examen sanguin IA',
+    paywall_bloodwork_title: '🩸 Scan d’analyses',
     paywall_bloodwork_sub: 'Téléchargez n\'importe quel rapport de laboratoire PDF — LabCorp, Quest ou clinique privée — et nous extrairons automatiquement toutes les valeurs de biomarqueurs.',
     paywall_bloodwork_free_label: 'Utilisateurs gratuits',
     paywall_bloodwork_free_price: 'Paiement par envoi',
@@ -6031,7 +6031,7 @@ export const translations = {
     settings_report_empty: 'Keine aktiven Protokolle zum Berichten.',
     settings_data_privacy: 'DATEN & DATENSCHUTZ',
     settings_privacy_policy: 'Datenschutzrichtlinie',
-    settings_privacy_body: "DATENSCHUTZRICHTLINIE\n\nZuletzt aktualisiert: April 2026\n\nOutcom betreibt die mobile Anwendung DoseTrace.\n\nDATEN, DIE WIR ERFASSEN\nWenn du ein Konto erstellst, erfassen wir deine E-Mail-Adresse. Optional kannst du deinen Namen, dein Geschlecht, Geburtsmonat und -jahr, Land, Wellness-Ziele, Aktivitätsniveau und ob du von einer medizinischen Fachkraft betreut wirst, angeben. Protokolldaten, Dosisprotokolle, Fläschchen-Aufzeichnungen und von dir erstellte Erinnerungen werden lokal auf deinem Gerät gespeichert. Premium-Nutzer können diese Daten mit unseren sicheren Cloud-Servern synchronisieren.\n\nWIE WIR DEINE DATEN VERWENDEN\nWir verwenden deine Daten, um den DoseTrace-Dienst bereitzustellen und zu personalisieren. Optionale Profilinformationen (Name, Geschlecht, Altersgruppe, Land, Ziele, Aktivitätsniveau) können in aggregierter und anonymisierter Form verwendet werden, um unseren Dienst zu verbessern und Wellness-Partnerschaften zu entwickeln. Abgesehen von der unten beschriebenen KI-Extraktion geben wir individuelle Nutzerdaten nicht an Dritte weiter. Wir verkaufen deine personenbezogenen Daten nicht. Wir verwenden deine Gesundheitsdaten nicht für Werbezwecke.\n\nKI-EXTRAKTION (OPTIONAL)\nWenn du einen Laborbericht oder Impfpass scannst, wird das ausgewählte Foto oder PDF zur einmaligen Textextraktion an Anthropic PBC (den KI-Dienst Claude) übertragen – erst nachdem du in der App ausdrücklich zugestimmt hast. Es wird nur die ausgewählte Datei gesendet. Sie dient ausschließlich der Wertextraktion, wird nicht zum Training von KI-Modellen verwendet und von Anthropic nicht über die kurzfristige Missbrauchsüberwachung hinaus gespeichert. Anthropic schützt diese Daten mit dieser Richtlinie gleichwertigen Schutzmaßnahmen.\n\nDATENSPEICHERUNG\nKostenlose Konten: Alle Daten werden ausschließlich lokal auf deinem Gerät gespeichert.\nPremium-Konten: Die Daten werden verschlüsselt und auf sicheren Supabase-Cloud-Servern in den Vereinigten Staaten gespeichert.\n\nDEINE RECHTE\nDu kannst jederzeit die Löschung deines Kontos und aller zugehörigen Daten beantragen, indem du dich an hello@dosetrace.io wendest.\n\nKINDER\nDoseTrace ist nicht für die Nutzung durch Personen unter 18 Jahren bestimmt.\n\nÄNDERUNGEN\nWir können diese Richtlinie regelmäßig aktualisieren. Die fortgesetzte Nutzung der App stellt die Annahme der aktualisierten Richtlinie dar.\n\nKONTAKT\nhello@dosetrace.io",
+    settings_privacy_body: "DATENSCHUTZRICHTLINIE\n\nZuletzt aktualisiert: April 2026\n\nOutcom betreibt die mobile Anwendung DoseTrace.\n\nDATEN, DIE WIR ERFASSEN\nWenn du ein Konto erstellst, erfassen wir deine E-Mail-Adresse. Optional kannst du deinen Namen, dein Geschlecht, Geburtsmonat und -jahr, Land, Wellness-Ziele, Aktivitätsniveau und ob du von einer medizinischen Fachkraft betreut wirst, angeben. Protokolldaten, Dosisprotokolle, Fläschchen-Aufzeichnungen und von dir erstellte Erinnerungen werden auf deinem Gerät gespeichert und – verschlüsselt bei der Übertragung – mit unserer sicheren Cloud (Supabase, USA) synchronisiert, sodass deine Daten gesichert und auf deinen Geräten verfügbar sind.\n\nWIE WIR DEINE DATEN VERWENDEN\nWir verwenden deine Daten, um den DoseTrace-Dienst bereitzustellen und zu personalisieren. Optionale Profilinformationen (Name, Geschlecht, Altersgruppe, Land, Ziele, Aktivitätsniveau) können in aggregierter und anonymisierter Form verwendet werden, um unseren Dienst zu verbessern und Wellness-Partnerschaften zu entwickeln. Abgesehen von der unten beschriebenen KI-Extraktion geben wir individuelle Nutzerdaten nicht an Dritte weiter. Wir verkaufen deine personenbezogenen Daten nicht. Wir verwenden deine Gesundheitsdaten nicht für Werbezwecke.\n\nKI-EXTRAKTION (OPTIONAL)\nWenn du einen Laborbericht oder Impfpass scannst, wird das ausgewählte Foto oder PDF zur einmaligen Textextraktion an Anthropic PBC (den KI-Dienst Claude) übertragen – erst nachdem du in der App ausdrücklich zugestimmt hast. Es wird nur die ausgewählte Datei gesendet. Sie dient ausschließlich der Wertextraktion, wird nicht zum Training von KI-Modellen verwendet und von Anthropic nicht über die kurzfristige Missbrauchsüberwachung hinaus gespeichert. Anthropic schützt diese Daten mit dieser Richtlinie gleichwertigen Schutzmaßnahmen.\n\nDATENSPEICHERUNG\nDeine Daten werden auf deinem Gerät gespeichert und – verschlüsselt bei der Übertragung – mit den sicheren Supabase-Cloud-Servern in den USA synchronisiert, sodass sie gesichert und auf deinen Geräten verfügbar sind.\nLaborberichte und Impfpässe, die du scannst, werden zusätzlich einmalig an Anthropic zur Textextraktion gesendet, wie oben beschrieben.\n\nDEINE RECHTE\nDu kannst dein Konto und alle zugehörigen Daten jederzeit in den Einstellungen der App löschen oder dich an hello@dosetrace.io wenden.\n\nKINDER\nDoseTrace ist nicht für die Nutzung durch Personen unter 18 Jahren bestimmt.\n\nÄNDERUNGEN\nWir können diese Richtlinie regelmäßig aktualisieren. Die fortgesetzte Nutzung der App stellt die Annahme der aktualisierten Richtlinie dar.\n\nKONTAKT\nhello@dosetrace.io",
     settings_terms: 'Nutzungsbedingungen',
     settings_terms_body: "NUTZUNGSBEDINGUNGEN\n\nZuletzt aktualisiert: April 2026\n\nDurch das Herunterladen oder Verwenden von DoseTrace stimmst du diesen Bedingungen zu.\n\nNUTZUNG DER APP\nDoseTrace wird ausschließlich zu Zwecken des persönlichen Wellness-Trackings bereitgestellt. Du musst mindestens 18 Jahre alt sein, um diese App zu nutzen. Du bist für die Vertraulichkeit deiner Kontozugangsdaten verantwortlich.\n\nMEDIZINISCHER HAFTUNGSAUSSCHLUSS\nDoseTrace bietet keine medizinische Beratung. Weitere Einzelheiten findest du in unserem medizinischen Haftungsausschluss.\n\nPREMIUM-ABONNEMENT\nPremium-Funktionen sind per Abonnement zu dem in der App zum Zeitpunkt des Kaufs angezeigten Preis verfügbar. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor dem Verlängerungsdatum gekündigt werden. Verwalte Abonnements in den Einstellungen deiner Apple-ID.\n\nGEISTIGES EIGENTUM\nAlle Inhalte, Funktionen und Funktionalitäten von DoseTrace sind Eigentum von Outcom und durch die geltenden Gesetze zum Schutz des geistigen Eigentums geschützt.\n\nHAFTUNGSBESCHRÄNKUNG\nOutcom haftet nicht für indirekte, zufällige oder Folgeschäden, die aus deiner Nutzung von DoseTrace entstehen.\n\nKÜNDIGUNG\nWir behalten uns das Recht vor, Konten zu kündigen, die gegen diese Bedingungen verstoßen.\n\nGELTENDES RECHT\nDiese Bedingungen unterliegen den Gesetzen des Bundesstaates Florida, Vereinigte Staaten.\n\nKONTAKT\nhello@dosetrace.io",
     settings_disclaimer: 'Medizinischer Haftungsausschluss',
@@ -6083,7 +6083,7 @@ export const translations = {
     onboarding_ready_feat_1: 'Rekonstitutions-Rechner',
     onboarding_ready_feat_2: 'Spritzenführer',
     onboarding_ready_feat_3: 'Fläschchen-Verfolgung',
-    onboarding_ready_feat_4: 'Blutuntersuchungs-KI',
+    onboarding_ready_feat_4: 'Laborbericht-Scan',
     onboarding_ready_feat_5: 'Injektionsprotokoll',
     onboarding_create_account: 'Konto erstellen',
     onboarding_getstarted_sub: 'Melde dich bei deinem bestehenden Konto an oder erstelle ein neues, um mit der Verfolgung zu beginnen.',
@@ -6159,7 +6159,7 @@ export const translations = {
           },
           {
             q: 'Ist DoseTrace kostenlos?',
-            a: 'Ja! Die Kernfunktionen sind für immer kostenlos. Premium entsperrt Cloud-Synchronisierung, unbegrenzte Protokolle, Blutuntersuchungs-KI und mehr.'
+            a: 'Ja! Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Premium entsperrt unbegrenzte Protokolle, unbegrenzte Laborbericht-Scans, die Dosis-Akkumulationskurve und den PDF-Export.'
           },
           {
             q: 'Wie füge ich mein erstes Protokoll hinzu?',
@@ -6206,7 +6206,7 @@ export const translations = {
           },
           {
             q: 'Sind meine Blutuntersuchungsdaten privat?',
-            a: 'Ja. Kostenlose Konten speichern alles lokal auf deinem Gerät. Premium-Konten verwenden verschlüsselte Cloud-Speicher.'
+            a: 'Deine Daten werden auf deinem Gerät gespeichert und mit unserer sicheren Cloud synchronisiert, sodass sie auf deinen Geräten gesichert sind. Wenn du einen Laborbericht scannst, wird die Datei einmalig an Anthropic gesendet, um die Werte auszulesen, und nicht zum Training gespeichert – siehe unsere Datenschutzrichtlinie. Wir verkaufen deine Daten niemals und nutzen sie nicht für Werbung.'
           }
         ]
       },
@@ -6462,7 +6462,7 @@ export const translations = {
     vax_delete: 'Impfung löschen',
     blood_upload: '+ Hochladen',
     blood_uploading: 'Dein Blutbild wird analysiert...',
-    blood_premium_badge: '🩸 Blutuntersuchungs-KI — Premium-Funktion',
+    blood_premium_badge: '🩸 Laborbericht-Scan — Premium-Funktion',
     blood_premium_only: "Die Blutbild-Analyse ist eine Premium-Funktion.",
     blood_first_free: 'Erster Upload gratis · Danach pro Upload zahlen · Unbegrenzt mit Premium',
     blood_unlimited: 'Upgrade auf Premium für unbegrenzte Uploads',
@@ -6538,7 +6538,7 @@ export const translations = {
     paywall_back: '← Zurück',
     paywall_title: 'Upgrade auf Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Cloud-Sicherung, unbegrenzte Protokolle, Blutuntersuchungs-KI, PDF-Export und mehr.',
+    paywall_hero_sub: 'Dosis-Akkumulationskurven aus deinem Verlauf, unbegrenzte Protokolle, unbegrenzte Laborbericht-Scans und PDF-Export.',
     paywall_annual: 'Jährlich',
     paywall_monthly: 'Monatlich',
     paywall_per_year: 'pro Jahr',
@@ -6587,7 +6587,7 @@ export const translations = {
     paywall_free_feat_12: 'Protokoll-Timeline',
     paywall_free_feat_14: 'Apple Health und Watch-Synchronisierung',
     paywall_free_feat_15: 'PDF-Export',
-    paywall_bloodwork_title: '🩸 Blutuntersuchungs-KI',
+    paywall_bloodwork_title: '🩸 Laborbericht-Scan',
     paywall_bloodwork_sub: 'Lade einen beliebigen PDF-Laborbericht hoch — LabCorp, Quest oder Privatklinik — und wir extrahieren automatisch jeden Biomarker-Wert.',
     paywall_bloodwork_free_label: 'Kostenlose Benutzer',
     paywall_bloodwork_free_price: 'Pro Upload zahlen',
@@ -7469,7 +7469,7 @@ export const translations = {
     settings_report_empty: 'Nessun protocollo attivo da segnalare.',
     settings_data_privacy: 'DATI E PRIVACY',
     settings_privacy_policy: 'Informativa sulla privacy',
-    settings_privacy_body: "INFORMATIVA SULLA PRIVACY\n\nUltimo aggiornamento: aprile 2026\n\nOutcom gestisce l'applicazione mobile DoseTrace.\n\nDATI CHE RACCOGLIAMO\nQuando crei un account, raccogliamo il tuo indirizzo e-mail. Facoltativamente puoi fornire nome, sesso, mese e anno di nascita, paese, obiettivi di benessere, livello di attività e se sei seguito da un professionista sanitario. I dati dei protocolli, i registri delle dosi, i registri dei flaconi e i promemoria che crei vengono archiviati localmente sul tuo dispositivo. Gli utenti premium possono sincronizzare questi dati con i nostri server cloud sicuri.\n\nCOME USIAMO I TUOI DATI\nUsiamo i tuoi dati per fornire e personalizzare il servizio DoseTrace. Le informazioni facoltative del profilo (nome, sesso, fascia d'età, paese, obiettivi, livello di attività) possono essere utilizzate in forma aggregata e anonimizzata per migliorare il nostro servizio e sviluppare collaborazioni nel campo del benessere. A parte l'estrazione con IA descritta sotto, non condividiamo i dati dei singoli utenti con terze parti. Non vendiamo i tuoi dati personali. Non utilizziamo i tuoi dati sanitari per scopi pubblicitari.\n\nESTRAZIONE CON IA (FACOLTATIVA)\nSe scegli di scansionare un referto di laboratorio o un libretto vaccinale, la foto o il PDF selezionato viene trasmesso ad Anthropic PBC (il servizio di IA Claude) per un'estrazione di testo una tantum, solo dopo il tuo permesso esplicito nell'app. Viene inviato solo il file selezionato. Serve esclusivamente a estrarre i valori, non viene utilizzato per addestrare modelli di IA e non viene conservato da Anthropic oltre il monitoraggio antiabusi a breve termine. Anthropic protegge questi dati con tutele equivalenti a questa informativa.\n\nARCHIVIAZIONE DEI DATI\nAccount gratuiti: tutti i dati sono archiviati solo localmente sul tuo dispositivo.\nAccount premium: i dati sono crittografati e archiviati su server cloud sicuri di Supabase negli Stati Uniti.\n\nI TUOI DIRITTI\nPuoi richiedere l'eliminazione del tuo account e di tutti i dati associati in qualsiasi momento contattando hello@dosetrace.io.\n\nMINORI\nDoseTrace non è destinata all'uso da parte di persone di età inferiore ai 18 anni.\n\nMODIFICHE\nPossiamo aggiornare periodicamente questa informativa. L'uso continuato dell'app costituisce accettazione dell'informativa aggiornata.\n\nCONTATTO\nhello@dosetrace.io",
+    settings_privacy_body: "INFORMATIVA SULLA PRIVACY\n\nUltimo aggiornamento: aprile 2026\n\nOutcom gestisce l'applicazione mobile DoseTrace.\n\nDATI CHE RACCOGLIAMO\nQuando crei un account, raccogliamo il tuo indirizzo e-mail. Facoltativamente puoi fornire nome, sesso, mese e anno di nascita, paese, obiettivi di benessere, livello di attività e se sei seguito da un professionista sanitario. I dati dei protocolli, i registri delle dosi, i registri dei flaconi e i promemoria che crei vengono salvati sul tuo dispositivo e sincronizzati, cifrati in transito, con il nostro cloud sicuro (Supabase, Stati Uniti), così i tuoi dati hanno un backup e sono disponibili sui tuoi dispositivi.\n\nCOME USIAMO I TUOI DATI\nUsiamo i tuoi dati per fornire e personalizzare il servizio DoseTrace. Le informazioni facoltative del profilo (nome, sesso, fascia d'età, paese, obiettivi, livello di attività) possono essere utilizzate in forma aggregata e anonimizzata per migliorare il nostro servizio e sviluppare collaborazioni nel campo del benessere. A parte l'estrazione con IA descritta sotto, non condividiamo i dati dei singoli utenti con terze parti. Non vendiamo i tuoi dati personali. Non utilizziamo i tuoi dati sanitari per scopi pubblicitari.\n\nESTRAZIONE CON IA (FACOLTATIVA)\nSe scegli di scansionare un referto di laboratorio o un libretto vaccinale, la foto o il PDF selezionato viene trasmesso ad Anthropic PBC (il servizio di IA Claude) per un'estrazione di testo una tantum, solo dopo il tuo permesso esplicito nell'app. Viene inviato solo il file selezionato. Serve esclusivamente a estrarre i valori, non viene utilizzato per addestrare modelli di IA e non viene conservato da Anthropic oltre il monitoraggio antiabusi a breve termine. Anthropic protegge questi dati con tutele equivalenti a questa informativa.\n\nARCHIVIAZIONE DEI DATI\nI tuoi dati sono archiviati sul tuo dispositivo e sincronizzati, cifrati in transito, con i server cloud sicuri di Supabase negli Stati Uniti, così hanno un backup e sono disponibili sui tuoi dispositivi.\nI referti di laboratorio e i libretti vaccinali che scegli di scansionare vengono inoltre inviati una sola volta ad Anthropic per l’estrazione del testo, come descritto sopra.\n\nI TUOI DIRITTI\nPuoi eliminare il tuo account e tutti i dati associati in qualsiasi momento dalle Impostazioni nell'app, o contattando hello@dosetrace.io.\n\nMINORI\nDoseTrace non è destinata all'uso da parte di persone di età inferiore ai 18 anni.\n\nMODIFICHE\nPossiamo aggiornare periodicamente questa informativa. L'uso continuato dell'app costituisce accettazione dell'informativa aggiornata.\n\nCONTATTO\nhello@dosetrace.io",
     settings_terms: 'Termini di servizio',
     settings_terms_body: "TERMINI DI SERVIZIO\n\nUltimo aggiornamento: aprile 2026\n\nScaricando o utilizzando DoseTrace, accetti questi termini.\n\nUSO DELL'APP\nDoseTrace è fornita esclusivamente per scopi di monitoraggio personale del benessere. Devi avere almeno 18 anni per utilizzare questa app. Sei responsabile della riservatezza delle credenziali del tuo account.\n\nAVVERTENZA MEDICA\nDoseTrace non fornisce consulenza medica. Consulta la nostra Avvertenza medica per maggiori dettagli.\n\nABBONAMENTO PREMIUM\nLe funzioni premium sono disponibili tramite abbonamento al prezzo indicato nell'app al momento dell'acquisto. Gli abbonamenti si rinnovano automaticamente se non vengono annullati almeno 24 ore prima della data di rinnovo. Gestisci gli abbonamenti nelle impostazioni del tuo ID Apple.\n\nPROPRIETÀ INTELLETTUALE\nTutti i contenuti, le caratteristiche e le funzionalità di DoseTrace sono di proprietà di Outcom e protetti dalle leggi vigenti in materia di proprietà intellettuale.\n\nLIMITAZIONE DI RESPONSABILITÀ\nOutcom non sarà responsabile per eventuali danni indiretti, incidentali o consequenziali derivanti dall'uso di DoseTrace.\n\nRISOLUZIONE\nCi riserviamo il diritto di chiudere gli account che violano questi termini.\n\nLEGGE APPLICABILE\nQuesti termini sono regolati dalle leggi dello Stato della Florida, Stati Uniti.\n\nCONTATTO\nhello@dosetrace.io",
     settings_disclaimer: 'Avvertenza medica',
@@ -7521,7 +7521,7 @@ export const translations = {
     onboarding_ready_feat_1: 'Calcolatore di ricostituzione',
     onboarding_ready_feat_2: 'Guida alla siringa',
     onboarding_ready_feat_3: 'Tracciamento flaconi',
-    onboarding_ready_feat_4: 'IA per analisi',
+    onboarding_ready_feat_4: 'Scansione analisi',
     onboarding_ready_feat_5: 'Registro iniezioni',
     onboarding_create_account: 'Crea account',
     onboarding_getstarted_sub: 'Accedi al tuo account esistente o creane uno nuovo per iniziare a tracciare.',
@@ -7597,7 +7597,7 @@ export const translations = {
           },
           {
             q: 'DoseTrace è gratuito?',
-            a: 'Sì! Le funzioni principali sono gratuite per sempre. Premium sblocca la sincronizzazione cloud, protocolli illimitati, IA per analisi e altro ancora.'
+            a: 'Sì! Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Premium sblocca protocolli illimitati, scansioni analisi illimitate, la curva di accumulo della dose e l’esportazione PDF.'
           },
           {
             q: 'Come aggiungo il mio primo protocollo?',
@@ -7644,7 +7644,7 @@ export const translations = {
           },
           {
             q: 'I miei dati delle analisi sono privati?',
-            a: 'Sì. Gli account gratuiti memorizzano tutto localmente sul tuo dispositivo. Gli account Premium utilizzano l\'archiviazione cloud crittografata.'
+            a: 'I tuoi dati sono salvati sul tuo dispositivo e sincronizzati con il nostro cloud sicuro, così hanno un backup sui tuoi dispositivi. Quando scansioni un referto, il file viene inviato una sola volta ad Anthropic per leggere i valori e non viene conservato per l’addestramento; vedi la nostra Informativa sulla privacy. Non vendiamo mai i tuoi dati né li usiamo per pubblicità.'
           }
         ]
       },
@@ -7900,7 +7900,7 @@ export const translations = {
     vax_delete: 'Elimina vaccino',
     blood_upload: '+ Carica',
     blood_uploading: 'Analisi del tuo esame in corso...',
-    blood_premium_badge: '🩸 IA per analisi — Funzione Premium',
+    blood_premium_badge: '🩸 Scansione analisi — Funzione Premium',
     blood_premium_only: "L’analisi del sangue è una funzione Premium.",
     blood_first_free: 'Primo caricamento gratis · Poi paghi per caricamento · Illimitato con Premium',
     blood_unlimited: 'Passa a Premium per caricamenti illimitati',
@@ -7976,7 +7976,7 @@ export const translations = {
     paywall_back: '← Indietro',
     paywall_title: 'Upgrade a Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Backup cloud, protocolli illimitati, IA per analisi, esportazione PDF e altro.',
+    paywall_hero_sub: 'Curve di accumulo della dose dal tuo registro, protocolli illimitati, scansioni analisi illimitate ed esportazione PDF.',
     paywall_annual: 'Annuale',
     paywall_monthly: 'Mensile',
     paywall_per_year: 'all\'anno',
@@ -8025,7 +8025,7 @@ export const translations = {
     paywall_free_feat_12: 'Timeline del protocollo',
     paywall_free_feat_14: 'Sincronizzazione Apple Health e Watch',
     paywall_free_feat_15: 'Esportazione PDF',
-    paywall_bloodwork_title: '🩸 IA per analisi',
+    paywall_bloodwork_title: '🩸 Scansione analisi',
     paywall_bloodwork_sub: 'Carica un rapporto di laboratorio in PDF — LabCorp, Quest o clinica privata — e estrarremo automaticamente ogni valore di biomarker.',
     paywall_bloodwork_free_label: 'Utenti gratuiti',
     paywall_bloodwork_free_price: 'Paghi per caricamento',
