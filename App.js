@@ -7,10 +7,10 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
-import { hasSeenOnboarding, markSeenOnboarding, applyPendingProfile } from './lib/onboardingStore';
+import { hasSeenOnboarding, markSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, RC_START_KEY } from './lib/notifications';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
 import { installFontMapping, useAppFonts } from './lib/fonts';
@@ -411,6 +411,11 @@ export default function App() {
           cancelAllNotifications().catch(() => {});
           // Reset RevenueCat identity so the next sign-in doesn't inherit it
           logOutPurchases().catch(() => {});
+          // Wipe device-global AsyncStorage that would otherwise leak one user's
+          // data to the next account on a shared device: the intro-flow stash
+          // (name/sex/birth-year/goal) and the reality-check starting weigh-in.
+          clearOnboarding().catch(() => {});
+          AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
         }, 0);
       }
 
