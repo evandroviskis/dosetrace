@@ -931,12 +931,11 @@ export default function SettingsScreen({ navigation }) {
               autoCorrect={false}
             />
 
-            <Text style={s.editLabel}>{t('profile_gender')}</Text>
+            <Text style={s.editLabel}>{t('profile_sex')}</Text>
             <View style={s.editPillRow}>
               {[
                 { key: 'male', label: t('profile_gender_male') },
                 { key: 'female', label: t('profile_gender_female') },
-                { key: 'prefer_not_to_say', label: t('profile_gender_skip') },
               ].map(g => (
                 <TouchableOpacity
                   key={g.key}
@@ -947,6 +946,7 @@ export default function SettingsScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
+            <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
 
             <Text style={s.editLabel}>{t('profile_birth')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
@@ -1176,6 +1176,7 @@ const makeStyles = (c) => StyleSheet.create({
   goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
   // Edit profile modal
   editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 16 },
+  sexHelp: { fontSize: 11.5, color: c.textFaint, marginTop: 6, lineHeight: 15 },
   editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, backgroundColor: c.card2, marginBottom: 4 },
   editPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   editPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },

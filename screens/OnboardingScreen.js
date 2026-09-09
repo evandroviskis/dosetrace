@@ -407,12 +407,11 @@ export default function OnboardingScreen() {
               autoCorrect={false}
             />
 
-            <Text style={s.fieldLabel}>{t('profile_gender')}</Text>
+            <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
             <View style={s.pillRow}>
               {[
                 { key: 'male', label: t('profile_gender_male') },
                 { key: 'female', label: t('profile_gender_female') },
-                { key: 'prefer_not_to_say', label: t('profile_gender_skip') },
               ].map(g => (
                 <TouchableOpacity
                   key={g.key}
@@ -423,6 +422,7 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
 
             <Text style={s.fieldLabel}>{t('profile_birth')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
@@ -841,6 +841,7 @@ const makeStyles = (c) => StyleSheet.create({
   consentFooter: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 10, lineHeight: 16 },
   // Profile step
   fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 12 },
+  sexHelp: { fontSize: 11.5, color: c.textFaint, marginTop: 6, lineHeight: 15 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   pill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
   pillOn: { backgroundColor: c.accent, borderColor: c.accent },

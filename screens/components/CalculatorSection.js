@@ -105,6 +105,16 @@ export default function CalculatorSection() {
       const rcs = raw ? JSON.parse(raw) : null;
       if (rcs && rcs.date && typeof rcs.weightKg === 'number') setRcStart(rcs);
     } catch { /* ignore */ }
+    // Seed physiological defaults from the profile so BMR is sensitive to the
+    // user's stored sex (assigned at birth) and age. Explicit calculator inputs
+    // saved below still win over these.
+    const meta = user?.user_metadata || {};
+    if (meta.gender === 'male' || meta.gender === 'female') setSex(meta.gender);
+    if (meta.birth_year) {
+      const yrs = new Date().getFullYear() - Number(meta.birth_year);
+      if (yrs > 0 && yrs < 120) setAge(String(yrs));
+    }
+
     const saved = user?.user_metadata?.calc_inputs;
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);

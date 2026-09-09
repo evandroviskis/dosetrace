@@ -25,6 +25,7 @@ export default function CompleteProfileScreen() {
   const [country, setCountry] = useState('');
   const [primaryGoal, setPrimaryGoal] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
+  const [sex, setSex] = useState('');   // 'male' | 'female' — sex assigned at birth, for BMR math
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,8 @@ export default function CompleteProfileScreen() {
       const m = (data && data.user && data.user.user_metadata) || {};
       const guess = m.display_name || m.full_name || m.name || '';
       if (active && guess) setDisplayName(prev => (prev ? prev : String(guess)));
+      // Prefill sex if the intro flow already stashed it (male/female only).
+      if (active && (m.gender === 'male' || m.gender === 'female')) setSex(prev => prev || m.gender);
     }).catch(() => {});
     return () => { active = false; };
   }, []);
@@ -55,7 +58,12 @@ export default function CompleteProfileScreen() {
     { key: 'very_active', label: t('profile_activity_very_active') },
   ];
 
-  const complete = !!(displayName.trim() && country.trim() && primaryGoal && activityLevel);
+  const SEXES = [
+    { key: 'male', label: t('profile_gender_male') },
+    { key: 'female', label: t('profile_gender_female') },
+  ];
+
+  const complete = !!(displayName.trim() && country.trim() && primaryGoal && activityLevel && sex);
 
   async function handleSave() {
     if (!complete || saving) return;
@@ -66,6 +74,7 @@ export default function CompleteProfileScreen() {
         country: country.trim(),
         primary_goal: primaryGoal,
         activity_level: activityLevel,
+        gender: sex,
         onboarded_at: new Date().toISOString(),
       },
     });
@@ -146,6 +155,20 @@ export default function CompleteProfileScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
+        <View style={s.pillRow}>
+          {SEXES.map(g => (
+            <TouchableOpacity
+              key={g.key}
+              style={[s.pill, sex === g.key && s.pillOn]}
+              onPress={() => setSex(g.key)}
+            >
+              <Text style={[s.pillText, sex === g.key && s.pillTextOn]}>{g.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
 
         <Text style={s.disclaimer}>{t('profile_data_note')}</Text>
 
@@ -230,6 +253,7 @@ function makeStyles(colors) {
     pillOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent, borderWidth: 1.5 },
     pillText: { fontSize: 14, fontWeight: '600', color: colors.text },
     pillTextOn: { color: colors.accent },
+    sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     disclaimer: { fontSize: 12, color: colors.textFaint, marginTop: 22, lineHeight: 17, textAlign: 'center' },
     primaryBtn: {
       backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16,

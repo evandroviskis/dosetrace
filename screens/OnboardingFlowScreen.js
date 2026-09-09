@@ -57,11 +57,13 @@ export default function OnboardingFlowScreen({ onDone }) {
     { key: 'active', label: t('profile_activity_active') },
     { key: 'very_active', label: t('profile_activity_very_active') },
   ];
-  const GENDERS = [
-    { key: 'male', label: t('ob_gender_male') },
-    { key: 'female', label: t('ob_gender_female') },
-    { key: 'other', label: t('ob_gender_other') },
-    { key: 'na', label: t('ob_gender_na') },
+  // Sex ASSIGNED AT BIRTH — a physiological input for the calorie/BMR math, not a
+  // gender-identity field. Mifflin-St Jeor and the calorie floors are sex-specific,
+  // so this must be male/female and required; there is no meaningful "other" for the
+  // formula. Stored under the existing `gender` metadata key (no data migration).
+  const SEXES = [
+    { key: 'male', label: t('profile_gender_male') },
+    { key: 'female', label: t('profile_gender_female') },
   ];
   const FEATURES = [
     { icon: '💧', t: t('ob_feat1_t'), d: t('ob_feat1_d') },
@@ -80,7 +82,7 @@ export default function OnboardingFlowScreen({ onDone }) {
   const canContinue = () => {
     const name_ = STEPS[step];
     if (name_ === 'goal') return !!goal;
-    if (name_ === 'about') return !!name.trim();
+    if (name_ === 'about') return !!name.trim() && !!gender;
     if (name_ === 'activity') return !!activity;
     if (name_ === 'terms') return TERMS.every(x => confirmed[x.key]);
     return true;
@@ -212,14 +214,15 @@ export default function OnboardingFlowScreen({ onDone }) {
                   <Text style={s.doneText}>{t('done')}</Text>
                 </TouchableOpacity>
               )}
-              <Text style={s.fieldLabel}>{t('ob_gender')} <Text style={s.optional}>{t('ob_optional')}</Text></Text>
+              <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
               <View style={s.pillRow}>
-                {GENDERS.map(g => (
+                {SEXES.map(g => (
                   <TouchableOpacity key={g.key} style={[s.pill, gender === g.key && s.pillOn]} onPress={() => setGender(g.key)}>
                     <Text style={[s.pillText, gender === g.key && s.pillTextOn]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
             </>
           )}
 
@@ -333,6 +336,7 @@ function makeStyles(colors) {
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
     fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 18, marginBottom: 8 },
     optional: { fontSize: 12, fontWeight: '500', color: colors.textFaint },
+    sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     input: {
       backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
       fontSize: 15, color: colors.text, borderWidth: 0.5, borderColor: colors.border, minHeight: 48,
