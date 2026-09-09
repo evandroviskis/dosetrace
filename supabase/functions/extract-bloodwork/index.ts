@@ -8,6 +8,11 @@ const corsHeaders = {
 // ~15MB of base64 (the client pre-checks at 10MB of raw file; this is a hard server cap)
 const MAX_BASE64_LENGTH = 15 * 1024 * 1024;
 
+// Monthly AI-scan budget per user. Lab, vaccine, and vial scans share this one
+// cap — it protects against uncapped spend on the shared Anthropic key and is
+// the product limit for the scan features. One place to change it.
+const MONTHLY_SCAN_LIMIT = 3;
+
 // IMPORTANT: this prompt is deliberately regulatory-safe (no interpretation,
 // classification, or clinical assessment). Do not alter its instructions.
 const EXTRACTION_PROMPT = `You are extracting numeric lab values from a laboratory report.
@@ -81,6 +86,34 @@ Rules:
 - Do NOT wrap the JSON in code fences or add any commentary.
 `;
 
+// Vial-label extraction (a photo of a single peptide/hormone vial's printed
+// label) — to pre-fill the reconstitution / ready-to-use calculator. Same
+// regulatory stance: transcribe what is printed, never advise, never calculate.
+const VIAL_PROMPT = `You are reading the printed label of a single medication or peptide vial to help a user pre-fill a dosing calculator. The label may be in any language and any layout, printed or handwritten, and may be a lyophilized (freeze-dried powder) vial that will be reconstituted, or a ready-to-use liquid/oil vial.
+
+Return ONLY a single JSON object with this exact structure, and nothing else — no markdown fences, no prose, no explanations:
+
+{
+  "compound_name": "string or null",
+  "form": "powder" | "solution" | null,
+  "amount": number or null,
+  "amount_unit": "mg" | "mcg" | "IU" | "",
+  "concentration": number or null,
+  "concentration_unit": "string",
+  "volume_ml": number or null
+}
+
+Rules:
+- "compound_name" is the active ingredient's name EXACTLY as printed (e.g. "BPC-157", "Semaglutide", "Testosterone Enanthate"). Keep the printed spelling; do not translate, expand, or normalize it. If several ingredients are listed (a blend), join them with " + ". Null if no name is legible.
+- "form": "powder" if the label indicates a lyophilized powder / freeze-dried / "for reconstitution"; "solution" if it is a ready-to-use liquid, oil, or already-dissolved solution; null if unclear.
+- "amount" + "amount_unit": the TOTAL quantity of active ingredient in the vial (e.g. "10 mg" -> 10 / "mg"; "5000 IU" -> 5000 / "IU"; "1500 mcg" -> 1500 / "mcg"). Use the unit as printed. Null if not printed.
+- "concentration" + "concentration_unit": ONLY if a per-volume strength is printed (e.g. "250 mg/mL" -> 250 / "mg/mL"). Common on ready-to-use oils/solutions. Null / "" if not printed.
+- "volume_ml": the liquid fill volume in millilitres if printed (e.g. "10 mL" -> 10) — the diluent/solution volume, NOT the amount. Null if not printed.
+- Convert decimal comma to decimal point ("0,5" -> 0.5). Never output thousands separators or grouping.
+- Extract ONLY what is printed on the label. Never guess, infer, calculate, or fill in a "typical" value. Never suggest a dose, a reconstitution volume, or any medical guidance — you only transcribe what is on the label.
+- Do NOT wrap the JSON in code fences or add any commentary.
+`;
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -112,6 +145,33 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid session', code: 'unauthorized' }, 401);
     }
 
+    // ---- Monthly usage cap (spend protection + product limit) ----
+    // Lab, vaccine, and vial scans share one budget. Counted/written with the
+    // service role so a client cannot read or delete its own usage rows to
+    // bypass the cap. Fails OPEN on an infra error — a real, JWT-authenticated
+    // user should not lose a paid-for feature over a transient count failure;
+    // abuse is still bounded to real accounts.
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    let adminClient: ReturnType<typeof createClient> | null = null;
+    if (serviceKey) {
+      adminClient = createClient(supabaseUrl, serviceKey);
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+      const { count, error: countErr } = await adminClient
+        .from('ai_scan_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', monthStart);
+      if (countErr) {
+        console.error('[extract] quota count failed:', countErr.code, countErr.message);
+      } else if (typeof count === 'number' && count >= MONTHLY_SCAN_LIMIT) {
+        return jsonResponse(
+          { error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: MONTHLY_SCAN_LIMIT },
+          429,
+        );
+      }
+    }
+
     // Parse and validate the request body. Accepts either a PDF (pdf_base64)
     // or a photo of a report (image_base64 + media_type) — the "snap a report"
     // path. Claude's vision handles both.
@@ -122,7 +182,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid JSON body', code: 'bad_request' }, 400);
     }
 
-    const isVaccines = body?.kind === 'vaccines';
+    const kind: 'bloodwork' | 'vaccines' | 'vial' =
+      body?.kind === 'vaccines' ? 'vaccines' : body?.kind === 'vial' ? 'vial' : 'bloodwork';
 
     // Date-order disambiguation. The correct order depends on the DOCUMENT's
     // origin, so the model must read the document first; the app user's region
@@ -188,7 +249,9 @@ Deno.serve(async (req) => {
               sourceBlock,
               {
                 type: 'text',
-                text: (isVaccines ? VACCINE_PROMPT : EXTRACTION_PROMPT) + dateNote,
+                text: kind === 'vial'
+                  ? VIAL_PROMPT
+                  : (kind === 'vaccines' ? VACCINE_PROMPT : EXTRACTION_PROMPT) + dateNote,
               },
             ],
           },
@@ -214,18 +277,41 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Extraction output was not valid JSON', code: 'invalid_extraction' }, 502);
     }
 
-    if (isVaccines) {
-      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.vaccines)) {
-        return jsonResponse({ error: 'Extraction output had unexpected shape', code: 'invalid_extraction' }, 502);
-      }
-      return jsonResponse({ vaccines: parsed.vaccines }, 200);
+    const badShape = () =>
+      jsonResponse({ error: 'Extraction output had unexpected shape', code: 'invalid_extraction' }, 502);
+
+    let payload: Record<string, unknown>;
+    if (kind === 'vaccines') {
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.vaccines)) return badShape();
+      payload = { vaccines: parsed.vaccines };
+    } else if (kind === 'vial') {
+      if (!parsed || typeof parsed !== 'object') return badShape();
+      const v = parsed as Record<string, unknown>;
+      payload = {
+        vial: {
+          compound_name: typeof v.compound_name === 'string' ? v.compound_name : null,
+          form: v.form === 'powder' || v.form === 'solution' ? v.form : null,
+          amount: typeof v.amount === 'number' ? v.amount : null,
+          amount_unit: typeof v.amount_unit === 'string' ? v.amount_unit : '',
+          concentration: typeof v.concentration === 'number' ? v.concentration : null,
+          concentration_unit: typeof v.concentration_unit === 'string' ? v.concentration_unit : '',
+          volume_ml: typeof v.volume_ml === 'number' ? v.volume_ml : null,
+        },
+      };
+    } else {
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.markers)) return badShape();
+      payload = { report_date: parsed.report_date ?? null, markers: parsed.markers };
     }
 
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.markers)) {
-      return jsonResponse({ error: 'Extraction output had unexpected shape', code: 'invalid_extraction' }, 502);
+    // Count this successful extraction against the user's monthly budget.
+    if (adminClient) {
+      const { error: usageErr } = await adminClient
+        .from('ai_scan_usage')
+        .insert({ user_id: user.id, kind });
+      if (usageErr) console.error('[extract] usage insert failed:', usageErr.code, usageErr.message);
     }
 
-    return jsonResponse({ report_date: parsed.report_date ?? null, markers: parsed.markers }, 200);
+    return jsonResponse(payload, 200);
   } catch (err) {
     return jsonResponse({ error: err.message, code: 'internal_error' }, 500);
   }
