@@ -15,7 +15,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
@@ -70,6 +70,10 @@ export default function CalculatorSection() {
   const [bfSource, setBfSource] = useState('gym');
   const [bodyFat, setBodyFat] = useState('');
   const [sex, setSex] = useState('male');
+  // Sex assigned at birth as set in the PROFILE (male|female) or null if unset.
+  // The Mifflin BMR path is sex-specific, so we won't compute it off the 'male'
+  // default — we gate on this and prompt the user to complete their profile.
+  const [profileSex, setProfileSex] = useState(null);
   const [age, setAge] = useState('');
   const [height, setHeight] = useState('');
   const [activity, setActivity] = useState(1.375);
@@ -109,7 +113,7 @@ export default function CalculatorSection() {
     // user's stored sex (assigned at birth) and age. Explicit calculator inputs
     // saved below still win over these.
     const meta = user?.user_metadata || {};
-    if (meta.gender === 'male' || meta.gender === 'female') setSex(meta.gender);
+    if (meta.gender === 'male' || meta.gender === 'female') { setSex(meta.gender); setProfileSex(meta.gender); }
     if (meta.birth_year) {
       const yrs = new Date().getFullYear() - Number(meta.birth_year);
       if (yrs > 0 && yrs < 120) setAge(String(yrs));
@@ -143,6 +147,10 @@ export default function CalculatorSection() {
 
   const result = useMemo(() => {
     const isUnknown = bfSource === 'unknown';
+    // The Mifflin (body-fat-unknown) BMR is sex-specific. Rather than silently
+    // computing off the 'male' default, gate on the profile's sex being set.
+    // Katch-McArdle (body fat known) doesn't use sex, so it's never gated.
+    if (isUnknown && !profileSex) return { sexGated: true };
     const plan = energyPlan({
       weightKg: metric.weightKg,
       heightCm: metric.heightCm,
@@ -154,8 +162,8 @@ export default function CalculatorSection() {
     });
     if (!plan.ok) return plan.warnings.length ? { invalid: true, warnings: plan.warnings } : null;
     return plan;
-  }, [metric, age, sex, bodyFat, bfSource, activity, goal]);
-  const plan = result && !result.invalid ? result : null;
+  }, [metric, age, sex, bodyFat, bfSource, activity, goal, profileSex]);
+  const plan = result && !result.invalid && !result.sexGated ? result : null;
 
   // Persist inputs (debounced, fire-and-forget) once initial load is done.
   useEffect(() => {
@@ -170,6 +178,21 @@ export default function CalculatorSection() {
   const wUnit = unit === 'imperial' ? t('cal_unit_lb') : t('cal_unit_kg');
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');
   const isUnknown = bfSource === 'unknown';
+
+  // Write sex assigned at birth to the profile (the source of truth for the
+  // sex-specific BMR path), then unblock the calculation.
+  async function saveProfileSex(val) {
+    setSex(val);
+    setProfileSex(val);
+    try { await supabase.auth.updateUser({ data: { gender: val } }); } catch (e) { /* non-fatal */ }
+  }
+  function promptProfileSex() {
+    Alert.alert(t('cal_sex_gate_title'), t('cal_sex_gate_body'), [
+      { text: t('profile_gender_male'), onPress: () => saveProfileSex('male') },
+      { text: t('profile_gender_female'), onPress: () => saveProfileSex('female') },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }
 
   // Switching units must CONVERT the values already typed, not just relabel
   // them — otherwise "80" silently jumps from 80 kg to 80 lb and every result
@@ -387,7 +410,15 @@ export default function CalculatorSection() {
       </View>
 
       {/* Overview — the user's current situation */}
-      {result && result.invalid ? (
+      {result && result.sexGated ? (
+        <View style={s.overview}>
+          <Text style={s.overviewTitle}>{t('cal_sex_gate_title')}</Text>
+          <Text style={s.resultsHint}>{t('cal_sex_gate_body')}</Text>
+          <TouchableOpacity style={[s.computeBtn, { marginTop: 12 }]} onPress={promptProfileSex}>
+            <Text style={s.computeBtnText}>{t('cal_sex_gate_btn')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : result && result.invalid ? (
         <View style={s.overview}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
       ) : plan ? (
         <View style={s.overview}>
@@ -621,13 +652,20 @@ export default function CalculatorSection() {
       ) : (
         <>
           <Text style={s.label}>{t('cal_sex')}</Text>
-          <View style={s.segment}>
-            {['male', 'female'].map(sx => (
-              <TouchableOpacity key={sx} style={[s.segBtn, sex === sx && s.segBtnOn]} onPress={() => setSex(sx)}>
-                <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {profileSex ? (
+            <View style={s.segment}>
+              {['male', 'female'].map(sx => (
+                <TouchableOpacity key={sx} style={[s.segBtn, sex === sx && s.segBtnOn]} onPress={() => saveProfileSex(sx)}>
+                  <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            // Not set in the profile → prompt to complete it instead of defaulting.
+            <TouchableOpacity style={[s.segment, s.sexGatePrompt]} onPress={promptProfileSex}>
+              <Text style={s.sexGatePromptText}>{t('cal_sex_gate_btn')}</Text>
+            </TouchableOpacity>
+          )}
           <View style={s.row}>
             <View style={s.rowCol}>
               <Text style={s.label}>{t('cal_age')}</Text>
@@ -728,6 +766,8 @@ const makeStyles = (c) => StyleSheet.create({
   segBtnOn: { backgroundColor: c.accent },
   segText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
   segTextOn: { color: c.accentText },
+  sexGatePrompt: { justifyContent: 'center', paddingVertical: 11, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
+  sexGatePromptText: { fontSize: 13, fontWeight: '700', color: c.accent, textAlign: 'center' },
   // Calculator start: clear section title + a quiet, compact unit toggle
   detailsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 4 },
   detailsTitle: { fontSize: 17, fontWeight: '800', color: c.text, letterSpacing: -0.2 },
