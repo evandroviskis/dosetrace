@@ -41,7 +41,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
-import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts } from '../lib/doseMath';
+import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule';
@@ -1007,7 +1007,7 @@ export default function ProtocolsScreen() {
   }
 
   function adjustWater(dir) {
-    const current = parseFloat(water) || 0;
+    const current = parseDecimal(water) || 0;
     const next = Math.max(0.5, Math.round((current + dir * 0.5) * 10) / 10);
     setWater(String(next));
   }
@@ -1866,16 +1866,19 @@ export default function ProtocolsScreen() {
                       <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(-1)}>
                         <Text style={s.stepperBtnText}>−</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={s.stepperVal}
-                        onLongPress={() => {
-                          Alert.prompt(t('protocols_enter_water'), t('protocols_enter_water'),
-                            (val) => { if (val) setWater(val); }, 'plain-text', water, 'numeric');
-                        }}
-                      >
-                        <Text style={s.stepperValText}>{water || '0'} ml</Text>
-                        <Text style={s.stepperHoldHint}>{t('protocols_hold_to_type')}</Text>
-                      </TouchableOpacity>
+                      <View style={s.stepperVal}>
+                        <TextInput
+                          style={s.stepperValInput}
+                          value={String(water || '')}
+                          onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
+                          keyboardType="decimal-pad"
+                          selectTextOnFocus
+                          placeholder="0"
+                          placeholderTextColor={colors.accent}
+                          textAlign="center"
+                        />
+                        <Text style={s.stepperValUnit}>ml</Text>
+                      </View>
                       <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(1)}>
                         <Text style={s.stepperBtnText}>+</Text>
                       </TouchableOpacity>
@@ -2525,9 +2528,9 @@ const makeStyles = (c) => StyleSheet.create({
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
   stepperBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
   stepperBtnText: { fontSize: 24, color: c.accent, fontWeight: '400' },
-  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, alignItems: 'center' },
-  stepperValText: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
-  stepperHoldHint: { fontSize: 10, color: c.accent, marginTop: 2 },
+  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stepperValInput: { fontSize: 20, fontWeight: '600', color: c.accentSoftText, minWidth: 60, padding: 0, textAlign: 'center' },
+  stepperValUnit: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
   stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
   calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
   calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
