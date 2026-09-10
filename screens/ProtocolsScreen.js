@@ -136,9 +136,9 @@ function sizeLabel(p, vial, t) {
   }
   if (p.type === 'rtu') {
     if (p.concentration == null || p.concentration === '') return null;
-    const ml = vial && vial.water_ml != null ? parseFloat(vial.water_ml) : null;
-    const total = ml ? trimNum(parseFloat(p.concentration) * ml)
-      : (p.amount != null && p.amount !== '' ? trimNum(parseFloat(p.amount)) : null);
+    const ml = vial && vial.water_ml != null ? parseDecimal(vial.water_ml) : null;
+    const total = ml ? trimNum(parseDecimal(p.concentration) * ml)
+      : (p.amount != null && p.amount !== '' ? trimNum(parseDecimal(p.amount)) : null);
     if (total) return `${total} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
     return `${p.concentration} ${p.concentration_unit || 'mg'}/ml`;
   }
@@ -185,7 +185,7 @@ function ProtocolSyringeGuide({ p, t }) {
   const pDrawValid = draw.valid;
 
   const syringeMax = p.syringe_size || 100;
-  const drawFrac = pDrawValid ? Math.min(parseFloat(pDrawUnits) / syringeMax, 1) : 0;
+  const drawFrac = pDrawValid ? Math.min(parseDecimal(pDrawUnits) / syringeMax, 1) : 0;
   const fillPct = drawFrac * 100;
   // Zoom modal: an enlarged, horizontally-scrollable ruler (~16px per unit).
   const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
@@ -281,8 +281,8 @@ function ProtocolSyringeGuide({ p, t }) {
               is visible right where the draw is read. */}
           {(() => {
             let alt = null;
-            if (p.dose_unit === 'mcg') { const pp = massParts(parseFloat(p.dose) / 1000); if (pp) alt = `${pp.mg} mg`; }
-            else if (p.dose_unit === 'mg') { const pp = massParts(parseFloat(p.dose)); if (pp) alt = `${pp.mcg} mcg`; }
+            if (p.dose_unit === 'mcg') { const pp = massParts(parseDecimal(p.dose) / 1000); if (pp) alt = `${pp.mg} mg`; }
+            else if (p.dose_unit === 'mg') { const pp = massParts(parseDecimal(p.dose)); if (pp) alt = `${pp.mcg} mcg`; }
             return alt ? <Text style={s.syringeInfoAlt}>= {alt}</Text> : null;
           })()}
         </View>
@@ -382,8 +382,8 @@ function ProtocolServingGuide({ p, t, onRefill }) {
     .replace('{strength}', r.perUnitDose)
     .replace('{sunit}', p.dose_unit)
     .replace('{ratio}', r.ratio);
-  const containerUnits = parseFloat(p.container_units);
-  const unitsTaken = parseFloat(p.units_taken) || 0;
+  const containerUnits = parseDecimal(p.container_units);
+  const unitsTaken = parseDecimal(p.units_taken) || 0;
   const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
   const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
 
@@ -552,7 +552,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
                 <Text style={s.detailLabel}>{t('protocols_concentration')}</Text>
                 <Text style={s.detailVal}>
                   {p.amount && p.water
-                    ? (parseFloat(p.amount) / parseFloat(p.water)).toFixed(2)
+                    ? (parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)
                     : '—'} {p.unit}/ml
                 </Text>
               </View>
@@ -942,7 +942,7 @@ export default function ProtocolsScreen() {
       // Prefer the active vial's volume; else rebuild it from the stored vial total
       // (amount ÷ concentration) so re-saving keeps the size.
       const ml = editVial && editVial.water_ml != null ? editVial.water_ml
-        : (p.amount && p.concentration ? trimNum(parseFloat(p.amount) / parseFloat(p.concentration)) : null);
+        : (p.amount && p.concentration ? trimNum(parseDecimal(p.amount) / parseDecimal(p.concentration)) : null);
       setVialMl(ml != null ? String(ml) : '');
       if (editVial && editVial.expires_on) {
         const ed = new Date(editVial.expires_on + 'T00:00:00');
@@ -1202,8 +1202,8 @@ export default function ProtocolsScreen() {
 
     // RTU has no dilution: the vial's total compound is concentration × bottle volume.
     // Store it in `amount` (like recon's vial amount) so the card shows "X mg vial".
-    const rtuVialMg = (type === 'rtu' && parseFloat(concentration) > 0 && parseFloat(vialMl) > 0)
-      ? parseFloat(concentration) * parseFloat(vialMl) : null;
+    const rtuVialMg = (type === 'rtu' && parseDecimal(concentration) > 0 && parseDecimal(vialMl) > 0)
+      ? parseDecimal(concentration) * parseDecimal(vialMl) : null;
 
     if (editingId) {
       const freqStr = frequencyLabel(intervalDays);
@@ -1217,13 +1217,13 @@ export default function ProtocolsScreen() {
         || (prev.start_date || null) !== startDate;
       updateProtocol(editingId, {
         name, compound_id: compoundId, type, color,
-        amount: type === 'rtu' ? rtuVialMg : (parseFloat(amount) || null),
+        amount: type === 'rtu' ? rtuVialMg : (parseDecimal(amount) || null),
         unit: type === 'rtu' ? concentrationUnit : unit,
-        water: parseFloat(water) || null,
+        water: parseDecimal(water) || null,
         diluent: resolvedDiluent,
-        dose: parseFloat(dose) || null, dose_unit: doseUnit,
+        dose: parseDecimal(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
-        concentration: parseFloat(concentration) || null,
+        concentration: parseDecimal(concentration) || null,
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
@@ -1231,26 +1231,26 @@ export default function ProtocolsScreen() {
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
-        serving_strength: type === 'oral' ? (parseFloat(servingStrength) || null) : null,
+        serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
         serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
-        serving_units: type === 'oral' ? (parseFloat(servingUnits) || null) : null,
-        container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
+        serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
+        container_units: type === 'oral' ? (parseDecimal(containerUnits) || null) : null,
         divisible: type === 'oral' ? divisible : null,
       });
 
       // RTU vial: create or update from the edited size / box expiry.
-      if (type === 'rtu' && parseFloat(vialMl) > 0 && parseFloat(concentration) > 0 && parseFloat(dose) > 0) {
+      if (type === 'rtu' && parseDecimal(vialMl) > 0 && parseDecimal(concentration) > 0 && parseDecimal(dose) > 0) {
         let expiresOn = null;
         if (vialExpMonth != null && vialExpYear != null) {
           const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
           expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
         }
-        const total = dosesPerVial({ amount: parseFloat(concentration) * parseFloat(vialMl), unit: concentrationUnit, dose, doseUnit }) || 0;
+        const total = dosesPerVial({ amount: parseDecimal(concentration) * parseDecimal(vialMl), unit: concentrationUnit, dose, doseUnit }) || 0;
         const existing = vialsByProtocol[editingId];
         if (existing) {
-          updateVial(existing.id, { water_ml: parseFloat(vialMl), total_doses: total, expires_on: expiresOn, active: 1 });
+          updateVial(existing.id, { water_ml: parseDecimal(vialMl), total_doses: total, expires_on: expiresOn, active: 1 });
         } else {
-          insertVial({ user_id: user.id, protocol_id: editingId, water_ml: parseFloat(vialMl), total_doses: total, doses_taken: 0, expires_on: expiresOn });
+          insertVial({ user_id: user.id, protocol_id: editingId, water_ml: parseDecimal(vialMl), total_doses: total, doses_taken: 0, expires_on: expiresOn });
         }
       }
       setSaving(false);
@@ -1279,13 +1279,13 @@ export default function ProtocolsScreen() {
       const freqStr = frequencyLabel(intervalDays);
       const newId = insertProtocol({
         user_id: user.id, name, compound_id: compoundId, type, color,
-        amount: type === 'rtu' ? rtuVialMg : (parseFloat(amount) || null),
+        amount: type === 'rtu' ? rtuVialMg : (parseDecimal(amount) || null),
         unit: type === 'rtu' ? concentrationUnit : unit,
-        water: parseFloat(water) || null,
+        water: parseDecimal(water) || null,
         diluent: resolvedDiluent,
-        dose: parseFloat(dose) || null, dose_unit: doseUnit,
+        dose: parseDecimal(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
-        concentration: parseFloat(concentration) || null,
+        concentration: parseDecimal(concentration) || null,
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
@@ -1293,10 +1293,10 @@ export default function ProtocolsScreen() {
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
-        serving_strength: type === 'oral' ? (parseFloat(servingStrength) || null) : null,
+        serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
         serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
-        serving_units: type === 'oral' ? (parseFloat(servingUnits) || null) : null,
-        container_units: type === 'oral' ? (parseFloat(containerUnits) || null) : null,
+        serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
+        container_units: type === 'oral' ? (parseDecimal(containerUnits) || null) : null,
         divisible: type === 'oral' ? divisible : null,
       });
 
@@ -1304,7 +1304,7 @@ export default function ProtocolsScreen() {
         insertVial({
           user_id: user.id, protocol_id: newId,
           mixed_on: toPastSupabaseDate(vialMonth, vialDay),
-          water_ml: parseFloat(water) || null,
+          water_ml: parseDecimal(water) || null,
           // Vial capacity is derived (vial amount ÷ dose), not asked.
           total_doses: dosesPerVial({ amount, unit, dose, doseUnit }),
           doses_taken: 0,
@@ -1313,7 +1313,7 @@ export default function ProtocolsScreen() {
 
       // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
       // expiry from the box (month/year → last day of that month).
-      if (type === 'rtu' && parseFloat(vialMl) > 0 && parseFloat(concentration) > 0 && parseFloat(dose) > 0) {
+      if (type === 'rtu' && parseDecimal(vialMl) > 0 && parseDecimal(concentration) > 0 && parseDecimal(dose) > 0) {
         let expiresOn = null;
         if (vialExpMonth != null && vialExpYear != null) {
           const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
@@ -1321,8 +1321,8 @@ export default function ProtocolsScreen() {
         }
         insertVial({
           user_id: user.id, protocol_id: newId,
-          water_ml: parseFloat(vialMl),
-          total_doses: dosesPerVial({ amount: parseFloat(concentration) * parseFloat(vialMl), unit: concentrationUnit, dose, doseUnit }),
+          water_ml: parseDecimal(vialMl),
+          total_doses: dosesPerVial({ amount: parseDecimal(concentration) * parseDecimal(vialMl), unit: concentrationUnit, dose, doseUnit }),
           doses_taken: 0,
           expires_on: expiresOn,
         });
@@ -1871,10 +1871,11 @@ export default function ProtocolsScreen() {
                           style={s.stepperValInput}
                           value={String(water || '')}
                           onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
+                          onBlur={() => { const n = parseDecimal(water); setWater(String(!(n > 0) ? 0.5 : Math.max(0.5, n))); }}
                           keyboardType="decimal-pad"
                           selectTextOnFocus
-                          placeholder="0"
-                          placeholderTextColor={colors.accent}
+                          placeholder="0.5"
+                          placeholderTextColor={colors.textFaint}
                           textAlign="center"
                         />
                         <Text style={s.stepperValUnit}>ml</Text>
@@ -1911,10 +1912,10 @@ export default function ProtocolsScreen() {
                         Given the concentration (amount ÷ diluent) this shows the
                         real mass and can fill the dose — pure conversion, stored as
                         mass so all downstream math is unchanged. */}
-                    {['mg', 'mcg'].includes(unit) && parseFloat(amount) > 0 && parseFloat(water) > 0 && (() => {
+                    {['mg', 'mcg'].includes(unit) && parseDecimal(amount) > 0 && parseDecimal(water) > 0 && (() => {
                       // Normalize the peptide amount to mg so the concentration is
                       // correct even when the vial is labeled in mcg.
-                      const amountMg = unit === 'mcg' ? parseFloat(amount) / 1000 : parseFloat(amount);
+                      const amountMg = unit === 'mcg' ? parseDecimal(amount) / 1000 : parseDecimal(amount);
                       const iuMassMg = massFromUnits(iuInput, amountMg, water);
                       const parts = iuMassMg != null ? massParts(iuMassMg) : null;
                       return (

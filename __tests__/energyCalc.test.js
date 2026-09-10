@@ -173,3 +173,14 @@ test('macroTargets: fat respects the 0.6 g/kg physiological floor', () => {
   const m = macroTargets({ targetCalories: 1200, weightKg: 55, proteinG: 100 });
   assert.ok(m.fatG >= 0.6 * 55 - 0.01, `fat ${m.fatG}`);
 });
+
+// Guard (2026-09-10): the body-fat-known (Katch) path must still yield the
+// height-dependent outputs (BMI + healthy range). Regression guard for the bug
+// where the height input was hidden whenever body fat was provided.
+test('energyPlan: BF-known (Katch) path still produces BMI + healthy range from height', () => {
+  const plan = energyPlan({ weightKg: 88.6, heightCm: 181, bodyFatPct: 27.1, activity: 1.375, goal: 'lose' });
+  assert.equal(plan.ok, true);
+  assert.equal(plan.method, 'katch');
+  assert.ok(plan.bmi > 0, 'BMI must be computed on the Katch path (needs height)');
+  assert.ok(plan.healthyRange && plan.healthyRange.min > 0, 'healthy range needs height');
+});

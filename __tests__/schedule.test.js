@@ -34,35 +34,26 @@ test('expectedDosesOn: every-3-days lands only on multiples of the interval', ()
   assert.equal(expectedDosesOn(p, new Date('2024-06-07T12:00:00')), 1); // day 6
 });
 
-test('expectedDosesOn: once-daily created late in the day gets creation grace (fix #2)', () => {
-  // Created 2024-06-15 23:00, single 08:00 reminder — the 8 AM slot is 15h in the past.
+test('expectedDosesOn: a protocol starting today keeps today\'s dose loggable even if the reminder time passed', () => {
+  // Created 2024-06-15 23:00, single 08:00 reminder — 8 AM already passed. The
+  // first dose must STILL be loggable today: the user sets the protocol up after
+  // taking it. (Reminders skip the past slot separately; logging is not gated on time.)
   const p = {
     start_date: '2024-06-15', interval_days: 1, doses_per_day: 1,
     reminder_time: '08:00', created_at: '2024-06-15T23:00:00',
   };
-  // On the creation day, the already-passed slot is not demanded.
-  assert.equal(expectedDosesOn(p, new Date('2024-06-15T23:30:00')), 0);
-  // The next day it resumes normally.
+  assert.equal(expectedDosesOn(p, new Date('2024-06-15T23:30:00')), 1);
   assert.equal(expectedDosesOn(p, new Date('2024-06-16T09:00:00')), 1);
 });
 
-test('expectedDosesOn: creation grace still counts a slot created just before it (1h window)', () => {
-  // Created 08:30; the 08:00 slot is 30 min in the past — within the 1h grace, still counts.
-  const p = {
-    start_date: '2024-06-15', interval_days: 1, doses_per_day: 1,
-    reminder_time: '08:00', created_at: '2024-06-15T08:30:00',
-  };
-  assert.equal(expectedDosesOn(p, new Date('2024-06-15T09:00:00')), 1);
-});
-
-test('expectedDosesOn: multi-dose creation grace counts only upcoming slots', () => {
-  // Created 16:30 with 08:00/14:00/21:00 — the 08:00 and 14:00 slots are well
-  // past (beyond the 1h grace), so only the 21:00 slot remains today.
+test('expectedDosesOn: multi-dose protocol created mid-day still counts all of today\'s doses (loggable)', () => {
+  // Created 16:30 with 08:00/14:00/21:00 — two slots already passed, but all three
+  // are loggable today (you don't lose the ability to record doses you took).
   const p = {
     start_date: '2024-06-15', interval_days: 1, doses_per_day: 3,
     reminder_time: '08:00,14:00,21:00', created_at: '2024-06-15T16:30:00',
   };
-  assert.equal(expectedDosesOn(p, new Date('2024-06-15T17:00:00')), 1);
+  assert.equal(expectedDosesOn(p, new Date('2024-06-15T17:00:00')), 3);
 });
 
 test('nextDueDate: finds the next interval day', () => {
