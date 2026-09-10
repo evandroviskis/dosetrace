@@ -628,9 +628,18 @@ export default function CalculatorSection() {
       </View>
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
-      {/* Weight */}
-      <Text style={s.label}>{t('cal_weight')} ({wUnit})</Text>
-      <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+      {/* Weight + Height — both universal (BMI, waist-to-height, and the Mifflin
+          fallback all need height, so it must show regardless of the BF path). */}
+      <View style={s.row}>
+        <View style={s.rowCol}>
+          <Text style={s.label}>{t('cal_weight')} ({wUnit})</Text>
+          <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+        </View>
+        <View style={s.rowCol}>
+          <Text style={s.label}>{t('cal_height')} ({hUnit})</Text>
+          <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+        </View>
+      </View>
 
       {/* Body-fat source */}
       <Text style={s.label}>{t('cal_bf_source')}</Text>
@@ -666,16 +675,8 @@ export default function CalculatorSection() {
               <Text style={s.sexGatePromptText}>{t('cal_sex_gate_btn')}</Text>
             </TouchableOpacity>
           )}
-          <View style={s.row}>
-            <View style={s.rowCol}>
-              <Text style={s.label}>{t('cal_age')}</Text>
-              <TextInput style={s.input} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-            </View>
-            <View style={s.rowCol}>
-              <Text style={s.label}>{t('cal_height')} ({hUnit})</Text>
-              <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-            </View>
-          </View>
+          <Text style={s.label}>{t('cal_age')}</Text>
+          <TextInput style={s.input} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
         </>
       )}
 
