@@ -32,6 +32,24 @@
 3. **GDPR Art. 9 lawyer** on the hard gate forcing special-category data.
 4. Serum-curve Vd/CL redesign — future build (see below).
 
+## BACKLOG — decided 2026-09-10 (product direction)
+
+**AI HARD LINE (governs everything below):** AI only surfaces the user's own data — NEVER recommends treatments/doses/protocol changes, NEVER diagnoses/interprets. See memory `ai-no-advice-hard-line` + CLAUDE.md. Founder directive.
+
+**Committed, awaiting build 51** (no work left): diluent typeable on Android `48e5d55`; calculator height always shown `0cb7a26`; +34 half-lives (72→107) `5a35db9`.
+
+**To build (51/52):**
+1. **Calculator redesign** — inputs grouped into cards, compact activity grid, collapsed Learn/Sources, results stay hero. Same math/fields. Mockup: https://claude.ai/code/artifact/9281c052-105f-45e4-bfc3-9cd147a8d502
+2. **"Journey" tab** — promote the calculator out of Body into its own bottom tab (+ monoline icon). Body keeps labs/biomarkers/vaccines/body-map; Journey owns energy / reality-check / progress. It's the "are my protocols working?" home.
+3. **Reality check, made useful** — what/why/when teaching card; opt-in "use my measured TDEE" that recomputes Lose/Maintain/Gain from real data (currently informational only, does NOT feed the goal); complete-state with "to hit [goal] by [date], target Z kcal (W less)"; week-over-week trend. Needs a goal-weight input.
+4. **Goal weight + waist-to-height (WHtR)** — track-to-goal + honest visceral metric (replaces the scale's "body age" gimmick). Waist is already collected/trended; WHtR not computed yet.
+5. Small: ft/in height for imperial; a guard test that the BF-known path still yields BMI/height-dependent outputs (prevents the hidden-field regression).
+
+**Flagship — dt-council FIRST, then its own build + cost model:**
+- **Conversational daily nutrition logger** — friendly daily "what did you eat?" → rough kcal/macros (AI, shown as estimates/ranges) → rolling 7/14-day average that feeds the reality check, then a FACTUAL protocol↔results↔labs cross-reference (no advice). Phased: capture→average first; cross-reference next; defer deep macro accuracy. Recurring per-user daily AI cost (one capped call/day; breaks the 3/mo model), new privacy label + consent.
+
+**Standing risks / blockers:** unapproved-substances store audit (Apple 1.4.3) — grows if picker expands toward "400"; GDPR Art. 9 hard gate → lawyer; before store promotion: App-Privacy/Play Data-safety labels (Anthropic/health/photos), RevenueCat products, demo account through gate, 512 Play icon, Play Storage IAM 403. Now: Apple approving build 50 (lights the external link) + founder device test of build 50.
+
 <details><summary>SUPERSEDED — prior handoff (build 48, which never actually reached TestFlight)</summary>
 
 ## HANDOFF (2026-09-09) — build 48 (SUPERSEDED — was never grouped/delivered)

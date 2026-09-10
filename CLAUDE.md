@@ -43,6 +43,7 @@ NEVER tell the founder a build is "on TestFlight" / "delivered" until `/tf-statu
 - **Numbers**: dose fields accept comma decimals ("0,5") — `parseDecimal` in `lib/doseMath.js`. Comma-grouped thousands ("5,000 IU") are NOT decimals.
 - **Node scripts**: write as `.cjs` (the scratchpad is ESM). Verify JS edits parse with `@babel/parser`.
 - **Product guardrails**: honest journal + pure-math calculator only — never interpret, diagnose, recommend, or add a drug-interaction checker. Never strip a language. Never link DoseTrace to EvoxBiolabs (owner is Outcom). Never commit secrets (STATE.md credentials stay out of git).
+- **AI HARD LINE (never violate):** any AI feature (vial-label scan, the planned conversational nutrition logger, any protocol/results cross-reference) may only TRANSCRIBE or SURFACE the user's own data. It must NEVER recommend a treatment, dose, or protocol change; NEVER diagnose or interpret a result; NEVER say "do X to make a compound work better." Show the user's numbers side by side and point to a health professional — the user (and their provider) draw conclusions, never the app. This is the Apple 1.4.1 / SaMD line and the whole regulatory defense. Founder directive 2026-09-10.
 
 ## Attribution
 
