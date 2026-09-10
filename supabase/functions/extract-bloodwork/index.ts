@@ -260,6 +260,11 @@ Deno.serve(async (req) => {
     });
 
     if (!anthropicResponse.ok) {
+      // Log the provider status + body so an outage is diagnosable from function
+      // logs in minutes (the Aug-2026 lesson — never swallow the provider error).
+      let providerBody = '';
+      try { providerBody = await anthropicResponse.text(); } catch { /* body unavailable */ }
+      console.error('[extract] provider_error', kind, anthropicResponse.status, providerBody.slice(0, 600));
       return jsonResponse(
         { error: 'Extraction provider returned an error', code: 'provider_error', provider_status: anthropicResponse.status },
         502,
@@ -274,6 +279,7 @@ Deno.serve(async (req) => {
     try {
       parsed = JSON.parse(clean);
     } catch {
+      console.error('[extract] non_json_output', kind, clean.slice(0, 400));
       return jsonResponse({ error: 'Extraction output was not valid JSON', code: 'invalid_extraction' }, 502);
     }
 
