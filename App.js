@@ -7,7 +7,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
-import { hasSeenOnboarding, markSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
+import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, RC_START_KEY } from './lib/notifications';
@@ -421,6 +421,12 @@ export default function App() {
           // (name/sex/birth-year/goal) and the reality-check starting weigh-in.
           clearOnboarding().catch(() => {});
           AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+          // Return to the splash / value-first flow (not a bare auth form) after
+          // sign-out or account deletion — the flow's splash carries the branding
+          // + a "Sign in" escape. Reset both the persisted flag and the in-memory
+          // state so the router re-renders to OnboardingFlowScreen immediately.
+          clearSeenOnboarding().catch(() => {});
+          setSeenOnboarding(false);
         }, 0);
       }
 
