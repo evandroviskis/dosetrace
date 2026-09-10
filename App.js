@@ -407,7 +407,13 @@ export default function App() {
       setSession(session); // drives the navigator (null → Onboarding) immediately
 
       if (_event === 'SIGNED_OUT') {
-        // Run OUTSIDE the auth lock so the re-render to Onboarding commits first.
+        // Reset the in-memory onboarding flag SYNCHRONOUSLY (pure React state — no
+        // supabase call, so it's lock-safe) so it BATCHES with setSession(null) into
+        // one render and lands directly on the splash. Deferring it flashed the bare
+        // AuthScreen for a frame before the splash (session cleared a tick earlier).
+        setSeenOnboarding(false);
+        // Everything below is a side-effect — run OUTSIDE the auth lock so the
+        // re-render to the splash commits first.
         setTimeout(() => {
           // Stop sync FIRST so no final sync runs, then wipe local health data —
           // otherwise user A's unsynced logs would upload into user B's account.
@@ -421,12 +427,9 @@ export default function App() {
           // (name/sex/birth-year/goal) and the reality-check starting weigh-in.
           clearOnboarding().catch(() => {});
           AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
-          // Return to the splash / value-first flow (not a bare auth form) after
-          // sign-out or account deletion — the flow's splash carries the branding
-          // + a "Sign in" escape. Reset both the persisted flag and the in-memory
-          // state so the router re-renders to OnboardingFlowScreen immediately.
+          // Persist the onboarding-flag reset so the next cold start also opens the
+          // splash (the in-memory reset above already routed this session there).
           clearSeenOnboarding().catch(() => {});
-          setSeenOnboarding(false);
         }, 0);
       }
 
