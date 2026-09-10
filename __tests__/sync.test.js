@@ -162,3 +162,61 @@ test('full import propagates cloud deletes: a synced local row absent from the c
   assert.ok(getProtocol(dbA, id1), 'the surviving protocol stays');
   assert.equal(getProtocol(dbA, id2), null, 'the cloud-deleted protocol is dropped locally');
 });
+
+test('food_logs: parsed_items round-trips TEXT->JSONB->TEXT without double-encoding (the sync mapper bug guard)', async () => {
+  const cloud = makeCloud();
+  const dbA = makeDb();
+
+  // Device A logs a meal locally. parsed_items is JSON TEXT in SQLite.
+  const items = [
+    { food: 'eggs', qty: 2, unit: 'unit', kcal: 140, protein_g: 12, carb_g: 1, fat_g: 10 },
+    { food: 'toast', qty: 1, unit: 'slice', kcal: 80, protein_g: 3, carb_g: 14, fat_g: 1 },
+  ];
+  const itemsText = JSON.stringify(items);
+  dbA.runSync(
+    `INSERT INTO food_logs (user_id, entry_date, raw_text, parsed_items, kcal, protein_g, carb_g, fat_g, source, parse_status, created_at, updated_at, sync_status)
+     VALUES (?, '2026-09-10', 'two eggs and toast', ?, 220, 15, 15, 11, 'ai', 'done', 'C1', 'C1', 'pending')`,
+    [USER, itemsText]
+  );
+
+  await pushPending(dbA, cloud, USER);
+
+  // In the cloud, parsed_items must be a real ARRAY (JSONB), not a JSON string —
+  // sending the string would double-encode it into a JSONB string value.
+  const cloudRow = cloud.rows('food_logs', USER)[0];
+  assert.ok(Array.isArray(cloudRow.parsed_items), 'parsed_items reaches the cloud as an array, not a string');
+  assert.equal(cloudRow.parsed_items[0].food, 'eggs');
+  assert.equal(cloudRow.parsed_items.length, 2);
+
+  // Device B imports it. Back in SQLite parsed_items must be TEXT again, and
+  // JSON.parse of it must equal the original items (a clean round-trip).
+  const dbB = makeDb();
+  await fullImport(dbB, cloud, USER);
+  const b = dbB.getFirstSync(`SELECT * FROM food_logs WHERE remote_id = ?`, [cloudRow.id]);
+  assert.ok(b, 'device B imported the food log');
+  assert.equal(typeof b.parsed_items, 'string', 'parsed_items is stored as TEXT locally');
+  assert.deepEqual(JSON.parse(b.parsed_items), items, 'items survive the round-trip unchanged');
+  assert.equal(b.kcal, 220);
+  assert.equal(b.entry_date, '2026-09-10');
+  assert.equal(b.sync_status, 'synced');
+});
+
+test('food_logs: a null parsed_items (offline entry not yet parsed) round-trips as null', async () => {
+  const cloud = makeCloud();
+  const dbA = makeDb();
+  dbA.runSync(
+    `INSERT INTO food_logs (user_id, entry_date, raw_text, parsed_items, source, parse_status, created_at, updated_at, sync_status)
+     VALUES (?, '2026-09-10', 'rice and chicken', NULL, 'ai', 'pending', 'C1', 'C1', 'pending')`,
+    [USER]
+  );
+  await pushPending(dbA, cloud, USER);
+  const cloudRow = cloud.rows('food_logs', USER)[0];
+  assert.equal(cloudRow.parsed_items, null);
+  assert.equal(cloudRow.parse_status, 'pending');
+
+  const dbB = makeDb();
+  await fullImport(dbB, cloud, USER);
+  const b = dbB.getFirstSync(`SELECT * FROM food_logs WHERE remote_id = ?`, [cloudRow.id]);
+  assert.equal(b.parsed_items, null);
+  assert.equal(b.raw_text, 'rice and chicken');
+});
