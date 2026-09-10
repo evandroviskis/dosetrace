@@ -67,12 +67,16 @@ export default function AuthScreen() {
   useEffect(() => {
     let active = true;
     loadOnboarding().then((d) => {
-      if (!active || !d) { if (active) setIsSignIn(true); return; } // no stash → default to sign-in
-      setStash(d);
-      setHasStash(true);
-      if (d.consent_accepted) setConsentGiven(true);
-      // Intro just ran → default to the create view; otherwise sign-in.
-      setIsSignIn(!d.consent_accepted && !(d.display_name || d.primary_goal));
+      if (!active) return;
+      // loadOnboarding() returns {} (not null) on an empty/cleared stash, so test
+      // meaningful keys — a cleared stash (post sign-out/delete) must read as "no
+      // stash" or the consent checkbox never renders and create dead-ends.
+      const real = !!(d && (d.consent_accepted || d.display_name || d.primary_goal || d.gender || d.birth_year));
+      setStash(real ? d : null);
+      setHasStash(real);
+      if (real && d.consent_accepted) setConsentGiven(true);
+      // Intro just ran (real stash with consent) → create view; otherwise sign-in.
+      setIsSignIn(!(real && d.consent_accepted));
     }).catch(() => { if (active) setIsSignIn(true); });
     return () => { active = false; };
   }, []);
