@@ -28,6 +28,7 @@ import {
 import { syncRealityCheckReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../../lib/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressChart from './ProgressChart';
+import FeatureIcon from '../../components/FeatureIcon';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -80,6 +81,8 @@ export default function CalculatorSection() {
   const [goal, setGoal] = useState('lose');
   const [waist, setWaist] = useState('');
   const [expl, setExpl] = useState(null);           // which explainer is open
+  const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
+  const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
   const [snapMsg, setSnapMsg] = useState(false);
@@ -401,6 +404,16 @@ export default function CalculatorSection() {
     { key: 'measure', title: t('cal_expl_measure_title'), body: t('cal_expl_measure_body') },
   ];
 
+  // A labelled section divider: a monoline glyph in a soft-accent tile + an
+  // uppercase micro-label, matching the onboarding's grouping. Optional right slot.
+  const SectionHeader = ({ icon, title, right }) => (
+    <View style={s.sh}>
+      <View style={s.shIcon}><FeatureIcon name={icon} size={16} color={colors.accent} /></View>
+      <Text style={s.shTitle}>{title}</Text>
+      {right ? <View style={s.shRight}>{right}</View> : null}
+    </View>
+  );
+
   return (
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} keyboardShouldPersistTaps="handled">
       {/* Intro — what this is */}
@@ -430,12 +443,12 @@ export default function CalculatorSection() {
           {/* Hero cards — daily burn + protein */}
           <View style={s.heroRow}>
             <View style={[s.heroCard, s.heroCardPrimary]}>
-              <Text style={s.heroLabelPrimary}>🔥 {t('cal_tdee')}</Text>
+              <Text style={s.heroLabelPrimary}>{t('cal_tdee')}</Text>
               <Text style={[s.heroVal, s.heroValAccent]}>{round10(plan.tdeeVal)} <Text style={s.heroUnitAccent}>{t('cal_kcal')}</Text></Text>
               <Text style={s.heroSubPrimary}>{t(`cal_eq_${plan.method}`)} · {t('cal_bmr')} {round10(plan.bmr)}</Text>
             </View>
             <View style={s.heroCard}>
-              <Text style={s.heroLabel}>🍗 {t('cal_protein')}</Text>
+              <Text style={s.heroLabel}>{t('cal_protein')}</Text>
               <Text style={s.heroVal}>{round5(plan.protein.rec)} <Text style={s.heroUnit}>{t('cal_g_day')}</Text></Text>
               <Text style={s.heroSub}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
             </View>
@@ -487,6 +500,9 @@ export default function CalculatorSection() {
         <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
       )}
 
+      {/* ── TRACK YOUR PROGRESS ─────────────────────────────────────── */}
+      <SectionHeader icon="calc_trend" title={t('cal_track_title')} />
+
       {/* Reality check — tap to expand its panel right here (collapsible). */}
       <TouchableOpacity
         style={s.sbReality}
@@ -513,7 +529,7 @@ export default function CalculatorSection() {
               {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
             </Text>
           ) : null}
-          <Text style={s.sbArrow}>{premium ? (rcOpen ? '▾' : '›') : '🔒'}</Text>
+          <Text style={s.sbArrow}>{premium ? (rcOpen ? '▾' : '›') : '›'}</Text>
         </View>
       </TouchableOpacity>
 
@@ -607,94 +623,14 @@ export default function CalculatorSection() {
               <Text style={s.rcLockedItem}>3.  {t('cal_rc_intake')}</Text>
               <Text style={s.rcLockedPayoff}>{t('cal_rc_locked_payoff')}</Text>
               <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-                <Text style={s.lockedBtnText}>🔒  {t('cal_premium_cta')}</Text>
+                <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
       )}
 
-      {/* Calculator inputs start here. Title makes the start obvious; the unit
-          switch is a quiet setting on the right, not a headline control. */}
-      <View style={s.detailsHeaderRow}>
-        <Text style={s.detailsTitle}>{t('cal_your_details')}</Text>
-        <View style={s.unitToggle}>
-          {['metric', 'imperial'].map(u => (
-            <TouchableOpacity key={u} style={[s.unitPill, unit === u && s.unitPillOn]} onPress={() => changeUnit(u)}>
-              <Text style={[s.unitPillText, unit === u && s.unitPillTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
-
-      {/* Weight + Height — both universal (BMI, waist-to-height, and the Mifflin
-          fallback all need height, so it must show regardless of the BF path). */}
-      <View style={s.row}>
-        <View style={s.rowCol}>
-          <Text style={s.label}>{t('cal_weight')} ({wUnit})</Text>
-          <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-        </View>
-        <View style={s.rowCol}>
-          <Text style={s.label}>{t('cal_height')} ({hUnit})</Text>
-          <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-        </View>
-      </View>
-
-      {/* Body-fat source */}
-      <Text style={s.label}>{t('cal_bf_source')}</Text>
-      <View style={s.pillWrap}>
-        {BF_SOURCES.map(src => (
-          <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)}>
-            <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={s.hint}>{t(`cal_bf_${bfSource}_hint`)}</Text>
-
-      {/* Body fat %  OR  age/sex/height fallback */}
-      {!isUnknown ? (
-        <>
-          <Text style={s.label}>{t('cal_bodyfat')} (%)</Text>
-          <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-        </>
-      ) : (
-        <>
-          <Text style={s.label}>{t('cal_sex')}</Text>
-          {profileSex ? (
-            <View style={s.segment}>
-              {['male', 'female'].map(sx => (
-                <TouchableOpacity key={sx} style={[s.segBtn, sex === sx && s.segBtnOn]} onPress={() => saveProfileSex(sx)}>
-                  <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            // Not set in the profile → prompt to complete it instead of defaulting.
-            <TouchableOpacity style={[s.segment, s.sexGatePrompt]} onPress={promptProfileSex}>
-              <Text style={s.sexGatePromptText}>{t('cal_sex_gate_btn')}</Text>
-            </TouchableOpacity>
-          )}
-          <Text style={s.label}>{t('cal_age')}</Text>
-          <TextInput style={s.input} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-        </>
-      )}
-
-      {/* Activity */}
-      <Text style={s.label}>{t('cal_activity')}</Text>
-      {ACTIVITY_LEVELS.map(a => (
-        <TouchableOpacity key={a.value} style={[s.actRow, activity === a.value && s.actRowOn]} onPress={() => setActivity(a.value)}>
-          <View style={[s.radio, activity === a.value && s.radioOn]} />
-          <Text style={[s.actText, activity === a.value && s.actTextOn]}>{t(a.key)}</Text>
-        </TouchableOpacity>
-      ))}
-
-      {/* Optional waist — the headline non-scale metric */}
-      <Text style={s.label}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
-      <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-      <Text style={s.hint}>{t('cal_waist_hint')}</Text>
-
-      {/* Progress snapshots (premium) */}
+      {/* Progress snapshots (premium) — part of tracking progress */}
       <View style={s.premCard}>
         <Text style={s.premTitle}>{t('cal_snap_title')}</Text>
         <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
@@ -711,7 +647,7 @@ export default function CalculatorSection() {
           </>
         ) : (
           <View style={s.locked}>
-            <Text style={s.lockedText}>🔒  {t('cal_premium_locked')}</Text>
+            <Text style={s.lockedText}>{t('cal_premium_locked')}</Text>
             <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
               <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
             </TouchableOpacity>
@@ -719,9 +655,116 @@ export default function CalculatorSection() {
         )}
       </View>
 
-      {/* Explainers */}
-      <Text style={[s.label, { marginTop: 24 }]}>{t('cal_learn')}</Text>
-      {EXPLAINERS.map(e => (
+      {/* ── YOUR NUMBERS ────────────────────────────────────────────── */}
+      <SectionHeader
+        icon="calc_bars"
+        title={t('cal_your_numbers')}
+        right={(
+          <View style={s.unitToggle}>
+            {['metric', 'imperial'].map(u => (
+              <TouchableOpacity key={u} style={[s.unitPill, unit === u && s.unitPillOn]} onPress={() => changeUnit(u)}>
+                <Text style={[s.unitPillText, unit === u && s.unitPillTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      />
+      <View style={s.groupCard}>
+        {/* Weight + Height — both universal (BMI, waist-to-height, and the Mifflin
+            fallback all need height, so height shows regardless of the BF path). */}
+        <View style={s.row}>
+          <View style={s.rowCol}>
+            <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
+            <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+          </View>
+          <View style={s.rowCol}>
+            <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
+            <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+          </View>
+        </View>
+
+        {/* Body-fat source */}
+        <View>
+          <Text style={s.fieldLab}>{t('cal_bf_source')}</Text>
+          <View style={s.pillWrap}>
+            {BF_SOURCES.map(src => (
+              <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)}>
+                <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={s.hint}>{t(`cal_bf_${bfSource}_hint`)}</Text>
+        </View>
+
+        {/* Body fat % (+ optional waist)  OR  sex/age fallback */}
+        {!isUnknown ? (
+          <View style={s.row}>
+            <View style={s.rowCol}>
+              <Text style={s.fieldLab}>{t('cal_bodyfat')} (%)</Text>
+              <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+            </View>
+            <View style={s.rowCol}>
+              <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+              <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+            </View>
+          </View>
+        ) : (
+          <>
+            <View>
+              <Text style={s.fieldLab}>{t('cal_sex')}</Text>
+              {profileSex ? (
+                <View style={s.segment}>
+                  {['male', 'female'].map(sx => (
+                    <TouchableOpacity key={sx} style={[s.segBtn, sex === sx && s.segBtnOn]} onPress={() => saveProfileSex(sx)}>
+                      <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                // Not set in the profile → prompt to complete it instead of defaulting.
+                <TouchableOpacity style={[s.segment, s.sexGatePrompt]} onPress={promptProfileSex}>
+                  <Text style={s.sexGatePromptText}>{t('cal_sex_gate_btn')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={s.row}>
+              <View style={s.rowCol}>
+                <Text style={s.fieldLab}>{t('cal_age')}</Text>
+                <TextInput style={s.input} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+              </View>
+              <View style={s.rowCol}>
+                <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+                <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+              </View>
+            </View>
+          </>
+        )}
+        <Text style={s.hint}>{t('cal_waist_hint')}</Text>
+      </View>
+      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
+
+      {/* ── ACTIVITY ────────────────────────────────────────────────── */}
+      <SectionHeader icon="calc_bolt" title={t('cal_activity')} />
+      <View style={s.groupCard}>
+        <View style={s.actGrid}>
+          {ACTIVITY_LEVELS.map(a => {
+            const on = activity === a.value;
+            return (
+              <TouchableOpacity key={a.value} style={[s.actChip, on && s.actChipOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7}>
+                <View style={[s.actDot, on && s.actDotOn]} />
+                <Text style={[s.actChipText, on && s.actChipTextOn]}>{t(a.key)}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Understand the numbers — collapsed by default */}
+      <TouchableOpacity style={s.rowLink} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7}>
+        <Text style={s.rowLinkText}>{t('cal_learn')}</Text>
+        <Text style={s.rowLinkChev}>{learnOpen ? '▾' : '▸'}</Text>
+      </TouchableOpacity>
+      {learnOpen && EXPLAINERS.map(e => (
         <View key={e.key} style={s.explCard}>
           <TouchableOpacity style={s.explHead} onPress={() => setExpl(expl === e.key ? null : e.key)}>
             <Text style={s.explTitle}>{e.title}</Text>
@@ -731,23 +774,30 @@ export default function CalculatorSection() {
         </View>
       ))}
 
-      {/* Sources — every figure above cites published research (App Review 1.4.1) */}
-      <Text style={[s.label, { marginTop: 24 }]}>{t('cal_sources_title')}</Text>
-      <Text style={[s.hint, { marginBottom: 8 }]}>{t('cal_sources_intro')}</Text>
-      {REFERENCES.map(r => (
-        <TouchableOpacity
-          key={r.key}
-          style={s.srcRow}
-          activeOpacity={0.6}
-          onPress={() => Linking.openURL(r.url).catch(() => {})}
-        >
-          <View style={s.srcText}>
-            <Text style={s.srcTopic}>{t(r.key)}</Text>
-            <Text style={s.srcCite}>{r.cite}</Text>
-          </View>
-          <Text style={s.srcArrow}>↗</Text>
-        </TouchableOpacity>
-      ))}
+      {/* Sources & references — collapsed by default (App Review 1.4.1) */}
+      <TouchableOpacity style={s.rowLink} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7}>
+        <Text style={s.rowLinkText}>{t('cal_sources_title')}</Text>
+        <Text style={s.rowLinkChev}>{sourcesOpen ? '▾' : '▸'}</Text>
+      </TouchableOpacity>
+      {sourcesOpen && (
+        <>
+          <Text style={[s.hint, { marginBottom: 8 }]}>{t('cal_sources_intro')}</Text>
+          {REFERENCES.map(r => (
+            <TouchableOpacity
+              key={r.key}
+              style={s.srcRow}
+              activeOpacity={0.6}
+              onPress={() => Linking.openURL(r.url).catch(() => {})}
+            >
+              <View style={s.srcText}>
+                <Text style={s.srcTopic}>{t(r.key)}</Text>
+                <Text style={s.srcCite}>{r.cite}</Text>
+              </View>
+              <Text style={s.srcArrow}>↗</Text>
+            </TouchableOpacity>
+          ))}
+        </>
+      )}
 
       <View style={{ height: 60 }} />
     </ScrollView>
@@ -756,7 +806,27 @@ export default function CalculatorSection() {
 
 const makeStyles = (c) => StyleSheet.create({
   scroll: { flex: 1, padding: 16 },
-  disclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 14 },
+  // Section header: monoline glyph tile + uppercase micro-label, optional right slot.
+  sh: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 24, marginBottom: 10, marginHorizontal: 2 },
+  shIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  shTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted },
+  shRight: { marginLeft: 'auto' },
+  // Grouped input card — inputs sit inside with breathing room.
+  groupCard: { backgroundColor: c.card, borderRadius: 20, padding: 16, gap: 16, borderWidth: 0.5, borderColor: c.border },
+  fieldLab: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', color: c.textFaint, marginBottom: 7 },
+  // Activity — compact 2-col chips (was 5 full-width rows).
+  actGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actChip: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.card2, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border },
+  actChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
+  actDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: c.border },
+  actDotOn: { borderColor: c.accent, backgroundColor: c.accent },
+  actChipText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: c.textMuted },
+  actChipTextOn: { color: c.text },
+  // Collapsed learn/sources rows.
+  rowLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, marginTop: 10, borderWidth: 0.5, borderColor: c.border },
+  rowLinkText: { fontSize: 13, fontWeight: '600', color: c.text },
+  rowLinkChev: { fontSize: 13, color: c.textFaint },
+  disclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, marginBottom: 4 },
   label: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 16 },
   hint: { fontSize: 11, color: c.textFaint, lineHeight: 15, marginTop: 6 },
   input: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 16, color: c.text, borderWidth: 0.5, borderColor: c.border },
