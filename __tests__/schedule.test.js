@@ -46,14 +46,38 @@ test('expectedDosesOn: a protocol starting today keeps today\'s dose loggable ev
   assert.equal(expectedDosesOn(p, new Date('2024-06-16T09:00:00')), 1);
 });
 
-test('expectedDosesOn: multi-dose protocol created mid-day still counts all of today\'s doses (loggable)', () => {
-  // Created 16:30 with 08:00/14:00/21:00 — two slots already passed, but all three
-  // are loggable today (you don't lose the ability to record doses you took).
+test('expectedDosesOn: multi-dose protocol created mid-day counts only slots from creation onward', () => {
+  // Created 16:30 with 08:00/14:00/21:00 — 08:00 and 14:00 fell before setup, so
+  // only 21:00 is "owed" on the creation day. Counting all three would ding the
+  // creation-day streak for doses the user never had a chance to log here. The
+  // 21:00 dose stays loggable; reminders skip the passed slots separately.
   const p = {
     start_date: '2024-06-15', interval_days: 1, doses_per_day: 3,
     reminder_time: '08:00,14:00,21:00', created_at: '2024-06-15T16:30:00',
   };
-  assert.equal(expectedDosesOn(p, new Date('2024-06-15T17:00:00')), 3);
+  assert.equal(expectedDosesOn(p, new Date('2024-06-15T17:00:00')), 1);
+});
+
+test('expectedDosesOn: creation day never dings adherence for a slot that passed before setup, but stays loggable', () => {
+  // Single 08:00 dose, protocol added at 23:00 — the slot passed before setup.
+  // Count is floored to 1 so the user can log the dose they just took, and the
+  // Today list (dueProtocols filters expectedDosesOn > 0) surfaces it.
+  const single = {
+    start_date: '2024-06-15', interval_days: 1, doses_per_day: 1,
+    reminder_time: '08:00', created_at: '2024-06-15T23:00:00',
+  };
+  assert.equal(expectedDosesOn(single, new Date('2024-06-15T23:30:00')), 1);
+
+  // BID 08:00/20:00 added at 18:00 — 08:00 passed before setup, 20:00 still ahead.
+  // Only the evening dose is owed on the creation day (not 2), so logging it
+  // completes the day instead of leaving the streak at 0 for the un-loggable 08:00.
+  const bid = {
+    start_date: '2024-06-15', interval_days: 1, doses_per_day: 2,
+    reminder_time: '08:00,20:00', created_at: '2024-06-15T18:00:00',
+  };
+  assert.equal(expectedDosesOn(bid, new Date('2024-06-15T18:30:00')), 1);
+  // The day AFTER creation, the full schedule applies again.
+  assert.equal(expectedDosesOn(bid, new Date('2024-06-16T07:00:00')), 2);
 });
 
 test('nextDueDate: finds the next interval day', () => {
