@@ -2,6 +2,22 @@
 
 Read this first, every session. These rules exist because they were each broken and cost real time/tokens. The founder should not have to babysit — that is what this file is for.
 
+## Standing rule: approved → the NEXT build (2026-09-10, founder directive)
+
+Anything the founder says he wants AND approves ships in the **very next build** by
+default. There is no silent "backlog." The ONLY way an approved item slips to a later
+build is if the **founder explicitly defers it** (e.g. the 1-year early-adopter premium,
+which he parked on purpose). A council/ship-check gate is a *how to build it safely* step
+— NEVER a reason to defer without his say-so.
+
+If you believe an approved item genuinely cannot be built well in time for the next build,
+you MUST say so explicitly and let the founder decide — never quietly move it to "later."
+Track approved-but-unbuilt items in `STATE.md` with the build they're committed to, and if
+one isn't in the next build, that must be a stated, founder-approved deferral, not a default.
+
+(The AI nutrition logger was approved around build 50 with "Go ahead" and was silently
+parked as "backlog" through build 52 — the exact failure this rule exists to prevent.)
+
 ## Prime directive: ORIENT before you ACT
 
 Before any build, submit, delete, migration, or "it's done" claim:
