@@ -79,6 +79,7 @@ import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import CompleteProfileScreen from './screens/CompleteProfileScreen';
 import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
+import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 
@@ -123,6 +124,17 @@ function BodyGlyph({ color, focused }) {
     </Svg>
   );
 }
+function JourneyGlyph({ color, focused }) {
+  // Milestone flag — the "am I on track" journey.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 21 V4" stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinecap="round" />
+      <Path d="M6 4.5 C9.5 2.8 13 6.2 17.5 4.5 L17.5 10.5 C13 12.2 9.5 8.8 6 10.5 Z"
+        stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinejoin="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.16 : 0} />
+    </Svg>
+  );
+}
 function SettingsGlyph({ color, focused }) {
   // Gear.
   return (
@@ -147,6 +159,7 @@ function MainTabs() {
   const tabs = [
     { name: 'Today', label: t('tab_today'), Glyph: TodayGlyph, component: TodayScreen },
     { name: 'Protocols', label: t('tab_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
+    { name: 'Journey', label: t('tab_journey'), Glyph: JourneyGlyph, component: JourneyScreen },
     { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
     { name: 'Settings', label: t('tab_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
   ];
@@ -358,11 +371,11 @@ export default function App() {
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
         } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check') && navigationRef.current) {
-          // Measurements / reality-check invitation — deep-link straight into the
-          // calculator section, where weight/waist logging and the reality check live.
+          // Measurements / reality-check invitation — deep-link into the Journey
+          // tab, the home of the calculator, reality-check and food log.
           navigationRef.current.navigate('Main', {
             screen: 'MainTabs',
-            params: { screen: 'Body', params: { initialSection: 'calc' } },
+            params: { screen: 'Journey' },
           });
         }
       });

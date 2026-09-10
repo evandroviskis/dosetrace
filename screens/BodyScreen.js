@@ -32,7 +32,6 @@ import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
-import CalculatorSection from './components/CalculatorSection';
 
 // Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
 // language as the tab-bar icons in App.js, replacing the old mismatched emoji.
@@ -55,17 +54,6 @@ function VaccinesGlyph({ color }) {
         <Line x1={10.5} y1={9} x2={13.5} y2={9} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
         <Line x1={10.5} y1={11.5} x2={13.5} y2={11.5} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
       </G>
-    </Svg>
-  );
-}
-function CalcGlyph({ color }) {
-  return (
-    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-      <Rect x={5} y={3} width={14} height={18} rx={2.5} stroke={color} strokeWidth={1.9} />
-      <Rect x={8} y={6} width={8} height={3} rx={1} stroke={color} strokeWidth={1.6} />
-      {[13, 17].map(cy => [9, 12, 15].map(cx => (
-        <Circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1} fill={color} />
-      )))}
     </Svg>
   );
 }
@@ -179,11 +167,12 @@ export default function BodyScreen({ navigation, route }) {
   const [tagDraft, setTagDraft] = useState('');
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
 
-  // Deep link from notifications (e.g. weekly measurements check-in → 'calc').
-  // Param is consumed after use so backing out to the hub isn't re-hijacked.
+  // Deep link from notifications (e.g. an upload reminder → 'labs'). Param is
+  // consumed after use so backing out to the hub isn't re-hijacked. (The
+  // calculator/reality-check now lives in the Journey tab, not here.)
   useEffect(() => {
     const target = route?.params?.initialSection;
-    if (target === 'labs' || target === 'vaccines' || target === 'calc') {
+    if (target === 'labs' || target === 'vaccines') {
       setSection(target);
       navigation.setParams({ initialSection: undefined });
     }
@@ -659,8 +648,7 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   const sectionTitle = section === 'labs' ? t('body_card_labs_title')
-    : section === 'vaccines' ? t('body_card_vax_title')
-    : section === 'calc' ? t('body_card_calc_title') : '';
+    : section === 'vaccines' ? t('body_card_vax_title') : '';
   const testCount = new Set(rows.map(r => r.report_date)).size;
   const labStat = testCount > 0
     ? `${testCount} ${testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}`
@@ -681,7 +669,6 @@ export default function BodyScreen({ navigation, route }) {
             {[
               { key: 'labs', Glyph: LabsGlyph, bg: colors.dangerSoft, fg: colors.dangerSoftText, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
               { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.accentSoft, fg: colors.accentSoftText, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
-              { key: 'calc', Glyph: CalcGlyph, bg: colors.warningSoft, fg: colors.warningSoftText, title: t('body_card_calc_title'), desc: t('body_card_calc_desc'), stat: t('body_card_calc_tag') },
             ].map(card => (
               <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
                 <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
@@ -741,8 +728,6 @@ export default function BodyScreen({ navigation, route }) {
 
       {section === 'vaccines' ? (
         <VaccinesSection />
-      ) : section === 'calc' ? (
-        <CalculatorSection />
       ) : (
       <>
       {uploading && (

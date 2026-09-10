@@ -741,7 +741,7 @@ export default function TodayScreen() {
         title: t('today_alert_rc_title'),
         body: due ? t('today_alert_rc_due')
           : t('today_alert_rc_when').replace('{date}', `${t(MONTH_KEYS[remind.getMonth()])} ${remind.getDate()}`),
-        onPress: () => navigation.navigate('Body', { initialSection: 'calc' }),
+        onPress: () => navigation.navigate('Journey'),
         onRemove: dismissRealityCheckAlert,
       });
     }

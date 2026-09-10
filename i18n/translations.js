@@ -24,6 +24,8 @@ export const translations = {
     tab_log: 'Log',
     tab_vials: 'Vials',
     tab_body: 'My Body',
+    tab_journey: 'Journey',
+    journey_subtitle: 'Track how your body is actually responding.',
     tab_settings: 'Settings',
 
     // TODAY
@@ -1506,6 +1508,8 @@ export const translations = {
     tab_log: 'Registro',
     tab_vials: 'Viales',
     tab_body: 'Mi cuerpo',
+    tab_journey: 'Progreso',
+    journey_subtitle: 'Comprueba cómo responde realmente tu cuerpo.',
     tab_settings: 'Configuración',
 
     // TODAY
@@ -2988,6 +2992,8 @@ export const translations = {
     tab_log: 'Registro',
     tab_vials: 'Frascos',
     tab_body: 'Meu corpo',
+    tab_journey: 'Jornada',
+    journey_subtitle: 'Acompanhe como seu corpo está realmente respondendo.',
     tab_settings: 'Configurações',
 
     // TODAY
@@ -4469,6 +4475,8 @@ export const translations = {
     tab_log: 'Journal',
     tab_vials: 'Fioles',
     tab_body: 'Mon corps',
+    tab_journey: 'Parcours',
+    journey_subtitle: 'Suivez comment votre corps réagit réellement.',
     tab_settings: 'Paramètres',
 
     // TODAY
@@ -5950,6 +5958,8 @@ export const translations = {
     tab_log: 'Protokoll',
     tab_vials: 'Fläschchen',
     tab_body: 'Mein Körper',
+    tab_journey: 'Verlauf',
+    journey_subtitle: 'Verfolge, wie dein Körper wirklich reagiert.',
     tab_settings: 'Einstellungen',
 
     // TODAY
@@ -7432,6 +7442,8 @@ export const translations = {
     tab_log: 'Registro',
     tab_vials: 'Flaconi',
     tab_body: 'Il mio corpo',
+    tab_journey: 'Percorso',
+    journey_subtitle: 'Monitora come il tuo corpo sta davvero rispondendo.',
     tab_settings: 'Impostazioni',
 
     // TODAY
