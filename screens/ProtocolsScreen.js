@@ -1140,8 +1140,8 @@ export default function ProtocolsScreen() {
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
         Alert.alert(
-          serviceDown ? t('blood_error_service') : t('vial_scan_error'),
-          serviceDown ? t('blood_error_service_sub') : t('vial_scan_error_sub'),
+          t('vial_scan_error'),
+          serviceDown ? t('vial_scan_error_service_sub') : t('vial_scan_error_sub'),
         );
         return;
       }
