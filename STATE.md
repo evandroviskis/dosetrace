@@ -1,10 +1,38 @@
 # DoseTrace — Project State
 
-**Last updated:** 2026-09-09 — 🚀 **ONBOARDING BUILD (v1.1.0, build 48) SHIPPED TO TESTFLIGHT EXTERNAL — awaiting Apple beta review.** All work on `feat/wellness-rework`, tip `7e49aca`, tests 130/131 (1 pre-existing docs `.ts` fail), `expo export` iOS clean on every commit. See the structured HANDOFF block immediately below.
+**Last updated:** 2026-09-09 (late) — 🚀 **BUILD 49 (v1.2.0) SHIPPED CORRECTLY to TestFlight external + Play internal; BUILD 50 (auth refactor + icons) committed, awaiting build+device test.** All work on `feat/wellness-rework`. Tests 136/137 (1 pre-existing docs `.ts` fail), `expo export` iOS clean. Verify releases with `/tf-status` (or `node scripts/asc-tf-status.cjs`) — NEVER trust an `eas submit` exit code. New: [CLAUDE.md](CLAUDE.md) is the always-loaded operating contract; read it.
 
 ---
 
-## HANDOFF (2026-09-09) — read this first for a fresh session
+## HANDOFF (2026-09-09 late) — build 49 + 50 — read this first
+
+### Release state
+- **iOS build 49 (v1.2.0)** = VALID in ASC, added to **Early Birds** group + **submitted for external beta review** (`WAITING_FOR_REVIEW`, real submittedDate — verified). When Apple approves, the public link (https://testflight.apple.com/join/EEsKYqta) flips from **build 24 (v1.0.0)** to 1.2.0; founder taps Update. Builds 46/47/48 EXPIRED by founder (housekeeping). **ROOT CAUSE of "builds never reached me": `eas submit` uploads to ASC but does NOT assign to a TestFlight group — that step (add-to-group + submit-review) was skipped for builds ~25→48. Now automated in the run-book + `/tf-status`.**
+- **Android vc30 (v1.2.0)** submitted to Play internal track. ⚠️ Verify the internal track is Active + tester list saved in Play Console.
+- **Founder's own testing:** his internal-tester record (`jootaerre@yahoo.com.br`) is stuck `INVITED` in 0 groups; internal-group re-assign 409s (internal testers must be ASC *Users*). Fix in the ASC UI (remove + re-add). For now he tests via the Early Birds link once beta review approves.
+
+### Build 49 change set (all committed, shipped)
+- **Vial-label AI scan** (snap a vial → prefills recon/RTU calc; review-before-save, deterministic compound resolution, consent v2). Edge fn `extract-bloodwork` **v11** with `kind:'vial'`. See memory `ai-vial-scan-and-quota`.
+- **AI-scan quota** 3/user/month shared across lab+vaccine+vial; RLS-locked `ai_scan_usage` table (DDL in `supabase_ai_scan_usage_table.sql`); fails open. Closes uncapped-spend.
+- **Decimal-comma parsing** in dose math ("0,5"→0.5; "5,000 IU" is NOT 5). `lib/doseMath.js parseDecimal`.
+- **Returning-user gate ACTIVE** — `PROFILE_GATE_SINCE = 2020` in `lib/supabase.js` (was 2027/inert). ALL incomplete accounts (incl. paying + external testers) are walled until they complete the 8 required fields. **Founder OVERRODE the council here ("I need the data"); standing GDPR Art. 9 legal flag → needs a lawyer.** See memory `build49-gate-decision`. CompleteProfileScreen rebuilt to collect all 8 (was 5 → would have infinite-locked the base).
+- **Paywall redesign** (annual/monthly/lifetime); hero uses the curve vector (rocket emoji killed).
+- **Privacy policy LIVE** on dosetrace.io (names Anthropic sub-processor) — deployed to `main` (`ca74679`), verified live.
+
+### Build 50 change set (committed on `feat/wellness-rework`, NOT yet built)
+- **Legacy `OnboardingScreen.js` DELETED**; replaced by lean **`screens/AuthScreen.js`** (email/Google/Apple, sign-in + create). Fixes "sign-out/delete → old multi-step onboarding". Routing: first launch→OnboardingFlowScreen→AuthScreen; signed-out→AuthScreen. (`ff324a2`)
+- **Vector icons on the compound step** (was still emoji) + new `type_glp1` scale glyph. (`24f913b`)
+- ⚠️ Auth change = ship-check Gate B: needs founder device test (email/Google/Apple sign-in + create; sign-out; delete) BEFORE the next build ships. A senior-eng review pass ran on the diff.
+
+### Open items
+1. **Apple approves build 49 beta review** → founder tests 1.2.0 on device (gate lockout/escape, quota, vial-scan, comma math). Then build 50 → test → promote.
+2. **Dashboard (before App Store promotion, not TestFlight blockers):** ASC App-Privacy + Play Data-safety must declare health data + photos shared with a third party (Anthropic); confirm RevenueCat annual/lifetime products attached; demo account `appreview@dosetrace.io` must clear the new gate; upload 512 Play icon; Google Play Storage IAM 403 (grant Storage Object Viewer).
+3. **GDPR Art. 9 lawyer** on the hard gate forcing special-category data.
+4. Serum-curve Vd/CL redesign — future build (see below).
+
+<details><summary>SUPERSEDED — prior handoff (build 48, which never actually reached TestFlight)</summary>
+
+## HANDOFF (2026-09-09) — build 48 (SUPERSEDED — was never grouped/delivered)
 
 ### 1. Release state (iOS)
 - **Built + submitted:** EAS iOS `v1.1.0` **build 48** (`io.outcom.dosetrace`), build id `60572802-461f-40ae-983e-cbddb0b0b6cb`.
@@ -59,6 +87,8 @@ Auth blast radius — do all and confirm routing each time:
 - 53 real users (mostly reward-seeking testers, 0 paying). Guardrails: TestFlight-only until founder confirms; never App-Store-review unilaterally; keep all 6 languages at parity; no medical/efficacy claims; never link DoseTrace to EvoxBiolabs; STATE.md/secrets out of git.
 
 ---
+
+</details>
 
 **Previous:** 2026-09-04 — 🩺 **SERUM CURVE HEAVILY EXTENDED + 1.1 FIXES — ALL COMMITTED & PUSHED (`feat/wellness-rework`, tip `d0d9eb8`).** GitHub auth now works on this Mac (classic PAT via osxkeychain; a prior PAT had expired). Both stores are LIVE (iOS App Store; Android production live — search-indexing lag only, direct links work). Dev loop on this bare Mac: **Expo Go** (Xcode 26.6 + iOS 26.5 runtime installed; CocoaPods can't run on system Ruby 2.6 so no native build — Expo Go bundles react-native-svg). Metro MUST run `--offline` (else manifest hits a non-interactive auth prompt). ⚠️ After a burst of edits, HMR can poison and the app hangs on splash — fix is a **clean Metro restart (`--clear`) + terminate/relaunch Expo Go**, not a plain reload. Work this session (each committed + pushed): serum curve became **schedule-driven** (doses from start_date+interval via `expectedDosesOn`, past+projected — no longer needs logged doses; fixes "compound shows zero"; `nextDueDate` 60d→interval-aware); **dropdown multi-select**; **auto-grouped Combined total** per active substance (`substance` tag on ester entries) with toggle; **mg y-axis** with rounded headroom + aligned NOW label; **mg per line** (legend + peak caption); **selectable projection horizon** (+7/14/30/60/90d); **date readout** to cross-reference blood-draw dates (picker + 🩸 chips from logged biomarkers) with the chosen date + crossing dots labeled on the chart for screenshots. Also: **vaccine extra-fields** (manufacturer/lot/dose#/provider/location) through schema+sync+UI+AI (edge fn **v10**); **typed custom dosing interval** (presets 1-7,10,14 + Custom days); **protocol start date = native date picker** (defaults today, any past/future). i18n parity **1304×6, audited in detail (no empties/missing; “same as English” cases are correct loanwords)**. 130/131 tests pass (1 pre-existing docs-file fail); clean iOS bundle each change. ⚠️ TO SHIP TO USERS: react-native-svg + all this is native/JS on `feat/wellness-rework` → needs a fresh **EAS build (1.1)** for TestFlight/Play (Expo Go shows it now). Demo account has a seeded **Testosterona Propionato** protocol + 20 Taken logs (added via Supabase to demo the combined line) — remove when cleaning the demo account. STILL OPEN (features): personal target lines, compare-across-labs, timeline correlation, cadence/booster reminders, travel PDF+QR, What-if simulate mode; cleanup: demo-account "Guardar na Galadriel" note.
 
