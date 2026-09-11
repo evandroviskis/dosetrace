@@ -1,13 +1,17 @@
 /**
- * DoseTrace — AI nutrition logger (build 52). Lives in the Journey tab, under the
- * reality-check. First 3 logged days are free, then Premium (founder decision A).
+ * DoseTrace — AI nutrition logger (build 53). Lives in the Journey tab. First 3
+ * logged days are free, then Premium (founder decision A).
  *
- * Regulatory (Apple 1.4.1 / SaMD, founder AI hard line): the model only returns
- * structured estimates; this UI renders totals and NEVER shows model prose. An
- * advice-shaped question comes back as a refusal and is met with a fixed
- * deflection card that points to a professional — never an answer. Estimates are
- * always framed as estimates (~) and the user can fix or remove any entry. See
- * docs/nutrition-logger-conversation-spec.md.
+ * Layout (founder-directed): the AI composer is the pinned hero at the top — it
+ * reads as the special AI feature, not a plain field. Under it, the 7-day average
+ * + day history are a COLLAPSIBLE detail (the average is only read weekly by the
+ * reality-check, so it's out of the way until wanted). Days are grouped, newest
+ * first, each expandable.
+ *
+ * Regulatory (Apple 1.4.1 / SaMD, founder AI hard line): the model returns
+ * structured estimates only; this UI renders totals and NEVER model prose. An
+ * advice-shaped question → refusal → a fixed deflection card pointing to a
+ * professional. Estimates are always framed as estimates (~ / ≈).
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -19,22 +23,23 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { requestSync } from '../../lib/sync';
 import {
-  getFoodLogsByDate, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
+  getFoodLogsByDate, getFoodLogsSince, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
 } from '../../lib/database';
 import { parseFood } from '../../lib/nutritionClient';
-import { dayTotals, pickNudge } from '../../lib/nutrition';
+import { rollingAvgKcal, pickNudge, groupByDay } from '../../lib/nutrition';
 import { requestAIConsent } from '../../lib/aiConsent';
+import FeatureIcon from '../../components/FeatureIcon';
 
 const FREE_DAYS = 3;
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => new Date().toISOString().split('T')[0];
+const daysAgoISO = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
 const safeItems = (json) => { try { const a = JSON.parse(json); return Array.isArray(a) ? a : []; } catch { return []; } };
 const numOr = (v, d = 0) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : d; };
 
-// ── Animated locked-state teaser (premium upsell) ────────────────
-// Types the AI prompt over a sample day so a free user sees what the tool does.
-// Respects Reduce Motion: if enabled, it renders the final frame statically (no
-// loop) — accessibility + it avoids the "generic chatbot" feel on that setting.
-function LockedDemo({ s, t, onUnlock }) {
+// The animated example — used both for the "See how it works" modal (trial users)
+// and the locked upsell (post-trial). Respects Reduce Motion (static final frame).
+function DemoBody({ s, t, ctaLabel, onCta }) {
   const [typed, setTyped] = useState('');
   const timers = useRef([]);
   useEffect(() => {
@@ -42,24 +47,22 @@ function LockedDemo({ s, t, onUnlock }) {
     const full = t('nutri_intro');
     AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
       if (cancelled) return;
-      if (reduced) { setTyped(full); return; } // static, no loop
+      if (reduced) { setTyped(full); return; }
       const loop = () => {
         setTyped('');
         let i = 0;
         const step = () => {
           if (cancelled) return;
-          i += 1;
-          setTyped(full.slice(0, i));
+          i += 1; setTyped(full.slice(0, i));
           if (i < full.length) timers.current.push(setTimeout(step, 38));
           else timers.current.push(setTimeout(loop, 3200));
         };
-        timers.current.push(setTimeout(step, 600));
+        timers.current.push(setTimeout(step, 500));
       };
       loop();
     });
     return () => { cancelled = true; timers.current.forEach(clearTimeout); timers.current = []; };
   }, [t]);
-
   return (
     <View style={s.card}>
       <View style={s.demoBubble}><Text style={s.demoBubbleText}>{typed}<Text style={s.caret}>▎</Text></Text></View>
@@ -67,13 +70,13 @@ function LockedDemo({ s, t, onUnlock }) {
       <View style={s.demoBreak}>
         <View style={[s.entryRow, s.entryTot]}>
           <Text style={s.entryTotFood}>≈ 480 {t('cal_kcal')}</Text>
-          <Text style={s.entryTotMacro}>55 C · 26 P</Text>
+          <Text style={s.entryTotMacro}>55 g {t('nutri_carbs')} · 26 g {t('nutri_protein')}</Text>
         </View>
       </View>
       <Text style={s.lockedTitle}>{t('nutri_locked_title')}</Text>
       <Text style={s.lockedSub}>{t('nutri_locked_sub')}</Text>
-      <TouchableOpacity style={s.cta} onPress={onUnlock} activeOpacity={0.8}>
-        <Text style={s.ctaText}>{t('nutri_locked_cta')}</Text>
+      <TouchableOpacity style={s.cta} onPress={onCta} activeOpacity={0.8}>
+        <Text style={s.ctaText}>{ctaLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -84,17 +87,22 @@ export default function NutritionLogger() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = makeStyles(colors);
+  const locale = LOCALE_MAP[language] || 'en-US';
 
   const [premium, setPremium] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [entries, setEntries] = useState([]);
+  const [recent, setRecent] = useState([]);        // last ~30 days of entries
   const [dayCount, setDayCount] = useState(0);
+  const [avg, setAvg] = useState(null);            // { avgKcal, loggedDays } (7-day)
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [deflect, setDeflect] = useState(false);
   const [shownNudges, setShownNudges] = useState([]);
   const [nudge, setNudge] = useState(null);
-  const [editEntry, setEditEntry] = useState(null); // the entry open in the fix modal
+  const [detailOpen, setDetailOpen] = useState(false);  // 7-day avg + day history
+  const [openDays, setOpenDays] = useState({});         // { 'YYYY-MM-DD': true }
+  const [showDemo, setShowDemo] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
   const [editItems, setEditItems] = useState([]);
   const reparsingRef = useRef(new Set());
 
@@ -105,23 +113,19 @@ export default function NutritionLogger() {
     const user = await getCachedUser();
     const uid = user?.id || null;
     setUserId(uid);
-    if (uid) {
-      const rows = getFoodLogsByDate(uid, todayISO());
-      setEntries(rows);
-      setDayCount(getFoodLogDayCount(uid));
-      // Retry any still-pending rows on EVERY focus (e.g. logged offline, now online).
-      rows.forEach((r) => { if (r.parse_status === 'pending' && r.raw_text) reparse(r, uid); });
-    }
+    if (uid) { refresh(uid); getFoodLogsByDate(uid, todayISO()).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text) reparse(r, uid); }); }
   }
 
   function refresh(uid) {
     if (!uid) return;
-    setEntries(getFoodLogsByDate(uid, todayISO()));
+    const rows = getFoodLogsSince(uid, daysAgoISO(30));
+    setRecent(rows);
     setDayCount(getFoodLogDayCount(uid));
+    setAvg(rollingAvgKcal(rows, todayISO(), 7));
   }
 
   async function reparse(row, uid) {
-    if (reparsingRef.current.has(row.id)) return; // don't double-fire on rapid focus
+    if (reparsingRef.current.has(row.id)) return;
     reparsingRef.current.add(row.id);
     try {
       const res = await parseFood(row.raw_text, language, row.entry_date);
@@ -131,12 +135,9 @@ export default function NutritionLogger() {
           protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
           parse_status: 'done',
         });
-        requestSync?.();
-        refresh(uid);
+        requestSync?.(); refresh(uid);
       }
-    } finally {
-      reparsingRef.current.delete(row.id);
-    }
+    } finally { reparsingRef.current.delete(row.id); }
   }
 
   async function onSubmit() {
@@ -153,14 +154,10 @@ export default function NutritionLogger() {
     const res = await parseFood(raw, language, todayISO());
     setBusy(false);
 
-    if (res.ok && res.refusal) {
-      deleteFoodLog(id); requestSync?.(); refresh(userId); setDeflect(true);
-      return;
-    }
+    if (res.ok && res.refusal) { deleteFoodLog(id); requestSync?.(); refresh(userId); setDeflect(true); return; }
     if (res.ok && (!res.items.length || !res.totals)) {
       deleteFoodLog(id); requestSync?.(); refresh(userId);
-      Alert.alert(t('nutri_title'), t('nutri_entry_none'));
-      return;
+      Alert.alert(t('nutri_title'), t('nutri_entry_none')); return;
     }
     if (res.ok) {
       updateFoodLog(id, {
@@ -169,6 +166,7 @@ export default function NutritionLogger() {
         parse_status: 'done',
       });
       requestSync?.(); refresh(userId);
+      setOpenDays((p) => ({ ...p, [todayISO()]: true })); // show today's new entry
       const next = pickNudge(shownNudges, new Date());
       if (next) { setShownNudges((prev) => [...prev, next.id]); setNudge(next); } else { setNudge(null); }
       return;
@@ -181,90 +179,86 @@ export default function NutritionLogger() {
     }
   }
 
-  // ── Fix-an-entry (tap-to-fix, founder decision B) ────────────────
-  function openEdit(row) {
-    setEditEntry(row);
-    setEditItems(safeItems(row.parsed_items).map((it) => ({ ...it })));
-  }
-  function setItemField(i, field, val) {
-    setEditItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, [field]: val } : it)));
-  }
-  function removeItem(i) {
-    setEditItems((prev) => prev.filter((_, idx) => idx !== i));
-  }
+  // ── Fix-an-entry (tap an entry in an expanded day) ───────────────
+  function openEdit(row) { setEditEntry(row); setEditItems(safeItems(row.parsed_items).map((it) => ({ ...it }))); }
+  function setItemField(i, field, val) { setEditItems((p) => p.map((it, idx) => (idx === i ? { ...it, [field]: val } : it))); }
+  function removeItem(i) { setEditItems((p) => p.filter((_, idx) => idx !== i)); }
   function saveEdit() {
     if (!editEntry) return;
-    const cleaned = editItems.map((it) => ({
-      ...it, kcal: numOr(it.kcal), carb_g: numOr(it.carb_g), protein_g: numOr(it.protein_g),
-    }));
-    if (!cleaned.length) { // all items removed → delete the entry
-      deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); return;
-    }
+    const cleaned = editItems.map((it) => ({ ...it, kcal: numOr(it.kcal), carb_g: numOr(it.carb_g), protein_g: numOr(it.protein_g) }));
+    if (!cleaned.length) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); return; }
     const sum = (k) => Math.round(cleaned.reduce((a, it) => a + (Number(it[k]) || 0), 0));
-    updateFoodLog(editEntry.id, {
-      parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'),
-      carb_g: sum('carb_g'), protein_g: sum('protein_g'),
-    });
+    updateFoodLog(editEntry.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g') });
     requestSync?.(); setEditEntry(null); refresh(userId);
   }
-  function deleteFromEdit() {
-    if (!editEntry) return;
-    deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId);
-  }
+  function deleteFromEdit() { if (editEntry) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); } }
 
-  const totals = dayTotals(entries.filter((e) => e.parse_status === 'done'));
-  const nudgeText = nudge
-    ? t(`nutri_nudge_${nudge.id}${nudge.id === 'lunch' || nudge.id === 'dinner' ? '_' + nudge.tense : ''}`)
-    : null;
+  const days = groupByDay(recent);
   const freeLeft = Math.max(0, FREE_DAYS - dayCount);
   const gated = !premium && dayCount >= FREE_DAYS;
+  const nudgeText = nudge ? t(`nutri_nudge_${nudge.id}${nudge.id === 'lunch' || nudge.id === 'dinner' ? '_' + nudge.tense : ''}`) : null;
 
+  function dayLabel(dateISO) {
+    if (dateISO === todayISO()) return t('nutri_day_today');
+    if (dateISO === daysAgoISO(1)) return t('nutri_day_yesterday');
+    const d = new Date(dateISO + 'T12:00:00');
+    return isNaN(d) ? dateISO : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  const macro = (c, p) => `${Math.round(c || 0)} g ${t('nutri_carbs')} · ${Math.round(p || 0)} g ${t('nutri_protein')}`;
+
+  // Gated (post-trial, non-premium): the upsell demo replaces the composer.
   if (gated) {
     return (
       <View style={s.wrap}>
-        <SectionTitle s={s} t={t} />
-        <LockedDemo s={s} t={t} onUnlock={() => navigation.navigate('Paywall')} />
+        <Text style={s.section}>{t('nutri_title')}</Text>
+        <DemoBody s={s} t={t} ctaLabel={t('nutri_locked_cta')} onCta={() => navigation.navigate('Paywall')} />
       </View>
     );
   }
 
   return (
     <View style={s.wrap}>
-      <SectionTitle s={s} t={t} />
+      <TouchableOpacity style={s.secHead} activeOpacity={0.7} onPress={() => setDetailOpen((o) => !o)}>
+        <Text style={s.section}>{t('nutri_title')}</Text>
+        <Text style={s.secChev}>{detailOpen ? '▾' : '▸'}</Text>
+      </TouchableOpacity>
 
-      {!premium && freeLeft > 0 && (
-        <Text style={s.freeNote}>{t('nutri_free_note').replace('{n}', String(freeLeft))}</Text>
-      )}
-
-      <View style={s.dayBar}>
-        <Text style={s.dayLabel}>{t('nutri_today')}</Text>
-        <Text style={s.dayVal}>≈ <Text style={s.dayKcal}>{totals.kcal}</Text> {t('cal_kcal')} · {totals.carb_g} g C · {totals.protein_g} g P</Text>
+      {/* AI composer — pinned open */}
+      <View style={s.composer}>
+        <View style={s.aiBadge}>
+          <FeatureIcon name="ai_spark" size={12} color={colors.accentText} />
+          <Text style={s.aiBadgeText}>{t('nutri_ai_badge')}</Text>
+        </View>
+        <Text style={s.cq}>{nudgeText || t('nutri_intro')}</Text>
+        <Text style={s.chint}>{t('nutri_composer_hint')}</Text>
+        <View style={s.cfield}>
+          <FeatureIcon name="ai_spark" size={18} color={colors.accent} />
+          <TextInput
+            style={s.cinput}
+            value={text}
+            onChangeText={setText}
+            placeholder={t('nutri_input_placeholder')}
+            placeholderTextColor={colors.textFaint}
+            multiline
+            editable={!busy}
+          />
+        </View>
+        <TouchableOpacity style={[s.logBtn, (busy || !text.trim()) && s.logBtnOff]} onPress={onSubmit} disabled={busy || !text.trim()}>
+          {busy ? <ActivityIndicator size="small" color={colors.accentText} /> : (
+            <>
+              <FeatureIcon name="ai_spark" size={16} color={colors.accentText} />
+              <Text style={s.logBtnText}>{t('nutri_send')}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <Text style={s.caveat}>{t('nutri_est_note')}</Text>
+        {!premium && freeLeft > 0 && <Text style={s.freeNote}>{t('nutri_free_note').replace('{n}', String(freeLeft))}</Text>}
       </View>
 
-      {entries.map((e) => {
-        const items = safeItems(e.parsed_items);
-        const pending = e.parse_status === 'pending';
-        return (
-          <TouchableOpacity key={e.id} style={s.card} activeOpacity={0.7} onPress={() => !pending && openEdit(e)}>
-            {pending ? (
-              <Text style={s.pendingText}>{e.raw_text} · {t('nutri_offline_saved')}</Text>
-            ) : (
-              <>
-                {items.map((it, i) => (
-                  <View key={i} style={s.entryRow}>
-                    <Text style={s.entryFood}>{it.food}</Text>
-                    <Text style={s.entryKcal}>~{Math.round(it.kcal || 0)} {t('cal_kcal')}</Text>
-                  </View>
-                ))}
-                <View style={[s.entryRow, s.entryTot]}>
-                  <Text style={s.entryTotFood}>≈ {Math.round(e.kcal || 0)} {t('cal_kcal')}</Text>
-                  <Text style={s.entryTotMacro}>{Math.round(e.carb_g || 0)} C · {Math.round(e.protein_g || 0)} P</Text>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
-        );
-      })}
+      <TouchableOpacity style={s.howRow} activeOpacity={0.7} onPress={() => setShowDemo(true)}>
+        <FeatureIcon name="ai_spark" size={13} color={colors.accent} />
+        <Text style={s.howText}>{t('nutri_how')}</Text>
+      </TouchableOpacity>
 
       {deflect && (
         <View style={s.deflect}>
@@ -273,23 +267,80 @@ export default function NutritionLogger() {
         </View>
       )}
 
-      <Text style={s.prompt}>{nudgeText || t('nutri_intro')}</Text>
-
-      <View style={s.inputRow}>
-        <TextInput
-          style={s.input}
-          value={text}
-          onChangeText={setText}
-          placeholder={t('nutri_input_placeholder')}
-          placeholderTextColor={colors.textFaint}
-          multiline
-          editable={!busy}
-        />
-        <TouchableOpacity style={[s.send, (busy || !text.trim()) && s.sendOff]} onPress={onSubmit} disabled={busy || !text.trim()}>
-          {busy ? <ActivityIndicator size="small" color={colors.accentText} /> : <Text style={s.sendText}>{t('nutri_send')}</Text>}
+      {/* Collapsed summary line — toggles the detail (average + days) */}
+      {!detailOpen && (
+        <TouchableOpacity style={s.collapsed} activeOpacity={0.7} onPress={() => setDetailOpen(true)}>
+          <Text style={s.collapsedText}>
+            {avg && avg.avgKcal
+              ? `${t('nutri_avg_days').replace('{n}', String(avg.loggedDays))} · ${t('nutri_avg_label')} ≈ ${avg.avgKcal} ${t('cal_kcal')}`
+              : t('nutri_none')}
+          </Text>
+          {days.length > 0 && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
         </TouchableOpacity>
-      </View>
-      <Text style={s.estNote}>{t('nutri_est_note')}</Text>
+      )}
+
+      {/* Detail: 7-day average + day-grouped history */}
+      {detailOpen && (
+        <>
+          {avg && avg.avgKcal ? (
+            <View style={s.avgCard}>
+              <Text style={s.avgLabel}>{t('nutri_avg_label')}</Text>
+              <Text style={s.avgBig}>≈ {avg.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}</Text></Text>
+              <Text style={s.avgFoot}>{t('nutri_avg_days').replace('{n}', String(avg.loggedDays))} · {t('nutri_avg_foot')}</Text>
+            </View>
+          ) : (
+            <Text style={s.noneDetail}>{t('nutri_none')}</Text>
+          )}
+
+          {days.map((day) => {
+            const open = day.date === todayISO() ? openDays[day.date] !== false : !!openDays[day.date];
+            return (
+              <View key={day.date} style={s.day}>
+                <TouchableOpacity style={s.dayHead} activeOpacity={0.7} onPress={() => setOpenDays((p) => ({ ...p, [day.date]: !open }))}>
+                  <Text style={s.dayLabel}>{dayLabel(day.date)}</Text>
+                  <View style={s.dayRight}>
+                    <Text style={s.dayKcal}>≈ <Text style={s.dayKcalNum}>{day.totals.kcal}</Text> {t('cal_kcal')}</Text>
+                    <Text style={s.dayChev}>{open ? '▾' : '▸'}</Text>
+                  </View>
+                </TouchableOpacity>
+                {open && day.entries.map((e) => {
+                  const items = safeItems(e.parsed_items);
+                  const pending = e.parse_status === 'pending';
+                  return (
+                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => !pending && openEdit(e)}>
+                      {pending ? (
+                        <Text style={s.pendingText}>{e.raw_text} · {t('nutri_offline_saved')}</Text>
+                      ) : (
+                        <>
+                          {items.map((it, i) => (
+                            <View key={i} style={s.entryRow}>
+                              <Text style={s.entryFood}>{it.food}</Text>
+                              <Text style={s.entryKcal}>~{Math.round(it.kcal || 0)} {t('cal_kcal')}</Text>
+                            </View>
+                          ))}
+                          <View style={[s.entryRow, s.entryTot]}>
+                            <Text style={s.entryTotFood}>≈ {Math.round(e.kcal || 0)} {t('cal_kcal')}</Text>
+                            <Text style={s.entryTotMacro}>{macro(e.carb_g, e.protein_g)}</Text>
+                          </View>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </>
+      )}
+
+      {/* See-how-it-works demo modal (trial users) */}
+      <Modal visible={showDemo} transparent animationType="fade" onRequestClose={() => setShowDemo(false)}>
+        <View style={s.demoWrap}>
+          <View style={s.demoCard}>
+            <DemoBody s={s} t={t} ctaLabel={t('nutri_how_cta')} onCta={() => setShowDemo(false)} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Fix-an-entry modal */}
       <Modal visible={!!editEntry} transparent animationType="fade" onRequestClose={() => setEditEntry(null)}>
@@ -301,8 +352,8 @@ export default function NutritionLogger() {
                 <Text style={s.editFood} numberOfLines={1}>{it.food}</Text>
                 <View style={s.editFields}>
                   <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setItemField(i, 'kcal', v)} />
-                  <EditNum s={s} colors={colors} label="C" value={it.carb_g} onChange={(v) => setItemField(i, 'carb_g', v)} />
-                  <EditNum s={s} colors={colors} label="P" value={it.protein_g} onChange={(v) => setItemField(i, 'protein_g', v)} />
+                  <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setItemField(i, 'carb_g', v)} />
+                  <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setItemField(i, 'protein_g', v)} />
                   <TouchableOpacity style={s.editDel} onPress={() => removeItem(i)}><Text style={s.editDelX}>✕</Text></TouchableOpacity>
                 </View>
               </View>
@@ -334,19 +385,50 @@ function EditNum({ s, colors, label, value, onChange }) {
   );
 }
 
-function SectionTitle({ s, t }) {
-  return <Text style={s.section}>{t('nutri_title')}</Text>;
-}
-
 const makeStyles = (c) => StyleSheet.create({
   wrap: { marginTop: 22 },
-  section: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted, marginBottom: 10, marginHorizontal: 2 },
-  freeNote: { fontSize: 11.5, fontWeight: '700', color: c.accentSoftText, backgroundColor: c.accentSoft, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7, marginBottom: 10, overflow: 'hidden' },
-  card: { backgroundColor: c.card, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 0.5, borderColor: c.border },
-  dayBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 10 },
-  dayLabel: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint },
-  dayVal: { fontSize: 13, fontWeight: '700', color: c.text },
-  dayKcal: { color: c.accent, fontWeight: '800' },
+  secHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginHorizontal: 2 },
+  section: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted },
+  secChev: { fontSize: 14, color: c.textFaint },
+  // composer
+  composer: { backgroundColor: c.accentSoft, borderRadius: 18, padding: 15, borderWidth: 1, borderColor: c.accent + '55' },
+  aiBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: c.accent, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4 },
+  aiBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentText },
+  cq: { fontSize: 18, fontWeight: '800', color: c.text, letterSpacing: -0.3, marginTop: 11 },
+  chint: { fontSize: 12.5, color: c.textMuted, lineHeight: 17, marginTop: 4, marginBottom: 11 },
+  cfield: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderColor: c.border },
+  cinput: { flex: 1, fontSize: 15, color: c.text, maxHeight: 100 },
+  logBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, marginTop: 9 },
+  logBtnOff: { opacity: 0.4 },
+  logBtnText: { color: c.accentText, fontWeight: '800', fontSize: 15 },
+  caveat: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 8, lineHeight: 15 },
+  freeNote: { fontSize: 11.5, fontWeight: '700', color: c.accentSoftText, textAlign: 'center', marginTop: 8 },
+  howRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12 },
+  howText: { fontSize: 13, fontWeight: '700', color: c.accent },
+  // deflect
+  deflect: { backgroundColor: c.warningSoft, borderRadius: 14, padding: 14, marginTop: 10 },
+  deflectTitle: { fontSize: 13, fontWeight: '800', color: c.warningSoftText, marginBottom: 4 },
+  deflectBody: { fontSize: 12.5, color: c.warningSoftText, lineHeight: 18 },
+  // collapsed summary
+  collapsed: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginTop: 10 },
+  collapsedText: { fontSize: 12.5, color: c.textMuted, flex: 1 },
+  collapsedShow: { fontSize: 12.5, fontWeight: '700', color: c.accent, marginLeft: 8 },
+  // average card
+  avgCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginTop: 10 },
+  avgLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentSoftText },
+  avgBig: { fontSize: 26, fontWeight: '800', color: c.accent, marginTop: 4 },
+  avgUnit: { fontSize: 13, fontWeight: '700', color: c.textMuted },
+  avgFoot: { fontSize: 11, color: c.textFaint, marginTop: 6 },
+  noneDetail: { fontSize: 12.5, color: c.textFaint, marginTop: 10, textAlign: 'center' },
+  // day groups
+  day: { backgroundColor: c.card, borderRadius: 14, marginTop: 10, borderWidth: 0.5, borderColor: c.border, overflow: 'hidden' },
+  dayHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 13 },
+  dayLabel: { fontSize: 14, fontWeight: '800', color: c.text },
+  dayRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dayKcal: { fontSize: 13.5, fontWeight: '700', color: c.text },
+  dayKcalNum: { color: c.accent, fontWeight: '800' },
+  dayChev: { fontSize: 14, color: c.textFaint },
+  entryCard: { paddingHorizontal: 13, paddingVertical: 11, borderTopWidth: 0.5, borderTopColor: c.border },
   entryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 3, gap: 10 },
   entryFood: { fontSize: 13, color: c.text, flex: 1 },
   entryKcal: { fontSize: 12, color: c.textMuted },
@@ -354,16 +436,10 @@ const makeStyles = (c) => StyleSheet.create({
   entryTotFood: { fontSize: 13, fontWeight: '800', color: c.text },
   entryTotMacro: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
   pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
-  deflect: { backgroundColor: c.warningSoft, borderRadius: 14, padding: 14, marginBottom: 10 },
-  deflectTitle: { fontSize: 13, fontWeight: '800', color: c.warningSoftText, marginBottom: 4 },
-  deflectBody: { fontSize: 12.5, color: c.warningSoftText, lineHeight: 18 },
-  prompt: { fontSize: 14, fontWeight: '600', color: c.text, marginTop: 4, marginBottom: 10, lineHeight: 20 },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  input: { flex: 1, backgroundColor: c.card, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border, maxHeight: 110 },
-  send: { backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', minWidth: 64 },
-  sendOff: { opacity: 0.4 },
-  sendText: { color: c.accentText, fontWeight: '700', fontSize: 14 },
-  estNote: { fontSize: 11, color: c.textFaint, lineHeight: 15, marginTop: 8 },
+  // demo modal + shared demo body
+  demoWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 22 },
+  demoCard: { },
+  card: { backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 0.5, borderColor: c.border },
   demoBubble: { alignSelf: 'flex-start', backgroundColor: c.card2, borderRadius: 14, borderBottomLeftRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8, maxWidth: '90%' },
   demoBubbleText: { fontSize: 13.5, color: c.text, lineHeight: 19 },
   caret: { color: c.accent },

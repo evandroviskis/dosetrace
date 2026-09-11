@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { dayTotals, rollingAvgKcal, pickNudge } = require('../lib/nutrition');
+const { dayTotals, rollingAvgKcal, pickNudge, groupByDay } = require('../lib/nutrition');
 
 test('dayTotals: sums Cal/Carbs/Protein and rounds; ignores junk', () => {
   const t = dayTotals([
@@ -61,4 +61,23 @@ test('pickNudge: mid-afternoon — lunch is past, dinner still ahead', () => {
   const afternoon = new Date('2026-09-10T15:00:00');
   assert.deepEqual(pickNudge([], afternoon), { id: 'lunch', tense: 'past' });
   assert.deepEqual(pickNudge(['lunch'], afternoon), { id: 'dinner', tense: 'forward' });
+});
+
+test('groupByDay: groups entries per day, newest first, with per-day totals', () => {
+  const g = groupByDay([
+    { entry_date: '2026-09-10', kcal: 400, carb_g: 10, protein_g: 20 },
+    { entry_date: '2026-09-10', kcal: 600, carb_g: 30, protein_g: 40 },
+    { entry_date: '2026-09-09', kcal: 500, carb_g: 15, protein_g: 25 },
+  ]);
+  assert.equal(g.length, 2);
+  assert.equal(g[0].date, '2026-09-10');           // newest first
+  assert.equal(g[0].entries.length, 2);
+  assert.deepEqual(g[0].totals, { kcal: 1000, carb_g: 40, protein_g: 60 });
+  assert.equal(g[1].date, '2026-09-09');
+  assert.equal(g[1].totals.kcal, 500);
+});
+
+test('groupByDay: empty -> []', () => {
+  assert.deepEqual(groupByDay([]), []);
+  assert.deepEqual(groupByDay(null), []);
 });

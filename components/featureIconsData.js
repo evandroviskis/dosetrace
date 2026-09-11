@@ -91,4 +91,7 @@ export const FEATURE_ICON_XML = {
   <path d="M128 726 L341 512 L512 683 L853 341" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M896 341 V554 H683" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`,
+  ai_spark: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M512 150 C544 396 628 480 874 512 C628 544 544 628 512 874 C480 628 396 544 150 512 C396 480 480 396 512 150 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
 };
