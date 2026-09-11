@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Modal, FlatList,
   ActivityIndicator, Alert,
@@ -39,6 +39,17 @@ export default function CompleteProfileScreen() {
   const [displayName, setDisplayName] = useState('');
   const [birthMonth, setBirthMonth] = useState(null);   // 0-11 index (stored 1-based)
   const [birthYear, setBirthYear] = useState(null);
+  const [birthYearText, setBirthYearText] = useState(''); // the typed 4-digit field
+  const [showErrors, setShowErrors] = useState(false);  // set on a failed Save; reveals required markers
+
+  // Birth year is typed (no more endless scroll). Accept only a plausible 4-digit
+  // year; birthYear stays null (→ still "missing") until it's valid.
+  function onYearChange(v) {
+    const digits = v.replace(/[^0-9]/g, '').slice(0, 4);
+    setBirthYearText(digits);
+    const n = parseInt(digits, 10);
+    setBirthYear(digits.length === 4 && n >= 1900 && n <= _thisYear - 13 ? n : null);
+  }
   const [sex, setSex] = useState('');                   // 'male' | 'female' — sex assigned at birth
   const [country, setCountry] = useState('');
   const [primaryGoal, setPrimaryGoal] = useState('');
@@ -58,7 +69,7 @@ export default function CompleteProfileScreen() {
       const guess = m.display_name || m.full_name || m.name || '';
       if (guess) setDisplayName(prev => prev || String(guess));
       if (m.birth_month != null) setBirthMonth(prev => (prev == null ? Number(m.birth_month) - 1 : prev)); // stored 1-based
-      if (m.birth_year != null) setBirthYear(prev => (prev == null ? Number(m.birth_year) : prev));
+      if (m.birth_year != null) { setBirthYear(prev => (prev == null ? Number(m.birth_year) : prev)); setBirthYearText(prev => (prev ? prev : String(m.birth_year))); }
       if (m.gender === 'male' || m.gender === 'female') setSex(prev => prev || m.gender);
       if (m.country) setCountry(prev => prev || String(m.country));
       if (m.primary_goal) setPrimaryGoal(prev => prev || String(m.primary_goal));
@@ -114,8 +125,36 @@ export default function CompleteProfileScreen() {
     (provider === 'yes' || provider === 'no')
   );
 
+  // Which required fields are still empty — drives the required-markers, the
+  // inline "Required" errors, and the scroll-to-first-missing on Save.
+  const missing = {
+    name: !displayName.trim(),
+    birthMonth: birthMonth == null,
+    birthYear: birthYear == null,
+    sex: !(sex === 'male' || sex === 'female'),
+    country: !country.trim(),
+    goal: !primaryGoal,
+    activity: !activityLevel,
+    tracking: tracking.length === 0,
+    provider: !(provider === 'yes' || provider === 'no'),
+  };
+  const MISSING_ORDER = ['name', 'birthMonth', 'birthYear', 'sex', 'country', 'goal', 'activity', 'tracking', 'provider'];
+  const scrollRef = useRef(null);
+  const fieldY = useRef({});
+  const onFieldLayout = (key) => (e) => { fieldY.current[key] = e.nativeEvent.layout.y; };
+  const scrollKeyFor = (k) => k; // each field (incl. birthMonth / birthYear) has its own layout Y
+
   async function handleSave() {
-    if (!complete || saving) return;
+    if (saving) return;
+    // Don't silently sit on a greyed button — tell the user exactly what's left
+    // and jump them to it (the "3 minutes hunting for the missing month" bug).
+    if (!complete) {
+      setShowErrors(true);
+      const firstKey = MISSING_ORDER.find((k) => missing[k]);
+      const y = firstKey != null ? fieldY.current[scrollKeyFor(firstKey)] : null;
+      if (y != null) scrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.auth.updateUser({
       data: {
@@ -157,105 +196,141 @@ export default function CompleteProfileScreen() {
 
   return (
     <SafeAreaView style={s.root}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <Text style={s.bigEmoji}>👤</Text>
+      <ScrollView ref={scrollRef} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <Text style={s.title}>{t('profile_step_title')}</Text>
         <Text style={s.sub}>{t('profile_step_sub_required')}</Text>
+        <Text style={s.legend}>{t('profile_required_legend')}</Text>
 
-        <Text style={s.fieldLabel}>{t('profile_name')}</Text>
-        <TextInput
-          style={s.input}
-          placeholder={t('profile_name_placeholder')}
-          placeholderTextColor={colors.textFaint}
-          value={displayName}
-          onChangeText={setDisplayName}
-          autoCapitalize="words"
-          autoCorrect={false}
-        />
+        {/* ── About you ─────────────────────────────────────────── */}
+        <Text style={s.section}>{t('profile_sec_about')}</Text>
 
-        <Text style={s.fieldLabel}>{t('profile_birth')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
-          <View style={s.hRow}>
+        <View style={s.field} onLayout={onFieldLayout('name')}>
+          <Text style={s.fieldLabel}>{t('profile_name')}<Text style={s.req}> *</Text></Text>
+          <TextInput
+            style={[s.input, showErrors && missing.name && s.inputErr]}
+            placeholder={t('profile_name_placeholder')}
+            placeholderTextColor={colors.textFaint}
+            value={displayName}
+            onChangeText={setDisplayName}
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
+          {showErrors && missing.name && <Text style={s.errText}>{t('profile_missing')}</Text>}
+        </View>
+
+        <View style={s.field} onLayout={onFieldLayout('birthMonth')}>
+          <Text style={s.fieldLabel}>{t('profile_birth_month')}<Text style={s.req}> *</Text></Text>
+          <View style={s.mGrid}>
             {MONTH_KEYS.map((mk, idx) => (
-              <TouchableOpacity key={mk} style={[s.chip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
+              <TouchableOpacity key={mk} style={[s.mChip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
                 <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
               </TouchableOpacity>
             ))}
           </View>
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
-          <View style={s.hRow}>
-            {BIRTH_YEARS.map((y) => (
-              <TouchableOpacity key={y} style={[s.chip, birthYear === y && s.pillOn]} onPress={() => setBirthYear(y)}>
-                <Text style={[s.pillText, birthYear === y && s.pillTextOn]}>{y}</Text>
+          {showErrors && missing.birthMonth && <Text style={s.errText}>{t('profile_pick_month')}</Text>}
+        </View>
+
+        <View style={s.field} onLayout={onFieldLayout('birthYear')}>
+          <Text style={s.fieldLabel}>{t('profile_birth_year')}<Text style={s.req}> *</Text></Text>
+          <TextInput
+            style={[s.input, showErrors && missing.birthYear && s.inputErr]}
+            placeholder={t('profile_birth_year_ph')}
+            placeholderTextColor={colors.textFaint}
+            value={birthYearText}
+            onChangeText={onYearChange}
+            keyboardType="number-pad"
+            maxLength={4}
+          />
+          {showErrors && missing.birthYear && <Text style={s.errText}>{t('profile_pick_year')}</Text>}
+        </View>
+
+        <View style={s.field} onLayout={onFieldLayout('sex')}>
+          <Text style={s.fieldLabel}>{t('profile_sex')}<Text style={s.req}> *</Text></Text>
+          <View style={s.pillRow}>
+            {SEXES.map(g => (
+              <TouchableOpacity key={g.key} style={[s.pill, sex === g.key && s.pillOn]} onPress={() => setSex(g.key)}>
+                <Text style={[s.pillText, sex === g.key && s.pillTextOn]}>{g.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
-        </ScrollView>
-
-        <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
-        <View style={s.pillRow}>
-          {SEXES.map(g => (
-            <TouchableOpacity key={g.key} style={[s.pill, sex === g.key && s.pillOn]} onPress={() => setSex(g.key)}>
-              <Text style={[s.pillText, sex === g.key && s.pillTextOn]}>{g.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
-
-        <Text style={s.fieldLabel}>{t('profile_country')}</Text>
-        <TouchableOpacity
-          style={[s.input, { justifyContent: 'center' }]}
-          onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
-        >
-          <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
-            {country ? countryLabel(country, language) : t('profile_country_placeholder')}
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={s.fieldLabel}>{t('profile_goal')}</Text>
-        <View style={s.pillRow}>
-          {GOALS.map(g => (
-            <TouchableOpacity key={g.key} style={[s.pill, primaryGoal === g.key && s.pillOn]} onPress={() => setPrimaryGoal(g.key)}>
-              <Text style={[s.pillText, primaryGoal === g.key && s.pillTextOn]}>{g.label}</Text>
-            </TouchableOpacity>
-          ))}
+          <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+          {showErrors && missing.sex && <Text style={s.errText}>{t('profile_missing')}</Text>}
         </View>
 
-        <Text style={s.fieldLabel}>{t('profile_activity')}</Text>
-        <View style={s.pillRow}>
-          {ACTIVITY.map(a => (
-            <TouchableOpacity key={a.key} style={[s.pill, activityLevel === a.key && s.pillOn]} onPress={() => setActivityLevel(a.key)}>
-              <Text style={[s.pillText, activityLevel === a.key && s.pillTextOn]}>{a.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={s.field} onLayout={onFieldLayout('country')}>
+          <Text style={s.fieldLabel}>{t('profile_country')}<Text style={s.req}> *</Text></Text>
+          <TouchableOpacity
+            style={[s.input, { justifyContent: 'center' }, showErrors && missing.country && s.inputErr]}
+            onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
+          >
+            <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+              {country ? countryLabel(country, language) : t('profile_country_placeholder')}
+            </Text>
+          </TouchableOpacity>
+          {showErrors && missing.country && <Text style={s.errText}>{t('profile_missing')}</Text>}
         </View>
 
-        <Text style={s.fieldLabel}>{t('onboarding_compound_title')}</Text>
-        <View style={s.pillRow}>
-          {COMPOUNDS.map(c => (
-            <TouchableOpacity key={c.key} style={[s.pill, { flexDirection: 'row', alignItems: 'center', gap: 8 }, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
-              <FeatureIcon name={c.icon} size={18} color={tracking.includes(c.key) ? colors.accent : colors.textMuted} />
-              <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.label}</Text>
-            </TouchableOpacity>
-          ))}
+        {/* ── Your goals ────────────────────────────────────────── */}
+        <Text style={s.section}>{t('profile_sec_goals')}</Text>
+
+        <View style={s.field} onLayout={onFieldLayout('goal')}>
+          <Text style={s.fieldLabel}>{t('profile_goal')}<Text style={s.req}> *</Text></Text>
+          <View style={s.pillRow}>
+            {GOALS.map(g => (
+              <TouchableOpacity key={g.key} style={[s.pill, primaryGoal === g.key && s.pillOn]} onPress={() => setPrimaryGoal(g.key)}>
+                <Text style={[s.pillText, primaryGoal === g.key && s.pillTextOn]}>{g.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {showErrors && missing.goal && <Text style={s.errText}>{t('profile_missing')}</Text>}
         </View>
 
-        <Text style={s.fieldLabel}>{t('profile_provider')}</Text>
-        <View style={s.pillRow}>
-          {PROVIDERS.map(p => (
-            <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
-              <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={s.field} onLayout={onFieldLayout('activity')}>
+          <Text style={s.fieldLabel}>{t('profile_activity')}<Text style={s.req}> *</Text></Text>
+          <View style={s.pillRow}>
+            {ACTIVITY.map(a => (
+              <TouchableOpacity key={a.key} style={[s.pill, activityLevel === a.key && s.pillOn]} onPress={() => setActivityLevel(a.key)}>
+                <Text style={[s.pillText, activityLevel === a.key && s.pillTextOn]}>{a.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {showErrors && missing.activity && <Text style={s.errText}>{t('profile_missing')}</Text>}
+        </View>
+
+        {/* ── What you track ────────────────────────────────────── */}
+        <Text style={s.section}>{t('profile_sec_tracking')}</Text>
+
+        <View style={s.field} onLayout={onFieldLayout('tracking')}>
+          <Text style={s.fieldLabel}>{t('onboarding_compound_title')}<Text style={s.req}> *</Text></Text>
+          <View style={s.pillRow}>
+            {COMPOUNDS.map(c => (
+              <TouchableOpacity key={c.key} style={[s.pill, { flexDirection: 'row', alignItems: 'center', gap: 8 }, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
+                <FeatureIcon name={c.icon} size={18} color={tracking.includes(c.key) ? colors.accent : colors.textMuted} />
+                <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {showErrors && missing.tracking && <Text style={s.errText}>{t('profile_missing')}</Text>}
+        </View>
+
+        <View style={s.field} onLayout={onFieldLayout('provider')}>
+          <Text style={s.fieldLabel}>{t('profile_provider')}<Text style={s.req}> *</Text></Text>
+          <View style={s.pillRow}>
+            {PROVIDERS.map(p => (
+              <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
+                <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {showErrors && missing.provider && <Text style={s.errText}>{t('profile_missing')}</Text>}
         </View>
 
         <Text style={s.disclaimer}>{t('profile_data_note')}</Text>
 
         <TouchableOpacity
-          style={[s.primaryBtn, (!complete || saving) && { opacity: 0.4 }]}
+          style={[s.primaryBtn, saving && { opacity: 0.6 }]}
           onPress={handleSave}
-          disabled={!complete || saving}
+          disabled={saving}
         >
           {saving
             ? <ActivityIndicator color={colors.accentText} />
@@ -317,15 +392,26 @@ function makeStyles(colors) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40 },
-    bigEmoji: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
     title: { fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center', letterSpacing: -0.3 },
-    sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 20, lineHeight: 20 },
-    fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 18, marginBottom: 8 },
+    sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+    legend: { fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 6, marginBottom: 4 },
+    // Section heading — the strongest text, groups the fields below it.
+    section: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: -0.2, marginTop: 28, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: colors.border },
+    // One field block: wrapper carries the layout Y for scroll-to-missing.
+    field: { marginTop: 16 },
+    // Quiet micro-label — deliberately lighter than the option chips so a label
+    // never reads as flush with its choices.
+    fieldLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: colors.textFaint, marginBottom: 8 },
+    req: { color: colors.danger || colors.dangerSoftText || '#d9544e', fontWeight: '800' },
+    errText: { fontSize: 12, fontWeight: '600', color: colors.danger || colors.dangerSoftText || '#d9544e', marginTop: 7 },
     input: {
       backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
       fontSize: 15, color: colors.text, borderWidth: 0.5, borderColor: colors.border, minHeight: 48,
     },
-    hScroll: { marginBottom: 8 },
+    inputErr: { borderColor: colors.danger || colors.dangerSoftText || '#d9544e', borderWidth: 1 },
+    hScroll: {},
+    mGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    mChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
     hRow: { flexDirection: 'row', gap: 8, paddingRight: 8 },
     chip: {
       paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999,
