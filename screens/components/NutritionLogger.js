@@ -23,6 +23,7 @@ import {
 } from '../../lib/database';
 import { parseFood } from '../../lib/nutritionClient';
 import { dayTotals, pickNudge } from '../../lib/nutrition';
+import { requestAIConsent } from '../../lib/aiConsent';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const safeItems = (json) => { try { const a = JSON.parse(json); return Array.isArray(a) ? a : []; } catch { return []; } };
@@ -124,6 +125,9 @@ export default function NutritionLogger() {
   async function onSubmit() {
     const raw = text.trim();
     if (!raw || busy || !userId) return;
+    // Consent gate (Apple 5.1.1(i)): meal text goes to Anthropic — ask once (v3).
+    const consented = await requestAIConsent(t);
+    if (!consented) return;
     setDeflect(false);
     setBusy(true);
     // Offline-first: save the raw entry immediately (pending).
