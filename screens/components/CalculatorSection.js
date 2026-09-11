@@ -60,7 +60,7 @@ const REFERENCES = [
   { key: 'cal_src_energy', cite: 'Hall — Int J Obes, 2008', url: 'https://www.nature.com/articles/0803720' },
 ];
 
-export default function CalculatorSection() {
+export default function CalculatorSection({ header = null, scrollTarget = null }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -403,6 +403,16 @@ export default function CalculatorSection() {
   // Tap a scoreboard tile → jump down to the calculator that produced it.
   const scrollRef = useRef(null);
   const detailsY = useRef(0);
+  const loggerY = useRef(0);
+  // When arrived-at via the 8pm food reminder (scrollTarget 'logger'), jump the
+  // scroll to the nutrition logger so the user lands on the input, not the top of
+  // a long calculator. Deferred so the layout has measured loggerY first.
+  useEffect(() => {
+    if (scrollTarget === 'logger') {
+      const id = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max((loggerY.current || 0) - 8, 0), animated: true }), 350);
+      return () => clearTimeout(id);
+    }
+  }, [scrollTarget]);
   const scrollTo = yRef => scrollRef.current?.scrollTo({ y: Math.max((yRef.current || 0) - 8, 0), animated: true });
 
   // Warning codes from the engine → localized copy.
@@ -450,6 +460,7 @@ export default function CalculatorSection() {
 
   return (
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} keyboardShouldPersistTaps="handled">
+      {header}
       {/* Intro — what this is */}
       <View style={s.introCard}>
         <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
@@ -598,10 +609,13 @@ export default function CalculatorSection() {
                   <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
                   <Text style={s.label}>{t('cal_rc_intake')}</Text>
                   <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-                  {foodAvg && foodAvg.avgKcal ? (
-                    <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodAvg.avgKcal))} activeOpacity={0.7}>
-                      <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{n}', String(foodAvg.avgKcal))}</Text>
-                    </TouchableOpacity>
+                  {foodAvg && foodAvg.avgKcal && foodAvg.loggedDays >= 5 ? (
+                    <>
+                      <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodAvg.avgKcal))} activeOpacity={0.7}>
+                        <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{n}', String(foodAvg.avgKcal)).replace('{d}', String(foodAvg.loggedDays))}</Text>
+                      </TouchableOpacity>
+                      <Text style={s.rcUseLogNote}>{t('cal_rc_from_log_note')}</Text>
+                    </>
                   ) : null}
                   <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
                     <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>
@@ -701,7 +715,9 @@ export default function CalculatorSection() {
 
       {/* AI nutrition logger — lives under Track your progress; feeds the
           reality-check's weekly intake. Premium-gated inside the component. */}
-      <NutritionLogger />
+      <View onLayout={(e) => { loggerY.current = e.nativeEvent.layout.y; }}>
+        <NutritionLogger />
+      </View>
 
       {/* ── YOUR NUMBERS ────────────────────────────────────────────── */}
       <SectionHeader
@@ -987,6 +1003,7 @@ const makeStyles = (c) => StyleSheet.create({
   rcTrackingSub: { fontSize: 12, color: c.accentSoftText, opacity: 0.85, marginTop: 3 },
   rcUseLog: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
   rcUseLogText: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
+  rcUseLogNote: { fontSize: 10.5, color: c.textFaint, marginTop: 5, lineHeight: 14 },
   rcStop: { alignItems: 'center', paddingVertical: 12, marginTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
   rcStopText: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },
   rcReset: { alignItems: 'center', paddingVertical: 10, marginTop: 8 },

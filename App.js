@@ -372,10 +372,11 @@ export default function App() {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
         } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check' || data.type === 'food_log') && navigationRef.current) {
           // Measurements / reality-check / food-log nudge — deep-link into the
-          // Journey tab, the home of the calculator, reality-check and food log.
+          // Journey tab. A food-log nudge scrolls straight to the logger; the
+          // others land at the top (calculator / reality-check).
           navigationRef.current.navigate('Main', {
             screen: 'MainTabs',
-            params: { screen: 'Journey' },
+            params: { screen: 'Journey', params: data.type === 'food_log' ? { scrollTo: 'logger' } : {} },
           });
         }
       });
