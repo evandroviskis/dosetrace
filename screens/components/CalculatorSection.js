@@ -30,6 +30,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
+import { getFoodLogsSince } from '../../lib/database';
+import { rollingAvgKcal } from '../../lib/nutrition';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -96,12 +98,22 @@ export default function CalculatorSection() {
   const [rcOpen, setRcOpen] = useState(false);      // collapsible panel under the goal
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
   const [rcSavedMsg, setRcSavedMsg] = useState(false);
+  const [foodAvg, setFoodAvg] = useState(null); // { avgKcal, loggedDays } from the food log
   const loadedRef = useRef(false);
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
     setPremium(await isPremium());
+    // Food-log rolling average (feeds the reality-check intake). Recomputed each
+    // focus so newly-logged meals move the number.
+    try {
+      const u = await getCachedUser();
+      if (u?.id) {
+        const since = new Date(); since.setDate(since.getDate() - 20);
+        setFoodAvg(rollingAvgKcal(getFoodLogsSince(u.id, since.toISOString().split('T')[0]), todayISO(), 21));
+      }
+    } catch { /* ignore */ }
     if (loadedRef.current) return;
     const user = await getCachedUser();
     const snaps = user?.user_metadata?.calc_snapshots;
@@ -565,6 +577,11 @@ export default function CalculatorSection() {
                   <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
                   <Text style={s.label}>{t('cal_rc_intake')}</Text>
                   <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                  {foodAvg && foodAvg.avgKcal ? (
+                    <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodAvg.avgKcal))} activeOpacity={0.7}>
+                      <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{n}', String(foodAvg.avgKcal))}</Text>
+                    </TouchableOpacity>
+                  ) : null}
                   <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
                     <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>
                   </TouchableOpacity>
@@ -942,6 +959,8 @@ const makeStyles = (c) => StyleSheet.create({
   rcTracking: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginTop: 8, marginBottom: 4 },
   rcTrackingLine: { fontSize: 15, fontWeight: '700', color: c.accentSoftText },
   rcTrackingSub: { fontSize: 12, color: c.accentSoftText, opacity: 0.85, marginTop: 3 },
+  rcUseLog: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
+  rcUseLogText: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
   rcReset: { alignItems: 'center', paddingVertical: 10, marginTop: 8 },
   rcResetText: { fontSize: 13, color: c.textMuted, fontWeight: '600' },
   locked: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
