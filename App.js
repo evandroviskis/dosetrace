@@ -370,9 +370,9 @@ export default function App() {
 
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
-        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check') && navigationRef.current) {
-          // Measurements / reality-check invitation — deep-link into the Journey
-          // tab, the home of the calculator, reality-check and food log.
+        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check' || data.type === 'food_log') && navigationRef.current) {
+          // Measurements / reality-check / food-log nudge — deep-link into the
+          // Journey tab, the home of the calculator, reality-check and food log.
           navigationRef.current.navigate('Main', {
             screen: 'MainTabs',
             params: { screen: 'Journey' },

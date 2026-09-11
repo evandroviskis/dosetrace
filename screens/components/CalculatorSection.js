@@ -25,7 +25,7 @@ import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
-import { syncRealityCheckReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../../lib/notifications';
+import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../../lib/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -307,6 +307,7 @@ export default function CalculatorSection() {
     setRc(null);
     await AsyncStorage.setItem(RC_START_KEY, JSON.stringify(start)).catch(() => {});
     syncRealityCheckReminder().catch(() => {});
+    syncFoodLogReminder().catch(() => {});
   }
 
   // Clear the open check-in and cancel its reminder (back to phase 1).
@@ -316,6 +317,25 @@ export default function CalculatorSection() {
     setRc(null);
     await AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
     syncRealityCheckReminder().catch(() => {});
+    syncFoodLogReminder().catch(() => {});
+  }
+
+  // Stop the reality check entirely (founder-requested, one easy-to-reach button):
+  // confirm, then clear the open check-in AND the saved numbers, and cancel both
+  // the weigh-in reminder and the daily food-log reminder. Logged meals are KEPT.
+  function stopRealityCheck() {
+    Alert.alert(t('cal_rc_stop_title'), t('cal_rc_stop_body'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('cal_rc_stop_confirm'), style: 'destructive', onPress: async () => {
+          setRcStart(null); setRcNow(''); setRc(null); setRealityLog([]);
+          await AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+          supabase.auth.updateUser({ data: { calc_reality_checks: [] } }).catch(() => {});
+          syncRealityCheckReminder().catch(() => {});
+          syncFoodLogReminder().catch(() => {});
+        },
+      },
+    ]);
   }
 
   // Phase 2 — compute from the stored starting weight + today's weight, using the
@@ -358,6 +378,7 @@ export default function CalculatorSection() {
     setRcStart(start);
     await AsyncStorage.setItem(RC_START_KEY, JSON.stringify(start)).catch(() => {});
     syncRealityCheckReminder().catch(() => {});
+    syncFoodLogReminder().catch(() => {});
   }
 
   // Weekly rate → display units, one decimal, absolute value (sign drives the label).
@@ -630,6 +651,11 @@ export default function CalculatorSection() {
                     </View>
                   ))}
                 </View>
+              )}
+              {(rcStart || realityLog.length > 0) && (
+                <TouchableOpacity style={s.rcStop} onPress={stopRealityCheck} activeOpacity={0.7}>
+                  <Text style={s.rcStopText}>{t('cal_rc_stop')}</Text>
+                </TouchableOpacity>
               )}
             </>
           ) : (
@@ -961,6 +987,8 @@ const makeStyles = (c) => StyleSheet.create({
   rcTrackingSub: { fontSize: 12, color: c.accentSoftText, opacity: 0.85, marginTop: 3 },
   rcUseLog: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
   rcUseLogText: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
+  rcStop: { alignItems: 'center', paddingVertical: 12, marginTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
+  rcStopText: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },
   rcReset: { alignItems: 'center', paddingVertical: 10, marginTop: 8 },
   rcResetText: { fontSize: 13, color: c.textMuted, fontWeight: '600' },
   locked: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
