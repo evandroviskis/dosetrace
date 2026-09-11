@@ -29,6 +29,7 @@ import { syncRealityCheckReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
+import NutritionLogger from './NutritionLogger';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -654,6 +655,10 @@ export default function CalculatorSection() {
           </View>
         )}
       </View>
+
+      {/* AI nutrition logger — lives under Track your progress; feeds the
+          reality-check's weekly intake. Premium-gated inside the component. */}
+      <NutritionLogger />
 
       {/* ── YOUR NUMBERS ────────────────────────────────────────────── */}
       <SectionHeader
