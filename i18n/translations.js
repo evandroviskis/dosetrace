@@ -170,7 +170,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'About you',
     profile_step_sub: 'Help us personalize your experience. All fields are optional.',
-    profile_step_sub_required: 'Complete your profile to get started. All fields are required.',
+    profile_step_sub_required: 'DoseTrace now personalizes your calculator, dose-accumulation curve and reality-check to you — a one-time setup. These details power those features and stay on your account.',
     profile_required_legend: '* All fields are required',
     profile_missing: 'Required',
     profile_pick_month: 'Choose a month',
@@ -1712,7 +1712,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Sobre ti',
     profile_step_sub: 'Ayúdanos a personalizar tu experiencia. Todos los campos son opcionales.',
-    profile_step_sub_required: 'Completa tu perfil para comenzar. Todos los campos son obligatorios.',
+    profile_step_sub_required: 'DoseTrace ahora personaliza tu calculadora, la curva de acumulación de dosis y la comprobación de progreso — una configuración única. Estos datos activan esas funciones y se guardan en tu cuenta.',
     profile_required_legend: '* Todos los campos son obligatorios',
     profile_missing: 'Obligatorio',
     profile_pick_month: 'Elige un mes',
@@ -3254,7 +3254,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Sobre você',
     profile_step_sub: 'Ajude-nos a personalizar sua experiência. Todos os campos são opcionais.',
-    profile_step_sub_required: 'Complete seu perfil para começar. Todos os campos são obrigatórios.',
+    profile_step_sub_required: 'O DoseTrace agora personaliza sua calculadora, a curva de acumulação de dose e o acompanhamento — uma configuração única. Esses dados ativam esses recursos e ficam na sua conta.',
     profile_required_legend: '* Todos os campos são obrigatórios',
     profile_missing: 'Obrigatório',
     profile_pick_month: 'Escolha um mês',
@@ -4795,7 +4795,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'À propos de vous',
     profile_step_sub: 'Aidez-nous à personnaliser votre expérience. Tous les champs sont facultatifs.',
-    profile_step_sub_required: 'Complétez votre profil pour commencer. Tous les champs sont obligatoires.',
+    profile_step_sub_required: 'DoseTrace personnalise désormais votre calculateur, la courbe d\'accumulation et le bilan — une configuration unique. Ces informations activent ces fonctions et restent sur votre compte.',
     profile_required_legend: '* Tous les champs sont obligatoires',
     profile_missing: 'Obligatoire',
     profile_pick_month: 'Choisissez un mois',
@@ -6336,7 +6336,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Über dich',
     profile_step_sub: 'Hilf uns, deine Erfahrung zu personalisieren. Alle Felder sind optional.',
-    profile_step_sub_required: 'Vervollständige dein Profil, um loszulegen. Alle Felder sind erforderlich.',
+    profile_step_sub_required: 'DoseTrace personalisiert jetzt deinen Rechner, die Dosis-Akkumulationskurve und den Check — eine einmalige Einrichtung. Diese Angaben aktivieren diese Funktionen und bleiben in deinem Konto.',
     profile_required_legend: '* Alle Felder sind erforderlich',
     profile_missing: 'Erforderlich',
     profile_pick_month: 'Monat wählen',
@@ -7878,7 +7878,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Chi sei',
     profile_step_sub: 'Aiutaci a personalizzare la tua esperienza. Tutti i campi sono facoltativi.',
-    profile_step_sub_required: 'Completa il tuo profilo per iniziare. Tutti i campi sono obbligatori.',
+    profile_step_sub_required: 'DoseTrace ora personalizza il calcolatore, la curva di accumulo e il monitoraggio — una configurazione una tantum. Questi dati attivano quelle funzioni e restano sul tuo account.',
     profile_required_legend: '* Tutti i campi sono obbligatori',
     profile_missing: 'Obbligatorio',
     profile_pick_month: 'Scegli un mese',
