@@ -57,6 +57,8 @@ Deno.serve(async (req) => {
       'protocols',
       'biomarkers',
       'vaccines',
+      'food_logs',
+      'ai_food_usage',
       'notification_preferences',
       'analytics_events',
       'referral_codes',

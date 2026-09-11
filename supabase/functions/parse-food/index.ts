@@ -83,6 +83,13 @@ Deno.serve(async (req) => {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) return jsonResponse({ error: 'Service not configured', code: 'not_configured' }, 500);
 
+    // Reserve the quota slot BEFORE the model call so refusals / junk / provider
+    // errors still count against the daily cap (they each cost a real call).
+    if (adminClient) {
+      const { error: usageErr } = await adminClient.from('ai_food_usage').insert({ user_id: user.id, entry_date: entryDate });
+      if (usageErr) console.error('[parse-food] usage insert failed:', usageErr.code, usageErr.message);
+    }
+
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicApiKey, 'anthropic-version': '2023-06-01' },
@@ -134,12 +141,6 @@ Deno.serve(async (req) => {
       : null;
 
     const clarify = typeof parsed.clarify === 'string' && parsed.clarify.trim() ? parsed.clarify.trim().slice(0, 200) : null;
-
-    // Record usage for the daily cap (success only).
-    if (adminClient) {
-      const { error: usageErr } = await adminClient.from('ai_food_usage').insert({ user_id: user.id, entry_date: entryDate });
-      if (usageErr) console.error('[parse-food] usage insert failed:', usageErr.code, usageErr.message);
-    }
 
     return jsonResponse({ refusal: false, items, totals, clarify }, 200);
   } catch (err) {
