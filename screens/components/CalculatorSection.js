@@ -84,6 +84,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const [goal, setGoal] = useState('lose');
   const [waist, setWaist] = useState('');
   const [expl, setExpl] = useState(null);           // which explainer is open
+  const [numbersOpen, setNumbersOpen] = useState(true); // "Your numbers" collapse
   const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
   const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
@@ -450,10 +451,13 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
 
   // A labelled section divider: a monoline glyph in a soft-accent tile + an
   // uppercase micro-label, matching the onboarding's grouping. Optional right slot.
-  const SectionHeader = ({ icon, title, right }) => (
+  const SectionHeader = ({ icon, title, right, collapsible, open, onToggle }) => (
     <View style={s.sh}>
-      <View style={s.shIcon}><FeatureIcon name={icon} size={16} color={colors.accent} /></View>
-      <Text style={s.shTitle}>{title}</Text>
+      <TouchableOpacity style={s.shLeft} activeOpacity={collapsible ? 0.7 : 1} onPress={collapsible ? onToggle : undefined} disabled={!collapsible}>
+        <View style={s.shIcon}><FeatureIcon name={icon} size={16} color={colors.accent} /></View>
+        <Text style={s.shTitle}>{title}</Text>
+        {collapsible ? <Text style={s.shChev}>{open ? '▾' : '▸'}</Text> : null}
+      </TouchableOpacity>
       {right ? <View style={s.shRight}>{right}</View> : null}
     </View>
   );
@@ -732,7 +736,11 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             ))}
           </View>
         )}
+        collapsible
+        open={numbersOpen}
+        onToggle={() => setNumbersOpen((o) => !o)}
       />
+      {numbersOpen && (
       <View style={s.groupCard}>
         {/* Weight + Height — both universal (BMI, waist-to-height, and the Mifflin
             fallback all need height, so height shows regardless of the BF path). */}
@@ -805,6 +813,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         )}
         <Text style={s.hint}>{t('cal_waist_hint')}</Text>
       </View>
+      )}
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* ── ACTIVITY ────────────────────────────────────────────────── */}
@@ -871,9 +880,11 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
 const makeStyles = (c) => StyleSheet.create({
   scroll: { flex: 1, padding: 16 },
   // Section header: monoline glyph tile + uppercase micro-label, optional right slot.
-  sh: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 24, marginBottom: 10, marginHorizontal: 2 },
+  sh: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 10, marginHorizontal: 2 },
+  shLeft: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 },
   shIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
   shTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted },
+  shChev: { fontSize: 13, color: c.textFaint, marginLeft: 2 },
   shRight: { marginLeft: 'auto' },
   // Grouped input card — inputs sit inside with breathing room.
   groupCard: { backgroundColor: c.card, borderRadius: 20, padding: 16, gap: 16, borderWidth: 0.5, borderColor: c.border },
