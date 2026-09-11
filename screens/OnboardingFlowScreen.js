@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image, Animated,
-  StyleSheet, useWindowDimensions, Modal, FlatList,
+  StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -62,6 +62,18 @@ export default function OnboardingFlowScreen({ onDone }) {
     fade.setValue(0);
     Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
   }, [step]);
+
+  // Android hardware / swipe back: close an open picker, else step back one; on
+  // the first screen let the OS handle it (exit). There must always be a way back.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showLang) { setShowLang(false); return true; }
+      if (showCountry) { setShowCountry(false); return true; }
+      if (step > 0) { back(); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [step, showLang, showCountry]);
 
   const GOALS = [
     { key: 'wellness', label: t('profile_goal_wellness') },
@@ -181,7 +193,7 @@ export default function OnboardingFlowScreen({ onDone }) {
           {cur === 'splash' && (
             <View style={s.splashWrap}>
               <TouchableOpacity style={s.langChip} onPress={() => setShowLang(true)}>
-                <Text style={s.langChipText}>🌐 {String(language).toUpperCase()} ▾</Text>
+                <Text style={s.langChipText}>{String(language).toUpperCase()} ▾</Text>
               </TouchableOpacity>
               <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" />
               <Text style={s.brand}>DoseTrace</Text>
@@ -389,11 +401,21 @@ export default function OnboardingFlowScreen({ onDone }) {
       <Modal visible={showLang} animationType="fade" transparent onRequestClose={() => setShowLang(false)}>
         <TouchableOpacity style={s.langBackdrop} activeOpacity={1} onPress={() => setShowLang(false)}>
           <View style={s.langSheet}>
-            {(LANGUAGES || []).map((l) => (
-              <TouchableOpacity key={l.code} style={[s.langOpt, language === l.code && s.langOptOn]} onPress={() => { setLanguage(l.code); setShowLang(false); }}>
-                <Text style={[s.langOptText, language === l.code && { color: colors.accent, fontWeight: '800' }]}>{l.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {(LANGUAGES || []).map((l, i) => {
+              const on = language === l.code;
+              return (
+                <TouchableOpacity
+                  key={l.code}
+                  style={[s.langOpt, i > 0 && s.langDiv, on && s.langOptOn]}
+                  onPress={() => { setLanguage(l.code); setShowLang(false); }}
+                >
+                  {/* color is an explicit theme token on BOTH states so the row can
+                      never render as invisible text (the light-theme white-on-white bug). */}
+                  <Text style={[s.langOptText, on && s.langOptTextOn]}>{l.label}</Text>
+                  {on && <Text style={s.langCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -489,9 +511,12 @@ function makeStyles(colors) {
     skipText: { fontSize: 14, fontWeight: '600', color: colors.textFaint },
     langBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 40 },
     langSheet: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 6, borderWidth: 0.5, borderColor: colors.border },
-    langOpt: { paddingVertical: 13, paddingHorizontal: 18 },
+    langOpt: { paddingVertical: 13, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    langDiv: { borderTopWidth: 0.5, borderTopColor: colors.border },
     langOptOn: { backgroundColor: colors.accentSoft },
     langOptText: { fontSize: 15, fontWeight: '600', color: colors.text },
+    langOptTextOn: { color: colors.accent, fontWeight: '800' },
+    langCheck: { fontSize: 16, fontWeight: '800', color: colors.accent },
     pickerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: colors.border },
     pickerTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
     countryRow: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: colors.border },

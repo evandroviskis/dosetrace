@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, StatusBar, Linking,
+  Alert, Platform, StatusBar, Linking, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle, signInWithApple, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
@@ -48,10 +48,18 @@ function AppleSignInButton({ onPress, isDark, style }) {
  * no consent was stashed (e.g. a returning user creating a brand-new account),
  * so account creation always has a lawful basis and never dead-ends.
  */
-export default function AuthScreen() {
+export default function AuthScreen({ onBack }) {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+
+  // There must always be a way back to the welcome/intro (founder rule): a visible
+  // arrow + Android hardware/swipe back. onBack returns to OnboardingFlowScreen.
+  useEffect(() => {
+    if (!onBack) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -171,6 +179,11 @@ export default function AuthScreen() {
     return (
       <SafeAreaView style={s.container}>
         <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+          {onBack && (
+            <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={s.backChevron}>‹</Text>
+            </TouchableOpacity>
+          )}
           <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
           <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
           <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
@@ -185,6 +198,11 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={s.container}>
       <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {onBack && (
+          <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Text style={s.backChevron}>‹</Text>
+          </TouchableOpacity>
+        )}
         {!isSignIn ? (
           <>
             <View style={s.hero}><FeatureIcon name="curve" size={48} color={colors.accent} /></View>
@@ -250,6 +268,8 @@ export default function AuthScreen() {
 
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 },
+  backBtn: { alignSelf: 'flex-start', marginBottom: 4, paddingVertical: 2, paddingRight: 12 },
+  backChevron: { fontSize: 30, lineHeight: 32, color: c.accent, fontWeight: '400' },
   scroll: { flex: 1 },
   body: { paddingHorizontal: 24, paddingTop: 32 },
   hero: { marginBottom: 20 },

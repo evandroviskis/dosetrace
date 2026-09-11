@@ -18,6 +18,17 @@ one isn't in the next build, that must be a stated, founder-approved deferral, n
 (The AI nutrition logger was approved around build 50 with "Go ahead" and was silently
 parked as "backlog" through build 52 — the exact failure this rule exists to prevent.)
 
+## Standing rule: verify color + contrast in BOTH themes before every build (2026-09-11, founder directive)
+
+Before every EAS build, confirm colors and contrast across the WHOLE app in **both light
+and dark themes** — every screen, and especially popups/modals/dropdowns/pickers, which
+are the ones that slip (e.g. the language picker rendered white-on-white in light theme).
+Never hardcode a color that only works in one theme; always pull from the theme tokens
+(`lib/theme.js`) so both themes resolve. A control the user can't read is a bug, same as a
+crash. Grep the diff for raw hex / hardcoded `#fff`/`white`/`black` and for any `View`/
+`Text` that sets a background or color without a theme token. This is part of ship-check
+Gate A now.
+
 ## Prime directive: ORIENT before you ACT
 
 Before any build, submit, delete, migration, or "it's done" claim:

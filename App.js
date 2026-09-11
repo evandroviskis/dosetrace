@@ -224,7 +224,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding }) {
+function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding }) {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
@@ -265,7 +265,9 @@ function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justCo
             // The old multi-step OnboardingScreen was deleted — the value-first
             // intro below is the single onboarding, and AuthScreen the single
             // auth surface.
-            <Stack.Screen name="Auth" component={AuthScreen} />
+            <Stack.Screen name="Auth">
+              {() => <AuthScreen onBack={onBackToOnboarding} />}
+            </Stack.Screen>
           ) : (
             // First launch: the value-first intro flow collects the profile
             // (name / birthday / gender / goal / activity) BEFORE an account
@@ -506,6 +508,7 @@ export default function App() {
             onConfirmedShown={() => setJustConfirmed(false)}
             seenOnboarding={seenOnboarding}
             onFinishOnboarding={() => { markSeenOnboarding().catch(() => {}); setSeenOnboarding(true); }}
+            onBackToOnboarding={() => setSeenOnboarding(false)}
           />
         </ThemeProvider>
       </LanguageProvider>
