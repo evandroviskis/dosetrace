@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DoseTrace — A private journal for your protocols, labs & body</title>
+<meta name="description" content="DoseTrace is a private journal and calculator for peptides, TRT and supplements. Log doses, track vials, chart your bloodwork, and run the numbers — synced securely across your devices, no ads, on iPhone and Android." />
+<meta name="theme-color" content="#F4F7FB" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0C1B2E" media="(prefers-color-scheme: dark)" />
+<link rel="icon" type="image/png" href="/assets/logo/dosetrace-drop.png" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="DoseTrace — track your protocols with clarity, keep your data private" />
+<meta property="og:description" content="A private journal and calculator for peptides, TRT and supplements. Synced securely, no ads. iPhone & Android." />
+<meta property="og:url" content="https://dosetrace.io" />
+<meta property="og:image" content="https://dosetrace.io/assets/shots/01-today.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav" id="top">
+  <div class="container nav-inner">
+    <a class="brand" href="/" aria-label="DoseTrace home">
+      <img class="mark" src="/assets/logo/dosetrace-drop.png" alt="" aria-hidden="true" width="24" height="30" />
+      <span><span class="wm-dose">Dose</span><span class="wm-trace">Trace</span></span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a class="navlink" href="#features" data-i18n="nav_features">Features</a>
+      <a class="navlink" href="#screens" data-i18n="nav_screens">Screens</a>
+      <a class="navlink" href="#privacy" data-i18n="nav_privacy">Privacy</a>
+      <a class="navlink" href="#pricing" data-i18n="nav_pricing">Pricing</a>
+      <a class="navlink" href="#faq" data-i18n="nav_faq">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <div class="lang" id="lang">
+        <button class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Change language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>
+          <span class="lang-code">EN</span>
+          <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <ul class="lang-menu" role="menu" hidden>
+          <li><button type="button" data-lang="en" role="menuitem">English</button></li>
+          <li><button type="button" data-lang="es" role="menuitem">Español</button></li>
+          <li><button type="button" data-lang="pt" role="menuitem">Português</button></li>
+          <li><button type="button" data-lang="fr" role="menuitem">Français</button></li>
+          <li><button type="button" data-lang="de" role="menuitem">Deutsch</button></li>
+          <li><button type="button" data-lang="it" role="menuitem">Italiano</button></li>
+        </ul>
+      </div>
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8L6 18M18 6l1.8-1.8"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.7 6.7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <a class="btn btn-primary" href="#get" data-i18n="nav_cta">Get the app</a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow reveal" data-i18n="hero_eyebrow">iPhone &amp; Android</p>
+      <h1 class="reveal d1" data-i18n="hero_h1">Track every protocol with <span class="grad">clarity</span>. Keep your data private.</h1>
+      <p class="lead reveal d2" data-i18n="hero_lead">DoseTrace is a private journal and calculator for peptides, TRT, and supplements. Log doses, track vials, chart your bloodwork, and run the numbers — synced securely across your devices.</p>
+      <div class="hero-cta reveal d3" id="get">
+        <div class="stores">
+          <a class="store-badge" href="https://apps.apple.com/app/id6761788157" target="_blank" rel="noopener" aria-label="Download on the App Store">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2-.1 3 .9 6.4 2.3 8.3.7.9 1.5 1.9 2.5 1.9 1 0 1.4-.6 2.6-.6 1.2 0 1.5.6 2.6.6 1.1 0 1.8-.9 2.4-1.8.8-1.1 1.1-2.2 1.1-2.2-.1 0-2.1-.8-2.1-3.2zM14.6 6.2c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.5-.8 2.4.9 0 1.8-.5 2.4-1.1z"/></svg>
+            <span class="sb-text"><span class="sb-small" data-i18n="sb_get_small">Download on the</span><span class="sb-big">App Store</span></span>
+          </a>
+          <a class="store-badge" href="https://play.google.com/store/apps/details?id=io.outcom.dosetrace" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.2v17.6c0 .5.5.8.9.6l9.5-5.4-3-3L4 3.2z" fill="#34A853"/><path d="M17.6 12.1L14.4 16l3.4 1.9c.8.5 1.8-.1 1.8-1v-9.8c0-.9-1-1.5-1.8-1L14.4 8l3.2 4.1z" fill="#FBBC04"/><path d="M4 3.2l7.4 9 3-3L4.9 2.6c-.4-.2-.9.1-.9.6z" fill="#EA4335"/><path d="M11.4 12.2l-7.4 9c0 .5.5.8.9.6l9.5-5.5-3-3.1z" fill="#4285F4"/></svg>
+            <span class="sb-text"><span class="sb-small" data-i18n="sb_play_small">Get it on</span><span class="sb-big">Google Play</span></span>
+          </a>
+        </div>
+        <p class="hero-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> <span data-i18n="hero_note">Free to use · No ads · Your data is never sold</span></p>
+      </div>
+    </div>
+
+    <div class="phone-wrap reveal d2">
+      <div class="phone float">
+        <div class="phone-screen"><img src="/assets/shots/01-today.jpg" alt="DoseTrace Today screen showing dose progress and reminders" width="640" height="1391" /></div>
+        <div class="ring" aria-hidden="true">
+          <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="32" fill="none" stroke="var(--accent-soft)" stroke-width="7"/><circle class="ring-progress" cx="40" cy="40" r="32" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round"/></svg>
+          <span class="ring-label">100%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP -->
+<div class="trust">
+  <div class="container trust-inner">
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/></svg> <span data-i18n="trust_private">Private by default</span></span>
+    <span class="trust-sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg> <span data-i18n="trust_offline">Private &amp; synced</span></span>
+    <span class="trust-sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg> <span data-i18n="trust_noads">No ads, never sold</span></span>
+    <span class="trust-sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg> <span data-i18n="trust_langs">6 languages</span></span>
+    <span class="trust-sep"></span>
+    <span class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5M12 16h.01"/><circle cx="12" cy="12" r="9"/></svg> <span data-i18n="trust_notmed">Not a medical service</span></span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-i18n="feat_eyebrow">What it does</p>
+      <h2 class="reveal d1" data-i18n="feat_h2">Everything your protocol needs — nothing it doesn't.</h2>
+      <p class="reveal d2" data-i18n="feat_sub">Built for people running peptide, hormone, and supplement protocols who want an honest record and the math done right.</p>
+    </div>
+    <div class="features-grid">
+      <article class="fcard reveal">
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4M8.5 14l2 2 4-4"/></svg></div>
+        <h3 data-i18n="f1_t">Dose &amp; protocol tracking</h3>
+        <p data-i18n="f1_d">Log every dose, set your schedule, and keep a clean history. Reminders make sure you never miss one.</p>
+      </article>
+      <article class="fcard reveal d1">
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6M18 6l-9.5 9.5L4 20l.5-4.5L14 6M9 11l4 4"/></svg></div>
+        <h3 data-i18n="f2_t">Vials &amp; syringe math</h3>
+        <p data-i18n="f2_d">Track vial supply and reconstitution, and get the exact units to draw. The arithmetic, done for you.</p>
+      </article>
+      <article class="fcard reveal d2">
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3.5-4 3 2.5L20 8"/></svg></div>
+        <h3 data-i18n="f3_t">Bloodwork journal + AI scan</h3>
+        <p data-i18n="f3_d">Snap or upload a lab report and DoseTrace pulls your numbers into charts — in any language. It organizes; it never interprets.</p>
+        <span class="tag" data-i18n="f3_tag">Free scan included</span>
+      </article>
+      <article class="fcard reveal">
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2c1 3-1 4-1 6a3 3 0 0 0 5 2c1 2 1 3.5 1 5a6 6 0 1 1-12 0c0-4 3-6 4-9 .5-1.5 1-2.5 3-4z"/></svg></div>
+        <h3 data-i18n="f4_t">Energy &amp; protein calculator</h3>
+        <p data-i18n="f4_d">Estimate your daily calories and protein from your own stats, then run a reality check against real results.</p>
+      </article>
+      <article class="fcard reveal d1">
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13c2 0 2-4 4-4s2 6 4 6 2-9 4-9 2 5 4 5"/></svg></div>
+        <h3 data-i18n="f5_t">Serum-curve projection</h3>
+        <p data-i18n="f5_d">See how your logged doses stack up over time from published half-lives. A math estimate — never a measurement.</p>
+      </article>
+      <article class="fcard reveal d2">
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.5v2.5"/></svg></div>
+        <h3 data-i18n="f6_t">Private by default</h3>
+        <p data-i18n="f6_d">Your data syncs securely to your private account so it is backed up across your devices. No ads, and your health data is never sold or shared.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENS -->
+<section class="gallery section" id="screens">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-i18n="screens_eyebrow">A closer look</p>
+      <h2 class="reveal d1" data-i18n="screens_h2">Calm, clinical, and quick to read.</h2>
+      <p class="reveal d2" data-i18n="screens_sub">Swipe through the app.</p>
+    </div>
+  </div>
+  <div class="container">
+    <div class="shots reveal d1">
+      <figure class="shot"><div class="frame"><img src="/assets/shots/01-today.jpg" alt="Today screen with dose progress ring, streak and alerts" loading="lazy" /></div><figcaption class="cap" data-i18n="cap1">Your day at a glance</figcaption></figure>
+      <figure class="shot"><div class="frame"><img src="/assets/shots/02-protocols.jpg" alt="My Protocols list with vials and syringe calculator" loading="lazy" /></div><figcaption class="cap" data-i18n="cap2">Protocols &amp; vials</figcaption></figure>
+      <figure class="shot"><div class="frame"><img src="/assets/shots/03-mybody.jpg" alt="My Body hub with lab and vaccine journals" loading="lazy" /></div><figcaption class="cap" data-i18n="cap3">Records &amp; insights</figcaption></figure>
+      <figure class="shot"><div class="frame"><img src="/assets/shots/04-calculator-goal.jpg" alt="Energy and protein calculator with daily targets" loading="lazy" /></div><figcaption class="cap" data-i18n="cap4">Energy &amp; protein</figcaption></figure>
+      <figure class="shot"><div class="frame"><img src="/assets/shots/05-reality-check.jpg" alt="Reality check weigh-in flow" loading="lazy" /></div><figcaption class="cap" data-i18n="cap5">A real reality check</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- PRIVACY -->
+<section class="section" id="privacy">
+  <div class="container split">
+    <div class="reveal">
+      <p class="eyebrow" data-i18n="priv_eyebrow">Privacy</p>
+      <h2 data-i18n="priv_h2">Your data stays yours.</h2>
+      <p class="lead" data-i18n="priv_lead">Your data lives on your device and syncs, encrypted in transit, to your private account — so it is backed up and available across your devices.</p>
+      <ul class="checklist">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="priv_c1"><b>On your device and synced</b> — to your private, encrypted account.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="priv_c2"><b>Optional encrypted backup</b> &amp; multi-device sync.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="priv_c3"><b>No ads, ever</b> — and we never sell or share your health data.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="priv_c4"><b>Delete everything anytime</b>, right from the app.</span></li>
+      </ul>
+    </div>
+    <div class="panel reveal d2">
+      <div class="big-stat" data-i18n="priv_stat">Never<span> sold or shared</span></div>
+      <div class="panel-row">
+        <div class="cell"><div class="k" data-count="0">0</div><div class="l" data-i18n="priv_ads">Ads</div></div>
+        <div class="cell"><div class="k" data-count="0">0</div><div class="l" data-i18n="priv_sold">Data sold</div></div>
+        <div class="cell"><div class="k" data-count="6">6</div><div class="l" data-i18n="priv_langs">Languages</div></div>
+      </div>
+      <p style="color:var(--muted);font-size:13.5px;margin-top:18px;" data-i18n="priv_readfull">Read the full <a href="/privacy-policy" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">Privacy Policy</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HONEST -->
+<section class="section honest">
+  <div class="container">
+    <span class="badge-line reveal" data-i18n="honest_badge">Honest by design</span>
+    <h2 class="reveal d1" data-i18n="honest_h2">A journal and a calculator — not a medical service.</h2>
+    <p class="reveal d2" data-i18n="honest_p">DoseTrace never gives advice, never diagnoses, and never tells you what to take. You record what you choose; it organizes it and does the math. For any medical question, talk to a qualified professional. Its calculators are built on published, peer-reviewed research.</p>
+    <div class="sources reveal d3">
+      <span class="source-chip">Mifflin–St Jeor</span>
+      <span class="source-chip">Katch–McArdle</span>
+      <span class="source-chip">Cunningham</span>
+      <span class="source-chip">ISSN protein stand</span>
+      <span class="source-chip">Published half-lives</span>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section" id="pricing">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow reveal" data-i18n="pricing_eyebrow">Pricing</p>
+      <h2 class="reveal d1" data-i18n="pricing_h2">Free to start. Premium when you want more.</h2>
+      <p class="reveal d2" data-i18n="pricing_sub">The essentials are free forever. Premium unlocks the power features — with a free trial.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="plan reveal">
+        <div class="plan-name" data-i18n="free_name">Free</div>
+        <div class="plan-sub" data-i18n="free_sub">Everything you need to track a protocol.</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_1">Reconstitution &amp; syringe calculator</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_2">Up to 3 protocols</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_3">Dose log &amp; vial tracker</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_4">Reminders</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_5">Lab &amp; vaccine journals</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_6">Energy &amp; protein calculator</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_7">1 free AI lab scan</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="free_8">Cloud backup &amp; sync</span></li>
+        </ul>
+      </div>
+      <div class="plan featured reveal d1">
+        <span class="plan-pill" data-i18n="prem_pill">Free trial</span>
+        <div class="plan-name" data-i18n="prem_name">Premium</div>
+        <div class="plan-sub" data-i18n="prem_sub">For serious, long-running protocols.</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_1">Everything in Free</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_2">Unlimited protocols</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_3">Unlimited AI lab &amp; vaccine scanning — photo or PDF, any language</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_4">PDF export for your doctor</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_5">Reality-check &amp; progress tracking</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_8">Dose accumulation &amp; serum-curve charts</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="prem_7">Priority support</span></li>
+        </ul>
+        <p class="note" data-i18n="prem_note">Monthly, annual, or one-time lifetime. Cancel anytime.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq">
+  <div class="container">
+    <div class="section-head"><p class="eyebrow reveal" data-i18n="faq_eyebrow">Questions</p><h2 class="reveal d1" data-i18n="faq_h2">Frequently asked</h2></div>
+    <div class="faq reveal d1">
+      <details class="qa"><summary><span data-i18n="q1_q">Is DoseTrace free?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary><div class="qa-body" data-i18n="q1_a">Yes. Dose tracking, reminders, up to 3 protocols, the calculators, lab &amp; vaccine journals, cloud sync, and one AI lab scan are all free. Premium unlocks unlimited protocols, unlimited scanning, PDF export, and progress tracking — with a free trial.</div></details>
+      <details class="qa"><summary><span data-i18n="q2_q">Is my data private?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary><div class="qa-body" data-i18n="q2_a">Your data lives on your device and syncs, encrypted in transit, to your private account. There are no ads, and your health data is never sold or shared. You can delete everything from the app at any time.</div></details>
+      <details class="qa"><summary><span data-i18n="q3_q">Does it give medical advice?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary><div class="qa-body" data-i18n="q3_a">No. DoseTrace is a journal and calculator. It organizes what you enter and does the arithmetic — it never interprets results, diagnoses, or recommends what to take. For any medical question, consult a qualified professional.</div></details>
+      <details class="qa"><summary><span data-i18n="q4_q">What can I track?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary><div class="qa-body" data-i18n="q4_a">Peptides, TRT/hormones, and supplements: doses, schedules, vials and supply, bloodwork and labs over time, vaccines, plus energy/protein estimates and a serum-curve projection from your logged doses.</div></details>
+      <details class="qa"><summary><span data-i18n="q5_q">How does the AI lab scan work?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary><div class="qa-body" data-i18n="q5_a">Upload or photograph a lab report — in any language — and DoseTrace extracts the values into your journal and charts them over time. It reads the numbers off the page; it doesn't interpret them. One scan is free; Premium makes scanning unlimited.</div></details>
+      <details class="qa"><summary><span data-i18n="q6_q">Which platforms and languages?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary><div class="qa-body" data-i18n="q6_a">iPhone and Android, in 6 languages: English, Spanish, Portuguese, French, German, and Italian.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section cta-band">
+  <div class="container">
+    <div class="cta-card reveal">
+      <h2 data-i18n="cta_h2">Start tracking — privately.</h2>
+      <p data-i18n="cta_p">Free on iPhone and Android. Your protocols, labs, and body in one honest journal.</p>
+      <div class="stores">
+        <a class="store-badge" href="https://apps.apple.com/app/id6761788157" target="_blank" rel="noopener" aria-label="Download on the App Store">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2-.1 3 .9 6.4 2.3 8.3.7.9 1.5 1.9 2.5 1.9 1 0 1.4-.6 2.6-.6 1.2 0 1.5.6 2.6.6 1.1 0 1.8-.9 2.4-1.8.8-1.1 1.1-2.2 1.1-2.2-.1 0-2.1-.8-2.1-3.2zM14.6 6.2c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.5-.8 2.4.9 0 1.8-.5 2.4-1.1z"/></svg>
+          <span class="sb-text"><span class="sb-small" data-i18n="sb_get_small">Download on the</span><span class="sb-big">App Store</span></span>
+        </a>
+        <a class="store-badge" href="https://play.google.com/store/apps/details?id=io.outcom.dosetrace" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.2v17.6c0 .5.5.8.9.6l9.5-5.4-3-3L4 3.2z" fill="#34A853"/><path d="M17.6 12.1L14.4 16l3.4 1.9c.8.5 1.8-.1 1.8-1v-9.8c0-.9-1-1.5-1.8-1L14.4 8l3.2 4.1z" fill="#FBBC04"/><path d="M4 3.2l7.4 9 3-3L4.9 2.6c-.4-.2-.9.1-.9.6z" fill="#EA4335"/><path d="M11.4 12.2l-7.4 9c0 .5.5.8.9.6l9.5-5.5-3-3.1z" fill="#4285F4"/></svg>
+          <span class="sb-text"><span class="sb-small" data-i18n="sb_play_small">Get it on</span><span class="sb-big">Google Play</span></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="f-about">
+        <a class="brand" href="/"><img class="mark" src="/assets/logo/dosetrace-drop.png" alt="" aria-hidden="true" width="24" height="30" /><span><span class="wm-dose">Dose</span><span class="wm-trace">Trace</span></span></a>
+        <p class="brand-tagline" data-i18n="f_tagline">Track today, a healthier tomorrow</p>
+        <p class="f-blurb" data-i18n="f_blurb">A private journal and calculator for your protocols, labs, and body. Built by Outcom.</p>
+      </div>
+      <div class="f-col">
+        <h4 data-i18n="f_product">Product</h4>
+        <a href="#features" data-i18n="nav_features">Features</a>
+        <a href="#screens" data-i18n="nav_screens">Screens</a>
+        <a href="#pricing" data-i18n="nav_pricing">Pricing</a>
+        <a href="/privacy-policy" data-i18n="f_privacypolicy">Privacy Policy</a>
+      </div>
+      <div class="f-col">
+        <h4 data-i18n="f_getapp">Get the app</h4>
+        <a href="https://apps.apple.com/app/id6761788157" target="_blank" rel="noopener">App Store</a>
+        <a href="https://play.google.com/store/apps/details?id=io.outcom.dosetrace" target="_blank" rel="noopener">Google Play</a>
+      </div>
+      <div class="f-col">
+        <h4 data-i18n="f_company">Company</h4>
+        <a href="https://outcom.io" target="_blank" rel="noopener">Outcom</a>
+        <a href="mailto:hello@dosetrace.io">hello@dosetrace.io</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span data-i18n="f_bottom1">© <span id="year">2026</span> DoseTrace — a product of Outcom. All rights reserved.</span>
+      <span data-i18n="f_bottom2">Not a medical service. For any medical question, consult a qualified professional.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="/i18n.js" defer></script>
+<script src="/main.js" defer></script>
+</body>
+</html>

@@ -97,6 +97,7 @@ export default function NutritionLogger() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [deflect, setDeflect] = useState(false);
+  const [fixHint, setFixHint] = useState(false);
   const [shownNudges, setShownNudges] = useState([]);
   const [nudge, setNudge] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);  // 7-day avg + day history
@@ -129,14 +130,18 @@ export default function NutritionLogger() {
     reparsingRef.current.add(row.id);
     try {
       const res = await parseFood(row.raw_text, language, row.entry_date);
-      if (res.ok && !res.refusal && res.items.length && res.totals) {
-        updateFoodLog(row.id, {
-          parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
-          protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
-          parse_status: 'done',
-        });
-        requestSync?.(); refresh(uid);
+      if (!res.ok) return; // still offline / transient — keep pending, retry later
+      if (res.refusal || !res.items.length || !res.totals) {
+        // Not food — e.g. a correction ("the can was half") typed into the composer
+        // while offline. Don't let it sit as a pending entry forever; drop it.
+        deleteFoodLog(row.id); requestSync?.(); refresh(uid); return;
       }
+      updateFoodLog(row.id, {
+        parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
+        protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
+        parse_status: 'done',
+      });
+      requestSync?.(); refresh(uid);
     } finally { reparsingRef.current.delete(row.id); }
   }
 
@@ -146,6 +151,7 @@ export default function NutritionLogger() {
     const consented = await requestAIConsent(t);
     if (!consented) return;
     setDeflect(false);
+    setFixHint(false);
     setBusy(true);
     const id = insertFoodLog({ user_id: userId, entry_date: todayISO(), raw_text: raw, parse_status: 'pending' });
     setText('');
@@ -156,8 +162,10 @@ export default function NutritionLogger() {
 
     if (res.ok && res.refusal) { deleteFoodLog(id); requestSync?.(); refresh(userId); setDeflect(true); return; }
     if (res.ok && (!res.items.length || !res.totals)) {
+      // Nothing to add (e.g. a correction to an item already logged). Don't fail
+      // silently — point the user at tap-to-fix, which is how corrections work.
       deleteFoodLog(id); requestSync?.(); refresh(userId);
-      Alert.alert(t('nutri_title'), t('nutri_entry_none')); return;
+      setFixHint(true); return;
     }
     if (res.ok) {
       updateFoodLog(id, {
@@ -236,7 +244,7 @@ export default function NutritionLogger() {
           <TextInput
             style={s.cinput}
             value={text}
-            onChangeText={setText}
+            onChangeText={(v) => { setText(v); if (fixHint) setFixHint(false); }}
             placeholder={t('nutri_input_placeholder')}
             placeholderTextColor={colors.textFaint}
             multiline
@@ -264,6 +272,12 @@ export default function NutritionLogger() {
         <View style={s.deflect}>
           <Text style={s.deflectTitle}>{t('nutri_deflect_title')}</Text>
           <Text style={s.deflectBody}>{t('nutri_deflect_body')}</Text>
+        </View>
+      )}
+
+      {fixHint && (
+        <View style={s.hint}>
+          <Text style={s.hintText}>{t('nutri_fix_hint')}</Text>
         </View>
       )}
 
@@ -409,6 +423,9 @@ const makeStyles = (c) => StyleSheet.create({
   deflect: { backgroundColor: c.warningSoft, borderRadius: 14, padding: 14, marginTop: 10 },
   deflectTitle: { fontSize: 13, fontWeight: '800', color: c.warningSoftText, marginBottom: 4 },
   deflectBody: { fontSize: 12.5, color: c.warningSoftText, lineHeight: 18 },
+  // tap-to-fix hint (a correction/non-food message → point at the edit modal)
+  hint: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 13, marginTop: 10 },
+  hintText: { fontSize: 12.5, color: c.accentSoftText, lineHeight: 18 },
   // collapsed summary
   collapsed: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginTop: 10 },
   collapsedText: { fontSize: 12.5, color: c.textMuted, flex: 1 },
