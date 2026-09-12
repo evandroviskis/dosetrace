@@ -28,12 +28,16 @@ import {
 } from '../../lib/energyCalc';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync } from '../../lib/sync';
 import {
   getFoodLogsSince,
   getRealityChecks, upsertRealityCheck, clearRealityChecks,
   getCalcSnapshots, upsertCalcSnapshot,
 } from '../../lib/database';
+
+// Durable per-device flag: the one-time legacy metadata->tables migration ran here.
+const MIGRATED_KEY = 'dosetrace_calc_history_migrated_v55';
 
 // Map synced DB rows (snake_case columns) <-> the shape the UI/chart use.
 const rcRowToUI = (r) => ({ date: r.entry_date, tdee: r.tdee, ratePerWeekKg: r.rate_per_week_kg });
@@ -142,16 +146,29 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     // most once per session (migratedRef).
     if (uid && !migratedRef.current) {
       migratedRef.current = true;
-      if (!user?.user_metadata?.calc_history_migrated_v55) {
-        const metaChecks = user?.user_metadata?.calc_reality_checks;
-        const metaSnaps = user?.user_metadata?.calc_snapshots;
-        if (Array.isArray(metaChecks)) for (const c of metaChecks) if (c && c.date) upsertRealityCheck(uid, { entry_date: c.date, tdee: c.tdee ?? null, rate_per_week_kg: c.ratePerWeekKg ?? null });
-        if (Array.isArray(metaSnaps)) for (const sn of metaSnaps) if (sn && sn.date) upsertCalcSnapshot(uid, { entry_date: sn.date, weight_kg: sn.weightKg ?? null, waist_cm: sn.waistCm ?? null, body_fat_pct: sn.bodyFatPct ?? null, lbm: sn.lbm ?? null, bmr: sn.bmr ?? null, tdee: sn.tdee ?? null });
-        requestSync?.();
-        // Scalar merge write (not an array rewrite) — safe; marks migration done
-        // for the whole account so no other device repeats it.
-        supabase.auth.updateUser({ data: { calc_history_migrated_v55: true } }).catch(() => {});
-      }
+      // FAIL OPEN: a throw here (e.g. a malformed legacy entry) must never block
+      // render or crash the 53->55 upgrade launch. Two gates: a DURABLE LOCAL flag
+      // (AsyncStorage — persists even offline, so a clear-then-relaunch on this
+      // device is never re-migrated → no resurrection) AND the cloud flag (so no
+      // second device repeats the migration). Migration runs only if NEITHER is set;
+      // both are then reconciled so it never re-runs.
+      try {
+        const localDone = !!(await AsyncStorage.getItem(MIGRATED_KEY).catch(() => null));
+        const cloudDone = !!user?.user_metadata?.calc_history_migrated_v55;
+        if (!localDone && !cloudDone) {
+          const metaChecks = user?.user_metadata?.calc_reality_checks;
+          const metaSnaps = user?.user_metadata?.calc_snapshots;
+          if (Array.isArray(metaChecks)) for (const c of metaChecks) if (c && c.date) upsertRealityCheck(uid, { entry_date: c.date, tdee: c.tdee ?? null, rate_per_week_kg: c.ratePerWeekKg ?? null });
+          if (Array.isArray(metaSnaps)) for (const sn of metaSnaps) if (sn && sn.date) upsertCalcSnapshot(uid, { entry_date: sn.date, weight_kg: sn.weightKg ?? null, waist_cm: sn.waistCm ?? null, body_fat_pct: sn.bodyFatPct ?? null, lbm: sn.lbm ?? null, bmr: sn.bmr ?? null, tdee: sn.tdee ?? null });
+          requestSync?.();
+          await AsyncStorage.setItem(MIGRATED_KEY, '1').catch(() => {}); // durable, offline-safe — closes the resurrection hole
+          supabase.auth.updateUser({ data: { calc_history_migrated_v55: true } }).catch(() => {}); // cross-device (eventual)
+        } else {
+          // Already migrated somewhere — make both gates agree so it never re-runs.
+          if (!localDone) await AsyncStorage.setItem(MIGRATED_KEY, '1').catch(() => {});
+          if (!cloudDone) supabase.auth.updateUser({ data: { calc_history_migrated_v55: true } }).catch(() => {});
+        }
+      } catch { /* fail open — retry next launch */ }
     }
 
     // Read history from the synced tables EVERY focus, so rows pulled by sync (or
