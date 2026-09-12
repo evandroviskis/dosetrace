@@ -51,7 +51,8 @@ const daysBetween = (fromISO, toISO) => {
   const b = new Date(toISO + 'T12:00:00').getTime();
   return Math.max(0, Math.round((b - a) / 86400000));
 };
-const SNAP_CAP = 50;
+// History is no longer capped: the synced tables hold full history (capping would
+// delete a user's older entries — a data-loss the "never lose data" rule forbids).
 // Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
 
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
@@ -112,47 +113,56 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const [foodAvg, setFoodAvg] = useState(null); // { avgKcal, loggedDays } from the food log
   const loadedRef = useRef(false);
   const userIdRef = useRef(null);
+  const migratedRef = useRef(false); // legacy metadata->table migration ran this session
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
     setPremium(await isPremium());
+    const user = await getCachedUser();
+    const uid = user?.id || null;
+    // Set EVERY load (not only the first) so a save can never no-op because the
+    // session wasn't ready on the first focus.
+    if (uid) userIdRef.current = uid;
+
     // Food-log rolling average (feeds the reality-check intake). Recomputed each
     // focus so newly-logged meals move the number.
     try {
-      const u = await getCachedUser();
-      if (u?.id) {
+      if (uid) {
         const since = new Date(); since.setDate(since.getDate() - 20);
-        setFoodAvg(rollingAvgKcal(getFoodLogsSince(u.id, since.toISOString().split('T')[0]), todayISO(), 21));
+        setFoodAvg(rollingAvgKcal(getFoodLogsSince(uid, since.toISOString().split('T')[0]), todayISO(), 21));
       }
     } catch { /* ignore */ }
-    if (loadedRef.current) return;
-    const user = await getCachedUser();
-    const uid = user?.id || null;
-    userIdRef.current = uid;
-    if (uid) {
-      // History now lives in synced tables (reality_checks / calc_snapshots), not
-      // user_metadata. One-time, non-destructive migration: if a table is empty but
-      // legacy metadata still holds the list, import it (idempotent — runs once,
-      // metadata copies are LEFT as a backup for a later cleanup build). Then read
-      // from the tables.
-      let dbChecks = getRealityChecks(uid);
-      let dbSnaps = getCalcSnapshots(uid);
-      const metaChecks = user?.user_metadata?.calc_reality_checks;
-      const metaSnaps = user?.user_metadata?.calc_snapshots;
-      let migrated = false;
-      if (dbChecks.length === 0 && Array.isArray(metaChecks) && metaChecks.length) {
-        for (const c of metaChecks) if (c && c.date) upsertRealityCheck(uid, { entry_date: c.date, tdee: c.tdee ?? null, rate_per_week_kg: c.ratePerWeekKg ?? null });
-        dbChecks = getRealityChecks(uid); migrated = true;
+
+    // One-time-per-ACCOUNT migration of legacy user_metadata history into the
+    // synced tables. Gated on a DURABLE per-account flag (calc_history_migrated_v55),
+    // NOT table-emptiness — so a user who CLEARS their log is never re-imported, and
+    // a second device never double-migrates (which would inject duplicate cloud
+    // rows). Metadata arrays are LEFT as a backup for a later cleanup build. Runs at
+    // most once per session (migratedRef).
+    if (uid && !migratedRef.current) {
+      migratedRef.current = true;
+      if (!user?.user_metadata?.calc_history_migrated_v55) {
+        const metaChecks = user?.user_metadata?.calc_reality_checks;
+        const metaSnaps = user?.user_metadata?.calc_snapshots;
+        if (Array.isArray(metaChecks)) for (const c of metaChecks) if (c && c.date) upsertRealityCheck(uid, { entry_date: c.date, tdee: c.tdee ?? null, rate_per_week_kg: c.ratePerWeekKg ?? null });
+        if (Array.isArray(metaSnaps)) for (const sn of metaSnaps) if (sn && sn.date) upsertCalcSnapshot(uid, { entry_date: sn.date, weight_kg: sn.weightKg ?? null, waist_cm: sn.waistCm ?? null, body_fat_pct: sn.bodyFatPct ?? null, lbm: sn.lbm ?? null, bmr: sn.bmr ?? null, tdee: sn.tdee ?? null });
+        requestSync?.();
+        // Scalar merge write (not an array rewrite) — safe; marks migration done
+        // for the whole account so no other device repeats it.
+        supabase.auth.updateUser({ data: { calc_history_migrated_v55: true } }).catch(() => {});
       }
-      if (dbSnaps.length === 0 && Array.isArray(metaSnaps) && metaSnaps.length) {
-        for (const sn of metaSnaps) if (sn && sn.date) upsertCalcSnapshot(uid, { entry_date: sn.date, weight_kg: sn.weightKg ?? null, waist_cm: sn.waistCm ?? null, body_fat_pct: sn.bodyFatPct ?? null, lbm: sn.lbm ?? null, bmr: sn.bmr ?? null, tdee: sn.tdee ?? null });
-        dbSnaps = getCalcSnapshots(uid); migrated = true;
-      }
-      if (migrated) requestSync?.();
-      setRealityLog(dbChecks.map(rcRowToUI));
-      setSnapshots(dbSnaps.map(snapRowToUI));
     }
+
+    // Read history from the synced tables EVERY focus, so rows pulled by sync (or
+    // just saved) show up without needing a remount.
+    if (uid) {
+      setRealityLog(getRealityChecks(uid).map(rcRowToUI));
+      setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    }
+
+    if (loadedRef.current) return;
+    // ── one-time seeding (open weigh-in + profile defaults + saved calc inputs) ──
     // Cloud-backed (survives a wipe / re-auth); restores from user_metadata if the
     // local cache was cleared. See lib/realityCheck.js.
     const rcs = await getRealityStart();
@@ -280,11 +290,10 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     // One row per day (latest wins) in the synced calc_snapshots table — an
     // upsert, never a whole-array rewrite, so history can't be truncated.
     const uid = userIdRef.current;
-    if (uid) {
-      upsertCalcSnapshot(uid, { entry_date: snap.date, weight_kg: snap.weightKg ?? null, waist_cm: snap.waistCm ?? null, body_fat_pct: snap.bodyFatPct ?? null, lbm: snap.lbm ?? null, bmr: snap.bmr ?? null, tdee: snap.tdee ?? null });
-      requestSync?.();
-      setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
-    }
+    if (!uid) return; // no session yet — don't show a "saved" toast for a no-op
+    upsertCalcSnapshot(uid, { entry_date: snap.date, weight_kg: snap.weightKg ?? null, waist_cm: snap.waistCm ?? null, body_fat_pct: snap.bodyFatPct ?? null, lbm: snap.lbm ?? null, bmr: snap.bmr ?? null, tdee: snap.tdee ?? null });
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
     setSnapMsg(true);
     setTimeout(() => setSnapMsg(false), 2500);
   }
@@ -394,11 +403,10 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     const entry = { date: todayISO(), tdee: Math.round(rc.tdee), ratePerWeekKg: rc.ratePerWeekKg };
     // Upsert one row per date in the synced reality_checks table (no array rewrite).
     const uid = userIdRef.current;
-    if (uid) {
-      upsertRealityCheck(uid, { entry_date: entry.date, tdee: entry.tdee ?? null, rate_per_week_kg: entry.ratePerWeekKg ?? null });
-      requestSync?.();
-      setRealityLog(getRealityChecks(uid).map(rcRowToUI));
-    }
+    if (!uid) return; // no session yet — don't show a "saved" toast for a no-op
+    upsertRealityCheck(uid, { entry_date: entry.date, tdee: entry.tdee ?? null, rate_per_week_kg: entry.ratePerWeekKg ?? null });
+    requestSync?.();
+    setRealityLog(getRealityChecks(uid).map(rcRowToUI));
     setRcSavedMsg(true);
     setTimeout(() => setRcSavedMsg(false), 2500);
   }
