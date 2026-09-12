@@ -94,4 +94,11 @@ export const FEATURE_ICON_XML = {
   ai_spark: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <path d="M512 150 C544 396 628 480 874 512 C628 544 544 628 512 874 C480 628 396 544 150 512 C396 480 480 396 512 150 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`,
+  journal: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect x="288" y="200" width="448" height="624" rx="48" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M400 200 V824" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M470 372 H664" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M470 500 H664" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M470 628 H664" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
 };

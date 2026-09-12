@@ -21,6 +21,7 @@ import { isPremium } from '../lib/purchases';
 import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -272,7 +273,7 @@ export default function LogScreen() {
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>📓</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="journal" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>
               {filter === 'All'
                 ? t('log_empty_title')
@@ -371,7 +372,7 @@ const makeStyles = (c) => StyleSheet.create({
   filterBtnTextOn: { color: c.accentText, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyIcon: { marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
   emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
