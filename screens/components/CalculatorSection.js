@@ -28,6 +28,7 @@ import {
 } from '../../lib/energyCalc';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
+import { upsertMetaByDate } from '../../lib/userMeta';
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
@@ -235,7 +236,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   }, [waist, unit]);
 
   // ── Snapshots (premium) ──────────────────────────────────────────
-  function saveSnapshot() {
+  async function saveSnapshot() {
     if (!plan || metric.weightKg == null) return;
     const snap = {
       date: todayISO(),
@@ -246,12 +247,10 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
       bmr: Math.round(plan.bmr),
       tdee: Math.round(plan.tdeeVal),
     };
-    // One snapshot per day (latest wins); keep the newest SNAP_CAP, sorted.
-    const next = [...snapshots.filter(x => x.date !== snap.date), snap]
-      .sort((a, b) => (a.date < b.date ? -1 : 1))
-      .slice(-SNAP_CAP);
+    // One snapshot per day (latest wins). Merge with the freshest cloud copy so a
+    // stale in-memory array can't truncate saved history (see lib/userMeta.js).
+    const next = await upsertMetaByDate('calc_snapshots', snapshots, snap, SNAP_CAP);
     setSnapshots(next);
-    supabase.auth.updateUser({ data: { calc_snapshots: next } }).catch(() => {});
     setSnapMsg(true);
     setTimeout(() => setSnapMsg(false), 2500);
   }
@@ -356,14 +355,12 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   // Save the current valid check so its weekly rate can be tracked over time
   // (one per day, latest wins) — this is how "1 kg/week → 2.5 kg/week" surfaces.
   // Completing a check closes the current window; the user can start a fresh one.
-  function saveRealityCheck() {
+  async function saveRealityCheck() {
     if (!rc || rc.status !== 'ok') return;
     const entry = { date: todayISO(), tdee: Math.round(rc.tdee), ratePerWeekKg: rc.ratePerWeekKg };
-    const next = [...realityLog.filter(x => x.date !== entry.date), entry]
-      .sort((a, b) => (a.date < b.date ? -1 : 1))
-      .slice(-SNAP_CAP);
+    // Merge with the freshest cloud copy so a stale array can't wipe history.
+    const next = await upsertMetaByDate('calc_reality_checks', realityLog, entry, SNAP_CAP);
     setRealityLog(next);
-    supabase.auth.updateUser({ data: { calc_reality_checks: next } }).catch(() => {});
     setRcSavedMsg(true);
     setTimeout(() => setRcSavedMsg(false), 2500);
   }

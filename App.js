@@ -12,6 +12,7 @@ import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendin
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, RC_START_KEY } from './lib/notifications';
+import { getRealityStart } from './lib/realityCheck';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
 import { installFontMapping, useAppFonts } from './lib/fonts';
@@ -405,6 +406,10 @@ export default function App() {
           requestSync();
         }
 
+        // Rehydrate the reality-check weigh-in cache from cloud before scheduling
+        // (its reminder path reads the local cache; data itself is already durable).
+        await getRealityStart().catch(() => {});
+
         // Schedule reminders AFTER the initial import — otherwise fresh
         // installs sync notifications against an empty local DB.
         requestNotificationPermissions()
@@ -468,6 +473,11 @@ export default function App() {
           } else {
             requestSync();
           }
+
+          // Restore the reality-check weigh-in cache from cloud BEFORE scheduling,
+          // so its reminder re-arms on a fresh sign-in / after a wipe (the weigh-in
+          // data itself is already durable; this rehydrates the notifications path).
+          await getRealityStart().catch(() => {});
 
           // Schedule reminders AFTER the import so they reflect the user's data
           requestNotificationPermissions()
