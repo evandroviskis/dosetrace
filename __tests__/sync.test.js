@@ -220,3 +220,57 @@ test('food_logs: a null parsed_items (offline entry not yet parsed) round-trips 
   assert.equal(b.parsed_items, null);
   assert.equal(b.raw_text, 'rice and chicken');
 });
+
+// ── Build 55: calculator health history moved to synced tables ────
+test('reality_checks + calc_snapshots round-trip: created locally, reach cloud, second device imports (waist_cm survives)', async () => {
+  const cloud = makeCloud();
+  const dbA = makeDb();
+  const now = '2026-09-11T00:00:00.000Z';
+  dbA.runSync(
+    `INSERT INTO reality_checks (user_id, entry_date, tdee, rate_per_week_kg, created_at, updated_at, sync_status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+    [USER, '2026-09-01', 2450, 0.5, now, now]
+  );
+  dbA.runSync(
+    `INSERT INTO calc_snapshots (user_id, entry_date, weight_kg, waist_cm, body_fat_pct, lbm, bmr, tdee, created_at, updated_at, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [USER, '2026-09-01', 82, 88, 18, 67, 1750, 2600, now, now]
+  );
+
+  await pushPending(dbA, cloud, USER);
+
+  const rc = cloud.rows('reality_checks', USER);
+  assert.equal(rc.length, 1);
+  assert.equal(rc[0].tdee, 2450);
+  assert.equal(rc[0].rate_per_week_kg, 0.5);
+  const cs = cloud.rows('calc_snapshots', USER);
+  assert.equal(cs.length, 1);
+  assert.equal(cs[0].waist_cm, 88); // the field almost dropped in the mapper
+  assert.equal(cs[0].weight_kg, 82);
+
+  const a = dbA.getFirstSync(`SELECT * FROM reality_checks WHERE user_id = ?`, [USER]);
+  assert.equal(a.sync_status, 'synced');
+  assert.ok(a.remote_id);
+
+  const dbB = makeDb();
+  await fullImport(dbB, cloud, USER);
+  const b = dbB.getFirstSync(`SELECT * FROM calc_snapshots WHERE user_id = ?`, [USER]);
+  assert.equal(b.waist_cm, 88);
+  assert.equal(b.tdee, 2600);
+  assert.equal(b.sync_status, 'synced');
+});
+
+test('reality_checks delete tombstone: a soft-deleted check is removed from the cloud and purged locally', async () => {
+  const cloud = makeCloud();
+  const dbA = makeDb();
+  const now = '2026-09-11T00:00:00.000Z';
+  dbA.runSync(
+    `INSERT INTO reality_checks (user_id, entry_date, tdee, created_at, updated_at, sync_status) VALUES (?, ?, ?, ?, ?, 'pending')`,
+    [USER, '2026-09-01', 2450, now, now]
+  );
+  await pushPending(dbA, cloud, USER);
+  assert.equal(cloud.rows('reality_checks', USER).length, 1);
+
+  dbA.runSync(`UPDATE reality_checks SET sync_status = 'deleted', updated_at = ? WHERE user_id = ?`, ['2026-09-12T00:00:00.000Z', USER]);
+  await pushPending(dbA, cloud, USER);
+  assert.equal(cloud.rows('reality_checks', USER).length, 0);
+  assert.equal(dbA.getFirstSync(`SELECT COUNT(*) AS c FROM reality_checks WHERE user_id = ?`, [USER]).c, 0);
+});

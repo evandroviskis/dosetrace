@@ -67,3 +67,18 @@ test('vaccines payload includes every expected field', () => {
   const vx = toCloudPayload('vaccines', { name: 'Tetanus', date_given: '2024-06-01', next_due: '2034-06-01', notes: 'left arm' });
   for (const field of CLOUD_FIELDS.vaccines) assert.ok(field in vx, `vaccines payload missing "${field}"`);
 });
+
+test('reality_checks payload includes every expected field', () => {
+  const rc = toCloudPayload('reality_checks', { entry_date: '2026-09-01', tdee: 2450, rate_per_week_kg: 0.5 });
+  assert.equal(rc.entry_date, '2026-09-01');
+  assert.equal(rc.tdee, 2450);
+  assert.equal(rc.rate_per_week_kg, 0.5);
+  for (const field of CLOUD_FIELDS.reality_checks) assert.ok(field in rc, `reality_checks payload missing "${field}"`);
+});
+
+test('calc_snapshots payload includes every expected field (incl. waist_cm)', () => {
+  const cs = toCloudPayload('calc_snapshots', { entry_date: '2026-09-01', weight_kg: 82, waist_cm: 88, body_fat_pct: 18, lbm: 67, bmr: 1750, tdee: 2600 });
+  assert.equal(cs.waist_cm, 88);
+  assert.equal(cs.weight_kg, 82);
+  for (const field of CLOUD_FIELDS.calc_snapshots) assert.ok(field in cs, `calc_snapshots payload missing "${field}"`);
+});
