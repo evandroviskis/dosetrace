@@ -22,6 +22,7 @@ import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry } from '../lib/halfLives';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { isPremium } from '../lib/purchases';
 
 const PAST_DAYS = 14;
@@ -131,7 +132,7 @@ export default function SerumCurveScreen() {
     });
   }
 
-  const chartWidth = windowWidth - 32 - 28;
+  const chartWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 28;
   const chartHeight = 220;
   const AXIS_W = 38;            // left gutter for mg labels
   const PLOT_TOP = 8;           // headroom above the peak
@@ -612,7 +613,7 @@ function makeStyles(colors) {
     headerBack: { fontSize: 32, color: colors.accent, marginRight: 10, marginTop: -4 },
     headerTitle: { flex: 1, fontSize: 22, fontWeight: '800', color: colors.text },
     headerSpacer: { width: 32 },
-    scroll: { paddingHorizontal: 16, paddingBottom: 32 },
+    scroll: { paddingHorizontal: 16, paddingBottom: 32, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
     dropdown: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -676,7 +677,7 @@ function makeStyles(colors) {
     emptySub: { fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center' },
 
     modalScrim: { flex: 1, backgroundColor: colors.overlay || 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    sheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, maxHeight: '80%' },
+    sheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, maxHeight: '80%', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
     sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 },
     sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
     sheetHint: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: 8 },

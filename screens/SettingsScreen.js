@@ -21,6 +21,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
@@ -481,7 +482,7 @@ export default function SettingsScreen({ navigation }) {
         <Text style={s.headerTitle}>{t('settings_title')}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
 
         {/* PROFILE */}
         <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
@@ -1099,7 +1100,8 @@ export default function SettingsScreen({ navigation }) {
               return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
             })}
             keyExtractor={item => item}
-            style={{ flex: 1, paddingHorizontal: 20 }}
+            style={{ flex: 1 }}
+            contentContainerStyle={[s.centered, { paddingHorizontal: 20 }]}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -1121,6 +1123,7 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
@@ -1154,7 +1157,7 @@ const makeStyles = (c) => StyleSheet.create({
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   modalClose: { fontSize: 14, color: c.accent, fontWeight: '600' },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20 },
   legalText: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
   langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, backgroundColor: c.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
   langRowSelected: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },

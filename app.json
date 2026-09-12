@@ -4,7 +4,7 @@
     "slug": "dosetrace",
     "scheme": "dosetrace",
     "version": "1.2.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

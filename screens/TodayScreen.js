@@ -32,6 +32,7 @@ import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExp
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import Svg, { Circle } from 'react-native-svg';
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
@@ -1032,7 +1033,7 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         <View style={s.header}>
           <Text style={s.date}>{today}</Text>
           <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''} 👋</Text>
@@ -1419,6 +1420,7 @@ export default function TodayScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, backgroundColor: c.bg },
   date: { fontSize: 13, fontWeight: '600', color: c.textMuted, letterSpacing: 0.2, marginBottom: 2 },

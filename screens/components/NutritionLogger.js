@@ -21,6 +21,7 @@ import { getCachedUser } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import {
   getFoodLogsByDate, getFoodLogsSince, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
@@ -455,7 +456,7 @@ const makeStyles = (c) => StyleSheet.create({
   pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
   // demo modal + shared demo body
   demoWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 22 },
-  demoCard: { },
+  demoCard: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 0.5, borderColor: c.border },
   demoBubble: { alignSelf: 'flex-start', backgroundColor: c.card2, borderRadius: 14, borderBottomLeftRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8, maxWidth: '90%' },
   demoBubbleText: { fontSize: 13.5, color: c.text, lineHeight: 19 },
@@ -469,7 +470,7 @@ const makeStyles = (c) => StyleSheet.create({
   ctaText: { color: c.accentText, fontWeight: '800', fontSize: 14 },
   // fix-entry modal
   modalWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 22 },
-  modalCard: { backgroundColor: c.card, borderRadius: 18, padding: 16 },
+  modalCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   modalTitle: { fontSize: 15, fontWeight: '800', color: c.text, marginBottom: 12 },
   editItem: { marginBottom: 12 },
   editFood: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },

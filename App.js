@@ -3,6 +3,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -487,31 +488,35 @@ export default function App() {
   // then reflows into Plus Jakarta Sans.
   if (loading || !fontsLoaded || seenOnboarding === null) {
     return (
-      <LanguageProvider>
-        <ThemeProvider>
-          <ThemedLoading />
-        </ThemeProvider>
-      </LanguageProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <LanguageProvider>
+          <ThemeProvider>
+            <ThemedLoading />
+          </ThemeProvider>
+        </LanguageProvider>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <ErrorBoundary>
-      <LanguageProvider>
-        <ThemeProvider>
-          <ThemedRoot
-            session={session}
-            navigationRef={navigationRef}
-            recovering={recovering}
-            onRecoveryDone={() => setRecovering(false)}
-            justConfirmed={justConfirmed}
-            onConfirmedShown={() => setJustConfirmed(false)}
-            seenOnboarding={seenOnboarding}
-            onFinishOnboarding={() => { markSeenOnboarding().catch(() => {}); setSeenOnboarding(true); }}
-            onBackToOnboarding={() => setSeenOnboarding(false)}
-          />
-        </ThemeProvider>
-      </LanguageProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <ThemeProvider>
+            <ThemedRoot
+              session={session}
+              navigationRef={navigationRef}
+              recovering={recovering}
+              onRecoveryDone={() => setRecovering(false)}
+              justConfirmed={justConfirmed}
+              onConfirmedShown={() => setJustConfirmed(false)}
+              seenOnboarding={seenOnboarding}
+              onFinishOnboarding={() => { markSeenOnboarding().catch(() => {}); setSeenOnboarding(true); }}
+              onBackToOnboarding={() => setSeenOnboarding(false)}
+            />
+          </ThemeProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

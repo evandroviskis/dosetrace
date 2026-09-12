@@ -30,6 +30,7 @@ import {
 } from 'react-native';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import {
   SITES,
   suggestNextSite,
@@ -267,6 +268,9 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
     maxHeight: '94%',
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
   handle: {
     width: 36,

@@ -49,7 +49,7 @@ export default function JourneyScreen() {
   );
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
       <View style={s.hero}>
         <Text style={s.title}>{t('tab_journey')}</Text>
         <Text style={s.sub}>{t('journey_subtitle')}</Text>

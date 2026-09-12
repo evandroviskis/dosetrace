@@ -21,6 +21,7 @@ import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   lbToKg, kgToLb, inToCm, cmToIn,
@@ -65,7 +66,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { width: windowWidth } = useWindowDimensions();
-  const CHART_WIDTH = windowWidth - 64;
+  const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 64;
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
 
@@ -463,7 +464,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   );
 
   return (
-    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
       {header}
       {/* Intro — what this is */}
       <View style={s.introCard}>
@@ -878,6 +879,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scroll: { flex: 1, padding: 16 },
   // Section header: monoline glyph tile + uppercase micro-label, optional right slot.
   sh: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 10, marginHorizontal: 2 },

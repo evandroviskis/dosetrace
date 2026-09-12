@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signOutGoogleNative } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import FeatureIcon from '../components/FeatureIcon';
 
@@ -391,7 +392,7 @@ function makeStyles(colors) {
   const { StyleSheet } = require('react-native');
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40 },
+    content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
     title: { fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center', letterSpacing: -0.3 },
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, lineHeight: 20 },
     legend: { fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 6, marginBottom: 4 },

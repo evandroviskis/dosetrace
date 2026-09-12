@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle, signInWithApple, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
 import { loadOnboarding } from '../lib/onboardingStore';
@@ -271,7 +272,7 @@ const makeStyles = (c) => StyleSheet.create({
   backBtn: { alignSelf: 'flex-start', marginBottom: 4, paddingVertical: 2, paddingRight: 12 },
   backChevron: { fontSize: 30, lineHeight: 32, color: c.accent, fontWeight: '400' },
   scroll: { flex: 1 },
-  body: { paddingHorizontal: 24, paddingTop: 32 },
+  body: { paddingHorizontal: 24, paddingTop: 32, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   hero: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 12, lineHeight: 34 },
   sub: { fontSize: 15, color: c.textMuted, lineHeight: 24, marginBottom: 28 },

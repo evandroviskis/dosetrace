@@ -47,6 +47,7 @@ import { matchesQuery } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -1450,7 +1451,7 @@ export default function ProtocolsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {protocols.length === 0 && !loading && (
           <View style={s.emptyState}>
             <Text style={s.emptyIcon}>🧪</Text>
@@ -2403,6 +2404,7 @@ export default function ProtocolsScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
@@ -2510,7 +2512,7 @@ const makeStyles = (c) => StyleSheet.create({
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
   modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
   modalProgDone: { backgroundColor: c.accent },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
   modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
   modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
   fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },

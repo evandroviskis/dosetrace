@@ -28,6 +28,7 @@ import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
 import { requestAIConsent } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
@@ -144,7 +145,7 @@ export default function BodyScreen({ navigation, route }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
-  const CHART_WIDTH = windowWidth - 32 - 28;
+  const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 28;
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -660,7 +661,7 @@ export default function BodyScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container}>
       {section === null ? (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           <View style={s.hubHero}>
             <Text style={s.hubGreeting}>{t('tab_body')}</Text>
             <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
@@ -754,7 +755,7 @@ export default function BodyScreen({ navigation, route }) {
         </View>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
 
         {rows.length === 0 && !loading && (
           <View style={s.emptyState}>
@@ -1226,6 +1227,7 @@ export default function BodyScreen({ navigation, route }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
@@ -1360,7 +1362,7 @@ const makeStyles = (c) => StyleSheet.create({
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   modalClose: { fontSize: 14, color: c.textMuted },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20 },
   upgradeHero: { alignItems: 'center', marginBottom: 24 },
   upgradeIcon: { fontSize: 48, marginBottom: 12 },
   upgradeTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 8, textAlign: 'center' },

@@ -19,6 +19,7 @@ import {
   checkTrialEligibility,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
@@ -181,7 +182,7 @@ export default function PaywallScreen({ navigation, route }) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
 
         <View style={s.hero}>
           <View style={s.heroIcon}><FeatureIcon name="curve" size={52} color={colors.accent} /></View>
@@ -370,6 +371,7 @@ export default function PaywallScreen({ navigation, route }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: c.card },
   navBack: { fontSize: 14, color: c.accent, width: 60 },

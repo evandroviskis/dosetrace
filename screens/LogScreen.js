@@ -21,6 +21,7 @@ import { isPremium } from '../lib/purchases';
 import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -267,6 +268,7 @@ export default function LogScreen() {
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         style={s.scroll}
+        contentContainerStyle={s.centered}
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           <View style={s.emptyState}>
@@ -345,6 +347,7 @@ export default function LogScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: c.card },
   headerBack: { fontSize: 34, lineHeight: 34, color: c.accent, fontWeight: '400', width: 34 },

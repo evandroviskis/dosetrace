@@ -17,10 +17,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 
 export default function ResetPasswordScreen({ onDone }) {
@@ -58,7 +60,12 @@ export default function ResetPasswordScreen({ onDone }) {
         style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={s.body}>
+        <ScrollView
+          style={s.flex}
+          contentContainerStyle={s.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={s.title}>{t('reset_pw_title')}</Text>
           <Text style={s.sub}>{t('reset_pw_sub')}</Text>
 
@@ -95,7 +102,7 @@ export default function ResetPasswordScreen({ onDone }) {
               ? <ActivityIndicator color={colors.accentText} />
               : <Text style={s.btnText}>{t('reset_pw_save')}</Text>}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -104,7 +111,7 @@ export default function ResetPasswordScreen({ onDone }) {
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   flex: { flex: 1 },
-  body: { flex: 1, padding: 24, justifyContent: 'center' },
+  body: { flexGrow: 1, padding: 24, justifyContent: 'center', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   title: { fontSize: 24, fontWeight: '700', color: c.text, marginBottom: 6 },
   sub: { fontSize: 14, color: c.textMuted, lineHeight: 20, marginBottom: 28 },
   label: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6 },

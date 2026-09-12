@@ -25,6 +25,7 @@ import { requestAIConsent } from '../../lib/aiConsent';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
 import { requestSync } from '../../lib/sync';
 import { hasNativeModule } from '../../lib/nativeModule';
@@ -303,7 +304,7 @@ export default function VaccinesSection() {
 
   return (
     <View style={s.wrap}>
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         <Text style={s.hubDisclaimer}>{t('vax_disclaimer')}</Text>
 
         <View style={s.actionRow}>
@@ -554,6 +555,7 @@ export default function VaccinesSection() {
 
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1 },
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scroll: { flex: 1, padding: 16 },
   hubDisclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 12 },
   actionRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
@@ -585,7 +587,7 @@ const makeStyles = (c) => StyleSheet.create({
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   modalClose: { fontSize: 14, color: c.textMuted },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18 },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 14 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 24, marginBottom: 2 },
   fieldRow: { flexDirection: 'row', gap: 12 },

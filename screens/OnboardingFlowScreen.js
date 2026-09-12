@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import AccumulationHero from '../components/AccumulationHero';
@@ -468,8 +469,8 @@ function makeStyles(colors) {
     progress: { flex: 1, flexDirection: 'row', gap: 5 },
     dash: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.card2 },
     dashOn: { backgroundColor: colors.accent },
-    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, flexGrow: 1 },
-    splashWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 380 },
+    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    splashWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     langChip: { position: 'absolute', top: 4, right: 0, paddingVertical: 6, paddingHorizontal: 8 },
     langChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
     logo: { width: 128, height: 128, marginBottom: 18 },
@@ -503,8 +504,8 @@ function makeStyles(colors) {
     checkMark: { color: colors.accentText, fontSize: 14, fontWeight: '800' },
     termTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
     termDesc: { fontSize: 12.5, color: colors.textFaint, marginTop: 2, lineHeight: 17 },
-    centerStep: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 340 },
-    footer: { paddingHorizontal: 24, paddingBottom: 12, paddingTop: 6 },
+    centerStep: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    footer: { paddingHorizontal: 24, paddingBottom: 12, paddingTop: 6, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
     primaryBtn: { backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', minHeight: 54 },
     primaryBtnText: { fontSize: 16, fontWeight: '700', color: colors.accentText },
     skip: { alignItems: 'center', paddingVertical: 14, marginTop: 2 },
