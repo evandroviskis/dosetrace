@@ -29,6 +29,31 @@ crash. Grep the diff for raw hex / hardcoded `#fff`/`white`/`black` and for any 
 `Text` that sets a background or color without a theme token. This is part of ship-check
 Gate A now.
 
+## Standing rule: NEVER lose user-entered data (2026-09-12, founder directive)
+
+Data a user typed in must survive **app updates, screen/flow rebuilds, re-auth, and
+sync** — always. It is NEVER acceptable for an update or a screen change to delete or
+drop data the user entered (this rule exists because a build-53 update wiped an
+in-progress reality-check on hello@dosetrace.io).
+
+- **Durable, synced storage is the default.** User data belongs in the SQLite↔Supabase
+  synced tables (the `syncCore` engine, with tombstones), NOT in `AsyncStorage` alone
+  (wiped on any SIGNED_OUT) and NOT solely in Supabase `user_metadata` (no history, no
+  tombstones, overwrite-prone). Reality-check, calculator inputs/snapshots and anything
+  like them must move to durable synced storage.
+- **Never destroy on a maybe.** The SIGNED_OUT wipe (`clearLocalDatabase` +
+  `AsyncStorage.removeItem` + `clearOnboarding`) must fire ONLY on a real, intended sign
+  out — never on a token refresh, a session hiccup during an update, or a re-auth of the
+  SAME user. Distinguish "user signed out" from "session changed."
+- **Writes merge, never clobber.** Any `updateUser({ data })` / metadata write must
+  preserve existing keys; never write back an array/object computed from a stale or empty
+  read (that is how a list gets silently emptied).
+- **When replacing a screen/flow, migrate its data in the same change.** "Rebuild = REPLACE"
+  (below) does NOT mean drop the old data — carry it over.
+- **Prove it before shipping:** for any change touching storage/auth/sync/migrations, test
+  update-over-old-version and re-auth on device and confirm previously-entered data is
+  still there. This is part of ship-check Gate A/B now.
+
 ## Prime directive: ORIENT before you ACT
 
 Before any build, submit, delete, migration, or "it's done" claim:

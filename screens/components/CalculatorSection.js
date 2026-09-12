@@ -26,8 +26,8 @@ import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
-import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../../lib/notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
+import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
@@ -122,11 +122,10 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     if (Array.isArray(snaps)) setSnapshots(snaps);
     const checks = user?.user_metadata?.calc_reality_checks;
     if (Array.isArray(checks)) setRealityLog(checks);
-    try {
-      const raw = await AsyncStorage.getItem(RC_START_KEY);
-      const rcs = raw ? JSON.parse(raw) : null;
-      if (rcs && rcs.date && typeof rcs.weightKg === 'number') setRcStart(rcs);
-    } catch { /* ignore */ }
+    // Cloud-backed (survives a wipe / re-auth); restores from user_metadata if the
+    // local cache was cleared. See lib/realityCheck.js.
+    const rcs = await getRealityStart();
+    if (rcs) setRcStart(rcs);
     // Seed physiological defaults from the profile so BMR is sensitive to the
     // user's stored sex (assigned at birth) and age. Explicit calculator inputs
     // saved below still win over these.
@@ -307,7 +306,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     setRcStart(start);
     setRcThen('');
     setRc(null);
-    await AsyncStorage.setItem(RC_START_KEY, JSON.stringify(start)).catch(() => {});
+    await setRealityStart(start);
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
@@ -317,7 +316,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     setRcStart(null);
     setRcNow('');
     setRc(null);
-    await AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+    await clearRealityStart();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
@@ -331,7 +330,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
       {
         text: t('cal_rc_stop_confirm'), style: 'destructive', onPress: async () => {
           setRcStart(null); setRcNow(''); setRc(null); setRealityLog([]);
-          await AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+          await clearRealityStart();
           supabase.auth.updateUser({ data: { calc_reality_checks: [] } }).catch(() => {});
           syncRealityCheckReminder().catch(() => {});
           syncFoodLogReminder().catch(() => {});
@@ -378,7 +377,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     if (kg == null) { await resetRealityCheck(); return; }
     const start = { date: todayISO(), weightKg: kg };
     setRcStart(start);
-    await AsyncStorage.setItem(RC_START_KEY, JSON.stringify(start)).catch(() => {});
+    await setRealityStart(start);
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }

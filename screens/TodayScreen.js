@@ -15,7 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, REALITY_CHECK_DAYS, RC_START_KEY } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
+import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
@@ -153,11 +154,8 @@ export default function TodayScreen() {
   // Load the open reality-check weigh-in (if any) — surfaced as a Today alert.
   async function fetchAlerts() {
     // Open reality-check weigh-in.
-    try {
-      const raw = await AsyncStorage.getItem(RC_START_KEY);
-      const rcs = raw ? JSON.parse(raw) : null;
-      setRcStart(rcs && rcs.date && typeof rcs.weightKg === 'number' ? rcs : null);
-    } catch { /* ignore */ }
+    const rcs = await getRealityStart();
+    setRcStart(rcs || null);
     // Latest bloodwork date (biomarkers are ordered report_date DESC).
     try {
       const user = await getCachedUser();
@@ -190,7 +188,7 @@ export default function TodayScreen() {
           text: t('today_alert_remove'), style: 'destructive',
           onPress: async () => {
             setRcStart(null);
-            try { await AsyncStorage.removeItem(RC_START_KEY); } catch { /* ignore */ }
+            await clearRealityStart();
             syncRealityCheckReminder().catch(() => {});
           },
         },
