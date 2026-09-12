@@ -132,10 +132,19 @@ export default function NutritionLogger() {
     try {
       const res = await parseFood(row.raw_text, language, row.entry_date);
       if (!res.ok) return; // still offline / transient — keep pending, retry later
-      if (res.refusal || !res.items.length || !res.totals) {
-        // Not food — e.g. a correction ("the can was half") typed into the composer
-        // while offline. Don't let it sit as a pending entry forever; drop it.
+      if (res.refusal) {
+        // The model EXPLICITLY classified this as non-food/advice — e.g. a
+        // correction ("the can was half") typed into the composer while offline.
+        // Safe to drop the junk entry.
         deleteFoodLog(row.id); requestSync?.(); refresh(uid); return;
+      }
+      if (!res.items.length || !res.totals) {
+        // Ambiguous: a 200 with no items/totals (a clarify, or a real meal the
+        // model couldn't cleanly parse). NEVER silently delete an offline-saved
+        // health entry — mark it terminal so it stops retrying (and burning quota)
+        // and renders as "couldn't read — tap to remove"; the user decides.
+        updateFoodLog(row.id, { parse_status: 'unparsed' });
+        requestSync?.(); refresh(uid); return;
       }
       updateFoodLog(row.id, {
         parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
@@ -155,17 +164,29 @@ export default function NutritionLogger() {
     setFixHint(false);
     setBusy(true);
     const id = insertFoodLog({ user_id: userId, entry_date: todayISO(), raw_text: raw, parse_status: 'pending' });
+    // Claim the row so a focus-triggered reparse() can't parse the SAME entry
+    // concurrently (double AI call = double quota + update/delete races).
+    reparsingRef.current.add(id);
     setText('');
     refresh(userId);
 
-    const res = await parseFood(raw, language, todayISO());
+    let res;
+    try { res = await parseFood(raw, language, todayISO()); }
+    finally { reparsingRef.current.delete(id); }
     setBusy(false);
 
-    if (res.ok && res.refusal) { deleteFoodLog(id); requestSync?.(); refresh(userId); setDeflect(true); return; }
+    if (res.ok && res.refusal) {
+      deleteFoodLog(id); requestSync?.(); refresh(userId);
+      setText(raw);            // don't lose what they typed if it was misjudged
+      setDeflect(true); return;
+    }
     if (res.ok && (!res.items.length || !res.totals)) {
       // Nothing to add (e.g. a correction to an item already logged). Don't fail
       // silently — point the user at tap-to-fix, which is how corrections work.
       deleteFoodLog(id); requestSync?.(); refresh(userId);
+      setText(raw);            // preserve their words (may have been real food misjudged)
+      setDetailOpen(true);     // reveal the log so "tap it below" isn't a dead-end
+      setOpenDays((p) => ({ ...p, [todayISO()]: true }));
       setFixHint(true); return;
     }
     if (res.ok) {
@@ -201,6 +222,13 @@ export default function NutritionLogger() {
     requestSync?.(); setEditEntry(null); refresh(userId);
   }
   function deleteFromEdit() { if (editEntry) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); } }
+  // An "unparsed" row (the model couldn't read it) has no items to edit — offer to remove it.
+  function confirmRemove(row) {
+    Alert.alert(t('nutri_title'), t('nutri_unparsed'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('nutri_delete_entry'), style: 'destructive', onPress: () => { deleteFoodLog(row.id); requestSync?.(); refresh(userId); } },
+    ]);
+  }
 
   const days = groupByDay(recent);
   const freeLeft = Math.max(0, FREE_DAYS - dayCount);
@@ -321,10 +349,13 @@ export default function NutritionLogger() {
                 {open && day.entries.map((e) => {
                   const items = safeItems(e.parsed_items);
                   const pending = e.parse_status === 'pending';
+                  const unparsed = e.parse_status === 'unparsed';
                   return (
-                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => !pending && openEdit(e)}>
+                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => { if (unparsed) confirmRemove(e); else if (!pending) openEdit(e); }}>
                       {pending ? (
                         <Text style={s.pendingText}>{e.raw_text} · {t('nutri_offline_saved')}</Text>
+                      ) : unparsed ? (
+                        <Text style={s.pendingText}>{e.raw_text} · {t('nutri_unparsed')}</Text>
                       ) : (
                         <>
                           {items.map((it, i) => (
@@ -455,7 +486,7 @@ const makeStyles = (c) => StyleSheet.create({
   entryTotMacro: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
   pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
   // demo modal + shared demo body
-  demoWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 22 },
+  demoWrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
   demoCard: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 0.5, borderColor: c.border },
   demoBubble: { alignSelf: 'flex-start', backgroundColor: c.card2, borderRadius: 14, borderBottomLeftRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8, maxWidth: '90%' },
@@ -469,7 +500,7 @@ const makeStyles = (c) => StyleSheet.create({
   cta: { backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, alignItems: 'center' },
   ctaText: { color: c.accentText, fontWeight: '800', fontSize: 14 },
   // fix-entry modal
-  modalWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 22 },
+  modalWrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
   modalCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   modalTitle: { fontSize: 15, fontWeight: '800', color: c.text, marginBottom: 12 },
   editItem: { marginBottom: 12 },
