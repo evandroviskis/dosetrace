@@ -764,12 +764,14 @@ export default function ProtocolsScreen() {
     if (newInterval > 2) {
       setDosesPerDay(1);
       setReminderTimes(prev => [prev[0] || currentTimeRounded5()]);
+      setActiveTimeIndex(0);
     }
   }
 
   // When doses per day changes, adjust reminder times array
   function handleDosesPerDayChange(newCount) {
     setDosesPerDay(newCount);
+    setActiveTimeIndex(0); // reset so a stale index can't write past the array
     setReminderTimes(prev => {
       if (prev.length === newCount) return prev;
       const defaults = [currentTimeRounded5(), '14:00', '21:00'];
@@ -2241,9 +2243,14 @@ export default function ProtocolsScreen() {
                         const h = String(selectedDate.getHours()).padStart(2, '0');
                         const m = String(selectedDate.getMinutes()).padStart(2, '0');
                         setReminderTimes(prev => {
+                          // Clamp the index into range and never let the array grow
+                          // past doses-per-day. Writing next[activeTimeIndex] with a
+                          // stale/out-of-range index (e.g. after Twice→Once) used to
+                          // append a phantom extra dose while "Once" stayed selected.
+                          const idx = Math.min(Math.max(activeTimeIndex, 0), prev.length - 1);
                           const next = [...prev];
-                          next[activeTimeIndex] = `${h}:${m}`;
-                          return next;
+                          next[idx] = `${h}:${m}`;
+                          return next.slice(0, Math.max(1, dosesPerDay));
                         });
                       }
                     }}
