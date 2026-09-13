@@ -507,6 +507,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
     { key: 'deficit', title: t('cal_expl_deficit_title'), body: t('cal_expl_deficit_body') },
     { key: 'measure', title: t('cal_expl_measure_title'), body: t('cal_expl_measure_body') },
+    { key: 'composition', title: t('cal_expl_comp_title'), body: t('cal_expl_comp_body') },
   ];
 
   // A labelled section divider: a monoline glyph in a soft-accent tile + an
