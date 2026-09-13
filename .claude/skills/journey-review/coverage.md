@@ -9,8 +9,8 @@ review. Keep the scenario set so coverage is preserved between sessions.
 |------|---------------|---------|-------------------------|
 | Protocol create — schedule/first-dose | 2026-09-13 (founder-found) | Omission → fix queued | "started earlier" not supported → backfill `0b62d20` (committed, not built). Revisit after it ships + verify on device. |
 | Protocol create — dose time picker | 2026-09-13 | Fixed | Phantom 2nd-dose bug `682a962`. Revisit if dose/time UI changes. |
-| Protocol create — vial/mixing | not yet | — | Review the "replace/add vial mid-protocol" journey (eval FX2). |
-| Protocol edit (dose/schedule change mid-cycle) | not yet | — | Curve is schedule-driven off current fields → editing may rewrite history's meaning (eval FX6). |
+| Protocol create/edit — vial/mixing | 2026-09-13 | Blocked | F4 new-recon-vial overwrites start_date → wipes curve+adherence (TodayScreen.js:650); F5 no manual recon new-vial path; F6 RTU stale expiry; F7 no partial-vial adoption. See docs/journey-review-eval-2026-09-13.md. |
+| Protocol edit (dose/schedule change mid-cycle) | 2026-09-13 | Needs product decision | F2 curve rewrites past at the new dose (schedule-driven off current row); F3 disclaimer says "logged doses" but curve is schedule-only. |
 | Dose logging / Today / adherence | partial | — | Creation-day rule verified in tests (eval FX4 = adequate). Full journey review pending. |
 | Reality-check + calc snapshots | partial | — | Data now in synced tables (build 55). Review the full save/restore/clear journey. |
 | Bloodwork entry + lab scan | not yet | — | Uncertain units / scan-then-correct journey. |
