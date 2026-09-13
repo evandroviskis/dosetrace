@@ -13,6 +13,7 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, RC_START_KEY } from './lib/notifications';
 import { getRealityStart } from './lib/realityCheck';
+import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
 import { installFontMapping, useAppFonts } from './lib/fonts';
@@ -20,7 +21,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 // Route every fontWeight in the app to Plus Jakarta Sans. Installed at module
 // load, before any component renders.
 installFontMapping();
-import { initDatabase, clearLocalDatabase, getTodayLogs } from './lib/database';
+import { initDatabase, clearLocalDatabase, getTodayLogs, getLocalDataUserId } from './lib/database';
 import { recordDoseTaken } from './lib/doseActions';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
 
@@ -429,28 +430,30 @@ export default function App() {
       setSession(session); // drives the navigator (null → Onboarding) immediately
 
       if (_event === 'SIGNED_OUT') {
-        // Reset the in-memory onboarding flag SYNCHRONOUSLY (pure React state — no
-        // supabase call, so it's lock-safe) so it BATCHES with setSession(null) into
-        // one render and lands directly on the splash. Deferring it flashed the bare
-        // AuthScreen for a frame before the splash (session cleared a tick earlier).
-        setSeenOnboarding(false);
-        // Everything below is a side-effect — run OUTSIDE the auth lock so the
-        // re-render to the splash commits first.
+        // WIPE only on an INTENTIONAL sign-out (user tapped Sign Out / Delete). A
+        // SPURIOUS SIGNED_OUT (token-refresh failure / expired session) must NOT
+        // wipe — that destructive wipe on a mere session hiccup is what erased an
+        // in-progress reality-check. All user data is cloud-backed now, so keeping
+        // it is safe: the same user re-auths and their data is intact (no re-import
+        // churn). Cross-account safety on a shared device is handled by the sign-in
+        // user-switch guard below. consumeIntentionalSignOut() is a pure, synchronous
+        // read — safe inside the auth callback (never touches supabase).
+        const intentional = consumeIntentionalSignOut();
+        // Intentional → route to the splash (and wipe). Spurious → leave
+        // seenOnboarding as-is so the returning user lands on Auth to re-sign-in.
+        if (intentional) setSeenOnboarding(false);
         setTimeout(() => {
-          // Stop sync FIRST so no final sync runs, then wipe local health data —
-          // otherwise user A's unsynced logs would upload into user B's account.
+          // Stop sync FIRST so no final sync runs.
           stopSyncEngine();
+          if (!intentional) return; // spurious: keep local data (cloud-backed, same user)
+          // Intentional sign-out: full wipe. This is also the anti-cross-account-leak
+          // guard — clear local health data + device-global AsyncStorage (intro-flow
+          // stash, reality-check weigh-in) so nothing bleeds to the next account.
           try { clearLocalDatabase(); } catch { /* ignore */ }
           cancelAllNotifications().catch(() => {});
-          // Reset RevenueCat identity so the next sign-in doesn't inherit it
           logOutPurchases().catch(() => {});
-          // Wipe device-global AsyncStorage that would otherwise leak one user's
-          // data to the next account on a shared device: the intro-flow stash
-          // (name/sex/birth-year/goal) and the reality-check starting weigh-in.
           clearOnboarding().catch(() => {});
           AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
-          // Persist the onboarding-flag reset so the next cold start also opens the
-          // splash (the in-memory reset above already routed this session there).
           clearSeenOnboarding().catch(() => {});
         }, 0);
       }
@@ -466,6 +469,18 @@ export default function App() {
           // freshly-created account, then clear the stash. No-op for returning
           // users with no stash. Deferred (never inline in onAuthStateChange).
           applyPendingProfile(supabase).catch(() => {});
+
+          // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
+          // spurious sign-out KEPT it, then a different account signed in on this
+          // device), wipe it before importing — one account's data must never bleed
+          // into another. No-op for the normal same-user re-auth.
+          try {
+            const localUid = getLocalDataUserId();
+            if (localUid && localUid !== session.user.id) {
+              clearLocalDatabase();
+              AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+            }
+          } catch { /* ignore */ }
 
           // Import from cloud on sign-in if local DB is empty
           if (isLocalDBEmpty(session.user.id)) {

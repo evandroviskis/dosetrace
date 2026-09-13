@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signOutGoogleNative } from '../lib/supabase';
+import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -187,6 +188,7 @@ export default function CompleteProfileScreen() {
         text: t('settings_signout'),
         style: 'destructive',
         onPress: async () => {
+          markIntentionalSignOut(); // deliberate sign-out from the profile gate
           await signOutGoogleNative();
           try { await supabase.auth.signOut({ scope: 'local' }); }
           catch { await supabase.auth.signOut().catch(() => {}); }
