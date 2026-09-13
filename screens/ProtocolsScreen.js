@@ -1200,6 +1200,9 @@ export default function ProtocolsScreen() {
       return;
     }
     setSaving(true);
+    // Never persist an invalid start_date (a bad picker value must not reach the
+    // cloud as e.g. 1969). Clamp to a valid YYYY-MM-DD, falling back to today.
+    const safeStart = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : todayISO();
     try {
     const user = await getCachedUser();
     if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
@@ -1231,7 +1234,7 @@ export default function ProtocolsScreen() {
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: startDate,
+        start_date: safeStart,
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
@@ -1293,7 +1296,7 @@ export default function ProtocolsScreen() {
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: startDate,
+        start_date: safeStart,
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
@@ -1340,11 +1343,11 @@ export default function ProtocolsScreen() {
       // doses as Taken so adherence + history reflect them (the curve already reads
       // the schedule). Applies to every type. Only when the start date is in the past.
       const todayStr = new Date().toISOString().split('T')[0];
-      const pastCount = (protocolData && startDate < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
+      const pastCount = (protocolData && safeStart < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
       if (pastCount > 0) {
         Alert.alert(
           t('protocols_backfill_title'),
-          t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(startDate)),
+          t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
           [
             { text: t('protocols_backfill_no'), style: 'cancel' },
             {
