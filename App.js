@@ -399,6 +399,16 @@ export default function App() {
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
 
+        // Cross-account guard on cold start too (symmetry with SIGNED_IN): if the
+        // local data belongs to a different user, wipe before importing.
+        try {
+          const localUid = getLocalDataUserId();
+          if (localUid && localUid !== session.user.id) {
+            clearLocalDatabase();
+            AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+          }
+        } catch { /* ignore */ }
+
         // If local DB is empty, import all data from cloud (first launch / new device)
         if (isLocalDBEmpty(session.user.id)) {
           await fullImportFromCloud();
@@ -462,6 +472,10 @@ export default function App() {
         // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
         // run inline in this callback.
         setTimeout(async () => {
+          // Discard any stale intentional-sign-out flag so it can NEVER survive a
+          // login boundary (a set-but-never-consumed flag would wrongly wipe on the
+          // next spurious sign-out — the exact bug this guard exists to prevent).
+          consumeIntentionalSignOut();
           initPurchases(session.user.id, session?.user?.email).catch(() => {});
           startSyncEngine();
 
@@ -479,6 +493,7 @@ export default function App() {
             if (localUid && localUid !== session.user.id) {
               clearLocalDatabase();
               AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+              cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
             }
           } catch { /* ignore */ }
 
