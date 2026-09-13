@@ -965,11 +965,11 @@ export default function ProtocolsScreen() {
     }
     const loadedDPD = p.doses_per_day || 1;
     setDosesPerDay(loadedDPD);
-    if (p.start_date) {
-      setStartDate(p.start_date);
-    } else {
-      setStartDate(todayISO());
-    }
+    // Normalize to a bare YYYY-MM-DD — a full timestamp (or junk) would make the
+    // picker's `new Date(startDate + 'T12:00:00')` an Invalid Date, which the iOS
+    // spinner renders as the epoch (Dec 31 1969) and traps the user there.
+    const sd = typeof p.start_date === 'string' ? p.start_date.slice(0, 10) : '';
+    setStartDate(/^\d{4}-\d{2}-\d{2}$/.test(sd) ? sd : todayISO());
     const times = (p.reminder_time || currentTimeRounded5()).split(',').filter(Boolean);
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
@@ -2155,7 +2155,7 @@ export default function ProtocolsScreen() {
                 </TouchableOpacity>
                 {showStartPicker && (
                   <DateTimePicker
-                    value={new Date(startDate + 'T12:00:00')}
+                    value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
                     mode="date"
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={(event, d) => {
