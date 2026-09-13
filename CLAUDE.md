@@ -78,6 +78,7 @@ Emoji in any user-facing screen is a bug. Use `components/FeatureIcon.js` (the f
 - i18n edits keep all 6 languages in parity (the parity test must pass).
 - **Auth / session / sync / delete changes** → ship-check GATE B + a code-review pass over the diff + the founder tests on device before any upload. `onAuthStateChange` stays synchronous (no `await`/`supabase.*` inline — it deadlocks the session).
 - Before EVERY EAS build: run the **dt-council** skill, then **ship-check**, then build. No build until the founder says go.
+- For any **substantive user-flow change** (new/changed flow, field, default, restriction, schedule, or records effect): run the **journey-review** skill — before implementing (intent + scenarios + acceptance) and again inside dt-council on the changed flow. It hunts the ordinary real-world situation the spec/diff missed — above all *"what may already have happened before the user opened this feature?"* (the miss that shipped "started my compound weeks ago" unhandled for months). Details live in the skill; keep this pointer short.
 
 ## TestFlight / release — the miss that cost the most
 

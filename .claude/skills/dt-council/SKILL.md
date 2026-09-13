@@ -34,6 +34,25 @@ area": product-manager, ux-designer, ui-brand-designer, senior-engineer, backend
 qa-engineer, release-engineer, growth-marketer, regulatory-privacy, pharmacometrician.
 Wait for all to report.
 
+## Step 2b — Journey lens (real-world scenarios the change set can hide)
+The panel reviews the DIFF; it will NOT catch an ordinary situation the flow never
+supported (the failure that let "started my compound 3 weeks ago" ship unhandled for
+months). So whenever the change set touches a **substantive user flow** (a new/changed
+flow, field, default, restriction, schedule, or records effect — not copy/color):
+- Run the **`journey-review`** skill, or dispatch the **`journey-reviewer`** agent
+  (separate context — give it the intent + the flow, NOT the implementer's rationale),
+  on the affected flow(s). It constructs scenarios from user intent first and always
+  asks *"what may already have happened before first use?"*.
+- Fold its outcome into the verdict. A flow with a **confirmed, common, in-scope
+  journey omission** (can't complete it, forces false data, produces wrong records,
+  or silently changes existing data) is a **HOLD / GO-WITH-CHANGES**, never a GO.
+- Substantive behavior changes should also get a journey-review **before** they're
+  implemented (intent + scenarios + acceptance criteria), not only at this gate.
+- Separately from per-build gating, keep a **bounded existing-flow review** going
+  (start with protocol create) tracked in `journey-review/coverage.md` — review a core
+  flow once, revisit only when it materially changes. Don't re-audit the whole app
+  every build.
+
 ## Step 3 — Chair the synthesis (you)
 Do NOT dump ten reports. Produce ONE decision brief:
 - **VERDICT**: GO · GO-WITH-CHANGES · HOLD
