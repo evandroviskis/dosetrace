@@ -44,7 +44,8 @@ import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
-import { expectedDosesOn, nextDueDate, frequencyLabelFor } from '../lib/schedule';
+import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
+import { backfillTakenDoses } from '../lib/doseActions';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -1334,6 +1335,30 @@ export default function ProtocolsScreen() {
       const protocolData = getProtocolById(newId);
       if (protocolData) scheduleDoseReminder(protocolData).catch(() => {});
       Analytics.protocolCreated({ name, type, dose, dose_unit: doseUnit, frequency: frequencyLabel(intervalDays), goal: goals.join(',') });
+
+      // Started before installing the app? Offer to backfill the elapsed scheduled
+      // doses as Taken so adherence + history reflect them (the curve already reads
+      // the schedule). Applies to every type. Only when the start date is in the past.
+      const todayStr = new Date().toISOString().split('T')[0];
+      const pastCount = (protocolData && startDate < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
+      if (pastCount > 0) {
+        Alert.alert(
+          t('protocols_backfill_title'),
+          t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(startDate)),
+          [
+            { text: t('protocols_backfill_no'), style: 'cancel' },
+            {
+              text: t('protocols_backfill_yes').replace('{n}', String(pastCount)),
+              onPress: () => {
+                try { backfillTakenDoses(newId); } catch { /* best-effort */ }
+                notifyDataChanged('protocol');
+                requestSync();
+                fetchProtocols();
+              },
+            },
+          ],
+        );
+      }
     }
     requestSync();
     // Refresh every mounted screen right away (Today, etc.) — don't wait for the

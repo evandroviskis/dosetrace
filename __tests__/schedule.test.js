@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, elapsedDoseSlots,
 } = require('../lib/schedule');
 
 // A protocol created well in the past so the creation-day grace never applies.
@@ -128,4 +128,40 @@ test('toPastDateString: rejects impossible dates, formats valid ones', () => {
   assert.equal(toPastDateString(1, '31'), null);       // Feb 31 → impossible
   assert.equal(toPastDateString(3, '31'), null);       // Apr 31 → impossible
   assert.match(toPastDateString(0, '15'), /^\d{4}-01-15$/); // Jan 15 formats
+});
+
+// ── elapsedDoseSlots: backfill a protocol started before install ──
+test('elapsedDoseSlots: once-daily started 5 days ago → one slot per day incl today', () => {
+  const now = new Date('2026-09-13T15:00:00').getTime();
+  const p = { start_date: '2026-09-08', interval_days: 1, doses_per_day: 1, reminder_time: '08:00' };
+  const slots = elapsedDoseSlots(p, now);
+  assert.equal(slots.length, 6); // 09-08 .. 09-13, 08:00 each (all <= 15:00 today)
+});
+
+test('elapsedDoseSlots: twice-daily excludes today\'s future slot', () => {
+  const now = new Date('2026-09-13T12:00:00').getTime();
+  const p = { start_date: '2026-09-11', interval_days: 1, doses_per_day: 2, reminder_time: '08:00,20:00' };
+  const slots = elapsedDoseSlots(p, now);
+  assert.equal(slots.length, 5); // 11:(08,20) 12:(08,20) 13:(08 only — 20:00 is future)
+});
+
+test('elapsedDoseSlots: honors every-other-day interval', () => {
+  const now = new Date('2026-09-13T10:00:00').getTime();
+  const p = { start_date: '2026-09-07', interval_days: 2, doses_per_day: 1, reminder_time: '09:00' };
+  const slots = elapsedDoseSlots(p, now);
+  assert.equal(slots.length, 4); // 09-07, 09, 11, 13
+});
+
+test('elapsedDoseSlots: no start_date, or a future start, yields nothing', () => {
+  const now = new Date('2026-09-13T10:00:00').getTime();
+  assert.deepEqual(elapsedDoseSlots({ interval_days: 1, doses_per_day: 1, reminder_time: '08:00' }, now), []);
+  assert.deepEqual(elapsedDoseSlots({ start_date: '2026-09-20', interval_days: 1, doses_per_day: 1, reminder_time: '08:00' }, now), []);
+});
+
+test('elapsedDoseSlots: bounded by maxDays so an ancient start cannot flood', () => {
+  const now = new Date('2026-09-13T23:59:00').getTime();
+  const p = { start_date: '2024-01-01', interval_days: 1, doses_per_day: 1, reminder_time: '08:00' };
+  const slots = elapsedDoseSlots(p, now); // default cap 180 days
+  assert.ok(slots.length <= 181, `expected <=181, got ${slots.length}`);
+  assert.ok(slots.length >= 180, `expected >=180, got ${slots.length}`);
 });
