@@ -549,12 +549,18 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             <View style={s.echoChip}><Text style={s.echoChipText}>{echoParts.join(' · ')}</Text></View>
           </View>
 
-          {/* Hero cards — daily burn + protein */}
+          {/* Hero cards — daily burn + protein. Once a reality-check exists, the
+              MEASURED maintenance is the real daily burn (the formula under/over-
+              shoots); the generic estimate drops to a small sub-line. */}
           <View style={s.heroRow}>
             <View style={[s.heroCard, s.heroCardPrimary]}>
               <Text style={s.heroLabelPrimary}>{t('cal_tdee')}</Text>
-              <Text style={[s.heroVal, s.heroValAccent]}>{round10(plan.tdeeVal)} <Text style={s.heroUnitAccent}>{t('cal_kcal')}</Text></Text>
-              <Text style={s.heroSubPrimary}>{t(`cal_eq_${plan.method}`)} · {t('cal_bmr')} {round10(plan.bmr)}</Text>
+              <Text style={[s.heroVal, s.heroValAccent]}>{round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal)} <Text style={s.heroUnitAccent}>{t('cal_kcal')}</Text></Text>
+              <Text style={s.heroSubPrimary}>
+                {scoreCheck
+                  ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${round10(plan.tdeeVal)}`
+                  : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${round10(plan.bmr)}`}
+              </Text>
             </View>
             <View style={s.heroCard}>
               <Text style={s.heroLabel}>{t('cal_protein')}</Text>
@@ -563,19 +569,22 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             </View>
           </View>
 
-          {/* All three goals, side by side — tap to choose */}
+          {/* All three goals, side by side — tap to choose. Targets scale off the
+              MEASURED maintenance when a reality-check exists, so "lose"/"gain"
+              calories are relative to the user's real burn, not the formula. */}
           <View style={s.goalRow}>
-            {['lose', 'maintain', 'gain'].map(g => {
+            {(() => { const goalScale = (scoreCheck && plan.tdeeVal) ? scoreCheck.tdee / plan.tdeeVal : 1;
+            return ['lose', 'maintain', 'gain'].map(g => {
               const on = goal === g;
               const gc = plan.allGoals[g];
               return (
                 <TouchableOpacity key={g} style={[s.goalCard, on && s.goalCardOn]} onPress={() => setGoal(g)} activeOpacity={0.7}>
                   <Text style={[s.goalLabel, on && s.goalLabelOn]}>{t(`cal_goal_${g}`)}</Text>
-                  <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid)}</Text>
+                  <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid * goalScale)}</Text>
                   <Text style={s.goalSub}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
                 </TouchableOpacity>
               );
-            })}
+            }); })()}
           </View>
 
           {/* Context chips — BMI + macros */}
