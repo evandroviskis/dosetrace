@@ -28,3 +28,11 @@ create policy "calc_targets select own" on public.calc_targets for select using 
 create policy "calc_targets insert own" on public.calc_targets for insert with check (auth.uid() = user_id);
 create policy "calc_targets update own" on public.calc_targets for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "calc_targets delete own" on public.calc_targets for delete using (auth.uid() = user_id);
+
+-- The row is edited IN PLACE (one target per user), so almost every write is an
+-- UPDATE. The sync pull is incremental on updated_at, and the client push omits
+-- updated_at — without this trigger a cross-device edit never advances the cloud
+-- watermark and never propagates. Mirrors the food_logs trigger.
+drop trigger if exists calc_targets_set_updated_at on public.calc_targets;
+create trigger calc_targets_set_updated_at before update on public.calc_targets
+  for each row execute function set_updated_at();

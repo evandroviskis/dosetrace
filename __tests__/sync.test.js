@@ -274,3 +274,39 @@ test('reality_checks delete tombstone: a soft-deleted check is removed from the 
   assert.equal(cloud.rows('reality_checks', USER).length, 0);
   assert.equal(dbA.getFirstSync(`SELECT COUNT(*) AS c FROM reality_checks WHERE user_id = ?`, [USER]).c, 0);
 });
+
+test('calc_targets round-trip + EDIT propagation + tombstone (the new build-56 table)', async () => {
+  const cloud = makeCloud();
+  const dbA = makeDb();
+  const now = '2026-09-13T00:00:00.000Z';
+  dbA.runSync(
+    `INSERT INTO calc_targets (user_id, entry_date, target_weight_kg, target_body_fat_pct, target_date, start_date, start_weight_kg, start_body_fat_pct, created_at, updated_at, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [USER, '2026-09-13', 82, null, null, '2026-07-14', 95, null, now, now]
+  );
+  await pushPending(dbA, cloud, USER);
+  const ct = cloud.rows('calc_targets', USER);
+  assert.equal(ct.length, 1);
+  assert.equal(ct[0].target_weight_kg, 82);
+  assert.equal(ct[0].start_weight_kg, 95); // canonical kg, anchors direction
+
+  // Second device imports the target.
+  const dbB = makeDb();
+  await fullImport(dbB, cloud, USER);
+  let b = dbB.getFirstSync(`SELECT * FROM calc_targets WHERE user_id = ?`, [USER]);
+  assert.equal(b.target_weight_kg, 82);
+  assert.equal(b.sync_status, 'synced');
+
+  // EDIT in place on A must propagate to B via the incremental pull — this is the
+  // exact path the missing updated_at trigger broke; the cloud stamps on update.
+  dbA.runSync(`UPDATE calc_targets SET target_weight_kg = ?, updated_at = ?, sync_status = 'pending' WHERE user_id = ?`, [80, '2026-09-20T00:00:00.000Z', USER]);
+  await pushPending(dbA, cloud, USER);
+  await pullChanges(dbB, cloud, USER);
+  b = dbB.getFirstSync(`SELECT * FROM calc_targets WHERE user_id = ?`, [USER]);
+  assert.equal(b.target_weight_kg, 80, 'an edited target must reach the second device');
+
+  // Tombstone delete round-trips.
+  dbA.runSync(`UPDATE calc_targets SET sync_status = 'deleted', updated_at = ? WHERE user_id = ?`, ['2026-09-21T00:00:00.000Z', USER]);
+  await pushPending(dbA, cloud, USER);
+  assert.equal(cloud.rows('calc_targets', USER).length, 0);
+  assert.equal(dbA.getFirstSync(`SELECT COUNT(*) AS c FROM calc_targets WHERE user_id = ?`, [USER]).c, 0);
+});

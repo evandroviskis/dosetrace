@@ -24,7 +24,7 @@ import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
-  targetProjection, seriesRatePerWeek,
+  targetProjection, seriesRatePerWeek, goalsForTdee, TARGET_MIN_WINDOW_DAYS,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -395,12 +395,14 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     if (w == null || !bfDate) return;
     const weightKg = unit === 'imperial' ? lbToKg(w) : w;
     const bfv = num(bfBodyFat);
-    const existing = snapshots.find(sn => sn.date === bfDate);
+    // Merge against a FRESH DB read, not React state — a stale/empty in-memory
+    // snapshots array would null out an existing same-date snapshot's other fields.
+    const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === bfDate) || null;
     upsertCalcSnapshot(uid, {
       entry_date: bfDate,
       weight_kg: weightKg,
-      waist_cm: existing?.waistCm ?? null,
-      body_fat_pct: bfv != null ? bfv : (existing?.bodyFatPct ?? null),
+      waist_cm: existing?.waist_cm ?? null,
+      body_fat_pct: bfv != null ? bfv : (existing?.body_fat_pct ?? null),
       lbm: existing?.lbm ?? null, bmr: existing?.bmr ?? null, tdee: existing?.tdee ?? null,
     });
     requestSync?.();
@@ -453,20 +455,26 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     [snapshots]
   );
 
+  // Only feed a rate to the projection when the weigh-in series spans a real
+  // window (>= 14 days) — a 2-day series is noise and would render a confident,
+  // wrong ETA (pharmacometrics finding). Below that the projection returns
+  // 'no_rate' and the UI shows progress only.
+  const usableWeightRate = (weightRate && weightRate.days >= TARGET_MIN_WINDOW_DAYS) ? weightRate : null;
+  const usableBfRate = (bfRate && bfRate.days >= TARGET_MIN_WINDOW_DAYS) ? bfRate : null;
   const weightProj = useMemo(() => {
     if (!target || target.target_weight_kg == null) return null;
     return targetProjection({
       current: currentWeightKg, target: target.target_weight_kg, start: target.start_weight_kg,
-      ratePerWeek: weightRate?.ratePerWeek ?? null, kind: 'weight',
+      ratePerWeek: usableWeightRate?.ratePerWeek ?? null, kind: 'weight',
     });
-  }, [target, currentWeightKg, weightRate]);
+  }, [target, currentWeightKg, usableWeightRate]);
   const bfProj = useMemo(() => {
     if (!target || target.target_body_fat_pct == null) return null;
     return targetProjection({
       current: currentBF, target: target.target_body_fat_pct, start: target.start_body_fat_pct,
-      ratePerWeek: bfRate?.ratePerWeek ?? null, kind: 'bodyfat',
+      ratePerWeek: usableBfRate?.ratePerWeek ?? null, kind: 'bodyfat',
     });
-  }, [target, currentBF, bfRate]);
+  }, [target, currentBF, usableBfRate]);
 
   // A one-line "since your first snapshot" delta for the overview panel.
   const progressSummary = useMemo(() => {
@@ -601,6 +609,16 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     return null;
   }, [rc, realityLog]);
 
+  // Goal targets: when a reality-check MEASURED maintenance exists, recompute the
+  // lose/maintain/gain calories off it through the SAME floored engine (not a raw
+  // ratio scale) so the calorie/BMR safety floor still applies on the measured
+  // path — else scaling lose by measured/formula can silently dip below 1200.
+  const effectiveGoals = useMemo(() => {
+    if (!plan) return null;
+    if (scoreCheck && plan.tdeeVal) return goalsForTdee(scoreCheck.tdee, { bmr: plan.bmr, sex });
+    return plan.allGoals;
+  }, [plan, scoreCheck, sex]);
+
   // Tap a scoreboard tile → jump down to the calculator that produced it.
   const scrollRef = useRef(null);
   const detailsY = useRef(0);
@@ -666,7 +684,10 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   // One metric row inside the target card: current → target, a progress bar, and
   // a direction-aware status (ETA / reached / moving away / no rate yet). All
   // display math; never advisory.
-  const renderTargetMetric = (kind, proj, curCanon, targetCanon, rateInfo) => {
+  // One metric row. `showEta` (premium) gates the MEASURED timeline; free users
+  // still see the goal, the progress bar, and the "reached"/below-range facts, plus
+  // a locked teaser pointing at the paid measured pace.
+  const renderTargetMetric = (kind, proj, curCanon, targetCanon, rateInfo, showEta) => {
     const isW = kind === 'weight';
     const unitLabel = isW ? wUnit : '%';
     const disp = v => v == null ? null : (isW ? Math.round(toDisplayW(v) * 10) / 10 : Math.round(v * 10) / 10);
@@ -677,6 +698,9 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     if (startCanon != null && curCanon != null && targetCanon != null && startCanon !== targetCanon) {
       frac = Math.max(0, Math.min(1, (startCanon - curCanon) / (startCanon - targetCanon)));
     }
+    // Below-healthy-range guard (weight only): a factual note, and NO celebratory
+    // ETA toward a below-range weight (App Store 1.4 / eating-disorder exposure).
+    const belowRange = isW && plan?.healthyRange && targetCanon != null && targetCanon < plan.healthyRange.min;
     const eta = proj.state === 'eta' ? fmtEta(proj.etaWeeks) : null;
     return (
       <View style={s.tgtMetric} key={kind}>
@@ -687,19 +711,30 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         {frac != null ? (
           <View style={s.tgtBar}><View style={[s.tgtBarFill, { width: `${Math.round(frac * 100)}%` }]} /></View>
         ) : null}
+        {/* reached is a pure current-vs-target fact — free. */}
         {proj.state === 'reached' ? (
           <Text style={s.tgtReached}>{t('cal_tgt_reached')}</Text>
-        ) : proj.state === 'eta' && eta ? (
-          <Text style={s.tgtEta}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
-        ) : proj.state === 'away' ? (
-          <Text style={s.tgtAway}>{t('cal_tgt_away')}</Text>
+        ) : belowRange ? null /* status line suppressed; the range note below carries it */
+        : showEta ? (
+          proj.state === 'eta' && eta ? (
+            <Text style={s.tgtEta}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
+          ) : proj.state === 'away' ? (
+            <Text style={s.tgtAway}>{t('cal_tgt_away')}</Text>
+          ) : (
+            <Text style={s.tgtNoRate}>{t('cal_tgt_no_rate')}</Text>
+          )
         ) : (
-          <Text style={s.tgtNoRate}>{t('cal_tgt_no_rate')}</Text>
+          // Free: no measured pace — teaser to Premium.
+          <TouchableOpacity onPress={() => navigation.navigate('Paywall')} activeOpacity={0.7}>
+            <Text style={s.tgtLockedEta}>{t('cal_tgt_locked_eta')}</Text>
+          </TouchableOpacity>
         )}
-        {proj.state === 'eta' && rateInfo ? (
+        {showEta && !belowRange && proj.state === 'eta' && rateInfo ? (
           <Text style={s.tgtBasis}>{t('cal_tgt_basis').replace('{from}', fmtDate(rateInfo.firstDate)).replace('{to}', fmtDate(rateInfo.lastDate))}</Text>
         ) : null}
-        {isW && plan?.healthyRange ? (
+        {belowRange ? (
+          <Text style={s.tgtAway}>{t('cal_tgt_below_range').replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min)))).replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max)))).replace('{unit}', wUnit)}</Text>
+        ) : isW && plan?.healthyRange ? (
           <Text style={s.tgtFact}>{t('cal_tgt_healthy').replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min)))).replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max)))).replace('{unit}', wUnit)}</Text>
         ) : null}
       </View>
@@ -753,23 +788,27 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             </View>
           </View>
 
-          {/* All three goals, side by side — tap to choose. Targets scale off the
-              MEASURED maintenance when a reality-check exists, so "lose"/"gain"
-              calories are relative to the user's real burn, not the formula. */}
+          {/* All three goals, side by side — tap to choose. When a reality-check
+              exists these are recomputed off the MEASURED maintenance through the
+              floored engine (effectiveGoals), so the calorie floor still holds. */}
           <View style={s.goalRow}>
-            {(() => { const goalScale = (scoreCheck && plan.tdeeVal) ? scoreCheck.tdee / plan.tdeeVal : 1;
-            return ['lose', 'maintain', 'gain'].map(g => {
+            {['lose', 'maintain', 'gain'].map(g => {
               const on = goal === g;
-              const gc = plan.allGoals[g];
+              const gc = (effectiveGoals || plan.allGoals)[g];
               return (
                 <TouchableOpacity key={g} style={[s.goalCard, on && s.goalCardOn]} onPress={() => setGoal(g)} activeOpacity={0.7}>
                   <Text style={[s.goalLabel, on && s.goalLabelOn]}>{t(`cal_goal_${g}`)}</Text>
-                  <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid * goalScale)}</Text>
+                  <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid)}</Text>
                   <Text style={s.goalSub}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
                 </TouchableOpacity>
               );
-            }); })()}
+            })}
           </View>
+          {/* Re-emit the calorie-floor warning if the MEASURED-path lose target hit
+              the floor (the formula-path warning is already in plan.warnings). */}
+          {scoreCheck && effectiveGoals?.lose?.floorApplied ? (
+            <View style={s.warnBox}><Text style={s.warnText}>{warnText({ code: effectiveGoals.lose.floorSource === 'absolute' ? 'calorie_floor' : 'bmr_floor', values: { kcal: Math.round(effectiveGoals.lose.mid) } })}</Text></View>
+          ) : null}
 
           {/* Context chips — BMI + macros */}
           <View style={s.chipRow}>
@@ -1000,25 +1039,19 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         )}
       </View>
 
-      {/* Personal target (premium) — a weight and/or body-fat goal with an honest,
-          direction-aware ETA projected from the measured rate. Never advisory. */}
+      {/* Personal target — a weight and/or body-fat goal. Setting a goal + the
+          progress bar are FREE (matches the free-targets split); the MEASURED
+          timeline is the Premium unlock. Never advisory. */}
       <View style={s.premCard}>
         <View style={s.tgtHead}>
           <Text style={s.premTitle}>{t('cal_tgt_title')}</Text>
-          {premium && target && !targetEditing ? (
+          {target && !targetEditing ? (
             <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7}><Text style={s.tgtEdit}>{t('cal_tgt_edit')}</Text></TouchableOpacity>
           ) : null}
         </View>
         <Text style={s.premSub}>{t('cal_tgt_sub')}</Text>
 
-        {!premium ? (
-          <View style={s.locked}>
-            <Text style={s.lockedText}>{t('cal_premium_locked')}</Text>
-            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (targetEditing || !target) ? (
+        {(targetEditing || !target) ? (
           <View style={{ marginTop: 8 }}>
             <Text style={s.inputLabelSm}>{t('cal_tgt_weight')} ({wUnit})</Text>
             <TextInput style={s.input} value={tgtWeight} onChangeText={setTgtWeight} keyboardType="decimal-pad" placeholder={t('cal_tgt_optional')} placeholderTextColor={colors.textMuted} />
@@ -1040,7 +1073,8 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
               />
             ) : null}
             <View style={s.tgtBtnRow}>
-              <TouchableOpacity style={[s.computeBtn, { flex: 1, marginTop: 0 }]} onPress={saveTarget}><Text style={s.computeBtnText}>{t('save')}</Text></TouchableOpacity>
+              {/* Disable Save until at least one target field is valid (no silent no-op loop). */}
+              <TouchableOpacity style={[s.computeBtn, { flex: 1, marginTop: 0 }, !(num(tgtWeight) != null || num(tgtBF) != null) && s.computeBtnDisabled]} onPress={saveTarget} disabled={!(num(tgtWeight) != null || num(tgtBF) != null)}><Text style={s.computeBtnText}>{t('save')}</Text></TouchableOpacity>
               {target ? (
                 <TouchableOpacity style={s.tgtBtnGhost} onPress={() => setTargetEditing(false)} activeOpacity={0.7}><Text style={s.tgtGhostText}>{t('cancel')}</Text></TouchableOpacity>
               ) : null}
@@ -1051,8 +1085,8 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
           </View>
         ) : (
           <View style={{ marginTop: 4 }}>
-            {weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, weightRate) : null}
-            {bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, bfRate) : null}
+            {weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, usableWeightRate, premium) : null}
+            {bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, usableBfRate, premium) : null}
           </View>
         )}
       </View>
@@ -1385,6 +1419,7 @@ const makeStyles = (c) => StyleSheet.create({
   tgtNoRate: { fontSize: 13, color: c.textMuted, marginTop: 8, lineHeight: 18 },
   tgtBasis: { fontSize: 11, color: c.textMuted, marginTop: 4 },
   tgtFact: { fontSize: 11, color: c.textMuted, marginTop: 4, lineHeight: 15 },
+  tgtLockedEta: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 8, lineHeight: 18 },
   tgtBackfillLink: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 14 },
   bfForm: { marginTop: 8, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
   srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, ...c.shadowSoft },

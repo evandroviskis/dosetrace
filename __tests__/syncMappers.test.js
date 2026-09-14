@@ -82,3 +82,14 @@ test('calc_snapshots payload includes every expected field (incl. waist_cm)', ()
   assert.equal(cs.weight_kg, 82);
   for (const field of CLOUD_FIELDS.calc_snapshots) assert.ok(field in cs, `calc_snapshots payload missing "${field}"`);
 });
+
+test('calc_targets payload includes every expected field', () => {
+  const ct = toCloudPayload('calc_targets', {
+    entry_date: '2026-09-13', target_weight_kg: 82, target_body_fat_pct: 18, target_date: '2026-11-01',
+    start_date: '2026-07-14', start_weight_kg: 95, start_body_fat_pct: 28,
+  });
+  assert.equal(ct.target_weight_kg, 82);
+  assert.equal(ct.start_weight_kg, 95);
+  assert.equal(ct.target_date, '2026-11-01');
+  for (const field of CLOUD_FIELDS.calc_targets) assert.ok(field in ct, `calc_targets payload missing "${field}"`);
+});

@@ -266,3 +266,30 @@ test('daysBetweenISO: whole days, DST-safe', () => {
   assert.equal(daysBetweenISO('2026-07-01', '2026-07-01'), 0);
   assert.equal(daysBetweenISO(null, '2026-07-01'), null);
 });
+
+// ── goalsForTdee: the measured-maintenance path still respects the floor ──
+const { goalsForTdee } = require('../lib/energyCalc');
+
+test('goalsForTdee: lose target never dips below the absolute floor (female 1200)', () => {
+  // measured maintenance low enough that 82.5% would be < 1200
+  const g = goalsForTdee(1400, { bmr: 1100, sex: 'female' });
+  assert.ok(g.lose.mid >= 1200, `lose ${g.lose.mid} must be >= 1200`);
+  assert.equal(g.lose.floorApplied, true);
+  assert.equal(g.lose.floorSource, 'absolute');
+});
+
+test('goalsForTdee: lose target never dips below own BMR', () => {
+  const g = goalsForTdee(2000, { bmr: 1800, sex: 'male' });
+  // 82.5% of 2000 = 1650 < 1800 BMR → floored to BMR
+  assert.ok(g.lose.mid >= 1800, `lose ${g.lose.mid} must be >= BMR 1800`);
+  assert.equal(g.lose.floorApplied, true);
+  assert.equal(g.lose.floorSource, 'bmr');
+});
+
+test('goalsForTdee: comfortable maintenance applies no floor', () => {
+  const g = goalsForTdee(2600, { bmr: 1700, sex: 'male' });
+  assert.equal(g.lose.floorApplied, false);
+  approx(g.lose.mid, 2600 * 0.825, 1);
+  approx(g.maintain.mid, 2600, 1);
+  approx(g.gain.mid, 2600 * 1.125, 1);
+});

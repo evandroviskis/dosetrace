@@ -24,3 +24,10 @@ create policy "calc_snapshots select own" on public.calc_snapshots for select us
 create policy "calc_snapshots insert own" on public.calc_snapshots for insert with check (auth.uid() = user_id);
 create policy "calc_snapshots update own" on public.calc_snapshots for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "calc_snapshots delete own" on public.calc_snapshots for delete using (auth.uid() = user_id);
+
+-- Snapshots are edited in place (one row per entry_date; backfill merges into an
+-- existing date), so an edit is an UPDATE. Without this trigger updated_at never
+-- advances and a cross-device edit is not pulled. Added build 56 (was latent).
+drop trigger if exists calc_snapshots_set_updated_at on public.calc_snapshots;
+create trigger calc_snapshots_set_updated_at before update on public.calc_snapshots
+  for each row execute function set_updated_at();
