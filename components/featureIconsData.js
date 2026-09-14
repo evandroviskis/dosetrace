@@ -111,6 +111,9 @@ export const FEATURE_ICON_XML = {
   droplet: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <path d="M512 210 C512 210 306 470 306 620 A206 206 0 0 0 718 620 C718 470 512 210 512 210 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`,
+  flame: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M544 180 C544 300 640 360 640 360 C700 430 726 512 726 592 A214 214 0 0 1 298 592 C298 512 344 456 396 420 C404 486 452 512 486 500 C440 420 452 300 544 180 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
   calendar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <rect x="236" y="264" width="552" height="520" rx="48" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M236 424 H788" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>

@@ -937,6 +937,7 @@ export default function TodayScreen() {
             ) : null}
             {pStreak > 0 && (
               <View style={s.miniStreak}>
+                <FeatureIcon name="flame" size={11} color={colors.warningSoftText} />
                 <Text style={s.miniStreakText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
               </View>
             )}
@@ -1081,6 +1082,9 @@ export default function TodayScreen() {
           >
             <View style={s.streakTop}>
               <View style={s.streakLeft}>
+                {streak > 0 ? (
+                  <View style={s.streakFireTile}><FeatureIcon name="flame" size={22} color={colors.warningSoftText} /></View>
+                ) : null}
                 <View>
                   <Text style={s.streakCount}>
                     {streak > 0
@@ -1519,7 +1523,7 @@ const makeStyles = (c) => StyleSheet.create({
   progressText: { fontSize: 10, color: c.accent, marginTop: 2, fontWeight: '500' },
   progressBarOuter: { height: 3, backgroundColor: c.card2, marginHorizontal: 14, marginBottom: 8, borderRadius: 2 },
   progressBarInner: { height: 3, backgroundColor: c.accent, borderRadius: 2 },
-  miniStreak: { backgroundColor: c.warningSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  miniStreak: { backgroundColor: c.warningSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 3 },
   miniStreakText: { fontSize: 10, color: c.warningSoftText, fontWeight: '600' },
   vialStatus: { paddingHorizontal: 14, paddingBottom: 10 },
   vialStatusText: { fontSize: 11, color: c.textMuted },
