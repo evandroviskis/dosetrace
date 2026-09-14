@@ -24,8 +24,10 @@ import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
+  targetProjection, seriesRatePerWeek,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,6 +36,7 @@ import {
   getFoodLogsSince,
   getRealityChecks, upsertRealityCheck, clearRealityChecks,
   getCalcSnapshots, upsertCalcSnapshot,
+  getCalcTarget, upsertCalcTarget, clearCalcTarget,
 } from '../../lib/database';
 
 // Durable per-device flag: the one-time legacy metadata->tables migration ran here.
@@ -115,6 +118,22 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
   const [rcSavedMsg, setRcSavedMsg] = useState(false);
   const [foodAvg, setFoodAvg] = useState(null); // { avgKcal, loggedDays } from the food log
+
+  // ── Personal target (build 56) ──────────────────────────────────
+  const [target, setTarget] = useState(null);        // the saved calc_targets row
+  const [targetEditing, setTargetEditing] = useState(false);
+  const [tgtWeight, setTgtWeight] = useState('');     // display units
+  const [tgtBF, setTgtBF] = useState('');             // %
+  const [tgtDate, setTgtDate] = useState(null);       // ISO 'YYYY-MM-DD' | null
+  const [showTgtDatePicker, setShowTgtDatePicker] = useState(false);
+  // Backfill a past weigh-in (seeds the measured rate sooner).
+  const [bfOpen, setBfOpen] = useState(false);
+  const [bfDate, setBfDate] = useState(todayISO());
+  const [bfWeight, setBfWeight] = useState('');
+  const [bfBodyFat, setBfBodyFat] = useState('');
+  const [showBfDatePicker, setShowBfDatePicker] = useState(false);
+  const [bfMsg, setBfMsg] = useState(false);
+
   const loadedRef = useRef(false);
   const userIdRef = useRef(null);
   const migratedRef = useRef(false); // legacy metadata->table migration ran this session
@@ -176,6 +195,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     if (uid) {
       setRealityLog(getRealityChecks(uid).map(rcRowToUI));
       setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+      setTarget(getCalcTarget(uid));
     }
 
     if (loadedRef.current) return;
@@ -315,6 +335,90 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     setTimeout(() => setSnapMsg(false), 2500);
   }
 
+  // ── Target handlers (build 56) ───────────────────────────────────
+  // Seed the edit form from the saved target (in display units) or blank.
+  function beginEditTarget() {
+    if (target) {
+      setTgtWeight(target.target_weight_kg != null ? String(Math.round(toDisplayW(target.target_weight_kg) * 10) / 10) : '');
+      setTgtBF(target.target_body_fat_pct != null ? String(target.target_body_fat_pct) : '');
+      setTgtDate(target.target_date || null);
+    } else {
+      setTgtWeight(''); setTgtBF(''); setTgtDate(null);
+    }
+    setTargetEditing(true);
+  }
+
+  // Persist the target in CANONICAL units (kg, %). start_* is captured once (the
+  // value when first set) and kept on later edits — it anchors progress and the
+  // goal direction, so an overshoot reads as "reached", not "moving away".
+  function saveTarget() {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const tw = num(tgtWeight);
+    const tb = num(tgtBF);
+    const targetWeightKg = tw == null ? null : (unit === 'imperial' ? lbToKg(tw) : tw);
+    if (targetWeightKg == null && tb == null) { setTargetEditing(false); return; }
+    const startW = target?.start_weight_kg != null ? target.start_weight_kg : currentWeightKg;
+    const startB = target?.start_body_fat_pct != null ? target.start_body_fat_pct : currentBF;
+    upsertCalcTarget(uid, {
+      entry_date: target?.entry_date || todayISO(),
+      target_weight_kg: targetWeightKg,
+      target_body_fat_pct: tb,
+      target_date: tgtDate || null,
+      start_date: target?.start_date || todayISO(),
+      start_weight_kg: startW ?? null,
+      start_body_fat_pct: startB ?? null,
+    });
+    requestSync?.();
+    setTarget(getCalcTarget(uid));
+    setTargetEditing(false);
+  }
+
+  function clearTargetConfirm() {
+    Alert.alert(t('cal_tgt_clear_title'), t('cal_tgt_clear_body'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('cal_tgt_clear_confirm'), style: 'destructive', onPress: () => {
+        const uid = userIdRef.current; if (!uid) return;
+        clearCalcTarget(uid); requestSync?.();
+        setTarget(null); setTargetEditing(false);
+      } },
+    ]);
+  }
+
+  // Backfill a past weigh-in → a dated snapshot (weight + optional BF). Merges
+  // with any existing snapshot for that date so waist/derived fields are never
+  // wiped (the "never lose user data" rule). This seeds the measured rate sooner.
+  function saveBackfillWeighIn() {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const w = num(bfWeight);
+    if (w == null || !bfDate) return;
+    const weightKg = unit === 'imperial' ? lbToKg(w) : w;
+    const bfv = num(bfBodyFat);
+    const existing = snapshots.find(sn => sn.date === bfDate);
+    upsertCalcSnapshot(uid, {
+      entry_date: bfDate,
+      weight_kg: weightKg,
+      waist_cm: existing?.waistCm ?? null,
+      body_fat_pct: bfv != null ? bfv : (existing?.bodyFatPct ?? null),
+      lbm: existing?.lbm ?? null, bmr: existing?.bmr ?? null, tdee: existing?.tdee ?? null,
+    });
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    setBfWeight(''); setBfBodyFat(''); setBfDate(todayISO());
+    setBfMsg(true); setTimeout(() => setBfMsg(false), 2500);
+  }
+
+  // ETA weeks → { weeks, when } where `when` is the projected finish month.
+  function fmtEta(weeks) {
+    if (weeks == null || !Number.isFinite(weeks)) return null;
+    const w = Math.max(1, Math.round(weeks));
+    const done = new Date(); done.setDate(done.getDate() + w * 7);
+    const sameYear = done.getFullYear() === new Date().getFullYear();
+    const when = done.toLocaleDateString(locale, { month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+    return { weeks: w, when };
+  }
+
   const chartSeries = useMemo(() => {
     const toW = kg => unit === 'imperial' ? kgToLb(kg) : kg;
     const toL = cm => unit === 'imperial' ? cmToIn(cm) : cm;
@@ -327,6 +431,42 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   }, [snapshots, unit]);
 
   const snapPointCount = chartSeries.reduce((n, sr) => Math.max(n, sr.points.length), 0);
+
+  // ── Target projection (build 56) ─────────────────────────────────
+  // Latest measured value per metric (most recent weigh-in; falls back to the
+  // current calculator input so a brand-new user still sees current-vs-target).
+  const latestSnap = useMemo(() => {
+    if (!snapshots.length) return null;
+    return [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1))[snapshots.length - 1];
+  }, [snapshots]);
+  const currentWeightKg = latestSnap?.weightKg != null ? latestSnap.weightKg : metric.weightKg;
+  const currentBF = latestSnap?.bodyFatPct != null ? latestSnap.bodyFatPct : (isUnknown ? null : num(bodyFat));
+
+  // Measured weekly rate for each metric, from the dated weigh-in series (so a
+  // backfilled past weigh-in counts). Weight is canonical kg; BF is %.
+  const weightRate = useMemo(
+    () => seriesRatePerWeek(snapshots.filter(x => x.weightKg != null).map(x => ({ date: x.date, value: x.weightKg }))),
+    [snapshots]
+  );
+  const bfRate = useMemo(
+    () => seriesRatePerWeek(snapshots.filter(x => x.bodyFatPct != null).map(x => ({ date: x.date, value: x.bodyFatPct }))),
+    [snapshots]
+  );
+
+  const weightProj = useMemo(() => {
+    if (!target || target.target_weight_kg == null) return null;
+    return targetProjection({
+      current: currentWeightKg, target: target.target_weight_kg, start: target.start_weight_kg,
+      ratePerWeek: weightRate?.ratePerWeek ?? null, kind: 'weight',
+    });
+  }, [target, currentWeightKg, weightRate]);
+  const bfProj = useMemo(() => {
+    if (!target || target.target_body_fat_pct == null) return null;
+    return targetProjection({
+      current: currentBF, target: target.target_body_fat_pct, start: target.start_body_fat_pct,
+      ratePerWeek: bfRate?.ratePerWeek ?? null, kind: 'bodyfat',
+    });
+  }, [target, currentBF, bfRate]);
 
   // A one-line "since your first snapshot" delta for the overview panel.
   const progressSummary = useMemo(() => {
@@ -522,6 +662,49 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
       {right ? <View style={s.shRight}>{right}</View> : null}
     </View>
   );
+
+  // One metric row inside the target card: current → target, a progress bar, and
+  // a direction-aware status (ETA / reached / moving away / no rate yet). All
+  // display math; never advisory.
+  const renderTargetMetric = (kind, proj, curCanon, targetCanon, rateInfo) => {
+    const isW = kind === 'weight';
+    const unitLabel = isW ? wUnit : '%';
+    const disp = v => v == null ? null : (isW ? Math.round(toDisplayW(v) * 10) / 10 : Math.round(v * 10) / 10);
+    const cur = disp(curCanon);
+    const tgt = disp(targetCanon);
+    const startCanon = isW ? target.start_weight_kg : target.start_body_fat_pct;
+    let frac = null;
+    if (startCanon != null && curCanon != null && targetCanon != null && startCanon !== targetCanon) {
+      frac = Math.max(0, Math.min(1, (startCanon - curCanon) / (startCanon - targetCanon)));
+    }
+    const eta = proj.state === 'eta' ? fmtEta(proj.etaWeeks) : null;
+    return (
+      <View style={s.tgtMetric} key={kind}>
+        <View style={s.tgtMetricHead}>
+          <Text style={s.tgtMetricLabel}>{isW ? t('cal_snap_weight') : t('cal_snap_bodyfat')}</Text>
+          <Text style={s.tgtMetricNums}>{cur ?? '—'} → {tgt ?? '—'} {unitLabel}</Text>
+        </View>
+        {frac != null ? (
+          <View style={s.tgtBar}><View style={[s.tgtBarFill, { width: `${Math.round(frac * 100)}%` }]} /></View>
+        ) : null}
+        {proj.state === 'reached' ? (
+          <Text style={s.tgtReached}>{t('cal_tgt_reached')}</Text>
+        ) : proj.state === 'eta' && eta ? (
+          <Text style={s.tgtEta}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
+        ) : proj.state === 'away' ? (
+          <Text style={s.tgtAway}>{t('cal_tgt_away')}</Text>
+        ) : (
+          <Text style={s.tgtNoRate}>{t('cal_tgt_no_rate')}</Text>
+        )}
+        {proj.state === 'eta' && rateInfo ? (
+          <Text style={s.tgtBasis}>{t('cal_tgt_basis').replace('{from}', fmtDate(rateInfo.firstDate)).replace('{to}', fmtDate(rateInfo.lastDate))}</Text>
+        ) : null}
+        {isW && plan?.healthyRange ? (
+          <Text style={s.tgtFact}>{t('cal_tgt_healthy').replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min)))).replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max)))).replace('{unit}', wUnit)}</Text>
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
@@ -776,6 +959,36 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             ) : (
               <Text style={s.premSub}>{t('cal_snap_need_more')}</Text>
             )}
+            {/* Backfill a past weigh-in — for someone who started before installing.
+                Writes a dated snapshot so the measured rate (and the target ETA)
+                can appear without waiting weeks. */}
+            <TouchableOpacity onPress={() => setBfOpen(o => !o)} activeOpacity={0.7}>
+              <Text style={s.tgtBackfillLink}>{bfOpen ? t('cal_tgt_backfill_hide') : t('cal_tgt_backfill_add')}</Text>
+            </TouchableOpacity>
+            {bfOpen ? (
+              <View style={s.bfForm}>
+                <Text style={s.premSub}>{t('cal_tgt_backfill_hint')}</Text>
+                <Text style={s.inputLabelSm}>{t('cal_tgt_backfill_date')}</Text>
+                <TouchableOpacity style={s.input} onPress={() => setShowBfDatePicker(true)} activeOpacity={0.7}>
+                  <Text style={{ color: colors.text, fontSize: 16 }}>{fmtDate(bfDate)}</Text>
+                </TouchableOpacity>
+                {showBfDatePicker ? (
+                  <DateTimePicker
+                    value={new Date(bfDate + 'T12:00:00')}
+                    mode="date"
+                    maximumDate={new Date()}
+                    onChange={(e, d) => { setShowBfDatePicker(false); if (d) setBfDate(d.toISOString().split('T')[0]); }}
+                  />
+                ) : null}
+                <Text style={s.inputLabelSm}>{t('cal_snap_weight')} ({wUnit})</Text>
+                <TextInput style={s.input} value={bfWeight} onChangeText={setBfWeight} keyboardType="decimal-pad" placeholderTextColor={colors.textMuted} />
+                <Text style={s.inputLabelSm}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
+                <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholderTextColor={colors.textMuted} />
+                <TouchableOpacity style={[s.computeBtn, !num(bfWeight) && s.computeBtnDisabled]} onPress={saveBackfillWeighIn} disabled={!num(bfWeight)}>
+                  <Text style={s.computeBtnText}>{bfMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_tgt_backfill_save')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           </>
         ) : (
           <View style={s.locked}>
@@ -783,6 +996,63 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
               <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
             </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Personal target (premium) — a weight and/or body-fat goal with an honest,
+          direction-aware ETA projected from the measured rate. Never advisory. */}
+      <View style={s.premCard}>
+        <View style={s.tgtHead}>
+          <Text style={s.premTitle}>{t('cal_tgt_title')}</Text>
+          {premium && target && !targetEditing ? (
+            <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7}><Text style={s.tgtEdit}>{t('cal_tgt_edit')}</Text></TouchableOpacity>
+          ) : null}
+        </View>
+        <Text style={s.premSub}>{t('cal_tgt_sub')}</Text>
+
+        {!premium ? (
+          <View style={s.locked}>
+            <Text style={s.lockedText}>{t('cal_premium_locked')}</Text>
+            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
+              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (targetEditing || !target) ? (
+          <View style={{ marginTop: 8 }}>
+            <Text style={s.inputLabelSm}>{t('cal_tgt_weight')} ({wUnit})</Text>
+            <TextInput style={s.input} value={tgtWeight} onChangeText={setTgtWeight} keyboardType="decimal-pad" placeholder={t('cal_tgt_optional')} placeholderTextColor={colors.textMuted} />
+            <Text style={s.inputLabelSm}>{t('cal_tgt_bodyfat')} (%)</Text>
+            <TextInput style={s.input} value={tgtBF} onChangeText={setTgtBF} keyboardType="decimal-pad" placeholder={t('cal_tgt_optional')} placeholderTextColor={colors.textMuted} />
+            <Text style={s.inputLabelSm}>{t('cal_tgt_date')}</Text>
+            <TouchableOpacity style={s.input} onPress={() => setShowTgtDatePicker(true)} activeOpacity={0.7}>
+              <Text style={{ color: tgtDate ? colors.text : colors.textMuted, fontSize: 16 }}>{tgtDate ? fmtDate(tgtDate) : t('cal_tgt_no_date')}</Text>
+            </TouchableOpacity>
+            {tgtDate ? (
+              <TouchableOpacity onPress={() => setTgtDate(null)} activeOpacity={0.7}><Text style={s.tgtClearDate}>{t('cal_tgt_remove_date')}</Text></TouchableOpacity>
+            ) : null}
+            {showTgtDatePicker ? (
+              <DateTimePicker
+                value={tgtDate ? new Date(tgtDate + 'T12:00:00') : new Date()}
+                mode="date"
+                minimumDate={new Date()}
+                onChange={(e, d) => { setShowTgtDatePicker(false); if (d) setTgtDate(d.toISOString().split('T')[0]); }}
+              />
+            ) : null}
+            <View style={s.tgtBtnRow}>
+              <TouchableOpacity style={[s.computeBtn, { flex: 1, marginTop: 0 }]} onPress={saveTarget}><Text style={s.computeBtnText}>{t('save')}</Text></TouchableOpacity>
+              {target ? (
+                <TouchableOpacity style={s.tgtBtnGhost} onPress={() => setTargetEditing(false)} activeOpacity={0.7}><Text style={s.tgtGhostText}>{t('cancel')}</Text></TouchableOpacity>
+              ) : null}
+            </View>
+            {target ? (
+              <TouchableOpacity onPress={clearTargetConfirm} activeOpacity={0.7}><Text style={s.tgtRemove}>{t('cal_tgt_remove')}</Text></TouchableOpacity>
+            ) : null}
+          </View>
+        ) : (
+          <View style={{ marginTop: 4 }}>
+            {weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, weightRate) : null}
+            {bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, bfRate) : null}
           </View>
         )}
       </View>
@@ -1094,6 +1364,29 @@ const makeStyles = (c) => StyleSheet.create({
   lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
   lockedBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
   lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  // Target card (build 56)
+  inputLabelSm: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 12, marginBottom: 6 },
+  tgtHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  tgtEdit: { fontSize: 13, fontWeight: '600', color: c.accent },
+  tgtBtnRow: { flexDirection: 'row', gap: 10, marginTop: 16, alignItems: 'center' },
+  tgtBtnGhost: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, borderWidth: 0.5, borderColor: c.border },
+  tgtGhostText: { color: c.textMuted, fontSize: 14, fontWeight: '600' },
+  tgtRemove: { color: c.danger || c.warning, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 14 },
+  tgtClearDate: { color: c.accent, fontSize: 12, fontWeight: '600', marginTop: 6 },
+  tgtMetric: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
+  tgtMetricHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  tgtMetricLabel: { fontSize: 13, fontWeight: '700', color: c.text },
+  tgtMetricNums: { fontSize: 15, fontWeight: '700', color: c.accent, fontVariant: ['tabular-nums'] },
+  tgtBar: { height: 8, borderRadius: 4, backgroundColor: c.border, marginTop: 10, overflow: 'hidden' },
+  tgtBarFill: { height: 8, borderRadius: 4, backgroundColor: c.accent },
+  tgtEta: { fontSize: 14, fontWeight: '700', color: c.text, marginTop: 8 },
+  tgtReached: { fontSize: 14, fontWeight: '700', color: c.success || c.accent, marginTop: 8 },
+  tgtAway: { fontSize: 13, color: c.warning, marginTop: 8, lineHeight: 18 },
+  tgtNoRate: { fontSize: 13, color: c.textMuted, marginTop: 8, lineHeight: 18 },
+  tgtBasis: { fontSize: 11, color: c.textMuted, marginTop: 4 },
+  tgtFact: { fontSize: 11, color: c.textMuted, marginTop: 4, lineHeight: 15 },
+  tgtBackfillLink: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 14 },
+  bfForm: { marginTop: 8, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
   srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, ...c.shadowSoft },
   srcText: { flex: 1 },
   srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },

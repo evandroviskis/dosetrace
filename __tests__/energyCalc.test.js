@@ -184,3 +184,85 @@ test('energyPlan: BF-known (Katch) path still produces BMI + healthy range from 
   assert.ok(plan.bmi > 0, 'BMI must be computed on the Katch path (needs height)');
   assert.ok(plan.healthyRange && plan.healthyRange.min > 0, 'healthy range needs height');
 });
+
+// ── Personal target projection (build 56) ───────────────────────────
+const {
+  targetProjection, seriesRatePerWeek, daysBetweenISO,
+} = require('../lib/energyCalc');
+
+test('targetProjection: loss goal, losing → positive ETA (F1 sign)', () => {
+  // 90 → 82, losing 1 kg/week (rate +1 = falling). 8 kg / 1 = 8 weeks.
+  const r = targetProjection({ current: 90, target: 82, start: 95, ratePerWeek: 1, kind: 'weight' });
+  assert.equal(r.state, 'eta');
+  approx(r.etaWeeks, 8, 0.01);
+});
+
+test('targetProjection: gain goal, gaining → positive ETA (F1 sign flip)', () => {
+  // 70 → 76, gaining (rate −0.5 = rising 0.5/wk). 6 / 0.5 = 12 weeks, NOT negative.
+  const r = targetProjection({ current: 70, target: 76, start: 68, ratePerWeek: -0.5, kind: 'weight' });
+  assert.equal(r.state, 'eta');
+  approx(r.etaWeeks, 12, 0.01);
+});
+
+test('targetProjection: targeting loss while GAINING → away, no ETA (F1)', () => {
+  const r = targetProjection({ current: 90, target: 82, start: 95, ratePerWeek: -0.8, kind: 'weight' });
+  assert.equal(r.state, 'away');
+  assert.equal(r.etaWeeks, null);
+});
+
+test('targetProjection: near-zero / maintenance rate → no_rate, never a giant ETA (F2)', () => {
+  assert.equal(targetProjection({ current: 90, target: 82, ratePerWeek: 0.01, kind: 'weight' }).state, 'no_rate');
+  assert.equal(targetProjection({ current: 90, target: 82, ratePerWeek: 0, kind: 'weight' }).state, 'no_rate');
+  assert.equal(targetProjection({ current: 90, target: 82, ratePerWeek: null, kind: 'weight' }).state, 'no_rate');
+});
+
+test('targetProjection: already at/past target → reached, no ETA (F7)', () => {
+  assert.equal(targetProjection({ current: 82.1, target: 82, start: 95, ratePerWeek: 1, kind: 'weight' }).state, 'reached'); // within band
+  assert.equal(targetProjection({ current: 80, target: 82, start: 95, ratePerWeek: 1, kind: 'weight' }).state, 'reached');  // past it (lower)
+});
+
+test('targetProjection: missing current or target → no_rate (F3)', () => {
+  assert.equal(targetProjection({ current: null, target: 82, ratePerWeek: 1 }).state, 'no_rate');
+  assert.equal(targetProjection({ current: 90, target: null, ratePerWeek: 1 }).state, 'no_rate');
+});
+
+test('targetProjection: body-fat uses its own band', () => {
+  // 25% → 18%, dropping 0.5%/wk → 14 weeks.
+  const r = targetProjection({ current: 25, target: 18, start: 26, ratePerWeek: 0.5, kind: 'bodyfat' });
+  assert.equal(r.state, 'eta');
+  approx(r.etaWeeks, 14, 0.01);
+});
+
+test('seriesRatePerWeek: first vs last, positive = went down (F4/backfill)', () => {
+  const r = seriesRatePerWeek([
+    { date: '2026-07-01', value: 95 },
+    { date: '2026-07-15', value: 93 }, // 2 kg over 14 days = 1 kg/week
+  ]);
+  approx(r.ratePerWeek, 1, 0.01);
+  assert.equal(r.days, 14);
+  assert.equal(r.firstDate, '2026-07-01');
+  assert.equal(r.lastDate, '2026-07-15');
+});
+
+test('seriesRatePerWeek: <2 points or zero window → null (no fake rate)', () => {
+  assert.equal(seriesRatePerWeek([{ date: '2026-07-01', value: 95 }]), null);
+  assert.equal(seriesRatePerWeek([]), null);
+  assert.equal(seriesRatePerWeek([
+    { date: '2026-07-01', value: 95 }, { date: '2026-07-01', value: 94 },
+  ]), null); // same day
+});
+
+test('seriesRatePerWeek: unsorted input is ordered by date', () => {
+  const r = seriesRatePerWeek([
+    { date: '2026-07-15', value: 93 },
+    { date: '2026-07-01', value: 95 },
+  ]);
+  approx(r.ratePerWeek, 1, 0.01);
+  assert.equal(r.firstDate, '2026-07-01');
+});
+
+test('daysBetweenISO: whole days, DST-safe', () => {
+  assert.equal(daysBetweenISO('2026-03-01', '2026-03-15'), 14);
+  assert.equal(daysBetweenISO('2026-07-01', '2026-07-01'), 0);
+  assert.equal(daysBetweenISO(null, '2026-07-01'), null);
+});
