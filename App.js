@@ -406,6 +406,7 @@ export default function App() {
           if (localUid && localUid !== session.user.id) {
             clearLocalDatabase();
             AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+            cancelAllNotifications().catch(() => {}); // symmetry with SIGNED_IN — don't let the prior user's dose reminders fire
           }
         } catch { /* ignore */ }
 
