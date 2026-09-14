@@ -28,6 +28,7 @@ import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
 import { requestAIConsent } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
@@ -699,7 +700,9 @@ export default function BodyScreen({ navigation, route }) {
                 <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
                 <Text style={s.hubCardStat}>{t('curve_title')}</Text>
               </View>
-              <Text style={s.hubCardChevron}>{premium ? '›' : '🔒'}</Text>
+              {premium
+                ? <Text style={s.hubCardChevron}>›</Text>
+                : <View style={{ marginLeft: 8 }}><FeatureIcon name="lock" size={18} color={colors.textFaint} /></View>}
             </TouchableOpacity>
 
             <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
@@ -716,7 +719,14 @@ export default function BodyScreen({ navigation, route }) {
         <View style={s.headerActions}>
           {(section === 'labs' || section === 'vaccines') && (
             <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>
-              <Text style={s.exportBtnText}>{exporting ? '…' : `⬆ ${t('export_records')}`}</Text>
+              {exporting ? (
+                <Text style={s.exportBtnText}>…</Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <FeatureIcon name="arrow_up" size={14} color={colors.accent} />
+                  <Text style={s.exportBtnText}>{t('export_records')}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           )}
           {section === 'labs' && (
@@ -759,7 +769,7 @@ export default function BodyScreen({ navigation, route }) {
 
         {rows.length === 0 && !loading && (
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>🩸</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="droplet" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('blood_empty_title')}</Text>
             <Text style={s.emptySub}>
               {t('blood_empty_sub')}
@@ -974,7 +984,7 @@ export default function BodyScreen({ navigation, route }) {
 
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
             <View style={s.upgradeHero}>
-              <Text style={s.upgradeIcon}>🩸</Text>
+              <View style={s.upgradeIcon}><FeatureIcon name="droplet" size={48} color={colors.accent} /></View>
               <Text style={s.upgradeTitle}>{t('blood_upgrade_title')}</Text>
               <Text style={s.upgradeSub}>
                 {t('blood_upgrade_sub')}
@@ -1041,8 +1051,9 @@ export default function BodyScreen({ navigation, route }) {
             </Text>
 
             <Text style={s.editLabel}>{t('blood_edit_date')}</Text>
-            <TouchableOpacity style={s.editDateBtn} onPress={() => setConfirmDatePicker(v => !v)}>
-              <Text style={s.editDateText}>📅  {reportDate ? formatDate(reportDate) : '—'}</Text>
+            <TouchableOpacity style={[s.editDateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setConfirmDatePicker(v => !v)}>
+              <FeatureIcon name="calendar" size={15} color={colors.text} />
+              <Text style={s.editDateText}>{reportDate ? formatDate(reportDate) : '—'}</Text>
             </TouchableOpacity>
             {confirmDatePicker && (
               <DateTimePicker
@@ -1199,8 +1210,9 @@ export default function BodyScreen({ navigation, route }) {
               </View>
             </View>
             <Text style={s.editLabel}>{t('blood_edit_date')}</Text>
-            <TouchableOpacity style={s.editDateBtn} onPress={() => setMDatePicker(v => !v)}>
-              <Text style={s.editDateText}>📅  {mDate ? formatDate(mDate) : '—'}</Text>
+            <TouchableOpacity style={[s.editDateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setMDatePicker(v => !v)}>
+              <FeatureIcon name="calendar" size={15} color={colors.text} />
+              <Text style={s.editDateText}>{mDate ? formatDate(mDate) : '—'}</Text>
             </TouchableOpacity>
             {mDatePicker && (
               <DateTimePicker

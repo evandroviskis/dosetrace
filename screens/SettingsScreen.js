@@ -22,6 +22,7 @@ import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
 import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
@@ -548,7 +549,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔔</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
@@ -562,7 +563,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>💬</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
                 <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
@@ -576,7 +577,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>⚗️</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
                 <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
@@ -590,7 +591,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔇</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_silent')}</Text>
                 <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
@@ -604,7 +605,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={[s.row, { borderBottomWidth: 0 }]}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔁</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
                 <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
@@ -625,28 +626,28 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔒</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📋</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_terms')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🛡️</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📊</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
                 <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
@@ -664,7 +665,7 @@ export default function SettingsScreen({ navigation }) {
             disabled={exporting}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📈</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
@@ -678,7 +679,7 @@ export default function SettingsScreen({ navigation }) {
             disabled={exporting}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📥</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
@@ -695,14 +696,14 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>❓</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_faq')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleContactSupport}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>💌</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_contact')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
@@ -712,7 +713,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={handleRateApp}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>⭐</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_rate')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
@@ -750,7 +751,7 @@ export default function SettingsScreen({ navigation }) {
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
                       >
-                        <Text style={{ fontSize: 17 }}>🗑️</Text>
+                        <FeatureIcon name="trash" size={17} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -767,7 +768,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🎨</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
             </View>
             <View style={s.themePillRow}>
@@ -788,7 +789,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🕐</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
             </View>
             <View style={s.themePillRow}>
@@ -809,7 +810,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🌐</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_language')}</Text>
                 <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
@@ -819,7 +820,7 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🚪</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_signout')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
@@ -829,7 +830,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={handleDeleteAccount}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🗑️</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
               <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
             </View>
             <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
@@ -1154,6 +1155,7 @@ const makeStyles = (c) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
+  rowIconBox: { width: 28, alignItems: 'center' },
   rowLabel: { fontSize: 14, color: c.text },
   rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
   rowArrow: { fontSize: 18, color: c.textFaint },

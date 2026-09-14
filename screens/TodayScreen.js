@@ -33,6 +33,7 @@ import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExp
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import Svg, { Circle } from 'react-native-svg';
 import {
@@ -736,7 +737,7 @@ export default function TodayScreen() {
       remind.setDate(remind.getDate() + REALITY_CHECK_DAYS);
       const due = nowMs >= remind.getTime();
       list.push({
-        id: 'reality_check', icon: '⚖️', due,
+        id: 'reality_check', iconName: 'type_glp1', due,
         title: t('today_alert_rc_title'),
         body: due ? t('today_alert_rc_due')
           : t('today_alert_rc_when').replace('{date}', `${t(MONTH_KEYS[remind.getMonth()])} ${remind.getDate()}`),
@@ -749,7 +750,7 @@ export default function TodayScreen() {
       const days = Math.floor((nowMs - new Date(latestLabDate + 'T12:00:00').getTime()) / 86400000);
       if (days >= BLOODWORK_INTERVAL_DAYS) {
         list.push({
-          id: 'bloodwork_due', icon: '🩸', due: true,
+          id: 'bloodwork_due', iconName: 'droplet', due: true,
           title: t('today_alert_blood_title'),
           body: t('today_alert_blood_body').replace('{months}', String(Math.max(6, Math.round(days / 30)))),
           onPress: () => navigation.navigate('Body', { initialSection: 'labs' }),
@@ -773,7 +774,7 @@ export default function TodayScreen() {
       if (low.length) {
         low.sort((a, b) => a.rem - b.rem);
         list.push({
-          id: 'supply_low', icon: '💉', due: true,
+          id: 'supply_low', iconName: 'syringe', due: true,
           title: t('today_alert_supply_title'),
           body: low.length === 1
             ? t('today_alert_supply_one').replace('{name}', low[0].name).replace('{n}', String(low[0].rem))
@@ -810,7 +811,7 @@ export default function TodayScreen() {
               : t('today_alert_vial_expiry_one').replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
           : t('today_alert_vial_expiry_many').replace('{count}', String(exp.length));
         list.push({
-          id: 'vial_expiry', icon: '⏳', due: true,
+          id: 'vial_expiry', iconName: 'clock', due: true,
           title: t('today_alert_vial_title'), body,
           onPress: () => navigation.navigate('Protocols'),
           onRemove: () => snoozeAlert('vial_expiry'),
@@ -916,7 +917,7 @@ export default function TodayScreen() {
         >
           <View style={[s.doseDot, { backgroundColor: p.color || colors.accent }]} />
           <View style={s.doseInfo}>
-            <Text style={s.doseName}>{due && '🔥 '}{p.compound_id ? t(p.compound_id) : p.name}</Text>
+            <Text style={s.doseName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
             <Text style={s.doseMeta}>
               {p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}
             </Text>
@@ -936,7 +937,7 @@ export default function TodayScreen() {
             ) : null}
             {pStreak > 0 && (
               <View style={s.miniStreak}>
-                <Text style={s.miniStreakText}>🔥 {pStreak}</Text>
+                <Text style={s.miniStreakText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
               </View>
             )}
           </View>
@@ -1034,7 +1035,7 @@ export default function TodayScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         <View style={s.header}>
           <Text style={s.date}>{today}</Text>
-          <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''} 👋</Text>
+          <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''}</Text>
           <Text style={s.sub}>
             {totalCount === 0
               ? t('today_no_protocols')
@@ -1080,9 +1081,6 @@ export default function TodayScreen() {
           >
             <View style={s.streakTop}>
               <View style={s.streakLeft}>
-                <View style={s.streakFireTile}>
-                  <Text style={s.streakFire}>{streak > 0 ? '🔥' : '💤'}</Text>
-                </View>
                 <View>
                   <Text style={s.streakCount}>
                     {streak > 0
@@ -1137,7 +1135,7 @@ export default function TodayScreen() {
               <View key={a.id} style={s.alertCard}>
                 <TouchableOpacity style={s.alertMain} activeOpacity={0.7} onPress={a.onPress}>
                   <View style={[s.alertIconTile, a.due && s.alertIconTileDue]}>
-                    <Text style={s.alertIcon}>{a.icon}</Text>
+                    <FeatureIcon name={a.iconName} size={22} color={a.due ? colors.warningSoftText : colors.accentSoftText} />
                   </View>
                   <View style={s.alertTextWrap}>
                     <Text style={s.alertTitle}>{a.title}</Text>
@@ -1172,7 +1170,6 @@ export default function TodayScreen() {
         {showShareCard && protocols.length > 0 && (
           <View style={s.shareCard}>
             <View style={s.shareCardInner}>
-              <Text style={s.shareEmoji}>{streak >= 7 ? '🔥' : streak > 0 ? '💪' : '🎯'}</Text>
               <Text style={s.shareTitle}>
                 {streak > 0
                   ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}`
@@ -1222,7 +1219,7 @@ export default function TodayScreen() {
 
         {protocols.length === 0 && !loading && (
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>💉</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="syringe" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('today_empty_title')}</Text>
             <Text style={s.emptySub}>{t('today_empty_sub')}</Text>
             <View style={s.tipBox}>

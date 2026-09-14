@@ -22,6 +22,7 @@ import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry } from '../lib/halfLives';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { isPremium } from '../lib/purchases';
 
@@ -308,7 +309,7 @@ export default function SerumCurveScreen() {
 
       {protocols.length === 0 ? (
         <View style={s.emptyWrap}>
-          <Text style={s.emptyIcon}>📈</Text>
+          <View style={s.emptyIcon}><FeatureIcon name="curve" size={44} color={colors.textMuted} /></View>
           <Text style={s.emptyTitle}>{t('curve_empty_title')}</Text>
           <Text style={s.emptySub}>{t('curve_empty_sub')}</Text>
         </View>
@@ -506,9 +507,10 @@ export default function SerumCurveScreen() {
           {/* ── Estimate on a date (cross-reference a blood draw) ── */}
           <View style={s.readoutCard}>
             <Text style={s.readoutTitle}>{t('curve_readout_title')}</Text>
-            <TouchableOpacity style={s.readoutDateBtn} onPress={() => setShowReadoutPicker(v => !v)}>
+            <TouchableOpacity style={[s.readoutDateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setShowReadoutPicker(v => !v)}>
+              <FeatureIcon name="calendar" size={15} color={colors.text} />
               <Text style={s.readoutDateText}>
-                📅  {new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                {new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </Text>
             </TouchableOpacity>
             {showReadoutPicker && (
@@ -534,11 +536,12 @@ export default function SerumCurveScreen() {
                     return (
                       <TouchableOpacity
                         key={d}
-                        style={[s.labChip, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+                        style={[s.labChip, { flexDirection: 'row', alignItems: 'center', gap: 5 }, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
                         onPress={() => setReadoutDate(d)}
                       >
+                        <FeatureIcon name="droplet" size={12} color={on ? colors.accentText : colors.text} />
                         <Text style={[s.labChipText, on && { color: colors.accentText }]}>
-                          🩸 {new Date(d + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' })}
+                          {new Date(d + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' })}
                         </Text>
                       </TouchableOpacity>
                     );

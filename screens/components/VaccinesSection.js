@@ -25,6 +25,7 @@ import { requestAIConsent } from '../../lib/aiConsent';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import FeatureIcon from '../../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
 import { requestSync } from '../../lib/sync';
@@ -312,7 +313,14 @@ export default function VaccinesSection() {
             <Text style={s.actionPrimaryText}>＋ {t('vax_add')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.actionBtn, s.actionSecondary]} onPress={handleScanPress} disabled={uploading}>
-            <Text style={s.actionSecondaryText}>{uploading ? '…' : `📷 ${t('vax_scan')}`}</Text>
+            {uploading ? (
+              <Text style={s.actionSecondaryText}>…</Text>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <FeatureIcon name="scan" size={15} color={colors.accent} />
+                <Text style={s.actionSecondaryText}>{t('vax_scan')}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -337,7 +345,7 @@ export default function VaccinesSection() {
 
         {list.length === 0 && (
           <View style={s.empty}>
-            <Text style={s.emptyIcon}>💉</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="syringe" size={44} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('vax_empty_title')}</Text>
             <Text style={s.emptySub}>{t('vax_empty_sub')}</Text>
           </View>
@@ -397,8 +405,9 @@ export default function VaccinesSection() {
             />
 
             <Text style={s.fieldLabel}>{t('vax_date_given')}</Text>
-            <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor(pickerFor === 'given' ? null : 'given')}>
-              <Text style={s.dateBtnText}>📅  {formatDate(dateGiven)}</Text>
+            <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setPickerFor(pickerFor === 'given' ? null : 'given')}>
+              <FeatureIcon name="calendar" size={15} color={colors.text} />
+              <Text style={s.dateBtnText}>{formatDate(dateGiven)}</Text>
             </TouchableOpacity>
             {pickerFor === 'given' && (
               <DateTimePicker
@@ -422,9 +431,10 @@ export default function VaccinesSection() {
                 </TouchableOpacity>
               ) : null}
             </View>
-            <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor(pickerFor === 'due' ? null : 'due')}>
+            <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setPickerFor(pickerFor === 'due' ? null : 'due')}>
+              {nextDue ? <FeatureIcon name="calendar" size={15} color={colors.text} /> : null}
               <Text style={s.dateBtnText}>
-                {nextDue ? `📅  ${formatDate(nextDue)}` : t('vax_next_due_none')}
+                {nextDue ? formatDate(nextDue) : t('vax_next_due_none')}
               </Text>
             </TouchableOpacity>
             {pickerFor === 'due' && (

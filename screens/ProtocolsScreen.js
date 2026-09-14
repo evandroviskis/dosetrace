@@ -265,7 +265,10 @@ function ProtocolSyringeGuide({ p, t }) {
         </View>
         <View style={s.syringeNeedle} />
       </View>
-      <Text style={s.syringeZoomHint}>🔍 {t('protocols_syringe_zoom_hint')}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 2, marginBottom: 2 }}>
+        <FeatureIcon name="search" size={11} color={colors.accent} />
+        <Text style={[s.syringeZoomHint, { marginTop: 0, marginBottom: 0 }]}>{t('protocols_syringe_zoom_hint')}</Text>
+      </View>
       </TouchableOpacity>
       <View style={s.syringeInfo}>
         <View style={s.syringeInfoItem}>
@@ -515,8 +518,9 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           )}
           <View style={s.badgeRow}>
             {lowSupply && (
-              <View style={s.badgeLow}>
-                <Text style={s.badgeLowText}>⚠️ {t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
+              <View style={[s.badgeLow, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                <FeatureIcon name="warning" size={10} color={colors.dangerSoftText} />
+                <Text style={s.badgeLowText}>{t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
               </View>
             )}
             <View style={[s.badge, { backgroundColor: badge.bg }]}>
@@ -1484,7 +1488,7 @@ export default function ProtocolsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {protocols.length === 0 && !loading && (
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>🧪</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="type_vial" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
             <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
@@ -2153,8 +2157,9 @@ export default function ProtocolsScreen() {
                 )}
 
                 <Text style={s.fieldLabel}>{t('protocols_start_date')}</Text>
-                <TouchableOpacity style={s.dateBtn} onPress={() => setShowStartPicker(v => !v)}>
-                  <Text style={s.dateBtnText}>📅  {formatStartDate(startDate)}</Text>
+                <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setShowStartPicker(v => !v)}>
+                  <FeatureIcon name="calendar" size={15} color={colors.text} />
+                  <Text style={s.dateBtnText}>{formatStartDate(startDate)}</Text>
                 </TouchableOpacity>
                 {showStartPicker && (
                   <DateTimePicker
@@ -2249,8 +2254,9 @@ export default function ProtocolsScreen() {
                     {reminderTimes.length > 1 && (
                       <Text style={s.doseTimeLabel}>{t('protocols_dose_label')} {idx + 1}</Text>
                     )}
-                    <TouchableOpacity style={s.dateBtn} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }}>
-                      <Text style={s.dateBtnText}>⏰  {formatTimeAMPM(rt)}</Text>
+                    <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }}>
+                      <FeatureIcon name="clock" size={15} color={colors.text} />
+                      <Text style={s.dateBtnText}>{formatTimeAMPM(rt)}</Text>
                     </TouchableOpacity>
                   </View>
                 ))}

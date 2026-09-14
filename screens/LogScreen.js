@@ -191,10 +191,10 @@ export default function LogScreen() {
   }
 
   function typeIcon(type) {
-    if (type === 'recon') return '🧪';
-    if (type === 'rtu') return '💉';
-    if (type === 'oral') return '💊';
-    return '💉';
+    if (type === 'recon') return 'type_vial';
+    if (type === 'rtu') return 'syringe';
+    if (type === 'oral') return 'type_capsule';
+    return 'syringe';
   }
 
   const sections = buildSections(filteredLogs);
@@ -228,7 +228,10 @@ export default function LogScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('curve_btn')}
         >
-          <Text style={s.curveBtnText}>📈 {t('curve_btn')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <FeatureIcon name="curve" size={14} color={colors.accentText} />
+            <Text style={s.curveBtnText}>{t('curve_btn')}</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -304,11 +307,21 @@ export default function LogScreen() {
               <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
               <View style={s.logInfo}>
                 <View style={s.logNameRow}>
-                  <Text style={s.logTypeIcon}>{typeIcon(log.protocols?.type)}</Text>
+                  <FeatureIcon name={typeIcon(log.protocols?.type)} size={13} color={colors.text} />
                   <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
                 </View>
-                {log.injection_site ? <Text style={s.logDetail}>📍 {summarizeStored(log.injection_site, t) || log.injection_site}</Text> : null}
-                {log.notes ? <Text style={s.logDetail}>📝 {log.notes}</Text> : null}
+                {log.injection_site ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <FeatureIcon name="pin" size={11} color={colors.textMuted} />
+                    <Text style={[s.logDetail, { marginTop: 0 }]}>{summarizeStored(log.injection_site, t) || log.injection_site}</Text>
+                  </View>
+                ) : null}
+                {log.notes ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <FeatureIcon name="journal" size={11} color={colors.textMuted} />
+                    <Text style={[s.logDetail, { marginTop: 0 }]}>{log.notes}</Text>
+                  </View>
+                ) : null}
                 {tags.length > 0 && (
                   <View style={s.tagRow}>
                     {tags.map(tag => (
