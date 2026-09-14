@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { goalOptions } from '../lib/profileGoals';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -996,26 +997,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.editLabel}>{t('profile_goal')}</Text>
             <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8 }}>{t('profile_goal_multi_hint')}</Text>
             <View style={[s.editPillRow, { flexWrap: 'wrap' }]}>
-              {[
-                { key: 'fitness', label: t('profile_goal_fitness') },
-                { key: 'strength', label: t('profile_goal_strength') },
-                { key: 'fat_loss', label: t('profile_goal_fat_loss') },
-                { key: 'endurance', label: t('profile_goal_endurance') },
-                { key: 'body_composition', label: t('profile_goal_body') },
-                { key: 'wellness', label: t('profile_goal_wellness') },
-                { key: 'energy', label: t('profile_goal_energy') },
-                { key: 'sleep', label: t('profile_goal_sleep') },
-                { key: 'hormonal_balance', label: t('profile_goal_hormonal') },
-                { key: 'longevity', label: t('profile_goal_longevity') },
-                { key: 'immune', label: t('profile_goal_immune') },
-                { key: 'recovery', label: t('profile_goal_recovery') },
-                { key: 'skin_collagen', label: t('profile_goal_skin') },
-                { key: 'mood', label: t('profile_goal_mood') },
-                { key: 'sexual_health', label: t('profile_goal_sexual') },
-                { key: 'joint_bone', label: t('profile_goal_joint') },
-                { key: 'cardiovascular', label: t('profile_goal_cardio') },
-                { key: 'stress', label: t('profile_goal_stress') },
-              ].sort((a, b) => a.label.localeCompare(b.label)).map(g => {
+              {goalOptions(t).map(g => {
                 const selected = primaryGoals.includes(g.key);
                 return (
                   <TouchableOpacity

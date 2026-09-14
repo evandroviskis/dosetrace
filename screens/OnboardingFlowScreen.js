@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image, Animated,
-  StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler,
+  StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -9,6 +9,9 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
+import { supabase, signOutGoogleNative, missingProfileFields } from '../lib/supabase';
+import { markIntentionalSignOut } from '../lib/authIntent';
+import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
@@ -20,11 +23,16 @@ import FeatureIcon from '../components/FeatureIcon';
  * binding consent, and hands off to account creation LAST. Everything is stashed
  * (onboardingStore) and written to the account at sign-up, so there is no second
  * profile step afterward — this replaces the old 8-intro + 7-legacy = 15 screens
- * with one 9-screen flow. Returning users don't see this; App.js routes them to
- * CompleteProfileScreen for only their missing fields.
+ * with one flow.
  *
- * onDone() — called at the end; App.js flips to the auth (create-account) screen,
- * which reads the stash and creates the account. This flow never signs up itself.
+ * TWO MODES (one screen, no more separate CompleteProfileScreen):
+ *  • Pre-account (no `session`): the value-first flow. onDone() flips App.js to the
+ *    auth screen, which reads the stash and creates the account; applyPendingProfile
+ *    then writes the stash on SIGNED_IN.
+ *  • Signed-in (`session` passed): an Apple/Google sign-in or a returning account
+ *    missing required fields. Prefills from the profile, shows ONLY the missing
+ *    steps, and writes straight to the account on finish (the stash path never
+ *    fires here). Offers a sign-out escape. On save, USER_UPDATED clears the gate.
  */
 const STEPS = ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders', 'ready'];
 
@@ -36,23 +44,32 @@ const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
 
-export default function OnboardingFlowScreen({ onDone }) {
+export default function OnboardingFlowScreen({ onDone, session }) {
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
   const heroW = Math.min(420, winW - 48);
 
+  // Signed-in mode: the user already has an account (an Apple/Google sign-in, or
+  // a returning account missing required fields). We prefill from their profile,
+  // show only the steps they still need, WRITE the result straight to the account
+  // on finish, and offer a sign-out escape. No session → the original pre-account
+  // flow (stash locally → Auth → applyPendingProfile on sign-up).
+  const signedIn = !!session?.user;
+  const meta = (session && session.user && session.user.user_metadata) || {};
+  const [saving, setSaving] = useState(false);
+
   const [step, setStep] = useState(0);
-  const [goal, setGoal] = useState('');
-  const [tracking, setTracking] = useState([]);        // tracking_types (>=1 required)
-  const [name, setName] = useState('');
-  const [birthMonth, setBirthMonth] = useState(null);  // 0-11 index
-  const [birthYear, setBirthYear] = useState(null);
-  const [gender, setGender] = useState('');
-  const [country, setCountry] = useState('');
-  const [activity, setActivity] = useState('');
-  const [provider, setProvider] = useState('');
+  const [goal, setGoal] = useState(String(meta.primary_goal || '').split(',')[0] || '');
+  const [tracking, setTracking] = useState(Array.isArray(meta.tracking_types) ? meta.tracking_types : []);
+  const [name, setName] = useState(meta.display_name || '');
+  const [birthMonth, setBirthMonth] = useState(meta.birth_month != null ? meta.birth_month - 1 : null); // stored 1-based → 0-11 index
+  const [birthYear, setBirthYear] = useState(meta.birth_year != null ? meta.birth_year : null);
+  const [gender, setGender] = useState(meta.gender || '');
+  const [country, setCountry] = useState(meta.country || '');
+  const [activity, setActivity] = useState(meta.activity_level || '');
+  const [provider, setProvider] = useState(meta.has_provider != null ? String(meta.has_provider) : '');
   const [confirmed, setConfirmed] = useState({});      // consent terms
   const [showLang, setShowLang] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
@@ -76,13 +93,8 @@ export default function OnboardingFlowScreen({ onDone }) {
     return () => sub.remove();
   }, [step, showLang, showCountry]);
 
-  const GOALS = [
-    { key: 'wellness', label: t('profile_goal_wellness') },
-    { key: 'fitness', label: t('profile_goal_fitness') },
-    { key: 'body_composition', label: t('profile_goal_body') },
-    { key: 'longevity', label: t('profile_goal_longevity') },
-    { key: 'athletic', label: t('profile_goal_athletic') },
-  ];
+  // Full goal set, shared with the Settings profile editor, alphabetized.
+  const GOALS = goalOptions(t);
   const COMPOUNDS = [
     { key: 'peptides', label: t('onboarding_compound_peptides'), icon: 'type_vial' },
     { key: 'hormones', label: t('onboarding_compound_hormones'), icon: 'reconstitution' },
@@ -117,14 +129,32 @@ export default function OnboardingFlowScreen({ onDone }) {
     { key: 'ai', t: t('ob_term3_t'), d: t('ob_term3_d') },
     { key: 'priv', t: t('ob_term4_t'), d: t('ob_term4_d') },
   ];
-  const consentDone = TERMS.every((x) => confirmed[x.key]);
+  // Already-consented accounts count as done (their consent step is skipped).
+  const consentDone = TERMS.every((x) => confirmed[x.key]) || !!meta.consent_accepted;
+
+  // The steps to actually show. Pre-account: the full flow. Signed-in: only the
+  // steps whose required fields are still missing, + consent (if not recorded) +
+  // the finish screen — so a returning user fills only the gaps, a brand-new
+  // social user still sees the whole profile flow.
+  const activeSteps = useMemo(() => {
+    if (!signedIn) return STEPS;
+    const need = new Set(missingProfileFields(session.user)); // name,age,sex,country,goal,activity,tracking,provider
+    const out = [];
+    if (need.has('goal')) out.push('goal');
+    if (need.has('tracking')) out.push('tracking');
+    if (need.has('name') || need.has('age') || need.has('sex') || need.has('country')) out.push('about');
+    if (need.has('activity') || need.has('provider')) out.push('routine');
+    if (!meta.consent_accepted) out.push('consent');
+    out.push('ready');
+    return out;
+  }, [signedIn, session, meta.consent_accepted]);
 
   function toggleTracking(key) {
     setTracking((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
   }
 
   const canContinue = () => {
-    const cur = STEPS[step];
+    const cur = activeSteps[step];
     if (cur === 'goal') return !!goal;
     if (cur === 'tracking') return tracking.length > 0;
     if (cur === 'about') return !!name.trim() && !!gender && !!country && birthMonth != null && birthYear != null;
@@ -152,15 +182,52 @@ export default function OnboardingFlowScreen({ onDone }) {
   async function next() {
     if (!canContinue()) return;
     await persist();
-    if (step < STEPS.length - 1) setStep(step + 1);
+    if (step < activeSteps.length - 1) setStep(step + 1);
     else finish();
   }
   function back() { if (step > 0) setStep(step - 1); }
 
   async function finish() {
+    // Signed-in mode: write the profile straight to the account (the pre-account
+    // stash path never fires here — SIGNED_IN already happened). On error, keep
+    // the entered data and surface it; success clears the gate via USER_UPDATED.
+    if (signedIn) {
+      if (saving) return;
+      setSaving(true);
+      const data = {
+        display_name: name.trim(),
+        primary_goal: goal,
+        tracking_types: tracking,
+        gender,
+        country: country.trim(),
+        birth_year: birthYear,
+        birth_month: birthMonth != null ? birthMonth + 1 : null,
+        activity_level: activity,
+        has_provider: provider,
+        onboarded_at: meta.onboarded_at || new Date().toISOString(),
+      };
+      if (consentDone && !meta.consent_accepted) {
+        data.consent_accepted = true;
+        data.consent_date = new Date().toISOString();
+      }
+      const { error } = await supabase.auth.updateUser({ data });
+      setSaving(false);
+      if (error) { Alert.alert(t('error'), error.message || String(error)); return; }
+      await markSeenOnboarding();
+      return; // App.js re-evaluates isProfileComplete() on USER_UPDATED → Main
+    }
     await persist();
     await markSeenOnboarding();
     onDone && onDone();
+  }
+
+  // Escape hatch for a signed-in user who doesn't want to finish the profile —
+  // otherwise they'd be trapped on the gate with no way to the app or out.
+  async function handleSignOut() {
+    markIntentionalSignOut();
+    try { await signOutGoogleNative(); } catch { /* not a Google session */ }
+    try { await supabase.auth.signOut({ scope: 'local' }); }
+    catch { await supabase.auth.signOut().catch(() => {}); }
   }
 
   async function enableNotifications() {
@@ -168,7 +235,7 @@ export default function OnboardingFlowScreen({ onDone }) {
     setStep(step + 1);
   }
 
-  const cur = STEPS[step];
+  const cur = activeSteps[step];
   const filteredCountries = COUNTRIES.filter((c) => {
     const q = countrySearch.toLowerCase();
     return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
@@ -176,15 +243,21 @@ export default function OnboardingFlowScreen({ onDone }) {
 
   return (
     <SafeAreaView style={s.root}>
-      {step > 0 && (
+      {(step > 0 || signedIn) && (
         <View style={s.topBar}>
-          <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} disabled={step === 0} style={step === 0 ? { opacity: 0 } : null}>
             <Text style={s.backChevron}>‹</Text>
           </TouchableOpacity>
           <View style={s.progress}>
-            {STEPS.map((_, i) => (<View key={i} style={[s.dash, i <= step && s.dashOn]} />))}
+            {activeSteps.map((_, i) => (<View key={i} style={[s.dash, i <= step && s.dashOn]} />))}
           </View>
-          <View style={{ width: 24 }} />
+          {signedIn ? (
+            <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={s.signOutLink}>{t('settings_signout')}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 24 }} />
+          )}
         </View>
       )}
 
@@ -354,7 +427,7 @@ export default function OnboardingFlowScreen({ onDone }) {
             <View style={s.centerStep}>
               <Image source={require('../assets/adaptive-icon.png')} style={s.logoSm} resizeMode="contain" />
               <Text style={s.title}>{t('ob_ready_title')}</Text>
-              <Text style={s.sub}>{t('ob_ready_sub')}</Text>
+              <Text style={s.sub}>{signedIn ? t('ob_finish_sub') : t('ob_ready_sub')}</Text>
             </View>
           )}
 
@@ -383,8 +456,8 @@ export default function OnboardingFlowScreen({ onDone }) {
           </>
         )}
         {cur === 'ready' && (
-          <TouchableOpacity style={s.primaryBtn} onPress={finish}>
-            <Text style={s.primaryBtnText}>{t('ob_create_account')}</Text>
+          <TouchableOpacity style={[s.primaryBtn, saving && { opacity: 0.5 }]} onPress={finish} disabled={saving}>
+            <Text style={s.primaryBtnText}>{signedIn ? t('ob_finish_setup') : t('ob_create_account')}</Text>
           </TouchableOpacity>
         )}
         {!['splash', 'reminders', 'ready'].includes(cur) && (
@@ -466,6 +539,7 @@ function makeStyles(colors) {
     root: { flex: 1, backgroundColor: colors.bg },
     topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, gap: 12 },
     backChevron: { fontSize: 30, color: colors.textFaint, lineHeight: 30, width: 24 },
+    signOutLink: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
     progress: { flex: 1, flexDirection: 'row', gap: 5 },
     dash: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.card2 },
     dashOn: { backgroundColor: colors.accent },

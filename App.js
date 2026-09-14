@@ -79,7 +79,6 @@ import LogScreen from './screens/LogScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import AuthScreen from './screens/AuthScreen';
 import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
-import CompleteProfileScreen from './screens/CompleteProfileScreen';
 import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
@@ -282,11 +281,14 @@ function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justCo
             </Stack.Screen>
           )
         ) : !isProfileComplete(session.user) ? (
-          // A session with no minimum profile (name / country / goal / activity)
-          // — e.g. a Google/Apple sign-in, which skips the email flow's profile
-          // step — must complete it before reaching the app. On save, the
-          // USER_UPDATED auth event refreshes `session` and this gate clears.
-          <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
+          // A session with an incomplete profile — every Apple/Google sign-in, or a
+          // returning account missing a now-required field — completes it through the
+          // SAME onboarding flow (signed-in mode: prefilled, only the missing steps,
+          // writes straight to the account). On save, the USER_UPDATED auth event
+          // refreshes `session` and this gate clears. (Replaces CompleteProfileScreen.)
+          <Stack.Screen name="CompleteProfile">
+            {() => <OnboardingFlowScreen session={session} />}
+          </Stack.Screen>
         ) : (
           <Stack.Screen name="Main" component={MainStack} />
         )}
