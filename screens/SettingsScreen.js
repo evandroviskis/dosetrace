@@ -182,6 +182,22 @@ export default function SettingsScreen({ navigation }) {
   }
 
   async function saveProfile() {
+    // The profile gate is hard-ON for everyone (lib/supabase.js PROFILE_GATE_SINCE),
+    // so saving an incomplete profile would re-gate the user out of the app on the
+    // next launch. Block the save and name the gaps instead of writing nulls.
+    const missing = [];
+    if (!displayName.trim()) missing.push(t('profile_name'));
+    if (birthMonth == null) missing.push(t('profile_birth_month'));
+    if (birthYear == null) missing.push(t('profile_birth_year'));
+    if (!gender) missing.push(t('profile_sex'));
+    if (!country.trim()) missing.push(t('profile_country'));
+    if (primaryGoals.length === 0) missing.push(t('profile_goal'));
+    if (!activityLevel) missing.push(t('profile_activity'));
+    if (!hasProvider) missing.push(t('profile_provider'));
+    if (missing.length > 0) {
+      Alert.alert(t('profile_required_legend').replace(/^\*\s*/, ''), missing.join('\n'));
+      return;
+    }
     try {
       await supabase.auth.updateUser({
         data: {
@@ -973,7 +989,7 @@ export default function SettingsScreen({ navigation }) {
                   const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
                   setBirthYearText(digits);
                   const n = parseInt(digits, 10);
-                  const max = new Date().getFullYear() - 13;
+                  const max = new Date().getFullYear() - 18;
                   setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
                 }}
                 keyboardType="number-pad"
@@ -1037,6 +1053,18 @@ export default function SettingsScreen({ navigation }) {
                     </TouchableOpacity>
                   );
                 })}
+                {/* Legacy goal keys not in the current 18 (e.g. an old "athletic")
+                    still render selected so the user can see and keep/remove them —
+                    never a silent, invisible selection. */}
+                {primaryGoals.filter(k => !goalOptions(t).some(g => g.key === k)).map(k => (
+                  <TouchableOpacity
+                    key={k}
+                    style={[s.editPill, s.editPillOn]}
+                    onPress={() => setPrimaryGoals(prev => prev.filter(x => x !== k))}
+                  >
+                    <Text style={[s.editPillText, s.editPillTextOn]}>{t('profile_goal_' + k) || k}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
@@ -1187,7 +1215,7 @@ const makeStyles = (c) => StyleSheet.create({
   themePill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
   themePillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
   themePillText: { fontSize: 13, color: c.text, fontWeight: '600' },
-  themePillTextOn: { color: c.accent, fontWeight: '600' },
+  themePillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
@@ -1206,6 +1234,6 @@ const makeStyles = (c) => StyleSheet.create({
   editPill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
   editPillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
   editPillText: { fontSize: 14, color: c.text, fontWeight: '600' },
-  editPillTextOn: { color: c.accent, fontWeight: '600' },
+  editPillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
 });

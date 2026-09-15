@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image, Animated,
-  StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler, Alert,
+  StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -40,6 +40,7 @@ const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
   'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
+const PRIVACY_URL = 'https://dosetrace.io/privacy-policy';
 const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
@@ -165,7 +166,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   };
 
   async function persist() {
-    await saveOnboarding({
+    // Only stash keys that actually have a value. saveOnboarding merges {...cur,
+    // ...patch}, and a spread copies undefined-valued keys — so writing `undefined`
+    // for a not-yet-filled field would CLOBBER a value entered on an earlier step
+    // (the mid-onboarding-kill data-loss path). Strip undefined before saving.
+    const patch = {
       display_name: name.trim() || undefined,
       primary_goal: goals.length ? goals.join(',') : undefined,
       tracking_types: tracking.length ? tracking : undefined,
@@ -177,7 +182,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       has_provider: provider || undefined,
       consent_accepted: consentDone || undefined,
       consent_date: consentDone ? new Date().toISOString() : undefined,
-    });
+    };
+    Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
+    await saveOnboarding(patch);
   }
 
   async function next() {
@@ -375,7 +382,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                     const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
                     setBirthYearText(digits);
                     const n = parseInt(digits, 10);
-                    const max = new Date().getFullYear() - 13; // 13+ only
+                    const max = new Date().getFullYear() - 18; // 18+ only
                     setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
                   }}
                   keyboardType="number-pad"
@@ -452,6 +459,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   </View>
                 </TouchableOpacity>
               ))}
+              {/* Functional privacy-policy link at the point of data collection
+                  (Apple 5.1.1(ii)). */}
+              <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} style={{ paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={s.privacyLink}>{t('settings_privacy_policy')}</Text>
+              </TouchableOpacity>
             </>
           )}
 
@@ -595,6 +607,7 @@ function makeStyles(colors) {
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
     multiHint: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -6, marginBottom: 14 },
     reqLegend: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -8, marginBottom: 4 },
+    privacyLink: { fontSize: 13.5, fontWeight: '700', color: colors.accent, textDecorationLine: 'underline' },
     legend: { fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 6, marginBottom: 4 },
     req: { color: colors.danger, fontWeight: '800' },
     // Section heading — bold, with a top hairline that reads as the divider.
@@ -614,12 +627,12 @@ function makeStyles(colors) {
     },
     hScroll: { maxHeight: 46, marginBottom: 2 },
     hRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, justifyContent: 'center' },
+    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, justifyContent: 'flex-start' },
     pill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
     chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
     pillOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent, borderWidth: 1.5 },
     pillText: { fontSize: 14, fontWeight: '600', color: colors.text },
-    pillTextOn: { color: colors.accent },
+    pillTextOn: { color: colors.accentSoftText },
     featRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 11 },
     featIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
     featTitle: { fontSize: 15.5, fontWeight: '700', color: colors.text },
