@@ -96,6 +96,7 @@ export default function SettingsScreen({ navigation }) {
   const [gender, setGender] = useState('');
   const [birthMonth, setBirthMonth] = useState(null);
   const [birthYear, setBirthYear] = useState(null);
+  const [birthYearText, setBirthYearText] = useState('');
   const [country, setCountry] = useState('');
   const [primaryGoals, setPrimaryGoals] = useState([]);
   const [activityLevel, setActivityLevel] = useState('');
@@ -157,8 +158,9 @@ export default function SettingsScreen({ navigation }) {
       // Load profile
       setDisplayName(user.user_metadata?.display_name || '');
       setGender(user.user_metadata?.gender || '');
-      setBirthMonth(user.user_metadata?.birth_month ?? null);
+      setBirthMonth(user.user_metadata?.birth_month != null ? user.user_metadata.birth_month - 1 : null); // stored 1-based → 0-11 index
       setBirthYear(user.user_metadata?.birth_year ?? null);
+      setBirthYearText(user.user_metadata?.birth_year != null ? String(user.user_metadata.birth_year) : '');
       setCountry(user.user_metadata?.country || '');
       const pg = user.user_metadata?.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
@@ -185,7 +187,7 @@ export default function SettingsScreen({ navigation }) {
         data: {
           display_name: displayName.trim() || null,
           gender: gender || null,
-          birth_month: birthMonth,
+          birth_month: birthMonth != null ? birthMonth + 1 : null, // store 1-based (matches onboarding)
           birth_year: birthYear,
           country: country.trim() || null,
           primary_goal: primaryGoals.length > 0 ? primaryGoals.join(',') : null,
@@ -957,32 +959,34 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
 
             <Text style={s.editLabel}>{t('profile_birth')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={s.editPillRow}>
-                {MONTH_KEYS.map((mk, idx) => (
-                  <TouchableOpacity
-                    key={mk}
-                    style={[s.editPill, birthMonth === idx && s.editPillOn]}
-                    onPress={() => setBirthMonth(idx)}
-                  >
-                    <Text style={[s.editPillText, birthMonth === idx && s.editPillTextOn]}>{t(mk)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={s.editPillRow}>
-                {BIRTH_YEARS.map(y => (
-                  <TouchableOpacity
-                    key={y}
-                    style={[s.editPill, birthYear === y && s.editPillOn]}
-                    onPress={() => setBirthYear(y)}
-                  >
-                    <Text style={[s.editPillText, birthYear === y && s.editPillTextOn]}>{y}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            {/* Month grid (all 12) + typed year — matches onboarding; no more
+                horizontal scrolling through ~70 years. */}
+            <View style={[s.editPillRow, { flexWrap: 'wrap', marginBottom: 8 }]}>
+              {MONTH_KEYS.map((mk, idx) => (
+                <TouchableOpacity
+                  key={mk}
+                  style={[s.editPill, { marginBottom: 8 }, birthMonth === idx && s.editPillOn]}
+                  onPress={() => setBirthMonth(idx)}
+                >
+                  <Text style={[s.editPillText, birthMonth === idx && s.editPillTextOn]}>{t(mk)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={[s.editInput, { marginBottom: 8 }]}
+              placeholder={t('profile_birth_year_ph')}
+              placeholderTextColor={colors.textFaint}
+              value={birthYearText}
+              onChangeText={(txt) => {
+                const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
+                setBirthYearText(digits);
+                const n = parseInt(digits, 10);
+                const max = new Date().getFullYear() - 13;
+                setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
+              }}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
 
             <Text style={s.editLabel}>{t('profile_country')}</Text>
             <TouchableOpacity
