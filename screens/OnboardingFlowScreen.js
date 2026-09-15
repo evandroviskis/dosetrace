@@ -335,14 +335,16 @@ export default function OnboardingFlowScreen({ onDone, session }) {
           {cur === 'about' && (
             <>
               <Text style={s.title}>{t('ob_about_title')}</Text>
-              <Text style={s.fieldLabel}>{t('profile_name')}</Text>
+              <Text style={s.sub}>{t('profile_step_sub_required')}</Text>
+              <Text style={s.reqLegend}>{t('profile_required_legend')}</Text>
+              <Text style={s.fieldLabel}>{t('profile_name')} <Text style={s.req}>*</Text></Text>
               <TextInput
                 style={s.input}
                 placeholder={t('profile_name_placeholder')}
                 placeholderTextColor={colors.textFaint}
                 value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
               />
-              <Text style={s.fieldLabel}>{t('profile_birth')}</Text>
+              <Text style={s.fieldLabel}>{t('profile_birth')} <Text style={s.req}>*</Text></Text>
               {/* Month as a full grid (all 12 visible), year as a typed field —
                   scrolling through ~70 years horizontally was the bad UX. */}
               <View style={s.pillRow}>
@@ -367,7 +369,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 keyboardType="number-pad"
                 maxLength={4}
               />
-              <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
+              <Text style={s.fieldLabel}>{t('profile_sex')} <Text style={s.req}>*</Text></Text>
               <View style={s.pillRow}>
                 {SEXES.map((g) => (
                   <TouchableOpacity key={g.key} style={[s.pill, gender === g.key && s.pillOn]} onPress={() => setGender(g.key)}>
@@ -376,7 +378,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 ))}
               </View>
               <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
-              <Text style={s.fieldLabel}>{t('profile_country')}</Text>
+              <Text style={s.fieldLabel}>{t('profile_country')} <Text style={s.req}>*</Text></Text>
               <TouchableOpacity style={[s.input, { justifyContent: 'center' }]} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
                 <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
                   {country ? countryLabel(country, language) : t('profile_country_placeholder')}
@@ -569,6 +571,8 @@ function makeStyles(colors) {
     title: { fontSize: 25, fontWeight: '800', color: colors.text, letterSpacing: -0.3, textAlign: 'center' },
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
     multiHint: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -6, marginBottom: 14 },
+    reqLegend: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -8, marginBottom: 4 },
+    req: { color: colors.danger, fontWeight: '700' },
     fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 18, marginBottom: 8 },
     sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     input: {
