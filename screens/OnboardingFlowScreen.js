@@ -66,6 +66,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const [name, setName] = useState(meta.display_name || '');
   const [birthMonth, setBirthMonth] = useState(meta.birth_month != null ? meta.birth_month - 1 : null); // stored 1-based → 0-11 index
   const [birthYear, setBirthYear] = useState(meta.birth_year != null ? meta.birth_year : null);
+  const [birthYearText, setBirthYearText] = useState(meta.birth_year != null ? String(meta.birth_year) : '');
   const [gender, setGender] = useState(meta.gender || '');
   const [country, setCountry] = useState(meta.country || '');
   const [activity, setActivity] = useState(meta.activity_level || '');
@@ -342,24 +343,30 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
               />
               <Text style={s.fieldLabel}>{t('profile_birth')}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
-                <View style={s.hRow}>
-                  {MONTH_KEYS.map((mk, idx) => (
-                    <TouchableOpacity key={mk} style={[s.chip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
-                      <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll}>
-                <View style={s.hRow}>
-                  {BIRTH_YEARS.map((y) => (
-                    <TouchableOpacity key={y} style={[s.chip, birthYear === y && s.pillOn]} onPress={() => setBirthYear(y)}>
-                      <Text style={[s.pillText, birthYear === y && s.pillTextOn]}>{y}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+              {/* Month as a full grid (all 12 visible), year as a typed field —
+                  scrolling through ~70 years horizontally was the bad UX. */}
+              <View style={s.pillRow}>
+                {MONTH_KEYS.map((mk, idx) => (
+                  <TouchableOpacity key={mk} style={[s.chip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
+                    <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                style={[s.input, { marginTop: 10 }]}
+                placeholder={t('profile_birth_year_ph')}
+                placeholderTextColor={colors.textFaint}
+                value={birthYearText}
+                onChangeText={(txt) => {
+                  const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
+                  setBirthYearText(digits);
+                  const n = parseInt(digits, 10);
+                  const max = new Date().getFullYear() - 13; // 13+ only
+                  setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
+                }}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
               <Text style={s.fieldLabel}>{t('profile_sex')}</Text>
               <View style={s.pillRow}>
                 {SEXES.map((g) => (
