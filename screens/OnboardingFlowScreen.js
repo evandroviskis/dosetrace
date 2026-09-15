@@ -61,7 +61,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const [saving, setSaving] = useState(false);
 
   const [step, setStep] = useState(0);
-  const [goal, setGoal] = useState(String(meta.primary_goal || '').split(',')[0] || '');
+  const [goals, setGoals] = useState(String(meta.primary_goal || '').split(',').map((x) => x.trim()).filter(Boolean)); // multi-select
   const [tracking, setTracking] = useState(Array.isArray(meta.tracking_types) ? meta.tracking_types : []);
   const [name, setName] = useState(meta.display_name || '');
   const [birthMonth, setBirthMonth] = useState(meta.birth_month != null ? meta.birth_month - 1 : null); // stored 1-based → 0-11 index
@@ -155,7 +155,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   const canContinue = () => {
     const cur = activeSteps[step];
-    if (cur === 'goal') return !!goal;
+    if (cur === 'goal') return goals.length > 0;
     if (cur === 'tracking') return tracking.length > 0;
     if (cur === 'about') return !!name.trim() && !!gender && !!country && birthMonth != null && birthYear != null;
     if (cur === 'routine') return !!activity && !!provider;
@@ -166,7 +166,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   async function persist() {
     await saveOnboarding({
       display_name: name.trim() || undefined,
-      primary_goal: goal || undefined,
+      primary_goal: goals.length ? goals.join(',') : undefined,
       tracking_types: tracking.length ? tracking : undefined,
       gender: gender || undefined,
       country: country || undefined,
@@ -196,7 +196,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       setSaving(true);
       const data = {
         display_name: name.trim(),
-        primary_goal: goal,
+        primary_goal: goals.join(','),
         tracking_types: tracking,
         gender,
         country: country.trim(),
@@ -298,12 +298,20 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             <>
               <Text style={s.title}>{t('ob_goal_title')}</Text>
               <Text style={s.sub}>{t('ob_goal_sub')}</Text>
+              <Text style={s.multiHint}>{t('profile_goal_multi_hint')}</Text>
               <View style={s.pillRow}>
-                {GOALS.map((g) => (
-                  <TouchableOpacity key={g.key} style={[s.pill, goal === g.key && s.pillOn]} onPress={() => setGoal(g.key)}>
-                    <Text style={[s.pillText, goal === g.key && s.pillTextOn]}>{g.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {GOALS.map((g) => {
+                  const on = goals.includes(g.key);
+                  return (
+                    <TouchableOpacity
+                      key={g.key}
+                      style={[s.pill, on && s.pillOn]}
+                      onPress={() => setGoals((prev) => (prev.includes(g.key) ? prev.filter((k) => k !== g.key) : [...prev, g.key]))}
+                    >
+                      <Text style={[s.pillText, on && s.pillTextOn]}>{g.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </>
           )}
@@ -553,6 +561,7 @@ function makeStyles(colors) {
     phrase: { fontSize: 16, color: colors.textFaint, marginTop: 8, textAlign: 'center' },
     title: { fontSize: 25, fontWeight: '800', color: colors.text, letterSpacing: -0.3, textAlign: 'center' },
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
+    multiHint: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -6, marginBottom: 14 },
     fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 18, marginBottom: 8 },
     sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     input: {
