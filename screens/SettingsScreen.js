@@ -930,129 +930,152 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={s.editLabel}>{t('profile_name')}</Text>
-            <TextInput
-              style={s.editInput}
-              placeholder={t('profile_name_placeholder')}
-              placeholderTextColor={colors.textFaint}
-              value={displayName}
-              onChangeText={setDisplayName}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {/* ── About you ─────────────────────────────────────────── */}
+            <Text style={s.editSection}>{t('profile_sec_about')}</Text>
 
-            <Text style={s.editLabel}>{t('profile_sex')}</Text>
-            <View style={s.editPillRow}>
-              {[
-                { key: 'male', label: t('profile_gender_male') },
-                { key: 'female', label: t('profile_gender_female') },
-              ].map(g => (
-                <TouchableOpacity
-                  key={g.key}
-                  style={[s.editPill, gender === g.key && s.editPillOn]}
-                  onPress={() => setGender(g.key)}
-                >
-                  <Text style={[s.editPillText, gender === g.key && s.editPillTextOn]}>{g.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_name')}</Text>
+              <TextInput
+                style={s.editInput}
+                placeholder={t('profile_name_placeholder')}
+                placeholderTextColor={colors.textFaint}
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
             </View>
-            <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
 
-            <Text style={s.editLabel}>{t('profile_birth')}</Text>
-            {/* Month grid (all 12) + typed year — matches onboarding; no more
-                horizontal scrolling through ~70 years. */}
-            <View style={[s.editPillRow, { flexWrap: 'wrap', marginBottom: 8 }]}>
-              {MONTH_KEYS.map((mk, idx) => (
-                <TouchableOpacity
-                  key={mk}
-                  style={[s.editPill, { marginBottom: 8 }, birthMonth === idx && s.editPillOn]}
-                  onPress={() => setBirthMonth(idx)}
-                >
-                  <Text style={[s.editPillText, birthMonth === idx && s.editPillTextOn]}>{t(mk)}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_birth_month')}</Text>
+              {/* 4-across uniform month grid — same shape as onboarding. */}
+              <View style={s.editMGrid}>
+                {MONTH_KEYS.map((mk, idx) => (
+                  <TouchableOpacity
+                    key={mk}
+                    style={[s.editMChip, birthMonth === idx && s.editPillOn]}
+                    onPress={() => setBirthMonth(idx)}
+                  >
+                    <Text style={[s.editPillText, birthMonth === idx && s.editPillTextOn]}>{t(mk)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <TextInput
-              style={[s.editInput, { marginBottom: 8 }]}
-              placeholder={t('profile_birth_year_ph')}
-              placeholderTextColor={colors.textFaint}
-              value={birthYearText}
-              onChangeText={(txt) => {
-                const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
-                setBirthYearText(digits);
-                const n = parseInt(digits, 10);
-                const max = new Date().getFullYear() - 13;
-                setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
-              }}
-              keyboardType="number-pad"
-              maxLength={4}
-            />
 
-            <Text style={s.editLabel}>{t('profile_country')}</Text>
-            <TouchableOpacity
-              style={s.editInput}
-              onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
-            >
-              <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
-                {country ? countryLabel(country, language) : t('profile_country_placeholder')}
-              </Text>
-            </TouchableOpacity>
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_birth_year')}</Text>
+              <TextInput
+                style={s.editInput}
+                placeholder={t('profile_birth_year_ph')}
+                placeholderTextColor={colors.textFaint}
+                value={birthYearText}
+                onChangeText={(txt) => {
+                  const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
+                  setBirthYearText(digits);
+                  const n = parseInt(digits, 10);
+                  const max = new Date().getFullYear() - 13;
+                  setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
+                }}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </View>
 
-            <Text style={s.editLabel}>{t('profile_goal')}</Text>
-            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8 }}>{t('profile_goal_multi_hint')}</Text>
-            <View style={[s.editPillRow, { flexWrap: 'wrap' }]}>
-              {goalOptions(t).map(g => {
-                const selected = primaryGoals.includes(g.key);
-                return (
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_sex')}</Text>
+              <View style={s.editRow}>
+                {[
+                  { key: 'male', label: t('profile_gender_male') },
+                  { key: 'female', label: t('profile_gender_female') },
+                ].map(g => (
                   <TouchableOpacity
                     key={g.key}
-                    style={[s.editPill, selected && s.editPillOn, { marginBottom: 8 }]}
-                    onPress={() => {
-                      setPrimaryGoals(prev =>
-                        prev.includes(g.key)
-                          ? prev.filter(k => k !== g.key)
-                          : [...prev, g.key]
-                      );
-                    }}
+                    style={[s.editPill, gender === g.key && s.editPillOn]}
+                    onPress={() => setGender(g.key)}
                   >
-                    <Text style={[s.editPillText, selected && s.editPillTextOn]}>{g.label}</Text>
+                    <Text style={[s.editPillText, gender === g.key && s.editPillTextOn]}>{g.label}</Text>
                   </TouchableOpacity>
-                );
-              })}
+                ))}
+              </View>
+              <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
             </View>
 
-            <Text style={s.editLabel}>{t('profile_activity')}</Text>
-            <View style={s.editPillRow}>
-              {[
-                { key: 'sedentary', label: t('profile_activity_sedentary') },
-                { key: 'moderate', label: t('profile_activity_moderate') },
-                { key: 'active', label: t('profile_activity_active') },
-                { key: 'very_active', label: t('profile_activity_very_active') },
-              ].map(a => (
-                <TouchableOpacity
-                  key={a.key}
-                  style={[s.editPill, activityLevel === a.key && s.editPillOn]}
-                  onPress={() => setActivityLevel(a.key)}
-                >
-                  <Text style={[s.editPillText, activityLevel === a.key && s.editPillTextOn]}>{a.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_country')}</Text>
+              <TouchableOpacity
+                style={[s.editInput, { justifyContent: 'center' }]}
+                onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
+              >
+                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                  {country ? countryLabel(country, language) : t('profile_country_placeholder')}
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <Text style={s.editLabel}>{t('profile_provider')}</Text>
-            <View style={s.editPillRow}>
-              {[
-                { key: 'yes', label: t('profile_provider_yes') },
-                { key: 'no', label: t('profile_provider_no') },
-              ].map(p => (
-                <TouchableOpacity
-                  key={p.key}
-                  style={[s.editPill, hasProvider === p.key && s.editPillOn]}
-                  onPress={() => setHasProvider(p.key)}
-                >
-                  <Text style={[s.editPillText, hasProvider === p.key && s.editPillTextOn]}>{p.label}</Text>
-                </TouchableOpacity>
-              ))}
+            {/* ── Your goals ────────────────────────────────────────── */}
+            <Text style={s.editSection}>{t('profile_sec_goals')}</Text>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_goal')}</Text>
+              <Text style={s.editHint}>{t('profile_goal_multi_hint')}</Text>
+              <View style={s.editRow}>
+                {goalOptions(t).map(g => {
+                  const selected = primaryGoals.includes(g.key);
+                  return (
+                    <TouchableOpacity
+                      key={g.key}
+                      style={[s.editPill, selected && s.editPillOn]}
+                      onPress={() => {
+                        setPrimaryGoals(prev =>
+                          prev.includes(g.key)
+                            ? prev.filter(k => k !== g.key)
+                            : [...prev, g.key]
+                        );
+                      }}
+                    >
+                      <Text style={[s.editPillText, selected && s.editPillTextOn]}>{g.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_activity')}</Text>
+              <View style={s.editRow}>
+                {[
+                  { key: 'sedentary', label: t('profile_activity_sedentary') },
+                  { key: 'moderate', label: t('profile_activity_moderate') },
+                  { key: 'active', label: t('profile_activity_active') },
+                  { key: 'very_active', label: t('profile_activity_very_active') },
+                ].map(a => (
+                  <TouchableOpacity
+                    key={a.key}
+                    style={[s.editPill, activityLevel === a.key && s.editPillOn]}
+                    onPress={() => setActivityLevel(a.key)}
+                  >
+                    <Text style={[s.editPillText, activityLevel === a.key && s.editPillTextOn]}>{a.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_provider')}</Text>
+              <View style={s.editRow}>
+                {[
+                  { key: 'yes', label: t('profile_provider_yes') },
+                  { key: 'no', label: t('profile_provider_no') },
+                ].map(p => (
+                  <TouchableOpacity
+                    key={p.key}
+                    style={[s.editPill, hasProvider === p.key && s.editPillOn]}
+                    onPress={() => setHasProvider(p.key)}
+                  >
+                    <Text style={[s.editPillText, hasProvider === p.key && s.editPillTextOn]}>{p.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
@@ -1119,25 +1142,25 @@ const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 18, ...c.shadowSoft },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 14, ...c.shadowSoft },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
   profileInfo: { flex: 1 },
   profileEmail: { fontSize: 14, fontWeight: '500', color: c.text, marginBottom: 4 },
   planBadge: { backgroundColor: c.accentSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
   planBadgeText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
-  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 16 },
+  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 14 },
   premiumTitle: { fontSize: 16, fontWeight: '600', color: 'white', marginBottom: 6 },
   premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 14, lineHeight: 18 },
   premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
   premiumCheck: { color: '#9FE1CB', fontWeight: '600', fontSize: 13 },
   premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
-  premiumBtn: { backgroundColor: 'white', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, textTransform: 'uppercase' },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
   sectionChevron: { fontSize: 12, color: c.textFaint },
-  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, overflow: 'hidden', ...c.shadowSoft },
+  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
@@ -1161,23 +1184,28 @@ const makeStyles = (c) => StyleSheet.create({
   langCheck: { fontSize: 18, color: c.accent, fontWeight: '600' },
   // Theme toggle
   themePillRow: { flexDirection: 'row', gap: 8 },
-  themePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  themePillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  themePillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
-  themePillTextOn: { color: c.accentText, fontWeight: '600' },
+  themePill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  themePillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
+  themePillText: { fontSize: 13, color: c.text, fontWeight: '600' },
+  themePillTextOn: { color: c.accent, fontWeight: '600' },
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   goalBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
-  // Edit profile modal
-  editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 16 },
-  sexHelp: { fontSize: 11.5, color: c.textFaint, marginTop: 6, lineHeight: 15 },
-  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, backgroundColor: c.card2, marginBottom: 4 },
-  editPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  editPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  editPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  editPillText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
-  editPillTextOn: { color: c.accentText, fontWeight: '600' },
+  // Edit profile modal — same layout language as onboarding.
+  editSection: { fontSize: 15, fontWeight: '800', color: c.text, letterSpacing: -0.2, marginTop: 24, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
+  editField: { marginTop: 16 },
+  editLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginBottom: 8 },
+  editHint: { fontSize: 12.5, color: c.textMuted, marginTop: -4, marginBottom: 8 },
+  sexHelp: { fontSize: 12, color: c.textFaint, marginTop: 8, lineHeight: 16 },
+  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: c.text, backgroundColor: c.card2, minHeight: 48 },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  editMGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  editMChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  editPill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  editPillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
+  editPillText: { fontSize: 14, color: c.text, fontWeight: '600' },
+  editPillTextOn: { color: c.accent, fontWeight: '600' },
   editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
 });
