@@ -334,78 +334,100 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {cur === 'about' && (
             <>
-              <Text style={s.title}>{t('ob_about_title')}</Text>
+              <Text style={s.title}>{t('profile_step_title')}</Text>
               <Text style={s.sub}>{t('profile_step_sub_required')}</Text>
-              <Text style={s.reqLegend}>{t('profile_required_legend')}</Text>
-              <Text style={s.fieldLabel}>{t('profile_name')} <Text style={s.req}>*</Text></Text>
-              <TextInput
-                style={s.input}
-                placeholder={t('profile_name_placeholder')}
-                placeholderTextColor={colors.textFaint}
-                value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
-              />
-              <Text style={s.fieldLabel}>{t('profile_birth_month')} <Text style={s.req}>*</Text></Text>
-              {/* Month as a full grid (all 12 visible), year as a typed field —
-                  scrolling through ~70 years horizontally was the bad UX. */}
-              <View style={s.pillRow}>
-                {MONTH_KEYS.map((mk, idx) => (
-                  <TouchableOpacity key={mk} style={[s.chip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
-                    <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={s.legend}>{t('profile_required_legend')}</Text>
+
+              {/* ── About you ─────────────────────────────────────────── */}
+              <Text style={s.section}>{t('profile_sec_about')}</Text>
+
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_name')}<Text style={s.req}> *</Text></Text>
+                <TextInput
+                  style={s.input}
+                  placeholder={t('profile_name_placeholder')}
+                  placeholderTextColor={colors.textFaint}
+                  value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
+                />
               </View>
-              <Text style={s.fieldLabel}>{t('profile_birth_year')} <Text style={s.req}>*</Text></Text>
-              <TextInput
-                style={[s.input, { marginTop: 0 }]}
-                placeholder={t('profile_birth_year_ph')}
-                placeholderTextColor={colors.textFaint}
-                value={birthYearText}
-                onChangeText={(txt) => {
-                  const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
-                  setBirthYearText(digits);
-                  const n = parseInt(digits, 10);
-                  const max = new Date().getFullYear() - 13; // 13+ only
-                  setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
-                }}
-                keyboardType="number-pad"
-                maxLength={4}
-              />
-              <Text style={s.fieldLabel}>{t('profile_sex')} <Text style={s.req}>*</Text></Text>
-              <View style={s.pillRow}>
-                {SEXES.map((g) => (
-                  <TouchableOpacity key={g.key} style={[s.pill, gender === g.key && s.pillOn]} onPress={() => setGender(g.key)}>
-                    <Text style={[s.pillText, gender === g.key && s.pillTextOn]}>{g.label}</Text>
-                  </TouchableOpacity>
-                ))}
+
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_birth_month')}<Text style={s.req}> *</Text></Text>
+                {/* Month as a full 4-across grid (all 12 visible), year typed —
+                    scrolling through ~70 years horizontally was the bad UX. */}
+                <View style={s.mGrid}>
+                  {MONTH_KEYS.map((mk, idx) => (
+                    <TouchableOpacity key={mk} style={[s.mChip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
+                      <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
-              <Text style={s.fieldLabel}>{t('profile_country')} <Text style={s.req}>*</Text></Text>
-              <TouchableOpacity style={[s.input, { justifyContent: 'center' }]} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
-                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
-                  {country ? countryLabel(country, language) : t('profile_country_placeholder')}
-                </Text>
-              </TouchableOpacity>
+
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_birth_year')}<Text style={s.req}> *</Text></Text>
+                <TextInput
+                  style={s.input}
+                  placeholder={t('profile_birth_year_ph')}
+                  placeholderTextColor={colors.textFaint}
+                  value={birthYearText}
+                  onChangeText={(txt) => {
+                    const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
+                    setBirthYearText(digits);
+                    const n = parseInt(digits, 10);
+                    const max = new Date().getFullYear() - 13; // 13+ only
+                    setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_sex')}<Text style={s.req}> *</Text></Text>
+                <View style={s.mRow}>
+                  {SEXES.map((g) => (
+                    <TouchableOpacity key={g.key} style={[s.pill, gender === g.key && s.pillOn]} onPress={() => setGender(g.key)}>
+                      <Text style={[s.pillText, gender === g.key && s.pillTextOn]}>{g.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_country')}<Text style={s.req}> *</Text></Text>
+                <TouchableOpacity style={[s.input, { justifyContent: 'center' }]} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
+                  <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                    {country ? countryLabel(country, language) : t('profile_country_placeholder')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
 
           {cur === 'routine' && (
             <>
               <Text style={s.title}>{t('ob_routine_title')}</Text>
-              <Text style={s.fieldLabel}>{t('profile_activity')}</Text>
-              <View style={s.pillRow}>
-                {ACTIVITY.map((a) => (
-                  <TouchableOpacity key={a.key} style={[s.pill, activity === a.key && s.pillOn]} onPress={() => setActivity(a.key)}>
-                    <Text style={[s.pillText, activity === a.key && s.pillTextOn]}>{a.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_activity')}</Text>
+                <View style={s.mRow}>
+                  {ACTIVITY.map((a) => (
+                    <TouchableOpacity key={a.key} style={[s.pill, activity === a.key && s.pillOn]} onPress={() => setActivity(a.key)}>
+                      <Text style={[s.pillText, activity === a.key && s.pillTextOn]}>{a.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <Text style={s.fieldLabel}>{t('profile_provider')}</Text>
-              <View style={s.pillRow}>
-                {PROVIDERS.map((p) => (
-                  <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
-                    <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_provider')}</Text>
+                <View style={s.mRow}>
+                  {PROVIDERS.map((p) => (
+                    <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
+                      <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </>
           )}
@@ -573,8 +595,18 @@ function makeStyles(colors) {
     sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
     multiHint: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -6, marginBottom: 14 },
     reqLegend: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -8, marginBottom: 4 },
-    req: { color: colors.danger, fontWeight: '700' },
-    fieldLabel: { fontSize: 12.5, fontWeight: '800', color: colors.text, marginTop: 18, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
+    legend: { fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 6, marginBottom: 4 },
+    req: { color: colors.danger, fontWeight: '800' },
+    // Section heading — bold, with a top hairline that reads as the divider.
+    section: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: -0.2, marginTop: 28, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: colors.border },
+    field: { marginTop: 16 },
+    // Quiet micro-label — lighter than the option chips so it never reads flush.
+    fieldLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: colors.textFaint, marginBottom: 8 },
+    // Month picker: 4-across uniform grid of rounded-rect chips.
+    mGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    mChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
+    // Left-aligned option row (sex, etc.) — distinct from the centered pill clouds.
+    mRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     input: {
       backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
