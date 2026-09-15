@@ -105,4 +105,44 @@
   /* ---- Year in footer ---- */
   var y = document.getElementById('year');
   if (y) y.textContent = new Date().getFullYear();
+
+  /* ---- Screenshot gallery: desktop arrows + mouse click-drag ---- */
+  var shots = document.querySelector('.shots');
+  if (shots) {
+    var prevBtn = document.querySelector('.shots-nav.prev');
+    var nextBtn = document.querySelector('.shots-nav.next');
+    var step = function () {
+      var card = shots.querySelector('.shot');
+      return card ? card.getBoundingClientRect().width + 26 : shots.clientWidth * 0.8;
+    };
+    var updateArrows = function () {
+      if (!prevBtn || !nextBtn) return;
+      prevBtn.disabled = shots.scrollLeft <= 2;
+      nextBtn.disabled = shots.scrollLeft >= shots.scrollWidth - shots.clientWidth - 2;
+    };
+    if (prevBtn) prevBtn.addEventListener('click', function () { shots.scrollBy({ left: -step(), behavior: 'smooth' }); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { shots.scrollBy({ left: step(), behavior: 'smooth' }); });
+    shots.addEventListener('scroll', updateArrows, { passive: true });
+    window.addEventListener('resize', updateArrows);
+    updateArrows();
+
+    var down = false, startX = 0, startL = 0, moved = false;
+    shots.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'touch') return; /* let native touch swipe work */
+      down = true; moved = false; startX = e.clientX; startL = shots.scrollLeft;
+      shots.classList.add('dragging');
+    });
+    window.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      var dx = e.clientX - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      shots.scrollLeft = startL - dx;
+    });
+    window.addEventListener('pointerup', function () {
+      if (!down) return;
+      down = false; shots.classList.remove('dragging');
+    });
+    shots.addEventListener('dragstart', function (e) { e.preventDefault(); });
+    shots.addEventListener('click', function (e) { if (moved) { e.preventDefault(); e.stopPropagation(); } }, true);
+  }
 })();

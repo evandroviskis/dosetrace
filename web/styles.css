@@ -306,11 +306,31 @@ p { margin: 0; }
 
 /* ---------- Screenshot gallery ---------- */
 .gallery { background: var(--surface); border-block: 1px solid var(--line); }
+.shots-wrap { position: relative; }
 .shots {
   display: flex; gap: 26px; overflow-x: auto; padding: 8px 4px 26px; scroll-snap-type: x mandatory;
-  scrollbar-width: none;
+  scrollbar-width: none; scroll-behavior: smooth;
 }
 .shots::-webkit-scrollbar { display: none; }
+.shots.dragging { scroll-behavior: auto; scroll-snap-type: none; cursor: grabbing; }
+/* Desktop navigation arrows for the screenshot row (mobile users just swipe). */
+.shots-nav {
+  position: absolute; top: calc(50% - 30px); transform: translateY(-50%); z-index: 3;
+  width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink-soft); box-shadow: var(--shadow-card);
+  font-size: 30px; line-height: 1; cursor: pointer; display: none;
+  align-items: center; justify-content: center; padding: 0 0 4px;
+  transition: transform .2s var(--ease), color .2s var(--ease), opacity .2s var(--ease);
+}
+.shots-nav:hover { color: var(--accent); transform: translateY(-50%) scale(1.06); }
+.shots-nav.prev { left: 6px; }
+.shots-nav.next { right: 6px; }
+.shots-nav[disabled] { opacity: .35; cursor: default; }
+/* Show arrows + grab cursor only where there's a fine pointer (desktop/laptop). */
+@media (hover: hover) and (pointer: fine) {
+  .shots-nav { display: flex; }
+  .shots { cursor: grab; }
+}
 .shot { scroll-snap-align: center; flex: none; width: min(258px, 66vw); }
 .shot .frame {
   border-radius: 34px; padding: 9px; background: var(--bg); border: 1px solid var(--line);
