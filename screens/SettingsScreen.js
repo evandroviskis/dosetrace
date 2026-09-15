@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { goalOptions } from '../lib/profileGoals';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -15,13 +17,14 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { supabase, getCachedUser } from '../lib/supabase';
+import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
+import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
-import { getMyReferralCode, getReferralStats, createReferralCode } from '../lib/referrals';
+import FeatureIcon from '../components/FeatureIcon';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
@@ -31,12 +34,11 @@ import {
 } from '../lib/database';
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
 import { isPremium } from '../lib/purchases';
-import { Analytics } from '../lib/analytics';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 
-const APPLE_APP_ID = '6761788157'; // TODO: insert real Apple app id
+const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
 
 const MONTH_KEYS = [
@@ -72,7 +74,7 @@ function LegalModal({ visible, onClose, title, content, doneLabel }) {
 }
 
 export default function SettingsScreen({ navigation }) {
-  const { language, setLanguage, t, LANGUAGES } = useLanguage();
+  const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [user, setUser] = useState(null);
@@ -85,10 +87,6 @@ export default function SettingsScreen({ navigation }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [myReferralCode, setMyReferralCode] = useState(null);
-  const [referralCount, setReferralCount] = useState(0);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [hasCredit, setHasCredit] = useState(false);
   const [premium, setPremium] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -98,6 +96,7 @@ export default function SettingsScreen({ navigation }) {
   const [gender, setGender] = useState('');
   const [birthMonth, setBirthMonth] = useState(null);
   const [birthYear, setBirthYear] = useState(null);
+  const [birthYearText, setBirthYearText] = useState('');
   const [country, setCountry] = useState('');
   const [primaryGoals, setPrimaryGoals] = useState([]);
   const [activityLevel, setActivityLevel] = useState('');
@@ -150,15 +149,6 @@ export default function SettingsScreen({ navigation }) {
     // Real subscription status (non-throwing; defaults to false on failure)
     isPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
-      // Fetch or create referral code
-      let code = await getMyReferralCode(user.id);
-      if (!code) {
-        code = await createReferralCode(user.id);
-      }
-      setMyReferralCode(code);
-      const stats = await getReferralStats(user.id);
-      setReferralCount(stats.referralCount);
-      setHasCredit((user.user_metadata?.bloodwork_credits || 0) > 0);
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
       setCheckinReminders(user.user_metadata?.checkin_reminders !== false);
@@ -168,8 +158,9 @@ export default function SettingsScreen({ navigation }) {
       // Load profile
       setDisplayName(user.user_metadata?.display_name || '');
       setGender(user.user_metadata?.gender || '');
-      setBirthMonth(user.user_metadata?.birth_month ?? null);
+      setBirthMonth(user.user_metadata?.birth_month != null ? user.user_metadata.birth_month - 1 : null); // stored 1-based → 0-11 index
       setBirthYear(user.user_metadata?.birth_year ?? null);
+      setBirthYearText(user.user_metadata?.birth_year != null ? String(user.user_metadata.birth_year) : '');
       setCountry(user.user_metadata?.country || '');
       const pg = user.user_metadata?.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
@@ -191,12 +182,28 @@ export default function SettingsScreen({ navigation }) {
   }
 
   async function saveProfile() {
+    // The profile gate is hard-ON for everyone (lib/supabase.js PROFILE_GATE_SINCE),
+    // so saving an incomplete profile would re-gate the user out of the app on the
+    // next launch. Block the save and name the gaps instead of writing nulls.
+    const missing = [];
+    if (!displayName.trim()) missing.push(t('profile_name'));
+    if (birthMonth == null) missing.push(t('profile_birth_month'));
+    if (birthYear == null) missing.push(t('profile_birth_year'));
+    if (!gender) missing.push(t('profile_sex'));
+    if (!country.trim()) missing.push(t('profile_country'));
+    if (primaryGoals.length === 0) missing.push(t('profile_goal'));
+    if (!activityLevel) missing.push(t('profile_activity'));
+    if (!hasProvider) missing.push(t('profile_provider'));
+    if (missing.length > 0) {
+      Alert.alert(t('profile_required_legend').replace(/^\*\s*/, ''), missing.join('\n'));
+      return;
+    }
     try {
       await supabase.auth.updateUser({
         data: {
           display_name: displayName.trim() || null,
           gender: gender || null,
-          birth_month: birthMonth,
+          birth_month: birthMonth != null ? birthMonth + 1 : null, // store 1-based (matches onboarding)
           birth_year: birthYear,
           country: country.trim() || null,
           primary_goal: primaryGoals.length > 0 ? primaryGoals.join(',') : null,
@@ -334,22 +341,6 @@ export default function SettingsScreen({ navigation }) {
     setExporting(false);
   }
 
-  async function handleCopyCode() {
-    if (!myReferralCode) return;
-    await Clipboard.setStringAsync(myReferralCode);
-    setCodeCopied(true);
-    setTimeout(() => setCodeCopied(false), 2000);
-  }
-
-  async function handleShareReferral() {
-    if (!myReferralCode) return;
-    const message = t('referral_share_message').replace('{code}', myReferralCode);
-    try {
-      await Share.share({ message });
-      Analytics.referralShared(myReferralCode);
-    } catch (e) { /* cancelled */ }
-  }
-
   async function handleSignOut() {
     Alert.alert(t('settings_signout'), t('settings_signout_confirm_local'), [
       { text: t('cancel'), style: 'cancel' },
@@ -360,7 +351,17 @@ export default function SettingsScreen({ navigation }) {
           // Best-effort: push this user's pending changes before local data
           // is wiped by the SIGNED_OUT handler.
           try { await forceSync(); } catch (e) { /* best effort */ }
-          await supabase.auth.signOut();
+          // Mark this as a deliberate sign-out so the SIGNED_OUT handler performs
+          // the full local wipe (a spurious SIGNED_OUT would keep the data).
+          markIntentionalSignOut();
+          // Clear the native Google session too, so the account chooser shows on
+          // the next sign-in instead of silently re-using this account.
+          await signOutGoogleNative();
+          // scope:'local' clears the session on-device without a network round-trip,
+          // so sign-out never stalls on a slow/invalid token — it just fires
+          // SIGNED_OUT, which routes back to the welcome screen.
+          try { await supabase.auth.signOut({ scope: 'local' }); }
+          catch { await supabase.auth.signOut().catch(() => {}); }
         },
       },
     ]);
@@ -400,24 +401,41 @@ export default function SettingsScreen({ navigation }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { Alert.alert(t('error'), t('error_no_session')); return; }
 
-      // Call Edge Function to delete auth account (data stays in Supabase for research)
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // Call the delete-user Edge Function: it deletes ALL of the user's data
+      // rows first, then the auth account (see supabase/functions/delete-user),
+      // matching the privacy policy's "account and all associated data" promise.
+      // fetch() rejects only on a network-level failure (offline / unreachable),
+      // so a caught error here means no connection — deletion needs the server.
+      let res;
+      try {
+        res = await fetch(
+          `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      } catch {
+        Alert.alert(t('error'), t('settings_delete_offline'));
+        return;
+      }
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || t('error_deletion_failed'));
 
-      // Clear local data and sign out
+      // Clear local data and sign out (local scope — the auth account is already
+      // deleted server-side, so no global revoke is needed).
       stopSyncEngine();
       clearLocalDatabase();
-      await supabase.auth.signOut();
+      // Fully detach the native Google session (signOut + revoke) so the deleted
+      // account can't be silently re-authenticated — the next Google sign-in
+      // shows the chooser and consent, making a new account a conscious choice.
+      markIntentionalSignOut(); // deliberate account deletion — full wipe
+      await signOutGoogleNative({ revoke: true });
+      try { await supabase.auth.signOut({ scope: 'local' }); }
+      catch { await supabase.auth.signOut().catch(() => {}); }
     } catch (e) {
       Alert.alert(t('error'), friendlyError(e, t, 'error_deletion_failed'));
     }
@@ -489,7 +507,7 @@ export default function SettingsScreen({ navigation }) {
         <Text style={s.headerTitle}>{t('settings_title')}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
 
         {/* PROFILE */}
         <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
@@ -544,44 +562,13 @@ export default function SettingsScreen({ navigation }) {
           </View>
         )}
 
-        {/* REFERRAL PROGRAM */}
-        <View style={s.referralCard}>
-          <Text style={s.referralTitle}>{t('referral_title')}</Text>
-          <Text style={s.referralSub}>{t('referral_subtitle')}</Text>
-          {hasCredit && (
-            <View style={s.referralCreditBanner}>
-              <Text style={s.referralCreditText}>{t('referral_credit')}</Text>
-            </View>
-          )}
-          {myReferralCode && (
-            <>
-              <Text style={s.referralCodeLabel}>{t('referral_your_code')}</Text>
-              <View style={s.referralCodeRow}>
-                <Text style={s.referralCodeText}>{myReferralCode}</Text>
-                <TouchableOpacity style={s.referralCopyBtn} onPress={handleCopyCode}>
-                  <Text style={s.referralCopyBtnText}>
-                    {codeCopied ? t('referral_copied') : t('referral_copy')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={s.referralStatsRow}>
-                <Text style={s.referralStatsLabel}>{t('referral_stats')}</Text>
-                <Text style={s.referralStatsValue}>{referralCount}</Text>
-              </View>
-              <TouchableOpacity style={s.referralShareBtn} onPress={handleShareReferral}>
-                <Text style={s.referralShareBtnText}>{t('referral_share')}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
         {/* NOTIFICATIONS */}
         {renderSectionHeader('settings_notifications', 'notifications')}
         {!collapsed.notifications && (
         <View style={s.group}>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔔</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
@@ -595,7 +582,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>💬</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
                 <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
@@ -609,7 +596,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>⚗️</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
                 <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
@@ -623,7 +610,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔇</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_silent')}</Text>
                 <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
@@ -637,7 +624,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={[s.row, { borderBottomWidth: 0 }]}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔁</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
                 <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
@@ -658,28 +645,28 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🔒</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📋</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_terms')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🛡️</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📊</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
                 <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
@@ -697,7 +684,7 @@ export default function SettingsScreen({ navigation }) {
             disabled={exporting}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📈</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
@@ -711,7 +698,7 @@ export default function SettingsScreen({ navigation }) {
             disabled={exporting}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>📥</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
@@ -728,14 +715,14 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>❓</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_faq')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleContactSupport}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>💌</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_contact')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
@@ -745,7 +732,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={handleRateApp}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>⭐</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_rate')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
@@ -783,7 +770,7 @@ export default function SettingsScreen({ navigation }) {
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
                       >
-                        <Text style={{ fontSize: 17 }}>🗑️</Text>
+                        <FeatureIcon name="trash" size={17} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -800,7 +787,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.group}>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🎨</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
             </View>
             <View style={s.themePillRow}>
@@ -819,9 +806,30 @@ export default function SettingsScreen({ navigation }) {
               ))}
             </View>
           </View>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
+              <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
+            </View>
+            <View style={s.themePillRow}>
+              {[
+                { key: 'auto', label: t('settings_time_auto') },
+                { key: '12h', label: t('settings_time_12h') },
+                { key: '24h', label: t('settings_time_24h') },
+              ].map(o => (
+                <TouchableOpacity
+                  key={o.key}
+                  style={[s.themePill, timeFormat === o.key && s.themePillOn]}
+                  onPress={() => setTimeFormat(o.key)}
+                >
+                  <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
           <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🌐</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
               <View>
                 <Text style={s.rowLabel}>{t('settings_language')}</Text>
                 <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
@@ -831,7 +839,7 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🚪</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_signout')}</Text>
             </View>
             <Text style={s.rowArrow}>›</Text>
@@ -841,7 +849,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={handleDeleteAccount}
           >
             <View style={s.rowLeft}>
-              <Text style={s.rowIcon}>🗑️</Text>
+              <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
               <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
             </View>
             <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
@@ -850,7 +858,7 @@ export default function SettingsScreen({ navigation }) {
         )}
 
         <Text style={s.version}>
-          {t('settings_version')}{'\n'}
+          {`DoseTrace v${Constants.expoConfig?.version || '1.0.0'}`}{'\n'}
           {t('settings_not_medical')}
         </Text>
 
@@ -938,146 +946,164 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={s.editLabel}>{t('profile_name')}</Text>
-            <TextInput
-              style={s.editInput}
-              placeholder={t('profile_name_placeholder')}
-              placeholderTextColor={colors.textFaint}
-              value={displayName}
-              onChangeText={setDisplayName}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {/* ── About you ─────────────────────────────────────────── */}
+            <Text style={s.editSection}>{t('profile_sec_about')}</Text>
 
-            <Text style={s.editLabel}>{t('profile_gender')}</Text>
-            <View style={s.editPillRow}>
-              {[
-                { key: 'male', label: t('profile_gender_male') },
-                { key: 'female', label: t('profile_gender_female') },
-                { key: 'prefer_not_to_say', label: t('profile_gender_skip') },
-              ].map(g => (
-                <TouchableOpacity
-                  key={g.key}
-                  style={[s.editPill, gender === g.key && s.editPillOn]}
-                  onPress={() => setGender(g.key)}
-                >
-                  <Text style={[s.editPillText, gender === g.key && s.editPillTextOn]}>{g.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_name')}</Text>
+              <TextInput
+                style={s.editInput}
+                placeholder={t('profile_name_placeholder')}
+                placeholderTextColor={colors.textFaint}
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
             </View>
 
-            <Text style={s.editLabel}>{t('profile_birth')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={s.editPillRow}>
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_birth_month')}</Text>
+              {/* 4-across uniform month grid — same shape as onboarding. */}
+              <View style={s.editMGrid}>
                 {MONTH_KEYS.map((mk, idx) => (
                   <TouchableOpacity
                     key={mk}
-                    style={[s.editPill, birthMonth === idx && s.editPillOn]}
+                    style={[s.editMChip, birthMonth === idx && s.editPillOn]}
                     onPress={() => setBirthMonth(idx)}
                   >
                     <Text style={[s.editPillText, birthMonth === idx && s.editPillTextOn]}>{t(mk)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </ScrollView>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={s.editPillRow}>
-                {BIRTH_YEARS.map(y => (
+            </View>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_birth_year')}</Text>
+              <TextInput
+                style={s.editInput}
+                placeholder={t('profile_birth_year_ph')}
+                placeholderTextColor={colors.textFaint}
+                value={birthYearText}
+                onChangeText={(txt) => {
+                  const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
+                  setBirthYearText(digits);
+                  const n = parseInt(digits, 10);
+                  const max = new Date().getFullYear() - 18;
+                  setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
+                }}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </View>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_sex')}</Text>
+              <View style={s.editRow}>
+                {[
+                  { key: 'male', label: t('profile_gender_male') },
+                  { key: 'female', label: t('profile_gender_female') },
+                ].map(g => (
                   <TouchableOpacity
-                    key={y}
-                    style={[s.editPill, birthYear === y && s.editPillOn]}
-                    onPress={() => setBirthYear(y)}
+                    key={g.key}
+                    style={[s.editPill, gender === g.key && s.editPillOn]}
+                    onPress={() => setGender(g.key)}
                   >
-                    <Text style={[s.editPillText, birthYear === y && s.editPillTextOn]}>{y}</Text>
+                    <Text style={[s.editPillText, gender === g.key && s.editPillTextOn]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </ScrollView>
+              <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+            </View>
 
-            <Text style={s.editLabel}>{t('profile_country')}</Text>
-            <TouchableOpacity
-              style={s.editInput}
-              onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
-            >
-              <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
-                {country ? countryLabel(country, language) : t('profile_country_placeholder')}
-              </Text>
-            </TouchableOpacity>
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_country')}</Text>
+              <TouchableOpacity
+                style={[s.editInput, { justifyContent: 'center' }]}
+                onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
+              >
+                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                  {country ? countryLabel(country, language) : t('profile_country_placeholder')}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-            <Text style={s.editLabel}>{t('profile_goal')}</Text>
-            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8 }}>{t('profile_goal_multi_hint')}</Text>
-            <View style={[s.editPillRow, { flexWrap: 'wrap' }]}>
-              {[
-                { key: 'fitness', label: t('profile_goal_fitness') },
-                { key: 'strength', label: t('profile_goal_strength') },
-                { key: 'fat_loss', label: t('profile_goal_fat_loss') },
-                { key: 'endurance', label: t('profile_goal_endurance') },
-                { key: 'body_composition', label: t('profile_goal_body') },
-                { key: 'wellness', label: t('profile_goal_wellness') },
-                { key: 'energy', label: t('profile_goal_energy') },
-                { key: 'sleep', label: t('profile_goal_sleep') },
-                { key: 'hormonal_balance', label: t('profile_goal_hormonal') },
-                { key: 'longevity', label: t('profile_goal_longevity') },
-                { key: 'immune', label: t('profile_goal_immune') },
-                { key: 'recovery', label: t('profile_goal_recovery') },
-                { key: 'skin_collagen', label: t('profile_goal_skin') },
-                { key: 'mood', label: t('profile_goal_mood') },
-                { key: 'sexual_health', label: t('profile_goal_sexual') },
-                { key: 'joint_bone', label: t('profile_goal_joint') },
-                { key: 'cardiovascular', label: t('profile_goal_cardio') },
-                { key: 'stress', label: t('profile_goal_stress') },
-              ].map(g => {
-                const selected = primaryGoals.includes(g.key);
-                return (
+            {/* ── Your goals ────────────────────────────────────────── */}
+            <Text style={s.editSection}>{t('profile_sec_goals')}</Text>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_goal')}</Text>
+              <Text style={s.editHint}>{t('profile_goal_multi_hint')}</Text>
+              <View style={s.editRow}>
+                {goalOptions(t).map(g => {
+                  const selected = primaryGoals.includes(g.key);
+                  return (
+                    <TouchableOpacity
+                      key={g.key}
+                      style={[s.editPill, selected && s.editPillOn]}
+                      onPress={() => {
+                        setPrimaryGoals(prev =>
+                          prev.includes(g.key)
+                            ? prev.filter(k => k !== g.key)
+                            : [...prev, g.key]
+                        );
+                      }}
+                    >
+                      <Text style={[s.editPillText, selected && s.editPillTextOn]}>{g.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                {/* Legacy goal keys not in the current 18 (e.g. an old "athletic")
+                    still render selected so the user can see and keep/remove them —
+                    never a silent, invisible selection. */}
+                {primaryGoals.filter(k => !goalOptions(t).some(g => g.key === k)).map(k => (
                   <TouchableOpacity
-                    key={g.key}
-                    style={[s.editPill, selected && s.editPillOn, { marginBottom: 8 }]}
-                    onPress={() => {
-                      setPrimaryGoals(prev =>
-                        prev.includes(g.key)
-                          ? prev.filter(k => k !== g.key)
-                          : [...prev, g.key]
-                      );
-                    }}
+                    key={k}
+                    style={[s.editPill, s.editPillOn]}
+                    onPress={() => setPrimaryGoals(prev => prev.filter(x => x !== k))}
                   >
-                    <Text style={[s.editPillText, selected && s.editPillTextOn]}>{g.label}</Text>
+                    <Text style={[s.editPillText, s.editPillTextOn]}>{t('profile_goal_' + k) || k}</Text>
                   </TouchableOpacity>
-                );
-              })}
+                ))}
+              </View>
             </View>
 
-            <Text style={s.editLabel}>{t('profile_activity')}</Text>
-            <View style={s.editPillRow}>
-              {[
-                { key: 'sedentary', label: t('profile_activity_sedentary') },
-                { key: 'moderate', label: t('profile_activity_moderate') },
-                { key: 'active', label: t('profile_activity_active') },
-                { key: 'very_active', label: t('profile_activity_very_active') },
-              ].map(a => (
-                <TouchableOpacity
-                  key={a.key}
-                  style={[s.editPill, activityLevel === a.key && s.editPillOn]}
-                  onPress={() => setActivityLevel(a.key)}
-                >
-                  <Text style={[s.editPillText, activityLevel === a.key && s.editPillTextOn]}>{a.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_activity')}</Text>
+              <View style={s.editRow}>
+                {[
+                  { key: 'sedentary', label: t('profile_activity_sedentary') },
+                  { key: 'moderate', label: t('profile_activity_moderate') },
+                  { key: 'active', label: t('profile_activity_active') },
+                  { key: 'very_active', label: t('profile_activity_very_active') },
+                ].map(a => (
+                  <TouchableOpacity
+                    key={a.key}
+                    style={[s.editPill, activityLevel === a.key && s.editPillOn]}
+                    onPress={() => setActivityLevel(a.key)}
+                  >
+                    <Text style={[s.editPillText, activityLevel === a.key && s.editPillTextOn]}>{a.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            <Text style={s.editLabel}>{t('profile_provider')}</Text>
-            <View style={s.editPillRow}>
-              {[
-                { key: 'yes', label: t('profile_provider_yes') },
-                { key: 'no', label: t('profile_provider_no') },
-              ].map(p => (
-                <TouchableOpacity
-                  key={p.key}
-                  style={[s.editPill, hasProvider === p.key && s.editPillOn]}
-                  onPress={() => setHasProvider(p.key)}
-                >
-                  <Text style={[s.editPillText, hasProvider === p.key && s.editPillTextOn]}>{p.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_provider')}</Text>
+              <View style={s.editRow}>
+                {[
+                  { key: 'yes', label: t('profile_provider_yes') },
+                  { key: 'no', label: t('profile_provider_no') },
+                ].map(p => (
+                  <TouchableOpacity
+                    key={p.key}
+                    style={[s.editPill, hasProvider === p.key && s.editPillOn]}
+                    onPress={() => setHasProvider(p.key)}
+                  >
+                    <Text style={[s.editPillText, hasProvider === p.key && s.editPillTextOn]}>{p.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
@@ -1117,7 +1143,8 @@ export default function SettingsScreen({ navigation }) {
               return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
             })}
             keyExtractor={item => item}
-            style={{ flex: 1, paddingHorizontal: 20 }}
+            style={{ flex: 1 }}
+            contentContainerStyle={[s.centered, { paddingHorizontal: 20 }]}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -1139,31 +1166,33 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 16, borderWidth: 0.5, borderColor: c.border },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 14, ...c.shadowSoft },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
   profileInfo: { flex: 1 },
   profileEmail: { fontSize: 14, fontWeight: '500', color: c.text, marginBottom: 4 },
   planBadge: { backgroundColor: c.accentSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
   planBadgeText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
-  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 16 },
+  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 14 },
   premiumTitle: { fontSize: 16, fontWeight: '600', color: 'white', marginBottom: 6 },
   premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 14, lineHeight: 18 },
   premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
   premiumCheck: { color: '#9FE1CB', fontWeight: '600', fontSize: 13 },
   premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
-  premiumBtn: { backgroundColor: 'white', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, textTransform: 'uppercase' },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
   sectionChevron: { fontSize: 12, color: c.textFaint },
-  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, borderWidth: 0.5, borderColor: c.border, overflow: 'hidden' },
+  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
+  rowIconBox: { width: 28, alignItems: 'center' },
   rowLabel: { fontSize: 14, color: c.text },
   rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
   rowArrow: { fontSize: 18, color: c.textFaint },
@@ -1172,7 +1201,7 @@ const makeStyles = (c) => StyleSheet.create({
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   modalClose: { fontSize: 14, color: c.accent, fontWeight: '600' },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20 },
   legalText: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
   langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, backgroundColor: c.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
   langRowSelected: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
@@ -1183,38 +1212,28 @@ const makeStyles = (c) => StyleSheet.create({
   langCheck: { fontSize: 18, color: c.accent, fontWeight: '600' },
   // Theme toggle
   themePillRow: { flexDirection: 'row', gap: 8 },
-  themePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  themePillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  themePillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
-  themePillTextOn: { color: c.accentText, fontWeight: '600' },
-  // Referral
-  referralCard: { marginHorizontal: 16, marginTop: 8, marginBottom: 8, padding: 18, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.accent },
-  referralTitle: { fontSize: 16, fontWeight: '700', color: c.accent, marginBottom: 4 },
-  referralSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
-  referralCreditBanner: { backgroundColor: c.successSoft, padding: 10, borderRadius: 8, marginBottom: 14 },
-  referralCreditText: { fontSize: 13, fontWeight: '600', color: c.successSoftText, textAlign: 'center' },
-  referralCodeLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 6 },
-  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  referralCodeText: { fontSize: 28, fontWeight: '700', color: c.text, letterSpacing: 6 },
-  referralCopyBtn: { backgroundColor: c.accentSoft, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  referralCopyBtnText: { fontSize: 12, fontWeight: '600', color: c.accent },
-  referralStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: c.border, marginBottom: 12 },
-  referralStatsLabel: { fontSize: 13, color: c.textMuted },
-  referralStatsValue: { fontSize: 18, fontWeight: '700', color: c.accent },
-  referralShareBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 10, alignItems: 'center' },
-  referralShareBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  themePill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  themePillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
+  themePillText: { fontSize: 13, color: c.text, fontWeight: '600' },
+  themePillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   goalBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
-  // Edit profile modal
-  editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6, marginTop: 16 },
-  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, backgroundColor: c.card2, marginBottom: 4 },
-  editPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  editPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  editPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  editPillText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
-  editPillTextOn: { color: c.accentText, fontWeight: '600' },
+  // Edit profile modal — same layout language as onboarding.
+  editSection: { fontSize: 15, fontWeight: '800', color: c.text, letterSpacing: -0.2, marginTop: 24, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
+  editField: { marginTop: 16 },
+  editLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginBottom: 8 },
+  editHint: { fontSize: 12.5, color: c.textMuted, marginTop: -4, marginBottom: 8 },
+  sexHelp: { fontSize: 12, color: c.textFaint, marginTop: 8, lineHeight: 16 },
+  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: c.text, backgroundColor: c.card2, minHeight: 48 },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  editMGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  editMChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  editPill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  editPillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
+  editPillText: { fontSize: 14, color: c.text, fontWeight: '600' },
+  editPillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
 });

@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 export default function FAQScreen({ navigation }) {
   const { t } = useLanguage();
@@ -32,7 +33,7 @@ export default function FAQScreen({ navigation }) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         <Text style={s.intro}>{t('faq_intro')}</Text>
 
         {faqData.map((section, si) => (
@@ -76,6 +77,7 @@ export default function FAQScreen({ navigation }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: c.card },
   backBtn: { width: 60 },
@@ -85,7 +87,7 @@ const makeStyles = (c) => StyleSheet.create({
   intro: { fontSize: 13, color: c.textMuted, lineHeight: 20, margin: 16, marginBottom: 8 },
   section: { marginBottom: 8 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginLeft: 16, marginTop: 16, marginBottom: 8 },
-  item: { backgroundColor: c.card, marginHorizontal: 16, marginBottom: 6, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: c.border },
+  item: { backgroundColor: c.card, marginHorizontal: 16, marginBottom: 6, borderRadius: 18, padding: 14, ...c.shadowSoft },
   itemOpen: { borderColor: c.accent, borderWidth: 1 },
   itemHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   itemQ: { fontSize: 13, fontWeight: '600', color: c.text, flex: 1, lineHeight: 20 },

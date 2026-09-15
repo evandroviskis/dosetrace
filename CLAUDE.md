@@ -1,0 +1,103 @@
+# CLAUDE.md — operating contract for DoseTrace
+
+Read this first, every session. These rules exist because they were each broken and cost real time/tokens. The founder should not have to babysit — that is what this file is for.
+
+## Standing rule: approved → the NEXT build (2026-09-10, founder directive)
+
+Anything the founder says he wants AND approves ships in the **very next build** by
+default. There is no silent "backlog." The ONLY way an approved item slips to a later
+build is if the **founder explicitly defers it** (e.g. the 1-year early-adopter premium,
+which he parked on purpose). A council/ship-check gate is a *how to build it safely* step
+— NEVER a reason to defer without his say-so.
+
+If you believe an approved item genuinely cannot be built well in time for the next build,
+you MUST say so explicitly and let the founder decide — never quietly move it to "later."
+Track approved-but-unbuilt items in `STATE.md` with the build they're committed to, and if
+one isn't in the next build, that must be a stated, founder-approved deferral, not a default.
+
+(The AI nutrition logger was approved around build 50 with "Go ahead" and was silently
+parked as "backlog" through build 52 — the exact failure this rule exists to prevent.)
+
+## Standing rule: verify color + contrast in BOTH themes before every build (2026-09-11, founder directive)
+
+Before every EAS build, confirm colors and contrast across the WHOLE app in **both light
+and dark themes** — every screen, and especially popups/modals/dropdowns/pickers, which
+are the ones that slip (e.g. the language picker rendered white-on-white in light theme).
+Never hardcode a color that only works in one theme; always pull from the theme tokens
+(`lib/theme.js`) so both themes resolve. A control the user can't read is a bug, same as a
+crash. Grep the diff for raw hex / hardcoded `#fff`/`white`/`black` and for any `View`/
+`Text` that sets a background or color without a theme token. This is part of ship-check
+Gate A now.
+
+## Standing rule: NEVER lose user-entered data (2026-09-12, founder directive)
+
+Data a user typed in must survive **app updates, screen/flow rebuilds, re-auth, and
+sync** — always. It is NEVER acceptable for an update or a screen change to delete or
+drop data the user entered (this rule exists because a build-53 update wiped an
+in-progress reality-check on hello@dosetrace.io).
+
+- **Durable, synced storage is the default.** User data belongs in the SQLite↔Supabase
+  synced tables (the `syncCore` engine, with tombstones), NOT in `AsyncStorage` alone
+  (wiped on any SIGNED_OUT) and NOT solely in Supabase `user_metadata` (no history, no
+  tombstones, overwrite-prone). Reality-check, calculator inputs/snapshots and anything
+  like them must move to durable synced storage.
+- **Never destroy on a maybe.** The SIGNED_OUT wipe (`clearLocalDatabase` +
+  `AsyncStorage.removeItem` + `clearOnboarding`) must fire ONLY on a real, intended sign
+  out — never on a token refresh, a session hiccup during an update, or a re-auth of the
+  SAME user. Distinguish "user signed out" from "session changed."
+- **Writes merge, never clobber.** Any `updateUser({ data })` / metadata write must
+  preserve existing keys; never write back an array/object computed from a stale or empty
+  read (that is how a list gets silently emptied).
+- **When replacing a screen/flow, migrate its data in the same change.** "Rebuild = REPLACE"
+  (below) does NOT mean drop the old data — carry it over.
+- **Prove it before shipping:** for any change touching storage/auth/sync/migrations, test
+  update-over-old-version and re-auth on device and confirm previously-entered data is
+  still there. This is part of ship-check Gate A/B now.
+
+## Prime directive: ORIENT before you ACT
+
+Before any build, submit, delete, migration, or "it's done" claim:
+1. **Read `STATE.md`** (the running ledger of what's done / in flight) before starting related work. Update it as you go, not at the end.
+2. **State what you're about to do and exactly what you'll verify** — then do the verification. Keep it to a sentence; don't narrate every step.
+3. **Verify with evidence — NEVER assume.** A command's exit code, an `eas submit` "success", a POST returning 2xx — none of these mean the user-visible outcome happened. Check the actual state (API, tests, logs, the live URL). If you can't verify it, say "unverified" — never call it done.
+
+If you catch yourself about to do a second thing before the first is verified, stop and verify the first.
+
+## Rebuild means REPLACE, not bolt-on
+
+When replacing a screen/module/flow: delete the old one in the same change. Never leave the old version alive "as a fallback" — it resurfaces (e.g., the legacy `OnboardingScreen` leaking on sign-out). "I rebuilt X" is false if the old X still ships.
+
+## No emoji in the UI
+
+Emoji in any user-facing screen is a bug. Use `components/FeatureIcon.js` (the founder's vector set). If a glyph is missing, add one to `assets/feature-icons/` + `components/featureIconsData.js` in the same monoline style — don't fall back to an emoji.
+
+## Definition of DONE (per change)
+
+- `npm test` green (the one known failure is `docs/research/bmr-calculator/reference/energy.test.ts` — pre-existing, ignore ONLY that one).
+- `npx expo export --platform ios` completes (the authoritative bundle check for anything non-trivial).
+- i18n edits keep all 6 languages in parity (the parity test must pass).
+- **Auth / session / sync / delete changes** → ship-check GATE B + a code-review pass over the diff + the founder tests on device before any upload. `onAuthStateChange` stays synchronous (no `await`/`supabase.*` inline — it deadlocks the session).
+- Before EVERY EAS build: run the **dt-council** skill, then **ship-check**, then build. No build until the founder says go.
+- For any **substantive user-flow change** (new/changed flow, field, default, restriction, schedule, or records effect): run the **journey-review** skill — before implementing (intent + scenarios + acceptance) and again inside dt-council on the changed flow. It hunts the ordinary real-world situation the spec/diff missed — above all *"what may already have happened before the user opened this feature?"* (the miss that shipped "started my compound weeks ago" unhandled for months). Details live in the skill; keep this pointer short.
+
+## TestFlight / release — the miss that cost the most
+
+`eas submit` uploads the binary to App Store Connect; it does **NOT** put it in front of testers. A build in zero TestFlight groups is invisible. After `eas submit`, always:
+1. Add the build to the group — internal all-builds for the founder's own testing, and the **Early Birds** external group (`0980fae5-...`) for the public link.
+2. Submit external beta review.
+3. **VERIFY via the ASC API** that the build is grouped and the beta review is `WAITING_FOR_REVIEW` with a real `submittedDate`. `/tf-status` does this check.
+
+NEVER tell the founder a build is "on TestFlight" / "delivered" until `/tf-status` confirms it. See the `testflight-release-external` memory for the exact API calls.
+
+## Gotchas that have bitten
+
+- **Node** is only on PATH via nvm — prefix Bash: `export PATH="$HOME/.nvm/versions/node/v24.20.0/bin:$PATH"`.
+- **Commit messages**: no backticks in `git commit -m` (shell command-substitutes and silently drops the word). Use plain quotes.
+- **Numbers**: dose fields accept comma decimals ("0,5") — `parseDecimal` in `lib/doseMath.js`. Comma-grouped thousands ("5,000 IU") are NOT decimals.
+- **Node scripts**: write as `.cjs` (the scratchpad is ESM). Verify JS edits parse with `@babel/parser`.
+- **Product guardrails**: honest journal + pure-math calculator only — never interpret, diagnose, recommend, or add a drug-interaction checker. Never strip a language. Never link DoseTrace to EvoxBiolabs (owner is Outcom). Never commit secrets (STATE.md credentials stay out of git).
+- **AI HARD LINE (never violate):** any AI feature (vial-label scan, the planned conversational nutrition logger, any protocol/results cross-reference) may only TRANSCRIBE or SURFACE the user's own data. It must NEVER recommend a treatment, dose, or protocol change; NEVER diagnose or interpret a result; NEVER say "do X to make a compound work better." Show the user's numbers side by side and point to a health professional — the user (and their provider) draw conclusions, never the app. This is the Apple 1.4.1 / SaMD line and the whole regulatory defense. Founder directive 2026-09-10.
+
+## Attribution
+
+Commits: `git -c user.name="evandroviskis" -c user.email="jootaerre@gmail.com" commit`, trailer `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.

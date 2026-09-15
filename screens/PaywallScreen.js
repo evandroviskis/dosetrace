@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -16,10 +17,12 @@ import {
   restorePurchases,
   isPremium,
   checkTrialEligibility,
-  PRODUCT_IDS,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import FeatureIcon from '../components/FeatureIcon';
 import { friendlyError } from '../lib/friendlyError';
+import { Analytics } from '../lib/analytics';
 
 export default function PaywallScreen({ navigation, route }) {
   const { t } = useLanguage();
@@ -35,31 +38,31 @@ export default function PaywallScreen({ navigation, route }) {
 
   const FREE_FEATURES = [
     { label: t('paywall_free_feat_1'), included: true },   // Reconstitution calculator
-    { label: t('paywall_free_feat_2'), included: true },   // Syringe guide
-    { label: t('paywall_free_feat_3'), included: true },   // Up to 5 protocols
+    { label: t('paywall_free_feat_3'), included: true },   // Up to 3 protocols
     { label: t('paywall_free_feat_4'), included: true },   // Injection log & vial tracker
     { label: t('paywall_free_feat_5'), included: true },   // Reminders
-    { label: t('paywall_free_feat_6'), included: true },   // Oral supplement tracking
-    { label: t('paywall_free_feat_7'), included: true },   // 1 free bloodwork upload
-    { label: t('paywall_free_feat_9'), included: false },  // Unlimited protocols
-    { label: t('paywall_free_feat_10'), included: false },  // Unlimited bloodwork uploads
+    { label: t('pw_free_labvax'), included: true },        // Lab & vaccine journals (manual)
+    { label: t('pw_free_calc'), included: true },          // Energy & protein calculator
+    { label: t('pw_free_scan1'), included: true },         // 1 free lab scan
+    { label: t('pw_free_sync'), included: true },          // Cloud backup & sync (free)
+    { label: t('paywall_feat_4'), included: false },       // Unlimited protocols
+    { label: t('pw_prem_scan'), included: false },         // Unlimited lab & vaccine scanning
+    { label: t('pw_prem_pdf'), included: false },          // PDF export
+    { label: t('pw_prem_reality'), included: false },      // Reality check + progress
+    { label: t('body_card_dosing_title'), included: false }, // Dose accumulation / serum curve
   ];
 
   const PREMIUM_FEATURES = [
-    t('paywall_feat_1'),   // Everything in Free
-    t('paywall_feat_4'),   // Unlimited protocols
-    t('paywall_feat_5'),   // Unlimited bloodwork uploads
-  ];
-
-  const COMING_SOON_FEATURES = [
-    t('paywall_coming_1'),  // Cloud backup & sync
-    t('paywall_coming_2'),  // Serum curve & protocol timeline
-    t('paywall_coming_3'),  // Cycle planner
-    t('paywall_coming_4'),  // Apple Health & Watch
-    t('paywall_coming_5'),  // PDF export
+    t('paywall_feat_1'),        // Everything in Free
+    t('paywall_feat_4'),        // Unlimited protocols
+    t('pw_prem_scan_full'),     // Unlimited lab & vaccine scanning — photo/PDF, any language
+    t('pw_prem_pdf'),           // PDF export for your doctor
+    t('pw_prem_reality'),       // Reality check & progress tracking
+    t('body_card_dosing_title'), // Dose accumulation / serum curve
   ];
 
   useEffect(() => {
+    Analytics.viewed('paywall');
     loadOfferings();
   }, []);
 
@@ -69,9 +72,12 @@ export default function PaywallScreen({ navigation, route }) {
     setLoading(false);
 
     // Trial eligibility (iOS-only API — null means unknown, show neutral copy)
-    const subIds = [PRODUCT_IDS.MONTHLY, PRODUCT_IDS.ANNUAL].filter(id =>
-      pkgs.some(p => p.product.identifier === id)
-    );
+    // Trial eligibility (iOS-only) is keyed by the real store product id, taken
+    // from the actual subscription packages (see getPackageFor note on Android
+    // base-plan suffixes).
+    const subIds = pkgs
+      .filter(p => p.packageType === 'MONTHLY' || p.packageType === 'ANNUAL')
+      .map(p => p.product.identifier);
     if (subIds.length > 0) {
       const eligibility = await checkTrialEligibility(subIds);
       setTrialEligibility(eligibility);
@@ -79,10 +85,14 @@ export default function PaywallScreen({ navigation, route }) {
   }
 
   function getPackageFor(type) {
-    const id = type === 'annual' ? PRODUCT_IDS.ANNUAL
-      : type === 'monthly' ? PRODUCT_IDS.MONTHLY
-      : PRODUCT_IDS.LIFETIME;
-    return packages.find(p => p.product.identifier === id);
+    // Match by RevenueCat packageType, NOT product.identifier. On Android a
+    // subscription's product.identifier carries its base-plan suffix
+    // (e.g. "monthly:p1m", "yearly:annual"), so matching the bare id hides every
+    // subscription and leaves only the suffix-less lifetime product visible.
+    const wanted = type === 'annual' ? 'ANNUAL'
+      : type === 'monthly' ? 'MONTHLY'
+      : 'LIFETIME';
+    return packages.find(p => p.packageType === wanted);
   }
 
   const annualPkg = getPackageFor('annual');
@@ -172,10 +182,10 @@ export default function PaywallScreen({ navigation, route }) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
 
         <View style={s.hero}>
-          <Text style={s.heroIcon}>🚀</Text>
+          <View style={s.heroIcon}><FeatureIcon name="curve" size={52} color={colors.accent} /></View>
           <Text style={s.heroTitle}>{t('paywall_hero_title')}</Text>
           <Text style={s.heroSub}>
             {t('paywall_hero_sub')}
@@ -252,9 +262,12 @@ export default function PaywallScreen({ navigation, route }) {
                     disabled={purchasing}
                   >
                     <Text style={s.lifetimeBtnText}>{lifetimePkg.product.priceString}</Text>
-                    <Text style={s.lifetimeBtnSub}>{t('paywall_lifetime_note')}</Text>
                   </TouchableOpacity>
                 </View>
+                {/* Long note lives on its own full-width line — inside the button it
+                    forced the button wide (RN flexShrink defaults to 0) and starved
+                    the description column, mangling the wrap. */}
+                <Text style={s.lifetimeNote}>{t('paywall_lifetime_note')}</Text>
               </View>
             )}
 
@@ -277,9 +290,12 @@ export default function PaywallScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
 
-            <Text style={s.legalNote}>
-              {trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial')}
-            </Text>
+            {hasSubscription && (
+              <Text style={s.legalNote}>
+                {(trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial'))
+                  .replace(/\{store\}/g, Platform.OS === 'ios' ? 'Apple ID' : 'Google Play')}
+              </Text>
+            )}
           </>
         )}
 
@@ -313,17 +329,6 @@ export default function PaywallScreen({ navigation, route }) {
             <View key={i} style={[s.featRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border }]}>
               <Text style={s.featCheck}>✓</Text>
               <Text style={s.featText}>{f}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={[s.sectionTitle, { marginTop: 20 }]}>{t('paywall_coming_soon_title')}</Text>
-
-        <View style={s.featuresCard}>
-          {COMING_SOON_FEATURES.map((f, i) => (
-            <View key={i} style={[s.featRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border }]}>
-              <Text style={{ fontSize: 14, width: 16 }}>🔜</Text>
-              <Text style={[s.featText, { color: colors.textMuted }]}>{f}</Text>
             </View>
           ))}
         </View>
@@ -366,13 +371,14 @@ export default function PaywallScreen({ navigation, route }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: c.card },
   navBack: { fontSize: 14, color: c.accent, width: 60 },
   navTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   hero: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  heroIcon: { fontSize: 48, marginBottom: 12 },
-  heroTitle: { fontSize: 26, fontWeight: '700', color: c.text, marginBottom: 8 },
+  heroIcon: { marginBottom: 12, alignItems: 'center' },
+  heroTitle: { fontSize: 26, lineHeight: 34, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
   heroSub: { fontSize: 14, color: c.textMuted, textAlign: 'center', lineHeight: 22 },
   loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },
   unavailableText: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
@@ -390,30 +396,30 @@ const makeStyles = (c) => StyleSheet.create({
   saveBadge: { backgroundColor: c.successSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, marginBottom: 6 },
   saveBadgeText: { fontSize: 11, fontWeight: '600', color: c.successSoftText },
   planMonthly: { fontSize: 11, color: c.textMuted },
-  lifetimeCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
+  lifetimeCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.card, borderRadius: 18, padding: 16, ...c.shadowSoft },
   lifetimeRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   lifetimeTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 2 },
   lifetimeSub: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
-  lifetimeBtn: { backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10, alignItems: 'center' },
-  lifetimeBtnText: { color: c.accentText, fontSize: 18, fontWeight: '700' },
-  lifetimeBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 10, marginTop: 2 },
+  lifetimeBtn: { flexShrink: 0, backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  lifetimeBtnText: { color: c.accentText, fontSize: 18, fontWeight: '800' },
+  lifetimeNote: { fontSize: 11.5, color: c.textFaint, lineHeight: 16, marginTop: 12 },
   ctaBtn: { marginHorizontal: 16, backgroundColor: c.accent, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 12 },
   ctaBtnText: { color: c.accentText, fontSize: 16, fontWeight: '700', marginBottom: 3 },
   ctaBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11 },
   legalNote: { fontSize: 10, color: c.textFaint, textAlign: 'center', paddingHorizontal: 24, lineHeight: 16, marginBottom: 8 },
   divider: { height: 8, backgroundColor: c.border, marginVertical: 8 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginHorizontal: 16, marginTop: 16, marginBottom: 12 },
-  featuresCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, overflow: 'hidden' },
+  featuresCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, overflow: 'hidden' },
   featRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 13, borderBottomWidth: 0.5, borderBottomColor: c.border },
   featCheck: { color: c.success, fontWeight: '700', fontSize: 14, width: 16 },
   featText: { fontSize: 13, color: c.text, flex: 1, lineHeight: 20 },
-  compareCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, overflow: 'hidden' },
+  compareCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, overflow: 'hidden' },
   compareHeader: { flexDirection: 'row', padding: 12, backgroundColor: c.card2, borderBottomWidth: 0.5, borderBottomColor: c.border },
   compareCol: { flex: 1, fontSize: 11, fontWeight: '600', color: c.textMuted, textAlign: 'center' },
   compareRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   compareLabel: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
   compareVal: { flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '600' },
-  bloodworkCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, padding: 16 },
+  bloodworkCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, padding: 16 },
   bloodworkTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginBottom: 8 },
   bloodworkSub: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 16 },
   bloodworkOptions: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
@@ -423,7 +429,7 @@ const makeStyles = (c) => StyleSheet.create({
   bloodworkOptionPer: { fontSize: 11, color: c.textMuted },
   bloodworkDivider: { width: 0.5, height: 50, backgroundColor: c.border, marginHorizontal: 16 },
   bloodworkNote: { fontSize: 12, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, padding: 10, lineHeight: 18 },
-  singleUploadCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: c.border },
+  singleUploadCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, padding: 16, ...c.shadowSoft },
   singleUploadTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 6 },
   singleUploadSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 12 },
   singleUploadBtn: { borderWidth: 1, borderColor: c.accent, borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },

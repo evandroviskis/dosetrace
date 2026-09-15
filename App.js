@@ -3,16 +3,27 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './lib/supabase';
+import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
+import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, RC_START_KEY } from './lib/notifications';
+import { getRealityStart } from './lib/realityCheck';
+import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
-import { initDatabase, clearLocalDatabase } from './lib/database';
+import { installFontMapping, useAppFonts } from './lib/fonts';
+
+// Route every fontWeight in the app to Plus Jakarta Sans. Installed at module
+// load, before any component renders.
+installFontMapping();
+import { initDatabase, clearLocalDatabase, getTodayLogs, getLocalDataUserId } from './lib/database';
+import { recordDoseTaken } from './lib/doseActions';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
-import { redeemPendingReferral } from './lib/referrals';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -66,42 +77,93 @@ import TodayScreen from './screens/TodayScreen';
 import ProtocolsScreen from './screens/ProtocolsScreen';
 import LogScreen from './screens/LogScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import OnboardingScreen from './screens/OnboardingScreen';
-// VialScreen removed from tabs — vial tracking now in TodayScreen
+import AuthScreen from './screens/AuthScreen';
+import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import FAQScreen from './screens/FAQScreen';
-import BloodworkScreen from './screens/BloodworkScreen';
+import BodyScreen from './screens/BodyScreen';
+import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import SerumCurveScreen from './screens/SerumCurveScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function TabIcon({ emoji, focused }) {
-  const { colors, isDark } = useTheme();
-  // color themes any monochrome glyph icons (e.g. ⊞) — color emoji ignore it.
-  // Inactive icons dim via opacity; keep it higher in dark mode so they don't
-  // look muddy/"tinted" against the dark tab bar.
+// ── Tab-bar line icons ─────────────────────────────────────────
+// Clean monochrome SVG icons that tint with the accent. Active tabs get a
+// filled glyph, inactive a stroked outline — consistent weight across all four
+// (replaces the old mismatched emoji set).
+function TodayGlyph({ color, focused }) {
+  // Four rounded squares — filled when active, outlined when not.
   return (
-    <Text
-      style={{
-        fontSize: 22,
-        color: focused ? colors.accent : colors.tabInactive,
-        opacity: focused ? 1 : (isDark ? 0.7 : 0.45),
-      }}
-    >
-      {emoji}
-    </Text>
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      {[[3, 3], [14, 3], [3, 14], [14, 14]].map(([x, y], i) => (
+        <Rect key={i} x={x} y={y} width={7} height={7} rx={2.2}
+          fill={focused ? color : 'none'} stroke={color} strokeWidth={focused ? 0 : 1.9} />
+      ))}
+    </Svg>
   );
+}
+function ProtocolsGlyph({ color, focused }) {
+  // Capsule / pill.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z"
+        stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinejoin="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.16 : 0} />
+      <Path d="M8.5 8.5 15.5 15.5" stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function BodyGlyph({ color, focused }) {
+  // Person / torso.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={7.5} r={3.6}
+        fill={focused ? color : 'none'} stroke={color} strokeWidth={focused ? 0 : 1.9} />
+      <Path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"
+        stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinecap="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.16 : 0} />
+    </Svg>
+  );
+}
+function JourneyGlyph({ color, focused }) {
+  // Milestone flag — the "am I on track" journey.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 21 V4" stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinecap="round" />
+      <Path d="M6 4.5 C9.5 2.8 13 6.2 17.5 4.5 L17.5 10.5 C13 12.2 9.5 8.8 6 10.5 Z"
+        stroke={color} strokeWidth={focused ? 2.2 : 1.9} strokeLinejoin="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.16 : 0} />
+    </Svg>
+  );
+}
+function SettingsGlyph({ color, focused }) {
+  // Gear.
+  return (
+    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <Path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"
+        stroke={color} strokeWidth={focused ? 2 : 1.7} strokeLinejoin="round"
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.14 : 0} />
+      <Circle cx={12} cy={12} r={3} stroke={color} strokeWidth={focused ? 2 : 1.7}
+        fill={focused ? color : 'none'} fillOpacity={focused ? 0.5 : 0} />
+    </Svg>
+  );
+}
+
+function TabIcon({ Glyph, focused }) {
+  const { colors } = useTheme();
+  return <Glyph color={focused ? colors.accent : colors.tabInactive} focused={focused} />;
 }
 
 function MainTabs() {
   const { t } = useLanguage();
 
   const tabs = [
-    { name: 'Today', label: t('tab_today'), emoji: '⊞', component: TodayScreen },
-    { name: 'Protocols', label: t('tab_protocols'), emoji: '💊', component: ProtocolsScreen },
-    { name: 'Log', label: t('tab_log'), emoji: '📋', component: LogScreen },
-    { name: 'Blood', label: t('tab_blood'), emoji: '🩸', component: BloodworkScreen },
-    { name: 'Settings', label: t('tab_settings'), emoji: '👤', component: SettingsScreen },
+    { name: 'Today', label: t('tab_today'), Glyph: TodayGlyph, component: TodayScreen },
+    { name: 'Protocols', label: t('tab_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
+    { name: 'Journey', label: t('tab_journey'), Glyph: JourneyGlyph, component: JourneyScreen },
+    { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
+    { name: 'Settings', label: t('tab_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
   ];
 
   const { colors } = useTheme();
@@ -114,18 +176,22 @@ function MainTabs() {
         tabBarStyle: {
           borderTopWidth: 0,
           elevation: 0,
-          shadowOpacity: 0.06,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: -4 },
+          shadowColor: '#12233B',
+          shadowOpacity: 0.10,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: -6 },
           backgroundColor: colors.card,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
           paddingBottom: 22,
-          paddingTop: 8,
-          height: 84,
+          paddingTop: 10,
+          height: 86,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
+          fontSize: 10.5,
+          fontWeight: '700',
           letterSpacing: 0.2,
+          marginTop: 2,
         },
       }}
     >
@@ -137,7 +203,7 @@ function MainTabs() {
           options={{
             tabBarLabel: tab.label,
             tabBarIcon: ({ focused }) => (
-              <TabIcon emoji={tab.emoji} focused={focused} />
+              <TabIcon Glyph={tab.Glyph} focused={focused} />
             ),
           }}
         />
@@ -150,6 +216,8 @@ function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Log" component={LogScreen} />
+      <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
     </Stack.Navigator>
@@ -158,8 +226,18 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef }) {
+function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding }) {
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
+
+  // Signup confirmation came back through the deep link — the user has no other
+  // way to know it worked, so say so explicitly.
+  useEffect(() => {
+    if (!justConfirmed) return;
+    Alert.alert(t('confirm_email_done_title'), t('confirm_email_done_msg'));
+    onConfirmedShown && onConfirmedShown();
+  }, [justConfirmed]);
+
   const base = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
     ...base,
@@ -176,8 +254,41 @@ function ThemedRoot({ session, navigationRef }) {
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!session ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        {recovering ? (
+          // Opened from a password-reset email: force the set-new-password step
+          // even though the code exchange already created a session, so the user
+          // can't be silently dropped into the app with the old password.
+          <Stack.Screen name="ResetPassword">
+            {() => <ResetPasswordScreen onDone={onRecoveryDone} />}
+          </Stack.Screen>
+        ) : !session ? (
+          seenOnboarding ? (
+            // Returning / signed-out: the auth screen only (sign in or create).
+            // The old multi-step OnboardingScreen was deleted — the value-first
+            // intro below is the single onboarding, and AuthScreen the single
+            // auth surface.
+            <Stack.Screen name="Auth">
+              {() => <AuthScreen onBack={onBackToOnboarding} />}
+            </Stack.Screen>
+          ) : (
+            // First launch: the value-first intro flow collects the profile
+            // (name / birthday / gender / goal / activity) BEFORE an account
+            // exists and stashes it locally. onDone marks it seen and drops the
+            // user onto AuthScreen; applyPendingProfile writes the stash to the
+            // account right after SIGNED_IN.
+            <Stack.Screen name="OnboardingFlow">
+              {() => <OnboardingFlowScreen onDone={onFinishOnboarding} />}
+            </Stack.Screen>
+          )
+        ) : !isProfileComplete(session.user) ? (
+          // A session with an incomplete profile — every Apple/Google sign-in, or a
+          // returning account missing a now-required field — completes it through the
+          // SAME onboarding flow (signed-in mode: prefilled, only the missing steps,
+          // writes straight to the account). On save, the USER_UPDATED auth event
+          // refreshes `session` and this gate clears. (Replaces CompleteProfileScreen.)
+          <Stack.Screen name="CompleteProfile">
+            {() => <OnboardingFlowScreen session={session} />}
+          </Stack.Screen>
         ) : (
           <Stack.Screen name="Main" component={MainStack} />
         )}
@@ -198,7 +309,38 @@ function ThemedLoading() {
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
+  const [justConfirmed, setJustConfirmed] = useState(false);
+  // Whether the first-launch intro flow has been completed. null = not resolved
+  // yet; the loading gate below waits for it, so we never flash the welcome
+  // screen before the intro (or vice-versa) on first frame.
+  const [seenOnboarding, setSeenOnboarding] = useState(null);
   const navigationRef = useRef(null);
+  const fontsLoaded = useAppFonts();
+
+  // Auth deep links from emailed links. Both carry a PKCE `code` that must be
+  // exchanged for a session:
+  //   dosetrace://reset-password  → show the set-new-password screen
+  //   dosetrace://confirm-email   → signup confirmed, tell the user so
+  // Without these the links fall back to the Site URL (dosetrace.io) and the
+  // user dead-ends on the marketing site.
+  useEffect(() => {
+    let cancelled = false;
+    const handleUrl = async (url) => {
+      if (!url) return;
+      const u = String(url);
+      const isReset = u.includes('reset-password');
+      const isConfirm = u.includes('confirm-email');
+      if (!isReset && !isConfirm) return;
+      const { ok } = await exchangeAuthCodeFromUrl(u);
+      if (!ok || cancelled) return;
+      if (isReset) setRecovering(true);
+      else setJustConfirmed(true);
+    };
+    Linking.getInitialURL().then(handleUrl).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => { cancelled = true; sub.remove(); };
+  }, []);
 
   useEffect(() => {
     // Initialize local SQLite database
@@ -217,20 +359,58 @@ export default function App() {
       notifResponseSub = N.addNotificationResponseReceivedListener(response => {
         const data = response?.notification?.request?.content?.data;
         if (!data) return;
+
+        // "Mark as taken" button — log the dose without opening the app.
+        if (response.actionIdentifier === 'MARK_TAKEN' && data.protocolId) {
+          try {
+            const result = recordDoseTaken(data.protocolId);
+            if (result) {
+              const logs = getTodayLogs(result.protocol.user_id) || [];
+              const takenToday = logs.filter(l => l.protocol_id === data.protocolId && l.outcome === 'Taken').length;
+              cancelTodaysDoseReminders(data.protocolId, takenToday).catch(() => {});
+              requestSync();
+              syncAllNotifications().catch(() => {});
+            }
+          } catch { /* best-effort background action */ }
+          return;
+        }
+
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
-        } else if (data.type === 'checkin_reminder' && navigationRef.current) {
-          navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Log' } });
+        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check' || data.type === 'food_log') && navigationRef.current) {
+          // Measurements / reality-check / food-log nudge — deep-link into the
+          // Journey tab. A food-log nudge scrolls straight to the logger; the
+          // others land at the top (calculator / reality-check).
+          navigationRef.current.navigate('Main', {
+            screen: 'MainTabs',
+            params: { screen: 'Journey', params: data.type === 'food_log' ? { scrollTo: 'logger' } : {} },
+          });
         }
       });
     } catch {
       // expo-notifications not available — skip listener
     }
 
+    // Resolve the first-launch intro flag; the loading gate holds until it's
+    // non-null, so a brand-new install shows the intro (not the welcome screen)
+    // on first frame. Fail-safe to "seen" so a read error can't wedge the gate.
+    hasSeenOnboarding().then((seen) => setSeenOnboarding(!!seen)).catch(() => setSeenOnboarding(true));
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
+
+        // Cross-account guard on cold start too (symmetry with SIGNED_IN): if the
+        // local data belongs to a different user, wipe before importing.
+        try {
+          const localUid = getLocalDataUserId();
+          if (localUid && localUid !== session.user.id) {
+            clearLocalDatabase();
+            AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+            cancelAllNotifications().catch(() => {}); // symmetry with SIGNED_IN — don't let the prior user's dose reminders fire
+          }
+        } catch { /* ignore */ }
 
         // If local DB is empty, import all data from cloud (first launch / new device)
         if (isLocalDBEmpty(session.user.id)) {
@@ -239,6 +419,10 @@ export default function App() {
           // Otherwise trigger a background sync to push/pull changes
           requestSync();
         }
+
+        // Rehydrate the reality-check weigh-in cache from cloud before scheduling
+        // (its reminder path reads the local cache; data itself is already durable).
+        await getRealityStart().catch(() => {});
 
         // Schedule reminders AFTER the initial import — otherwise fresh
         // installs sync notifications against an empty local DB.
@@ -251,34 +435,88 @@ export default function App() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
+    // IMPORTANT: keep this callback SYNCHRONOUS and update state FIRST, then defer
+    // all side-effects. Supabase holds an internal lock while this runs, and doing
+    // async work / calling supabase methods inline deadlocks the client — which is
+    // why signing out cleared the data but never routed back to the welcome screen.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session); // drives the navigator (null → Onboarding) immediately
+
       if (_event === 'SIGNED_OUT') {
-        // Stop sync FIRST so no final sync runs, then wipe local health data —
-        // otherwise user A's unsynced logs would upload into user B's account.
-        stopSyncEngine();
-        try { clearLocalDatabase(); } catch { /* ignore */ }
-        cancelAllNotifications().catch(() => {});
-        // Reset RevenueCat identity so the next sign-in doesn't inherit it
-        logOutPurchases().catch(() => {});
+        // WIPE only on an INTENTIONAL sign-out (user tapped Sign Out / Delete). A
+        // SPURIOUS SIGNED_OUT (token-refresh failure / expired session) must NOT
+        // wipe — that destructive wipe on a mere session hiccup is what erased an
+        // in-progress reality-check. All user data is cloud-backed now, so keeping
+        // it is safe: the same user re-auths and their data is intact (no re-import
+        // churn). Cross-account safety on a shared device is handled by the sign-in
+        // user-switch guard below. consumeIntentionalSignOut() is a pure, synchronous
+        // read — safe inside the auth callback (never touches supabase).
+        const intentional = consumeIntentionalSignOut();
+        // Intentional → route to the splash (and wipe). Spurious → leave
+        // seenOnboarding as-is so the returning user lands on Auth to re-sign-in.
+        if (intentional) setSeenOnboarding(false);
+        setTimeout(() => {
+          // Stop sync FIRST so no final sync runs.
+          stopSyncEngine();
+          if (!intentional) return; // spurious: keep local data (cloud-backed, same user)
+          // Intentional sign-out: full wipe. This is also the anti-cross-account-leak
+          // guard — clear local health data + device-global AsyncStorage (intro-flow
+          // stash, reality-check weigh-in) so nothing bleeds to the next account.
+          try { clearLocalDatabase(); } catch { /* ignore */ }
+          cancelAllNotifications().catch(() => {});
+          logOutPurchases().catch(() => {});
+          clearOnboarding().catch(() => {});
+          AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+          clearSeenOnboarding().catch(() => {});
+        }, 0);
       }
+
       if (_event === 'SIGNED_IN' && session?.user?.id) {
-        initPurchases(session.user.id, session?.user?.email).catch(() => {});
-        startSyncEngine();
-        // Redeem a referral code stashed at signup (idempotent, needs a session)
-        redeemPendingReferral().catch(() => {});
+        // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
+        // run inline in this callback.
+        setTimeout(async () => {
+          // Discard any stale intentional-sign-out flag so it can NEVER survive a
+          // login boundary (a set-but-never-consumed flag would wrongly wipe on the
+          // next spurious sign-out — the exact bug this guard exists to prevent).
+          consumeIntentionalSignOut();
+          initPurchases(session.user.id, session?.user?.email).catch(() => {});
+          startSyncEngine();
 
-        // Import from cloud on sign-in if local DB is empty
-        if (isLocalDBEmpty(session.user.id)) {
-          await fullImportFromCloud();
-        } else {
-          requestSync();
-        }
+          // Write any stashed intro-flow answers (name/goal/activity/…) to the
+          // freshly-created account, then clear the stash. No-op for returning
+          // users with no stash. Deferred (never inline in onAuthStateChange).
+          applyPendingProfile(supabase).catch(() => {});
 
-        // Schedule reminders AFTER the import so they reflect the user's data
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
-          .catch(() => {});
+          // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
+          // spurious sign-out KEPT it, then a different account signed in on this
+          // device), wipe it before importing — one account's data must never bleed
+          // into another. No-op for the normal same-user re-auth.
+          try {
+            const localUid = getLocalDataUserId();
+            if (localUid && localUid !== session.user.id) {
+              clearLocalDatabase();
+              AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+              cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
+            }
+          } catch { /* ignore */ }
+
+          // Import from cloud on sign-in if local DB is empty
+          if (isLocalDBEmpty(session.user.id)) {
+            await fullImportFromCloud();
+          } else {
+            requestSync();
+          }
+
+          // Restore the reality-check weigh-in cache from cloud BEFORE scheduling,
+          // so its reminder re-arms on a fresh sign-in / after a wipe (the weigh-in
+          // data itself is already durable; this rehydrates the notifications path).
+          await getRealityStart().catch(() => {});
+
+          // Schedule reminders AFTER the import so they reflect the user's data
+          requestNotificationPermissions()
+            .then(() => syncAllNotifications())
+            .catch(() => {});
+        }, 0);
       }
     });
 
@@ -289,23 +527,39 @@ export default function App() {
     };
   }, []);
 
-  if (loading) {
+  // Gate the UI on fonts too, so the app never flashes the system font and
+  // then reflows into Plus Jakarta Sans.
+  if (loading || !fontsLoaded || seenOnboarding === null) {
     return (
-      <LanguageProvider>
-        <ThemeProvider>
-          <ThemedLoading />
-        </ThemeProvider>
-      </LanguageProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <LanguageProvider>
+          <ThemeProvider>
+            <ThemedLoading />
+          </ThemeProvider>
+        </LanguageProvider>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <ErrorBoundary>
-      <LanguageProvider>
-        <ThemeProvider>
-          <ThemedRoot session={session} navigationRef={navigationRef} />
-        </ThemeProvider>
-      </LanguageProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <ThemeProvider>
+            <ThemedRoot
+              session={session}
+              navigationRef={navigationRef}
+              recovering={recovering}
+              onRecoveryDone={() => setRecovering(false)}
+              justConfirmed={justConfirmed}
+              onConfirmedShown={() => setJustConfirmed(false)}
+              seenOnboarding={seenOnboarding}
+              onFinishOnboarding={() => { markSeenOnboarding().catch(() => {}); setSeenOnboarding(true); }}
+              onBackToOnboarding={() => setSeenOnboarding(false)}
+            />
+          </ThemeProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

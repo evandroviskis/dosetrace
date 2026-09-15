@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <!-- lyophilized vial / test tube (to be diluted) -->
+  <path d="M360 170 H664" class="stroke"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" class="stroke"/>
+  <path d="M430 432 H594" class="stroke"/>
+</svg>

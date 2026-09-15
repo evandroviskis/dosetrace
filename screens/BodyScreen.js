@@ -1,0 +1,1403 @@
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  Modal,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase, getCachedUser } from '../lib/supabase';
+import { isPremium } from '../lib/purchases';
+import { useLanguage } from '../i18n/LanguageContext';
+import { Analytics } from '../lib/analytics';
+import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, getAllDataForExport, getVaccines } from '../lib/database';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
+import { hasNativeModule } from '../lib/nativeModule';
+import { requestSync } from '../lib/sync';
+import { requestAIConsent } from '../lib/aiConsent';
+import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import { friendlyError } from '../lib/friendlyError';
+import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
+import MarkerChart from './components/MarkerChart';
+import VaccinesSection from './components/VaccinesSection';
+
+// Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
+// language as the tab-bar icons in App.js, replacing the old mismatched emoji.
+function LabsGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 3.5C12 3.5 5.5 11 5.5 15.5a6.5 6.5 0 0 0 13 0C18.5 11 12 3.5 12 3.5Z"
+        stroke={color} strokeWidth={1.9} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function VaccinesGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <G transform="rotate(45 12 12)">
+        <Rect x={9} y={5.5} width={6} height={10.5} rx={2} stroke={color} strokeWidth={1.9} />
+        <Line x1={12} y1={16} x2={12} y2={20} stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Line x1={9} y1={5.5} x2={15} y2={5.5} stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Line x1={12} y1={3} x2={12} y2={5.5} stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+        <Line x1={10.5} y1={9} x2={13.5} y2={9} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+        <Line x1={10.5} y1={11.5} x2={13.5} y2={11.5} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      </G>
+    </Svg>
+  );
+}
+function AccumGlyph({ color }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 20V4" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+      <Path d="M4 20h16" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+      <Polyline points="4,17 8,10 12,12 16,7 20,9" stroke={color} strokeWidth={1.9}
+        strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// Chart plot width: screen minus the scroll padding (16×2) and card padding (14×2).
+// Computed inside the component via useWindowDimensions so it tracks
+// fold/unfold and rotation on resizable displays.
+
+
+// One free bloodwork analysis, then Premium required. Counts successful saves
+// (not distinct report dates) so re-uploading the same date can't reopen the
+// free slot.
+const UPLOADS_KEY = 'dosetrace_bloodwork_uploads';
+// Client-side pre-check: reject files over 10MB before reading into memory.
+// The edge function enforces its own ~15MB base64 cap server-side.
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+
+async function getUploadCount() {
+  try {
+    const raw = await AsyncStorage.getItem(UPLOADS_KEY);
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function incrementUploadCount() {
+  const count = (await getUploadCount()) + 1;
+  try {
+    await AsyncStorage.setItem(UPLOADS_KEY, String(count));
+  } catch {
+    // best effort — never block a save on the counter
+  }
+  return count;
+}
+
+// Validate the edge function's extraction result before it reaches the UI/DB.
+// Coerces numeric strings, drops non-numeric rows (counted), and falls back
+// to today's date when report_date doesn't parse.
+function validateExtraction(data) {
+  const rawMarkers = Array.isArray(data?.markers) ? data.markers : [];
+  const markers = [];
+  let droppedCount = 0;
+  for (const m of rawMarkers) {
+    if (!m || typeof m.marker !== 'string' || !m.marker.trim()) {
+      droppedCount++;
+      continue;
+    }
+    let value = m.value;
+    if (typeof value !== 'number') {
+      value = parseFloat(String(value ?? '').replace(',', '.'));
+    }
+    if (!Number.isFinite(value)) {
+      droppedCount++;
+      continue;
+    }
+    markers.push({
+      marker: m.marker.trim(),
+      value,
+      unit: typeof m.unit === 'string' ? m.unit : '',
+    });
+  }
+
+  let reportDate = typeof data?.report_date === 'string' ? data.report_date.trim() : '';
+  let dateFallback = false;
+  const validShape = /^\d{4}-\d{2}-\d{2}$/.test(reportDate);
+  if (!validShape || isNaN(new Date(reportDate + 'T12:00:00').getTime())) {
+    reportDate = new Date().toISOString().split('T')[0];
+    dateFallback = true;
+  }
+
+  return { markers, reportDate, droppedCount, dateFallback };
+}
+
+export default function BodyScreen({ navigation, route }) {
+  const { t, language } = useLanguage();
+  const { colors } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 28;
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [extractedMarkers, setExtractedMarkers] = useState([]);
+  const [reportDate, setReportDate] = useState('');
+  const [premium, setPremium] = useState(false);
+  const [uploadCount, setUploadCount] = useState(0);
+  const [dateWasFallback, setDateWasFallback] = useState(false);
+  const [expanded, setExpanded] = useState(null);       // date view: expanded report date
+  const [expandedMarker, setExpandedMarker] = useState(null); // marker view: expanded marker name
+  const [viewMode, setViewMode] = useState('date');     // 'date' | 'marker'
+  const [search, setSearch] = useState('');
+  const [newestFirst, setNewestFirst] = useState(true);
+  const [favorites, setFavorites] = useState([]);       // marker names, from user_metadata
+  const [favOnly, setFavOnly] = useState(false);
+  const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
+  const [tagDraft, setTagDraft] = useState('');
+  const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
+
+  // Deep link from notifications (e.g. an upload reminder → 'labs'). Param is
+  // consumed after use so backing out to the hub isn't re-hijacked. (The
+  // calculator/reality-check now lives in the Journey tab, not here.)
+  useEffect(() => {
+    const target = route?.params?.initialSection;
+    if (target === 'labs' || target === 'vaccines') {
+      setSection(target);
+      navigation.setParams({ initialSection: undefined });
+    }
+  }, [route?.params?.initialSection]);
+  const [exporting, setExporting] = useState(false);
+  const [vaxCount, setVaxCount] = useState(0);
+  const [vaccineList, setVaccineList] = useState([]);
+  // Export selection
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [selMarkers, setSelMarkers] = useState(() => new Set());
+  const [selVaccines, setSelVaccines] = useState(() => new Set());
+  // Editing a stored marker (correcting an extracted value).
+  const [mEdit, setMEdit] = useState(null);
+  const [mName, setMName] = useState('');
+  const [mValue, setMValue] = useState('');
+  const [mUnit, setMUnit] = useState('');
+  const [mDate, setMDate] = useState('');
+  const [mDatePicker, setMDatePicker] = useState(false);
+  const [confirmDatePicker, setConfirmDatePicker] = useState(false);
+
+  const locale = LOCALE_MAP[language] || 'en-US';
+  const q = search.trim().toLowerCase();
+
+  // Date view: reports grouped by date, each filtered by the marker search,
+  // sorted by the chosen order. Reports with no matching marker are dropped.
+  const reports = useMemo(() => {
+    const grouped = {};
+    for (const row of rows) {
+      if (q && !row.marker.toLowerCase().includes(q)) continue;
+      (grouped[row.report_date] ||= []).push(row);
+    }
+    const entries = Object.entries(grouped);
+    entries.sort((a, b) => (a[0] < b[0] ? 1 : -1) * (newestFirst ? 1 : -1));
+    return entries;
+  }, [rows, q, newestFirst]);
+
+  // Marker view: one entry per distinct marker name, with its full value
+  // history (oldest → newest for the chart) and the latest reading.
+  const markerSeries = useMemo(() => {
+    // Group by canonical key so naming variants merge into one series.
+    const byKey = {};
+    for (const row of rows) {
+      (byKey[canonicalMarker(row.marker)] ||= []).push(row);
+    }
+    const favSet = new Set(favorites);
+    let series = Object.values(byKey).map(rs => {
+      const sorted = rs.slice().sort((a, b) => (a.report_date < b.report_date ? -1 : a.report_date > b.report_date ? 1 : 0));
+      const points = sorted.map(r => ({ id: r.id, marker: r.marker, date: r.report_date, value: r.value, unit: r.unit }));
+      const latest = points[points.length - 1];
+      const display = sorted[sorted.length - 1].marker; // most recent original label
+      const names = new Set(rs.map(r => r.marker));
+      return { marker: display, points, latest, unit: latest?.unit || '', isFav: [...names].some(n => favSet.has(n)) };
+    });
+    if (q) series = series.filter(x => x.marker.toLowerCase().includes(q));
+    if (favOnly) series = series.filter(x => x.isFav);
+    // Favorites first, then alphabetical within each group.
+    series.sort((a, b) => (b.isFav - a.isFav) || a.marker.localeCompare(b.marker));
+    return series;
+  }, [rows, q, favorites, favOnly]);
+
+  const UPGRADE_FEATURES = [
+    t('blood_upgrade_feat_1'),
+    t('blood_upgrade_feat_2'),
+    t('blood_upgrade_feat_3'),
+    t('blood_upgrade_feat_4'),
+    t('blood_upgrade_feat_5'),
+  ];
+
+  useFocusEffect(
+    useCallback(() => {
+      Analytics.viewed('body');
+      fetchReports();
+    }, [])
+  );
+
+  async function fetchReports() {
+    setPremium(await isPremium());
+    setUploadCount(await getUploadCount());
+    const user = await getCachedUser();
+    if (!user) { setLoading(false); return; }
+    const favs = user.user_metadata?.favorite_markers;
+    setFavorites(Array.isArray(favs) ? favs : []);
+    const tags = user.user_metadata?.report_tags;
+    setReportTags(tags && typeof tags === 'object' ? tags : {});
+    const data = getBiomarkers(user.id);
+    setRows(data || []);
+    const vlist = getVaccines(user.id) || [];
+    setVaccineList(vlist);
+    setVaxCount(vlist.length);
+    setLoading(false);
+  }
+
+  // Distinct markers available to include in an export (canonical-merged).
+  const exportMarkers = useMemo(() => buildMarkerSeries(rows), [rows]);
+
+  // Favorite markers live in Supabase user_metadata (per-user, multi-device).
+  // Update optimistically; the write is fire-and-forget.
+  function toggleFavorite(marker) {
+    setFavorites(prev => {
+      const next = prev.includes(marker)
+        ? prev.filter(m => m !== marker)
+        : [...prev, marker];
+      supabase.auth.updateUser({ data: { favorite_markers: next } }).catch(() => {});
+      return next;
+    });
+  }
+
+  // Per-test labels ("baseline", "week 8", …). The user's own categorization,
+  // stored per-user in user_metadata keyed by report date. Never interpreted.
+  function saveReportTags(next) {
+    setReportTags(next);
+    supabase.auth.updateUser({ data: { report_tags: next } }).catch(() => {});
+  }
+  function addReportTag(date) {
+    const tag = tagDraft.trim();
+    if (!tag) return;
+    const cur = reportTags[date] || [];
+    if (!cur.some(x => x.toLowerCase() === tag.toLowerCase())) {
+      saveReportTags({ ...reportTags, [date]: [...cur, tag] });
+    }
+    setTagDraft('');
+  }
+  function removeReportTag(date, tag) {
+    const nextTags = (reportTags[date] || []).filter(x => x !== tag);
+    const next = { ...reportTags };
+    if (nextTags.length) next[date] = nextTags; else delete next[date];
+    saveReportTags(next);
+  }
+
+  async function handleUploadPress() {
+    // Premium: unlimited. Everyone else gets ONE free analysis to try it, then
+    // it's Premium-only (upsell → paywall + 7-day trial). No per-upload charge.
+    if (await isPremium()) {
+      chooseSource();
+      return;
+    }
+    const count = await getUploadCount();
+    if (count < 1) {
+      chooseSource();
+      return;
+    }
+    setShowUpgradeModal(true);
+  }
+
+  // Let the user snap a photo, pick an image, or choose a PDF. Any lab, any
+  // language — extraction handles all of them. Consent gate first: the file
+  // goes to a third-party AI service, and Apple 5.1.1(i)/5.1.2(i) requires
+  // explicit permission before anything is sent.
+  async function chooseSource() {
+    if (!(await requestAIConsent(t))) return;
+    Alert.alert(t('blood_upload_choose_title'), t('blood_upload_choose_sub'), [
+      { text: t('blood_source_camera'), onPress: () => pickImageAndExtract(true) },
+      { text: t('blood_source_photo'), onPress: () => pickImageAndExtract(false) },
+      { text: t('blood_source_pdf'), onPress: () => pickAndExtract() },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }
+
+  async function pickImageAndExtract(fromCamera) {
+    // Confirm the native module exists BEFORE requiring expo-image-picker,
+    // whose top-level requireNativeModule('ExponentImagePicker') would otherwise
+    // throw in a build that lacks it. PDF/photo upload still works via other paths.
+    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    const ImagePicker = require('expo-image-picker');
+    try {
+      if (fromCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { Alert.alert(t('error'), t('blood_camera_denied')); return; }
+      }
+      const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const base64 = asset?.base64;
+      if (!base64) { Alert.alert(t('error'), t('blood_error_read')); return; }
+      if (base64.length > MAX_FILE_BYTES * 1.4) {
+        Alert.alert(t('error'), t('blood_error_file_too_large'));
+        return;
+      }
+      const mediaType = asset.mimeType
+        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+
+      setUploading(true);
+      await extractWithClaude(base64, { image: true, mediaType });
+    } catch (err) {
+      setUploading(false);
+      if (__DEV__) console.warn('[bloodwork] pickImageAndExtract failed:', err);
+      Alert.alert(t('error'), t('blood_error_read'));
+    }
+  }
+
+  async function pickAndExtract() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const file = result.assets[0];
+
+      // Pre-check file size BEFORE reading the whole file into memory.
+      let fileSize = typeof file.size === 'number' ? file.size : null;
+      if (fileSize == null) {
+        try {
+          const info = await FileSystem.getInfoAsync(file.uri, { size: true });
+          if (info.exists && typeof info.size === 'number') fileSize = info.size;
+        } catch {
+          // size unknown — the edge function still enforces its own cap
+        }
+      }
+      if (fileSize != null && fileSize > MAX_FILE_BYTES) {
+        Alert.alert(t('error'), t('blood_error_file_too_large'));
+        return;
+      }
+
+      setUploading(true);
+      const base64 = await FileSystem.readAsStringAsync(file.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await extractWithClaude(base64);
+    } catch (err) {
+      setUploading(false);
+      if (__DEV__) console.warn('[bloodwork] pickAndExtract failed:', err);
+      Alert.alert(t('error'), t('blood_error_read'));
+    }
+  }
+
+  async function extractWithClaude(base64, opts) {
+    try {
+      const user = await getCachedUser();
+      if (!user) {
+        setUploading(false);
+        Alert.alert(t('error'), t('blood_error_not_signed_in'));
+        return;
+      }
+
+      // Robust gate: free tier gets ONE extraction. Re-check at the action
+      // point (fresh premium + upload count) so the paid extraction never runs
+      // for an over-limit free user, regardless of how this was reached.
+      if (!(await isPremium()) && (await getUploadCount()) >= 1) {
+        setUploading(false);
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      // The Anthropic API key lives only in the extract-bloodwork edge
+      // function; the app never talks to api.anthropic.com directly.
+      const reqBody = opts?.image
+        ? { image_base64: base64, media_type: opts.mediaType, lang: language }
+        : { pdf_base64: base64, lang: language };
+      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
+        body: reqBody,
+      });
+
+      if (error) {
+        setUploading(false);
+        const status = error.context?.status;
+        // The edge function tags failures with a `code`. Distinguish a
+        // service-side failure (Anthropic down, key/credit) from an actual
+        // unreadable file, so we never blame the user's PDF for our outage.
+        let code = null;
+        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
+          || (code == null && [500, 502, 503].includes(status));
+        if (code === 'quota_exceeded' || status === 429) {
+          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+        } else if (status === 401) {
+          Alert.alert(t('error'), t('blood_error_not_signed_in'));
+        } else if (status === 413) {
+          Alert.alert(t('error'), t('blood_error_file_too_large'));
+        } else if (serviceDown) {
+          Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
+        } else {
+          Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
+        }
+        return;
+      }
+
+      const { markers, reportDate: parsedDate, droppedCount, dateFallback } = validateExtraction(data);
+
+      if (markers.length === 0) {
+        setUploading(false);
+        Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
+        return;
+      }
+
+      setUploading(false);
+
+      // Auto-save everything the AI read — no marker-by-marker approval. The
+      // user curates later via the per-marker editor. Dates come from the
+      // document; a fallback (today) is surfaced so it can be corrected.
+      const saved = await persistMarkers(markers, parsedDate);
+      if (saved === 0) {
+        Alert.alert(t('blood_error_extract'), t('blood_error_extract_sub'));
+        return;
+      }
+      const lines = [
+        t('blood_imported_body').replace('{count}', String(saved)).replace('{date}', formatDate(parsedDate)),
+      ];
+      if (dateFallback) lines.push(t('blood_imported_date_fallback'));
+      if (droppedCount > 0) lines.push(`${droppedCount} ${t('blood_dropped_sub')}`);
+      lines.push(t('blood_imported_hint'));
+      Alert.alert(t('blood_imported_title'), lines.join('\n\n'));
+    } catch (err) {
+      setUploading(false);
+      Alert.alert(
+        t('blood_error_extract'),
+        t('blood_error_extract_sub')
+      );
+    }
+  }
+
+  // Inline edits in the review sheet before saving.
+  function updateExtractedMarker(i, field, val) {
+    setExtractedMarkers(prev => prev.map((m, idx) => (idx === i ? { ...m, [field]: val } : m)));
+  }
+  function removeExtractedMarker(i) {
+    setExtractedMarkers(prev => prev.filter((_, idx) => idx !== i));
+  }
+
+  // Insert extracted markers straight into storage (no review gate). Returns the
+  // number of rows saved. Coerces values to numbers; drops rows with no name or
+  // no numeric value. Shared by the auto-save upload path.
+  async function persistMarkers(markers, date) {
+    const user = await getCachedUser();
+    if (!user) { Alert.alert(t('error'), t('blood_error_not_signed_in')); return 0; }
+    const rows = markers
+      .map(m => ({
+        user_id: user.id,
+        report_date: date,
+        marker: String(m.marker || '').trim(),
+        value: parseFloat(String(m.value).replace(',', '.')),
+        unit: String(m.unit || '').trim(),
+      }))
+      .filter(r => r.marker && Number.isFinite(r.value));
+    if (rows.length === 0) return 0;
+
+    insertBiomarkers(rows);
+    const newCount = await incrementUploadCount();
+    setUploadCount(newCount);
+    Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
+    fetchReports();
+    requestSync();
+    return rows.length;
+  }
+
+  // Retained for the (now-unreachable) review sheet; delegates to persistMarkers.
+  async function saveMarkers() {
+    try {
+      const saved = await persistMarkers(extractedMarkers, reportDate);
+      if (saved === 0) { Alert.alert(t('error'), t('blood_edit_invalid')); return; }
+      setShowConfirmModal(false);
+      setExtractedMarkers([]);
+      setDateWasFallback(false);
+    } catch (err) {
+      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+    }
+  }
+
+  // Open the marker editor for a stored row (from either view). `obj` carries
+  // the biomarker id plus its current marker/value/unit/date.
+  function openMarkerEdit(obj) {
+    setMEdit(obj);
+    setMName(obj.marker || '');
+    setMValue(obj.value != null ? String(obj.value) : '');
+    setMUnit(obj.unit || '');
+    setMDate(obj.date || obj.report_date || '');
+    setMDatePicker(false);
+  }
+  function saveMarkerEdit() {
+    if (!mEdit) return;
+    const value = parseFloat(String(mValue).replace(',', '.'));
+    if (!mName.trim() || !Number.isFinite(value)) {
+      Alert.alert(t('error'), t('blood_edit_invalid'));
+      return;
+    }
+    updateBiomarker(mEdit.id, { marker: mName.trim(), value, unit: mUnit.trim(), report_date: mDate });
+    requestSync();
+    setMEdit(null);
+    fetchReports();
+  }
+  function deleteMarkerEdit() {
+    if (!mEdit) return;
+    deleteBiomarker(mEdit.id);
+    requestSync();
+    setMEdit(null);
+    fetchReports();
+  }
+
+  // Open the export picker with everything preselected — the user then chooses
+  // which markers and vaccines actually go in the report.
+  function handleExport() {
+    setSelMarkers(new Set(exportMarkers.map(m => m.key)));
+    setSelVaccines(new Set(vaccineList.map(v => v.id)));
+    setExportModalOpen(true);
+  }
+  function toggleSel(setFn, value) {
+    setFn(prev => { const n = new Set(prev); n.has(value) ? n.delete(value) : n.add(value); return n; });
+  }
+
+  async function doExport(kind) {
+    // Robust gate: PDF is Premium-only, enforced at the action point with a
+    // fresh isPremium() check — the file is never generated for a free user,
+    // even if this is reached by dismissing a dialog. CSV stays free.
+    if (kind === 'pdf' && !(await isPremium())) {
+      Alert.alert(t('export_premium_title'), t('export_premium_sub'), [
+        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
+        { text: t('cancel'), style: 'cancel' },
+      ]);
+      return;
+    }
+    setExportModalOpen(false);
+    setExporting(true);
+    try {
+      const user = await getCachedUser();
+      if (!user) { setExporting(false); return; }
+      const data = getAllDataForExport(user.id);
+      const selection = { selectedMarkers: selMarkers, selectedVaccineIds: selVaccines, formatDate };
+      const labels = {
+        labsHeading: t('export_labs'), vaccinesHeading: t('body_section_vaccines'),
+        colDate: t('export_col_date'), colMarker: t('export_col_marker'),
+        colValue: t('export_col_value'), colUnit: t('export_col_unit'),
+        colVaccine: t('vax_name_label'), colGiven: t('vax_date_given'),
+        colNextDue: t('vax_next_due'), colNotes: t('vax_notes'),
+        noLabs: t('export_no_labs'), noVaccines: t('export_no_vaccines'),
+      };
+      const locale = LOCALE_MAP[language] || 'en-US';
+      const dateStr = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+      const Sharing = require('expo-sharing');
+      let uri, mime;
+
+      if (kind === 'csv') {
+        const csv = buildRecordsCSV(data, { labels, ...selection });
+        uri = FileSystem.documentDirectory + 'dosetrace_records.csv';
+        await FileSystem.writeAsStringAsync(uri, csv);
+        mime = 'text/csv';
+      } else {
+        const html = buildRecordsHTML(data, {
+          labels,
+          title: t('export_title'),
+          exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
+          disclaimer: t('export_disclaimer'),
+          ...selection,
+        });
+        // Confirm the native module exists BEFORE requiring expo-print, whose
+        // top-level requireNativeModule('ExpoPrint') would otherwise throw.
+        if (!hasNativeModule('ExpoPrint')) { setExporting(false); Alert.alert(t('error'), t('blood_needs_build')); return; }
+        const Print = require('expo-print');
+        const res = await Print.printToFileAsync({ html });
+        uri = res.uri;
+        mime = 'application/pdf';
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: mime, dialogTitle: t('export_records') });
+      }
+    } catch (e) {
+      Alert.alert(t('error'), t('export_error'));
+    }
+    setExporting(false);
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    const locale = LOCALE_MAP[language] || 'en-US';
+    return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  const sectionTitle = section === 'labs' ? t('body_card_labs_title')
+    : section === 'vaccines' ? t('body_card_vax_title') : '';
+  const testCount = new Set(rows.map(r => r.report_date)).size;
+  const labStat = testCount > 0
+    ? `${testCount} ${testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}`
+    : t('body_stat_none');
+  const vaxStat = vaxCount > 0
+    ? `${vaxCount} ${vaxCount === 1 ? t('body_stat_vaccine') : t('body_stat_vaccines')}`
+    : t('body_stat_none');
+
+  return (
+    <SafeAreaView style={s.container}>
+      {section === null ? (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+          <View style={s.hubHero}>
+            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+            <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+          </View>
+          <View style={s.hubBody}>
+            {[
+              { key: 'labs', Glyph: LabsGlyph, bg: colors.dangerSoft, fg: colors.dangerSoftText, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
+              { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.accentSoft, fg: colors.accentSoftText, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
+            ].map(card => (
+              <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
+                <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
+                  <card.Glyph color={card.fg} />
+                </View>
+                <View style={s.hubCardMain}>
+                  <Text style={s.hubCardTitle}>{card.title}</Text>
+                  <Text style={s.hubCardDesc}>{card.desc}</Text>
+                  <Text style={s.hubCardStat}>{card.stat}</Text>
+                </View>
+                <Text style={s.hubCardChevron}>›</Text>
+              </TouchableOpacity>
+            ))}
+
+            {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed('serum_curve'); navigation.navigate(premium ? 'SerumCurve' : 'Paywall'); }}>
+              <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
+                <AccumGlyph color={colors.accentSoftText} />
+              </View>
+              <View style={s.hubCardMain}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
+                  {!premium && (
+                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>PRO</Text>
+                  )}
+                </View>
+                <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
+                <Text style={s.hubCardStat}>{t('curve_title')}</Text>
+              </View>
+              {premium
+                ? <Text style={s.hubCardChevron}>›</Text>
+                : <View style={{ marginLeft: 8 }}><FeatureIcon name="lock" size={18} color={colors.textFaint} /></View>}
+            </TouchableOpacity>
+
+            <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
+            <View style={{ height: 30 }} />
+          </View>
+        </ScrollView>
+      ) : (
+      <>
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => { setSection(null); fetchReports(); }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} style={s.backBtn}>
+          <Text style={s.backArrow}>‹</Text>
+        </TouchableOpacity>
+        <Text style={s.headerTitleSm} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{sectionTitle}</Text>
+        <View style={s.headerActions}>
+          {(section === 'labs' || section === 'vaccines') && (
+            <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>
+              {exporting ? (
+                <Text style={s.exportBtnText}>…</Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <FeatureIcon name="arrow_up" size={14} color={colors.accent} />
+                  <Text style={s.exportBtnText}>{t('export_records')}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+          {section === 'labs' && (
+            <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
+              <Text style={s.addBtnText}>{t('blood_upload')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {section === 'vaccines' ? (
+        <VaccinesSection />
+      ) : (
+      <>
+      {uploading && (
+        <View style={s.uploadingBanner}>
+          <ActivityIndicator size="small" color={colors.accent} />
+          <Text style={s.uploadingText}>{t('blood_uploading')}</Text>
+        </View>
+      )}
+
+      {!premium && (
+        <View style={s.premiumBanner}>
+          <View style={s.premiumBannerLeft}>
+            <Text style={s.premiumBannerTitle}>{t('blood_premium_badge')}</Text>
+            <Text style={s.premiumBannerSub}>
+              {uploadCount === 0 ? t('blood_first_free') : t('blood_premium_only')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={s.premiumBannerBtn}
+            onPress={() => setShowUpgradeModal(true)}
+          >
+            <Text style={s.premiumBannerBtnText}>{t('blood_upgrade')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+
+        {rows.length === 0 && !loading && (
+          <View style={s.emptyState}>
+            <View style={s.emptyIcon}><FeatureIcon name="droplet" size={48} color={colors.textMuted} /></View>
+            <Text style={s.emptyTitle}>{t('blood_empty_title')}</Text>
+            <Text style={s.emptySub}>
+              {t('blood_empty_sub')}
+            </Text>
+            <TouchableOpacity style={s.emptyBtn} onPress={handleUploadPress}>
+  <Text style={s.emptyBtnText}>{t('blood_upload_report')}</Text>
+</TouchableOpacity>
+            <View style={s.tipBox}>
+              <Text style={s.tipTitle}>{t('blood_what_we_read')}</Text>
+              {[
+                t('blood_tip_1'),
+                t('blood_tip_2'),
+                t('blood_tip_3'),
+                t('blood_tip_4'),
+                t('blood_tip_5'),
+              ].map((tip, i) => (
+                <View key={i} style={s.tipRow}>
+                  <View style={s.tipDot} />
+                  <Text style={s.tipText}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {rows.length > 0 && (
+          <>
+            <Text style={s.hubDisclaimer}>{t('blood_hub_disclaimer')}</Text>
+
+            <View style={s.segment}>
+              <TouchableOpacity
+                style={[s.segmentBtn, viewMode === 'date' && s.segmentBtnOn]}
+                onPress={() => setViewMode('date')}
+              >
+                <Text style={[s.segmentText, viewMode === 'date' && s.segmentTextOn]}>{t('blood_view_by_date')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.segmentBtn, viewMode === 'marker' && s.segmentBtnOn]}
+                onPress={() => setViewMode('marker')}
+              >
+                <Text style={[s.segmentText, viewMode === 'marker' && s.segmentTextOn]}>{t('blood_view_by_marker')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.controlsRow}>
+              <TextInput
+                style={s.searchInput}
+                placeholder={t('blood_search_ph')}
+                placeholderTextColor={colors.textFaint}
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {viewMode === 'date' && (
+                <TouchableOpacity style={s.sortBtn} onPress={() => setNewestFirst(v => !v)}>
+                  <Text style={s.sortBtnText}>{newestFirst ? t('blood_sort_newest') : t('blood_sort_oldest')}</Text>
+                </TouchableOpacity>
+              )}
+              {viewMode === 'marker' && (
+                <TouchableOpacity
+                  style={[s.sortBtn, favOnly && s.sortBtnOn]}
+                  onPress={() => setFavOnly(v => !v)}
+                  accessibilityLabel={t('blood_favorites')}
+                >
+                  <Text style={[s.sortBtnText, favOnly && s.sortBtnTextOn]}>★ {t('blood_favorites')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {viewMode === 'date' && reports.length === 0 && (
+              <Text style={s.noResults}>{t('blood_no_results')}</Text>
+            )}
+            {viewMode === 'marker' && markerSeries.length === 0 && (
+              <Text style={s.noResults}>{t('blood_no_results')}</Text>
+            )}
+
+            {viewMode === 'date' && reports.map(([date, markers], i) => (
+              <View key={date} style={s.reportGroup}>
+                <TouchableOpacity
+                  style={s.reportHeader}
+                  onPress={() => setExpanded(expanded === date ? null : date)}
+                >
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={s.reportDate}>{formatDate(date)}</Text>
+                    <Text style={s.reportCount}>{markers.length} {t('blood_markers')}</Text>
+                    {(reportTags[date] || []).length > 0 && (
+                      <View style={s.tagChipsPreview}>
+                        {(reportTags[date] || []).map((tg, k) => (
+                          <View key={k} style={s.tagChip}><Text style={s.tagChipText}>{tg}</Text></View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                  <View style={s.reportBadges}>
+                    <Text style={s.chevron}>{expanded === date ? '▲' : '▶'}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {expanded === date && (
+                  <View style={s.markerList}>
+                    <View style={s.tagEditor}>
+                      <Text style={s.tagEditorLabel}>{t('blood_tags_title')}</Text>
+                      <View style={s.tagEditorChips}>
+                        {(reportTags[date] || []).map((tg, k) => (
+                          <TouchableOpacity key={k} style={s.tagChipEditable} onPress={() => removeReportTag(date, tg)}>
+                            <Text style={s.tagChipText}>{tg}</Text>
+                            <Text style={s.tagChipX}> ✕</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <View style={s.tagInputRow}>
+                        <TextInput
+                          style={s.tagInput}
+                          placeholder={t('blood_tag_ph')}
+                          placeholderTextColor={colors.textFaint}
+                          value={expanded === date ? tagDraft : ''}
+                          onChangeText={setTagDraft}
+                          onSubmitEditing={() => addReportTag(date)}
+                          returnKeyType="done"
+                          autoCapitalize="none"
+                        />
+                        <TouchableOpacity style={s.tagAddBtn} onPress={() => addReportTag(date)}>
+                          <Text style={s.tagAddBtnText}>{t('blood_tag_add')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    {markers.map((m, j) => (
+                      <TouchableOpacity key={j} style={s.markerRow} onPress={() => openMarkerEdit(m)}>
+                        <View style={s.markerLeft}>
+                          <Text style={s.markerName}>{m.marker}</Text>
+                        </View>
+                        <View style={s.markerRight}>
+                          <Text style={s.markerValue}>
+                            {m.value} {m.unit}
+                          </Text>
+                          <Text style={s.markerEdit}>✎</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+
+            {viewMode === 'marker' && markerSeries.map((mk) => (
+              <View key={mk.marker} style={s.reportGroup}>
+                <View style={s.markerHeaderRow}>
+                  <TouchableOpacity
+                    style={s.starBtn}
+                    onPress={() => toggleFavorite(mk.marker)}
+                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                    accessibilityLabel={t('blood_favorites')}
+                  >
+                    <Text style={[s.star, mk.isFav && s.starOn]}>{mk.isFav ? '★' : '☆'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.markerHeaderMain}
+                    onPress={() => setExpandedMarker(expandedMarker === mk.marker ? null : mk.marker)}
+                  >
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={s.reportDate}>{mk.marker}</Text>
+                      <Text style={s.reportCount}>
+                        {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
+                      </Text>
+                    </View>
+                    <View style={s.reportBadges}>
+                      <Text style={s.markerLatest}>{mk.latest.value} {mk.unit}</Text>
+                      <Text style={s.chevron}>{expandedMarker === mk.marker ? '▲' : '▶'}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {expandedMarker === mk.marker && (
+                  <View style={s.markerExpanded}>
+                    {mk.points.length >= 2 ? (
+                      <MarkerChart points={mk.points} unit={mk.unit} locale={locale} width={CHART_WIDTH} />
+                    ) : (
+                      <Text style={s.singlePointHint}>{t('blood_need_more')}</Text>
+                    )}
+                    <View style={s.markerHistory}>
+                      {mk.points.slice().reverse().map((p, j) => (
+                        <TouchableOpacity key={j} style={s.markerRow} onPress={() => openMarkerEdit(p)}>
+                          <Text style={s.markerName}>{formatDate(p.date)}</Text>
+                          <View style={s.markerRight}>
+                            <Text style={s.markerValue}>{p.value} {p.unit}</Text>
+                            <Text style={s.markerEdit}>✎</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))}
+          </>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* UPGRADE MODAL */}
+      <Modal visible={showUpgradeModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <View style={{ width: 60 }} />
+            <Text style={s.modalTitle}>{t('blood_upload_modal_title')}</Text>
+            <TouchableOpacity onPress={() => setShowUpgradeModal(false)} style={{ width: 60, alignItems: 'flex-end' }}>
+              <Text style={s.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+            <View style={s.upgradeHero}>
+              <View style={s.upgradeIcon}><FeatureIcon name="droplet" size={48} color={colors.accent} /></View>
+              <Text style={s.upgradeTitle}>{t('blood_upgrade_title')}</Text>
+              <Text style={s.upgradeSub}>
+                {t('blood_upgrade_sub')}
+              </Text>
+            </View>
+
+            <View style={s.upgradeFeats}>
+              {UPGRADE_FEATURES.map((f, i) => (
+                <View key={i} style={s.upgradeFeat}>
+                  <Text style={s.upgradeCheck}>✓</Text>
+                  <Text style={s.upgradeFeatText}>{f}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+  style={s.upgradePrimaryBtn}
+  onPress={() => {
+    setShowUpgradeModal(false);
+    setTimeout(() => navigation.navigate('Paywall'), 300);
+  }}
+>
+  <Text style={s.upgradePrimaryBtnText}>{t('blood_start_trial')}</Text>
+  <Text style={s.upgradePrimaryBtnSub}>{t('blood_trial_sub')}</Text>
+</TouchableOpacity>
+<View style={s.trialBadge}>
+  <Text style={s.trialBadgeText}>{t('blood_trial_badge')}</Text>
+</View>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* CONFIRM MODAL */}
+      <Modal visible={showConfirmModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <TouchableOpacity
+              onPress={() => { setShowConfirmModal(false); setExtractedMarkers([]); setDateWasFallback(false); }}
+              style={{ width: 60 }}
+            >
+              <Text style={s.modalClose}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t('blood_review_title')}</Text>
+            <TouchableOpacity onPress={saveMarkers} style={{ width: 60, alignItems: 'flex-end' }}>
+              <Text style={[s.modalClose, { color: colors.accent, fontWeight: '600' }]}>{t('save')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+            <View style={s.confirmBanner}>
+              <Text style={s.confirmBannerText}>
+                ✓ {t('blood_review_found_prefix')} {extractedMarkers.length} {t('blood_review_found_suffix')}
+              </Text>
+            </View>
+            {dateWasFallback && (
+              <View style={s.dateFallbackBanner}>
+                <Text style={s.dateFallbackText}>{t('blood_date_fallback_note')}</Text>
+              </View>
+            )}
+            <Text style={s.confirmNote}>
+              {t('blood_review_note_edit')}
+            </Text>
+
+            <Text style={s.editLabel}>{t('blood_edit_date')}</Text>
+            <TouchableOpacity style={[s.editDateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setConfirmDatePicker(v => !v)}>
+              <FeatureIcon name="calendar" size={15} color={colors.text} />
+              <Text style={s.editDateText}>{reportDate ? formatDate(reportDate) : '—'}</Text>
+            </TouchableOpacity>
+            {confirmDatePicker && (
+              <DateTimePicker
+                value={new Date((reportDate || new Date().toISOString().split('T')[0]) + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(event, d) => {
+                  setConfirmDatePicker(Platform.OS === 'ios');
+                  if (event.type === 'dismissed') { setConfirmDatePicker(false); return; }
+                  if (d) setReportDate(d.toISOString().split('T')[0]);
+                }}
+              />
+            )}
+
+            <Text style={[s.editLabel, { marginBottom: 4 }]}>{t('blood_review_markers')}</Text>
+            {extractedMarkers.map((m, i) => (
+              <View key={i} style={s.exRow}>
+                <TextInput
+                  style={[s.editInput, s.exName]}
+                  value={String(m.marker ?? '')}
+                  onChangeText={v => updateExtractedMarker(i, 'marker', v)}
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TextInput
+                  style={[s.editInput, s.exVal]}
+                  value={String(m.value ?? '')}
+                  onChangeText={v => updateExtractedMarker(i, 'value', v)}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TextInput
+                  style={[s.editInput, s.exUnit]}
+                  value={String(m.unit ?? '')}
+                  onChangeText={v => updateExtractedMarker(i, 'unit', v)}
+                  autoCapitalize="none"
+                  placeholderTextColor={colors.textFaint}
+                />
+                <TouchableOpacity onPress={() => removeExtractedMarker(i)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+                  <Text style={s.exRemove}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+      </>
+      )}
+      </>
+      )}
+
+      {/* CHOOSE WHAT TO EXPORT */}
+      <Modal visible={exportModalOpen} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <TouchableOpacity onPress={() => setExportModalOpen(false)} style={{ width: 70 }}>
+              <Text style={s.modalClose}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t('export_pick_title')}</Text>
+            <View style={{ width: 70 }} />
+          </View>
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={s.exportPickSub}>{t('export_pick_sub')}</Text>
+
+            {exportMarkers.length > 0 && (
+              <>
+                <View style={s.exportSecHead}>
+                  <Text style={s.exportSecTitle}>{t('export_labs')}</Text>
+                  <TouchableOpacity onPress={() => setSelMarkers(selMarkers.size === exportMarkers.length ? new Set() : new Set(exportMarkers.map(m => m.key)))}>
+                    <Text style={s.selectAll}>{selMarkers.size === exportMarkers.length ? t('export_none') : t('export_all')}</Text>
+                  </TouchableOpacity>
+                </View>
+                {exportMarkers.map(m => (
+                  <TouchableOpacity key={m.key} style={s.checkRow} onPress={() => toggleSel(setSelMarkers, m.key)}>
+                    <View style={[s.checkbox, selMarkers.has(m.key) && s.checkboxOn]}>{selMarkers.has(m.key) ? <Text style={s.checkMark}>✓</Text> : null}</View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.checkName}>{m.display}</Text>
+                      <Text style={s.checkMeta}>{m.points.length} {m.points.length === 1 ? t('blood_reading') : t('blood_readings')}{m.unit ? ` · ${m.unit}` : ''}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {vaccineList.length > 0 && (
+              <>
+                <View style={s.exportSecHead}>
+                  <Text style={s.exportSecTitle}>{t('body_section_vaccines')}</Text>
+                  <TouchableOpacity onPress={() => setSelVaccines(selVaccines.size === vaccineList.length ? new Set() : new Set(vaccineList.map(v => v.id)))}>
+                    <Text style={s.selectAll}>{selVaccines.size === vaccineList.length ? t('export_none') : t('export_all')}</Text>
+                  </TouchableOpacity>
+                </View>
+                {vaccineList.map(v => (
+                  <TouchableOpacity key={v.id} style={s.checkRow} onPress={() => toggleSel(setSelVaccines, v.id)}>
+                    <View style={[s.checkbox, selVaccines.has(v.id) && s.checkboxOn]}>{selVaccines.has(v.id) ? <Text style={s.checkMark}>✓</Text> : null}</View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.checkName}>{v.name}</Text>
+                      <Text style={s.checkMeta}>{formatDate(v.date_given)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {exportMarkers.length === 0 && vaccineList.length === 0 && (
+              <Text style={s.exportPickSub}>{t('export_nothing')}</Text>
+            )}
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          <View style={s.exportFooter}>
+            <TouchableOpacity
+              style={[s.exportFooterBtn, s.exportFooterSecondary, (selMarkers.size + selVaccines.size === 0) && s.exportBtnDisabled]}
+              disabled={selMarkers.size + selVaccines.size === 0}
+              onPress={() => doExport('csv')}
+            >
+              <Text style={s.exportFooterSecondaryText}>CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.exportFooterBtn, s.exportFooterPrimary, (selMarkers.size + selVaccines.size === 0) && s.exportBtnDisabled]}
+              disabled={selMarkers.size + selVaccines.size === 0}
+              onPress={() => doExport('pdf')}
+            >
+              <Text style={s.exportFooterPrimaryText}>{premium ? 'PDF' : `PDF · ${t('export_premium_tag')}`}</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* EDIT / DELETE A STORED MARKER */}
+      <Modal visible={!!mEdit} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <TouchableOpacity onPress={() => setMEdit(null)} style={{ width: 70 }}>
+              <Text style={s.modalClose}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t('blood_edit_title')}</Text>
+            <TouchableOpacity onPress={saveMarkerEdit} style={{ width: 70, alignItems: 'flex-end' }}>
+              <Text style={[s.modalClose, { color: colors.accent, fontWeight: '600' }]}>{t('save')}</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={s.editLabel}>{t('blood_edit_marker')}</Text>
+            <TextInput style={s.editInput} value={mName} onChangeText={setMName} placeholderTextColor={colors.textFaint} />
+            <View style={s.editRow2}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={s.editLabel}>{t('blood_edit_value')}</Text>
+                <TextInput style={s.editInput} value={mValue} onChangeText={setMValue} keyboardType="decimal-pad" placeholderTextColor={colors.textFaint} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.editLabel}>{t('blood_edit_unit')}</Text>
+                <TextInput style={s.editInput} value={mUnit} onChangeText={setMUnit} autoCapitalize="none" placeholderTextColor={colors.textFaint} />
+              </View>
+            </View>
+            <Text style={s.editLabel}>{t('blood_edit_date')}</Text>
+            <TouchableOpacity style={[s.editDateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setMDatePicker(v => !v)}>
+              <FeatureIcon name="calendar" size={15} color={colors.text} />
+              <Text style={s.editDateText}>{mDate ? formatDate(mDate) : '—'}</Text>
+            </TouchableOpacity>
+            {mDatePicker && (
+              <DateTimePicker
+                value={new Date((mDate || new Date().toISOString().split('T')[0]) + 'T12:00:00')}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(event, d) => {
+                  setMDatePicker(Platform.OS === 'ios');
+                  if (event.type === 'dismissed') { setMDatePicker(false); return; }
+                  if (d) setMDate(d.toISOString().split('T')[0]);
+                }}
+              />
+            )}
+            <TouchableOpacity style={s.editDeleteBtn} onPress={deleteMarkerEdit}>
+              <Text style={s.editDeleteText}>{t('blood_edit_delete')}</Text>
+            </TouchableOpacity>
+            <View style={{ height: 60 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  container: { flex: 1, backgroundColor: c.bg },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
+  addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exportBtn: { backgroundColor: c.card2, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 0.5, borderColor: c.border },
+  exportBtnText: { color: c.accent, fontSize: 13, fontWeight: '600' },
+  backBtn: { paddingRight: 8, paddingVertical: 2 },
+  backArrow: { fontSize: 30, lineHeight: 30, color: c.accent, fontWeight: '400' },
+  headerTitleSm: { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
+  // Hub landing — warm hero + colored cards
+  hubHero: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, backgroundColor: c.card },
+  hubGreeting: { fontSize: 26, fontWeight: '800', color: c.text, letterSpacing: -0.3 },
+  hubHeroSub: { fontSize: 14, color: c.textMuted, marginTop: 8, lineHeight: 20 },
+  hubBody: { padding: 16, paddingTop: 18 },
+  hubCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginBottom: 12, ...c.shadowCard },
+  hubBadge: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  hubBadgeIcon: { fontSize: 26 },
+  hubCardMain: { flex: 1 },
+  hubCardTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 4 },
+  hubCardDesc: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
+  hubCardStat: { fontSize: 12, color: c.accent, fontWeight: '600', marginTop: 8 },
+  hubCardChevron: { fontSize: 24, color: c.textFaint, marginLeft: 8 },
+  hubCardSoon: { borderStyle: 'dashed', borderWidth: 1, borderColor: c.accent, opacity: 0.9 },
+  soonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' },
+  soonPill: { backgroundColor: c.accentSoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  soonPillText: { fontSize: 10, fontWeight: '700', color: c.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
+  hubFootnote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, textAlign: 'center', paddingHorizontal: 8 },
+  uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
+  uploadingText: { fontSize: 13, color: c.accent },
+  premiumBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.accentSoft, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  premiumBannerLeft: { flex: 1, marginRight: 12 },
+  premiumBannerTitle: { fontSize: 12, fontWeight: '600', color: c.accentSoftText, marginBottom: 2 },
+  premiumBannerSub: { fontSize: 11, color: c.accent, lineHeight: 16 },
+  premiumBannerBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+  premiumBannerBtnText: { color: c.accentText, fontSize: 12, fontWeight: '600' },
+  scroll: { flex: 1, padding: 16 },
+  emptyState: { alignItems: 'center', paddingTop: 40 },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
+  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 24, paddingHorizontal: 20 },
+  emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, marginBottom: 24 },
+  emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  tipBox: { backgroundColor: c.card2, borderRadius: 12, padding: 14, width: '100%', borderWidth: 0.5, borderColor: c.border },
+  tipTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginTop: 5, flexShrink: 0 },
+  tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
+  sectionTabs: { flexDirection: 'row', backgroundColor: c.card, paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  sectionTab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: c.card2 },
+  sectionTabOn: { backgroundColor: c.accent },
+  sectionTabText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  sectionTabTextOn: { color: c.accentText },
+  hubDisclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 12 },
+  segment: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 10, padding: 3, marginBottom: 10 },
+  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  segmentBtnOn: { backgroundColor: c.card, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  segmentText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
+  segmentTextOn: { color: c.text },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  searchInput: { flex: 1, backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  sortBtn: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 0.5, borderColor: c.border },
+  sortBtnOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
+  sortBtnText: { fontSize: 12, fontWeight: '600', color: c.accent },
+  sortBtnTextOn: { color: c.accent },
+  markerHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  starBtn: { paddingLeft: 12, paddingRight: 4, paddingVertical: 14 },
+  star: { fontSize: 18, color: c.textFaint },
+  starOn: { color: c.warning },
+  markerHeaderMain: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 14, paddingVertical: 14, paddingLeft: 4 },
+  noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
+  markerLatest: { fontSize: 13, fontWeight: '700', color: c.text, marginRight: 6 },
+  tagChipsPreview: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  tagChip: { backgroundColor: c.accentSoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  tagChipText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
+  tagEditor: { padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border, backgroundColor: c.card2 },
+  tagEditorLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.4, marginBottom: 8 },
+  tagEditorChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  tagChipEditable: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.accentSoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  tagChipX: { fontSize: 10, color: c.accentSoftText },
+  tagInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tagInput: { flex: 1, backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, fontSize: 13, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  tagAddBtn: { backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
+  tagAddBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
+  markerExpanded: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
+  singlePointHint: { fontSize: 12, color: c.textMuted, textAlign: 'center', paddingVertical: 18, lineHeight: 18 },
+  markerHistory: { marginTop: 8 },
+  reportGroup: { backgroundColor: c.card, borderRadius: 18, marginBottom: 10, overflow: 'hidden' },
+  reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
+  reportDate: { fontSize: 14, fontWeight: '600', color: c.text },
+  reportCount: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  reportBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chevron: { fontSize: 11, color: c.textFaint, marginLeft: 4 },
+  markerList: { borderTopWidth: 0.5, borderTopColor: c.border },
+  markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  markerLeft: { flex: 1 },
+  markerName: { fontSize: 13, fontWeight: '500', color: c.text },
+  markerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  markerValue: { fontSize: 13, fontWeight: '600', color: c.text },
+  markerEdit: { fontSize: 13, color: c.textFaint },
+  editLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 16 },
+  editInput: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  editRow2: { flexDirection: 'row' },
+  editDateBtn: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 0.5, borderColor: c.border },
+  editDateText: { fontSize: 15, color: c.text },
+  editDeleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
+  editDeleteText: { color: c.danger, fontSize: 14, fontWeight: '600' },
+  exportPickSub: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginBottom: 8 },
+  exportSecHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 6 },
+  exportSecTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5 },
+  selectAll: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: c.accent, borderColor: c.accent },
+  checkMark: { color: c.accentText, fontSize: 13, fontWeight: '700' },
+  checkName: { fontSize: 14, color: c.text, fontWeight: '500' },
+  checkMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  exportFooter: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card },
+  exportFooterBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  exportFooterSecondary: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  exportFooterSecondaryText: { color: c.accent, fontSize: 15, fontWeight: '600' },
+  exportFooterPrimary: { backgroundColor: c.accent },
+  exportFooterPrimaryText: { color: c.accentText, fontSize: 15, fontWeight: '700' },
+  exportBtnDisabled: { opacity: 0.4 },
+  exRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  exName: { flex: 1, paddingVertical: 9 },
+  exVal: { width: 74, paddingVertical: 9, textAlign: 'right' },
+  exUnit: { width: 64, paddingVertical: 9 },
+  exRemove: { fontSize: 16, color: c.danger, paddingHorizontal: 4 },
+  modal: { flex: 1, backgroundColor: c.card },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  modalClose: { fontSize: 14, color: c.textMuted },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20 },
+  upgradeHero: { alignItems: 'center', marginBottom: 24 },
+  upgradeIcon: { fontSize: 48, marginBottom: 12 },
+  upgradeTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 8, textAlign: 'center' },
+  upgradeSub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
+  upgradeFeats: { backgroundColor: c.card2, borderRadius: 12, padding: 14, marginBottom: 20 },
+  upgradeFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  upgradeCheck: { color: c.success, fontWeight: '600', fontSize: 14 },
+  upgradeFeatText: { fontSize: 13, color: c.textMuted, flex: 1, lineHeight: 20 },
+  upgradePrimaryBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
+  upgradePrimaryBtnText: { color: c.accentText, fontSize: 15, fontWeight: '600' },
+  upgradeTrialNote: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 20 },
+  upgradeDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+  upgradeDividerLine: { flex: 1, height: 0.5, backgroundColor: c.border },
+  upgradeDividerText: { fontSize: 12, color: c.textFaint },
+  upgradeSecBtn: { borderWidth: 1, borderColor: c.border, padding: 13, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
+  upgradeSecBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
+  upgradeSecNote: { fontSize: 11, color: c.textFaint, textAlign: 'center' },
+  confirmBanner: { backgroundColor: c.successSoft, borderRadius: 10, padding: 12, marginBottom: 16 },
+  confirmBannerText: { fontSize: 13, color: c.successSoftText, fontWeight: '500' },
+  dateFallbackBanner: { backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 0.5, borderColor: c.border },
+  dateFallbackText: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
+  confirmNote: { fontSize: 13, color: c.textMuted, marginBottom: 16, lineHeight: 20 },
+  upgradePrimaryBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 3 },
+trialBadge: { backgroundColor: c.successSoft, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', marginBottom: 20 },
+trialBadgeText: { fontSize: 13, color: c.successSoftText, fontWeight: '600' },
+});

@@ -6,6 +6,7 @@
 
 const Database = require('better-sqlite3');
 const { createSchema } = require('../../lib/schema');
+const { TABLES } = require('../../lib/syncCore');
 
 // ── expo-sqlite-shaped adapter over better-sqlite3 ───────────────
 function makeDb() {
@@ -36,7 +37,10 @@ function makeDb() {
 
 // ── In-memory fake cloud (same interface as the Supabase adapter) ─
 function makeCloud() {
-  const store = { protocols: new Map(), vials: new Map(), dose_logs: new Map(), biomarkers: new Map() };
+  // One bucket per synced table — derived from TABLES so new tables are covered
+  // automatically (no more "store[table] is undefined" when a table is added).
+  const store = {};
+  for (const t of TABLES) store[t] = new Map();
   let clock = 0;
   // Monotonic, string-sortable cloud timestamps (so `updated_at > since` works).
   const stamp = () => String(++clock).padStart(6, '0');

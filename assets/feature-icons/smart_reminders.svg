@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <path d="M320 650h384" class="stroke"/>
+  <path d="M372 650V455c0-106 62-186 140-186s140 80 140 186v195" class="stroke"/>
+  <path d="M445 730c18 52 48 78 67 78s49-26 67-78" class="stroke"/>
+  <path d="M512 185v62" class="stroke"/>
+  <path d="M760 330l52-44" class="stroke"/>
+  <path d="M264 330l-52-44" class="stroke"/>
+</svg>

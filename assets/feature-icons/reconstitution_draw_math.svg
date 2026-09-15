@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <!-- clean single syringe (draw math), tilted -->
+  <g transform="rotate(-35 512 512)">
+    <path d="M430 150 H594" class="stroke"/>
+    <path d="M512 150 V300" class="stroke"/>
+    <rect x="447" y="300" width="130" height="360" rx="22" class="stroke"/>
+    <path d="M472 372 H528" class="stroke"/>
+    <path d="M472 442 H528" class="stroke"/>
+    <path d="M472 512 H528" class="stroke"/>
+    <path d="M512 660 V860" class="stroke"/>
+  </g>
+</svg>

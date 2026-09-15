@@ -10,6 +10,10 @@ import {
   Alert,
   Platform,
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -19,13 +23,15 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getCachedUser } from '../lib/supabase';
+import { getCachedUser, supabase } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
+import { requestAIConsent } from '../lib/aiConsent';
+import { hasNativeModule } from '../lib/nativeModule';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { scheduleDoseReminder, cancelDoseReminder } from '../lib/notifications';
+import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,12 +40,18 @@ import {
   softDeleteProtocol, getProtocolById, getActiveVials,
   insertVial, deactivateVialsByProtocol, updateVial,
 } from '../lib/database';
-import { requestSync } from '../lib/sync';
-import { unitsCompatible, computeDraw, dosesPerVial } from '../lib/doseMath';
+import { requestSync, notifyDataChanged } from '../lib/sync';
+import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
+import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery } from '../lib/compounds';
-import { expectedDosesOn, nextDueDate } from '../lib/schedule';
+import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
+import { backfillTakenDoses } from '../lib/doseActions';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import FeatureIcon from '../components/FeatureIcon';
+
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 // Protocols list sort options. 'type' keeps the compound-type sections; the
 // rest render a single flat list.
@@ -74,13 +86,19 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
 const FREE_PROTOCOL_LIMIT = 3;
 
-const COLORS = ['#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780','#E24B4A','#2C2C2A'];
+const COLORS = [
+  '#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780',
+  '#E24B4A','#2C2C2A','#0E8C8C','#6A3FB5','#C13A9E','#8A5A2B','#4C6E8F','#E0A500','#17B0B8','#A82E55',
+];
 
 const COLOR_NAMES = {
   '#185FA5':'color_ocean','#1D9E75':'color_forest','#D85A30':'color_coral',
   '#7F77DD':'color_lavender','#BA7517':'color_amber','#D4537E':'color_rose',
   '#5DCAA5':'color_mint','#378ADD':'color_sky','#639922':'color_olive',
   '#888780':'color_stone','#E24B4A':'color_red','#2C2C2A':'color_charcoal',
+  '#0E8C8C':'color_teal','#6A3FB5':'color_grape','#C13A9E':'color_magenta',
+  '#8A5A2B':'color_bronze','#4C6E8F':'color_slate','#E0A500':'color_gold',
+  '#17B0B8':'color_turquoise','#A82E55':'color_wine',
 };
 
 // Diluent options for reconstitution. Stored as canonical tokens so the label
@@ -101,6 +119,38 @@ function diluentLabel(val, t) {
   return opt ? t(opt.key) : val;
 }
 
+// Trim a computed number to a clean display value (20, not 20.00; 2.5 stays 2.5).
+function trimNum(n) {
+  if (!isFinite(n)) return null;
+  return Number.isInteger(n) ? n : Number(n.toFixed(2));
+}
+
+// Collapsed-card "size" descriptor: the total compound in the container, so every
+// injectable reads the same way ("10 mg vial"). recon and rtu both store that total
+// in `amount` (RTU has no dilution — its amount = concentration × bottle volume,
+// computed at save). Before an RTU vial exists we recompute from the active vial's
+// volume if present, else fall back to concentration ("10 mg/ml"). oral → the
+// per-unit strength ("500 mg"). Returns null when nothing is entered yet.
+function sizeLabel(p, vial, t) {
+  if (p.type === 'recon') {
+    if (p.amount == null || p.amount === '') return null;
+    return `${p.amount} ${p.unit || 'mg'} ${t('protocols_vial_noun')}`;
+  }
+  if (p.type === 'rtu') {
+    if (p.concentration == null || p.concentration === '') return null;
+    const ml = vial && vial.water_ml != null ? parseDecimal(vial.water_ml) : null;
+    const total = ml ? trimNum(parseDecimal(p.concentration) * ml)
+      : (p.amount != null && p.amount !== '' ? trimNum(parseDecimal(p.amount)) : null);
+    if (total) return `${total} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
+    return `${p.concentration} ${p.concentration_unit || 'mg'}/ml`;
+  }
+  if (p.type === 'oral') {
+    if (p.serving_strength == null || p.serving_strength === '') return null;
+    return `${p.serving_strength} ${p.serving_strength_unit || 'mg'}`;
+  }
+  return null;
+}
+
 function getTypeBadge(type, t, c) {
   if (type === 'recon') return { bg: c.accentSoft, text: c.accentSoftText, label: t('protocols_type_badge_lyophilized') };
   if (type === 'rtu') return { bg: c.successSoft, text: c.successSoftText, label: t('protocols_type_badge_rtu') };
@@ -108,9 +158,21 @@ function getTypeBadge(type, t, c) {
   return { bg: c.card2, text: c.textMuted, label: type };
 }
 
+// The oral form is stored in `notes` as an English value (Capsule/Tablet/…);
+// map it to its localized label for display.
+const ORAL_FORM_KEY = {
+  Capsule: 'protocols_capsule', Tablet: 'protocols_tablet', Powder: 'protocols_powder',
+  Liquid: 'protocols_liquid', Gummy: 'protocols_gummy', Softgel: 'protocols_softgel',
+};
+function oralFormLabel(form, t) {
+  return ORAL_FORM_KEY[form] ? t(ORAL_FORM_KEY[form]) : form;
+}
+
 function ProtocolSyringeGuide({ p, t }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const [zoom, setZoom] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
   if (p.type === 'oral') return null;
 
   const draw = computeDraw({
@@ -125,7 +187,10 @@ function ProtocolSyringeGuide({ p, t }) {
   const pDrawValid = draw.valid;
 
   const syringeMax = p.syringe_size || 100;
-  const fillPct = pDrawValid ? Math.min((parseFloat(pDrawUnits) / syringeMax) * 100, 100) : 0;
+  const drawFrac = pDrawValid ? Math.min(parseDecimal(pDrawUnits) / syringeMax, 1) : 0;
+  const fillPct = drawFrac * 100;
+  // Zoom modal: an enlarged, horizontally-scrollable ruler (~16px per unit).
+  const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
 
   // Animated fill
   const fillWidth = useSharedValue(0);
@@ -172,17 +237,23 @@ function ProtocolSyringeGuide({ p, t }) {
     <View style={s.syringeWrap}>
       <Text style={s.syringeTitle}>{t('protocols_syringe_title')}</Text>
       <Text style={s.syringeSubtitle}>
-        {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
+        {t('protocols_syringe_based_on')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
       </Text>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => setZoom(true)}>
       <View style={s.syringeOuter}>
         <View style={s.syringeBody}>
           <View style={s.syringeTicks}>
-            {Array.from({ length: 11 }).map((_, i) => {
-              const tickVal = Math.round((syringeMax / 10) * i);
+            {/* One minor tick every 2 units (0.02 ml on a U-100 syringe) so a draw
+                like 18u lands on a mark; a taller, labelled tick every 10 units.
+                Positioned on the true 0–100% scale so ticks line up with the fill
+                and plunger. */}
+            {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => {
+              const tickVal = i * 2;
+              const isMajor = tickVal % 10 === 0;
               return (
-                <View key={i} style={s.tickGroup}>
-                  <View style={[s.tick, i % 5 === 0 && s.tickMajor]} />
-                  {i % 5 === 0 && <Text style={s.tickLabel}>{tickVal}</Text>}
+                <View key={i} style={[s.tickGroup, { left: `${(tickVal / syringeMax) * 100}%` }]}>
+                  {isMajor && <Text style={s.tickLabel}>{tickVal}</Text>}
+                  <View style={[s.tick, isMajor && s.tickMajor]} />
                 </View>
               );
             })}
@@ -194,6 +265,11 @@ function ProtocolSyringeGuide({ p, t }) {
         </View>
         <View style={s.syringeNeedle} />
       </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 2, marginBottom: 2 }}>
+        <FeatureIcon name="search" size={11} color={colors.accent} />
+        <Text style={[s.syringeZoomHint, { marginTop: 0, marginBottom: 0 }]}>{t('protocols_syringe_zoom_hint')}</Text>
+      </View>
+      </TouchableOpacity>
       <View style={s.syringeInfo}>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_draw_to')}</Text>
@@ -206,6 +282,14 @@ function ProtocolSyringeGuide({ p, t }) {
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_dose')}</Text>
           <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
+          {/* Show the dose in the other mass unit too, so the mcg↔mg equivalence
+              is visible right where the draw is read. */}
+          {(() => {
+            let alt = null;
+            if (p.dose_unit === 'mcg') { const pp = massParts(parseDecimal(p.dose) / 1000); if (pp) alt = `${pp.mg} mg`; }
+            else if (p.dose_unit === 'mg') { const pp = massParts(parseDecimal(p.dose)); if (pp) alt = `${pp.mcg} mcg`; }
+            return alt ? <Text style={s.syringeInfoAlt}>= {alt}</Text> : null;
+          })()}
         </View>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_size')}</Text>
@@ -213,19 +297,197 @@ function ProtocolSyringeGuide({ p, t }) {
         </View>
       </View>
       <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
+
+      <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
+        <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(false)}>
+          <TouchableOpacity style={s.zoomCard} activeOpacity={1} onPress={() => {}}>
+            <Text style={s.zoomTitle}>{p.name}</Text>
+            <Text style={s.zoomReadout}>
+              {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '800', color: colors.accent }}>{pDrawUnits}u</Text> · {pDrawML} ml
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator
+              contentOffset={{ x: Math.max(0, drawFrac * zoomWidth - (windowWidth - 72) / 2), y: 0 }}
+              style={s.zoomScroll}
+            >
+              <View style={{ width: zoomWidth, paddingTop: 4 }}>
+                <View style={[s.zoomTicks, { width: zoomWidth }]}>
+                  {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => {
+                    const tickVal = i * 2;
+                    const isMajor = tickVal % 10 === 0;
+                    return (
+                      <View key={i} style={[s.zoomTickGroup, { left: (tickVal / syringeMax) * zoomWidth }]}>
+                        {isMajor && <Text style={s.zoomTickLabel}>{tickVal}</Text>}
+                        <View style={[s.zoomTick, isMajor && s.zoomTickMajor]} />
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={[s.zoomBarrel, { width: zoomWidth }]}>
+                  <View style={[s.zoomFill, { width: drawFrac * zoomWidth }]} />
+                  <View style={[s.zoomPlunger, { left: drawFrac * zoomWidth }]} />
+                </View>
+              </View>
+            </ScrollView>
+            <TouchableOpacity style={s.zoomClose} onPress={() => setZoom(false)}>
+              <Text style={s.zoomCloseText}>{t('done')}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
-function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, t }) {
+// Oral serving calculator card — the oral twin of the syringe guide. Turns the
+// user's target dose + per-serving strength into how many units to take, and
+// (if a container size is set) how many units / days of supply remain. Pure
+// arithmetic on the user's own numbers — no recommendation.
+function ProtocolServingGuide({ p, t, onRefill }) {
   const { colors } = useTheme();
-  const { language } = useLanguage();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  if (p.type !== 'oral') return null;
+
+  const r = computeServings({
+    targetDose: p.dose,
+    doseUnit: p.dose_unit,
+    servingStrength: p.serving_strength,
+    servingStrengthUnit: p.serving_strength_unit,
+    servingUnits: p.serving_units,
+    form: p.notes, // oral form (Capsule/Tablet/…) is stored in `notes`
+    divisible: p.divisible == null ? undefined : p.divisible === 1,
+  });
+
+  if (!r.valid) {
+    if (r.unitMismatch) {
+      return (
+        <View style={s.syringeWrap}>
+          <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
+          <Text style={s.syringeNoData}>{t('protocols_serving_unit_mismatch')}</Text>
+        </View>
+      );
+    }
+    return null; // not enough info yet — stay quiet
+  }
+
+  const unitLabel = t(r.unitKey);
+  // Pretty-print halves: 0.5 → "½", 1.5 → "1½"; anything else stays decimal.
+  const fmt = (v) => {
+    if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return String(Math.round(v * 100) / 100);
+    const whole = Math.floor(v + 1e-9);
+    const isHalf = Math.abs(v - whole - 0.5) < 1e-9;
+    if (!isHalf) return String(whole);
+    return whole > 0 ? `${whole}½` : '½';
+  };
+  // Show the amount when it's achievable (continuous, whole, or a clean half on
+  // a scored unit). Otherwise the unit can't hit the target, so explain instead.
+  const canShowAmount = !r.discrete || r.isAchievable;
+  const containsMsg = t('protocols_serving_contains')
+    .replace('{strength}', r.perUnitDose)
+    .replace('{sunit}', p.dose_unit)
+    .replace('{ratio}', r.ratio);
+  const containerUnits = parseDecimal(p.container_units);
+  const unitsTaken = parseDecimal(p.units_taken) || 0;
+  const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
+  const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
+
+  return (
+    <View style={s.syringeWrap}>
+      <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
+      {canShowAmount ? (
+        <Text style={s.syringeSubtitle}>
+          {t('protocols_syringe_based_on')}{' '}
+          <Text style={{ fontWeight: '700', color: colors.accent }}>{fmt(r.unitsNeeded)} {unitLabel}</Text>
+        </Text>
+      ) : (
+        <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 8 }]}>
+          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
+            {r.splittable ? t('protocols_serving_not_half') : containsMsg}
+          </Text>
+        </View>
+      )}
+
+      {r.nearest && (
+        <Text style={s.servingNearest}>
+          {fmt(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {fmt(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
+        </Text>
+      )}
+
+      <View style={[s.syringeInfo, { marginTop: 12 }]}>
+        {canShowAmount && (
+          <View style={s.syringeInfoItem}>
+            <Text style={s.syringeInfoLabel}>{t('protocols_serving_take')}</Text>
+            <Text style={s.syringeInfoVal}>{fmt(r.unitsNeeded)} {unitLabel}</Text>
+          </View>
+        )}
+        <View style={s.syringeInfoItem}>
+          <Text style={s.syringeInfoLabel}>{t('protocols_serving_dose')}</Text>
+          <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
+        </View>
+        {unitsLeft != null && (
+          <View style={s.syringeInfoItem}>
+            <Text style={s.syringeInfoLabel}>{t('protocols_serving_left')}</Text>
+            <Text style={s.syringeInfoVal}>{unitsLeft} {unitLabel}</Text>
+          </View>
+        )}
+        {daysLeft != null && (
+          <View style={s.syringeInfoItem}>
+            <Text style={s.syringeInfoLabel}>{t('protocols_serving_days_left')}</Text>
+            <Text style={s.syringeInfoVal}>{daysLeft}</Text>
+          </View>
+        )}
+      </View>
+
+      {unitsLeft != null && onRefill && unitsTaken > 0 && (
+        <TouchableOpacity style={s.newBottleBtn} onPress={() => onRefill(p.id)}>
+          <Text style={s.newBottleText}>↺ {t('protocols_serving_new_bottle')}</Text>
+        </TouchableOpacity>
+      )}
+
+      <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
+    </View>
+  );
+}
+
+function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
+  const { colors } = useTheme();
+  const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const badge = getTypeBadge(p.type, t, colors);
   const isExpanded = expanded === p.id;
-  const vialDaysLeft = (p.type === 'recon' && vial)
-    ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
+
+  // Inline, editable note — saved straight from the card, no need to open Edit.
+  const [noteDraft, setNoteDraft] = useState(p.note || '');
+  useEffect(() => { setNoteDraft(p.note || ''); }, [p.note]);
+  const noteDirty = noteDraft !== (p.note || '');
+  const saveNote = () => {
+    Keyboard.dismiss();
+    onSaveNote(p.id, noteDraft);
+  };
+  // Recon: expiry is derived from the mix date + validity window. RTU: expiry is
+  // the box date the user entered (vial.expires_on).
+  const vialDaysLeft = vial
+    ? (p.type === 'recon'
+        ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
+        : (vial.expires_on ? Math.ceil((new Date(vial.expires_on + 'T00:00:00') - new Date()) / 86400000) : null))
     : null;
+  const isInjectable = p.type === 'recon' || p.type === 'rtu';
+  // Low-supply flag — must match the Today "Supply low" alert. Capacity uses the
+  // stored count, else derived from vial size ÷ dose (older vials have no count).
+  const supplyCapacity = vial
+    ? ((vial.total_doses && vial.total_doses > 0)
+        ? vial.total_doses
+        : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }))
+    : null;
+  const dosesRemaining = (vial && supplyCapacity) ? Math.max(0, supplyCapacity - (vial.doses_taken || 0)) : null;
+  // Doses a full vial yields, shown for every injectable (lyophilized or RTU) even
+  // before a vial is opened: the stored/derived vial capacity, else — with no vial —
+  // derived from the vial's total compound ÷ dose (both types store that in `amount`).
+  const vialDoseCapacity = supplyCapacity != null
+    ? supplyCapacity
+    : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+  const lowSupply = dosesRemaining != null && dosesRemaining > 0 && dosesRemaining <= 3;
 
   return (
     <TouchableOpacity
@@ -236,7 +498,17 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
         <View style={[s.cardDot, { backgroundColor: p.color }]} />
         <View style={s.cardInfo}>
           <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-          <Text style={s.cardMeta}>{p.dose} {p.dose_unit} · {p.frequency}</Text>
+          <Text style={s.cardMeta}>
+            {(() => { const sz = sizeLabel(p, vial, t); return sz ? `${sz} · ` : ''; })()}
+            {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+          </Text>
+          {isInjectable && vialDoseCapacity != null && (
+            <Text style={[s.cardMeta, { fontWeight: '600', color: colors.accent }]}>
+              {dosesRemaining != null
+                ? t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
+                : t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}
+            </Text>
+          )}
           {vialDaysLeft != null && (
             <Text style={[s.cardMeta, { color: expiryColor(vialDaysLeft), fontWeight: '600' }]}>
               {vialDaysLeft <= 0
@@ -245,6 +517,12 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
             </Text>
           )}
           <View style={s.badgeRow}>
+            {lowSupply && (
+              <View style={[s.badgeLow, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                <FeatureIcon name="warning" size={10} color={colors.dangerSoftText} />
+                <Text style={s.badgeLowText}>{t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
+              </View>
+            )}
             <View style={[s.badge, { backgroundColor: badge.bg }]}>
               <Text style={[s.badgeText, { color: badge.text }]}>{badge.label}</Text>
             </View>
@@ -280,7 +558,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
                 <Text style={s.detailLabel}>{t('protocols_concentration')}</Text>
                 <Text style={s.detailVal}>
                   {p.amount && p.water
-                    ? (parseFloat(p.amount) / parseFloat(p.water)).toFixed(2)
+                    ? (parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)
                     : '—'} {p.unit}/ml
                 </Text>
               </View>
@@ -298,11 +576,11 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           )}
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('protocols_frequency')}</Text>
-            <Text style={s.detailVal}>{p.frequency || '—'}</Text>
+            <Text style={s.detailVal}>{p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—')}</Text>
           </View>
           <View style={s.detailRow}>
             <Text style={s.detailLabel}>{t('protocols_reminder')}</Text>
-            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language)).join('  ·  ')}</Text>
+            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  ')}</Text>
           </View>
           {p.schedule_total && (
             <View style={s.detailRow}>
@@ -319,11 +597,39 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           {p.notes && p.type === 'oral' && (
             <View style={s.detailRow}>
               <Text style={s.detailLabel}>{t('protocols_form')}</Text>
-              <Text style={s.detailVal}>{p.notes}</Text>
+              <Text style={s.detailVal}>{oralFormLabel(p.notes, t)}</Text>
             </View>
           )}
+          <View style={s.noteBlock}>
+            <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
+            <TextInput
+              style={s.noteEditBox}
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              placeholder={p.type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
+              placeholderTextColor={colors.textFaint}
+              multiline
+            />
+            {noteDirty && (
+              <View style={s.noteEditActions}>
+                <TouchableOpacity onPress={() => setNoteDraft(p.note || '')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={s.noteCancelText}>{t('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.noteSaveBtn} onPress={saveNote}>
+                  <Text style={s.noteSaveText}>{t('save')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
           <ProtocolSyringeGuide p={p} t={t} />
+          <ProtocolServingGuide p={p} t={t} onRefill={onRefill} />
+
+          {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
+            <TouchableOpacity style={[s.newBottleBtn, { marginTop: 4 }]} onPress={() => onRefillVial(p.id)}>
+              <Text style={s.newBottleText}>↺ {t('protocols_new_vial')}</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={s.cardActions}>
             <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)}>
@@ -346,10 +652,11 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
 }
 
 export default function ProtocolsScreen() {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
+  const route = useRoute();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
@@ -373,18 +680,38 @@ export default function ProtocolsScreen() {
   const [diluentChoice, setDiluentChoice] = useState('');
   const [diluentOther, setDiluentOther] = useState('');
   const [dose, setDose] = useState('');
+  const [iuInput, setIuInput] = useState(''); // IU→mass converter (recon dose step)
   const [doseUnit, setDoseUnit] = useState('mg');
   const [syringeSize, setSyringeSize] = useState(100);
   const [concentration, setConcentration] = useState('');
   const [concentrationUnit, setConcentrationUnit] = useState('mg');
+  // ── Vial-label scan (AI prefill) ──
+  const [vialScanning, setVialScanning] = useState(false);
+  const [vialScanned, setVialScanned] = useState(false); // show the review banner after a scan
   // ── Schedule state ──
   const [intervalDays, setIntervalDays] = useState(1);
+  // Custom (typed) dosing interval — for schedules longer than the presets,
+  // e.g. testosterone cypionate every 10-14 days or undecanoate every ~12 weeks.
+  const [customIntervalOpen, setCustomIntervalOpen] = useState(false);
+  const [customIntervalText, setCustomIntervalText] = useState('');
   const [dosesPerDay, setDosesPerDay] = useState(1);
-  const [startMonth, setStartMonth] = useState(new Date().getMonth()); // 0-11
-  const [startDay, setStartDay] = useState(String(new Date().getDate()));
+  // First-dose / start date as a full ISO date (YYYY-MM-DD). Defaults to today;
+  // any past or future date is allowed so a protocol can be scheduled ahead.
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  });
+  const [showStartPicker, setShowStartPicker] = useState(false);
   const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
+  const [note, setNote] = useState('');
+  // Oral serving calculator + supply
+  const [servingStrength, setServingStrength] = useState('');
+  const [servingStrengthUnit, setServingStrengthUnit] = useState('mg');
+  const [servingUnits, setServingUnits] = useState('1');
+  const [containerUnits, setContainerUnits] = useState('');
+  const [divisible, setDivisible] = useState(null); // null = unanswered, true/false = user's answer
   const [saving, setSaving] = useState(false);
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
@@ -402,22 +729,31 @@ export default function ProtocolsScreen() {
     return new Date(toSupabaseDateFromMD(monthIdx, dayStr) + 'T00:00:00');
   }
 
+  function todayISO() {
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  }
+  function isoWithOffset(offset) {
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+  }
   // First-dose quick pick: is the current start date today (+offset days)?
   function isStartOn(offset) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    return startMonth === d.getMonth() && (parseInt(startDay) || 0) === d.getDate();
+    return startDate === isoWithOffset(offset);
   }
   function setStartOffset(offset) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    setStartMonth(d.getMonth());
-    setStartDay(String(d.getDate()));
+    setStartDate(isoWithOffset(offset));
+  }
+  function formatStartDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   // Format "HH:MM" (24h) → locale-aware time (AM/PM in en, 24h in de/fr/it, …)
   function formatTimeAMPM(time24) {
-    return formatTime(time24, language);
+    return formatTime(time24, language, timeFormat);
   }
 
   // Build a human-readable frequency string from interval_days
@@ -433,12 +769,14 @@ export default function ProtocolsScreen() {
     if (newInterval > 2) {
       setDosesPerDay(1);
       setReminderTimes(prev => [prev[0] || currentTimeRounded5()]);
+      setActiveTimeIndex(0);
     }
   }
 
   // When doses per day changes, adjust reminder times array
   function handleDosesPerDayChange(newCount) {
     setDosesPerDay(newCount);
+    setActiveTimeIndex(0); // reset so a stale index can't write past the array
     setReminderTimes(prev => {
       if (prev.length === newCount) return prev;
       const defaults = [currentTimeRounded5(), '14:00', '21:00'];
@@ -452,8 +790,23 @@ export default function ProtocolsScreen() {
   const [vialValidDays, setVialValidDays] = useState(String(DEFAULT_VALID_DAYS));
   const [totalDoses, setTotalDoses] = useState('');
   const [skipVial, setSkipVial] = useState(false);
+  // RTU vial tracking: bottle volume (ml) + the box's printed expiry (month/year)
+  const [vialMl, setVialMl] = useState('');
+  const [vialExpMonth, setVialExpMonth] = useState(null); // 0-11 or null
+  const [vialExpYear, setVialExpYear] = useState(null);   // full year or null
 
   useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
+
+  // Deep-link from the Today screen: open (expand) a specific protocol, then
+  // clear the param so it doesn't re-fire. A plain effect on the param reacts
+  // to the change directly, independent of focus timing.
+  useEffect(() => {
+    const openId = route.params?.openProtocolId;
+    if (openId != null) {
+      setExpanded(openId);
+      navigation.setParams({ openProtocolId: undefined });
+    }
+  }, [route.params?.openProtocolId]);
 
   useEffect(() => {
     AsyncStorage.getItem(SORT_STORAGE_KEY)
@@ -512,12 +865,17 @@ export default function ProtocolsScreen() {
   function resetForm() {
     setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor('#185FA5');
     setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
+    setIuInput('');
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
-    setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
-    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes('');
+    setCustomIntervalOpen(false); setCustomIntervalText('');
+    setStartDate(todayISO()); setShowStartPicker(false);
+    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
+    setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
+    setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
+    setVialScanning(false); setVialScanned(false);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
   }
 
@@ -582,25 +940,50 @@ export default function ProtocolsScreen() {
     } else {
       setDiluentChoice(''); setDiluentOther('');
     }
-    setDose(p.dose ? String(p.dose) : '');
+    setDose(p.dose ? String(p.dose) : ''); setIuInput('');
     setDoseUnit(p.dose_unit || 'mg'); setSyringeSize(p.syringe_size || 100);
     setConcentration(p.concentration ? String(p.concentration) : '');
     setConcentrationUnit(p.concentration_unit || 'mg');
+    // RTU vial (size + box expiry) for editing
+    const editVial = vialsByProtocol[p.id];
+    if (p.type === 'rtu') {
+      // Prefer the active vial's volume; else rebuild it from the stored vial total
+      // (amount ÷ concentration) so re-saving keeps the size.
+      const ml = editVial && editVial.water_ml != null ? editVial.water_ml
+        : (p.amount && p.concentration ? trimNum(parseDecimal(p.amount) / parseDecimal(p.concentration)) : null);
+      setVialMl(ml != null ? String(ml) : '');
+      if (editVial && editVial.expires_on) {
+        const ed = new Date(editVial.expires_on + 'T00:00:00');
+        setVialExpMonth(ed.getMonth()); setVialExpYear(ed.getFullYear());
+      } else { setVialExpMonth(null); setVialExpYear(null); }
+    } else {
+      setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
+    }
     const loadedInterval = p.interval_days || 1;
     setIntervalDays(loadedInterval);
+    // Open the custom field when the saved interval isn't one of the presets.
+    if (![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(loadedInterval)) {
+      setCustomIntervalOpen(true); setCustomIntervalText(String(loadedInterval));
+    } else {
+      setCustomIntervalOpen(false); setCustomIntervalText('');
+    }
     const loadedDPD = p.doses_per_day || 1;
     setDosesPerDay(loadedDPD);
-    if (p.start_date) {
-      const sd = new Date(p.start_date + 'T00:00:00');
-      setStartMonth(sd.getMonth()); setStartDay(String(sd.getDate()));
-    } else {
-      setStartMonth(new Date().getMonth()); setStartDay(String(new Date().getDate()));
-    }
+    // Normalize to a bare YYYY-MM-DD — a full timestamp (or junk) would make the
+    // picker's `new Date(startDate + 'T12:00:00')` an Invalid Date, which the iOS
+    // spinner renders as the epoch (Dec 31 1969) and traps the user there.
+    const sd = typeof p.start_date === 'string' ? p.start_date.slice(0, 10) : '';
+    setStartDate(/^\d{4}-\d{2}-\d{2}$/.test(sd) ? sd : todayISO());
     const times = (p.reminder_time || currentTimeRounded5()).split(',').filter(Boolean);
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
-    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || '');
+    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || '');
+    setServingStrength(p.serving_strength != null ? String(p.serving_strength) : '');
+    setServingStrengthUnit(p.serving_strength_unit || 'mg');
+    setServingUnits(p.serving_units != null ? String(p.serving_units) : '1');
+    setContainerUnits(p.container_units != null ? String(p.container_units) : '');
+    setDivisible(p.divisible == null ? null : p.divisible === 1);
     setVialValidDays(String(p.vial_valid_days || DEFAULT_VALID_DAYS));
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
@@ -632,9 +1015,154 @@ export default function ProtocolsScreen() {
   }
 
   function adjustWater(dir) {
-    const current = parseFloat(water) || 0;
+    const current = parseDecimal(water) || 0;
     const next = Math.max(0.5, Math.round((current + dir * 0.5) * 10) / 10);
     setWater(String(next));
+  }
+
+  // ── Vial-label scan → prefill the calculator (AI, review-before-save) ──
+  // A photo of the vial label is sent to the extract edge function (kind:'vial').
+  // The model only transcribes what is printed; the app resolves the compound
+  // name deterministically and fills the fields as DRAFTS the user must review —
+  // it never auto-saves. A shared 3-scans/month budget is enforced server-side.
+  const MAX_SCAN_BYTES = 10 * 1024 * 1024;
+  const UNIT_SET = ['mg', 'mcg', 'IU'];
+
+  // Map a printed compound name to a canonical compound id, deterministically
+  // (compounds.js), failing closed to null so the LLM never picks the id that
+  // keys the dose math. `hint` biases the search toward powder (recon) vs oil (rtu).
+  function resolveScannedCompound(printed, hint) {
+    const name = String(printed || '').trim();
+    if (!name) return null;
+    const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const q = norm(name);
+    const lists = hint === 'solution' ? [RTU_KEYS, LYOPHILIZED_KEYS] : [LYOPHILIZED_KEYS, RTU_KEYS];
+    // Pass 1: exact label / id-suffix match, preferred list first.
+    for (const list of lists) {
+      const exact = list.filter((id) => norm(t(id)) === q || norm(id).endsWith(q));
+      if (exact.length === 1) return exact[0];
+      if (exact.length > 1) return null; // ambiguous → let the user choose
+    }
+    // Pass 2: alias / substring match (matchesQuery), preferred list first.
+    for (const list of lists) {
+      const hits = list.filter((id) => matchesQuery(name, id, t(id)));
+      if (hits.length === 1) return hits[0];
+      if (hits.length > 1) return null;
+    }
+    return null;
+  }
+
+  function mapAmountUnit(u) {
+    const s = String(u || '').trim();
+    return UNIT_SET.find((x) => x.toLowerCase() === s.toLowerCase()) || null;
+  }
+  function mapConcUnit(u) {
+    // Server returns e.g. "mg/mL". Only accept a per-MILLILITRE strength — the
+    // calculator's concentration is mg (or mcg/IU) per ml. A per-vial form like
+    // "mg/5mL", or a missing/odd denominator, is ambiguous → return null so we
+    // leave the field for the user rather than seed a wrong concentration.
+    const [mass, denom] = String(u || '').split('/');
+    if (denom == null || !/^\s*m?l\s*$/i.test(denom)) return null;
+    return mapAmountUnit(mass);
+  }
+
+  // Apply an extracted vial payload to the wizard fields as review drafts.
+  function applyVialScan(v) {
+    if (!v) return;
+    const form = v.form === 'solution' ? 'solution' : v.form === 'powder' ? 'powder' : null;
+    // The label decides the type: a solution/oil is ready-to-use (rtu); a powder
+    // is reconstituted. Only flip when the label is unambiguous.
+    let nextType = type;
+    if (form === 'solution') nextType = 'rtu';
+    else if (form === 'powder') nextType = 'recon';
+    if (nextType !== type) setType(nextType);
+
+    // Compound identity — deterministic; set only when we resolve exactly one and
+    // the user has not already chosen one. Otherwise seed the name for the picker.
+    if (!compoundId) {
+      const id = resolveScannedCompound(v.compound_name, form);
+      if (id) { setCompoundId(id); setName(t(id)); }
+      else if (v.compound_name) setName(String(v.compound_name).slice(0, 60));
+    }
+
+    if (nextType === 'rtu') {
+      // Prefill concentration ONLY when the value is present AND the unit is a
+      // clean per-ml strength; otherwise leave it for the user (never seed a
+      // wrong-but-plausible concentration that would drive every draw).
+      const cu = mapConcUnit(v.concentration_unit);
+      if (v.concentration != null && cu) {
+        setConcentration(String(v.concentration));
+        setConcentrationUnit(cu);
+      }
+      if (v.volume_ml != null) setVialMl(String(v.volume_ml));
+    } else if (v.amount != null) {
+      setAmount(String(v.amount));
+      const au = mapAmountUnit(v.amount_unit);
+      if (au) setUnit(au);
+    }
+    setVialScanned(true);
+  }
+
+  async function handleVialScanPress() {
+    // Consent gate: the label photo goes to a third-party AI processor —
+    // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending.
+    if (!(await requestAIConsent(t))) return;
+    Alert.alert(t('vial_scan_choose_title'), t('vial_scan_choose_sub'), [
+      { text: t('blood_source_camera'), onPress: () => pickVialAndExtract(true) },
+      { text: t('blood_source_photo'), onPress: () => pickVialAndExtract(false) },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }
+
+  async function pickVialAndExtract(fromCamera) {
+    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    const ImagePicker = require('expo-image-picker');
+    try {
+      if (fromCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { Alert.alert(t('error'), t('blood_camera_denied')); return; }
+      }
+      const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset?.base64) { Alert.alert(t('error'), t('blood_error_read')); return; }
+      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) { Alert.alert(t('error'), t('blood_error_file_too_large')); return; }
+      const mediaType = asset.mimeType
+        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      setVialScanning(true);
+      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
+        body: { kind: 'vial', lang: language, image_base64: asset.base64, media_type: mediaType },
+      });
+      setVialScanning(false);
+      if (error) {
+        const status = error.context?.status;
+        let code = null;
+        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        if (code === 'quota_exceeded' || status === 429) {
+          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          return;
+        }
+        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
+          || (code == null && [500, 502, 503].includes(status));
+        Alert.alert(
+          serviceDown ? t('blood_error_service') : t('vial_scan_error'),
+          serviceDown ? t('vial_scan_error_service_sub') : t('vial_scan_error_sub'),
+        );
+        return;
+      }
+      const v = data?.vial;
+      if (!v || (v.compound_name == null && v.amount == null && v.concentration == null)) {
+        Alert.alert(t('vial_scan_error'), t('vial_scan_none'));
+        return;
+      }
+      applyVialScan(v);
+    } catch (err) {
+      setVialScanning(false);
+      Alert.alert(t('error'), t('blood_error_read'));
+    }
   }
 
   // Calculate draw volume from the current wizard inputs (pure module).
@@ -676,35 +1204,76 @@ export default function ProtocolsScreen() {
       return;
     }
     setSaving(true);
+    // Never persist an invalid start_date (a bad picker value must not reach the
+    // cloud as e.g. 1969). Clamp to a valid YYYY-MM-DD, falling back to today.
+    const safeStart = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : todayISO();
     try {
     const user = await getCachedUser();
     if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
 
+    // RTU has no dilution: the vial's total compound is concentration × bottle volume.
+    // Store it in `amount` (like recon's vial amount) so the card shows "X mg vial".
+    const rtuVialMg = (type === 'rtu' && parseDecimal(concentration) > 0 && parseDecimal(vialMl) > 0)
+      ? parseDecimal(concentration) * parseDecimal(vialMl) : null;
+
     if (editingId) {
       const freqStr = frequencyLabel(intervalDays);
+      // Did the timing actually move? Only then should we clear already-delivered
+      // banners (a rename or color change must NOT drop a still-pending reminder).
+      const prev = protocols.find(p => p.id === editingId);
+      const scheduleChanged = !prev
+        || prev.reminder_time !== reminderTimes.join(',')
+        || (prev.doses_per_day || 1) !== dosesPerDay
+        || (prev.interval_days || 1) !== intervalDays
+        || (prev.start_date || null) !== startDate;
       updateProtocol(editingId, {
         name, compound_id: compoundId, type, color,
-        amount: parseFloat(amount) || null, unit,
-        water: parseFloat(water) || null,
+        amount: type === 'rtu' ? rtuVialMg : (parseDecimal(amount) || null),
+        unit: type === 'rtu' ? concentrationUnit : unit,
+        water: parseDecimal(water) || null,
         diluent: resolvedDiluent,
-        dose: parseFloat(dose) || null, dose_unit: doseUnit,
+        dose: parseDecimal(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
-        concentration: parseFloat(concentration) || null,
+        concentration: parseDecimal(concentration) || null,
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay),
+        start_date: safeStart,
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
-        goal: goals.join(','), notes,
+        goal: goals.join(','), notes, note,
+        serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
+        serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
+        serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
+        container_units: type === 'oral' ? (parseDecimal(containerUnits) || null) : null,
+        divisible: type === 'oral' ? divisible : null,
       });
+
+      // RTU vial: create or update from the edited size / box expiry.
+      if (type === 'rtu' && parseDecimal(vialMl) > 0 && parseDecimal(concentration) > 0 && parseDecimal(dose) > 0) {
+        let expiresOn = null;
+        if (vialExpMonth != null && vialExpYear != null) {
+          const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
+          expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        }
+        const total = dosesPerVial({ amount: parseDecimal(concentration) * parseDecimal(vialMl), unit: concentrationUnit, dose, doseUnit }) || 0;
+        const existing = vialsByProtocol[editingId];
+        if (existing) {
+          updateVial(existing.id, { water_ml: parseDecimal(vialMl), total_doses: total, expires_on: expiresOn, active: 1 });
+        } else {
+          insertVial({ user_id: user.id, protocol_id: editingId, water_ml: parseDecimal(vialMl), total_doses: total, doses_taken: 0, expires_on: expiresOn });
+        }
+      }
       setSaving(false);
-      scheduleDoseReminder({
-        id: editingId, name, dose: parseFloat(dose), dose_unit: doseUnit,
-        frequency: freqStr, reminder_time: reminderTimes.join(','),
-        interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay), schedule_total: null,
-      }).catch(() => {});
+      // Reschedule from the freshly-persisted row (real user_id/created_at) so
+      // the reschedule uses the new time AND correctly skips slots already logged
+      // today.
+      const editedProtocol = getProtocolById(editingId);
+      if (editedProtocol) scheduleDoseReminder(editedProtocol).catch(() => {});
+      // Only when the timing moved: clear any banner delivered under the old
+      // schedule so it stops "asking" at the previous hour. A rename/color/dose
+      // edit leaves a still-pending reminder untouched.
+      if (scheduleChanged) dismissDeliveredDoseReminders(editingId).catch(() => {});
     } else {
       // Safety net: never persist beyond the free limit even if the wizard was
       // somehow opened over it (stale count, reopened modal). Checks the live
@@ -721,37 +1290,87 @@ export default function ProtocolsScreen() {
       const freqStr = frequencyLabel(intervalDays);
       const newId = insertProtocol({
         user_id: user.id, name, compound_id: compoundId, type, color,
-        amount: parseFloat(amount) || null, unit,
-        water: parseFloat(water) || null,
+        amount: type === 'rtu' ? rtuVialMg : (parseDecimal(amount) || null),
+        unit: type === 'rtu' ? concentrationUnit : unit,
+        water: parseDecimal(water) || null,
         diluent: resolvedDiluent,
-        dose: parseFloat(dose) || null, dose_unit: doseUnit,
+        dose: parseDecimal(dose) || null, dose_unit: doseUnit,
         syringe_size: syringeSize,
-        concentration: parseFloat(concentration) || null,
+        concentration: parseDecimal(concentration) || null,
         concentration_unit: concentrationUnit,
         frequency: freqStr, reminder_time: reminderTimes.join(','),
         interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: toSupabaseDateFromMD(startMonth, startDay),
+        start_date: safeStart,
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
-        goal: goals.join(','), notes,
+        goal: goals.join(','), notes, note,
+        serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
+        serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
+        serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
+        container_units: type === 'oral' ? (parseDecimal(containerUnits) || null) : null,
+        divisible: type === 'oral' ? divisible : null,
       });
 
       if (type === 'recon' && !skipVial) {
         insertVial({
           user_id: user.id, protocol_id: newId,
           mixed_on: toPastSupabaseDate(vialMonth, vialDay),
-          water_ml: parseFloat(water) || null,
+          water_ml: parseDecimal(water) || null,
           // Vial capacity is derived (vial amount ÷ dose), not asked.
           total_doses: dosesPerVial({ amount, unit, dose, doseUnit }),
           doses_taken: 0,
+        });
+      }
+
+      // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
+      // expiry from the box (month/year → last day of that month).
+      if (type === 'rtu' && parseDecimal(vialMl) > 0 && parseDecimal(concentration) > 0 && parseDecimal(dose) > 0) {
+        let expiresOn = null;
+        if (vialExpMonth != null && vialExpYear != null) {
+          const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
+          expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        }
+        insertVial({
+          user_id: user.id, protocol_id: newId,
+          water_ml: parseDecimal(vialMl),
+          total_doses: dosesPerVial({ amount: parseDecimal(concentration) * parseDecimal(vialMl), unit: concentrationUnit, dose, doseUnit }),
+          doses_taken: 0,
+          expires_on: expiresOn,
         });
       }
       setSaving(false);
       const protocolData = getProtocolById(newId);
       if (protocolData) scheduleDoseReminder(protocolData).catch(() => {});
       Analytics.protocolCreated({ name, type, dose, dose_unit: doseUnit, frequency: frequencyLabel(intervalDays), goal: goals.join(',') });
+
+      // Started before installing the app? Offer to backfill the elapsed scheduled
+      // doses as Taken so adherence + history reflect them (the curve already reads
+      // the schedule). Applies to every type. Only when the start date is in the past.
+      const todayStr = new Date().toISOString().split('T')[0];
+      const pastCount = (protocolData && safeStart < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
+      if (pastCount > 0) {
+        Alert.alert(
+          t('protocols_backfill_title'),
+          t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
+          [
+            { text: t('protocols_backfill_no'), style: 'cancel' },
+            {
+              text: t('protocols_backfill_yes').replace('{n}', String(pastCount)),
+              onPress: () => {
+                try { backfillTakenDoses(newId); } catch { /* best-effort */ }
+                notifyDataChanged('protocol');
+                requestSync();
+                fetchProtocols();
+              },
+            },
+          ],
+        );
+      }
     }
     requestSync();
+    // Refresh every mounted screen right away (Today, etc.) — don't wait for the
+    // network sync to complete, which never fires when offline.
+    notifyDataChanged('protocol');
     setShowModal(false);
     resetForm();
     fetchProtocols();
@@ -759,6 +1378,20 @@ export default function ProtocolsScreen() {
       setSaving(false);
       Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
     }
+  }
+
+  // Advance one wizard step, honoring the step-3 dose-safety guard (same rule the
+  // old top-right "Next" used). Save has its own guard inside saveProtocol, so the
+  // footer's Save can be tapped from any step.
+  function goNext() {
+    if (step === 3 && doseStepBlocked) {
+      Alert.alert(
+        t('protocols_check_values_title'),
+        unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
+      );
+      return;
+    }
+    if (step < totalSteps) setStep(step + 1);
   }
 
   async function deleteProtocol(id) {
@@ -771,8 +1404,10 @@ export default function ProtocolsScreen() {
           softDeleteProtocol(id);
           deactivateVialsByProtocol(id);
           cancelDoseReminder(id).catch(() => {});
+          dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
           if (target) Analytics.protocolDeactivated(target);
           fetchProtocols();
+          notifyDataChanged('protocol'); // refresh Today immediately
           requestSync();
         },
       },
@@ -807,11 +1442,36 @@ export default function ProtocolsScreen() {
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
   const oralProtocols = protocols.filter(p => p.type === 'oral');
 
+  // Save an edited note straight from the card (inline), then refresh + sync.
+  function saveProtocolNote(id, note) {
+    const trimmed = (note || '').trim();
+    updateProtocol(id, { note: trimmed ? trimmed : null });
+    fetchProtocols();
+    requestSync();
+  }
+
+  // Reset an oral protocol's supply counter — "opened a new bottle".
+  function refillOralBottle(id) {
+    updateProtocol(id, { units_taken: 0 });
+    fetchProtocols();
+    requestSync();
+  }
+
+  // Reset an RTU vial's used count — "started a new vial" (same size/expiry).
+  function refillVial(id) {
+    const v = vialsByProtocol[id];
+    if (!v) return;
+    updateVial(v.id, { doses_taken: 0, active: 1 });
+    fetchProtocols();
+    requestSync();
+  }
+
   const renderCard = (p) => (
     <ProtocolCard
       key={p.id} p={p} vial={vialsByProtocol[p.id]}
       expanded={expanded} setExpanded={setExpanded}
       openEdit={openEdit} deleteProtocol={deleteProtocol}
+      onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
       t={t}
     />
   );
@@ -825,10 +1485,10 @@ export default function ProtocolsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {protocols.length === 0 && !loading && (
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>🧪</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="type_vial" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
             <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
@@ -874,33 +1534,28 @@ export default function ProtocolsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          // Android system back (edge-swipe / nav-bar button): step back, or close
+          // from the first step — mirrors the header back arrow, so it's reachable
+          // without hitting the top of the screen.
+          if (step > 1) setStep(step - 1);
+          else { setShowModal(false); resetForm(); }
+        }}
+      >
         <SafeAreaView style={s.modal}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => {
-              if (step > 1) setStep(step - 1);
-              else { setShowModal(false); resetForm(); }
-            }}>
-              <Text style={s.modalCancel}>{step > 1 ? `← ${t('back')}` : t('cancel')}</Text>
-            </TouchableOpacity>
+            {step > 1 ? (
+              <TouchableOpacity onPress={() => setStep(step - 1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={s.modalCancel}>{`← ${t('back')}`}</Text>
+              </TouchableOpacity>
+            ) : <View style={s.modalNavSpacer} />}
             <Text style={s.modalTitle}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
-            <TouchableOpacity onPress={() => {
-              // Step 3 is the dose/calculator step — don't let the user leave it
-              // (or save) with values that can't be drawn correctly.
-              if (step === 3 && doseStepBlocked) {
-                Alert.alert(
-                  t('protocols_check_values_title'),
-                  unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
-                );
-                return;
-              }
-              if (step < totalSteps) setStep(step + 1);
-              else saveProtocol();
-            }}>
-              <Text style={[s.modalSave, step === 3 && doseStepBlocked && s.modalSaveDisabled]}>
-                {step < totalSteps ? t('next') : saving ? t('protocols_saving') : t('save')}
-              </Text>
-            </TouchableOpacity>
+            <View style={s.modalNavSpacer} />
           </View>
 
           <View style={s.modalProgress}>
@@ -921,9 +1576,9 @@ export default function ProtocolsScreen() {
                 <Text style={s.fieldLabel}>{t('protocols_type')}</Text>
                 <View style={s.typeRow}>
                   {[
-                    { val: 'recon', emoji: '🧪', label: t('protocols_lyophilized'), sub: t('protocols_mix_with_water') },
-                    { val: 'rtu', emoji: '💉', label: t('protocols_rtu'), sub: t('protocols_pre_mixed') },
-                    { val: 'oral', emoji: '💊', label: t('protocols_oral'), sub: t('protocols_supplement') },
+                    { val: 'recon', icon: 'type_vial', label: t('protocols_lyophilized'), sub: t('protocols_mix_with_water') },
+                    { val: 'rtu', icon: 'reconstitution', label: t('protocols_rtu'), sub: t('protocols_pre_mixed') },
+                    { val: 'oral', icon: 'type_capsule', label: t('protocols_oral'), sub: t('protocols_supplement') },
                   ].map((typeOpt) => (
                     <TouchableOpacity
                       key={typeOpt.val}
@@ -936,7 +1591,9 @@ export default function ProtocolsScreen() {
                         setShowSuggestions(false);
                       }}
                     >
-                      <Text style={s.typeEmoji}>{typeOpt.emoji}</Text>
+                      <View style={s.typeEmoji}>
+                        <FeatureIcon name={typeOpt.icon} size={26} color={type === typeOpt.val ? colors.accent : colors.textMuted} />
+                      </View>
                       <Text style={[s.typeBtnLabel, type === typeOpt.val && s.typeBtnLabelOn]}>
                         {typeOpt.label}
                       </Text>
@@ -948,11 +1605,7 @@ export default function ProtocolsScreen() {
                 <Text style={s.fieldLabel}>{t('protocols_compound_name')}</Text>
                 <TextInput
                   style={s.input}
-                  placeholder={
-                    type === 'recon' ? t('protocols_search_peptides') :
-                    type === 'rtu' ? t('protocols_search_injectables') :
-                    t('protocols_search_supplements')
-                  }
+                  placeholder={t('protocols_name_placeholder')}
                   placeholderTextColor={colors.textFaint}
                   value={searchQuery}
                   onChangeText={(text) => {
@@ -968,6 +1621,9 @@ export default function ProtocolsScreen() {
                 />
 
                 {showSuggestions && (() => {
+                  // Blank until the user types — the app never surfaces a compound
+                  // unprompted. Matching here is spelling help, not a suggestion.
+                  if (searchQuery.trim().length < 2) return null;
                   const sugg = getFilteredSuggestions();
                   const showAdd = !!(searchQuery && searchQuery.trim()) && !queryMatchesExisting();
                   if (sugg.length === 0 && !showAdd) return null;
@@ -1001,6 +1657,10 @@ export default function ProtocolsScreen() {
                   );
                 })()}
 
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, lineHeight: 15 }}>
+                  {t('protocols_spelling_note')}
+                </Text>
+
                 {name && !compoundId ? (
                   <Text style={{ fontSize: 12, color: colors.warningSoftText, marginTop: 6 }}>
                     {t('protocols_custom_hint')}
@@ -1009,7 +1669,13 @@ export default function ProtocolsScreen() {
               </View>
             )}
 
-            {step === 2 && (
+            {step === 2 && (() => {
+              // Colors already taken by *other* active protocols (exclude the one
+              // being edited so its own color isn't flagged against itself).
+              const usedColors = new Set(
+                protocols.filter(p => p.id !== editingId && p.color).map(p => p.color)
+              );
+              return (
               <View>
                 <Text style={s.modalStepTitle}>{t('protocols_step_color')}</Text>
                 <Text style={s.modalStepSub}>{t('protocols_step_color_sub')}</Text>
@@ -1020,24 +1686,60 @@ export default function ProtocolsScreen() {
                     <Text style={s.previewSub}>{t(COLOR_NAMES[color])}</Text>
                   </View>
                 </View>
+                <Text style={s.colorTip}>{t('protocols_color_tip')}</Text>
                 <View style={s.colorGrid}>
-                  {COLORS.map((c) => (
+                  {COLORS.map((c) => {
+                    const inUse = usedColors.has(c);
+                    return (
                     <TouchableOpacity
                       key={c}
                       style={[s.colorSwatch, { backgroundColor: c }, color === c && s.colorSwatchOn]}
                       onPress={() => setColor(c)}
                     >
-                      {color === c && <Text style={s.colorCheck}>✓</Text>}
+                      {color === c
+                        ? <Text style={s.colorCheck}>✓</Text>
+                        : inUse ? <View style={s.colorInUseDot} /> : null}
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </View>
+                {usedColors.size > 0 && (
+                  <Text style={s.colorLegend}>{t('protocols_color_in_use_legend')}</Text>
+                )}
+                {usedColors.has(color) && (
+                  <Text style={s.colorDupWarn}>{t('protocols_color_dup_warning')}</Text>
+                )}
               </View>
-            )}
+              );
+            })()}
 
             {step === 3 && (
               <View>
                 <Text style={s.modalStepTitle}>{t('protocols_step_dose')}</Text>
                 <Text style={s.modalStepSub}>{t('protocols_step_dose_sub')}</Text>
+
+                {type !== 'oral' && (
+                  <TouchableOpacity
+                    style={s.vialScanBtn}
+                    onPress={handleVialScanPress}
+                    disabled={vialScanning}
+                    activeOpacity={0.8}
+                  >
+                    {vialScanning ? (
+                      <ActivityIndicator size="small" color={colors.accent} />
+                    ) : (
+                      <FeatureIcon name="type_vial" size={20} color={colors.accent} />
+                    )}
+                    <Text style={s.vialScanBtnText}>
+                      {vialScanning ? t('vial_scan_scanning') : t('vial_scan_cta')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {type !== 'oral' && vialScanned && (
+                  <View style={s.vialScanBanner}>
+                    <Text style={s.vialScanBannerText}>{t('vial_scan_review')}</Text>
+                  </View>
+                )}
 
                 {type === 'oral' && (
                   <>
@@ -1082,14 +1784,67 @@ export default function ProtocolsScreen() {
                         </TouchableOpacity>
                       ))}
                     </View>
-                    <Text style={[s.fieldLabel, { marginTop: 8 }]}>{t('protocols_instructions')}</Text>
+                    {['Capsule', 'Tablet', 'Softgel', 'Gummy'].includes(notes) && (
+                      <>
+                        <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_divisible_q')}</Text>
+                        <View style={s.freqGrid}>
+                          <TouchableOpacity
+                            style={[s.freqBtn, divisible === true && s.freqBtnOn]}
+                            onPress={() => setDivisible(divisible === true ? null : true)}
+                          >
+                            <Text style={[s.freqBtnText, divisible === true && s.freqBtnTextOn]}>{t('protocols_divisible_yes')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[s.freqBtn, divisible === false && s.freqBtnOn]}
+                            onPress={() => setDivisible(divisible === false ? null : false)}
+                          >
+                            <Text style={[s.freqBtnText, divisible === false && s.freqBtnTextOn]}>{t('protocols_divisible_no')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    )}
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_strength')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_serving_strength_hint')}</Text>
+                    <View style={s.inputRow}>
+                      <TextInput
+                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+                        placeholder={`${t('protocols_eg')} 1600`}
+                        placeholderTextColor={colors.textFaint}
+                        keyboardType="numeric"
+                        value={servingStrength}
+                        onChangeText={setServingStrength}
+                      />
+                      <View style={s.unitPicker}>
+                        {['mg', 'mcg', 'IU', 'g'].map((u) => (
+                          <TouchableOpacity
+                            key={u}
+                            style={[s.unitBtn, servingStrengthUnit === u && s.unitBtnOn]}
+                            onPress={() => setServingStrengthUnit(u)}
+                          >
+                            <Text style={[s.unitBtnText, servingStrengthUnit === u && s.unitBtnTextOn]}>{u}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_units')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_serving_units_hint')}</Text>
                     <TextInput
-                      style={[s.input, { height: 70 }]}
-                      placeholder={t('protocols_instructions_placeholder')}
+                      style={s.input}
+                      placeholder="1"
                       placeholderTextColor={colors.textFaint}
-                      multiline
-                      value={notes}
-                      onChangeText={setNotes}
+                      keyboardType="numeric"
+                      value={servingUnits}
+                      onChangeText={setServingUnits}
+                    />
+                    <Text style={s.fieldLabel}>{t('protocols_container_units')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_container_units_hint')}</Text>
+                    <TextInput
+                      style={s.input}
+                      placeholder={`${t('protocols_eg')} 60`}
+                      placeholderTextColor={colors.textFaint}
+                      keyboardType="numeric"
+                      value={containerUnits}
+                      onChangeText={setContainerUnits}
                     />
                   </>
                 )}
@@ -1146,16 +1901,20 @@ export default function ProtocolsScreen() {
                       <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(-1)}>
                         <Text style={s.stepperBtnText}>−</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={s.stepperVal}
-                        onLongPress={() => {
-                          Alert.prompt(t('protocols_enter_water'), t('protocols_enter_water'),
-                            (val) => { if (val) setWater(val); }, 'plain-text', water, 'numeric');
-                        }}
-                      >
-                        <Text style={s.stepperValText}>{water || '0'} ml</Text>
-                        <Text style={s.stepperHoldHint}>{t('protocols_hold_to_type')}</Text>
-                      </TouchableOpacity>
+                      <View style={s.stepperVal}>
+                        <TextInput
+                          style={s.stepperValInput}
+                          value={String(water || '')}
+                          onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
+                          onBlur={() => { const n = parseDecimal(water); setWater(String(!(n > 0) ? 0.5 : Math.max(0.5, n))); }}
+                          keyboardType="decimal-pad"
+                          selectTextOnFocus
+                          placeholder="0.5"
+                          placeholderTextColor={colors.textFaint}
+                          textAlign="center"
+                        />
+                        <Text style={s.stepperValUnit}>ml</Text>
+                      </View>
                       <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(1)}>
                         <Text style={s.stepperBtnText}>+</Text>
                       </TouchableOpacity>
@@ -1183,6 +1942,49 @@ export default function ProtocolsScreen() {
                         ))}
                       </View>
                     </View>
+                    {/* IU → mass converter. A trainer's protocol often reads
+                        "10 IU" (syringe units) while the peptide is measured in mg.
+                        Given the concentration (amount ÷ diluent) this shows the
+                        real mass and can fill the dose — pure conversion, stored as
+                        mass so all downstream math is unchanged. */}
+                    {['mg', 'mcg'].includes(unit) && parseDecimal(amount) > 0 && parseDecimal(water) > 0 && (() => {
+                      // Normalize the peptide amount to mg so the concentration is
+                      // correct even when the vial is labeled in mcg.
+                      const amountMg = unit === 'mcg' ? parseDecimal(amount) / 1000 : parseDecimal(amount);
+                      const iuMassMg = massFromUnits(iuInput, amountMg, water);
+                      const parts = iuMassMg != null ? massParts(iuMassMg) : null;
+                      return (
+                        <View style={s.iuConverter}>
+                          <Text style={s.iuConverterLabel}>{t('protocols_iu_label')}</Text>
+                          <Text style={s.iuConverterHint}>{t('protocols_iu_hint')}</Text>
+                          <View style={s.inputRow}>
+                            <TextInput
+                              style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+                              placeholder={`${t('protocols_eg')} 10`}
+                              placeholderTextColor={colors.textFaint}
+                              keyboardType="numeric"
+                              value={iuInput}
+                              onChangeText={setIuInput}
+                            />
+                            <View style={s.iuUnitTag}><Text style={s.iuUnitTagText}>u</Text></View>
+                          </View>
+                          {parts && (
+                            <View style={s.iuEquivBox}>
+                              <Text style={s.iuEquivText}>{`${iuInput} u = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
+                              <TouchableOpacity
+                                style={s.iuUseBtn}
+                                onPress={() => {
+                                  if (iuMassMg < 1) { setDose(parts.mcg); setDoseUnit('mcg'); }
+                                  else { setDose(parts.mg); setDoseUnit('mg'); }
+                                }}
+                              >
+                                <Text style={s.iuUseBtnText}>{t('protocols_iu_use')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })()}
                     <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_syringe_size_label')}</Text>
                     <View style={s.unitPicker}>
                       {[
@@ -1279,15 +2081,47 @@ export default function ProtocolsScreen() {
                         </Text>
                       </View>
                     )}
-                    <Text style={s.fieldLabel}>{t('protocols_notes_optional')}</Text>
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_vial_size')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_vial_size_hint')}</Text>
                     <TextInput
-                      style={[s.input, { height: 80 }]}
-                      placeholder={t('protocols_notes_placeholder')}
+                      style={s.input}
+                      placeholder={`${t('protocols_eg')} 10`}
                       placeholderTextColor={colors.textFaint}
-                      multiline
-                      value={notes}
-                      onChangeText={setNotes}
+                      keyboardType="numeric"
+                      value={vialMl}
+                      onChangeText={setVialMl}
                     />
+                    <Text style={s.fieldLabel}>{t('protocols_vial_expiry')}</Text>
+                    <Text style={s.fieldHint}>{t('protocols_vial_expiry_hint')}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
+                      <View style={s.monthRow}>
+                        {MONTH_KEYS.map((mk, idx) => (
+                          <TouchableOpacity
+                            key={mk}
+                            style={[s.monthPill, vialExpMonth === idx && s.monthPillOn]}
+                            onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)}
+                          >
+                            <Text style={[s.monthPillText, vialExpMonth === idx && s.monthPillTextOn]}>{t(mk)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                      <View style={s.monthRow}>
+                        {[0, 1, 2, 3, 4, 5].map((o) => {
+                          const y = new Date().getFullYear() + o;
+                          return (
+                            <TouchableOpacity
+                              key={y}
+                              style={[s.monthPill, vialExpYear === y && s.monthPillOn]}
+                              onPress={() => setVialExpYear(vialExpYear === y ? null : y)}
+                            >
+                              <Text style={[s.monthPillText, vialExpYear === y && s.monthPillTextOn]}>{y}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
                   </>
                 )}
               </View>
@@ -1323,49 +2157,75 @@ export default function ProtocolsScreen() {
                 )}
 
                 <Text style={s.fieldLabel}>{t('protocols_start_date')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
-                  <View style={s.monthRow}>
-                    {MONTH_KEYS.map((mk, idx) => (
-                      <TouchableOpacity
-                        key={mk}
-                        style={[s.monthPill, startMonth === idx && s.monthPillOn]}
-                        onPress={() => setStartMonth(idx)}
-                      >
-                        <Text style={[s.monthPillText, startMonth === idx && s.monthPillTextOn]}>
-                          {t(mk)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-                <TextInput
-                  style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
-                  placeholder={t('protocols_day_dd')}
-                  placeholderTextColor={colors.textFaint}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  value={startDay}
-                  onChangeText={(val) => {
-                    const num = parseInt(val);
-                    if (val === '' || (num >= 1 && num <= 31)) setStartDay(val);
-                  }}
-                />
+                <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setShowStartPicker(v => !v)}>
+                  <FeatureIcon name="calendar" size={15} color={colors.text} />
+                  <Text style={s.dateBtnText}>{formatStartDate(startDate)}</Text>
+                </TouchableOpacity>
+                {showStartPicker && (
+                  <DateTimePicker
+                    value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, d) => {
+                      setShowStartPicker(Platform.OS === 'ios');
+                      if (event.type === 'dismissed') { setShowStartPicker(false); return; }
+                      if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
+                    }}
+                  />
+                )}
+                {Platform.OS === 'ios' && showStartPicker && (
+                  <TouchableOpacity style={s.doneBtn} onPress={() => setShowStartPicker(false)}>
+                    <Text style={s.doneBtnText}>{t('done')}</Text>
+                  </TouchableOpacity>
+                )}
 
-                {/* 2 — Interval: every X days */}
+                {/* 2 — Interval: every X days (presets + typed custom for long TRT intervals) */}
                 <Text style={s.fieldLabel}>{t('protocols_how_often')}</Text>
+                {/* Two choices: Every day, or Custom → type N days (any interval). */}
                 <View style={s.freqGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                    <TouchableOpacity
-                      key={d}
-                      style={[s.freqBtn, intervalDays === d && s.freqBtnOn]}
-                      onPress={() => handleIntervalChange(d)}
-                    >
-                      <Text style={[s.freqBtnText, intervalDays === d && s.freqBtnTextOn]}>
-                        {d === 1 ? t('protocols_every_day') : t('protocols_every_x_days').replace('{x}', d)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {(() => {
+                    const on = !customIntervalOpen && intervalDays === 1;
+                    return (
+                      <TouchableOpacity
+                        style={[s.freqBtn, { flex: 1 }, on && s.freqBtnOn]}
+                        onPress={() => { setCustomIntervalOpen(false); handleIntervalChange(1); }}
+                      >
+                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_every_day')}</Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
+                  {(() => {
+                    const on = customIntervalOpen || intervalDays !== 1;
+                    return (
+                      <TouchableOpacity
+                        style={[s.freqBtn, { flex: 1 }, on && s.freqBtnOn]}
+                        onPress={() => { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); }}
+                      >
+                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_custom')}</Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
                 </View>
+                {(customIntervalOpen || intervalDays !== 1) && (
+                  <View style={s.customIntervalRow}>
+                    <Text style={s.customIntervalEvery}>{t('protocols_every_word')}</Text>
+                    <TextInput
+                      style={s.customIntervalInput}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                      value={customIntervalText}
+                      placeholder="14"
+                      placeholderTextColor={colors.textFaint}
+                      onChangeText={(v) => {
+                        const digits = v.replace(/[^0-9]/g, '');
+                        setCustomIntervalText(digits);
+                        const n = parseInt(digits, 10);
+                        if (Number.isFinite(n) && n > 0) handleIntervalChange(n);
+                      }}
+                    />
+                    <Text style={s.customIntervalEvery}>{t('protocols_days_word')}</Text>
+                  </View>
+                )}
 
                 {/* 3 — Doses per day (only for interval <= 2) */}
                 {intervalDays <= 2 && (
@@ -1394,8 +2254,9 @@ export default function ProtocolsScreen() {
                     {reminderTimes.length > 1 && (
                       <Text style={s.doseTimeLabel}>{t('protocols_dose_label')} {idx + 1}</Text>
                     )}
-                    <TouchableOpacity style={s.dateBtn} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }}>
-                      <Text style={s.dateBtnText}>⏰  {formatTimeAMPM(rt)}</Text>
+                    <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }}>
+                      <FeatureIcon name="clock" size={15} color={colors.text} />
+                      <Text style={s.dateBtnText}>{formatTimeAMPM(rt)}</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -1416,9 +2277,14 @@ export default function ProtocolsScreen() {
                         const h = String(selectedDate.getHours()).padStart(2, '0');
                         const m = String(selectedDate.getMinutes()).padStart(2, '0');
                         setReminderTimes(prev => {
+                          // Clamp the index into range and never let the array grow
+                          // past doses-per-day. Writing next[activeTimeIndex] with a
+                          // stale/out-of-range index (e.g. after Twice→Once) used to
+                          // append a phantom extra dose while "Once" stayed selected.
+                          const idx = Math.min(Math.max(activeTimeIndex, 0), prev.length - 1);
                           const next = [...prev];
-                          next[activeTimeIndex] = `${h}:${m}`;
-                          return next;
+                          next[idx] = `${h}:${m}`;
+                          return next.slice(0, Math.max(1, dosesPerDay));
                         });
                       }
                     }}
@@ -1443,6 +2309,17 @@ export default function ProtocolsScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {/* Free-text note — available on every protocol type */}
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_notes_optional')}</Text>
+                <TextInput
+                  style={[s.input, { height: 80 }]}
+                  placeholder={type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
+                  placeholderTextColor={colors.textFaint}
+                  multiline
+                  value={note}
+                  onChangeText={setNote}
+                />
               </View>
             )}
 
@@ -1533,6 +2410,34 @@ export default function ProtocolsScreen() {
 
             <View style={{ height: 40 }} />
           </ScrollView>
+
+          {/* Bottom action bar — always visible, thumb-reachable on every step.
+              Cancel closes instantly; Save commits from any step (during an edit
+              all fields are loaded, so one changed field = one tap to Save). */}
+          <View style={s.modalFooter}>
+            <TouchableOpacity
+              style={s.footerCancel}
+              onPress={() => { setShowModal(false); resetForm(); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={s.footerCancelText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <View style={s.footerRight}>
+              {step < totalSteps && (
+                <TouchableOpacity style={s.footerNext} onPress={goNext}>
+                  <Text style={[s.footerNextText, step === 3 && doseStepBlocked && s.footerDisabledText]}>
+                    {t('next')} →
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {(editingId || step === totalSteps) && (
+                <TouchableOpacity style={s.footerSave} onPress={saveProtocol} disabled={saving}>
+                  <Text style={s.footerSaveText}>{saving ? t('protocols_saving') : t('save')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -1540,10 +2445,11 @@ export default function ProtocolsScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
   addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
@@ -1559,7 +2465,7 @@ const makeStyles = (c) => StyleSheet.create({
   emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 24 },
   emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
   emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  card: { backgroundColor: c.card, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
+  card: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, ...c.shadowSoft },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   cardDot: { width: 10, height: 10, borderRadius: 5 },
   cardInfo: { flex: 1 },
@@ -1570,11 +2476,19 @@ const makeStyles = (c) => StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '500' },
   badgeGoal: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   badgeGoalText: { fontSize: 10, color: c.warningSoftText, fontWeight: '500' },
+  badgeLow: { backgroundColor: c.dangerSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  badgeLowText: { fontSize: 10, color: c.dangerSoftText, fontWeight: '700' },
   chevron: { fontSize: 11, color: c.textFaint },
   cardBody: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
   detailLabel: { fontSize: 12, color: c.textMuted },
   detailVal: { fontSize: 12, fontWeight: '500', color: c.text },
+  noteBlock: { paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  noteEditBox: { marginTop: 6, minHeight: 56, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: c.text, backgroundColor: c.card2, textAlignVertical: 'top' },
+  noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 16 },
+  noteCancelText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
+  noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 12 },
+  noteSaveText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
   actionBtnText: { fontSize: 12, color: c.textMuted },
@@ -1586,11 +2500,13 @@ const makeStyles = (c) => StyleSheet.create({
   syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
   syringeOuter: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   syringeBody: { flex: 1, height: 48 },
-  syringeTicks: { flexDirection: 'row', justifyContent: 'space-between', height: 16, alignItems: 'flex-end', marginBottom: 2 },
-  tickGroup: { alignItems: 'center', flex: 1 },
+  syringeTicks: { height: 22, marginBottom: 2, position: 'relative' },
+  // Fixed width + negative half-margin centers the tick/label exactly on `left`.
+  // (A width:0 box collapses Text labels, so give it real width.)
+  tickGroup: { position: 'absolute', bottom: 0, width: 28, marginLeft: -14, alignItems: 'center' },
   tick: { width: 1, height: 6, backgroundColor: c.textFaint },
   tickMajor: { height: 10, backgroundColor: c.textMuted, width: 1.5 },
-  tickLabel: { fontSize: 8, color: c.textMuted, marginTop: 1 },
+  tickLabel: { fontSize: 8, color: c.textMuted, marginBottom: 1 },
   syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
   syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.35, borderRadius: 3 },
   plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: c.accent, borderRadius: 2 },
@@ -1599,20 +2515,51 @@ const makeStyles = (c) => StyleSheet.create({
   syringeInfoItem: { alignItems: 'center' },
   syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
   syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
+  syringeInfoAlt: { fontSize: 10, color: c.textMuted, marginTop: 1 },
   syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
+  syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
+  // Zoom modal
+  zoomBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  zoomCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, width: '100%', maxWidth: 560 },
+  zoomTitle: { fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'center' },
+  zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  zoomScroll: { flexGrow: 0 },
+  zoomTicks: { height: 48, position: 'relative', marginBottom: 0 },
+  zoomTickGroup: { position: 'absolute', bottom: 0, width: 36, marginLeft: -18, alignItems: 'center' },
+  zoomTick: { width: 1.5, height: 16, backgroundColor: c.textMuted },
+  zoomTickMajor: { width: 2, height: 30, backgroundColor: c.text },
+  zoomTickLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 3 },
+  zoomBarrel: { height: 34, backgroundColor: c.card2, borderWidth: 1, borderColor: c.border, borderRadius: 6, position: 'relative', overflow: 'visible' },
+  zoomFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.32, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
+  zoomPlunger: { position: 'absolute', top: -4, bottom: -4, width: 4, marginLeft: -2, backgroundColor: c.accent, borderRadius: 2 },
+  zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 12 },
+  zoomCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalCancel: { fontSize: 14, color: c.textMuted },
+  modalNavSpacer: { width: 64 },
   modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   modalSave: { fontSize: 14, color: c.accent, fontWeight: '600' },
   modalSaveDisabled: { color: c.danger },
+  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 12 : 16, borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card },
+  footerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  footerCancel: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10 },
+  footerCancelText: { fontSize: 15, color: c.textMuted, fontWeight: '600' },
+  footerNext: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: c.accent },
+  footerNextText: { fontSize: 15, color: c.accent, fontWeight: '600' },
+  footerDisabledText: { color: c.danger },
+  footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: c.accent },
+  footerSaveText: { fontSize: 15, color: '#fff', fontWeight: '700' },
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
   modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
   modalProgDone: { backgroundColor: c.accent },
-  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
   modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
   modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
   fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
+  servingNearest: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
+  newBottleBtn: { alignSelf: 'center', marginTop: 12, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8, borderWidth: 1, borderColor: c.accent },
+  newBottleText: { fontSize: 12, fontWeight: '600', color: c.accent },
   fieldHint: { fontSize: 11, color: c.textFaint, marginTop: 4, marginBottom: 12 },
   doseTimeLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 2 },
   input: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 13, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
@@ -1625,24 +2572,41 @@ const makeStyles = (c) => StyleSheet.create({
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
   stepperBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
   stepperBtnText: { fontSize: 24, color: c.accent, fontWeight: '400' },
-  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, alignItems: 'center' },
-  stepperValText: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
-  stepperHoldHint: { fontSize: 10, color: c.accent, marginTop: 2 },
+  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stepperValInput: { fontSize: 20, fontWeight: '600', color: c.accentSoftText, minWidth: 60, padding: 0, textAlign: 'center' },
+  stepperValUnit: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
   stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
   calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
   calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
+  vialScanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
+  vialScanBtnText: { fontSize: 14, fontWeight: '600', color: c.accent },
+  vialScanBanner: { marginTop: 10, padding: 11, borderRadius: 10, backgroundColor: c.warningSoft },
+  vialScanBannerText: { fontSize: 12, color: c.warningSoftText, lineHeight: 17 },
+  iuConverter: { marginTop: 14, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card2 },
+  iuConverterLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 2 },
+  iuConverterHint: { fontSize: 11, color: c.textMuted, marginBottom: 10 },
+  iuUnitTag: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: c.accentSoft },
+  iuUnitTagText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
+  iuEquivBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
+  iuEquivText: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
+  iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.accent },
+  iuUseBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },
   typeBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
-  typeEmoji: { fontSize: 20, marginBottom: 4 },
+  typeEmoji: { height: 30, marginBottom: 4, alignItems: 'center', justifyContent: 'center' },
   typeBtnLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
   typeBtnLabelOn: { color: c.accentSoftText },
   typeBtnSub: { fontSize: 9, color: c.textFaint, marginTop: 1 },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   colorSwatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   colorSwatchOn: { borderWidth: 3, borderColor: c.text },
   colorCheck: { color: 'white', fontSize: 16, fontWeight: '700' },
+  colorInUseDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.28)' },
+  colorTip: { fontSize: 12.5, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
+  colorLegend: { fontSize: 12, color: c.textFaint, marginBottom: 4 },
+  colorDupWarn: { fontSize: 12.5, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginTop: 6 },
   previewPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card2, borderRadius: 10, padding: 12, marginBottom: 20 },
   previewDot: { width: 14, height: 14, borderRadius: 7 },
   previewName: { fontSize: 14, fontWeight: '600', color: c.text },
@@ -1650,6 +2614,9 @@ const makeStyles = (c) => StyleSheet.create({
   freqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   freqBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
   freqBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
+  customIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4, marginBottom: 16 },
+  customIntervalEvery: { fontSize: 14, color: c.text },
+  customIntervalInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, fontWeight: '700', color: c.text, backgroundColor: c.card2, width: 72, textAlign: 'center' },
   freqBtnText: { fontSize: 12, color: c.textMuted },
   freqBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
   dateBtn: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 14, marginBottom: 14 },
@@ -1660,7 +2627,7 @@ const makeStyles = (c) => StyleSheet.create({
   monthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
   monthPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
   monthPillTextOn: { color: c.accentText, fontWeight: '600' },
-  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
+  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 14 },
   doneBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
   skipVialBtn: { alignItems: 'center', paddingVertical: 12, marginBottom: 16 },
   skipVialBtnText: { fontSize: 13, color: c.accent },
@@ -1673,7 +2640,7 @@ const makeStyles = (c) => StyleSheet.create({
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
   reviewLabel: { fontSize: 12, color: c.textMuted },
   reviewVal: { fontSize: 12, fontWeight: '500', color: c.text },
-  suggestionBox: { backgroundColor: c.card, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, marginBottom: 14 },
+  suggestionBox: { backgroundColor: c.card, borderRadius: 10, ...c.shadowSoft, marginBottom: 14 },
   suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   suggestionText: { fontSize: 13, color: c.text },
   suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },

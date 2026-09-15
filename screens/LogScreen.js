@@ -6,24 +6,34 @@ import {
   SectionList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
+import { scanMissedDoses } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
+import { hour12Pref } from '../lib/timeFormat';
+import { isPremium } from '../lib/purchases';
+import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 export default function LogScreen() {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALES[language] || 'en-US';
+  const timeOpts = { hour: 'numeric', minute: '2-digit' };
+  { const _h12 = hour12Pref(timeFormat); if (_h12 !== undefined) timeOpts.hour12 = _h12; }
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('All');
 
@@ -33,11 +43,41 @@ export default function LogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchLogs();
+      // Materialize any newly-missed doses (12h+ unlogged) before listing, so
+      // they appear in history; then load. scanMissedDoses is best-effort.
+      scanMissedDoses().then((n) => {
+        if (n > 0) requestSync();
+        fetchLogs();
+      }).catch(() => fetchLogs());
     }, [])
   );
 
+  // A dose auto-marked "Missed" can be corrected here — the user took it but
+  // didn't log it in time. Changing the outcome updates the same row (no new
+  // log), so the streak/adherence recompute on the next focus.
+  function openMissedEditor(log) {
+    Alert.alert(
+      t('log_missed_edit_title'),
+      t('log_missed_edit_msg'),
+      [
+        { text: t('log_mark_taken'), onPress: () => setMissedOutcome(log.id, 'Taken') },
+        { text: t('log_mark_skipped'), onPress: () => setMissedOutcome(log.id, 'Skipped') },
+        { text: t('cancel'), style: 'cancel' },
+      ],
+    );
+  }
+
+  function setMissedOutcome(logId, outcome) {
+    try {
+      updateDoseLog(logId, { outcome });
+      requestSync();
+      fetchLogs();
+    } catch { /* ignore */ }
+  }
+
   async function openSiteEditor(log) {
+    // Oral supplements have no injection site — nothing to edit here.
+    if (!['recon', 'rtu'].includes(log.protocols?.type)) return;
     const user = await getCachedUser();
     if (!user) return;
     const since = new Date();
@@ -147,33 +187,52 @@ export default function LogScreen() {
   function outcomeLabel(outcome) {
     if (outcome === 'Taken') return t('log_taken');
     if (outcome === 'Skipped') return t('log_skipped');
-    return t('log_delayed');
+    return t('log_missed');
   }
 
   function typeIcon(type) {
-    if (type === 'recon') return '🧪';
-    if (type === 'rtu') return '💉';
-    if (type === 'oral') return '💊';
-    return '💉';
+    if (type === 'recon') return 'type_vial';
+    if (type === 'rtu') return 'syringe';
+    if (type === 'oral') return 'type_capsule';
+    return 'syringe';
   }
 
   const sections = buildSections(filteredLogs);
 
   const takenCount = logs.filter(l => l.outcome === 'Taken').length;
   const skippedCount = logs.filter(l => l.outcome === 'Skipped').length;
-  const delayedCount = logs.filter(l => l.outcome === 'Delayed').length;
+  const missedCount = logs.filter(l => l.outcome === 'Missed').length;
 
   const filters = [
     { key: 'All', label: t('log_all') },
     { key: 'Taken', label: t('log_taken') },
     { key: 'Skipped', label: t('log_skipped') },
-    { key: 'Delayed', label: t('log_delayed') },
+    { key: 'Missed', label: t('log_missed') },
   ];
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common_back')}
+        >
+          <Text style={s.headerBack}>‹</Text>
+        </TouchableOpacity>
         <Text style={s.headerTitle}>{t('log_title')}</Text>
+        <TouchableOpacity
+          style={s.curveBtn}
+          onPress={async () => { Analytics.viewed('serum_curve'); navigation.navigate((await isPremium()) ? 'SerumCurve' : 'Paywall'); }}
+          accessibilityRole="button"
+          accessibilityLabel={t('curve_btn')}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <FeatureIcon name="curve" size={14} color={colors.accentText} />
+            <Text style={s.curveBtnText}>{t('curve_btn')}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={s.statsRow}>
@@ -186,8 +245,8 @@ export default function LogScreen() {
           <Text style={[s.statLbl, { color: colors.dangerSoftText }]}>{t('log_skipped')}</Text>
         </View>
         <View style={[s.statCard, { backgroundColor: colors.warningSoft }]}>
-          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{delayedCount}</Text>
-          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_delayed')}</Text>
+          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{missedCount}</Text>
+          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_missed')}</Text>
         </View>
       </View>
 
@@ -213,10 +272,11 @@ export default function LogScreen() {
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         style={s.scroll}
+        contentContainerStyle={s.centered}
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>📓</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="journal" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>
               {filter === 'All'
                 ? t('log_empty_title')
@@ -239,19 +299,29 @@ export default function LogScreen() {
           return (
             <TouchableOpacity
               style={s.logEntry}
-              onPress={() => openSiteEditor(log)}
+              onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openSiteEditor(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={t('bodymap_title')}
+              accessibilityLabel={log.outcome === 'Missed' ? t('log_missed_edit_title') : t('bodymap_title')}
             >
               <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
               <View style={s.logInfo}>
                 <View style={s.logNameRow}>
-                  <Text style={s.logTypeIcon}>{typeIcon(log.protocols?.type)}</Text>
+                  <FeatureIcon name={typeIcon(log.protocols?.type)} size={13} color={colors.text} />
                   <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
                 </View>
-                {log.injection_site ? <Text style={s.logDetail}>📍 {summarizeStored(log.injection_site, t) || log.injection_site}</Text> : null}
-                {log.notes ? <Text style={s.logDetail}>📝 {log.notes}</Text> : null}
+                {log.injection_site ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <FeatureIcon name="pin" size={11} color={colors.textMuted} />
+                    <Text style={[s.logDetail, { marginTop: 0 }]}>{summarizeStored(log.injection_site, t) || log.injection_site}</Text>
+                  </View>
+                ) : null}
+                {log.notes ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <FeatureIcon name="journal" size={11} color={colors.textMuted} />
+                    <Text style={[s.logDetail, { marginTop: 0 }]}>{log.notes}</Text>
+                  </View>
+                ) : null}
                 {tags.length > 0 && (
                   <View style={s.tagRow}>
                     {tags.map(tag => (
@@ -264,9 +334,7 @@ export default function LogScreen() {
               </View>
               <View style={s.logRight}>
                 <Text style={s.logTime}>
-                  {new Date(log.logged_at).toLocaleTimeString(locale, {
-                    hour: 'numeric', minute: '2-digit',
-                  })}
+                  {new Date(log.logged_at).toLocaleTimeString(locale, timeOpts)}
                 </Text>
                 <View style={[s.logBadge, { backgroundColor: outcomeBg(log.outcome) }]}>
                   <Text style={[s.logBadgeText, { color: outcomeTextColor(log.outcome) }]}>
@@ -293,9 +361,19 @@ export default function LogScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: c.card },
+  headerBack: { fontSize: 34, lineHeight: 34, color: c.accent, fontWeight: '400', width: 34 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: c.text },
+  headerSpacer: { width: 34 },
+  curveBtn: {
+    backgroundColor: c.accent,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  curveBtnText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
   statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
   statCard: { flex: 1, borderRadius: 14, padding: 10, alignItems: 'center' },
   statVal: { fontSize: 20, fontWeight: '600' },
@@ -307,13 +385,13 @@ const makeStyles = (c) => StyleSheet.create({
   filterBtnTextOn: { color: c.accentText, fontWeight: '600' },
   scroll: { flex: 1, padding: 16 },
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyIcon: { marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
   emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   groupDate: { fontSize: 12, fontWeight: '600', color: c.textMuted },
   groupCount: { fontSize: 12, color: c.textFaint },
-  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 14, borderWidth: 0.5, borderColor: c.border, marginBottom: 6 },
+  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 18, marginBottom: 6, ...c.shadowSoft },
   logDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, flexShrink: 0 },
   logInfo: { flex: 1 },
   logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },

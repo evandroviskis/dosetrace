@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <!-- baseline axes -->
+  <path d="M170 800V220" class="stroke"/>
+  <path d="M170 800H860" class="stroke"/>
+  <!-- repeated serum peaks and troughs -->
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " class="stroke"/>
+  <!-- subtle second lower curve to imply decay/accumulation -->
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " class="stroke" opacity="0.38"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <!-- oral capsule / pill (tilted), with the split line -->
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" class="stroke"/>
+    <path d="M512 428 V596" class="stroke"/>
+  </g>
+</svg>

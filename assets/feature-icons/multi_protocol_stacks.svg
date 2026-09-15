@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+    .fill { fill:#3AA9FF; }
+  </style>
+
+  <path d="M512 210L790 355 512 500 234 355 512 210Z" class="stroke"/>
+  <path d="M270 505l242 126 242-126" class="stroke"/>
+  <path d="M270 640l242 126 242-126" class="stroke"/>
+</svg>

@@ -8,8 +8,23 @@
       "developmentClient": true,
       "distribution": "internal"
     },
+    "development-sim": {
+      "developmentClient": true,
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://mqfvnqfusqyhqhowfweh.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZnZucWZ1c3F5aHFob3dmd2VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MzQ0NzksImV4cCI6MjA5MTAxMDQ3OX0.Mx9E4AnJ2C5_ceAbFSfDBt43YgdCHq7lJKKeR27atug"
+      }
+    },
     "preview": {
       "distribution": "internal"
+    },
+    "simulator": {
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://mqfvnqfusqyhqhowfweh.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZnZucWZ1c3F5aHFob3dmd2VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MzQ0NzksImV4cCI6MjA5MTAxMDQ3OX0.Mx9E4AnJ2C5_ceAbFSfDBt43YgdCHq7lJKKeR27atug"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -20,6 +35,16 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6761788157"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production",
+        "releaseStatus": "inProgress",
+        "rollout": 0.1
+      }
+    }
   }
 }

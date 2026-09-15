@@ -1,7 +1,49 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { unitsCompatible, normalizeDoseValue, formatML, computeDraw, dosesPerVial } = require('../lib/doseMath');
+const { parseDecimal, unitsCompatible, normalizeDoseValue, formatML, computeDraw, dosesPerVial, massFromUnits, massParts } = require('../lib/doseMath');
+
+test('parseDecimal: comma is a decimal separator (most of the world)', () => {
+  assert.equal(parseDecimal('0,5'), 0.5);   // the bug: parseFloat("0,5") === 0
+  assert.equal(parseDecimal('2,5'), 2.5);
+  assert.equal(parseDecimal('250'), 250);
+  assert.equal(parseDecimal('0.5'), 0.5);   // US dot still works
+  assert.equal(parseDecimal(0.5), 0.5);     // pass-through for numbers
+});
+
+test('parseDecimal: comma-grouped thousands are NOT read as decimals (IU vials)', () => {
+  assert.equal(parseDecimal('5,000'), 5000);    // HCG "5,000 IU" — must NOT become 5
+  assert.equal(parseDecimal('10,000'), 10000);  // "10,000 IU" — must NOT become 10
+  assert.equal(parseDecimal('1,500'), 1500);    // grouped, not 1.5
+  assert.equal(parseDecimal('100,000'), 100000);
+  // ...but a real decimal is preserved: leading zero or 1-2 trailing digits
+  assert.equal(parseDecimal('0,750'), 0.75);    // leading zero → decimal
+  assert.equal(parseDecimal('2,5'), 2.5);
+});
+
+test('parseDecimal: both separators — last one is the decimal point', () => {
+  assert.equal(parseDecimal('1.234,5'), 1234.5);  // EU grouping + comma decimal
+  assert.equal(parseDecimal('1,234.5'), 1234.5);  // US grouping + dot decimal
+});
+
+test('parseDecimal: empty / junk degrades to NaN (guards see it as absent)', () => {
+  assert.ok(Number.isNaN(parseDecimal('')));
+  assert.ok(Number.isNaN(parseDecimal('abc')));
+  assert.ok(Number.isNaN(parseDecimal(null)));
+  assert.ok(Number.isNaN(parseDecimal(undefined)));
+});
+
+test('computeDraw: comma-decimal inputs compute the same as dot (EU keypad)', () => {
+  // 10 mg in 2 ml, 250 mcg dose — same as the dot-based test, entered with commas.
+  const r = computeDraw({ type: 'recon', amount: '10', water: '2', dose: '0,25', doseUnit: 'mg', unit: 'mg', syringeSize: 100 });
+  assert.equal(r.rawML, 0.05);
+  assert.equal(r.drawUnits, '5.0');
+  assert.equal(r.valid, true);
+});
+
+test('massFromUnits: accepts comma decimals for the diluent volume', () => {
+  assert.equal(massFromUnits('10', '10', '2,5'), 0.4); // 2,5 ml == 2.5 ml
+});
 
 test('unitsCompatible: IU only pairs with IU', () => {
   assert.equal(unitsCompatible('IU', 'IU'), true);
@@ -125,4 +167,30 @@ test('computeDraw: valid ceiling is 3 ml (arithmetic sanity bound)', () => {
   const r = computeDraw({ type: 'rtu', concentration: '1', concentrationUnit: 'mg', dose: '4', doseUnit: 'mg' });
   assert.equal(r.rawML, 4);
   assert.equal(r.valid, false);
+});
+
+test('massFromUnits: the Ipamorelin example — 10 IU of 10mg/2.5ml = 0.4 mg', () => {
+  assert.equal(massFromUnits(10, 10, 2.5), 0.4);
+});
+
+test('massFromUnits: scales with concentration and units', () => {
+  assert.equal(massFromUnits(20, 10, 2.5), 0.8); // double the units
+  assert.equal(massFromUnits(10, 5, 2.5), 0.2);  // half the peptide
+  assert.equal(massFromUnits(10, 10, 5), 0.2);   // double the diluent
+});
+
+test('massFromUnits: null on missing/invalid input', () => {
+  assert.equal(massFromUnits(0, 10, 2.5), null);
+  assert.equal(massFromUnits(10, 0, 2.5), null);
+  assert.equal(massFromUnits(10, 10, 0), null);
+  assert.equal(massFromUnits('', '', ''), null);
+  assert.equal(massFromUnits('abc', 10, 2.5), null);
+});
+
+test('massParts: splits mg into short mcg + mg strings', () => {
+  assert.deepEqual(massParts(0.4), { mcg: '400', mg: '0.4' });
+  assert.deepEqual(massParts(0.25), { mcg: '250', mg: '0.25' });
+  assert.deepEqual(massParts(2), { mcg: '2000', mg: '2' });
+  assert.deepEqual(massParts(0.005), { mcg: '5', mg: '0.005' });
+  assert.equal(massParts(0), null);
 });

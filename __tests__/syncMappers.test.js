@@ -62,3 +62,34 @@ test('biomarkers payload includes every expected field', () => {
   const bm = toCloudPayload('biomarkers', { report_date: '2024-06-01', marker: 'TT', value: 800, unit: 'ng/dL' });
   for (const field of CLOUD_FIELDS.biomarkers) assert.ok(field in bm, `biomarkers payload missing "${field}"`);
 });
+
+test('vaccines payload includes every expected field', () => {
+  const vx = toCloudPayload('vaccines', { name: 'Tetanus', date_given: '2024-06-01', next_due: '2034-06-01', notes: 'left arm' });
+  for (const field of CLOUD_FIELDS.vaccines) assert.ok(field in vx, `vaccines payload missing "${field}"`);
+});
+
+test('reality_checks payload includes every expected field', () => {
+  const rc = toCloudPayload('reality_checks', { entry_date: '2026-09-01', tdee: 2450, rate_per_week_kg: 0.5 });
+  assert.equal(rc.entry_date, '2026-09-01');
+  assert.equal(rc.tdee, 2450);
+  assert.equal(rc.rate_per_week_kg, 0.5);
+  for (const field of CLOUD_FIELDS.reality_checks) assert.ok(field in rc, `reality_checks payload missing "${field}"`);
+});
+
+test('calc_snapshots payload includes every expected field (incl. waist_cm)', () => {
+  const cs = toCloudPayload('calc_snapshots', { entry_date: '2026-09-01', weight_kg: 82, waist_cm: 88, body_fat_pct: 18, lbm: 67, bmr: 1750, tdee: 2600 });
+  assert.equal(cs.waist_cm, 88);
+  assert.equal(cs.weight_kg, 82);
+  for (const field of CLOUD_FIELDS.calc_snapshots) assert.ok(field in cs, `calc_snapshots payload missing "${field}"`);
+});
+
+test('calc_targets payload includes every expected field', () => {
+  const ct = toCloudPayload('calc_targets', {
+    entry_date: '2026-09-13', target_weight_kg: 82, target_body_fat_pct: 18, target_date: '2026-11-01',
+    start_date: '2026-07-14', start_weight_kg: 95, start_body_fat_pct: 28,
+  });
+  assert.equal(ct.target_weight_kg, 82);
+  assert.equal(ct.start_weight_kg, 95);
+  assert.equal(ct.target_date, '2026-11-01');
+  for (const field of CLOUD_FIELDS.calc_targets) assert.ok(field in ct, `calc_targets payload missing "${field}"`);
+});

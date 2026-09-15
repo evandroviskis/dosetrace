@@ -10,29 +10,37 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelFollowups, cancelDoseReminder } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
+import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
+  getBiomarkers,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
+import { scanMissedDoses } from '../lib/doseActions';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
+import { computeServings } from '../lib/oralMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
+import FeatureIcon from '../components/FeatureIcon';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import Svg, { Circle } from 'react-native-svg';
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
 
+const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 
 const MONTH_KEYS = [
@@ -41,23 +49,38 @@ const MONTH_KEYS = [
   'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
 
+// ── Today alerts config ────────────────────────────────────────
+const BLOODWORK_INTERVAL_DAYS = 182; // ~6 months
+const SUPPLY_LOW_DOSES = 3;          // flag a vial with this many doses left or fewer
+const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many days
+const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
+// How long "delete" hides a DERIVED alert (reality-check delete cancels instead).
+const ALERT_SNOOZE_MS = {
+  bloodwork_due: 14 * 86400000,
+  supply_low: 3 * 86400000,
+  vial_expiry: 2 * 86400000,
+};
+
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
 
 export default function TodayScreen() {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
   const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only
   const [skippedCounts, setSkippedCounts] = useState({}); // { protocol_id: count } — outcome 'Skipped' only
   const [loading, setLoading] = useState(true);
-  const [greeting, setGreeting] = useState('');
   const [userName, setUserName] = useState('');
   const [streak, setStreak] = useState(0);
   const [monthConsistency, setMonthAdherence] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
+  const [rcStart, setRcStart] = useState(null); // open reality-check weigh-in → an alert
+  const [latestLabDate, setLatestLabDate] = useState(null); // most recent bloodwork report_date
+  const [alertSnooze, setAlertSnooze] = useState({}); // { alertId: untilTimestamp } — dismissed derived alerts
   const [showShareCard, setShowShareCard] = useState(false);
   const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
   const [undoData, setUndoData] = useState(null); // { logId, protocolId, vialId, prevDosesTaken, timer }
@@ -88,10 +111,6 @@ export default function TodayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const hour = new Date().getHours();
-      if (hour < 12) setGreeting(t('today_greeting_morning'));
-      else if (hour < 18) setGreeting(t('today_greeting_afternoon'));
-      else setGreeting(t('today_greeting_evening'));
       // Fetch display name
       getCachedUser().then(user => {
         if (user?.user_metadata?.display_name) {
@@ -99,11 +118,17 @@ export default function TodayScreen() {
         }
       }).catch(() => {});
       cleanupOldDeletedProtocols();
+      // Record any dose that went 12h+ unlogged as Missed (prior days only), then
+      // refresh streaks/adherence so they reflect it. Best-effort, never blocks.
+      scanMissedDoses().then((n) => {
+        if (n > 0) { requestSync(); fetchStreakData(); fetchProtocolStreaks(); }
+      }).catch(() => {});
       fetchProtocols();
       fetchTodayLogs();
       fetchStreakData();
       fetchProtocolStreaks();
       fetchLastSites();
+      fetchAlerts();
       checkTreatmentStillActive();
     }, [])
   );
@@ -111,18 +136,66 @@ export default function TodayScreen() {
   // Refresh when a cloud import/sync finishes — after logging in on a new device
   // the import runs in the background, so the first focus-fetch can hit an empty
   // local DB. Re-fetch on completion instead of requiring a manual tab switch.
+  // 'data_changed' fires the instant a protocol is saved (even offline), so a
+  // reminder-time edit reflects here immediately without a tab switch.
   useEffect(() => {
     const unsub = addSyncListener((e) => {
-      if (e.type === 'import_complete' || e.type === 'sync_complete') {
+      if (e.type === 'import_complete' || e.type === 'sync_complete' || e.type === 'data_changed') {
         fetchProtocols();
         fetchTodayLogs();
         fetchStreakData();
         fetchProtocolStreaks();
         fetchLastSites();
+        fetchAlerts();
       }
     });
     return unsub;
   }, []);
+
+  // Load the open reality-check weigh-in (if any) — surfaced as a Today alert.
+  async function fetchAlerts() {
+    // Open reality-check weigh-in.
+    const rcs = await getRealityStart();
+    setRcStart(rcs || null);
+    // Latest bloodwork date (biomarkers are ordered report_date DESC).
+    try {
+      const user = await getCachedUser();
+      const bm = user ? (getBiomarkers(user.id) || []) : [];
+      setLatestLabDate(bm.length ? bm[0].report_date : null);
+    } catch { /* ignore */ }
+    // Snooze map for dismissed derived alerts.
+    try {
+      const raw = await AsyncStorage.getItem(ALERT_SNOOZE_KEY);
+      setAlertSnooze(raw ? JSON.parse(raw) : {});
+    } catch { setAlertSnooze({}); }
+  }
+
+  // Dismiss a DERIVED alert (bloodwork / supply) by snoozing it for its window.
+  async function snoozeAlert(id) {
+    const until = Date.now() + (ALERT_SNOOZE_MS[id] || 7 * 86400000);
+    const next = { ...alertSnooze, [id]: until };
+    setAlertSnooze(next);
+    try { await AsyncStorage.setItem(ALERT_SNOOZE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+
+  // Cancel the open reality-check reminder from the Today alert (with confirm).
+  function dismissRealityCheckAlert() {
+    Alert.alert(
+      t('today_alert_rc_remove_title'),
+      t('today_alert_rc_remove_msg'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('today_alert_remove'), style: 'destructive',
+          onPress: async () => {
+            setRcStart(null);
+            await clearRealityStart();
+            syncRealityCheckReminder().catch(() => {});
+          },
+        },
+      ]
+    );
+  }
 
   // Inactivity nudge: if an active protocol hasn't had a dose logged for a while
   // (max of 7 days or 3× its interval), gently ask whether it's finished — so
@@ -383,11 +456,13 @@ export default function TodayScreen() {
         outcome: 'Taken',
       });
 
+      const newTakenToday = (takenCounts[protocol.id] || 0) + 1;
       setTakenCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
       fetchStreakData();
       fetchProtocolStreaks();
       Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Taken' });
-      cancelFollowups(protocol.id).catch(() => {});
+      // Cancel today's reminder(s) for the slots now taken, so no "dose pending" fires later.
+      cancelTodaysDoseReminders(protocol.id, newTakenToday).catch(() => {});
 
       // Update vial doses_taken if this protocol has an active vial
       const vial = vials[protocol.id];
@@ -411,6 +486,21 @@ export default function TodayScreen() {
         }
         fetchProtocols();
       }
+
+      // Oral supply: subtract the calculated units-per-dose from the bottle.
+      let oralPrevUnitsTaken = null;
+      if (protocol.type === 'oral' && protocol.container_units) {
+        const r = computeServings({
+          targetDose: protocol.dose, doseUnit: protocol.dose_unit,
+          servingStrength: protocol.serving_strength, servingStrengthUnit: protocol.serving_strength_unit,
+          servingUnits: protocol.serving_units, form: protocol.notes,
+        });
+        if (r.valid && r.unitsNeeded > 0) {
+          oralPrevUnitsTaken = protocol.units_taken || 0;
+          updateProtocol(protocol.id, { units_taken: oralPrevUnitsTaken + r.unitsNeeded });
+          fetchProtocols();
+        }
+      }
       syncVialAlerts().catch(() => {});
       requestSync();
 
@@ -421,8 +511,16 @@ export default function TodayScreen() {
         protocolId: protocol.id,
         vialId: vial?.id || null,
         prevDosesTaken: prevVialDosesTaken,
+        oralPrevUnitsTaken,
         timer,
       });
+
+      // Injectables (lyophilized / ready-to-use): prompt for the injection
+      // site right after logging, instead of leaving it as an optional step.
+      // Oral supplements have no site, so they skip this.
+      if (protocol.type === 'recon' || protocol.type === 'rtu') {
+        openBodyMapForUndo({ logId, protocolId: protocol.id, timer });
+      }
 
       actionInProgressRef.current = false;
     } catch (err) {
@@ -483,6 +581,10 @@ export default function TodayScreen() {
       });
       if (undoData.vialId && undoData.prevDosesTaken !== null) {
         updateVial(undoData.vialId, { doses_taken: undoData.prevDosesTaken, active: 1 });
+        fetchProtocols();
+      }
+      if (undoData.oralPrevUnitsTaken != null) {
+        updateProtocol(undoData.protocolId, { units_taken: undoData.oralPrevUnitsTaken });
         fetchProtocols();
       }
       setUndoData(null);
@@ -567,14 +669,36 @@ export default function TodayScreen() {
     return `${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`;
   }
 
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+  // Computed in render (not cached in state) so both follow the app language.
+  const _hour = new Date().getHours();
+  const greeting = t(_hour < 12 ? 'today_greeting_morning' : _hour < 18 ? 'today_greeting_afternoon' : 'today_greeting_evening');
+  // Localized date. toLocaleDateString with an explicit locale can throw on
+  // some Hermes builds, which would blank the whole header — so guard it and
+  // fall back to the app's own localized month/weekday keys (always works).
+  let today;
+  try {
+    today = new Date().toLocaleDateString(LOCALE_MAP[language] || 'en-US', {
+      weekday: 'long', month: 'long', day: 'numeric',
+    });
+  } catch { today = ''; }
+  if (!today) {
+    const _d = new Date();
+    today = `${t(WEEKDAY_KEYS[_d.getDay()])}, ${t(MONTH_KEYS[_d.getMonth()])} ${_d.getDate()}`;
+  }
 
   const todayDate = new Date();
   const dueProtocols = protocols.filter(p => expectedDosesOn(p, todayDate) > 0);
   const doneCount = dueProtocols.filter(p => (takenCounts[p.id] || 0) >= expectedDosesOn(p, todayDate)).length;
   const totalCount = dueProtocols.length;
+  // Dose-based totals: every scheduled dose counts (a 2×/day vitamin = 2), taken
+  // capped at expected so extra taps can't overshoot.
+  const totalDoses = dueProtocols.reduce((sum, p) => sum + expectedDosesOn(p, todayDate), 0);
+  const doneDoses = dueProtocols.reduce((sum, p) => sum + Math.min(takenCounts[p.id] || 0, expectedDosesOn(p, todayDate)), 0);
+  const donePct = totalDoses > 0 ? Math.round((doneDoses / totalDoses) * 100) : 0;
+  // Progress-ring geometry (r=24 → circumference ≈ 150.8); offset shrinks the
+  // filled arc as completion drops.
+  const RING_C = 2 * Math.PI * 24;
+  const ringOffset = RING_C * (1 - donePct / 100);
 
   // Order the daily list purely by "what's next to take" across all compounds:
   // overdue/now → later today → tomorrow → in 2 days … (see nextDoseAt). A dose
@@ -601,8 +725,104 @@ export default function TodayScreen() {
   // instead of an empty Today section.
   const allDoneToday = todayCards.length === 0 && totalCount > 0;
 
+  // ── Today alerts ─────────────────────────────────────────────
+  // Pending, actionable reminders shown under the streak — NOT the daily doses
+  // (those live in the Today list). Each is tappable and deletable.
+  const alerts = useMemo(() => {
+    const list = [];
+    const nowMs = Date.now();
+    // 1) Reality-check weigh-in (open check-in awaiting the second weight).
+    if (rcStart) {
+      const remind = new Date(rcStart.date + 'T12:00:00');
+      remind.setDate(remind.getDate() + REALITY_CHECK_DAYS);
+      const due = nowMs >= remind.getTime();
+      list.push({
+        id: 'reality_check', iconName: 'type_glp1', due,
+        title: t('today_alert_rc_title'),
+        body: due ? t('today_alert_rc_due')
+          : t('today_alert_rc_when').replace('{date}', `${t(MONTH_KEYS[remind.getMonth()])} ${remind.getDate()}`),
+        onPress: () => navigation.navigate('Journey'),
+        onRemove: dismissRealityCheckAlert,
+      });
+    }
+    // 2) Bloodwork due (~6 months since the last logged test).
+    if (latestLabDate && !(alertSnooze.bloodwork_due && nowMs < alertSnooze.bloodwork_due)) {
+      const days = Math.floor((nowMs - new Date(latestLabDate + 'T12:00:00').getTime()) / 86400000);
+      if (days >= BLOODWORK_INTERVAL_DAYS) {
+        list.push({
+          id: 'bloodwork_due', iconName: 'droplet', due: true,
+          title: t('today_alert_blood_title'),
+          body: t('today_alert_blood_body').replace('{months}', String(Math.max(6, Math.round(days / 30)))),
+          onPress: () => navigation.navigate('Body', { initialSection: 'labs' }),
+          onRemove: () => snoozeAlert('bloodwork_due'),
+        });
+      }
+    }
+    // 3) Supply low (an active vial with only a few doses left).
+    if (!(alertSnooze.supply_low && nowMs < alertSnooze.supply_low)) {
+      const low = [];
+      for (const p of protocols) {
+        const v = vials[p.id];
+        if (!v) continue;
+        const cap = (v.total_doses && v.total_doses > 0)
+          ? v.total_doses
+          : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+        if (!cap) continue;
+        const rem = Math.max(0, cap - (v.doses_taken || 0));
+        if (rem > 0 && rem <= SUPPLY_LOW_DOSES) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem });
+      }
+      if (low.length) {
+        low.sort((a, b) => a.rem - b.rem);
+        list.push({
+          id: 'supply_low', iconName: 'syringe', due: true,
+          title: t('today_alert_supply_title'),
+          body: low.length === 1
+            ? t('today_alert_supply_one').replace('{name}', low[0].name).replace('{n}', String(low[0].rem))
+            : low.length <= 3
+              ? t('today_alert_supply_list').replace('{names}', low.map(x => x.name).join(', '))
+              : t('today_alert_supply_many').replace('{count}', String(low.length)),
+          onPress: () => navigation.navigate('Protocols'),
+          onRemove: () => snoozeAlert('supply_low'),
+        });
+      }
+    }
+    // 4) Vial expiring soon (recon: mix date + validity; rtu: box expiry date).
+    if (!(alertSnooze.vial_expiry && nowMs < alertSnooze.vial_expiry)) {
+      const exp = [];
+      for (const p of protocols) {
+        const v = vials[p.id];
+        if (!v) continue;
+        let daysLeft = null;
+        if (p.type === 'recon') {
+          daysLeft = daysUntilExpiry(v.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+        } else if (v.expires_on) {
+          daysLeft = Math.ceil((new Date(v.expires_on + 'T00:00:00').getTime() - nowMs) / 86400000);
+        }
+        if (daysLeft != null && daysLeft <= VIAL_EXPIRY_SOON_DAYS) {
+          exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft });
+        }
+      }
+      if (exp.length) {
+        exp.sort((a, b) => a.daysLeft - b.daysLeft);
+        const soonest = exp[0];
+        const body = exp.length === 1
+          ? (soonest.daysLeft <= 0
+              ? t('today_alert_vial_expired_one').replace('{name}', soonest.name)
+              : t('today_alert_vial_expiry_one').replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
+          : t('today_alert_vial_expiry_many').replace('{count}', String(exp.length));
+        list.push({
+          id: 'vial_expiry', iconName: 'clock', due: true,
+          title: t('today_alert_vial_title'), body,
+          onPress: () => navigation.navigate('Protocols'),
+          onRemove: () => snoozeAlert('vial_expiry'),
+        });
+      }
+    }
+    return list;
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language]);
+
   function formatTimeAMPM(time24) {
-    return formatTime(time24, language);
+    return formatTime(time24, language, timeFormat);
   }
 
   // Determine next time slot label for multi-dose protocols.
@@ -689,12 +909,17 @@ export default function TodayScreen() {
             <Text style={s.partialBannerText}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>
           </View>
         )}
-        <View style={s.doseCardTop}>
+        {/* Tapping the header row opens this protocol in the Protocols tab. */}
+        <TouchableOpacity
+          style={s.doseCardTop}
+          activeOpacity={0.6}
+          onPress={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
+        >
           <View style={[s.doseDot, { backgroundColor: p.color || colors.accent }]} />
           <View style={s.doseInfo}>
-            <Text style={s.doseName}>{due && '🔥 '}{p.compound_id ? t(p.compound_id) : p.name}</Text>
+            <Text style={s.doseName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
             <Text style={s.doseMeta}>
-              {p.dose} {p.dose_unit} · {p.frequency}
+              {p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}
             </Text>
             {/* Progress indicator */}
             {progress && (
@@ -712,11 +937,13 @@ export default function TodayScreen() {
             ) : null}
             {pStreak > 0 && (
               <View style={s.miniStreak}>
-                <Text style={s.miniStreakText}>🔥 {pStreak}</Text>
+                <FeatureIcon name="flame" size={11} color={colors.warningSoftText} />
+                <Text style={s.miniStreakText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
               </View>
             )}
           </View>
-        </View>
+          <Text style={s.doseOpenChevron}>›</Text>
+        </TouchableOpacity>
         {/* Progress bar */}
         {progress && (
           <View style={s.progressBarOuter}>
@@ -806,39 +1033,58 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         <View style={s.header}>
           <Text style={s.date}>{today}</Text>
-          <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''} 👋</Text>
+          <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''}</Text>
           <Text style={s.sub}>
             {totalCount === 0
               ? t('today_no_protocols')
-              : `${doneCount} / ${totalCount} ${t('today_done_of')}`}
+              : `${doneDoses} / ${totalDoses} ${t('today_doses')}`}
           </Text>
         </View>
 
-        <View style={s.statsRow}>
-          <View style={[s.statCard, s.statHighlight]}>
-            <Text style={s.statValBlue}>{doneCount}</Text>
-            <Text style={s.statLblBlue}>{t('today_done')}</Text>
+        <View style={s.progressRow}>
+          <View style={s.ringCard}>
+            <Svg width={58} height={58} viewBox="0 0 58 58">
+              <Circle cx={29} cy={29} r={24} fill="none" stroke={colors.ringTrack} strokeWidth={7} />
+              <Circle
+                cx={29} cy={29} r={24} fill="none"
+                stroke={colors.accent} strokeWidth={7} strokeLinecap="round"
+                strokeDasharray={RING_C} strokeDashoffset={ringOffset}
+                transform="rotate(-90 29 29)"
+              />
+            </Svg>
+            <View style={s.ringText}>
+              <Text style={s.ringPct}>{totalDoses > 0 ? `${donePct}%` : '—'}</Text>
+              <Text style={s.ringLbl}>{t('today_done_of')}</Text>
+            </View>
           </View>
-          <View style={s.statCard}>
-            <Text style={s.statVal}>{totalCount}</Text>
-            <Text style={s.statLbl}>{t('today_protocols')}</Text>
-          </View>
-          <View style={s.statCard}>
-            <Text style={s.statVal}>
-              {totalCount > 0 ? Math.round((doneCount / totalCount) * 100) + '%' : '—'}
-            </Text>
-            <Text style={s.statLbl}>{t('today_done_of')}</Text>
+          <View style={s.progressStatsCol}>
+            <View style={s.miniStatCard}>
+              <Text style={s.miniStatVal}>{doneDoses}</Text>
+              <Text style={s.miniStatLbl}>{t('today_done')}</Text>
+            </View>
+            <View style={s.miniStatCard}>
+              <Text style={s.miniStatVal}>{totalCount}</Text>
+              <Text style={s.miniStatLbl}>{t('today_protocols')}</Text>
+            </View>
           </View>
         </View>
 
         {protocols.length > 0 && weekDots.length > 0 && (
-          <View style={s.streakCard}>
+          <TouchableOpacity
+            style={s.streakCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Log')}
+            accessibilityRole="button"
+            accessibilityLabel={t('today_view_log')}
+          >
             <View style={s.streakTop}>
               <View style={s.streakLeft}>
-                <Text style={s.streakFire}>{streak > 0 ? '🔥' : '💤'}</Text>
+                {streak > 0 ? (
+                  <View style={s.streakFireTile}><FeatureIcon name="flame" size={22} color={colors.warningSoftText} /></View>
+                ) : null}
                 <View>
                   <Text style={s.streakCount}>
                     {streak > 0
@@ -866,13 +1112,51 @@ export default function TodayScreen() {
                     dot.status === 'missed' && s.streakDotMissed,
                     dot.status === 'rest' && s.streakDotRest,
                     dot.isToday && s.streakDotToday,
-                  ]} />
+                  ]}>
+                    {dot.status === 'complete' && !dot.isToday && (
+                      <Text style={s.streakDotCheck}>✓</Text>
+                    )}
+                  </View>
                   <Text style={[s.streakDotLabel, dot.isToday && s.streakDotLabelToday]}>
                     {t(WEEKDAY_KEYS[dot.dayIndex])}
                   </Text>
                 </View>
               ))}
             </View>
+            <Text style={s.streakExplainer}>{t('today_streak_explainer')}</Text>
+            <View style={s.streakLogRow}>
+              <Text style={s.streakLogText}>{t('today_view_log')}</Text>
+              <Text style={s.streakLogChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Alerts — pending, actionable reminders (never daily doses). Deletable. */}
+        {alerts.length > 0 && (
+          <View style={s.alertsSection}>
+            <Text style={s.alertsHeader}>{t('today_alerts_title').toUpperCase()}</Text>
+            {alerts.map(a => (
+              <View key={a.id} style={s.alertCard}>
+                <TouchableOpacity style={s.alertMain} activeOpacity={0.7} onPress={a.onPress}>
+                  <View style={[s.alertIconTile, a.due && s.alertIconTileDue]}>
+                    <FeatureIcon name={a.iconName} size={22} color={a.due ? colors.warningSoftText : colors.accentSoftText} />
+                  </View>
+                  <View style={s.alertTextWrap}>
+                    <Text style={s.alertTitle}>{a.title}</Text>
+                    <Text style={[s.alertBody, a.due && s.alertBodyDue]}>{a.body}</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.alertDelete}
+                  onPress={a.onRemove}
+                  hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('today_alert_remove')}
+                >
+                  <Text style={s.alertDeleteText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
         )}
 
@@ -890,7 +1174,6 @@ export default function TodayScreen() {
         {showShareCard && protocols.length > 0 && (
           <View style={s.shareCard}>
             <View style={s.shareCardInner}>
-              <Text style={s.shareEmoji}>{streak >= 7 ? '🔥' : streak > 0 ? '💪' : '🎯'}</Text>
               <Text style={s.shareTitle}>
                 {streak > 0
                   ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}`
@@ -940,7 +1223,7 @@ export default function TodayScreen() {
 
         {protocols.length === 0 && !loading && (
           <View style={s.emptyState}>
-            <Text style={s.emptyIcon}>💉</Text>
+            <View style={s.emptyIcon}><FeatureIcon name="syringe" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('today_empty_title')}</Text>
             <Text style={s.emptySub}>{t('today_empty_sub')}</Text>
             <View style={s.tipBox}>
@@ -986,9 +1269,11 @@ export default function TodayScreen() {
           <View style={s.undoBar}>
             <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
             <View style={s.undoBarActions}>
-              <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
-                <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
-              </TouchableOpacity>
+              {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
+                <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
+                  <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={undoTake}>
                 <Text style={s.undoBarAction}>{t('today_undo')}</Text>
               </TouchableOpacity>
@@ -1004,7 +1289,8 @@ export default function TodayScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Body map modal — opens from undo toast "Add site" */}
+      {/* Body map modal — auto-opens after taking an injectable dose,
+          and re-openable from the undo toast "Add site" button */}
       <BodyMapModal
         visible={bodyMapVisible}
         onClose={handleBodyMapClose}
@@ -1133,29 +1419,50 @@ export default function TodayScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, backgroundColor: c.card },
-  date: { fontSize: 11, color: c.textFaint, marginBottom: 2 },
-  greeting: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 4 },
-  sub: { fontSize: 13, color: c.textMuted },
-  streakCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.card, borderRadius: 14, padding: 14, borderWidth: 0.5, borderColor: c.border },
-  streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  streakFire: { fontSize: 28 },
-  streakCount: { fontSize: 16, fontWeight: '700', color: c.text },
-  streakSub: { fontSize: 11, color: c.textMuted, marginTop: 1 },
+  header: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, backgroundColor: c.bg },
+  date: { fontSize: 13, fontWeight: '600', color: c.textMuted, letterSpacing: 0.2, marginBottom: 2 },
+  greeting: { fontSize: 27, fontWeight: '800', color: c.text, letterSpacing: -0.6, marginBottom: 4 },
+  sub: { fontSize: 14, color: c.textMuted },
+  streakCard: { marginHorizontal: 18, marginBottom: 22, backgroundColor: c.card, borderRadius: 20, padding: 18, ...c.shadowCard },
+  streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  streakFireTile: { width: 42, height: 42, borderRadius: 13, backgroundColor: c.warningSoft, alignItems: 'center', justifyContent: 'center' },
+  streakFire: { fontSize: 22 },
+  streakCount: { fontSize: 17, fontWeight: '800', color: c.text },
+  streakSub: { fontSize: 12.5, color: c.textMuted, marginTop: 1 },
   streakBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   streakBadgeText: { fontSize: 11, fontWeight: '600', color: c.warningSoftText },
   streakDots: { flexDirection: 'row', justifyContent: 'space-between' },
-  streakDotCol: { alignItems: 'center', gap: 4 },
-  streakDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.card2 },
-  streakDotComplete: { backgroundColor: c.success },
-  streakDotPartial: { backgroundColor: c.warning },
+  streakDotCol: { alignItems: 'center', gap: 6 },
+  streakDot: { width: 30, height: 30, borderRadius: 10, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  streakDotComplete: { backgroundColor: c.successSoft },
+  streakDotCheck: { fontSize: 15, fontWeight: '800', color: c.success },
+  streakDotPartial: { backgroundColor: c.warningSoft },
   streakDotMissed: { backgroundColor: c.card2 },
   streakDotRest: { backgroundColor: c.accentSoft },
-  streakDotToday: { borderWidth: 2, borderColor: c.accent },
-  streakDotLabel: { fontSize: 9, color: c.textFaint, fontWeight: '500' },
+  streakDotToday: { backgroundColor: c.accent },
+  streakDotLabel: { fontSize: 11, color: c.textFaint, fontWeight: '500' },
   streakDotLabelToday: { color: c.accent, fontWeight: '700' },
+  streakExplainer: { fontSize: 11, color: c.textMuted, lineHeight: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
+  streakLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: 10 },
+  streakLogText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  streakLogChevron: { fontSize: 15, color: c.accent, fontWeight: '600', marginTop: -1 },
+  // Alerts panel (pending reminders under the streak)
+  alertsSection: { marginHorizontal: 18, marginBottom: 22 },
+  alertsHeader: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12 },
+  alertCard: { flexDirection: 'row', alignItems: 'stretch', backgroundColor: c.card, borderRadius: 18, marginBottom: 10, ...c.shadowSoft },
+  alertMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 14 },
+  alertIconTile: { width: 42, height: 42, borderRadius: 13, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  alertIconTileDue: { backgroundColor: c.warningSoft },
+  alertIcon: { fontSize: 20 },
+  alertTextWrap: { flex: 1 },
+  alertTitle: { fontSize: 15, fontWeight: '700', color: c.text },
+  alertBody: { fontSize: 13, color: c.textMuted, marginTop: 1 },
+  alertBodyDue: { color: c.warningSoftText, fontWeight: '600' },
+  alertDelete: { paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' },
+  alertDeleteText: { fontSize: 16, color: c.textFaint, fontWeight: '600' },
   shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
   shareToggleText: { fontSize: 12, color: c.accent, fontWeight: '600' },
   shareCard: { marginHorizontal: 16, marginBottom: 16 },
@@ -1179,51 +1486,54 @@ const makeStyles = (c) => StyleSheet.create({
   shareBrandText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
   shareBrandSub: { fontSize: 10, color: '#64748B', marginTop: 2 },
   shareDisclaimer: { fontSize: 8, color: '#475569', textAlign: 'center' },
-  statsRow: { flexDirection: 'row', gap: 8, padding: 16 },
-  statCard: { flex: 1, backgroundColor: c.card, borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 0.5, borderColor: c.border },
-  statHighlight: { backgroundColor: c.accentSoft },
-  statVal: { fontSize: 20, fontWeight: '600', color: c.text },
-  statValBlue: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
-  statLbl: { fontSize: 10, color: c.textMuted, marginTop: 2 },
-  statLblBlue: { fontSize: 10, color: c.accent, marginTop: 2 },
-  section: { paddingHorizontal: 16 },
+  progressRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 18, marginBottom: 16 },
+  ringCard: { flex: 1.1, backgroundColor: c.card, borderRadius: 20, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, ...c.shadowCard },
+  ringText: { flexDirection: 'column' },
+  ringPct: { fontSize: 22, fontWeight: '800', color: c.text, lineHeight: 24 },
+  ringLbl: { fontSize: 12, color: c.textMuted, marginTop: 3 },
+  progressStatsCol: { flex: 0.9, gap: 12 },
+  miniStatCard: { flex: 1, backgroundColor: c.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, justifyContent: 'center', ...c.shadowSoft },
+  miniStatVal: { fontSize: 19, fontWeight: '800', color: c.text, lineHeight: 20 },
+  miniStatLbl: { fontSize: 11.5, color: c.textMuted, marginTop: 2 },
+  section: { paddingHorizontal: 18 },
   categorySection: { marginBottom: 8 },
-  categoryLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 8, marginTop: 8 },
+  categoryLabel: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12, marginTop: 8 },
   laterHint: { fontSize: 12, color: c.textFaint, textAlign: 'center', paddingVertical: 12 },
-  allDoneCard: { backgroundColor: c.successSoft, borderRadius: 12, padding: 16, alignItems: 'center' },
-  allDoneText: { fontSize: 13, fontWeight: '600', color: c.successSoftText },
-  doseCard: { backgroundColor: c.card, borderRadius: 14, marginBottom: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: c.border },
-  takenBanner: { backgroundColor: c.successSoft, paddingVertical: 6, paddingHorizontal: 14 },
+  allDoneCard: { backgroundColor: c.successSoft, borderRadius: 16, padding: 18, alignItems: 'center' },
+  allDoneText: { fontSize: 14, fontWeight: '700', color: c.successSoftText },
+  doseCard: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, overflow: 'hidden', ...c.shadowSoft },
+  takenBanner: { backgroundColor: c.successSoft, paddingVertical: 7, paddingHorizontal: 16 },
   takenBannerText: { fontSize: 12, color: c.successSoftText, fontWeight: '600' },
-  partialBanner: { backgroundColor: c.warningSoft, paddingVertical: 6, paddingHorizontal: 14 },
+  partialBanner: { backgroundColor: c.warningSoft, paddingVertical: 7, paddingHorizontal: 16 },
   partialBannerText: { fontSize: 12, color: c.warningSoftText, fontWeight: '600' },
-  restBanner: { backgroundColor: c.accentSoft, paddingVertical: 6, paddingHorizontal: 14 },
+  restBanner: { backgroundColor: c.accentSoft, paddingVertical: 7, paddingHorizontal: 16 },
   restBannerText: { fontSize: 12, color: c.accent, fontWeight: '500' },
-  skippedBanner: { backgroundColor: c.warningSoft, paddingVertical: 6, paddingHorizontal: 14 },
+  skippedBanner: { backgroundColor: c.warningSoft, paddingVertical: 7, paddingHorizontal: 16 },
   skippedBannerText: { fontSize: 12, color: c.warningSoftText, fontWeight: '500' },
-  doseCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  doseCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   doseDot: { width: 10, height: 10, borderRadius: 5 },
   doseInfo: { flex: 1 },
-  doseName: { fontSize: 14, fontWeight: '600', color: c.text },
-  doseMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  doseName: { fontSize: 16, fontWeight: '700', color: c.text },
+  doseMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
   doseRight: { alignItems: 'flex-end', gap: 4 },
+  doseOpenChevron: { fontSize: 20, color: c.textFaint, fontWeight: '600', marginLeft: 2 },
   doseTime: { alignItems: 'flex-end' },
   doseTimeVal: { fontSize: 12, fontWeight: '500', color: c.textMuted },
   doseTimeLbl: { fontSize: 10, color: c.textFaint },
   progressText: { fontSize: 10, color: c.accent, marginTop: 2, fontWeight: '500' },
   progressBarOuter: { height: 3, backgroundColor: c.card2, marginHorizontal: 14, marginBottom: 8, borderRadius: 2 },
   progressBarInner: { height: 3, backgroundColor: c.accent, borderRadius: 2 },
-  miniStreak: { backgroundColor: c.warningSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  miniStreak: { backgroundColor: c.warningSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 3 },
   miniStreakText: { fontSize: 10, color: c.warningSoftText, fontWeight: '600' },
   vialStatus: { paddingHorizontal: 14, paddingBottom: 10 },
   vialStatusText: { fontSize: 11, color: c.textMuted },
   lastSiteChip: { marginHorizontal: 14, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.accentSoft, borderRadius: 8, alignSelf: 'flex-start' },
   lastSiteText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
-  doseActions: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: c.border },
-  doseBtn: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 0.5, borderRightColor: c.border },
-  doseBtnText: { fontSize: 12, color: c.textMuted },
-  doseBtnPrimary: { backgroundColor: c.accentSoft, borderRightWidth: 0 },
-  doseBtnPrimaryText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  doseActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 2 },
+  doseBtn: { flex: 1, height: 40, borderRadius: 12, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  doseBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '600' },
+  doseBtnPrimary: { flex: 2, backgroundColor: c.accent, borderWidth: 0 },
+  doseBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '700' },
   disclaimer: { fontSize: 10, color: c.textFaint, textAlign: 'center', marginTop: 16, marginHorizontal: 32, lineHeight: 15 },
   emptyState: { padding: 20, alignItems: 'center' },
   emptyIcon: { fontSize: 48, marginBottom: 16 },

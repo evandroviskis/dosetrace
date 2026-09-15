@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <style>
+    .stroke { fill:none; stroke:#3AA9FF; stroke-width:54; stroke-linecap:round; stroke-linejoin:round; }
+  </style>
+
+  <!-- GLP-1 / metabolic — a balance scale (matches the weight/appetite metaphor) -->
+  <path d="M512 250 V800" class="stroke"/>
+  <path d="M404 820 H620" class="stroke"/>
+  <path d="M300 340 H724" class="stroke"/>
+  <path d="M300 340 L244 508" class="stroke"/>
+  <path d="M300 340 L356 508" class="stroke"/>
+  <path d="M232 508 A70 70 0 0 0 368 508" class="stroke"/>
+  <path d="M724 340 L668 508" class="stroke"/>
+  <path d="M724 340 L780 508" class="stroke"/>
+  <path d="M656 508 A70 70 0 0 0 792 508" class="stroke"/>
+</svg>

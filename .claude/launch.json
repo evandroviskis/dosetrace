@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dosetrace-expo",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "cd ~/Desktop/dosetrace && export PATH=\"$HOME/.nvm/versions/node/v24.20.0/bin:$PATH\" && export EXPO_OFFLINE=1 && npx expo start --port 8082 --offline --clear"
+      ],
+      "port": 8082
+    },
+    {
+      "name": "domushub-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "cd ~/Desktop/domushub && export PATH=\"$HOME/.nvm/versions/node/v24.20.0/bin:$PATH\" && npx expo start --web --port 8090"
+      ],
+      "port": 8090
+    },
+    {
+      "name": "dosetrace-site",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/evandrosantos/Desktop/dosetrace/web && exec python3 -m http.server 4321"
+      ],
+      "port": 4321
+    }
+  ]
+}

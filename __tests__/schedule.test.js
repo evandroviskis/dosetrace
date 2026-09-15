@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, elapsedDoseSlots,
 } = require('../lib/schedule');
 
 // A protocol created well in the past so the creation-day grace never applies.
@@ -34,35 +34,50 @@ test('expectedDosesOn: every-3-days lands only on multiples of the interval', ()
   assert.equal(expectedDosesOn(p, new Date('2024-06-07T12:00:00')), 1); // day 6
 });
 
-test('expectedDosesOn: once-daily created late in the day gets creation grace (fix #2)', () => {
-  // Created 2024-06-15 23:00, single 08:00 reminder — the 8 AM slot is 15h in the past.
+test('expectedDosesOn: a protocol starting today keeps today\'s dose loggable even if the reminder time passed', () => {
+  // Created 2024-06-15 23:00, single 08:00 reminder — 8 AM already passed. The
+  // first dose must STILL be loggable today: the user sets the protocol up after
+  // taking it. (Reminders skip the past slot separately; logging is not gated on time.)
   const p = {
     start_date: '2024-06-15', interval_days: 1, doses_per_day: 1,
     reminder_time: '08:00', created_at: '2024-06-15T23:00:00',
   };
-  // On the creation day, the already-passed slot is not demanded.
-  assert.equal(expectedDosesOn(p, new Date('2024-06-15T23:30:00')), 0);
-  // The next day it resumes normally.
+  assert.equal(expectedDosesOn(p, new Date('2024-06-15T23:30:00')), 1);
   assert.equal(expectedDosesOn(p, new Date('2024-06-16T09:00:00')), 1);
 });
 
-test('expectedDosesOn: creation grace still counts a slot created just before it (1h window)', () => {
-  // Created 08:30; the 08:00 slot is 30 min in the past — within the 1h grace, still counts.
-  const p = {
-    start_date: '2024-06-15', interval_days: 1, doses_per_day: 1,
-    reminder_time: '08:00', created_at: '2024-06-15T08:30:00',
-  };
-  assert.equal(expectedDosesOn(p, new Date('2024-06-15T09:00:00')), 1);
-});
-
-test('expectedDosesOn: multi-dose creation grace counts only upcoming slots', () => {
-  // Created 16:30 with 08:00/14:00/21:00 — the 08:00 and 14:00 slots are well
-  // past (beyond the 1h grace), so only the 21:00 slot remains today.
+test('expectedDosesOn: multi-dose protocol created mid-day counts only slots from creation onward', () => {
+  // Created 16:30 with 08:00/14:00/21:00 — 08:00 and 14:00 fell before setup, so
+  // only 21:00 is "owed" on the creation day. Counting all three would ding the
+  // creation-day streak for doses the user never had a chance to log here. The
+  // 21:00 dose stays loggable; reminders skip the passed slots separately.
   const p = {
     start_date: '2024-06-15', interval_days: 1, doses_per_day: 3,
     reminder_time: '08:00,14:00,21:00', created_at: '2024-06-15T16:30:00',
   };
   assert.equal(expectedDosesOn(p, new Date('2024-06-15T17:00:00')), 1);
+});
+
+test('expectedDosesOn: creation day never dings adherence for a slot that passed before setup, but stays loggable', () => {
+  // Single 08:00 dose, protocol added at 23:00 — the slot passed before setup.
+  // Count is floored to 1 so the user can log the dose they just took, and the
+  // Today list (dueProtocols filters expectedDosesOn > 0) surfaces it.
+  const single = {
+    start_date: '2024-06-15', interval_days: 1, doses_per_day: 1,
+    reminder_time: '08:00', created_at: '2024-06-15T23:00:00',
+  };
+  assert.equal(expectedDosesOn(single, new Date('2024-06-15T23:30:00')), 1);
+
+  // BID 08:00/20:00 added at 18:00 — 08:00 passed before setup, 20:00 still ahead.
+  // Only the evening dose is owed on the creation day (not 2), so logging it
+  // completes the day instead of leaving the streak at 0 for the un-loggable 08:00.
+  const bid = {
+    start_date: '2024-06-15', interval_days: 1, doses_per_day: 2,
+    reminder_time: '08:00,20:00', created_at: '2024-06-15T18:00:00',
+  };
+  assert.equal(expectedDosesOn(bid, new Date('2024-06-15T18:30:00')), 1);
+  // The day AFTER creation, the full schedule applies again.
+  assert.equal(expectedDosesOn(bid, new Date('2024-06-16T07:00:00')), 2);
 });
 
 test('nextDueDate: finds the next interval day', () => {
@@ -113,4 +128,40 @@ test('toPastDateString: rejects impossible dates, formats valid ones', () => {
   assert.equal(toPastDateString(1, '31'), null);       // Feb 31 → impossible
   assert.equal(toPastDateString(3, '31'), null);       // Apr 31 → impossible
   assert.match(toPastDateString(0, '15'), /^\d{4}-01-15$/); // Jan 15 formats
+});
+
+// ── elapsedDoseSlots: backfill a protocol started before install ──
+test('elapsedDoseSlots: once-daily started 5 days ago → one slot per day incl today', () => {
+  const now = new Date('2026-09-13T15:00:00').getTime();
+  const p = { start_date: '2026-09-08', interval_days: 1, doses_per_day: 1, reminder_time: '08:00' };
+  const slots = elapsedDoseSlots(p, now);
+  assert.equal(slots.length, 6); // 09-08 .. 09-13, 08:00 each (all <= 15:00 today)
+});
+
+test('elapsedDoseSlots: twice-daily excludes today\'s future slot', () => {
+  const now = new Date('2026-09-13T12:00:00').getTime();
+  const p = { start_date: '2026-09-11', interval_days: 1, doses_per_day: 2, reminder_time: '08:00,20:00' };
+  const slots = elapsedDoseSlots(p, now);
+  assert.equal(slots.length, 5); // 11:(08,20) 12:(08,20) 13:(08 only — 20:00 is future)
+});
+
+test('elapsedDoseSlots: honors every-other-day interval', () => {
+  const now = new Date('2026-09-13T10:00:00').getTime();
+  const p = { start_date: '2026-09-07', interval_days: 2, doses_per_day: 1, reminder_time: '09:00' };
+  const slots = elapsedDoseSlots(p, now);
+  assert.equal(slots.length, 4); // 09-07, 09, 11, 13
+});
+
+test('elapsedDoseSlots: no start_date, or a future start, yields nothing', () => {
+  const now = new Date('2026-09-13T10:00:00').getTime();
+  assert.deepEqual(elapsedDoseSlots({ interval_days: 1, doses_per_day: 1, reminder_time: '08:00' }, now), []);
+  assert.deepEqual(elapsedDoseSlots({ start_date: '2026-09-20', interval_days: 1, doses_per_day: 1, reminder_time: '08:00' }, now), []);
+});
+
+test('elapsedDoseSlots: bounded by maxDays so an ancient start cannot flood', () => {
+  const now = new Date('2026-09-13T23:59:00').getTime();
+  const p = { start_date: '2024-01-01', interval_days: 1, doses_per_day: 1, reminder_time: '08:00' };
+  const slots = elapsedDoseSlots(p, now); // default cap 180 days
+  assert.ok(slots.length <= 181, `expected <=181, got ${slots.length}`);
+  assert.ok(slots.length >= 180, `expected >=180, got ${slots.length}`);
 });
