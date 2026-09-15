@@ -344,7 +344,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 placeholderTextColor={colors.textFaint}
                 value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
               />
-              <Text style={s.fieldLabel}>{t('profile_birth')} <Text style={s.req}>*</Text></Text>
+              <Text style={s.fieldLabel}>{t('profile_birth_month')} <Text style={s.req}>*</Text></Text>
               {/* Month as a full grid (all 12 visible), year as a typed field —
                   scrolling through ~70 years horizontally was the bad UX. */}
               <View style={s.pillRow}>
@@ -354,8 +354,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   </TouchableOpacity>
                 ))}
               </View>
+              <Text style={s.fieldLabel}>{t('profile_birth_year')} <Text style={s.req}>*</Text></Text>
               <TextInput
-                style={[s.input, { marginTop: 10 }]}
+                style={[s.input, { marginTop: 0 }]}
                 placeholder={t('profile_birth_year_ph')}
                 placeholderTextColor={colors.textFaint}
                 value={birthYearText}
@@ -573,7 +574,7 @@ function makeStyles(colors) {
     multiHint: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -6, marginBottom: 14 },
     reqLegend: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -8, marginBottom: 4 },
     req: { color: colors.danger, fontWeight: '700' },
-    fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 18, marginBottom: 8 },
+    fieldLabel: { fontSize: 12.5, fontWeight: '800', color: colors.text, marginTop: 18, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
     sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
     input: {
       backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
