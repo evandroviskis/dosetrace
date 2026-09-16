@@ -535,9 +535,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   style={[s.langOpt, i > 0 && s.langDiv, on && s.langOptOn]}
                   onPress={() => { setLanguage(l.code); setShowLang(false); }}
                 >
-                  {/* color is an explicit theme token on BOTH states so the row can
-                      never render as invisible text (the light-theme white-on-white bug). */}
-                  <Text style={[s.langOptText, on && s.langOptTextOn]}>{l.label}</Text>
+                  {/* Use `native` (the localized language name) — the LANGUAGES
+                      objects have code/name/native/flag, NO `label`, so `l.label`
+                      rendered as blank rows (invisible picker). Color is an explicit
+                      theme token on both states so it can't go white-on-white either. */}
+                  <Text style={[s.langOptText, on && s.langOptTextOn]}>{l.native}</Text>
                   {on && <Text style={s.langCheck}>✓</Text>}
                 </TouchableOpacity>
               );
