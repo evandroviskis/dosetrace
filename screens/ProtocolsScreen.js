@@ -1421,7 +1421,7 @@ export default function ProtocolsScreen() {
   function promptUpgrade() {
     Alert.alert(t('protocols_limit_title'), t('protocols_limit_msg'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('protocols_limit_upgrade'), onPress: () => navigation.navigate('Paywall') },
+      { text: t('protocols_limit_upgrade'), onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
     ]);
   }
 

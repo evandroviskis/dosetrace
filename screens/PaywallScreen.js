@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -21,6 +22,7 @@ import {
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
+import AccumulationHero from '../components/AccumulationHero';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
 
@@ -28,6 +30,11 @@ export default function PaywallScreen({ navigation, route }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const { width: winW } = useWindowDimensions();
+  const heroW = Math.min(360, winW - 72);
+  // Which entry point sent the user here (serum card, PDF wall, 2nd-upload wall,
+  // settings, protocol limit, preview sheet, …) — for per-source conversion.
+  const source = route?.params?.source || 'unknown';
   const [selected, setSelected] = useState('annual');
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +70,7 @@ export default function PaywallScreen({ navigation, route }) {
 
   useEffect(() => {
     Analytics.viewed('paywall');
+    Analytics.paywallViewed(source); // conversion funnel: per-source view
     loadOfferings();
   }, []);
 
@@ -126,11 +134,12 @@ export default function PaywallScreen({ navigation, route }) {
     return t(key).replace('{price}', price);
   }
 
-  async function doPurchase(pkg) {
+  async function doPurchase(pkg, plan) {
     if (!pkg) {
       Alert.alert(t('error'), t('paywall_product_unavailable'));
       return;
     }
+    Analytics.paywallCtaTapped({ plan, source });
     setPurchasing(true);
     const result = await purchasePackage(pkg);
     setPurchasing(false);
@@ -138,6 +147,7 @@ export default function PaywallScreen({ navigation, route }) {
     if (result.success) {
       // Re-check entitlement before unlocking
       const premium = result.premium || (await isPremium());
+      if (premium) Analytics.purchaseCompleted({ plan, source });
       if (premium && onSuccess) onSuccess();
       navigation.goBack();
     } else if (!result.cancelled) {
@@ -146,11 +156,11 @@ export default function PaywallScreen({ navigation, route }) {
   }
 
   function handlePurchase() {
-    doPurchase(selectedPkg);
+    doPurchase(selectedPkg, selected);
   }
 
   function handleLifetime() {
-    doPurchase(lifetimePkg);
+    doPurchase(lifetimePkg, 'lifetime');
   }
 
   async function handleRestore() {
@@ -185,7 +195,13 @@ export default function PaywallScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
 
         <View style={s.hero}>
-          <View style={s.heroIcon}><FeatureIcon name="curve" size={52} color={colors.accent} /></View>
+          {/* Show the moat, don't describe it: the dose-accumulation curve draws
+              itself at the actual purchase moment. Illustrative Example data only —
+              the user's real curve is computed from their own log once Pro. */}
+          <View style={s.heroCurve}>
+            <AccumulationHero width={heroW} height={140} />
+            <Text style={s.heroExample}>{t('paywall_hero_example')}</Text>
+          </View>
           <Text style={s.heroTitle}>{t('paywall_hero_title')}</Text>
           <Text style={s.heroSub}>
             {t('paywall_hero_sub')}
@@ -378,6 +394,8 @@ const makeStyles = (c) => StyleSheet.create({
   navTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   hero: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
   heroIcon: { marginBottom: 12, alignItems: 'center' },
+  heroCurve: { alignItems: 'center', marginBottom: 14, width: '100%' },
+  heroExample: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginTop: 2 },
   heroTitle: { fontSize: 26, lineHeight: 34, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
   heroSub: { fontSize: 14, color: c.textMuted, textAlign: 'center', lineHeight: 22 },
   loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },

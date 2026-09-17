@@ -93,7 +93,7 @@ export default function SerumCurveScreen() {
         // Dose accumulation / serum curve is a Premium feature. Guard here so no
         // entry path (deep link, back-stack) can reach it without an entitlement.
         if (!(await isPremium())) {
-          if (isMounted) navigation.replace('Paywall');
+          if (isMounted) navigation.replace('Paywall', { source: 'serum_direct' });
           return;
         }
         if (isMounted) fetchData();

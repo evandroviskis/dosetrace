@@ -29,6 +29,7 @@ import { requestSync } from '../lib/sync';
 import { requestAIConsent } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import AccumulationHero from '../components/AccumulationHero';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
@@ -152,6 +153,7 @@ export default function BodyScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showSerumPreview, setShowSerumPreview] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [extractedMarkers, setExtractedMarkers] = useState([]);
   const [reportDate, setReportDate] = useState('');
@@ -587,7 +589,7 @@ export default function BodyScreen({ navigation, route }) {
     // even if this is reached by dismissing a dialog. CSV stays free.
     if (kind === 'pdf' && !(await isPremium())) {
       Alert.alert(t('export_premium_title'), t('export_premium_sub'), [
-        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
+        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall', { source: 'export_pdf' }) },
         { text: t('cancel'), style: 'cancel' },
       ]);
       return;
@@ -686,7 +688,13 @@ export default function BodyScreen({ navigation, route }) {
             ))}
 
             {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed('serum_curve'); navigation.navigate(premium ? 'SerumCurve' : 'Paywall'); }}>
+            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => {
+              Analytics.viewed('serum_curve');
+              if (premium) { navigation.navigate('SerumCurve'); return; }
+              // Free: show the value first (an Example curve) before the paywall.
+              Analytics.previewSheetViewed('serum_curve');
+              setShowSerumPreview(true);
+            }}>
               <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
                 <AccumGlyph color={colors.accentSoftText} />
               </View>
@@ -753,7 +761,11 @@ export default function BodyScreen({ navigation, route }) {
           <View style={s.premiumBannerLeft}>
             <Text style={s.premiumBannerTitle}>{t('blood_premium_badge')}</Text>
             <Text style={s.premiumBannerSub}>
-              {uploadCount === 0 ? t('blood_first_free') : t('blood_premium_only')}
+              {uploadCount === 0
+                ? t('blood_first_free')
+                : (markerSeries.length > 0
+                    ? t('blood_premium_markers').replace('{n}', String(markerSeries.length))
+                    : t('blood_premium_only'))}
             </Text>
           </View>
           <TouchableOpacity
@@ -1004,7 +1016,7 @@ export default function BodyScreen({ navigation, route }) {
   style={s.upgradePrimaryBtn}
   onPress={() => {
     setShowUpgradeModal(false);
-    setTimeout(() => navigation.navigate('Paywall'), 300);
+    setTimeout(() => navigation.navigate('Paywall', { source: 'bloodwork_upload' }), 300);
   }}
 >
   <Text style={s.upgradePrimaryBtnText}>{t('blood_start_trial')}</Text>
@@ -1014,6 +1026,35 @@ export default function BodyScreen({ navigation, route }) {
   <Text style={s.trialBadgeText}>{t('blood_trial_badge')}</Text>
 </View>
 
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* SERUM-CURVE PREVIEW SHEET — show the moat (an Example curve) before the
+          paywall. Illustrative data only; the real curve is from the user's own
+          log once Pro. */}
+      <Modal visible={showSerumPreview} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <View style={{ width: 60 }} />
+            <Text style={s.modalTitle}>{t('serum_preview_title')}</Text>
+            <TouchableOpacity onPress={() => setShowSerumPreview(false)} style={{ width: 60, alignItems: 'flex-end' }}>
+              <Text style={s.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
+            <View style={{ height: 12 }} />
+            <AccumulationHero width={Math.min(360, windowWidth - 72)} height={150} />
+            <Text style={s.serumExample}>{t('paywall_hero_example')}</Text>
+            <Text style={s.serumPreviewBody}>{t('serum_preview_body')}</Text>
+            <TouchableOpacity
+              style={s.serumUnlockBtn}
+              onPress={() => { setShowSerumPreview(false); setTimeout(() => navigation.navigate('Paywall', { source: 'serum_preview_sheet' }), 300); }}
+            >
+              <Text style={s.serumUnlockBtnText}>{t('preview_unlock_cta')}</Text>
+            </TouchableOpacity>
+            <Text style={s.serumPreviewNote}>{t('body_hub_footnote')}</Text>
             <View style={{ height: 40 }} />
           </ScrollView>
         </SafeAreaView>
@@ -1385,6 +1426,12 @@ const makeStyles = (c) => StyleSheet.create({
   upgradeFeatText: { fontSize: 13, color: c.textMuted, flex: 1, lineHeight: 20 },
   upgradePrimaryBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
   upgradePrimaryBtnText: { color: c.accentText, fontSize: 15, fontWeight: '600' },
+  // Serum-curve preview sheet
+  serumExample: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginTop: 4 },
+  serumPreviewBody: { fontSize: 14.5, color: c.textMuted, textAlign: 'center', lineHeight: 22, marginTop: 18, paddingHorizontal: 6 },
+  serumUnlockBtn: { backgroundColor: c.accent, paddingVertical: 15, paddingHorizontal: 28, borderRadius: 14, alignItems: 'center', marginTop: 24, alignSelf: 'stretch' },
+  serumUnlockBtnText: { color: c.accentText, fontSize: 16, fontWeight: '700' },
+  serumPreviewNote: { fontSize: 12, color: c.textFaint, textAlign: 'center', lineHeight: 17, marginTop: 18 },
   upgradeTrialNote: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginBottom: 20 },
   upgradeDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
   upgradeDividerLine: { flex: 1, height: 0.5, backgroundColor: c.border },

@@ -34,7 +34,7 @@ export default function JourneyScreen() {
     <TouchableOpacity
       style={s.curveCard}
       activeOpacity={0.75}
-      onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall')}
+      onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall', premium ? undefined : { source: 'journey_serum' })}
     >
       <View style={s.curveIcon}><FeatureIcon name="curve" size={26} color={colors.accent} /></View>
       <View style={{ flex: 1 }}>

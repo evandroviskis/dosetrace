@@ -224,7 +224,7 @@ export default function LogScreen() {
         <Text style={s.headerTitle}>{t('log_title')}</Text>
         <TouchableOpacity
           style={s.curveBtn}
-          onPress={async () => { Analytics.viewed('serum_curve'); navigation.navigate((await isPremium()) ? 'SerumCurve' : 'Paywall'); }}
+          onPress={async () => { Analytics.viewed('serum_curve'); const pro = await isPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
           accessibilityRole="button"
           accessibilityLabel={t('curve_btn')}
         >

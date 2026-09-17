@@ -555,7 +555,7 @@ export default function SettingsScreen({ navigation }) {
             ))}
             <TouchableOpacity
               style={s.premiumBtn}
-              onPress={() => navigation.navigate('Paywall')}
+              onPress={() => navigation.navigate('Paywall', { source: 'settings' })}
             >
               <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
             </TouchableOpacity>
