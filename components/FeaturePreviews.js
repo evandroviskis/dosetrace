@@ -41,7 +41,7 @@ function MarkerTrendPreview({ colors, t, width }) {
         <Text style={s.mkName}>Testosterone</Text>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
           <Text style={s.mkVal}>742</Text>
-          <Text style={[s.pill, { color: colors.success, backgroundColor: withA(colors.success, 0.16) }]}>▲ 41%</Text>
+          <Text style={[s.pill, { color: colors.accentSoftText, backgroundColor: colors.accentSoft }]}>▲ 41%</Text>
         </View>
       </View>
       <Text style={s.mkRange}>ng/dL · 4 tests · reference 300–1000</Text>
@@ -59,7 +59,7 @@ function MarkerTrendPreview({ colors, t, width }) {
       <View style={s.chips}>
         {chips.map((c) => (
           <View key={c.n} style={s.chip}>
-            <Text style={s.chipText}>{c.n} <Text style={s.chipB}>{c.v}</Text> <Text style={{ color: c.up ? colors.success : colors.danger }}>{c.up ? '▲' : '▼'}</Text></Text>
+            <Text style={s.chipText}>{c.n} <Text style={s.chipB}>{c.v}</Text> <Text style={{ color: colors.textMuted }}>{c.up ? '▲' : '▼'}</Text></Text>
           </View>
         ))}
       </View>
@@ -118,8 +118,8 @@ function ScanPreview({ colors, t, width }) {
 function VaccinePreview({ colors, t, width }) {
   const s = useMemo(() => makeStyles(colors), [colors]);
   const rows = [
-    { n: 'Influenza', sub: 'Given 12 Mar 2026', badge: t('pw_prev_vax_due'), due: true },
-    { n: 'Tetanus (Tdap)', sub: 'Given 04 Aug 2024', badge: t('pw_prev_vax_ok'), due: false },
+    { n: 'Influenza', sub: '2026-03-12', badge: t('pw_prev_vax_due'), due: true },
+    { n: 'Tetanus (Tdap)', sub: '2024-08-04', badge: t('pw_prev_vax_ok'), due: false },
     { n: 'Hepatitis B', sub: t('pw_prev_vax_dose'), badge: t('pw_prev_vax_due'), due: true },
   ];
   return (
@@ -131,7 +131,7 @@ function VaccinePreview({ colors, t, width }) {
             <Text style={s.vname}>{r.n}</Text>
             <Text style={s.vsub}>{r.sub}</Text>
           </View>
-          <Text style={[s.vbadge, { color: r.due ? colors.warning : colors.success, backgroundColor: withA(r.due ? colors.warning : colors.success, 0.16) }]}>{r.badge}</Text>
+          <Text style={[s.vbadge, { color: r.due ? colors.warningSoftText : colors.successSoftText, backgroundColor: r.due ? colors.warningSoft : colors.successSoft }]}>{r.badge}</Text>
         </View>
       ))}
     </View>

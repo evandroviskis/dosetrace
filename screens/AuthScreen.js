@@ -67,6 +67,7 @@ export default function AuthScreen({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [isSignIn, setIsSignIn] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0); // seconds until resend allowed again
   const [hasStash, setHasStash] = useState(false);
 
   // Stash-derived signup payload (never rendered as fields — the intro collected it).
@@ -171,8 +172,28 @@ export default function AuthScreen({ onBack }) {
         language,
         region: Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone || null,
       });
+      // If the project auto-confirms email, signUp returns a session and
+      // onAuthStateChange signs the user straight in — DON'T show the
+      // "check your email" screen in that case (App.js routes on the session).
+      if (result.data?.session) return;
       setSignupDone(true);
     }
+  }
+
+  // Open the device mail app so the user can find the confirmation link.
+  function openMailApp() {
+    const url = Platform.OS === 'ios' ? 'message://' : 'mailto:';
+    Linking.openURL(url).catch(() => Linking.openURL('mailto:').catch(() => {}));
+  }
+
+  // Resend the signup confirmation email (with a 30s cooldown to avoid spam).
+  async function handleResend() {
+    if (resendCooldown > 0) return;
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: emailConfirmRedirectUrl() } });
+    if (error) { Alert.alert(t('error'), friendlyError(error, t)); return; }
+    Alert.alert(t('signup_resent'), t('onboarding_confirm_msg').replace('{email}', email.trim()));
+    setResendCooldown(30);
+    const iv = setInterval(() => setResendCooldown((s) => { if (s <= 1) { clearInterval(iv); return 0; } return s - 1; }), 1000);
   }
 
   // ---- Views ----
@@ -189,8 +210,21 @@ export default function AuthScreen({ onBack }) {
           <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
           <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
           <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
-          <TouchableOpacity style={s.primaryBtn} onPress={() => { setSignupDone(false); setIsSignIn(true); setPassword(''); }}>
-            <Text style={s.primaryBtnText}>{t('onboarding_go_signin')}</Text>
+          {/* Lead with the actual next step (open the email), then resend / fix a
+              typo, and keep sign-in as the last step for when they come back. */}
+          <TouchableOpacity style={s.primaryBtn} onPress={openMailApp}>
+            <Text style={s.primaryBtnText}>{t('signup_open_email')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.secondaryBtn} onPress={handleResend} disabled={resendCooldown > 0}>
+            <Text style={[s.secondaryBtnText, resendCooldown > 0 && { color: colors.textFaint }]}>
+              {resendCooldown > 0 ? `${t('signup_resend')} (${resendCooldown})` : t('signup_resend')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.secondaryBtn} onPress={() => { setSignupDone(false); setIsSignIn(true); setPassword(''); }}>
+            <Text style={s.secondaryBtnText}>{t('onboarding_go_signin')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.tertiaryLink} onPress={() => { setSignupDone(false); setIsSignIn(false); setPassword(''); }}>
+            <Text style={s.tertiaryLinkText}>{t('signup_wrong_email')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -296,6 +330,10 @@ const makeStyles = (c) => StyleSheet.create({
   consentLink: { color: c.accent, fontWeight: '600' },
   primaryBtn: { backgroundColor: c.accent, padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
   primaryBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
+  secondaryBtn: { padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border, marginBottom: 10 },
+  secondaryBtnText: { color: c.text, fontSize: 15, fontWeight: '600' },
+  tertiaryLink: { paddingVertical: 10, alignItems: 'center' },
+  tertiaryLinkText: { color: c.textMuted, fontSize: 14, fontWeight: '500' },
   switchBtn: { padding: 12, alignItems: 'center' },
   switchBtnText: { fontSize: 14, color: c.accent },
 });

@@ -43,7 +43,7 @@ import {
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
-import { matchesQuery, blendComposition } from '../lib/compounds';
+import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
 import { backfillTakenDoses } from '../lib/doseActions';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
@@ -1603,6 +1603,12 @@ export default function ProtocolsScreen() {
                 </View>
 
                 <Text style={s.fieldLabel}>{t('protocols_compound_name')}</Text>
+                {compoundId && BLEND_IDS.includes(compoundId) && (
+                  <Text style={s.noCurveNote}>{t('blend_curve_note')}</Text>
+                )}
+                {compoundId && compoundId.startsWith('rtu_insulin_') && (
+                  <Text style={s.noCurveNote}>{t('insulin_no_curve_note')}</Text>
+                )}
                 <TextInput
                   style={s.input}
                   placeholder={t('protocols_name_placeholder')}
@@ -2649,6 +2655,7 @@ const makeStyles = (c) => StyleSheet.create({
   suggestionBox: { backgroundColor: c.card, borderRadius: 10, ...c.shadowSoft, marginBottom: 14 },
   suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   suggestionText: { fontSize: 13, color: c.text },
-  suggestionSub: { fontSize: 11, color: c.textFaint, marginTop: 2 },
+  suggestionSub: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  noCurveNote: { fontSize: 12, color: c.textMuted, marginBottom: 8, lineHeight: 17 },
   suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },
 });

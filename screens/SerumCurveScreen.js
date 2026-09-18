@@ -21,6 +21,7 @@ import { translations } from '../i18n/translations';
 import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry } from '../lib/halfLives';
+import { BLEND_IDS, blendComponents } from '../lib/compounds';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -105,8 +106,26 @@ export default function SerumCurveScreen() {
   async function fetchData() {
     const user = await getCachedUser();
     if (!user) return;
-    const active = (getActiveProtocols(user.id) || [])
-      .filter(p => ['recon', 'rtu'].includes(p.type))
+    // Blends (Wolverine/Glow/KLOW) are expanded into one virtual protocol per
+    // component, its dose split from the logged blend dose by the common ratio
+    // (lib/compounds BLEND_RATIOS). Each component then charts its own line, like
+    // any compound. Ratios vary by source — the curve shows the blend_curve_caveat.
+    const BLEND_COLORS = ['#4C93E0', '#1D9E75', '#D85A30', '#7F77DD'];
+    const raw = (getActiveProtocols(user.id) || []).filter(p => ['recon', 'rtu'].includes(p.type));
+    const expanded = [];
+    for (const p of raw) {
+      const comps = p.compound_id && BLEND_IDS.includes(p.compound_id) ? blendComponents(p.compound_id, p.dose) : null;
+      if (comps && comps.length) {
+        comps.forEach((c, idx) => expanded.push({
+          ...p, id: `${p.id}__${c.id}`, compound_id: c.id, dose: c.dose,
+          color: BLEND_COLORS[idx % BLEND_COLORS.length],
+          __label: `${t(p.compound_id)} · ${t(c.id)}`, __blend: p.compound_id,
+        }));
+      } else {
+        expanded.push(p);
+      }
+    }
+    const active = expanded
       // IU-dosed compounds (HCG, insulins, HMG/FSH) can't be plotted or summed on a
       // mg axis — IU→mg is not a unit conversion — so they're excluded from the curve.
       .filter(p => (p.dose_unit || '').toLowerCase() !== 'iu')
@@ -200,8 +219,9 @@ export default function SerumCurveScreen() {
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       return {
         id: p.id,
-        name: p.compound_id ? t(p.compound_id) : p.name,
+        name: p.__label || (p.compound_id ? t(p.compound_id) : p.name),
         color: p.color || colors.accent,
+        fromBlend: !!p.__blend,
         entry,
         points,
         dosesInWindow,
@@ -348,6 +368,12 @@ export default function SerumCurveScreen() {
             <View style={s.disclaimerBox}>
               <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
             </View>
+
+            {model && model.series.some(ser => ser.fromBlend) && (
+              <View style={s.disclaimerBox}>
+                <Text style={s.disclaimerText}>{t('blend_curve_caveat')}</Text>
+              </View>
+            )}
 
             <Svg width={chartWidth} height={chartHeight}>
               {/* future projection zone */}
