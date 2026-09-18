@@ -185,6 +185,7 @@ export default function AuthScreen({ onBack }) {
               <Text style={s.backChevron}>‹</Text>
             </TouchableOpacity>
           )}
+          <View style={s.successBadge}><Text style={s.successCheck}>✓</Text></View>
           <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
           <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
           <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
@@ -274,6 +275,8 @@ const makeStyles = (c) => StyleSheet.create({
   scroll: { flex: 1 },
   body: { paddingHorizontal: 24, paddingTop: 32, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   hero: { marginBottom: 20 },
+  successBadge: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  successCheck: { fontSize: 34, fontWeight: '800', color: c.success },
   title: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 12, lineHeight: 34 },
   sub: { fontSize: 15, color: c.textMuted, lineHeight: 24, marginBottom: 28 },
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card, marginBottom: 16, gap: 10 },
