@@ -119,7 +119,7 @@ export default function SerumCurveScreen() {
         comps.forEach((c, idx) => expanded.push({
           ...p, id: `${p.id}__${c.id}`, compound_id: c.id, dose: c.dose,
           color: BLEND_COLORS[idx % BLEND_COLORS.length],
-          __label: `${t(p.compound_id)} · ${t(c.id)}`, __blend: p.compound_id,
+          __label: `${t(p.compound_id)} · ${t(c.id)} ${t('blend_est_marker')}`, __blend: p.compound_id,
         }));
       } else {
         expanded.push(p);
