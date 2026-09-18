@@ -29,6 +29,23 @@ crash. Grep the diff for raw hex / hardcoded `#fff`/`white`/`black` and for any 
 `Text` that sets a background or color without a theme token. This is part of ship-check
 Gate A now.
 
+**HARD-LINE reinforcement (2026-09-18, founder directive — "I can't afford errors just
+because you didn't check the same screen on the other theme"):** this is now a
+NON-NEGOTIABLE, per-screen gate before EVERY build. Two mandatory passes:
+1. **Static sweep (always):** grep every changed file for raw hex, `'white'`/`'black'`,
+   `rgba(...)` with literal colors, and any color/background not from a `colors.*`/`c.*`
+   token. Any hardcoded color must be justified as sitting on a *deliberately fixed*
+   surface (toast, share-card export, a solid-accent card, brand marks, the user
+   protocol-color palette) — otherwise it's a bug. New tokens go in `lib/theme.js` for
+   BOTH palettes.
+2. **Both-theme render pass (every screen the change touches, incl. every modal/sheet/
+   picker/dropdown):** view it in LIGHT and in DARK. A control that's invisible or
+   low-contrast in either theme is a ship blocker. If the simulator can't be driven to
+   the screen, say so explicitly and have the founder eyeball both themes before build —
+   never assume the untested theme is fine.
+Report which screens were checked in both themes as part of ship-check Gate A. "I checked
+one theme" is not done.
+
 ## Standing rule: NEVER lose user-entered data (2026-09-12, founder directive)
 
 Data a user typed in must survive **app updates, screen/flow rebuilds, re-auth, and

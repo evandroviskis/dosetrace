@@ -23,6 +23,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import AccumulationHero from '../components/AccumulationHero';
+import { FeaturePreviewSheet, PREVIEW_FEATURES } from '../components/FeaturePreviews';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
 
@@ -41,7 +42,13 @@ export default function PaywallScreen({ navigation, route }) {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [trialEligibility, setTrialEligibility] = useState(null); // null = unknown
+  const [previewKey, setPreviewKey] = useState(null); // which feature preview sheet is open
   const onSuccess = route?.params?.onSuccess;
+
+  function openPreview(key) {
+    Analytics.previewSheetViewed(key);
+    setPreviewKey(key);
+  }
 
   const FREE_FEATURES = [
     { label: t('paywall_free_feat_1'), included: true },   // Reconstitution calculator
@@ -206,6 +213,19 @@ export default function PaywallScreen({ navigation, route }) {
           <Text style={s.heroSub}>
             {t('paywall_hero_sub')}
           </Text>
+        </View>
+
+        {/* Tap any feature to SEE it (an Example simulation) before deciding. */}
+        <View style={s.previewSection}>
+          <Text style={s.previewHeading}>{t('pw_preview_heading')}</Text>
+          <Text style={s.previewHint}>{t('pw_preview_hint')}</Text>
+          {PREVIEW_FEATURES.map((f) => (
+            <TouchableOpacity key={f.key} style={s.previewRow} activeOpacity={0.7} onPress={() => openPreview(f.key)}>
+              <View style={s.previewRowIcon}><FeatureIcon name={f.icon} size={20} color={colors.accent} /></View>
+              <Text style={s.previewRowText}>{t(f.titleKey)}</Text>
+              <Text style={s.previewRowArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {loading ? (
@@ -382,6 +402,8 @@ export default function PaywallScreen({ navigation, route }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} />
     </SafeAreaView>
   );
 }
@@ -393,6 +415,13 @@ const makeStyles = (c) => StyleSheet.create({
   navBack: { fontSize: 14, color: c.accent, width: 60 },
   navTitle: { fontSize: 15, fontWeight: '600', color: c.text },
   hero: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
+  previewSection: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 4 },
+  previewHeading: { fontSize: 15, fontWeight: '800', color: c.text, letterSpacing: -0.2 },
+  previewHint: { fontSize: 12.5, color: c.textMuted, marginTop: 2, marginBottom: 10 },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 12, marginBottom: 8 },
+  previewRowIcon: { width: 30, alignItems: 'center' },
+  previewRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: c.text },
+  previewRowArrow: { fontSize: 18, color: c.textFaint },
   heroIcon: { marginBottom: 12, alignItems: 'center' },
   heroCurve: { alignItems: 'center', marginBottom: 14, width: '100%' },
   heroExample: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginTop: 2 },
