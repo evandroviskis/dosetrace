@@ -425,20 +425,38 @@ export default function SettingsScreen({ navigation }) {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || t('error_deletion_failed'));
 
-      // Clear local data and sign out (local scope — the auth account is already
-      // deleted server-side, so no global revoke is needed).
-      stopSyncEngine();
-      clearLocalDatabase();
-      // Fully detach the native Google session (signOut + revoke) so the deleted
-      // account can't be silently re-authenticated — the next Google sign-in
-      // shows the chooser and consent, making a new account a conscious choice.
-      markIntentionalSignOut(); // deliberate account deletion — full wipe
-      await signOutGoogleNative({ revoke: true });
-      try { await supabase.auth.signOut({ scope: 'local' }); }
-      catch { await supabase.auth.signOut().catch(() => {}); }
+      // The account + data are deleted. If the user signed in with Apple but we
+      // had no stored token to auto-revoke (a pre-feature account, or a transient
+      // revoke failure), tell them how to remove Apple access themselves — Apple
+      // 5.1.1(v) fallback guidance. The deletion itself already succeeded.
+      if (result.appleManualRevokeNeeded) {
+        Alert.alert(
+          t('settings_delete_apple_revoke_title'),
+          t('settings_delete_apple_revoke_note'),
+          [{ text: t('done'), onPress: () => finishAccountDeletion() }],
+          { cancelable: false },
+        );
+        return;
+      }
+      await finishAccountDeletion();
     } catch (e) {
       Alert.alert(t('error'), friendlyError(e, t, 'error_deletion_failed'));
     }
+  }
+
+  // Local teardown after a confirmed server-side deletion. Clears local data and
+  // signs out (local scope — the auth account is already gone server-side). The
+  // native Google session is fully detached (signOut + revoke) so the deleted
+  // account can't be silently re-authenticated; the next Google sign-in shows the
+  // chooser + consent, making a new account a conscious choice. (Apple sign-in is
+  // revoked server-side in delete-user, or via the guidance note above.)
+  async function finishAccountDeletion() {
+    stopSyncEngine();
+    clearLocalDatabase();
+    markIntentionalSignOut(); // deliberate account deletion — full wipe
+    await signOutGoogleNative({ revoke: true });
+    try { await supabase.auth.signOut({ scope: 'local' }); }
+    catch { await supabase.auth.signOut().catch(() => {}); }
   }
 
   async function fetchDeletedProtocols() {

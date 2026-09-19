@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
@@ -520,10 +520,32 @@ export default function App() {
       }
     });
 
+    // Sign in with Apple: if the user revokes our app's access from iOS Settings →
+    // Apple ID → Sign in with Apple, Apple fires this. Force the app back to an
+    // unauthenticated state (Apple 5.1.1(v) / TN3194). We do NOT wipe local data —
+    // this is not an account deletion; a plain local sign-out routes to Auth and,
+    // because it isn't flagged intentional, keeps the (cloud-backed) data for a
+    // possible re-sign-in. iOS only; the module doesn't exist on Android.
+    let appleRevokeSub;
+    if (Platform.OS === 'ios') {
+      try {
+        const AA = require('expo-apple-authentication');
+        appleRevokeSub = AA.addRevokeListener(() => {
+          // Deferred off the listener; signOut hits supabase, keep it out of any lock.
+          setTimeout(() => {
+            supabase.auth.signOut({ scope: 'local' }).catch(() => {
+              supabase.auth.signOut().catch(() => {});
+            });
+          }, 0);
+        });
+      } catch { /* module unavailable — no-op */ }
+    }
+
     return () => {
       subscription.unsubscribe();
       stopSyncEngine();
       if (notifResponseSub) notifResponseSub.remove();
+      if (appleRevokeSub) appleRevokeSub.remove();
     };
   }, []);
 

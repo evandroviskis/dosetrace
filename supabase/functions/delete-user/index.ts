@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getAppleConfig, revokeRefreshToken } from '../_shared/apple.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,6 +41,61 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // ── Sign in with Apple: revoke the credential (Apple 5.1.1(v) / TN3194) ──
+    // BEST-EFFORT AND NEVER FAIL-CLOSED. GDPR Art. 17 says a deletion the user
+    // asked for must complete; Apple asks us to *attempt* revoke, not to trap the
+    // user forever when a token is already invalid or a config secret is missing
+    // (journey-review F1/F3). So: try revoke, retry ONCE only on a transient 5xx/
+    // network error, then proceed with deletion regardless and report what happened.
+    //   appleRevoked         — token existed and Apple confirmed revoke (or it was
+    //                          already gone; nothing left to revoke).
+    //   appleManualRevokeNeeded — an Apple credential likely exists but we had no
+    //                          stored token to revoke (pre-feature account, or a
+    //                          transient failure) — the app tells the user they can
+    //                          remove access in iOS Settings → Apple ID.
+    let appleRevoked = false;
+    let appleManualRevokeNeeded = false;
+    try {
+      // apple_tokens is service-role only and may not exist yet (first deploy).
+      const { data: tokenRow, error: tokenErr } = await adminClient
+        .from('apple_tokens')
+        .select('refresh_token')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const isAppleUser = (user.app_metadata?.providers ?? [user.app_metadata?.provider]).includes('apple');
+
+      if (tokenErr && tokenErr.code !== '42P01' && tokenErr.code !== 'PGRST205') {
+        // Unexpected read error — don't block deletion; flag manual revoke.
+        console.error('[delete-user] apple_tokens read error:', tokenErr.code, tokenErr.message);
+        if (isAppleUser) appleManualRevokeNeeded = true;
+      } else if (tokenRow?.refresh_token) {
+        const cfg = getAppleConfig();
+        if (!cfg) {
+          console.warn('[delete-user] Apple secrets not configured; skipping revoke, deleting anyway');
+          appleManualRevokeNeeded = true;
+        } else {
+          let outcome = await revokeRefreshToken(cfg, tokenRow.refresh_token);
+          if (outcome === 'transient_error') {
+            outcome = await revokeRefreshToken(cfg, tokenRow.refresh_token); // retry once
+          }
+          if (outcome === 'revoked' || outcome === 'already_gone') {
+            appleRevoked = true;
+          } else {
+            // transient_error after retry, or config_missing — delete anyway.
+            appleManualRevokeNeeded = true;
+          }
+        }
+      } else if (isAppleUser) {
+        // Apple account but no stored token (signed in before this shipped, and
+        // hasn't signed in since to backfill). Can't revoke what we never stored.
+        appleManualRevokeNeeded = true;
+      }
+    } catch (e) {
+      console.error('[delete-user] apple revoke step threw (continuing):', (e as Error)?.message);
+      appleManualRevokeNeeded = true;
+    }
+
     // A table that was never created surfaces as 42P01 (Postgres "relation does
     // not exist") OR PGRST205 (PostgREST "not found in schema cache", e.g.
     // notification_preferences, which actually lives in user_metadata). Both mean
@@ -51,6 +107,9 @@ Deno.serve(async (req) => {
     // as promised by the in-app privacy policy ("deletion of your account and
     // all associated data"). Ordered children-first to respect foreign keys:
     // dose_logs and vials reference protocols; everything references auth.users.
+    // NOTE: this list MUST stay a superset of lib/syncCore.js TABLES — a synced
+    // table left off here leaks the user's data past deletion (journey-review F4).
+    // __tests__/delete-user-covers-sync-tables enforces that.
     const userDataTables = [
       'dose_logs',
       'vials',
@@ -58,10 +117,16 @@ Deno.serve(async (req) => {
       'biomarkers',
       'vaccines',
       'food_logs',
+      'reality_checks',
+      'calc_snapshots',
+      'calc_targets',
       'ai_food_usage',
+      'ai_scan_usage',
+      'reminders',
       'notification_preferences',
       'analytics_events',
       'referral_codes',
+      'apple_tokens',
     ];
 
     for (const table of userDataTables) {
@@ -99,7 +164,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, appleRevoked, appleManualRevokeNeeded }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
