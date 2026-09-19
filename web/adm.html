@@ -639,6 +639,13 @@
       render();
     }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'</div>';});
   }
+  // No token from a link or this session? Offer a URL-free entry: prompt once and
+  // keep it in sessionStorage (cleared when the tab closes). Preferred over a
+  // sticky ?token= in the URL. The URL is already stripped above (replaceState).
+  if(!token){
+    try{ token=(window.prompt('Admin token')||'').trim(); }catch(e){ token=''; }
+    if(token){ try{ sessionStorage.setItem('dt_adm_token',token); }catch(e){} }
+  }
   if(!token){app.innerHTML='<div class="center">'+t('need_link')+'</div>';return;}
   load();
 })();
