@@ -118,6 +118,7 @@ p { margin: 0; }
 .section-head h2 { font-size: clamp(28px, 4vw, 44px); }
 .section-head p { color: var(--muted); font-size: clamp(16px, 1.4vw, 18px); margin-top: 16px; }
 .lead { color: var(--muted); font-size: clamp(17px, 1.5vw, 20px); }
+.hero-tagline { color: var(--accent-ink); font-family: var(--font-head); font-weight: 600; font-size: clamp(14px, 1.2vw, 16px); margin: 12px 0 0; }
 
 /* ---------- Buttons ---------- */
 .btn {
