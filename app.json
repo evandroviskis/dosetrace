@@ -3,7 +3,7 @@
     "name": "DoseTrace",
     "slug": "dosetrace",
     "scheme": "dosetrace",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +16,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "io.outcom.dosetrace",
-      "buildNumber": "2",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSDocumentPickerUsageDescription": "DoseTrace needs access to your files to upload bloodwork PDFs.",

@@ -36,3 +36,26 @@ test('every synced table (syncCore.TABLES) is deleted by delete-user', () => {
     `delete-user is missing synced tables (they would leak past deletion): ${missing.join(', ')}`,
   );
 });
+
+// clearLocalDatabase() is the LOCAL wipe on intentional sign-out — and the
+// shared-device cross-account leak guard. If a new synced table is added to
+// syncCore.TABLES but not deleted here, the prior user's rows for that table
+// survive a sign-out on a shared device. Keep it a superset of TABLES.
+const clearLocalSrc = fs.readFileSync(
+  path.join(__dirname, '..', 'lib', 'database.js'),
+  'utf8',
+);
+const clearFn = clearLocalSrc.match(/export function clearLocalDatabase\s*\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+
+test('clearLocalDatabase deletes every synced table (shared-device leak guard)', () => {
+  assert.ok(clearFn, 'could not find clearLocalDatabase in lib/database.js');
+  const deleted = new Set(
+    [...clearFn[1].matchAll(/DELETE FROM\s+([A-Za-z0-9_]+)/gi)].map((x) => x[1]),
+  );
+  const missing = TABLES.filter((tbl) => !deleted.has(tbl));
+  assert.deepEqual(
+    missing,
+    [],
+    `clearLocalDatabase is missing synced tables (prior user's rows would leak on a shared device): ${missing.join(', ')}`,
+  );
+});
