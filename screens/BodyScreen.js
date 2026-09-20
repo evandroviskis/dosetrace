@@ -21,7 +21,7 @@ import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, getAllDataForExport, getVaccines } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { hasNativeModule } from '../lib/nativeModule';
@@ -200,16 +200,24 @@ export default function BodyScreen({ navigation, route }) {
   const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
 
-  // Date view: reports grouped by date, each filtered by the marker search,
-  // sorted by the chosen order. Reports with no matching marker are dropped.
+  // Date view: reports grouped by UPLOAD INSTANCE (report_date + created_at), so a
+  // duplicate or mistaken second upload on the same date shows as its own card and
+  // can be deleted on its own without touching the other. Each filtered by the
+  // marker search, sorted by the chosen order. Reports with no matching marker are
+  // dropped. `key` is the stable instance id used for expand + delete.
   const reports = useMemo(() => {
     const grouped = {};
     for (const row of rows) {
       if (q && !row.marker.toLowerCase().includes(q)) continue;
-      (grouped[row.report_date] ||= []).push(row);
+      const createdAt = row.created_at || '';
+      const key = row.report_date + '|' + createdAt;
+      (grouped[key] ||= { key, date: row.report_date, createdAt, markers: [] }).markers.push(row);
     }
-    const entries = Object.entries(grouped);
-    entries.sort((a, b) => (a[0] < b[0] ? 1 : -1) * (newestFirst ? 1 : -1));
+    const entries = Object.values(grouped);
+    entries.sort((a, b) => {
+      if (a.date !== b.date) return (a.date < b.date ? 1 : -1) * (newestFirst ? 1 : -1);
+      return (a.createdAt < b.createdAt ? 1 : -1) * (newestFirst ? 1 : -1);
+    });
     return entries;
   }, [rows, q, newestFirst]);
 
@@ -572,6 +580,41 @@ export default function BodyScreen({ navigation, route }) {
     fetchReports();
   }
 
+  // Delete a whole uploaded blood-test report (a mistaken or duplicate upload) so
+  // the user can re-upload. Scoped to the upload instance (date + created_at), so
+  // a second report on the same date is untouched. The confirm count is the TRUE
+  // instance size from `rows` (not the search-filtered on-screen markers).
+  function deleteReport(date, createdAt) {
+    const count = rows.filter(r => r.report_date === date && (r.created_at || '') === createdAt).length;
+    Alert.alert(
+      t('blood_report_delete'),
+      `${formatDate(date)} · ${count} ${t('blood_markers')}\n\n${t('blood_report_delete_msg')}`,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('blood_report_delete_confirm'),
+          style: 'destructive',
+          onPress: async () => {
+            const user = await getCachedUser();
+            if (!user) return;
+            deleteBiomarkerReport(user.id, date, createdAt);
+            // Clear this date's tags ONLY if no report remains for the date
+            // (another same-date upload keeps its labels).
+            const remains = (getBiomarkers(user.id) || []).some(r => r.report_date === date);
+            if (!remains && reportTags[date]) {
+              const next = { ...reportTags };
+              delete next[date];
+              saveReportTags(next);
+            }
+            requestSync();
+            setExpanded(null);
+            fetchReports();
+          },
+        },
+      ]
+    );
+  }
+
   // Open the export picker with everything preselected — the user then chooses
   // which markers and vaccines actually go in the report.
   function handleExport() {
@@ -859,11 +902,11 @@ export default function BodyScreen({ navigation, route }) {
               <Text style={s.noResults}>{t('blood_no_results')}</Text>
             )}
 
-            {viewMode === 'date' && reports.map(([date, markers], i) => (
-              <View key={date} style={s.reportGroup}>
+            {viewMode === 'date' && reports.map(({ key, date, createdAt, markers }, i) => (
+              <View key={key} style={s.reportGroup}>
                 <TouchableOpacity
                   style={s.reportHeader}
-                  onPress={() => setExpanded(expanded === date ? null : date)}
+                  onPress={() => setExpanded(expanded === key ? null : key)}
                 >
                   <View style={{ flex: 1, marginRight: 10 }}>
                     <Text style={s.reportDate}>{formatDate(date)}</Text>
@@ -877,11 +920,11 @@ export default function BodyScreen({ navigation, route }) {
                     )}
                   </View>
                   <View style={s.reportBadges}>
-                    <Text style={s.chevron}>{expanded === date ? '▲' : '▶'}</Text>
+                    <Text style={s.chevron}>{expanded === key ? '▲' : '▶'}</Text>
                   </View>
                 </TouchableOpacity>
 
-                {expanded === date && (
+                {expanded === key && (
                   <View style={s.markerList}>
                     <View style={s.tagEditor}>
                       <Text style={s.tagEditorLabel}>{t('blood_tags_title')}</Text>
@@ -898,7 +941,7 @@ export default function BodyScreen({ navigation, route }) {
                           style={s.tagInput}
                           placeholder={t('blood_tag_ph')}
                           placeholderTextColor={colors.textFaint}
-                          value={expanded === date ? tagDraft : ''}
+                          value={expanded === key ? tagDraft : ''}
                           onChangeText={setTagDraft}
                           onSubmitEditing={() => addReportTag(date)}
                           returnKeyType="done"
@@ -922,6 +965,9 @@ export default function BodyScreen({ navigation, route }) {
                         </View>
                       </TouchableOpacity>
                     ))}
+                    <TouchableOpacity style={s.reportDeleteBtn} onPress={() => deleteReport(date, createdAt)}>
+                      <Text style={s.reportDeleteText}>{t('blood_report_delete')}</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -1389,6 +1435,8 @@ const makeStyles = (c) => StyleSheet.create({
   editDateText: { fontSize: 15, color: c.text },
   editDeleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
   editDeleteText: { color: c.danger, fontSize: 14, fontWeight: '600' },
+  reportDeleteBtn: { marginTop: 12, marginHorizontal: 14, marginBottom: 4, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
+  reportDeleteText: { color: c.danger, fontSize: 14, fontWeight: '600' },
   exportPickSub: { fontSize: 13, color: c.textMuted, lineHeight: 19, marginBottom: 8 },
   exportSecHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 6 },
   exportSecTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5 },
