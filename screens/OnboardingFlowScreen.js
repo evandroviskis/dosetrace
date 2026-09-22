@@ -151,12 +151,23 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     return out;
   }, [signedIn, session, meta.consent_accepted]);
 
+  // Self-heal: right after an Apple/Google sign-up the session + metadata hydrate
+  // over a few frames, so activeSteps can shrink (or a consent record lands
+  // mid-flow) while `step` still points past the new end. That makes
+  // activeSteps[step] undefined → the body renders blank with only a stray
+  // Continue, and nothing resets it (the "blank onboarding screen after Sign in
+  // with Apple, had to restart the app" bug). Clamp step back into range.
+  useEffect(() => {
+    if (step > activeSteps.length - 1) setStep(Math.max(0, activeSteps.length - 1));
+  }, [activeSteps.length, step]);
+
   function toggleTracking(key) {
     setTracking((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
   }
 
   const canContinue = () => {
     const cur = activeSteps[step];
+    if (!cur) return false; // step out of range mid-hydration — don't advance a blank step
     if (cur === 'goal') return goals.length > 0;
     if (cur === 'tracking') return tracking.length > 0;
     if (cur === 'about') return !!name.trim() && !!gender && !!country && birthMonth != null && birthYear != null;
