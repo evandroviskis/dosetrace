@@ -35,7 +35,7 @@ import {
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
 import { isPremium } from '../lib/purchases';
 import { COUNTRIES, countryLabel } from '../lib/countries';
-import { syncAllNotifications } from '../lib/notifications';
+import { syncAllNotifications, openBatteryOptimizationSettings } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
@@ -654,6 +654,23 @@ export default function SettingsScreen({ navigation }) {
               trackColor={{ true: colors.switchTrack }}
             />
           </View>
+          {/* Android only: battery optimization silently drops scheduled reminders
+              while the app is closed. Guide the user to set the app to Unrestricted. */}
+          {Platform.OS === 'android' && (
+            <TouchableOpacity
+              style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+              onPress={() => openBatteryOptimizationSettings()}
+            >
+              <View style={s.rowLeft}>
+                <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.accent} /></View>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
+                  <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
+                </View>
+              </View>
+              <Text style={s.rowArrow}>›</Text>
+            </TouchableOpacity>
+          )}
         </View>
         )}
 

@@ -32,7 +32,8 @@
         "backgroundColor": "#0C2340"
       },
       "edgeToEdgeEnabled": true,
-      "package": "io.outcom.dosetrace"
+      "package": "io.outcom.dosetrace",
+      "permissions": ["SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
