@@ -11,7 +11,7 @@ import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supa
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, RC_START_KEY } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, registerPushToken, RC_START_KEY } from './lib/notifications';
 import { getRealityStart } from './lib/realityCheck';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -428,6 +428,7 @@ export default function App() {
         // installs sync notifications against an empty local DB.
         requestNotificationPermissions()
           .then(() => syncAllNotifications())
+          .then(() => registerPushToken())
           .catch(() => {});
       }
       setLoading(false);
@@ -515,6 +516,7 @@ export default function App() {
           // Schedule reminders AFTER the import so they reflect the user's data
           requestNotificationPermissions()
             .then(() => syncAllNotifications())
+            .then(() => registerPushToken())
             .catch(() => {});
         }, 0);
       }
