@@ -1,8 +1,27 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, Image, Animated,
+  View, Text, TextInput, TouchableOpacity, ScrollView, Image,
   StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler, Alert, Linking,
 } from 'react-native';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
+} from 'react-native-reanimated';
+
+// One progress segment: fills (or empties) as you move through the steps.
+function ProgressDash({ on, s }) {
+  const fill = useSharedValue(on ? 1 : 0);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (reduce) { fill.value = on ? 1 : 0; return; }
+    fill.value = withTiming(on ? 1 : 0, { duration: on ? 340 : 240, easing: Easing.out(Easing.cubic) });
+  }, [on, reduce]);
+  const st = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
+  return (
+    <View style={s.dash}>
+      <Animated.View style={[s.dashFill, st]} />
+    </View>
+  );
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -77,11 +96,24 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const [showCountry, setShowCountry] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
 
-  const fade = useRef(new Animated.Value(0)).current;
+  // Step transition: the new step slides in from the direction you're moving
+  // (Continue → from the right, Back → from the left) while it fades in.
+  const reduceMotion = useReducedMotion();
+  const enter = useSharedValue(0);
+  const dir = useSharedValue(0);
+  const prevStepRef = useRef(step);
   useEffect(() => {
-    fade.setValue(0);
-    Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
-  }, [step]);
+    const d = step > prevStepRef.current ? 1 : step < prevStepRef.current ? -1 : 0;
+    prevStepRef.current = step;
+    if (reduceMotion) { enter.value = 1; return; }
+    dir.value = d;
+    enter.value = 0;
+    enter.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+  }, [step, reduceMotion]);
+  const stepStyle = useAnimatedStyle(() => ({
+    opacity: enter.value,
+    transform: [{ translateX: 24 * dir.value * (1 - enter.value) }],
+  }));
 
   // Android hardware / swipe back: close an open picker, else step back one; on
   // the first screen let the OS handle it (exit). There must always be a way back.
@@ -268,7 +300,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             <Text style={s.backChevron}>‹</Text>
           </TouchableOpacity>
           <View style={s.progress}>
-            {activeSteps.map((_, i) => (<View key={i} style={[s.dash, i <= step && s.dashOn]} />))}
+            {activeSteps.map((_, i) => (<ProgressDash key={i} on={i <= step} s={s} />))}
           </View>
           {signedIn ? (
             <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -280,7 +312,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
         </View>
       )}
 
-      <Animated.View style={{ flex: 1, opacity: fade }}>
+      <Animated.View style={[{ flex: 1 }, stepStyle]}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
           {cur === 'splash' && (
@@ -606,8 +638,8 @@ function makeStyles(colors) {
     backChevron: { fontSize: 30, color: colors.textFaint, lineHeight: 30, width: 24 },
     signOutLink: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
     progress: { flex: 1, flexDirection: 'row', gap: 5 },
-    dash: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.card2 },
-    dashOn: { backgroundColor: colors.accent },
+    dash: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.card2, overflow: 'hidden' },
+    dashFill: { height: '100%', borderRadius: 2, backgroundColor: colors.accent },
     content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
     splashWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     langChip: { position: 'absolute', top: 4, right: 0, paddingVertical: 6, paddingHorizontal: 8 },

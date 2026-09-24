@@ -35,7 +35,57 @@ import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
+import Animated, {
+  useSharedValue, useAnimatedProps, useAnimatedStyle, useReducedMotion,
+  withTiming, withDelay, withSequence, Easing,
+} from 'react-native-reanimated';
+import { AnimatedNumber, lightHaptic, eInOutSine } from '../components/motion';
+
+const ACircle = Animated.createAnimatedComponent(Circle);
+const APath = Animated.createAnimatedComponent(Path);
+const DROP_D = 'M 0 -7 C 3 -2 4.5 0.5 4.5 2.5 A 4.5 4.5 0 0 1 -4.5 2.5 C -4.5 0.5 -3 -2 0 -7 Z';
+const RING_R = 24;
+const RING_CIRC = 2 * Math.PI * RING_R;
+const measureWin = (ref) => new Promise((res) => {
+  if (!ref?.current?.measureInWindow) { res(null); return; }
+  ref.current.measureInWindow((x, y, w, h) => res({ x, y, w, h }));
+});
+
+// "Mark taken" — presses, turns into a check, and hands its on-screen position
+// to the parent so a drop can travel from here into the progress ring. Keyed by
+// the taken count, so a multi-dose protocol gets a fresh button per dose.
+function TakeButton({ label, takenLabel, onTake, s, colors }) {
+  const ref = useRef(null);
+  const [ok, setOk] = useState(false);
+  const press = useSharedValue(1);
+  const chk = useSharedValue(0);
+  const btnStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
+  const chkProps = useAnimatedProps(() => ({ strokeDashoffset: 16 * (1 - chk.value) }));
+  const onPress = () => {
+    if (ok) return;
+    lightHaptic();
+    press.value = withSequence(withTiming(0.96, { duration: 90 }), withTiming(1, { duration: 150 }));
+    chk.value = withDelay(90, withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
+    setOk(true);
+    if (ref.current?.measureInWindow) ref.current.measureInWindow((x, y, w, h) => onTake({ x, y, w, h }));
+    else onTake(null);
+  };
+  return (
+    <Animated.View style={[s.doseBtnPrimaryWrap, btnStyle]}>
+      <TouchableOpacity ref={ref} style={[s.doseBtn, ok ? s.doseBtnOk : s.doseBtnPrimary, s.doseBtnFill]} onPress={onPress} activeOpacity={0.85} disabled={ok}>
+        <View style={s.doseBtnRow}>
+          {ok && (
+            <Svg width={15} height={15} viewBox="0 0 16 16">
+              <APath d="M3.5 8.5 L6.8 11.5 L12.5 5" fill="none" stroke={colors.successSoftText} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={16} animatedProps={chkProps} />
+            </Svg>
+          )}
+          <Text style={[s.doseBtnPrimaryText, ok && { color: colors.successSoftText }]}>{ok ? takenLabel : label}</Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
@@ -130,6 +180,7 @@ export default function TodayScreen() {
       fetchLastSites();
       fetchAlerts();
       checkTreatmentStillActive();
+      playRingIntro(); // the ring fills from zero each time Today opens
     }, [])
   );
 
@@ -445,7 +496,10 @@ export default function TodayScreen() {
     setWeekDots(dots);
   }
 
-  async function markTaken(protocol) {
+  // opts.deferUi / opts.siteDelay (ms): let the "taken" confirmation play before the
+  // card re-sorts and before the injection-site picker covers the screen. The dose
+  // is WRITTEN immediately regardless — only the visual follow-up waits.
+  async function markTaken(protocol, opts = {}) {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
     try {
@@ -460,7 +514,8 @@ export default function TodayScreen() {
       });
 
       const newTakenToday = (takenCounts[protocol.id] || 0) + 1;
-      setTakenCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
+      const applyTaken = () => setTakenCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
+      if (opts.deferUi) setTimeout(applyTaken, opts.deferUi); else applyTaken();
       fetchStreakData();
       fetchProtocolStreaks();
       Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Taken' });
@@ -522,7 +577,8 @@ export default function TodayScreen() {
       // site right after logging, instead of leaving it as an optional step.
       // Oral supplements have no site, so they skip this.
       if (protocol.type === 'recon' || protocol.type === 'rtu') {
-        openBodyMapForUndo({ logId, protocolId: protocol.id, timer });
+        const openSite = () => openBodyMapForUndo({ logId, protocolId: protocol.id, timer });
+        if (opts.siteDelay) setTimeout(openSite, opts.siteDelay); else openSite();
       }
 
       actionInProgressRef.current = false;
@@ -697,11 +753,101 @@ export default function TodayScreen() {
   // capped at expected so extra taps can't overshoot.
   const totalDoses = dueProtocols.reduce((sum, p) => sum + expectedDosesOn(p, todayDate), 0);
   const doneDoses = dueProtocols.reduce((sum, p) => sum + Math.min(takenCounts[p.id] || 0, expectedDosesOn(p, todayDate)), 0);
-  const donePct = totalDoses > 0 ? Math.round((doneDoses / totalDoses) * 100) : 0;
-  // Progress-ring geometry (r=24 → circumference ≈ 150.8); offset shrinks the
-  // filled arc as completion drops.
-  const RING_C = 2 * Math.PI * 24;
-  const ringOffset = RING_C * (1 - donePct / 100);
+  // ── Progress ring motion ───────────────────────────────────────
+  // The ring and its numbers run on the UI thread. On every open they fill from
+  // zero to today's progress; after Mark taken a drop flies from the card into
+  // the ring and the ring sweeps to its new value as it lands. Reduce Motion →
+  // values are set instantly.
+  const reduceMotion = useReducedMotion();
+  const reduceRef = useRef(reduceMotion); reduceRef.current = reduceMotion;
+  const ringTarget = totalDoses > 0 ? doneDoses / totalDoses : 0;
+  const targetRef = useRef({ frac: 0, done: 0 });
+  targetRef.current = { frac: ringTarget, done: doneDoses };
+  const ringFrac = useSharedValue(0);
+  const doneShown = useSharedValue(0);
+  const ringPulse = useSharedValue(1);
+  const pulseGrow = useSharedValue(10);
+  const flyK = useSharedValue(0);
+  const fly = useSharedValue({ sx: 0, sy: 0, ex: 0, ey: 0 });
+  const landingAtRef = useRef(0);
+  const rootRef = useRef(null);
+  const ringRef = useRef(null);
+  const ringMountedRef = useRef(false);
+
+  function playRingIntro() {
+    const { frac, done } = targetRef.current;
+    if (reduceRef.current) { ringFrac.value = frac; doneShown.value = done; return; }
+    const ease = { duration: 950, easing: Easing.out(Easing.cubic) };
+    ringFrac.value = 0; doneShown.value = 0;
+    ringFrac.value = withDelay(150, withTiming(frac, ease));
+    doneShown.value = withDelay(150, withTiming(done, ease));
+  }
+
+  // Progress changed (data loaded, dose taken, undo): sweep to the new value —
+  // after the drop lands if one is in flight.
+  useEffect(() => {
+    if (!ringMountedRef.current) { ringMountedRef.current = true; return; } // the focus intro owns the first fill
+    if (reduceRef.current) { ringFrac.value = ringTarget; doneShown.value = doneDoses; return; }
+    const delay = Math.max(0, landingAtRef.current - Date.now());
+    ringFrac.value = withDelay(delay, withTiming(ringTarget, { duration: 560, easing: Easing.out(Easing.cubic) }));
+    doneShown.value = withDelay(delay, withTiming(doneDoses, { duration: 320 }));
+    if (landingAtRef.current) {
+      const dayDone = totalDoses > 0 && doneDoses >= totalDoses;
+      pulseGrow.value = dayDone ? 16 : 10;
+      ringPulse.value = 0;
+      ringPulse.value = withDelay(delay, withTiming(1, { duration: dayDone ? 750 : 520 }));
+      landingAtRef.current = 0;
+    }
+  }, [ringTarget, doneDoses]);
+
+  function handleTake(p, btnRect, attempt = 0) {
+    // Another card's write is mid-flight: retry shortly rather than let the
+    // button show "Taken" for a dose that was never logged.
+    if (actionInProgressRef.current) {
+      if (attempt < 12) setTimeout(() => handleTake(p, btnRect, attempt + 1), 250);
+      return;
+    }
+    if (reduceRef.current || !btnRect) { markTaken(p); return; }
+    const LIFT = 110, FLIGHT = 500;
+    landingAtRef.current = Date.now() + LIFT + FLIGHT;
+    // Write now; let the card re-sort and the site picker open after the drop lands.
+    markTaken(p, { deferUi: 380, siteDelay: 900 });
+    setTimeout(() => { if (landingAtRef.current && Date.now() > landingAtRef.current + 400) landingAtRef.current = 0; }, 1500);
+    Promise.all([measureWin(rootRef), measureWin(ringRef)]).then(([root, ring]) => {
+      if (!root || !ring) return;
+      fly.value = {
+        sx: btnRect.x - root.x + btnRect.w / 2 - 5, sy: btnRect.y - root.y + btnRect.h / 2 - 6,
+        ex: ring.x - root.x + ring.w / 2 - 5, ey: ring.y - root.y + ring.h / 2 - 6,
+      };
+      flyK.value = 0;
+      flyK.value = withDelay(LIFT, withTiming(1, { duration: FLIGHT }));
+    });
+  }
+
+  const ringArcProps = useAnimatedProps(() => ({ strokeDashoffset: RING_CIRC * (1 - ringFrac.value) }));
+  const ringPulseProps = useAnimatedProps(() => {
+    const k = ringPulse.value;
+    return { r: RING_R + pulseGrow.value * (1 - (1 - k) * (1 - k)), opacity: k > 0 && k < 1 ? 0.5 * (1 - k) : 0 };
+  });
+  const flyStyle = useAnimatedStyle(() => {
+    const k = flyK.value;
+    if (k <= 0 || k >= 1) return { opacity: 0 };
+    const f = fly.value, e = eInOutSine(k), u = 1 - e;
+    const cx = (f.sx + f.ex) / 2, cy = Math.min(f.sy, f.ey) - 70;
+    return {
+      opacity: 1,
+      transform: [
+        { translateX: u * u * f.sx + 2 * u * e * cx + e * e * f.ex },
+        { translateY: u * u * f.sy + 2 * u * e * cy + e * e * f.ey },
+        { scale: 1 - 0.3 * e },
+      ],
+    };
+  });
+  const pctFmt = (v) => { 'worklet'; return totalDoses > 0 ? Math.round(v * 100) + '%' : '—'; };
+  const intFmt = (v) => { 'worklet'; return String(Math.round(v)); };
+  const dosesWord = t('today_doses');
+  const subFmt = (v) => { 'worklet'; return Math.round(v) + ' / ' + totalDoses + ' ' + dosesWord; };
+  const takenLabel = t('today_taken').replace(/^✓\s*/, '');
 
   // Order the daily list purely by "what's next to take" across all compounds:
   // overdue/now → later today → tomorrow → in 2 days … (see nextDoseAt). A dose
@@ -1008,16 +1154,14 @@ export default function TodayScreen() {
             <TouchableOpacity style={s.doseBtn} onPress={() => skipDose(p)}>
               <Text style={s.doseBtnText}>{t('today_skip')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.doseBtn, s.doseBtnPrimary]}
-              onPress={() => markTaken(p)}
-            >
-              <Text style={s.doseBtnPrimaryText}>
-                {nextTime
-                  ? t('today_take_time').replace('{time}', nextTime)
-                  : t('today_mark_taken')}
-              </Text>
-            </TouchableOpacity>
+            <TakeButton
+              key={`take-${p.id}-${dosesTakenToday}`}
+              label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
+              takenLabel={takenLabel}
+              onTake={(rect) => handleTake(p, rect)}
+              s={s}
+              colors={colors}
+            />
           </View>
         )}
       </View>
@@ -1035,37 +1179,40 @@ export default function TodayScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} ref={rootRef} collapsable={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         <View style={s.header}>
           <Text style={s.date}>{today}</Text>
           <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''}</Text>
-          <Text style={s.sub}>
-            {totalCount === 0
-              ? t('today_no_protocols')
-              : `${doneDoses} / ${totalDoses} ${t('today_doses')}`}
-          </Text>
+          {totalCount === 0
+            ? <Text style={s.sub}>{t('today_no_protocols')}</Text>
+            : <AnimatedNumber value={doneShown} format={subFmt} style={[s.sub, s.subFill]} />}
         </View>
 
         <View style={s.progressRow}>
           <View style={s.ringCard}>
-            <Svg width={58} height={58} viewBox="0 0 58 58">
-              <Circle cx={29} cy={29} r={24} fill="none" stroke={colors.ringTrack} strokeWidth={7} />
-              <Circle
-                cx={29} cy={29} r={24} fill="none"
-                stroke={colors.accent} strokeWidth={7} strokeLinecap="round"
-                strokeDasharray={RING_C} strokeDashoffset={ringOffset}
-                transform="rotate(-90 29 29)"
-              />
-            </Svg>
+            <View ref={ringRef} collapsable={false} style={s.ringBox}>
+              {/* 90×90 canvas around the 58×58 ring so the landing pulse can grow past it */}
+              <Svg width={90} height={90} viewBox="-16 -16 90 90" style={s.ringSvg}>
+                <ACircle cx={29} cy={29} fill="none" stroke={colors.accent} strokeWidth={2} animatedProps={ringPulseProps} />
+                <Circle cx={29} cy={29} r={RING_R} fill="none" stroke={colors.ringTrack} strokeWidth={7} />
+                <ACircle
+                  cx={29} cy={29} r={RING_R} fill="none"
+                  stroke={colors.accent} strokeWidth={7} strokeLinecap="round"
+                  strokeDasharray={RING_CIRC}
+                  transform="rotate(-90 29 29)"
+                  animatedProps={ringArcProps}
+                />
+              </Svg>
+            </View>
             <View style={s.ringText}>
-              <Text style={s.ringPct}>{totalDoses > 0 ? `${donePct}%` : '—'}</Text>
+              <AnimatedNumber value={ringFrac} format={pctFmt} style={s.ringPct} width={64} />
               <Text style={s.ringLbl}>{t('today_done_of')}</Text>
             </View>
           </View>
           <View style={s.progressStatsCol}>
             <View style={s.miniStatCard}>
-              <Text style={s.miniStatVal}>{doneDoses}</Text>
+              <AnimatedNumber value={doneShown} format={intFmt} style={s.miniStatVal} width={56} />
               <Text style={s.miniStatLbl}>{t('today_done')}</Text>
             </View>
             <View style={s.miniStatCard}>
@@ -1417,6 +1564,13 @@ export default function TodayScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* The dose drop that travels from a "Mark taken" button into the ring. */}
+      <Animated.View pointerEvents="none" style={[s.flyDrop, flyStyle]}>
+        <Svg width={10} height={13} viewBox="-5 -7.5 10 13">
+          <Path d={DROP_D} fill={colors.accent} />
+        </Svg>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -1536,6 +1690,14 @@ const makeStyles = (c) => StyleSheet.create({
   doseBtn: { flex: 1, height: 40, borderRadius: 12, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   doseBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '600' },
   doseBtnPrimary: { flex: 2, backgroundColor: c.accent, borderWidth: 0 },
+  doseBtnPrimaryWrap: { flex: 2 },
+  doseBtnFill: { flex: 0, alignSelf: 'stretch' },
+  doseBtnOk: { backgroundColor: c.successSoft, borderWidth: 0 },
+  doseBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ringBox: { width: 58, height: 58 },
+  ringSvg: { position: 'absolute', left: -16, top: -16 },
+  subFill: { alignSelf: 'stretch' },
+  flyDrop: { position: 'absolute', left: 0, top: 0, width: 10, height: 13, zIndex: 50, elevation: 50 },
   doseBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '700' },
   disclaimer: { fontSize: 10, color: c.textFaint, textAlign: 'center', marginTop: 16, marginHorizontal: 32, lineHeight: 15 },
   emptyState: { padding: 20, alignItems: 'center' },

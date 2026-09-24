@@ -1091,7 +1091,7 @@ export default function BodyScreen({ navigation, route }) {
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
             <View style={{ height: 12 }} />
-            <AccumulationHero width={Math.min(360, windowWidth - 72)} height={150} />
+            <AccumulationHero width={Math.min(360, windowWidth - 72)} height={150} playKey="body" />
             <Text style={s.serumExample}>{t('paywall_hero_example')}</Text>
             <Text style={s.serumPreviewBody}>{t('serum_preview_body')}</Text>
             <TouchableOpacity

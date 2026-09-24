@@ -18,10 +18,13 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useReducedMotion,
   withTiming,
   withDelay,
   Easing,
 } from 'react-native-reanimated';
+import { AnimatedNumber } from '../components/motion';
+import { fontFamilyFor } from '../lib/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -168,6 +171,21 @@ function oralFormLabel(form, t) {
   return ORAL_FORM_KEY[form] ? t(ORAL_FORM_KEY[form]) : form;
 }
 
+// One syringe graduation. Lights to the accent once the stopper passes it.
+function SyringeTick({ tickVal, max, pct, s, colors }) {
+  const isMajor = tickVal % 10 === 0;
+  const at = (tickVal / max) * 100;
+  const base = isMajor ? colors.textMuted : colors.textFaint;
+  const lineStyle = useAnimatedStyle(() => ({ backgroundColor: pct.value > 0 && pct.value >= at - 0.001 ? colors.accent : base }));
+  const labelStyle = useAnimatedStyle(() => ({ color: pct.value > 0 && pct.value >= at - 0.001 ? colors.accent : colors.textMuted }));
+  return (
+    <View style={[s.tickGroup, { left: `${at}%` }]}>
+      {isMajor && <Animated.Text style={[s.tickLabel, { fontFamily: fontFamilyFor('400') }, labelStyle]}>{tickVal}</Animated.Text>}
+      <Animated.View style={[s.tick, isMajor && s.tickMajor, lineStyle]} />
+    </View>
+  );
+}
+
 function ProtocolSyringeGuide({ p, t }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -192,33 +210,45 @@ function ProtocolSyringeGuide({ p, t }) {
   // Zoom modal: an enlarged, horizontally-scrollable ruler (~16px per unit).
   const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
 
-  // Animated fill
-  const fillWidth = useSharedValue(0);
-  const plungerLeft = useSharedValue(0);
-  const fillOpacity = useSharedValue(0);
-
+  // Drawing the dose, the way it happens in the hand: needle + 0 mark on the
+  // left, the stopper pulls back to the target mark and the liquid fills behind
+  // it; each mark lights as the stopper passes; on arrival the mark pulses and the
+  // readout settles. Reduce Motion → final state at once.
+  const reduceMotion = useReducedMotion();
+  const pct = useSharedValue(0);        // stopper position, 0–100% of the barrel
+  const arrive = useSharedValue(0);     // 0→1 arrival pulse / bump
   useEffect(() => {
-    // Small delay so the user sees it animate in
-    fillWidth.value = withDelay(300, withTiming(fillPct, {
-      duration: 800,
-      easing: Easing.out(Easing.cubic),
-    }));
-    plungerLeft.value = withDelay(300, withTiming(fillPct, {
-      duration: 800,
-      easing: Easing.out(Easing.cubic),
-    }));
-    fillOpacity.value = withDelay(200, withTiming(1, { duration: 400 }));
-  }, [fillPct]);
+    if (reduceMotion) { pct.value = fillPct; arrive.value = 0; return; }
+    pct.value = 0; arrive.value = 0;
+    pct.value = withDelay(200, withTiming(fillPct, { duration: 1000, easing: Easing.inOut(Easing.cubic) }));
+    arrive.value = withDelay(1200, withTiming(1, { duration: 560 }));
+  }, [fillPct, reduceMotion]);
 
-  const animatedFillStyle = useAnimatedStyle(() => ({
-    width: `${fillWidth.value}%`,
-    opacity: fillOpacity.value * 0.35,
-  }));
-
-  const animatedPlungerStyle = useAnimatedStyle(() => ({
-    left: `${plungerLeft.value}%`,
-    opacity: fillOpacity.value,
-  }));
+  const STOPPER_W = 8;
+  const fillStyle = useAnimatedStyle(() => ({ width: `${pct.value}%` }));
+  const stopperStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
+  const faceStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
+  const rodStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
+  const tagStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
+  const pulseStyle = useAnimatedStyle(() => {
+    const k = arrive.value;
+    return {
+      left: `${pct.value}%`,
+      opacity: k > 0 && k < 1 ? 0.5 * (1 - k) : 0,
+      transform: [{ scale: 1 + 1.6 * (1 - (1 - k) * (1 - k)) }],
+    };
+  });
+  const readBump = useAnimatedStyle(() => {
+    const k = arrive.value;
+    const b = k <= 0 || k >= 1 ? 0 : (k < 0.3 ? k / 0.3 : 1 - (k - 0.3) / 0.7);
+    return { transform: [{ scale: 1 + 0.1 * b }] };
+  });
+  const unitsFinal = `${pDrawUnits}u`;
+  const mlFinal = `${pDrawML} ml`;
+  const mlNum = parseDecimal(pDrawML) || 0;
+  const unitsFmt = (v) => { 'worklet'; return fillPct > 0 && v >= fillPct - 0.001 ? unitsFinal : Math.round((v / 100) * syringeMax) + 'u'; };
+  const tagFmt = (v) => { 'worklet'; return fillPct > 0 && v >= fillPct - 0.001 ? unitsFinal : Math.round((v / 100) * syringeMax) + 'u'; };
+  const mlFmt = (v) => { 'worklet'; return fillPct > 0 && v >= fillPct - 0.001 ? mlFinal : (fillPct > 0 ? (mlNum * v / fillPct).toFixed(2) : '0.00') + ' ml'; };
 
   if (!pDrawML || !pDrawValid) {
     return (
@@ -241,29 +271,35 @@ function ProtocolSyringeGuide({ p, t }) {
       </Text>
       <TouchableOpacity activeOpacity={0.85} onPress={() => setZoom(true)}>
       <View style={s.syringeOuter}>
+        {/* needle + hub at the 0 end, like the syringe in your hand */}
+        <View style={s.syringeNeedleWrap}>
+          <View style={s.syringeNeedle} />
+          <View style={s.syringeHub} />
+        </View>
         <View style={s.syringeBody}>
+          <View style={s.syringeTagRow}>
+            <Animated.View style={[s.syringeTag, tagStyle]}>
+              <AnimatedNumber value={pct} format={tagFmt} style={s.syringeTagText} width={40} align="center" />
+            </Animated.View>
+          </View>
           <View style={s.syringeTicks}>
             {/* One minor tick every 2 units (0.02 ml on a U-100 syringe) so a draw
                 like 18u lands on a mark; a taller, labelled tick every 10 units.
                 Positioned on the true 0–100% scale so ticks line up with the fill
-                and plunger. */}
-            {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => {
-              const tickVal = i * 2;
-              const isMajor = tickVal % 10 === 0;
-              return (
-                <View key={i} style={[s.tickGroup, { left: `${(tickVal / syringeMax) * 100}%` }]}>
-                  {isMajor && <Text style={s.tickLabel}>{tickVal}</Text>}
-                  <View style={[s.tick, isMajor && s.tickMajor]} />
-                </View>
-              );
-            })}
+                and stopper. Each lights as the stopper passes it. */}
+            {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => (
+              <SyringeTick key={i} tickVal={i * 2} max={syringeMax} pct={pct} s={s} colors={colors} />
+            ))}
           </View>
           <View style={s.syringeTrack}>
-            <Animated.View style={[s.syringeFill, animatedFillStyle]} />
-            <Animated.View style={[s.plungerLine, animatedPlungerStyle]} />
+            <Animated.View style={[s.syringeFill, fillStyle]} />
+            <Animated.View style={[s.syringeRod, rodStyle, { marginLeft: STOPPER_W }]} />
+            <Animated.View style={[s.syringeStopper, stopperStyle, { width: STOPPER_W }]} />
+            <Animated.View style={[s.syringeFace, faceStyle]} />
           </View>
+          <Animated.View pointerEvents="none" style={[s.syringePulse, pulseStyle]} />
         </View>
-        <View style={s.syringeNeedle} />
+        <View style={s.syringeFlange} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 2, marginBottom: 2 }}>
         <FeatureIcon name="search" size={11} color={colors.accent} />
@@ -273,11 +309,15 @@ function ProtocolSyringeGuide({ p, t }) {
       <View style={s.syringeInfo}>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_draw_to')}</Text>
-          <Text style={s.syringeInfoVal}>{pDrawUnits}u</Text>
+          <Animated.View style={[s.syringeReadWrap, readBump]}>
+            <AnimatedNumber value={pct} format={unitsFmt} style={s.syringeInfoVal} width={72} />
+          </Animated.View>
         </View>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_volume')}</Text>
-          <Text style={s.syringeInfoVal}>{pDrawML} ml</Text>
+          <Animated.View style={[s.syringeReadWrap, readBump]}>
+            <AnimatedNumber value={pct} format={mlFmt} style={s.syringeInfoVal} width={84} />
+          </Animated.View>
         </View>
         <View style={s.syringeInfoItem}>
           <Text style={s.syringeInfoLabel}>{t('protocols_syringe_dose')}</Text>
@@ -2533,8 +2573,19 @@ const makeStyles = (c) => StyleSheet.create({
   syringeTitle: { fontSize: 12, fontWeight: '600', color: c.accentSoftText, marginBottom: 4 },
   syringeSubtitle: { fontSize: 13, color: c.accent, marginBottom: 12 },
   syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
-  syringeOuter: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  syringeBody: { flex: 1, height: 48 },
+  syringeOuter: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
+  syringeBody: { flex: 1, position: 'relative' },
+  syringeNeedleWrap: { height: 22, flexDirection: 'row', alignItems: 'center' },
+  syringeHub: { width: 9, height: 12, borderRadius: 2, backgroundColor: c.textFaint },
+  syringeFlange: { width: 4, height: 32, borderRadius: 1.5, backgroundColor: c.textMuted, marginBottom: -5 },
+  syringeTagRow: { height: 18, position: 'relative' },
+  syringeTag: { position: 'absolute', top: 0, width: 40, height: 16, marginLeft: -20, borderRadius: 8, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  syringeTagText: { fontSize: 9.5, fontWeight: '800', color: c.accentText },
+  syringeRod: { position: 'absolute', top: 6, height: 8, right: 0, borderRadius: 2, backgroundColor: c.textFaint, opacity: 0.6 },
+  syringeStopper: { position: 'absolute', top: 2, bottom: 2, borderRadius: 2.5, backgroundColor: c.textMuted },
+  syringeFace: { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -1, borderRadius: 1, backgroundColor: c.accent },
+  syringePulse: { position: 'absolute', bottom: 3, width: 16, height: 16, marginLeft: -8, borderRadius: 8, borderWidth: 1.5, borderColor: c.accent },
+  syringeReadWrap: { alignSelf: 'flex-start', transformOrigin: 'left bottom' },
   syringeTicks: { height: 22, marginBottom: 2, position: 'relative' },
   // Fixed width + negative half-margin centers the tick/label exactly on `left`.
   // (A width:0 box collapses Text labels, so give it real width.)
@@ -2545,7 +2596,7 @@ const makeStyles = (c) => StyleSheet.create({
   syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
   syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.35, borderRadius: 3 },
   plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: c.accent, borderRadius: 2 },
-  syringeNeedle: { width: 24, height: 4, backgroundColor: c.textFaint, borderRadius: 2, marginLeft: 2 },
+  syringeNeedle: { width: 22, height: 2.5, backgroundColor: c.textFaint, borderRadius: 1.25 },
   syringeInfo: { flexDirection: 'row', justifyContent: 'space-between' },
   syringeInfoItem: { alignItems: 'center' },
   syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },

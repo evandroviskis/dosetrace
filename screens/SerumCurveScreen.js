@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import Svg, { Polyline, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, G, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
+import Animated, {
+  useSharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue, useReducedMotion,
+  withTiming, withDelay, withSequence, cancelAnimation, Easing,
+} from 'react-native-reanimated';
+import { AnimatedNumber, clamp01, eOutQuad, eInOutSine, eOutCubic, invInOutSine, bumpScale, dropPath } from '../components/motion';
+
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translations } from '../i18n/translations';
@@ -26,6 +32,119 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { isPremium } from '../lib/purchases';
+
+const APath = Animated.createAnimatedComponent(Path);
+const AG = Animated.createAnimatedComponent(G);
+const ALine = Animated.createAnimatedComponent(Line);
+const ARect = Animated.createAnimatedComponent(Rect);
+const ACircle = Animated.createAnimatedComponent(Circle);
+
+// ── Opening moment timeline (ms) ──
+// The lines draw IN TIME across the last 14 days (each scheduled dose drops in),
+// the Now marker rises, then the projection zone opens and the lines continue
+// into it. One moment per screen open; nothing loops after.
+const C_DRAW = 2400, C_RISE = 280, C_PROJ = 800, C_BREATH = 1300, C_DROP = 170;
+const C_TOTAL = C_DRAW + C_RISE + C_PROJ + C_BREATH;
+
+// Steps of the series revealed at clock t (fractional).
+function revealAt(t, nowIdx, nSteps) {
+  'worklet';
+  if (t < C_DRAW) return nowIdx * eInOutSine(t / C_DRAW);
+  const p0 = C_DRAW + C_RISE;
+  if (t < p0) return nowIdx;
+  if (t < p0 + C_PROJ) return nowIdx + (nSteps - nowIdx) * eOutCubic((t - p0) / C_PROJ);
+  return nSteps;
+}
+
+// Path for a level series, drawn up to `rev` steps on an x-domain of `domN` steps.
+function seriesD(pts, rev, domN, yMax, g) {
+  'worklet';
+  const n = pts.length;
+  const last = Math.min(rev, n - 1, domN);
+  if (last <= 0 || yMax <= 0 || domN <= 0) return 'M ' + g.L + ' ' + g.B;
+  const w = g.R - g.L, h = g.B - g.T;
+  const k = Math.floor(last);
+  let d = '';
+  for (let i = 0; i <= k; i++) {
+    d += (i === 0 ? 'M ' : ' L ') + (g.L + (i / domN) * w).toFixed(1) + ' ' + (g.B - (pts[i] / yMax) * h).toFixed(1);
+  }
+  const f = last - k;
+  if (f > 0 && k + 1 < n) {
+    const v = pts[k] + (pts[k + 1] - pts[k]) * f;
+    d += ' L ' + (g.L + ((k + f) / domN) * w).toFixed(1) + ' ' + (g.B - (v / yMax) * h).toFixed(1);
+  }
+  return d;
+}
+
+function levelAtStep(pts, s) {
+  'worklet';
+  const n = pts.length;
+  if (s <= 0) return pts[0] || 0;
+  if (s >= n - 1) return pts[n - 1] || 0;
+  const k = Math.floor(s), f = s - k;
+  return pts[k] + (pts[k + 1] - pts[k]) * f;
+}
+
+// One curve (a compound or a combined total), driven entirely on the UI thread.
+function CurveLine({ points, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth, strokeDasharray }) {
+  const props = useAnimatedProps(() => ({
+    d: seriesD(points, revealAt(clock.value, nowIdx, nSteps), domainN.value, yMaxS.value, geo),
+    opacity: ready.value,
+  }), [points, nowIdx, nSteps, geo]);
+  return <APath animatedProps={props} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} strokeLinejoin="round" strokeLinecap="round" />;
+}
+
+// The pen dot that leads each line while it draws, then a soft "breath" at Now.
+function PenDot({ points, clock, domainN, yMaxS, geo, nowIdx, nSteps, color }) {
+  const dot = useAnimatedProps(() => {
+    const t = clock.value;
+    const rev = Math.min(revealAt(t, nowIdx, nSteps), nowIdx);
+    const w = geo.R - geo.L, h = geo.B - geo.T;
+    return {
+      cx: geo.L + (rev / domainN.value) * w,
+      cy: geo.B - (levelAtStep(points, rev) / yMaxS.value) * h,
+      opacity: t > 60 && t < C_DRAW ? 1 : 0,
+    };
+  }, [points, nowIdx, nSteps, geo]);
+  const halo = useAnimatedProps(() => {
+    const t = clock.value;
+    const w = geo.R - geo.L, h = geo.B - geo.T;
+    const drawing = t > 60 && t < C_DRAW;
+    const rev = drawing ? Math.min(revealAt(t, nowIdx, nSteps), nowIdx) : nowIdx;
+    const pos = { cx: geo.L + (rev / domainN.value) * w, cy: geo.B - (levelAtStep(points, rev) / yMaxS.value) * h };
+    if (drawing) return { ...pos, r: 8, opacity: 0.2 };
+    const b = (t - (C_DRAW + C_RISE + C_PROJ)) / C_BREATH;
+    if (b < 0 || b >= 1) return { ...pos, r: 4, opacity: 0 };
+    const ph = (b * 2) % 1;
+    return { ...pos, r: 4 + 8 * eOutQuad(ph), opacity: 0.28 * (1 - ph) };
+  }, [points, nowIdx, nSteps, geo]);
+  return (
+    <>
+      <ACircle animatedProps={halo} fill={color} />
+      <ACircle animatedProps={dot} r={3.5} fill={color} stroke={color} strokeWidth={0} />
+    </>
+  );
+}
+
+// A scheduled dose landing during the opening moment: a drop falls, a ring pulses.
+function DoseDrop({ clock, hit, x, y, color, showDrop }) {
+  const drop = useAnimatedProps(() => {
+    const k = (clock.value - (hit - C_DROP)) / C_DROP;
+    if (!showDrop || k < 0 || k >= 1) return { opacity: 0, d: 'M 0 0' };
+    return { opacity: 1, d: dropPath(x, -8 + (y - 5 + 8) * k * k, 0.72) };
+  }, [hit, x, y, showDrop]);
+  const pulse = useAnimatedProps(() => {
+    const k = (clock.value - hit) / 460;
+    if (k < 0 || k >= 1) return { opacity: 0, r: 3 };
+    return { opacity: 0.55 * (1 - k), r: 3 + 9 * eOutQuad(k) };
+  }, [hit]);
+  return (
+    <>
+      <APath animatedProps={drop} fill={color} />
+      <ACircle cx={x} cy={y} animatedProps={pulse} fill="none" stroke={color} strokeWidth={1.5} />
+    </>
+  );
+}
 
 const PAST_DAYS = 14;
 const FUTURE_PRESETS = [7, 14, 30, 60, 90];
@@ -254,13 +373,8 @@ export default function SerumCurveScreen() {
     let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
     const nowIdx = Math.min(nSteps, Math.round((now - start) / stepMs));
-    return { series, combined, max, nowIdx, nSteps };
+    return { series, combined, max, nowIdx, nSteps, start };
   }, [protocols, selectedIds, t, colors.accent, showCombined, futureDays]);
-
-  function polylineFor(points) {
-    if (!model || model.max <= 0) return '';
-    return points.map((lv, i) => `${xForIndex(i).toFixed(1)},${yForLevel(lv).toFixed(1)}`).join(' ');
-  }
 
   // Round the axis up to a readable ceiling above the peak (so nothing clips).
   if (model && model.max > 0) {
@@ -299,6 +413,113 @@ export default function SerumCurveScreen() {
   const readoutX = model ? xForIndex((readoutT - winStart) / stepMs) : plotLeft;
   const isToday = readoutISO === todayISO();
   const readoutShort = new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' });
+
+  // ── Motion ─────────────────────────────────────────────────────
+  const reduceMotion = useReducedMotion();
+  const geo = useMemo(() => ({ L: plotLeft, R: plotRight, T: PLOT_TOP, B: PLOT_BOTTOM }), [plotLeft, plotRight, PLOT_TOP, PLOT_BOTTOM]);
+  const clock = useSharedValue(reduceMotion ? C_TOTAL : 0);
+  const domainN = useSharedValue(1);
+  const yMaxS = useSharedValue(1);
+  const staticK = useSharedValue(1);   // grid/labels/markers — dip during a rescale
+  const ready = useSharedValue(0);     // hides the animated layer until its scale is set
+  const introPlayedRef = useRef(false);
+  const introDoneRef = useRef(!!reduceMotion);
+  const prevHorizonRef = useRef(futureDays);
+  const [introFx, setIntroFx] = useState(null); // { drops:[], hitsSingle:[], showDrop }
+
+  // Opening moment: plays once per screen open, the first time there's a model.
+  useEffect(() => {
+    if (!model || introPlayedRef.current) return;
+    introPlayedRef.current = true;
+    domainN.value = model.nSteps; yMaxS.value = plotMax; ready.value = 1;
+    if (reduceMotion || model.max <= 0) { clock.value = C_TOTAL; introDoneRef.current = true; return; }
+    const w = plotRight - plotLeft, h = PLOT_BOTTOM - PLOT_TOP;
+    const drops = [];
+    const hitsSingle = [];
+    for (const ser of model.series) {
+      for (const ts of ser.doses) {
+        const idx = (ts - model.start) / stepMs;
+        if (idx < 0 || idx > model.nowIdx || model.nowIdx <= 0) continue;
+        const hit = C_DRAW * invInOutSine(idx / model.nowIdx);
+        drops.push({ key: `${ser.id}-${ts}`, hit, color: ser.color, x: plotLeft + (idx / model.nSteps) * w, y: PLOT_BOTTOM - (levelAtDate(ser, ts) / plotMax) * h });
+        if (single && ser.id === single.id) hitsSingle.push(hit);
+      }
+    }
+    // Keep it legible: every dose drops in for a normal schedule; a dense one
+    // (many daily compounds) gets pulses only, and a very dense one nothing.
+    const showDrop = drops.length <= 24;
+    setIntroFx({ drops: drops.length <= 60 ? drops : [], hitsSingle, showDrop });
+    clock.value = 0;
+    clock.value = withTiming(C_TOTAL, { duration: C_TOTAL, easing: Easing.linear });
+    const id = setTimeout(() => { introDoneRef.current = true; setIntroFx(null); }, C_TOTAL + 50);
+    return () => clearTimeout(id);
+  }, [model]);
+
+  // Later changes: a new horizon rescales smoothly; anything else (selection,
+  // combined toggle, refetch) just re-draws at its scale.
+  useEffect(() => {
+    if (!model || !introPlayedRef.current) return;
+    const horizonChanged = prevHorizonRef.current !== futureDays;
+    prevHorizonRef.current = futureDays;
+    if (horizonChanged && !introDoneRef.current) {
+      cancelAnimation(clock); clock.value = C_TOTAL; introDoneRef.current = true; setIntroFx(null);
+    }
+    if (!horizonChanged || reduceMotion) { domainN.value = model.nSteps; yMaxS.value = plotMax; return; }
+    const ease = { duration: 480, easing: Easing.inOut(Easing.cubic) };
+    domainN.value = withTiming(model.nSteps, ease);
+    yMaxS.value = withTiming(plotMax, ease);
+    staticK.value = withSequence(withTiming(0, { duration: 90 }), withDelay(390, withTiming(1, { duration: 200 })));
+  }, [model, plotMax, futureDays]);
+
+  const mNow = model ? model.nowIdx : 0;
+  const mN = model ? model.nSteps : 1;
+  const gridProps = useAnimatedProps(() => ({ opacity: staticK.value }));
+  const markerProps = useAnimatedProps(() => {
+    const m = clamp01((clock.value - (C_DRAW + C_RISE + C_PROJ)) / 220);
+    return { opacity: Math.min(staticK.value, m) };
+  });
+  const readoutGProps = useAnimatedProps(() => {
+    const m = clamp01((clock.value - (C_DRAW + C_RISE + C_PROJ)) / 220);
+    return { opacity: Math.min(staticK.value, m) };
+  });
+  const axisStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(staticK.value, clamp01((clock.value - C_DRAW) / C_RISE)),
+  }));
+  const zoneProps = useAnimatedProps(() => {
+    const x = plotLeft + (mNow / domainN.value) * (plotRight - plotLeft);
+    const p0 = C_DRAW + C_RISE;
+    const k = eOutCubic(clamp01((clock.value - p0) / C_PROJ));
+    return { x, width: Math.max(0, (plotRight - x) * k), opacity: 0.55 * ready.value };
+  }, [mNow, plotLeft, plotRight]);
+  const nowLineProps = useAnimatedProps(() => {
+    const x = plotLeft + (mNow / domainN.value) * (plotRight - plotLeft);
+    const k = eOutCubic(clamp01((clock.value - C_DRAW) / C_RISE));
+    return { x1: x, x2: x, y1: PLOT_BOTTOM - (PLOT_BOTTOM - PLOT_TOP) * k, y2: PLOT_BOTTOM, opacity: k > 0 ? ready.value : 0 };
+  }, [mNow, plotLeft, plotRight]);
+
+  // Single-compound stats count along with the pen.
+  const singlePts = single ? single.points : null;
+  const singleDoseIdx = useMemo(() => {
+    if (!single || !model) return [];
+    return single.doses
+      .map((ts) => (ts - model.start) / stepMs)
+      .filter((i) => i >= 0 && i <= model.nowIdx);
+  }, [single, model]);
+  const statLevel = useDerivedValue(() => {
+    if (!singlePts) return 0;
+    const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
+    return levelAtStep(singlePts, rev);
+  }, [singlePts, mNow, mN]);
+  const statDoses = useDerivedValue(() => {
+    const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
+    let c = 0;
+    for (let i = 0; i < singleDoseIdx.length; i++) if (singleDoseIdx[i] <= rev + 1e-6) c++;
+    return c;
+  }, [singleDoseIdx, mNow, mN]);
+  const hitsSingle = introFx ? introFx.hitsSingle : [];
+  const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
+  const mgFmt = (v) => { 'worklet'; return (!isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' mg'; };
+  const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
   // Dropdown button label: the single compound's name, or "N compounds".
   const selCount = selectedIds.length;
@@ -376,9 +597,10 @@ export default function SerumCurveScreen() {
             )}
 
             <Svg width={chartWidth} height={chartHeight}>
-              {/* future projection zone */}
-              <Rect x={nowX} y={PLOT_TOP} width={Math.max(0, plotRight - nowX)} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.accentSoft} opacity={0.55} />
-              {/* y-axis: mg gridlines + labels */}
+              {/* future projection zone — opens at Now during the opening moment */}
+              <ARect y={PLOT_TOP} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.accentSoft} animatedProps={zoneProps} />
+              {/* y-axis: mg gridlines + labels (dip and return during a rescale) */}
+              <AG animatedProps={gridProps}>
               {yTicks().map((v, i) => (
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.border} strokeWidth={1} />
@@ -388,10 +610,12 @@ export default function SerumCurveScreen() {
                 </React.Fragment>
               ))}
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">mg</SvgText>
-              {/* NOW line */}
-              <Line x1={nowX} y1={PLOT_TOP} x2={nowX} y2={PLOT_BOTTOM} stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" />
+              </AG>
+              {/* NOW line — rises from the baseline when the pen reaches today */}
+              <ALine stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" animatedProps={nowLineProps} />
               {/* readout date marker (a chosen blood-draw date) — labeled so a
                   screenshot shows which date and level it represents */}
+              <AG animatedProps={readoutGProps}>
               {model && model.max > 0 && readoutInWindow && !isToday && (
                 <>
                   <Line x1={readoutX} y1={PLOT_TOP + 12} x2={readoutX} y2={PLOT_BOTTOM} stroke={colors.accent} strokeWidth={1.5} strokeDasharray="2,3" />
@@ -414,12 +638,14 @@ export default function SerumCurveScreen() {
                   ))}
                 </>
               )}
-              {/* one overlaid curve per selected compound */}
+              </AG>
+              {/* one overlaid curve per selected compound — drawn in time on open */}
               {model && model.max > 0 && model.series.map(ser => (
-                <Polyline
+                <CurveLine
                   key={ser.id}
-                  points={polylineFor(ser.points)}
-                  fill="none"
+                  points={ser.points}
+                  clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
+                  nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={ser.color}
                   strokeWidth={2.5}
                   // Explicit in both cases: react-native-svg keeps a prior dash when
@@ -429,18 +655,33 @@ export default function SerumCurveScreen() {
               ))}
               {/* combined total per substance group — bold, on top */}
               {model && model.max > 0 && showCombined && model.combined.map(c => (
-                <Polyline key={c.id} points={polylineFor(c.points)} fill="none" stroke={colors.text} strokeWidth={3.5} strokeDasharray="0" />
+                <CurveLine
+                  key={c.id}
+                  points={c.points}
+                  clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
+                  nowIdx={model.nowIdx} nSteps={model.nSteps}
+                  stroke={colors.text} strokeWidth={3.5} strokeDasharray="0"
+                />
+              ))}
+              {/* opening moment: each scheduled dose drops in; a pen leads each line */}
+              {introFx && introFx.drops.map(dp => (
+                <DoseDrop key={dp.key} clock={clock} hit={dp.hit} x={dp.x} y={dp.y} color={dp.color} showDrop={introFx.showDrop} />
+              ))}
+              {introFx && model && model.max > 0 && model.series.map(ser => (
+                <PenDot key={`pen-${ser.id}`} points={ser.points} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={ser.color} />
               ))}
               {/* dots marking each line's level right now */}
+              <AG animatedProps={markerProps}>
               {model && model.max > 0 && model.series.map(ser => (
                 <Circle key={`d-${ser.id}`} cx={nowX} cy={yForLevel(ser.points[model.nowIdx])} r={3.5} fill={ser.color} />
               ))}
               {model && model.max > 0 && showCombined && model.combined.map(c => (
                 <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.points[model.nowIdx])} r={4} fill={colors.text} />
               ))}
+              </AG>
             </Svg>
 
-            <View style={{ height: 16, marginLeft: AXIS_W, marginTop: 6 }}>
+            <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]}>
               <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{PAST_DAYS}d</Text>
               <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]}>+{futureDays}d</Text>
               {model && (
@@ -448,7 +689,7 @@ export default function SerumCurveScreen() {
                   {t('curve_now')}
                 </Text>
               )}
-            </View>
+            </Animated.View>
 
             {/* Projection horizon selector */}
             <View style={s.horizonRow}>
@@ -474,7 +715,9 @@ export default function SerumCurveScreen() {
             // One compound → the 3-stat detail row.
             <View style={s.statsRow}>
               <View style={s.statCard}>
-                <Text style={s.statVal}>{mgLabel(single.points[model.nowIdx])} mg</Text>
+                <Animated.View style={statBump}>
+                  <AnimatedNumber value={statLevel} format={mgFmt} style={s.statVal} width={104} align="center" />
+                </Animated.View>
                 <Text style={s.statLbl}>{t('curve_current_level')}</Text>
               </View>
               <View style={s.statCard}>
@@ -482,7 +725,7 @@ export default function SerumCurveScreen() {
                 <Text style={s.statLbl}>{t('curve_half_life')}</Text>
               </View>
               <View style={s.statCard}>
-                <Text style={s.statVal}>{single.dosesInWindow}</Text>
+                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statVal} width={64} align="center" />
                 <Text style={s.statLbl}>{t('curve_doses_counted')}</Text>
               </View>
             </View>
