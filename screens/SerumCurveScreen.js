@@ -57,7 +57,9 @@ function revealAt(t, nowIdx, nSteps) {
 }
 
 // Path for a level series, drawn up to `rev` steps on an x-domain of `domN` steps.
-function seriesD(pts, rev, domN, yMax, g) {
+// `pre[i]` is the level just BEFORE sample i (excluding a dose landing exactly on
+// it), so a dose draws as a vertical jump instead of a ramp that starts 6h early.
+function seriesD(pts, pre, rev, domN, yMax, g) {
   'worklet';
   const n = pts.length;
   const last = Math.min(rev, n - 1, domN);
@@ -66,58 +68,61 @@ function seriesD(pts, rev, domN, yMax, g) {
   const k = Math.floor(last);
   let d = '';
   for (let i = 0; i <= k; i++) {
-    d += (i === 0 ? 'M ' : ' L ') + (g.L + (i / domN) * w).toFixed(1) + ' ' + (g.B - (pts[i] / yMax) * h).toFixed(1);
+    const x = (g.L + (i / domN) * w).toFixed(1);
+    if (i > 0 && pre[i] !== pts[i]) d += ' L ' + x + ' ' + (g.B - (pre[i] / yMax) * h).toFixed(1);
+    d += (i === 0 ? 'M ' : ' L ') + x + ' ' + (g.B - (pts[i] / yMax) * h).toFixed(1);
   }
   const f = last - k;
   if (f > 0 && k + 1 < n) {
-    const v = pts[k] + (pts[k + 1] - pts[k]) * f;
+    const v = pts[k] + (pre[k + 1] - pts[k]) * f;
     d += ' L ' + (g.L + ((k + f) / domN) * w).toFixed(1) + ' ' + (g.B - (v / yMax) * h).toFixed(1);
   }
   return d;
 }
 
-function levelAtStep(pts, s) {
+function levelAtStep(pts, pre, s) {
   'worklet';
   const n = pts.length;
   if (s <= 0) return pts[0] || 0;
   if (s >= n - 1) return pts[n - 1] || 0;
   const k = Math.floor(s), f = s - k;
-  return pts[k] + (pts[k + 1] - pts[k]) * f;
+  if (f === 0) return pts[k];
+  return pts[k] + (pre[k + 1] - pts[k]) * f;
 }
 
 // One curve (a compound or a combined total), driven entirely on the UI thread.
-function CurveLine({ points, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth, strokeDasharray }) {
+function CurveLine({ points, pre, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth, strokeDasharray }) {
   const props = useAnimatedProps(() => ({
-    d: seriesD(points, revealAt(clock.value, nowIdx, nSteps), domainN.value, yMaxS.value, geo),
+    d: seriesD(points, pre, revealAt(clock.value, nowIdx, nSteps), domainN.value, yMaxS.value, geo),
     opacity: ready.value,
-  }), [points, nowIdx, nSteps, geo]);
+  }), [points, pre, nowIdx, nSteps, geo]);
   return <APath animatedProps={props} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} strokeLinejoin="round" strokeLinecap="round" />;
 }
 
 // The pen dot that leads each line while it draws, then a soft "breath" at Now.
-function PenDot({ points, clock, domainN, yMaxS, geo, nowIdx, nSteps, color }) {
+function PenDot({ points, pre, clock, domainN, yMaxS, geo, nowIdx, nSteps, color }) {
   const dot = useAnimatedProps(() => {
     const t = clock.value;
     const rev = Math.min(revealAt(t, nowIdx, nSteps), nowIdx);
     const w = geo.R - geo.L, h = geo.B - geo.T;
     return {
       cx: geo.L + (rev / domainN.value) * w,
-      cy: geo.B - (levelAtStep(points, rev) / yMaxS.value) * h,
+      cy: geo.B - (levelAtStep(points, pre, rev) / yMaxS.value) * h,
       opacity: t > 60 && t < C_DRAW ? 1 : 0,
     };
-  }, [points, nowIdx, nSteps, geo]);
+  }, [points, pre, nowIdx, nSteps, geo]);
   const halo = useAnimatedProps(() => {
     const t = clock.value;
     const w = geo.R - geo.L, h = geo.B - geo.T;
     const drawing = t > 60 && t < C_DRAW;
     const rev = drawing ? Math.min(revealAt(t, nowIdx, nSteps), nowIdx) : nowIdx;
-    const pos = { cx: geo.L + (rev / domainN.value) * w, cy: geo.B - (levelAtStep(points, rev) / yMaxS.value) * h };
+    const pos = { cx: geo.L + (rev / domainN.value) * w, cy: geo.B - (levelAtStep(points, pre, rev) / yMaxS.value) * h };
     if (drawing) return { ...pos, r: 8, opacity: 0.2 };
     const b = (t - (C_DRAW + C_RISE + C_PROJ)) / C_BREATH;
     if (b < 0 || b >= 1) return { ...pos, r: 4, opacity: 0 };
     const ph = (b * 2) % 1;
     return { ...pos, r: 4 + 8 * eOutQuad(ph), opacity: 0.28 * (1 - ph) };
-  }, [points, nowIdx, nSteps, geo]);
+  }, [points, pre, nowIdx, nSteps, geo]);
   return (
     <>
       <ACircle animatedProps={halo} fill={color} />
@@ -149,6 +154,8 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 const PAST_DAYS = 14;
 const FUTURE_PRESETS = [7, 14, 30, 60, 90];
 const STEP_HOURS = 6;
+// Local hours for N scheduled doses in one day (on the 00/06/12/18 sample grid).
+const DOSE_SLOTS = { 1: [12], 2: [6, 18], 3: [6, 12, 18], 4: [0, 6, 12, 18] };
 
 // Matching must run on the ENGLISH compound name: compound_id renders localized
 // via t(), but the half-life table is keyed in English.
@@ -199,6 +206,8 @@ export default function SerumCurveScreen() {
   const [protocols, setProtocols] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [notCharted, setNotCharted] = useState({ iu: [], noData: [] });
+  const [sourceOpen, setSourceOpen] = useState(false);
   const [showCombined, setShowCombined] = useState(true);
   const [futureDays, setFutureDays] = useState(7);   // projection horizon
   // Readout: estimate levels on a chosen date, e.g. a blood-draw date.
@@ -244,11 +253,18 @@ export default function SerumCurveScreen() {
         expanded.push(p);
       }
     }
-    const active = expanded
-      // IU-dosed compounds (HCG, insulins, HMG/FSH) can't be plotted or summed on a
-      // mg axis — IU→mg is not a unit conversion — so they're excluded from the curve.
-      .filter(p => (p.dose_unit || '').toLowerCase() !== 'iu')
-      .filter(p => getHalfLifeEntry(matchName(p)) != null);
+    // IU-dosed compounds (HCG, insulins, HMG/FSH) can't be plotted or summed on a
+    // mg axis — IU→mg is not a unit conversion — so they're excluded from the curve.
+    // Compounds without reliable half-life data are excluded too. Both are NAMED on
+    // screen, never dropped silently (a user must not think their protocol vanished).
+    const isIU = (p) => (p.dose_unit || '').toLowerCase() === 'iu';
+    const active = expanded.filter(p => !isIU(p) && getHalfLifeEntry(matchName(p)) != null);
+    const nameOf = (p) => p.__blend ? t(p.__blend) : (p.compound_id ? t(p.compound_id) : p.name);
+    const uniqNames = (list) => [...new Set(list.map(nameOf).filter(Boolean))];
+    setNotCharted({
+      iu: uniqNames(expanded.filter(isIU)),
+      noData: uniqNames(expanded.filter(p => !isIU(p) && getHalfLifeEntry(matchName(p)) == null)),
+    });
     setProtocols(active);
     // Keep any still-valid selection; otherwise default to the first compound.
     setSelectedIds(prev => {
@@ -259,6 +275,14 @@ export default function SerumCurveScreen() {
     const marks = getBiomarkers(user.id) || [];
     const uniq = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
     setLabDates(uniq);
+  }
+
+  // One muted line per reason a compound isn't on the curve.
+  function notChartedLines() {
+    const out = [];
+    if (notCharted.noData.length) out.push(t('curve_not_charted').replace('{names}', notCharted.noData.join(', ')));
+    if (notCharted.iu.length) out.push(t('curve_not_charted_iu').replace('{names}', notCharted.iu.join(', ')));
+    return out;
   }
 
   function toggle(id) {
@@ -323,24 +347,39 @@ export default function SerumCurveScreen() {
         if (isFinite(sd) && sd > scanStart) scanStart = sd;
       }
       const scanStartDay = new Date(scanStart); scanStartDay.setHours(0, 0, 0, 0);
+      // Snap onto the sample grid: after a clock change local 12:00 is 1h off the
+      // fixed 6h steps, and a fast compound's spike would fall between samples.
+      const snap = (ts) => start + Math.round((ts - start) / stepMs) * stepMs;
       const doses = [];
       for (let dts = scanStartDay.getTime(); dts <= end; dts += DAY_MS) {
         const day = new Date(dts);
-        // Count of scheduled doses that day (reminder-time-independent); place
-        // them at midday so the daily accumulation is captured at 6h sampling.
+        // Count of scheduled doses that day (reminder-time-independent), spread
+        // over the day's 6h sample slots — 1/day at 12:00, 2/day at 06+18, … — so
+        // two doses draw as two spikes, not one double-height spike.
         const cnt = expectedDosesOn(p, day);
-        if (cnt > 0) {
-          const dd = new Date(day); dd.setHours(12, 0, 0, 0);
-          for (let k = 0; k < cnt; k++) doses.push(dd.getTime());
+        const slots = DOSE_SLOTS[cnt] || DOSE_SLOTS[4];
+        for (let k = 0; k < cnt; k++) {
+          const dd = new Date(day); dd.setHours(slots[k % slots.length], 0, 0, 0);
+          doses.push(snap(dd.getTime()));
         }
       }
       const points = [];
+      const pre = [];
       for (let i = 0; i <= nSteps; i++) {
         const ts = start + i * stepMs;
-        let level = 0;
-        for (const d of doses) if (d <= ts) level += doseMg * Math.exp((-Math.LN2 * (ts - d)) / halfLifeMs);
+        let level = 0, before = 0;
+        for (const d of doses) {
+          if (d > ts) continue;
+          const c = doseMg * Math.exp((-Math.LN2 * (ts - d)) / halfLifeMs);
+          level += c;
+          if (d < ts) before += c;
+        }
         points.push(level);
+        pre.push(before);
       }
+      // Exact level at this moment (not the last 6h sample), for the numbers.
+      let nowLevel = 0;
+      for (const d of doses) if (d <= now) nowLevel += doseMg * Math.exp((-Math.LN2 * (now - d)) / halfLifeMs);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       return {
         id: p.id,
@@ -349,6 +388,8 @@ export default function SerumCurveScreen() {
         fromBlend: !!p.__blend,
         entry,
         points,
+        pre,
+        nowLevel,
         dosesInWindow,
         doses,       // raw dose timestamps, for date-readout math
         doseMg,
@@ -370,16 +411,22 @@ export default function SerumCurveScreen() {
       .filter(([, members]) => members.length >= 2)
       .map(([sub, members]) => {
         const points = new Array(nSteps + 1).fill(0);
-        for (const ser of members) for (let i = 0; i <= nSteps; i++) points[i] += ser.points[i];
-        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points };
+        const pre = new Array(nSteps + 1).fill(0);
+        for (const ser of members) for (let i = 0; i <= nSteps; i++) { points[i] += ser.points[i]; pre[i] += ser.pre[i]; }
+        const nowLevel = members.reduce((sum, m) => sum + m.nowLevel, 0);
+        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points, pre, nowLevel };
       });
 
     // Shared vertical scale spans the individual series and, when shown, the
     // (taller) combined totals — so every line is directly comparable.
     let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
-    const nowIdx = Math.min(nSteps, Math.round((now - start) / stepMs));
-    return { series, combined, max, nowIdx, nSteps, start };
+    // Last sample at or before now — rounding up could count a dose later today.
+    const nowIdx = Math.min(nSteps, Math.floor((now - start) / stepMs));
+    // Exact position of this moment (fractional step) — the Now marker and dots
+    // sit here, at the same exact level the numbers show.
+    const nowF = Math.min(nSteps, (now - start) / stepMs);
+    return { series, combined, max, nowIdx, nowF, nSteps, start };
   }, [protocols, selectedIds, t, colors.accent, showCombined, futureDays]);
 
   // Round the axis up to a readable ceiling above the peak (so nothing clips).
@@ -397,7 +444,7 @@ export default function SerumCurveScreen() {
     return ticks;
   }
 
-  const nowX = model ? xForIndex(model.nowIdx) : plotLeft;
+  const nowX = model ? xForIndex(model.nowF) : plotLeft;
   const single = model && model.series.length === 1 ? model.series[0] : null;
 
   // ── Date readout (cross-reference a blood-draw date) ──
@@ -407,7 +454,10 @@ export default function SerumCurveScreen() {
   const winStart = model ? model.start : now - PAST_DAYS * 24 * 3600 * 1000;
   const winEnd = now + futureDays * 24 * 3600 * 1000;
   const readoutISO = readoutDate || todayISO();
-  const readoutT = new Date(readoutISO + 'T12:00:00').getTime();
+  const readoutRaw = new Date(readoutISO + 'T12:00:00').getTime();
+  // On the sample grid (same snap as the doses), so a clock change never moves
+  // the readout off the line or across a dose.
+  const readoutT = model ? model.start + Math.round((readoutRaw - model.start) / stepMs) * stepMs : readoutRaw;
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
   const levelAtDate = (ser, T) => {
     let lv = 0;
@@ -433,7 +483,16 @@ export default function SerumCurveScreen() {
   const introPlayedRef = useRef(false);
   const introDoneRef = useRef(!!reduceMotion);
   const prevHorizonRef = useRef(futureDays);
+  const lastModelRef = useRef(null);
   const [introFx, setIntroFx] = useState(null); // { drops:[], hitsSingle:[], showDrop }
+  const introTimerRef = useRef(null);
+  // Jump the opening moment to its end (a tap, or the model changing under it).
+  const finishIntro = () => {
+    if (introDoneRef.current) return;
+    clearTimeout(introTimerRef.current);
+    cancelAnimation(clock); clock.value = C_TOTAL; introDoneRef.current = true; setIntroFx(null);
+  };
+  useEffect(() => () => clearTimeout(introTimerRef.current), []);
 
   // Opening moment: plays once per screen open, the first time there's a model.
   useEffect(() => {
@@ -459,19 +518,20 @@ export default function SerumCurveScreen() {
     setIntroFx({ drops: drops.length <= 60 ? drops : [], hitsSingle, showDrop });
     clock.value = 0;
     clock.value = withTiming(C_TOTAL, { duration: C_TOTAL, easing: Easing.linear });
-    const id = setTimeout(() => { introDoneRef.current = true; setIntroFx(null); }, C_TOTAL + 50);
-    return () => clearTimeout(id);
+    introTimerRef.current = setTimeout(() => { introDoneRef.current = true; setIntroFx(null); }, C_TOTAL + 50);
   }, [model]);
 
-  // Later changes: a new horizon rescales smoothly; anything else (selection,
+  // Later changes (skips the first run, which the intro owns): a new horizon rescales smoothly; anything else (selection,
   // combined toggle, refetch) just re-draws at its scale.
   useEffect(() => {
     if (!model || !introPlayedRef.current) return;
     const horizonChanged = prevHorizonRef.current !== futureDays;
     prevHorizonRef.current = futureDays;
-    if (horizonChanged && !introDoneRef.current) {
-      cancelAnimation(clock); clock.value = C_TOTAL; introDoneRef.current = true; setIntroFx(null);
-    }
+    // Any change mid-intro (selection, toggle, horizon, refetch) ends it: the
+    // queued drops belong to the old model.
+    const modelChanged = lastModelRef.current !== null && lastModelRef.current !== model;
+    lastModelRef.current = model;
+    if (modelChanged || horizonChanged) finishIntro();
     if (!horizonChanged || reduceMotion) { domainN.value = model.nSteps; yMaxS.value = plotMax; return; }
     const ease = { duration: 480, easing: Easing.inOut(Easing.cubic) };
     domainN.value = withTiming(model.nSteps, ease);
@@ -480,6 +540,7 @@ export default function SerumCurveScreen() {
   }, [model, plotMax, futureDays]);
 
   const mNow = model ? model.nowIdx : 0;
+  const mNowF = model ? model.nowF : 0;
   const mN = model ? model.nSteps : 1;
   const gridProps = useAnimatedProps(() => ({ opacity: staticK.value }));
   const markerProps = useAnimatedProps(() => {
@@ -494,19 +555,21 @@ export default function SerumCurveScreen() {
     opacity: Math.min(staticK.value, clamp01((clock.value - C_DRAW) / C_RISE)),
   }));
   const zoneProps = useAnimatedProps(() => {
-    const x = plotLeft + (mNow / domainN.value) * (plotRight - plotLeft);
+    const x = plotLeft + (mNowF / domainN.value) * (plotRight - plotLeft);
     const p0 = C_DRAW + C_RISE;
     const k = eOutCubic(clamp01((clock.value - p0) / C_PROJ));
     return { x, width: Math.max(0, (plotRight - x) * k), opacity: 0.55 * ready.value };
-  }, [mNow, plotLeft, plotRight]);
+  }, [mNowF, plotLeft, plotRight]);
   const nowLineProps = useAnimatedProps(() => {
-    const x = plotLeft + (mNow / domainN.value) * (plotRight - plotLeft);
+    const x = plotLeft + (mNowF / domainN.value) * (plotRight - plotLeft);
     const k = eOutCubic(clamp01((clock.value - C_DRAW) / C_RISE));
     return { x1: x, x2: x, y1: PLOT_BOTTOM - (PLOT_BOTTOM - PLOT_TOP) * k, y2: PLOT_BOTTOM, opacity: k > 0 ? ready.value : 0 };
-  }, [mNow, plotLeft, plotRight]);
+  }, [mNowF, plotLeft, plotRight]);
 
   // Single-compound stats count along with the pen.
   const singlePts = single ? single.points : null;
+  const singlePre = single ? single.pre : null;
+  const singleNow = single ? single.nowLevel : 0;
   const singleDoseIdx = useMemo(() => {
     if (!single || !model) return [];
     return single.doses
@@ -516,8 +579,9 @@ export default function SerumCurveScreen() {
   const statLevel = useDerivedValue(() => {
     if (!singlePts) return 0;
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
-    return levelAtStep(singlePts, rev);
-  }, [singlePts, mNow, mN]);
+    // Counts along with the pen, then settles on the exact level at this moment.
+    return rev >= mNow ? singleNow : levelAtStep(singlePts, singlePre, rev);
+  }, [singlePts, singlePre, singleNow, mNow, mN]);
   const statDoses = useDerivedValue(() => {
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
     let c = 0;
@@ -560,7 +624,11 @@ export default function SerumCurveScreen() {
         <View style={s.emptyWrap}>
           <View style={s.emptyIcon}><FeatureIcon name="curve" size={44} color={colors.textMuted} /></View>
           <Text style={s.emptyTitle}>{t('curve_empty_title')}</Text>
-          <Text style={s.emptySub}>{t('curve_empty_sub')}</Text>
+          {notChartedLines().length ? (
+            notChartedLines().map((line, i) => <Text key={line} style={[s.emptySub, i > 0 && { marginTop: 8 }]}>{line}</Text>)
+          ) : (
+            <Text style={s.emptySub}>{t('curve_empty_sub')}</Text>
+          )}
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll}>
@@ -578,6 +646,7 @@ export default function SerumCurveScreen() {
             </View>
             <Text style={s.dropdownChevron}>⌄</Text>
           </TouchableOpacity>
+          {notChartedLines().map(line => <Text key={line} style={s.notCharted}>{line}</Text>)}
 
           <View style={s.card}>
             <View style={s.cardTopRow}>
@@ -593,11 +662,15 @@ export default function SerumCurveScreen() {
                 </View>
               )}
             </View>
-            {/* Where the half-life comes from — visible, so the tier means something. */}
+            {/* Where the half-life comes from: the tier badge says it plainly; the
+                research citation is one tap away rather than jargon on the chart. */}
             {single && (
-              <Text style={s.sourceLine} numberOfLines={3}>
-                {t('curve_source_label')}: {single.entry.source}
-              </Text>
+              <TouchableOpacity onPress={() => setSourceOpen(v => !v)} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6 }}>
+                <Text style={s.sourceLine}>
+                  {t('curve_source_label')} {sourceOpen ? '⌃' : '⌄'}
+                  {sourceOpen ? `\n${single.entry.source}` : ''}
+                </Text>
+              </TouchableOpacity>
             )}
 
             <View style={s.disclaimerBox}>
@@ -610,6 +683,8 @@ export default function SerumCurveScreen() {
               </View>
             )}
 
+            {/* a touch on the chart skips the opening moment to its end */}
+            <View onTouchStart={finishIntro}>
             <Svg width={chartWidth} height={chartHeight}>
               {/* future projection zone — opens at Now during the opening moment */}
               <ARect y={PLOT_TOP} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.accentSoft} animatedProps={zoneProps} />
@@ -657,7 +732,7 @@ export default function SerumCurveScreen() {
               {model && model.max > 0 && model.series.map(ser => (
                 <CurveLine
                   key={ser.id}
-                  points={ser.points}
+                  points={ser.points} pre={ser.pre}
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={ser.color}
@@ -671,7 +746,7 @@ export default function SerumCurveScreen() {
               {model && model.max > 0 && showCombined && model.combined.map(c => (
                 <CurveLine
                   key={c.id}
-                  points={c.points}
+                  points={c.points} pre={c.pre}
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={colors.text} strokeWidth={3.5} strokeDasharray="0"
@@ -682,18 +757,19 @@ export default function SerumCurveScreen() {
                 <DoseDrop key={dp.key} clock={clock} hit={dp.hit} x={dp.x} y={dp.y} color={dp.color} showDrop={introFx.showDrop} />
               ))}
               {introFx && model && model.max > 0 && model.series.map(ser => (
-                <PenDot key={`pen-${ser.id}`} points={ser.points} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={ser.color} />
+                <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={ser.color} />
               ))}
               {/* dots marking each line's level right now */}
               <AG animatedProps={markerProps}>
               {model && model.max > 0 && model.series.map(ser => (
-                <Circle key={`d-${ser.id}`} cx={nowX} cy={yForLevel(ser.points[model.nowIdx])} r={3.5} fill={ser.color} />
+                <Circle key={`d-${ser.id}`} cx={nowX} cy={yForLevel(ser.nowLevel)} r={3.5} fill={ser.color} />
               ))}
               {model && model.max > 0 && showCombined && model.combined.map(c => (
-                <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.points[model.nowIdx])} r={4} fill={colors.text} />
+                <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.nowLevel)} r={4} fill={colors.text} />
               ))}
               </AG>
             </Svg>
+            </View>
 
             <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]}>
               <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{PAST_DAYS}d</Text>
@@ -704,9 +780,11 @@ export default function SerumCurveScreen() {
                 </Text>
               )}
             </Animated.View>
-            {/* Fast compounds (t½ under ~2h) show a spike per dose, not a build-up. */}
-            {model && model.max > 0 && model.series.some(ser => ser.entry.hours < 2) && (
-              <Text style={s.fastNote}>{t('curve_fast_note')}</Text>
+            {/* Compounds that clear between 6h samples draw a spike per dose, not a build-up. */}
+            {model && model.max > 0 && model.series.some(ser => ser.entry.hours < STEP_HOURS) && (
+              <Text style={s.fastNote}>
+                {t('curve_fast_note').replace('{names}', model.series.filter(ser => ser.entry.hours < STEP_HOURS).map(ser => ser.name).join(', '))}
+              </Text>
             )}
 
             {/* Projection horizon selector */}
@@ -758,9 +836,8 @@ export default function SerumCurveScreen() {
                     <Text style={[s.legendTier, { color: tierCfg[ser.entry.tier].fg }]} numberOfLines={1}>
                       {tierCfg[ser.entry.tier].label}
                     </Text>
-                    <Text style={s.legendSource} numberOfLines={2}>{ser.entry.source}</Text>
                   </View>
-                  <Text style={s.legendLevel}>{mgLabel(ser.points[model.nowIdx])} mg</Text>
+                  <Text style={s.legendLevel}>{mgLabel(ser.nowLevel)} mg</Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
                 </View>
               ))}
@@ -770,7 +847,7 @@ export default function SerumCurveScreen() {
                   <Text style={[s.legendName, { fontWeight: '800' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.points[model.nowIdx])} mg</Text>
+                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.nowLevel)} mg</Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
@@ -941,7 +1018,7 @@ function makeStyles(colors) {
     legendNameCol: { flex: 1, marginRight: 6 },
     legendNameTxt: { fontSize: 14, fontWeight: '600', color: colors.text },
     legendTier: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
-    legendSource: { fontSize: 10, color: colors.textMuted, marginTop: 2, lineHeight: 13 },
+    notCharted: { fontSize: 12, color: colors.textMuted, lineHeight: 16, marginTop: -4, marginBottom: 10, paddingHorizontal: 4 },
     sourceLine: { fontSize: 11, color: colors.textMuted, marginTop: -2, marginBottom: 10, lineHeight: 15 },
     fastNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8, lineHeight: 16 },
     legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },

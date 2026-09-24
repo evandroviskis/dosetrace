@@ -50,6 +50,14 @@ test('excluded compounds never chart — including via fuzzy or variant spelling
   }
   assert.equal(getHalfLifeEntry('IGF-1 LR3 1mg'), null, 'a variant spelling must not slip past the exclusion');
   assert.equal(getHalfLifeEntry('PEG-MGF 2mg'), null, 'PEG-MGF must not fall through to MGF');
+  // Normalization must not reroute or newly chart ordinary custom names.
+  assert.equal(resolveHalfLifeKey('Nad+'), 'NAD+');
+  for (const unmatched of ['Vitamina D', 'Vitamina D3', 'Anadrol', 'Melena de León', 'CJC 1295', 'CJC1295', 'BPC 157 / TB 500']) {
+    assert.equal(getHalfLifeEntry(unmatched), null, unmatched + ' must stay off the curve');
+  }
+  for (const typed of ['PEG MGF', 'pegmgf', 'Peg Mgf 2mg']) {
+    assert.equal(getHalfLifeEntry(typed), null, typed + ' must resolve to excluded PEG-MGF, not MGF');
+  }
   assert.equal(getHalfLifeEntry('Insulin Glargine'), null);
 });
 

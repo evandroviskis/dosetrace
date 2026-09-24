@@ -59,6 +59,9 @@ export function AnimatedNumber({ value, format, style, width, align = 'left', ac
   return (
     <AnimatedTextInput
       editable={false}
+      focusable={false}
+      accessible
+      accessibilityRole="text"
       pointerEvents="none"
       caretHidden
       scrollEnabled={false}
@@ -72,6 +75,7 @@ export function AnimatedNumber({ value, format, style, width, align = 'left', ac
         {
           padding: 0, margin: 0, borderWidth: 0,
           fontFamily: fontFamilyFor(flat.fontWeight),
+          fontWeight: undefined, // the family carries the weight (see lib/fonts.js)
           includeFontPadding: false,
           textAlign: align,
           ...(width != null ? { width } : null),

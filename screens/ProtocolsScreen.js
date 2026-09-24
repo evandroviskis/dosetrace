@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -191,7 +191,8 @@ function ProtocolSyringeGuide({ p, t }) {
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [zoom, setZoom] = useState(false);
   const { width: windowWidth } = useWindowDimensions();
-  if (p.type === 'oral') return null;
+  // (Orals are filtered at the call site: an early return here, before the
+  // animation hooks below, would crash when a card's type is edited to oral.)
 
   const draw = computeDraw({
     type: p.type,
@@ -662,7 +663,7 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
             )}
           </View>
 
-          <ProtocolSyringeGuide p={p} t={t} />
+          {p.type !== 'oral' && <ProtocolSyringeGuide key={`syr-${p.type}`} p={p} t={t} />}
           <ProtocolServingGuide p={p} t={t} onRefill={onRefill} />
 
           {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
@@ -712,6 +713,9 @@ export default function ProtocolsScreen() {
   // Canonical compound key (e.g. 'lyo_bpc_157'); null for a user-added custom
   // compound. The display name comes from t(compoundId) when set.
   const [compoundId, setCompoundId] = useState(null);
+  // The blend the typed composition belongs to. Typing in the name field nulls
+  // compoundId, so re-picking the SAME blend must not clear the recipe.
+  const compositionForRef = useRef(null);
   const [type, setType] = useState('recon');
   const [color, setColor] = useState('#185FA5');
   const [amount, setAmount] = useState('');
@@ -911,7 +915,7 @@ export default function ProtocolsScreen() {
     setIntervalDays(1); setDosesPerDay(1);
     setCustomIntervalOpen(false); setCustomIntervalText('');
     setStartDate(todayISO()); setShowStartPicker(false);
-    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote(''); setComposition('');
+    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote(''); setComposition(''); compositionForRef.current = null;
     setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
@@ -946,6 +950,9 @@ export default function ProtocolsScreen() {
   // Pick a canonical compound from the list — stores the key + display name.
   function selectCompound({ key, label }) {
     setName(label);
+    // A different blend has a different recipe: don't carry the old one over.
+    if (compositionForRef.current && key !== compositionForRef.current) setComposition('');
+    compositionForRef.current = key;
     setCompoundId(key);
     setSearchQuery(label);
     setShowSuggestions(false);
@@ -1019,7 +1026,7 @@ export default function ProtocolsScreen() {
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
-    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || ''); setComposition(p.composition || '');
+    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || ''); setComposition(p.composition || ''); compositionForRef.current = p.compound_id || null;
     setServingStrength(p.serving_strength != null ? String(p.serving_strength) : '');
     setServingStrengthUnit(p.serving_strength_unit || 'mg');
     setServingUnits(p.serving_units != null ? String(p.serving_units) : '1');
@@ -2563,7 +2570,7 @@ const makeStyles = (c) => StyleSheet.create({
   noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 16 },
   noteCancelText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
   noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 12 },
-  noteSaveText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  noteSaveText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
   actionBtnText: { fontSize: 12, color: c.textMuted },
@@ -2619,7 +2626,7 @@ const makeStyles = (c) => StyleSheet.create({
   zoomFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.32, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
   zoomPlunger: { position: 'absolute', top: -4, bottom: -4, width: 4, marginLeft: -2, backgroundColor: c.accent, borderRadius: 2 },
   zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 12 },
-  zoomCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  zoomCloseText: { color: c.accentText, fontWeight: '700', fontSize: 15 },
   modal: { flex: 1, backgroundColor: c.card },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   modalCancel: { fontSize: 14, color: c.textMuted },
@@ -2635,7 +2642,7 @@ const makeStyles = (c) => StyleSheet.create({
   footerNextText: { fontSize: 15, color: c.accent, fontWeight: '600' },
   footerDisabledText: { color: c.danger },
   footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: c.accent },
-  footerSaveText: { fontSize: 15, color: '#fff', fontWeight: '700' },
+  footerSaveText: { fontSize: 15, color: c.accentText, fontWeight: '700' },
   modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
   modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
   modalProgDone: { backgroundColor: c.accent },
@@ -2676,7 +2683,7 @@ const makeStyles = (c) => StyleSheet.create({
   iuEquivBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
   iuEquivText: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
   iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.accent },
-  iuUseBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  iuUseBtnText: { fontSize: 13, fontWeight: '700', color: c.accentText },
   calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },
