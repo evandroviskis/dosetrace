@@ -50,6 +50,7 @@ import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
 import { rollingAvgKcal } from '../../lib/nutrition';
+import CheckMark from '../../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
@@ -932,7 +933,12 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                       ) : null}
                       {plan ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
                       <TouchableOpacity style={[s.computeBtn, { marginTop: 14 }]} onPress={saveRealityCheck}>
-                        <Text style={s.computeBtnText}>{rcSavedMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_rc_save')}</Text>
+                        {rcSavedMsg ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <CheckMark style={s.computeBtnText} />
+                          <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
+                        </View>
+                      ) : <Text style={s.computeBtnText}>{t('cal_rc_save')}</Text>}
                       </TouchableOpacity>
                       <TouchableOpacity style={[s.rcReset, { marginTop: 10 }]} onPress={startNextRealityCheck}>
                         <Text style={s.rcResetText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
@@ -993,7 +999,12 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         {premium ? (
           <>
             <TouchableOpacity style={[s.computeBtn, !plan && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!plan}>
-              <Text style={s.computeBtnText}>{snapMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_snap_save')}</Text>
+              {snapMsg ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <CheckMark style={s.computeBtnText} />
+                          <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
+                        </View>
+                      ) : <Text style={s.computeBtnText}>{t('cal_snap_save')}</Text>}
             </TouchableOpacity>
             {snapPointCount >= 2 ? (
               <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
@@ -1026,7 +1037,12 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                 <Text style={s.inputLabelSm}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
                 <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholderTextColor={colors.textMuted} />
                 <TouchableOpacity style={[s.computeBtn, !num(bfWeight) && s.computeBtnDisabled]} onPress={saveBackfillWeighIn} disabled={!num(bfWeight)}>
-                  <Text style={s.computeBtnText}>{bfMsg ? `✓ ${t('cal_snap_saved')}` : t('cal_tgt_backfill_save')}</Text>
+                  {bfMsg ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <CheckMark style={s.computeBtnText} />
+                          <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
+                        </View>
+                      ) : <Text style={s.computeBtnText}>{t('cal_tgt_backfill_save')}</Text>}
                 </TouchableOpacity>
               </View>
             ) : null}

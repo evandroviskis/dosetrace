@@ -12,6 +12,7 @@ import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
 import { loadOnboarding } from '../lib/onboardingStore';
 import FeatureIcon from '../components/FeatureIcon';
+import CheckMark from '../components/CheckMark';
 
 const PRIVACY_URL = 'https://dosetrace.io/privacy-policy';
 
@@ -206,7 +207,7 @@ export default function AuthScreen({ onBack }) {
               <Text style={s.backChevron}>‹</Text>
             </TouchableOpacity>
           )}
-          <View style={s.successBadge}><Text style={s.successCheck}>✓</Text></View>
+          <View style={s.successBadge}><CheckMark style={s.successCheck} /></View>
           <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
           <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
           <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
@@ -273,7 +274,7 @@ export default function AuthScreen({ onBack }) {
         {!isSignIn && !hasStash && (
           <TouchableOpacity style={s.consentRow} onPress={() => setConsentGiven((v) => !v)} activeOpacity={0.7}>
             <View style={[s.checkbox, consentGiven && s.checkboxOn]}>
-              {consentGiven && <Text style={s.checkboxTick}>✓</Text>}
+              {consentGiven && <CheckMark style={s.checkboxTick} />}
             </View>
             <Text style={s.consentText}>
               {t('auth_agree_terms')}{' '}

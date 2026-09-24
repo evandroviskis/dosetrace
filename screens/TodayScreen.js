@@ -93,6 +93,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors }) {
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
+import CheckMark from '../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
@@ -901,6 +902,9 @@ export default function TodayScreen() {
     setTimeout(() => { if (landingAtRef.current && Date.now() > landingAtRef.current + 400) landingAtRef.current = 0; }, 1500);
     Promise.all([measureWin(rootRef), measureWin(ringRef)]).then(([root, ring]) => {
       if (!root || !ring) return;
+      // Ring scrolled out of view: no flight to an invisible target (the button's
+      // check and the count still confirm the dose).
+      if (ring.y + ring.h < root.y || ring.y > root.y + root.h) { landingAtRef.current = 0; return; }
       fly.value = {
         sx: btnRect.x - root.x + btnRect.w / 2 - 5, sy: btnRect.y - root.y + btnRect.h / 2 - 6,
         ex: ring.x - root.x + ring.w / 2 - 5, ey: ring.y - root.y + ring.h / 2 - 6,
@@ -933,7 +937,7 @@ export default function TodayScreen() {
   const intFmt = (v) => { 'worklet'; return String(Math.round(v)); };
   const dosesWord = t('today_doses');
   const subFmt = (v) => { 'worklet'; return Math.round(v) + ' / ' + totalDoses + ' ' + dosesWord; };
-  const takenLabel = t('today_taken').replace(/^✓\s*/, '');
+  const takenLabel = t('today_taken');
 
   // Order the daily list purely by "what's next to take" across all compounds:
   // overdue/now → later today → tomorrow → in 2 days … (see nextDoseAt). A dose
@@ -1350,7 +1354,7 @@ export default function TodayScreen() {
                     dot.isToday && s.streakDotToday,
                   ]}>
                     {dot.status === 'complete' && !dot.isToday && (
-                      <Text style={s.streakDotCheck}>✓</Text>
+                      <CheckMark style={s.streakDotCheck} />
                     )}
                   </View>
                   <Text style={[s.streakDotLabel, dot.isToday && s.streakDotLabelToday]}>

@@ -37,6 +37,7 @@ import { isPremium } from '../lib/purchases';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
+import CheckMark from '../components/CheckMark';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -581,7 +582,7 @@ export default function SettingsScreen({ navigation }) {
               t('settings_premium_feat_5'),
             ].map((f, i) => (
               <View key={i} style={s.premiumFeat}>
-                <Text style={s.premiumCheck}>✓</Text>
+                <CheckMark style={s.premiumCheck} />
                 <Text style={s.premiumFeatText}>{f}</Text>
               </View>
             ))}
@@ -628,7 +629,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="journal" size={20} color={colors.text} /></View>
+              <View style={s.rowIconBox}><FeatureIcon name="food" size={20} color={colors.text} /></View>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
@@ -967,7 +968,7 @@ export default function SettingsScreen({ navigation }) {
                   <Text style={s.langName}>{lang.name}</Text>
                 </View>
                 {language === lang.code && (
-                  <Text style={s.langCheck}>✓</Text>
+                  <CheckMark style={s.langCheck} />
                 )}
               </TouchableOpacity>
             ))}
@@ -1221,7 +1222,7 @@ export default function SettingsScreen({ navigation }) {
                 }}
               >
                 <Text style={[s.langNative, { flex: 1 }]}>{countryLabel(item, language)}</Text>
-                {country === item && <Text style={s.langCheck}>✓</Text>}
+                {country === item && <CheckMark style={s.langCheck} />}
               </TouchableOpacity>
             )}
           />

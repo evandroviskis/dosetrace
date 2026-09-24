@@ -15,9 +15,10 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, AccessibilityInfo } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, AccessibilityInfo, Switch } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { getCachedUser } from '../../lib/supabase';
+import { supabase, getCachedUser } from '../../lib/supabase';
+import { friendlyError } from '../../lib/friendlyError';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
@@ -110,6 +111,7 @@ export default function NutritionLogger() {
   const [editEntry, setEditEntry] = useState(null);
   const [editItems, setEditItems] = useState([]);
   const reparsingRef = useRef(new Set());
+  const [foodReminders, setFoodReminders] = useState(true); // same account pref as Settings
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -118,7 +120,22 @@ export default function NutritionLogger() {
     const user = await getCachedUser();
     const uid = user?.id || null;
     setUserId(uid);
+    setFoodReminders(user?.user_metadata?.food_reminders !== false);
     if (uid) { refresh(uid); getFoodLogsByDate(uid, todayISO()).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text) reparse(r, uid); }); }
+  }
+
+  // The 20:00 food nudge can be switched off right where it points to (same
+  // account preference as Settings). A failed save reverts the switch.
+  async function toggleFoodReminders(val) {
+    setFoodReminders(val);
+    let error = null;
+    try { ({ error } = await supabase.auth.updateUser({ data: { food_reminders: val } })); } catch (e) { error = e; }
+    if (error) {
+      setFoodReminders(!val);
+      Alert.alert(t('error'), friendlyError(error, t, 'error_save_failed'));
+      return;
+    }
+    syncFoodLogReminder().catch(() => {});
   }
 
   function refresh(uid) {
@@ -303,6 +320,20 @@ export default function NutritionLogger() {
         <Text style={s.howText}>{t('nutri_how')}</Text>
       </TouchableOpacity>
 
+      <View style={s.remindRow}>
+        <FeatureIcon name="food" size={16} color={colors.textMuted} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.remindLabel}>{t('settings_food_reminders')}</Text>
+          <Text style={s.remindSub}>{t('settings_food_reminders_sub')}</Text>
+        </View>
+        <Switch
+          value={foodReminders}
+          onValueChange={toggleFoodReminders}
+          trackColor={{ true: colors.switchTrack }}
+          accessibilityLabel={t('settings_food_reminders')}
+        />
+      </View>
+
       {deflect && (
         <View style={s.deflect}>
           <Text style={s.deflectTitle}>{t('nutri_deflect_title')}</Text>
@@ -455,6 +486,9 @@ const makeStyles = (c) => StyleSheet.create({
   logBtnText: { color: c.accentText, fontWeight: '800', fontSize: 15 },
   caveat: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 8, lineHeight: 15 },
   freeNote: { fontSize: 11.5, fontWeight: '700', color: c.accentSoftText, textAlign: 'center', marginTop: 8 },
+  remindRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 4, borderTopWidth: 0.5, borderTopColor: c.border, marginBottom: 6 },
+  remindLabel: { fontSize: 13, fontWeight: '600', color: c.text },
+  remindSub: { fontSize: 11.5, color: c.textMuted, marginTop: 2, lineHeight: 15 },
   howRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12 },
   howText: { fontSize: 13, fontWeight: '700', color: c.accent },
   // deflect

@@ -13,8 +13,9 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(`${src}
 this.HALF_LIVES = HALF_LIVES; this.CURVE_EXCLUDED = CURVE_EXCLUDED;
-this.getHalfLifeEntry = getHalfLifeEntry; this.resolveHalfLifeKey = resolveHalfLifeKey;`, ctx);
-const { HALF_LIVES, CURVE_EXCLUDED, getHalfLifeEntry, resolveHalfLifeKey } = ctx;
+this.getHalfLifeEntry = getHalfLifeEntry; this.resolveHalfLifeKey = resolveHalfLifeKey;
+this.curveUnit = curveUnit; this.doseInCurveUnit = doseInCurveUnit; this.amountFraction = amountFraction;`, ctx);
+const { HALF_LIVES, CURVE_EXCLUDED, getHalfLifeEntry, resolveHalfLifeKey, curveUnit, doseInCurveUnit, amountFraction } = ctx;
 
 const TIERS = new Set(['clinical', 'studied', 'estimated']);
 
@@ -77,5 +78,62 @@ test('acetyl/amidated variants have their own honest entries', () => {
     assert.ok(e, `${name} resolves`);
     assert.equal(resolveHalfLifeKey(name), name, `${name} has its own key`);
     assert.match(e.source, /Modified form/);
+  }
+});
+
+test('partial custom names only match when unambiguous', () => {
+  for (const n of ['Test', 'Testo', 'Tren', 'Deca', 'Sema', 'TB']) {
+    assert.equal(resolveHalfLifeKey(n), null, n + ' is ambiguous and must not borrow a curve');
+  }
+  assert.equal(resolveHalfLifeKey('BPC'), 'BPC-157');
+  assert.equal(resolveHalfLifeKey('Tirz'), 'Tirzepatide');
+  // a key named inside the name wins over a longer key that merely contains it
+  assert.equal(resolveHalfLifeKey('epithalon'), 'Epithalon');
+  assert.equal(resolveHalfLifeKey('selank'), 'Selank');
+  assert.equal(resolveHalfLifeKey('melanotan i'), 'Melanotan I');
+  assert.equal(resolveHalfLifeKey('Semaglutide 5mg'), 'Semaglutide');
+  assert.equal(resolveHalfLifeKey('Tirz '), 'Tirzepatide', 'trailing space');
+  assert.equal(resolveHalfLifeKey('HGH Frag'), 'Fragment 176-191');
+  assert.equal(resolveHalfLifeKey('hgh frag 176-191'), 'Fragment 176-191');
+  assert.equal(resolveHalfLifeKey('HGH 4iu'), 'HGH');
+});
+
+test('curve units: mg for all, IU only for IU-native compounds', () => {
+  const hgh = HALF_LIVES['HGH'], hcg = HALF_LIVES['HCG'], bpc = HALF_LIVES['BPC-157'];
+  assert.equal(curveUnit(bpc), 'mg');
+  assert.equal(curveUnit(hgh), 'IU');
+  assert.equal(curveUnit(hcg), 'IU');
+  assert.equal(doseInCurveUnit(250, 'mcg', bpc), 0.25);
+  assert.equal(doseInCurveUnit(2, 'mg', bpc), 2);
+  assert.equal(doseInCurveUnit(0.5, 'g', bpc), 500);
+  assert.equal(doseInCurveUnit(5, 'IU', bpc), null, 'IU is not convertible for a mass-dosed compound');
+  assert.equal(doseInCurveUnit(4, 'IU', hgh), 4);
+  assert.equal(doseInCurveUnit(2, 'mg', hgh), 6, 'somatropin 1 mg = 3 IU');
+  assert.equal(doseInCurveUnit(500, 'IU', hcg), 500);
+  assert.equal(doseInCurveUnit(1, 'mg', hcg), null, 'HCG has no mass-to-IU standard');
+  assert.equal(doseInCurveUnit(0, 'mg', bpc), null);
+});
+
+test('absorption: Bateman rise where a published Tmax exists, same area as instant', () => {
+  const near = (a, b, tol) => assert.ok(Math.abs(a - b) <= Math.abs(b) * tol, a + ' vs ' + b);
+  const cyp = HALF_LIVES['Testosterone Cypionate'], und = HALF_LIVES['Testosterone Undecanoate'];
+  near(200 * amountFraction(cyp, 71.7), 154.39, 0.003);
+  near(1000 * amountFraction(und, 168), 947.5, 0.003);
+  assert.equal(amountFraction(cyp, 0), 0, 'an oil ester starts at zero, not at the full dose');
+  // peak at Tmax: F(Tmax) = e^(-kd*Tmax), and it is the maximum
+  const kd = Math.LN2 / cyp.hours;
+  near(amountFraction(cyp, 71.7), Math.exp(-kd * 71.7), 0.001);
+  assert.ok(amountFraction(cyp, 71.7) > amountFraction(cyp, 60) && amountFraction(cyp, 71.7) > amountFraction(cyp, 84));
+  // area preserved: integral equals t½/ln2
+  let area = 0; for (let t = 0; t < 192 * 30; t += 0.5) area += amountFraction(cyp, t + 0.25) * 0.5;
+  near(area, cyp.hours / Math.LN2, 0.005);
+  // compounds without a Tmax stay instant
+  const bpc = HALF_LIVES['BPC-157'];
+  assert.equal(amountFraction(bpc, 0), 1);
+  assert.equal(amountFraction(bpc, -1), 0);
+  // only ester/depot entries with a real published Tmax get the rise
+  for (const [k, e] of Object.entries(HALF_LIVES)) if (e.tmaxHours) {
+    assert.ok(Array.isArray(e.tmaxRange) && e.tmaxRange[0] <= e.tmaxHours && e.tmaxHours <= e.tmaxRange[1], k + ' needs its published range');
+    assert.ok(e.tmaxHours < e.hours / Math.LN2, k + ' Tmax must be reachable');
   }
 });

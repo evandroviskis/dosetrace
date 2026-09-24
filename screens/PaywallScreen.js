@@ -26,6 +26,11 @@ import AccumulationHero from '../components/AccumulationHero';
 import { FeaturePreviewSheet, PREVIEW_FEATURES } from '../components/FeaturePreviews';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
+import CheckMark, { CrossMark } from '../components/CheckMark';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PAYWALL_VIEWS_KEY = 'dosetrace_paywall_views';
+const PAYWALL_ANIM_VARIANT = 'hero_b'; // bump when the paywall hero animation changes
 
 export default function PaywallScreen({ navigation, route }) {
   const { t } = useLanguage();
@@ -77,7 +82,16 @@ export default function PaywallScreen({ navigation, route }) {
 
   useEffect(() => {
     Analytics.viewed('paywall');
-    Analytics.paywallViewed(source); // conversion funnel: per-source view
+    // conversion funnel: per-source view, tagged with the hero variant and this
+    // device's view number (best effort — storage failure still logs the view)
+    (async () => {
+      let viewCount = null;
+      try {
+        viewCount = (parseInt(await AsyncStorage.getItem(PAYWALL_VIEWS_KEY), 10) || 0) + 1;
+        await AsyncStorage.setItem(PAYWALL_VIEWS_KEY, String(viewCount));
+      } catch { /* ignore */ }
+      Analytics.paywallViewed(source, { animVariant: PAYWALL_ANIM_VARIANT, viewCount });
+    })();
     loadOfferings();
   }, []);
 
@@ -314,7 +328,7 @@ export default function PaywallScreen({ navigation, route }) {
                 disabled={purchasing}
               >
                 {purchasing ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.accentText} />
                 ) : (
                   <>
                     <Text style={s.ctaBtnText}>
@@ -348,10 +362,10 @@ export default function PaywallScreen({ navigation, route }) {
           {FREE_FEATURES.map((f, i) => (
             <View key={i} style={[s.compareRow, i === FREE_FEATURES.length - 1 && { borderBottomWidth: 0 }]}>
               <Text style={[s.compareLabel, { flex: 2 }]}>{f.label}</Text>
-              <Text style={[s.compareVal, { color: f.included ? colors.success : colors.danger }]}>
-                {f.included ? '✓' : '✕'}
-              </Text>
-              <Text style={[s.compareVal, { color: colors.success }]}>✓</Text>
+              <View style={s.compareMark}>
+                {f.included ? <CheckMark size={14} color={colors.success} /> : <CrossMark size={14} color={colors.danger} />}
+              </View>
+              <View style={s.compareMark}><CheckMark size={14} color={colors.success} /></View>
             </View>
           ))}
         </View>
@@ -363,7 +377,7 @@ export default function PaywallScreen({ navigation, route }) {
         <View style={s.featuresCard}>
           {PREMIUM_FEATURES.map((f, i) => (
             <View key={i} style={[s.featRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border }]}>
-              <Text style={s.featCheck}>✓</Text>
+              <CheckMark style={s.featCheck} />
               <Text style={s.featText}>{f}</Text>
             </View>
           ))}
@@ -376,7 +390,7 @@ export default function PaywallScreen({ navigation, route }) {
             disabled={purchasing}
           >
             {purchasing ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.accentText} />
             ) : (
               <>
                 <Text style={s.ctaBtnText}>
@@ -452,7 +466,7 @@ const makeStyles = (c) => StyleSheet.create({
   lifetimeNote: { fontSize: 11.5, color: c.textFaint, lineHeight: 16, marginTop: 12 },
   ctaBtn: { marginHorizontal: 16, backgroundColor: c.accent, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 12 },
   ctaBtnText: { color: c.accentText, fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  ctaBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11 },
+  ctaBtnSub: { color: c.accentText, opacity: 0.75, fontSize: 11 },
   legalNote: { fontSize: 10, color: c.textFaint, textAlign: 'center', paddingHorizontal: 24, lineHeight: 16, marginBottom: 8 },
   divider: { height: 8, backgroundColor: c.border, marginVertical: 8 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginHorizontal: 16, marginTop: 16, marginBottom: 12 },
@@ -465,6 +479,7 @@ const makeStyles = (c) => StyleSheet.create({
   compareCol: { flex: 1, fontSize: 11, fontWeight: '600', color: c.textMuted, textAlign: 'center' },
   compareRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
   compareLabel: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
+  compareMark: { flex: 1, alignItems: 'center' },
   compareVal: { flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '600' },
   bloodworkCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, padding: 16 },
   bloodworkTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginBottom: 8 },

@@ -26,12 +26,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { translations } from '../i18n/translations';
 import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
-import { getHalfLifeEntry } from '../lib/halfLives';
+import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { BLEND_IDS, blendComponents } from '../lib/compounds';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { isPremium } from '../lib/purchases';
+import CheckMark from '../components/CheckMark';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -166,11 +167,6 @@ function matchName(protocol) {
   return protocol.name || '';
 }
 
-function doseInMg(protocol) {
-  const dose = Number(protocol.dose);
-  if (!dose || !isFinite(dose) || dose <= 0) return 1;
-  return (protocol.dose_unit || '').toLowerCase() === 'mcg' ? dose / 1000 : dose;
-}
 
 // Estimated amount still in the body (mg), from the summed-decay model. Rough,
 // not a serum concentration — the disclaimer says so.
@@ -185,6 +181,15 @@ function mgLabel(v) {
   if (!isFinite(v) || v <= 0) return '0';
   if (v < 10) return v.toFixed(1);
   return String(Math.round(v));
+}
+
+// Peak time and its published range, in hours below 3 days, else days.
+function tmaxLabels(entry) {
+  const [lo, hi] = entry.tmaxRange;
+  const inDays = hi >= 72;
+  const f = (h) => (inDays ? String(Math.round(h / 24)) : String(Math.round(h)));
+  const u = inDays ? 'd' : 'h';
+  return { peak: f(entry.tmaxHours) + u, range: f(lo) + '–' + f(hi) + u };
 }
 
 function halfLifeLabel(hours) {
@@ -206,7 +211,7 @@ export default function SerumCurveScreen() {
   const [protocols, setProtocols] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [notCharted, setNotCharted] = useState({ iu: [], noData: [] });
+  const [notCharted, setNotCharted] = useState({ iu: [], noData: [], noDose: [] });
   const [sourceOpen, setSourceOpen] = useState(false);
   const [showCombined, setShowCombined] = useState(true);
   const [futureDays, setFutureDays] = useState(7);   // projection horizon
@@ -238,7 +243,9 @@ export default function SerumCurveScreen() {
     // component, its dose split from the logged blend dose by the common ratio
     // (lib/compounds BLEND_RATIOS). Each component then charts its own line, like
     // any compound. Ratios vary by source — the curve shows the blend_curve_caveat.
-    const BLEND_COLORS = ['#4C93E0', '#1D9E75', '#D85A30', '#7F77DD'];
+    // From the protocol palette, avoiding the accent blue and success green so a
+    // blend line never reads as "accent" or "good".
+    const BLEND_COLORS = ['#7F77DD', '#D85A30', '#0E8C8C', '#BA7517'];
     const raw = (getActiveProtocols(user.id) || []).filter(p => ['recon', 'rtu'].includes(p.type));
     const expanded = [];
     for (const p of raw) {
@@ -257,18 +264,26 @@ export default function SerumCurveScreen() {
     // mg axis — IU→mg is not a unit conversion — so they're excluded from the curve.
     // Compounds without reliable half-life data are excluded too. Both are NAMED on
     // screen, never dropped silently (a user must not think their protocol vanished).
-    const isIU = (p) => (p.dose_unit || '').toLowerCase() === 'iu';
-    const active = expanded.filter(p => !isIU(p) && getHalfLifeEntry(matchName(p)) != null);
+    // The curve is in mg for every compound, except ones always measured in IU
+    // (somatropin, gonadotropins), which chart in IU. A dose that can't be put
+    // in its compound's unit (e.g. IU of a mass-dosed peptide) is not charted.
+    const entryOf = (p) => getHalfLifeEntry(matchName(p));
+    const noDose = (p) => !(Number(p.dose) > 0);
+    const isIU = (p) => { const e = entryOf(p); return e != null && !noDose(p) && doseInCurveUnit(p.dose, p.dose_unit, e) == null; };
+    const active = expanded.filter(p => entryOf(p) != null && !noDose(p) && !isIU(p));
     const nameOf = (p) => p.__blend ? t(p.__blend) : (p.compound_id ? t(p.compound_id) : p.name);
     const uniqNames = (list) => [...new Set(list.map(nameOf).filter(Boolean))];
     setNotCharted({
       iu: uniqNames(expanded.filter(isIU)),
-      noData: uniqNames(expanded.filter(p => !isIU(p) && getHalfLifeEntry(matchName(p)) == null)),
+      noData: uniqNames(expanded.filter(p => entryOf(p) == null)),
+      noDose: uniqNames(expanded.filter(p => entryOf(p) != null && noDose(p))),
     });
     setProtocols(active);
     // Keep any still-valid selection; otherwise default to the first compound.
     setSelectedIds(prev => {
-      const kept = prev.filter(id => active.some(p => p.id === id));
+      const u = (id) => { const p = active.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
+      const still = prev.filter(id => active.some(p => p.id === id));
+      const kept = still.filter(id => u(id) === u(still[0])); // one unit per chart
       return kept.length ? kept : (active[0] ? [active[0].id] : []);
     });
     // Distinct blood-exam dates (most recent first) to cross-reference against.
@@ -282,7 +297,14 @@ export default function SerumCurveScreen() {
     const out = [];
     if (notCharted.noData.length) out.push(t('curve_not_charted').replace('{names}', notCharted.noData.join(', ')));
     if (notCharted.iu.length) out.push(t('curve_not_charted_iu').replace('{names}', notCharted.iu.join(', ')));
+    if (notCharted.noDose.length) out.push(t('curve_not_charted_nodose').replace('{names}', notCharted.noDose.join(', ')));
     return out;
+  }
+
+  // Unit a protocol charts in ('mg' or 'IU').
+  function unitOf(id) {
+    const p = protocols.find(x => x.id === id);
+    return p ? curveUnit(getHalfLifeEntry(matchName(p))) : 'mg';
   }
 
   function toggle(id) {
@@ -291,6 +313,9 @@ export default function SerumCurveScreen() {
         // Never allow zero selected — keep the last one.
         return prev.length === 1 ? prev : prev.filter(x => x !== id);
       }
+      // mg and IU can't share one axis: picking a compound in the other unit
+      // starts a new selection with it.
+      if (prev.length && unitOf(prev[0]) !== unitOf(id)) return [id];
       return [...prev, id];
     });
   }
@@ -334,7 +359,7 @@ export default function SerumCurveScreen() {
     const DAY_MS = 86400000;
     const series = selected.map(p => {
       const entry = getHalfLifeEntry(matchName(p));
-      const doseMg = doseInMg(p);
+      const doseMg = doseInCurveUnit(p.dose, p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
       // Dose events come from the protocol's SCHEDULE (start date + interval +
       // doses/day), not from hand-logged doses — so the curve reflects the
@@ -370,7 +395,7 @@ export default function SerumCurveScreen() {
         let level = 0, before = 0;
         for (const d of doses) {
           if (d > ts) continue;
-          const c = doseMg * Math.exp((-Math.LN2 * (ts - d)) / halfLifeMs);
+          const c = doseMg * amountFraction(entry, (ts - d) / 3600000);
           level += c;
           if (d < ts) before += c;
         }
@@ -379,7 +404,7 @@ export default function SerumCurveScreen() {
       }
       // Exact level at this moment (not the last 6h sample), for the numbers.
       let nowLevel = 0;
-      for (const d of doses) if (d <= now) nowLevel += doseMg * Math.exp((-Math.LN2 * (now - d)) / halfLifeMs);
+      for (const d of doses) if (d <= now) nowLevel += doseMg * amountFraction(entry, (now - d) / 3600000);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       return {
         id: p.id,
@@ -393,6 +418,7 @@ export default function SerumCurveScreen() {
         dosesInWindow,
         doses,       // raw dose timestamps, for date-readout math
         doseMg,
+        unit: curveUnit(entry),
         halfLifeMs,
       };
     });
@@ -426,7 +452,7 @@ export default function SerumCurveScreen() {
     // Exact position of this moment (fractional step) — the Now marker and dots
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
-    return { series, combined, max, nowIdx, nowF, nSteps, start };
+    return { series, combined, max, nowIdx, nowF, nSteps, start, now, unit: series[0] ? series[0].unit : 'mg' };
   }, [protocols, selectedIds, t, colors.accent, showCombined, futureDays]);
 
   // Round the axis up to a readable ceiling above the peak (so nothing clips).
@@ -457,11 +483,13 @@ export default function SerumCurveScreen() {
   const readoutRaw = new Date(readoutISO + 'T12:00:00').getTime();
   // On the sample grid (same snap as the doses), so a clock change never moves
   // the readout off the line or across a dose.
-  const readoutT = model ? model.start + Math.round((readoutRaw - model.start) / stepMs) * stepMs : readoutRaw;
+  // Today reads at THIS moment (same as the Est. level stat), not noon.
+  const readoutT = readoutISO === todayISO() ? (model ? model.now : now)
+    : model ? model.start + Math.round((readoutRaw - model.start) / stepMs) * stepMs : readoutRaw;
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
   const levelAtDate = (ser, T) => {
     let lv = 0;
-    for (const d of ser.doses) if (d <= T) lv += ser.doseMg * Math.exp((-Math.LN2 * (T - d)) / ser.halfLifeMs);
+    for (const d of ser.doses) if (d <= T) lv += ser.doseMg * amountFraction(ser.entry, (T - d) / 3600000);
     return lv;
   };
   const seriesById = {};
@@ -590,7 +618,8 @@ export default function SerumCurveScreen() {
   }, [singleDoseIdx, mNow, mN]);
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
-  const mgFmt = (v) => { 'worklet'; return (!isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' mg'; };
+  const unitLbl = model ? model.unit : 'mg';
+  const mgFmt = (v) => { 'worklet'; return (!isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ' + unitLbl; };
   const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
   // Dropdown button label: the single compound's name, or "N compounds".
@@ -652,7 +681,7 @@ export default function SerumCurveScreen() {
             <View style={s.cardTopRow}>
               <Text style={s.rangeLabel}>
                 {t('curve_last_days')} {PAST_DAYS}d · +{futureDays}d {t('curve_projection')}
-                {model && model.max > 0 ? `  ·  ${t('curve_peak')} ≈ ${mgLabel(model.max)} mg` : ''}
+                {model && model.max > 0 ? `  ·  ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
               </Text>
               {single && (
                 <View style={[s.tierBadge, { backgroundColor: tierCfg[single.entry.tier].bg }]}>
@@ -698,7 +727,7 @@ export default function SerumCurveScreen() {
                   </SvgText>
                 </React.Fragment>
               ))}
-              <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">mg</SvgText>
+              <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">{unitLbl}</SvgText>
               </AG>
               {/* NOW line — rises from the baseline when the pen reaches today */}
               <ALine stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" animatedProps={nowLineProps} />
@@ -780,6 +809,15 @@ export default function SerumCurveScreen() {
                 </Text>
               )}
             </Animated.View>
+            {/* Oil-depot / SC-depot compounds: modeled rise to a published median peak */}
+            {model && model.max > 0 && model.series.filter(ser => ser.entry.tmaxHours).map(ser => {
+              const lb = tmaxLabels(ser.entry);
+              return (
+                <Text key={'abs-' + ser.id} style={s.fastNote}>
+                  {t('curve_absorption_note').replace('{name}', ser.name).replace('{peak}', lb.peak).replace('{range}', lb.range)}
+                </Text>
+              );
+            })}
             {/* Compounds that clear between 6h samples draw a spike per dose, not a build-up. */}
             {model && model.max > 0 && model.series.some(ser => ser.entry.hours < STEP_HOURS) && (
               <Text style={s.fastNote}>
@@ -837,7 +875,7 @@ export default function SerumCurveScreen() {
                       {tierCfg[ser.entry.tier].label}
                     </Text>
                   </View>
-                  <Text style={s.legendLevel}>{mgLabel(ser.nowLevel)} mg</Text>
+                  <Text style={s.legendLevel}>{mgLabel(ser.nowLevel)} {unitLbl}</Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
                 </View>
               ))}
@@ -847,7 +885,7 @@ export default function SerumCurveScreen() {
                   <Text style={[s.legendName, { fontWeight: '800' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.nowLevel)} mg</Text>
+                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.nowLevel)} {unitLbl}</Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
@@ -920,7 +958,7 @@ export default function SerumCurveScreen() {
               <View key={`ro-${ser.id}`} style={s.readoutRow}>
                 <View style={[s.dot, { backgroundColor: ser.color }]} />
                 <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
-                <Text style={s.readoutVal}>{mgLabel(levelAtDate(ser, readoutT))} mg</Text>
+                <Text style={s.readoutVal}>{mgLabel(levelAtDate(ser, readoutT))} {unitLbl}</Text>
               </View>
             ))}
             {showCombined && model && model.combined.map(c => (
@@ -930,7 +968,7 @@ export default function SerumCurveScreen() {
                   {t('curve_combined')} · {t(`substance_${c.substance}`)}
                 </Text>
                 <Text style={[s.readoutVal, { fontWeight: '800' }]}>
-                  {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} mg
+                  {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} {unitLbl}
                 </Text>
               </View>
             ))}
@@ -955,10 +993,10 @@ export default function SerumCurveScreen() {
                     <View style={[s.dot, { backgroundColor: p.color || colors.accent }]} />
                     <View style={s.optionMain}>
                       <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-                      <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours)} · {tierCfg[entry.tier].label}</Text>
+                      <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
                     </View>
                     <View style={[s.check, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
-                      {on && <Text style={s.checkMark}>✓</Text>}
+                      {on && <CheckMark style={s.checkMark} />}
                     </View>
                   </TouchableOpacity>
                 );

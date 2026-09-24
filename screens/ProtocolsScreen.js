@@ -53,6 +53,7 @@ import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExp
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
+import CheckMark from '../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -230,7 +231,12 @@ function ProtocolSyringeGuide({ p, t }) {
   const stopperStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
   const faceStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
   const rodStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
-  const tagStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
+  const rowW = useSharedValue(0); // tag row width, so the riding tag never leaves the barrel
+  const tagStyle = useAnimatedStyle(() => {
+    const W = rowW.value, TAG = 40;
+    if (!W) return { left: `${pct.value}%` };
+    return { left: Math.min(Math.max((pct.value / 100) * W - TAG / 2, 0), W - TAG), marginLeft: 0 };
+  });
   const pulseStyle = useAnimatedStyle(() => {
     const k = arrive.value;
     return {
@@ -267,9 +273,6 @@ function ProtocolSyringeGuide({ p, t }) {
   return (
     <View style={s.syringeWrap}>
       <Text style={s.syringeTitle}>{t('protocols_syringe_title')}</Text>
-      <Text style={s.syringeSubtitle}>
-        {t('protocols_syringe_based_on')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits} {t('protocols_syringe_units')} ({pDrawML} ml)</Text>
-      </Text>
       <TouchableOpacity activeOpacity={0.85} onPress={() => setZoom(true)}>
       <View style={s.syringeOuter}>
         {/* needle + hub at the 0 end, like the syringe in your hand */}
@@ -278,7 +281,7 @@ function ProtocolSyringeGuide({ p, t }) {
           <View style={s.syringeHub} />
         </View>
         <View style={s.syringeBody}>
-          <View style={s.syringeTagRow}>
+          <View style={s.syringeTagRow} onLayout={(e) => { rowW.value = e.nativeEvent.layout.width; }}>
             <Animated.View style={[s.syringeTag, tagStyle]}>
               <AnimatedNumber value={pct} format={tagFmt} style={s.syringeTagText} width={40} align="center" />
             </Animated.View>
@@ -1763,7 +1766,7 @@ export default function ProtocolsScreen() {
                       onPress={() => setColor(c)}
                     >
                       {color === c
-                        ? <Text style={s.colorCheck}>✓</Text>
+                        ? <CheckMark style={s.colorCheck} />
                         : inUse ? <View style={s.colorInUseDot} /> : null}
                     </TouchableOpacity>
                     );
@@ -2589,8 +2592,8 @@ const makeStyles = (c) => StyleSheet.create({
   syringeTag: { position: 'absolute', top: 0, width: 40, height: 16, marginLeft: -20, borderRadius: 8, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   syringeTagText: { fontSize: 9.5, fontWeight: '800', color: c.accentText },
   syringeRod: { position: 'absolute', top: 6, height: 8, right: 0, borderRadius: 2, backgroundColor: c.textFaint, opacity: 0.6 },
-  syringeStopper: { position: 'absolute', top: 2, bottom: 2, borderRadius: 2.5, backgroundColor: c.textMuted },
-  syringeFace: { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -1, borderRadius: 1, backgroundColor: c.accent },
+  syringeStopper: { position: 'absolute', top: 2, bottom: 2, borderRadius: 2.5, backgroundColor: c.textMuted, opacity: 0.55 },
+  syringeFace: { position: 'absolute', top: 0, bottom: 0, width: 3, marginLeft: -1.5, borderRadius: 1.5, backgroundColor: c.accent },
   syringePulse: { position: 'absolute', bottom: 3, width: 16, height: 16, marginLeft: -8, borderRadius: 8, borderWidth: 1.5, borderColor: c.accent },
   syringeReadWrap: { alignSelf: 'flex-start', transformOrigin: 'left bottom' },
   syringeTicks: { height: 22, marginBottom: 2, position: 'relative' },
@@ -2612,7 +2615,7 @@ const makeStyles = (c) => StyleSheet.create({
   syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
   syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
   // Zoom modal
-  zoomBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  zoomBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
   zoomCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, width: '100%', maxWidth: 560 },
   zoomTitle: { fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'center' },
   zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },

@@ -34,6 +34,7 @@ import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
+import CheckMark from '../components/CheckMark';
 
 /**
  * The single value-before-signup onboarding. Runs on first launch (no account
@@ -494,7 +495,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   activeOpacity={0.8}
                 >
                   <View style={[s.check, confirmed[x.key] && s.checkOn]}>
-                    {confirmed[x.key] && <Text style={s.checkMark}>✓</Text>}
+                    {confirmed[x.key] && <CheckMark style={s.checkMark} />}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.termTitle}>{x.t}</Text>
@@ -583,7 +584,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                       rendered as blank rows (invisible picker). Color is an explicit
                       theme token on both states so it can't go white-on-white either. */}
                   <Text style={[s.langOptText, on && s.langOptTextOn]}>{l.native}</Text>
-                  {on && <Text style={s.langCheck}>✓</Text>}
+                  {on && <CheckMark style={s.langCheck} />}
                 </TouchableOpacity>
               );
             })}
@@ -621,7 +622,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 onPress={() => { setCountry(item); setShowCountry(false); }}
               >
                 <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, flex: 1 }}>{countryLabel(item, language)}</Text>
-                {country === item && <Text style={{ fontSize: 18, color: colors.accent, fontWeight: '600' }}>✓</Text>}
+                {country === item && <CheckMark size={18} color={colors.accent} />}
               </TouchableOpacity>
             )}
           />
@@ -695,7 +696,7 @@ function makeStyles(colors) {
     primaryBtnText: { fontSize: 16, fontWeight: '700', color: colors.accentText },
     skip: { alignItems: 'center', paddingVertical: 14, marginTop: 2 },
     skipText: { fontSize: 14, fontWeight: '600', color: colors.textFaint },
-    langBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 40 },
+    langBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 40 },
     langSheet: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 6, borderWidth: 0.5, borderColor: colors.border },
     langOpt: { paddingVertical: 13, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     langDiv: { borderTopWidth: 0.5, borderTopColor: colors.border },

@@ -35,6 +35,7 @@ import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
+import CheckMark from '../components/CheckMark';
 
 // Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
 // language as the tab-bar icons in App.js, replacing the old mismatched emoji.
@@ -1052,7 +1053,7 @@ export default function BodyScreen({ navigation, route }) {
             <View style={s.upgradeFeats}>
               {UPGRADE_FEATURES.map((f, i) => (
                 <View key={i} style={s.upgradeFeat}>
-                  <Text style={s.upgradeCheck}>✓</Text>
+                  <CheckMark style={s.upgradeCheck} />
                   <Text style={s.upgradeFeatText}>{f}</Text>
                 </View>
               ))}
@@ -1124,9 +1125,12 @@ export default function BodyScreen({ navigation, route }) {
 
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
             <View style={s.confirmBanner}>
-              <Text style={s.confirmBannerText}>
-                ✓ {t('blood_review_found_prefix')} {extractedMarkers.length} {t('blood_review_found_suffix')}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <CheckMark style={s.confirmBannerText} />
+                <Text style={[s.confirmBannerText, { flexShrink: 1 }]}>
+                  {t('blood_review_found_prefix')} {extractedMarkers.length} {t('blood_review_found_suffix')}
+                </Text>
+              </View>
             </View>
             {dateWasFallback && (
               <View style={s.dateFallbackBanner}>
@@ -1216,7 +1220,7 @@ export default function BodyScreen({ navigation, route }) {
                 </View>
                 {exportMarkers.map(m => (
                   <TouchableOpacity key={m.key} style={s.checkRow} onPress={() => toggleSel(setSelMarkers, m.key)}>
-                    <View style={[s.checkbox, selMarkers.has(m.key) && s.checkboxOn]}>{selMarkers.has(m.key) ? <Text style={s.checkMark}>✓</Text> : null}</View>
+                    <View style={[s.checkbox, selMarkers.has(m.key) && s.checkboxOn]}>{selMarkers.has(m.key) ? <CheckMark style={s.checkMark} /> : null}</View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.checkName}>{m.display}</Text>
                       <Text style={s.checkMeta}>{m.points.length} {m.points.length === 1 ? t('blood_reading') : t('blood_readings')}{m.unit ? ` · ${m.unit}` : ''}</Text>
@@ -1236,7 +1240,7 @@ export default function BodyScreen({ navigation, route }) {
                 </View>
                 {vaccineList.map(v => (
                   <TouchableOpacity key={v.id} style={s.checkRow} onPress={() => toggleSel(setSelVaccines, v.id)}>
-                    <View style={[s.checkbox, selVaccines.has(v.id) && s.checkboxOn]}>{selVaccines.has(v.id) ? <Text style={s.checkMark}>✓</Text> : null}</View>
+                    <View style={[s.checkbox, selVaccines.has(v.id) && s.checkboxOn]}>{selVaccines.has(v.id) ? <CheckMark style={s.checkMark} /> : null}</View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.checkName}>{v.name}</Text>
                       <Text style={s.checkMeta}>{formatDate(v.date_given)}</Text>
@@ -1492,7 +1496,7 @@ const makeStyles = (c) => StyleSheet.create({
   dateFallbackBanner: { backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 0.5, borderColor: c.border },
   dateFallbackText: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
   confirmNote: { fontSize: 13, color: c.textMuted, marginBottom: 16, lineHeight: 20 },
-  upgradePrimaryBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 3 },
+  upgradePrimaryBtnSub: { color: c.accentText, opacity: 0.75, fontSize: 11, marginTop: 3 },
 trialBadge: { backgroundColor: c.successSoft, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', marginBottom: 20 },
 trialBadgeText: { fontSize: 13, color: c.successSoftText, fontWeight: '600' },
 });
