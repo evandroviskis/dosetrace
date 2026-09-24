@@ -297,7 +297,13 @@ export default function SerumCurveScreen() {
     const selected = protocols.filter(p => selectedIds.includes(p.id));
     if (!selected.length) return null;
     const now = Date.now();
-    const start = now - PAST_DAYS * 24 * 3600 * 1000;
+    // Align the 6h sampling grid to 00/06/12/18 local time. Doses are placed at
+    // 12:00, so every dose lands exactly ON a sample — otherwise a fast compound
+    // (t½ ≲ 2h) sampled at arbitrary times of day draws near-zero or random
+    // spikes that change with the minute you open the screen.
+    const s0 = new Date(now - PAST_DAYS * 24 * 3600 * 1000);
+    s0.setHours(Math.floor(s0.getHours() / STEP_HOURS) * STEP_HOURS, 0, 0, 0);
+    const start = s0.getTime();
     const end = now + futureDays * 24 * 3600 * 1000;
     const nSteps = Math.round((end - start) / stepMs);
 
@@ -396,7 +402,9 @@ export default function SerumCurveScreen() {
 
   // ── Date readout (cross-reference a blood-draw date) ──
   const now = Date.now();
-  const winStart = now - PAST_DAYS * 24 * 3600 * 1000;
+  // Same aligned origin as the model's sample grid, so the readout marker sits
+  // exactly where the curve's samples are.
+  const winStart = model ? model.start : now - PAST_DAYS * 24 * 3600 * 1000;
   const winEnd = now + futureDays * 24 * 3600 * 1000;
   const readoutISO = readoutDate || todayISO();
   const readoutT = new Date(readoutISO + 'T12:00:00').getTime();
@@ -585,6 +593,12 @@ export default function SerumCurveScreen() {
                 </View>
               )}
             </View>
+            {/* Where the half-life comes from — visible, so the tier means something. */}
+            {single && (
+              <Text style={s.sourceLine} numberOfLines={3}>
+                {t('curve_source_label')}: {single.entry.source}
+              </Text>
+            )}
 
             <View style={s.disclaimerBox}>
               <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
@@ -690,6 +704,10 @@ export default function SerumCurveScreen() {
                 </Text>
               )}
             </Animated.View>
+            {/* Fast compounds (t½ under ~2h) show a spike per dose, not a build-up. */}
+            {model && model.max > 0 && model.series.some(ser => ser.entry.hours < 2) && (
+              <Text style={s.fastNote}>{t('curve_fast_note')}</Text>
+            )}
 
             {/* Projection horizon selector */}
             <View style={s.horizonRow}>
@@ -740,6 +758,7 @@ export default function SerumCurveScreen() {
                     <Text style={[s.legendTier, { color: tierCfg[ser.entry.tier].fg }]} numberOfLines={1}>
                       {tierCfg[ser.entry.tier].label}
                     </Text>
+                    <Text style={s.legendSource} numberOfLines={2}>{ser.entry.source}</Text>
                   </View>
                   <Text style={s.legendLevel}>{mgLabel(ser.points[model.nowIdx])} mg</Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
@@ -922,6 +941,9 @@ function makeStyles(colors) {
     legendNameCol: { flex: 1, marginRight: 6 },
     legendNameTxt: { fontSize: 14, fontWeight: '600', color: colors.text },
     legendTier: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
+    legendSource: { fontSize: 10, color: colors.textMuted, marginTop: 2, lineHeight: 13 },
+    sourceLine: { fontSize: 11, color: colors.textMuted, marginTop: -2, marginBottom: 10, lineHeight: 15 },
+    fastNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8, lineHeight: 16 },
     legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
     legendHalf: { fontSize: 12, color: colors.textMuted, width: 74, textAlign: 'right' },
     combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
