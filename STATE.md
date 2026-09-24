@@ -1,5 +1,14 @@
 # DoseTrace — Project State
 
+**BUILD 1 (1.2.2) SHIPPED STRAIGHT TO BOTH STORES — PRODUCTION (2026-09-23, founder: "make the builds straight to the stores. No test flight, no test on google" + release pace = FULL).** Founder overrode the TestFlight/internal-only ship rule AND the device-QA gate; risk (auth-touching build, no device gate) was stated and accepted. EAS Build 1 = iOS build 61 / Android vc43, marketing 1.2.2, off main HEAD (all fixes incl. the processLock auth-deadlock fix).
+- **Android: LIVE on production, vc43, full rollout, completed** — verified via Android Publisher API (`scripts/play-track-status.cjs`). ⚠️ CRITICAL FINDING during release: production had been serving **vc40 = build 58 = the KNOWN auth-deadlock buggy build** (Sign out / Delete account silently do nothing). vc43 supersedes it — the fix is now live for all Android users. The auto-submit had landed vc43 on the *internal* track (eas.json read as internal at submit-command start, before the mid-build edit to production); promoted vc43 internal→production via API (`scripts/play-promote-production.cjs 43 --commit`), release notes ×6.
+- **iOS: SUBMITTED for App Store review, 1.2.2 + build 61 (VALID), WAITING_FOR_REVIEW** — created the version, attached build 61, What's New ×6, submitted via ASC API (`scripts/asc-create-and-submit.cjs --submit`; ASC API writes are NOT blocked anymore — went straight through). Verified build 61 attached + state WAITING_FOR_REVIEW via API. No TestFlight step (founder's call). Supersedes live 1.2.1.
+- **Play 512 store-listing icon: UPDATED to the rebranded droplet** (live-pending) via API (`scripts/play-set-icon.cjs --commit`, en-US). App/launcher icons already ship in both binaries (app.json → droplet on navy #0C2340). Logo rebrand is now complete across app + Apple + Google.
+- **eas.json** android submit track changed internal→production (releaseStatus completed) — committed.
+- WATCH: Apple review email (~24–48h); if rejected, fix+resubmit (no iOS rollback). Android live now — watch Play vitals/crash rate closely since there was NO device QA and NO staged rollout. `scripts/asc-appstore-status.cjs` + `scripts/play-track-status.cjs` are the verify tools.
+
+---
+
 **BUILD 1 — NOTIFICATION RELIABILITY (A+B live + C groundwork), IN GATE (2026-09-23).** Founder: "bundle A+B and C into one build" + "Build 1 now, sender both types." Marketing stays **1.2.2** (autoIncrement bumps build number > iOS 59 / Android vc41). Scope:
 - **A (exact alarm):** `SCHEDULE_EXACT_ALARM` in app.json android permissions; local scheduled notifications now request exact-alarm so Doze doesn't slide them (d7a1007).
 - **B (battery-opt nudge):** Android-only Settings row "Reminders not arriving?" → `openBatteryOptimizationSettings()` (expo-intent-launcher, ACTION_APPLICATION_DETAILS_SETTINGS), Alert fallback with copy softened ×6 langs. FeatureIcon "help", accent.
