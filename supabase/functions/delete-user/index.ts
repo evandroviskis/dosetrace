@@ -132,6 +132,9 @@ Deno.serve(async (req) => {
       // (not reliant on the cascade) and so cleanup runs even if the auth delete
       // is retried against an already-detached row.
       'push_tokens',
+      // Per-user reminder-send ledger (server push); cascades too, listed for the
+      // same provable-erasure reason. Tolerated if the table doesn't exist yet.
+      'notification_sends',
     ];
 
     for (const table of userDataTables) {
