@@ -35,7 +35,7 @@ import {
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
 import { isPremium } from '../lib/purchases';
 import { COUNTRIES, countryLabel } from '../lib/countries';
-import { syncAllNotifications, openBatteryOptimizationSettings } from '../lib/notifications';
+import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
@@ -351,6 +351,9 @@ export default function SettingsScreen({ navigation }) {
           // Best-effort: push this user's pending changes before local data
           // is wiped by the SIGNED_OUT handler.
           try { await forceSync(); } catch (e) { /* best effort */ }
+          // Remove this device's push token WHILE still authenticated (owner RLS)
+          // so the server stops pushing reminders to a signed-out device.
+          try { await removePushToken(); } catch (e) { /* best effort */ }
           // Mark this as a deliberate sign-out so the SIGNED_OUT handler performs
           // the full local wipe (a spurious SIGNED_OUT would keep the data).
           markIntentionalSignOut();
@@ -659,10 +662,13 @@ export default function SettingsScreen({ navigation }) {
           {Platform.OS === 'android' && (
             <TouchableOpacity
               style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-              onPress={() => openBatteryOptimizationSettings()}
+              onPress={async () => {
+                const ok = await openBatteryOptimizationSettings();
+                if (!ok) Alert.alert(t('settings_reliable_reminders'), t('settings_reliable_reminders_sub'));
+              }}
             >
               <View style={s.rowLeft}>
-                <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.accent} /></View>
+                <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.accent} /></View>
                 <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
                   <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>

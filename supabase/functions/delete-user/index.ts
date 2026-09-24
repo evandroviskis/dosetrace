@@ -127,6 +127,11 @@ Deno.serve(async (req) => {
       'analytics_events',
       'referral_codes',
       'apple_tokens',
+      // push_tokens FKs auth.users ON DELETE CASCADE, so it clears on auth-user
+      // deletion regardless — listed explicitly so erasure is provable up front
+      // (not reliant on the cascade) and so cleanup runs even if the auth delete
+      // is retried against an already-detached row.
+      'push_tokens',
     ];
 
     for (const table of userDataTables) {
