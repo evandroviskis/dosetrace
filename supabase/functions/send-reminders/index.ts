@@ -11,10 +11,12 @@
 //
 // What it does each run: for every registered device (push_tokens), compute the
 // user's LOCAL time from the stored IANA timezone and send, as high-priority Expo
-// pushes, exactly what the client would have scheduled — dose reminders whose slot
-// falls in this run's window (and isn't already logged Taken today) and the 7am
-// morning summary. Idempotent via notification_sends (a slot fires at most once).
-// Honors the user's dose_reminders preference. Prunes tokens Expo reports dead.
+// pushes, exactly what the client would have scheduled — (1) dose reminders whose
+// slot falls in this run's window (and isn't already logged Taken today), (2) the
+// 7am morning summary, and (3) the 8pm "what did you eat today?" nudge while a
+// reality-check is active (from user_metadata.calc_reality_open). Idempotent via
+// notification_sends (a slot fires at most once). Dose + morning honor the
+// dose_reminders preference; the food nudge is independent. Prunes dead tokens.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
@@ -24,12 +26,12 @@ import {
 
 // ── Localized notification copy (subset of i18n/translations.js) ──────────────
 const STRINGS: Record<string, Record<string, string>> = {
-  en: { notif_dose_body: 'Time for your {dose} {unit} dose', notif_morning_title: 'Good morning', notif_morning_due_body: 'Today: {list}.', notif_morning_next1_body: 'Nothing today. Next dose tomorrow.', notif_morning_next_body: 'Nothing today. Next dose in {days} days.' },
-  es: { notif_dose_body: 'Hora de tu dosis de {dose} {unit}', notif_morning_title: 'Buenos días', notif_morning_due_body: 'Hoy: {list}.', notif_morning_next1_body: 'Nada hoy. Próxima dosis mañana.', notif_morning_next_body: 'Nada hoy. Próxima dosis en {days} días.' },
-  pt: { notif_dose_body: 'Hora da sua dose de {dose} {unit}', notif_morning_title: 'Bom dia', notif_morning_due_body: 'Hoje: {list}.', notif_morning_next1_body: 'Nada hoje. Próxima dose amanhã.', notif_morning_next_body: 'Nada hoje. Próxima dose em {days} dias.' },
-  fr: { notif_dose_body: "C'est l'heure de votre dose de {dose} {unit}", notif_morning_title: 'Bonjour', notif_morning_due_body: "Aujourd'hui : {list}.", notif_morning_next1_body: "Rien aujourd'hui. Prochaine dose demain.", notif_morning_next_body: "Rien aujourd'hui. Prochaine dose dans {days} jours." },
-  de: { notif_dose_body: 'Zeit für deine Dosis von {dose} {unit}', notif_morning_title: 'Guten Morgen', notif_morning_due_body: 'Heute: {list}.', notif_morning_next1_body: 'Heute nichts. Nächste Dosis morgen.', notif_morning_next_body: 'Heute nichts. Nächste Dosis in {days} Tagen.' },
-  it: { notif_dose_body: 'È ora della tua dose di {dose} {unit}', notif_morning_title: 'Buongiorno', notif_morning_due_body: 'Oggi: {list}.', notif_morning_next1_body: 'Niente oggi. Prossima dose domani.', notif_morning_next_body: 'Niente oggi. Prossima dose tra {days} giorni.' },
+  en: { notif_dose_body: 'Time for your {dose} {unit} dose', notif_morning_title: 'Good morning', notif_morning_due_body: 'Today: {list}.', notif_morning_next1_body: 'Nothing today. Next dose tomorrow.', notif_morning_next_body: 'Nothing today. Next dose in {days} days.', notif_food_title: 'What did you eat today?', notif_food_body: 'Log it in a sentence — it keeps your reality-check honest.' },
+  es: { notif_dose_body: 'Hora de tu dosis de {dose} {unit}', notif_morning_title: 'Buenos días', notif_morning_due_body: 'Hoy: {list}.', notif_morning_next1_body: 'Nada hoy. Próxima dosis mañana.', notif_morning_next_body: 'Nada hoy. Próxima dosis en {days} días.', notif_food_title: '¿Qué comiste hoy?', notif_food_body: 'Regístralo en una frase — mantiene realista tu comprobación de progreso.' },
+  pt: { notif_dose_body: 'Hora da sua dose de {dose} {unit}', notif_morning_title: 'Bom dia', notif_morning_due_body: 'Hoje: {list}.', notif_morning_next1_body: 'Nada hoje. Próxima dose amanhã.', notif_morning_next_body: 'Nada hoje. Próxima dose em {days} dias.', notif_food_title: 'O que você comeu hoje?', notif_food_body: 'Registre em uma frase — mantém seu acompanhamento realista.' },
+  fr: { notif_dose_body: "C'est l'heure de votre dose de {dose} {unit}", notif_morning_title: 'Bonjour', notif_morning_due_body: "Aujourd'hui : {list}.", notif_morning_next1_body: "Rien aujourd'hui. Prochaine dose demain.", notif_morning_next_body: "Rien aujourd'hui. Prochaine dose dans {days} jours.", notif_food_title: "Qu'avez-vous mangé aujourd'hui ?", notif_food_body: 'Notez-le en une phrase — pour un suivi fiable.' },
+  de: { notif_dose_body: 'Zeit für deine Dosis von {dose} {unit}', notif_morning_title: 'Guten Morgen', notif_morning_due_body: 'Heute: {list}.', notif_morning_next1_body: 'Heute nichts. Nächste Dosis morgen.', notif_morning_next_body: 'Heute nichts. Nächste Dosis in {days} Tagen.', notif_food_title: 'Was hast du heute gegessen?', notif_food_body: 'Erfasse es in einem Satz — das hält deinen Check ehrlich.' },
+  it: { notif_dose_body: 'È ora della tua dose di {dose} {unit}', notif_morning_title: 'Buongiorno', notif_morning_due_body: 'Oggi: {list}.', notif_morning_next1_body: 'Niente oggi. Prossima dose domani.', notif_morning_next_body: 'Niente oggi. Prossima dose tra {days} giorni.', notif_food_title: 'Cosa hai mangiato oggi?', notif_food_body: 'Registralo in una frase — così il monitoraggio resta realistico.' },
 };
 function t(lang: string, key: string): string {
   return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
@@ -49,6 +51,8 @@ function formatList(names: string[]): string {
 // ── Tunables (mirror lib/notifications.js) ────────────────────────────────────
 const RUN_WINDOW_MIN = 15;       // must be >= the cron interval so no slot is skipped
 const MORNING_HOUR = 7;
+const FOOD_HOUR = 20;            // "what did you eat today?" nudge, while a reality-check is active
+const REALITY_CHECK_DAYS = 21;  // reality-check window length (mirror of lib/notifications.js)
 const SUMMARY_WINDOW_DAYS = 7;
 const SUMMARY_HORIZON_DAYS = 45;
 const DOSE_HORIZON_DAYS = 10;
@@ -127,17 +131,21 @@ Deno.serve(async (req) => {
       .eq('outcome', 'Taken')
       .gte('logged_at', since);
 
-    // 4. Preferences: dose_reminders (defaults on) + language, per user.
-    const prefByUser = new Map<string, { enabled: boolean; lang: string }>();
+    // 4. Preferences per user: dose_reminders (defaults on), language, and the open
+    //    reality-check start (calc_reality_open = { date, weightKg }) — the server's
+    //    only signal that a reality-check is active, so it can send the food nudge.
+    const prefByUser = new Map<string, { enabled: boolean; lang: string; rcDate: string | null }>();
     for (const uid of userIds) {
-      let enabled = true; let lang = 'en';
+      let enabled = true; let lang = 'en'; let rcDate: string | null = null;
       try {
         const { data: u } = await admin.auth.admin.getUserById(uid);
         const meta = u?.user?.user_metadata || {};
         if (meta.dose_reminders === false) enabled = false;
         if (typeof meta.language === 'string') lang = meta.language;
+        const rc = meta.calc_reality_open;
+        if (rc && typeof rc.date === 'string' && typeof rc.weightKg === 'number') rcDate = rc.date;
       } catch { /* default on/en */ }
-      prefByUser.set(uid, { enabled, lang });
+      prefByUser.set(uid, { enabled, lang, rcDate });
     }
 
     const messages: PushMessage[] = [];
@@ -146,12 +154,36 @@ Deno.serve(async (req) => {
       const tz = tok.timezone || 'UTC';
       let lp;
       try { lp = localParts(now, tz); } catch { lp = localParts(now, 'UTC'); }
-      const pref = prefByUser.get(tok.user_id) || { enabled: true, lang: 'en' };
-      if (!pref.enabled) continue;
+      const pref = prefByUser.get(tok.user_id) || { enabled: true, lang: 'en', rcDate: null };
       const lang = pref.lang;
       const protos = protosByUser.get(tok.user_id) || [];
       const nowMin = mod(lp.hour, lp.minute);
       const channelId = 'dose-reminders';
+
+      // ── Food-log nudge: fires in the 20:00 window while a reality-check is active.
+      //    Independent of the dose_reminders preference (a separate feature), so it
+      //    is evaluated BEFORE the dose/morning preference gate below. ──
+      if (pref.rcDate) {
+        const foodMin = mod(FOOD_HOUR, 0);
+        if (foodMin <= nowMin && foodMin > nowMin - RUN_WINDOW_MIN) {
+          const startMs = Date.parse(pref.rcDate + 'T00:00:00Z');
+          const endMs = startMs + REALITY_CHECK_DAYS * 86400000;
+          const todayMs = Date.parse(lp.key + 'T00:00:00Z');
+          if (todayMs >= startMs && todayMs <= endMs) {
+            messages.push({
+              to: tok.expo_token,
+              title: t(lang, 'notif_food_title'),
+              body: t(lang, 'notif_food_body'),
+              channelId: 'checkin-reminders', priority: 'high',
+              data: { type: 'food_log' },
+              _dedupe: `${tok.expo_token}:food:${lp.key}`,
+            });
+          }
+        }
+      }
+
+      // Dose reminders + morning summary ARE gated by the dose_reminders preference.
+      if (!pref.enabled) continue;
 
       // Local "Taken today" set for this user's tz.
       const takenToday = new Set<string>();
