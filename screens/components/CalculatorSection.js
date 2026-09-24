@@ -32,6 +32,7 @@ import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } fro
 import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync } from '../../lib/sync';
+import { localISO } from '../../lib/localDate';
 import {
   getFoodLogsSince,
   getRealityChecks, upsertRealityCheck, clearRealityChecks,
@@ -51,7 +52,8 @@ import NutritionLogger from './NutritionLogger';
 import { rollingAvgKcal } from '../../lib/nutrition';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
-const todayISO = () => new Date().toISOString().split('T')[0];
+// LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
+const todayISO = () => localISO();
 // Whole days between two YYYY-MM-DD dates (noon-anchored to dodge DST).
 const daysBetween = (fromISO, toISO) => {
   const a = new Date(fromISO + 'T12:00:00').getTime();
@@ -153,7 +155,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     try {
       if (uid) {
         const since = new Date(); since.setDate(since.getDate() - 20);
-        setFoodAvg(rollingAvgKcal(getFoodLogsSince(uid, since.toISOString().split('T')[0]), todayISO(), 21));
+        setFoodAvg(rollingAvgKcal(getFoodLogsSince(uid, localISO(since)), todayISO(), 21));
       }
     } catch { /* ignore */ }
 
@@ -502,7 +504,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     if (!rcStart) return null;
     const d = new Date(rcStart.date + 'T12:00:00');
     d.setDate(d.getDate() + REALITY_CHECK_DAYS);
-    return d.toISOString().split('T')[0];
+    return localISO(d);
   }, [rcStart]);
 
   // Phase 1 — log today's starting weight and arm the +21-day reminder.
@@ -1016,7 +1018,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                     value={new Date(bfDate + 'T12:00:00')}
                     mode="date"
                     maximumDate={new Date()}
-                    onChange={(e, d) => { setShowBfDatePicker(false); if (d) setBfDate(d.toISOString().split('T')[0]); }}
+                    onChange={(e, d) => { setShowBfDatePicker(false); if (d) setBfDate(localISO(d)); }}
                   />
                 ) : null}
                 <Text style={s.inputLabelSm}>{t('cal_snap_weight')} ({wUnit})</Text>
@@ -1069,7 +1071,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                 value={tgtDate ? new Date(tgtDate + 'T12:00:00') : new Date()}
                 mode="date"
                 minimumDate={new Date()}
-                onChange={(e, d) => { setShowTgtDatePicker(false); if (d) setTgtDate(d.toISOString().split('T')[0]); }}
+                onChange={(e, d) => { setShowTgtDatePicker(false); if (d) setTgtDate(localISO(d)); }}
               />
             ) : null}
             <View style={s.tgtBtnRow}>

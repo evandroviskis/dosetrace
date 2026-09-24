@@ -81,6 +81,7 @@ export default function SettingsScreen({ navigation }) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [doseReminders, setDoseReminders] = useState(true);
   const [checkinReminders, setCheckinReminders] = useState(true);
+  const [foodReminders, setFoodReminders] = useState(true);
   const [vialAlerts, setVialAlerts] = useState(true);
   const [silentMode, setSilentMode] = useState(false);
   const [persistentReminders, setPersistentReminders] = useState(false);
@@ -152,6 +153,7 @@ export default function SettingsScreen({ navigation }) {
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
       setCheckinReminders(user.user_metadata?.checkin_reminders !== false);
+      setFoodReminders(user.user_metadata?.food_reminders !== false);
       setVialAlerts(user.user_metadata?.vial_alerts !== false);
       setSilentMode(user.user_metadata?.silent_mode === true);
       setPersistentReminders(user.user_metadata?.persistent_reminders === true);
@@ -171,7 +173,16 @@ export default function SettingsScreen({ navigation }) {
 
   async function toggleNotificationPref(key, val, setter) {
     setter(val);
-    await supabase.auth.updateUser({ data: { [key]: val } });
+    // The preference lives in the account, so a failed save (e.g. offline) must
+    // not LOOK saved: revert the switch and say so, instead of silently
+    // re-scheduling from the old value (journey-review F3).
+    let error = null;
+    try { ({ error } = await supabase.auth.updateUser({ data: { [key]: val } })); } catch (e) { error = e; }
+    if (error) {
+      setter(!val);
+      Alert.alert(t('error'), friendlyError(error, t, 'error_save_failed'));
+      return;
+    }
     // Re-sync all notifications to respect the new preference
     syncAllNotifications().catch(() => {});
   }
@@ -612,6 +623,20 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={checkinReminders}
               onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
+              trackColor={{ true: colors.switchTrack }}
+            />
+          </View>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <View style={s.rowIconBox}><FeatureIcon name="journal" size={20} color={colors.text} /></View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
+                <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
+              </View>
+            </View>
+            <Switch
+              value={foodReminders}
+              onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
               trackColor={{ true: colors.switchTrack }}
             />
           </View>

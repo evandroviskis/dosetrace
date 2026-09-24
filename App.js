@@ -11,7 +11,7 @@ import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supa
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, registerPushToken, RC_START_KEY } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, registerPushToken, syncFoodLogReminder, RC_START_KEY } from './lib/notifications';
 import { getRealityStart } from './lib/realityCheck';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -23,7 +23,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getTodayLogs, getLocalDataUserId } from './lib/database';
 import { recordDoseTaken } from './lib/doseActions';
-import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync } from './lib/sync';
+import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener } from './lib/sync';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -407,6 +407,18 @@ export default function App() {
       }).catch(() => {});
     });
 
+    // A sync can bring in food logs from another device — re-plan the 20:00
+    // food nudge so a day logged on the iPad doesn't still ping the phone, and so
+    // the backoff doesn't count it as ignored (journey-review F7). Throttled.
+    let lastFoodResync = 0;
+    const unsubSyncForFood = addSyncListener((e) => {
+      if (e?.type !== 'sync_complete' && e?.type !== 'import_complete') return;
+      const nowTs = Date.now();
+      if (nowTs - lastFoodResync < 30000) return;
+      lastFoodResync = nowTs;
+      syncFoodLogReminder().catch(() => {});
+    });
+
     // Resolve the first-launch intro flag; the loading gate holds until it's
     // non-null, so a brand-new install shows the intro (not the welcome screen)
     // on first frame. Fail-safe to "seen" so a read error can't wedge the gate.
@@ -565,6 +577,7 @@ export default function App() {
       if (notifResponseSub) notifResponseSub.remove();
       if (appleRevokeSub) appleRevokeSub.remove();
       if (appStateSub) appStateSub.remove();
+      if (unsubSyncForFood) unsubSyncForFood();
     };
   }, []);
 

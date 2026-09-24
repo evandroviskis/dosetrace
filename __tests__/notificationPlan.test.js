@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ymd, parseYmd, addDays, dayDiff, dueDateKeys, morningSummaryPlan } = require('../lib/notificationPlan');
+const { ymd, parseYmd, addDays, dayDiff, dueDateKeys, morningSummaryPlan, foodNudgeDays } = require('../lib/notificationPlan');
 
 const TODAY = '2026-08-11';
 
@@ -67,4 +67,47 @@ test('morningSummaryPlan: no protocols → every day is quiet', () => {
   const plan = morningSummaryPlan([], TODAY, 5, 45);
   assert.equal(plan.length, 5);
   for (const day of plan) assert.equal(day.kind, 'none');
+});
+
+
+// ── foodNudgeDays (20:00 food-log nudge: window, same-day skip, anchored backoff) ──
+const S = '2026-09-01';
+const day = (n) => ymd(addDays(parseYmd(S), n));
+
+test('food nudge: daily inside the check window, none before the start or after day 21', () => {
+  assert.deepEqual(foodNudgeDays(S, day(-2), new Set(), 3, 21), [day(0), day(1), day(2)]);
+  // a recent log keeps it daily, so this checks only the day-21 window edge
+  assert.deepEqual(foodNudgeDays(S, day(19), new Set([day(18)]), 7, 21), [day(19), day(20)]);
+  assert.deepEqual(foodNudgeDays(S, day(21), new Set(), 7, 21), []);
+});
+
+test('food nudge: skips a day the user already logged', () => {
+  assert.deepEqual(foodNudgeDays(S, day(0), new Set([day(0)]), 3, 21), [day(1), day(2)]);
+});
+
+test('food nudge: backoff can never start before day 5 (start day never counts as ignored)', () => {
+  // days 0..3 are always daily, even with nothing logged
+  assert.deepEqual(foodNudgeDays(S, day(0), new Set(), 4, 21), [day(0), day(1), day(2), day(3)]);
+});
+
+test('food nudge: after 3 ignored days, only every other day, anchored to the start', () => {
+  // no logs at all: day 4 (even) yes, 5 no, 6 yes, 7 no, 8 yes
+  assert.deepEqual(foodNudgeDays(S, day(4), new Set(), 5, 21), [day(4), day(6), day(8)]);
+  // re-planning a day later gives the same rhythm (anchored, never drifts)
+  assert.deepEqual(foodNudgeDays(S, day(5), new Set(), 4, 21), [day(6), day(8)]);
+});
+
+test('food nudge: never a 2-day gap while backed off', () => {
+  const days = foodNudgeDays(S, day(4), new Set(), 17, 21);
+  for (let i = 1; i < days.length; i++) assert.ok(dayDiff(days[i - 1], days[i]) <= 2, 'gap > 2 days');
+});
+
+test('food nudge: any log in the last 3 days returns it to daily', () => {
+  const logged = new Set([day(3)]);
+  // day 4,5,6 see day 3 logged → daily; day 7 (3 unlogged before it, odd) → skipped
+  assert.deepEqual(foodNudgeDays(S, day(4), logged, 4, 21), [day(4), day(5), day(6)]);
+});
+
+test('food nudge: corrupt start date schedules nothing', () => {
+  assert.deepEqual(foodNudgeDays('garbage', day(0), new Set(), 7, 21), []);
 });

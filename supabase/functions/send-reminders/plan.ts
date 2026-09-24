@@ -87,6 +87,32 @@ export function reminderSlots(protocol: Protocol): { hour: number; minute: numbe
   });
 }
 
+// Port of lib/notificationPlan.js foodNudgeDays — keep the two identical.
+// Days to send the 20:00 food nudge: inside startKey…startKey+rcDays−1, never on
+// a logged day, and after 3 un-logged days strictly after the start, only on days
+// an EVEN distance from the start (anchored, never drifts).
+export function foodNudgeDays(
+  startKey: string, todayKey: string, logged: Set<string>, windowDays: number, rcDays: number,
+): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startKey) || !/^\d{4}-\d{2}-\d{2}$/.test(todayKey)) return [];
+  const lastKey = ymd(addDays(parseYmd(startKey), rcDays - 1));
+  const firstKey = todayKey < startKey ? startKey : todayKey;
+  const out: string[] = [];
+  for (let i = 0; i < windowDays; i++) {
+    const d = ymd(addDays(parseYmd(firstKey), i));
+    if (d > lastKey) break;
+    if (logged.has(d)) continue;
+    const since = dayDiff(startKey, d);
+    let backoff = since >= 4;
+    for (let k = 1; backoff && k <= 3; k++) {
+      if (logged.has(ymd(addDays(parseYmd(d), -k)))) backoff = false;
+    }
+    if (backoff && since % 2 !== 0) continue;
+    out.push(d);
+  }
+  return out;
+}
+
 export type MorningPlan =
   | { dateKey: string; kind: 'due'; list: string[] }
   | { dateKey: string; kind: 'next'; days: number }

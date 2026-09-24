@@ -29,12 +29,15 @@ import {
 import { parseFood } from '../../lib/nutritionClient';
 import { rollingAvgKcal, pickNudge, groupByDay } from '../../lib/nutrition';
 import { requestAIConsent } from '../../lib/aiConsent';
+import { localISO, localDaysAgoISO } from '../../lib/localDate';
+import { syncFoodLogReminder } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
 
 const FREE_DAYS = 3;
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
-const todayISO = () => new Date().toISOString().split('T')[0];
-const daysAgoISO = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
+// LOCAL dates (journey-review F1): a UTC date put evening meals on tomorrow.
+const todayISO = () => localISO();
+const daysAgoISO = (n) => localDaysAgoISO(n);
 const safeItems = (json) => { try { const a = JSON.parse(json); return Array.isArray(a) ? a : []; } catch { return []; } };
 const numOr = (v, d = 0) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : d; };
 
@@ -124,6 +127,9 @@ export default function NutritionLogger() {
     setRecent(rows);
     setDayCount(getFoodLogDayCount(uid));
     setAvg(rollingAvgKcal(rows, todayISO(), 7));
+    // Every add/edit/delete ends here: re-plan tonight's 20:00 nudge so a meal
+    // logged at 18:00 cancels it now, not at the next app open (journey F2).
+    syncFoodLogReminder().catch(() => {});
   }
 
   async function reparse(row, uid) {

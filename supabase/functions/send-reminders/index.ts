@@ -16,11 +16,12 @@
 // 7am morning summary, and (3) the 8pm "what did you eat today?" nudge while a
 // reality-check is active (from user_metadata.calc_reality_open). Idempotent via
 // notification_sends (a slot fires at most once). Dose + morning honor the
-// dose_reminders preference; the food nudge is independent. Prunes dead tokens.
+// dose_reminders preference; the food nudge has its own food_reminders switch and
+// follows the app's foodNudgeDays rule (window, same-day skip, backoff). Prunes dead tokens.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  dueDateKeys, reminderSlots, morningSummaryPlan, localParts,
+  dueDateKeys, reminderSlots, morningSummaryPlan, localParts, foodNudgeDays,
   type Protocol,
 } from './plan.ts';
 
@@ -137,9 +138,9 @@ Deno.serve(async (req) => {
     // 4. Preferences per user: dose_reminders (defaults on), language, and the open
     //    reality-check start (calc_reality_open = { date, weightKg }) — the server's
     //    only signal that a reality-check is active, so it can send the food nudge.
-    const prefByUser = new Map<string, { enabled: boolean; lang: string; rcDate: string | null }>();
+    const prefByUser = new Map<string, { enabled: boolean; lang: string; rcDate: string | null; foodOn: boolean }>();
     for (const uid of userIds) {
-      let enabled = true; let lang = 'en'; let rcDate: string | null = null;
+      let enabled = true; let lang = 'en'; let rcDate: string | null = null; let foodOn = true;
       try {
         const { data: u } = await admin.auth.admin.getUserById(uid);
         const meta = u?.user?.user_metadata || {};
@@ -147,8 +148,22 @@ Deno.serve(async (req) => {
         if (typeof meta.language === 'string') lang = meta.language;
         const rc = meta.calc_reality_open;
         if (rc && typeof rc.date === 'string' && typeof rc.weightKg === 'number') rcDate = rc.date;
+        if (meta.food_reminders === false) foodOn = false; // the user's Settings off-switch
       } catch { /* default on/en */ }
-      prefByUser.set(uid, { enabled, lang, rcDate });
+      prefByUser.set(uid, { enabled, lang, rcDate, foodOn });
+    }
+
+    // Recent food-log days per user (same-day skip + backoff for the food nudge).
+    // entry_date is the user's LOCAL day; 5 days back covers backoff + any tz.
+    const foodDays = new Map<string, Set<string>>();
+    {
+      const since = new Date(now.getTime() - 5 * 86400000).toISOString().slice(0, 10);
+      const { data: fl } = await admin.from('food_logs').select('user_id, entry_date').in('user_id', userIds).gte('entry_date', since); // deletes remove rows (no deleted_at column)
+      for (const r of (fl || [])) {
+        if (!r.entry_date) continue;
+        if (!foodDays.has(r.user_id)) foodDays.set(r.user_id, new Set());
+        foodDays.get(r.user_id)!.add(String(r.entry_date).slice(0, 10));
+      }
     }
 
     const messages: PushMessage[] = [];
@@ -157,7 +172,7 @@ Deno.serve(async (req) => {
       const tz = tok.timezone || 'UTC';
       let lp;
       try { lp = localParts(now, tz); } catch { lp = localParts(now, 'UTC'); }
-      const pref = prefByUser.get(tok.user_id) || { enabled: true, lang: 'en', rcDate: null };
+      const pref = prefByUser.get(tok.user_id) || { enabled: true, lang: 'en', rcDate: null, foodOn: true };
       const lang = pref.lang;
       const protos = protosByUser.get(tok.user_id) || [];
       const nowMin = mod(lp.hour, lp.minute);
@@ -166,13 +181,14 @@ Deno.serve(async (req) => {
       // ── Food-log nudge: fires in the 20:00 window while a reality-check is active.
       //    Independent of the dose_reminders preference (a separate feature), so it
       //    is evaluated BEFORE the dose/morning preference gate below. ──
-      if (pref.rcDate) {
+      if (pref.rcDate && pref.foodOn) {
         const foodMin = mod(FOOD_HOUR, 0);
         if (foodMin <= nowMin && foodMin > nowMin - RUN_WINDOW_MIN) {
-          const startMs = Date.parse(pref.rcDate + 'T00:00:00Z');
-          const endMs = startMs + REALITY_CHECK_DAYS * 86400000;
-          const todayMs = Date.parse(lp.key + 'T00:00:00Z');
-          if (todayMs >= startMs && todayMs <= endMs) {
+          // Same rule as the app (lib/notificationPlan.js foodNudgeDays): inside the
+          // check window, not on a logged day, every other day after 3 ignored days.
+          const logged = foodDays.get(tok.user_id) || new Set<string>();
+          const due = foodNudgeDays(String(pref.rcDate).slice(0, 10), lp.key, logged, 1, REALITY_CHECK_DAYS);
+          if (due.includes(lp.key)) {
             messages.push({
               to: tok.expo_token,
               title: t(lang, 'notif_food_title'),
