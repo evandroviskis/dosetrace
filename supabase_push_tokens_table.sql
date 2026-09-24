@@ -9,6 +9,9 @@ create table if not exists public.push_tokens (
   user_id uuid not null references auth.users(id) on delete cascade,
   expo_token text not null,
   platform text,
+  -- IANA timezone of the device (e.g. "Europe/Lisbon"); the scheduled sender uses
+  -- it to fire dose reminders + the 7am morning summary in the user's LOCAL time.
+  timezone text,
   updated_at timestamptz not null default now(),
   unique (user_id, expo_token)
 );
