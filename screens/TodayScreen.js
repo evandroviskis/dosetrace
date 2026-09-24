@@ -93,7 +93,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors }) {
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
-import CheckMark from '../components/CheckMark';
+import CheckMark, { CrossMark } from '../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
@@ -145,7 +145,8 @@ export default function TodayScreen() {
   const bodyMapOpenRef = useRef(false);
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
   const resetTake = (protocolId) => setTakeReset(prev => ({ ...prev, [protocolId]: (prev[protocolId] || 0) + 1 }));
-  const [undoData, setUndoData] = useState(null); // { logId, protocolId, vialId, prevDosesTaken, timer }
+  const [undoData, setUndoData] = useState(null);
+  const [snoozeOpen, setSnoozeOpen] = useState(null); // alert id whose "remind me" strip is open // { logId, protocolId, vialId, prevDosesTaken, timer }
   const [protocolStreaks, setProtocolStreaks] = useState({}); // { protocol_id: number }
 
   // Vial continuation state
@@ -245,9 +246,19 @@ export default function TodayScreen() {
     } catch { setAlertSnooze({}); }
   }
 
-  // Dismiss a DERIVED alert (bloodwork / supply) by snoozing it for its window.
-  async function snoozeAlert(id) {
-    const until = Date.now() + (ALERT_SNOOZE_MS[id] || 7 * 86400000);
+  // Snooze a DERIVED alert (bloodwork / supply / expiry). kind: 'later' (3h, or
+  // tomorrow 09:00 if that runs past 21:00), 'tomorrow' (09:00 tomorrow), or
+  // 'days' (the alert's own longer window, the old dismiss).
+  async function snoozeAlert(id, kind = 'days') {
+    const now = new Date();
+    const tomorrow9 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0).getTime();
+    let until;
+    if (kind === 'later') {
+      const later = now.getTime() + 3 * 3600000;
+      until = new Date(later).getHours() >= 21 || new Date(later).getDate() !== now.getDate() ? tomorrow9 : later;
+    } else if (kind === 'tomorrow') until = tomorrow9;
+    else until = Date.now() + (ALERT_SNOOZE_MS[id] || 7 * 86400000);
+    setSnoozeOpen(null);
     const next = { ...alertSnooze, [id]: until };
     setAlertSnooze(next);
     try { await AsyncStorage.setItem(ALERT_SNOOZE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -857,6 +868,9 @@ export default function TodayScreen() {
   const ringRef = useRef(null);
   const ringMountedRef = useRef(false);
 
+  const ringTokenRef = useRef(0);
+  const ringSafetyRef = useRef(null);
+  useEffect(() => () => clearTimeout(ringSafetyRef.current), []);
   function playRingIntro() {
     const { frac, done } = targetRef.current;
     if (reduceRef.current) { ringFrac.value = frac; doneShown.value = done; return; }
@@ -864,6 +878,18 @@ export default function TodayScreen() {
     ringFrac.value = 0; doneShown.value = 0;
     ringFrac.value = withDelay(150, withTiming(frac, ease));
     doneShown.value = withDelay(150, withTiming(done, ease));
+    // Founder rule: the ring loads from zero every visit UNLESS the animation might
+    // not play. If it was interrupted (app backgrounded mid-sweep, a stalled frame
+    // loop), never leave a wrong number on screen: land on the real values.
+    const token = ++ringTokenRef.current;
+    clearTimeout(ringSafetyRef.current);
+    ringSafetyRef.current = setTimeout(() => {
+      if (token !== ringTokenRef.current) return; // a newer sweep owns the ring
+      const tgt = targetRef.current;
+      if (Math.abs(doneShown.value - tgt.done) > 0.01 || Math.abs(ringFrac.value - tgt.frac) > 0.001) {
+        ringFrac.value = tgt.frac; doneShown.value = tgt.done;
+      }
+    }, 150 + 950 + 400);
   }
 
   // Progress changed (data loaded, dose taken, undo): sweep to the new value —
@@ -872,6 +898,7 @@ export default function TodayScreen() {
     if (!ringMountedRef.current) { ringMountedRef.current = true; return; } // the focus intro owns the first fill
     if (reduceRef.current) { ringFrac.value = ringTarget; doneShown.value = doneDoses; return; }
     const delay = Math.max(0, landingAtRef.current - Date.now());
+    ringTokenRef.current++; // this sweep supersedes the intro safety net
     ringFrac.value = withDelay(delay, withTiming(ringTarget, { duration: 560, easing: Easing.out(Easing.cubic) }));
     doneShown.value = withDelay(delay, withTiming(doneDoses, { duration: 320 }));
     if (landingAtRef.current) {
@@ -993,7 +1020,7 @@ export default function TodayScreen() {
           title: t('today_alert_blood_title'),
           body: t('today_alert_blood_body').replace('{months}', String(Math.max(6, Math.round(days / 30)))),
           onPress: () => navigation.navigate('Body', { initialSection: 'labs' }),
-          onRemove: () => snoozeAlert('bloodwork_due'),
+          snoozeId: 'bloodwork_due',
         });
       }
     }
@@ -1021,7 +1048,7 @@ export default function TodayScreen() {
               ? t('today_alert_supply_list').replace('{names}', low.map(x => x.name).join(', '))
               : t('today_alert_supply_many').replace('{count}', String(low.length)),
           onPress: () => navigation.navigate('Protocols'),
-          onRemove: () => snoozeAlert('supply_low'),
+          snoozeId: 'supply_low',
         });
       }
     }
@@ -1053,7 +1080,7 @@ export default function TodayScreen() {
           id: 'vial_expiry', iconName: 'clock', due: true,
           title: t('today_alert_vial_title'), body,
           onPress: () => navigation.navigate('Protocols'),
-          onRemove: () => snoozeAlert('vial_expiry'),
+          snoozeId: 'vial_expiry',
         });
       }
     }
@@ -1377,6 +1404,7 @@ export default function TodayScreen() {
             <Text style={s.alertsHeader}>{t('today_alerts_title').toUpperCase()}</Text>
             {alerts.map(a => (
               <View key={a.id} style={s.alertCard}>
+                <View style={s.alertRow}>
                 <TouchableOpacity style={s.alertMain} activeOpacity={0.7} onPress={a.onPress}>
                   <View style={[s.alertIconTile, a.due && s.alertIconTileDue]}>
                     <FeatureIcon name={a.iconName} size={22} color={a.due ? colors.warningSoftText : colors.accentSoftText} />
@@ -1386,15 +1414,42 @@ export default function TodayScreen() {
                     <Text style={[s.alertBody, a.due && s.alertBodyDue]}>{a.body}</Text>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.alertDelete}
-                  onPress={a.onRemove}
-                  hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('today_alert_remove')}
-                >
-                  <Text style={s.alertDeleteText}>✕</Text>
-                </TouchableOpacity>
+                {a.snoozeId ? (
+                  // Snoozable alert: the icon opens "Later today · Tomorrow · In N days".
+                  <TouchableOpacity
+                    style={s.alertDelete}
+                    onPress={() => setSnoozeOpen(snoozeOpen === a.id ? null : a.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('alert_snooze')}
+                  >
+                    <FeatureIcon name="snooze" size={18} color={snoozeOpen === a.id ? colors.accent : colors.textFaint} />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={s.alertDelete}
+                    onPress={a.onRemove}
+                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('today_alert_remove')}
+                  >
+                    <CrossMark size={16} color={colors.textFaint} />
+                  </TouchableOpacity>
+                )}
+                </View>
+                {a.snoozeId && snoozeOpen === a.id && (
+                  <View style={s.snoozeStrip}>
+                    {[
+                      ['later', t('alert_snooze_later')],
+                      ['tomorrow', t('alert_snooze_tomorrow')],
+                      ['days', t('alert_snooze_days').replace('{n}', String(Math.round((ALERT_SNOOZE_MS[a.snoozeId] || 7 * 86400000) / 86400000)))],
+                    ].map(([kind, label], i) => (
+                      <TouchableOpacity key={kind} style={[s.snoozeOpt, i > 0 && s.snoozeOptSep]} onPress={() => snoozeAlert(a.snoozeId, kind)} accessibilityRole="button">
+                        <Text style={s.snoozeOptText}>{label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -1699,7 +1754,12 @@ const makeStyles = (c) => StyleSheet.create({
   // Alerts panel (pending reminders under the streak)
   alertsSection: { marginHorizontal: 18, marginBottom: 22 },
   alertsHeader: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12 },
-  alertCard: { flexDirection: 'row', alignItems: 'stretch', backgroundColor: c.card, borderRadius: 18, marginBottom: 10, ...c.shadowSoft },
+  alertCard: { backgroundColor: c.card, borderRadius: 18, marginBottom: 10, ...c.shadowSoft },
+  alertRow: { flexDirection: 'row', alignItems: 'stretch' },
+  snoozeStrip: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: c.border },
+  snoozeOpt: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  snoozeOptSep: { borderLeftWidth: 0.5, borderLeftColor: c.border },
+  snoozeOptText: { fontSize: 13, fontWeight: '600', color: c.accent, textAlign: 'center' },
   alertMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 14 },
   alertIconTile: { width: 42, height: 42, borderRadius: 13, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
   alertIconTileDue: { backgroundColor: c.warningSoft },
@@ -1709,7 +1769,6 @@ const makeStyles = (c) => StyleSheet.create({
   alertBody: { fontSize: 13, color: c.textMuted, marginTop: 1 },
   alertBodyDue: { color: c.warningSoftText, fontWeight: '600' },
   alertDelete: { paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' },
-  alertDeleteText: { fontSize: 16, color: c.textFaint, fontWeight: '600' },
   shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
   shareToggleText: { fontSize: 12, color: c.accent, fontWeight: '600' },
   shareCard: { marginHorizontal: 16, marginBottom: 16 },

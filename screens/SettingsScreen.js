@@ -83,6 +83,7 @@ export default function SettingsScreen({ navigation }) {
   const [doseReminders, setDoseReminders] = useState(true);
   const [checkinReminders, setCheckinReminders] = useState(true);
   const [foodReminders, setFoodReminders] = useState(true);
+  const [notifNames, setNotifNames] = useState(true); // lock-screen privacy: compound names in notifications
   const [vialAlerts, setVialAlerts] = useState(true);
   const [silentMode, setSilentMode] = useState(false);
   const [persistentReminders, setPersistentReminders] = useState(false);
@@ -155,6 +156,7 @@ export default function SettingsScreen({ navigation }) {
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
       setCheckinReminders(user.user_metadata?.checkin_reminders !== false);
       setFoodReminders(user.user_metadata?.food_reminders !== false);
+      setNotifNames(user.user_metadata?.notif_show_names !== false);
       setVialAlerts(user.user_metadata?.vial_alerts !== false);
       setSilentMode(user.user_metadata?.silent_mode === true);
       setPersistentReminders(user.user_metadata?.persistent_reminders === true);
@@ -638,6 +640,20 @@ export default function SettingsScreen({ navigation }) {
             <Switch
               value={foodReminders}
               onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
+              trackColor={{ true: colors.switchTrack }}
+            />
+          </View>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={s.rowLabel}>{t('settings_notif_names')}</Text>
+                <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
+              </View>
+            </View>
+            <Switch
+              value={notifNames}
+              onValueChange={(v) => toggleNotificationPref('notif_show_names', v, setNotifNames)}
               trackColor={{ true: colors.switchTrack }}
             />
           </View>

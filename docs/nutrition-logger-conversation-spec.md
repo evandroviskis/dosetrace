@@ -1,4 +1,24 @@
-# AI nutrition logger — conversation spec (LOCKED 2026-09-10)
+# AI nutrition logger — conversation spec (LOCKED 2026-09-10, AMENDED 2026-09-24)
+
+> **Founder amendment 2026-09-24 (supersedes the day-based parts below):**
+> "What matters is the food intake during the time needed for the reality check.
+> We won't track day by day. The AI needs to understand if the user types that they
+> had an ice cream 3 days ago — time doesn't necessarily matter. The questions
+> ("have you had lunch yet") stay, but as a more informal, natural conversation —
+> like telling your day to a friend."
+> - **Intake = the reality-check window**: every entry dated from the check's start
+>   through today, summed, ÷ the same elapsed days the TDEE uses (`lib/nutrition.js
+>   checkIntake`). Anything not logged counts as nothing; the UI says so and shows
+>   its working ("{total} kcal over {d} days"). Offered tap-to-use, never auto-filled.
+>   The per-logged-day and 7-day averages are retired.
+> - **Catch-ups are first-class**: food from any earlier time is logged without
+>   asking when. The parser returns an optional `days_ago` (only when the user says
+>   when); the entry is dated to that day. Output contract gains `days_ago`.
+> - **Logger view**: running check intake + a flat list of entries (date chip each),
+>   not day-by-day totals. Trial days count the days the logger was used.
+> - **Voice**: nudges stay (same time-aware slots) but casual, two phrasings each,
+>   preceded by a neutral echo of what was just logged ("Got it — ice cream.") —
+>   item names only, never a word about the food. Still app templates, never model prose.
 
 Founder-validated in a live role-play simulation. This is the source of truth for
 the `parse-food` edge-function prompt AND the client conversation logic. Do not
@@ -81,7 +101,7 @@ this and feeds your reality-check." Reopen-to-edit always available.
 ## Model output contract (for parse-food)
 Return ONLY JSON:
 `{ "items": [{ "food", "qty", "unit", "kcal", "protein_g", "carb_g", "fat_g",
-"confidence" }], "clarify": string|null, "refusal": true|false }`
+"confidence" }], "clarify": string|null, "refusal": true|false, "days_ago": number|null }`
 - `refusal: true` (with empty items) for any advice-shaped request → app shows the
   fixed deflection.
 - `clarify` = at most one short slot/portion question hint the app MAY use.

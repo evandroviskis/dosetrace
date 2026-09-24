@@ -49,7 +49,7 @@ const snapRowToUI = (r) => ({ date: r.entry_date, weightKg: r.weight_kg, waistCm
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
-import { rollingAvgKcal } from '../../lib/nutrition';
+import { checkIntake } from '../../lib/nutrition';
 import CheckMark from '../../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -120,7 +120,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const [rcOpen, setRcOpen] = useState(false);      // collapsible panel under the goal
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
   const [rcSavedMsg, setRcSavedMsg] = useState(false);
-  const [foodAvg, setFoodAvg] = useState(null); // { avgKcal, loggedDays } from the food log
+  const [foodRows, setFoodRows] = useState([]); // food_logs rows, for the check-window intake
 
   // ── Personal target (build 56) ──────────────────────────────────
   const [target, setTarget] = useState(null);        // the saved calc_targets row
@@ -151,12 +151,12 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
     // session wasn't ready on the first focus.
     if (uid) userIdRef.current = uid;
 
-    // Food-log rolling average (feeds the reality-check intake). Recomputed each
-    // focus so newly-logged meals move the number.
+    // Food log rows (feed the reality-check intake over the check window).
+    // Re-read each focus so newly-logged meals — catch-ups included — move it.
     try {
       if (uid) {
-        const since = new Date(); since.setDate(since.getDate() - 20);
-        setFoodAvg(rollingAvgKcal(getFoodLogsSince(uid, localISO(since)), todayISO(), 21));
+        const since = new Date(); since.setDate(since.getDate() - 366);
+        setFoodRows(getFoodLogsSince(uid, localISO(since)) || []);
       }
     } catch { /* ignore */ }
 
@@ -500,6 +500,13 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   // ── Reality check (premium) ──────────────────────────────────────
   // Auto days-between the two weigh-ins; null until phase 2.
   const rcElapsedDays = rcStart ? daysBetween(rcStart.date, todayISO()) : null;
+  // Intake across THIS check (founder: the check window matters, not day by day):
+  // everything logged from the start date through today ÷ the same elapsed days
+  // the TDEE uses. Offered tap-to-use with its working shown; never auto-filled.
+  const foodIntake = useMemo(
+    () => (rcStart ? checkIntake(foodRows, rcStart.date, todayISO(), rcElapsedDays) : null),
+    [foodRows, rcStart, rcElapsedDays],
+  );
   // The date the day-21 reminder is set for (display only).
   const rcRemindOn = useMemo(() => {
     if (!rcStart) return null;
@@ -908,10 +915,10 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                   <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
                   <Text style={s.label}>{t('cal_rc_intake')}</Text>
                   <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-                  {foodAvg && foodAvg.avgKcal && foodAvg.loggedDays >= 5 ? (
+                  {foodIntake ? (
                     <>
-                      <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodAvg.avgKcal))} activeOpacity={0.7}>
-                        <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{n}', String(foodAvg.avgKcal)).replace('{d}', String(foodAvg.loggedDays))}</Text>
+                      <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodIntake.avgKcal))} activeOpacity={0.7}>
+                        <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
                       </TouchableOpacity>
                       <Text style={s.rcUseLogNote}>{t('cal_rc_from_log_note')}</Text>
                     </>

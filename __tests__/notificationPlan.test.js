@@ -111,3 +111,32 @@ test('food nudge: any log in the last 3 days returns it to daily', () => {
 test('food nudge: corrupt start date schedules nothing', () => {
   assert.deepEqual(foodNudgeDays('garbage', day(0), new Set(), 7, 21), []);
 });
+
+// ── Snooze helpers ──
+const { snoozeFireAt, snoozeId, parseDoseId, pruneSnoozes } = require('../lib/notificationPlan');
+const at = (h, m = 0) => new Date(2026, 8, 24, h, m).getTime();
+
+test('snooze: in 1 hour is exactly one hour', () => {
+  assert.equal(snoozeFireAt('hour', at(14, 5)) - at(14, 5), 3600000);
+});
+
+test('snooze: tomorrow is the same time tomorrow in the day, 09:00 at night', () => {
+  assert.equal(snoozeFireAt('tomorrow', at(10, 30)), new Date(2026, 8, 25, 10, 30).getTime());
+  assert.equal(snoozeFireAt('tomorrow', at(22, 15)), new Date(2026, 8, 25, 9, 0).getTime());
+  assert.equal(snoozeFireAt('tomorrow', at(2, 0)), new Date(2026, 8, 24, 9, 0).getTime(), 'after midnight: this morning 09:00');
+});
+
+test('snooze: ids get their own prefix once, and dose ids parse back', () => {
+  assert.equal(snoozeId('dose-7-2026-09-24-t1'), 'snz-dose-7-2026-09-24-t1');
+  assert.equal(snoozeId('snz-dose-7-2026-09-24-t1'), 'snz-dose-7-2026-09-24-t1');
+  assert.deepEqual(parseDoseId('snz-dose-7-2026-09-24-t1'), { protocolId: 7, dayKey: '2026-09-24', ti: 1 });
+  assert.deepEqual(parseDoseId('dose-12-2026-09-24-t0-f1'), { protocolId: 12, dayKey: '2026-09-24', ti: 0 });
+  assert.equal(parseDoseId('checkin-weekly'), null);
+});
+
+test('snooze: prune keeps future, wanted, newest 4', () => {
+  const now = 1000;
+  const recs = [1, 2, 3, 4, 5, 6].map((i) => ({ id: 'snz-' + i, fireAt: i === 1 ? 500 : 5000, createdAt: i }));
+  const kept = pruneSnoozes(recs, now, (r) => r.id !== 'snz-6');
+  assert.deepEqual(kept.map((r) => r.id), ['snz-5', 'snz-4', 'snz-3', 'snz-2']);
+});

@@ -28,7 +28,8 @@ import {
   getFoodLogsByDate, getFoodLogsSince, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
 } from '../../lib/database';
 import { parseFood } from '../../lib/nutritionClient';
-import { rollingAvgKcal, pickNudge, groupByDay } from '../../lib/nutrition';
+import { checkIntake, entryDateFor, pickNudge } from '../../lib/nutrition';
+import { getRealityStart } from '../../lib/realityCheck';
 import { requestAIConsent } from '../../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { syncFoodLogReminder } from '../../lib/notifications';
@@ -98,7 +99,6 @@ export default function NutritionLogger() {
   const [userId, setUserId] = useState(null);
   const [recent, setRecent] = useState([]);        // last ~30 days of entries
   const [dayCount, setDayCount] = useState(0);
-  const [avg, setAvg] = useState(null);            // { avgKcal, loggedDays } (7-day)
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [deflect, setDeflect] = useState(false);
@@ -106,12 +106,13 @@ export default function NutritionLogger() {
   const [shownNudges, setShownNudges] = useState([]);
   const [nudge, setNudge] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);  // 7-day avg + day history
-  const [openDays, setOpenDays] = useState({});         // { 'YYYY-MM-DD': true }
   const [showDemo, setShowDemo] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [editItems, setEditItems] = useState([]);
   const reparsingRef = useRef(new Set());
   const [foodReminders, setFoodReminders] = useState(true); // same account pref as Settings
+  const [rcStart, setRcStart] = useState(null); // open reality check { date, weightKg } or null
+  const [echo, setEcho] = useState(null);       // names just logged, echoed back casually
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -121,6 +122,7 @@ export default function NutritionLogger() {
     const uid = user?.id || null;
     setUserId(uid);
     setFoodReminders(user?.user_metadata?.food_reminders !== false);
+    try { setRcStart(await getRealityStart()); } catch { setRcStart(null); }
     if (uid) { refresh(uid); getFoodLogsByDate(uid, todayISO()).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text) reparse(r, uid); }); }
   }
 
@@ -140,10 +142,10 @@ export default function NutritionLogger() {
 
   function refresh(uid) {
     if (!uid) return;
-    const rows = getFoodLogsSince(uid, daysAgoISO(30));
+    const rows = getFoodLogsSince(uid, daysAgoISO(366)); // catch-ups may be dated up to a year back
     setRecent(rows);
     setDayCount(getFoodLogDayCount(uid));
-    setAvg(rollingAvgKcal(rows, todayISO(), 7));
+
     // Every add/edit/delete ends here: re-plan tonight's 20:00 nudge so a meal
     // logged at 18:00 cancels it now, not at the next app open (journey F2).
     syncFoodLogReminder().catch(() => {});
@@ -173,6 +175,7 @@ export default function NutritionLogger() {
         parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
         protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
         parse_status: 'done',
+        entry_date: entryDateFor(row.entry_date, res.daysAgo),
       });
       requestSync?.(); refresh(uid);
     } finally { reparsingRef.current.delete(row.id); }
@@ -209,17 +212,21 @@ export default function NutritionLogger() {
       deleteFoodLog(id); requestSync?.(); refresh(userId);
       setText(raw);            // preserve their words (may have been real food misjudged)
       setDetailOpen(true);     // reveal the log so "tap it below" isn't a dead-end
-      setOpenDays((p) => ({ ...p, [todayISO()]: true }));
       setFixHint(true); return;
     }
     if (res.ok) {
+      // "An ice cream 3 days ago" is logged like anything else, on the day it was
+      // eaten — time never blocks it (founder 2026-09-24).
       updateFoodLog(id, {
         parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
         protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
         parse_status: 'done',
+        entry_date: entryDateFor(todayISO(), res.daysAgo),
       });
       requestSync?.(); refresh(userId);
-      setOpenDays((p) => ({ ...p, [todayISO()]: true })); // show today's new entry
+      // Echo back only the item names (never a word about the food itself).
+      const names = res.items.map((it) => it.food).filter(Boolean);
+      setEcho(names.length ? names.slice(0, 3).join(', ') + (names.length > 3 ? '…' : '') : null);
       const next = pickNudge(shownNudges, new Date());
       if (next) { setShownNudges((prev) => [...prev, next.id]); setNudge(next); } else { setNudge(null); }
       return;
@@ -253,10 +260,17 @@ export default function NutritionLogger() {
     ]);
   }
 
-  const days = groupByDay(recent);
   const freeLeft = Math.max(0, FREE_DAYS - dayCount);
   const gated = !premium && dayCount >= FREE_DAYS;
-  const nudgeText = nudge ? t(`nutri_nudge_${nudge.id}${nudge.id === 'lunch' || nudge.id === 'dinner' ? '_' + nudge.tense : ''}`) : null;
+  // Casual, friend-like follow-up (app-templated): alternate between two phrasings.
+  const nudgeText = nudge ? t(`nutri_nudge_${nudge.id}${nudge.id === 'lunch' || nudge.id === 'dinner' ? '_' + nudge.tense : ''}${shownNudges.length % 2 === 0 ? '_b' : ''}`) : null;
+  const composerLine = [echo ? t('nutri_echo').replace('{items}', echo) : null, nudgeText].filter(Boolean).join(' ') || t('nutri_intro');
+  // Intake across the open reality check — the number this logger exists for.
+  const rcDays = rcStart ? Math.max(0, Math.round((new Date(todayISO() + 'T12:00:00') - new Date(rcStart.date + 'T12:00:00')) / 86400000)) : null;
+  // Running view: the check so far INCLUDING today (so today's lunch shows up),
+  // over the calendar days so far. The calculator uses completed days only.
+  const intake = rcStart ? checkIntake(recent, rcStart.date, todayISO(), (rcDays || 0) + 1, 1, true) : null;
+  const entries = [...recent].sort((a, b) => (a.entry_date === b.entry_date ? (b.id || 0) - (a.id || 0) : (a.entry_date < b.entry_date ? 1 : -1)));
 
   function dayLabel(dateISO) {
     if (dateISO === todayISO()) return t('nutri_day_today');
@@ -289,7 +303,7 @@ export default function NutritionLogger() {
           <FeatureIcon name="ai_spark" size={12} color={colors.accentText} />
           <Text style={s.aiBadgeText}>{t('nutri_ai_badge')}</Text>
         </View>
-        <Text style={s.cq}>{nudgeText || t('nutri_intro')}</Text>
+        <Text style={s.cq}>{composerLine}</Text>
         <Text style={s.chint}>{t('nutri_composer_hint')}</Text>
         <View style={s.cfield}>
           <FeatureIcon name="ai_spark" size={18} color={colors.accent} />
@@ -347,43 +361,44 @@ export default function NutritionLogger() {
         </View>
       )}
 
-      {/* Collapsed summary line — toggles the detail (average + days) */}
+      {/* Collapsed summary — the intake across the open reality check (what this
+          logger exists for), not a day-by-day diary. */}
       {!detailOpen && (
         <TouchableOpacity style={s.collapsed} activeOpacity={0.7} onPress={() => setDetailOpen(true)}>
           <Text style={s.collapsedText}>
-            {avg && avg.avgKcal
-              ? `${t('nutri_avg_days').replace('{n}', String(avg.loggedDays))} · ${t('nutri_avg_label')} ≈ ${avg.avgKcal} ${t('cal_kcal')}`
-              : t('nutri_none')}
+            {rcStart
+              ? (intake
+                ? t('nutri_check_summary').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days)).replace('{avg}', String(intake.avgKcal))
+                : t('nutri_check_empty'))
+              : (entries.length ? t('nutri_entries_count').replace('{n}', String(entries.length)) : t('nutri_none'))}
           </Text>
-          {days.length > 0 && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
+          {entries.length > 0 && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
         </TouchableOpacity>
       )}
 
-      {/* Detail: 7-day average + day-grouped history */}
+      {/* Detail: the check's running intake + every entry, newest first */}
       {detailOpen && (
         <>
-          {avg && avg.avgKcal ? (
+          {rcStart ? (
             <View style={s.avgCard}>
-              <Text style={s.avgLabel}>{t('nutri_avg_label')}</Text>
-              <Text style={s.avgBig}>≈ {avg.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}</Text></Text>
-              <Text style={s.avgFoot}>{t('nutri_avg_days').replace('{n}', String(avg.loggedDays))} · {t('nutri_avg_foot')}</Text>
+              <Text style={s.avgLabel}>{t('nutri_check_label')}</Text>
+              {intake ? (
+                <>
+                  <Text style={s.avgBig}>≈ {intake.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}{t('nutri_per_day')}</Text></Text>
+                  <Text style={s.avgFoot}>{t('nutri_check_working').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days))}</Text>
+                </>
+              ) : (
+                <Text style={s.avgFoot}>{t('nutri_check_empty')}</Text>
+              )}
+              <Text style={s.avgFoot}>{t('nutri_check_foot')}</Text>
             </View>
           ) : (
-            <Text style={s.noneDetail}>{t('nutri_none')}</Text>
+            <Text style={s.noneDetail}>{t('nutri_no_check')}</Text>
           )}
 
-          {days.map((day) => {
-            const open = day.date === todayISO() ? openDays[day.date] !== false : !!openDays[day.date];
-            return (
-              <View key={day.date} style={s.day}>
-                <TouchableOpacity style={s.dayHead} activeOpacity={0.7} onPress={() => setOpenDays((p) => ({ ...p, [day.date]: !open }))}>
-                  <Text style={s.dayLabel}>{dayLabel(day.date)}</Text>
-                  <View style={s.dayRight}>
-                    <Text style={s.dayKcal}>≈ <Text style={s.dayKcalNum}>{day.totals.kcal}</Text> {t('cal_kcal')}</Text>
-                    <Text style={s.dayChev}>{open ? '▾' : '▸'}</Text>
-                  </View>
-                </TouchableOpacity>
-                {open && day.entries.map((e) => {
+          {entries.length > 0 && (
+            <View style={s.day}>
+              {entries.map((e) => {
                   const items = safeItems(e.parsed_items);
                   const pending = e.parse_status === 'pending';
                   const unparsed = e.parse_status === 'unparsed';
@@ -395,6 +410,7 @@ export default function NutritionLogger() {
                         <Text style={s.pendingText}>{e.raw_text} · {t('nutri_unparsed')}</Text>
                       ) : (
                         <>
+                          <Text style={s.entryDate}>{dayLabel(e.entry_date)}</Text>
                           {items.map((it, i) => (
                             <View key={i} style={s.entryRow}>
                               <Text style={s.entryFood}>{it.food}</Text>
@@ -409,10 +425,9 @@ export default function NutritionLogger() {
                       )}
                     </TouchableOpacity>
                   );
-                })}
-              </View>
-            );
-          })}
+              })}
+            </View>
+          )}
         </>
       )}
 
@@ -517,6 +532,7 @@ const makeStyles = (c) => StyleSheet.create({
   dayKcal: { fontSize: 13.5, fontWeight: '700', color: c.text },
   dayKcalNum: { color: c.accent, fontWeight: '800' },
   dayChev: { fontSize: 14, color: c.textFaint },
+  entryDate: { fontSize: 11, fontWeight: '700', color: c.textMuted, marginBottom: 4 },
   entryCard: { paddingHorizontal: 13, paddingVertical: 11, borderTopWidth: 0.5, borderTopColor: c.border },
   entryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 3, gap: 10 },
   entryFood: { fontSize: 13, color: c.text, flex: 1 },

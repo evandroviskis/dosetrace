@@ -11,7 +11,7 @@ import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supa
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, cancelTodaysDoseReminders, registerPushToken, syncFoodLogReminder, RC_START_KEY } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, RC_START_KEY } from './lib/notifications';
 import { getRealityStart } from './lib/realityCheck';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -21,8 +21,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 // Route every fontWeight in the app to Plus Jakarta Sans. Installed at module
 // load, before any component renders.
 installFontMapping();
-import { initDatabase, clearLocalDatabase, getTodayLogs, getLocalDataUserId } from './lib/database';
-import { recordDoseTaken } from './lib/doseActions';
+import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener } from './lib/sync';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
@@ -360,20 +359,14 @@ export default function App() {
         const data = response?.notification?.request?.content?.data;
         if (!data) return;
 
-        // "Mark as taken" button — log the dose without opening the app.
-        if (response.actionIdentifier === 'MARK_TAKEN' && data.protocolId) {
-          try {
-            const result = recordDoseTaken(data.protocolId);
-            if (result) {
-              const logs = getTodayLogs(result.protocol.user_id) || [];
-              const takenToday = logs.filter(l => l.protocol_id === data.protocolId && l.outcome === 'Taken').length;
-              cancelTodaysDoseReminders(data.protocolId, takenToday).catch(() => {});
-              requestSync();
-              syncAllNotifications().catch(() => {});
-            }
-          } catch { /* best-effort background action */ }
+        // Action buttons (Mark as taken / snooze) are handled once, at module scope,
+        // by lib/notificationActions (works with the app killed). Here: only
+        // navigation — Mark as taken opens the app on iOS, so show Today.
+        if (response.actionIdentifier === 'MARK_TAKEN') {
+          if (navigationRef.current) navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
           return;
         }
+        if (response.actionIdentifier === 'SNOOZE_HOUR' || response.actionIdentifier === 'SNOOZE_TOMORROW') return;
 
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });

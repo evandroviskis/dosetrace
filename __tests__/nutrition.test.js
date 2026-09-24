@@ -81,3 +81,43 @@ test('groupByDay: empty -> []', () => {
   assert.deepEqual(groupByDay([]), []);
   assert.deepEqual(groupByDay(null), []);
 });
+
+// ── Reality-check window intake (founder 2026-09-24: not day by day) ──
+const { checkIntake, entryDateFor } = require('../lib/nutrition');
+
+test('checkIntake: completed days of the check ÷ elapsed days (same window as the TDEE)', () => {
+  const e = [
+    { entry_date: '2026-09-01', kcal: 2000 },
+    { entry_date: '2026-09-03', kcal: 3000 },
+    { entry_date: '2026-09-05', kcal: 2000 },
+    { entry_date: '2026-09-06', kcal: 900 }, // today — not in the completed window
+  ];
+  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 5), { totalKcal: 7000, days: 5, avgKcal: 1400, entries: 3 });
+  // the logger's running view includes today, over 6 calendar days
+  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 6, 1, true), { totalKcal: 7900, days: 6, avgKcal: 1317, entries: 4 });
+});
+
+test('checkIntake: food before the check started is not counted', () => {
+  const e = [{ entry_date: '2026-08-30', kcal: 5000 }, { entry_date: '2026-09-02', kcal: 1000 }];
+  assert.equal(checkIntake(e, '2026-09-01', '2026-09-06', 5).totalKcal, 1000);
+});
+
+test('checkIntake: three days logged in one go land in the same total (no per-day inflation)', () => {
+  const oneGo = [{ entry_date: '2026-09-05', kcal: 6000 }];
+  assert.equal(checkIntake(oneGo, '2026-09-01', '2026-09-06', 5).avgKcal, 1200);
+});
+
+test('checkIntake: nothing until the check has run minDays and something is logged', () => {
+  assert.equal(checkIntake([{ entry_date: '2026-09-02', kcal: 900 }], '2026-09-01', '2026-09-04', 3), null);
+  assert.equal(checkIntake([], '2026-09-01', '2026-09-10', 9), null);
+  assert.equal(checkIntake([{ entry_date: '2026-09-02', kcal: 900 }], null, '2026-09-10', 9), null);
+});
+
+test('entryDateFor: "3 days ago" moves the entry back; nothing said keeps the typed day', () => {
+  assert.equal(entryDateFor('2026-09-06', 3), '2026-09-03');
+  assert.equal(entryDateFor('2026-09-06', 0), '2026-09-06');
+  assert.equal(entryDateFor('2026-09-06', null), '2026-09-06');
+  assert.equal(entryDateFor('2026-03-01', 1), '2026-02-28');
+  assert.equal(entryDateFor('2026-09-06', -2), '2026-09-06', 'never into the future');
+  assert.equal(entryDateFor('2026-09-06', 9999), '2025-09-06', 'clamped to a year');
+});

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// DoseTrace — AI nutrition parse (build 52). Turns a user's free-text meal
+// DoseTrace — AI nutrition parse (build 52; days_ago added 1.2.4). Turns a user's free-text meal
 // description into STRUCTURED nutrition estimates. See
 // docs/nutrition-logger-conversation-spec.md — this endpoint implements the
 // "model output contract" section verbatim.
@@ -27,12 +27,14 @@ const DAILY_FOOD_LIMIT = 25;       // abuse ceiling per user per day (premium-ga
 const FOOD_SYSTEM = `You convert a person's description of food and drink THEY have consumed into structured nutrition estimates. You are a parser, not an assistant.
 
 Return ONLY a single JSON object, no prose, no code fences:
-{"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high"}],"clarify":string|null,"refusal":boolean}
+{"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high"}],"clarify":string|null,"refusal":boolean,"days_ago":number|null}
 
 Rules:
 - Estimate kcal, protein_g, carb_g, fat_g for each item from typical portions. If a quantity is vague ("some rice"), assume a typical serving and set confidence "low".
 - Recognize named brands when given (e.g. Isopure = zero-carb whey isolate).
-- "clarify": at most ONE short question about a missing portion/quantity, or null. Never advice.
+- "clarify": at most ONE short question about a missing portion/quantity, or null. Never advice. Never ask WHEN something was eaten.
+- Food from any earlier time ("an ice cream 3 days ago", "yesterday's dinner", "last weekend a pizza") is logged exactly like food from today — timing never blocks, refuses, or triggers a clarify.
+- "days_ago": whole days before the entry date when the user clearly says when ALL the food in the message was eaten (yesterday = 1, "3 days ago" = 3, a named weekday = days back from the entry date's weekday). null when they don't say, when it is today, or when the message mixes different days.
 - Convert comma decimals to points. Numbers only, no ranges inside the JSON.
 - You NEVER recommend, suggest, evaluate, praise, or criticize food, diet, calories, or weight. You never mention a goal, target, weight, or health condition. You never use imperative verbs directed at the user. You never connect food to any medication, peptide, hormone, protocol, or supplement's effect.
 - If the user asks what/how much to eat, how to lose/gain weight or fat, whether a food is good/bad/healthy, for a meal plan, a target, or any advice or judgment: return {"items":[],"clarify":null,"refusal":true}. Do not answer the question.
@@ -43,6 +45,12 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 const numOrNull = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : null);
+const weekdayOf = (iso: string) => {
+  const d = new Date(iso + 'T12:00:00Z');
+  return isNaN(d.getTime()) ? 'day' : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()];
+};
+// When the food was eaten, as whole days before the entry date (0…365), or null.
+const daysAgoOf = (v: unknown) => (typeof v === 'number' && isFinite(v) && v >= 1 ? Math.min(365, Math.round(v)) : null);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -96,7 +104,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
-        system: FOOD_SYSTEM + `\n\nThe user writes in language code "${lang}"; food names in items may stay in their language.`,
+        system: FOOD_SYSTEM + `\n\nThe user writes in language code "${lang}"; food names in items may stay in their language.` + (entryDate ? `\nThe entry date (the user's "today") is ${entryDate}, a ${weekdayOf(entryDate)}.` : ''),
         messages: [{ role: 'user', content: text }],
       }),
     });
@@ -111,7 +119,7 @@ Deno.serve(async (req) => {
     const raw = anthropicData?.content?.[0]?.text ?? '';
     const clean = String(raw).replace(/```json|```/g, '').trim();
 
-    let parsed: { items?: unknown; clarify?: unknown; refusal?: unknown };
+    let parsed: { items?: unknown; clarify?: unknown; refusal?: unknown; days_ago?: unknown };
     try { parsed = JSON.parse(clean); }
     catch { console.error('[parse-food] non_json_output'); return jsonResponse({ error: 'Parser output was not valid JSON', code: 'invalid_parse' }, 502); }
 
@@ -119,7 +127,7 @@ Deno.serve(async (req) => {
 
     // Advice-shaped request -> refusal (the app shows the fixed deflection card).
     if (parsed.refusal === true) {
-      return jsonResponse({ refusal: true, items: [], totals: null, clarify: null }, 200);
+      return jsonResponse({ refusal: true, items: [], totals: null, clarify: null, days_ago: null }, 200);
     }
 
     const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
@@ -142,7 +150,7 @@ Deno.serve(async (req) => {
 
     const clarify = typeof parsed.clarify === 'string' && parsed.clarify.trim() ? parsed.clarify.trim().slice(0, 200) : null;
 
-    return jsonResponse({ refusal: false, items, totals, clarify }, 200);
+    return jsonResponse({ refusal: false, items, totals, clarify, days_ago: daysAgoOf(parsed.days_ago) }, 200);
   } catch (err) {
     console.error('[parse-food] internal_error', err?.message);
     return jsonResponse({ error: err.message, code: 'internal_error' }, 500);
