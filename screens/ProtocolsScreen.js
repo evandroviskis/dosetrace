@@ -706,6 +706,7 @@ export default function ProtocolsScreen() {
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
   const [note, setNote] = useState('');
+  const [composition, setComposition] = useState(''); // blend "what's in the vial" label
   // Oral serving calculator + supply
   const [servingStrength, setServingStrength] = useState('');
   const [servingStrengthUnit, setServingStrengthUnit] = useState('mg');
@@ -870,7 +871,7 @@ export default function ProtocolsScreen() {
     setIntervalDays(1); setDosesPerDay(1);
     setCustomIntervalOpen(false); setCustomIntervalText('');
     setStartDate(todayISO()); setShowStartPicker(false);
-    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote('');
+    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote(''); setComposition('');
     setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
     setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
@@ -978,7 +979,7 @@ export default function ProtocolsScreen() {
     const defaults = [currentTimeRounded5(), '14:00', '21:00'];
     while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
     setReminderTimes(times.slice(0, loadedDPD));
-    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || '');
+    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || ''); setComposition(p.composition || '');
     setServingStrength(p.serving_strength != null ? String(p.serving_strength) : '');
     setServingStrengthUnit(p.serving_strength_unit || 'mg');
     setServingUnits(p.serving_units != null ? String(p.serving_units) : '1');
@@ -1242,6 +1243,9 @@ export default function ProtocolsScreen() {
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
+        // Blend composition label — only stored for blends; cleared otherwise so a
+        // compound change can't leave a stale recipe. NEVER feeds the curve/math.
+        composition: (compoundId && BLEND_IDS.includes(compoundId)) ? (composition.trim() || null) : null,
         serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
         serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
         serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
@@ -1304,6 +1308,9 @@ export default function ProtocolsScreen() {
         schedule_total: null,
         vial_valid_days: parseInt(vialValidDays) || null,
         goal: goals.join(','), notes, note,
+        // Blend composition label — only stored for blends; cleared otherwise so a
+        // compound change can't leave a stale recipe. NEVER feeds the curve/math.
+        composition: (compoundId && BLEND_IDS.includes(compoundId)) ? (composition.trim() || null) : null,
         serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
         serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
         serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
@@ -2321,6 +2328,22 @@ export default function ProtocolsScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {/* Blend composition — "what's in the vial". Blends only. A journal
+                    label; it does NOT change the serum curve (which stays half-life only). */}
+                {compoundId && BLEND_IDS.includes(compoundId) && (
+                  <>
+                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_composition_label')}</Text>
+                    <TextInput
+                      style={s.input}
+                      placeholder={t('protocols_composition_placeholder')}
+                      placeholderTextColor={colors.textFaint}
+                      value={composition}
+                      onChangeText={setComposition}
+                    />
+                    <Text style={s.fieldHint}>{t('protocols_composition_hint')}</Text>
+                  </>
+                )}
 
                 {/* Free-text note — available on every protocol type */}
                 <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_notes_optional')}</Text>

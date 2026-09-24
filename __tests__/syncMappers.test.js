@@ -15,6 +15,7 @@ const protocolRow = {
   interval_days: 1, doses_per_day: 1,
   start_date: '2024-06-01', schedule_total: 30,
   goal: 'wt_recovery_support', notes: 'x',
+  note: 'rotate sites', composition: '50 GHK / 10 KPV / 10 TB / 10 BPC',
   active: 1, deleted_at: null,
   sync_status: 'pending',
 };
@@ -34,6 +35,7 @@ test('protocols payload carries the drift-prone fields verbatim', () => {
   assert.equal(payload.schedule_total, 30);
   assert.equal(payload.interval_days, 1);
   assert.equal(payload.start_date, '2024-06-01');
+  assert.equal(payload.composition, '50 GHK / 10 KPV / 10 TB / 10 BPC'); // blend label must round-trip
 });
 
 test('protocols payload converts active 1/0 to a boolean and never leaks local-only columns', () => {
