@@ -98,10 +98,13 @@ Deno.serve(async (req) => {
   const now = new Date();
 
   try {
-    // 1. Every registered device.
+    // 1. Every registered ANDROID device. iOS is intentionally local-only
+    //    (usesServerPush() is Android-only on the client), so sending server pushes
+    //    to iOS tokens would DOUBLE-FIRE against the local schedule. Filter here.
     const { data: tokens, error: tokErr } = await admin
       .from('push_tokens')
-      .select('user_id, expo_token, platform, timezone');
+      .select('user_id, expo_token, platform, timezone')
+      .eq('platform', 'android');
     if (tokErr) throw tokErr;
     if (!tokens || tokens.length === 0) {
       return json({ ok: true, tokens: 0, sent: 0, dry: DRY_RUN });
@@ -237,7 +240,10 @@ Deno.serve(async (req) => {
     }
     void DOSE_HORIZON_DAYS; // (kept for parity with the client window; today-only here)
 
-    // 5. Idempotency: claim each dedupe key; only unclaimed ones are sent.
+    // 5. Idempotency: claim each dedupe key BEFORE sending so overlapping cron runs
+    //    can't double-send. A claim that then fails to deliver is RELEASED in step 6
+    //    so the next run retries it — otherwise the 23505 skip would drop that slot
+    //    forever (backend review).
     const toSend: PushMessage[] = [];
     for (const m of messages) {
       if (DRY_RUN) { toSend.push(m); continue; }
@@ -254,27 +260,45 @@ Deno.serve(async (req) => {
       return json({ ok: true, dry: true, tokens: tokens.length, would_send: toSend.length, sample: toSend.slice(0, 5).map(stripDedupe) });
     }
 
-    // 6. Send via Expo push, batched. Prune dead tokens.
+    // 6. Send via Expo push, batched. Any message that does NOT get an "ok" receipt
+    //    (error status, non-2xx, or a network throw) has its claim released so a
+    //    later run retries; DeviceNotRegistered tokens are pruned.
+    type Receipt = { status?: string; details?: { error?: string } };
     let sent = 0;
     const dead = new Set<string>();
+    const release: string[] = [];
     for (let i = 0; i < toSend.length; i += EXPO_BATCH) {
-      const batch = toSend.slice(i, i + EXPO_BATCH).map(stripDedupe);
-      const resp = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(batch),
-      });
-      const out = await resp.json().catch(() => null);
-      const receipts = out?.data || [];
-      for (let j = 0; j < receipts.length; j++) {
-        const r = receipts[j];
-        if (r?.status === 'ok') sent++;
-        else if (r?.details?.error === 'DeviceNotRegistered') dead.add(batch[j].to);
+      const slice = toSend.slice(i, i + EXPO_BATCH);
+      let receipts: Receipt[] = [];
+      try {
+        const resp = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(slice.map(stripDedupe)),
+        });
+        const out = await resp.json().catch(() => null);
+        receipts = resp.ok ? ((out?.data as Receipt[]) || []) : [];
+      } catch {
+        receipts = []; // network error → treat whole batch as failed → release below
       }
+      for (let j = 0; j < slice.length; j++) {
+        const r = receipts[j];
+        if (r?.status === 'ok') { sent++; continue; }
+        release.push(slice[j]._dedupe); // not delivered → allow retry next run
+        if (r?.details?.error === 'DeviceNotRegistered') dead.add(slice[j].to);
+      }
+    }
+    if (release.length) {
+      await admin.from('notification_sends').delete().in('dedupe_key', release);
     }
     if (dead.size) {
       await admin.from('push_tokens').delete().in('expo_token', [...dead]);
     }
+
+    // 7. Bound the idempotency ledger — a dedupe key is only needed until its slot's
+    //    day has passed. Prune rows older than 4 days so the table can't grow forever.
+    const cutoff = new Date(now.getTime() - 4 * 86400000).toISOString();
+    await admin.from('notification_sends').delete().lt('sent_at', cutoff);
 
     return json({ ok: true, tokens: tokens.length, sent, pruned: dead.size });
   } catch (err) {

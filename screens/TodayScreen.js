@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
 import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
@@ -191,6 +191,9 @@ export default function TodayScreen() {
             setRcStart(null);
             await clearRealityStart();
             syncRealityCheckReminder().catch(() => {});
+            // Also cancel the 8pm food-log nudges — stopping the reality-check must
+            // stop ALL its reminders, not just the weigh-in (journey-review F1).
+            syncFoodLogReminder().catch(() => {});
           },
         },
       ]

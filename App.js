@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform, AppState } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
@@ -391,6 +391,22 @@ export default function App() {
       // expo-notifications not available — skip listener
     }
 
+    // Top up rolling one-shot notifications whenever the app comes to the
+    // foreground. syncAllNotifications otherwise runs only on cold start / SIGNED_IN,
+    // so a warm-resumed process would never re-arm the tail of a rolling window
+    // (e.g. the 7-day food-log nudge set under a 21-day reality-check — journey F2).
+    // Throttled so rapid foreground/background toggles don't thrash.
+    let lastFgSync = 0;
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      const nowTs = Date.now();
+      if (nowTs - lastFgSync < 60000) return; // at most once/min
+      lastFgSync = nowTs;
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) syncAllNotifications().catch(() => {});
+      }).catch(() => {});
+    });
+
     // Resolve the first-launch intro flag; the loading gate holds until it's
     // non-null, so a brand-new install shows the intro (not the welcome screen)
     // on first frame. Fail-safe to "seen" so a read error can't wedge the gate.
@@ -548,6 +564,7 @@ export default function App() {
       stopSyncEngine();
       if (notifResponseSub) notifResponseSub.remove();
       if (appleRevokeSub) appleRevokeSub.remove();
+      if (appStateSub) appStateSub.remove();
     };
   }, []);
 

@@ -5,7 +5,17 @@
 - **Server** (send-reminders): added the food nudge as a THIRD type — reads `user_metadata.calc_reality_open` (the cloud-backed reality-check start), fires in the 20:00 local window within [start, start+21d], independent of the dose_reminders preference, deduped `:food:<date>`, 6-lang copy. Still dormant (SERVER_PUSH_ACTIVE=false).
 - app.json 1.2.2→1.2.3. 177/178 tests (known energy.ts), i18n parity 5/5, iOS bundle clean.
 - **1.2.2 CANCEL outcome:** iOS 1.2.2 (build 61) review CANCELED via ASC API (was WAITING_FOR_REVIEW; 1.2.1 stays live). **Android vc43 CANNOT be canceled** — it was a completed/full production release and Google Play has no rollback + won't take a lower versionCode; 1.2.3 (higher vc) supersedes it. So Android users may briefly have 1.2.2 until 1.2.3 ships.
-- NEXT: dt-council + ship-check, then build 1.2.3 both platforms. Founder release preference for 1.2.2 was straight-to-production FULL (both stores) — confirm same for 1.2.3 before cutting.
+- **dt-council (11 roles) DONE = GO-WITH-CHANGES.** All fixes applied (commit pending):
+  - iOS 64-pending cap breach (senior+qa BLOCK: 48 dose+1+1+14 food+7 morning=71>64 → morning summary silently dropped): DOSE_BUDGET 48→40, FOOD_WINDOW_DAYS 14→7, stale comment fixed (40+7+7+1+1=56<64).
+  - journey F1 (confirmed defect): Today-alert "remove reality-check" now calls syncFoodLogReminder() so it cancels the food nudges too (was leaving up to 14 armed).
+  - journey F2 (confirmed defect: "tops up on open" was false — no AppState listener): added an AppState 'active' listener in App.js (throttled 1/min, signed-in only) → syncAllNotifications, so the 7-day rolling window re-arms and covers the full 21-day check.
+  - same-day suppression (growth+ux): skip today's 8pm nudge if a food_log already exists for today (getFoodLogsByDate) — stops nagging engaged users who'd then mute the shared channel and lose dose reminders.
+  - corrupt start.date guard (qa): bail if start.date unparseable (was bypassing the window cap → up to 14 nudges).
+  - server (dormant): platform filter `.eq('platform','android')` (senior/qa/journey F3 — prevents iOS double-fire on activation); idempotency claim now RELEASED on send failure (backend — was losing slots forever); added a 4-day retention prune (backend — unbounded ledger).
+  - backend BLOCKER RESOLVED: live push_tokens lacked the `timezone` column → the 1.2.3 upsert would fail (PGRST204) and store no tokens. Applied `ALTER TABLE push_tokens ADD COLUMN IF NOT EXISTS timezone text` live (verified present). (The upsert first ships in 1.2.3; live 1.2.2/vc43 built at 8bc5492 predates it, so no prod breakage now.)
+  - 177/178 tests, i18n 5/5, iOS bundle clean, all files parse.
+- **DEFERRED (founder decisions / follow-ups, NOT in 1.2.3):** (a) independent food-nudge preference toggle so users can silence it without stopping the reality-check (ux — needs settings + i18n); (b) consecutive-ignored backoff instead of a hard daily run (ux/growth); (c) F4 — does SAVING a reality-check early end the nudge or run to day 21? (product decision); (d) server pre-activation: drop the N+1 getUserById (stamp prefs on push_tokens), CRON_SECRET-only auth, food-nudge server-side pref gate; (e) delete-user redeploy with push_tokens (owed); (f) PM: commit the build AFTER 1.2.3 to the serum-curve MOAT (close ~47-compound half-life gap + blend-ratio editor) — three straight hardening builds, get it stated.
+- NEXT: ship-check, then build 1.2.3 both platforms. Founder release preference = straight-to-production FULL both stores (confirmed for 1.2.2; assuming same for 1.2.3).
 
 ---
 
