@@ -30,6 +30,7 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
 import { requestSync } from '../../lib/sync';
 import { hasNativeModule } from '../../lib/nativeModule';
+import { CrossMark } from '../../components/CheckMark';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -549,7 +550,7 @@ export default function VaccinesSection() {
                   {v.notes ? <Text style={s.cardNotes}>{v.notes}</Text> : null}
                 </View>
                 <TouchableOpacity onPress={() => setExtracted(prev => prev.filter((_, idx) => idx !== i))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={s.reviewRemove}>✕</Text>
+                  <View style={{ paddingHorizontal: 4 }}><CrossMark style={s.reviewRemove} /></View>
                 </TouchableOpacity>
               </View>
             ))}

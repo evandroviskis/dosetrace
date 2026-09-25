@@ -11,6 +11,7 @@ import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import AccumulationHero from './AccumulationHero';
 import FeatureIcon from './FeatureIcon';
+import { CrossMark } from './CheckMark';
 
 const CHART_W = 300;
 
@@ -161,7 +162,7 @@ export function FeaturePreviewSheet({ featureKey, onClose }) {
           <View style={{ width: 60 }} />
           <Text style={s.modalTitle}>{feature ? t(feature.titleKey) : ''}</Text>
           <TouchableOpacity onPress={onClose} style={{ width: 60, alignItems: 'flex-end' }}>
-            <Text style={s.modalClose}>✕</Text>
+            <CrossMark style={s.modalClose} />
           </TouchableOpacity>
         </View>
         {feature && (

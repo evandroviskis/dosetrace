@@ -168,7 +168,7 @@ function matchName(protocol) {
 }
 
 
-// Estimated amount still in the body (mg), from the summed-decay model. Rough,
+// Estimated level (mg or IU) from the summed dose model — not "amount in the body"
 // not a serum concentration — the disclaimer says so.
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -365,7 +365,8 @@ export default function SerumCurveScreen() {
       // doses/day), not from hand-logged doses — so the curve reflects the
       // protocol automatically, past and projected. Scan back far enough that
       // long esters' earlier doses still contribute at the window start.
-      const lookbackDays = Math.min(365, Math.max(PAST_DAYS + 2, Math.ceil(6 * entry.hours / 24)));
+      // 6 half-lives of history (Undecanoate's 90d → 540d), capped at 600 days.
+      const lookbackDays = Math.min(600, Math.max(PAST_DAYS + 2, Math.ceil(6 * entry.hours / 24)));
       let scanStart = now - lookbackDays * DAY_MS;
       if (p.start_date) {
         const sd = new Date(p.start_date + 'T00:00:00').getTime();
@@ -809,6 +810,11 @@ export default function SerumCurveScreen() {
                 </Text>
               )}
             </Animated.View>
+            {/* Depot esters WITHOUT a published peak time are drawn as instant: say so,
+                so they aren't read against the modeled rise of e.g. Cypionate. */}
+            {model && model.max > 0 && model.series.filter(ser => ser.entry.substance && !ser.entry.tmaxHours && ser.entry.hours >= 24).map(ser => (
+              <Text key={'inst-' + ser.id} style={s.fastNote}>{t('curve_instant_note').replace('{name}', ser.name)}</Text>
+            ))}
             {/* Oil-depot / SC-depot compounds: modeled rise to a published median peak */}
             {model && model.max > 0 && model.series.filter(ser => ser.entry.tmaxHours).map(ser => {
               const lb = tmaxLabels(ser.entry);

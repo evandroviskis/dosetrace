@@ -25,15 +25,16 @@ import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import {
-  getFoodLogsByDate, getFoodLogsSince, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
+  getFoodLogsSince, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
 } from '../../lib/database';
 import { parseFood } from '../../lib/nutritionClient';
-import { checkIntake, entryDateFor, pickNudge } from '../../lib/nutrition';
+import { checkIntake, entryDateFor, splitByDay, pickNudge } from '../../lib/nutrition';
 import { getRealityStart } from '../../lib/realityCheck';
 import { requestAIConsent } from '../../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { syncFoodLogReminder } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
+import { CrossMark } from '../../components/CheckMark';
 
 const FREE_DAYS = 3;
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -109,6 +110,7 @@ export default function NutritionLogger() {
   const [showDemo, setShowDemo] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [editItems, setEditItems] = useState([]);
+  const [editDate, setEditDate] = useState(null);
   const reparsingRef = useRef(new Set());
   const [foodReminders, setFoodReminders] = useState(true); // same account pref as Settings
   const [rcStart, setRcStart] = useState(null); // open reality check { date, weightKg } or null
@@ -123,7 +125,9 @@ export default function NutritionLogger() {
     setUserId(uid);
     setFoodReminders(user?.user_metadata?.food_reminders !== false);
     try { setRcStart(await getRealityStart()); } catch { setRcStart(null); }
-    if (uid) { refresh(uid); getFoodLogsByDate(uid, todayISO()).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text) reparse(r, uid); }); }
+    // Offline entries from ANY recent day get parsed once back online (not just
+    // today's) — otherwise they silently count as nothing for the reality check.
+    if (uid) { refresh(uid); (getFoodLogsSince(uid, daysAgoISO(60)) || []).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text && !r.remote_id) reparse(r, uid); }); }
   }
 
   // The 20:00 food nudge can be switched off right where it points to (same
@@ -151,6 +155,24 @@ export default function NutritionLogger() {
     syncFoodLogReminder().catch(() => {});
   }
 
+  // Save a parse onto the pending row, one entry per day eaten: the row keeps
+  // the first day's items, extra days become their own entries (a catch-up
+  // "Monday pizza, Tuesday a salad" must land on both days, or the reality check
+  // would count it on the wrong one).
+  function saveParsed(rowId, uid, typedISO, res, raw) {
+    const groups = splitByDay(res.items, typedISO, res.daysAgo);
+    let alive = true;
+    groups.forEach((g, i) => {
+      const fields = {
+        parsed_items: JSON.stringify(g.items), kcal: g.totals.kcal,
+        protein_g: g.totals.protein_g, carb_g: g.totals.carb_g, fat_g: g.totals.fat_g,
+        parse_status: 'done', entry_date: g.entry_date,
+      };
+      if (i === 0) alive = updateFoodLog(rowId, fields) > 0; // removed meanwhile → add nothing
+      else if (alive) insertFoodLog({ user_id: uid, raw_text: raw, ...fields });
+    });
+  }
+
   async function reparse(row, uid) {
     if (reparsingRef.current.has(row.id)) return;
     reparsingRef.current.add(row.id);
@@ -171,12 +193,7 @@ export default function NutritionLogger() {
         updateFoodLog(row.id, { parse_status: 'unparsed' });
         requestSync?.(); refresh(uid); return;
       }
-      updateFoodLog(row.id, {
-        parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
-        protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
-        parse_status: 'done',
-        entry_date: entryDateFor(row.entry_date, res.daysAgo),
-      });
+      saveParsed(row.id, uid, row.entry_date, res, row.raw_text);
       requestSync?.(); refresh(uid);
     } finally { reparsingRef.current.delete(row.id); }
   }
@@ -189,7 +206,8 @@ export default function NutritionLogger() {
     setDeflect(false);
     setFixHint(false);
     setBusy(true);
-    const id = insertFoodLog({ user_id: userId, entry_date: todayISO(), raw_text: raw, parse_status: 'pending' });
+    const typedOn = todayISO(); // the day it was typed — fixed before the await (a submit can cross midnight)
+    const id = insertFoodLog({ user_id: userId, entry_date: typedOn, raw_text: raw, parse_status: 'pending' });
     // Claim the row so a focus-triggered reparse() can't parse the SAME entry
     // concurrently (double AI call = double quota + update/delete races).
     reparsingRef.current.add(id);
@@ -197,7 +215,7 @@ export default function NutritionLogger() {
     refresh(userId);
 
     let res;
-    try { res = await parseFood(raw, language, todayISO()); }
+    try { res = await parseFood(raw, language, typedOn); }
     finally { reparsingRef.current.delete(id); }
     setBusy(false);
 
@@ -217,12 +235,7 @@ export default function NutritionLogger() {
     if (res.ok) {
       // "An ice cream 3 days ago" is logged like anything else, on the day it was
       // eaten — time never blocks it (founder 2026-09-24).
-      updateFoodLog(id, {
-        parsed_items: JSON.stringify(res.items), kcal: res.totals.kcal,
-        protein_g: res.totals.protein_g, carb_g: res.totals.carb_g, fat_g: res.totals.fat_g,
-        parse_status: 'done',
-        entry_date: entryDateFor(todayISO(), res.daysAgo),
-      });
+      saveParsed(id, userId, typedOn, res, raw);
       requestSync?.(); refresh(userId);
       // Echo back only the item names (never a word about the food itself).
       const names = res.items.map((it) => it.food).filter(Boolean);
@@ -240,7 +253,11 @@ export default function NutritionLogger() {
   }
 
   // ── Fix-an-entry (tap an entry in an expanded day) ───────────────
-  function openEdit(row) { setEditEntry(row); setEditItems(safeItems(row.parsed_items).map((it) => ({ ...it }))); }
+  function openEdit(row) { setEditEntry(row); setEditDate(row.entry_date); setEditItems(safeItems(row.parsed_items).map((it) => ({ ...it }))); }
+  // Move an entry to the day it was really eaten (never into the future).
+  function shiftEditDate(delta) {
+    setEditDate((d) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + delta); const n = localISO(x); return n > todayISO() ? d : n; });
+  }
   function setItemField(i, field, val) { setEditItems((p) => p.map((it, idx) => (idx === i ? { ...it, [field]: val } : it))); }
   function removeItem(i) { setEditItems((p) => p.filter((_, idx) => idx !== i)); }
   function saveEdit() {
@@ -248,13 +265,14 @@ export default function NutritionLogger() {
     const cleaned = editItems.map((it) => ({ ...it, kcal: numOr(it.kcal), carb_g: numOr(it.carb_g), protein_g: numOr(it.protein_g) }));
     if (!cleaned.length) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); return; }
     const sum = (k) => Math.round(cleaned.reduce((a, it) => a + (Number(it[k]) || 0), 0));
-    updateFoodLog(editEntry.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g') });
+    updateFoodLog(editEntry.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g'), entry_date: editDate || editEntry.entry_date });
     requestSync?.(); setEditEntry(null); refresh(userId);
   }
   function deleteFromEdit() { if (editEntry) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); } }
   // An "unparsed" row (the model couldn't read it) has no items to edit — offer to remove it.
-  function confirmRemove(row) {
-    Alert.alert(t('nutri_title'), t('nutri_unparsed'), [
+  function confirmRemove(row, pending) {
+    if (reparsingRef.current.has(row.id)) return; // mid-parse: it resolves in a moment
+    Alert.alert(t('nutri_title'), pending ? t('nutri_offline_saved') : t('nutri_unparsed'), [
       { text: t('cancel'), style: 'cancel' },
       { text: t('nutri_delete_entry'), style: 'destructive', onPress: () => { deleteFoodLog(row.id); requestSync?.(); refresh(userId); } },
     ]);
@@ -267,9 +285,10 @@ export default function NutritionLogger() {
   const composerLine = [echo ? t('nutri_echo').replace('{items}', echo) : null, nudgeText].filter(Boolean).join(' ') || t('nutri_intro');
   // Intake across the open reality check — the number this logger exists for.
   const rcDays = rcStart ? Math.max(0, Math.round((new Date(todayISO() + 'T12:00:00') - new Date(rcStart.date + 'T12:00:00')) / 86400000)) : null;
-  // Running view: the check so far INCLUDING today (so today's lunch shows up),
-  // over the calendar days so far. The calculator uses completed days only.
-  const intake = rcStart ? checkIntake(recent, rcStart.date, todayISO(), (rcDays || 0) + 1, 1, true) : null;
+  // The SAME figure the calculator uses (completed days of the check), plus
+  // today's food so far shown separately — one number, never two "per day"s.
+  const intake = rcStart && rcDays >= 1 ? checkIntake(recent, rcStart.date, todayISO(), rcDays, 1) : null;
+  const todayKcal = Math.round(recent.filter((e) => e.entry_date === todayISO()).reduce((a, e) => a + (Number(e.kcal) || 0), 0));
   const entries = [...recent].sort((a, b) => (a.entry_date === b.entry_date ? (b.id || 0) - (a.id || 0) : (a.entry_date < b.entry_date ? 1 : -1)));
 
   function dayLabel(dateISO) {
@@ -386,7 +405,11 @@ export default function NutritionLogger() {
                 <>
                   <Text style={s.avgBig}>≈ {intake.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}{t('nutri_per_day')}</Text></Text>
                   <Text style={s.avgFoot}>{t('nutri_check_working').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days))}</Text>
+                  <Text style={s.avgFoot}>{t('nutri_check_coverage').replace('{n}', String(intake.loggedDays)).replace('{d}', String(intake.days))}</Text>
+                  {todayKcal > 0 && <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>}
                 </>
+              ) : todayKcal > 0 ? (
+                <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>
               ) : (
                 <Text style={s.avgFoot}>{t('nutri_check_empty')}</Text>
               )}
@@ -403,7 +426,7 @@ export default function NutritionLogger() {
                   const pending = e.parse_status === 'pending';
                   const unparsed = e.parse_status === 'unparsed';
                   return (
-                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => { if (unparsed) confirmRemove(e); else if (!pending) openEdit(e); }}>
+                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => { if (unparsed || pending) confirmRemove(e, pending); else openEdit(e); }}>
                       {pending ? (
                         <Text style={s.pendingText}>{e.raw_text} · {t('nutri_offline_saved')}</Text>
                       ) : unparsed ? (
@@ -445,6 +468,17 @@ export default function NutritionLogger() {
         <View style={s.modalWrap}>
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>{t('nutri_edit_title')}</Text>
+            {editDate && (
+              <View style={s.editDateRow}>
+                <TouchableOpacity onPress={() => shiftEditDate(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
+                  <Text style={s.editDateArrow}>‹</Text>
+                </TouchableOpacity>
+                <Text style={s.editDateText}>{dayLabel(editDate)}</Text>
+                <TouchableOpacity onPress={() => shiftEditDate(1)} disabled={editDate >= todayISO()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
+                  <Text style={[s.editDateArrow, editDate >= todayISO() && { opacity: 0.3 }]}>›</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {editItems.map((it, i) => (
               <View key={i} style={s.editItem}>
                 <Text style={s.editFood} numberOfLines={1}>{it.food}</Text>
@@ -452,7 +486,7 @@ export default function NutritionLogger() {
                   <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setItemField(i, 'kcal', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setItemField(i, 'carb_g', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setItemField(i, 'protein_g', v)} />
-                  <TouchableOpacity style={s.editDel} onPress={() => removeItem(i)}><Text style={s.editDelX}>✕</Text></TouchableOpacity>
+                  <TouchableOpacity style={s.editDel} onPress={() => removeItem(i)}><CrossMark style={s.editDelX} /></TouchableOpacity>
                 </View>
               </View>
             ))}
@@ -532,6 +566,9 @@ const makeStyles = (c) => StyleSheet.create({
   dayKcal: { fontSize: 13.5, fontWeight: '700', color: c.text },
   dayKcalNum: { color: c.accent, fontWeight: '800' },
   dayChev: { fontSize: 14, color: c.textFaint },
+  editDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 10 },
+  editDateArrow: { fontSize: 22, fontWeight: '600', color: c.accent, paddingHorizontal: 6 },
+  editDateText: { fontSize: 14, fontWeight: '700', color: c.text, minWidth: 120, textAlign: 'center' },
   entryDate: { fontSize: 11, fontWeight: '700', color: c.textMuted, marginBottom: 4 },
   entryCard: { paddingHorizontal: 13, paddingVertical: 11, borderTopWidth: 0.5, borderTopColor: c.border },
   entryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 3, gap: 10 },

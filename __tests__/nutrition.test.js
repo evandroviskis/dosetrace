@@ -83,7 +83,7 @@ test('groupByDay: empty -> []', () => {
 });
 
 // ── Reality-check window intake (founder 2026-09-24: not day by day) ──
-const { checkIntake, entryDateFor } = require('../lib/nutrition');
+const { checkIntake, entryDateFor, splitByDay } = require('../lib/nutrition');
 
 test('checkIntake: completed days of the check ÷ elapsed days (same window as the TDEE)', () => {
   const e = [
@@ -92,9 +92,9 @@ test('checkIntake: completed days of the check ÷ elapsed days (same window as t
     { entry_date: '2026-09-05', kcal: 2000 },
     { entry_date: '2026-09-06', kcal: 900 }, // today — not in the completed window
   ];
-  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 5), { totalKcal: 7000, days: 5, avgKcal: 1400, entries: 3 });
+  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 5), { totalKcal: 7000, days: 5, avgKcal: 1400, entries: 3, loggedDays: 3 });
   // the logger's running view includes today, over 6 calendar days
-  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 6, 1, true), { totalKcal: 7900, days: 6, avgKcal: 1317, entries: 4 });
+  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 6, 1, true), { totalKcal: 7900, days: 6, avgKcal: 1317, entries: 4, loggedDays: 4 });
 });
 
 test('checkIntake: food before the check started is not counted', () => {
@@ -120,4 +120,16 @@ test('entryDateFor: "3 days ago" moves the entry back; nothing said keeps the ty
   assert.equal(entryDateFor('2026-03-01', 1), '2026-02-28');
   assert.equal(entryDateFor('2026-09-06', -2), '2026-09-06', 'never into the future');
   assert.equal(entryDateFor('2026-09-06', 9999), '2025-09-06', 'clamped to a year');
+});
+
+test('splitByDay: a multi-day catch-up becomes one entry per day eaten', () => {
+  const items = [
+    { food: 'pizza', kcal: 800, protein_g: 30, carb_g: 90, fat_g: 30, days_ago: 3 },
+    { food: 'salad', kcal: 300, protein_g: 10, carb_g: 20, fat_g: 15, days_ago: 2 },
+    { food: 'coffee', kcal: 5, protein_g: 0, carb_g: 1, fat_g: 0, days_ago: null },
+  ];
+  const g = splitByDay(items, '2026-09-10', null);
+  assert.deepEqual(g.map((x) => [x.entry_date, x.totals.kcal]), [['2026-09-07', 800], ['2026-09-08', 300], ['2026-09-10', 5]]);
+  // message-level days_ago applies to items that don't carry their own
+  assert.deepEqual(splitByDay([{ food: 'ice cream', kcal: 270 }], '2026-09-10', 3).map((x) => x.entry_date), ['2026-09-07']);
 });

@@ -33,7 +33,9 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "io.outcom.dosetrace",
-      "permissions": ["SCHEDULE_EXACT_ALARM"],
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM"
+      ],
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -72,7 +74,8 @@
         }
       ],
       "expo-font",
-      "./plugins/withAndroidBackupDisabled"
+      "./plugins/withAndroidBackupDisabled",
+      "./plugins/withoutIosBackgroundFetch"
     ],
     "extra": {
       "eas": {

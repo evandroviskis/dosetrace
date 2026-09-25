@@ -37,6 +37,7 @@ import {
   parseStored,
   serializeForStorage,
 } from '../../lib/injectionSites';
+import { CrossMark } from '../../components/CheckMark';
 
 // Body figure: 100×220 viewBox scaled by 1.8 → 180×396 px
 const SCALE = 1.8;
@@ -119,7 +120,7 @@ export default function BodyMapModal({
               accessibilityRole="button"
               accessibilityLabel={t('cancel')}
             >
-              <Text style={s.close}>×</Text>
+              <View style={{ paddingHorizontal: 4 }}><CrossMark size={22} color={colors.textMuted} /></View>
             </TouchableOpacity>
           </View>
 

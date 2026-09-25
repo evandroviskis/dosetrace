@@ -998,7 +998,7 @@ export default function TodayScreen() {
     const list = [];
     const nowMs = Date.now();
     // 1) Reality-check weigh-in (open check-in awaiting the second weight).
-    if (rcStart) {
+    if (rcStart && !(alertSnooze.reality_check && nowMs < alertSnooze.reality_check)) {
       const remind = new Date(rcStart.date + 'T12:00:00');
       remind.setDate(remind.getDate() + REALITY_CHECK_DAYS);
       const due = nowMs >= remind.getTime();
@@ -1009,6 +1009,7 @@ export default function TodayScreen() {
           : t('today_alert_rc_when').replace('{date}', `${t(MONTH_KEYS[remind.getMonth()])} ${remind.getDate()}`),
         onPress: () => navigation.navigate('Journey'),
         onRemove: dismissRealityCheckAlert,
+        snoozeId: 'reality_check',
       });
     }
     // 2) Bloodwork due (~6 months since the last logged test).
@@ -1423,7 +1424,7 @@ export default function TodayScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={t('alert_snooze')}
                   >
-                    <FeatureIcon name="snooze" size={18} color={snoozeOpen === a.id ? colors.accent : colors.textFaint} />
+                    <FeatureIcon name="snooze" size={18} color={snoozeOpen === a.id ? colors.accent : colors.textMuted} />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -1440,12 +1441,16 @@ export default function TodayScreen() {
                 {a.snoozeId && snoozeOpen === a.id && (
                   <View style={s.snoozeStrip}>
                     {[
-                      ['later', t('alert_snooze_later')],
+                      // "Later today" only while it can still land today (3h, before 21:00).
+                      ...(new Date().getHours() < 18 ? [['later', t('alert_snooze_later')]] : []),
                       ['tomorrow', t('alert_snooze_tomorrow')],
-                      ['days', t('alert_snooze_days').replace('{n}', String(Math.round((ALERT_SNOOZE_MS[a.snoozeId] || 7 * 86400000) / 86400000)))],
+                      // The weigh-in alert has no long snooze — its third option is Remove.
+                      a.onRemove
+                        ? ['remove', t('today_alert_remove')]
+                        : ['days', t('alert_snooze_days').replace('{n}', String(Math.round((ALERT_SNOOZE_MS[a.snoozeId] || 7 * 86400000) / 86400000)))],
                     ].map(([kind, label], i) => (
-                      <TouchableOpacity key={kind} style={[s.snoozeOpt, i > 0 && s.snoozeOptSep]} onPress={() => snoozeAlert(a.snoozeId, kind)} accessibilityRole="button">
-                        <Text style={s.snoozeOptText}>{label}</Text>
+                      <TouchableOpacity key={kind} style={[s.snoozeOpt, i > 0 && s.snoozeOptSep]} onPress={() => (kind === 'remove' ? (setSnoozeOpen(null), a.onRemove()) : snoozeAlert(a.snoozeId, kind))} accessibilityRole="button">
+                        <Text style={[s.snoozeOptText, kind === 'remove' && { color: colors.danger }]}>{label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>

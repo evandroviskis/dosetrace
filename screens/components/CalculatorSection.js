@@ -920,6 +920,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                       <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodIntake.avgKcal))} activeOpacity={0.7}>
                         <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
                       </TouchableOpacity>
+                      <Text style={s.rcUseLogNote}>{t('nutri_check_coverage').replace('{n}', String(foodIntake.loggedDays)).replace('{d}', String(foodIntake.days))}</Text>
                       <Text style={s.rcUseLogNote}>{t('cal_rc_from_log_note')}</Text>
                     </>
                   ) : null}

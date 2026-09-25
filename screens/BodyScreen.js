@@ -35,7 +35,7 @@ import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
-import CheckMark from '../components/CheckMark';
+import CheckMark, { CrossMark } from '../components/CheckMark';
 
 // Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
 // language as the tab-bar icons in App.js, replacing the old mismatched emoji.
@@ -933,7 +933,7 @@ export default function BodyScreen({ navigation, route }) {
                         {(reportTags[date] || []).map((tg, k) => (
                           <TouchableOpacity key={k} style={s.tagChipEditable} onPress={() => removeReportTag(date, tg)}>
                             <Text style={s.tagChipText}>{tg}</Text>
-                            <Text style={s.tagChipX}> ✕</Text>
+                            <View style={{ marginLeft: 4 }}><CrossMark style={s.tagChipX} /></View>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -1037,7 +1037,7 @@ export default function BodyScreen({ navigation, route }) {
             <View style={{ width: 60 }} />
             <Text style={s.modalTitle}>{t('blood_upload_modal_title')}</Text>
             <TouchableOpacity onPress={() => setShowUpgradeModal(false)} style={{ width: 60, alignItems: 'flex-end' }}>
-              <Text style={s.modalClose}>✕</Text>
+              <CrossMark style={s.modalClose} />
             </TouchableOpacity>
           </View>
 
@@ -1087,7 +1087,7 @@ export default function BodyScreen({ navigation, route }) {
             <View style={{ width: 60 }} />
             <Text style={s.modalTitle}>{t('serum_preview_title')}</Text>
             <TouchableOpacity onPress={() => setShowSerumPreview(false)} style={{ width: 60, alignItems: 'flex-end' }}>
-              <Text style={s.modalClose}>✕</Text>
+              <CrossMark style={s.modalClose} />
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
@@ -1184,7 +1184,7 @@ export default function BodyScreen({ navigation, route }) {
                   placeholderTextColor={colors.textFaint}
                 />
                 <TouchableOpacity onPress={() => removeExtractedMarker(i)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                  <Text style={s.exRemove}>✕</Text>
+                  <View style={{ paddingHorizontal: 4 }}><CrossMark style={s.exRemove} /></View>
                 </TouchableOpacity>
               </View>
             ))}

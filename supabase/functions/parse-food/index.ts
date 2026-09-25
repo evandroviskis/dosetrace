@@ -9,8 +9,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 //   • The model ONLY returns JSON: food items + estimates, a clarify hint, or a
 //     refusal. It never returns prose, never advises, never coaches.
 //   • Any advice-shaped request -> { refusal: true } and the APP shows a fixed
-//     deflection card. The app renders ALL user-facing wording; this endpoint
-//     never emits text shown to the user.
+//     deflection card. The app renders all SENTENCES; the only model text a user
+//     sees is the short food/unit names it echoes back (length-capped below).
 //   • raw_text is the user's own meal description — it is NEVER logged
 //     server-side (only error codes/counts are).
 
@@ -27,14 +27,14 @@ const DAILY_FOOD_LIMIT = 25;       // abuse ceiling per user per day (premium-ga
 const FOOD_SYSTEM = `You convert a person's description of food and drink THEY have consumed into structured nutrition estimates. You are a parser, not an assistant.
 
 Return ONLY a single JSON object, no prose, no code fences:
-{"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high"}],"clarify":string|null,"refusal":boolean,"days_ago":number|null}
+{"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high","days_ago":number|null}],"clarify":string|null,"refusal":boolean,"days_ago":number|null}
 
 Rules:
 - Estimate kcal, protein_g, carb_g, fat_g for each item from typical portions. If a quantity is vague ("some rice"), assume a typical serving and set confidence "low".
 - Recognize named brands when given (e.g. Isopure = zero-carb whey isolate).
 - "clarify": at most ONE short question about a missing portion/quantity, or null. Never advice. Never ask WHEN something was eaten.
 - Food from any earlier time ("an ice cream 3 days ago", "yesterday's dinner", "last weekend a pizza") is logged exactly like food from today — timing never blocks, refuses, or triggers a clarify.
-- "days_ago": whole days before the entry date when the user clearly says when ALL the food in the message was eaten (yesterday = 1, "3 days ago" = 3, a named weekday = days back from the entry date's weekday). null when they don't say, when it is today, or when the message mixes different days.
+- "days_ago" (per item, and at top level): whole days before the entry date when the user clearly says when that food was eaten (yesterday = 1, "3 days ago" = 3, a named weekday = days back from the entry date's weekday). Per item: null when they don't say or it is today. Top level: the value shared by ALL items, else null. A message covering several days ("Monday pizza, Tuesday a salad") gives each item its own days_ago.
 - Convert comma decimals to points. Numbers only, no ranges inside the JSON.
 - You NEVER recommend, suggest, evaluate, praise, or criticize food, diet, calories, or weight. You never mention a goal, target, weight, or health condition. You never use imperative verbs directed at the user. You never connect food to any medication, peptide, hormone, protocol, or supplement's effect.
 - If the user asks what/how much to eat, how to lose/gain weight or fat, whether a food is good/bad/healthy, for a meal plan, a target, or any advice or judgment: return {"items":[],"clarify":null,"refusal":true}. Do not answer the question.
@@ -131,10 +131,12 @@ Deno.serve(async (req) => {
     }
 
     const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+    // Food/unit names are the only model text the app shows (the echo) — cap them.
     const items = rawItems.map((it: Record<string, unknown>) => ({
-      food: typeof it.food === 'string' ? it.food : '',
+      food: typeof it.food === 'string' ? it.food.trim().slice(0, 60) : '',
       qty: numOrNull(it.qty),
-      unit: typeof it.unit === 'string' ? it.unit : '',
+      unit: typeof it.unit === 'string' ? it.unit.trim().slice(0, 16) : '',
+      days_ago: daysAgoOf(it.days_ago),
       kcal: numOrNull(it.kcal),
       protein_g: numOrNull(it.protein_g),
       carb_g: numOrNull(it.carb_g),
