@@ -16,14 +16,15 @@ const COMMIT = process.argv.includes('--commit');
 if (!AAB || !fs.existsSync(AAB)) { console.error('usage: play-upload-and-promote.cjs <aab> [--commit]'); process.exit(1); }
 const SA = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'google-play-service-account.json'), 'utf8'));
 
-const RELEASE_NOTES = [
-  { language: 'en-US', text: 'More reliable reminders — including the reality-check food-log nudge — plus stability fixes.' },
-  { language: 'es-ES', text: 'Recordatorios más fiables, incluido el aviso de registro de comidas de la comprobación de progreso, y correcciones de estabilidad.' },
-  { language: 'pt-BR', text: 'Lembretes mais confiáveis, incluindo o aviso de registro de refeições do acompanhamento, e correções de estabilidade.' },
-  { language: 'fr-FR', text: 'Rappels plus fiables, y compris le rappel de journal alimentaire du suivi, et corrections de stabilité.' },
-  { language: 'de-DE', text: 'Zuverlässigere Erinnerungen — inkl. der Ess-Erinnerung des Reality-Checks — sowie Stabilitätskorrekturen.' },
-  { language: 'it-IT', text: 'Promemoria più affidabili, incluso quello del diario alimentare del monitoraggio, e correzioni di stabilità.' },
-];
+// Version name from app.json; release notes from release-notes/<version>.json
+// ({ "en-US": "...", ... }, ≤500 chars each) — no per-release edits to this script.
+const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "app.json"), "utf8")).expo.version;
+const NOTES_FILE = path.join(__dirname, "..", "release-notes", VERSION + ".json");
+if (!fs.existsSync(NOTES_FILE)) { console.error("missing " + NOTES_FILE); process.exit(1); }
+const RELEASE_NOTES = Object.entries(JSON.parse(fs.readFileSync(NOTES_FILE, "utf8"))).map(([language, text]) => {
+  if (text.length > 500) { console.error(language + " release note over 500 chars"); process.exit(1); }
+  return { language, text };
+});
 
 const b64url = (b) => Buffer.from(b).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 async function getToken() {
@@ -58,7 +59,7 @@ function uploadBundle(token, editId, bytes) {
     const up = await uploadBundle(token, editId, bytes);
     const vc = up.versionCode;
     console.log('uploaded bundle versionCode:', vc);
-    const trackBody = { track: 'production', releases: [{ name: `1.2.3 (${vc})`, versionCodes: [String(vc)], status: 'completed', releaseNotes: RELEASE_NOTES }] };
+    const trackBody = { track: 'production', releases: [{ name: `${VERSION} (${vc})`, versionCodes: [String(vc)], status: 'completed', releaseNotes: RELEASE_NOTES }] };
     const put = await api(token, 'PUT', `/edits/${editId}/tracks/production`, trackBody);
     console.log('production release set:', JSON.stringify(put.releases?.[0]?.versionCodes), put.releases?.[0]?.status);
     await api(token, 'POST', `/edits/${editId}:validate`);
