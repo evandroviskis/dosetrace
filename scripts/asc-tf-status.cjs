@@ -1,7 +1,7 @@
 // TestFlight status check for DoseTrace (App Store Connect API).
 // Prints each recent build's processing state, whether it's in a TestFlight
 // group, and its beta-review state — so "on TestFlight" is never claimed on
-// faith. Requires the ASC .p8 key at ~/Downloads/AuthKey_N493SYFP2T.p8 (the key
+// faith. Requires the ASC .p8 key at ~/.appstoreconnect/private_keys/AuthKey_N493SYFP2T.p8 (see scripts/ascKey.cjs) (the key
 // itself is the only secret and is NOT in this repo).
 //   node scripts/asc-tf-status.cjs
 const crypto = require('crypto');
@@ -11,13 +11,7 @@ const https = require('https');
 const KEY_ID = 'N493SYFP2T';
 const ISSUER = '69a6de85-8f0f-47e3-e053-5b8c7c11a4d1';
 const APP_ID = '6761788157';
-const KEY_PATH = process.env.HOME + '/Downloads/AuthKey_N493SYFP2T.p8';
-
-if (!fs.existsSync(KEY_PATH)) {
-  console.error('ASC key missing at', KEY_PATH, '- cannot check TestFlight status.');
-  process.exit(1);
-}
-const p8 = fs.readFileSync(KEY_PATH, 'utf8');
+const p8 = require('./ascKey.cjs').readKey();
 const b64 = (b) => Buffer.from(b).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 const now = Math.floor(Date.now() / 1000);
 const si = b64(JSON.stringify({ alg: 'ES256', kid: KEY_ID, typ: 'JWT' })) + '.' +

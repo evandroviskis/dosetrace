@@ -14,7 +14,7 @@ const VERSION_ID = 'cb308db3-c151-4900-a75c-22f43a3b29a9'; // the editable versi
 const NEW_VERSION = '1.2.3';
 const BUILD_VERSION = '62';
 const SUBMIT = process.argv.includes('--submit');
-const p8 = fs.readFileSync(process.env.HOME + '/Downloads/AuthKey_N493SYFP2T.p8', 'utf8');
+const p8 = require('./ascKey.cjs').readKey();
 
 const WHATS_NEW = {
   'en-US': 'The reality-check food-log reminder now fires reliably, plus stability fixes.',

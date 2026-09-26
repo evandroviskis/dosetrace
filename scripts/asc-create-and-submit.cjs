@@ -13,8 +13,7 @@ const APP_ID = '6761788157';
 const VERSION = '1.2.2';
 const BUILD_VERSION = '61';
 const SUBMIT = process.argv.includes('--submit');
-const KEY_PATH = process.env.HOME + '/Downloads/AuthKey_N493SYFP2T.p8';
-const p8 = fs.readFileSync(KEY_PATH, 'utf8');
+const p8 = require('./ascKey.cjs').readKey();
 
 const WHATS_NEW = {
   'en-US': 'More reliable dose reminders on Android, fixes to sign-out and account deletion, and general stability improvements.',

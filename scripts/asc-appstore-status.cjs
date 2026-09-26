@@ -6,8 +6,7 @@ const https = require('https');
 const KEY_ID = 'N493SYFP2T';
 const ISSUER = '69a6de85-8f0f-47e3-e053-5b8c7c11a4d1';
 const APP_ID = '6761788157';
-const KEY_PATH = process.env.HOME + '/Downloads/AuthKey_N493SYFP2T.p8';
-const p8 = fs.readFileSync(KEY_PATH, 'utf8');
+const p8 = require('./ascKey.cjs').readKey();
 const b64 = (b) => Buffer.from(b).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 const now = Math.floor(Date.now() / 1000);
 const si = b64(JSON.stringify({ alg: 'ES256', kid: KEY_ID, typ: 'JWT' })) + '.' +
