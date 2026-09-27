@@ -163,6 +163,8 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 | A-24 | Independent choice: does saving a reality check early end the 8 PM reminder? | STATE.md 1.2.3 "DEFERRED" (c) | Open founder decision | Code: the reminder follows the open check start only | |
 | A-25 | Supabase point-in-time recovery | STATE.md, APP-HANDOFF §9 | Mentioned (dashboard action) | Not verifiable from the repo | |
 | A-26 | Audit EVERY numeric input for comma decimals ("2,5" must be 2.5 everywhere, via parseDecimal) — the new-vial water field (S-09) is one case of a general bug class | Founder 2026-09-27 | Registered — target build 1.2.6 | Not started | Not in 1.2.5 scope (closed). |
+| A-27 | Local Supabase instance for isolated testing (no production auth/data in checks) | Founder 2026-09-27 | Idea — target 1.2.6 | Not started | Until then, checks run on the test account (see testing note below). |
+| A-28 | Admin panel: view-only now; token rotation, metric definitions, then login, then Premium grant/revoke. Tracked in docs/specs/admin-panel.md, separate session (branch feature/admin-panel, limited to api/adm.js, web/adm.html, docs/specs/admin-panel.md). | Founder 2026-09-27 | Separate session | In progress elsewhere | Not worked on in this session. |
 
 ---
 
@@ -190,4 +192,9 @@ Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S
 | S-13 | iOS declares its 6 languages (CFBundleLocalizations) | A-01 | prebuild/introspect shows the key | open |
 | S-14 | New App Store screenshot 01 + correct order (01..07) on the 1.2.5 version | A-02 | ASC API readback | open |
 | S-15 | The 5 connection tests from app-map.md (L-13, L-07/08, L-17→18, L-34+L-24, L-20/21/47) | findings #10 | tests in __tests__ | open |
-| S-16 | Free users can always save weigh-ins; only results are paywalled | FL-41, findings #6 | FX-15 test | open |
+| S-16 | Free users can always save weigh-ins; only results are paywalled | FL-41, findings #6 | FX-15 test | open — ADDED AFTER SCOPE CLOSE by the founder on 2026-09-27 (explicit founder-approved exception, not a silent addition) |
+
+## Testing accounts (founder 2026-09-27)
+- Every simulator/device check runs on the test account **evandro1985@gmail.com** (free tier by default; not in DEVELOPER_EMAILS). Test data may be created and deleted freely there. Never use the founder's main account for checks.
+- When a check needs Premium: ask the founder to grant a RevenueCat promotional entitlement from the dashboard, then revoke it after.
+- Every evidence entry records the state the check ran in: free / premium / offline.
