@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
+import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, RC_START_KEY } from './lib/notifications';
 import { getRealityStart } from './lib/realityCheck';
@@ -220,6 +221,9 @@ function MainStack() {
       <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
+      {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
+          reminder all open this full-screen modal; swipe down to close. */}
+      <Stack.Screen name="FoodChat" component={FoodChatScreen} options={{ presentation: 'modal', gestureEnabled: true, gestureDirection: 'vertical' }} />
     </Stack.Navigator>
   );
 }
@@ -318,7 +322,7 @@ export default function App() {
   const navigationRef = useRef(null);
   const fontsLoaded = useAppFonts();
 
-  // Food-reminder taps (FL-18) wait here until the signed-in app (the 'Main'
+  // Food-reminder taps (FL-18/37: they open the one food chat) wait here until the signed-in app (the 'Main'
   // route) exists — a tap that LAUNCHED the app arrives before navigation does.
   const pendingNavRef = useRef(null);
   const flushPendingNav = useCallback(() => {
@@ -328,7 +332,7 @@ export default function App() {
     const names = (nav.getRootState && nav.getRootState()?.routeNames) || [];
     if (!names.includes('Main')) return;
     pendingNavRef.current = null;
-    nav.navigate('Main', { screen: 'MainTabs', params: { screen: 'Journey', params } });
+    nav.navigate('Main', { screen: 'FoodChat', params });
   }, []);
   // Each tap is routed once, whether it comes from the running listener or the
   // launch path (persisted, so a relaunch never replays an old tap).

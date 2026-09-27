@@ -34,6 +34,7 @@ import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import FoodLogHero from './components/FoodLogHero';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -1459,6 +1460,10 @@ export default function TodayScreen() {
             ))}
           </View>
         )}
+
+        {/* Food log hero while a reality check runs (FL-33) — opens the one food chat.
+            When it shows and what free users see: lib/foodThread todayFoodHeroPolicy. */}
+        <FoodLogHero variant="today" />
 
         {protocols.length > 0 && weekDots.length > 0 && (
           <TouchableOpacity

@@ -3,8 +3,8 @@
  *
  * The home for tracking whether things are actually working. Leads with the MOAT
  * — the dose-accumulation / serum-level curve (the one thing no competitor does) —
- * then the energy/protein calculator + reality-check, then the AI nutrition logger
- * (inside CalculatorSection's Track section). Moved out of the Body hub (which
+ * then one loop inside CalculatorSection: your numbers → target → daily plan →
+ * food log → reality check → progress → learn more. Moved out of the Body hub (which
  * keeps records — labs, vaccines). Rebuild = replace: Body no longer carries the
  * calculator.
  */
@@ -12,7 +12,7 @@
 import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { isPremium } from '../lib/purchases';
@@ -23,11 +23,7 @@ export default function JourneyScreen() {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const route = useRoute();
   const s = makeStyles(colors);
-  // A repeat tap on the food reminder carries a fresh nonce, so it scrolls again.
-  const nonce = route.params?.foodAsk || route.params?.foodLogIt || null;
-  const scrollTarget = route.params?.scrollTo ? (nonce ? `${route.params.scrollTo}:${nonce}` : route.params.scrollTo) : null;
   const [premium, setPremium] = useState(false);
   useFocusEffect(useCallback(() => { isPremium().then(setPremium); }, []));
 
@@ -57,7 +53,7 @@ export default function JourneyScreen() {
         <Text style={s.title}>{t('tab_journey')}</Text>
         <Text style={s.sub}>{t('journey_subtitle')}</Text>
       </View>
-      <CalculatorSection header={curveCard} scrollTarget={scrollTarget} />
+      <CalculatorSection header={curveCard} />
     </SafeAreaView>
   );
 }
