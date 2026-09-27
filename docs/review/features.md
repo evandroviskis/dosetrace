@@ -252,3 +252,11 @@ All 6 are on-slot with no injection site. 5 were inserted within seconds of thei
 - A-32 (false Missed rows) ships in the SAME build as A-30 (founder decision: both 1.2.6). Without it, removing the backfill dialog would give every past-start_date protocol false Missed rows.
 - Backfill tag: 5 rows (Retatrutide 90145629…, AOD-9604 8bfaa7db…, Tropinal 6d056cae…, ff70d47c…, d9df6f28…). The Tirzepatide row (7e9b6832…) is excluded: its origin is undeterminable, and either way the user asserted Taken. Founder still confirms the 5 ids before tagging.
 - No signal-based pass for Missed rows flipped before the migration: on-slot logged_at + null site also match backfill and earlier-day notification marks, so false tags would be likely. They migrate as source 'user'. Documented limit.
+
+### A-33 pickup checklist (outside review #011, 2026-09-27; target 1.2.6)
+- Remove the exception at CLAUDE.md:142 ("the one known failure is ... energy.test.ts — ignore ONLY that one").
+- CI runs `npm test` (.github/workflows/test.yml:20). Correction to review #011: CI has NOT been red. The last runs (e.g. 380198d, 2026-09-23) are green because CI uses **Node 20** (test.yml:15), whose `node --test` does not pick up `.ts` files; local Node 24 does, which is why only the local suite fails. So local and CI run different file sets today. Done = a GitHub Actions run green, linked in the audit table, AND CI on the same Node major as local (or the exclusion making both sets identical — state which).
+- Note: 64 local commits on main are not pushed (origin/main = 380198d), so CI has not run on any work since 2026-09-23. Pushing is the founder's go.
+- Exclusion proof: report test counts before/after. Only energy.test.ts may disappear; 261 pass + 6 todo must remain.
+
+A-30 / A-32 / A-33 registry thread: CLOSED 2026-09-27 (all three registered for 1.2.6 with their criteria).
