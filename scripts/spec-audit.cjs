@@ -21,14 +21,18 @@ const cells = (line) => line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).m
 // A cited test must really exist: __tests__/x.test.js: "name" (substring of the test title).
 function testExists(ev) {
   const re = /(__tests__\/[\w.-]+):\s*"((?:[^"\\]|\\.)+)"/g;
-  let m, all = true, any = false;
+  let m, all = true, any = false, todo = false;
   while ((m = re.exec(ev))) {
     any = true;
     const file = path.join(ROOT, m[1]);
     const name = m[2].replace(/\\"/g, '"');
-    if (!fs.existsSync(file) || !fs.readFileSync(file, 'utf8').includes(name)) { all = false; console.log(`      ✗ cited test not found: ${m[1]} "${name}"`); }
+    const src = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    if (!src.includes(name)) { all = false; console.log(`      ✗ cited test not found: ${m[1]} "${name}"`); continue; }
+    // A test still marked todo is OPEN, never proof (founder / review 2026-09-27).
+    const line = src.split('\n').find((l) => l.includes(name)) || '';
+    if (/\btodo\s*:/.test(line)) { todo = true; console.log(`      ✗ cited test is still todo (open): ${m[1]} "${name}"`); }
   }
-  return { any, all };
+  return { any, all, todo };
 }
 
 for (const f of files) {
@@ -49,6 +53,7 @@ for (const f of files) {
       else {
         const t = testExists(evidence);
         if (t.any && !t.all) { verdict = 'FAIL'; note = 'cites a test that does not exist'; }
+        else if (t.todo) { verdict = 'FAIL'; note = 'cites a todo test — still open'; }
         else if (!t.any && !/\b(sim|device)\s+\d{4}-\d{2}-\d{2}/.test(evidence)) { verdict = 'WARN'; note = 'code reference only — behavior unverified'; }
       }
     } else if (!approved) { verdict = 'FAIL'; note = `${st} — approved work not delivered (no approved deviation)`; }
