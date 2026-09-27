@@ -20,7 +20,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { useTheme } from '../../lib/theme';
+import Svg, { Path } from 'react-native-svg';
+import { useTheme, TYPE } from '../../lib/theme';
+import { Card, SectionLabel, Chip, Dot, BigNumber, Segmented } from '../../components/ui';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
@@ -51,6 +53,23 @@ import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
 import { checkIntake } from '../../lib/nutrition';
 import CheckMark from '../../components/CheckMark';
+
+// Hybrid chevron / external-link glyphs (replace the ▸ ▾ › ▲ ▶ ↗ text glyphs).
+function Chevron({ dir = 'right', color, size = 16 }) {
+  const d = dir === 'down' ? 'M5 9l7 7 7-7' : dir === 'up' ? 'M5 15l7-7 7 7' : 'M9 5l7 7-7 7';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d={d} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function ExternalGlyph({ color, size = 16 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 16L16 8M10 8h6v6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
@@ -108,6 +127,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const [numbersOpen, setNumbersOpen] = useState(true); // "Your numbers" collapse
   const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
   const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
+  const [introOpen, setIntroOpen] = useState(null);     // "What this is" — null = auto (open until there are results)
   const [premium, setPremium] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
   const [snapMsg, setSnapMsg] = useState(false);
@@ -682,10 +702,17 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   // uppercase micro-label, matching the onboarding's grouping. Optional right slot.
   const SectionHeader = ({ icon, title, right, collapsible, open, onToggle }) => (
     <View style={s.sh}>
-      <TouchableOpacity style={s.shLeft} activeOpacity={collapsible ? 0.7 : 1} onPress={collapsible ? onToggle : undefined} disabled={!collapsible}>
-        <View style={s.shIcon}><FeatureIcon name={icon} size={16} color={colors.accent} /></View>
-        <Text style={s.shTitle}>{title}</Text>
-        {collapsible ? <Text style={s.shChev}>{open ? '▾' : '▸'}</Text> : null}
+      <TouchableOpacity
+        style={s.shLeft}
+        activeOpacity={collapsible ? 0.7 : 1}
+        onPress={collapsible ? onToggle : undefined}
+        disabled={!collapsible}
+        hitSlop={collapsible ? { top: 12, bottom: 12 } : undefined}
+        accessibilityRole={collapsible ? 'button' : 'header'}
+        accessibilityState={collapsible ? { expanded: !!open } : undefined}
+      >
+        <SectionLabel>{title}</SectionLabel>
+        {collapsible ? <Chevron dir={open ? 'down' : 'right'} color={colors.textSubtle} size={14} /> : null}
       </TouchableOpacity>
       {right ? <View style={s.shRight}>{right}</View> : null}
     </View>
@@ -735,7 +762,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
           )
         ) : (
           // Free: no measured pace — teaser to Premium.
-          <TouchableOpacity onPress={() => navigation.navigate('Paywall')} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => navigation.navigate('Paywall')} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10 }} accessibilityRole="button">
             <Text style={s.tgtLockedEta}>{t('cal_tgt_locked_eta')}</Text>
           </TouchableOpacity>
         )}
@@ -754,48 +781,63 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   return (
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
       {header}
-      {/* Intro — what this is */}
-      <View style={s.introCard}>
-        <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
-        <Text style={s.introBody}>{t('cal_intro_body')}</Text>
-      </View>
+      {/* Intro — what this is. Collapsible so the numbers sit high once they
+          exist; open by default until there are results (same copy, kept). */}
+      {(() => {
+        const open = introOpen == null ? !plan : introOpen;
+        return (
+          <Card padded={false} style={s.introCard}>
+            <TouchableOpacity
+              style={s.introHead}
+              onPress={() => setIntroOpen(!open)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
+            >
+              <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
+              <Chevron dir={open ? 'up' : 'down'} color={colors.textSubtle} />
+            </TouchableOpacity>
+            {open ? <Text style={s.introBody}>{t('cal_intro_body')}</Text> : null}
+          </Card>
+        );
+      })()}
 
       {/* Overview — the user's current situation */}
       {result && result.sexGated ? (
-        <View style={s.overview}>
-          <Text style={s.overviewTitle}>{t('cal_sex_gate_title')}</Text>
+        <Card style={s.overview}>
+          <Text style={s.overviewGateTitle}>{t('cal_sex_gate_title')}</Text>
           <Text style={s.resultsHint}>{t('cal_sex_gate_body')}</Text>
           <TouchableOpacity style={[s.computeBtn, { marginTop: 12 }]} onPress={promptProfileSex}>
             <Text style={s.computeBtnText}>{t('cal_sex_gate_btn')}</Text>
           </TouchableOpacity>
-        </View>
+        </Card>
       ) : result && result.invalid ? (
-        <View style={s.overview}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
+        <Card style={s.overview}><View style={[s.warnBox, { marginTop: 0 }]}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View></Card>
       ) : plan ? (
-        <View style={s.overview}>
+        <Card style={s.overview}>
           <View style={s.overviewTop}>
-            <Text style={s.overviewTitle}>{t('cal_overview_title')}</Text>
+            <SectionLabel>{t('cal_overview_title')}</SectionLabel>
             <View style={s.echoChip}><Text style={s.echoChipText}>{echoParts.join(' · ')}</Text></View>
           </View>
 
           {/* Hero cards — daily burn + protein. Once a reality-check exists, the
               MEASURED maintenance is the real daily burn (the formula under/over-
               shoots); the generic estimate drops to a small sub-line. */}
-          <View style={s.heroRow}>
-            <View style={[s.heroCard, s.heroCardPrimary]}>
-              <Text style={s.heroLabelPrimary}>{t('cal_tdee')}</Text>
-              <Text style={[s.heroVal, s.heroValAccent]}>{round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal)} <Text style={s.heroUnitAccent}>{t('cal_kcal')}</Text></Text>
-              <Text style={s.heroSubPrimary}>
+          <View style={s.heroBlock}>
+            <Text style={s.heroLabelPrimary}>{t('cal_tdee')}</Text>
+            <BigNumber value={String(round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal))} unit={t('cal_kcal')} size={52} />
+            <Text style={s.heroSubPrimary}>
                 {scoreCheck
                   ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${round10(plan.tdeeVal)}`
                   : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${round10(plan.bmr)}`}
-              </Text>
-            </View>
-            <View style={s.heroCard}>
+            </Text>
+          </View>
+          <View style={s.heroSecondary}>
+            <View style={{ flex: 1 }}>
               <Text style={s.heroLabel}>{t('cal_protein')}</Text>
-              <Text style={s.heroVal}>{round5(plan.protein.rec)} <Text style={s.heroUnit}>{t('cal_g_day')}</Text></Text>
               <Text style={s.heroSub}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
             </View>
+            <Text style={s.heroVal}>{round5(plan.protein.rec)} <Text style={s.heroUnit}>{t('cal_g_day')}</Text></Text>
           </View>
 
           {/* All three goals, side by side — tap to choose. When a reality-check
@@ -806,7 +848,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
               const on = goal === g;
               const gc = (effectiveGoals || plan.allGoals)[g];
               return (
-                <TouchableOpacity key={g} style={[s.goalCard, on && s.goalCardOn]} onPress={() => setGoal(g)} activeOpacity={0.7}>
+                <TouchableOpacity key={g} style={[s.goalCard, on && s.goalCardOn]} onPress={() => setGoal(g)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
                   <Text style={[s.goalLabel, on && s.goalLabelOn]}>{t(`cal_goal_${g}`)}</Text>
                   <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid)}</Text>
                   <Text style={s.goalSub}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
@@ -846,9 +888,9 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
           )}
 
           <Text style={s.estimateNote}>{t('cal_estimate_note')}</Text>
-        </View>
+        </Card>
       ) : (
-        <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
+        <Card style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></Card>
       )}
 
       {/* ── TRACK YOUR PROGRESS ─────────────────────────────────────── */}
@@ -859,9 +901,11 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         style={s.sbReality}
         activeOpacity={0.7}
         onPress={() => (premium ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
+        accessibilityRole="button"
+        accessibilityState={premium ? { expanded: rcOpen } : undefined}
       >
         <View style={s.sbRealityMain}>
-          <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
+          <SectionLabel style={s.sbRealityLabel}>{t('cal_rc_title')}</SectionLabel>
           {premium ? (
             scoreCheck ? (
               <Text style={s.sbRealityVal}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
@@ -880,13 +924,13 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
               {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
             </Text>
           ) : null}
-          <Text style={s.sbArrow}>{premium ? (rcOpen ? '▾' : '›') : '›'}</Text>
+          <Chevron dir={premium && rcOpen ? 'down' : 'right'} color={colors.textSubtle} size={18} />
         </View>
       </TouchableOpacity>
 
       {/* Collapsible reality-check panel — lives right under the goal/scoreboard. */}
       {rcOpen && (
-        <View style={s.premCard}>
+        <Card style={s.premCard}>
           <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
           {premium ? (
             <>
@@ -933,7 +977,8 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
 
                   {rc && rc.status === 'ok' && (
                     <View style={s.rcResult}>
-                      <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')} {round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+                      <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')}</Text>
+                      <BigNumber value={String(round10(rc.tdee))} unit={`${t('cal_kcal')}/${t('cal_day')}`} size={44} style={{ marginTop: 2 }} />
                       {rc.ratePerWeekKg != null && Math.abs(rc.ratePerWeekKg) >= 0.05 ? (
                         <Text style={s.rcRate}>
                           {t('cal_rc_rate_losing')} {rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')} {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
@@ -997,11 +1042,11 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </Card>
       )}
 
       {/* Progress snapshots (premium) — part of tracking progress */}
-      <View style={s.premCard}>
+      <Card style={s.premCard}>
         <Text style={s.premTitle}>{t('cal_snap_title')}</Text>
         <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
         {premium ? (
@@ -1022,7 +1067,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             {/* Backfill a past weigh-in — for someone who started before installing.
                 Writes a dated snapshot so the measured rate (and the target ETA)
                 can appear without waiting weeks. */}
-            <TouchableOpacity onPress={() => setBfOpen(o => !o)} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => setBfOpen(o => !o)} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10 }} accessibilityRole="button">
               <Text style={s.tgtBackfillLink}>{bfOpen ? t('cal_tgt_backfill_hide') : t('cal_tgt_backfill_add')}</Text>
             </TouchableOpacity>
             {bfOpen ? (
@@ -1063,16 +1108,16 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             </TouchableOpacity>
           </View>
         )}
-      </View>
+      </Card>
 
       {/* Personal target — a weight and/or body-fat goal. Setting a goal + the
           progress bar are FREE (matches the free-targets split); the MEASURED
           timeline is the Premium unlock. Never advisory. */}
-      <View style={s.premCard}>
+      <Card style={s.premCard}>
         <View style={s.tgtHead}>
           <Text style={s.premTitle}>{t('cal_tgt_title')}</Text>
           {target && !targetEditing ? (
-            <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7}><Text style={s.tgtEdit}>{t('cal_tgt_edit')}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"><Text style={s.tgtEdit}>{t('cal_tgt_edit')}</Text></TouchableOpacity>
           ) : null}
         </View>
         <Text style={s.premSub}>{t('cal_tgt_sub')}</Text>
@@ -1115,7 +1160,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             {bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, usableBfRate, premium) : null}
           </View>
         )}
-      </View>
+      </Card>
 
       {/* AI nutrition logger — lives under Track your progress; feeds the
           reality-check's weekly intake. Premium-gated inside the component. */}
@@ -1130,7 +1175,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         right={(
           <View style={s.unitToggle}>
             {['metric', 'imperial'].map(u => (
-              <TouchableOpacity key={u} style={[s.unitPill, unit === u && s.unitPillOn]} onPress={() => changeUnit(u)}>
+              <TouchableOpacity key={u} style={[s.unitPill, unit === u && s.unitPillOn]} onPress={() => changeUnit(u)} hitSlop={{ top: 8, bottom: 8 }} accessibilityRole="button" accessibilityState={{ selected: unit === u }}>
                 <Text style={[s.unitPillText, unit === u && s.unitPillTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
               </TouchableOpacity>
             ))}
@@ -1141,7 +1186,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         onToggle={() => setNumbersOpen((o) => !o)}
       />
       {numbersOpen && (
-      <View style={s.groupCard}>
+      <Card style={s.groupCard}>
         {/* Weight + Height — both universal (BMI, waist-to-height, and the Mifflin
             fallback all need height, so height shows regardless of the BF path). */}
         <View style={s.row}>
@@ -1160,8 +1205,8 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
           <Text style={s.fieldLab}>{t('cal_bf_source')}</Text>
           <View style={s.pillWrap}>
             {BF_SOURCES.map(src => (
-              <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)}>
-                <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
+              <TouchableOpacity key={src} onPress={() => setBfSource(src)} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="button" accessibilityState={{ selected: bfSource === src }}>
+                <Chip label={t(`cal_bf_${src}`)} tone={bfSource === src ? 'accent' : 'neutral'} style={s.pill} textStyle={s.pillText} />
               </TouchableOpacity>
             ))}
           </View>
@@ -1185,13 +1230,11 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             <View>
               <Text style={s.fieldLab}>{t('cal_sex')}</Text>
               {profileSex ? (
-                <View style={s.segment}>
-                  {['male', 'female'].map(sx => (
-                    <TouchableOpacity key={sx} style={[s.segBtn, sex === sx && s.segBtnOn]} onPress={() => saveProfileSex(sx)}>
-                      <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Segmented
+                  options={['male', 'female'].map(sx => ({ value: sx, label: t(`cal_sex_${sx}`) }))}
+                  value={sex}
+                  onChange={(sx) => saveProfileSex(sx)}
+                />
               ) : (
                 // Not set in the profile → prompt to complete it instead of defaulting.
                 <TouchableOpacity style={[s.segment, s.sexGatePrompt]} onPress={promptProfileSex}>
@@ -1212,65 +1255,70 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
           </>
         )}
         <Text style={s.hint}>{t('cal_waist_hint')}</Text>
-      </View>
+      </Card>
       )}
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* ── ACTIVITY ────────────────────────────────────────────────── */}
       <SectionHeader icon="calc_bolt" title={t('cal_activity')} />
-      <View style={s.groupCard}>
+      <Card style={s.groupCard}>
         <View style={s.actGrid}>
           {ACTIVITY_LEVELS.map(a => {
             const on = activity === a.value;
             return (
-              <TouchableOpacity key={a.value} style={[s.actChip, on && s.actChipOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7}>
-                <View style={[s.actDot, on && s.actDotOn]} />
+              <TouchableOpacity key={a.value} style={[s.actChip, on && s.actChipOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                {on ? <Dot color={colors.accent} size={12} /> : <View style={s.actDot} />}
                 <Text style={[s.actChipText, on && s.actChipTextOn]}>{t(a.key)}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      </View>
+      </Card>
 
       {/* Understand the numbers — collapsed by default */}
-      <TouchableOpacity style={s.rowLink} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7}>
-        <Text style={s.rowLinkText}>{t('cal_learn')}</Text>
-        <Text style={s.rowLinkChev}>{learnOpen ? '▾' : '▸'}</Text>
-      </TouchableOpacity>
-      {learnOpen && EXPLAINERS.map(e => (
-        <View key={e.key} style={s.explCard}>
-          <TouchableOpacity style={s.explHead} onPress={() => setExpl(expl === e.key ? null : e.key)}>
-            <Text style={s.explTitle}>{e.title}</Text>
-            <Text style={s.explChevron}>{expl === e.key ? '▲' : '▶'}</Text>
-          </TouchableOpacity>
-          {expl === e.key && <Text style={s.explBody}>{e.body}</Text>}
-        </View>
-      ))}
+      <Card padded={false} style={s.linkCard}>
+        <TouchableOpacity style={s.rowLink} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: learnOpen }}>
+          <Text style={s.rowLinkText}>{t('cal_learn')}</Text>
+          <Chevron dir={learnOpen ? 'down' : 'right'} color={colors.textSubtle} />
+        </TouchableOpacity>
+        {learnOpen && EXPLAINERS.map(e => (
+          <View key={e.key} style={s.explCard}>
+            <TouchableOpacity style={s.explHead} onPress={() => setExpl(expl === e.key ? null : e.key)} accessibilityRole="button" accessibilityState={{ expanded: expl === e.key }}>
+              <Text style={s.explTitle}>{e.title}</Text>
+              <Chevron dir={expl === e.key ? 'up' : 'down'} color={colors.textSubtle} size={14} />
+            </TouchableOpacity>
+            {expl === e.key && <Text style={s.explBody}>{e.body}</Text>}
+          </View>
+        ))}
+      </Card>
 
       {/* Sources & references — collapsed by default (App Review 1.4.1) */}
-      <TouchableOpacity style={s.rowLink} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7}>
+      <Card padded={false} style={s.linkCard}>
+      <TouchableOpacity style={s.rowLink} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: sourcesOpen }}>
         <Text style={s.rowLinkText}>{t('cal_sources_title')}</Text>
-        <Text style={s.rowLinkChev}>{sourcesOpen ? '▾' : '▸'}</Text>
+        <Chevron dir={sourcesOpen ? 'down' : 'right'} color={colors.textSubtle} />
       </TouchableOpacity>
       {sourcesOpen && (
         <>
-          <Text style={[s.hint, { marginBottom: 8 }]}>{t('cal_sources_intro')}</Text>
+          <Text style={[s.hint, s.srcIntro]}>{t('cal_sources_intro')}</Text>
           {REFERENCES.map(r => (
             <TouchableOpacity
               key={r.key}
               style={s.srcRow}
               activeOpacity={0.6}
               onPress={() => Linking.openURL(r.url).catch(() => {})}
+              accessibilityRole="link"
             >
               <View style={s.srcText}>
                 <Text style={s.srcTopic}>{t(r.key)}</Text>
                 <Text style={s.srcCite}>{r.cite}</Text>
               </View>
-              <Text style={s.srcArrow}>↗</Text>
+              <ExternalGlyph color={colors.accent} />
             </TouchableOpacity>
           ))}
         </>
       )}
+      </Card>
 
       <View style={{ height: 60 }} />
     </ScrollView>
@@ -1281,31 +1329,31 @@ const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scroll: { flex: 1, padding: 16 },
   // Section header: monoline glyph tile + uppercase micro-label, optional right slot.
-  sh: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 10, marginHorizontal: 2 },
-  shLeft: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 },
+  sh: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 10, marginHorizontal: 4, minHeight: 32 },
+  shLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   shIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
   shTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted },
   shChev: { fontSize: 13, color: c.textFaint, marginLeft: 2 },
   shRight: { marginLeft: 'auto' },
   // Grouped input card — inputs sit inside with breathing room.
-  groupCard: { backgroundColor: c.card, borderRadius: 20, padding: 16, gap: 16, borderWidth: 0.5, borderColor: c.border },
-  fieldLab: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', color: c.textFaint, marginBottom: 7 },
+  groupCard: { gap: 16 },
+  fieldLab: { ...TYPE.label, color: c.textSubtle, marginBottom: 7 },
   // Activity — compact 2-col chips (was 5 full-width rows).
   actGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actChip: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.card2, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border },
+  actChip: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.card2, borderRadius: 14, minHeight: 46, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'transparent' },
   actChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  actDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: c.border },
+  actDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, borderColor: c.textFaint },
   actDotOn: { borderColor: c.accent, backgroundColor: c.accent },
-  actChipText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: c.textMuted },
-  actChipTextOn: { color: c.text },
+  actChipText: { flex: 1, fontSize: 13.5, fontWeight: '500', color: c.textMuted },
+  actChipTextOn: { color: c.accentSoftText, fontWeight: '600' },
   // Collapsed learn/sources rows.
-  rowLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, marginTop: 10, borderWidth: 0.5, borderColor: c.border },
-  rowLinkText: { fontSize: 13, fontWeight: '600', color: c.text },
+  rowLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, paddingVertical: 14, paddingHorizontal: 16 },
+  rowLinkText: { fontSize: 15, fontWeight: '500', color: c.text, flex: 1, marginRight: 10 },
   rowLinkChev: { fontSize: 13, color: c.textFaint },
-  disclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, marginBottom: 4 },
-  label: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 16 },
-  hint: { fontSize: 11, color: c.textFaint, lineHeight: 15, marginTop: 6 },
-  input: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 16, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  disclaimer: { ...TYPE.caption, color: c.textSubtle, lineHeight: 17, marginTop: 10, marginBottom: 4, marginHorizontal: 4 },
+  label: { ...TYPE.label, color: c.textSubtle, marginBottom: 8, marginTop: 16 },
+  hint: { fontSize: 12, color: c.textSubtle, lineHeight: 17, marginTop: 6 },
+  input: { backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48, justifyContent: 'center', fontSize: 16, color: c.text },
   row: { flexDirection: 'row', gap: 12 },
   rowCol: { flex: 1 },
   segment: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 10, padding: 3, gap: 3 },
@@ -1313,20 +1361,20 @@ const makeStyles = (c) => StyleSheet.create({
   segBtnOn: { backgroundColor: c.accent },
   segText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
   segTextOn: { color: c.accentText },
-  sexGatePrompt: { justifyContent: 'center', paddingVertical: 11, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
-  sexGatePromptText: { fontSize: 13, fontWeight: '700', color: c.accent, textAlign: 'center' },
+  sexGatePrompt: { justifyContent: 'center', minHeight: 44, paddingVertical: 11, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
+  sexGatePromptText: { fontSize: 14, fontWeight: '600', color: c.accentSoftText, textAlign: 'center' },
   // Calculator start: clear section title + a quiet, compact unit toggle
   detailsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 4 },
   detailsTitle: { fontSize: 17, fontWeight: '800', color: c.text, letterSpacing: -0.2 },
-  unitToggle: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 8, padding: 2 },
-  unitPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
-  unitPillOn: { backgroundColor: c.card },
-  unitPillText: { fontSize: 12, fontWeight: '600', color: c.textFaint },
-  unitPillTextOn: { color: c.accent, fontWeight: '700' },
+  unitToggle: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 10, padding: 2, gap: 2 },
+  unitPill: { paddingHorizontal: 12, minHeight: 30, justifyContent: 'center', borderRadius: 8 },
+  unitPillOn: { backgroundColor: c.card, ...c.shadowSoft },
+  unitPillText: { fontSize: 12.5, fontWeight: '600', color: c.textMuted },
+  unitPillTextOn: { color: c.text, fontWeight: '600' },
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { backgroundColor: c.card, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 0.5, borderColor: c.border },
+  pill: { height: 34, borderRadius: 17, paddingHorizontal: 14 },
   pillOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  pillText: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  pillText: { fontSize: 13.5 },
   pillTextOn: { color: c.accent, fontWeight: '600' },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
@@ -1339,39 +1387,39 @@ const makeStyles = (c) => StyleSheet.create({
   radioOn: { borderColor: c.accent, backgroundColor: c.accent },
   actText: { flex: 1, fontSize: 13, color: c.textMuted },
   actTextOn: { color: c.text, fontWeight: '500' },
-  introCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginBottom: 4 },
-  introTitle: { fontSize: 14, fontWeight: '700', color: c.accentSoftText, marginBottom: 4 },
-  introBody: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
-  overview: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
+  introCard: { marginBottom: 4 },
+  introTitle: { fontSize: 15, fontWeight: '600', color: c.text, flex: 1, marginRight: 10 },
+  introBody: { ...TYPE.sub, color: c.textMuted, lineHeight: 21, paddingHorizontal: 16, paddingBottom: 16, marginTop: -4 },
+  overview: { marginTop: 12 },
   overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
-  overviewTitle: { fontSize: 13, fontWeight: '800', color: c.text, letterSpacing: 0.5 },
-  echoChip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexShrink: 1 },
-  echoChipText: { fontSize: 11, color: c.textMuted },
+  overviewTitle: { ...TYPE.label, color: c.textSubtle },
+  echoChip: { backgroundColor: c.card2, borderRadius: 13, paddingHorizontal: 10, paddingVertical: 5, flexShrink: 1 },
+  echoChipText: { fontSize: 12, fontWeight: '500', color: c.textMuted },
   heroRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   heroCard: { flex: 1, backgroundColor: c.card2, borderRadius: 12, padding: 12 },
   // Primary (daily-burn) card carries the accent so the key number has life.
   heroCardPrimary: { backgroundColor: c.accentSoft },
-  heroLabel: { fontSize: 11, color: c.textMuted, marginBottom: 4 },
-  heroLabelPrimary: { fontSize: 11, color: c.accentSoftText, fontWeight: '600', marginBottom: 4 },
-  heroVal: { fontSize: 22, fontWeight: '800', color: c.text },
+  heroLabel: { fontSize: 15, fontWeight: '500', color: c.text },
+  heroLabelPrimary: { fontSize: 13, fontWeight: '500', color: c.textMuted, marginBottom: 2 },
+  heroVal: { fontSize: 26, fontWeight: '300', color: c.text, fontVariant: ['tabular-nums'] },
   heroValAccent: { color: c.accent },
-  heroUnit: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  heroUnit: { fontSize: 13, fontWeight: '400', color: c.textMuted },
   heroUnitAccent: { fontSize: 12, fontWeight: '600', color: c.accent },
-  heroSub: { fontSize: 10, color: c.textFaint, marginTop: 3 },
-  heroSubPrimary: { fontSize: 10, color: c.accentSoftText, opacity: 0.8, marginTop: 3 },
-  goalRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  goalCard: { flex: 1, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 10, alignItems: 'center' },
-  goalCardOn: { borderColor: c.accent, borderWidth: 2, backgroundColor: c.accentSoft },
-  goalLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
-  goalLabelOn: { color: c.accent },
-  goalVal: { fontSize: 17, fontWeight: '700', color: c.text, marginTop: 2 },
-  goalValOn: { color: c.accent },
-  goalSub: { fontSize: 9, color: c.textFaint, marginTop: 2 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  chip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-  chipText: { fontSize: 11, color: c.textMuted },
-  warnBox: { backgroundColor: c.warningSoft, borderRadius: 10, padding: 10, marginTop: 8 },
-  warnText: { fontSize: 11, color: c.warningSoftText, lineHeight: 16 },
+  heroSub: { fontSize: 12, color: c.textSubtle, marginTop: 2 },
+  heroSubPrimary: { fontSize: 12.5, color: c.textSubtle, marginTop: 2 },
+  goalRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  goalCard: { flex: 1, borderRadius: 14, borderWidth: 1, borderColor: 'transparent', backgroundColor: c.card2, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', minHeight: 44 },
+  goalCardOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
+  goalLabel: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  goalLabelOn: { color: c.accentSoftText, fontWeight: '600' },
+  goalVal: { fontSize: 20, fontWeight: '400', color: c.text, marginTop: 2, fontVariant: ['tabular-nums'] },
+  goalValOn: { color: c.accentSoftText, fontWeight: '500' },
+  goalSub: { fontSize: 11, color: c.textSubtle, marginTop: 2 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  chip: { backgroundColor: c.card2, borderRadius: 13, paddingHorizontal: 10, paddingVertical: 5 },
+  chipText: { fontSize: 12, fontWeight: '500', color: c.textMuted },
+  warnBox: { backgroundColor: c.warningSoft, borderRadius: 12, padding: 12, marginTop: 10 },
+  warnText: { fontSize: 13, color: c.warningSoftText, lineHeight: 18 },
   goalBadge: { backgroundColor: c.accent, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   goalBadgeText: { color: c.accentText, fontSize: 12, fontWeight: '700' },
   overviewHeadline: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
@@ -1383,11 +1431,11 @@ const makeStyles = (c) => StyleSheet.create({
   overviewStatVal: { fontSize: 17, fontWeight: '700', color: c.text },
   overviewStatLabel: { fontSize: 11, color: c.textMuted, marginTop: 2, textAlign: 'center' },
   overviewStatDiv: { width: 0.5, height: 34, backgroundColor: c.border },
-  deltaRow: { marginTop: 14, backgroundColor: c.card2, borderRadius: 10, padding: 10 },
-  deltaText: { fontSize: 12, color: c.text, fontWeight: '500' },
+  deltaRow: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  deltaText: { fontSize: 13, color: c.text, fontWeight: '500', fontVariant: ['tabular-nums'] },
   results: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 20, ...c.shadowSoft },
   resultsTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, marginBottom: 12 },
-  resultsHint: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 8 },
+  resultsHint: { ...TYPE.sub, color: c.textMuted, textAlign: 'center', paddingVertical: 8 },
   resRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
   resLabel: { fontSize: 13, color: c.textMuted },
   resVal: { fontSize: 14, fontWeight: '600', color: c.text },
@@ -1395,90 +1443,96 @@ const makeStyles = (c) => StyleSheet.create({
   resHeadlineLabel: { fontSize: 12, color: c.textMuted, marginBottom: 3 },
   resHeadlineVal: { fontSize: 22, fontWeight: '700', color: c.accent },
   resHeadlineSub: { fontSize: 11, color: c.textFaint, marginTop: 3 },
-  estimateNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 14 },
-  premCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 16, ...c.shadowSoft },
-  premTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 4 },
-  premSub: { fontSize: 12, color: c.textMuted, lineHeight: 17, marginBottom: 4 },
-  computeBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
+  estimateNote: { ...TYPE.caption, color: c.textSubtle, lineHeight: 17, marginTop: 14 },
+  premCard: { marginTop: 12 },
+  premTitle: { fontSize: 17, fontWeight: '600', color: c.text, marginBottom: 4 },
+  premSub: { fontSize: 13.5, color: c.textMuted, lineHeight: 19, marginBottom: 4 },
+  computeBtn: { backgroundColor: c.accent, borderRadius: 16, minHeight: 52, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   computeBtnDisabled: { opacity: 0.4 },
-  computeBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  rcResult: { marginTop: 16, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
-  rcHeadline: { fontSize: 16, fontWeight: '700', color: c.accent, lineHeight: 22 },
-  rcVs: { fontSize: 13, color: c.textMuted, marginTop: 4 },
-  rcWhyTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, marginTop: 16, marginBottom: 8 },
-  rcWhy: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 4 },
-  rcNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 12 },
-  rcGuard: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
+  computeBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
+  rcResult: { marginTop: 16, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  rcHeadline: { fontSize: 14, fontWeight: '500', color: c.textMuted, lineHeight: 20 },
+  rcVs: { fontSize: 13.5, color: c.textMuted, marginTop: 4 },
+  rcWhyTitle: { ...TYPE.label, color: c.textSubtle, marginTop: 18, marginBottom: 8 },
+  rcWhy: { fontSize: 14, color: c.textMuted, lineHeight: 21, marginBottom: 4 },
+  rcNote: { fontSize: 12, color: c.textSubtle, lineHeight: 17, marginTop: 12 },
+  rcGuard: { fontSize: 14, color: c.textMuted, lineHeight: 20 },
   // Phase-2 "tracking" banner + reset/next links
-  rcTracking: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginTop: 8, marginBottom: 4 },
-  rcTrackingLine: { fontSize: 15, fontWeight: '700', color: c.accentSoftText },
-  rcTrackingSub: { fontSize: 12, color: c.accentSoftText, opacity: 0.85, marginTop: 3 },
-  rcUseLog: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
-  rcUseLogText: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
-  rcUseLogNote: { fontSize: 10.5, color: c.textFaint, marginTop: 5, lineHeight: 14 },
-  rcStop: { alignItems: 'center', paddingVertical: 12, marginTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
-  rcStopText: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },
-  rcReset: { alignItems: 'center', paddingVertical: 10, marginTop: 8 },
-  rcResetText: { fontSize: 13, color: c.textMuted, fontWeight: '600' },
+  rcTracking: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginTop: 10, marginBottom: 4 },
+  rcTrackingLine: { fontSize: 16, fontWeight: '600', color: c.accentSoftText, fontVariant: ['tabular-nums'] },
+  rcTrackingSub: { fontSize: 12.5, color: c.accentSoftText, marginTop: 3 },
+  rcUseLog: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9, minHeight: 36, justifyContent: 'center', marginTop: 10 },
+  rcUseLogText: { fontSize: 13, fontWeight: '600', color: c.accentSoftText },
+  rcUseLogNote: { fontSize: 11.5, color: c.textSubtle, marginTop: 5, lineHeight: 15 },
+  rcStop: { alignItems: 'center', justifyContent: 'center', minHeight: 48, paddingVertical: 12, marginTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  rcStopText: { fontSize: 14, fontWeight: '600', color: c.danger || c.warningSoftText },
+  rcReset: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 10, marginTop: 8 },
+  rcResetText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   locked: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
-  lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
-  lockedBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
-  lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  lockedText: { fontSize: 14, color: c.textMuted, marginBottom: 12, textAlign: 'center' },
+  lockedBtn: { backgroundColor: c.accent, borderRadius: 16, minHeight: 50, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
+  lockedBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
   // Target card (build 56)
-  inputLabelSm: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 12, marginBottom: 6 },
+  inputLabelSm: { ...TYPE.label, color: c.textSubtle, marginTop: 14, marginBottom: 7 },
   tgtHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tgtEdit: { fontSize: 13, fontWeight: '600', color: c.accent },
+  tgtEdit: { fontSize: 14, fontWeight: '600', color: c.accent },
   tgtBtnRow: { flexDirection: 'row', gap: 10, marginTop: 16, alignItems: 'center' },
-  tgtBtnGhost: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, borderWidth: 0.5, borderColor: c.border },
-  tgtGhostText: { color: c.textMuted, fontSize: 14, fontWeight: '600' },
-  tgtRemove: { color: c.danger || c.warning, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 14 },
-  tgtClearDate: { color: c.accent, fontSize: 12, fontWeight: '600', marginTop: 6 },
-  tgtMetric: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
+  tgtBtnGhost: { minHeight: 52, justifyContent: 'center', paddingHorizontal: 20, borderRadius: 16, backgroundColor: c.card2 },
+  tgtGhostText: { color: c.text, fontSize: 16, fontWeight: '600' },
+  tgtRemove: { color: c.danger || c.warning, fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 14, paddingVertical: 10 },
+  tgtClearDate: { color: c.accent, fontSize: 13, fontWeight: '600', marginTop: 8, paddingVertical: 4 },
+  tgtMetric: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   tgtMetricHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  tgtMetricLabel: { fontSize: 13, fontWeight: '700', color: c.text },
-  tgtMetricNums: { fontSize: 15, fontWeight: '700', color: c.accent, fontVariant: ['tabular-nums'] },
-  tgtBar: { height: 8, borderRadius: 4, backgroundColor: c.border, marginTop: 10, overflow: 'hidden' },
-  tgtBarFill: { height: 8, borderRadius: 4, backgroundColor: c.accent },
-  tgtEta: { fontSize: 14, fontWeight: '700', color: c.text, marginTop: 8 },
-  tgtReached: { fontSize: 14, fontWeight: '700', color: c.success || c.accent, marginTop: 8 },
-  tgtAway: { fontSize: 13, color: c.warning, marginTop: 8, lineHeight: 18 },
-  tgtNoRate: { fontSize: 13, color: c.textMuted, marginTop: 8, lineHeight: 18 },
-  tgtBasis: { fontSize: 11, color: c.textMuted, marginTop: 4 },
-  tgtFact: { fontSize: 11, color: c.textMuted, marginTop: 4, lineHeight: 15 },
-  tgtLockedEta: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 8, lineHeight: 18 },
-  tgtBackfillLink: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 14 },
-  bfForm: { marginTop: 8, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
-  srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, ...c.shadowSoft },
+  tgtMetricLabel: { fontSize: 15, fontWeight: '500', color: c.text },
+  tgtMetricNums: { fontSize: 17, fontWeight: '400', color: c.text, fontVariant: ['tabular-nums'] },
+  tgtBar: { height: 6, borderRadius: 3, backgroundColor: c.ringTrack, marginTop: 10, overflow: 'hidden' },
+  tgtBarFill: { height: 6, borderRadius: 3, backgroundColor: c.accent },
+  tgtEta: { fontSize: 14.5, fontWeight: '600', color: c.text, marginTop: 8 },
+  tgtReached: { fontSize: 14.5, fontWeight: '600', color: c.success || c.accent, marginTop: 8 },
+  tgtAway: { fontSize: 13.5, color: c.warning, marginTop: 8, lineHeight: 19 },
+  tgtNoRate: { fontSize: 13.5, color: c.textMuted, marginTop: 8, lineHeight: 19 },
+  tgtBasis: { fontSize: 12, color: c.textSubtle, marginTop: 4 },
+  tgtFact: { fontSize: 12, color: c.textSubtle, marginTop: 4, lineHeight: 16 },
+  tgtLockedEta: { fontSize: 13.5, fontWeight: '600', color: c.accent, marginTop: 8, lineHeight: 19 },
+  tgtBackfillLink: { fontSize: 14, fontWeight: '600', color: c.accent, marginTop: 14, paddingVertical: 4 },
+  bfForm: { marginTop: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  srcRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 12, paddingHorizontal: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   srcText: { flex: 1 },
-  srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },
-  srcCite: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  srcTopic: { fontSize: 14.5, fontWeight: '500', color: c.text },
+  srcCite: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   srcArrow: { fontSize: 16, color: c.accent, marginLeft: 10 },
-  sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
+  sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 20, padding: 16, marginTop: 4, ...c.shadowSoft },
   sbRealityMain: { flex: 1 },
-  sbRealityLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.3, marginBottom: 4 },
-  sbRealityVal: { fontSize: 18, fontWeight: '800', color: c.accent },
-  sbRealityMuted: { fontSize: 14, fontWeight: '600', color: c.textFaint },
-  sbRealityRight: { alignItems: 'flex-end', marginLeft: 10 },
-  sbRealityRate: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 2 },
+  sbRealityLabel: { marginBottom: 4 },
+  sbRealityVal: { fontSize: 26, fontWeight: '300', color: c.text, fontVariant: ['tabular-nums'] },
+  sbRealityMuted: { fontSize: 14.5, fontWeight: '500', color: c.textMuted },
+  sbRealityRight: { alignItems: 'flex-end', marginLeft: 10, gap: 4 },
+  sbRealityRate: { fontSize: 13.5, fontWeight: '500', color: c.text, fontVariant: ['tabular-nums'] },
   sbArrow: { fontSize: 18, color: c.textFaint },
   sbActions: { flexDirection: 'row', marginTop: 10 },
   sbActionBtn: { flex: 1, backgroundColor: c.card, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 0.5, borderColor: c.border },
   sbActionText: { fontSize: 13, fontWeight: '600', color: c.accent },
-  rcRate: { fontSize: 14, fontWeight: '600', color: c.text, marginTop: 6 },
-  rcLog: { marginTop: 18, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
-  rcLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  rcLogDate: { fontSize: 13, color: c.textMuted, flex: 1 },
-  rcLogRate: { fontSize: 13, fontWeight: '700', color: c.text, flex: 1, textAlign: 'center' },
-  rcLogTdee: { fontSize: 12, color: c.textFaint, flex: 1, textAlign: 'right' },
+  rcRate: { fontSize: 14.5, fontWeight: '500', color: c.text, marginTop: 6 },
+  rcLog: { marginTop: 18, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  rcLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  rcLogDate: { fontSize: 13.5, color: c.textMuted, flex: 1 },
+  rcLogRate: { fontSize: 13.5, fontWeight: '500', color: c.text, flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  rcLogTdee: { fontSize: 13, color: c.textMuted, flex: 1, textAlign: 'right', fontVariant: ['tabular-nums'] },
   rcLocked: { marginTop: 8 },
-  rcLockedIntro: { fontSize: 13, color: c.textMuted, lineHeight: 20 },
-  rcLockedLead: { fontSize: 13, fontWeight: '600', color: c.text, marginTop: 12, marginBottom: 6 },
-  rcLockedItem: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
-  rcLockedPayoff: { fontSize: 13, color: c.text, lineHeight: 20, marginTop: 12, marginBottom: 16 },
+  rcLockedIntro: { fontSize: 14, color: c.textMuted, lineHeight: 21 },
+  rcLockedLead: { fontSize: 14, fontWeight: '600', color: c.text, marginTop: 12, marginBottom: 6 },
+  rcLockedItem: { fontSize: 14, color: c.textMuted, lineHeight: 23 },
+  rcLockedPayoff: { fontSize: 14, color: c.text, lineHeight: 21, marginTop: 12, marginBottom: 16 },
   learn: {},
-  explCard: { backgroundColor: c.card, borderRadius: 16, marginBottom: 8, overflow: 'hidden', ...c.shadowSoft },
-  explHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
-  explTitle: { flex: 1, fontSize: 13, fontWeight: '600', color: c.text, marginRight: 10 },
+  explCard: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  explHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 48, paddingVertical: 12, paddingHorizontal: 16 },
+  explTitle: { flex: 1, fontSize: 14.5, fontWeight: '500', color: c.text, marginRight: 10 },
   explChevron: { fontSize: 11, color: c.textFaint },
-  explBody: { fontSize: 13, color: c.textMuted, lineHeight: 20, paddingHorizontal: 14, paddingBottom: 14 },
+  explBody: { ...TYPE.sub, color: c.textMuted, lineHeight: 21, paddingHorizontal: 16, paddingBottom: 14 },
+  linkCard: { marginTop: 12, overflow: 'hidden' },
+  heroBlock: { marginTop: 10 },
+  heroSecondary: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  overviewGateTitle: { fontSize: 17, fontWeight: '600', color: c.text, marginBottom: 4 },
+  introHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, paddingHorizontal: 16, paddingVertical: 14 },
+  srcIntro: { paddingHorizontal: 16, marginTop: 0, marginBottom: 10 },
 });

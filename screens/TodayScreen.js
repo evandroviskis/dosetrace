@@ -41,6 +41,16 @@ import Animated, {
   withTiming, withDelay, withSequence, Easing,
 } from 'react-native-reanimated';
 import { AnimatedNumber, lightHaptic, eInOutSine } from '../components/motion';
+import { Card, SectionLabel, Dot, Chip, RoundAction, ScreenTitle } from '../components/ui';
+
+// Drawn chevron (replaces the old "›" text glyph).
+function Chevron({ color, size = 16 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M9 5.5l6.5 6.5L9 18.5" fill="none" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 const ACircle = Animated.createAnimatedComponent(Circle);
 const APath = Animated.createAnimatedComponent(Path);
@@ -55,7 +65,9 @@ const measureWin = (ref) => new Promise((res) => {
 // "Mark taken" — presses, turns into a check, and hands its on-screen position
 // to the parent so a drop can travel from here into the progress ring. Keyed by
 // the taken count, so a multi-dose protocol gets a fresh button per dose.
-function TakeButton({ label, takenLabel, onTake, s, colors }) {
+// variant 'round' = the hybrid 56pt round primary control (due-now card);
+// variant 'pill' = a compact accent pill for the flat rows. Same behaviour.
+function TakeButton({ label, takenLabel, onTake, s, colors, variant = 'pill' }) {
   const ref = useRef(null);
   const [ok, setOk] = useState(false);
   const press = useSharedValue(1);
@@ -75,9 +87,35 @@ function TakeButton({ label, takenLabel, onTake, s, colors }) {
     if (ref.current?.measureInWindow) ref.current.measureInWindow((x, y, w, h) => fire({ x, y, w, h }));
     setTimeout(() => fire(null), 150);
   };
+  if (variant === 'round') {
+    return (
+      <Animated.View style={[s.takeRoundWrap, btnStyle]}>
+        <TouchableOpacity
+          style={s.takeRoundTouch}
+          onPress={onPress}
+          activeOpacity={0.85}
+          disabled={ok}
+          accessibilityRole="button"
+          accessibilityLabel={ok ? takenLabel : label}
+          accessibilityState={{ disabled: ok }}
+        >
+          <View ref={ref} collapsable={false} style={[s.takeRound, ok && s.takeRoundOk]}>
+            <Svg width={26} height={26} viewBox="0 0 16 16">
+              {ok ? (
+                <APath d="M3.5 8.5 L6.8 11.5 L12.5 5" fill="none" stroke={colors.successSoftText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={16} animatedProps={chkProps} />
+              ) : (
+                <Path d="M3.5 8.5 L6.8 11.5 L12.5 5" fill="none" stroke={colors.accentText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              )}
+            </Svg>
+          </View>
+          <Text style={[s.roundLbl, ok && { color: colors.successSoftText }]} numberOfLines={2}>{ok ? takenLabel : label}</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
   return (
     <Animated.View style={[s.doseBtnPrimaryWrap, btnStyle]}>
-      <TouchableOpacity ref={ref} style={[s.doseBtn, ok ? s.doseBtnOk : s.doseBtnPrimary, s.doseBtnFill]} onPress={onPress} activeOpacity={0.85} disabled={ok}>
+      <TouchableOpacity ref={ref} style={[s.doseBtn, ok ? s.doseBtnOk : s.doseBtnPrimary, s.doseBtnFill]} onPress={onPress} activeOpacity={0.85} disabled={ok} accessibilityRole="button" accessibilityLabel={ok ? takenLabel : label}>
         <View style={s.doseBtnRow}>
           {ok && (
             <Svg width={15} height={15} viewBox="0 0 16 16">
@@ -1138,332 +1176,497 @@ export default function TodayScreen() {
     return { current: capped, total: p.schedule_total };
   }
 
-  // Rendered as a plain function (not a nested component type) so React
-  // doesn't remount the subtree on every parent state change.
-  function renderDoseCard(p) {
+  // Everything a dose row/card shows, computed once per protocol.
+  function doseInfo(p) {
     const dosesTakenToday = takenCounts[p.id] || 0;
     const dosesNeeded = expectedDosesOn(p, new Date());
     const dueToday = dosesNeeded > 0;
-    const isTaken = dueToday && dosesTakenToday >= dosesNeeded;
-    const skippedToday = skippedCounts[p.id] || 0;
-    const nextDue = dueToday ? null : nextDueDate(p, new Date());
+    return {
+      dosesTakenToday,
+      dosesNeeded,
+      dueToday,
+      isTaken: dueToday && dosesTakenToday >= dosesNeeded,
+      skippedToday: skippedCounts[p.id] || 0,
+      nextDue: dueToday ? null : nextDueDate(p, new Date()),
+      times: p.reminder_time ? p.reminder_time.split(',').filter(Boolean).map(t24 => formatTimeAMPM(t24)) : [],
+      nextTime: getNextTimeLabel(p),
+      progress: getProgress(p),
+      pStreak: protocolStreaks[p.id] || 0,
+      lastSite: lastSiteByProtocol[p.id],
+      name: p.compound_id ? t(p.compound_id) : p.name,
+    };
+  }
+
+  function openProtocol(p) {
+    navigation.navigate('Protocols', { openProtocolId: p.id });
+  }
+
+  function openAddVial(p) {
+    setContinuationProtocol(p);
+    setNewVialDoses('');
+    setNewVialMonth(new Date().getMonth());
+    setNewVialDay(String(new Date().getDate()));
+    setShowVialPrompt(true);
+  }
+
+  // Vial status line for recon protocols (or the "+ Add vial" link).
+  function renderVialLine(p) {
     const vial = vials[p.id];
-    const nextTime = getNextTimeLabel(p);
-    const progress = getProgress(p);
-    const pStreak = protocolStreaks[p.id] || 0;
-    const due = isDoseDue(p);
-    const lastSite = lastSiteByProtocol[p.id];
-    // Fade done/not-due cards so actionable (near-dose) cards stand out. Dark
-    // mode uses a gentler fade (0.8 vs 0.6) so the name stays readable — 0.6 on
-    // a dark bg greyed the text too much.
-    return (
-      <View key={p.id} style={[s.doseCard, (isTaken || !dueToday) && { opacity: isDark ? 0.8 : 0.6 }]}>
-        {!dueToday && (
-          <View style={s.restBanner}>
-            <Text style={s.restBannerText}>
-              {t('today_not_due')}
-              {nextDue ? ` · ${t('today_next_dose').replace('{date}', `${t(MONTH_KEYS[nextDue.getMonth()])} ${nextDue.getDate()}`)}` : ''}
-            </Text>
-          </View>
-        )}
-        {dueToday && !isTaken && skippedToday > 0 && (
-          <View style={s.skippedBanner}>
-            <Text style={s.skippedBannerText}>{t('today_skipped_today')}</Text>
-          </View>
-        )}
-        {dueToday && !isTaken && dosesTakenToday > 0 && dosesNeeded > 1 && (
-          <View style={s.partialBanner}>
-            <Text style={s.partialBannerText}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>
-          </View>
-        )}
-        {/* Tapping the header row opens this protocol in the Protocols tab. */}
-        <TouchableOpacity
-          style={s.doseCardTop}
-          activeOpacity={0.6}
-          onPress={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
-        >
-          <View style={[s.doseDot, { backgroundColor: p.color || colors.accent }]} />
-          <View style={s.doseInfo}>
-            <Text style={s.doseName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-            <Text style={s.doseMeta}>
-              {p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}
-            </Text>
-            {/* Progress indicator */}
-            {progress && (
-              <Text style={s.progressText}>
-                {t('today_day_of').replace('{current}', progress.current).replace('{total}', progress.total)}
-              </Text>
-            )}
-          </View>
-          <View style={s.doseRight}>
-            {p.reminder_time ? (
-              <View style={s.doseTime}>
-                <Text style={s.doseTimeVal}>{p.reminder_time.split(',').filter(Boolean).map(t24 => formatTimeAMPM(t24)).join(' · ')}</Text>
-                <Text style={s.doseTimeLbl}>{t('today_reminder')}</Text>
-              </View>
-            ) : null}
-            {pStreak > 0 && (
-              <View style={s.miniStreak}>
-                <FeatureIcon name="flame" size={11} color={colors.warningSoftText} />
-                <Text style={s.miniStreakText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={s.doseOpenChevron}>›</Text>
+    if (p.type !== 'recon') return null;
+    if (!vial) {
+      return (
+        <TouchableOpacity style={s.vialLink} onPress={() => openAddVial(p)} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8 }}>
+          <Text style={[s.vialStatusText, { color: colors.accent, fontWeight: '600' }]}>{t('today_add_vial')}</Text>
         </TouchableOpacity>
-        {/* Progress bar */}
-        {progress && (
-          <View style={s.progressBarOuter}>
-            <View style={[s.progressBarInner, { width: `${Math.min((progress.current / progress.total) * 100, 100)}%` }]} />
-          </View>
+      );
+    }
+    // Capacity: stored count if known, else derived from vial size ÷ dose
+    // (older vials predate the derivation and have a null total_doses).
+    const capacity = (vial.total_doses && vial.total_doses > 0)
+      ? vial.total_doses
+      : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+    const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
+    const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+    return (
+      <Text style={s.vialStatusText}>
+        {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
+        {remaining != null ? ` · ${remaining} ${t('today_vial_remaining')}` : ''}
+        {daysLeft != null ? ' · ' : ''}
+        {daysLeft != null && (
+          <Text style={{ color: expiryColor(daysLeft), fontWeight: '600' }}>
+            {daysLeft <= 0
+              ? t('protocols_vial_past')
+              : t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
+          </Text>
         )}
-        {/* Last-site recall chip — recall only, never a recommendation */}
-        {lastSite && (
-          <View style={s.lastSiteChip}>
-            <Text style={s.lastSiteText}>
-              {t('today_last_site')
-                .replace('{site}', lastSite.summary)
-                .replace('{days}', String(lastSite.daysAgo))}
+      </Text>
+    );
+  }
+
+  // Shared detail block: Day X of Y + bar, vial line, not-due note and the
+  // status chips (skipped, partial, last-site recall, per-protocol streak).
+  function renderDetails(p, d) {
+    const skipped = d.dueToday && !d.isTaken && d.skippedToday > 0;
+    const partial = d.dueToday && !d.isTaken && d.dosesTakenToday > 0 && d.dosesNeeded > 1;
+    const hasChips = skipped || partial || d.lastSite || d.pStreak > 0;
+    return (
+      <>
+        {d.progress && (
+          <View style={s.progWrap}>
+            <Text style={s.progressText}>
+              {t('today_day_of').replace('{current}', d.progress.current).replace('{total}', d.progress.total)}
             </Text>
+            <View style={s.progressBarOuter}>
+              <View style={[s.progressBarInner, { width: `${Math.min((d.progress.current / d.progress.total) * 100, 100)}%` }]} />
+            </View>
           </View>
         )}
-        {/* Vial status line for recon protocols */}
-        {p.type === 'recon' && vial && (() => {
-          // Capacity: stored count if known, else derived from vial size ÷ dose
-          // (older vials predate the derivation and have a null total_doses).
-          const capacity = (vial.total_doses && vial.total_doses > 0)
-            ? vial.total_doses
-            : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-          const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
-          const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
-          return (
-            <View style={s.vialStatus}>
-              <Text style={s.vialStatusText}>
-                {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
-                {remaining != null ? ` · ${remaining} ${t('today_vial_remaining')}` : ''}
-                {daysLeft != null ? '  ·  ' : ''}
-                {daysLeft != null && (
-                  <Text style={{ color: expiryColor(daysLeft), fontWeight: '600' }}>
-                    {daysLeft <= 0
-                      ? t('protocols_vial_past')
-                      : t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
-                  </Text>
-                )}
-              </Text>
-            </View>
-          );
-        })()}
-        {p.type === 'recon' && !vial && (
-          <TouchableOpacity
-            style={s.vialStatus}
-            onPress={() => {
-              setContinuationProtocol(p);
-              setNewVialDoses('');
-              setNewVialMonth(new Date().getMonth());
-              setNewVialDay(String(new Date().getDate()));
-              setShowVialPrompt(true);
-            }}
-          >
-            <Text style={[s.vialStatusText, { color: colors.accent }]}>{t('today_add_vial')}</Text>
-          </TouchableOpacity>
+        {renderVialLine(p)}
+        {!d.dueToday && (
+          <Text style={s.restText}>
+            {t('today_not_due')}
+            {d.nextDue ? ` · ${t('today_next_dose').replace('{date}', `${t(MONTH_KEYS[d.nextDue.getMonth()])} ${d.nextDue.getDate()}`)}` : ''}
+          </Text>
         )}
-        {dueToday && !isTaken && (
-          <View style={s.doseActions}>
-            <TouchableOpacity style={s.doseBtn} onPress={() => skipDose(p)}>
-              <Text style={s.doseBtnText}>{t('today_skip')}</Text>
-            </TouchableOpacity>
+        {hasChips && (
+          <View style={s.chipRow}>
+            {skipped && <Chip tone="warning" label={t('today_skipped_today')} style={s.chipMax} />}
+            {partial && <Chip tone="warning" label={`${d.dosesTakenToday}/${d.dosesNeeded} ${t('today_taken_partial')}`} style={s.chipMax} />}
+            {/* Last-site recall — recall only, never a recommendation */}
+            {d.lastSite && (
+              <Chip
+                label={t('today_last_site').replace('{site}', d.lastSite.summary).replace('{days}', String(d.lastSite.daysAgo))}
+                style={s.chipMax}
+              />
+            )}
+            {d.pStreak > 0 && (
+              <View style={s.streakChip}>
+                <FeatureIcon name="flame" size={12} color={colors.warningSoftText} />
+                <Text style={s.streakChipText} numberOfLines={1}>{d.pStreak} {d.pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
+              </View>
+            )}
+          </View>
+        )}
+      </>
+    );
+  }
+
+  // The dose that is due now (or next today): one clear card, round actions.
+  function renderHeroCard(p) {
+    const d = doseInfo(p);
+    const due = isDoseDue(p);
+    const when = d.nextTime || (d.times.length ? d.times[0] : null);
+    const head = !p.reminder_time ? t('today_section_today') : due ? t('hy_due_now') : t('hy_up_next');
+    const faded = d.isTaken || !d.dueToday;
+    return (
+      <Card key={p.id} style={[s.blockCard, faded && { opacity: isDark ? 0.8 : 0.6 }]}>
+        <SectionLabel color={colors.accent}>{when ? `${head} · ${when}` : head}</SectionLabel>
+        {/* Tapping the name opens this protocol in the Protocols tab. */}
+        <TouchableOpacity
+          style={s.heroNameRow}
+          activeOpacity={0.6}
+          onPress={() => openProtocol(p)}
+          accessibilityRole="button"
+          accessibilityLabel={d.name}
+        >
+          <Dot color={p.color || colors.accent} />
+          <Text style={s.heroName} numberOfLines={2}>{d.name}</Text>
+          <Chevron color={colors.textSubtle} size={18} />
+        </TouchableOpacity>
+        <View style={s.heroIndent}>
+          <Text style={s.heroMeta}>
+            {p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}
+            {d.times.length > 1 ? ` · ${d.times.join(' · ')}` : ''}
+          </Text>
+          {renderDetails(p, d)}
+        </View>
+        {d.dueToday && !d.isTaken && (
+          <View style={s.heroActions}>
             <TakeButton
-              key={`take-${p.id}-${dosesTakenToday}-${takeReset[p.id] || 0}`}
-              label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
+              key={`take-${p.id}-${d.dosesTakenToday}-${takeReset[p.id] || 0}`}
+              variant="round"
+              label={d.nextTime ? t('today_take_time').replace('{time}', d.nextTime) : t('today_mark_taken')}
               takenLabel={takenLabel}
               onTake={(rect) => handleTake(p, rect)}
               s={s}
               colors={colors}
             />
+            <RoundAction
+              icon={<CrossMark size={20} color={colors.text} />}
+              label={t('today_skip')}
+              onPress={() => skipDose(p)}
+            />
           </View>
+        )}
+      </Card>
+    );
+  }
+
+  // A flat row inside a card (rest of today / tomorrow / next days).
+  function renderDoseRow(p, isLast) {
+    const d = doseInfo(p);
+    // Fade done/not-due rows so actionable ones stand out (gentler in dark).
+    const faded = d.isTaken || !d.dueToday;
+    return (
+      <View key={p.id} style={[s.row, !isLast && s.rowSep, faded && { opacity: isDark ? 0.8 : 0.6 }]}>
+        <TouchableOpacity
+          style={s.rowTop}
+          activeOpacity={0.6}
+          onPress={() => openProtocol(p)}
+          accessibilityRole="button"
+          accessibilityLabel={d.name}
+        >
+          <Dot color={p.color || colors.accent} size={8} />
+          <Text style={s.rowName} numberOfLines={2}>
+            {d.name}
+            <Text style={s.rowDose}> · {p.dose} {p.dose_unit}</Text>
+          </Text>
+          {d.times.length > 0 && (
+            <View style={s.rowTime}>
+              <Text style={s.rowTimeVal} numberOfLines={2}>{d.times.join(' · ')}</Text>
+              <Text style={s.rowTimeLbl}>{t('today_reminder')}</Text>
+            </View>
+          )}
+          <Chevron color={colors.textSubtle} size={16} />
+        </TouchableOpacity>
+        <View style={s.rowIndent}>
+          <Text style={s.rowMeta}>{frequencyLabelFor(p.interval_days, t)}</Text>
+          {renderDetails(p, d)}
+          {d.dueToday && !d.isTaken && (
+            <View style={s.rowActions}>
+              <TouchableOpacity style={s.skipBtn} onPress={() => skipDose(p)} accessibilityRole="button">
+                <Text style={s.skipBtnText}>{t('today_skip')}</Text>
+              </TouchableOpacity>
+              <TakeButton
+                key={`take-${p.id}-${d.dosesTakenToday}-${takeReset[p.id] || 0}`}
+                label={d.nextTime ? t('today_take_time').replace('{time}', d.nextTime) : t('today_mark_taken')}
+                takenLabel={takenLabel}
+                onTake={(rect) => handleTake(p, rect)}
+                s={s}
+                colors={colors}
+              />
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // A dose already taken today — shown in "Rest of today", with Undo while
+  // the undo window for it is open.
+  function renderTakenRow(p, isLast) {
+    const name = p.compound_id ? t(p.compound_id) : p.name;
+    const canUndo = undoData && undoData.protocolId === p.id;
+    return (
+      <View key={`taken-${p.id}`} style={[s.takenRow, !isLast && s.rowSep]}>
+        <TouchableOpacity style={s.takenMain} activeOpacity={0.6} onPress={() => openProtocol(p)} accessibilityRole="button" accessibilityLabel={`${name} · ${t('today_taken')}`}>
+          <View style={s.takenTick}><CheckMark size={13} color={colors.success} /></View>
+          <Text style={s.takenText} numberOfLines={1}>{name} · {t('today_taken')}</Text>
+        </TouchableOpacity>
+        {canUndo && (
+          <TouchableOpacity style={s.inlineUndo} onPress={undoTake} accessibilityRole="button">
+            <Text style={s.inlineUndoText}>{t('today_undo')}</Text>
+          </TouchableOpacity>
         )}
       </View>
     );
   }
 
-  function renderCategory(label, items) {
+  function renderSectionCard(label, items) {
     if (items.length === 0) return null;
     return (
-      <View style={s.categorySection}>
-        <Text style={s.categoryLabel}>{label.toUpperCase()}</Text>
-        {items.map(p => renderDoseCard(p))}
-      </View>
+      <Card style={s.listCard}>
+        <SectionLabel style={s.listLabel}>{label}</SectionLabel>
+        {items.map((p, i) => renderDoseRow(p, i === items.length - 1))}
+      </Card>
     );
   }
 
+  // Today: every dose due now gets the full card; if none is due yet, the
+  // next one of the day does. The rest (and doses already taken) sit in one card.
+  const dueNowCards = todayCards.filter(p => isDoseDue(p));
+  const heroCards = dueNowCards.length > 0 ? dueNowCards : todayCards.slice(0, 1);
+  const restCards = todayCards.filter(p => !heroCards.includes(p));
+  const takenTodayList = dailyOrder.filter(p => {
+    const need = expectedDosesOn(p, todayDate);
+    return need > 0 && (takenCounts[p.id] || 0) >= need && !todayCards.includes(p);
+  });
+
+  // Soft tint behind each alert's icon.
+  function alertTone(a) {
+    if (a.id === 'supply_low') return [colors.dangerSoft, colors.danger];
+    if (a.due) return [colors.warningSoft, colors.warning];
+    return [colors.accentSoft, colors.accent];
+  }
+
+  const titleText = `${greeting}${userName ? `, ${userName}` : ''}`;
+  const ringA11y = totalDoses > 0 ? `${Math.round(ringTarget * 100)}% ${t('today_done_of')}` : t('today_done_of');
+
   return (
     <SafeAreaView style={s.container} ref={rootRef} collapsable={false}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.scrollPad]}>
         <View style={s.header}>
-          <Text style={s.date}>{today}</Text>
-          <Text style={s.greeting}>{greeting}{userName ? `, ${userName}` : ''}</Text>
-          {totalCount === 0
-            ? <Text style={s.sub}>{t('today_no_protocols')}</Text>
-            : <AnimatedNumber value={doneShown} format={subFmt} style={[s.sub, s.subFill]} />}
-        </View>
-
-        <View style={s.progressRow}>
-          <View style={s.ringCard}>
-            <View ref={ringRef} collapsable={false} style={s.ringBox}>
-              {/* 90×90 canvas around the 58×58 ring so the landing pulse can grow past it */}
-              <Svg width={90} height={90} viewBox="-16 -16 90 90" style={s.ringSvg}>
-                <ACircle cx={29} cy={29} fill="none" stroke={colors.accent} strokeWidth={2} animatedProps={ringPulseProps} />
-                <Circle cx={29} cy={29} r={RING_R} fill="none" stroke={colors.ringTrack} strokeWidth={7} />
-                <ACircle
-                  cx={29} cy={29} r={RING_R} fill="none"
-                  stroke={colors.accent} strokeWidth={7} strokeLinecap="round"
-                  strokeDasharray={RING_CIRC}
-                  transform="rotate(-90 29 29)"
-                  animatedProps={ringArcProps}
-                />
-              </Svg>
-            </View>
-            <View style={s.ringText}>
-              <AnimatedNumber value={ringFrac} format={pctFmt} style={s.ringPct} width={64} />
-              <Text style={s.ringLbl}>{t('today_done_of')}</Text>
-            </View>
-          </View>
-          <View style={s.progressStatsCol}>
-            <View style={s.miniStatCard}>
-              <AnimatedNumber value={doneShown} format={intFmt} style={s.miniStatVal} width={56} />
-              <Text style={s.miniStatLbl}>{t('today_done')}</Text>
-            </View>
-            <View style={s.miniStatCard}>
-              <Text style={s.miniStatVal}>{totalCount}</Text>
-              <Text style={s.miniStatLbl}>{t('today_protocols')}</Text>
-            </View>
+          <ScreenTitle
+            eyebrow={today}
+            title={titleText}
+            right={(
+              <View ref={ringRef} collapsable={false} style={s.ringBox} accessible accessibilityLabel={ringA11y}>
+                {/* 90×90 canvas around the 58×58 ring so the landing pulse can grow past it */}
+                <Svg width={90} height={90} viewBox="-16 -16 90 90" style={s.ringSvg}>
+                  <ACircle cx={29} cy={29} fill="none" stroke={colors.accent} strokeWidth={2} animatedProps={ringPulseProps} />
+                  <Circle cx={29} cy={29} r={RING_R} fill="none" stroke={colors.ringTrack} strokeWidth={6} />
+                  <ACircle
+                    cx={29} cy={29} r={RING_R} fill="none"
+                    stroke={colors.accent} strokeWidth={6} strokeLinecap="round"
+                    strokeDasharray={RING_CIRC}
+                    transform="rotate(-90 29 29)"
+                    animatedProps={ringArcProps}
+                  />
+                </Svg>
+              </View>
+            )}
+          />
+          <View style={s.subWrap}>
+            {totalCount === 0
+              ? <Text style={s.sub}>{t('today_no_protocols')}</Text>
+              : <AnimatedNumber value={doneShown} format={subFmt} style={[s.sub, s.subFill]} />}
           </View>
         </View>
 
-        {protocols.length > 0 && weekDots.length > 0 && (
+        {/* Alerts — pending, actionable reminders (never daily doses). */}
+        {alerts.length > 0 && (
+          <View style={s.alertsSection}>
+            <SectionLabel style={s.blockLabel}>{t('today_alerts_title')}</SectionLabel>
+            {alerts.map(a => {
+              const [tintBg, tintFg] = alertTone(a);
+              const open = snoozeOpen === a.id;
+              return (
+                <Card key={a.id} padded={false} style={s.alertCard}>
+                  <View style={s.alertRow}>
+                    <TouchableOpacity style={s.alertMain} activeOpacity={0.7} onPress={a.onPress} accessibilityRole="button" accessibilityLabel={`${a.title}. ${a.body}`}>
+                      <View style={[s.alertIcon, { backgroundColor: tintBg }]}>
+                        <FeatureIcon name={a.iconName} size={20} color={tintFg} />
+                      </View>
+                      <View style={s.alertTextWrap}>
+                        <Text style={s.alertTitle} numberOfLines={1}>{a.title}</Text>
+                        <Text style={s.alertBody} numberOfLines={2}>{a.body}</Text>
+                      </View>
+                    </TouchableOpacity>
+                    {a.snoozeId ? (
+                      // Snoozable alert: the round control opens "Later today · Tomorrow · In N days".
+                      <TouchableOpacity
+                        style={[s.alertRound, open && s.alertRoundOn]}
+                        onPress={() => setSnoozeOpen(open ? null : a.id)}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('alert_snooze')}
+                        accessibilityState={{ expanded: open }}
+                      >
+                        <FeatureIcon name="snooze" size={20} color={open ? colors.accent : colors.textMuted} />
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={s.alertRound}
+                        onPress={a.onRemove}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('today_alert_remove')}
+                      >
+                        <CrossMark size={16} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {a.snoozeId && open && (
+                    <View style={s.snoozeStrip}>
+                      {[
+                        // "Later today" only while it can still land today (3h, before 21:00).
+                        ...(new Date().getHours() < 18 ? [['later', t('alert_snooze_later')]] : []),
+                        ['tomorrow', t('alert_snooze_tomorrow')],
+                        // The weigh-in alert has no long snooze — its third option is Remove.
+                        a.onRemove
+                          ? ['remove', t('today_alert_remove')]
+                          : ['days', t('alert_snooze_days').replace('{n}', String(Math.round((ALERT_SNOOZE_MS[a.snoozeId] || 7 * 86400000) / 86400000)))],
+                      ].map(([kind, label], i) => (
+                        <TouchableOpacity key={kind} style={[s.snoozeOpt, i > 0 && s.snoozeOptSep]} onPress={() => (kind === 'remove' ? (setSnoozeOpen(null), a.onRemove()) : snoozeAlert(a.snoozeId, kind))} accessibilityRole="button">
+                          <Text style={[s.snoozeOptText, kind === 'remove' && { color: colors.danger }]}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
+        {protocols.length === 0 && !loading && (
+          <Card style={s.emptyCard}>
+            <View style={s.emptyIcon}><FeatureIcon name="syringe" size={36} color={colors.accent} /></View>
+            <Text style={s.emptyTitle}>{t('today_empty_title')}</Text>
+            <Text style={s.emptySub}>{t('today_empty_sub')}</Text>
+            <View style={s.tipBox}>
+              <SectionLabel style={s.tipTitle}>{t('today_tip_title')}</SectionLabel>
+              {[
+                t('today_tip_1'),
+                t('today_tip_2'),
+                t('today_tip_3'),
+              ].map((tip, i) => (
+                <View key={i} style={[s.tipRow, i > 0 && s.rowSepTop]}>
+                  <View style={s.tipNum}>
+                    <Text style={s.tipNumText}>{i + 1}</Text>
+                  </View>
+                  <Text style={s.tipText}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
+
+        {protocols.length > 0 && (
+          <View style={s.section}>
+            {heroCards.map(p => renderHeroCard(p))}
+            {allDoneToday && (
+              <Card style={s.blockCard}>
+                <SectionLabel>{t('today_section_today')}</SectionLabel>
+                <View style={s.allDoneRow}>
+                  <View style={s.takenTick}><CheckMark size={13} color={colors.success} /></View>
+                  <Text style={s.allDoneText}>{t('today_all_done')}</Text>
+                </View>
+                {takenTodayList.length > 0 && (
+                  <View style={s.rowSepTop}>
+                    {takenTodayList.map((p, i) => renderTakenRow(p, i === takenTodayList.length - 1))}
+                  </View>
+                )}
+              </Card>
+            )}
+            {!allDoneToday && (restCards.length > 0 || (heroCards.length > 0 && takenTodayList.length > 0)) && (
+              <Card style={s.listCard}>
+                <SectionLabel style={s.listLabel}>{t('hy_rest_of_today')}</SectionLabel>
+                {restCards.map((p, i) => renderDoseRow(p, i === restCards.length - 1 && takenTodayList.length === 0))}
+                {takenTodayList.map((p, i) => renderTakenRow(p, i === takenTodayList.length - 1))}
+              </Card>
+            )}
+          </View>
+        )}
+
+        {/* Progress: today's share of doses + streak / week (opens the log). */}
+        {protocols.length > 0 && (
           <TouchableOpacity
-            style={s.streakCard}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('Log')}
             accessibilityRole="button"
             accessibilityLabel={t('today_view_log')}
+            style={s.sectionPad}
           >
-            <View style={s.streakTop}>
-              <View style={s.streakLeft}>
-                {streak > 0 ? (
-                  <View style={s.streakFireTile}><FeatureIcon name="flame" size={22} color={colors.warningSoftText} /></View>
-                ) : null}
-                <View>
-                  <Text style={s.streakCount}>
-                    {streak > 0
-                      ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}`
-                      : t('today_streak_none')}
-                  </Text>
-                  <Text style={s.streakSub}>
-                    {monthConsistency}% {t('today_streak_monthly')}
-                  </Text>
+            <Card style={s.blockCard}>
+              <View style={s.cardHead}>
+                <SectionLabel>{t('today_section_progress')}</SectionLabel>
+                <View style={s.linkRow}>
+                  <Text style={s.linkText}>{t('today_view_log')}</Text>
+                  <Chevron color={colors.accent} size={15} />
                 </View>
               </View>
-              {streak >= 7 && (
-                <View style={s.streakBadge}>
-                  <Text style={s.streakBadgeText}>{t('today_streak_fire')}</Text>
+              <View style={s.progHero}>
+                <View style={s.progHeroLeft}>
+                  <AnimatedNumber value={ringFrac} format={pctFmt} style={s.bigPct} width={150} />
+                  <Text style={s.bigPctLbl}>{t('today_done_of')}</Text>
                 </View>
-              )}
-            </View>
-            <View style={s.streakDots}>
-              {weekDots.map((dot, i) => (
-                <View key={i} style={s.streakDotCol}>
-                  <View style={[
-                    s.streakDot,
-                    dot.status === 'complete' && s.streakDotComplete,
-                    dot.status === 'partial' && s.streakDotPartial,
-                    dot.status === 'missed' && s.streakDotMissed,
-                    dot.status === 'rest' && s.streakDotRest,
-                    dot.isToday && s.streakDotToday,
-                  ]}>
-                    {dot.status === 'complete' && !dot.isToday && (
-                      <CheckMark style={s.streakDotCheck} />
-                    )}
+                <View style={s.progFacts}>
+                  <View style={s.progFact}>
+                    <AnimatedNumber value={doneShown} format={intFmt} style={s.factVal} width={48} />
+                    <Text style={s.factLbl} numberOfLines={1}>{t('today_done')}</Text>
                   </View>
-                  <Text style={[s.streakDotLabel, dot.isToday && s.streakDotLabelToday]}>
-                    {t(WEEKDAY_KEYS[dot.dayIndex])}
-                  </Text>
+                  <View style={s.progFact}>
+                    <Text style={s.factVal}>{totalCount}</Text>
+                    <Text style={s.factLbl} numberOfLines={1}>{t('today_protocols')}</Text>
+                  </View>
                 </View>
-              ))}
-            </View>
-            <Text style={s.streakExplainer}>{t('today_streak_explainer')}</Text>
-            <View style={s.streakLogRow}>
-              <Text style={s.streakLogText}>{t('today_view_log')}</Text>
-              <Text style={s.streakLogChevron}>›</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Alerts — pending, actionable reminders (never daily doses). Deletable. */}
-        {alerts.length > 0 && (
-          <View style={s.alertsSection}>
-            <Text style={s.alertsHeader}>{t('today_alerts_title').toUpperCase()}</Text>
-            {alerts.map(a => (
-              <View key={a.id} style={s.alertCard}>
-                <View style={s.alertRow}>
-                <TouchableOpacity style={s.alertMain} activeOpacity={0.7} onPress={a.onPress}>
-                  <View style={[s.alertIconTile, a.due && s.alertIconTileDue]}>
-                    <FeatureIcon name={a.iconName} size={22} color={a.due ? colors.warningSoftText : colors.accentSoftText} />
+              </View>
+              {weekDots.length > 0 && (
+                <>
+                  <View style={s.streakLine}>
+                    {streak > 0 && <FeatureIcon name="flame" size={18} color={colors.warning} />}
+                    <Text style={s.streakText}>
+                      {streak > 0
+                        ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}`
+                        : t('today_streak_none')}
+                      <Text style={s.streakSub}>{`  ·  ${monthConsistency}% ${t('today_streak_monthly')}`}</Text>
+                    </Text>
+                    {streak >= 7 && <Chip tone="warning" label={t('today_streak_fire')} />}
                   </View>
-                  <View style={s.alertTextWrap}>
-                    <Text style={s.alertTitle}>{a.title}</Text>
-                    <Text style={[s.alertBody, a.due && s.alertBodyDue]}>{a.body}</Text>
-                  </View>
-                </TouchableOpacity>
-                {a.snoozeId ? (
-                  // Snoozable alert: the icon opens "Later today · Tomorrow · In N days".
-                  <TouchableOpacity
-                    style={s.alertDelete}
-                    onPress={() => setSnoozeOpen(snoozeOpen === a.id ? null : a.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('alert_snooze')}
-                  >
-                    <FeatureIcon name="snooze" size={18} color={snoozeOpen === a.id ? colors.accent : colors.textMuted} />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={s.alertDelete}
-                    onPress={a.onRemove}
-                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('today_alert_remove')}
-                  >
-                    <CrossMark size={16} color={colors.textFaint} />
-                  </TouchableOpacity>
-                )}
-                </View>
-                {a.snoozeId && snoozeOpen === a.id && (
-                  <View style={s.snoozeStrip}>
-                    {[
-                      // "Later today" only while it can still land today (3h, before 21:00).
-                      ...(new Date().getHours() < 18 ? [['later', t('alert_snooze_later')]] : []),
-                      ['tomorrow', t('alert_snooze_tomorrow')],
-                      // The weigh-in alert has no long snooze — its third option is Remove.
-                      a.onRemove
-                        ? ['remove', t('today_alert_remove')]
-                        : ['days', t('alert_snooze_days').replace('{n}', String(Math.round((ALERT_SNOOZE_MS[a.snoozeId] || 7 * 86400000) / 86400000)))],
-                    ].map(([kind, label], i) => (
-                      <TouchableOpacity key={kind} style={[s.snoozeOpt, i > 0 && s.snoozeOptSep]} onPress={() => (kind === 'remove' ? (setSnoozeOpen(null), a.onRemove()) : snoozeAlert(a.snoozeId, kind))} accessibilityRole="button">
-                        <Text style={[s.snoozeOptText, kind === 'remove' && { color: colors.danger }]}>{label}</Text>
-                      </TouchableOpacity>
+                  <View style={s.streakDots}>
+                    {weekDots.map((dot, i) => (
+                      <View key={i} style={s.streakDotCol}>
+                        <View style={[
+                          s.streakDot,
+                          dot.status === 'complete' && s.streakDotComplete,
+                          dot.status === 'partial' && s.streakDotPartial,
+                          dot.status === 'missed' && s.streakDotMissed,
+                          dot.status === 'rest' && s.streakDotRest,
+                          dot.isToday && s.streakDotToday,
+                        ]}>
+                          {dot.status === 'complete' && !dot.isToday && (
+                            <CheckMark size={13} color={colors.success} />
+                          )}
+                        </View>
+                        <Text style={[s.streakDotLabel, dot.isToday && s.streakDotLabelToday]}>
+                          {t(WEEKDAY_KEYS[dot.dayIndex])}
+                        </Text>
+                      </View>
                     ))}
                   </View>
-                )}
-              </View>
-            ))}
-          </View>
+                  <Text style={s.streakExplainer}>{t('today_streak_explainer')}</Text>
+                </>
+              )}
+            </Card>
+          </TouchableOpacity>
         )}
 
         {protocols.length > 0 && weekDots.length > 0 && (
           <TouchableOpacity
             style={s.shareToggle}
             onPress={() => setShowShareCard(!showShareCard)}
+            accessibilityRole="button"
           >
             <Text style={s.shareToggleText}>
               {showShareCard ? t('today_share_hide') : t('today_share_show')}
@@ -1471,6 +1674,7 @@ export default function TodayScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Share card: a deliberately fixed dark surface (exported look) in both themes. */}
         {showShareCard && protocols.length > 0 && (
           <View style={s.shareCard}>
             <View style={s.shareCardInner}>
@@ -1521,63 +1725,13 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {protocols.length === 0 && !loading && (
-          <View style={s.emptyState}>
-            <View style={s.emptyIcon}><FeatureIcon name="syringe" size={48} color={colors.textMuted} /></View>
-            <Text style={s.emptyTitle}>{t('today_empty_title')}</Text>
-            <Text style={s.emptySub}>{t('today_empty_sub')}</Text>
-            <View style={s.tipBox}>
-              <Text style={s.tipTitle}>{t('today_tip_title')}</Text>
-              {[
-                t('today_tip_1'),
-                t('today_tip_2'),
-                t('today_tip_3'),
-              ].map((tip, i) => (
-                <View key={i} style={s.tipRow}>
-                  <View style={s.tipNum}>
-                    <Text style={s.tipNumText}>{i + 1}</Text>
-                  </View>
-                  <Text style={s.tipText}>{tip}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
         {protocols.length > 0 && (
           <View style={s.section}>
-            {todayCards.length > 0
-              ? renderCategory(t('today_section_today'), todayCards)
-              : allDoneToday && (
-                <View style={s.categorySection}>
-                  <Text style={s.categoryLabel}>{t('today_section_today').toUpperCase()}</Text>
-                  <View style={s.allDoneCard}>
-                    <Text style={s.allDoneText}>{t('today_all_done')}</Text>
-                  </View>
-                </View>
-              )}
-            {renderCategory(t('today_section_tomorrow'), tomorrowCards)}
-            {renderCategory(t('today_section_next5'), next5Cards)}
+            {renderSectionCard(t('today_section_tomorrow'), tomorrowCards)}
+            {renderSectionCard(t('today_section_next5'), next5Cards)}
             {laterCount > 0 && (
               <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>
             )}
-          </View>
-        )}
-
-        {/* Undo toast */}
-        {undoData && (
-          <View style={s.undoBar}>
-            <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
-            <View style={s.undoBarActions}>
-              {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
-                <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
-                  <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={undoTake}>
-                <Text style={s.undoBarAction}>{t('today_undo')}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         )}
 
@@ -1586,8 +1740,25 @@ export default function TodayScreen() {
           <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: undoData ? 96 : 40 }} />
       </ScrollView>
+
+      {/* Undo toast — floats above the list so it is always visible (fixed toast surface). */}
+      {undoData && (
+        <View style={s.undoBar}>
+          <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
+          <View style={s.undoBarActions}>
+            {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
+              <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10 }}>
+                <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={undoTake} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10 }}>
+              <Text style={s.undoBarAction}>{t('today_undo')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Body map modal — auto-opens after taking an injectable dose,
           and re-openable from the undo toast "Add site" button */}
@@ -1606,11 +1777,14 @@ export default function TodayScreen() {
           <View style={s.promptCard}>
             <Text style={s.promptTitle}>{t('today_vial_done_title')}</Text>
             {continuationProtocol && (
-              <Text style={s.promptProtocolName}>{continuationProtocol.name}</Text>
+              <View style={s.promptNameRow}>
+                <Dot color={continuationProtocol.color || colors.accent} size={8} />
+                <Text style={s.promptProtocolName}>{continuationProtocol.name}</Text>
+              </View>
             )}
             <Text style={s.promptSub}>{t('today_vial_done_sub')}</Text>
 
-            <Text style={s.promptLabel}>{t('today_vial_mix_date')}</Text>
+            <SectionLabel style={s.promptLabel}>{t('today_vial_mix_date')}</SectionLabel>
             <View style={s.yesterdayRow}>
               <TouchableOpacity
                 style={s.yesterdayPill}
@@ -1620,6 +1794,7 @@ export default function TodayScreen() {
                   setNewVialMonth(y.getMonth());
                   setNewVialDay(String(y.getDate()));
                 }}
+                accessibilityRole="button"
               >
                 <Text style={s.yesterdayPillText}>{t('today_yesterday')}</Text>
               </TouchableOpacity>
@@ -1630,6 +1805,7 @@ export default function TodayScreen() {
                   setNewVialMonth(td.getMonth());
                   setNewVialDay(String(td.getDate()));
                 }}
+                accessibilityRole="button"
               >
                 <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
               </TouchableOpacity>
@@ -1641,6 +1817,8 @@ export default function TodayScreen() {
                     key={mk}
                     style={[s.promptMonthPill, newVialMonth === idx && s.promptMonthPillOn]}
                     onPress={() => setNewVialMonth(idx)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: newVialMonth === idx }}
                   >
                     <Text style={[s.promptMonthText, newVialMonth === idx && s.promptMonthTextOn]}>
                       {t(mk)}
@@ -1668,7 +1846,7 @@ export default function TodayScreen() {
                 dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
               });
               return cap ? (
-                <Text style={[s.promptLabel, { marginTop: 12 }]}>
+                <Text style={s.promptCapacity}>
                   {t('today_vial_new_capacity').replace('{n}', String(cap))}
                 </Text>
               ) : null;
@@ -1678,12 +1856,14 @@ export default function TodayScreen() {
               <TouchableOpacity
                 style={s.promptBtnSecondary}
                 onPress={() => { setShowVialPrompt(false); setContinuationProtocol(null); }}
+                accessibilityRole="button"
               >
                 <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.promptBtnPrimary}
                 onPress={createNewVial}
+                accessibilityRole="button"
               >
                 <Text style={s.promptBtnPrimaryText}>{t('today_vial_add')}</Text>
               </TouchableOpacity>
@@ -1698,16 +1878,19 @@ export default function TodayScreen() {
           <View style={s.promptCard}>
             <Text style={s.promptTitle}>{t('today_tx_over_title')}</Text>
             {inactiveProtocol && (
-              <Text style={s.promptProtocolName}>
-                {inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name}
-              </Text>
+              <View style={s.promptNameRow}>
+                <Dot color={inactiveProtocol.color || colors.accent} size={8} />
+                <Text style={s.promptProtocolName}>
+                  {inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name}
+                </Text>
+              </View>
             )}
             <Text style={s.promptSub}>{t('today_tx_over_body')}</Text>
             <View style={s.promptActions}>
-              <TouchableOpacity style={s.promptBtnSecondary} onPress={snoozeInactiveProtocol}>
+              <TouchableOpacity style={s.promptBtnSecondary} onPress={snoozeInactiveProtocol} accessibilityRole="button">
                 <Text style={s.promptBtnSecondaryText}>{t('today_tx_over_keep')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.promptBtnPrimary} onPress={endInactiveProtocol}>
+              <TouchableOpacity style={s.promptBtnPrimary} onPress={endInactiveProtocol} accessibilityRole="button">
                 <Text style={s.promptBtnPrimaryText}>{t('today_tx_over_end')}</Text>
               </TouchableOpacity>
             </View>
@@ -1725,61 +1908,138 @@ export default function TodayScreen() {
   );
 }
 
+const HAIR = StyleSheet.hairlineWidth;
+
 const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  scrollPad: { paddingTop: 8 },
   container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, backgroundColor: c.bg },
-  date: { fontSize: 13, fontWeight: '600', color: c.textMuted, letterSpacing: 0.2, marginBottom: 2 },
-  greeting: { fontSize: 27, fontWeight: '800', color: c.text, letterSpacing: -0.6, marginBottom: 4 },
-  sub: { fontSize: 14, color: c.textMuted },
-  streakCard: { marginHorizontal: 18, marginBottom: 22, backgroundColor: c.card, borderRadius: 20, padding: 18, ...c.shadowCard },
-  streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  streakFireTile: { width: 42, height: 42, borderRadius: 13, backgroundColor: c.warningSoft, alignItems: 'center', justifyContent: 'center' },
-  streakFire: { fontSize: 22 },
-  streakCount: { fontSize: 17, fontWeight: '800', color: c.text },
-  streakSub: { fontSize: 12.5, color: c.textMuted, marginTop: 1 },
-  streakBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  streakBadgeText: { fontSize: 11, fontWeight: '600', color: c.warningSoftText },
-  streakDots: { flexDirection: 'row', justifyContent: 'space-between' },
+
+  // Header
+  header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
+  subWrap: { marginTop: 4 },
+  sub: { fontSize: 14.5, color: c.textMuted },
+  subFill: { alignSelf: 'stretch' },
+  ringBox: { width: 58, height: 58, marginLeft: 12, marginBottom: -2 },
+  ringSvg: { position: 'absolute', left: -16, top: -16 },
+
+  // Shared blocks
+  section: { paddingHorizontal: 16 },
+  sectionPad: { paddingHorizontal: 16 },
+  blockCard: { marginBottom: 12 },
+  blockLabel: { marginBottom: 8, marginLeft: 4 },
+  listCard: { marginBottom: 12, paddingTop: 14, paddingBottom: 4 },
+  listLabel: { marginBottom: 2 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 24 },
+  linkText: { fontSize: 14, fontWeight: '600', color: c.accent },
+  rowSepTop: { borderTopWidth: HAIR, borderTopColor: c.border },
+
+  // Alerts
+  alertsSection: { marginHorizontal: 16, marginBottom: 12 },
+  alertCard: { marginBottom: 10, borderRadius: 18 },
+  alertRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 12 },
+  alertMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingLeft: 14, paddingRight: 8, minHeight: 60 },
+  alertIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  alertTextWrap: { flex: 1, minWidth: 0 },
+  alertTitle: { fontSize: 14.5, fontWeight: '600', color: c.text },
+  alertBody: { fontSize: 12.5, color: c.textMuted, marginTop: 1, lineHeight: 17 },
+  alertRound: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  alertRoundOn: { backgroundColor: c.accentSoft },
+  snoozeStrip: { flexDirection: 'row', borderTopWidth: HAIR, borderTopColor: c.border },
+  snoozeOpt: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  snoozeOptSep: { borderLeftWidth: HAIR, borderLeftColor: c.border },
+  snoozeOptText: { fontSize: 13.5, fontWeight: '600', color: c.accent, textAlign: 'center' },
+
+  // Due-now card
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, minHeight: 32 },
+  heroName: { flex: 1, fontSize: 19, lineHeight: 24, fontWeight: '600', color: c.text },
+  heroIndent: { marginLeft: 20 },
+  heroMeta: { fontSize: 14.5, color: c.textMuted, marginTop: 2 },
+  heroActions: { flexDirection: 'row', marginTop: 14, paddingTop: 14, borderTopWidth: HAIR, borderTopColor: c.border },
+  takeRoundWrap: { flex: 1 },
+  takeRoundTouch: { alignItems: 'center', gap: 6 },
+  takeRound: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  takeRoundOk: { backgroundColor: c.successSoft },
+  roundLbl: { fontSize: 12, fontWeight: '500', color: c.textMuted, textAlign: 'center', paddingHorizontal: 4 },
+
+  // Detail block
+  progWrap: { marginTop: 6 },
+  progressText: { fontSize: 12, color: c.accent, fontWeight: '500' },
+  progressBarOuter: { height: 3, backgroundColor: c.card2, marginTop: 4, borderRadius: 2, overflow: 'hidden' },
+  progressBarInner: { height: 3, backgroundColor: c.accent, borderRadius: 2 },
+  vialStatusText: { fontSize: 12.5, color: c.textSubtle, marginTop: 4, lineHeight: 17 },
+  vialLink: { alignSelf: 'flex-start', minHeight: 28, justifyContent: 'center' },
+  restText: { fontSize: 12.5, color: c.accent, fontWeight: '500', marginTop: 4 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  chipMax: { maxWidth: '100%' },
+  streakChip: { height: 26, paddingHorizontal: 10, borderRadius: 13, backgroundColor: c.warningSoft, flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%' },
+  streakChipText: { fontSize: 12, fontWeight: '600', color: c.warningSoftText, flexShrink: 1 },
+
+  // Flat rows
+  row: { paddingVertical: 12 },
+  rowSep: { borderBottomWidth: HAIR, borderBottomColor: c.border },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 32 },
+  rowName: { flex: 1, fontSize: 15.5, fontWeight: '500', color: c.text },
+  rowDose: { fontWeight: '400', color: c.textMuted },
+  rowTime: { alignItems: 'flex-end', maxWidth: 130 },
+  rowTimeVal: { fontSize: 13, fontWeight: '500', color: c.textMuted, textAlign: 'right' },
+  rowTimeLbl: { fontSize: 11, color: c.textSubtle },
+  rowIndent: { marginLeft: 20 },
+  rowMeta: { fontSize: 13, color: c.textMuted, marginTop: 1 },
+  rowActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  skipBtn: { flex: 1, height: 44, borderRadius: 14, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  skipBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '600' },
+  doseBtn: { flex: 1, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  doseBtnPrimary: { backgroundColor: c.accent },
+  doseBtnPrimaryWrap: { flex: 2 },
+  doseBtnFill: { flex: 0, alignSelf: 'stretch' },
+  doseBtnOk: { backgroundColor: c.successSoft },
+  doseBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  doseBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
+
+  // Taken rows
+  takenRow: { flexDirection: 'row', alignItems: 'center', minHeight: 48 },
+  takenMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  takenTick: { width: 22, height: 22, borderRadius: 11, backgroundColor: c.successSoft, alignItems: 'center', justifyContent: 'center' },
+  takenText: { flex: 1, fontSize: 15.5, color: c.textMuted },
+  inlineUndo: { height: 44, paddingHorizontal: 6, justifyContent: 'center' },
+  inlineUndoText: { fontSize: 14, fontWeight: '600', color: c.accent },
+  allDoneRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, marginTop: 4 },
+  allDoneText: { flex: 1, fontSize: 15.5, fontWeight: '500', color: c.text },
+  laterHint: { fontSize: 12.5, color: c.textSubtle, textAlign: 'center', paddingVertical: 12 },
+
+  // Progress card
+  progHero: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 4 },
+  progHeroLeft: { flexShrink: 1 },
+  bigPct: { fontSize: 52, lineHeight: 58, fontWeight: '200', letterSpacing: -2, color: c.text, fontVariant: ['tabular-nums'] },
+  bigPctLbl: { fontSize: 12.5, color: c.textSubtle },
+  progFacts: { flexDirection: 'row', gap: 18, paddingBottom: 4 },
+  progFact: { alignItems: 'flex-start' },
+  factVal: { fontSize: 22, lineHeight: 26, fontWeight: '300', color: c.text, fontVariant: ['tabular-nums'] },
+  factLbl: { fontSize: 11.5, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase', color: c.textSubtle, marginTop: 2 },
+  streakLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: HAIR, borderTopColor: c.border },
+  streakText: { flex: 1, fontSize: 15, fontWeight: '600', color: c.text },
+  streakSub: { fontSize: 13, fontWeight: '400', color: c.textMuted },
+  streakDots: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 },
   streakDotCol: { alignItems: 'center', gap: 6 },
-  streakDot: { width: 30, height: 30, borderRadius: 10, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  streakDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
   streakDotComplete: { backgroundColor: c.successSoft },
-  streakDotCheck: { fontSize: 15, fontWeight: '800', color: c.success },
   streakDotPartial: { backgroundColor: c.warningSoft },
   streakDotMissed: { backgroundColor: c.card2 },
   streakDotRest: { backgroundColor: c.accentSoft },
   streakDotToday: { backgroundColor: c.accent },
-  streakDotLabel: { fontSize: 11, color: c.textFaint, fontWeight: '500' },
-  streakDotLabelToday: { color: c.accent, fontWeight: '700' },
-  streakExplainer: { fontSize: 11, color: c.textMuted, lineHeight: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
-  streakLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: 10 },
-  streakLogText: { fontSize: 12, color: c.accent, fontWeight: '600' },
-  streakLogChevron: { fontSize: 15, color: c.accent, fontWeight: '600', marginTop: -1 },
-  // Alerts panel (pending reminders under the streak)
-  alertsSection: { marginHorizontal: 18, marginBottom: 22 },
-  alertsHeader: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12 },
-  alertCard: { backgroundColor: c.card, borderRadius: 18, marginBottom: 10, ...c.shadowSoft },
-  alertRow: { flexDirection: 'row', alignItems: 'stretch' },
-  snoozeStrip: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: c.border },
-  snoozeOpt: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  snoozeOptSep: { borderLeftWidth: 0.5, borderLeftColor: c.border },
-  snoozeOptText: { fontSize: 13, fontWeight: '600', color: c.accent, textAlign: 'center' },
-  alertMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 14 },
-  alertIconTile: { width: 42, height: 42, borderRadius: 13, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  alertIconTileDue: { backgroundColor: c.warningSoft },
-  alertIcon: { fontSize: 20 },
-  alertTextWrap: { flex: 1 },
-  alertTitle: { fontSize: 15, fontWeight: '700', color: c.text },
-  alertBody: { fontSize: 13, color: c.textMuted, marginTop: 1 },
-  alertBodyDue: { color: c.warningSoftText, fontWeight: '600' },
-  alertDelete: { paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' },
-  shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
-  shareToggleText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  streakDotLabel: { fontSize: 11, color: c.textSubtle, fontWeight: '500' },
+  streakDotLabelToday: { color: c.accent, fontWeight: '600' },
+  streakExplainer: { fontSize: 12, color: c.textSubtle, lineHeight: 17, marginTop: 12 },
+
+  // Share
+  shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, minHeight: 36, justifyContent: 'center', backgroundColor: c.accentSoft, borderRadius: 18 },
+  shareToggleText: { fontSize: 13, color: c.accentSoftText, fontWeight: '600' },
   shareCard: { marginHorizontal: 16, marginBottom: 16 },
+  // Fixed export surface (same in both themes by design).
   shareCardInner: { backgroundColor: '#0F172A', borderRadius: 20, padding: 24, alignItems: 'center' },
-  shareEmoji: { fontSize: 40, marginBottom: 8 },
-  shareTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  shareTitle: { fontSize: 24, fontWeight: '700', color: '#fff', marginBottom: 4 },
   shareSubtitle: { fontSize: 13, color: '#94A3B8', marginBottom: 20 },
   shareStats: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 8, width: '100%', marginBottom: 20 },
   shareStat: { flex: 1, alignItems: 'center' },
@@ -1794,103 +2054,57 @@ const makeStyles = (c) => StyleSheet.create({
   shareDotRest: { backgroundColor: 'rgba(255,255,255,0.18)' },
   shareDotLabel: { fontSize: 9, color: '#64748B', fontWeight: '500' },
   shareBrand: { alignItems: 'center', marginBottom: 8 },
-  shareBrandText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+  shareBrandText: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
   shareBrandSub: { fontSize: 10, color: '#64748B', marginTop: 2 },
   shareDisclaimer: { fontSize: 8, color: '#475569', textAlign: 'center' },
-  progressRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 18, marginBottom: 16 },
-  ringCard: { flex: 1.1, backgroundColor: c.card, borderRadius: 20, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, ...c.shadowCard },
-  ringText: { flexDirection: 'column' },
-  ringPct: { fontSize: 22, fontWeight: '800', color: c.text, lineHeight: 24 },
-  ringLbl: { fontSize: 12, color: c.textMuted, marginTop: 3 },
-  progressStatsCol: { flex: 0.9, gap: 12 },
-  miniStatCard: { flex: 1, backgroundColor: c.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, justifyContent: 'center', ...c.shadowSoft },
-  miniStatVal: { fontSize: 19, fontWeight: '800', color: c.text, lineHeight: 20 },
-  miniStatLbl: { fontSize: 11.5, color: c.textMuted, marginTop: 2 },
-  section: { paddingHorizontal: 18 },
-  categorySection: { marginBottom: 8 },
-  categoryLabel: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12, marginTop: 8 },
-  laterHint: { fontSize: 12, color: c.textFaint, textAlign: 'center', paddingVertical: 12 },
-  allDoneCard: { backgroundColor: c.successSoft, borderRadius: 16, padding: 18, alignItems: 'center' },
-  allDoneText: { fontSize: 14, fontWeight: '700', color: c.successSoftText },
-  doseCard: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, overflow: 'hidden', ...c.shadowSoft },
-  takenBanner: { backgroundColor: c.successSoft, paddingVertical: 7, paddingHorizontal: 16 },
-  takenBannerText: { fontSize: 12, color: c.successSoftText, fontWeight: '600' },
-  partialBanner: { backgroundColor: c.warningSoft, paddingVertical: 7, paddingHorizontal: 16 },
-  partialBannerText: { fontSize: 12, color: c.warningSoftText, fontWeight: '600' },
-  restBanner: { backgroundColor: c.accentSoft, paddingVertical: 7, paddingHorizontal: 16 },
-  restBannerText: { fontSize: 12, color: c.accent, fontWeight: '500' },
-  skippedBanner: { backgroundColor: c.warningSoft, paddingVertical: 7, paddingHorizontal: 16 },
-  skippedBannerText: { fontSize: 12, color: c.warningSoftText, fontWeight: '500' },
-  doseCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  doseDot: { width: 10, height: 10, borderRadius: 5 },
-  doseInfo: { flex: 1 },
-  doseName: { fontSize: 16, fontWeight: '700', color: c.text },
-  doseMeta: { fontSize: 13, color: c.textMuted, marginTop: 2 },
-  doseRight: { alignItems: 'flex-end', gap: 4 },
-  doseOpenChevron: { fontSize: 20, color: c.textFaint, fontWeight: '600', marginLeft: 2 },
-  doseTime: { alignItems: 'flex-end' },
-  doseTimeVal: { fontSize: 12, fontWeight: '500', color: c.textMuted },
-  doseTimeLbl: { fontSize: 10, color: c.textFaint },
-  progressText: { fontSize: 10, color: c.accent, marginTop: 2, fontWeight: '500' },
-  progressBarOuter: { height: 3, backgroundColor: c.card2, marginHorizontal: 14, marginBottom: 8, borderRadius: 2 },
-  progressBarInner: { height: 3, backgroundColor: c.accent, borderRadius: 2 },
-  miniStreak: { backgroundColor: c.warningSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  miniStreakText: { fontSize: 10, color: c.warningSoftText, fontWeight: '600' },
-  vialStatus: { paddingHorizontal: 14, paddingBottom: 10 },
-  vialStatusText: { fontSize: 11, color: c.textMuted },
-  lastSiteChip: { marginHorizontal: 14, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.accentSoft, borderRadius: 8, alignSelf: 'flex-start' },
-  lastSiteText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
-  doseActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 2 },
-  doseBtn: { flex: 1, height: 40, borderRadius: 12, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
-  doseBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '600' },
-  doseBtnPrimary: { flex: 2, backgroundColor: c.accent, borderWidth: 0 },
-  doseBtnPrimaryWrap: { flex: 2 },
-  doseBtnFill: { flex: 0, alignSelf: 'stretch' },
-  doseBtnOk: { backgroundColor: c.successSoft, borderWidth: 0 },
-  doseBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ringBox: { width: 58, height: 58 },
-  ringSvg: { position: 'absolute', left: -16, top: -16 },
-  subFill: { alignSelf: 'stretch' },
-  flyDrop: { position: 'absolute', left: 0, top: 0, width: 10, height: 13, zIndex: 50, elevation: 50 },
-  doseBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '700' },
-  disclaimer: { fontSize: 10, color: c.textFaint, textAlign: 'center', marginTop: 16, marginHorizontal: 32, lineHeight: 15 },
-  emptyState: { padding: 20, alignItems: 'center' },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  tipBox: { backgroundColor: c.card2, borderRadius: 12, padding: 14, width: '100%', borderWidth: 0.5, borderColor: c.border },
-  tipTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
-  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  tipNum: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  tipNumText: { fontSize: 10, color: c.accentText, fontWeight: '600' },
-  tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
-  // Vial continuation modal
+
+  // Disclaimer / empty
+  disclaimer: { fontSize: 11.5, color: c.textSubtle, textAlign: 'center', marginTop: 12, marginHorizontal: 28, lineHeight: 16 },
+  emptyCard: { marginHorizontal: 16, marginTop: 4, alignItems: 'center', paddingVertical: 24 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  emptyTitle: { fontSize: 19, fontWeight: '600', color: c.text, marginBottom: 6 },
+  emptySub: { fontSize: 14.5, color: c.textMuted, textAlign: 'center', lineHeight: 21, marginBottom: 18 },
+  tipBox: { alignSelf: 'stretch', borderTopWidth: HAIR, borderTopColor: c.border, paddingTop: 14 },
+  tipTitle: { marginBottom: 6 },
+  tipRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 8 },
+  tipNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  tipNumText: { fontSize: 12, color: c.accentText, fontWeight: '600' },
+  tipText: { fontSize: 14.5, color: c.text, flex: 1, lineHeight: 20 },
+
+  // Prompts (vial continuation / inactivity)
   promptOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  promptCard: { backgroundColor: c.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 },
-  promptTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 4 },
-  promptProtocolName: { fontSize: 14, fontWeight: '600', color: c.accent, marginBottom: 6 },
-  promptSub: { fontSize: 13, color: c.textMuted, marginBottom: 20, lineHeight: 19 },
-  promptLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
-  promptMonthScroll: { marginBottom: 8 },
+  promptCard: { backgroundColor: c.card, borderRadius: 20, padding: 20, width: '100%', maxWidth: 360, ...c.shadowCard },
+  promptTitle: { fontSize: 19, fontWeight: '600', color: c.text, marginBottom: 6 },
+  promptNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  promptProtocolName: { fontSize: 15, fontWeight: '600', color: c.text, flexShrink: 1 },
+  promptSub: { fontSize: 14.5, color: c.textMuted, marginBottom: 18, lineHeight: 20 },
+  promptLabel: { marginBottom: 8 },
+  promptCapacity: { fontSize: 12.5, color: c.textMuted, marginTop: 12 },
+  promptMonthScroll: { marginBottom: 10 },
   promptMonthRow: { flexDirection: 'row', gap: 6 },
-  promptMonthPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  promptMonthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  promptMonthText: { fontSize: 11, color: c.textMuted, fontWeight: '500' },
+  promptMonthPill: { paddingHorizontal: 12, height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: c.card2 },
+  promptMonthPillOn: { backgroundColor: c.accent },
+  promptMonthText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
   promptMonthTextOn: { color: c.accentText, fontWeight: '600' },
-  promptDayInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 10, fontSize: 14, color: c.text, backgroundColor: c.card2, width: 70, textAlign: 'center' },
-  promptDosesInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 14, color: c.text, backgroundColor: c.card2 },
+  promptDayInput: { borderRadius: 12, height: 44, paddingHorizontal: 10, fontSize: 16, color: c.text, backgroundColor: c.card2, width: 80, textAlign: 'center' },
   promptActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  promptBtnSecondary: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
-  promptBtnSecondaryText: { fontSize: 14, color: c.textMuted },
-  promptBtnPrimary: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center' },
-  promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
-  // Undo bar
-  undoBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 12, backgroundColor: c.toast, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  undoBarText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
-  undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
-  undoBarAction: { fontSize: 13, color: '#5CB8FF', fontWeight: '700' },
-  // Yesterday / Today shortcut pills
+  promptBtnSecondary: { flex: 1, minHeight: 50, paddingHorizontal: 8, borderRadius: 16, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  promptBtnSecondaryText: { fontSize: 15, color: c.text, fontWeight: '500', textAlign: 'center' },
+  promptBtnPrimary: { flex: 1, minHeight: 50, paddingHorizontal: 8, borderRadius: 16, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  promptBtnPrimaryText: { fontSize: 15, color: c.accentText, fontWeight: '600', textAlign: 'center' },
   yesterdayRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  yesterdayPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: c.accentSoft, borderWidth: 0.5, borderColor: c.border },
-  yesterdayPillText: { fontSize: 11, color: c.accent, fontWeight: '600' },
+  yesterdayPill: { paddingHorizontal: 14, height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: c.accentSoft },
+  yesterdayPillText: { fontSize: 13, color: c.accentSoftText, fontWeight: '600' },
+
+  // Undo toast (fixed toast surface in both themes)
+  undoBar: {
+    position: 'absolute', left: 16, right: 16, bottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: c.toast, borderRadius: 16, paddingHorizontal: 16, minHeight: 52, ...c.shadowCard,
+  },
+  undoBarText: { fontSize: 14, color: c.toastText, fontWeight: '500', flexShrink: 1 },
+  undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
+  undoBarAction: { fontSize: 14, color: '#5CB8FF', fontWeight: '600' },
+
+  flyDrop: { position: 'absolute', left: 0, top: 0, width: 10, height: 13, zIndex: 50, elevation: 50 },
 });

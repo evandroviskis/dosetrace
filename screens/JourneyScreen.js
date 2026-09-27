@@ -14,10 +14,20 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useTheme } from '../lib/theme';
+import Svg, { Path } from 'react-native-svg';
+import { useTheme, TYPE } from '../lib/theme';
 import { isPremium } from '../lib/purchases';
 import CalculatorSection from './components/CalculatorSection';
 import FeatureIcon from '../components/FeatureIcon';
+import { ScreenTitle, Chip } from '../components/ui';
+
+function ChevronRight({ color }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 5l7 7-7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 export default function JourneyScreen() {
   const { t } = useLanguage();
@@ -34,24 +44,26 @@ export default function JourneyScreen() {
     <TouchableOpacity
       style={s.curveCard}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={t('body_card_dosing_title')}
       onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall', premium ? undefined : { source: 'journey_serum' })}
     >
       <View style={s.curveIcon}><FeatureIcon name="curve" size={26} color={colors.accent} /></View>
       <View style={{ flex: 1 }}>
         <View style={s.curveTitleRow}>
           <Text style={s.curveTitle}>{t('body_card_dosing_title')}</Text>
-          {!premium && <Text style={s.pro}>PRO</Text>}
+          {!premium && <Chip label="PRO" tone="accent" style={s.pro} />}
         </View>
         <Text style={s.curveDesc}>{t('body_card_dosing_desc')}</Text>
       </View>
-      <Text style={s.curveChev}>›</Text>
+      <ChevronRight color={colors.textSubtle} />
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
       <View style={s.hero}>
-        <Text style={s.title}>{t('tab_journey')}</Text>
+        <ScreenTitle title={t('tab_journey')} />
         <Text style={s.sub}>{t('journey_subtitle')}</Text>
       </View>
       <CalculatorSection header={curveCard} scrollTarget={route.params?.scrollTo || null} />
@@ -61,14 +73,12 @@ export default function JourneyScreen() {
 
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, backgroundColor: c.card },
-  title: { fontSize: 26, fontWeight: '800', color: c.text, letterSpacing: -0.3 },
-  sub: { fontSize: 14, color: c.textMuted, marginTop: 6, lineHeight: 20 },
-  curveCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 18, padding: 16, marginBottom: 4, borderWidth: 0.5, borderColor: c.border, ...(c.shadowSoft || {}) },
-  curveIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  curveTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  curveTitle: { fontSize: 15, fontWeight: '800', color: c.text },
-  pro: { marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: c.accentText, backgroundColor: c.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
-  curveDesc: { fontSize: 12.5, color: c.textMuted, marginTop: 3, lineHeight: 17 },
-  curveChev: { fontSize: 20, color: c.textFaint },
+  hero: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, backgroundColor: c.bg },
+  sub: { ...TYPE.sub, color: c.textMuted, marginTop: 4, lineHeight: 20 },
+  curveCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 20, padding: 16, marginBottom: 4, ...(c.shadowSoft || {}) },
+  curveIcon: { width: 32, alignItems: 'center', justifyContent: 'center' },
+  curveTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  curveTitle: { fontSize: 16, fontWeight: '600', color: c.text, flexShrink: 1 },
+  pro: { marginLeft: 8, height: 22, paddingHorizontal: 8 },
+  curveDesc: { ...TYPE.caption, color: c.textMuted, marginTop: 3, lineHeight: 18 },
 });

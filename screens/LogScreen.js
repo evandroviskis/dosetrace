@@ -20,9 +20,19 @@ import { hour12Pref } from '../lib/timeFormat';
 import { isPremium } from '../lib/purchases';
 import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
-import { useTheme } from '../lib/theme';
+import Svg, { Path } from 'react-native-svg';
+import { useTheme, TYPE } from '../lib/theme';
+import { Card, Chip, Dot, CircleButton, ScreenTitle, SectionLabel } from '../components/ui';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+
+function ChevronLeft({ color }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path d="M15 5l-7 7 7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -166,35 +176,10 @@ export default function LogScreen() {
     return [];
   }
 
-  function outcomeColor(outcome) {
-    if (outcome === 'Taken') return colors.success;
-    if (outcome === 'Skipped') return colors.danger;
-    return colors.warning;
-  }
-
-  function outcomeBg(outcome) {
-    if (outcome === 'Taken') return colors.successSoft;
-    if (outcome === 'Skipped') return colors.dangerSoft;
-    return colors.warningSoft;
-  }
-
-  function outcomeTextColor(outcome) {
-    if (outcome === 'Taken') return colors.successSoftText;
-    if (outcome === 'Skipped') return colors.dangerSoftText;
-    return colors.warningSoftText;
-  }
-
   function outcomeLabel(outcome) {
     if (outcome === 'Taken') return t('log_taken');
     if (outcome === 'Skipped') return t('log_skipped');
     return t('log_missed');
-  }
-
-  function typeIcon(type) {
-    if (type === 'recon') return 'type_vial';
-    if (type === 'rtu') return 'syringe';
-    if (type === 'oral') return 'type_capsule';
-    return 'syringe';
   }
 
   const sections = buildSections(filteredLogs);
@@ -213,15 +198,12 @@ export default function LogScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity
+        <CircleButton
           onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
           accessibilityLabel={t('common_back')}
         >
-          <Text style={s.headerBack}>‹</Text>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('log_title')}</Text>
+          <ChevronLeft color={colors.text} />
+        </CircleButton>
         <TouchableOpacity
           style={s.curveBtn}
           onPress={async () => { Analytics.viewed('serum_curve'); const pro = await isPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
@@ -234,21 +216,23 @@ export default function LogScreen() {
           </View>
         </TouchableOpacity>
       </View>
+      <ScreenTitle title={t('log_title')} style={s.titleWrap} />
 
-      <View style={s.statsRow}>
-        <View style={[s.statCard, { backgroundColor: colors.successSoft }]}>
-          <Text style={[s.statVal, { color: colors.successSoftText }]}>{takenCount}</Text>
-          <Text style={[s.statLbl, { color: colors.successSoftText }]}>{t('log_taken')}</Text>
-        </View>
-        <View style={[s.statCard, { backgroundColor: colors.dangerSoft }]}>
-          <Text style={[s.statVal, { color: colors.dangerSoftText }]}>{skippedCount}</Text>
-          <Text style={[s.statLbl, { color: colors.dangerSoftText }]}>{t('log_skipped')}</Text>
-        </View>
-        <View style={[s.statCard, { backgroundColor: colors.warningSoft }]}>
-          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{missedCount}</Text>
-          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_missed')}</Text>
-        </View>
-      </View>
+      <Card style={s.statsRow}>
+        {[
+          { n: takenCount, label: t('log_taken'), dot: colors.success },
+          { n: skippedCount, label: t('log_skipped'), dot: colors.danger },
+          { n: missedCount, label: t('log_missed'), dot: colors.warning },
+        ].map((st, i) => (
+          <View key={st.label} style={[s.statCard, i > 0 && s.statDivider]} accessible accessibilityLabel={`${st.n} ${st.label}`}>
+            <Text style={s.statVal}>{st.n}</Text>
+            <View style={s.statLblRow}>
+              <Dot color={st.dot} size={7} />
+              <Text style={s.statLbl} numberOfLines={1}>{st.label}</Text>
+            </View>
+          </View>
+        ))}
+      </Card>
 
       <ScrollView
         horizontal
@@ -259,10 +243,18 @@ export default function LogScreen() {
         {filters.map(f => (
           <TouchableOpacity
             key={f.key}
-            style={[s.filterBtn, filter === f.key && s.filterBtnOn]}
+            style={s.filterBtn}
             onPress={() => setFilter(f.key)}
+            hitSlop={{ top: 6, bottom: 6 }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === f.key }}
           >
-            <Text style={[s.filterBtnText, filter === f.key && s.filterBtnTextOn]}>{f.label}</Text>
+            <Chip
+              label={f.label}
+              tone={filter === f.key ? 'accent' : 'neutral'}
+              style={s.filterChip}
+              textStyle={s.filterChipText}
+            />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -287,47 +279,46 @@ export default function LogScreen() {
         }
         renderSectionHeader={({ section }) => (
           <View style={s.groupHeader}>
-            <Text style={s.groupDate}>{section.title}</Text>
+            <SectionLabel>{section.title}</SectionLabel>
             <Text style={s.groupCount}>
               {section.data.length} {section.data.length > 1 ? t('log_doses') : t('log_dose')}
             </Text>
           </View>
         )}
         renderSectionFooter={() => <View style={{ height: 20 }} />}
-        renderItem={({ item: log }) => {
+        renderItem={({ item: log, index, section }) => {
           const tags = parseTags(log.pre_tags);
+          const first = index === 0;
+          const last = index === section.data.length - 1;
           return (
             <TouchableOpacity
-              style={s.logEntry}
+              style={[s.logEntry, first && s.logEntryFirst, last && s.logEntryLast, !first && s.logEntryDivider]}
               onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openSiteEditor(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={log.outcome === 'Missed' ? t('log_missed_edit_title') : t('bodymap_title')}
             >
-              <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
+              <Dot color={log.protocols?.color || colors.textFaint} size={10} style={s.logDot} />
               <View style={s.logInfo}>
                 <View style={s.logNameRow}>
-                  <FeatureIcon name={typeIcon(log.protocols?.type)} size={13} color={colors.text} />
                   <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
                 </View>
                 {log.injection_site ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <FeatureIcon name="pin" size={11} color={colors.textMuted} />
+                    <FeatureIcon name="pin" size={13} color={colors.textMuted} />
                     <Text style={[s.logDetail, { marginTop: 0 }]}>{summarizeStored(log.injection_site, t) || log.injection_site}</Text>
                   </View>
                 ) : null}
                 {log.notes ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <FeatureIcon name="journal" size={11} color={colors.textMuted} />
+                    <FeatureIcon name="journal" size={13} color={colors.textMuted} />
                     <Text style={[s.logDetail, { marginTop: 0 }]}>{log.notes}</Text>
                   </View>
                 ) : null}
                 {tags.length > 0 && (
                   <View style={s.tagRow}>
                     {tags.map(tag => (
-                      <View key={String(tag)} style={s.tag}>
-                        <Text style={s.tagText}>{String(tag)}</Text>
-                      </View>
+                      <Chip key={String(tag)} label={String(tag)} style={s.tag} textStyle={s.tagText} />
                     ))}
                   </View>
                 )}
@@ -336,11 +327,11 @@ export default function LogScreen() {
                 <Text style={s.logTime}>
                   {new Date(log.logged_at).toLocaleTimeString(locale, timeOpts)}
                 </Text>
-                <View style={[s.logBadge, { backgroundColor: outcomeBg(log.outcome) }]}>
-                  <Text style={[s.logBadgeText, { color: outcomeTextColor(log.outcome) }]}>
-                    {outcomeLabel(log.outcome)}
-                  </Text>
-                </View>
+                <Chip
+                  label={outcomeLabel(log.outcome)}
+                  tone={log.outcome === 'Taken' ? 'success' : log.outcome === 'Skipped' ? 'danger' : 'warning'}
+                  style={s.logBadge}
+                />
               </View>
             </TouchableOpacity>
           );
@@ -363,46 +354,47 @@ export default function LogScreen() {
 const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: c.card },
-  headerBack: { fontSize: 34, lineHeight: 34, color: c.accent, fontWeight: '400', width: 34 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: c.text },
-  headerSpacer: { width: 34 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
+  titleWrap: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   curveBtn: {
     backgroundColor: c.accent,
     borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  curveBtnText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  statCard: { flex: 1, borderRadius: 14, padding: 10, alignItems: 'center' },
-  statVal: { fontSize: 20, fontWeight: '600' },
-  statLbl: { fontSize: 10, marginTop: 2 },
-  filterBar: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 12, borderWidth: 0.5, borderColor: c.border, marginRight: 8, backgroundColor: c.card2 },
-  filterBtnOn: { backgroundColor: c.accent, borderColor: c.accent },
-  filterBtnText: { fontSize: 12, color: c.textMuted },
-  filterBtnTextOn: { color: c.accentText, fontWeight: '600' },
-  scroll: { flex: 1, padding: 16 },
+  curveBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
+  statsRow: { flexDirection: 'row', marginHorizontal: 16, marginTop: 12, paddingVertical: 14, paddingHorizontal: 0 },
+  statCard: { flex: 1, alignItems: 'center', paddingHorizontal: 6 },
+  statDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: c.border },
+  statVal: { fontSize: 30, lineHeight: 34, fontWeight: '300', color: c.text, fontVariant: ['tabular-nums'] },
+  statLblRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  statLbl: { ...TYPE.caption, color: c.textMuted, flexShrink: 1 },
+  filterBar: { flexGrow: 0, paddingHorizontal: 16, paddingVertical: 12 },
+  filterBtn: { marginRight: 8, justifyContent: 'center' },
+  filterChip: { height: 34, borderRadius: 17, paddingHorizontal: 14 },
+  filterChipText: { fontSize: 13.5 },
+  scroll: { flex: 1, paddingHorizontal: 16, paddingTop: 4 },
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
   emptyIcon: { marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
-  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  groupDate: { fontSize: 12, fontWeight: '600', color: c.textMuted },
-  groupCount: { fontSize: 12, color: c.textFaint },
-  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 18, marginBottom: 6, ...c.shadowSoft },
-  logDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, flexShrink: 0 },
+  emptyTitle: { ...TYPE.heading, color: c.text, marginBottom: 8, textAlign: 'center' },
+  emptySub: { ...TYPE.sub, color: c.textMuted, textAlign: 'center', lineHeight: 21 },
+  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 },
+  groupCount: { ...TYPE.caption, color: c.textSubtle },
+  // Rows of one day sit together in a single card, split by hairlines.
+  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: c.card },
+  logEntryFirst: { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  logEntryLast: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  logEntryDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  logDot: { marginTop: 5, flexShrink: 0 },
   logInfo: { flex: 1 },
   logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  logTypeIcon: { fontSize: 12 },
-  logName: { fontSize: 13, fontWeight: '600', color: c.text },
-  logDetail: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  logName: { fontSize: 15, fontWeight: '500', color: c.text, flexShrink: 1 },
+  logDetail: { fontSize: 13, color: c.textMuted, marginTop: 2, flexShrink: 1 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-  tag: { backgroundColor: c.card2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  tagText: { fontSize: 10, color: c.textMuted },
-  logRight: { alignItems: 'flex-end', gap: 4 },
-  logTime: { fontSize: 11, color: c.textMuted },
-  logBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  logBadgeText: { fontSize: 10, fontWeight: '500' },
+  tag: { height: 22, paddingHorizontal: 8, borderRadius: 11 },
+  tagText: { fontSize: 11, fontWeight: '500' },
+  logRight: { alignItems: 'flex-end', gap: 6 },
+  logTime: { fontSize: 12.5, color: c.textMuted, fontVariant: ['tabular-nums'] },
+  logBadge: { height: 24, paddingHorizontal: 9, borderRadius: 12 },
 });

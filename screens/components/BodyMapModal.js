@@ -38,6 +38,7 @@ import {
   serializeForStorage,
 } from '../../lib/injectionSites';
 import { CrossMark } from '../../components/CheckMark';
+import { Segmented } from '../../components/ui';
 
 // Body figure: 100×220 viewBox scaled by 1.8 → 180×396 px
 const SCALE = 1.8;
@@ -116,11 +117,12 @@ export default function BodyMapModal({
             <Text style={s.title}>{t('bodymap_title')}</Text>
             <TouchableOpacity
               onPress={onClose}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              hitSlop={{ top: 4, right: 4, bottom: 4, left: 4 }}
               accessibilityRole="button"
               accessibilityLabel={t('cancel')}
+              style={s.closeBtn}
             >
-              <View style={{ paddingHorizontal: 4 }}><CrossMark size={22} color={colors.textMuted} /></View>
+              <CrossMark size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -131,44 +133,26 @@ export default function BodyMapModal({
           ) : null}
 
           {/* Type segmented control */}
-          <View style={s.segWrap}>
-            <TouchableOpacity
-              style={[s.seg, type === 'subq' && s.segOn]}
-              onPress={() => setType('subq')}
-            >
-              <Text style={[s.segText, type === 'subq' && s.segTextOn]}>
-                {t('bodymap_subq')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.seg, type === 'im' && s.segOn]}
-              onPress={() => setType('im')}
-            >
-              <Text style={[s.segText, type === 'im' && s.segTextOn]}>
-                {t('bodymap_im')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <Segmented
+            style={s.segWrap}
+            value={type}
+            onChange={setType}
+            options={[
+              { value: 'subq', label: t('bodymap_subq') },
+              { value: 'im', label: t('bodymap_im') },
+            ]}
+          />
 
           {/* Front / Back toggle */}
-          <View style={s.viewToggle}>
-            <TouchableOpacity
-              style={[s.viewBtn, view === 'front' && s.viewBtnOn]}
-              onPress={() => setView('front')}
-            >
-              <Text style={[s.viewBtnText, view === 'front' && s.viewBtnTextOn]}>
-                {t('bodymap_front')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.viewBtn, view === 'back' && s.viewBtnOn]}
-              onPress={() => setView('back')}
-            >
-              <Text style={[s.viewBtnText, view === 'back' && s.viewBtnTextOn]}>
-                {t('bodymap_back')}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <Segmented
+            style={s.viewToggle}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'front', label: t('bodymap_front') },
+              { value: 'back', label: t('bodymap_back') },
+            ]}
+          />
 
           <ScrollView
             contentContainerStyle={{ alignItems: 'center', paddingVertical: 6 }}
@@ -247,10 +231,10 @@ export default function BodyMapModal({
 
           {/* Actions */}
           <View style={s.actions}>
-            <TouchableOpacity style={s.btnSecondary} onPress={onClose}>
+            <TouchableOpacity style={s.btnSecondary} onPress={onClose} accessibilityRole="button">
               <Text style={s.btnSecondaryText}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.btnPrimary} onPress={handleSave}>
+            <TouchableOpacity style={s.btnPrimary} onPress={handleSave} accessibilityRole="button">
               <Text style={s.btnPrimaryText}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
@@ -259,6 +243,8 @@ export default function BodyMapModal({
     </Modal>
   );
 }
+
+const HAIR = StyleSheet.hairlineWidth;
 
 const makeStyles = (c) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
@@ -287,132 +273,112 @@ const makeStyles = (c) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 4,
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
-  title: { fontSize: 17, fontWeight: '700', color: c.text },
-  close: { fontSize: 26, color: c.textMuted, paddingHorizontal: 4, lineHeight: 26 },
-  subtitle: { fontSize: 12, color: c.textMuted, marginBottom: 10 },
-  segWrap: {
-    flexDirection: 'row',
-    backgroundColor: c.card2,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 8,
-  },
-  seg: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  segOn: { backgroundColor: c.card },
-  segText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
-  segTextOn: { color: c.text, fontWeight: '600' },
-  viewToggle: { flexDirection: 'row', gap: 6, marginBottom: 6 },
-  viewBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderWidth: 0.5,
-    borderColor: c.border,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  viewBtnOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
-  viewBtnText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
-  viewBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
+  title: { fontSize: 19, fontWeight: '600', color: c.text },
+  closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  subtitle: { fontSize: 14, color: c.textMuted, marginBottom: 12 },
+  segWrap: { marginBottom: 8 },
+  viewToggle: { marginBottom: 4 },
   bodyContainer: {
     width: W,
     height: H,
     position: 'relative',
     marginVertical: 4,
   },
+  // Figure: soft secondary surface with a quiet outline — resolves in both themes.
   bodyPart: {
     position: 'absolute',
-    backgroundColor: '#F4F1EB',
-    borderWidth: 0.6,
-    borderColor: '#D3D1C7',
+    backgroundColor: c.card2,
+    borderWidth: 0.8,
+    borderColor: c.textFaint,
   },
   siteDot: {
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
-    backgroundColor: '#85B7EB',
-    borderWidth: 0.8,
-    borderColor: '#185FA5',
+    backgroundColor: c.accentSoft,
+    borderWidth: 1.2,
+    borderColor: c.accent,
   },
   siteDotSelected: {
-    backgroundColor: '#0C447C',
-    borderColor: '#fff',
-    borderWidth: 2,
+    backgroundColor: c.accent,
+    borderColor: c.card,
+    borderWidth: 2.5,
   },
   suggestedRing: {
     position: 'absolute',
     width: DOT + 12,
     height: DOT + 12,
     borderRadius: (DOT + 12) / 2,
-    borderWidth: 1.2,
-    borderColor: '#185FA5',
+    borderWidth: 1.4,
+    borderColor: c.accent,
     borderStyle: 'dashed',
   },
   legend: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 16,
     justifyContent: 'center',
-    marginVertical: 8,
+    marginTop: 8,
+    marginBottom: 4,
     flexWrap: 'wrap',
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDotAvail: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#85B7EB',
-    borderWidth: 0.8,
-    borderColor: '#185FA5',
+    backgroundColor: c.accentSoft,
+    borderWidth: 1,
+    borderColor: c.accent,
   },
   legendDotSel: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#0C447C',
-    borderWidth: 1.5,
-    borderColor: '#fff',
+    backgroundColor: c.accent,
   },
   legendRingSug: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    borderWidth: 1.2,
-    borderColor: '#185FA5',
+    borderWidth: 1.4,
+    borderColor: c.accent,
     borderStyle: 'dashed',
   },
-  legendText: { fontSize: 11, color: c.textMuted },
+  legendText: { fontSize: 12, color: c.textMuted },
   summary: {
-    fontSize: 13,
-    color: c.accentSoftText,
+    fontSize: 16,
+    color: c.text,
     textAlign: 'center',
-    marginTop: 4,
-    fontWeight: '500',
+    marginTop: 8,
+    fontWeight: '600',
   },
   disclaimer: {
-    fontSize: 10,
-    color: c.textFaint,
+    fontSize: 11.5,
+    color: c.textSubtle,
     textAlign: 'center',
-    marginVertical: 8,
-    lineHeight: 14,
-    paddingHorizontal: 16,
+    marginVertical: 10,
+    lineHeight: 16,
+    paddingHorizontal: 12,
   },
-  actions: { flexDirection: 'row', gap: 10, paddingTop: 4 },
+  actions: { flexDirection: 'row', gap: 10, paddingTop: 12, borderTopWidth: HAIR, borderTopColor: c.border },
   btnSecondary: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: c.border,
+    minHeight: 52,
+    borderRadius: 16,
+    backgroundColor: c.card2,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  btnSecondaryText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
+  btnSecondaryText: { fontSize: 16, color: c.text, fontWeight: '500' },
   btnPrimary: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    minHeight: 52,
+    borderRadius: 16,
     backgroundColor: c.accent,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  btnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
+  btnPrimaryText: { fontSize: 16, color: c.accentText, fontWeight: '600' },
 });

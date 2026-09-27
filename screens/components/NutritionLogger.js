@@ -21,7 +21,9 @@ import { supabase, getCachedUser } from '../../lib/supabase';
 import { friendlyError } from '../../lib/friendlyError';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { useTheme } from '../../lib/theme';
+import Svg, { Path } from 'react-native-svg';
+import { useTheme, TYPE } from '../../lib/theme';
+import { Card, SectionLabel, BigNumber } from '../../components/ui';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import {
@@ -35,6 +37,16 @@ import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { syncFoodLogReminder } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
 import { CrossMark } from '../../components/CheckMark';
+
+// Hybrid chevron (replaces the ▸ ▾ ‹ › text glyphs).
+function Chevron({ dir = 'right', color, size = 16 }) {
+  const d = dir === 'down' ? 'M5 9l7 7 7-7' : dir === 'left' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d={d} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 const FREE_DAYS = 3;
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -303,7 +315,7 @@ export default function NutritionLogger() {
   if (gated) {
     return (
       <View style={s.wrap}>
-        <Text style={s.section}>{t('nutri_title')}</Text>
+        <View style={s.secHead}><SectionLabel>{t('nutri_title')}</SectionLabel></View>
         <DemoBody s={s} t={t} ctaLabel={t('nutri_locked_cta')} onCta={() => navigation.navigate('Paywall')} />
       </View>
     );
@@ -311,13 +323,20 @@ export default function NutritionLogger() {
 
   return (
     <View style={s.wrap}>
-      <TouchableOpacity style={s.secHead} activeOpacity={0.7} onPress={() => setDetailOpen((o) => !o)}>
-        <Text style={s.section}>{t('nutri_title')}</Text>
-        <Text style={s.secChev}>{detailOpen ? '▾' : '▸'}</Text>
+      <TouchableOpacity
+        style={s.secHead}
+        activeOpacity={0.7}
+        onPress={() => setDetailOpen((o) => !o)}
+        hitSlop={{ top: 12, bottom: 12 }}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: detailOpen }}
+      >
+        <SectionLabel>{t('nutri_title')}</SectionLabel>
+        <Chevron dir={detailOpen ? 'down' : 'right'} color={colors.textSubtle} size={14} />
       </TouchableOpacity>
 
       {/* AI composer — pinned open */}
-      <View style={s.composer}>
+      <Card style={s.composer}>
         <View style={s.aiBadge}>
           <FeatureIcon name="ai_spark" size={12} color={colors.accentText} />
           <Text style={s.aiBadgeText}>{t('nutri_ai_badge')}</Text>
@@ -336,7 +355,7 @@ export default function NutritionLogger() {
             editable={!busy}
           />
         </View>
-        <TouchableOpacity style={[s.logBtn, (busy || !text.trim()) && s.logBtnOff]} onPress={onSubmit} disabled={busy || !text.trim()}>
+        <TouchableOpacity style={[s.logBtn, (busy || !text.trim()) && s.logBtnOff]} onPress={onSubmit} disabled={busy || !text.trim()} accessibilityRole="button" accessibilityLabel={t('nutri_send')}>
           {busy ? <ActivityIndicator size="small" color={colors.accentText} /> : (
             <>
               <FeatureIcon name="ai_spark" size={16} color={colors.accentText} />
@@ -346,14 +365,14 @@ export default function NutritionLogger() {
         </TouchableOpacity>
         <Text style={s.caveat}>{t('nutri_est_note')}</Text>
         {!premium && freeLeft > 0 && <Text style={s.freeNote}>{t('nutri_free_note').replace('{n}', String(freeLeft))}</Text>}
-      </View>
+      </Card>
 
-      <TouchableOpacity style={s.howRow} activeOpacity={0.7} onPress={() => setShowDemo(true)}>
+      <TouchableOpacity style={s.howRow} activeOpacity={0.7} onPress={() => setShowDemo(true)} accessibilityRole="button">
         <FeatureIcon name="ai_spark" size={13} color={colors.accent} />
         <Text style={s.howText}>{t('nutri_how')}</Text>
       </TouchableOpacity>
 
-      <View style={s.remindRow}>
+      <Card style={s.remindRow}>
         <FeatureIcon name="food" size={16} color={colors.textMuted} />
         <View style={{ flex: 1 }}>
           <Text style={s.remindLabel}>{t('settings_food_reminders')}</Text>
@@ -365,7 +384,7 @@ export default function NutritionLogger() {
           trackColor={{ true: colors.switchTrack }}
           accessibilityLabel={t('settings_food_reminders')}
         />
-      </View>
+      </Card>
 
       {deflect && (
         <View style={s.deflect}>
@@ -383,7 +402,7 @@ export default function NutritionLogger() {
       {/* Collapsed summary — the intake across the open reality check (what this
           logger exists for), not a day-by-day diary. */}
       {!detailOpen && (
-        <TouchableOpacity style={s.collapsed} activeOpacity={0.7} onPress={() => setDetailOpen(true)}>
+        <TouchableOpacity style={s.collapsed} activeOpacity={0.7} onPress={() => setDetailOpen(true)} accessibilityRole="button">
           <Text style={s.collapsedText}>
             {rcStart
               ? (intake
@@ -391,7 +410,12 @@ export default function NutritionLogger() {
                 : t('nutri_check_empty'))
               : (entries.length ? t('nutri_entries_count').replace('{n}', String(entries.length)) : t('nutri_none'))}
           </Text>
-          {entries.length > 0 && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
+          {entries.length > 0 && (
+            <View style={s.collapsedShowRow}>
+              <Text style={s.collapsedShow}>{t('nutri_show')}</Text>
+              <Chevron color={colors.accent} size={14} />
+            </View>
+          )}
         </TouchableOpacity>
       )}
 
@@ -399,11 +423,11 @@ export default function NutritionLogger() {
       {detailOpen && (
         <>
           {rcStart ? (
-            <View style={s.avgCard}>
-              <Text style={s.avgLabel}>{t('nutri_check_label')}</Text>
+            <Card style={s.avgCard}>
+              <SectionLabel>{t('nutri_check_label')}</SectionLabel>
               {intake ? (
                 <>
-                  <Text style={s.avgBig}>≈ {intake.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}{t('nutri_per_day')}</Text></Text>
+                  <BigNumber value={`≈ ${intake.avgKcal}`} unit={`${t('cal_kcal')}${t('nutri_per_day')}`} size={44} style={{ marginTop: 4 }} />
                   <Text style={s.avgFoot}>{t('nutri_check_working').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days))}</Text>
                   <Text style={s.avgFoot}>{t('nutri_check_coverage').replace('{n}', String(intake.loggedDays)).replace('{d}', String(intake.days))}</Text>
                   {todayKcal > 0 && <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>}
@@ -414,19 +438,19 @@ export default function NutritionLogger() {
                 <Text style={s.avgFoot}>{t('nutri_check_empty')}</Text>
               )}
               <Text style={s.avgFoot}>{t('nutri_check_foot')}</Text>
-            </View>
+            </Card>
           ) : (
             <Text style={s.noneDetail}>{t('nutri_no_check')}</Text>
           )}
 
           {entries.length > 0 && (
-            <View style={s.day}>
-              {entries.map((e) => {
+            <Card padded={false} style={s.day}>
+              {entries.map((e, idx) => {
                   const items = safeItems(e.parsed_items);
                   const pending = e.parse_status === 'pending';
                   const unparsed = e.parse_status === 'unparsed';
                   return (
-                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => { if (unparsed || pending) confirmRemove(e, pending); else openEdit(e); }}>
+                    <TouchableOpacity key={e.id} style={[s.entryCard, idx === 0 && { borderTopWidth: 0 }]} activeOpacity={0.7} accessibilityRole="button" onPress={() => { if (unparsed || pending) confirmRemove(e, pending); else openEdit(e); }}>
                       {pending ? (
                         <Text style={s.pendingText}>{e.raw_text} · {t('nutri_offline_saved')}</Text>
                       ) : unparsed ? (
@@ -449,7 +473,7 @@ export default function NutritionLogger() {
                     </TouchableOpacity>
                   );
               })}
-            </View>
+            </Card>
           )}
         </>
       )}
@@ -471,11 +495,11 @@ export default function NutritionLogger() {
             {editDate && (
               <View style={s.editDateRow}>
                 <TouchableOpacity onPress={() => shiftEditDate(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
-                  <Text style={s.editDateArrow}>‹</Text>
+                  <View style={s.editDateArrow}><Chevron dir="left" color={colors.accent} size={20} /></View>
                 </TouchableOpacity>
                 <Text style={s.editDateText}>{dayLabel(editDate)}</Text>
                 <TouchableOpacity onPress={() => shiftEditDate(1)} disabled={editDate >= todayISO()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
-                  <Text style={[s.editDateArrow, editDate >= todayISO() && { opacity: 0.3 }]}>›</Text>
+                  <View style={[s.editDateArrow, editDate >= todayISO() && { opacity: 0.3 }]}><Chevron color={colors.accent} size={20} /></View>
                 </TouchableOpacity>
               </View>
             )}
@@ -486,14 +510,14 @@ export default function NutritionLogger() {
                   <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setItemField(i, 'kcal', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setItemField(i, 'carb_g', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setItemField(i, 'protein_g', v)} />
-                  <TouchableOpacity style={s.editDel} onPress={() => removeItem(i)}><CrossMark style={s.editDelX} /></TouchableOpacity>
+                  <TouchableOpacity style={s.editDel} onPress={() => removeItem(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_delete_entry')}><CrossMark style={s.editDelX} /></TouchableOpacity>
                 </View>
               </View>
             ))}
             <TouchableOpacity style={s.modalSave} onPress={saveEdit}><Text style={s.modalSaveText}>{t('nutri_save')}</Text></TouchableOpacity>
             <View style={s.modalFoot}>
-              <TouchableOpacity onPress={() => setEditEntry(null)}><Text style={s.modalCancel}>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity onPress={deleteFromEdit}><Text style={s.modalDelete}>{t('nutri_delete_entry')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditEntry(null)} style={s.modalFootBtn}><Text style={s.modalCancel}>{t('cancel')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={deleteFromEdit} style={s.modalFootBtn}><Text style={s.modalDelete}>{t('nutri_delete_entry')}</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -518,95 +542,97 @@ function EditNum({ s, colors, label, value, onChange }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
-  wrap: { marginTop: 22 },
-  secHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginHorizontal: 2 },
+  wrap: { marginTop: 4 },
+  secHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 10, marginHorizontal: 4, minHeight: 32 },
   section: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted },
   secChev: { fontSize: 14, color: c.textFaint },
   // composer
-  composer: { backgroundColor: c.accentSoft, borderRadius: 18, padding: 15, borderWidth: 1, borderColor: c.accent + '55' },
-  aiBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: c.accent, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4 },
-  aiBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentText },
-  cq: { fontSize: 18, fontWeight: '800', color: c.text, letterSpacing: -0.3, marginTop: 11 },
-  chint: { fontSize: 12.5, color: c.textMuted, lineHeight: 17, marginTop: 4, marginBottom: 11 },
-  cfield: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderColor: c.border },
-  cinput: { flex: 1, fontSize: 15, color: c.text, maxHeight: 100 },
-  logBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, marginTop: 9 },
+  composer: { },
+  aiBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: c.accent, borderRadius: 13, height: 26, paddingHorizontal: 10 },
+  aiBadgeText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentText },
+  cq: { fontSize: 19, fontWeight: '600', color: c.text, letterSpacing: -0.3, marginTop: 12 },
+  chint: { fontSize: 13.5, color: c.textMuted, lineHeight: 19, marginTop: 4, marginBottom: 12 },
+  cfield: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card2, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, minHeight: 50 },
+  cinput: { flex: 1, fontSize: 16, color: c.text, maxHeight: 100 },
+  logBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: 16, minHeight: 52, paddingVertical: 14, marginTop: 10 },
   logBtnOff: { opacity: 0.4 },
-  logBtnText: { color: c.accentText, fontWeight: '800', fontSize: 15 },
-  caveat: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 8, lineHeight: 15 },
-  freeNote: { fontSize: 11.5, fontWeight: '700', color: c.accentSoftText, textAlign: 'center', marginTop: 8 },
-  remindRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 4, borderTopWidth: 0.5, borderTopColor: c.border, marginBottom: 6 },
-  remindLabel: { fontSize: 13, fontWeight: '600', color: c.text },
-  remindSub: { fontSize: 11.5, color: c.textMuted, marginTop: 2, lineHeight: 15 },
-  howRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12 },
-  howText: { fontSize: 13, fontWeight: '700', color: c.accent },
+  logBtnText: { color: c.accentText, fontWeight: '600', fontSize: 16 },
+  caveat: { fontSize: 12, color: c.textSubtle, textAlign: 'center', marginTop: 10, lineHeight: 16 },
+  freeNote: { fontSize: 12.5, fontWeight: '600', color: c.accent, textAlign: 'center', marginTop: 8 },
+  remindRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
+  remindLabel: { fontSize: 15, fontWeight: '500', color: c.text },
+  remindSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2, lineHeight: 17 },
+  howRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 44, paddingVertical: 12 },
+  howText: { fontSize: 14, fontWeight: '600', color: c.accent },
   // deflect
-  deflect: { backgroundColor: c.warningSoft, borderRadius: 14, padding: 14, marginTop: 10 },
-  deflectTitle: { fontSize: 13, fontWeight: '800', color: c.warningSoftText, marginBottom: 4 },
-  deflectBody: { fontSize: 12.5, color: c.warningSoftText, lineHeight: 18 },
+  deflect: { backgroundColor: c.warningSoft, borderRadius: 16, padding: 14, marginTop: 12 },
+  deflectTitle: { fontSize: 14.5, fontWeight: '600', color: c.warningSoftText, marginBottom: 4 },
+  deflectBody: { fontSize: 13.5, color: c.warningSoftText, lineHeight: 19 },
   // tap-to-fix hint (a correction/non-food message → point at the edit modal)
-  hint: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 13, marginTop: 10 },
-  hintText: { fontSize: 12.5, color: c.accentSoftText, lineHeight: 18 },
+  hint: { backgroundColor: c.accentSoft, borderRadius: 16, padding: 14, marginTop: 12 },
+  hintText: { fontSize: 13.5, color: c.accentSoftText, lineHeight: 19 },
   // collapsed summary
-  collapsed: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginTop: 10 },
-  collapsedText: { fontSize: 12.5, color: c.textMuted, flex: 1 },
-  collapsedShow: { fontSize: 12.5, fontWeight: '700', color: c.accent, marginLeft: 8 },
+  collapsed: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card, borderRadius: 16, minHeight: 50, paddingHorizontal: 16, paddingVertical: 12, marginTop: 12, ...c.shadowSoft },
+  collapsedText: { fontSize: 14, color: c.textMuted, flex: 1 },
+  collapsedShow: { fontSize: 14, fontWeight: '600', color: c.accent },
   // average card
-  avgCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginTop: 10 },
+  avgCard: { marginTop: 12 },
   avgLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentSoftText },
   avgBig: { fontSize: 26, fontWeight: '800', color: c.accent, marginTop: 4 },
   avgUnit: { fontSize: 13, fontWeight: '700', color: c.textMuted },
-  avgFoot: { fontSize: 11, color: c.textFaint, marginTop: 6 },
-  noneDetail: { fontSize: 12.5, color: c.textFaint, marginTop: 10, textAlign: 'center' },
+  avgFoot: { fontSize: 12.5, color: c.textSubtle, marginTop: 6, lineHeight: 17 },
+  noneDetail: { fontSize: 13.5, color: c.textSubtle, marginTop: 12, textAlign: 'center' },
   // day groups
-  day: { backgroundColor: c.card, borderRadius: 14, marginTop: 10, borderWidth: 0.5, borderColor: c.border, overflow: 'hidden' },
+  day: { marginTop: 12, overflow: 'hidden' },
   dayHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 13 },
   dayLabel: { fontSize: 14, fontWeight: '800', color: c.text },
   dayRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dayKcal: { fontSize: 13.5, fontWeight: '700', color: c.text },
   dayKcalNum: { color: c.accent, fontWeight: '800' },
   dayChev: { fontSize: 14, color: c.textFaint },
-  editDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 10 },
-  editDateArrow: { fontSize: 22, fontWeight: '600', color: c.accent, paddingHorizontal: 6 },
-  editDateText: { fontSize: 14, fontWeight: '700', color: c.text, minWidth: 120, textAlign: 'center' },
-  entryDate: { fontSize: 11, fontWeight: '700', color: c.textMuted, marginBottom: 4 },
-  entryCard: { paddingHorizontal: 13, paddingVertical: 11, borderTopWidth: 0.5, borderTopColor: c.border },
+  editDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
+  editDateArrow: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  editDateText: { fontSize: 15, fontWeight: '600', color: c.text, minWidth: 120, textAlign: 'center' },
+  entryDate: { ...TYPE.label, color: c.textSubtle, marginBottom: 6 },
+  entryCard: { paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   entryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 3, gap: 10 },
-  entryFood: { fontSize: 13, color: c.text, flex: 1 },
-  entryKcal: { fontSize: 12, color: c.textMuted },
-  entryTot: { borderTopWidth: 0.5, borderTopColor: c.border, marginTop: 6, paddingTop: 8 },
-  entryTotFood: { fontSize: 13, fontWeight: '800', color: c.text },
-  entryTotMacro: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
-  pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
+  entryFood: { fontSize: 14.5, color: c.text, flex: 1 },
+  entryKcal: { fontSize: 13, color: c.textMuted, fontVariant: ['tabular-nums'] },
+  entryTot: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, marginTop: 6, paddingTop: 8 },
+  entryTotFood: { fontSize: 14.5, fontWeight: '600', color: c.text, fontVariant: ['tabular-nums'] },
+  entryTotMacro: { fontSize: 12.5, fontWeight: '500', color: c.textMuted },
+  pendingText: { fontSize: 13.5, color: c.textMuted, lineHeight: 19 },
   // demo modal + shared demo body
   demoWrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
   demoCard: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  card: { backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 0.5, borderColor: c.border },
+  card: { backgroundColor: c.card, borderRadius: 20, padding: 16, ...c.shadowSoft },
   demoBubble: { alignSelf: 'flex-start', backgroundColor: c.card2, borderRadius: 14, borderBottomLeftRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8, maxWidth: '90%' },
-  demoBubbleText: { fontSize: 13.5, color: c.text, lineHeight: 19 },
+  demoBubbleText: { fontSize: 14, color: c.text, lineHeight: 20 },
   caret: { color: c.accent },
   demoUser: { alignSelf: 'flex-end', backgroundColor: c.accentSoft, borderRadius: 14, borderBottomRightRadius: 4, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 10, maxWidth: '85%' },
-  demoUserText: { fontSize: 13, color: c.accentSoftText },
-  demoBreak: { backgroundColor: c.card2, borderRadius: 12, padding: 11, marginBottom: 14 },
-  lockedTitle: { fontSize: 15, fontWeight: '800', color: c.text, textAlign: 'center' },
-  lockedSub: { fontSize: 12.5, color: c.textMuted, textAlign: 'center', lineHeight: 18, marginTop: 6, marginBottom: 14 },
-  cta: { backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, alignItems: 'center' },
-  ctaText: { color: c.accentText, fontWeight: '800', fontSize: 14 },
+  demoUserText: { fontSize: 14, color: c.accentSoftText },
+  demoBreak: { backgroundColor: c.card2, borderRadius: 14, padding: 12, marginBottom: 14 },
+  lockedTitle: { fontSize: 17, fontWeight: '600', color: c.text, textAlign: 'center' },
+  lockedSub: { fontSize: 13.5, color: c.textMuted, textAlign: 'center', lineHeight: 19, marginTop: 6, marginBottom: 14 },
+  cta: { backgroundColor: c.accent, borderRadius: 16, minHeight: 52, justifyContent: 'center', paddingVertical: 14, alignItems: 'center' },
+  ctaText: { color: c.accentText, fontWeight: '600', fontSize: 16 },
   // fix-entry modal
   modalWrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
-  modalCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  modalTitle: { fontSize: 15, fontWeight: '800', color: c.text, marginBottom: 12 },
+  modalCard: { backgroundColor: c.card, borderRadius: 20, padding: 18, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', ...c.shadowCard },
+  modalTitle: { fontSize: 19, fontWeight: '600', color: c.text, marginBottom: 12 },
   editItem: { marginBottom: 12 },
-  editFood: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },
+  editFood: { fontSize: 14.5, fontWeight: '500', color: c.text, marginBottom: 6 },
   editFields: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   editNum: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
-  editInput: { flex: 1, backgroundColor: c.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border, textAlign: 'center' },
-  editNumLabel: { fontSize: 10, fontWeight: '700', color: c.textFaint },
-  editDel: { padding: 6 },
-  editDelX: { fontSize: 14, color: c.textFaint },
-  modalSave: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 6 },
-  modalSaveText: { color: c.accentText, fontWeight: '800', fontSize: 14 },
-  modalFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  modalCancel: { fontSize: 13, fontWeight: '600', color: c.textMuted },
-  modalDelete: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },
+  editInput: { flex: 1, backgroundColor: c.card2, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 9, minHeight: 40, fontSize: 15, color: c.text, textAlign: 'center' },
+  editNumLabel: { fontSize: 11, fontWeight: '600', color: c.textSubtle },
+  editDel: { padding: 8 },
+  editDelX: { fontSize: 14, color: c.textMuted },
+  modalSave: { backgroundColor: c.accent, borderRadius: 16, minHeight: 50, justifyContent: 'center', paddingVertical: 13, alignItems: 'center', marginTop: 8 },
+  modalSaveText: { color: c.accentText, fontWeight: '600', fontSize: 16 },
+  modalFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  modalCancel: { fontSize: 14.5, fontWeight: '500', color: c.textMuted },
+  modalDelete: { fontSize: 14.5, fontWeight: '600', color: c.danger || c.warningSoftText },
+  collapsedShowRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: 8 },
+  modalFootBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
 });

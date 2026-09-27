@@ -49,8 +49,10 @@ import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
 import { backfillTakenDoses } from '../lib/doseActions';
-import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
-import { useTheme } from '../lib/theme';
+import { DEFAULT_VALID_DAYS, daysUntilExpiry, parseDateOnly } from '../lib/vialExpiry';
+import { useTheme, TYPE } from '../lib/theme';
+import Svg, { Path } from 'react-native-svg';
+import { Card, Dot, Chip, FactStrip, SectionLabel, ScreenTitle } from '../components/ui';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import CheckMark from '../components/CheckMark';
@@ -484,8 +486,9 @@ function ProtocolServingGuide({ p, t, onRefill }) {
       </View>
 
       {unitsLeft != null && onRefill && unitsTaken > 0 && (
-        <TouchableOpacity style={s.newBottleBtn} onPress={() => onRefill(p.id)}>
-          <Text style={s.newBottleText}>↺ {t('protocols_serving_new_bottle')}</Text>
+        <TouchableOpacity style={s.newBottleBtn} onPress={() => onRefill(p.id)} accessibilityRole="button">
+          <FeatureIcon name="repeat" size={16} color={colors.accent} />
+          <Text style={s.newBottleText}>{t('protocols_serving_new_bottle')}</Text>
         </TouchableOpacity>
       )}
 
@@ -494,12 +497,52 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   );
 }
 
-function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
+// Small line glyphs for the hybrid (chevron / plus / back) — theme-colored,
+// replacing the old text arrows (▶ ▲ ← →).
+function Glyph({ name, size = 18, color }) {
+  const d = name === 'chevR' ? 'M9 5.5l6.5 6.5L9 18.5'
+    : name === 'chevL' ? 'M15 5.5L8.5 12l6.5 6.5'
+    : name === 'plus' ? 'M12 5v14M5 12h14'
+    : '';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={d} fill="none" stroke={color} strokeWidth={name === 'plus' ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// Card "Vial" fact: total compound · volume · concentration — whatever the
+// protocol has. Recon: amount + diluent volume → amount/volume. RTU: total =
+// concentration × bottle ml (or the stored amount). Returns null if nothing entered.
+function vialFact(p, vial) {
+  const parts = [];
+  if (p.type === 'recon') {
+    const amt = parseDecimal(p.amount);
+    const w = parseDecimal(p.water);
+    if (amt > 0) parts.push(`${trimNum(amt)} ${p.unit || 'mg'}`);
+    if (w > 0) parts.push(`${trimNum(w)} ml`);
+    if (amt > 0 && w > 0) parts.push(`${trimNum(amt / w)} ${p.unit || 'mg'}/ml`);
+  } else if (p.type === 'rtu') {
+    const cu = p.concentration_unit || 'mg';
+    const conc = parseDecimal(p.concentration);
+    const ml = vial && vial.water_ml != null ? parseDecimal(vial.water_ml)
+      : (conc > 0 && parseDecimal(p.amount) > 0 ? parseDecimal(p.amount) / conc : null);
+    const total = conc > 0 && ml ? trimNum(conc * ml)
+      : (parseDecimal(p.amount) > 0 ? trimNum(parseDecimal(p.amount)) : null);
+    if (total) parts.push(`${total} ${cu}`);
+    if (ml) parts.push(`${trimNum(ml)} ml`);
+    if (conc > 0) parts.push(`${trimNum(conc)} ${cu}/ml`);
+  }
+  return parts.length ? parts.join(' · ') : null;
+}
+
+function ProtocolCard({ p, vial, due, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
   const { colors } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const badge = getTypeBadge(p.type, t, colors);
   const isExpanded = expanded === p.id;
+  const displayName = p.compound_id ? t(p.compound_id) : p.name;
 
   // Inline, editable note — saved straight from the card, no need to open Edit.
   const [noteDraft, setNoteDraft] = useState(p.note || '');
@@ -532,53 +575,105 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
     ? supplyCapacity
     : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
   const lowSupply = dosesRemaining != null && dosesRemaining > 0 && dosesRemaining <= 3;
+  // Same traffic-light thresholds as expiryColor (≤3 red, ≤7 amber).
+  const expiryTone = vialDaysLeft == null ? undefined
+    : vialDaysLeft <= 3 ? 'danger' : vialDaysLeft <= 7 ? 'warning' : undefined;
+  const locale = LOCALE_MAP[language] || 'en-US';
+
+  // ── Facts strip: vial size + concentration, doses left, expiry / mix window ──
+  const facts = [];
+  if (isInjectable) {
+    const v = vialFact(p, vial);
+    if (v) facts.push({ label: t('hy_proto_fact_vial'), value: v, flex: 1.5, lines: 2 });
+    if (dosesRemaining != null) {
+      facts.push({
+        label: t('hy_proto_fact_doses_left'),
+        value: t('hy_proto_n_of_total').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity)),
+        tone: dosesRemaining === 0 ? 'danger' : lowSupply ? 'warning' : undefined,
+      });
+    } else if (vialDoseCapacity != null) {
+      facts.push({ label: t('hy_proto_fact_per_vial'), value: String(vialDoseCapacity) });
+    }
+    if (vialDaysLeft != null) {
+      if (p.type === 'recon') {
+        const mixed = parseDateOnly(vial.mixed_on);
+        facts.push({
+          label: mixed
+            ? `${t('today_vial_mixed')} ${mixed.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
+            : t('today_vial_mixed'),
+          value: vialDaysLeft <= 0 ? t('protocols_vial_past') : t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft)),
+          tone: expiryTone,
+        });
+      } else {
+        const exp = parseDateOnly(vial.expires_on);
+        facts.push({
+          label: t('hy_proto_fact_expires'),
+          value: vialDaysLeft <= 0
+            ? t('protocols_vial_past')
+            : (vialDaysLeft <= 30 || !exp)
+              ? t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft))
+              : exp.toLocaleDateString(locale, { month: 'short', year: 'numeric' }),
+          tone: expiryTone,
+        });
+      }
+    }
+  } else if (p.type === 'oral') {
+    const strength = sizeLabel(p, vial, t);
+    if (strength) facts.push({ label: t('hy_proto_fact_strength'), value: strength });
+    if (p.notes) facts.push({ label: t('protocols_form'), value: oralFormLabel(p.notes, t) });
+    const containerUnits = parseDecimal(p.container_units);
+    if (containerUnits > 0) {
+      const left = Math.max(0, Math.round((containerUnits - (parseDecimal(p.units_taken) || 0)) * 100) / 100);
+      facts.push({ label: t('protocols_serving_left'), value: `${left} / ${trimNum(containerUnits)}`, tone: left === 0 ? 'danger' : undefined });
+    }
+  }
+
+  // Schedule line: dose · frequency · reminder time(s).
+  const times = (p.reminder_time || '').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat));
+  const scheduleLine = [
+    `${p.dose} ${p.dose_unit}${isInjectable ? ` ${t('protocols_dose_noun')}` : ''}`,
+    frequencyLabelFor(p.interval_days, t),
+    times.length ? times.join(', ') : null,
+  ].filter(Boolean).join(' · ');
+
+  const barPct = (dosesRemaining != null && vialDoseCapacity) ? Math.min(1, dosesRemaining / vialDoseCapacity) : null;
+  const typeTone = p.type === 'recon' ? 'accent' : p.type === 'rtu' ? 'success' : p.type === 'oral' ? 'warning' : 'neutral';
 
   return (
-    <TouchableOpacity
-      style={s.card}
-      onPress={() => setExpanded(isExpanded ? null : p.id)}
-    >
-      <View style={s.cardTop}>
-        <View style={[s.cardDot, { backgroundColor: p.color }]} />
-        <View style={s.cardInfo}>
-          <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-          <Text style={s.cardMeta}>
-            {(() => { const sz = sizeLabel(p, vial, t); return sz ? `${sz} · ` : ''; })()}
-            {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
-          </Text>
-          {isInjectable && vialDoseCapacity != null && (
-            <Text style={[s.cardMeta, { fontWeight: '600', color: colors.accent }]}>
-              {dosesRemaining != null
-                ? t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
-                : t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}
-            </Text>
-          )}
-          {vialDaysLeft != null && (
-            <Text style={[s.cardMeta, { color: expiryColor(vialDaysLeft), fontWeight: '600' }]}>
-              {vialDaysLeft <= 0
-                ? t('protocols_vial_past')
-                : t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft))}
-            </Text>
-          )}
-          <View style={s.badgeRow}>
-            {lowSupply && (
-              <View style={[s.badgeLow, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
-                <FeatureIcon name="warning" size={10} color={colors.dangerSoftText} />
-                <Text style={s.badgeLowText}>{t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
-              </View>
-            )}
-            <View style={[s.badge, { backgroundColor: badge.bg }]}>
-              <Text style={[s.badgeText, { color: badge.text }]}>{badge.label}</Text>
-            </View>
-            {p.goal ? p.goal.split(',').filter(Boolean).map(g => (
-              <View key={g} style={s.badgeGoal}>
-                <Text style={s.badgeGoalText}>{t(g) || g}</Text>
-              </View>
-            )) : null}
+    <Card padded={false} style={s.card}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={s.cardHead}
+        onPress={() => setExpanded(isExpanded ? null : p.id)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+      >
+        <View style={s.cardTop}>
+          <Dot color={p.color} size={10} />
+          <Text style={s.cardName} numberOfLines={2}>{displayName}</Text>
+          {due && <Chip label={due.label} tone={due.tone} />}
+          <View style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}>
+            <Glyph name="chevR" size={18} color={colors.textSubtle} />
           </View>
         </View>
-        <Text style={s.chevron}>{isExpanded ? '▲' : '▶'}</Text>
-      </View>
+        <Text style={s.cardMeta}>{scheduleLine}</Text>
+
+        {facts.length > 0 && <FactStrip items={facts} />}
+
+        {barPct != null && (
+          <View style={s.supplyTrack}>
+            <View style={[s.supplyFill, { width: `${Math.round(barPct * 100)}%`, backgroundColor: (lowSupply || dosesRemaining === 0) ? colors.warning : colors.accent }]} />
+          </View>
+        )}
+
+        <View style={s.badgeRow}>
+          {lowSupply && <Chip tone="warning" label={t('protocols_low_supply').replace('{n}', String(dosesRemaining))} />}
+          <Chip tone={typeTone} label={badge.label} />
+          {p.goal ? p.goal.split(',').filter(Boolean).map(g => (
+            <Chip key={g} tone="neutral" label={t(g) || g} />
+          )) : null}
+        </View>
+      </TouchableOpacity>
 
       {isExpanded && (
         <View style={s.cardBody}>
@@ -645,21 +740,21 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
             </View>
           )}
           <View style={s.noteBlock}>
-            <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
+            <SectionLabel>{t('protocols_notes')}</SectionLabel>
             <TextInput
               style={s.noteEditBox}
               value={noteDraft}
               onChangeText={setNoteDraft}
               placeholder={p.type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.textSubtle}
               multiline
             />
             {noteDirty && (
               <View style={s.noteEditActions}>
-                <TouchableOpacity onPress={() => setNoteDraft(p.note || '')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity onPress={() => setNoteDraft(p.note || '')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button">
                   <Text style={s.noteCancelText}>{t('cancel')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.noteSaveBtn} onPress={saveNote}>
+                <TouchableOpacity style={s.noteSaveBtn} onPress={saveNote} accessibilityRole="button">
                   <Text style={s.noteSaveText}>{t('save')}</Text>
                 </TouchableOpacity>
               </View>
@@ -670,28 +765,30 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
           <ProtocolServingGuide p={p} t={t} onRefill={onRefill} />
 
           {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
-            <TouchableOpacity style={[s.newBottleBtn, { marginTop: 4 }]} onPress={() => onRefillVial(p.id)}>
-              <Text style={s.newBottleText}>↺ {t('protocols_new_vial')}</Text>
+            <TouchableOpacity style={[s.newBottleBtn, { marginTop: 4 }]} onPress={() => onRefillVial(p.id)} accessibilityRole="button">
+              <FeatureIcon name="repeat" size={16} color={colors.accent} />
+              <Text style={s.newBottleText}>{t('protocols_new_vial')}</Text>
             </TouchableOpacity>
           )}
 
           <View style={s.cardActions}>
-            <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)}>
+            <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)} accessibilityRole="button">
               <Text style={s.actionBtnText}>{t('protocols_edit')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p, 4)}>
-              <Text style={s.actionBtnText}>{t('protocols_add_reminder')}</Text>
+            <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p, 4)} accessibilityRole="button">
+              <Text style={s.actionBtnText} numberOfLines={2}>{t('protocols_add_reminder')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[s.actionBtn, s.actionBtnDanger]}
               onPress={() => deleteProtocol(p.id)}
+              accessibilityRole="button"
             >
               <Text style={s.actionBtnDangerText}>{t('protocols_delete')}</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
-    </TouchableOpacity>
+    </Card>
   );
 }
 
@@ -890,6 +987,19 @@ export default function ProtocolsScreen() {
     const d = new Date(); d.setHours(0, 0, 0, 0);
     if (expectedDosesOn(p, d) > 0) return d;
     return nextDueDate(p, d);
+  }
+
+  // Card "due" chip from the same next-dose date the Due sort uses: scheduled
+  // today → accent "Today", tomorrow → "Tomorrow", later → short date.
+  function dueChip(p) {
+    let d = null;
+    try { d = nextDoseDate(p); } catch { d = null; }
+    if (!d) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff <= 0) return { label: t('today_today_pill'), tone: 'accent' };
+    if (diff === 1) return { label: t('today_section_tomorrow'), tone: 'neutral' };
+    return { label: d.toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' }), tone: 'neutral' };
   }
 
   function sortedProtocols() {
@@ -1525,7 +1635,7 @@ export default function ProtocolsScreen() {
 
   const renderCard = (p) => (
     <ProtocolCard
-      key={p.id} p={p} vial={vialsByProtocol[p.id]}
+      key={p.id} p={p} vial={vialsByProtocol[p.id]} due={dueChip(p)}
       expanded={expanded} setExpanded={setExpanded}
       openEdit={openEdit} deleteProtocol={deleteProtocol}
       onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
@@ -1535,34 +1645,48 @@ export default function ProtocolsScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <Text style={s.headerTitle}>{t('protocols_title')}</Text>
-        <TouchableOpacity style={s.addBtn} onPress={openAdd}>
-          <Text style={s.addBtnText}>{t('protocols_add')}</Text>
-        </TouchableOpacity>
+      <View style={[s.header, s.centered]}>
+        <ScreenTitle
+          title={t('protocols_title')}
+          right={(
+            <TouchableOpacity
+              style={s.addBtn}
+              onPress={openAdd}
+              accessibilityRole="button"
+              accessibilityLabel={t('protocols_add').replace(/^\+\s*/, '')}
+            >
+              <Glyph name="plus" size={18} color={colors.accentText} />
+              {/* The key carries its own leading "+" in every language; the glyph replaces it. */}
+              <Text style={s.addBtnText}>{t('protocols_add').replace(/^\+\s*/, '')}</Text>
+            </TouchableOpacity>
+          )}
+        />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {protocols.length === 0 && !loading && (
-          <View style={s.emptyState}>
+          <Card style={s.emptyState}>
             <View style={s.emptyIcon}><FeatureIcon name="type_vial" size={48} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
             <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
+            <TouchableOpacity style={s.emptyBtn} onPress={openAdd} accessibilityRole="button">
               <Text style={s.emptyBtnText}>{t('protocols_empty_btn')}</Text>
             </TouchableOpacity>
-          </View>
+          </Card>
         )}
 
         {protocols.length > 0 && (
           <View style={s.sortRow}>
             <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
               {SORT_OPTIONS.map(o => (
                 <TouchableOpacity
                   key={o.key}
                   style={[s.sortPill, sortBy === o.key && s.sortPillOn]}
                   onPress={() => changeSort(o.key)}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: sortBy === o.key }}
                 >
                   <Text style={[s.sortPillText, sortBy === o.key && s.sortPillTextOn]}>{t(o.label)}</Text>
                 </TouchableOpacity>
@@ -1574,13 +1698,13 @@ export default function ProtocolsScreen() {
         {protocols.length > 0 && sortBy === 'type' && (
           <>
             {reconProtocols.length > 0 && (
-              <><Text style={s.sectionLabel}>{t('protocols_section_lyophilized')}</Text>{reconProtocols.map(renderCard)}</>
+              <><SectionLabel style={s.sectionLabel}>{t('protocols_section_lyophilized')}</SectionLabel>{reconProtocols.map(renderCard)}</>
             )}
             {rtuProtocols.length > 0 && (
-              <><Text style={s.sectionLabel}>{t('protocols_section_rtu')}</Text>{rtuProtocols.map(renderCard)}</>
+              <><SectionLabel style={s.sectionLabel}>{t('protocols_section_rtu')}</SectionLabel>{rtuProtocols.map(renderCard)}</>
             )}
             {oralProtocols.length > 0 && (
-              <><Text style={s.sectionLabel}>{t('protocols_section_oral')}</Text>{oralProtocols.map(renderCard)}</>
+              <><SectionLabel style={s.sectionLabel}>{t('protocols_section_oral')}</SectionLabel>{oralProtocols.map(renderCard)}</>
             )}
           </>
         )}
@@ -1607,8 +1731,9 @@ export default function ProtocolsScreen() {
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalNav}>
             {step > 1 ? (
-              <TouchableOpacity onPress={() => setStep(step - 1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Text style={s.modalCancel}>{`← ${t('back')}`}</Text>
+              <TouchableOpacity style={s.modalBack} onPress={() => setStep(step - 1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('back')}>
+                <Glyph name="chevL" size={18} color={colors.textMuted} />
+                <Text style={s.modalCancel}>{t('back')}</Text>
               </TouchableOpacity>
             ) : <View style={s.modalNavSpacer} />}
             <Text style={s.modalTitle}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
@@ -1669,7 +1794,7 @@ export default function ProtocolsScreen() {
                 <TextInput
                   style={s.input}
                   placeholder={t('protocols_name_placeholder')}
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.textSubtle}
                   value={searchQuery}
                   onChangeText={(text) => {
                     setSearchQuery(text);
@@ -1726,12 +1851,12 @@ export default function ProtocolsScreen() {
                   );
                 })()}
 
-                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, lineHeight: 15 }}>
+                <Text style={{ fontSize: 12.5, color: colors.textSubtle, marginTop: 6, lineHeight: 17 }}>
                   {t('protocols_spelling_note')}
                 </Text>
 
                 {name && !compoundId ? (
-                  <Text style={{ fontSize: 12, color: colors.warningSoftText, marginTop: 6 }}>
+                  <Text style={{ fontSize: 13, color: colors.warningSoftText, marginTop: 6 }}>
                     {t('protocols_custom_hint')}
                   </Text>
                 ) : null}
@@ -1817,7 +1942,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 500`}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         keyboardType="numeric"
                         value={dose}
                         onChangeText={setDose}
@@ -1878,7 +2003,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 1600`}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         keyboardType="numeric"
                         value={servingStrength}
                         onChangeText={setServingStrength}
@@ -1900,7 +2025,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={s.input}
                       placeholder="1"
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       keyboardType="numeric"
                       value={servingUnits}
                       onChangeText={setServingUnits}
@@ -1910,7 +2035,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={s.input}
                       placeholder={`${t('protocols_eg')} 60`}
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       keyboardType="numeric"
                       value={containerUnits}
                       onChangeText={setContainerUnits}
@@ -1925,7 +2050,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 5`}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         keyboardType="numeric"
                         value={amount}
                         onChangeText={setAmount}
@@ -1960,7 +2085,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { marginTop: 8 }]}
                         placeholder={t('protocols_diluent_other_placeholder')}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         value={diluentOther}
                         onChangeText={setDiluentOther}
                       />
@@ -1979,7 +2104,7 @@ export default function ProtocolsScreen() {
                           keyboardType="decimal-pad"
                           selectTextOnFocus
                           placeholder="0.5"
-                          placeholderTextColor={colors.textFaint}
+                          placeholderTextColor={colors.textSubtle}
                           textAlign="center"
                         />
                         <Text style={s.stepperValUnit}>ml</Text>
@@ -1994,7 +2119,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 0.5`}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         keyboardType="numeric"
                         value={dose}
                         onChangeText={setDose}
@@ -2030,7 +2155,7 @@ export default function ProtocolsScreen() {
                             <TextInput
                               style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                               placeholder={`${t('protocols_eg')} 10`}
-                              placeholderTextColor={colors.textFaint}
+                              placeholderTextColor={colors.textSubtle}
                               keyboardType="numeric"
                               value={iuInput}
                               onChangeText={setIuInput}
@@ -2104,7 +2229,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 100`}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         keyboardType="numeric"
                         value={dose}
                         onChangeText={setDose}
@@ -2126,7 +2251,7 @@ export default function ProtocolsScreen() {
                       <TextInput
                         style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
                         placeholder={`${t('protocols_eg')} 200`}
-                        placeholderTextColor={colors.textFaint}
+                        placeholderTextColor={colors.textSubtle}
                         keyboardType="numeric"
                         value={concentration}
                         onChangeText={setConcentration}
@@ -2155,7 +2280,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={s.input}
                       placeholder={`${t('protocols_eg')} 10`}
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       keyboardType="numeric"
                       value={vialMl}
                       onChangeText={setVialMl}
@@ -2284,7 +2409,7 @@ export default function ProtocolsScreen() {
                       maxLength={3}
                       value={customIntervalText}
                       placeholder="14"
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       onChangeText={(v) => {
                         const digits = v.replace(/[^0-9]/g, '');
                         setCustomIntervalText(digits);
@@ -2387,7 +2512,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={s.input}
                       placeholder={t('protocols_composition_placeholder')}
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       value={composition}
                       onChangeText={setComposition}
                     />
@@ -2400,7 +2525,7 @@ export default function ProtocolsScreen() {
                 <TextInput
                   style={[s.input, { height: 80 }]}
                   placeholder={type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.textSubtle}
                   multiline
                   value={note}
                   onChangeText={setNote}
@@ -2435,7 +2560,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
                       placeholder={t('protocols_day_dd')}
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       keyboardType="numeric"
                       maxLength={2}
                       value={vialDay}
@@ -2448,7 +2573,7 @@ export default function ProtocolsScreen() {
                     <TextInput
                       style={[s.input, { width: 100, textAlign: 'center' }]}
                       placeholder={String(DEFAULT_VALID_DAYS)}
-                      placeholderTextColor={colors.textFaint}
+                      placeholderTextColor={colors.textSubtle}
                       keyboardType="numeric"
                       maxLength={3}
                       value={vialValidDays}
@@ -2509,10 +2634,11 @@ export default function ProtocolsScreen() {
             </TouchableOpacity>
             <View style={s.footerRight}>
               {step < totalSteps && (
-                <TouchableOpacity style={s.footerNext} onPress={goNext}>
+                <TouchableOpacity style={s.footerNext} onPress={goNext} accessibilityRole="button" accessibilityLabel={t('next')}>
                   <Text style={[s.footerNextText, step === 3 && doseStepBlocked && s.footerDisabledText]}>
-                    {t('next')} →
+                    {t('next')}
                   </Text>
+                  <Glyph name="chevR" size={16} color={step === 3 && doseStepBlocked ? colors.danger : colors.accent} />
                 </TouchableOpacity>
               )}
               {(editingId || step === totalSteps) && (
@@ -2532,57 +2658,48 @@ export default function ProtocolsScreen() {
 const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
-  addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
-  scroll: { flex: 1, padding: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
-  sortRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
-  sortLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted },
-  sortPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, marginRight: 8 },
-  sortPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  sortPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: c.bg },
+  headerTitle: { ...TYPE.title, color: c.text },
+  addBtn: { height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  addBtnText: { color: c.accentText, fontSize: 15, fontWeight: '600' },
+  scroll: { flex: 1, paddingHorizontal: 16, paddingTop: 8 },
+  sectionLabel: { marginBottom: 10, marginTop: 10, marginLeft: 4 },
+  sortRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
+  sortLabel: { fontSize: 13, fontWeight: '500', color: c.textMuted },
+  sortPill: { height: 32, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 16, backgroundColor: c.card2, marginRight: 6 },
+  sortPillOn: { backgroundColor: c.accent },
+  sortPillText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
   sortPillTextOn: { color: c.accentText, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 24 },
-  emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
-  emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  card: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, ...c.shadowSoft },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  cardDot: { width: 10, height: 10, borderRadius: 5 },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: '600', color: c.text },
-  cardMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
-  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeText: { fontSize: 10, fontWeight: '500' },
-  badgeGoal: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeGoalText: { fontSize: 10, color: c.warningSoftText, fontWeight: '500' },
-  badgeLow: { backgroundColor: c.dangerSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeLowText: { fontSize: 10, color: c.dangerSoftText, fontWeight: '700' },
-  chevron: { fontSize: 11, color: c.textFaint },
-  cardBody: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  detailLabel: { fontSize: 12, color: c.textMuted },
-  detailVal: { fontSize: 12, fontWeight: '500', color: c.text },
-  noteBlock: { paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  noteEditBox: { marginTop: 6, minHeight: 56, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: c.text, backgroundColor: c.card2, textAlignVertical: 'top' },
-  noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 16 },
-  noteCancelText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
-  noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 12 },
-  noteSaveText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
-  cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
-  actionBtnText: { fontSize: 12, color: c.textMuted },
-  actionBtnDanger: { borderColor: c.danger },
-  actionBtnDangerText: { fontSize: 12, color: c.danger },
-  syringeWrap: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 4 },
-  syringeTitle: { fontSize: 12, fontWeight: '600', color: c.accentSoftText, marginBottom: 4 },
-  syringeSubtitle: { fontSize: 13, color: c.accent, marginBottom: 12 },
-  syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
+  emptyState: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20, marginTop: 12 },
+  emptyIcon: { marginBottom: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: '600', color: c.text, marginBottom: 8, textAlign: 'center' },
+  emptySub: { fontSize: 15, color: c.textMuted, textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+  emptyBtn: { backgroundColor: c.accent, height: 52, justifyContent: 'center', paddingHorizontal: 32, borderRadius: 16 },
+  emptyBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
+  card: { marginBottom: 12 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardName: { flex: 1, fontSize: 17, fontWeight: '600', color: c.text },
+  cardMeta: { fontSize: 14, color: c.textMuted, marginTop: 2, marginLeft: 20, lineHeight: 19 },
+  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
+  cardBody: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  detailLabel: { fontSize: 14, color: c.textMuted },
+  detailVal: { flexShrink: 1, textAlign: 'right', fontSize: 14, fontWeight: '500', color: c.text },
+  noteBlock: { paddingTop: 14, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  noteEditBox: { marginTop: 8, minHeight: 64, borderRadius: 12, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 16, color: c.text, backgroundColor: c.card2, textAlignVertical: 'top' },
+  noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 10, gap: 16 },
+  noteCancelText: { fontSize: 15, color: c.textMuted, fontWeight: '500' },
+  noteSaveBtn: { backgroundColor: c.accent, height: 44, justifyContent: 'center', paddingHorizontal: 22, borderRadius: 14 },
+  noteSaveText: { color: c.accentText, fontSize: 15, fontWeight: '600' },
+  cardActions: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  actionBtn: { flex: 1, minHeight: 44, paddingHorizontal: 6, paddingVertical: 6, borderRadius: 12, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  actionBtnText: { fontSize: 14, fontWeight: '500', color: c.text, textAlign: 'center' },
+  actionBtnDanger: { backgroundColor: c.dangerSoft },
+  actionBtnDangerText: { fontSize: 14, fontWeight: '600', color: c.dangerSoftText },
+  syringeWrap: { paddingTop: 14, marginTop: 4, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  syringeTitle: { ...TYPE.label, color: c.textSubtle, marginBottom: 8 },
+  syringeSubtitle: { fontSize: 15, color: c.textMuted, marginBottom: 12 },
+  syringeNoData: { fontSize: 14, color: c.textMuted, lineHeight: 20 },
   syringeOuter: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
   syringeBody: { flex: 1, position: 'relative' },
   syringeNeedleWrap: { height: 22, flexDirection: 'row', alignItems: 'center' },
@@ -2590,7 +2707,7 @@ const makeStyles = (c) => StyleSheet.create({
   syringeFlange: { width: 4, height: 32, borderRadius: 1.5, backgroundColor: c.textMuted, marginBottom: -5 },
   syringeTagRow: { height: 18, position: 'relative' },
   syringeTag: { position: 'absolute', top: 0, width: 40, height: 16, marginLeft: -20, borderRadius: 8, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  syringeTagText: { fontSize: 9.5, fontWeight: '800', color: c.accentText },
+  syringeTagText: { fontSize: 11, fontWeight: '700', color: c.accentText },
   syringeRod: { position: 'absolute', top: 6, height: 8, right: 0, borderRadius: 2, backgroundColor: c.textFaint, opacity: 0.6 },
   syringeStopper: { position: 'absolute', top: 2, bottom: 2, borderRadius: 2.5, backgroundColor: c.textMuted, opacity: 0.55 },
   syringeFace: { position: 'absolute', top: 0, bottom: 0, width: 3, marginLeft: -1.5, borderRadius: 1.5, backgroundColor: c.accent },
@@ -2603,21 +2720,21 @@ const makeStyles = (c) => StyleSheet.create({
   tick: { width: 1, height: 6, backgroundColor: c.textFaint },
   tickMajor: { height: 10, backgroundColor: c.textMuted, width: 1.5 },
   tickLabel: { fontSize: 8, color: c.textMuted, marginBottom: 1 },
-  syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
+  syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 6, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
   syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.35, borderRadius: 3 },
   plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: c.accent, borderRadius: 2 },
   syringeNeedle: { width: 22, height: 2.5, backgroundColor: c.textFaint, borderRadius: 1.25 },
-  syringeInfo: { flexDirection: 'row', justifyContent: 'space-between' },
-  syringeInfoItem: { alignItems: 'center' },
-  syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
-  syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
-  syringeInfoAlt: { fontSize: 10, color: c.textMuted, marginTop: 1 },
-  syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
-  syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
+  syringeInfo: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, paddingTop: 12, marginTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  syringeInfoItem: { alignItems: 'center', flexShrink: 1 },
+  syringeInfoLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase', color: c.textSubtle, textAlign: 'center' },
+  syringeInfoVal: { fontSize: 16, fontWeight: '600', color: c.text, marginTop: 3 },
+  syringeInfoAlt: { fontSize: 12, color: c.textSubtle, marginTop: 1 },
+  syringeDisclaimer: { fontSize: 11.5, color: c.textSubtle, marginTop: 12, textAlign: 'center', lineHeight: 16 },
+  syringeZoomHint: { fontSize: 12, fontWeight: '500', color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
   // Zoom modal
   zoomBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
-  zoomCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, width: '100%', maxWidth: 560 },
-  zoomTitle: { fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'center' },
+  zoomCard: { backgroundColor: c.card, borderRadius: 20, padding: 20, width: '100%', maxWidth: 560, ...c.shadowCard },
+  zoomTitle: { fontSize: 19, fontWeight: '600', color: c.text, textAlign: 'center' },
   zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
   zoomScroll: { flexGrow: 0 },
   zoomTicks: { height: 48, position: 'relative', marginBottom: 0 },
@@ -2628,118 +2745,122 @@ const makeStyles = (c) => StyleSheet.create({
   zoomBarrel: { height: 34, backgroundColor: c.card2, borderWidth: 1, borderColor: c.border, borderRadius: 6, position: 'relative', overflow: 'visible' },
   zoomFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.32, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
   zoomPlunger: { position: 'absolute', top: -4, bottom: -4, width: 4, marginLeft: -2, backgroundColor: c.accent, borderRadius: 2 },
-  zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 12 },
-  zoomCloseText: { color: c.accentText, fontWeight: '700', fontSize: 15 },
+  zoomClose: { marginTop: 20, alignSelf: 'stretch', height: 52, justifyContent: 'center', alignItems: 'center', backgroundColor: c.accent, borderRadius: 16 },
+  zoomCloseText: { color: c.accentText, fontWeight: '600', fontSize: 16 },
   modal: { flex: 1, backgroundColor: c.card },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  modalCancel: { fontSize: 14, color: c.textMuted },
-  modalNavSpacer: { width: 64 },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, minHeight: 56, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  modalCancel: { fontSize: 15, color: c.textMuted, fontWeight: '500' },
+  modalNavSpacer: { width: 72 },
+  modalBack: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 72, minHeight: 44 },
+  modalTitle: { fontSize: 17, fontWeight: '600', color: c.text },
   modalSave: { fontSize: 14, color: c.accent, fontWeight: '600' },
   modalSaveDisabled: { color: c.danger },
-  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 12 : 16, borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card },
+  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 12 : 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, backgroundColor: c.card },
   footerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  footerCancel: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10 },
-  footerCancelText: { fontSize: 15, color: c.textMuted, fontWeight: '600' },
-  footerNext: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: c.accent },
-  footerNextText: { fontSize: 15, color: c.accent, fontWeight: '600' },
+  footerCancel: { height: 50, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16 },
+  footerCancelText: { fontSize: 16, color: c.textMuted, fontWeight: '500' },
+  footerNext: { height: 50, flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 20, paddingRight: 14, borderRadius: 16, backgroundColor: c.card2 },
+  footerNextText: { fontSize: 16, color: c.accent, fontWeight: '600' },
   footerDisabledText: { color: c.danger },
-  footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: c.accent },
-  footerSaveText: { fontSize: 15, color: c.accentText, fontWeight: '700' },
-  modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
-  modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
+  footerSave: { height: 50, justifyContent: 'center', paddingHorizontal: 26, borderRadius: 16, backgroundColor: c.accent },
+  footerSaveText: { fontSize: 16, color: c.accentText, fontWeight: '600' },
+  modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  modalProgSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.card2 },
   modalProgDone: { backgroundColor: c.accent },
-  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
-  modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
-  modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
-  fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
-  servingNearest: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
-  newBottleBtn: { alignSelf: 'center', marginTop: 12, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8, borderWidth: 1, borderColor: c.accent },
-  newBottleText: { fontSize: 12, fontWeight: '600', color: c.accent },
-  fieldHint: { fontSize: 11, color: c.textFaint, marginTop: 4, marginBottom: 12 },
-  doseTimeLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 2 },
-  input: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 13, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 8 },
+  modalStepTitle: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: c.text, marginBottom: 6, marginTop: 8 },
+  modalStepSub: { fontSize: 15, color: c.textMuted, lineHeight: 21, marginBottom: 20 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginBottom: 8 },
+  servingNearest: { fontSize: 12.5, color: c.textSubtle, textAlign: 'center', marginTop: 8 },
+  newBottleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'center', marginTop: 12, minHeight: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: c.card2 },
+  newBottleText: { fontSize: 14, fontWeight: '600', color: c.accent },
+  fieldHint: { fontSize: 12.5, color: c.textSubtle, lineHeight: 17, marginTop: -2, marginBottom: 10 },
+  doseTimeLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 4 },
+  input: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
   inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   unitPicker: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  unitBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
+  unitBtn: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, backgroundColor: c.card2 },
   unitBtnOn: { backgroundColor: c.accent, borderColor: c.accent },
-  unitBtnText: { fontSize: 12, color: c.textMuted },
+  unitBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   unitBtnTextOn: { color: c.accentText, fontWeight: '600' },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
-  stepperBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
+  stepperBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
   stepperBtnText: { fontSize: 24, color: c.accent, fontWeight: '400' },
-  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  stepperValInput: { fontSize: 20, fontWeight: '600', color: c.accentSoftText, minWidth: 60, padding: 0, textAlign: 'center' },
-  stepperValUnit: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
-  stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
-  calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
-  calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
-  vialScanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
-  vialScanBtnText: { fontSize: 14, fontWeight: '600', color: c.accent },
-  vialScanBanner: { marginTop: 10, padding: 11, borderRadius: 10, backgroundColor: c.warningSoft },
-  vialScanBannerText: { fontSize: 12, color: c.warningSoftText, lineHeight: 17 },
-  iuConverter: { marginTop: 14, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card2 },
-  iuConverterLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 2 },
-  iuConverterHint: { fontSize: 11, color: c.textMuted, marginBottom: 10 },
-  iuUnitTag: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: c.accentSoft },
-  iuUnitTagText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
+  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stepperValInput: { fontSize: 24, fontWeight: '300', color: c.accentSoftText, minWidth: 60, padding: 0, textAlign: 'center' },
+  stepperValUnit: { fontSize: 18, fontWeight: '500', color: c.accentSoftText },
+  stepperHint: { fontSize: 12, color: c.textSubtle, lineHeight: 16, marginTop: 4, marginBottom: 8 },
+  calcResult: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginTop: 12, marginBottom: 4 },
+  calcResultText: { fontSize: 14, color: c.accentSoftText, fontWeight: '500', lineHeight: 19 },
+  vialScanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 6, height: 50, borderRadius: 16, backgroundColor: c.accentSoft },
+  vialScanBtnText: { fontSize: 15, fontWeight: '600', color: c.accentSoftText },
+  vialScanBanner: { marginTop: 8, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: c.warningSoft },
+  vialScanBannerText: { fontSize: 13, color: c.warningSoftText, lineHeight: 18 },
+  iuConverter: { marginTop: 14, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.bg },
+  iuConverterLabel: { fontSize: 15, fontWeight: '600', color: c.text, marginBottom: 2 },
+  iuConverterHint: { fontSize: 12.5, color: c.textMuted, lineHeight: 17, marginBottom: 10 },
+  iuUnitTag: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.accentSoft },
+  iuUnitTagText: { fontSize: 14, fontWeight: '600', color: c.accentSoftText },
   iuEquivBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
-  iuEquivText: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
-  iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.accent },
-  iuUseBtnText: { fontSize: 13, fontWeight: '700', color: c.accentText },
-  calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
+  iuEquivText: { flex: 1, fontSize: 15, fontWeight: '600', color: c.text },
+  iuUseBtn: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.accent },
+  iuUseBtnText: { fontSize: 14, fontWeight: '600', color: c.accentText },
+  calcDisclaimer: { fontSize: 11.5, color: c.textMuted, marginTop: 6, lineHeight: 16 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },
-  typeBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
+  typeBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 16, borderWidth: 2, borderColor: 'transparent', backgroundColor: c.card2, alignItems: 'center' },
+  typeBtnOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
   typeEmoji: { height: 30, marginBottom: 4, alignItems: 'center', justifyContent: 'center' },
-  typeBtnLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
+  typeBtnLabel: { fontSize: 13, fontWeight: '600', color: c.textMuted, textAlign: 'center' },
   typeBtnLabelOn: { color: c.accentSoftText },
-  typeBtnSub: { fontSize: 9, color: c.textFaint, marginTop: 1 },
+  typeBtnSub: { fontSize: 11, color: c.textSubtle, marginTop: 2, textAlign: 'center' },
   colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   colorSwatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   colorSwatchOn: { borderWidth: 3, borderColor: c.text },
   colorCheck: { color: 'white', fontSize: 16, fontWeight: '700' },
   colorInUseDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.28)' },
-  colorTip: { fontSize: 12.5, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
-  colorLegend: { fontSize: 12, color: c.textFaint, marginBottom: 4 },
-  colorDupWarn: { fontSize: 12.5, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginTop: 6 },
-  previewPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card2, borderRadius: 10, padding: 12, marginBottom: 20 },
+  colorTip: { fontSize: 13, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
+  colorLegend: { fontSize: 12.5, color: c.textSubtle, marginBottom: 4 },
+  colorDupWarn: { fontSize: 13, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 6 },
+  previewPill: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card2, borderRadius: 16, padding: 14, marginBottom: 20 },
   previewDot: { width: 14, height: 14, borderRadius: 7 },
-  previewName: { fontSize: 14, fontWeight: '600', color: c.text },
-  previewSub: { fontSize: 11, color: c.textMuted },
+  previewName: { fontSize: 16, fontWeight: '600', color: c.text },
+  previewSub: { fontSize: 13, color: c.textMuted },
   freqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  freqBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
-  freqBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
+  freqBtn: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 12, borderWidth: 1.5, borderColor: 'transparent', backgroundColor: c.card2 },
+  freqBtnOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
   customIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4, marginBottom: 16 },
-  customIntervalEvery: { fontSize: 14, color: c.text },
-  customIntervalInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, fontWeight: '700', color: c.text, backgroundColor: c.card2, width: 72, textAlign: 'center' },
-  freqBtnText: { fontSize: 12, color: c.textMuted },
+  customIntervalEvery: { fontSize: 16, color: c.text },
+  customIntervalInput: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 18, fontWeight: '600', color: c.text, backgroundColor: c.card2, width: 76, textAlign: 'center' },
+  freqBtnText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   freqBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
-  dateBtn: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 14, marginBottom: 14 },
-  dateBtnText: { fontSize: 14, color: c.text },
+  dateBtn: { backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, paddingVertical: 12, marginBottom: 14 },
+  dateBtnText: { fontSize: 16, color: c.text },
   monthScroll: { marginBottom: 4 },
   monthRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
-  monthPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  monthPill: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 13, borderRadius: 18, backgroundColor: c.card2 },
   monthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  monthPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+  monthPillText: { fontSize: 14, color: c.textMuted, fontWeight: '500' },
   monthPillTextOn: { color: c.accentText, fontWeight: '600' },
-  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 14 },
-  doneBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  skipVialBtn: { alignItems: 'center', paddingVertical: 12, marginBottom: 16 },
-  skipVialBtnText: { fontSize: 13, color: c.accent },
-  skippedBox: { backgroundColor: c.card2, borderRadius: 10, padding: 14, marginBottom: 16, alignItems: 'center' },
-  skippedText: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 10, lineHeight: 20 },
-  infoBox: { backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, marginBottom: 16 },
-  infoText: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
-  reviewCard: { backgroundColor: c.card2, borderRadius: 12, padding: 14, marginTop: 8 },
-  reviewTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
-  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  reviewLabel: { fontSize: 12, color: c.textMuted },
-  reviewVal: { fontSize: 12, fontWeight: '500', color: c.text },
-  suggestionBox: { backgroundColor: c.card, borderRadius: 10, ...c.shadowSoft, marginBottom: 14 },
-  suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  suggestionText: { fontSize: 13, color: c.text },
-  suggestionSub: { fontSize: 11, color: c.textMuted, marginTop: 2 },
-  noCurveNote: { fontSize: 12, color: c.textMuted, marginBottom: 8, lineHeight: 17 },
-  suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },
+  doneBtn: { backgroundColor: c.accent, height: 50, justifyContent: 'center', borderRadius: 16, alignItems: 'center', marginBottom: 14 },
+  doneBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
+  skipVialBtn: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 10, marginBottom: 16 },
+  skipVialBtnText: { fontSize: 15, fontWeight: '500', color: c.accent },
+  skippedBox: { backgroundColor: c.card2, borderRadius: 16, padding: 16, marginBottom: 16, alignItems: 'center' },
+  skippedText: { fontSize: 14, color: c.textMuted, textAlign: 'center', marginBottom: 10, lineHeight: 20 },
+  infoBox: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginBottom: 16 },
+  infoText: { fontSize: 13, color: c.accentSoftText, lineHeight: 19 },
+  reviewCard: { backgroundColor: c.card2, borderRadius: 16, padding: 16, marginTop: 8 },
+  reviewTitle: { ...TYPE.label, color: c.textSubtle, marginBottom: 8 },
+  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  reviewLabel: { fontSize: 14, color: c.textMuted },
+  reviewVal: { flexShrink: 1, textAlign: 'right', fontSize: 14, fontWeight: '500', color: c.text },
+  suggestionBox: { backgroundColor: c.card, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, ...c.shadowCard, marginTop: -6, marginBottom: 14 },
+  suggestionItem: { paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  suggestionText: { fontSize: 16, color: c.text },
+  suggestionSub: { fontSize: 12.5, color: c.textMuted, marginTop: 2 },
+  noCurveNote: { fontSize: 13, color: c.textMuted, marginBottom: 8, lineHeight: 18 },
+  suggestionMore: { fontSize: 12.5, color: c.textSubtle, padding: 10, textAlign: 'center' },
+  cardHead: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
+  supplyTrack: { height: 4, borderRadius: 2, backgroundColor: c.card2, marginTop: 12, overflow: 'hidden' },
+  supplyFill: { height: 4, borderRadius: 2 },
 });

@@ -175,8 +175,9 @@ function MainTabs() {
         tabBarStyle: {
           borderTopWidth: 0,
           elevation: 0,
-          shadowColor: '#12233B',
-          shadowOpacity: 0.10,
+          // Theme shadow color so the lift reads in both themes (hybrid).
+          shadowColor: colors.shadowCard.shadowColor,
+          shadowOpacity: colors.scheme === 'dark' ? 0.35 : 0.10,
           shadowRadius: 16,
           shadowOffset: { width: 0, height: -6 },
           backgroundColor: colors.card,
@@ -186,10 +187,11 @@ function MainTabs() {
           paddingTop: 10,
           height: 86,
         },
+        // Hybrid: 11pt labels, weight 500 (selected 600 via tabBarLabel below).
         tabBarLabelStyle: {
-          fontSize: 10.5,
-          fontWeight: '700',
-          letterSpacing: 0.2,
+          fontSize: 11,
+          fontWeight: '500',
+          letterSpacing: 0.1,
           marginTop: 2,
         },
       }}
@@ -200,7 +202,15 @@ function MainTabs() {
           name={tab.name}
           component={tab.component}
           options={{
-            tabBarLabel: tab.label,
+            tabBarLabel: ({ focused, color }) => (
+              <Text
+                numberOfLines={1}
+                style={{ fontSize: 11, fontWeight: focused ? '600' : '500', letterSpacing: 0.1, marginTop: 2, color }}
+              >
+                {tab.label}
+              </Text>
+            ),
+            tabBarAccessibilityLabel: tab.label,
             tabBarIcon: ({ focused }) => (
               <TabIcon Glyph={tab.Glyph} focused={focused} />
             ),

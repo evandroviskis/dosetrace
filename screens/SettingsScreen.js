@@ -22,7 +22,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
 import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useTheme } from '../lib/theme';
+import Svg, { Path } from 'react-native-svg';
+import { useTheme, TYPE } from '../lib/theme';
+import { SectionLabel, Chip, ScreenTitle, Segmented } from '../components/ui';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
@@ -38,6 +40,16 @@ import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
+
+// Hybrid row chevron (replaces the › / ▸ / ▾ text glyphs).
+function Chevron({ dir = 'right', color, size = 16 }) {
+  const d = dir === 'down' ? 'M5 9l7 7 7-7' : 'M9 5l7 7-7 7';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d={d} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -59,9 +71,9 @@ function LegalModal({ visible, onClose, title, content, doneLabel }) {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={s.modal}>
         <View style={s.modalNav}>
-          <View style={{ width: 60 }} />
-          <Text style={s.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={{ width: 60, alignItems: 'flex-end' }}>
+          <View style={s.modalNavSpacer} />
+          <Text style={s.modalTitle} numberOfLines={1}>{title}</Text>
+          <TouchableOpacity onPress={onClose} style={s.modalNavBtnRight} accessibilityRole="button">
             <Text style={s.modalClose}>{doneLabel}</Text>
           </TouchableOpacity>
         </View>
@@ -132,9 +144,11 @@ export default function SettingsScreen({ navigation }) {
         style={s.sectionHeaderRow}
         activeOpacity={0.6}
         onPress={() => toggleSection(sectionKey)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: !collapsed[sectionKey] }}
       >
-        <Text style={s.sectionLabel}>{t(labelKey).toUpperCase()}</Text>
-        <Text style={s.sectionChevron}>{collapsed[sectionKey] ? '▸' : '▾'}</Text>
+        <SectionLabel>{t(labelKey).toUpperCase()}</SectionLabel>
+        <Chevron dir={collapsed[sectionKey] ? 'right' : 'down'} color={colors.textSubtle} size={14} />
       </TouchableOpacity>
     );
   }
@@ -539,13 +553,13 @@ export default function SettingsScreen({ navigation }) {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>{t('settings_title')}</Text>
+        <ScreenTitle title={t('settings_title')} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
 
         {/* PROFILE */}
-        <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
+        <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('profile_edit_title')}>
           <View style={s.avatar}>
             <Text style={s.avatarText}>{initials}</Text>
           </View>
@@ -555,9 +569,7 @@ export default function SettingsScreen({ navigation }) {
             ) : null}
             <Text style={s.profileEmail}>{user?.email || '—'}</Text>
             <View style={s.profileBadgeRow}>
-              <View style={s.planBadge}>
-                <Text style={s.planBadgeText}>{premium ? t('paywall_premium') : t('settings_free_plan')}</Text>
-              </View>
+              <Chip label={premium ? t('paywall_premium') : t('settings_free_plan')} tone={premium ? 'accent' : 'neutral'} />
               {primaryGoals.length > 0 ? (
                 <View style={s.goalBadge}>
                   <Text style={s.goalBadgeText}>{primaryGoals.slice(0, 3).map(g => {
@@ -568,7 +580,7 @@ export default function SettingsScreen({ navigation }) {
               ) : null}
             </View>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <Chevron color={colors.textSubtle} size={18} />
         </TouchableOpacity>
 
         {/* PREMIUM CARD — upsell hidden for premium users */}
@@ -591,6 +603,7 @@ export default function SettingsScreen({ navigation }) {
             <TouchableOpacity
               style={s.premiumBtn}
               onPress={() => navigation.navigate('Paywall', { source: 'settings' })}
+              accessibilityRole="button"
             >
               <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
             </TouchableOpacity>
@@ -604,7 +617,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
               </View>
@@ -618,7 +631,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
                 <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
               </View>
@@ -632,7 +645,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="food" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
               </View>
@@ -646,7 +659,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_notif_names')}</Text>
                 <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
               </View>
@@ -660,7 +673,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
                 <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
               </View>
@@ -674,7 +687,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_silent')}</Text>
                 <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
               </View>
@@ -688,7 +701,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={[s.row, { borderBottomWidth: 0 }]}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
                 <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
               </View>
@@ -711,12 +724,12 @@ export default function SettingsScreen({ navigation }) {
             >
               <View style={s.rowLeft}>
                 <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.accent} /></View>
-                <View style={{ flex: 1, paddingRight: 8 }}>
+                <View style={s.rowText}>
                   <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
                   <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
                 </View>
               </View>
-              <Text style={s.rowArrow}>›</Text>
+              <Chevron color={colors.textSubtle} />
             </TouchableOpacity>
           )}
         </View>
@@ -731,26 +744,26 @@ export default function SettingsScreen({ navigation }) {
               <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_terms')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
                 <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
               </View>
@@ -768,12 +781,12 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
               </View>
             </View>
-            <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+            {exporting ? <Text style={s.rowArrow}>...</Text> : <Chevron color={colors.textSubtle} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.row, { borderBottomWidth: 0 }]}
@@ -782,12 +795,12 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
               </View>
             </View>
-            <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+            {exporting ? <Text style={s.rowArrow}>...</Text> : <Chevron color={colors.textSubtle} />}
           </TouchableOpacity>
         </View>
         )}
@@ -801,14 +814,14 @@ export default function SettingsScreen({ navigation }) {
               <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_faq')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleContactSupport}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_contact')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.row, { borderBottomWidth: 0 }]}
@@ -818,7 +831,7 @@ export default function SettingsScreen({ navigation }) {
               <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_rate')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
         </View>
         )}
@@ -834,7 +847,7 @@ export default function SettingsScreen({ navigation }) {
                 return (
                   <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
                     <View style={s.rowLeft}>
-                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} />
+                      <View style={s.rowIconBox}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowLabel}>{p.name}</Text>
                         <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
@@ -843,15 +856,18 @@ export default function SettingsScreen({ navigation }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <TouchableOpacity
                         onPress={() => restoreProtocol(p.id)}
-                        style={{ backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
+                        style={s.restoreBtn}
+                        hitSlop={{ top: 6, bottom: 6 }}
+                        accessibilityRole="button"
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('protocols_restore')}</Text>
+                        <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => confirmPermanentDelete(p)}
                         accessibilityLabel={t('settings_delete_forever')}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                        accessibilityRole="button"
+                        style={s.trashBtn}
                       >
                         <FeatureIcon name="trash" size={17} color={colors.danger} />
                       </TouchableOpacity>
@@ -868,64 +884,54 @@ export default function SettingsScreen({ navigation }) {
         {renderSectionHeader('settings_account_prefs', 'account')}
         {!collapsed.account && (
         <View style={s.group}>
-          <View style={s.row}>
+          <View style={[s.row, s.rowStacked]}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
             </View>
-            <View style={s.themePillRow}>
-              {[
-                { key: 'light', label: t('settings_theme_light') },
-                { key: 'dark', label: t('settings_theme_dark') },
-                { key: 'system', label: t('settings_theme_system') },
-              ].map(o => (
-                <TouchableOpacity
-                  key={o.key}
-                  style={[s.themePill, mode === o.key && s.themePillOn]}
-                  onPress={() => setMode(o.key)}
-                >
-                  <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Segmented
+              style={s.rowSegmented}
+              options={[
+                { value: 'light', label: t('settings_theme_light') },
+                { value: 'dark', label: t('settings_theme_dark') },
+                { value: 'system', label: t('settings_theme_system') },
+              ]}
+              value={mode}
+              onChange={(k) => setMode(k)}
+            />
           </View>
-          <View style={s.row}>
+          <View style={[s.row, s.rowStacked]}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
             </View>
-            <View style={s.themePillRow}>
-              {[
-                { key: 'auto', label: t('settings_time_auto') },
-                { key: '12h', label: t('settings_time_12h') },
-                { key: '24h', label: t('settings_time_24h') },
-              ].map(o => (
-                <TouchableOpacity
-                  key={o.key}
-                  style={[s.themePill, timeFormat === o.key && s.themePillOn]}
-                  onPress={() => setTimeFormat(o.key)}
-                >
-                  <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Segmented
+              style={s.rowSegmented}
+              options={[
+                { value: 'auto', label: t('settings_time_auto') },
+                { value: '12h', label: t('settings_time_12h') },
+                { value: '24h', label: t('settings_time_24h') },
+              ]}
+              value={timeFormat}
+              onChange={(k) => setTimeFormat(k)}
+            />
           </View>
           <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
-              <View>
+              <View style={s.rowText}>
                 <Text style={s.rowLabel}>{t('settings_language')}</Text>
                 <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
               </View>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity style={s.row} onPress={handleSignOut}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
               <Text style={s.rowLabel}>{t('settings_signout')}</Text>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <Chevron color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.row, { borderBottomWidth: 0 }]}
@@ -935,7 +941,7 @@ export default function SettingsScreen({ navigation }) {
               <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
               <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
             </View>
-            <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
+            <Chevron color={colors.danger} />
           </TouchableOpacity>
         </View>
         )}
@@ -956,29 +962,35 @@ export default function SettingsScreen({ navigation }) {
       >
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
-            <View style={{ minWidth: 60 }} />
-            <Text style={s.modalTitle}>{t('settings_language')}</Text>
+            <View style={s.modalNavSpacer} />
+            <Text style={s.modalTitle} numberOfLines={1}>{t('settings_language')}</Text>
             <TouchableOpacity
               onPress={() => setShowLanguagePicker(false)}
-              style={{ minWidth: 60, alignItems: 'flex-end' }}
+              style={s.modalNavBtnRight}
+              accessibilityRole="button"
             >
               <Text style={s.modalClose} numberOfLines={1}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 20 }}>
+            <Text style={s.modalIntro}>
               {t('settings_language_sub')}
             </Text>
             {LANGUAGES.map((lang) => (
               <TouchableOpacity
                 key={lang.code}
                 style={[s.langRow, language === lang.code && s.langRowSelected]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: language === lang.code }}
                 onPress={() => {
                   setLanguage(lang.code);
                   setShowLanguagePicker(false);
                 }}
               >
-                <Text style={s.langFlag}>{lang.flag}</Text>
+                {/* Language code badge (no emoji flags in the UI). */}
+                <View style={[s.langCode, language === lang.code && s.langCodeOn]}>
+                  <Text style={[s.langCodeText, language === lang.code && s.langCodeTextOn]}>{lang.code.toUpperCase()}</Text>
+                </View>
                 <View style={s.langInfo}>
                   <Text style={s.langNative}>{lang.native}</Text>
                   <Text style={s.langName}>{lang.name}</Text>
@@ -1020,11 +1032,11 @@ export default function SettingsScreen({ navigation }) {
       <Modal visible={showEditProfile} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => { setShowEditProfile(false); fetchUser(); }} style={{ minWidth: 60 }}>
+            <TouchableOpacity onPress={() => { setShowEditProfile(false); fetchUser(); }} style={s.modalNavBtnLeft} accessibilityRole="button">
               <Text style={s.modalClose}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <Text style={s.modalTitle}>{t('profile_edit_title')}</Text>
-            <TouchableOpacity onPress={saveProfile} style={{ minWidth: 60, alignItems: 'flex-end' }}>
+            <Text style={s.modalTitle} numberOfLines={1}>{t('profile_edit_title')}</Text>
+            <TouchableOpacity onPress={saveProfile} style={s.modalNavBtnRight} accessibilityRole="button">
               <Text style={[s.modalClose, { fontWeight: '700' }]}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
@@ -1105,7 +1117,7 @@ export default function SettingsScreen({ navigation }) {
                 style={[s.editInput, { justifyContent: 'center' }]}
                 onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
               >
-                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textSubtle }}>
                   {country ? countryLabel(country, language) : t('profile_country_placeholder')}
                 </Text>
               </TouchableOpacity>
@@ -1199,11 +1211,12 @@ export default function SettingsScreen({ navigation }) {
       <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
-            <View style={{ minWidth: 60 }} />
-            <Text style={s.modalTitle}>{t('profile_country')}</Text>
+            <View style={s.modalNavSpacer} />
+            <Text style={s.modalTitle} numberOfLines={1}>{t('profile_country')}</Text>
             <TouchableOpacity
               onPress={() => setShowCountryPicker(false)}
-              style={{ minWidth: 60, alignItems: 'flex-end' }}
+              style={s.modalNavBtnRight}
+              accessibilityRole="button"
             >
               <Text style={s.modalClose}>{t('done')}</Text>
             </TouchableOpacity>
@@ -1251,47 +1264,47 @@ export default function SettingsScreen({ navigation }) {
 const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4, backgroundColor: c.bg },
   headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 14, ...c.shadowSoft },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, marginTop: 12, padding: 16, backgroundColor: c.card, borderRadius: 20, ...c.shadowSoft },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
+  avatarText: { color: c.accentText, fontSize: 18, fontWeight: '600' },
   profileInfo: { flex: 1 },
-  profileEmail: { fontSize: 14, fontWeight: '500', color: c.text, marginBottom: 4 },
+  profileEmail: { fontSize: 14.5, fontWeight: '400', color: c.textMuted, marginBottom: 6 },
   planBadge: { backgroundColor: c.accentSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
   planBadgeText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
-  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 14 },
-  premiumTitle: { fontSize: 16, fontWeight: '600', color: 'white', marginBottom: 6 },
-  premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 14, lineHeight: 18 },
-  premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
-  premiumCheck: { color: '#9FE1CB', fontWeight: '600', fontSize: 13 },
-  premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
-  premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
+  premiumCard: { marginHorizontal: 16, marginBottom: 4, padding: 18, backgroundColor: c.accent, borderRadius: 20, ...c.shadowSoft },
+  premiumTitle: { fontSize: 19, fontWeight: '600', color: c.accentText, marginBottom: 6 },
+  premiumSub: { fontSize: 14, color: c.accentText, opacity: 0.85, marginBottom: 14, lineHeight: 20 },
+  premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 7 },
+  premiumCheck: { color: c.accentText, fontWeight: '600', fontSize: 14 },
+  premiumFeatText: { fontSize: 14, color: c.accentText, opacity: 0.92, flex: 1, lineHeight: 19 },
+  premiumBtn: { backgroundColor: c.card, minHeight: 50, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 },
+  premiumBtnText: { color: c.accent, fontSize: 16, fontWeight: '600' },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, textTransform: 'uppercase' },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 20, marginRight: 20, marginTop: 24, marginBottom: 8, minHeight: 32 },
   sectionChevron: { fontSize: 12, color: c.textFaint },
-  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 20, overflow: 'hidden', ...c.shadowSoft },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 56, paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
-  rowIconBox: { width: 28, alignItems: 'center' },
-  rowLabel: { fontSize: 14, color: c.text },
-  rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
-  rowArrow: { fontSize: 18, color: c.textFaint },
-  version: { textAlign: 'center', fontSize: 11, color: c.textFaint, marginTop: 24, lineHeight: 18 },
+  rowIconBox: { width: 24, alignItems: 'center' },
+  rowLabel: { fontSize: 15.5, color: c.text },
+  rowSub: { fontSize: 12.5, color: c.textSubtle, marginTop: 2, lineHeight: 17 },
+  rowArrow: { fontSize: 15, color: c.textSubtle },
+  version: { textAlign: 'center', fontSize: 12, color: c.textSubtle, marginTop: 28, lineHeight: 18 },
   modal: { flex: 1, backgroundColor: c.card },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  modalClose: { fontSize: 14, color: c.accent, fontWeight: '600' },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, minHeight: 56, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  modalTitle: { fontSize: 17, fontWeight: '600', color: c.text, flexShrink: 1, textAlign: 'center' },
+  modalClose: { fontSize: 16, color: c.accent, fontWeight: '600' },
   modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20 },
-  legalText: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
-  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, backgroundColor: c.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
+  legalText: { fontSize: 15, color: c.textMuted, lineHeight: 24 },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: c.card2, borderRadius: 16, marginBottom: 8, borderWidth: 1.5, borderColor: 'transparent' },
   langRowSelected: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
   langFlag: { fontSize: 28 },
   langInfo: { flex: 1 },
-  langNative: { fontSize: 15, fontWeight: '600', color: c.text },
-  langName: { fontSize: 12, color: c.textMuted, marginTop: 1 },
+  langNative: { fontSize: 16, fontWeight: '500', color: c.text },
+  langName: { fontSize: 13, color: c.textMuted, marginTop: 1 },
   langCheck: { fontSize: 18, color: c.accent, fontWeight: '600' },
   // Theme toggle
   themePillRow: { flexDirection: 'row', gap: 8 },
@@ -1300,23 +1313,38 @@ const makeStyles = (c) => StyleSheet.create({
   themePillText: { fontSize: 13, color: c.text, fontWeight: '600' },
   themePillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   // Profile enhancements
-  profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
-  profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  goalBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
+  profileName: { fontSize: 19, fontWeight: '600', color: c.text, marginBottom: 2 },
+  profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 2, flexWrap: 'wrap' },
+  goalBadge: { backgroundColor: c.card2, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 13, flexShrink: 1 },
+  goalBadgeText: { fontSize: 12, color: c.textMuted, fontWeight: '600' },
   // Edit profile modal — same layout language as onboarding.
-  editSection: { fontSize: 15, fontWeight: '800', color: c.text, letterSpacing: -0.2, marginTop: 24, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
+  editSection: { fontSize: 19, fontWeight: '600', color: c.text, letterSpacing: -0.2, marginTop: 24, marginBottom: 2, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   editField: { marginTop: 16 },
-  editLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginBottom: 8 },
-  editHint: { fontSize: 12.5, color: c.textMuted, marginTop: -4, marginBottom: 8 },
-  sexHelp: { fontSize: 12, color: c.textFaint, marginTop: 8, lineHeight: 16 },
-  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: c.text, backgroundColor: c.card2, minHeight: 48 },
+  editLabel: { ...TYPE.label, color: c.textSubtle, marginBottom: 8 },
+  editHint: { fontSize: 13, color: c.textMuted, marginTop: -4, marginBottom: 8 },
+  sexHelp: { fontSize: 12.5, color: c.textSubtle, marginTop: 8, lineHeight: 17 },
+  editInput: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: c.text, backgroundColor: c.card2, minHeight: 48 },
   editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   editMGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  editMChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  editPill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
+  editMChip: { width: '22%', flexGrow: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 11, borderRadius: 14, backgroundColor: c.card2, borderWidth: 1.5, borderColor: 'transparent' },
+  editPill: { paddingHorizontal: 16, minHeight: 44, justifyContent: 'center', paddingVertical: 10, borderRadius: 22, backgroundColor: c.card2, borderWidth: 1.5, borderColor: 'transparent' },
   editPillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
-  editPillText: { fontSize: 14, color: c.text, fontWeight: '600' },
+  editPillText: { fontSize: 14.5, color: c.text, fontWeight: '500' },
   editPillTextOn: { color: c.accentSoftText, fontWeight: '600' },
-  editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
+  editDisclaimer: { fontSize: 12, color: c.textSubtle, textAlign: 'center', marginTop: 20, lineHeight: 17 },
+  // Hybrid additions
+  rowText: { flex: 1, paddingRight: 8 },
+  rowStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
+  rowSegmented: { alignSelf: 'stretch' },
+  restoreBtn: { backgroundColor: c.accentSoft, paddingHorizontal: 14, minHeight: 34, justifyContent: 'center', borderRadius: 12 },
+  restoreBtnText: { fontSize: 13.5, fontWeight: '600', color: c.accentSoftText },
+  trashBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  modalNavSpacer: { minWidth: 64 },
+  modalNavBtnLeft: { minWidth: 64, minHeight: 44, justifyContent: 'center' },
+  modalNavBtnRight: { minWidth: 64, minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' },
+  modalIntro: { fontSize: 14, color: c.textMuted, marginBottom: 16, lineHeight: 20 },
+  langCode: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' },
+  langCodeOn: { backgroundColor: c.accent },
+  langCodeText: { fontSize: 13, fontWeight: '600', color: c.textMuted, letterSpacing: 0.5 },
+  langCodeTextOn: { color: c.accentText },
 });

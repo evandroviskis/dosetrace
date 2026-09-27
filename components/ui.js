@@ -98,14 +98,15 @@ export function ScreenTitle({ title, eyebrow, right, style }) {
 }
 
 // Label/value strip under a hairline — the protocol facts row.
+// Optional per item: flex (column weight), lines (value line cap), tone.
 export function FactStrip({ items, style }) {
   const { colors: c } = useTheme();
   return (
     <View style={[{ flexDirection: 'row', gap: 8, paddingTop: 12, marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }, style]}>
       {items.map((it, i) => (
-        <View key={i} style={{ flex: 1, minWidth: 0 }}>
+        <View key={i} style={{ flex: it.flex || 1, minWidth: 0 }}>
           <Text numberOfLines={1} style={[TYPE.label, { color: c.textSubtle }]}>{it.label}</Text>
-          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '500', marginTop: 2, color: it.tone === 'warning' ? c.warning : it.tone === 'danger' ? c.danger : c.text }}>{it.value}</Text>
+          <Text numberOfLines={it.lines || 1} style={{ fontSize: 14, fontWeight: '500', marginTop: 2, color: it.tone === 'warning' ? (c.warningText || c.warning) : it.tone === 'danger' ? c.dangerSoftText : c.text }}>{it.value}</Text>
         </View>
       ))}
     </View>
@@ -124,7 +125,7 @@ export function Segmented({ options, value, onChange, style }) {
             onPress={() => onChange && onChange(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            style={[{ flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.card : 'transparent' }, on && c.shadowSoft]}
+            style={[{ flex: 1, minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.card : 'transparent' }, on && c.shadowSoft]}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: on ? c.text : c.textMuted }}>{o.label}</Text>
           </TouchableOpacity>

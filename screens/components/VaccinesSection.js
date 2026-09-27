@@ -24,7 +24,9 @@ import { getCachedUser, supabase } from '../../lib/supabase';
 import { requestAIConsent } from '../../lib/aiConsent';
 import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { useTheme } from '../../lib/theme';
+import { useTheme, TYPE } from '../../lib/theme';
+import { Card, Chip, SectionLabel } from '../../components/ui';
+import Svg, { Path } from 'react-native-svg';
 import FeatureIcon from '../../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
@@ -33,6 +35,22 @@ import { hasNativeModule } from '../../lib/nativeModule';
 import { CrossMark } from '../../components/CheckMark';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+// Drawn glyphs (hybrid restyle) replacing the old ＋ and › text glyphs.
+function PlusGlyph({ color, size = 18 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function ChevronRight({ color, size = 18 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 5.5l6.5 6.5L9 18.5" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 // Sanitize an extracted vaccine row: require a name + valid ISO date_given,
 // null-out an invalid next_due, coerce notes to a string.
@@ -310,16 +328,24 @@ export default function VaccinesSection() {
         <Text style={s.hubDisclaimer}>{t('vax_disclaimer')}</Text>
 
         <View style={s.actionRow}>
-          <TouchableOpacity style={[s.actionBtn, s.actionPrimary]} onPress={openAdd}>
-            <Text style={s.actionPrimaryText}>＋ {t('vax_add')}</Text>
+          <TouchableOpacity style={[s.actionBtn, s.actionPrimary]} onPress={openAdd} accessibilityRole="button" accessibilityLabel={t('vax_add')}>
+            <PlusGlyph color={colors.accentText} />
+            <Text style={s.actionPrimaryText} numberOfLines={1}>{t('vax_add')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.actionBtn, s.actionSecondary]} onPress={handleScanPress} disabled={uploading}>
+          <TouchableOpacity
+            style={[s.actionBtn, s.actionSecondary]}
+            onPress={handleScanPress}
+            disabled={uploading}
+            accessibilityRole="button"
+            accessibilityLabel={t('vax_scan')}
+            accessibilityState={{ disabled: uploading, busy: uploading }}
+          >
             {uploading ? (
-              <Text style={s.actionSecondaryText}>…</Text>
+              <ActivityIndicator size="small" color={colors.accent} />
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <FeatureIcon name="scan" size={15} color={colors.accent} />
-                <Text style={s.actionSecondaryText}>{t('vax_scan')}</Text>
+                <Text style={s.actionSecondaryText} numberOfLines={1}>{t('vax_scan')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -336,6 +362,7 @@ export default function VaccinesSection() {
           <TextInput
             style={s.searchInput}
             placeholder={t('vax_search_ph')}
+            accessibilityLabel={t('vax_search_ph')}
             placeholderTextColor={colors.textFaint}
             value={search}
             onChangeText={setSearch}
@@ -345,19 +372,28 @@ export default function VaccinesSection() {
         )}
 
         {list.length === 0 && (
-          <View style={s.empty}>
+          <Card style={s.empty}>
             <View style={s.emptyIcon}><FeatureIcon name="syringe" size={44} color={colors.textMuted} /></View>
             <Text style={s.emptyTitle}>{t('vax_empty_title')}</Text>
             <Text style={s.emptySub}>{t('vax_empty_sub')}</Text>
-          </View>
+          </Card>
         )}
 
         {list.length > 0 && filtered.length === 0 && (
           <Text style={s.noResults}>{t('vax_no_results')}</Text>
         )}
 
-        {filtered.map(v => (
-          <TouchableOpacity key={v.id} style={s.card} onPress={() => openEdit(v)}>
+        {filtered.length > 0 && (
+          <Card padded={false} style={s.listCard}>
+        {filtered.map((v, i) => (
+          <TouchableOpacity
+            key={v.id}
+            style={[s.card, i === filtered.length - 1 && s.cardLast]}
+            onPress={() => openEdit(v)}
+            accessibilityRole="button"
+            accessibilityLabel={[v.name, formatDate(v.date_given), v.next_due ? `${t('vax_next_due')}: ${formatDate(v.next_due)}` : null].filter(Boolean).join(', ')}
+            accessibilityHint={t('vax_edit_title')}
+          >
             <View style={{ flex: 1, marginRight: 10 }}>
               <Text style={s.cardName}>{v.name}</Text>
               <Text style={s.cardDate}>{formatDate(v.date_given)}</Text>
@@ -371,13 +407,15 @@ export default function VaccinesSection() {
                 </Text>
               ) : null}
               {v.next_due ? (
-                <Text style={s.cardDue}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text>
+                <Chip tone="accent" label={`${t('vax_next_due')}: ${formatDate(v.next_due)}`} style={s.dueChip} />
               ) : null}
               {v.notes ? <Text style={s.cardNotes}>{v.notes}</Text> : null}
             </View>
-            <Text style={s.cardChevron}>›</Text>
+            <ChevronRight color={colors.textSubtle} />
           </TouchableOpacity>
         ))}
+          </Card>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -427,7 +465,7 @@ export default function VaccinesSection() {
             <View style={s.dueHeader}>
               <Text style={s.fieldLabel}>{t('vax_next_due_opt')}</Text>
               {nextDue ? (
-                <TouchableOpacity onPress={() => setNextDue('')}>
+                <TouchableOpacity onPress={() => setNextDue('')} hitSlop={{ top: 12, bottom: 4, left: 12, right: 12 }} accessibilityRole="button">
                   <Text style={s.clearLink}>{t('vax_clear')}</Text>
                 </TouchableOpacity>
               ) : null}
@@ -451,7 +489,7 @@ export default function VaccinesSection() {
               />
             )}
 
-            <Text style={s.sectionLabel}>{t('vax_details_section')}</Text>
+            <SectionLabel style={s.sectionLabel}>{t('vax_details_section')}</SectionLabel>
 
             <View style={s.fieldRow}>
               <View style={s.fieldCol}>
@@ -517,7 +555,7 @@ export default function VaccinesSection() {
             />
 
             {editingId ? (
-              <TouchableOpacity style={s.deleteBtn} onPress={removeVaccine}>
+              <TouchableOpacity style={s.deleteBtn} onPress={removeVaccine} accessibilityRole="button">
                 <Text style={s.deleteBtnText}>{t('vax_delete')}</Text>
               </TouchableOpacity>
             ) : null}
@@ -566,50 +604,52 @@ export default function VaccinesSection() {
 
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1 },
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  scroll: { flex: 1, padding: 16 },
-  hubDisclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 12 },
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 4 },
+  scroll: { flex: 1 },
+  hubDisclaimer: { ...TYPE.caption, color: c.textSubtle, lineHeight: 18, marginBottom: 12 },
   actionRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  actionBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  actionBtn: { flex: 1, flexDirection: 'row', gap: 6, borderRadius: 16, minHeight: 52, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   actionPrimary: { backgroundColor: c.accent },
-  actionPrimaryText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  actionSecondary: { backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border },
-  actionSecondaryText: { color: c.accent, fontSize: 14, fontWeight: '600' },
-  uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginBottom: 12 },
-  uploadingText: { fontSize: 13, color: c.accent },
-  reviewNote: { fontSize: 13, color: c.text, fontWeight: '600', marginBottom: 12 },
-  reviewCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card2, borderRadius: 12, padding: 14, marginBottom: 10 },
+  actionPrimaryText: { color: c.accentText, fontSize: 15.5, fontWeight: '600', flexShrink: 1 },
+  actionSecondary: { backgroundColor: c.card, ...c.shadowSoft },
+  actionSecondaryText: { color: c.accent, fontSize: 15.5, fontWeight: '600', flexShrink: 1 },
+  uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 14, minHeight: 44, borderRadius: 14, marginBottom: 12 },
+  uploadingText: { fontSize: 14, color: c.accentSoftText, fontWeight: '500', flexShrink: 1 },
+  reviewNote: { fontSize: 15, color: c.text, fontWeight: '600', marginBottom: 12 },
+  reviewCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card2, borderRadius: 16, padding: 14, marginBottom: 10 },
   reviewRemove: { fontSize: 16, color: c.danger, paddingHorizontal: 4 },
-  reviewHint: { fontSize: 12, color: c.textFaint, lineHeight: 17, marginTop: 6 },
-  searchInput: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border, marginBottom: 12 },
-  empty: { alignItems: 'center', paddingTop: 30 },
-  emptyIcon: { fontSize: 44, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 16 },
-  noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 14, marginBottom: 10 },
-  cardName: { fontSize: 15, fontWeight: '600', color: c.text },
-  cardDate: { fontSize: 12, color: c.textMuted, marginTop: 3 },
-  cardMeta: { fontSize: 12, color: c.text, marginTop: 3, fontWeight: '500' },
-  cardDue: { fontSize: 12, color: c.accent, marginTop: 3 },
-  cardNotes: { fontSize: 12, color: c.textMuted, marginTop: 4, lineHeight: 17 },
-  cardChevron: { fontSize: 22, color: c.textFaint },
+  reviewHint: { ...TYPE.caption, color: c.textSubtle, lineHeight: 18, marginTop: 6 },
+  searchInput: { backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 14, height: 44, fontSize: 15, color: c.text, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, marginBottom: 12 },
+  empty: { alignItems: 'center', paddingVertical: 28 },
+  emptyIcon: { marginBottom: 12 },
+  emptyTitle: { ...TYPE.heading, color: c.text, marginBottom: 6, textAlign: 'center' },
+  emptySub: { fontSize: 15, color: c.textMuted, textAlign: 'center', lineHeight: 21, paddingHorizontal: 8 },
+  noResults: { fontSize: 14.5, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
+  card: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, minHeight: 60, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  cardName: { fontSize: 16, fontWeight: '600', color: c.text },
+  cardDate: { fontSize: 14, color: c.textMuted, marginTop: 3 },
+  cardMeta: { ...TYPE.caption, color: c.text, marginTop: 4, fontWeight: '500' },
+  cardDue: { ...TYPE.caption, color: c.accent, marginTop: 3 },
+  cardNotes: { ...TYPE.caption, color: c.textMuted, marginTop: 6, lineHeight: 18 },
   modal: { flex: 1, backgroundColor: c.card },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  modalClose: { fontSize: 14, color: c.textMuted },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, minHeight: 56, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  modalTitle: { fontSize: 17, fontWeight: '600', color: c.text, flexShrink: 1, textAlign: 'center' },
+  modalClose: { fontSize: 15, color: c.textMuted },
   modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 14 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 24, marginBottom: 2 },
+  fieldLabel: { ...TYPE.label, color: c.textSubtle, marginBottom: 8, marginTop: 16 },
+  sectionLabel: { marginTop: 28, marginBottom: 0, color: c.text },
   fieldRow: { flexDirection: 'row', gap: 12 },
   fieldCol: { flex: 1 },
   fieldColNarrow: { width: 96 },
-  input: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border },
-  notesInput: { minHeight: 70, textAlignVertical: 'top' },
-  dateBtn: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 0.5, borderColor: c.border },
-  dateBtnText: { fontSize: 15, color: c.text },
+  input: { backgroundColor: c.bg, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, paddingVertical: 11, fontSize: 16, color: c.text, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
+  notesInput: { minHeight: 80, textAlignVertical: 'top' },
+  dateBtn: { backgroundColor: c.bg, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
+  dateBtnText: { fontSize: 16, color: c.text },
   dueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  clearLink: { fontSize: 12, color: c.accent, fontWeight: '600', marginBottom: 8 },
-  deleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
-  deleteBtnText: { color: c.danger, fontSize: 14, fontWeight: '600' },
+  clearLink: { fontSize: 14, color: c.accent, fontWeight: '600', marginBottom: 8 },
+  deleteBtn: { marginTop: 28, borderRadius: 14, minHeight: 50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.danger },
+  deleteBtnText: { color: c.danger, fontSize: 15, fontWeight: '600' },
+  listCard: { paddingHorizontal: 16, paddingVertical: 2 },
+  cardLast: { borderBottomWidth: 0 },
+  dueChip: { alignSelf: 'flex-start', marginTop: 8 },
 });

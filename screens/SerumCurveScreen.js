@@ -28,7 +28,8 @@ import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { expectedDosesOn } from '../lib/schedule';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { BLEND_IDS, blendComponents } from '../lib/compounds';
-import { useTheme } from '../lib/theme';
+import { useTheme, TYPE } from '../lib/theme';
+import { Card, SectionLabel, Dot, Chip, CircleButton, BigNumber, Segmented } from '../components/ui';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { isPremium } from '../lib/purchases';
@@ -213,6 +214,7 @@ export default function SerumCurveScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [notCharted, setNotCharted] = useState({ iu: [], noData: [], noDose: [] });
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);   // full disclaimer, one tap away
   const [showCombined, setShowCombined] = useState(true);
   const [futureDays, setFutureDays] = useState(7);   // projection horizon
   // Readout: estimate levels on a chosen date, e.g. a blood-draw date.
@@ -320,10 +322,10 @@ export default function SerumCurveScreen() {
     });
   }
 
-  const chartWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 28;
-  const chartHeight = 220;
+  const chartWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 20; // screen gutter + chart card padding
+  const chartHeight = 228;
   const AXIS_W = 38;            // left gutter for mg labels
-  const PLOT_TOP = 8;           // headroom above the peak
+  const PLOT_TOP = 16;          // headroom above the peak (unit label sits above)
   const PLOT_BOTTOM = chartHeight - 4;
   const plotLeft = AXIS_W;
   const plotRight = chartWidth;
@@ -635,19 +637,85 @@ export default function SerumCurveScreen() {
     estimated: { bg: colors.warningSoft, fg: colors.warningSoftText, label: t('curve_tier_estimated') },
   };
 
+  // Tier badge → Chip tone (same three tiers, theme-resolved in both palettes).
+  const tierTone = { clinical: 'success', studied: 'accent', estimated: 'warning' };
+  const dateShort = (ts) => new Date(ts).toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' });
+  const capFirst = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : str);
+
+  // Single compound: where the window's peak falls (for the Peak stat).
+  let singlePeak = null;
+  if (single && model) {
+    let mi = 0;
+    for (let i = 1; i < single.points.length; i++) if (single.points[i] > single.points[mi]) mi = i;
+    singlePeak = { value: single.points[mi] || 0, ts: model.start + mi * stepMs };
+  }
+  // Multi-select hero: the first combined total, when one is shown.
+  const heroCombined = !single && showCombined && model && model.combined.length ? model.combined[0] : null;
+
+  const HERO = 64;
+  // Hero number counts along with the pen; the unit sits right after it, so the
+  // number's box tracks the digits it is showing (tabular figures).
+  const heroFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1) : String(Math.round(v)); };
+  const heroBox = useAnimatedStyle(() => {
+    const str = heroFmt(statLevel.value);
+    let w = 0;
+    for (let i = 0; i < str.length; i++) w += str[i] === '.' ? 0.3 : 0.6;
+    return { width: Math.ceil(w * HERO) + 4 };
+  });
+
+  const outlined = (d, size, color, sw = 2) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d={d} stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+  const chevL = (col) => outlined('M15 5.5L8.5 12l6.5 6.5', 22, col);
+  const chevD = (col, size = 16) => outlined('M6.5 9.5l5.5 5.5 5.5-5.5', size, col, 1.9);
+  const chevU = (col, size = 16) => outlined('M6.5 14.5l5.5-5.5 5.5 5.5', size, col, 1.9);
+  const infoIcon = (col) => (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={8.5} stroke={col} strokeWidth={1.7} />
+      <Path d="M12 11v5.5" stroke={col} strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx={12} cy={7.8} r={1.1} fill={col} />
+    </Svg>
+  );
+
+  const selDots = model ? model.series.slice(0, 3) : [];
+
   return (
     <SafeAreaView style={s.container}>
+      {/* Header: back · compound picker pill · about-this-estimate */}
       <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('common_back')}
-        >
-          <Text style={s.headerBack}>‹</Text>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('curve_title')}</Text>
-        <View style={s.headerSpacer} />
+        <CircleButton onPress={() => navigation.goBack()} accessibilityLabel={t('common_back')}>
+          {chevL(colors.text)}
+        </CircleButton>
+        {protocols.length > 0 ? (
+          <TouchableOpacity
+            style={s.pill}
+            activeOpacity={0.7}
+            onPress={() => setPickerOpen(true)}
+            hitSlop={{ top: 4, bottom: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('curve_choose_title')}: ${buttonLabel}`}
+          >
+            {selDots.map((ser, i) => (
+              <Dot key={ser.id} color={ser.color} size={8} style={i > 0 && { marginLeft: -4 }} />
+            ))}
+            <Text style={s.pillText} numberOfLines={1}>{buttonLabel}</Text>
+            {chevD(colors.textMuted)}
+          </TouchableOpacity>
+        ) : (
+          <Text style={s.headerTitle} numberOfLines={1} accessibilityRole="header">{t('curve_title')}</Text>
+        )}
+        {protocols.length > 0 ? (
+          <CircleButton
+            onPress={() => setAboutOpen(v => !v)}
+            accessibilityLabel={t('hy_curve_about')}
+          >
+            {infoIcon(aboutOpen ? colors.accent : colors.text)}
+          </CircleButton>
+        ) : (
+          <View style={{ width: 44 }} />
+        )}
       </View>
 
       {protocols.length === 0 ? (
@@ -662,53 +730,65 @@ export default function SerumCurveScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll}>
-          {/* Dropdown trigger — multi-select compound picker */}
-          <TouchableOpacity
-            style={s.dropdown}
-            activeOpacity={0.7}
-            onPress={() => setPickerOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('curve_choose_title')}
-          >
-            <View style={s.dropdownLeft}>
-              {single && <View style={[s.dot, { backgroundColor: single.color }]} />}
-              <Text style={s.dropdownText} numberOfLines={1}>{buttonLabel}</Text>
-            </View>
-            <Text style={s.dropdownChevron}>⌄</Text>
-          </TouchableOpacity>
-          {notChartedLines().map(line => <Text key={line} style={s.notCharted}>{line}</Text>)}
+          {/* ── Hero: the estimated level right now ── */}
+          <View style={s.hero}>
+            <SectionLabel>{t('curve_title')}</SectionLabel>
+            {single ? (
+              <View style={s.heroRow}>
+                <Animated.View style={[s.heroNumBox, heroBox, statBump]}>
+                  <AnimatedNumber
+                    value={statLevel}
+                    format={heroFmt}
+                    style={s.heroNum}
+                    width={HERO * 4}
+                    accessibilityLabel={`${t('curve_current_level')}: ${mgLabel(singleNow)} ${unitLbl}`}
+                  />
+                </Animated.View>
+                <Text style={s.heroUnit}>{unitLbl}</Text>
+              </View>
+            ) : heroCombined ? (
+              <BigNumber value={mgLabel(heroCombined.nowLevel)} unit={unitLbl} size={HERO} style={{ marginTop: 4 }} />
+            ) : null}
+            <Text style={s.heroLabel}>
+              {single
+                ? t('curve_current_level')
+                : heroCombined
+                  ? `${t('curve_combined')} · ${t(`substance_${heroCombined.substance}`)}`
+                  : `${selCount} ${t('curve_compounds_label')}`}
+            </Text>
+            {/* The one caveat line that is always on screen; the full disclaimer
+                is one tap away (link here, or the info button in the header). */}
+            <Text style={s.caveat}>{t('hy_curve_caveat')}</Text>
+            <TouchableOpacity
+              style={s.aboutLink}
+              onPress={() => setAboutOpen(v => !v)}
+              hitSlop={{ top: 12, bottom: 12, left: 4, right: 12 }}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: aboutOpen }}
+            >
+              <Text style={s.aboutLinkText}>{t('hy_curve_about')}</Text>
+              {aboutOpen ? chevU(colors.accent, 14) : chevD(colors.accent, 14)}
+            </TouchableOpacity>
+            {aboutOpen && (
+              <View style={s.disclaimerBox}>
+                <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
+              </View>
+            )}
+            {notChartedLines().map(line => <Text key={line} style={s.notCharted}>{line}</Text>)}
+          </View>
 
-          <View style={s.card}>
+          {/* ── Chart ── */}
+          <Card style={s.chartCard}>
             <View style={s.cardTopRow}>
               <Text style={s.rangeLabel}>
                 {t('curve_last_days')} {PAST_DAYS}d · +{futureDays}d {t('curve_projection')}
-                {model && model.max > 0 ? `  ·  ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
+                {!single && model && model.max > 0 ? `  ·  ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
               </Text>
-              {single && (
-                <View style={[s.tierBadge, { backgroundColor: tierCfg[single.entry.tier].bg }]}>
-                  <Text style={[s.tierBadgeText, { color: tierCfg[single.entry.tier].fg }]}>
-                    {tierCfg[single.entry.tier].label}
-                  </Text>
-                </View>
-              )}
-            </View>
-            {/* Where the half-life comes from: the tier badge says it plainly; the
-                research citation is one tap away rather than jargon on the chart. */}
-            {single && (
-              <TouchableOpacity onPress={() => setSourceOpen(v => !v)} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6 }}>
-                <Text style={s.sourceLine}>
-                  {t('curve_source_label')} {sourceOpen ? '⌃' : '⌄'}
-                  {sourceOpen ? `\n${single.entry.source}` : ''}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={s.disclaimerBox}>
-              <Text style={s.disclaimerText}>{t('curve_disclaimer')}</Text>
+              {single && <Chip label={tierCfg[single.entry.tier].label} tone={tierTone[single.entry.tier]} />}
             </View>
 
             {model && model.series.some(ser => ser.fromBlend) && (
-              <View style={s.disclaimerBox}>
+              <View style={[s.disclaimerBox, { marginBottom: 10 }]}>
                 <Text style={s.disclaimerText}>{t('blend_curve_caveat')}</Text>
               </View>
             )}
@@ -718,20 +798,20 @@ export default function SerumCurveScreen() {
             <Svg width={chartWidth} height={chartHeight}>
               {/* future projection zone — opens at Now during the opening moment */}
               <ARect y={PLOT_TOP} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.accentSoft} animatedProps={zoneProps} />
-              {/* y-axis: mg gridlines + labels (dip and return during a rescale) */}
+              {/* y-axis: gridlines + labels (dip and return during a rescale) */}
               <AG animatedProps={gridProps}>
               {yTicks().map((v, i) => (
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.border} strokeWidth={1} />
-                  <SvgText x={plotLeft - 6} y={yForLevel(v) + 3.5} fontSize={9} fill={colors.textMuted} textAnchor="end">
+                  <SvgText x={plotLeft - 6} y={yForLevel(v) + 3.5} fontSize={11} fill={colors.textSubtle} textAnchor="end">
                     {mgLabel(v)}
                   </SvgText>
                 </React.Fragment>
               ))}
-              <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fill={colors.textMuted} textAnchor="start">{unitLbl}</SvgText>
+              <SvgText x={plotLeft - 6} y={10} fontSize={11} fontWeight="600" fill={colors.textSubtle} textAnchor="end">{unitLbl}</SvgText>
               </AG>
               {/* NOW line — rises from the baseline when the pen reaches today */}
-              <ALine stroke={colors.textMuted} strokeWidth={1.5} strokeDasharray="4,4" animatedProps={nowLineProps} />
+              <ALine stroke={colors.textSubtle} strokeWidth={1.5} strokeDasharray="2,4" animatedProps={nowLineProps} />
               {/* readout date marker (a chosen blood-draw date) — labeled so a
                   screenshot shows which date and level it represents */}
               <AG animatedProps={readoutGProps}>
@@ -741,8 +821,8 @@ export default function SerumCurveScreen() {
                   <SvgText
                     x={Math.min(Math.max(readoutX, plotLeft + 20), plotRight - 20)}
                     y={PLOT_TOP + 8}
-                    fontSize={10}
-                    fontWeight="700"
+                    fontSize={11}
+                    fontWeight="600"
                     fill={colors.accent}
                     textAnchor="middle"
                   >
@@ -750,10 +830,10 @@ export default function SerumCurveScreen() {
                   </SvgText>
                   {/* dots where the chosen date crosses each line */}
                   {model.series.map(ser => (
-                    <Circle key={`ro-dot-${ser.id}`} cx={readoutX} cy={yForLevel(levelAtDate(ser, readoutT))} r={3} fill={ser.color} stroke={colors.card} strokeWidth={1} />
+                    <Circle key={`ro-dot-${ser.id}`} cx={readoutX} cy={yForLevel(levelAtDate(ser, readoutT))} r={3.5} fill={ser.color} stroke={colors.card} strokeWidth={1.5} />
                   ))}
                   {showCombined && model.combined.map(c => (
-                    <Circle key={`ro-dot-${c.id}`} cx={readoutX} cy={yForLevel(c.members.reduce((s, mid) => s + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} r={3.5} fill={colors.accent} stroke={colors.card} strokeWidth={1} />
+                    <Circle key={`ro-dot-${c.id}`} cx={readoutX} cy={yForLevel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} r={4} fill={colors.accent} stroke={colors.card} strokeWidth={1.5} />
                   ))}
                 </>
               )}
@@ -766,7 +846,7 @@ export default function SerumCurveScreen() {
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={ser.color}
-                  strokeWidth={2.5}
+                  strokeWidth={2.4}
                   // Explicit in both cases: react-native-svg keeps a prior dash when
                   // the prop returns to undefined, so estimated→clinical would stay dashed.
                   strokeDasharray={ser.entry.tier === 'estimated' ? '6,4' : '0'}
@@ -789,13 +869,16 @@ export default function SerumCurveScreen() {
               {introFx && model && model.max > 0 && model.series.map(ser => (
                 <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={ser.color} />
               ))}
-              {/* dots marking each line's level right now */}
+              {/* each line's level right now: a soft halo + a ringed dot */}
               <AG animatedProps={markerProps}>
               {model && model.max > 0 && model.series.map(ser => (
-                <Circle key={`d-${ser.id}`} cx={nowX} cy={yForLevel(ser.nowLevel)} r={3.5} fill={ser.color} />
+                <React.Fragment key={`d-${ser.id}`}>
+                  <Circle cx={nowX} cy={yForLevel(ser.nowLevel)} r={9} fill={ser.color} fillOpacity={0.16} />
+                  <Circle cx={nowX} cy={yForLevel(ser.nowLevel)} r={4.5} fill={ser.color} stroke={colors.card} strokeWidth={2} />
+                </React.Fragment>
               ))}
               {model && model.max > 0 && showCombined && model.combined.map(c => (
-                <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.nowLevel)} r={4} fill={colors.text} />
+                <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.nowLevel)} r={5} fill={colors.text} stroke={colors.card} strokeWidth={2} />
               ))}
               </AG>
             </Svg>
@@ -805,7 +888,7 @@ export default function SerumCurveScreen() {
               <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{PAST_DAYS}d</Text>
               <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]}>+{futureDays}d</Text>
               {model && (
-                <Text style={[s.axisLabel, { position: 'absolute', left: Math.max(0, (nowX - AXIS_W) - 14), color: colors.text, fontWeight: '700' }]}>
+                <Text style={[s.axisLabel, { position: 'absolute', left: Math.max(0, (nowX - AXIS_W) - 14), color: colors.text, fontWeight: '600' }]}>
                   {t('curve_now')}
                 </Text>
               )}
@@ -830,51 +913,44 @@ export default function SerumCurveScreen() {
                 {t('curve_fast_note').replace('{names}', model.series.filter(ser => ser.entry.hours < STEP_HOURS).map(ser => ser.name).join(', '))}
               </Text>
             )}
+          </Card>
 
-            {/* Projection horizon selector */}
-            <View style={s.horizonRow}>
-              <Text style={s.horizonLabel}>{t('curve_project_ahead')}</Text>
-              <View style={s.horizonChips}>
-                {FUTURE_PRESETS.map(d => {
-                  const on = futureDays === d;
-                  return (
-                    <TouchableOpacity
-                      key={d}
-                      style={[s.horizonChip, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
-                      onPress={() => setFutureDays(d)}
-                    >
-                      <Text style={[s.horizonChipText, on && { color: colors.accentText }]}>+{d}d</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
+          {/* ── Projection horizon ── */}
+          <View>
+            <SectionLabel style={s.blockLabel}>{t('curve_project_ahead')}</SectionLabel>
+            <Segmented
+              options={FUTURE_PRESETS.map(d => ({ value: d, label: `+${d}d` }))}
+              value={futureDays}
+              onChange={setFutureDays}
+            />
           </View>
 
           {single ? (
-            // One compound → the 3-stat detail row.
-            <View style={s.statsRow}>
-              <View style={s.statCard}>
-                <Animated.View style={statBump}>
-                  <AnimatedNumber value={statLevel} format={mgFmt} style={s.statVal} width={104} align="center" />
-                </Animated.View>
-                <Text style={s.statLbl}>{t('curve_current_level')}</Text>
+            // One compound → peak · half-life · doses counted (level is the hero).
+            <Card style={s.statsCard}>
+              <View style={s.statCol}>
+                <Text style={s.statVal} numberOfLines={1} adjustsFontSizeToFit>
+                  {singlePeak ? `${mgLabel(singlePeak.value)} ${unitLbl}` : '—'}
+                </Text>
+                <Text style={s.statLbl} numberOfLines={2}>
+                  {capFirst(t('curve_peak'))}{singlePeak && singlePeak.value > 0 ? ` · ${dateShort(singlePeak.ts)}` : ''}
+                </Text>
               </View>
-              <View style={s.statCard}>
+              <View style={[s.statCol, s.statColSep]}>
                 <Text style={s.statVal}>{halfLifeLabel(single.entry.hours)}</Text>
-                <Text style={s.statLbl}>{t('curve_half_life')}</Text>
+                <Text style={s.statLbl} numberOfLines={2}>{t('curve_half_life')}</Text>
               </View>
-              <View style={s.statCard}>
-                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statVal} width={64} align="center" />
-                <Text style={s.statLbl}>{t('curve_doses_counted')}</Text>
+              <View style={[s.statCol, s.statColSep]}>
+                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statVal} />
+                <Text style={s.statLbl} numberOfLines={2}>{t('curve_doses_counted')}</Text>
               </View>
-            </View>
+            </Card>
           ) : (
             // Multiple compounds → a legend, one row each, sharing the y-scale.
-            <View style={s.legend}>
-              {model && model.series.map(ser => (
-                <View key={ser.id} style={s.legendRow}>
-                  <View style={[s.dot, { backgroundColor: ser.color }]} />
+            <Card style={s.listCard}>
+              {model && model.series.map((ser, i) => (
+                <View key={ser.id} style={[s.legendRow, i > 0 && s.rowSep]}>
+                  <Dot color={ser.color} size={10} style={{ marginRight: 10 }} />
                   <View style={s.legendNameCol}>
                     <Text style={s.legendNameTxt} numberOfLines={1}>{ser.name}</Text>
                     <Text style={[s.legendTier, { color: tierCfg[ser.entry.tier].fg }]} numberOfLines={1}>
@@ -886,21 +962,40 @@ export default function SerumCurveScreen() {
                 </View>
               ))}
               {showCombined && model && model.combined.map(c => (
-                <View key={c.id} style={s.legendRow}>
+                <View key={c.id} style={[s.legendRow, s.rowSep]}>
                   <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
-                  <Text style={[s.legendName, { fontWeight: '800' }]} numberOfLines={1}>
+                  <Text style={[s.legendName, { fontWeight: '700' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.nowLevel)} {unitLbl}</Text>
+                  <Text style={[s.legendLevel, { fontWeight: '700' }]}>{mgLabel(c.nowLevel)} {unitLbl}</Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
-            </View>
+            </Card>
+          )}
+
+          {/* Where the half-life comes from: the tier chip says it plainly; the
+              research citation is one tap away rather than jargon on the chart. */}
+          {single && (
+            <Card padded={false}>
+              <TouchableOpacity
+                style={s.sourceRow}
+                onPress={() => setSourceOpen(v => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: sourceOpen }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.sourceLabel}>{t('curve_source_label')} · {tierCfg[single.entry.tier].label}</Text>
+                  {sourceOpen && <Text style={s.sourceText}>{single.entry.source}</Text>}
+                </View>
+                {sourceOpen ? chevU(colors.textSubtle, 18) : chevD(colors.textSubtle, 18)}
+              </TouchableOpacity>
+            </Card>
           )}
 
           {/* Combined-total toggle — only when a same-substance group exists */}
           {model && model.combined.length > 0 && (
-            <View style={s.toggleRow}>
+            <Card style={s.toggleRow}>
               <View style={{ flex: 1 }}>
                 <Text style={s.toggleLabel}>{t('curve_combined_toggle')}</Text>
                 <Text style={s.toggleHint}>{t('curve_combined_hint')}</Text>
@@ -910,17 +1005,18 @@ export default function SerumCurveScreen() {
                 onValueChange={setShowCombined}
                 trackColor={{ true: colors.accent, false: colors.border }}
               />
-            </View>
+            </Card>
           )}
 
           {/* ── Estimate on a date (cross-reference a blood draw) ── */}
-          <View style={s.readoutCard}>
-            <Text style={s.readoutTitle}>{t('curve_readout_title')}</Text>
-            <TouchableOpacity style={[s.readoutDateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setShowReadoutPicker(v => !v)}>
-              <FeatureIcon name="calendar" size={15} color={colors.text} />
+          <Card>
+            <SectionLabel style={{ marginBottom: 10 }}>{t('curve_readout_title')}</SectionLabel>
+            <TouchableOpacity style={s.readoutDateBtn} onPress={() => setShowReadoutPicker(v => !v)} accessibilityRole="button">
+              <FeatureIcon name="calendar" size={16} color={colors.text} />
               <Text style={s.readoutDateText}>
                 {new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </Text>
+              {showReadoutPicker ? chevU(colors.textMuted) : chevD(colors.textMuted)}
             </TouchableOpacity>
             {showReadoutPicker && (
               <DateTimePicker
@@ -945,8 +1041,10 @@ export default function SerumCurveScreen() {
                     return (
                       <TouchableOpacity
                         key={d}
-                        style={[s.labChip, { flexDirection: 'row', alignItems: 'center', gap: 5 }, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+                        style={[s.labChip, on && { backgroundColor: colors.accent }]}
                         onPress={() => setReadoutDate(d)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
                       >
                         <FeatureIcon name="droplet" size={12} color={on ? colors.accentText : colors.text} />
                         <Text style={[s.labChipText, on && { color: colors.accentText }]}>
@@ -960,25 +1058,27 @@ export default function SerumCurveScreen() {
             )}
 
             {/* per-line estimate on the chosen date */}
-            {model && model.series.map(ser => (
-              <View key={`ro-${ser.id}`} style={s.readoutRow}>
-                <View style={[s.dot, { backgroundColor: ser.color }]} />
-                <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
-                <Text style={s.readoutVal}>{mgLabel(levelAtDate(ser, readoutT))} {unitLbl}</Text>
-              </View>
-            ))}
-            {showCombined && model && model.combined.map(c => (
-              <View key={`ro-${c.id}`} style={s.readoutRow}>
-                <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
-                <Text style={[s.readoutName, { fontWeight: '800' }]} numberOfLines={1}>
-                  {t('curve_combined')} · {t(`substance_${c.substance}`)}
-                </Text>
-                <Text style={[s.readoutVal, { fontWeight: '800' }]}>
-                  {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} {unitLbl}
-                </Text>
-              </View>
-            ))}
-          </View>
+            <View style={{ marginTop: 6 }}>
+              {model && model.series.map((ser, i) => (
+                <View key={`ro-${ser.id}`} style={[s.readoutRow, i > 0 && s.rowSep]}>
+                  <Dot color={ser.color} size={10} style={{ marginRight: 10 }} />
+                  <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
+                  <Text style={s.readoutVal}>{mgLabel(levelAtDate(ser, readoutT))} {unitLbl}</Text>
+                </View>
+              ))}
+              {showCombined && model && model.combined.map(c => (
+                <View key={`ro-${c.id}`} style={[s.readoutRow, s.rowSep]}>
+                  <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
+                  <Text style={[s.readoutName, { fontWeight: '700' }]} numberOfLines={1}>
+                    {t('curve_combined')} · {t(`substance_${c.substance}`)}
+                  </Text>
+                  <Text style={[s.readoutVal, { fontWeight: '700' }]}>
+                    {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} {unitLbl}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
 
         </ScrollView>
       )}
@@ -988,15 +1088,22 @@ export default function SerumCurveScreen() {
         <Pressable style={s.modalScrim} onPress={() => setPickerOpen(false)}>
           <Pressable style={s.sheet} onPress={() => {}}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{t('curve_choose_title')}</Text>
+            <Text style={s.sheetTitle} accessibilityRole="header">{t('curve_choose_title')}</Text>
             <Text style={s.sheetHint}>{t('curve_choose_hint')}</Text>
             <ScrollView style={s.sheetList}>
-              {protocols.map(p => {
+              {protocols.map((p, i) => {
                 const on = selectedIds.includes(p.id);
                 const entry = getHalfLifeEntry(matchName(p));
                 return (
-                  <TouchableOpacity key={p.id} style={s.optionRow} activeOpacity={0.7} onPress={() => toggle(p.id)}>
-                    <View style={[s.dot, { backgroundColor: p.color || colors.accent }]} />
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[s.optionRow, i > 0 && s.rowSep]}
+                    activeOpacity={0.7}
+                    onPress={() => toggle(p.id)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                  >
+                    <Dot color={p.color || colors.accent} size={10} style={{ marginRight: 12 }} />
                     <View style={s.optionMain}>
                       <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
                       <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
@@ -1008,7 +1115,7 @@ export default function SerumCurveScreen() {
                 );
               })}
             </ScrollView>
-            <TouchableOpacity style={s.sheetDone} onPress={() => setPickerOpen(false)}>
+            <TouchableOpacity style={s.sheetDone} onPress={() => setPickerOpen(false)} accessibilityRole="button">
               <Text style={s.sheetDoneText}>{t('curve_done')}</Text>
             </TouchableOpacity>
           </Pressable>
@@ -1019,91 +1126,97 @@ export default function SerumCurveScreen() {
 }
 
 function makeStyles(colors) {
+  const hair = { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border };
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
-    headerBack: { fontSize: 32, color: colors.accent, marginRight: 10, marginTop: -4 },
-    headerTitle: { flex: 1, fontSize: 22, fontWeight: '800', color: colors.text },
-    headerSpacer: { width: 32 },
-    scroll: { paddingHorizontal: 16, paddingBottom: 32, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-
-    dropdown: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+    header: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+      paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8,
+      width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center',
     },
-    dropdownLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    dropdownText: { fontSize: 16, fontWeight: '700', color: colors.text, flexShrink: 1 },
-    dropdownChevron: { fontSize: 20, color: colors.textMuted, fontWeight: '700', marginLeft: 8 },
+    headerTitle: { flex: 1, textAlign: 'center', ...TYPE.heading, color: colors.text },
+    pill: {
+      flexShrink: 1, height: 40, borderRadius: 20, paddingHorizontal: 14,
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: colors.card, ...colors.shadowSoft,
+    },
+    pillText: { flexShrink: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+    scroll: { paddingHorizontal: 16, paddingBottom: 32, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
-    dot: { width: 11, height: 11, borderRadius: 6, marginRight: 9 },
+    hero: { paddingHorizontal: 4, paddingTop: 6 },
+    heroRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 },
+    heroNumBox: { overflow: 'hidden', height: 70 },
+    heroNum: { fontSize: 64, lineHeight: 70, height: 70, fontWeight: '200', letterSpacing: -2, color: colors.text, fontVariant: ['tabular-nums'] },
+    heroUnit: { fontSize: 19, color: colors.textMuted, marginLeft: 4, marginBottom: 10 },
+    heroLabel: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+    caveat: { ...TYPE.caption, lineHeight: 17, color: colors.textSubtle, marginTop: 4 },
+    aboutLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4, paddingVertical: 2 },
+    aboutLinkText: { fontSize: 12.5, fontWeight: '600', color: colors.accent },
+    notCharted: { ...TYPE.caption, lineHeight: 17, color: colors.textMuted, marginTop: 8 },
 
-    card: { backgroundColor: colors.card, borderRadius: 18, padding: 14, ...colors.shadowSoft },
-    cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 },
-    rangeLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-    tierBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-    tierBadgeText: { fontSize: 11, fontWeight: '700' },
-    axisRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-    axisLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
-    horizonRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flexWrap: 'wrap', gap: 6 },
-    horizonLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-    horizonChips: { flexDirection: 'row', gap: 6 },
-    horizonChip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
-    horizonChipText: { fontSize: 12.5, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
+    chartCard: { paddingHorizontal: 10, paddingTop: 12, paddingBottom: 12 },
+    cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4, flexWrap: 'wrap', gap: 6 },
+    rangeLabel: { flexShrink: 1, fontSize: 12, color: colors.textSubtle, fontWeight: '500' },
+    axisLabel: { fontSize: 11, color: colors.textSubtle, fontWeight: '500' },
+    fastNote: { fontSize: 12, color: colors.textMuted, marginTop: 8, lineHeight: 17, paddingHorizontal: 4 },
+    blockLabel: { marginBottom: 8, marginLeft: 4 },
 
-    statsRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-    statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, alignItems: 'center', ...colors.shadowSoft },
-    statVal: { fontSize: 18, fontWeight: '800', color: colors.text },
-    statLbl: { fontSize: 11, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
+    statsCard: { flexDirection: 'row', paddingVertical: 14 },
+    statCol: { flex: 1, minWidth: 0, paddingVertical: 2 },
+    statColSep: { paddingLeft: 14, marginLeft: 0, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border },
+    statVal: { fontSize: 21, lineHeight: 26, fontWeight: '300', color: colors.text, fontVariant: ['tabular-nums'] },
+    statLbl: { fontSize: 12, color: colors.textSubtle, marginTop: 1, paddingRight: 6 },
 
-    legend: { backgroundColor: colors.card, borderRadius: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, ...colors.shadowSoft },
-    legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-    legendName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+    listCard: { paddingVertical: 4 },
+    rowSep: hair,
+    legendRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 8 },
+    legendName: { flex: 1, fontSize: 15, fontWeight: '500', color: colors.text },
     legendNameCol: { flex: 1, marginRight: 6 },
-    legendNameTxt: { fontSize: 14, fontWeight: '600', color: colors.text },
-    legendTier: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
-    notCharted: { fontSize: 12, color: colors.textMuted, lineHeight: 16, marginTop: -4, marginBottom: 10, paddingHorizontal: 4 },
-    sourceLine: { fontSize: 11, color: colors.textMuted, marginTop: -2, marginBottom: 10, lineHeight: 15 },
-    fastNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8, lineHeight: 16 },
-    legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
-    legendHalf: { fontSize: 12, color: colors.textMuted, width: 74, textAlign: 'right' },
-    combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
-    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, ...colors.shadowSoft },
-    toggleLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
-    toggleHint: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
+    legendNameTxt: { fontSize: 15, fontWeight: '500', color: colors.text },
+    legendTier: { fontSize: 11.5, fontWeight: '600', marginTop: 1 },
+    legendLevel: { fontSize: 15, fontWeight: '500', color: colors.text, width: 76, textAlign: 'right', fontVariant: ['tabular-nums'] },
+    legendHalf: { fontSize: 12, color: colors.textSubtle, width: 70, textAlign: 'right' },
+    combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 8 },
 
-    readoutCard: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginTop: 12, ...colors.shadowSoft },
-    readoutTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 10 },
-    readoutDateBtn: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
-    readoutDateText: { fontSize: 14, color: colors.text, fontWeight: '600' },
-    readoutLabHint: { fontSize: 12, color: colors.textMuted, marginTop: 12, marginBottom: 6 },
+    sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 16, paddingVertical: 12 },
+    sourceLabel: { fontSize: 12.5, color: colors.textSubtle },
+    sourceText: { fontSize: 14.5, fontWeight: '500', color: colors.text, marginTop: 3, lineHeight: 20 },
+
+    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    toggleLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
+    toggleHint: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
+
+    readoutDateBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, backgroundColor: colors.card2, borderRadius: 14, paddingHorizontal: 14 },
+    readoutDateText: { flex: 1, fontSize: 15, color: colors.text, fontWeight: '500' },
+    readoutLabHint: { fontSize: 12.5, color: colors.textMuted, marginTop: 12, marginBottom: 8 },
     labChipRow: { gap: 8, paddingVertical: 2 },
-    labChip: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-    labChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
-    readoutRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-    readoutName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
-    readoutVal: { fontSize: 14, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] },
-    disclaimerBox: { backgroundColor: colors.warningSoft, borderRadius: 12, padding: 12, marginTop: 12 },
-    disclaimerText: { fontSize: 12, lineHeight: 17, color: colors.warningSoftText },
+    labChip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, borderRadius: 18, paddingHorizontal: 14, backgroundColor: colors.card2 },
+    labChipText: { fontSize: 13.5, fontWeight: '600', color: colors.text },
+    readoutRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingVertical: 8 },
+    readoutName: { flex: 1, fontSize: 15, fontWeight: '500', color: colors.text },
+    readoutVal: { fontSize: 15, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] },
+
+    disclaimerBox: { backgroundColor: colors.warningSoft, borderRadius: 14, padding: 12, marginTop: 10 },
+    disclaimerText: { fontSize: 12.5, lineHeight: 18, color: colors.warningSoftText },
 
     emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-    emptyIcon: { fontSize: 44, marginBottom: 12 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8, textAlign: 'center' },
-    emptySub: { fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center' },
+    emptyIcon: { marginBottom: 12 },
+    emptyTitle: { ...TYPE.heading, color: colors.text, marginBottom: 8, textAlign: 'center' },
+    emptySub: { fontSize: 15, lineHeight: 21, color: colors.textMuted, textAlign: 'center' },
 
-    modalScrim: { flex: 1, backgroundColor: colors.overlay || 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    sheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, maxHeight: '80%', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-    sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 },
-    sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+    modalScrim: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+    sheet: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 28, maxHeight: '80%', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 14 },
+    sheetTitle: { ...TYPE.heading, color: colors.text },
     sheetHint: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: 8 },
     sheetList: { flexGrow: 0 },
-    optionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+    optionRow: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingVertical: 10 },
     optionMain: { flex: 1 },
-    optionName: { fontSize: 15, fontWeight: '600', color: colors.text },
-    optionSub: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-    check: { width: 24, height: 24, borderRadius: 6, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-    checkMark: { color: colors.accentText, fontSize: 14, fontWeight: '800' },
-    sheetDone: { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
-    sheetDoneText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
+    optionName: { fontSize: 15.5, fontWeight: '500', color: colors.text },
+    optionSub: { fontSize: 12.5, color: colors.textMuted, marginTop: 2 },
+    check: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+    checkMark: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
+    sheetDone: { backgroundColor: colors.accent, borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+    sheetDoneText: { color: colors.accentText, fontSize: 16, fontWeight: '600' },
   });
 }
