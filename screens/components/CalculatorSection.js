@@ -91,6 +91,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const locale = LOCALE_MAP[language] || 'en-US';
 
   const [introOpen, setIntroOpen] = useState(false);
+  const [tgtFormOpen, setTgtFormOpen] = useState(false); // empty target stays a compact card until tapped
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
   const [weight, setWeight] = useState('');
   const [bfSource, setBfSource] = useState('gym');
@@ -868,7 +869,6 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         <Text style={s.hint}>{t('cal_waist_hint')}</Text>
       </View>
       )}
-      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* Activity is an input too — it collapses with "Your numbers". */}
       {numbersOpenEff && (<>
@@ -903,7 +903,11 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
         </View>
         <Text style={s.premSub}>{t('cal_tgt_sub')}</Text>
 
-        {(targetEditing || !target) ? (
+        {!target && !targetEditing && !tgtFormOpen ? (
+          <TouchableOpacity style={s.tgtSetBtn} onPress={() => setTgtFormOpen(true)} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.tgtSetBtnText}>{t('hy_set_target')}</Text>
+          </TouchableOpacity>
+        ) : (targetEditing || !target) ? (
           <View style={{ marginTop: 8 }}>
             <Text style={s.inputLabelSm}>{t('cal_tgt_weight')} ({wUnit})</Text>
             <TextInput style={s.input} value={tgtWeight} onChangeText={setTgtWeight} keyboardType="decimal-pad" placeholder={t('cal_tgt_optional')} placeholderTextColor={colors.textMuted} />
@@ -927,9 +931,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             <View style={s.tgtBtnRow}>
               {/* Disable Save until at least one target field is valid (no silent no-op loop). */}
               <TouchableOpacity style={[s.computeBtn, { flex: 1, marginTop: 0 }, !(num(tgtWeight) != null || num(tgtBF) != null) && s.computeBtnDisabled]} onPress={saveTarget} disabled={!(num(tgtWeight) != null || num(tgtBF) != null)}><Text style={s.computeBtnText}>{t('save')}</Text></TouchableOpacity>
-              {target ? (
-                <TouchableOpacity style={s.tgtBtnGhost} onPress={() => setTargetEditing(false)} activeOpacity={0.7}><Text style={s.tgtGhostText}>{t('cancel')}</Text></TouchableOpacity>
-              ) : null}
+              <TouchableOpacity style={s.tgtBtnGhost} onPress={() => { setTargetEditing(false); setTgtFormOpen(false); }} activeOpacity={0.7}><Text style={s.tgtGhostText}>{t('cancel')}</Text></TouchableOpacity>
             </View>
             {target ? (
               <TouchableOpacity onPress={clearTargetConfirm} activeOpacity={0.7}><Text style={s.tgtRemove}>{t('cal_tgt_remove')}</Text></TouchableOpacity>
@@ -1044,6 +1046,8 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
       ) : (
         <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
       )}
+
+      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* ── TRACK YOUR PROGRESS ─────────────────────────────────────── */}
       <SectionHeader icon="calc_trend" title={t('cal_track_title')} />
@@ -1546,6 +1550,8 @@ const makeStyles = (c) => StyleSheet.create({
   srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },
   srcCite: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   srcArrow: { fontSize: 16, color: c.accent, marginLeft: 10 },
+  tgtSetBtn: { marginTop: 12, height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  tgtSetBtnText: { fontSize: 15, fontWeight: '600', color: c.accent },
   planEcho: { fontSize: 12.5, color: c.textMuted, marginBottom: 8 },
   youNow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 4, ...c.shadowSoft },
   youNowText: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text },
