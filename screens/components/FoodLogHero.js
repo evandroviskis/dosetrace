@@ -37,7 +37,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
       const today = localISO();
       const read = async () => {
         const { access, rcStart } = await loadFoodAccess(uid);
-        const since = rcStart && rcStart.date && String(rcStart.date).slice(0, 10) < today ? String(rcStart.date).slice(0, 10) : today;
+        const since = [today, rcStart && rcStart.date ? String(rcStart.date).slice(0, 10) : null, access.freeFrom].filter(Boolean).sort()[0];
         const rows = uid ? (getFoodLogsSince(uid, since) || []) : [];
         if (alive) setState({ access, rcStart, today, rows, sum: todaySummary(rows, today) });
       };
@@ -86,7 +86,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
       </View>
       <View style={s.cta}><Text style={s.ctaText}>{locked ? t('nutri_locked_cta') : t('nutri_hero_cta')}</Text></View>
     </TouchableOpacity>
-    {!locked && note && <FoodGraceNote rcStart={state.rcStart} until={state.access.until} reason={state.access.reason} rows={state.rows} style={s.grace} />}
+    {!locked && note && <FoodGraceNote rcStart={state.rcStart} until={state.access.until} reason={state.access.reason} freeFrom={state.access.freeFrom} rows={state.rows} style={s.grace} />}
     </View>
   );
 }

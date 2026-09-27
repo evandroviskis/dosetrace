@@ -116,7 +116,7 @@ test('foodReminderDay: the day a reminder is about comes from its data or its id
 });
 
 // ── Food reminder tap routing (listener + cold start share it) ──
-const { foodTapParams, responseKey } = require('../lib/notificationPlan');
+const { foodTapParams, responseKey, remindersForAccess } = require('../lib/notificationPlan');
 const foodResp = (action, extra = {}) => ({ actionIdentifier: action, notification: { date: 1727460000000, request: { identifier: 'food-log-2026-09-27', content: { data: { type: 'food_log', dayKey: '2026-09-27', ...extra } } } } });
 
 test('foodTapParams: every tap opens the one food chat — a body tap with that evening\'s question, Log it at the composer', () => {
@@ -132,6 +132,15 @@ test('foodTapParams: every tap opens the one food chat — a body tap with that 
 test('responseKey: the same tap has one key (launch path and listener dedupe), a different button another', () => {
   assert.equal(responseKey(foodResp('X')), responseKey(foodResp('X')));
   assert.notEqual(responseKey(foodResp('X')), responseKey(foodResp('FOOD_LOG_IT')));
+});
+
+test('remindersForAccess: no 8 PM question for a locked user, and none past the last open day (FL-41)', () => {
+  const days = [day(0), day(1), day(2), day(3)];
+  assert.deepEqual(remindersForAccess(days, { canLog: false, mode: 'locked' }), []);
+  assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'trial', until: day(1) }), [day(0), day(1)]);
+  assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'premium', until: null }), days);
+  assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'grace', until: null }), days, 'store unreachable: lenient');
+  assert.deepEqual(remindersForAccess(days, null), []);
 });
 
 // ── Snooze helpers ──

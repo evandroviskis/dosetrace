@@ -51,7 +51,7 @@ import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
-import { loadFoodAccess } from '../../lib/foodLogActions';
+import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -546,6 +546,8 @@ export default function CalculatorSection({ header = null }) {
     const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
     if (kg == null) return;
     const date = rcStartDate && validStartDate(rcStartDate, todayISO()) ? rcStartDate : todayISO();
+    // Free days count from the day of this TAP, never the backdated start (FL-41 × FL-44).
+    ensureFreeStart(userIdRef.current);
     const start = { date, weightKg: kg };
     setRcStart(start);
     setRcThen('');
@@ -1078,7 +1080,8 @@ export default function CalculatorSection({ header = null }) {
       <TouchableOpacity
         style={s.sbReality}
         activeOpacity={0.7}
-        onPress={() => (rcAllowed ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
+        // Locked users with an open check can still open the panel to STOP it (never behind the paywall).
+        onPress={() => (rcAllowed || rcStart || realityLog.length > 0 ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
       >
         <View style={s.sbRealityMain}>
           <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
@@ -1100,7 +1103,7 @@ export default function CalculatorSection({ header = null }) {
               {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
             </Text>
           ) : null}
-          <Text style={s.sbArrow}>{rcAllowed ? (rcOpen ? '▾' : '›') : '›'}</Text>
+          <Text style={s.sbArrow}>{rcAllowed || rcStart || realityLog.length > 0 ? (rcOpen ? '▾' : '›') : '›'}</Text>
         </View>
       </TouchableOpacity>
 
@@ -1229,6 +1232,12 @@ export default function CalculatorSection({ header = null }) {
               <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
                 <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
               </TouchableOpacity>
+              {/* Stop stays reachable when locked (FL-41) — it only clears the check; logged meals are kept. */}
+              {(rcStart || realityLog.length > 0) && (
+                <TouchableOpacity style={s.rcStop} onPress={stopRealityCheck} activeOpacity={0.7}>
+                  <Text style={s.rcStopText}>{t('cal_rc_stop')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>

@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
@@ -31,7 +32,7 @@ import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
 } from '../lib/nutrition';
 import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice } from '../lib/foodThread';
-import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess } from '../lib/foodLogActions';
+import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { requestAIConsent } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
@@ -55,6 +56,7 @@ export default function FoodChatScreen() {
   const locale = LOCALE_MAP[language] || 'en-US';
 
   const [userId, setUserId] = useState(null);
+  const userIdRef = useRef(null);
   const [access, setAccess] = useState(null);   // Premium / free days / grace week / locked (FL-41)
   const [rcStart, setRcStart] = useState(null);
   const [rows, setRows] = useState([]);
@@ -99,6 +101,7 @@ export default function FoodChatScreen() {
     const uid = user?.id || null;
     try { const a = await loadFoodAccess(uid); setAccess(a.access); setRcStart(a.rcStart); } catch { setAccess(null); }
     setUserId(uid);
+    userIdRef.current = uid;
     try {
       const raw = await AsyncStorage.getItem(ASKED_KEY);
       const v = raw ? JSON.parse(raw) : null;
@@ -118,6 +121,29 @@ export default function FoodChatScreen() {
     const e = echoFor(updatedItems);
     if (e) setNotice({ kind: 'updated', text: e });
   }
+
+  // Retry what waited for the network (offline rows, offline follow-up answers).
+  const retryTimer = useRef(null);
+  const wasOffline = useRef(false);
+  function scheduleCatchUp(ms) {
+    clearTimeout(retryTimer.current);
+    retryTimer.current = setTimeout(async () => {
+      const uid = userIdRef.current;
+      if (!uid) return;
+      const { changed, updatedItems } = await catchUpFood(uid, language);
+      if (changed) refresh(uid);
+      const e = echoFor(updatedItems);
+      if (e) setNotice({ kind: 'updated', text: e });
+    }, ms);
+  }
+  useEffect(() => {
+    const unsub = NetInfo.addEventListener((st) => {
+      const on = !!(st.isConnected && st.isInternetReachable !== false);
+      if (on && wasOffline.current) scheduleCatchUp(800); // back online → read what was saved
+      wasOffline.current = !on;
+    });
+    return () => { unsub && unsub(); clearTimeout(retryTimer.current); };
+  }, [language]);
 
   // Route params: the 8 PM question (FL-18/40) or "Log it".
   const eveningParam = route?.params?.eveningDay;
@@ -251,6 +277,7 @@ export default function FoodChatScreen() {
     if (open) updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true }));
     setBusy(true);
     const context = recentForParse(getFoodLogsSince(userId, day) || [], day);
+    ensureFreeStart(userId); // the free days' anchor: the real day of first use (FL-41)
     const id = insertFoodLog({ user_id: userId, entry_date: day, raw_text: raw, parse_status: 'pending' });
     rememberTypedHere(id); // typed here: this device parses it if the send fails (FL-19)
     inFlight.add(id);
@@ -309,6 +336,9 @@ export default function FoodChatScreen() {
       setNotice({ kind: 'quota' });
     } else {
       setNotice({ kind: fail });
+      // The saved row is really retried (FL-46): shortly while online, and as soon
+      // as the connection comes back when offline (NetInfo listener below).
+      if (fail === 'retry') scheduleCatchUp(20000);
     }
   }
 
@@ -588,7 +618,7 @@ export default function FoodChatScreen() {
       ) : (
         <KeyboardAvoidingView style={s.flex} behavior="padding" keyboardVerticalOffset={0} onTouchStart={touch}>
           {access && (access.reason === 'premium_ended' || access.reason === 'free_days_ending') && (
-            <FoodGraceNote rcStart={rcStart} until={access.until} reason={access.reason} rows={rows} style={s.graceNote} />
+            <FoodGraceNote rcStart={rcStart} until={access.until} reason={access.reason} freeFrom={access.freeFrom} rows={rows} style={s.graceNote} />
           )}
           <FlatList
             style={s.flex}
