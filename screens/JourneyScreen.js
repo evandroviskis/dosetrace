@@ -75,7 +75,7 @@ const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   hero: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, backgroundColor: c.bg },
   sub: { ...TYPE.sub, color: c.textMuted, marginTop: 4, lineHeight: 20 },
-  curveCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 20, padding: 16, marginBottom: 4, ...(c.shadowSoft || {}) },
+  curveCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 20, padding: 16, marginBottom: 12, ...(c.shadowSoft || {}) },
   curveIcon: { width: 32, alignItems: 'center', justifyContent: 'center' },
   curveTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   curveTitle: { fontSize: 16, fontWeight: '600', color: c.text, flexShrink: 1 },
