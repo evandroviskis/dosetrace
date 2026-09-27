@@ -869,35 +869,92 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
       {/* ── TRACK YOUR PROGRESS ─────────────────────────────────────── */}
       <SectionHeader icon="calc_trend" title={t('cal_track_title')} />
 
-      {/* Reality check — tap to expand its panel right here (collapsible). */}
-      <TouchableOpacity
-        style={s.sbReality}
-        activeOpacity={0.7}
-        onPress={() => (premium ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
-      >
-        <View style={s.sbRealityMain}>
-          <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
-          {premium ? (
-            scoreCheck ? (
-              <Text style={s.sbRealityVal}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
-            ) : rcStart ? (
-              <Text style={s.sbRealityMuted}>{t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}</Text>
+      {/* Reality check — the one MEASURED number in Journey, so it gets a hero card.
+          Tapping still expands the same panel below (or opens the paywall). */}
+      {(() => {
+        const rcDue = !!rcStart && rcElapsedDays != null && rcElapsedDays >= REALITY_CHECK_DAYS;
+        const onPress = () => (premium ? setRcOpen(o => !o) : navigation.navigate('Paywall'));
+        const hero = premium && (rcStart || scoreCheck);
+        const fg = hero ? colors.accentText : colors.text;
+        const sub = hero ? colors.accentText : colors.textMuted;
+        const pct = rcStart ? Math.min(1, Math.max(0, (rcElapsedDays || 0) / REALITY_CHECK_DAYS)) : 0;
+        const kgShown = rcStart ? Math.round((unit === 'imperial' ? kgToLb(rcStart.weightKg) : rcStart.weightKg) * 10) / 10 : null;
+        return (
+          <TouchableOpacity
+            style={[s.rcHero, hero ? { backgroundColor: colors.accent } : { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.accentSoft }]}
+            activeOpacity={0.85}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: !!rcOpen }}
+          >
+            <View style={s.rcHeroTop}>
+              <Text style={[s.rcHeroLabel, { color: sub }]}>{t('cal_rc_title').toUpperCase()}</Text>
+              <View style={[s.rcHeroChip, { backgroundColor: hero ? 'rgba(255,255,255,0.18)' : colors.accentSoft }]}>
+                <Text style={[s.rcHeroChipText, { color: hero ? colors.accentText : colors.accentSoftText }]}>
+                  {!premium ? t('paywall_premium')
+                    : scoreCheck && !rcStart ? t('hy_rc_measured_chip')
+                    : rcStart ? (rcDue ? t('hy_rc_due') : t('hy_rc_day').replace('{n}', String(Math.min(rcElapsedDays || 0, REALITY_CHECK_DAYS))).replace('{total}', String(REALITY_CHECK_DAYS)))
+                    : t('hy_rc_not_started')}
+                </Text>
+              </View>
+            </View>
+
+            {premium && scoreCheck && !rcStart ? (
+              <>
+                <Text style={[s.rcHeroCaption, { color: sub }]}>{t('hy_rc_measured')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                  <Text style={[s.rcHeroBig, { color: fg }]}>{round10(scoreCheck.tdee)}</Text>
+                  <Text style={[s.rcHeroUnit, { color: sub }]}> {t('cal_kcal')}/{t('cal_day')}</Text>
+                </View>
+                <View style={s.rcHeroStats}>
+                  {plan ? <Text style={[s.rcHeroStat, { color: sub }]}>{t('hy_rc_estimate').replace('{n}', String(round10(plan.tdeeVal)))}</Text> : null}
+                  {scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
+                    <Text style={[s.rcHeroStat, { color: sub }]}>{scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}</Text>
+                  ) : null}
+                </View>
+              </>
+            ) : premium && rcStart ? (
+              <>
+                <Text style={[s.rcHeroTitle, { color: fg }]}>{rcDue ? t('hy_rc_due_title') : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}</Text>
+                <View style={[s.rcTrack, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                  <View style={[s.rcTrackFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: colors.accentText }]} />
+                </View>
+                <View style={s.rcTrackEnds}>
+                  <Text style={[s.rcHeroSmall, { color: sub }]}>{fmtDate(rcStart.date)}</Text>
+                  <Text style={[s.rcHeroSmall, { color: sub }]}>{fmtDate(rcRemindOn)}</Text>
+                </View>
+                <View style={s.rcHeroFacts}>
+                  <View style={s.rcHeroFact}>
+                    <Text style={[s.rcHeroFactLabel, { color: sub }]}>{t('hy_rc_start')}</Text>
+                    <Text style={[s.rcHeroFactVal, { color: fg }]}>{kgShown} {wUnit}</Text>
+                  </View>
+                  <View style={s.rcHeroFact}>
+                    <Text style={[s.rcHeroFactLabel, { color: sub }]}>{t('hy_rc_food')}</Text>
+                    <Text style={[s.rcHeroFactVal, { color: fg }]}>
+                      {foodIntake ? t('hy_rc_food_days').replace('{n}', String(foodIntake.loggedDays)).replace('{d}', String(foodIntake.days)) : '—'}
+                    </Text>
+                  </View>
+                  <View style={s.rcHeroFact}>
+                    <Text style={[s.rcHeroFactLabel, { color: sub }]}>{t('hy_rc_elapsed')}</Text>
+                    <Text style={[s.rcHeroFactVal, { color: fg }]}>{rcElapsedDays}</Text>
+                  </View>
+                </View>
+                <View style={[s.rcHeroCta, { backgroundColor: rcDue ? colors.accentText : 'rgba(255,255,255,0.18)' }]}>
+                  <Text style={[s.rcHeroCtaText, { color: rcDue ? colors.accent : colors.accentText }]}>{rcOpen ? t('hy_rc_close') : rcDue ? t('hy_rc_log_weight') : t('hy_rc_open')}</Text>
+                </View>
+              </>
             ) : (
-              <Text style={s.sbRealityMuted}>{t('cal_rc_sb_run')}</Text>
-            )
-          ) : (
-            <Text style={s.sbRealityMuted}>{t('cal_rc_sb_locked')}</Text>
-          )}
-        </View>
-        <View style={s.sbRealityRight}>
-          {premium && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
-            <Text style={s.sbRealityRate}>
-              {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
-            </Text>
-          ) : null}
-          <Text style={s.sbArrow}>{premium ? (rcOpen ? '▾' : '›') : '›'}</Text>
-        </View>
-      </TouchableOpacity>
+              <>
+                <Text style={[s.rcHeroTitle, { color: fg }]}>{t('hy_rc_pitch')}</Text>
+                <Text style={[s.rcHeroBody, { color: sub }]}>{t('cal_rc_sub')}</Text>
+                <View style={[s.rcHeroCta, { backgroundColor: colors.accent }]}>
+                  <Text style={[s.rcHeroCtaText, { color: colors.accentText }]}>{!premium ? t('cal_rc_sb_locked') : rcOpen ? t('hy_rc_close') : t('hy_rc_start_cta')}</Text>
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+        );
+      })()}
 
       {/* Collapsible reality-check panel — lives right under the goal/scoreboard. */}
       {rcOpen && (
@@ -1471,6 +1528,28 @@ const makeStyles = (c) => StyleSheet.create({
   srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },
   srcCite: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   srcArrow: { fontSize: 16, color: c.accent, marginLeft: 10 },
+  rcHero: { borderRadius: 22, padding: 18, marginTop: 12, ...c.shadowCard },
+  rcHeroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  rcHeroLabel: { fontSize: 11.5, fontWeight: '600', letterSpacing: 0.8, opacity: 0.85 },
+  rcHeroChip: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  rcHeroChipText: { fontSize: 12, fontWeight: '600' },
+  rcHeroTitle: { fontSize: 20, fontWeight: '600', lineHeight: 26, letterSpacing: -0.3 },
+  rcHeroBody: { fontSize: 14, lineHeight: 20, marginTop: 6, opacity: 0.9 },
+  rcHeroCaption: { fontSize: 13, opacity: 0.85 },
+  rcHeroBig: { fontSize: 52, fontWeight: '200', letterSpacing: -2, lineHeight: 58 },
+  rcHeroUnit: { fontSize: 16, opacity: 0.85 },
+  rcHeroStats: { flexDirection: 'row', gap: 14, marginTop: 4, flexWrap: 'wrap' },
+  rcHeroStat: { fontSize: 13.5, opacity: 0.9 },
+  rcTrack: { height: 6, borderRadius: 3, marginTop: 14, overflow: 'hidden' },
+  rcTrackFill: { height: 6, borderRadius: 3 },
+  rcTrackEnds: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  rcHeroSmall: { fontSize: 12, opacity: 0.85 },
+  rcHeroFacts: { flexDirection: 'row', marginTop: 14, gap: 8 },
+  rcHeroFact: { flex: 1 },
+  rcHeroFactLabel: { fontSize: 11.5, fontWeight: '600', letterSpacing: 0.5, opacity: 0.85 },
+  rcHeroFactVal: { fontSize: 17, fontWeight: '600', marginTop: 2 },
+  rcHeroCta: { marginTop: 16, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  rcHeroCtaText: { fontSize: 15, fontWeight: '600' },
   sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
   sbRealityMain: { flex: 1 },
   sbRealityLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.3, marginBottom: 4 },
