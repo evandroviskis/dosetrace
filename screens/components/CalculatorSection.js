@@ -931,7 +931,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                   <View style={s.rcHeroFact}>
                     <Text style={[s.rcHeroFactLabel, { color: sub }]}>{t('hy_rc_food')}</Text>
                     <Text style={[s.rcHeroFactVal, { color: fg }]}>
-                      {foodIntake ? t('hy_rc_food_days').replace('{n}', String(foodIntake.loggedDays)).replace('{d}', String(foodIntake.days)) : '—'}
+                      {t('hy_rc_food_days').replace('{n}', String(foodIntake ? foodIntake.loggedDays : 0)).replace('{d}', String(foodIntake ? foodIntake.days : (rcElapsedDays || 0)))}
                     </Text>
                   </View>
                   <View style={s.rcHeroFact}>
