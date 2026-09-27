@@ -11,7 +11,9 @@
 -- could read every account's country, goal, gender, age and search terms. The
 -- lockdown at the end of this file restricts all three to service_role.
 --
--- STATUS: NOT APPLIED. Apply only on the founder's explicit go, then re-check with:
+-- STATUS: LOCKDOWN APPLIED 2026-09-27 23:42 UTC (founder go, Panel #002): only the six
+-- REVOKE/GRANT statements at the end of this file were run; the CREATE OR REPLACE bodies
+-- were NOT re-run (body md5s unchanged). Re-check with:
 --   select proname, proacl from pg_proc where proname like 'admin_%';
 -- Expected afterwards: {postgres=X/postgres,service_role=X/postgres} for all three.
 
@@ -107,7 +109,7 @@ $function$
 ;
 
 -- ---------------------------------------------------------------------------
--- A-1 lockdown (NOT APPLIED — founder go required)
+-- A-1 lockdown (APPLIED 2026-09-27 23:42 UTC)
 -- ---------------------------------------------------------------------------
 REVOKE EXECUTE ON FUNCTION public.admin_metrics() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.admin_activity() FROM PUBLIC, anon, authenticated;

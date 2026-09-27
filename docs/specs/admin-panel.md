@@ -55,7 +55,8 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 ### Phase 2 — needs the founder's go
 
 - [ ] **2.1 Push** `feature/admin-panel` (this triggers a Vercel preview deploy).
-- [ ] **2.2 Apply the A-1 lockdown** (`supabase_admin_rpcs.sql`), then re-read `proacl`.
+- [x] **2.2 Apply the A-1 lockdown** (`supabase_admin_rpcs.sql`), then re-read `proacl`.
+  - Evidence: applied 2026-09-27 23:42 UTC on founder go (Panel #002), with only the six REVOKE/GRANT statements run. After: `proacl` = `{postgres=X/postgres,service_role=X/postgres}` for all three, and the body md5s are unchanged. `has_function_privilege`: anon/authenticated false, service_role true. Live `POST /rest/v1/rpc/admin_*` with the anon key → HTTP 401, code 42501, for all three. As service_role (SQL role switch; the service key isn't on this machine): all three return data, 1 row.
 - [ ] **2.3 Post-deploy curl checks** (below) on the live URL.
 - [ ] **2.4 Merge to main:** rebase on the latest main, full suite green, founder go.
 
@@ -182,7 +183,7 @@ The findings were re-verified on 2026-09-27 with read-only aggregate queries: co
 
 | Severity | Finding | What was checked | Result 2026-09-27 | State |
 |---|---|---|---|---|
-| P0 | A-1 | `pg_proc.proacl` of the admin RPCs | `admin_metrics` and `admin_activity`: SECURITY DEFINER, EXECUTE granted to `anon` and `authenticated` (ACL `{postgres, anon, authenticated, service_role}`). `admin_feature_adoption`: `{postgres, service_role}` only. `grep -rn "admin_" lib screens components App.js` → no matches, so the app never calls them | open. Fix written in `supabase_admin_rpcs.sql`, **not applied** (O-2) |
+| P0 | A-1 | `pg_proc.proacl` of the admin RPCs | `admin_metrics` and `admin_activity`: SECURITY DEFINER, EXECUTE granted to `anon` and `authenticated` (ACL `{postgres, anon, authenticated, service_role}`). `admin_feature_adoption`: `{postgres, service_role}` only. `grep -rn "admin_" lib screens components App.js` → no matches, so the app never calls them | **fixed 2026-09-27 23:42 UTC**: lockdown applied. After: service_role only; anon HTTP call → 401 / 42501 |
 | P2 | A-2 | `protocols` rows vs `deleted_at` | 28 rows, 9 tombstoned; 19 with `active`, 0 active-and-tombstoned. O11, C4 and E2 count the tombstoned rows | open (O-4) |
 | P2 | A-3 | `profiles.plan` values | 105 of 105 profiles are `free` (1 distinct value). V2 cannot show Premium | open (O-5) |
 | P1 | A-4 | DAU/WAU/MAU window | The old code covered 2 / 8 / 31 days in the browser's local time | fixed on this branch (1.6) |
@@ -194,7 +195,7 @@ The findings were re-verified on 2026-09-27 with read-only aggregate queries: co
 ## Open items
 
 - **O-1** App-open event, so "active" is complete. This is a mobile change for the main session, not for this branch.
-- **O-2** Apply the A-1 lockdown (`supabase_admin_rpcs.sql`). Needs the founder's go.
+- **O-2** ~~Apply the A-1 lockdown~~: done 2026-09-27 23:42 UTC (Phase 2.2). Still to do: confirm the deployed panel loads with the service role after the push (2.3).
 - **O-3** Exclude test accounts from the counts. Needs a founder-approved list or flag.
 - **O-4** Exclude deleted (tombstoned) protocols from O11, C4 and E2.
 - **O-5** Remove the Plans chart (V2), or replace it with RevenueCat entitlement counts.
