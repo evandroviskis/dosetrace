@@ -1,0 +1,164 @@
+# DoseTrace — Feature registry (draft)
+
+- Drafted: 27 Sep 2026, read-only review of the founder's checkout `~/Desktop/dosetrace`.
+- Code state reviewed: branch `main`, HEAD **902c9ea** ("fix(food-log): third audit ..."). NOTE: the 27 Sep handoff says main is at c8ec113; one newer commit (902c9ea) is on main now. Working tree clean apart from the untracked `Claude outputs/` folder.
+- Sources: `CLAUDE.md`, `STATE.md`, `docs/APP-HANDOFF.md`, `docs/specs/food-log.md` (46 criteria), `docs/specs/README.md`, `docs/journey-review-eval-2026-09-13.md`, `docs/data-safety-tables-spec.md`, `docs/nutrition-logger-conversation-spec.md`, `Claude outputs/DoseTrace-handoff-2026-09-27.md`, `App.js`, `screens/`, `screens/components/`, `lib/`, `__tests__/`, git log (last 300 messages).
+
+## Counts (this draft)
+- Main registry (F-rows): **74** — Shipped 62 · In spec, partial 10 · Approved, not started 0 · Unclear 2.
+- "Approved or mentioned but not found" (A-rows): **25** — Approved, not started 5 (A-01 CFBundleLocalizations, A-02 screenshot 01 + order, A-03 flip to parse-food / deploy v9, A-04 server food rule, A-13 synced storage for reality-check/calc inputs) · In spec, partial 1 (A-05, the 39 partial FL rows) · Unclear 4 · open founder decisions 2 · deferred / mentioned-only / not in main 13.
+
+## How to read this
+- **Shipped** = in `main`, reachable from the navigator in `App.js`, and (per STATE.md / release commits) in a store build (1.2.4 or earlier). "Code exists" alone is not enough. Shipped does NOT mean device-verified: STATE.md lists several items that were never checked on a device, and the Notes column says so where it applies.
+- **In spec, partial** = has a signed checklist row in `docs/specs/` (or an equivalent written plan) that is not yet `built` with evidence.
+- **Approved, not started** = the founder approved it (STATE.md / handoff / CLAUDE.md) and there is no code for it.
+- **Unclear** = conflicting or missing evidence. The note says what is unclear.
+- Food-log criteria are cited as FL-n (`docs/specs/food-log.md`). Tests are cited by file; the test names are in the file.
+- The ID is stable. Add new rows at the end of a group with the next free number; never renumber.
+
+---
+
+## Cross-cutting (auth, data, platform)
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-001 | Value-first intro before signup (self-drawing accumulation curve, profile questions saved locally and written to the account after sign-up) | Pre-login: `OnboardingFlowScreen` | Shipped | `App.js` ThemedRoot route `OnboardingFlow`; `lib/onboardingStore.js` `applyPendingProfile`; commits 43cff76, 786c533, 45a4882 | No test for the stash→account write. |
+| F-002 | Sign in / create account: email, Google, Apple | Pre-login: `AuthScreen` | Shipped | `screens/AuthScreen.js`; `lib/supabase.js` `signInWithGoogle`, `signInWithApple`; ff324a2 | Google iOS nonce issue fixed server-side on 27 Sep (STATE.md line 22), not in code. |
+| F-003 | Profile-completion gate (same onboarding flow in signed-in mode, only missing steps) | Pre-login: route `CompleteProfile` | Shipped | `App.js` `isProfileComplete` branch; `lib/supabase.js` `REQUIRED_PROFILE_FIELDS` (8 fields); 27608d4 | GDPR Art. 9 legal sign-off still open (STATE.md). |
+| F-004 | Password reset and email-confirm deep links | Pre-login: `ResetPasswordScreen` | Shipped | `App.js` `handleUrl` + `exchangeAuthCodeFromUrl` | No test. |
+| F-005 | Offline-first SQLite mirrored to Supabase with tombstones (tables: protocols, vials, dose_logs, biomarkers, vaccines, food_logs, reality_checks, calc_snapshots, calc_targets) | All tabs | Shipped | `lib/syncCore.js`, `lib/sync.js`, `lib/syncMappers.js`, `lib/schema.js`; `__tests__/sync.test.js`, `__tests__/syncMappers.test.js` | The best-tested area of the app. |
+| F-006 | Local wipe only on an intended sign-out; cross-account guard on sign-in / cold start | App root | Shipped | `App.js` `onAuthStateChange` (SIGNED_OUT / SIGNED_IN), `lib/authIntent.js`; dee0fbd, b750ace | `__tests__/deleteUserCoverage.test.js` checks that `clearLocalDatabase` covers every table. The intended-vs-accidental sign-out logic has no test. `onAuthStateChange` is synchronous (checked). |
+| F-007 | Session stored in Keychain/Keystore (chunked SecureStore + migration) | App root | Shipped | `lib/secureStore.js`; 3ed4278, ef12c57 | Shipped in 1.2.2. |
+| F-008 | Apple sign-in token revoke on delete + revoke listener | Settings / App root | Shipped | `App.js` `addRevokeListener`; `supabase/functions/apple-link`, `delete-user`; 5a2f3f7 | Server side deployed (STATE.md). |
+| F-009 | Six languages (EN/ES/PT/FR/DE/IT) with a parity test | All | Shipped | `i18n/translations.js`; `__tests__/i18n.test.js` | The App Store listing still shows English-only; see A-01. |
+| F-010 | Light/dark theme from tokens | All | Shipped | `lib/theme.js`; Settings theme pills | Hardcoded hex values remain in ProtocolsScreen (12), TodayScreen (12), BodyMapModal (12), SettingsScreen (3) and others. Some may be the allowed fixed surfaces (color palette, toast); not reviewed one by one. |
+| F-011 | Landscape / foldable / tablet layout (centered 640pt column) | All | Shipped | `lib/responsive.js`; 10c9563 | STATE.md: never checked on a real foldable. `supportsTablet:false` in app.json. |
+| F-012 | UI-thread motion (ring fill, drop flight, curve draw-in) + haptics | Today, curve, syringe, paywall, onboarding | Shipped | `components/motion.js`, `components/AccumulationHero.js`; 44cd955 | 1.2.4. Haptics need the new binary. |
+| F-013 | Analytics: opt-in, feature views, paywall conversion events | All | Shipped | `lib/analytics.js`; e4ea7e7, 1afe7da | Opt-out toggle in Settings. |
+| F-014 | AI consent gate before any AI call | Body, Protocols, Vaccines, Food chat | Shipped | `lib/aiConsent.js` `requestAIConsent` | No test. |
+| F-015 | Push-token registration (for future server push) | App root | Shipped | `lib/notifications.js` `registerPushToken` / `removePushToken`; 380198d | Tokens are registered, but nothing sends to them yet (F-016). |
+| F-016 | Server-sent reminders (`send-reminders` edge function) | Backend | Unclear | `supabase/functions/send-reminders/{index.ts,plan.ts}`; `SERVER_PUSH_ACTIVE=false` in `lib/notifications.js` `usesServerPush`; activation checklist in STATE.md | Written but deliberately switched off. Never run (Deno not installed). Its food-reminder rule is already out of date (FL-18, FL-42 notes). |
+
+## Tab 1 — Today (`TodayScreen`)
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-020 | Today's due doses, progress ring, next-dose ordering | Today | Shipped | `TodayScreen.js` (`expectedDosesOn`, `nextDoseAt`); `lib/schedule.js`; `__tests__/schedule.test.js` | Test covers the schedule math only. |
+| F-021 | Mark taken / skip with 5-second undo; vial count and oral supply go down | Today | Shipped | `TodayScreen.js` `markTaken`; 8dd539c | No test. Logic is repeated in `lib/doseActions.js` `recordDoseTaken` (see findings). |
+| F-022 | Streak, per-protocol streaks, week dots, month adherence | Today | Shipped | `TodayScreen.js` `fetchStreakData`, `fetchProtocolStreaks` | No test for the streak math. |
+| F-023 | Auto-mark unlogged doses as editable "Missed" after 12 h | Today / Log | Shipped | `lib/doseActions.js` `scanMissedDoses`, `lib/missedDoses.js`; `__tests__/missedDoses.test.js`; 717fc82 | |
+| F-024 | Alert cards: reality-check weigh-in, bloodwork due (~6 months), supply low (≤3 doses), vial expiry; each can be snoozed | Today | Shipped | `TodayScreen.js` `alerts` useMemo, `snoozeAlert`; db4a74f, 7cbf791, 7a6a149 | No test. Supply rule differs from the push alert (≤2); see findings. |
+| F-025 | Injection-site picker / body map after a dose, next-site suggestion | Today, Log | Shipped | `screens/components/BodyMapModal.js`; `lib/injectionSites.js` `suggestNextSite` | APP-HANDOFF places the body map in My Body, but in code it appears only in Today and Log. No test. |
+| F-026 | "New vial" prompt when a reconstituted vial runs out | Today | Shipped | `TodayScreen.js` new-vial flow (~line 784–812) | **Known defect still present:** it overwrites the protocol's `start_date` (line 805), which rewrites curve and adherence history (journey-review F4, 13 Sep). |
+| F-027 | "Still taking this?" prompt for protocols with no recent logs (snoozed per protocol) | Today | Shipped | `TodayScreen.js` ~lines 293–360 (`dosetrace_tx_check_*`) | Not reviewed in depth. No test. |
+| F-028 | Food-log hero on Today, only while a reality check is running (day X of 21, today's items/kcal, "day closed", "time to weigh in") | Today | In spec, partial | `TodayScreen.js` `<FoodLogHero variant="today">`; `lib/foodThread.js` `todayFoodHeroPolicy`; FL-33, FL-42, FL-43 (partial); `__tests__/foodThread.test.js` | Part of the 1.2.5 food-log rebuild. |
+
+## Tab 2 — My Protocols (`ProtocolsScreen`)
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-030 | Protocol wizard with three types: reconstituted, ready-to-use, oral | Protocols | Shipped | `ProtocolsScreen.js` | |
+| F-031 | Compound picker: aliases, blends, deterministic matching | Protocols | Shipped | `lib/compounds.js`; `__tests__/compounds.test.js`; 5d05615, 36fc5cf | |
+| F-032 | Draw-volume math with syringe-capacity check; comma decimals | Protocols | Shipped | `lib/doseMath.js` `computeDraw`, `parseDecimal`; `__tests__/doseMath.test.js` | |
+| F-033 | Syringe guide with zoomable scale | Protocols | Shipped | `ProtocolsScreen.js` `ProtocolSyringeGuide`, `SyringeTick` | No test. |
+| F-034 | Schedule: every N days, 1–3 doses a day, times, start date picker | Protocols | Shipped | `ProtocolsScreen.js`; 47158d6, 5b92f0d, f51e323 | |
+| F-035 | Vial tracking: mixed date + validity (recon), RTU vials with expiry, doses left on the card, RTU "New vial" button | Protocols | Shipped | `lib/vialExpiry.js`; `__tests__/vialExpiry.test.js`; 97634ac, 555f8df, a697a1a | Journey-review F5 (no manual "new vial" for recon) and F6 (RTU new vial keeps the old expiry) not confirmed fixed. |
+| F-036 | Oral serving calculator + bottle supply | Protocols | Shipped | `lib/oralMath.js`; `__tests__/oralMath.test.js`; 6e27a11…211ee6e | |
+| F-037 | IU→mass converter on the card | Protocols | Shipped | `lib/doseMath.js` `massFromUnits`; d5ebb16 | |
+| F-038 | Photo of a vial label pre-fills the calculator (AI, review before save, shared 3/month scan quota) | Protocols | Shipped | `ProtocolsScreen.js` (~line 1075, `kind:'vial'`); `supabase/functions/extract-bloodwork`; 30911df, 43ed795 | Quota is enforced on the server. |
+| F-039 | Offer to back-fill past doses when the start date is in the past | Protocols | Shipped | `ProtocolsScreen.js` → `lib/doseActions.js` `backfillTakenDoses`; 0b62d20 | `elapsedDoseSlots` is tested; `backfillTakenDoses` has no test. |
+| F-040 | Protocol notes edited inline on the card | Protocols | Shipped | `ProtocolsScreen.js` `updateProtocol(id,{note})`; e010647 | |
+| F-041 | "What's in the vial" blend label (journaling only, does not change the curve) | Protocols | Shipped | bb63d45 (commit message: "never feeds the serum curve", per founder) | 1.2.4. |
+| F-042 | Free plan limited to 3 active protocols, then Paywall | Protocols | Shipped | `ProtocolsScreen.js` `FREE_PROTOCOL_LIMIT = 3` | No test. |
+| F-043 | Dose reminders with "Mark as taken" and snooze buttons; optional follow-ups; stays under the iOS 64-pending cap | Protocols → notifications | Shipped | `lib/notifications.js` `scheduleDoseReminder`, `syncAllDoseReminders`; `lib/notificationActions.js`; `__tests__/notificationPlan.test.js`; 7a6a149 | STATE.md: buttons never tested on a real device with the app open, backgrounded and killed. |
+| F-044 | Delete / restore a protocol (soft delete) | Protocols | Shipped | `lib/database.js` `softDeleteProtocol`, `restoreProtocol`, `getDeletedProtocols` | Restore UI not reviewed. |
+
+## Tab 3 — Journey (`JourneyScreen` → `CalculatorSection`)
+
+Required order (FL-34): Dose accumulation → Your numbers → Your target → Your daily plan (Estimated/Measured) → Food log → Reality check → Progress → Learn more.
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-050 | Dose-accumulation card at the top of Journey (Premium) → Serum Curve | Journey | Shipped | `JourneyScreen.js` `curveCard`; 4727d0b | Free users go to the Paywall. |
+| F-051 | Serum curve: built from the schedule, several compounds, combined total per substance, +7…90-day projection, mg/IU units, absorption for 4 compounds, split lines for blends, evidence tiers, estimate on a blood-draw date | Serum Curve (pushed) | Shipped | `screens/SerumCurveScreen.js`; `lib/halfLives.js`; `__tests__/halfLives.test.js`; 29e1ed6, 268f65d, 0aa66bc, 8415278, 2179186, 9a24ade | The curve's disclaimer still says "your logged doses" but the curve uses the schedule (journey-review F3, not fixed). Uses the protocol's current dose for all past dates (F2, needs a founder decision). |
+| F-052 | Your numbers: BMR (Mifflin or Katch-McArdle), TDEE, protein; Mifflin blocked until profile sex is set | Journey | Shipped | `CalculatorSection.js` `energyPlan`, `promptProfileSex`; `lib/energyCalc.js`; `__tests__/energyCalc.test.js`; b7cb338 | Collapsed one-line summary is part of FL-34 (partial). |
+| F-053 | Your target: weight and/or body-fat target; progress for everyone, measured ETA for Premium; add a past weigh-in | Journey | Shipped | `CalculatorSection.js` `saveTarget`, `saveBackfillWeighIn`, `targetProjection`; `__tests__/energyCalc.test.js`, `__tests__/sync.test.js` (calc_targets); 0bfe975 | ETA only uses Progress snapshots. Reality-check weigh-ins are not saved as snapshots (see findings). |
+| F-054 | Your daily plan: Lose/Maintain/Gain calories; switches from Estimated to Measured when a reality check exists | Journey | Shipped | `CalculatorSection.js` `scoreCheck`, `effectiveGoals` (`goalsForTdee`); aaf53b5 | The Estimated/Measured chip layout is FL-34 (partial). "Measured" in the new layout not yet seen on a device (FL-30). |
+| F-055 | Journey reordered as one loop (FL-34) | Journey | In spec, partial | `CalculatorSection.js` render order; FL-34 | Measured state and dark theme not checked. |
+| F-056 | AI food log as a chat (bubbles, entry cards, follow-up questions with quick answers, typing indicator, drafts kept, closes when idle) | Food chat (modal, from Today/Journey/reminder) | In spec, partial | `screens/FoodChatScreen.js`; `lib/foodThread.js`, `lib/foodLogActions.js`; `App.js` route `FoodChat`; FL-31…FL-40; `__tests__/foodThread.test.js`, `__tests__/nutrition.test.js` | Only 7 of 46 FL rows are `built`: FL-1, 2, 5, 11, 12, 17, 25. 39 are partial. |
+| F-057 | AI food parsing v9 (brands kept, totals for the whole quantity, categories, today's context, 7-day catch-up, 25/day limit reset at local midnight) | Backend + chat | In spec, partial | `supabase/functions/parse-food`; `lib/nutritionClient.js`; FL-2, 11–16, 20–23, 45 | **The app calls the test copy:** `lib/nutritionClient.js:10` `FOOD_FN = 'parse-food-next'`. Release step still owed (handoff §4.5). FL-13, FL-14, FL-22 marked OPEN. |
+| F-058 | Journey food-log hero + entry list + totals (today / last 7 days / whole check) + food-reminder switch | Journey | In spec, partial | `screens/components/NutritionLogger.js`, `FoodLogHero.js` (variant journey); FL-24, FL-18 | |
+| F-059 | Reality check base: starting weight, 21-day window, second weigh-in, measured maintenance + weekly rate, save, start the next one, Stop (keeps food logs) | Journey | Shipped | `CalculatorSection.js` `startRealityCheck`, `computeReality`, `saveRealityCheck`, `startNextRealityCheck`, `stopRealityCheck`; `lib/energyCalc.js` `realityCheckTDEE`; aaf53b5, f77c73c | Shipped since build 52/56. The open weigh-in lives only in AsyncStorage + user_metadata (`lib/realityCheck.js`), not a synced table. |
+| F-060 | Reality check uses intake only from 7+ consecutive fully logged days; shows "n of 7" until then (tap to use, with its working) | Journey | In spec, partial | `lib/nutrition.js` `intakeRun`; `CalculatorSection.js` `foodRun`/`foodIntake`; FL-3, FL-30; `__tests__/nutrition.test.js` | |
+| F-061 | Start date up to 7 days back; saved weigh-in pre-fills the start weight | Journey | In spec, partial | `lib/realityCheckRules.js`; `__tests__/realityCheckRules.test.js`; FL-44 | |
+| F-062 | Free users get 7 days of food log + reality check; paid users whose Premium ends mid-check get a grace week; paywall notes | Journey / chat / Today | In spec, partial | `lib/foodLogActions.js` `loadFoodAccess`, `ensureFreeStart`; `lib/foodThread.js` `foodLogAccess`; `FoodGraceNote.js`; FL-41 | Open founder questions in FL-41 (what a day closed with no food counts as; free users vs. the day-21 weigh-in). Free users still cannot save Progress snapshots (strict Premium). |
+| F-063 | Check stays open after day 21 with no weigh-in ("time to weigh in"); food reminder keeps running | Journey / Today | In spec, partial | FL-42; `__tests__/notificationPlan.test.js` | |
+| F-064 | 8 PM food question (only while a check runs; skipped for a closed day; buttons Log it / Nothing else today; tap opens the chat; off switch) | Notifications → Food chat | In spec, partial | `lib/notifications.js` `syncFoodLogReminder`, `closeFoodDay`; `lib/notificationActions.js`; `App.js` `routeFoodTap`; FL-18, FL-33, FL-37; `__tests__/notificationPlan.test.js` | Buttons and a tap that launches the app not yet tested on a device. |
+| F-065 | Progress snapshots (weight, waist, BF, LBM, BMR, TDEE) + chart (Premium) | Journey | Shipped | `CalculatorSection.js` `saveSnapshot`; `ProgressChart.js`; `__tests__/sync.test.js` | Gated on strict `isPremium`. |
+| F-066 | Learn more explainers + sources | Journey | Shipped | `CalculatorSection.js` `EXPLAINERS` | |
+| F-067 | Weekly measurement check-in reminder (Sunday 10:00) → Journey | Notifications | Shipped | `lib/notifications.js` `syncCheckinReminder`; `App.js` listener (`checkin_reminder`) | No test. |
+| F-068 | Day-21 weigh-in reminder (10:00) → Journey | Notifications | Shipped | `lib/notifications.js` `syncRealityCheckReminder` | No test. Reads only the local AsyncStorage copy. |
+
+## Tab 4 — My Body (`BodyScreen`)
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-070 | Labs: manual entry, AI lab-report scan (1 free upload, then Premium), marker charts, favorites, per-report tags, delete a whole report | My Body → Labs | Shipped | `BodyScreen.js`; `MarkerChart.js`; `supabase/functions/extract-bloodwork`; 19cd2b6 | Favorites and tags live in user_metadata; moving them to tables was deferred (data-safety spec). |
+| F-071 | Vaccine log (manufacturer, lot, dose #, provider, location) + AI scan | My Body → Vaccines | Shipped | `screens/components/VaccinesSection.js`; 5398101, 04d17ce | |
+| F-072 | Records export: CSV, and PDF for Premium, with marker/vaccine selection | My Body | Shipped | `lib/exportRecords.js`; `__tests__/exportRecords.test.js` | The export does not include food logs, reality checks, snapshots or targets (`lib/database.js` `getAllDataForExport`). |
+| F-073 | Dose-accumulation card also on the My Body hub (Premium → curve; free → preview sheet) | My Body | Shipped | `BodyScreen.js` ~line 735; 1afe7da | The same entry point also exists in Journey. |
+
+## Tab 5 — Settings (`SettingsScreen`)
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-080 | Edit profile (name, birth month/year, sex, country, goals, activity), blocked until required fields are filled | Settings | Shipped | `SettingsScreen.js` `saveProfile`; `lib/profileGoals.js`; adfcd79 | The calculator may not pick up a changed sex/age (see findings). |
+| F-081 | Notification switches: dose reminders, vial alerts, check-in, food reminders, persistent, show names, silent | Settings | Shipped | `SettingsScreen.js` `toggleNotificationPref` → `syncAllNotifications` | No test. |
+| F-082 | Theme, language, time format | Settings | Shipped | `SettingsScreen.js`; `i18n/LanguageContext` | |
+| F-083 | "Reminders not arriving?" Android battery / exact-alarm help | Settings | Shipped | `openBatteryOptimizationSettings`; d7a1007 | |
+| F-084 | Data export from Settings | Settings | Shipped | `SettingsScreen.js` `handleExportData` → `getAllDataForExport` | Same gap as F-072 (new tables not included). |
+| F-085 | Sign out; delete account (erases all data server-side) | Settings | Shipped | `SettingsScreen.js`; `supabase/functions/delete-user`; `__tests__/deleteUserCoverage.test.js` | |
+| F-086 | Premium entry, FAQ, privacy, terms, contact, rate, analytics opt-in | Settings | Shipped | `SettingsScreen.js` | |
+| F-087 | Developer/premium email accounts (hard-coded) | Premium (all tabs) | Unclear | `lib/purchases.js` `DEVELOPER_EMAILS` (6 emails incl. jootaerre@yahoo.com.br from 9a24ade and jeovane_m@live.com from 30de8a7) | Handoff says "two users added as developer/premium accounts" are committed to 1.2.5. Both emails are in code, and both commits come before the 1.2.4 build commit 582e860, but STATE.md says jeovane_m is "next build". I can't tell which two accounts the handoff means, or whether the 1.2.4 binary has them. |
+
+## Pushed screens
+
+| ID | Feature | Tab/screen | Status | Evidence | Notes |
+|---|---|---|---|---|---|
+| F-090 | Dose history by day, filter All/Taken/Skipped/Missed, fix outcome or site | Log | Shipped | `screens/LogScreen.js` (reached from the Today streak card) | No test. |
+| F-091 | Paywall: annual/monthly/lifetime, live curve hero, tap a feature to see an example, trial check, `source` tag on every entry | Paywall | Shipped | `screens/PaywallScreen.js`; `components/FeaturePreviews.js`; 7dcdaf5, 1afe7da | |
+| F-092 | FAQ | FAQ | Shipped | `screens/FAQScreen.js` | |
+
+---
+
+## Approved or mentioned but not found in code
+
+These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as approved, committed or planned, but I could not find them in `main` at 902c9ea. "Approved" means the source says the founder approved it; "Mentioned" means it's only noted as an idea or a fix.
+
+| ID | Item | Source | Status | What I checked | Notes |
+|---|---|---|---|---|---|
+| A-01 | Declare the 6 languages in the iOS build (`CFBundleLocalizations`) so the App Store stops listing English only | Handoff §2 "Committed to 1.2.5" | Approved, not started | `app.json` has no `ios.infoPlist.CFBundleLocalizations`; `ios/DoseTrace/Info.plist` only has `CFBundleDevelopmentRegion`; no plugin sets it | Committed to 1.2.5. |
+| A-02 | New App Store screenshot 01 (serum curve) + fix the screenshot order (live order is 06,05,04,01,07,03,02) | Handoff §2; STATE.md line 18 | Approved, not started | Store-side work; nothing to find in the repo. STATE.md says ASC blocks it until the 1.2.5 version exists | Committed to 1.2.5. The asset exists outside the repo (`~/Desktop/dosetrace-store-56/`). |
+| A-03 | Point the app back to the live `parse-food` and deploy v9 as `parse-food` | Handoff §4.5; STATE.md line 14 | Approved, not started | `lib/nutritionClient.js:10` still `FOOD_FN = 'parse-food-next'` | Release blocker for the food-log rebuild. |
+| A-04 | Update the server `send-reminders` food rule to FL-18/FL-42 (daily at 20:00, closed days skipped, no day-21 cut-off, no backoff) | FL-18, FL-42 notes; handoff §4.5 | Approved, not started | `supabase/functions/send-reminders/plan.ts` `foodNudgeDays` still has the every-other-day backoff, the day-21 cut-off and the logged-day skip | Dormant, so no user impact yet. |
+| A-05 | The 39 partial food-log criteria (device/simulator evidence, live AI checks for FL-13/14/22, Measured in Your goal) | `docs/specs/food-log.md`; handoff §4 "Still to do" | In spec, partial | Status column of the spec: 7 built, 39 partial, 0 missing | `node scripts/spec-audit.cjs` fails while any row is partial without an approved deviation (script logic read, not run). |
+| A-06 | Stop the "new vial" flow from overwriting `start_date` (journey-review F4, rated HIGH) | `docs/journey-review-eval-2026-09-13.md` | Mentioned (confirmed defect + fix written) | `screens/TodayScreen.js:805` still `updateProtocol(continuationProtocol.id, { start_date: mixDate })` | Not marked as approved in STATE.md, but it's a history-loss bug under the "never lose user data" rule. |
+| A-07 | Reword the curve disclaimer to "based on your planned schedule" in all 6 languages (journey-review F3) | same | Mentioned | `i18n/translations.js:570` (EN) and :2303 (ES) still say "your logged doses" | Accuracy / regulatory wording. |
+| A-08 | Manual "start new vial" for recon protocols; ask for a new expiry on RTU new vial; "doses already used" for a part-used vial (F5, F6, F7) | same | Mentioned | Not found for recon; RTU New-vial (555f8df) existed before the review | Not confirmed; needs a founder decision. |
+| A-09 | Waist-to-height ratio (WHtR) | STATE.md backlog "To build (51/52)" #4 | Unclear (was listed "to build") | Only a code comment in `CalculatorSection.js:820`; no calculation | Goal weight part became Personal Target (F-053). |
+| A-10 | Height in ft/in for imperial users | STATE.md backlog #5 | Unclear | Imperial height uses inches only (`inToCm`) | |
+| A-11 | Reality-check "to hit [goal] by [date], target Z kcal" state + week-over-week trend | STATE.md backlog #3 | Unclear | Measured goals exist (F-054) and Target ETA (F-053); no "by date → kcal" line found | May have been replaced by Personal Target; not stated. |
+| A-12 | Factual protocol ↔ results ↔ labs cross-reference (nutrition logger phase 2) | STATE.md backlog "Flagship" | Mentioned (phase 2) | Not found | Must stay within the AI hard line. |
+| A-13 | Move `calc_inputs` and the open reality-check weigh-in (`calc_reality_open`) to durable synced tables | CLAUDE.md "NEVER lose user-entered data" ("must move to durable synced storage") | Approved (standing rule), not started | `lib/realityCheck.js` and `CalculatorSection.js` still use user_metadata + AsyncStorage | History already moved (reality_checks, calc_snapshots). |
+| A-14 | Move bloodwork favorites / report tags to tables; remove the old metadata backups later | `docs/data-safety-tables-spec.md` "Out of scope (later)"; APP-HANDOFF §9 | Mentioned (deferred) | Still user_metadata (`BodyScreen.js` lines 269–300) | |
+| A-15 | Absorption (time-to-peak) for Testosterone Enanthate / Nandrolone Decanoate | Handoff §6; STATE.md 1.2.4 round 2 | Open founder decision | Kept instant in `lib/halfLives.js` | |
+| A-16 | Per-vial blend ratio editor ("founder wants next", 1.2.1) | STATE.md 1.2.1 notes | Unclear | bb63d45 added a label-only composition field "per founder: serum curve stays half-life/clearance only" | Looks replaced by F-041; not written down as a deferral. |
+| A-17 | 1-year early-adopter Premium offer | CLAUDE.md, APP-HANDOFF §9 | Founder-deferred | Not found | Deferred on purpose. |
+| A-18 | Move hard-coded premium accounts to RevenueCat promotional grants | Handoff §6 | Mentioned (council idea, not approved) | Not found | |
+| A-19 | Vd/CL pharmacokinetic engine, per-compound modifiers | STATE.md, APP-HANDOFF §9 | Mentioned (future) | Not found | |
+| A-20 | Lab reference-range band | STATE.md line 17 | Mentioned (regulatory call) | Not found (app stores no ranges) | |
+| A-21 | Hybrid redesign (Geist font, restyled tabs) | Handoff §5; STATE.md lines 16–17 | Not in main | Branch `design/hybrid` / sibling folder, not reviewed | Not shipping. |
+| A-22 | Component tests and Maestro end-to-end smoke tests ("Tier 3/4") | STATE.md (older section, "deferred") | Mentioned (deferred) | `__tests__/` has only pure-logic tests; no jest-expo or Maestro config found | Directly relevant to the cross-tab breakage problem. |
+| A-23 | Roadmap ideas: personal target lines, compare across labs, timeline correlation, travel PDF/QR, what-if mode | APP-HANDOFF §9 | Mentioned (not committed) | Not found | |
+| A-24 | Independent choice: does saving a reality check early end the 8 PM reminder? | STATE.md 1.2.3 "DEFERRED" (c) | Open founder decision | Code: the reminder follows the open check start only | |
+| A-25 | Supabase point-in-time recovery | STATE.md, APP-HANDOFF §9 | Mentioned (dashboard action) | Not verifiable from the repo | |
