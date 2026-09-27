@@ -24,14 +24,14 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { requestSync } from '../lib/sync';
-import { getFoodLogsSince, getFoodLogDayCount, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
+import { requestSync, isOnlineNow } from '../lib/sync';
+import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
 } from '../lib/nutrition';
-import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord } from '../lib/foodThread';
-import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, FREE_DAYS } from '../lib/foodLogActions';
+import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice } from '../lib/foodThread';
+import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { requestAIConsent } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
@@ -57,10 +57,10 @@ export default function FoodChatScreen() {
   const [userId, setUserId] = useState(null);
   const [access, setAccess] = useState(null);   // Premium / free days / grace week / locked (FL-41)
   const [rcStart, setRcStart] = useState(null);
-  const [dayCount, setDayCount] = useState(0);
   const [rows, setRows] = useState([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sendingId, setSendingId] = useState(null); // the row being read right now
   const [fuText, setFuText] = useState('');
   const [fuBusy, setFuBusy] = useState(false);
   const [notice, setNotice] = useState(null);     // transient app bubble: deflect | fix | earlier | quota | offline | updated
@@ -88,7 +88,6 @@ export default function FoodChatScreen() {
     if (!id) return [];
     const r = getFoodLogsSince(id, localDaysAgoISO(366)) || [];
     setRows(r);
-    setDayCount(getFoodLogDayCount(id));
     syncFoodLogReminder().catch(() => {});
     return r;
   }
@@ -255,12 +254,13 @@ export default function FoodChatScreen() {
     const id = insertFoodLog({ user_id: userId, entry_date: day, raw_text: raw, parse_status: 'pending' });
     rememberTypedHere(id); // typed here: this device parses it if the send fails (FL-19)
     inFlight.add(id);
+    setSendingId(id);
     setText(''); saveDraftNow('');
     refresh(userId);
 
     let res;
     try { res = await parseFood(raw, language, day, context); }
-    finally { inFlight.delete(id); }
+    finally { inFlight.delete(id); setSendingId(null); }
     setBusy(false);
     touch();
 
@@ -300,12 +300,15 @@ export default function FoodChatScreen() {
       if (!askKept && day === localISO()) askNext(r); else { setQuestion(null); rememberAsked(null); }
       return;
     }
-    if (res.code === 'quota_exceeded' || res.status === 429) {
+    // "Saved — I'll estimate it when you're back online" ONLY when actually offline;
+    // any other failure: saved, tried again later (FL-46).
+    const fail = sendFailureNotice(res, isOnlineNow());
+    if (fail === 'quota') {
       deleteFoodLog(id); requestSync?.(); refresh(userId);
       setText(raw);
       setNotice({ kind: 'quota' });
     } else {
-      setNotice({ kind: 'offline' });
+      setNotice({ kind: fail });
     }
   }
 
@@ -373,7 +376,7 @@ export default function FoodChatScreen() {
 
   const gated = !!access && !access.canLog;
   const inTrial = access && access.mode === 'trial';
-  const freeLeft = Math.max(0, FREE_DAYS - dayCount);
+  const freeLeft = inTrial && access.freeDaysLeft != null ? access.freeDaysLeft : 0;
 
   // ── Bubbles ────────────────────────────────────────────────────
   const AppBubble = ({ children, style }) => <View style={[s.app, style]}>{children}</View>;
@@ -393,7 +396,8 @@ export default function FoodChatScreen() {
         return (
           <TouchableOpacity activeOpacity={x.status === 'done' || x.status === 'too_old' ? 1 : 0.7} disabled={x.status === 'done' || x.status === 'too_old'} onPress={() => confirmRemove(x.rowId, x.status === 'pending')} style={s.userWrap}>
             <View style={s.user}><Text style={s.userText}>{x.text}</Text></View>
-            {x.status === 'pending' && <Text style={s.userNote}>{t('nutri_offline_saved')}</Text>}
+            {/* A row being read right now is not "saved offline" (FL-46). */}
+            {x.status === 'pending' && x.rowId !== sendingId && <Text style={s.userNote}>{t(isOnlineNow() === false ? 'nutri_offline_saved' : 'nutri_retry_later')}</Text>}
             {x.status === 'unparsed' && <Text style={s.userNote}>{t('nutri_unparsed')}</Text>}
           </TouchableOpacity>
         );
@@ -543,6 +547,7 @@ export default function FoodChatScreen() {
           : x.kind === 'earlier' ? t('nutri_which_earlier')
             : x.kind === 'quota' ? t('nutri_quota')
               : x.kind === 'offline' ? t('nutri_offline_saved')
+                : x.kind === 'retry' ? t('nutri_retry_later')
                 : x.kind === 'updated' ? t('nutri_echo_updated').replace('{items}', x.text || '') : '';
         return msg ? <AppBubble><Text style={s.appText}>{msg}</Text></AppBubble> : null;
       }
@@ -582,8 +587,8 @@ export default function FoodChatScreen() {
         </View>
       ) : (
         <KeyboardAvoidingView style={s.flex} behavior="padding" keyboardVerticalOffset={0} onTouchStart={touch}>
-          {access && access.mode === 'grace' && (
-            <FoodGraceNote rcStart={rcStart} graceUntil={access.graceUntil} reason={access.reason} rows={rows} style={s.graceNote} />
+          {access && (access.reason === 'premium_ended' || access.reason === 'free_days_ending') && (
+            <FoodGraceNote rcStart={rcStart} until={access.until} reason={access.reason} rows={rows} style={s.graceNote} />
           )}
           <FlatList
             style={s.flex}

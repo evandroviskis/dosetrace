@@ -1,7 +1,7 @@
 /**
- * DoseTrace — the grace-week note (FL-41). When Premium or the free days end
- * during a running reality check, logging stays open until the end of that check
- * week; this app-written note says why the check matters using the user's OWN
+ * DoseTrace — the grace-week / last-free-days note (FL-41). In the last 2 of the 7
+ * free days, or in the week paid Premium ended during a running check (logging
+ * stays open to the end of that check week), this app-written note says why the check matters using the user's OWN
  * numbers (day of the check, days with food logged, the weigh-in date, the last
  * day logging stays open) and offers the paywall. Never advice.
  */
@@ -16,13 +16,13 @@ import { localISO } from '../../lib/localDate';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
-export default function FoodGraceNote({ rcStart, graceUntil, reason, rows, style }) {
+export default function FoodGraceNote({ rcStart, until, reason, rows, style }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = makeStyles(colors);
   // Nothing to explain when the store just couldn't be reached (lenient, reason 'unknown').
-  if (!rcStart || !rcStart.date || !graceUntil || (reason !== 'premium_ended' && reason !== 'free_days_ended')) return null;
+  if (!rcStart || !rcStart.date || !until || (reason !== 'premium_ended' && reason !== 'free_days_ending')) return null;
   const locale = LOCALE_MAP[language] || 'en-US';
   const fmt = (iso) => { const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? iso : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' }); };
   const today = localISO();
@@ -30,10 +30,10 @@ export default function FoodGraceNote({ rcStart, graceUntil, reason, rows, style
   const day = Math.max(1, Math.round((new Date(today + 'T12:00:00') - new Date(start + 'T12:00:00')) / 86400000) + 1);
   const logged = (periodTotals(rows || [], start, today) || { loggedDays: 0 }).loggedDays;
   // A lapsed PAYING user never reads "free access" (FL-41).
-  const text = t(reason === 'premium_ended' ? 'nutri_grace_note_premium' : 'nutri_grace_note_free')
+  const text = t(reason === 'premium_ended' ? 'nutri_grace_note_premium' : 'nutri_free_ending_note')
     .replace('{day}', String(day))
     .replace('{logged}', String(logged))
-    .replace('{until}', fmt(graceUntil))
+    .replace(/\{until\}/g, fmt(until))
     .replace('{weighin}', fmt(weighInDay(start)));
   return (
     <View style={[s.card, style]}>

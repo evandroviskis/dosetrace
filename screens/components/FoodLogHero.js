@@ -14,6 +14,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { getFoodLogsSince } from '../../lib/database';
 import { todayFoodHeroPolicy, todaySummary } from '../../lib/foodThread';
+import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { catchUpFood, loadFoodAccess } from '../../lib/foodLogActions';
 import FoodGraceNote from './FoodGraceNote';
 import { localISO } from '../../lib/localDate';
@@ -55,10 +56,13 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
   const policy = todayFoodHeroPolicy({ rcStart: state.rcStart, todayISO: state.today, access: state.access, checkDays: CHECK_DAYS });
   if (variant === 'today' && !policy.show) return null;
   const locked = !state.access.canLog;
-  const grace = state.access.mode === 'grace';
+  const note = state.access.reason === 'premium_ended' || state.access.reason === 'free_days_ending';
 
+  // The 7-days-in-a-row progress the check's intake needs (FL-3).
+  const run = state.rcStart ? intakeRun(state.rows, String(state.rcStart.date).slice(0, 10), state.today) : null;
+  const runShort = run ? (run.ok ? t('nutri_hero_run_ready').replace('{d}', String(run.days)) : t('nutri_hero_run').replace('{n}', String(Math.min(run.current, MIN_RUN_DAYS)))) : null;
   const checkLine = policy.show
-    ? (policy.weighInDue ? t('nutri_hero_weigh') : t('nutri_hero_day').replace('{n}', String(policy.day)).replace('{total}', String(policy.of)))
+    ? [policy.weighInDue ? t('nutri_hero_weigh') : t('nutri_hero_day').replace('{n}', String(policy.day)).replace('{total}', String(policy.of)), runShort].filter(Boolean).join(' · ')
     : null;
   const { items, kcal, closed } = state.sum;
   const todayLine = closed
@@ -78,11 +82,11 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
       <View style={{ flex: 1 }}>
         <Text style={s.title}>{t('nutri_ai_badge')}</Text>
         {checkLine && <Text style={s.check}>{checkLine}</Text>}
-        <Text style={s.line}>{locked ? t('nutri_hero_locked') : todayLine}</Text>
+        <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
       </View>
       <View style={s.cta}><Text style={s.ctaText}>{locked ? t('nutri_locked_cta') : t('nutri_hero_cta')}</Text></View>
     </TouchableOpacity>
-    {grace && <FoodGraceNote rcStart={state.rcStart} graceUntil={state.access.graceUntil} reason={state.access.reason} rows={state.rows} style={s.grace} />}
+    {!locked && note && <FoodGraceNote rcStart={state.rcStart} until={state.access.until} reason={state.access.reason} rows={state.rows} style={s.grace} />}
     </View>
   );
 }

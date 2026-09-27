@@ -2,8 +2,8 @@
  * DoseTrace — food log on Journey (FL-32/34). A compact hero (placed before the
  * Reality check) that opens the ONE food chat ('FoodChat' modal route, FL-37),
  * plus the log's collapsible detail: totals per day / 7 days / whole check
- * (FL-24), the reality check's intake with its working, past days to mark "not
- * recorded" (FL-3), and every entry (tap → the same fix screen as the chat).
+ * (FL-24), the reality check's intake — only from 7+ days in a row, else progress —
+ * with its working and past days to mark "not recorded" (FL-3), and every entry (tap → the same fix screen as the chat).
  * The conversation itself (composer, questions, follow-ups, day closing) lives
  * ONLY in screens/FoodChatScreen.js. First 3 logged days are free, then Premium
  * (with a grace week when access ends during a reality check, FL-41).
@@ -24,7 +24,7 @@ import { requestSync } from '../../lib/sync';
 import { getFoodLogsSince, deleteFoodLog, insertFoodDayMarker } from '../../lib/database';
 import { loadFoodAccess } from '../../lib/foodLogActions';
 import {
-  checkIntake, unloggedCheckDays, foodOnly, CATEGORIES, itemLabel, needsEstimateFlag, periodTotals,
+  intakeRun, MIN_RUN_DAYS, unloggedCheckDays, foodOnly, CATEGORIES, itemLabel, needsEstimateFlag, periodTotals,
 } from '../../lib/nutrition';
 import { safeItems } from '../../lib/foodThread';
 import { getRealityStart } from '../../lib/realityCheck';
@@ -158,7 +158,10 @@ export default function NutritionLogger() {
   const rcDays = rcStart ? Math.max(0, Math.round((new Date(today + 'T12:00:00') - new Date(rcStart.date + 'T12:00:00')) / 86400000)) : null;
   // The SAME figure the calculator uses (completed days of the check), plus
   // today's food so far shown separately — one number, never two "per day"s.
-  const intake = rcStart && rcDays >= 1 ? checkIntake(recent, rcStart.date, today, rcDays, 1) : null;
+  // FL-3: the check's intake comes ONLY from 7+ consecutive complete days; until then, progress.
+  const run = rcStart ? intakeRun(recent, String(rcStart.date).slice(0, 10), today) : null;
+  const intake = run && run.ok ? run : null;
+  const runLine = run ? (run.ok ? t('nutri_run_working').replace('{total}', String(run.totalKcal)).replace('{d}', String(run.days)).replace('{from}', dayLabel(run.fromISO)).replace('{to}', dayLabel(run.toISO)) : t('nutri_run_progress').replace('{n}', String(Math.min(run.current, MIN_RUN_DAYS)))) : null;
   const unlogged = rcStart ? unloggedCheckDays(recent, rcStart.date, today) : [];
   // Totals per day, per week and for the whole check, each with its working (FL-24).
   const totToday = periodTotals(recent, today, today);
@@ -223,8 +226,8 @@ export default function NutritionLogger() {
           <Text style={s.collapsedText}>
             {rcStart
               ? (intake
-                ? t('nutri_check_summary').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days)).replace('{avg}', String(intake.avgKcal))
-                : t('nutri_check_empty'))
+                ? t('nutri_run_summary').replace('{avg}', String(intake.avgKcal)).replace('{d}', String(intake.days))
+                : runLine)
               : (entries.length ? t('nutri_entries_count').replace('{n}', String(entries.length)) : t('nutri_none'))}
           </Text>
           {(entries.length > 0 || unlogged.length > 0) && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
@@ -246,17 +249,17 @@ export default function NutritionLogger() {
               {intake ? (
                 <>
                   <Text style={s.avgBig}>≈ {intake.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}{t('nutri_per_day')}</Text></Text>
-                  <Text style={s.avgFoot}>{t('nutri_check_working').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days))}</Text>
-                  <Text style={s.avgFoot}>{t('nutri_check_recorded').replace('{n}', String(intake.recordedDays)).replace('{d}', String(intake.windowDays))}</Text>
-                  <Text style={s.avgFoot}>{t('nutri_check_coverage').replace('{n}', String(intake.loggedDays)).replace('{d}', String(intake.days))}</Text>
+                  <Text style={s.avgFoot}>{runLine}</Text>
                   {todayKcal > 0 && <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>}
                 </>
-              ) : todayKcal > 0 ? (
-                <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>
               ) : (
-                <Text style={s.avgFoot}>{t('nutri_check_empty')}</Text>
+                <>
+                  <Text style={s.runProgress}>{runLine}</Text>
+                  <View style={s.runBar}><View style={[s.runFill, { width: `${Math.round((Math.min(run.current, MIN_RUN_DAYS) / MIN_RUN_DAYS) * 100)}%` }]} /></View>
+                  {todayKcal > 0 && <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>}
+                </>
               )}
-              <Text style={s.avgFoot}>{t('nutri_check_foot')}</Text>
+              <Text style={s.avgFoot}>{t('nutri_run_rule')}</Text>
             </View>
           ) : (
             <Text style={s.noneDetail}>{t('nutri_no_check')}</Text>
@@ -368,6 +371,9 @@ const makeStyles = (c) => StyleSheet.create({
   avgLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentSoftText },
   avgBig: { fontSize: 26, fontWeight: '800', color: c.accent, marginTop: 4 },
   avgUnit: { fontSize: 13, fontWeight: '700', color: c.textMuted },
+  runProgress: { fontSize: 13.5, fontWeight: '700', color: c.text, marginTop: 6, lineHeight: 19 },
+  runBar: { height: 6, borderRadius: 3, backgroundColor: c.card, marginTop: 8, overflow: 'hidden' },
+  runFill: { height: 6, borderRadius: 3, backgroundColor: c.accent },
   avgFoot: { fontSize: 11, color: c.textFaint, marginTop: 6 },
   noneDetail: { fontSize: 12.5, color: c.textFaint, marginTop: 10, textAlign: 'center' },
   // day groups

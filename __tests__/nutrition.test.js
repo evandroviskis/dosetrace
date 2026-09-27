@@ -62,35 +62,7 @@ test('groupByDay: empty -> []', () => {
 });
 
 // ── Reality-check window intake (founder 2026-09-24: not day by day) ──
-const { checkIntake, entryDateFor, splitByDay } = require('../lib/nutrition');
-
-test('checkIntake: completed days of the check ÷ elapsed days (same window as the TDEE)', () => {
-  const e = [
-    { entry_date: '2026-09-01', kcal: 2000 },
-    { entry_date: '2026-09-03', kcal: 3000 },
-    { entry_date: '2026-09-05', kcal: 2000 },
-    { entry_date: '2026-09-06', kcal: 900 }, // today — not in the completed window
-  ];
-  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 5), { totalKcal: 7000, days: 5, avgKcal: 1400, entries: 3, loggedDays: 3, recordedDays: 5, windowDays: 5, notRecordedDays: 0 });
-  // the logger's running view includes today, over 6 calendar days
-  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 6, 1, true), { totalKcal: 7900, days: 6, avgKcal: 1317, entries: 4, loggedDays: 4, recordedDays: 6, windowDays: 6, notRecordedDays: 0 });
-});
-
-test('checkIntake: food before the check started is not counted', () => {
-  const e = [{ entry_date: '2026-08-30', kcal: 5000 }, { entry_date: '2026-09-02', kcal: 1000 }];
-  assert.equal(checkIntake(e, '2026-09-01', '2026-09-06', 5).totalKcal, 1000);
-});
-
-test('checkIntake: three days logged in one go land in the same total (no per-day inflation)', () => {
-  const oneGo = [{ entry_date: '2026-09-05', kcal: 6000 }];
-  assert.equal(checkIntake(oneGo, '2026-09-01', '2026-09-06', 5).avgKcal, 1200);
-});
-
-test('checkIntake: nothing until the check has run minDays and something is logged', () => {
-  assert.equal(checkIntake([{ entry_date: '2026-09-02', kcal: 900 }], '2026-09-01', '2026-09-04', 3), null);
-  assert.equal(checkIntake([], '2026-09-01', '2026-09-10', 9), null);
-  assert.equal(checkIntake([{ entry_date: '2026-09-02', kcal: 900 }], null, '2026-09-10', 9), null);
-});
+const { entryDateFor, splitByDay } = require('../lib/nutrition');
 
 test('entryDateFor: "3 days ago" moves the entry back; nothing said keeps the typed day', () => {
   assert.equal(entryDateFor('2026-09-06', 3), '2026-09-03');
@@ -116,37 +88,6 @@ test('splitByDay: a multi-day catch-up becomes one entry per day eaten', () => {
 // ── FL-3: "not recorded" days ──
 const { unloggedCheckDays, closedDays, notRecordedDays, isMarker } = require('../lib/nutrition');
 const NR = (d, id) => ({ id, entry_date: d, source: 'not_recorded', kcal: 0, parse_status: 'done', raw_text: '' });
-
-test('checkIntake: a day marked not recorded leaves BOTH the total and the day count', () => {
-  const e = [
-    { entry_date: '2026-09-01', kcal: 2000 },
-    { entry_date: '2026-09-02', kcal: 2400 },
-    NR('2026-09-03', 9),                       // marked: out of the average
-    // 09-04 and 09-05 unlogged and unmarked → count as zero
-  ];
-  const r = checkIntake(e, '2026-09-01', '2026-09-06', 5);
-  assert.equal(r.totalKcal, 4400);
-  assert.equal(r.recordedDays, 4, '5 window days − 1 not recorded');
-  assert.equal(r.days, 4, 'the divisor is the recorded days');
-  assert.equal(r.avgKcal, 1100);
-  assert.equal(r.windowDays, 5);
-  assert.equal(r.notRecordedDays, 1);
-  assert.equal(r.loggedDays, 2);
-  assert.equal(r.entries, 2, 'marker rows are not entries');
-});
-
-test('checkIntake: an unlogged, unmarked day counts as zero; a mark on a day with food is ignored', () => {
-  const unmarked = checkIntake([{ entry_date: '2026-09-01', kcal: 5000 }], '2026-09-01', '2026-09-06', 5);
-  assert.equal(unmarked.avgKcal, 1000);
-  const catchUpWins = checkIntake([{ entry_date: '2026-09-01', kcal: 5000 }, NR('2026-09-01', 3)], '2026-09-01', '2026-09-06', 5);
-  assert.equal(catchUpWins.recordedDays, 5, 'food logged later on a marked day makes it recorded again');
-  assert.equal(notRecordedDays([{ entry_date: '2026-09-01', kcal: 5000 }, NR('2026-09-01', 3)]).size, 0);
-});
-
-test('checkIntake: a mark on today or outside the window does not change the completed-window divisor', () => {
-  const e = [{ entry_date: '2026-09-02', kcal: 5000 }, NR('2026-09-06', 1), NR('2026-08-20', 2)];
-  assert.equal(checkIntake(e, '2026-09-01', '2026-09-06', 5).recordedDays, 5);
-});
 
 test('unloggedCheckDays: past days of the check with nothing logged, newest first, with their marks', () => {
   const e = [{ entry_date: '2026-09-01', kcal: 2000 }, NR('2026-09-03', 7), { entry_date: '2026-09-06', kcal: 300 }];
@@ -435,4 +376,56 @@ test('catchUpOutcome: when only SOME items are too old, the recent part saves an
   assert.equal(all.notice, 'too_old');
   const none = catchUpOutcome([{ food: 'coffee', days_ago: 2 }], null, 'coffee 2 days ago');
   assert.deepEqual({ putBack: none.putBack, notice: none.notice }, { putBack: null, notice: null });
+});
+
+// ── FL-3 (revised): intake only from ≥ 7 CONSECUTIVE complete days ──
+const { intakeRun } = require('../lib/nutrition');
+const F = (d, k) => ({ entry_date: d, kcal: k, parse_status: 'done', source: 'ai' });
+const CL = (d) => ({ entry_date: d, source: 'day_closed', kcal: 0, parse_status: 'done' });
+const D = (n) => '2026-09-' + (n < 10 ? '0' + n : '' + n);
+
+test('intakeRun: 7 consecutive complete days → the intake is their average', () => {
+  const e = []; for (let i = 1; i <= 7; i++) e.push(F(D(i), 2000 + i * 10));
+  const r = intakeRun(e, D(1), D(8));
+  assert.equal(r.ok, true);
+  assert.equal(r.days, 7);
+  assert.equal(r.totalKcal, 14280);
+  assert.equal(r.avgKcal, 2040);
+  assert.deepEqual([r.fromISO, r.toISO], [D(1), D(7)]);
+});
+
+test('intakeRun: a gap or a "not recorded" day breaks the run — no intake until 7 in a row, with progress', () => {
+  const e = [F(D(1), 2000), F(D(2), 2000), F(D(3), 2000), /* gap on 4 */ F(D(5), 2000), F(D(6), 2000), F(D(7), 2000), F(D(8), 2000)];
+  const r = intakeRun(e, D(1), D(9));
+  assert.deepEqual(r, { ok: false, current: 4, needed: 7 }, '4 of 7 so far');
+  const marked = [...e, { entry_date: D(4), source: 'not_recorded', kcal: 0 }];
+  assert.deepEqual(intakeRun(marked, D(1), D(9)), { ok: false, current: 4, needed: 7 }, 'marked not recorded → the run is broken');
+  const caughtUp = [...marked, F(D(4), 2000)];
+  assert.equal(intakeRun(caughtUp, D(1), D(9)).days, 8, 'food logged later for that day: the day is complete again');
+});
+
+test('intakeRun: a day closed with "That\'s all for today" counts as complete; today counts once closed', () => {
+  const e = [F(D(1), 1800), CL(D(2)), F(D(3), 2100), F(D(4), 2000), F(D(5), 1900), F(D(6), 2000), F(D(7), 2200), CL(D(7))];
+  const notYet = intakeRun(e.filter((x) => !(x.source === 'day_closed' && x.entry_date === D(7))), D(1), D(7));
+  assert.deepEqual(notYet, { ok: false, current: 6, needed: 7 }, 'today (day 7) not closed yet → not counted');
+  const r = intakeRun(e, D(1), D(7));
+  assert.equal(r.ok, true, 'today closed → 7 in a row');
+  assert.equal(r.days, 7);
+  assert.equal(r.totalKcal, 1800 + 0 + 2100 + 2000 + 1900 + 2000 + 2200);
+});
+
+test('intakeRun: the MOST RECENT run of 7+ is used; days before the check start never count', () => {
+  const e = [];
+  for (let i = 1; i <= 8; i++) e.push(F(D(i), 1000));   // run A: 1–8 (8 days)
+  for (let i = 10; i <= 16; i++) e.push(F(D(i), 3000)); // run B: 10–16 (7 days) — gap on 9
+  e.push(F('2026-08-30', 9999));                          // before the start
+  const r = intakeRun(e, D(1), D(17));
+  assert.deepEqual([r.fromISO, r.toISO, r.days, r.avgKcal], [D(10), D(16), 7, 3000]);
+  assert.equal(intakeRun(e, D(2), D(9)).fromISO, D(2), 'window starts at the check start');
+});
+
+test('intakeRun: offline-pending entries do not make a day complete', () => {
+  const e = []; for (let i = 1; i <= 6; i++) e.push(F(D(i), 2000));
+  e.push({ entry_date: D(7), kcal: null, parse_status: 'pending', source: 'ai', raw_text: 'x' });
+  assert.equal(intakeRun(e, D(1), D(8)).ok, false);
 });

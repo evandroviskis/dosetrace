@@ -50,7 +50,8 @@ const snapRowToUI = (r) => ({ date: r.entry_date, weightKg: r.weight_kg, waistCm
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
 import NutritionLogger from './NutritionLogger';
-import { checkIntake } from '../../lib/nutrition';
+import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
+import { loadFoodAccess } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -111,6 +112,7 @@ export default function CalculatorSection({ header = null }) {
   const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
   const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
+  const [rcFree, setRcFree] = useState(false); // free 7 days of food log + reality check (FL-41)
   const [snapshots, setSnapshots] = useState([]);
   const [rcStartDate, setRcStartDate] = useState(null); // null = today; else a past weigh-in day (≤ 7 days back)
   const rcThenAuto = useRef(null); // the start weight the date picker last filled in (never overwrite a typed one)
@@ -152,6 +154,8 @@ export default function CalculatorSection({ header = null }) {
     setPremium(await isPremium());
     const user = await getCachedUser();
     const uid = user?.id || null;
+    // Free users get the reality check (and food log) for 7 days too (FL-41).
+    try { setRcFree(!!(await loadFoodAccess(uid)).access.canLog); } catch { setRcFree(false); }
     // Set EVERY load (not only the first) so a save can never no-op because the
     // session wasn't ready on the first focus.
     if (uid) userIdRef.current = uid;
@@ -503,16 +507,19 @@ export default function CalculatorSection({ header = null }) {
     return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // ── Reality check (premium) ──────────────────────────────────────
+  // ── Reality check (Premium, or a free user's 7 free days — FL-41) ──
+  const rcAllowed = premium || rcFree;
   // Auto days-between the two weigh-ins; null until phase 2.
   const rcElapsedDays = rcStart ? daysBetween(rcStart.date, todayISO()) : null;
   // Intake across THIS check (founder: the check window matters, not day by day):
   // everything logged from the start date through today ÷ the same elapsed days
   // the TDEE uses. Offered tap-to-use with its working shown; never auto-filled.
-  const foodIntake = useMemo(
-    () => (rcStart ? checkIntake(foodRows, rcStart.date, todayISO(), rcElapsedDays) : null),
-    [foodRows, rcStart, rcElapsedDays],
+  // FL-3: only a run of 7+ consecutive complete days is offered; until then, progress.
+  const foodRun = useMemo(
+    () => (rcStart ? intakeRun(foodRows, String(rcStart.date).slice(0, 10), todayISO()) : null),
+    [foodRows, rcStart],
   );
+  const foodIntake = foodRun && foodRun.ok ? foodRun : null;
   // The date the day-21 reminder is set for (display only).
   const rcRemindOn = useMemo(() => {
     if (!rcStart) return null;
@@ -1071,11 +1078,11 @@ export default function CalculatorSection({ header = null }) {
       <TouchableOpacity
         style={s.sbReality}
         activeOpacity={0.7}
-        onPress={() => (premium ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
+        onPress={() => (rcAllowed ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
       >
         <View style={s.sbRealityMain}>
           <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
-          {premium ? (
+          {rcAllowed ? (
             scoreCheck ? (
               <Text style={s.sbRealityVal}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
             ) : rcStart ? (
@@ -1088,12 +1095,12 @@ export default function CalculatorSection({ header = null }) {
           )}
         </View>
         <View style={s.sbRealityRight}>
-          {premium && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
+          {rcAllowed && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
             <Text style={s.sbRealityRate}>
               {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
             </Text>
           ) : null}
-          <Text style={s.sbArrow}>{premium ? (rcOpen ? '▾' : '›') : '›'}</Text>
+          <Text style={s.sbArrow}>{rcAllowed ? (rcOpen ? '▾' : '›') : '›'}</Text>
         </View>
       </TouchableOpacity>
 
@@ -1101,7 +1108,7 @@ export default function CalculatorSection({ header = null }) {
       {rcOpen && (
         <View style={s.premCard}>
           <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
-          {premium ? (
+          {rcAllowed ? (
             <>
               {!rcStart ? (
                 // ── Phase 1: log today's starting weight, arm the 3-week reminder ──
@@ -1144,10 +1151,12 @@ export default function CalculatorSection({ header = null }) {
                       <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodIntake.avgKcal))} activeOpacity={0.7}>
                         <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
                       </TouchableOpacity>
-                      <Text style={s.rcUseLogNote}>{t('nutri_check_coverage').replace('{n}', String(foodIntake.loggedDays)).replace('{d}', String(foodIntake.days))}</Text>
-                      {foodIntake.notRecordedDays > 0 && <Text style={s.rcUseLogNote}>{t('nutri_check_recorded').replace('{n}', String(foodIntake.recordedDays)).replace('{d}', String(foodIntake.windowDays))}</Text>}
+                      <Text style={s.rcUseLogNote}>{t('nutri_run_working').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{from}', fmtDate(foodIntake.fromISO)).replace('{to}', fmtDate(foodIntake.toISO))}</Text>
                       <Text style={s.rcUseLogNote}>{t('cal_rc_from_log_note')}</Text>
                     </>
+                  ) : foodRun ? (
+                    // No intake number until 7 days in a row are fully logged (FL-3).
+                    <Text style={s.rcUseLogNote}>{t('nutri_run_progress').replace('{n}', String(Math.min(foodRun.current, MIN_RUN_DAYS)))}</Text>
                   ) : null}
                   <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
                     <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>

@@ -141,28 +141,6 @@ test('checkWeekEnd: weeks of the check are days 1–7 / 8–14 / 15–21 from it
   assert.equal(weighInDay('2026-09-01'), '2026-09-22');
 });
 
-test('foodLogAccess: Premium and the first 3 used days (whole days) can log', () => {
-  assert.equal(foodLogAccess({ premium: true, todayISO: '2026-09-10' }).mode, 'premium');
-  const tr = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'] };
-  assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-04' }).mode, 'trial', 'still the 3rd free day');
-  assert.equal(foodLogAccess({ premium: false, trialDays: ['2026-09-02'], todayISO: '2026-09-20' }).canLog, true);
-});
-
-test('foodLogAccess: free days end DURING a check → logging stays open to the end of that check week, then locks (FL-41)', () => {
-  const tr = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], rcStart: start };
-  assert.deepEqual(foodLogAccess({ ...tr, todayISO: '2026-09-06' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-07', lapsedOn: '2026-09-05', reason: 'free_days_ended' });
-  assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-07' }).mode, 'grace');
-  assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-08' }).mode, 'locked');
-});
-
-test('foodLogAccess: Premium expiring in week 2 keeps logging until day 14; no check → locked straight away', () => {
-  const sub = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], premiumEndedOn: '2026-09-10', rcStart: start };
-  assert.deepEqual(foodLogAccess({ ...sub, todayISO: '2026-09-12' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-14', lapsedOn: '2026-09-10', reason: 'premium_ended' });
-  assert.equal(foodLogAccess({ ...sub, todayISO: '2026-09-15' }).mode, 'locked');
-  assert.equal(foodLogAccess({ ...sub, rcStart: null, todayISO: '2026-09-11' }).mode, 'locked');
-  assert.equal(foodLogAccess({ ...sub, rcStart: { date: '2026-09-11' }, todayISO: '2026-09-12' }).mode, 'locked', 'ended BEFORE the check started: no grace');
-});
-
 test('todayFoodHeroPolicy: ONLY while a check is open; day X of 21, then "time to weigh in" with the check still open; lock / grace from access (FL-33/41/42/43)', () => {
   assert.deepEqual(todayFoodHeroPolicy({ rcStart: null, todayISO: T }), { show: false });
   assert.deepEqual(todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, access: { mode: 'premium' } }), { show: true, locked: false, grace: false, graceUntil: null, day: 1, of: 21, weighInDue: false });
@@ -177,23 +155,7 @@ test('todayFoodHeroPolicy: ONLY while a check is open; day X of 21, then "time t
 });
 
 // ── FL-41: which access ended; the free-days grace flag; RevenueCat unreachable ──
-const { resolveEntitlement, GRACE_FOR_FREE_DAYS } = require('../lib/foodThread');
-
-test('foodLogAccess: says WHICH access ended — paid Premium vs the in-app free days — so a lapsed subscriber never reads "free access"', () => {
-  const base = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], rcStart: start, todayISO: '2026-09-12' };
-  assert.equal(foodLogAccess({ ...base, premiumEndedOn: '2026-09-10' }).reason, 'premium_ended');
-  assert.equal(foodLogAccess({ ...base, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], todayISO: '2026-09-06' }).reason, 'free_days_ended');
-  assert.equal(foodLogAccess({ ...base, premiumEndedOn: '2026-09-10', todayISO: '2026-09-20' }).reason, 'premium_ended', 'locked later: still the paid wording');
-});
-
-test('foodLogAccess: the free-days grace week is ONE named flag (on for now); off → free-day users lock, paying users keep their grace', () => {
-  assert.equal(GRACE_FOR_FREE_DAYS, true);
-  const free = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], rcStart: start, todayISO: '2026-09-06' };
-  assert.equal(foodLogAccess(free).mode, 'grace');
-  assert.equal(foodLogAccess({ ...free, graceForFreeDays: false }).mode, 'locked');
-  const paid = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], premiumEndedOn: '2026-09-10', rcStart: start, todayISO: '2026-09-12' };
-  assert.equal(foodLogAccess({ ...paid, graceForFreeDays: false }).mode, 'grace');
-});
+const { resolveEntitlement, FREE_DAYS, sendFailureNotice } = require('../lib/foodThread');
 
 test('resolveEntitlement: store unreachable → last known end date; none known → lenient, never locked on a hiccup', () => {
   assert.deepEqual(resolveEntitlement({ reachable: true, premium: true }), { premium: true, premiumEndedOn: null, entitlementUnknown: false, remember: null });
@@ -201,7 +163,46 @@ test('resolveEntitlement: store unreachable → last known end date; none known 
   assert.deepEqual(resolveEntitlement({ reachable: false, lastKnownEndedOn: '2026-09-10' }), { premium: false, premiumEndedOn: '2026-09-10', entitlementUnknown: false, remember: undefined });
   const unknown = resolveEntitlement({ reachable: false, lastKnownEndedOn: null });
   assert.equal(unknown.entitlementUnknown, true);
-  const acc = foodLogAccess({ premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], rcStart: null, todayISO: '2026-09-12', entitlementUnknown: true });
+  const acc = foodLogAccess({ premium: false, firstUse: '2026-08-01', rcStart: null, todayISO: '2026-09-12', entitlementUnknown: true });
   assert.equal(acc.canLog, true, 'lenient: grace, not locked');
   assert.equal(acc.reason, 'unknown');
+});
+
+test('foodLogAccess: free users get 7 days, counted from the check start when a check is open, else from the first log (FL-41)', () => {
+  assert.equal(FREE_DAYS, 7);
+  assert.equal(foodLogAccess({ premium: true, todayISO: '2026-09-10' }).mode, 'premium');
+  assert.equal(foodLogAccess({ premium: false, firstUse: null, todayISO: '2026-09-10' }).mode, 'trial', 'never used: free');
+  const noCheck = { premium: false, firstUse: '2026-09-01' };
+  assert.equal(foodLogAccess({ ...noCheck, todayISO: '2026-09-07' }).mode, 'trial', 'day 7');
+  assert.equal(foodLogAccess({ ...noCheck, todayISO: '2026-09-08' }).mode, 'locked', 'day 8 → paywall');
+  assert.equal(foodLogAccess({ ...noCheck, todayISO: '2026-09-08' }).reason, 'free_days_ended');
+  const withCheck = { premium: false, firstUse: '2026-08-01', rcStart: start }; // check 09-01: free 09-01 … 09-07
+  assert.equal(foodLogAccess({ ...withCheck, todayISO: '2026-09-07' }).mode, 'trial');
+  assert.equal(foodLogAccess({ ...withCheck, todayISO: '2026-09-08' }).mode, 'locked', 'no grace week for free days — the 7 free days cover one run');
+});
+
+test('foodLogAccess: the last 2 free days say so (the app explains and offers Premium)', () => {
+  const x = { premium: false, firstUse: '2026-09-01' };
+  assert.equal(foodLogAccess({ ...x, todayISO: '2026-09-05' }).reason, null);
+  const d6 = foodLogAccess({ ...x, todayISO: '2026-09-06' });
+  assert.deepEqual([d6.reason, d6.until, d6.freeDaysLeft], ['free_days_ending', '2026-09-07', 2]);
+  assert.equal(foodLogAccess({ ...x, todayISO: '2026-09-07' }).freeDaysLeft, 1);
+});
+
+test('foodLogAccess: paid Premium ending during a check keeps logging to the end of that check week, then locks', () => {
+  const sub = { premium: false, firstUse: '2026-07-01', premiumEndedOn: '2026-09-10', rcStart: start };
+  const g = foodLogAccess({ ...sub, todayISO: '2026-09-12' });
+  assert.deepEqual([g.mode, g.graceUntil, g.reason], ['grace', '2026-09-14', 'premium_ended']);
+  assert.equal(foodLogAccess({ ...sub, todayISO: '2026-09-15' }).mode, 'locked');
+  assert.equal(foodLogAccess({ ...sub, todayISO: '2026-09-15' }).reason, 'premium_ended', 'never "free days" wording for a payer');
+  assert.equal(foodLogAccess({ ...sub, rcStart: null, todayISO: '2026-09-11' }).mode, 'locked', 'no check: no grace');
+});
+
+test('sendFailureNotice: the offline notice only when the device is actually offline (FL-46)', () => {
+  assert.equal(sendFailureNotice({ ok: true }, true), null);
+  assert.equal(sendFailureNotice({ ok: false, code: 'provider_error', status: 502 }, true), 'retry', 'online failure: never "back online"');
+  assert.equal(sendFailureNotice({ ok: false, code: 'network', status: null }, true), 'retry', 'a timeout while online is not "offline"');
+  assert.equal(sendFailureNotice({ ok: false, code: 'network', status: null }, false), 'offline');
+  assert.equal(sendFailureNotice({ ok: false, code: 'network', status: null }, null), 'offline', 'connectivity unknown + network error');
+  assert.equal(sendFailureNotice({ ok: false, code: 'quota_exceeded', status: 429 }, true), 'quota');
 });
