@@ -90,6 +90,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
 
+  const [introOpen, setIntroOpen] = useState(false);
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
   const [weight, setWeight] = useState('');
   const [bfSource, setBfSource] = useState('gym');
@@ -754,11 +755,15 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   return (
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
       {header}
-      {/* Intro — what this is */}
-      <View style={s.introCard}>
-        <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
-        <Text style={s.introBody}>{t('cal_intro_body')}</Text>
-      </View>
+      {/* Intro — what this is. Before there are results it explains what to do,
+          so it leads; once the goal card exists it lives INSIDE that card, where it
+          clearly belongs to the calculator (not to the curve card above). */}
+      {!plan && (
+        <View style={s.introCard}>
+          <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
+          <Text style={s.introBody}>{t('cal_intro_body')}</Text>
+        </View>
+      )}
 
       {/* Overview — the user's current situation */}
       {result && result.sexGated ? (
@@ -777,6 +782,16 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
             <Text style={s.overviewTitle}>{t('cal_overview_title')}</Text>
             <View style={s.echoChip}><Text style={s.echoChipText}>{echoParts.join(' · ')}</Text></View>
           </View>
+          <TouchableOpacity
+            onPress={() => setIntroOpen(v => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: introOpen }}
+            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            style={s.introToggle}
+          >
+            <Text style={s.introToggleText}>{t('cal_intro_title')} {introOpen ? '▴' : '▾'}</Text>
+          </TouchableOpacity>
+          {introOpen && <Text style={s.introInline}>{t('cal_intro_body')}</Text>}
 
           {/* Hero cards — daily burn + protein. Once a reality-check exists, the
               MEASURED maintenance is the real daily burn (the formula under/over-
@@ -1343,6 +1358,9 @@ const makeStyles = (c) => StyleSheet.create({
   introTitle: { fontSize: 14, fontWeight: '700', color: c.accentSoftText, marginBottom: 4 },
   introBody: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
   overview: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
+  introToggle: { alignSelf: 'flex-start', marginBottom: 8 },
+  introToggleText: { fontSize: 13, fontWeight: '600', color: c.accent },
+  introInline: { fontSize: 13, lineHeight: 19, color: c.textMuted, marginBottom: 10 },
   overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
   overviewTitle: { fontSize: 13, fontWeight: '800', color: c.text, letterSpacing: 0.5 },
   echoChip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexShrink: 1 },
