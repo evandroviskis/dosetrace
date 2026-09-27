@@ -25,18 +25,18 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 ### Phase 1 — this redo (branch `feature/admin-panel`, not pushed)
 
-- [~] **1.1 Header-only auth.** `api/adm.js` reads the token only from `Authorization: Bearer <token>`. The query fallback is removed.
-  - Evidence: note 002, mocked test 8/8.
-- [~] **1.2 Query token rejected.** `tokenInQuery(req)` returns a generic 401 `{error:'Unauthorized'}` when `t`, `token`, `admin_token` or `access_token` is in the query string, even with a valid header. The check runs before any data fetch.
-  - Evidence: notes 002 and 003. Main's `api/adm.js` scores 3/7 (query tokens return 200 with 3 fetches). The branch scores 7/7, with 0 fetches on every 401.
-- [~] **1.3 No logging.** `api/adm.js` has no `console.*` calls and never echoes the token.
-  - Evidence: grep in note 002.
-- [~] **1.4 Page token source.** `web/adm.html` never reads the token from `location.search` or `location.hash`.
+- [x] **1.1 Header-only auth.** `api/adm.js` reads the token only from `Authorization: Bearer <token>`. The query fallback is removed.
+  - Evidence: 2026-09-27, mocked-request test with a dummy ADMIN_TOKEN: 8/8 on the branch (main 4/8). The only request fields read are `req.headers.authorization` and `req.url` (the latter only to refuse query tokens). There are no cookie, body or `req.query` reads (note 002).
+- [x] **1.2 Query token rejected.** `tokenInQuery(req)` returns a generic 401 `{error:'Unauthorized'}` when `t`, `token`, `admin_token` or `access_token` is in the query string, even with a valid header. The check runs before any data fetch.
+  - Evidence: 2026-09-27, the same script on main's `api/adm.js`: 3/7 (the four query-token cases return 200 with 3 data fetches). On the branch: 7/7, with 0 data fetches on every 401 and a body of exactly `{"error":"Unauthorized"}` (notes 002 and 003).
+- [x] **1.3 No logging.** `api/adm.js` has no `console.*` calls and never echoes the token.
+  - Evidence: 2026-09-27: `grep -c console. api/adm.js` = 0; the console spy counted 0 calls across 8 requests; the token appeared in 0 responses (note 002).
+- [x] **1.4 Page token source.** `web/adm.html` never reads the token from `location.search` or `location.hash`.
   - It reads from sessionStorage `dt_adm_token`, or prompts once.
   - It sends the token only in the Authorization header.
   - It removes the token on a 401.
   - It keeps `history.replaceState` so old `?t=` links are stripped.
-  - Evidence: note 002.
+  - Evidence: 2026-09-27 headless render, no stored token, URL `?t=URLTOKEN#t=HASHTOKEN`. Main sent `Bearer HASHTOKEN`. The branch made 0 requests, prompted once, and showed the need-token message. In both, the URL was stripped to the path. With a stored token and a 401 answer, main kept the token and the branch removed it (note 002).
 - [x] **1.5 Token wording.** `need_link` and `err_unauth` now say "admin token… reload to enter it" in all 6 languages.
   - Evidence: 2026-09-27, all 6 strings printed from the parsed T object; parity 193 keys × 6 (note 001).
 - [x] **1.6 Active-user windows.** DAU, WAU and MAU count 1, 7 and 30 UTC days including today, using `utcDay(days-1)`. `presets()` anchors on the UTC day.

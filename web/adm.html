@@ -409,7 +409,7 @@
   function cc(){var l=curTheme()==='light';return {ink:l?'#0C2340':'#EAF2FB',muted:l?'#5A7085':'#8FA6BD',grid:l?'rgba(0,0,0,.08)':'rgba(255,255,255,.07)'};}
 
   // Admin token: kept in sessionStorage only and sent only in the Authorization
-  // header. It is never read from the URL (query or hash); old ?t= links are
+  // header. It is never read from the URL (query or hash); old token links are
   // stripped below, and the server refuses any token-like query parameter.
   var token=''; try{ token=sessionStorage.getItem('dt_adm_token')||''; }catch(e){}
   try{ history.replaceState(null,'',location.pathname); }catch(e){}

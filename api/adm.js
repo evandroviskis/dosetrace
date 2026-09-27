@@ -38,7 +38,7 @@ function presentedToken(req) {
 }
 
 // A token must never travel in a URL. Any token-like query parameter is a 401,
-// even alongside a valid header, so old ?t= links stop working outright.
+// even alongside a valid header, so old token links stop working outright.
 const TOKEN_QUERY_KEYS = ['t', 'token', 'admin_token', 'access_token'];
 function tokenInQuery(req) {
   let params;
