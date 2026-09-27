@@ -7,7 +7,7 @@ const {
 } = require('../lib/foodThread');
 
 // Local-time ISO for "typed at" (the tests run in any TZ).
-const at = (day, hh, mm = 0) => { const [y, m, d] = day.split('-').map(Number); return new Date(y, m - 1, d, hh, mm).toISOString(); };
+const at = (day, hh, mm = 0, ss = 0) => { const [y, m, d] = day.split('-').map(Number); return new Date(y, m - 1, d, hh, mm, ss).toISOString(); };
 const T = '2026-09-10';
 const Y = '2026-09-09';
 const row = (id, o) => ({ id, source: 'ai', parse_status: 'done', sync_status: 'synced', ...o });
@@ -71,13 +71,6 @@ test('openFollowup: the stored ask survives closing the chat; skipped / pending 
   assert.equal(th.filter((x) => x.type === 'question').length, 0);
 });
 
-test('messageKey: legacy rows without a message id group by text + typed day', () => {
-  const a = row(1, { raw_text: 'x', entry_date: T, created_at: at(T, 9), parsed_items: items([{ food: 'a' }]) });
-  const b = row(2, { raw_text: 'x', entry_date: Y, created_at: at(T, 9, 5), parsed_items: items([{ food: 'b' }]) });
-  assert.equal(messageKey(a), messageKey(b));
-  assert.equal(typedDay({ created_at: '2026-09-10 12:00:00' }).length, 10, 'SQLite UTC format parses');
-});
-
 test('dayWord: today / yesterday / other — a next-morning tap on last night\'s reminder is about yesterday (FL-40)', () => {
   assert.equal(dayWord(T, T), 'today');
   assert.equal(dayWord(Y, T), 'yesterday');
@@ -100,15 +93,6 @@ test('shouldAutoClose: idle 30 s with the keyboard down closes; any guard blocks
   assert.equal(shouldAutoClose({ ...base, keyboardVisible: true, idleMs: 0 }, 'background'), true, 'leaving the app closes it');
 });
 
-test('todayFoodHeroPolicy: shown only while a check is open; day X of 21, then weigh-in due; locked for free users past the free days (FL-33)', () => {
-  assert.deepEqual(todayFoodHeroPolicy({ rcStart: null, todayISO: T, premium: true }), { show: false });
-  assert.deepEqual(todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, premium: true }), { show: true, locked: false, day: 1, of: 21, weighInDue: false });
-  assert.equal(todayFoodHeroPolicy({ rcStart: { date: '2026-08-21' }, todayISO: T, premium: true }).day, 21);
-  assert.equal(todayFoodHeroPolicy({ rcStart: { date: '2026-08-20' }, todayISO: T, premium: true }).weighInDue, true);
-  assert.equal(todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, premium: false, trialDaysUsed: 3 }).locked, true);
-  assert.equal(todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, premium: false, trialDaysUsed: 1 }).locked, false);
-});
-
 test('todaySummary: today\'s items and ~kcal, or day closed', () => {
   const rows = [
     row(1, { entry_date: T, kcal: 300, parsed_items: items([{ food: 'a' }, { food: 'b' }]) }),
@@ -120,4 +104,74 @@ test('todaySummary: today\'s items and ~kcal, or day closed', () => {
 
 test('newMessageId: distinct ids for distinct messages', () => {
   assert.notEqual(newMessageId(1000, 0.1), newMessageId(1000, 0.2));
+});
+
+// ── FL-38: legacy rows (no message id) ──
+const { legacyGroups } = require('../lib/foodThread');
+
+test('legacy rows: the same text typed again later is a NEW bubble; rows written within ~2 minutes with the same text are one message', () => {
+  const morning = row(1, { raw_text: '2 built puff bars', entry_date: T, created_at: at(T, 8, 0), parsed_items: items([{ food: 'BUILT Puff', qty: 2, kcal: 280 }]) });
+  const split = row(2, { raw_text: '2 built puff bars', entry_date: Y, created_at: at(T, 8, 1), parsed_items: items([{ food: 'BUILT Puff', qty: 1, kcal: 140 }]) });
+  const later = row(3, { raw_text: '2 built puff bars', entry_date: T, created_at: at(T, 15, 30), parsed_items: items([{ food: 'BUILT Puff', qty: 2, kcal: 280 }]) });
+  const other = row(4, { raw_text: 'coffee', entry_date: T, created_at: at(T, 8, 0, 30), parsed_items: items([{ food: 'coffee', kcal: 5 }]) });
+  const g = legacyGroups([later, other, split, morning]);
+  assert.equal(g.get(1), g.get(2), 'written a minute apart: one message');
+  assert.notEqual(g.get(1), g.get(3), 'hours later: a new message');
+  assert.notEqual(g.get(1), g.get(4), 'different text: a different message');
+  const th = buildThread([morning, split, later], { todayISO: T, sinceISO: Y });
+  assert.equal(th.filter((x) => x.type === 'user').length, 2, 'two bubbles, not one');
+  assert.deepEqual(th.filter((x) => x.type === 'echo').map((x) => x.items.length), [2, 1], 'no combined echo');
+});
+
+test('messageKey: rows with a message id group by it; legacy rows have none', () => {
+  assert.equal(messageKey(row(1, { parsed_items: items([{ food: 'a', msg: 'k' }]) })), 'm:k');
+  assert.equal(messageKey(row(1, { raw_text: 'x', parsed_items: items([{ food: 'a' }]) })), null);
+  assert.equal(typedDay({ created_at: '2026-09-10 12:00:00' }).length, 10, 'SQLite UTC format parses');
+});
+
+// ── FL-41: access, free days and the grace week ──
+const { foodLogAccess, checkWeekEnd, weighInDay } = require('../lib/foodThread');
+const start = { date: '2026-09-01' }; // day 1 = 09-01, week 1 ends 09-07, week 2 ends 09-14
+
+test('checkWeekEnd: weeks of the check are days 1–7 / 8–14 / 15–21 from its start', () => {
+  assert.equal(checkWeekEnd('2026-09-01', '2026-09-01'), '2026-09-07');
+  assert.equal(checkWeekEnd('2026-09-01', '2026-09-07'), '2026-09-07');
+  assert.equal(checkWeekEnd('2026-09-01', '2026-09-08'), '2026-09-14');
+  assert.equal(checkWeekEnd('2026-09-01', '2026-09-21'), '2026-09-21');
+  assert.equal(weighInDay('2026-09-01'), '2026-09-22');
+});
+
+test('foodLogAccess: Premium and the first 3 used days (whole days) can log', () => {
+  assert.equal(foodLogAccess({ premium: true, todayISO: '2026-09-10' }).mode, 'premium');
+  const tr = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'] };
+  assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-04' }).mode, 'trial', 'still the 3rd free day');
+  assert.equal(foodLogAccess({ premium: false, trialDays: ['2026-09-02'], todayISO: '2026-09-20' }).canLog, true);
+});
+
+test('foodLogAccess: free days end DURING a check → logging stays open to the end of that check week, then locks (FL-41)', () => {
+  const tr = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], rcStart: start };
+  assert.deepEqual(foodLogAccess({ ...tr, todayISO: '2026-09-06' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-07', lapsedOn: '2026-09-05' });
+  assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-07' }).mode, 'grace');
+  assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-08' }).mode, 'locked');
+});
+
+test('foodLogAccess: Premium expiring in week 2 keeps logging until day 14; no check → locked straight away', () => {
+  const sub = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], premiumEndedOn: '2026-09-10', rcStart: start };
+  assert.deepEqual(foodLogAccess({ ...sub, todayISO: '2026-09-12' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-14', lapsedOn: '2026-09-10' });
+  assert.equal(foodLogAccess({ ...sub, todayISO: '2026-09-15' }).mode, 'locked');
+  assert.equal(foodLogAccess({ ...sub, rcStart: null, todayISO: '2026-09-11' }).mode, 'locked');
+  assert.equal(foodLogAccess({ ...sub, rcStart: { date: '2026-09-11' }, todayISO: '2026-09-12' }).mode, 'locked', 'ended BEFORE the check started: no grace');
+});
+
+test('todayFoodHeroPolicy: ONLY while a check is open; day X of 21, then "time to weigh in" with the check still open; lock / grace from access (FL-33/41/42/43)', () => {
+  assert.deepEqual(todayFoodHeroPolicy({ rcStart: null, todayISO: T }), { show: false });
+  assert.deepEqual(todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, access: { mode: 'premium' } }), { show: true, locked: false, grace: false, graceUntil: null, day: 1, of: 21, weighInDue: false });
+  assert.equal(todayFoodHeroPolicy({ rcStart: { date: '2026-08-21' }, todayISO: T }).day, 21);
+  const late = todayFoodHeroPolicy({ rcStart: { date: '2026-08-10' }, todayISO: T });
+  assert.equal(late.show, true, 'day 32, no weigh-in yet: still shown');
+  assert.equal(late.weighInDue, true);
+  assert.equal(todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, access: { mode: 'locked' } }).locked, true);
+  const g = todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, access: { mode: 'grace', graceUntil: '2026-09-16' } });
+  assert.equal(g.grace, true);
+  assert.equal(g.graceUntil, '2026-09-16');
 });

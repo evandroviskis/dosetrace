@@ -30,6 +30,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
+import { validStartDate, stepStartDate, weighInOn, earliestStart } from '../../lib/realityCheckRules';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync } from '../../lib/sync';
 import { localISO } from '../../lib/localDate';
@@ -111,6 +112,7 @@ export default function CalculatorSection({ header = null }) {
   const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
+  const [rcStartDate, setRcStartDate] = useState(null); // null = today; else a past weigh-in day (≤ 7 days back)
   const [snapMsg, setSnapMsg] = useState(false);
   // Reality-check inputs (display units).
   const [rcThen, setRcThen] = useState('');         // phase-1 starting weight
@@ -518,13 +520,25 @@ export default function CalculatorSection({ header = null }) {
     return localISO(d);
   }, [rcStart]);
 
-  // Phase 1 — log today's starting weight and arm the +21-day reminder.
+  // Phase 1 — log the starting weight (today, or a weigh-in up to 7 days back) and
+  // arm the +21-day reminder.
+  function shiftRcStartDate(delta) {
+    const next = stepStartDate(rcStartDate || todayISO(), delta, todayISO());
+    setRcStartDate(next === todayISO() ? null : next);
+    // A weigh-in saved on that day fills the start weight (the user can change it).
+    const w = weighInOn(snapshots, next);
+    if (w != null) setRcThen(String(Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10));
+  }
+  // The start can be a past weigh-in, at most 7 days back (FL-44, founder
+  // 2026-09-27) — validated again here, never further back, never in the future.
   async function startRealityCheck() {
     const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
     if (kg == null) return;
-    const start = { date: todayISO(), weightKg: kg };
+    const date = rcStartDate && validStartDate(rcStartDate, todayISO()) ? rcStartDate : todayISO();
+    const start = { date, weightKg: kg };
     setRcStart(start);
     setRcThen('');
+    setRcStartDate(null);
     setRc(null);
     await setRealityStart(start);
     syncRealityCheckReminder().catch(() => {});
@@ -1087,6 +1101,17 @@ export default function CalculatorSection({ header = null }) {
               {!rcStart ? (
                 // ── Phase 1: log today's starting weight, arm the 3-week reminder ──
                 <>
+                  <Text style={s.label}>{t('cal_rc_start_on')}</Text>
+                  <View style={s.rcDateRow}>
+                    <TouchableOpacity onPress={() => shiftRcStartDate(-1)} disabled={(rcStartDate || todayISO()) <= earliestStart(todayISO())} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
+                      <Text style={[s.rcDateArrow, (rcStartDate || todayISO()) <= earliestStart(todayISO()) && s.rcDateOff]}>‹</Text>
+                    </TouchableOpacity>
+                    <Text style={s.rcDateText}>{rcStartDate ? fmtDate(rcStartDate) : t('nutri_day_today')}</Text>
+                    <TouchableOpacity onPress={() => shiftRcStartDate(1)} disabled={!rcStartDate} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
+                      <Text style={[s.rcDateArrow, !rcStartDate && s.rcDateOff]}>›</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={s.rcNote}>{t('cal_rc_start_on_hint')}</Text>
                   <Text style={s.label}>{t('cal_rc_start_weight')} ({wUnit})</Text>
                   <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
                   <TouchableOpacity style={s.computeBtn} onPress={startRealityCheck}>
@@ -1447,6 +1472,10 @@ const makeStyles = (c) => StyleSheet.create({
   rcWhyTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, marginTop: 16, marginBottom: 8 },
   rcWhy: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 4 },
   rcNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 12 },
+  rcDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginTop: 4 },
+  rcDateArrow: { fontSize: 22, fontWeight: '600', color: c.accent, paddingHorizontal: 6 },
+  rcDateOff: { opacity: 0.3 },
+  rcDateText: { fontSize: 14, fontWeight: '700', color: c.text, minWidth: 130, textAlign: 'center' },
   rcGuard: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
   // Phase-2 "tracking" banner + reset/next links
   rcTracking: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginTop: 8, marginBottom: 4 },

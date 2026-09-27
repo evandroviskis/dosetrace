@@ -401,3 +401,21 @@ test('rowsToReparse: this device\'s pending rows are retried after upload; anoth
   // a reused local id with a different created_at (after a re-install) is not "mine"
   assert.deepEqual(rowsToReparse([{ ...otherDevice, id: 5 }], keys).map((r) => r.id), []);
 });
+
+// ── FL-2/45: food from more than 7 days ago is not logged ──
+const { withinCatchUp } = require('../lib/nutrition');
+
+test('withinCatchUp: items up to 7 days back are kept, older ones are dropped (the rest of the message still saves)', () => {
+  const items = [
+    { food: 'pizza', days_ago: 7 },
+    { food: 'cake', days_ago: 8 },
+    { food: 'coffee', days_ago: null },
+  ];
+  const r = withinCatchUp(items, null);
+  assert.deepEqual(r.keep.map((x) => x.food), ['pizza', 'coffee']);
+  assert.deepEqual(r.dropped.map((x) => x.food), ['cake']);
+  // a message-level "two weeks ago" drops the items that don't say otherwise
+  const top = withinCatchUp([{ food: 'steak' }, { food: 'tea', days_ago: 1 }], 14);
+  assert.deepEqual(top.keep.map((x) => x.food), ['tea']);
+  assert.deepEqual(top.dropped.map((x) => x.food), ['steak']);
+});

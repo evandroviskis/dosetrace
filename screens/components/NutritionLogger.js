@@ -5,7 +5,8 @@
  * (FL-24), the reality check's intake with its working, past days to mark "not
  * recorded" (FL-3), and every entry (tap → the same fix screen as the chat).
  * The conversation itself (composer, questions, follow-ups, day closing) lives
- * ONLY in screens/FoodChatScreen.js. First 3 logged days are free, then Premium.
+ * ONLY in screens/FoodChatScreen.js. First 3 logged days are free, then Premium
+ * (with a grace week when access ends during a reality check, FL-41).
  *
  * Regulatory (Apple 1.4.1 / SaMD, founder AI hard line): estimates only, never
  * advice; the only model text on screen is short food/unit names.
@@ -16,12 +17,12 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, AccessibilityIn
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../../lib/supabase';
 import { friendlyError } from '../../lib/friendlyError';
-import { isPremium } from '../../lib/purchases';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
-import { getFoodLogsSince, getFoodLogDayCount, deleteFoodLog, insertFoodDayMarker } from '../../lib/database';
+import { getFoodLogsSince, deleteFoodLog, insertFoodDayMarker } from '../../lib/database';
+import { loadFoodAccess } from '../../lib/foodLogActions';
 import {
   checkIntake, unloggedCheckDays, foodOnly, CATEGORIES, itemLabel, needsEstimateFlag, periodTotals,
 } from '../../lib/nutrition';
@@ -33,7 +34,6 @@ import FeatureIcon from '../../components/FeatureIcon';
 import FoodLogHero from './FoodLogHero';
 import FoodEntryEditor from './FoodEntryEditor';
 
-const FREE_DAYS = 3;
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const todayISO = () => localISO();
 const daysAgoISO = (n) => localDaysAgoISO(n);
@@ -90,10 +90,9 @@ export default function NutritionLogger() {
   const s = makeStyles(colors);
   const locale = LOCALE_MAP[language] || 'en-US';
 
-  const [premium, setPremium] = useState(false);
+  const [access, setAccess] = useState(null); // Premium / free days / grace week / locked (FL-41)
   const [userId, setUserId] = useState(null);
   const [recent, setRecent] = useState([]);        // last year of rows (food + day markers)
-  const [dayCount, setDayCount] = useState(0);
   const [detailOpen, setDetailOpen] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
   const [editRow, setEditRow] = useState(null);
@@ -103,9 +102,9 @@ export default function NutritionLogger() {
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
-    setPremium(await isPremium());
     const user = await getCachedUser();
     const uid = user?.id || null;
+    try { setAccess((await loadFoodAccess(uid)).access); } catch { setAccess(null); }
     setUserId(uid);
     setFoodReminders(user?.user_metadata?.food_reminders !== false);
     try { setRcStart(await getRealityStart()); } catch { setRcStart(null); }
@@ -130,7 +129,6 @@ export default function NutritionLogger() {
     const id = uid || userId;
     if (!id) return;
     setRecent(getFoodLogsSince(id, daysAgoISO(366)) || []); // catch-ups may be dated up to a year back
-    setDayCount(getFoodLogDayCount(id));
     syncFoodLogReminder().catch(() => {});
   }
 
@@ -154,7 +152,7 @@ export default function NutritionLogger() {
   const openEdit = (row) => setEditRow(row);
 
   const today = todayISO();
-  const gated = !premium && dayCount >= FREE_DAYS;
+  const gated = !!access && !access.canLog;
   const foodRows = foodOnly(recent);
   // Intake across the open reality check — the number this logger exists for.
   const rcDays = rcStart ? Math.max(0, Math.round((new Date(today + 'T12:00:00') - new Date(rcStart.date + 'T12:00:00')) / 86400000)) : null;
@@ -178,7 +176,8 @@ export default function NutritionLogger() {
   const macro = (c, p) => `${Math.round(c || 0)} g ${t('nutri_carbs')} · ${Math.round(p || 0)} g ${t('nutri_protein')}`;
   const catLabel = (c) => (CATEGORIES.includes(c) ? t(`nutri_cat_${c}`) : null);
 
-  // Gated (post-trial, non-premium): the upsell demo replaces the hero.
+  // Locked (free days used / Premium ended, no grace week left): the upsell demo
+  // replaces the hero — the normal Premium lock with a paywall path (FL-41).
   if (gated) {
     return (
       <View style={s.wrap}>
@@ -296,9 +295,12 @@ export default function NutritionLogger() {
                   const pending = e.parse_status === 'pending';
                   const unparsed = e.parse_status === 'unparsed';
                   const refused = e.parse_status === 'refused';
+                  const tooOld = e.parse_status === 'too_old'; // more than 7 days back, not counted (FL-45)
                   return (
-                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => { if (unparsed || pending || refused) confirmRemove(e, pending ? t('nutri_offline_saved') : refused ? t('nutri_deflect_title') : t('nutri_unparsed')); else openEdit(e); }}>
-                      {refused ? (
+                    <TouchableOpacity key={e.id} style={s.entryCard} activeOpacity={0.7} onPress={() => { if (unparsed || pending || refused || tooOld) confirmRemove(e, pending ? t('nutri_offline_saved') : refused ? t('nutri_deflect_title') : tooOld ? t('nutri_too_old') : t('nutri_unparsed')); else openEdit(e); }}>
+                      {tooOld ? (
+                        <Text style={s.pendingText}>{e.raw_text} · {t('nutri_too_old')}</Text>
+                      ) : refused ? (
                         <Text style={s.pendingText}>{e.raw_text} · {t('nutri_deflect_title')}</Text>
                       ) : pending ? (
                         <Text style={s.pendingText}>{e.raw_text} · {t('nutri_offline_saved')}</Text>

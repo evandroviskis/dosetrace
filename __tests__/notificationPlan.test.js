@@ -75,33 +75,36 @@ const { foodReminderDay } = require('../lib/notificationPlan');
 const S = '2026-09-01';
 const day = (n) => ymd(addDays(parseYmd(S), n));
 
-test('food nudge: daily inside the check window, none before the start or after day 21', () => {
-  assert.deepEqual(foodNudgeDays(S, day(-2), new Set(), 3, 21), [day(0), day(1), day(2)]);
-  assert.deepEqual(foodNudgeDays(S, day(19), new Set(), 7, 21), [day(19), day(20)]);
-  assert.deepEqual(foodNudgeDays(S, day(21), new Set(), 7, 21), []);
+test('food nudge: daily from the check start, none before it', () => {
+  assert.deepEqual(foodNudgeDays(S, day(-2), new Set(), 3), [day(0), day(1), day(2)]);
+});
+
+test('food nudge: after day 21 without a weigh-in the check stays open and the reminder keeps running (FL-42)', () => {
+  assert.deepEqual(foodNudgeDays(S, day(19), new Set(), 5), [day(19), day(20), day(21), day(22), day(23)]);
+  assert.deepEqual(foodNudgeDays(S, day(30), new Set([day(31)]), 3), [day(30), day(32)]);
 });
 
 test('food nudge: once a day at 20:00 — a day with food logged is still asked (no "any log cancels tonight")', () => {
   // the old rule skipped a logged day; logging is no longer passed in at all —
   // only closed days are skipped, so every open day of the window is asked
-  assert.deepEqual(foodNudgeDays(S, day(0), new Set(), 3, 21), [day(0), day(1), day(2)]);
+  assert.deepEqual(foodNudgeDays(S, day(0), new Set(), 3), [day(0), day(1), day(2)]);
 });
 
 test('food nudge: a day the user closed ("Nothing else today") is not asked', () => {
-  assert.deepEqual(foodNudgeDays(S, day(0), new Set([day(0)]), 3, 21), [day(1), day(2)]);
-  assert.deepEqual(foodNudgeDays(S, day(0), [day(1)], 3, 21), [day(0), day(2)], 'array of closed days works too');
+  assert.deepEqual(foodNudgeDays(S, day(0), new Set([day(0)]), 3), [day(1), day(2)]);
+  assert.deepEqual(foodNudgeDays(S, day(0), [day(1)], 3), [day(0), day(2)], 'array of closed days works too');
 });
 
 test('food nudge: no every-other-day backoff — silent days never thin it out', () => {
   // the old rule dropped to every other day after 3 unlogged days
-  assert.deepEqual(foodNudgeDays(S, day(4), new Set(), 5, 21), [day(4), day(5), day(6), day(7), day(8)]);
-  const days = foodNudgeDays(S, day(0), new Set(), 21, 21);
+  assert.deepEqual(foodNudgeDays(S, day(4), new Set(), 5), [day(4), day(5), day(6), day(7), day(8)]);
+  const days = foodNudgeDays(S, day(0), new Set(), 21);
   assert.equal(days.length, 21);
   for (let i = 1; i < days.length; i++) assert.equal(dayDiff(days[i - 1], days[i]), 1, 'one per day');
 });
 
 test('food nudge: corrupt start date schedules nothing', () => {
-  assert.deepEqual(foodNudgeDays('garbage', day(0), new Set(), 7, 21), []);
+  assert.deepEqual(foodNudgeDays('garbage', day(0), new Set(), 7), []);
 });
 
 test('foodReminderDay: the day a reminder is about comes from its data or its id', () => {

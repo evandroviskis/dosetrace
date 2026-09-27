@@ -21,7 +21,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
-import { isPremium } from '../lib/purchases';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -29,17 +28,17 @@ import { requestSync } from '../lib/sync';
 import { getFoodLogsSince, getFoodLogDayCount, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
-  closedDays, CATEGORIES, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
+  closedDays, CATEGORIES, withinCatchUp, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
 } from '../lib/nutrition';
 import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord } from '../lib/foodThread';
-import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight } from '../lib/foodLogActions';
+import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, FREE_DAYS } from '../lib/foodLogActions';
+import FoodGraceNote from './components/FoodGraceNote';
 import { requestAIConsent } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
 import { syncFoodLogReminder, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
 
-const FREE_DAYS = 3;
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // Per-device conveniences (not user data): today's asked questions (+ the one on
 // screen) and the unsent draft (FL-36, per user).
@@ -56,7 +55,8 @@ export default function FoodChatScreen() {
   const locale = LOCALE_MAP[language] || 'en-US';
 
   const [userId, setUserId] = useState(null);
-  const [premium, setPremium] = useState(true);
+  const [access, setAccess] = useState(null);   // Premium / free days / grace week / locked (FL-41)
+  const [rcStart, setRcStart] = useState(null);
   const [dayCount, setDayCount] = useState(0);
   const [rows, setRows] = useState([]);
   const [text, setText] = useState('');
@@ -96,9 +96,9 @@ export default function FoodChatScreen() {
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
-    setPremium(await isPremium());
     const user = await getCachedUser();
     const uid = user?.id || null;
+    try { const a = await loadFoodAccess(uid); setAccess(a.access); setRcStart(a.rcStart); } catch { setAccess(null); }
     setUserId(uid);
     try {
       const raw = await AsyncStorage.getItem(ASKED_KEY);
@@ -275,16 +275,26 @@ export default function FoodChatScreen() {
       setNotice({ kind: 'fix' }); return;
     }
     if (res.ok) {
-      if (res.ask && res.items[res.ask.item]) {
-        // The follow-up is STORED on the item (FL-38): it survives closing the chat.
-        const it = res.items[res.ask.item];
-        it.asked = true;
-        it.ask = { kind: res.ask.kind, options: (res.ask.options || []).map((o) => String(o).slice(0, 40)).slice(0, 4) };
+      // Food from more than 7 days back is not logged (FL-2/45); the rest of the
+      // message still saves. Nothing left → no entry, and the typed text comes back.
+      const { keep, dropped } = withinCatchUp(res.items, res.daysAgo);
+      if (!keep.length) {
+        deleteFoodLog(id); requestSync?.(); refresh(userId);
+        setText(raw);
+        setNotice({ kind: 'too_old' }); return;
       }
-      saveParsed(id, userId, day, res, raw);
+      const target = res.ask ? res.items[res.ask.item] : null;
+      const askKept = target && keep.includes(target);
+      if (askKept) {
+        // The follow-up is STORED on the item (FL-38): it survives closing the chat.
+        target.asked = true;
+        target.ask = { kind: res.ask.kind, options: (res.ask.options || []).map((o) => String(o).slice(0, 40)).slice(0, 4) };
+      }
+      saveParsed(id, userId, day, { ...res, items: keep }, raw);
       requestSync?.();
       const r = refresh(userId);
-      if (!res.ask && day === localISO()) askNext(r); else { setQuestion(null); rememberAsked(null); }
+      if (dropped.length) { setNotice({ kind: 'too_old' }); setQuestion(null); rememberAsked(null); return; }
+      if (!askKept && day === localISO()) askNext(r); else { setQuestion(null); rememberAsked(null); }
       return;
     }
     if (res.code === 'quota_exceeded' || res.status === 429) {
@@ -358,7 +368,8 @@ export default function FoodChatScreen() {
   }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
   const data = useMemo(() => thread.slice().reverse(), [thread]); // inverted list opens at the latest (FL-39)
 
-  const gated = !premium && dayCount >= FREE_DAYS;
+  const gated = !!access && !access.canLog;
+  const inTrial = access && access.mode === 'trial';
   const freeLeft = Math.max(0, FREE_DAYS - dayCount);
 
   // ── Bubbles ────────────────────────────────────────────────────
@@ -377,11 +388,20 @@ export default function FoodChatScreen() {
         return <AppBubble><Text style={s.appText}>{t('nutri_intro')}</Text></AppBubble>;
       case 'user':
         return (
-          <TouchableOpacity activeOpacity={x.status === 'done' ? 1 : 0.7} disabled={x.status === 'done'} onPress={() => confirmRemove(x.rowId, x.status === 'pending')} style={s.userWrap}>
+          <TouchableOpacity activeOpacity={x.status === 'done' || x.status === 'too_old' ? 1 : 0.7} disabled={x.status === 'done' || x.status === 'too_old'} onPress={() => confirmRemove(x.rowId, x.status === 'pending')} style={s.userWrap}>
             <View style={s.user}><Text style={s.userText}>{x.text}</Text></View>
             {x.status === 'pending' && <Text style={s.userNote}>{t('nutri_offline_saved')}</Text>}
             {x.status === 'unparsed' && <Text style={s.userNote}>{t('nutri_unparsed')}</Text>}
           </TouchableOpacity>
+        );
+      case 'too_old':
+        return (
+          <AppBubble>
+            <Text style={s.appText}>{t('nutri_too_old')}</Text>
+            <TouchableOpacity style={s.chip} onPress={() => removeRow(x.rowId)} accessibilityRole="button">
+              <Text style={s.chipText}>{t('nutri_delete_entry')}</Text>
+            </TouchableOpacity>
+          </AppBubble>
         );
       case 'refused':
         return (
@@ -515,6 +535,7 @@ export default function FoodChatScreen() {
           );
         }
         const msg = x.kind === 'fix' ? t('nutri_fix_hint')
+          : x.kind === 'too_old' ? t('nutri_too_old')
           : x.kind === 'earlier' ? t('nutri_which_earlier')
             : x.kind === 'quota' ? t('nutri_quota')
               : x.kind === 'offline' ? t('nutri_offline_saved')
@@ -557,6 +578,9 @@ export default function FoodChatScreen() {
         </View>
       ) : (
         <KeyboardAvoidingView style={s.flex} behavior="padding" keyboardVerticalOffset={0} onTouchStart={touch}>
+          {access && access.mode === 'grace' && (
+            <FoodGraceNote rcStart={rcStart} graceUntil={access.graceUntil} rows={rows} style={s.graceNote} />
+          )}
           <FlatList
             style={s.flex}
             contentContainerStyle={s.list}
@@ -591,7 +615,7 @@ export default function FoodChatScreen() {
                 {busy ? <ActivityIndicator size="small" color={colors.accentText} /> : <FeatureIcon name="ai_spark" size={18} color={colors.accentText} />}
               </TouchableOpacity>
             </View>
-            <Text style={s.caveat}>{t('nutri_est_note')}{!premium && freeLeft > 0 ? '  ·  ' + t('nutri_free_note').replace('{n}', String(freeLeft)) : ''}</Text>
+            <Text style={s.caveat}>{t('nutri_est_note')}{inTrial && freeLeft > 0 ? '  ·  ' + t('nutri_free_note').replace('{n}', String(freeLeft)) : ''}</Text>
           </View>
         </KeyboardAvoidingView>
       )}
@@ -659,6 +683,7 @@ const makeStyles = (c) => StyleSheet.create({
   send: { width: 42, height: 42, borderRadius: 21, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   caveat: { fontSize: 10.5, color: c.textFaint, textAlign: 'center', marginTop: 6 },
   locked: { flex: 1, justifyContent: 'center', padding: 24 },
+  graceNote: { marginHorizontal: 14, marginTop: 10 },
   lockedTitle: { fontSize: 17, fontWeight: '800', color: c.text, textAlign: 'center' },
   lockedSub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 19, marginTop: 8, marginBottom: 16 },
   cta: { backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, alignItems: 'center' },
