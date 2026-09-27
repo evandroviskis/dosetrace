@@ -162,3 +162,30 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 | A-23 | Roadmap ideas: personal target lines, compare across labs, timeline correlation, travel PDF/QR, what-if mode | APP-HANDOFF §9 | Mentioned (not committed) | Not found | |
 | A-24 | Independent choice: does saving a reality check early end the 8 PM reminder? | STATE.md 1.2.3 "DEFERRED" (c) | Open founder decision | Code: the reminder follows the open check start only | |
 | A-25 | Supabase point-in-time recovery | STATE.md, APP-HANDOFF §9 | Mentioned (dashboard action) | Not verifiable from the repo | |
+
+---
+
+## Build 1.2.5 — SCOPE (closed 2026-09-27, founder "scope ok")
+
+Nothing else enters 1.2.5. New ideas/bugs go to the registry with target 1.2.6+.
+Ships only when every item is proven (checklist row + test or device proof) and the
+full-functionality pass (CLAUDE.md evolution rule 4, ship-check Gate R) is clean.
+Work order = the order below, one item per session.
+
+| # | Item | Registry | Proof required | Status |
+|---|---|---|---|---|
+| S-01 | New vial must never rewrite the protocol's start_date (history loss) | A-06, L-13, findings #1 | failing→passing test; sim check of curve/adherence after a new vial | open |
+| S-02 | One shared mark-taken (Today + notification): no double log, Missed row flipped, vial/oral counts | L-07, L-08, findings #4 | failing→passing tests | open |
+| S-03 | Open reality check + calculator inputs in durable synced storage; Stop propagates across devices | A-13, L-20, L-21, L-47, findings #8 | failing→passing tests (incl. update-over-old-version migration) + re-auth check | open |
+| S-04 | Profile sex/birth year is the single source for BMR (calc_inputs no longer overrides) | L-29, L-30, findings #7 | failing→passing test | open |
+| S-05 | One supply-low rule for alert + push (derived capacity included) | L-11, L-12, findings #5 | failing→passing test | open |
+| S-06 | One entitlement helper (strict + lenient), store-unreachable behavior consistent | L-24, L-34, findings #6 | failing→passing test | open |
+| S-07 | Exports include food_logs, reality_checks, calc_snapshots, calc_targets | L-16, F-072, F-084 | failing→passing test | open |
+| S-08 | Curve disclaimer says "planned schedule", 6 languages | A-07 | i18n test + sim check | open |
+| S-09 | New-vial water uses parseDecimal (comma decimals) | findings "also noticed" | failing→passing test | open |
+| S-10 | Food-log rebuild — every row of docs/specs/food-log.md built with evidence | F-056…F-064, A-05 | spec-audit PASS + spec-auditor ACCEPT | open |
+| S-11 | Point the app to the live parse-food; deploy v9 as parse-food | A-03 | live parse check after the switch | open |
+| S-12 | Server send-reminders food rule = client (FL-18/42/41) | A-04, L-48 | plan.ts parity test | open |
+| S-13 | iOS declares its 6 languages (CFBundleLocalizations) | A-01 | prebuild/introspect shows the key | open |
+| S-14 | New App Store screenshot 01 + correct order (01..07) on the 1.2.5 version | A-02 | ASC API readback | open |
+| S-15 | The 5 connection tests from app-map.md (L-13, L-07/08, L-17→18, L-34+L-24, L-20/21/47) | findings #10 | tests in __tests__ | open |
