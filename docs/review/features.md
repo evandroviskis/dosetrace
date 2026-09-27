@@ -211,3 +211,31 @@ Rule tested: outcome = 'Taken' AND logged_at < protocol.created_at (absolute ins
   2. Missed rows can sit minutes before created_at (3 found: slots in the same minutes as creation). If a user later fixes one to Taken, that REAL dose would match the rule.
   3. Local dose_logs have no created_at column, so a device can't tell "inserted in the backfill batch" from "logged later" on its own.
 - Recommendation for the migration: decide the tag ONCE on the server, where rows have created_at: Taken + logged_at < protocol.created_at + row created within ~10 min of the protocol's first push (or in the same push batch); list the matched rows for the founder before applying; sync the tag down. And fix the root: add created_at to the protocols sync payload so the device's creation time is the one kept.
+
+### A-30 update — outside review #007 answered (2026-09-27; founder confirmation pending; still 1.2.6, no code)
+**1. Discriminator — no generic heuristic.** Tag by explicit id after the founder confirms the list below.
+- Signals: backfill writes logged_at exactly on a slot (seconds and ms = 0) and injection_site null (supporting only — orals and users who skip the site also have null).
+- Other writers of logged_at (verified):
+  - Today "Mark taken" → the tap instant (lib/database.js:291 `data.logged_at || now`); ms are not 0.
+  - Notification "Mark as taken", same day → the tap instant; EARLIER day → the slot time exactly, or noon if no slot (lib/doseActions.js ~57–60). On-slot like backfill, but its slot comes from a reminder that only exists after the protocol, so it cannot fall before created_at.
+  - Auto-Missed rows → the slot time exactly (lib/doseActions.js:196). A Missed row later fixed to Taken keeps that time (recordDoseTaken flip ~51–53; LogScreen.js:72 updates outcome only). 3 Missed rows today sit 50 s–2.5 min before their protocol's created_at: if a user fixes one to Taken, it is a REAL dose that matches the rule AND the on-slot signal. This is the only real-row case found.
+  - No manual past-dose entry exists: LogScreen edits outcome and site, never the time.
+- On the creating device, local created_at is exact (lib/database.js:116), so a local rule (Taken AND logged_at < local created_at AND on-slot AND not originally Missed) is reliable there; other devices receive the tag via sync.
+- **Storage:** a synced provenance column on dose_logs, e.g. `source: 'user' | 'backfill' | 'auto_missed'`, set at write time for every new row (a flipped auto_missed row keeps a record that it was user-confirmed, e.g. 'user'). Synced schema change → must meet FX-8 (local commit first, offline, idempotent, lossless) and go to the mobile-engineering review. Root fix kept: add created_at to the protocols sync payload.
+
+**2. Vials — agreed.** No recount, no silent change, no recount button now (new scope). Backfilled doses_taken reflects real vial usage the user declared; only the log's provenance changes. "Doses already used from this vial" stays A-08/F7.
+
+**3. Window.** The estimated curve starts at max(start_date, now − 180 days). Accuracy needs ~5 half-lives (~3 % residual). Catalog check (lib/halfLives.js): only **Testosterone Undecanoate** exceeds it — t½ 2160 h (90 d) → 5×t½ = 450 d. With a 180-day cap, doses older than 180 days still leave ~25 % (2^(−180/90)) that the estimate won't show. Every other catalog compound's 5×t½ fits in 180 days. Founder decision needed: a longer cap for long-depot compounds, or a visible note on that curve.
+
+**Backfill rows for founder review (cloud, read-only, 2026-09-27) — rule: Taken AND logged_at < protocol.created_at:**
+
+| dose_log id | protocol id | compound | logged_at (UTC) | row created_at | protocol created_at | injection_site | on slot (:00.000) |
+|---|---|---|---|---|---|---|---|
+| 7e9b6832-1602-417f-b19d-8e989903f4e9 | a08054f3-d8e7-48ce-98b7-20dfef3b3283 | Tirzepatide | 2026-09-11 16:05:00 | 2026-09-13 21:40:40 | 2026-09-13 20:26:05 | null | yes |
+| 90145629-550c-4e06-98b1-1ba3e73de6ff | 9ad186e9-7bdd-4245-8b78-fddf5955f327 | Retatrutide | 2026-09-20 00:40:00 | 2026-09-20 00:42:35 | 2026-09-20 00:41:46 | null | yes |
+| 8bfaa7db-44f0-4bb0-8791-3dcf87d3e243 | 7e866173-63b1-4183-af38-016d4c34acfb | AOD-9604 | 2026-09-24 00:00:00 | 2026-09-24 01:52:18 | 2026-09-24 01:52:13 | null | yes |
+| 6d056cae-0b62-4f59-8f49-2f1417c313cb | f6e548d7-533d-43fd-99c2-62ec961aaa63 | Tropinal | 2026-09-26 05:00:00 | 2026-09-27 00:01:27 | 2026-09-27 00:01:19 | null | yes |
+| ff70d47c-ad75-4368-8b81-f2e93876ad81 | f6e548d7-533d-43fd-99c2-62ec961aaa63 | Tropinal | 2026-09-26 13:00:00 | 2026-09-27 00:01:27 | 2026-09-27 00:01:19 | null | yes |
+| d9df6f28-228a-4083-ab38-04d214ea8bbe | f6e548d7-533d-43fd-99c2-62ec961aaa63 | Tropinal | 2026-09-26 21:00:00 | 2026-09-27 00:01:27 | 2026-09-27 00:01:19 | null | yes |
+
+All 6 are on-slot with no injection site; none was ever a Missed row (outcome Taken at insert, inserted after the protocol). The Tirzepatide row (inserted 1 h 14 min after its protocol) is the only one not inserted in the same minute — still consistent with backfill (on-slot, 2 days before the protocol, no site). Founder: confirm these 6 ids to tag as backfill.
