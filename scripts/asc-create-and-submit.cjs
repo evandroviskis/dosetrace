@@ -1,4 +1,4 @@
-// Create App Store version 1.2.2, attach build 61, set What's New x6, submit for
+// Create the App Store version (app.json), attach --build <n>, set What's New x6, submit for
 // review — via the ASC API. Steps are logged; any 4xx prints the body so we can see
 // if the auto-mode classifier blocks writes (→ fall back to the ASC web console).
 //   node scripts/asc-create-and-submit.cjs            # dry: create+attach+notes, NO submit
@@ -10,19 +10,18 @@ const https = require('https');
 const KEY_ID = 'N493SYFP2T';
 const ISSUER = '69a6de85-8f0f-47e3-e053-5b8c7c11a4d1';
 const APP_ID = '6761788157';
-const VERSION = '1.2.2';
-const BUILD_VERSION = '61';
+const VERSION = JSON.parse(fs.readFileSync(require('path').join(__dirname, '..', 'app.json'), 'utf8')).expo.version;
+const bi = process.argv.indexOf('--build');
+const BUILD_VERSION = bi > 0 ? process.argv[bi + 1] : null;
+if (!BUILD_VERSION) { console.error('usage: asc-create-and-submit.cjs --build <buildNumber> [--submit]'); process.exit(1); }
 const SUBMIT = process.argv.includes('--submit');
 const p8 = require('./ascKey.cjs').readKey();
 
-const WHATS_NEW = {
-  'en-US': 'More reliable dose reminders on Android, fixes to sign-out and account deletion, and general stability improvements.',
-  'es-ES': 'Recordatorios de dosis más fiables, correcciones al cierre de sesión y a la eliminación de cuenta, y mejoras de estabilidad.',
-  'pt-BR': 'Lembretes de dose mais confiáveis, correções no encerramento de sessão e na exclusão da conta, e melhorias de estabilidade.',
-  'fr-FR': 'Rappels de dose plus fiables, corrections de la déconnexion et de la suppression de compte, et améliorations de stabilité.',
-  'de-DE': 'Zuverlässigere Dosis-Erinnerungen, Korrekturen bei Abmeldung und Kontolöschung sowie allgemeine Stabilitätsverbesserungen.',
-  'it': "Promemoria delle dosi più affidabili, correzioni a disconnessione ed eliminazione dell'account e miglioramenti di stabilità.",
-};
+// What's New from release-notes/<version>.json (shared with the Play script).
+// ASC uses "it" for Italian where Play uses "it-IT".
+const NOTES_FILE = require("path").join(__dirname, "..", "release-notes", VERSION + ".json");
+if (!fs.existsSync(NOTES_FILE)) { console.error("missing " + NOTES_FILE); process.exit(1); }
+const WHATS_NEW = Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(NOTES_FILE, "utf8"))).map(([k, v]) => [k === "it-IT" ? "it" : k, v]));
 
 const b64 = (b) => Buffer.from(b).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 const now = Math.floor(Date.now() / 1000);
@@ -103,7 +102,7 @@ function die(step, r) {
     }
   }
 
-  if (!SUBMIT) { console.log('\nDONE (no --submit): version 1.2.2 ready with build 61 + notes. Not submitted.'); return; }
+  if (!SUBMIT) { console.log(`\nDONE (no --submit): version ${VERSION} ready with build ${BUILD_VERSION} + notes. Not submitted.`); return; }
 
   // 4. Submit for review (reviewSubmissions flow)
   const rs = await api('POST', '/v1/reviewSubmissions', {
@@ -128,5 +127,5 @@ function die(step, r) {
     data: { type: 'reviewSubmissions', id: rsId, attributes: { submitted: true } },
   });
   if (sub.s >= 300) die('submit reviewSubmission', sub);
-  console.log('\n✅ SUBMITTED 1.2.2 (build 61) for App Store review. state=', sub.b.data?.attributes?.state);
+  console.log(`\n✅ SUBMITTED ${VERSION} (build ${BUILD_VERSION}) for App Store review. state=`, sub.b.data?.attributes?.state);
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });
