@@ -174,7 +174,7 @@ Work order = the order below, one item per session.
 
 | # | Item | Registry | Proof required | Status |
 |---|---|---|---|---|
-| S-01 | New vial must never rewrite the protocol's start_date (history loss) | A-06, L-13, findings #1 | failing→passing test; sim check of curve/adherence after a new vial | open |
+| S-01 | New vial must never rewrite the protocol's start_date (history loss) | A-06, L-13, findings #1 | failing→passing test; sim check of curve/adherence after a new vial | test DONE (__tests__/newVial.test.js failed before, passes after); sim check pending |
 | S-02 | One shared mark-taken (Today + notification): no double log, Missed row flipped, vial/oral counts | L-07, L-08, findings #4 | failing→passing tests | open |
 | S-03 | Open reality check + calculator inputs in durable synced storage; Stop propagates across devices | A-13, L-20, L-21, L-47, findings #8 | failing→passing tests (incl. update-over-old-version migration) + re-auth check | open |
 | S-04 | Profile sex/birth year is the single source for BMR (calc_inputs no longer overrides) | L-29, L-30, findings #7 | failing→passing test | open |

@@ -28,6 +28,7 @@ import { scanMissedDoses } from '../lib/doseActions';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
+import { newVialRecords } from '../lib/newVial';
 import { computeServings } from '../lib/oralMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
@@ -786,23 +787,11 @@ export default function TodayScreen() {
       if (!user) return;
       const mixDate = toPastDateString(newVialMonth, newVialDay);
       if (!mixDate) { Alert.alert(t('error'), t('today_invalid_date')); return; }
-      // Vial capacity is derived from the protocol (vial amount ÷ dose), not asked.
-      const totalDoses = dosesPerVial({
-        amount: continuationProtocol.amount, unit: continuationProtocol.unit,
-        dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
-      });
-
-      insertVial({
-        user_id: user.id,
-        protocol_id: continuationProtocol.id,
-        protocol_remote_id: continuationProtocol.remote_id || null,
-        mixed_on: mixDate,
-        water_ml: continuationProtocol.water ? parseFloat(continuationProtocol.water) : null,
-        total_doses: totalDoses,
-        doses_taken: 0,
-      });
-
-      updateProtocol(continuationProtocol.id, { start_date: mixDate });
+      // Vial row from lib/newVial (tested): capacity derived from the protocol;
+      // the protocol itself is never changed, so its history is kept (S-01).
+      const { vial, protocolUpdate } = newVialRecords(continuationProtocol, mixDate, user.id);
+      insertVial(vial);
+      if (protocolUpdate) updateProtocol(continuationProtocol.id, protocolUpdate);
 
       const updatedProtocol = getProtocolById(continuationProtocol.id);
       if (updatedProtocol) scheduleDoseReminder(updatedProtocol).catch(() => {});
