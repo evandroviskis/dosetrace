@@ -62,6 +62,16 @@ any of them — the owner has explicitly accepted the cost.
 - Never report a feature as done from the builder's own summary. "Done" = the
   checklist rows are built with evidence. Partial work is reported as partial.
 
+## GATE R — Evolution rules + full-functionality pass (every build)
+
+- The build's scope is written in docs/review/features.md and every scoped item is
+  proven (checklist row + test or device proof). Nothing entered after scope was set.
+- Every bug fixed in this build has a test that failed before the fix and passes now.
+- FULL test suite green (only the known docs/research energy.test.ts may fail).
+- Walk EVERY link in docs/review/app-map.md: tested links → their tests pass; untested
+  links → checked on simulator/device in light AND dark, each listed in the report
+  with what was seen. Any unchecked link blocks the build.
+
 ## GATE B — Auth invariants (any sign-in / sign-out / session / profile / delete change)
 
 These are hard-won. Violating one silently breaks multiple flows at once.

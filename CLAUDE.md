@@ -84,6 +84,42 @@ summary. When the founder approves a new feature, write its checklist first and 
 signed. (Exists because the food-log AI shipped weaker than the validated conversation
 from build 52 on, and every summary called it done.)
 
+## Evolution rules (added 2026-09-27 by the founder)
+
+Goal: every session and every build leaves the app more solid than before.
+We stop hunting the same kinds of bugs again and again.
+
+1. Every bug becomes a test before it is fixed.
+   - First write a test that reproduces the bug and fails.
+   - Then fix the code until that test passes.
+   - The test stays in the repo permanently.
+   - A fix without a failing-then-passing test is not done.
+
+2. A build has a closed scope, not a deadline.
+   - The scope of each build is listed in docs/review/features.md before work starts.
+   - Nothing new enters a build after its scope is set.
+   - New ideas or newly found bugs go into the registry with a target build.
+     They are never dropped and never slipped silently into the current build.
+   - A build ships only when every item in its scope is proven
+     (checklist row + test or device proof). Never rush to close a build.
+   - "Approved → next build" means the next build whose scope is still open
+     (founder 2026-09-27).
+
+3. One session, one item, full suite green.
+   - Each session works on exactly one registry item.
+   - Only touch the files that item needs. If another file must change, stop and ask.
+   - If the item touches a link in docs/review/app-map.md, that link must have a test.
+   - A session ends only when the FULL test suite passes, not just the new tests.
+     If an old test breaks, the session is not finished.
+   - Report back with the per-criterion audit table: what was tested,
+     how, and what is still open. Never "should work".
+
+4. Before EVERY build: a full-functionality pass of the whole app, not just the changed
+   parts (founder: "to prevent you making builds without looking for the full
+   functionality of the app"). Walk every link in docs/review/app-map.md: its test must
+   pass, and every link without a test is checked on the simulator/device in both themes
+   and listed in the build report. A build with an unchecked link does not go out.
+
 ## Prime directive: ORIENT before you ACT
 
 Before any build, submit, delete, migration, or "it's done" claim:
