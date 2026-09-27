@@ -28,7 +28,7 @@ import { requestSync } from '../lib/sync';
 import { getFoodLogsSince, getFoodLogDayCount, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
-  closedDays, CATEGORIES, withinCatchUp, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
+  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
 } from '../lib/nutrition';
 import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, FREE_DAYS } from '../lib/foodLogActions';
@@ -277,7 +277,8 @@ export default function FoodChatScreen() {
     if (res.ok) {
       // Food from more than 7 days back is not logged (FL-2/45); the rest of the
       // message still saves. Nothing left → no entry, and the typed text comes back.
-      const { keep, dropped } = withinCatchUp(res.items, res.daysAgo);
+      const outcome = catchUpOutcome(res.items, res.daysAgo, raw);
+      const keep = outcome.save;
       if (!keep.length) {
         deleteFoodLog(id); requestSync?.(); refresh(userId);
         setText(raw);
@@ -293,7 +294,9 @@ export default function FoodChatScreen() {
       saveParsed(id, userId, day, { ...res, items: keep }, raw);
       requestSync?.();
       const r = refresh(userId);
-      if (dropped.length) { setNotice({ kind: 'too_old' }); setQuestion(null); rememberAsked(null); return; }
+      // Some of it was too old: the recent part is saved, and the full typed text goes
+      // back in the box so the older part isn't lost (FL-45).
+      if (outcome.notice === 'too_old_some') { setText(outcome.putBack); setNotice({ kind: 'too_old_some' }); setQuestion(null); rememberAsked(null); return; }
       if (!askKept && day === localISO()) askNext(r); else { setQuestion(null); rememberAsked(null); }
       return;
     }
@@ -536,6 +539,7 @@ export default function FoodChatScreen() {
         }
         const msg = x.kind === 'fix' ? t('nutri_fix_hint')
           : x.kind === 'too_old' ? t('nutri_too_old')
+          : x.kind === 'too_old_some' ? t('nutri_too_old_some')
           : x.kind === 'earlier' ? t('nutri_which_earlier')
             : x.kind === 'quota' ? t('nutri_quota')
               : x.kind === 'offline' ? t('nutri_offline_saved')
@@ -579,7 +583,7 @@ export default function FoodChatScreen() {
       ) : (
         <KeyboardAvoidingView style={s.flex} behavior="padding" keyboardVerticalOffset={0} onTouchStart={touch}>
           {access && access.mode === 'grace' && (
-            <FoodGraceNote rcStart={rcStart} graceUntil={access.graceUntil} rows={rows} style={s.graceNote} />
+            <FoodGraceNote rcStart={rcStart} graceUntil={access.graceUntil} reason={access.reason} rows={rows} style={s.graceNote} />
           )}
           <FlatList
             style={s.flex}

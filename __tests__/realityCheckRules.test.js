@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validStartDate, stepStartDate, earliestStart, weighInOn, MAX_START_BACKDATE_DAYS } = require('../lib/realityCheckRules');
+const { validStartDate, stepStartDate, earliestStart, weighInOn, prefillStartWeight, MAX_START_BACKDATE_DAYS } = require('../lib/realityCheckRules');
 
 const T = '2026-09-27';
 
@@ -28,4 +28,13 @@ test('weighInOn: a saved weigh-in on the chosen day prefills the start weight', 
   assert.equal(weighInOn(snaps, '2026-09-22'), 84.2);
   assert.equal(weighInOn(snaps, '2026-09-25'), null);
   assert.equal(weighInOn(snaps, '2026-09-24'), null);
+});
+
+test('prefillStartWeight: moving the start date never overwrites a weight the user typed', () => {
+  assert.equal(prefillStartWeight('', null, 84.2), '84.2', 'empty field → the saved weigh-in fills it');
+  assert.equal(prefillStartWeight('85', null, 84.2), null, 'typed by the user → left alone');
+  assert.equal(prefillStartWeight('84.2', '84.2', 83.9), '83.9', 'our own prefill → follows the new day');
+  assert.equal(prefillStartWeight('84.2', '84.2', null), '', 'our prefill, no weigh-in on the new day → cleared, not stale');
+  assert.equal(prefillStartWeight('', null, null), null);
+  assert.equal(prefillStartWeight('86', '84.2', 83.9), null, 'edited after the prefill → the user\'s now');
 });

@@ -150,14 +150,14 @@ test('foodLogAccess: Premium and the first 3 used days (whole days) can log', ()
 
 test('foodLogAccess: free days end DURING a check → logging stays open to the end of that check week, then locks (FL-41)', () => {
   const tr = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], rcStart: start };
-  assert.deepEqual(foodLogAccess({ ...tr, todayISO: '2026-09-06' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-07', lapsedOn: '2026-09-05' });
+  assert.deepEqual(foodLogAccess({ ...tr, todayISO: '2026-09-06' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-07', lapsedOn: '2026-09-05', reason: 'free_days_ended' });
   assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-07' }).mode, 'grace');
   assert.equal(foodLogAccess({ ...tr, todayISO: '2026-09-08' }).mode, 'locked');
 });
 
 test('foodLogAccess: Premium expiring in week 2 keeps logging until day 14; no check → locked straight away', () => {
   const sub = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], premiumEndedOn: '2026-09-10', rcStart: start };
-  assert.deepEqual(foodLogAccess({ ...sub, todayISO: '2026-09-12' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-14', lapsedOn: '2026-09-10' });
+  assert.deepEqual(foodLogAccess({ ...sub, todayISO: '2026-09-12' }), { canLog: true, mode: 'grace', graceUntil: '2026-09-14', lapsedOn: '2026-09-10', reason: 'premium_ended' });
   assert.equal(foodLogAccess({ ...sub, todayISO: '2026-09-15' }).mode, 'locked');
   assert.equal(foodLogAccess({ ...sub, rcStart: null, todayISO: '2026-09-11' }).mode, 'locked');
   assert.equal(foodLogAccess({ ...sub, rcStart: { date: '2026-09-11' }, todayISO: '2026-09-12' }).mode, 'locked', 'ended BEFORE the check started: no grace');
@@ -174,4 +174,34 @@ test('todayFoodHeroPolicy: ONLY while a check is open; day X of 21, then "time t
   const g = todayFoodHeroPolicy({ rcStart: { date: T }, todayISO: T, access: { mode: 'grace', graceUntil: '2026-09-16' } });
   assert.equal(g.grace, true);
   assert.equal(g.graceUntil, '2026-09-16');
+});
+
+// ── FL-41: which access ended; the free-days grace flag; RevenueCat unreachable ──
+const { resolveEntitlement, GRACE_FOR_FREE_DAYS } = require('../lib/foodThread');
+
+test('foodLogAccess: says WHICH access ended — paid Premium vs the in-app free days — so a lapsed subscriber never reads "free access"', () => {
+  const base = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], rcStart: start, todayISO: '2026-09-12' };
+  assert.equal(foodLogAccess({ ...base, premiumEndedOn: '2026-09-10' }).reason, 'premium_ended');
+  assert.equal(foodLogAccess({ ...base, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], todayISO: '2026-09-06' }).reason, 'free_days_ended');
+  assert.equal(foodLogAccess({ ...base, premiumEndedOn: '2026-09-10', todayISO: '2026-09-20' }).reason, 'premium_ended', 'locked later: still the paid wording');
+});
+
+test('foodLogAccess: the free-days grace week is ONE named flag (on for now); off → free-day users lock, paying users keep their grace', () => {
+  assert.equal(GRACE_FOR_FREE_DAYS, true);
+  const free = { premium: false, trialDays: ['2026-09-02', '2026-09-03', '2026-09-04'], rcStart: start, todayISO: '2026-09-06' };
+  assert.equal(foodLogAccess(free).mode, 'grace');
+  assert.equal(foodLogAccess({ ...free, graceForFreeDays: false }).mode, 'locked');
+  const paid = { premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], premiumEndedOn: '2026-09-10', rcStart: start, todayISO: '2026-09-12' };
+  assert.equal(foodLogAccess({ ...paid, graceForFreeDays: false }).mode, 'grace');
+});
+
+test('resolveEntitlement: store unreachable → last known end date; none known → lenient, never locked on a hiccup', () => {
+  assert.deepEqual(resolveEntitlement({ reachable: true, premium: true }), { premium: true, premiumEndedOn: null, entitlementUnknown: false, remember: null });
+  assert.deepEqual(resolveEntitlement({ reachable: true, premium: false, endedOn: '2026-09-10' }), { premium: false, premiumEndedOn: '2026-09-10', entitlementUnknown: false, remember: '2026-09-10' });
+  assert.deepEqual(resolveEntitlement({ reachable: false, lastKnownEndedOn: '2026-09-10' }), { premium: false, premiumEndedOn: '2026-09-10', entitlementUnknown: false, remember: undefined });
+  const unknown = resolveEntitlement({ reachable: false, lastKnownEndedOn: null });
+  assert.equal(unknown.entitlementUnknown, true);
+  const acc = foodLogAccess({ premium: false, trialDays: ['2026-08-01', '2026-08-02', '2026-08-03'], rcStart: null, todayISO: '2026-09-12', entitlementUnknown: true });
+  assert.equal(acc.canLog, true, 'lenient: grace, not locked');
+  assert.equal(acc.reason, 'unknown');
 });

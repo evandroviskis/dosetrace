@@ -30,7 +30,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
-import { validStartDate, stepStartDate, weighInOn, earliestStart } from '../../lib/realityCheckRules';
+import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight } from '../../lib/realityCheckRules';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync } from '../../lib/sync';
 import { localISO } from '../../lib/localDate';
@@ -113,6 +113,7 @@ export default function CalculatorSection({ header = null }) {
   const [premium, setPremium] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
   const [rcStartDate, setRcStartDate] = useState(null); // null = today; else a past weigh-in day (≤ 7 days back)
+  const rcThenAuto = useRef(null); // the start weight the date picker last filled in (never overwrite a typed one)
   const [snapMsg, setSnapMsg] = useState(false);
   // Reality-check inputs (display units).
   const [rcThen, setRcThen] = useState('');         // phase-1 starting weight
@@ -525,9 +526,12 @@ export default function CalculatorSection({ header = null }) {
   function shiftRcStartDate(delta) {
     const next = stepStartDate(rcStartDate || todayISO(), delta, todayISO());
     setRcStartDate(next === todayISO() ? null : next);
-    // A weigh-in saved on that day fills the start weight (the user can change it).
+    // A weigh-in saved on that day fills the start weight — only an empty field or
+    // our own earlier prefill; a weight the user typed is never overwritten.
     const w = weighInOn(snapshots, next);
-    if (w != null) setRcThen(String(Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10));
+    const snap = w == null ? null : Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10;
+    const v = prefillStartWeight(rcThen, rcThenAuto.current, snap);
+    if (v != null) { setRcThen(v); rcThenAuto.current = v || null; }
   }
   // The start can be a past weigh-in, at most 7 days back (FL-44, founder
   // 2026-09-27) — validated again here, never further back, never in the future.
@@ -539,6 +543,7 @@ export default function CalculatorSection({ header = null }) {
     setRcStart(start);
     setRcThen('');
     setRcStartDate(null);
+    rcThenAuto.current = null;
     setRc(null);
     await setRealityStart(start);
     syncRealityCheckReminder().catch(() => {});

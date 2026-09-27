@@ -82,7 +82,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
       </View>
       <View style={s.cta}><Text style={s.ctaText}>{locked ? t('nutri_locked_cta') : t('nutri_hero_cta')}</Text></View>
     </TouchableOpacity>
-    {grace && <FoodGraceNote rcStart={state.rcStart} graceUntil={state.access.graceUntil} rows={state.rows} style={s.grace} />}
+    {grace && <FoodGraceNote rcStart={state.rcStart} graceUntil={state.access.graceUntil} reason={state.access.reason} rows={state.rows} style={s.grace} />}
     </View>
   );
 }

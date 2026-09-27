@@ -419,3 +419,20 @@ test('withinCatchUp: items up to 7 days back are kept, older ones are dropped (t
   assert.deepEqual(top.keep.map((x) => x.food), ['tea']);
   assert.deepEqual(top.dropped.map((x) => x.food), ['steak']);
 });
+
+const { catchUpOutcome } = require('../lib/nutrition');
+
+test('catchUpOutcome: when only SOME items are too old, the recent part saves and the full typed text goes back in the box (nothing lost)', () => {
+  const raw = 'pizza 2 weeks ago and a coffee today';
+  const some = catchUpOutcome([{ food: 'pizza', days_ago: 14 }, { food: 'coffee', days_ago: null }], null, raw);
+  assert.deepEqual(some.save.map((x) => x.food), ['coffee']);
+  assert.deepEqual(some.dropped.map((x) => x.food), ['pizza']);
+  assert.equal(some.putBack, raw);
+  assert.equal(some.notice, 'too_old_some');
+  const all = catchUpOutcome([{ food: 'pizza', days_ago: 14 }], null, 'pizza 2 weeks ago');
+  assert.equal(all.save.length, 0);
+  assert.equal(all.putBack, 'pizza 2 weeks ago');
+  assert.equal(all.notice, 'too_old');
+  const none = catchUpOutcome([{ food: 'coffee', days_ago: 2 }], null, 'coffee 2 days ago');
+  assert.deepEqual({ putBack: none.putBack, notice: none.notice }, { putBack: null, notice: null });
+});

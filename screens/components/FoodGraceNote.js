@@ -16,19 +16,21 @@ import { localISO } from '../../lib/localDate';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
-export default function FoodGraceNote({ rcStart, graceUntil, rows, style }) {
+export default function FoodGraceNote({ rcStart, graceUntil, reason, rows, style }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = makeStyles(colors);
-  if (!rcStart || !rcStart.date || !graceUntil) return null;
+  // Nothing to explain when the store just couldn't be reached (lenient, reason 'unknown').
+  if (!rcStart || !rcStart.date || !graceUntil || (reason !== 'premium_ended' && reason !== 'free_days_ended')) return null;
   const locale = LOCALE_MAP[language] || 'en-US';
   const fmt = (iso) => { const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? iso : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' }); };
   const today = localISO();
   const start = String(rcStart.date).slice(0, 10);
   const day = Math.max(1, Math.round((new Date(today + 'T12:00:00') - new Date(start + 'T12:00:00')) / 86400000) + 1);
   const logged = (periodTotals(rows || [], start, today) || { loggedDays: 0 }).loggedDays;
-  const text = t('nutri_grace_note')
+  // A lapsed PAYING user never reads "free access" (FL-41).
+  const text = t(reason === 'premium_ended' ? 'nutri_grace_note_premium' : 'nutri_grace_note_free')
     .replace('{day}', String(day))
     .replace('{logged}', String(logged))
     .replace('{until}', fmt(graceUntil))
