@@ -637,7 +637,8 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
   // scroll to the nutrition logger so the user lands on the input, not the top of
   // a long calculator. Deferred so the layout has measured loggerY first.
   useEffect(() => {
-    if (scrollTarget === 'logger') {
+    // 'logger' or 'logger:<nonce>' (a repeat tap on the reminder re-scrolls).
+    if (String(scrollTarget || '').startsWith('logger')) {
       const id = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max((loggerY.current || 0) - 8, 0), animated: true }), 350);
       return () => clearTimeout(id);
     }
@@ -921,6 +922,7 @@ export default function CalculatorSection({ header = null, scrollTarget = null }
                         <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
                       </TouchableOpacity>
                       <Text style={s.rcUseLogNote}>{t('nutri_check_coverage').replace('{n}', String(foodIntake.loggedDays)).replace('{d}', String(foodIntake.days))}</Text>
+                      {foodIntake.notRecordedDays > 0 && <Text style={s.rcUseLogNote}>{t('nutri_check_recorded').replace('{n}', String(foodIntake.recordedDays)).replace('{d}', String(foodIntake.windowDays))}</Text>}
                       <Text style={s.rcUseLogNote}>{t('cal_rc_from_log_note')}</Text>
                     </>
                   ) : null}

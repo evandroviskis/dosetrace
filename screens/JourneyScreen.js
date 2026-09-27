@@ -25,6 +25,9 @@ export default function JourneyScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const s = makeStyles(colors);
+  // A repeat tap on the food reminder carries a fresh nonce, so it scrolls again.
+  const nonce = route.params?.foodAsk || route.params?.foodLogIt || null;
+  const scrollTarget = route.params?.scrollTo ? (nonce ? `${route.params.scrollTo}:${nonce}` : route.params.scrollTo) : null;
   const [premium, setPremium] = useState(false);
   useFocusEffect(useCallback(() => { isPremium().then(setPremium); }, []));
 
@@ -54,7 +57,7 @@ export default function JourneyScreen() {
         <Text style={s.title}>{t('tab_journey')}</Text>
         <Text style={s.sub}>{t('journey_subtitle')}</Text>
       </View>
-      <CalculatorSection header={curveCard} scrollTarget={route.params?.scrollTo || null} />
+      <CalculatorSection header={curveCard} scrollTarget={scrollTarget} />
     </SafeAreaView>
   );
 }

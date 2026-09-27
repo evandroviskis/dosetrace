@@ -70,46 +70,46 @@ test('morningSummaryPlan: no protocols → every day is quiet', () => {
 });
 
 
-// ── foodNudgeDays (20:00 food-log nudge: window, same-day skip, anchored backoff) ──
+// ── foodNudgeDays (20:00 "anything else today?": daily in the check window unless the day is closed) ──
+const { foodReminderDay } = require('../lib/notificationPlan');
 const S = '2026-09-01';
 const day = (n) => ymd(addDays(parseYmd(S), n));
 
 test('food nudge: daily inside the check window, none before the start or after day 21', () => {
   assert.deepEqual(foodNudgeDays(S, day(-2), new Set(), 3, 21), [day(0), day(1), day(2)]);
-  // a recent log keeps it daily, so this checks only the day-21 window edge
-  assert.deepEqual(foodNudgeDays(S, day(19), new Set([day(18)]), 7, 21), [day(19), day(20)]);
+  assert.deepEqual(foodNudgeDays(S, day(19), new Set(), 7, 21), [day(19), day(20)]);
   assert.deepEqual(foodNudgeDays(S, day(21), new Set(), 7, 21), []);
 });
 
-test('food nudge: skips a day the user already logged', () => {
+test('food nudge: once a day at 20:00 — a day with food logged is still asked (no "any log cancels tonight")', () => {
+  // the old rule skipped a logged day; logging is no longer passed in at all —
+  // only closed days are skipped, so every open day of the window is asked
+  assert.deepEqual(foodNudgeDays(S, day(0), new Set(), 3, 21), [day(0), day(1), day(2)]);
+});
+
+test('food nudge: a day the user closed ("Nothing else today") is not asked', () => {
   assert.deepEqual(foodNudgeDays(S, day(0), new Set([day(0)]), 3, 21), [day(1), day(2)]);
+  assert.deepEqual(foodNudgeDays(S, day(0), [day(1)], 3, 21), [day(0), day(2)], 'array of closed days works too');
 });
 
-test('food nudge: backoff can never start before day 5 (start day never counts as ignored)', () => {
-  // days 0..3 are always daily, even with nothing logged
-  assert.deepEqual(foodNudgeDays(S, day(0), new Set(), 4, 21), [day(0), day(1), day(2), day(3)]);
-});
-
-test('food nudge: after 3 ignored days, only every other day, anchored to the start', () => {
-  // no logs at all: day 4 (even) yes, 5 no, 6 yes, 7 no, 8 yes
-  assert.deepEqual(foodNudgeDays(S, day(4), new Set(), 5, 21), [day(4), day(6), day(8)]);
-  // re-planning a day later gives the same rhythm (anchored, never drifts)
-  assert.deepEqual(foodNudgeDays(S, day(5), new Set(), 4, 21), [day(6), day(8)]);
-});
-
-test('food nudge: never a 2-day gap while backed off', () => {
-  const days = foodNudgeDays(S, day(4), new Set(), 17, 21);
-  for (let i = 1; i < days.length; i++) assert.ok(dayDiff(days[i - 1], days[i]) <= 2, 'gap > 2 days');
-});
-
-test('food nudge: any log in the last 3 days returns it to daily', () => {
-  const logged = new Set([day(3)]);
-  // day 4,5,6 see day 3 logged → daily; day 7 (3 unlogged before it, odd) → skipped
-  assert.deepEqual(foodNudgeDays(S, day(4), logged, 4, 21), [day(4), day(5), day(6)]);
+test('food nudge: no every-other-day backoff — silent days never thin it out', () => {
+  // the old rule dropped to every other day after 3 unlogged days
+  assert.deepEqual(foodNudgeDays(S, day(4), new Set(), 5, 21), [day(4), day(5), day(6), day(7), day(8)]);
+  const days = foodNudgeDays(S, day(0), new Set(), 21, 21);
+  assert.equal(days.length, 21);
+  for (let i = 1; i < days.length; i++) assert.equal(dayDiff(days[i - 1], days[i]), 1, 'one per day');
 });
 
 test('food nudge: corrupt start date schedules nothing', () => {
   assert.deepEqual(foodNudgeDays('garbage', day(0), new Set(), 7, 21), []);
+});
+
+test('foodReminderDay: the day a reminder is about comes from its data or its id', () => {
+  assert.equal(foodReminderDay('food-log-2026-09-27', { type: 'food_log', dayKey: '2026-09-27' }), '2026-09-27');
+  assert.equal(foodReminderDay('food-log-2026-09-26', { type: 'food_log' }), '2026-09-26');
+  assert.equal(foodReminderDay('snz-food-log-2026-09-26', {}), '2026-09-26');
+  assert.equal(foodReminderDay('dose-1-2026-09-26-t0', {}), null);
+  assert.equal(foodReminderDay('x', { dayKey: 'garbage' }), null);
 });
 
 // ── Snooze helpers ──

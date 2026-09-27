@@ -12,11 +12,18 @@
  * structured estimates only; this UI renders totals and NEVER model prose. An
  * advice-shaped question → refusal → a fixed deflection card pointing to a
  * professional. Estimates are always framed as estimates (~ / ≈).
+ *
+ * Acceptance checklist: docs/specs/food-log.md. After each entry ONE question
+ * about the rest of today (by missing category, time-aware); the parser's one
+ * follow-up is worded HERE from its structured `ask` (the AI never writes a
+ * sentence the user sees); "that's it" / "Nothing else today" closes the day
+ * with a synced marker row; past days can be marked "not recorded".
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, AccessibilityInfo, Switch } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../../lib/supabase';
 import { friendlyError } from '../../lib/friendlyError';
 import { isPremium } from '../../lib/purchases';
@@ -26,17 +33,26 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import {
   getFoodLogsSince, getFoodLogDayCount, insertFoodLog, updateFoodLog, deleteFoodLog,
+  getFoodLogById, insertFoodDayMarker,
 } from '../../lib/database';
-import { parseFood } from '../../lib/nutritionClient';
-import { checkIntake, entryDateFor, splitByDay, pickNudge } from '../../lib/nutrition';
+import { parseFood, parseFollowup } from '../../lib/nutritionClient';
+import {
+  checkIntake, unloggedCheckDays, splitByDay, isMarker, foodOnly, closedDays,
+  CATEGORIES, pickDayQuestion, isDoneText, itemLabel, isLowConfidence, recentForParse,
+  applyFollowup, followupStillValid,
+} from '../../lib/nutrition';
 import { getRealityStart } from '../../lib/realityCheck';
 import { requestAIConsent } from '../../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../../lib/localDate';
-import { syncFoodLogReminder } from '../../lib/notifications';
+import { syncFoodLogReminder, closeFoodDay } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
 import { CrossMark } from '../../components/CheckMark';
 
 const FREE_DAYS = 3;
+// Per-device conveniences (not user data): today's already-asked questions, and
+// follow-up answers given offline, retried on focus (FL-28).
+const ASKED_KEY = 'dosetrace_food_asked';
+const FOLLOWUP_KEY = 'dosetrace_food_followups';
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL dates (journey-review F1): a UTC date put evening meals on tomorrow.
 const todayISO = () => localISO();
@@ -93,30 +109,53 @@ export default function NutritionLogger() {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const route = useRoute();
   const s = makeStyles(colors);
   const locale = LOCALE_MAP[language] || 'en-US';
 
   const [premium, setPremium] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [recent, setRecent] = useState([]);        // last ~30 days of entries
+  const [recent, setRecent] = useState([]);        // last year of rows (food + day markers)
   const [dayCount, setDayCount] = useState(0);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [deflect, setDeflect] = useState(false);
   const [fixHint, setFixHint] = useState(false);
-  const [shownNudges, setShownNudges] = useState([]);
-  const [nudge, setNudge] = useState(null);
-  const [detailOpen, setDetailOpen] = useState(false);  // 7-day avg + day history
+  const [question, setQuestion] = useState(null);             // { id, tense } — the one open question about today
+  const [closedMsg, setClosedMsg] = useState(false);          // "All set for today" after closing the day
+  const [followup, setFollowup] = useState(null);             // the parser's one follow-up, app-worded (FL-10)
+  const [fuText, setFuText] = useState('');
+  const [fuBusy, setFuBusy] = useState(false);
+  const [fuNote, setFuNote] = useState(false);                // "Saved — I'll update it when you're back online"
+  const [evening, setEvening] = useState(null);               // day key of the 20:00 question opened from the reminder
+  const [detailOpen, setDetailOpen] = useState(false);  // intake + day history
   const [showDemo, setShowDemo] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [editItems, setEditItems] = useState([]);
   const [editDate, setEditDate] = useState(null);
   const reparsingRef = useRef(new Set());
+  const askedRef = useRef({ day: null, ids: [] }); // questions already asked today (one per gap)
+  const drainingRef = useRef(false);
+  const inputRef = useRef(null);
   const [foodReminders, setFoodReminders] = useState(true); // same account pref as Settings
   const [rcStart, setRcStart] = useState(null); // open reality check { date, weightKg } or null
-  const [echo, setEcho] = useState(null);       // names just logged, echoed back casually
+  const [echo, setEcho] = useState(null);       // what was just logged, echoed back with quantities
 
   useFocusEffect(useCallback(() => { load(); }, []));
+
+  // Opened from the 20:00 reminder: show that evening's question (FL-18).
+  const foodAsk = route?.params?.foodAsk || null;
+  const foodLogIt = route?.params?.foodLogIt || null;
+  useEffect(() => {
+    if (!foodAsk) return;
+    const day = String(foodAsk).split('|')[0];
+    setEvening(/^\d{4}-\d{2}-\d{2}$/.test(day) ? day : todayISO());
+  }, [foodAsk]);
+  useEffect(() => {
+    if (!foodLogIt) return;
+    const id = setTimeout(() => inputRef.current?.focus?.(), 450);
+    return () => clearTimeout(id);
+  }, [foodLogIt]);
 
   async function load() {
     setPremium(await isPremium());
@@ -125,12 +164,22 @@ export default function NutritionLogger() {
     setUserId(uid);
     setFoodReminders(user?.user_metadata?.food_reminders !== false);
     try { setRcStart(await getRealityStart()); } catch { setRcStart(null); }
+    try {
+      const raw = await AsyncStorage.getItem(ASKED_KEY);
+      const v = raw ? JSON.parse(raw) : null;
+      const a = v && v.day === todayISO() && Array.isArray(v.ids) ? v : { day: todayISO(), ids: [] };
+      askedRef.current = a;
+    } catch { askedRef.current = { day: todayISO(), ids: [] }; }
     // Offline entries from ANY recent day get parsed once back online (not just
     // today's) — otherwise they silently count as nothing for the reality check.
-    if (uid) { refresh(uid); (getFoodLogsSince(uid, daysAgoISO(60)) || []).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text && !r.remote_id) reparse(r, uid); }); }
+    if (uid) {
+      const rows = refresh(uid);
+      (getFoodLogsSince(uid, daysAgoISO(60)) || []).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text && !r.remote_id && !isMarker(r)) reparse(r, uid, rows); });
+      drainFollowups(uid);
+    }
   }
 
-  // The 20:00 food nudge can be switched off right where it points to (same
+  // The 20:00 question can be switched off right where it points to (same
   // account preference as Settings). A failed save reverts the switch.
   async function toggleFoodReminders(val) {
     setFoodReminders(val);
@@ -145,51 +194,86 @@ export default function NutritionLogger() {
   }
 
   function refresh(uid) {
-    if (!uid) return;
-    const rows = getFoodLogsSince(uid, daysAgoISO(366)); // catch-ups may be dated up to a year back
+    if (!uid) return [];
+    const rows = getFoodLogsSince(uid, daysAgoISO(366)) || []; // catch-ups may be dated up to a year back
     setRecent(rows);
     setDayCount(getFoodLogDayCount(uid));
-
-    // Every add/edit/delete ends here: re-plan tonight's 20:00 nudge so a meal
-    // logged at 18:00 cancels it now, not at the next app open (journey F2).
+    // Every add/edit/delete/close ends here: re-plan the 20:00 question (a
+    // closed day cancels tonight's).
     syncFoodLogReminder().catch(() => {});
+    return rows;
+  }
+
+  function rememberAsked(id) {
+    const prev = askedRef.current;
+    const base = prev.day === todayISO() ? prev.ids : [];
+    const next = { day: todayISO(), ids: base.includes(id) ? base : [...base, id] };
+    askedRef.current = next;
+    AsyncStorage.setItem(ASKED_KEY, JSON.stringify(next)).catch(() => {});
+  }
+
+  // The next question about today (FL-4), from what is logged for TODAY only.
+  function askNext(rows) {
+    const today = todayISO();
+    const a = askedRef.current;
+    const ids = a.day === today ? a.ids : [];
+    const q = pickDayQuestion(rows, today, ids, new Date(), closedDays(rows).has(today));
+    setQuestion(q);
+    if (q) rememberAsked(q.id);
+  }
+
+  // Close a local day ("That's all for today", "Nothing else today", or "that's
+  // it" typed): a durable synced marker; no AI read, no entry, no hint (FL-29).
+  async function closeDay(dayKey) {
+    const uid = userId || (await getCachedUser())?.id || null;
+    if (!uid) return;
+    const ok = await closeFoodDay(dayKey, uid);
+    if (!ok) { Alert.alert(t('error'), t('error_save_failed')); return; }
+    requestSync?.();
+    refresh(uid);
+    setQuestion(null); setEvening(null); setFollowup(null); setFuText(''); setFuNote(false);
+    setFixHint(false); setDeflect(false);
+    if (dayKey === todayISO()) { setEcho(null); setClosedMsg(true); }
   }
 
   // Save a parse onto the pending row, one entry per day eaten: the row keeps
   // the first day's items, extra days become their own entries (a catch-up
   // "Monday pizza, Tuesday a salad" must land on both days, or the reality check
-  // would count it on the wrong one).
+  // would count it on the wrong one). Returns [{ rowId, entry_date, items }].
   function saveParsed(rowId, uid, typedISO, res, raw) {
     const groups = splitByDay(res.items, typedISO, res.daysAgo);
     let alive = true;
+    const placed = [];
     groups.forEach((g, i) => {
       const fields = {
         parsed_items: JSON.stringify(g.items), kcal: g.totals.kcal,
         protein_g: g.totals.protein_g, carb_g: g.totals.carb_g, fat_g: g.totals.fat_g,
         parse_status: 'done', entry_date: g.entry_date,
       };
-      if (i === 0) alive = updateFoodLog(rowId, fields) > 0; // removed meanwhile → add nothing
-      else if (alive) insertFoodLog({ user_id: uid, raw_text: raw, ...fields });
+      if (i === 0) { alive = updateFoodLog(rowId, fields) > 0; if (alive) placed.push({ rowId, entry_date: g.entry_date, items: g.items }); } // removed meanwhile → add nothing
+      else if (alive) { const id = insertFoodLog({ user_id: uid, raw_text: raw, ...fields }); placed.push({ rowId: id, entry_date: g.entry_date, items: g.items }); }
     });
+    return placed;
   }
 
-  async function reparse(row, uid) {
+  async function reparse(row, uid, rows) {
     if (reparsingRef.current.has(row.id)) return;
     reparsingRef.current.add(row.id);
     try {
-      const res = await parseFood(row.raw_text, language, row.entry_date);
+      const res = await parseFood(row.raw_text, language, row.entry_date, recentForParse(rows || [], row.entry_date));
       if (!res.ok) return; // still offline / transient — keep pending, retry later
       if (res.refusal) {
-        // The model EXPLICITLY classified this as non-food/advice — e.g. a
-        // correction ("the can was half") typed into the composer while offline.
-        // Safe to drop the junk entry.
-        deleteFoodLog(row.id); requestSync?.(); refresh(uid); return;
+        // An advice-shaped message typed offline. NEVER silently delete what the
+        // user wrote (FL-15/19): keep the row as 'refused' — it counts as
+        // nothing, stops retrying, and shows the fixed deflection card with a
+        // Remove button; the user decides.
+        updateFoodLog(row.id, { parse_status: 'refused' });
+        requestSync?.(); refresh(uid); return;
       }
       if (!res.items.length || !res.totals) {
-        // Ambiguous: a 200 with no items/totals (a clarify, or a real meal the
-        // model couldn't cleanly parse). NEVER silently delete an offline-saved
-        // health entry — mark it terminal so it stops retrying (and burning quota)
-        // and renders as "couldn't read — tap to remove"; the user decides.
+        // Ambiguous: a 200 with no items/totals. NEVER silently delete an
+        // offline-saved health entry — mark it terminal so it stops retrying (and
+        // burning quota) and renders as "couldn't read — tap to remove".
         updateFoodLog(row.id, { parse_status: 'unparsed' });
         requestSync?.(); refresh(uid); return;
       }
@@ -201,12 +285,21 @@ export default function NutritionLogger() {
   async function onSubmit() {
     const raw = text.trim();
     if (!raw || busy || !userId) return;
+    // "That's it" / "nothing else" closes today — no AI read, no empty entry,
+    // no fix hint (FL-29).
+    if (isDoneText(raw)) { setText(''); await closeDay(todayISO()); return; }
     const consented = await requestAIConsent(t);
     if (!consented) return;
     setDeflect(false);
     setFixHint(false);
+    // A new meal while a follow-up is open is a new entry; the card closes and
+    // the earlier item stays flagged as an estimate (FL-27).
+    setFollowup(null); setFuText(''); setFuNote(false);
+    setClosedMsg(false);
     setBusy(true);
     const typedOn = todayISO(); // the day it was typed — fixed before the await (a submit can cross midnight)
+    // Today's earlier items go along so "another one" resolves (FL-14).
+    const context = recentForParse(getFoodLogsSince(userId, typedOn) || [], typedOn);
     const id = insertFoodLog({ user_id: userId, entry_date: typedOn, raw_text: raw, parse_status: 'pending' });
     // Claim the row so a focus-triggered reparse() can't parse the SAME entry
     // concurrently (double AI call = double quota + update/delete races).
@@ -215,7 +308,7 @@ export default function NutritionLogger() {
     refresh(userId);
 
     let res;
-    try { res = await parseFood(raw, language, typedOn); }
+    try { res = await parseFood(raw, language, typedOn, context); }
     finally { reparsingRef.current.delete(id); }
     setBusy(false);
 
@@ -234,22 +327,126 @@ export default function NutritionLogger() {
     }
     if (res.ok) {
       // "An ice cream 3 days ago" is logged like anything else, on the day it was
-      // eaten — time never blocks it (founder 2026-09-24).
-      saveParsed(id, userId, typedOn, res, raw);
-      requestSync?.(); refresh(userId);
-      // Echo back only the item names (never a word about the food itself).
-      const names = res.items.map((it) => it.food).filter(Boolean);
-      setEcho(names.length ? names.slice(0, 3).join(', ') + (names.length > 3 ? '…' : '') : null);
-      const next = pickNudge(shownNudges, new Date());
-      if (next) { setShownNudges((prev) => [...prev, next.id]); setNudge(next); } else { setNudge(null); }
+      // eaten — time never blocks it (founder 2026-09-24). Clear items save now;
+      // a follow-up only ever touches the unclear one (FL-26).
+      const placed = saveParsed(id, userId, typedOn, res, raw);
+      requestSync?.();
+      const rows = refresh(userId);
+      // Echo back what was logged with its quantity (FL-7/8) — never a word about the food.
+      const kcalU = t('cal_kcal');
+      const parts = res.items.filter((it) => it && it.food).map((it) => `${itemLabel(it)} · ~${Math.round(Number(it.kcal) || 0)} ${kcalU}`);
+      setEcho(parts.length ? parts.slice(0, 3).join(', ') + (parts.length > 3 ? '…' : '') : null);
+      // The parser's one follow-up, if any: locate the asked item in the entry it
+      // was saved to (a catch-up may have split days).
+      let fu = null;
+      if (res.ask) {
+        const target = res.items[res.ask.item];
+        const g = placed.find((x) => x.items.includes(target));
+        if (target && g && g.rowId) {
+          fu = { rowId: g.rowId, entry_date: g.entry_date, index: g.items.indexOf(target), count: g.items.length, item: { ...target }, kind: res.ask.kind, options: res.ask.options || [] };
+        }
+      }
+      if (fu) { setFollowup(fu); setQuestion(null); } else askNext(rows);
       return;
     }
     if (res.code === 'quota_exceeded' || res.status === 429) {
+      // Nothing half-saved, and what they typed comes back (FL-20, never lose data).
       deleteFoodLog(id); requestSync?.(); refresh(userId);
+      setText(raw);
       Alert.alert(t('nutri_title'), t('nutri_quota'));
     } else {
       Alert.alert(t('nutri_title'), t('nutri_offline_saved'));
     }
+  }
+
+  // ── Follow-up (FL-10/26/27/28) ────────────────────────────────────
+  // Apply a follow-up result to its entry: 'applied' | 'dropped' | 'refused' | 'retry'.
+  function applyFollowupResult(p, res) {
+    if (!res.ok) {
+      if (res.code === 'network' || res.status == null || res.status >= 500 || res.status === 401) return 'retry';
+      return 'dropped'; // quota / bad request: the item simply stays an estimate
+    }
+    if (res.refusal) return 'refused';
+    const corrected = res.items && res.items[0];
+    if (!corrected) return 'dropped';
+    const row = getFoodLogById(p.rowId);
+    if (!followupStillValid(row, p)) return 'dropped'; // edited or deleted meanwhile
+    const items = safeItems(row.parsed_items);
+    const next = applyFollowup(items, p.index, corrected);
+    if (!next) return 'dropped';
+    // Same row, same entry_date (an answer after midnight keeps the day).
+    const n = updateFoodLog(p.rowId, { parsed_items: JSON.stringify(next.items), kcal: next.totals.kcal, protein_g: next.totals.protein_g, carb_g: next.totals.carb_g, fat_g: next.totals.fat_g });
+    return n > 0 ? 'applied' : 'dropped';
+  }
+
+  async function answerFollowup(answerRaw) {
+    const f = followup;
+    const answer = String(answerRaw || '').trim().slice(0, 200);
+    if (!f || !answer || fuBusy) return;
+    setFuBusy(true);
+    const res = await parseFollowup(f.item, f.kind, answer, language, f.entry_date);
+    setFuBusy(false);
+    const outcome = applyFollowupResult(f, res);
+    if (outcome === 'retry') {
+      // Offline: keep the answer and apply it later to the same entry (FL-28).
+      await queueFollowup({ ...f, answer, user_id: userId });
+      setFuNote(true);
+    } else if (outcome === 'refused') {
+      setDeflect(true);
+    }
+    if (outcome === 'applied') requestSync?.();
+    setFollowup(null); setFuText('');
+    const rows = refresh(userId);
+    askNext(rows);
+  }
+
+  function skipFollowup() {
+    setFollowup(null); setFuText('');
+    askNext(recent);
+  }
+
+  async function queueFollowup(p) {
+    try {
+      const raw = await AsyncStorage.getItem(FOLLOWUP_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      const next = (Array.isArray(list) ? list : []).filter((x) => !(x.rowId === p.rowId && x.index === p.index));
+      next.push(p);
+      await AsyncStorage.setItem(FOLLOWUP_KEY, JSON.stringify(next.slice(-20)));
+    } catch { /* storage unavailable — the item stays an estimate, tap to fix */ }
+  }
+
+  // Retry answers given offline, on every focus. Dropped when the entry was
+  // edited or deleted meanwhile (followupStillValid).
+  async function drainFollowups(uid) {
+    if (drainingRef.current) return;
+    drainingRef.current = true;
+    try {
+      let list = [];
+      try { const raw = await AsyncStorage.getItem(FOLLOWUP_KEY); list = raw ? JSON.parse(raw) : []; } catch { list = []; }
+      if (!Array.isArray(list) || !list.length) return;
+      const keep = [];
+      let changed = false;
+      for (const p of list) {
+        if (!p || p.user_id !== uid) { if (p && p.user_id && p.user_id !== uid) keep.push(p); continue; }
+        if (!followupStillValid(getFoodLogById(p.rowId), p)) { changed = true; continue; }
+        const res = await parseFollowup(p.item, p.kind, p.answer, language, p.entry_date);
+        const outcome = applyFollowupResult(p, res);
+        if (outcome === 'retry') keep.push(p); else changed = true;
+      }
+      try { await AsyncStorage.setItem(FOLLOWUP_KEY, JSON.stringify(keep)); } catch { /* ignore */ }
+      if (changed) { requestSync?.(); refresh(uid); }
+    } finally { drainingRef.current = false; }
+  }
+
+  // ── "Not recorded" days (FL-3) ─────────────────────────────────────
+  function markNotRecorded(day) {
+    if (!userId) return;
+    insertFoodDayMarker(userId, day.date, 'not_recorded');
+    requestSync?.(); refresh(userId);
+  }
+  function unmarkNotRecorded(day) {
+    (day.markerIds || []).forEach((id) => deleteFoodLog(id));
+    requestSync?.(); refresh(userId);
   }
 
   // ── Fix-an-entry (tap an entry in an expanded day) ───────────────
@@ -262,10 +459,17 @@ export default function NutritionLogger() {
   function removeItem(i) { setEditItems((p) => p.filter((_, idx) => idx !== i)); }
   function saveEdit() {
     if (!editEntry) return;
-    const cleaned = editItems.map((it) => ({ ...it, kcal: numOr(it.kcal), carb_g: numOr(it.carb_g), protein_g: numOr(it.protein_g) }));
+    const origByFood = safeItems(editEntry.parsed_items);
+    const cleaned = editItems.map((it) => {
+      const next = { ...it, kcal: numOr(it.kcal), carb_g: numOr(it.carb_g), protein_g: numOr(it.protein_g) };
+      // A number or category the user fixed is theirs now — no longer an estimate (FL-9).
+      const o = origByFood.find((x) => x && x.food === it.food) || {};
+      if (numOr(o.kcal) !== next.kcal || numOr(o.carb_g) !== next.carb_g || numOr(o.protein_g) !== next.protein_g || (o.category || null) !== (next.category || null)) next.confidence = 'user';
+      return next;
+    });
     if (!cleaned.length) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); return; }
     const sum = (k) => Math.round(cleaned.reduce((a, it) => a + (Number(it[k]) || 0), 0));
-    updateFoodLog(editEntry.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g'), entry_date: editDate || editEntry.entry_date });
+    updateFoodLog(editEntry.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g'), fat_g: sum('fat_g'), entry_date: editDate || editEntry.entry_date });
     requestSync?.(); setEditEntry(null); refresh(userId);
   }
   function deleteFromEdit() { if (editEntry) { deleteFoodLog(editEntry.id); requestSync?.(); setEditEntry(null); refresh(userId); } }
@@ -277,19 +481,30 @@ export default function NutritionLogger() {
       { text: t('nutri_delete_entry'), style: 'destructive', onPress: () => { deleteFoodLog(row.id); requestSync?.(); refresh(userId); } },
     ]);
   }
+  function removeRefused(row) { deleteFoodLog(row.id); requestSync?.(); refresh(userId); }
 
+  const today = todayISO();
   const freeLeft = Math.max(0, FREE_DAYS - dayCount);
   const gated = !premium && dayCount >= FREE_DAYS;
-  // Casual, friend-like follow-up (app-templated): alternate between two phrasings.
-  const nudgeText = nudge ? t(`nutri_nudge_${nudge.id}${nudge.id === 'lunch' || nudge.id === 'dinner' ? '_' + nudge.tense : ''}${shownNudges.length % 2 === 0 ? '_b' : ''}`) : null;
-  const composerLine = [echo ? t('nutri_echo').replace('{items}', echo) : null, nudgeText].filter(Boolean).join(' ') || t('nutri_intro');
+  const closedSet = closedDays(recent);
+  const todayClosed = closedSet.has(today);
+  const showQuestion = question && !todayClosed;
+  const questionText = showQuestion ? t(`nutri_q_${question.id}${question.tense === 'neutral' ? '' : '_' + question.tense}`) : null;
+  const echoText = echo ? t('nutri_echo').replace('{items}', echo) : null;
+  const composerLine = (todayClosed && closedMsg)
+    ? [echoText, t('nutri_day_closed')].filter(Boolean).join(' ')
+    : ([echoText, questionText].filter(Boolean).join(' ') || t('nutri_intro'));
+  const eveningOpen = evening && !closedSet.has(evening);
+  const foodRows = foodOnly(recent);
+  const refused = foodRows.filter((e) => e.parse_status === 'refused');
   // Intake across the open reality check — the number this logger exists for.
-  const rcDays = rcStart ? Math.max(0, Math.round((new Date(todayISO() + 'T12:00:00') - new Date(rcStart.date + 'T12:00:00')) / 86400000)) : null;
+  const rcDays = rcStart ? Math.max(0, Math.round((new Date(today + 'T12:00:00') - new Date(rcStart.date + 'T12:00:00')) / 86400000)) : null;
   // The SAME figure the calculator uses (completed days of the check), plus
   // today's food so far shown separately — one number, never two "per day"s.
-  const intake = rcStart && rcDays >= 1 ? checkIntake(recent, rcStart.date, todayISO(), rcDays, 1) : null;
-  const todayKcal = Math.round(recent.filter((e) => e.entry_date === todayISO()).reduce((a, e) => a + (Number(e.kcal) || 0), 0));
-  const entries = [...recent].sort((a, b) => (a.entry_date === b.entry_date ? (b.id || 0) - (a.id || 0) : (a.entry_date < b.entry_date ? 1 : -1)));
+  const intake = rcStart && rcDays >= 1 ? checkIntake(recent, rcStart.date, today, rcDays, 1) : null;
+  const unlogged = rcStart ? unloggedCheckDays(recent, rcStart.date, today) : [];
+  const todayKcal = Math.round(foodRows.filter((e) => e.entry_date === today).reduce((a, e) => a + (Number(e.kcal) || 0), 0));
+  const entries = foodRows.filter((e) => e.parse_status !== 'refused').sort((a, b) => (a.entry_date === b.entry_date ? (b.id || 0) - (a.id || 0) : (a.entry_date < b.entry_date ? 1 : -1)));
 
   function dayLabel(dateISO) {
     if (dateISO === todayISO()) return t('nutri_day_today');
@@ -298,6 +513,7 @@ export default function NutritionLogger() {
     return isNaN(d) ? dateISO : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
   }
   const macro = (c, p) => `${Math.round(c || 0)} g ${t('nutri_carbs')} · ${Math.round(p || 0)} g ${t('nutri_protein')}`;
+  const catLabel = (c) => (CATEGORIES.includes(c) ? t(`nutri_cat_${c}`) : null);
 
   // Gated (post-trial, non-premium): the upsell demo replaces the composer.
   if (gated) {
@@ -316,6 +532,24 @@ export default function NutritionLogger() {
         <Text style={s.secChev}>{detailOpen ? '▾' : '▸'}</Text>
       </TouchableOpacity>
 
+      {/* 20:00 question, opened from the reminder (FL-18) */}
+      {eveningOpen && (
+        <View style={s.evening}>
+          <Text style={s.eveningText}>{t('notif_food_body')}</Text>
+          <View style={s.eveningBtns}>
+            <TouchableOpacity style={s.eveningPrimary} activeOpacity={0.8} onPress={() => { setEvening(null); setTimeout(() => inputRef.current?.focus?.(), 50); }}>
+              <Text style={s.eveningPrimaryText}>{t('notif_food_action_log')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.eveningSecondary} activeOpacity={0.8} onPress={() => closeDay(evening)}>
+              <Text style={s.eveningSecondaryText}>{t('notif_food_action_done')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.eveningSecondary} activeOpacity={0.8} onPress={() => setEvening(null)}>
+              <Text style={s.eveningSecondaryText}>{t('nutri_evening_later')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* AI composer — pinned open */}
       <View style={s.composer}>
         <View style={s.aiBadge}>
@@ -323,10 +557,16 @@ export default function NutritionLogger() {
           <Text style={s.aiBadgeText}>{t('nutri_ai_badge')}</Text>
         </View>
         <Text style={s.cq}>{composerLine}</Text>
+        {showQuestion && (
+          <TouchableOpacity style={s.doneChip} activeOpacity={0.75} onPress={() => closeDay(today)} accessibilityRole="button">
+            <Text style={s.doneChipText}>{t('nutri_day_done_btn')}</Text>
+          </TouchableOpacity>
+        )}
         <Text style={s.chint}>{t('nutri_composer_hint')}</Text>
         <View style={s.cfield}>
           <FeatureIcon name="ai_spark" size={18} color={colors.accent} />
           <TextInput
+            ref={inputRef}
             style={s.cinput}
             value={text}
             onChangeText={(v) => { setText(v); if (fixHint) setFixHint(false); }}
@@ -347,6 +587,49 @@ export default function NutritionLogger() {
         <Text style={s.caveat}>{t('nutri_est_note')}</Text>
         {!premium && freeLeft > 0 && <Text style={s.freeNote}>{t('nutri_free_note').replace('{n}', String(freeLeft))}</Text>}
       </View>
+
+      {/* The parser's one follow-up, worded by the app (FL-10/16/26) */}
+      {followup && (
+        <View style={s.fu}>
+          <Text style={s.fuQ}>{t(`nutri_ask_${followup.kind}`).replace('{food}', followup.item.food)}</Text>
+          {followup.options.length > 0 && (
+            <View style={s.fuChips}>
+              {followup.options.map((o, i) => (
+                <TouchableOpacity key={i} style={s.fuChip} activeOpacity={0.75} disabled={fuBusy} onPress={() => answerFollowup(o)}>
+                  <Text style={s.fuChipText}>{o}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          <View style={s.fuField}>
+            <TextInput
+              style={s.fuInput}
+              value={fuText}
+              onChangeText={setFuText}
+              placeholder={t('nutri_ask_placeholder')}
+              placeholderTextColor={colors.textFaint}
+              editable={!fuBusy}
+              returnKeyType="send"
+              onSubmitEditing={() => answerFollowup(fuText)}
+              maxLength={200}
+            />
+            <TouchableOpacity style={[s.fuSend, (!fuText.trim() || fuBusy) && s.logBtnOff]} disabled={!fuText.trim() || fuBusy} onPress={() => answerFollowup(fuText)}>
+              {fuBusy ? <ActivityIndicator size="small" color={colors.accentText} /> : <Text style={s.fuSendText}>{t('nutri_ask_send')}</Text>}
+            </TouchableOpacity>
+          </View>
+          <View style={s.fuFoot}>
+            <TouchableOpacity onPress={skipFollowup} disabled={fuBusy} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.fuSkip}>{t('nutri_ask_skip')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => closeDay(today)} disabled={fuBusy} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.fuSkip}>{t('nutri_day_done_btn')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      {fuNote && !followup && (
+        <View style={s.hint}><Text style={s.hintText}>{t('nutri_ask_saved')}</Text></View>
+      )}
 
       <TouchableOpacity style={s.howRow} activeOpacity={0.7} onPress={() => setShowDemo(true)}>
         <FeatureIcon name="ai_spark" size={13} color={colors.accent} />
@@ -374,6 +657,19 @@ export default function NutritionLogger() {
         </View>
       )}
 
+      {/* Advice-shaped messages typed offline: kept, never silently deleted —
+          the fixed deflection card, what they wrote, and a Remove button (FL-15/19). */}
+      {refused.map((r) => (
+        <View key={r.id} style={s.deflect}>
+          <Text style={s.deflectTitle}>{t('nutri_deflect_title')}</Text>
+          <Text style={s.deflectBody}>{t('nutri_deflect_body')}</Text>
+          <Text style={s.deflectQuote} numberOfLines={3}>{t('nutri_refused_text').replace('{text}', r.raw_text || '')}</Text>
+          <TouchableOpacity style={s.deflectRemove} onPress={() => removeRefused(r)} accessibilityRole="button">
+            <Text style={s.deflectRemoveText}>{t('nutri_delete_entry')}</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
       {fixHint && (
         <View style={s.hint}>
           <Text style={s.hintText}>{t('nutri_fix_hint')}</Text>
@@ -391,7 +687,7 @@ export default function NutritionLogger() {
                 : t('nutri_check_empty'))
               : (entries.length ? t('nutri_entries_count').replace('{n}', String(entries.length)) : t('nutri_none'))}
           </Text>
-          {entries.length > 0 && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
+          {(entries.length > 0 || unlogged.length > 0) && <Text style={s.collapsedShow}>{t('nutri_show')} ▸</Text>}
         </TouchableOpacity>
       )}
 
@@ -405,6 +701,7 @@ export default function NutritionLogger() {
                 <>
                   <Text style={s.avgBig}>≈ {intake.avgKcal} <Text style={s.avgUnit}>{t('cal_kcal')}{t('nutri_per_day')}</Text></Text>
                   <Text style={s.avgFoot}>{t('nutri_check_working').replace('{total}', String(intake.totalKcal)).replace('{d}', String(intake.days))}</Text>
+                  <Text style={s.avgFoot}>{t('nutri_check_recorded').replace('{n}', String(intake.recordedDays)).replace('{d}', String(intake.windowDays))}</Text>
                   <Text style={s.avgFoot}>{t('nutri_check_coverage').replace('{n}', String(intake.loggedDays)).replace('{d}', String(intake.days))}</Text>
                   {todayKcal > 0 && <Text style={s.avgFoot}>{t('nutri_today_so_far').replace('{n}', String(todayKcal))}</Text>}
                 </>
@@ -417,6 +714,32 @@ export default function NutritionLogger() {
             </View>
           ) : (
             <Text style={s.noneDetail}>{t('nutri_no_check')}</Text>
+          )}
+
+          {/* Past days of the check with nothing logged: mark / unmark "not recorded" (FL-3) */}
+          {rcStart && unlogged.length > 0 && (
+            <View style={s.day}>
+              <View style={s.unlogHead}>
+                <Text style={s.unlogTitle}>{t('nutri_unlogged_title')}</Text>
+                <Text style={s.unlogHint}>{t('nutri_unlogged_hint')}</Text>
+              </View>
+              {unlogged.map((d) => (
+                <View key={d.date} style={s.unlogRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.unlogDate}>{dayLabel(d.date)}</Text>
+                    <Text style={s.unlogState}>{d.notRecorded ? t('nutri_marked_not_recorded') : t('nutri_nothing_logged')}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[s.unlogBtn, d.notRecorded && s.unlogBtnOn]}
+                    activeOpacity={0.75}
+                    onPress={() => (d.notRecorded ? unmarkNotRecorded(d) : markNotRecorded(d))}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[s.unlogBtnText, d.notRecorded && s.unlogBtnTextOn]}>{d.notRecorded ? t('nutri_undo') : t('nutri_mark_not_recorded')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
           )}
 
           {entries.length > 0 && (
@@ -435,9 +758,12 @@ export default function NutritionLogger() {
                         <>
                           <Text style={s.entryDate}>{dayLabel(e.entry_date)}</Text>
                           {items.map((it, i) => (
-                            <View key={i} style={s.entryRow}>
-                              <Text style={s.entryFood}>{it.food}</Text>
-                              <Text style={s.entryKcal}>~{Math.round(it.kcal || 0)} {t('cal_kcal')}</Text>
+                            <View key={i} style={s.entryItem}>
+                              <View style={s.entryRow}>
+                                <Text style={s.entryFood}>{itemLabel(it)} · ~{Math.round(it.kcal || 0)} {t('cal_kcal')}</Text>
+                                {catLabel(it.category) && <Text style={s.catChip}>{catLabel(it.category)}</Text>}
+                              </View>
+                              {isLowConfidence(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}
                             </View>
                           ))}
                           <View style={[s.entryRow, s.entryTot]}>
@@ -481,12 +807,22 @@ export default function NutritionLogger() {
             )}
             {editItems.map((it, i) => (
               <View key={i} style={s.editItem}>
-                <Text style={s.editFood} numberOfLines={1}>{it.food}</Text>
+                <Text style={s.editFood} numberOfLines={1}>{itemLabel(it)}</Text>
                 <View style={s.editFields}>
                   <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setItemField(i, 'kcal', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setItemField(i, 'carb_g', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setItemField(i, 'protein_g', v)} />
                   <TouchableOpacity style={s.editDel} onPress={() => removeItem(i)}><CrossMark style={s.editDelX} /></TouchableOpacity>
+                </View>
+                <View style={s.editCats}>
+                  {CATEGORIES.map((c) => {
+                    const on = it.category === c;
+                    return (
+                      <TouchableOpacity key={c} style={[s.editCat, on && s.editCatOn]} onPress={() => setItemField(i, 'category', c)} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                        <Text style={[s.editCatText, on && s.editCatTextOn]}>{t(`nutri_cat_${c}`)}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
             ))}
@@ -578,6 +914,53 @@ const makeStyles = (c) => StyleSheet.create({
   entryTotFood: { fontSize: 13, fontWeight: '800', color: c.text },
   entryTotMacro: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
   pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
+  entryItem: { paddingVertical: 1 },
+  catChip: { fontSize: 10, fontWeight: '700', color: c.accentSoftText, backgroundColor: c.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
+  estFlag: { fontSize: 11, fontWeight: '600', color: c.warningSoftText, backgroundColor: c.warningSoft, alignSelf: 'flex-start', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2, overflow: 'hidden' },
+  // "That's all for today" quick answer under the question
+  doneChip: { alignSelf: 'flex-start', backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.border, paddingHorizontal: 12, paddingVertical: 6, marginTop: 8 },
+  doneChipText: { fontSize: 12.5, fontWeight: '700', color: c.text },
+  // 20:00 question card (opened from the reminder)
+  evening: { backgroundColor: c.card, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border },
+  eveningText: { fontSize: 15, fontWeight: '700', color: c.text, lineHeight: 21 },
+  eveningBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  eveningPrimary: { backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  eveningPrimaryText: { color: c.accentText, fontWeight: '800', fontSize: 13.5 },
+  eveningSecondary: { backgroundColor: c.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 0.5, borderColor: c.border },
+  eveningSecondaryText: { color: c.text, fontWeight: '700', fontSize: 13.5 },
+  // follow-up card
+  fu: { backgroundColor: c.card, borderRadius: 16, padding: 14, marginTop: 10, borderWidth: 1, borderColor: c.border },
+  fuQ: { fontSize: 15, fontWeight: '800', color: c.text, lineHeight: 21 },
+  fuChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  fuChip: { backgroundColor: c.accentSoft, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+  fuChipText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
+  fuField: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  fuInput: { flex: 1, backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border },
+  fuSend: { backgroundColor: c.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, minWidth: 70, alignItems: 'center' },
+  fuSendText: { color: c.accentText, fontWeight: '800', fontSize: 13 },
+  fuFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  fuSkip: { fontSize: 12.5, fontWeight: '600', color: c.textMuted },
+  // offline-refused entry (kept, with Remove)
+  deflectQuote: { fontSize: 12, color: c.warningSoftText, lineHeight: 17, marginTop: 8, fontStyle: 'italic' },
+  deflectRemove: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 10, borderWidth: 1, borderColor: c.warningSoftText, paddingHorizontal: 12, paddingVertical: 6 },
+  deflectRemoveText: { fontSize: 12.5, fontWeight: '700', color: c.warningSoftText },
+  // "not recorded" days
+  unlogHead: { padding: 13, paddingBottom: 6 },
+  unlogTitle: { fontSize: 13, fontWeight: '800', color: c.text },
+  unlogHint: { fontSize: 11.5, color: c.textMuted, lineHeight: 16, marginTop: 3 },
+  unlogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, paddingVertical: 9, borderTopWidth: 0.5, borderTopColor: c.border },
+  unlogDate: { fontSize: 13, fontWeight: '700', color: c.text },
+  unlogState: { fontSize: 11.5, color: c.textFaint, marginTop: 1 },
+  unlogBtn: { borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card2, paddingHorizontal: 11, paddingVertical: 6 },
+  unlogBtnOn: { backgroundColor: c.accentSoft, borderColor: c.accentSoft },
+  unlogBtnText: { fontSize: 12, fontWeight: '700', color: c.text },
+  unlogBtnTextOn: { color: c.accentSoftText },
+  // category picker in the fix modal
+  editCats: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
+  editCat: { borderRadius: 12, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.bg, paddingHorizontal: 9, paddingVertical: 4 },
+  editCatOn: { backgroundColor: c.accent, borderColor: c.accent },
+  editCatText: { fontSize: 11.5, fontWeight: '600', color: c.textMuted },
+  editCatTextOn: { color: c.accentText },
   // demo modal + shared demo body
   demoWrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
   demoCard: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },

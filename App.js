@@ -367,16 +367,27 @@ export default function App() {
           return;
         }
         if (response.actionIdentifier === 'SNOOZE_HOUR' || response.actionIdentifier === 'SNOOZE_TOMORROW') return;
+        // "Nothing else today" (food question) closes the day in lib/notificationActions — no navigation.
+        if (response.actionIdentifier === 'FOOD_DAY_DONE') return;
+        // "Log it": straight to the food log's composer.
+        if (response.actionIdentifier === 'FOOD_LOG_IT') {
+          if (navigationRef.current) navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Journey', params: { scrollTo: 'logger', foodLogIt: Date.now() } } });
+          return;
+        }
 
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
         } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check' || data.type === 'food_log') && navigationRef.current) {
           // Measurements / reality-check / food-log nudge — deep-link into the
-          // Journey tab. A food-log nudge scrolls straight to the logger; the
-          // others land at the top (calculator / reality-check).
+          // Journey tab. A food-log nudge scrolls straight to the logger and shows
+          // that evening's question (Log it · Nothing else today · I'll eat later,
+          // FL-18); the others land at the top (calculator / reality-check).
+          const foodParams = data.type === 'food_log'
+            ? { scrollTo: 'logger', foodAsk: `${typeof data.dayKey === 'string' ? data.dayKey : ''}|${Date.now()}` }
+            : {};
           navigationRef.current.navigate('Main', {
             screen: 'MainTabs',
-            params: { screen: 'Journey', params: data.type === 'food_log' ? { scrollTo: 'logger' } : {} },
+            params: { screen: 'Journey', params: foodParams },
           });
         }
       });

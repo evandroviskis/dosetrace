@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { dayTotals, rollingAvgKcal, pickNudge, groupByDay } = require('../lib/nutrition');
+const { dayTotals, rollingAvgKcal, groupByDay } = require('../lib/nutrition');
 
 test('dayTotals: sums Cal/Carbs/Protein and rounds; ignores junk', () => {
   const t = dayTotals([
@@ -42,27 +42,6 @@ test('rollingAvgKcal: no logged days in window -> null', () => {
   assert.equal(rollingAvgKcal([], '2026-09-10', 7), null);
 });
 
-test('pickNudge: one gap at a time in order, stops when all shown', () => {
-  const noon = new Date('2026-09-10T12:00:00');
-  assert.deepEqual(pickNudge([], noon), { id: 'lunch', tense: 'forward' }); // pre-2pm → lunch ahead
-  assert.deepEqual(pickNudge(['lunch'], noon), { id: 'dinner', tense: 'forward' });
-  assert.deepEqual(pickNudge(['lunch', 'dinner'], noon), { id: 'snacks', tense: 'neutral' });
-  assert.deepEqual(pickNudge(['lunch', 'dinner', 'snacks'], noon), { id: 'drinks', tense: 'neutral' });
-  assert.equal(pickNudge(['lunch', 'dinner', 'snacks', 'drinks'], noon), null);
-});
-
-test('pickNudge: time-aware tense — at 8pm lunch and dinner are past tense', () => {
-  const evening = new Date('2026-09-10T20:00:00');
-  assert.deepEqual(pickNudge([], evening), { id: 'lunch', tense: 'past' });
-  assert.deepEqual(pickNudge(['lunch'], evening), { id: 'dinner', tense: 'past' });
-});
-
-test('pickNudge: mid-afternoon — lunch is past, dinner still ahead', () => {
-  const afternoon = new Date('2026-09-10T15:00:00');
-  assert.deepEqual(pickNudge([], afternoon), { id: 'lunch', tense: 'past' });
-  assert.deepEqual(pickNudge(['lunch'], afternoon), { id: 'dinner', tense: 'forward' });
-});
-
 test('groupByDay: groups entries per day, newest first, with per-day totals', () => {
   const g = groupByDay([
     { entry_date: '2026-09-10', kcal: 400, carb_g: 10, protein_g: 20 },
@@ -92,9 +71,9 @@ test('checkIntake: completed days of the check ÷ elapsed days (same window as t
     { entry_date: '2026-09-05', kcal: 2000 },
     { entry_date: '2026-09-06', kcal: 900 }, // today — not in the completed window
   ];
-  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 5), { totalKcal: 7000, days: 5, avgKcal: 1400, entries: 3, loggedDays: 3 });
+  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 5), { totalKcal: 7000, days: 5, avgKcal: 1400, entries: 3, loggedDays: 3, recordedDays: 5, windowDays: 5, notRecordedDays: 0 });
   // the logger's running view includes today, over 6 calendar days
-  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 6, 1, true), { totalKcal: 7900, days: 6, avgKcal: 1317, entries: 4, loggedDays: 4 });
+  assert.deepEqual(checkIntake(e, '2026-09-01', '2026-09-06', 6, 1, true), { totalKcal: 7900, days: 6, avgKcal: 1317, entries: 4, loggedDays: 4, recordedDays: 6, windowDays: 6, notRecordedDays: 0 });
 });
 
 test('checkIntake: food before the check started is not counted', () => {
@@ -132,4 +111,199 @@ test('splitByDay: a multi-day catch-up becomes one entry per day eaten', () => {
   assert.deepEqual(g.map((x) => [x.entry_date, x.totals.kcal]), [['2026-09-07', 800], ['2026-09-08', 300], ['2026-09-10', 5]]);
   // message-level days_ago applies to items that don't carry their own
   assert.deepEqual(splitByDay([{ food: 'ice cream', kcal: 270 }], '2026-09-10', 3).map((x) => x.entry_date), ['2026-09-07']);
+});
+
+// ── FL-3: "not recorded" days ──
+const { unloggedCheckDays, closedDays, notRecordedDays, isMarker } = require('../lib/nutrition');
+const NR = (d, id) => ({ id, entry_date: d, source: 'not_recorded', kcal: 0, parse_status: 'done', raw_text: '' });
+
+test('checkIntake: a day marked not recorded leaves BOTH the total and the day count', () => {
+  const e = [
+    { entry_date: '2026-09-01', kcal: 2000 },
+    { entry_date: '2026-09-02', kcal: 2400 },
+    NR('2026-09-03', 9),                       // marked: out of the average
+    // 09-04 and 09-05 unlogged and unmarked → count as zero
+  ];
+  const r = checkIntake(e, '2026-09-01', '2026-09-06', 5);
+  assert.equal(r.totalKcal, 4400);
+  assert.equal(r.recordedDays, 4, '5 window days − 1 not recorded');
+  assert.equal(r.days, 4, 'the divisor is the recorded days');
+  assert.equal(r.avgKcal, 1100);
+  assert.equal(r.windowDays, 5);
+  assert.equal(r.notRecordedDays, 1);
+  assert.equal(r.loggedDays, 2);
+  assert.equal(r.entries, 2, 'marker rows are not entries');
+});
+
+test('checkIntake: an unlogged, unmarked day counts as zero; a mark on a day with food is ignored', () => {
+  const unmarked = checkIntake([{ entry_date: '2026-09-01', kcal: 5000 }], '2026-09-01', '2026-09-06', 5);
+  assert.equal(unmarked.avgKcal, 1000);
+  const catchUpWins = checkIntake([{ entry_date: '2026-09-01', kcal: 5000 }, NR('2026-09-01', 3)], '2026-09-01', '2026-09-06', 5);
+  assert.equal(catchUpWins.recordedDays, 5, 'food logged later on a marked day makes it recorded again');
+  assert.equal(notRecordedDays([{ entry_date: '2026-09-01', kcal: 5000 }, NR('2026-09-01', 3)]).size, 0);
+});
+
+test('checkIntake: a mark on today or outside the window does not change the completed-window divisor', () => {
+  const e = [{ entry_date: '2026-09-02', kcal: 5000 }, NR('2026-09-06', 1), NR('2026-08-20', 2)];
+  assert.equal(checkIntake(e, '2026-09-01', '2026-09-06', 5).recordedDays, 5);
+});
+
+test('unloggedCheckDays: past days of the check with nothing logged, newest first, with their marks', () => {
+  const e = [{ entry_date: '2026-09-01', kcal: 2000 }, NR('2026-09-03', 7), { entry_date: '2026-09-06', kcal: 300 }];
+  assert.deepEqual(unloggedCheckDays(e, '2026-09-01', '2026-09-06'), [
+    { date: '2026-09-05', notRecorded: false, markerIds: [] },
+    { date: '2026-09-04', notRecorded: false, markerIds: [] },
+    { date: '2026-09-03', notRecorded: true, markerIds: [7] },
+    { date: '2026-09-02', notRecorded: false, markerIds: [] },
+  ]);
+  assert.deepEqual(unloggedCheckDays(e, '2026-09-06', '2026-09-06'), [], 'today is never offered');
+});
+
+test('markers: day_closed and not_recorded rows are markers, not food', () => {
+  assert.equal(isMarker({ source: 'day_closed' }), true);
+  assert.equal(isMarker({ source: 'not_recorded' }), true);
+  assert.equal(isMarker({ source: 'ai' }), false);
+  assert.deepEqual([...closedDays([{ source: 'day_closed', entry_date: '2026-09-06' }, { source: 'ai', entry_date: '2026-09-05' }])], ['2026-09-06']);
+});
+
+// ── FL-4/5/6/25: one question at a time about the rest of today ──
+const { pickDayQuestion, todayCategories, isDoneText } = require('../lib/nutrition');
+const row = (d, cats) => ({ entry_date: d, source: 'ai', parse_status: 'done', parsed_items: JSON.stringify(cats.map((c) => ({ food: 'x', kcal: 100, category: c }))) });
+const T = '2026-09-10';
+const noon = new Date('2026-09-10T12:00:00');
+
+test('pickDayQuestion: asks about the absent categories, one at a time, then one open "anything else", then stops', () => {
+  const e = [row(T, ['meal'])];
+  assert.deepEqual(pickDayQuestion(e, T, [], noon, false), { id: 'snack', tense: 'neutral' });
+  assert.deepEqual(pickDayQuestion(e, T, ['snack'], noon, false), { id: 'drink', tense: 'neutral' });
+  assert.deepEqual(pickDayQuestion(e, T, ['snack', 'drink'], noon, false), { id: 'supplement', tense: 'neutral' });
+  assert.deepEqual(pickDayQuestion(e, T, ['snack', 'drink', 'supplement'], noon, false), { id: 'more', tense: 'forward' });
+  assert.equal(pickDayQuestion(e, T, ['snack', 'drink', 'supplement', 'more'], noon, false), null);
+});
+
+test('pickDayQuestion: a category already logged today is never asked', () => {
+  const e = [row(T, ['drink']), row(T, ['snack', 'supplement'])];
+  assert.deepEqual(pickDayQuestion(e, T, [], noon, false), { id: 'meal', tense: 'forward' });
+  assert.deepEqual(pickDayQuestion(e, T, ['meal'], noon, false), { id: 'more', tense: 'forward' });
+});
+
+test('pickDayQuestion: time-aware tense — from 19:00 the day is asked about in the past tense', () => {
+  const e = [row(T, ['drink'])];
+  assert.deepEqual(pickDayQuestion(e, T, [], new Date('2026-09-10T20:00:00'), false), { id: 'meal', tense: 'past' });
+  assert.deepEqual(pickDayQuestion(e, T, [], new Date('2026-09-10T15:00:00'), false), { id: 'meal', tense: 'forward' });
+});
+
+test('pickDayQuestion: a closed day is never asked again', () => {
+  assert.equal(pickDayQuestion([row(T, ['meal'])], T, [], noon, true), null);
+});
+
+test('pickDayQuestion: food dated to an earlier day never counts toward today (FL-25)', () => {
+  // "pizza and a beer on Monday", typed today, lands on Monday — today still has no drink
+  const e = [row('2026-09-07', ['meal', 'drink']), row(T, ['meal'])];
+  assert.deepEqual([...todayCategories(e, T)], ['meal']);
+  assert.deepEqual(pickDayQuestion(e, T, ['snack'], noon, false), { id: 'drink', tense: 'neutral' });
+  // only a catch-up logged, nothing today → no question about today
+  assert.equal(pickDayQuestion([row('2026-09-07', ['meal'])], T, [], noon, false), null);
+});
+
+test('todayCategories: items saved before categories existed count as a meal; markers ignored', () => {
+  const e = [{ entry_date: T, source: 'ai', parsed_items: '[{"food":"toast","kcal":90}]' }, { entry_date: T, source: 'day_closed', parsed_items: '[]' }];
+  assert.deepEqual([...todayCategories(e, T)], ['meal']);
+});
+
+test('isDoneText: "that\'s it" and equivalents close the day in all 6 languages', () => {
+  const done = ["that's it", 'That’s all for today!', 'nothing else', 'no, that is all, thanks', 'done',
+    'eso es todo', 'nada más', 'é isso', 'só isso por hoje', "c'est tout", 'rien d’autre', "das war's", 'nichts mehr heute', 'è tutto', "nient'altro per oggi"];
+  for (const t of done) assert.equal(isDoneText(t), true, t);
+});
+
+test('isDoneText: a real meal (even one containing a done-word) is never swallowed', () => {
+  for (const t of ['2 eggs and toast', "that's it: a coffee", 'no sugar coffee', 'done: pizza', 'nada de azúcar, un café', '', '   '])
+    assert.equal(isDoneText(t), false, t);
+});
+
+// ── FL-8/9: quantity shown; low-confidence flagged ──
+const { itemLabel, isLowConfidence } = require('../lib/nutrition');
+
+test('itemLabel: the quantity is always shown — "2 × BUILT Puff", "150 g rice"', () => {
+  assert.equal(itemLabel({ food: 'BUILT Puff', qty: 2, unit: 'bar' }), '2 × BUILT Puff');
+  assert.equal(itemLabel({ food: 'rice', qty: 150, unit: 'g' }), '150 g rice');
+  assert.equal(itemLabel({ food: 'orange juice', qty: 250, unit: 'ml' }), '250 ml orange juice');
+  assert.equal(itemLabel({ food: 'eggs', qty: 3, unit: 'egg' }), '3 × eggs');
+  assert.equal(itemLabel({ food: 'coffee', qty: 1, unit: '' }), '1 × coffee');
+  assert.equal(itemLabel({ food: 'oats', qty: 0.5, unit: 'cup' }), '0.5 cup oats');
+  assert.equal(itemLabel({ food: 'soup', qty: null, unit: '' }), 'soup', 'no quantity known → the name alone');
+});
+
+test('isLowConfidence: only "low" items are flagged as estimates', () => {
+  assert.equal(isLowConfidence({ confidence: 'low' }), true);
+  assert.equal(isLowConfidence({ confidence: 'med' }), false);
+  assert.equal(isLowConfidence({ confidence: 'user' }), false);
+});
+
+// ── FL-14: today's earlier items go along as context ──
+const { recentForParse } = require('../lib/nutrition');
+
+test('recentForParse: only today\'s parsed items, oldest first, max 12, never markers or other days', () => {
+  const e = [
+    { entry_date: '2026-09-09', source: 'ai', parse_status: 'done', parsed_items: '[{"food":"old","qty":1,"unit":"","kcal":100}]' },
+    { entry_date: T, source: 'ai', parse_status: 'done', parsed_items: '[{"food":"BUILT Puff","qty":2,"unit":"bar","kcal":280,"protein_g":34}]' },
+    { entry_date: T, source: 'ai', parse_status: 'pending', parsed_items: null, raw_text: 'x' },
+    { entry_date: T, source: 'day_closed', parse_status: 'done', parsed_items: '[]' },
+  ];
+  assert.deepEqual(recentForParse(e, T), [{ food: 'BUILT Puff', qty: 2, unit: 'bar', kcal: 280 }]);
+  const many = [{ entry_date: T, source: 'ai', parse_status: 'done', parsed_items: JSON.stringify(Array.from({ length: 15 }, (_, i) => ({ food: 'f' + i, qty: 1, unit: '', kcal: i }))) }];
+  const r = recentForParse(many, T);
+  assert.equal(r.length, 12);
+  assert.equal(r[11].food, 'f14');
+});
+
+// ── FL-10/26/28: a follow-up changes only the asked item of the same entry ──
+const { applyFollowup, followupStillValid } = require('../lib/nutrition');
+
+test('applyFollowup: replaces only the asked item and recomputes the entry total', () => {
+  const items = [
+    { food: 'eggs', qty: 2, unit: 'egg', kcal: 140, protein_g: 12, carb_g: 1, fat_g: 10, confidence: 'high', category: 'meal', days_ago: null },
+    { food: 'protein bar', qty: 1, unit: 'bar', kcal: 200, protein_g: 20, carb_g: 20, fat_g: 7, confidence: 'low', category: 'snack', days_ago: 2 },
+  ];
+  const r = applyFollowup(items, 1, { food: 'BUILT Puff', qty: 1, unit: 'bar', kcal: 140, protein_g: 17, carb_g: 18, fat_g: 3, confidence: 'high', category: 'snack', days_ago: null });
+  assert.deepEqual(r.items[0], items[0], 'the clear item is untouched');
+  assert.equal(r.items[1].food, 'BUILT Puff');
+  assert.equal(r.items[1].days_ago, 2, 'keeps the entry date');
+  assert.deepEqual(r.totals, { kcal: 280, protein_g: 29, carb_g: 19, fat_g: 13 });
+  assert.equal(applyFollowup(items, 5, { food: 'x' }), null, 'bad index → nothing');
+  assert.equal(applyFollowup(items, 1, null), null);
+});
+
+test('followupStillValid: an answer applies only while the entry is unchanged; edited or deleted → dropped', () => {
+  const items = [{ food: 'rice', qty: 1, unit: 'cup', kcal: 200 }];
+  const pending = { entry_date: '2026-09-10', count: 1, index: 0, item: { food: 'rice', qty: 1, unit: 'cup', kcal: 200 } };
+  const r = { id: 4, entry_date: '2026-09-10', parsed_items: JSON.stringify(items), sync_status: 'synced', updated_at: 'cloud-restamped' };
+  assert.equal(followupStillValid(r, pending), true, 'a sync re-stamp alone does not drop it');
+  assert.equal(followupStillValid({ ...r, sync_status: 'deleted' }, pending), false);
+  assert.equal(followupStillValid(null, pending), false);
+  assert.equal(followupStillValid({ ...r, parsed_items: JSON.stringify([{ ...items[0], kcal: 250 }]) }, pending), false, 'user fixed the item');
+  assert.equal(followupStillValid({ ...r, entry_date: '2026-09-09' }, pending), false, 'moved to another day');
+});
+
+// ── FL-24: a day runs midnight to midnight in the user's time zone ──
+test('local midnight: a 23:30 meal in Los Angeles is that local day, not the UTC day', () => {
+  const prev = process.env.TZ;
+  process.env.TZ = 'America/Los_Angeles';
+  try {
+    const { localISOForTest } = require('./helpers/localISO.cjs');
+    const lateNight = new Date('2026-09-10T06:30:00Z'); // 23:30 on 09-09 in LA; already 09-10 in UTC
+    assert.equal(localISOForTest(lateNight), '2026-09-09');
+    assert.notEqual(lateNight.toISOString().slice(0, 10), '2026-09-09', 'the UTC date would be wrong');
+    const justAfter = new Date('2026-09-10T07:05:00Z'); // 00:05 on 09-10 local
+    assert.equal(localISOForTest(justAfter), '2026-09-10');
+    // entries typed either side of LOCAL midnight land on separate days with separate totals
+    const g = groupByDay([
+      { entry_date: localISOForTest(lateNight), kcal: 500, carb_g: 0, protein_g: 0 },
+      { entry_date: localISOForTest(justAfter), kcal: 200, carb_g: 0, protein_g: 0 },
+    ]);
+    assert.deepEqual(g.map((x) => [x.date, x.totals.kcal]), [['2026-09-10', 200], ['2026-09-09', 500]]);
+  } finally {
+    if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
+  }
 });
