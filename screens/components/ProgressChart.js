@@ -13,7 +13,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useMemo } from 'react';
 import { useTheme } from '../../lib/theme';
-import { Dot } from '../../components/ui';
 
 const CHART_H = 150;
 const PAD = 12;
@@ -70,10 +69,6 @@ export default function ProgressChart({ series, locale = 'en-US', width }) {
   return (
     <View style={s.wrap}>
       <View style={[s.plot, { height: CHART_H }]}>
-        {/* Hybrid: calm hairline guides (top / middle / baseline). */}
-        <View pointerEvents="none" style={[s.guide, { top: PAD }]} />
-        <View pointerEvents="none" style={[s.guide, { top: CHART_H / 2 }]} />
-        <View pointerEvents="none" style={[s.guide, { top: CHART_H - PAD }]} />
         {laid.map((sr) => (
           <View key={sr.key} pointerEvents="none" style={StyleSheet.absoluteFill}>
             {sr.segments.map((seg, i) => (
@@ -96,7 +91,7 @@ export default function ProgressChart({ series, locale = 'en-US', width }) {
           const latest = sr.points[sr.points.length - 1];
           return (
             <View key={sr.key} style={s.legendItem}>
-              <Dot color={sr.color} size={10} />
+              <View style={[s.legendDot, { backgroundColor: sr.color }]} />
               <Text style={s.legendText}>{sr.label} · {fmt(latest.value)} {sr.unit}</Text>
             </View>
           );
@@ -110,9 +105,9 @@ const makeStyles = (c) => StyleSheet.create({
   wrap: { paddingTop: 4 },
   plot: { position: 'relative', marginRight: Y_GUTTER },
   xLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginRight: Y_GUTTER },
-  guide: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
-  xLabel: { fontSize: 11, color: c.textSubtle, fontVariant: ['tabular-nums'] },
+  xLabel: { fontSize: 10, color: c.textFaint },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendText: { fontSize: 13, color: c.textMuted, fontWeight: '500', fontVariant: ['tabular-nums'] },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
 });

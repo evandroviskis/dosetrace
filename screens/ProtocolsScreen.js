@@ -52,7 +52,7 @@ import { backfillTakenDoses } from '../lib/doseActions';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, parseDateOnly } from '../lib/vialExpiry';
 import { useTheme, TYPE } from '../lib/theme';
 import Svg, { Path } from 'react-native-svg';
-import { Card, Dot, Chip, FactStrip, SectionLabel, ScreenTitle } from '../components/ui';
+import { Card, Dot, Chip, SectionLabel, ScreenTitle } from '../components/ui';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import CheckMark from '../components/CheckMark';
@@ -584,20 +584,22 @@ function ProtocolCard({ p, vial, due, expanded, setExpanded, openEdit, deletePro
   const facts = [];
   if (isInjectable) {
     const v = vialFact(p, vial);
-    if (v) facts.push({ label: t('hy_proto_fact_vial'), value: v, flex: 1.5, lines: 2 });
+    if (v) facts.push({ kind: 'vial', label: t('hy_proto_fact_vial'), value: v });
     if (dosesRemaining != null) {
       facts.push({
+        kind: 'doses',
         label: t('hy_proto_fact_doses_left'),
         value: t('hy_proto_n_of_total').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity)),
         tone: dosesRemaining === 0 ? 'danger' : lowSupply ? 'warning' : undefined,
       });
     } else if (vialDoseCapacity != null) {
-      facts.push({ label: t('hy_proto_fact_per_vial'), value: String(vialDoseCapacity) });
+      facts.push({ kind: 'perVial', label: t('hy_proto_fact_per_vial'), value: String(vialDoseCapacity) });
     }
     if (vialDaysLeft != null) {
       if (p.type === 'recon') {
         const mixed = parseDateOnly(vial.mixed_on);
         facts.push({
+          kind: 'expiry',
           label: mixed
             ? `${t('today_vial_mixed')} ${mixed.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
             : t('today_vial_mixed'),
@@ -607,6 +609,7 @@ function ProtocolCard({ p, vial, due, expanded, setExpanded, openEdit, deletePro
       } else {
         const exp = parseDateOnly(vial.expires_on);
         facts.push({
+          kind: 'expiry',
           label: t('hy_proto_fact_expires'),
           value: vialDaysLeft <= 0
             ? t('protocols_vial_past')
@@ -619,12 +622,12 @@ function ProtocolCard({ p, vial, due, expanded, setExpanded, openEdit, deletePro
     }
   } else if (p.type === 'oral') {
     const strength = sizeLabel(p, vial, t);
-    if (strength) facts.push({ label: t('hy_proto_fact_strength'), value: strength });
-    if (p.notes) facts.push({ label: t('protocols_form'), value: oralFormLabel(p.notes, t) });
+    if (strength) facts.push({ kind: 'oral', label: t('hy_proto_fact_strength'), value: strength });
+    if (p.notes) facts.push({ kind: 'oral', label: t('protocols_form'), value: oralFormLabel(p.notes, t) });
     const containerUnits = parseDecimal(p.container_units);
     if (containerUnits > 0) {
       const left = Math.max(0, Math.round((containerUnits - (parseDecimal(p.units_taken) || 0)) * 100) / 100);
-      facts.push({ label: t('protocols_serving_left'), value: `${left} / ${trimNum(containerUnits)}`, tone: left === 0 ? 'danger' : undefined });
+      facts.push({ kind: 'oral', label: t('protocols_serving_left'), value: `${left} / ${trimNum(containerUnits)}`, tone: left === 0 ? 'danger' : undefined });
     }
   }
 
@@ -656,15 +659,33 @@ function ProtocolCard({ p, vial, due, expanded, setExpanded, openEdit, deletePro
             <Glyph name="chevR" size={18} color={colors.textSubtle} />
           </View>
         </View>
-        <Text style={s.cardMeta}>{scheduleLine}</Text>
-
-        {facts.length > 0 && <FactStrip items={facts} />}
-
-        {barPct != null && (
-          <View style={s.supplyTrack}>
-            <View style={[s.supplyFill, { width: `${Math.round(barPct * 100)}%`, backgroundColor: (lowSupply || dosesRemaining === 0) ? colors.warning : colors.accent }]} />
-          </View>
-        )}
+        {/* Clean lines under the name (founder: no label grid). */}
+        <View style={s.cardLines}>
+          <Text style={s.cardDose}>{scheduleLine}</Text>
+          {facts.filter(fx => fx.kind === 'vial' || fx.kind === 'oral').length > 0 && (
+            <Text style={s.cardLine}>
+              {facts.filter(fx => fx.kind === 'vial' || fx.kind === 'oral').map(fx => fx.kind === 'oral' ? `${fx.label} ${fx.value}` : fx.value).join(' · ')}
+            </Text>
+          )}
+          {barPct != null && (
+            <View style={s.supplyRow}>
+              <View style={s.supplyTrack}>
+                <View style={[s.supplyFill, { width: `${Math.round(barPct * 100)}%`, backgroundColor: (lowSupply || dosesRemaining === 0) ? colors.warning : colors.accent }]} />
+              </View>
+              <Text style={[s.supplyText, { color: dosesRemaining === 0 ? colors.dangerSoftText : lowSupply ? (colors.warningText || colors.warning) : colors.accent }]}>
+                {t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))}
+              </Text>
+            </View>
+          )}
+          {barPct == null && facts.some(fx => fx.kind === 'perVial') && (
+            <Text style={s.cardLine}>{t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}</Text>
+          )}
+          {facts.filter(fx => fx.kind === 'expiry').map((fx, i) => (
+            <Text key={i} style={[s.cardLine, fx.tone === 'danger' && { color: colors.dangerSoftText }, fx.tone === 'warning' && { color: colors.warningText || colors.warning }]}>
+              {fx.label} · {fx.value}
+            </Text>
+          ))}
+        </View>
 
         <View style={s.badgeRow}>
           {lowSupply && <Chip tone="warning" label={t('protocols_low_supply').replace('{n}', String(dosesRemaining))} />}
@@ -2680,6 +2701,11 @@ const makeStyles = (c) => StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardName: { flex: 1, fontSize: 17, fontWeight: '600', color: c.text },
   cardMeta: { fontSize: 14, color: c.textMuted, marginTop: 2, marginLeft: 20, lineHeight: 19 },
+  cardLines: { marginLeft: 20, marginTop: 4, gap: 5 },
+  cardDose: { fontSize: 15, fontWeight: '500', color: c.text, lineHeight: 20 },
+  cardLine: { fontSize: 14, color: c.textMuted, lineHeight: 19 },
+  supplyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  supplyText: { fontSize: 13, fontWeight: '600' },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
   cardBody: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
@@ -2861,6 +2887,6 @@ const makeStyles = (c) => StyleSheet.create({
   noCurveNote: { fontSize: 13, color: c.textMuted, marginBottom: 8, lineHeight: 18 },
   suggestionMore: { fontSize: 12.5, color: c.textSubtle, padding: 10, textAlign: 'center' },
   cardHead: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
-  supplyTrack: { height: 4, borderRadius: 2, backgroundColor: c.card2, marginTop: 12, overflow: 'hidden' },
+  supplyTrack: { flex: 1, maxWidth: 140, height: 4, borderRadius: 2, backgroundColor: c.card2, overflow: 'hidden' },
   supplyFill: { height: 4, borderRadius: 2 },
 });
