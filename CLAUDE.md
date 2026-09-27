@@ -71,6 +71,19 @@ in-progress reality-check on hello@dosetrace.io).
   update-over-old-version and re-auth on device and confirm previously-entered data is
   still there. This is part of ship-check Gate A/B now.
 
+## Standing rule: "done" = the approved checklist, with evidence (2026-09-27, founder directive)
+
+Every founder-approved feature has a numbered acceptance checklist in `docs/specs/`
+(process: `docs/specs/README.md`). The builder never declares a feature matches what
+the founder approved: the checklist does, row by row, with real evidence (a test, a
+simulator/device check). Anything built simpler than approved is a **deviation** the
+founder must accept in writing before a build — never a quiet simplification.
+`node scripts/spec-audit.cjs` must pass (ship-check Gate S), and the **spec-auditor**
+agent (dt-council) checks the spec against the app with no access to the builder's
+summary. When the founder approves a new feature, write its checklist first and get it
+signed. (Exists because the food-log AI shipped weaker than the validated conversation
+from build 52 on, and every summary called it done.)
+
 ## Prime directive: ORIENT before you ACT
 
 Before any build, submit, delete, migration, or "it's done" claim:

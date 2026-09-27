@@ -52,6 +52,16 @@ any of them — the owner has explicitly accepted the cost.
 7. **Hand off to the owner to test** in the Simulator and/or on a physical phone
    before ANY build upload. Never upload unilaterally. (Hard rule #3.)
 
+## GATE S — Spec acceptance (every build)
+
+- `node scripts/spec-audit.cjs` must exit 0. It fails when an approved criterion is
+  partial/missing without a founder-approved deviation, or is marked built without
+  evidence (or cites a test that does not exist).
+- The spec-auditor agent has reported for every spec this build touches, and its
+  overstated rows are fixed or disclosed to the founder.
+- Never report a feature as done from the builder's own summary. "Done" = the
+  checklist rows are built with evidence. Partial work is reported as partial.
+
 ## GATE B — Auth invariants (any sign-in / sign-out / session / profile / delete change)
 
 These are hard-won. Violating one silently breaks multiple flows at once.

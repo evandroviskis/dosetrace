@@ -34,6 +34,14 @@ area": product-manager, ux-designer, ui-brand-designer, senior-engineer, backend
 qa-engineer, release-engineer, growth-marketer, regulatory-privacy, pharmacometrician.
 Wait for all to report.
 
+## Step 2a — Spec acceptance (MANDATORY when the build touches a feature that has a spec)
+For every `docs/specs/*.md` whose feature this build touches, dispatch the **spec-auditor**
+agent with ONLY the spec path (never the implementer summary), and run
+`node scripts/spec-audit.cjs`. Any criterion that is partial/missing without an
+`approved` deviation is a **block**: either build it in this build or put it to the
+founder as a deviation in plain words. Overstated rows (recorded better than reality)
+are reported to the founder verbatim. The brief must include the per-criterion table.
+
 ## Step 2b — Journey lens (real-world scenarios the change set can hide)
 The panel reviews the DIFF; it will NOT catch an ordinary situation the flow never
 supported (the failure that let "started my compound 3 weeks ago" ship unhandled for
