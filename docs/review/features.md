@@ -162,6 +162,7 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 | A-23 | Roadmap ideas: personal target lines, compare across labs, timeline correlation, travel PDF/QR, what-if mode | APP-HANDOFF §9 | Mentioned (not committed) | Not found | |
 | A-24 | Independent choice: does saving a reality check early end the 8 PM reminder? | STATE.md 1.2.3 "DEFERRED" (c) | Open founder decision | Code: the reminder follows the open check start only | |
 | A-25 | Supabase point-in-time recovery | STATE.md, APP-HANDOFF §9 | Mentioned (dashboard action) | Not verifiable from the repo | |
+| A-26 | Audit EVERY numeric input for comma decimals ("2,5" must be 2.5 everywhere, via parseDecimal) — the new-vial water field (S-09) is one case of a general bug class | Founder 2026-09-27 | Registered — target build 1.2.6 | Not started | Not in 1.2.5 scope (closed). |
 
 ---
 
@@ -170,11 +171,11 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 Nothing else enters 1.2.5. New ideas/bugs go to the registry with target 1.2.6+.
 Ships only when every item is proven (checklist row + test or device proof) and the
 full-functionality pass (CLAUDE.md evolution rule 4, ship-check Gate R) is clean.
-Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S-02, then the rest; the food log (S-10) after the bug fixes. Criteria: docs/specs/fixes-1.2.5.md (FX-1…15) and docs/specs/food-log.md.
+Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S-02, then the rest; the food log (S-10) after the bug fixes. Criteria and tracking map: docs/specs/fixes-1.2.5.md (FX-1…16, S-01…S-09, S-15, S-16), docs/specs/food-log.md (S-10), docs/specs/release-1.2.5.md (RL-1…4 = S-11…S-14).
 
 | # | Item | Registry | Proof required | Status |
 |---|---|---|---|---|
-| S-01 | New vial must never rewrite the protocol's start_date (history loss) | A-06, L-13, findings #1 | failing→passing test; sim check of curve/adherence after a new vial | test DONE (__tests__/newVial.test.js failed before, passes after); sim check pending |
+| S-01 | New vial must never rewrite the protocol's start_date (history loss) | A-06, L-13, findings #1 | FX-1 (built: red→green, fix 57f4110), FX-6 (sim check on a test account) | in progress |
 | S-02 | One shared mark-taken (Today + notification): no double log, Missed row flipped, vial/oral counts | L-07, L-08, findings #4 | failing→passing tests | open |
 | S-03 | Open reality check + calculator inputs in durable synced storage; Stop propagates across devices | A-13, L-20, L-21, L-47, findings #8 | FX-8 migration test (old storage → new table, nothing lost) + FX-9 + device update-over-old-version | open |
 | S-04 | Profile sex/birth year is the single source for BMR (calc_inputs no longer overrides) | L-29, L-30, findings #7 | failing→passing test | open |
