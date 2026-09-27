@@ -170,13 +170,13 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 Nothing else enters 1.2.5. New ideas/bugs go to the registry with target 1.2.6+.
 Ships only when every item is proven (checklist row + test or device proof) and the
 full-functionality pass (CLAUDE.md evolution rule 4, ship-check Gate R) is clean.
-Work order = the order below, one item per session.
+Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S-02, then the rest; the food log (S-10) after the bug fixes. Criteria: docs/specs/fixes-1.2.5.md (FX-1…15) and docs/specs/food-log.md.
 
 | # | Item | Registry | Proof required | Status |
 |---|---|---|---|---|
 | S-01 | New vial must never rewrite the protocol's start_date (history loss) | A-06, L-13, findings #1 | failing→passing test; sim check of curve/adherence after a new vial | test DONE (__tests__/newVial.test.js failed before, passes after); sim check pending |
 | S-02 | One shared mark-taken (Today + notification): no double log, Missed row flipped, vial/oral counts | L-07, L-08, findings #4 | failing→passing tests | open |
-| S-03 | Open reality check + calculator inputs in durable synced storage; Stop propagates across devices | A-13, L-20, L-21, L-47, findings #8 | failing→passing tests (incl. update-over-old-version migration) + re-auth check | open |
+| S-03 | Open reality check + calculator inputs in durable synced storage; Stop propagates across devices | A-13, L-20, L-21, L-47, findings #8 | FX-8 migration test (old storage → new table, nothing lost) + FX-9 + device update-over-old-version | open |
 | S-04 | Profile sex/birth year is the single source for BMR (calc_inputs no longer overrides) | L-29, L-30, findings #7 | failing→passing test | open |
 | S-05 | One supply-low rule for alert + push (derived capacity included) | L-11, L-12, findings #5 | failing→passing test | open |
 | S-06 | One entitlement helper (strict + lenient), store-unreachable behavior consistent | L-24, L-34, findings #6 | failing→passing test | open |
@@ -189,3 +189,4 @@ Work order = the order below, one item per session.
 | S-13 | iOS declares its 6 languages (CFBundleLocalizations) | A-01 | prebuild/introspect shows the key | open |
 | S-14 | New App Store screenshot 01 + correct order (01..07) on the 1.2.5 version | A-02 | ASC API readback | open |
 | S-15 | The 5 connection tests from app-map.md (L-13, L-07/08, L-17→18, L-34+L-24, L-20/21/47) | findings #10 | tests in __tests__ | open |
+| S-16 | Free users can always save weigh-ins; only results are paywalled | FL-41, findings #6 | FX-15 test | open |
