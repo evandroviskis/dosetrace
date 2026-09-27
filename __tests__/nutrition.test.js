@@ -212,8 +212,8 @@ test('todayCategories: items saved before categories existed count as a meal; ma
 });
 
 test('isDoneText: "that\'s it" and equivalents close the day in all 6 languages', () => {
-  const done = ["that's it", 'That’s all for today!', 'nothing else', 'no, that is all, thanks', 'done',
-    'eso es todo', 'nada más', 'é isso', 'só isso por hoje', "c'est tout", 'rien d’autre', "das war's", 'nichts mehr heute', 'è tutto', "nient'altro per oggi"];
+  const done = ["that's it", 'That’s all for today!', 'nothing else', 'no, that is all, thanks', 'done for today', 'Nothing else today',
+    'eso es todo', 'nada más', 'listo por hoy', 'é isso', 'só isso por hoje', "c'est tout", 'rien d’autre', "das war's", 'nichts mehr heute', 'fertig für heute', 'è tutto', "nient'altro per oggi"];
   for (const t of done) assert.equal(isDoneText(t), true, t);
 });
 
@@ -306,4 +306,98 @@ test('local midnight: a 23:30 meal in Los Angeles is that local day, not the UTC
   } finally {
     if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
   }
+});
+
+// ── FL-29/6: only explicit phrases close the day; a bare "no" answers the question ──
+const { isNoText } = require('../lib/nutrition');
+
+test('isDoneText: a bare "no" / "nope" / "nada" never closes the day (all 6 languages)', () => {
+  for (const t of ['no', 'No.', 'nope', 'nah', 'nothing', 'not yet', 'done', 'nada', 'no gracias', 'não', 'ainda não', 'non', 'rien', 'nein', 'nichts', 'niente', 'no grazie', 'fertig', 'finito'])
+    assert.equal(isDoneText(t), false, t);
+});
+
+test('isNoText: a bare "no" dismisses the question on screen (6 languages); closing phrases and meals are not a bare no', () => {
+  for (const t of ['no', 'Nope!', 'no thanks', 'not yet', 'nada', 'no, gracias', 'não', 'non merci', 'nein danke', 'noch nicht', 'niente', 'no grazie'])
+    assert.equal(isNoText(t), true, t);
+  for (const t of ["that's it", 'nothing else today', 'no sugar coffee', '2 eggs', '', 'no, that is all'])
+    assert.equal(isNoText(t), false, t);
+});
+
+// ── FL-14: "another one" with nothing logged today → the app asks, no AI call ──
+const { refersToEarlier, mustAskWhichEarlier } = require('../lib/nutrition');
+
+test('refersToEarlier: "another one" / "same as …" without a food named, in all 6 languages', () => {
+  for (const t of ['another one', 'Another!', 'one more', 'same again', 'the same as breakfast', 'same as lunch',
+    'otro', 'lo mismo que en el desayuno', 'outro', 'mais um', 'o mesmo do almoço', 'un autre', 'encore une', 'la même chose que ce matin',
+    'noch einer', 'nochmal', 'das gleiche wie zum Frühstück', 'un altro', "un'altra", 'lo stesso di pranzo'])
+    assert.equal(refersToEarlier(t), true, t);
+  for (const t of ['another coffee', 'one more beer and fries', 'otro café', 'mais um pão de queijo', 'un autre croissant', 'noch ein Bier', 'un altro caffè', '2 eggs', ''])
+    assert.equal(refersToEarlier(t), false, t);
+});
+
+test('mustAskWhichEarlier: asks only when nothing was logged today', () => {
+  assert.equal(mustAskWhichEarlier('another one', []), true);
+  assert.equal(mustAskWhichEarlier('another one', [{ food: 'BUILT Puff', qty: 1, unit: 'bar', kcal: 140 }]), false, 'something today → the parser resolves it');
+  assert.equal(mustAskWhichEarlier('another coffee', []), false, 'a named food is just parsed');
+});
+
+// ── FL-27: an unanswered follow-up keeps the item flagged ──
+const { needsEstimateFlag } = require('../lib/nutrition');
+
+test('needsEstimateFlag: an asked item stays flagged at any confidence until answered or fixed', () => {
+  assert.equal(needsEstimateFlag({ confidence: 'high', asked: true }), true, 'skipped / new meal typed instead');
+  assert.equal(needsEstimateFlag({ confidence: 'low' }), true);
+  assert.equal(needsEstimateFlag({ confidence: 'med' }), false);
+  assert.equal(needsEstimateFlag({ confidence: 'user', asked: true }), false, 'the user fixed it');
+  const answered = applyFollowup([{ food: 'bar', qty: 1, unit: 'bar', kcal: 200, confidence: 'high', asked: true }], 0, { food: 'BUILT Puff', qty: 1, unit: 'bar', kcal: 140, confidence: 'high' });
+  assert.equal(needsEstimateFlag(answered.items[0]), false, 'a follow-up answer clears it');
+});
+
+// ── FL-7/8: the echo never silently drops items ──
+const { echoParts } = require('../lib/nutrition');
+
+test('echoParts: up to 3 items, then how many more', () => {
+  const it = (f) => ({ food: f, qty: 1, unit: '', kcal: 10 });
+  assert.deepEqual(echoParts([it('a'), it('b')]).more, 0);
+  const r = echoParts([it('a'), it('b'), it('c'), it('d'), it('e')]);
+  assert.deepEqual(r.shown.map((x) => x.food), ['a', 'b', 'c']);
+  assert.equal(r.more, 2);
+});
+
+// ── FL-24: totals per day, per week and for the whole window ──
+const { periodTotals } = require('../lib/nutrition');
+
+test('periodTotals: today, the last 7 local days and the whole window, each with its working', () => {
+  const e = [
+    { entry_date: '2026-09-10', kcal: 600, protein_g: 40, carb_g: 50 },
+    { entry_date: '2026-09-10', kcal: 400, protein_g: 20, carb_g: 30 },
+    { entry_date: '2026-09-08', kcal: 2100, protein_g: 120, carb_g: 200 },
+    { entry_date: '2026-09-02', kcal: 1800, protein_g: 90, carb_g: 150 }, // outside the 7 days
+    { entry_date: '2026-09-06', source: 'not_recorded', kcal: 0 },
+  ];
+  assert.deepEqual(periodTotals(e, '2026-09-10', '2026-09-10'), { kcal: 1000, protein_g: 60, carb_g: 80, days: 1, loggedDays: 1, avgKcal: 1000 });
+  const week = periodTotals(e, '2026-09-04', '2026-09-10');
+  assert.equal(week.kcal, 3100);
+  assert.equal(week.days, 6, '7 days − 1 marked not recorded');
+  assert.equal(week.loggedDays, 2);
+  assert.equal(week.avgKcal, 517);
+  const whole = periodTotals(e, '2026-09-01', '2026-09-10');
+  assert.equal(whole.kcal, 4900);
+  assert.equal(whole.days, 9);
+  assert.equal(periodTotals(e, '2026-09-10', '2026-09-01'), null);
+});
+
+// ── FL-19: rows typed on this device are parsed even after sync gave them a remote_id ──
+const { rowsToReparse, localRowKey } = require('../lib/nutrition');
+
+test('rowsToReparse: this device\'s pending rows are retried after upload; another device\'s are left alone', () => {
+  const mine = { id: 5, created_at: '2026-09-10T08:00:00Z', remote_id: 'r-5', raw_text: 'toast', parse_status: 'pending', source: 'ai' };
+  const neverSynced = { id: 6, created_at: '2026-09-10T09:00:00Z', remote_id: null, raw_text: 'eggs', parse_status: 'pending', source: 'ai' };
+  const otherDevice = { id: 7, created_at: '2026-09-10T10:00:00Z', remote_id: 'r-7', raw_text: 'rice', parse_status: 'pending', source: 'ai' };
+  const done = { id: 8, created_at: 'x', remote_id: 'r-8', raw_text: 'y', parse_status: 'done', source: 'ai' };
+  const marker = { id: 9, created_at: 'x', remote_id: null, raw_text: 'z', parse_status: 'pending', source: 'day_closed' };
+  const keys = new Set([localRowKey(mine), localRowKey(done)]);
+  assert.deepEqual(rowsToReparse([mine, neverSynced, otherDevice, done, marker], keys).map((r) => r.id), [5, 6]);
+  // a reused local id with a different created_at (after a re-install) is not "mine"
+  assert.deepEqual(rowsToReparse([{ ...otherDevice, id: 5 }], keys).map((r) => r.id), []);
 });

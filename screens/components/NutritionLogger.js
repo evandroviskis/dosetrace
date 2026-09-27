@@ -37,9 +37,9 @@ import {
 } from '../../lib/database';
 import { parseFood, parseFollowup } from '../../lib/nutritionClient';
 import {
-  checkIntake, unloggedCheckDays, splitByDay, isMarker, foodOnly, closedDays,
-  CATEGORIES, pickDayQuestion, isDoneText, itemLabel, isLowConfidence, recentForParse,
-  applyFollowup, followupStillValid,
+  checkIntake, unloggedCheckDays, splitByDay, foodOnly, closedDays,
+  CATEGORIES, pickDayQuestion, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag,
+  echoParts, periodTotals, localRowKey, rowsToReparse, recentForParse, applyFollowup, followupStillValid,
 } from '../../lib/nutrition';
 import { getRealityStart } from '../../lib/realityCheck';
 import { requestAIConsent } from '../../lib/aiConsent';
@@ -53,6 +53,18 @@ const FREE_DAYS = 3;
 // follow-up answers given offline, retried on focus (FL-28).
 const ASKED_KEY = 'dosetrace_food_asked';
 const FOLLOWUP_KEY = 'dosetrace_food_followups';
+// Rows typed on THIS device while pending (id|created_at). They are parsed once
+// back online even after sync gave them a remote_id; a pending row pulled from
+// another device is left to that device (FL-19, no double AI read).
+const LOCAL_PENDING_KEY = 'dosetrace_food_local_pending';
+async function readLocalPending() {
+  try { const raw = await AsyncStorage.getItem(LOCAL_PENDING_KEY); const a = raw ? JSON.parse(raw) : []; return Array.isArray(a) ? a : []; } catch { return []; }
+}
+async function addLocalPending(key) {
+  if (!key) return;
+  const list = await readLocalPending();
+  if (!list.includes(key)) { try { await AsyncStorage.setItem(LOCAL_PENDING_KEY, JSON.stringify([...list, key].slice(-200))); } catch { /* ignore */ } }
+}
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL dates (journey-review F1): a UTC date put evening meals on tomorrow.
 const todayISO = () => localISO();
@@ -139,7 +151,8 @@ export default function NutritionLogger() {
   const inputRef = useRef(null);
   const [foodReminders, setFoodReminders] = useState(true); // same account pref as Settings
   const [rcStart, setRcStart] = useState(null); // open reality check { date, weightKg } or null
-  const [echo, setEcho] = useState(null);       // what was just logged, echoed back with quantities
+  const [echo, setEcho] = useState(null);       // { text, updated } — what was just logged, with quantities
+  const [earlierAsk, setEarlierAsk] = useState(false); // "another one" with nothing logged today → the app asks (FL-14)
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -174,7 +187,13 @@ export default function NutritionLogger() {
     // today's) — otherwise they silently count as nothing for the reality check.
     if (uid) {
       const rows = refresh(uid);
-      (getFoodLogsSince(uid, daysAgoISO(60)) || []).forEach((r) => { if (r.parse_status === 'pending' && r.raw_text && !r.remote_id && !isMarker(r)) reparse(r, uid, rows); });
+      const recentRows = getFoodLogsSince(uid, daysAgoISO(60)) || [];
+      const localKeys = await readLocalPending();
+      rowsToReparse(recentRows, localKeys).forEach((r) => reparse(r, uid, rows));
+      // Forget keys whose rows have resolved (parsed, removed).
+      const stillPending = new Set(recentRows.filter((r) => r.parse_status === 'pending').map(localRowKey));
+      const kept = localKeys.filter((k) => stillPending.has(k));
+      if (kept.length !== localKeys.length) AsyncStorage.setItem(LOCAL_PENDING_KEY, JSON.stringify(kept)).catch(() => {});
       drainFollowups(uid);
     }
   }
@@ -202,6 +221,15 @@ export default function NutritionLogger() {
     // closed day cancels tonight's).
     syncFoodLogReminder().catch(() => {});
     return rows;
+  }
+
+  // Neutral echo (FL-7/8): up to 3 items with quantity and kcal, then "+N more".
+  function echoFor(items) {
+    const { shown, more } = echoParts(items, 3);
+    if (!shown.length) return null;
+    const kcalU = t('cal_kcal');
+    const list = shown.map((it) => `${itemLabel(it)} · ~${Math.round(Number(it.kcal) || 0)} ${kcalU}`).join(', ');
+    return more ? `${list} ${t('nutri_echo_more').replace('{n}', String(more))}` : list;
   }
 
   function rememberAsked(id) {
@@ -279,6 +307,9 @@ export default function NutritionLogger() {
       }
       saveParsed(row.id, uid, row.entry_date, res, row.raw_text);
       requestSync?.(); refresh(uid);
+      // Tell them what the offline entry became (FL-7).
+      const e = echoFor(res.items);
+      if (e) setEcho({ text: e, updated: true });
     } finally { reparsingRef.current.delete(row.id); }
   }
 
@@ -288,6 +319,21 @@ export default function NutritionLogger() {
     // "That's it" / "nothing else" closes today — no AI read, no empty entry,
     // no fix hint (FL-29).
     if (isDoneText(raw)) { setText(''); await closeDay(todayISO()); return; }
+    // A bare "no" answers the question on screen: move on to the next one (or
+    // stop for now). The day stays open; no AI read, no entry.
+    if (isNoText(raw)) {
+      setText(''); setEarlierAsk(false);
+      if (followup) { skipFollowup(); return; }
+      if (question) { askNext(recent); return; }
+      return;
+    }
+    // "Another one" / "same as breakfast" with nothing logged today: ask what it
+    // was — never let the parser guess (FL-14). The typed text stays.
+    if (mustAskWhichEarlier(raw, recentForParse(getFoodLogsSince(userId, todayISO()) || [], todayISO()))) {
+      setEarlierAsk(true); setQuestion(null); setEcho(null); setClosedMsg(false);
+      return;
+    }
+    setEarlierAsk(false);
     const consented = await requestAIConsent(t);
     if (!consented) return;
     setDeflect(false);
@@ -301,6 +347,7 @@ export default function NutritionLogger() {
     // Today's earlier items go along so "another one" resolves (FL-14).
     const context = recentForParse(getFoodLogsSince(userId, typedOn) || [], typedOn);
     const id = insertFoodLog({ user_id: userId, entry_date: typedOn, raw_text: raw, parse_status: 'pending' });
+    addLocalPending(localRowKey(getFoodLogById(id))); // typed here: this device parses it (FL-19)
     // Claim the row so a focus-triggered reparse() can't parse the SAME entry
     // concurrently (double AI call = double quota + update/delete races).
     reparsingRef.current.add(id);
@@ -329,13 +376,15 @@ export default function NutritionLogger() {
       // "An ice cream 3 days ago" is logged like anything else, on the day it was
       // eaten — time never blocks it (founder 2026-09-24). Clear items save now;
       // a follow-up only ever touches the unclear one (FL-26).
+      // An item the parser asks about stays flagged as an estimate until it is
+      // answered or fixed — also after Skip or a new meal typed instead (FL-27).
+      if (res.ask && res.items[res.ask.item]) res.items[res.ask.item].asked = true;
       const placed = saveParsed(id, userId, typedOn, res, raw);
       requestSync?.();
       const rows = refresh(userId);
       // Echo back what was logged with its quantity (FL-7/8) — never a word about the food.
-      const kcalU = t('cal_kcal');
-      const parts = res.items.filter((it) => it && it.food).map((it) => `${itemLabel(it)} · ~${Math.round(Number(it.kcal) || 0)} ${kcalU}`);
-      setEcho(parts.length ? parts.slice(0, 3).join(', ') + (parts.length > 3 ? '…' : '') : null);
+      const e = echoFor(res.items);
+      setEcho(e ? { text: e, updated: false } : null);
       // The parser's one follow-up, if any: locate the asked item in the entry it
       // was saved to (a catch-up may have split days).
       let fu = null;
@@ -394,7 +443,11 @@ export default function NutritionLogger() {
     } else if (outcome === 'refused') {
       setDeflect(true);
     }
-    if (outcome === 'applied') requestSync?.();
+    if (outcome === 'applied') {
+      requestSync?.();
+      const e = echoFor([res.items[0]]);
+      if (e) setEcho({ text: e, updated: true });
+    }
     setFollowup(null); setFuText('');
     const rows = refresh(userId);
     askNext(rows);
@@ -425,6 +478,7 @@ export default function NutritionLogger() {
       try { const raw = await AsyncStorage.getItem(FOLLOWUP_KEY); list = raw ? JSON.parse(raw) : []; } catch { list = []; }
       if (!Array.isArray(list) || !list.length) return;
       const keep = [];
+      const applied = [];
       let changed = false;
       for (const p of list) {
         if (!p || p.user_id !== uid) { if (p && p.user_id && p.user_id !== uid) keep.push(p); continue; }
@@ -432,9 +486,11 @@ export default function NutritionLogger() {
         const res = await parseFollowup(p.item, p.kind, p.answer, language, p.entry_date);
         const outcome = applyFollowupResult(p, res);
         if (outcome === 'retry') keep.push(p); else changed = true;
+        if (outcome === 'applied') applied.push(res.items[0]);
       }
       try { await AsyncStorage.setItem(FOLLOWUP_KEY, JSON.stringify(keep)); } catch { /* ignore */ }
       if (changed) { requestSync?.(); refresh(uid); }
+      if (applied.length) { const e = echoFor(applied); if (e) setEcho({ text: e, updated: true }); }
     } finally { drainingRef.current = false; }
   }
 
@@ -490,10 +546,12 @@ export default function NutritionLogger() {
   const todayClosed = closedSet.has(today);
   const showQuestion = question && !todayClosed;
   const questionText = showQuestion ? t(`nutri_q_${question.id}${question.tense === 'neutral' ? '' : '_' + question.tense}`) : null;
-  const echoText = echo ? t('nutri_echo').replace('{items}', echo) : null;
-  const composerLine = (todayClosed && closedMsg)
-    ? [echoText, t('nutri_day_closed')].filter(Boolean).join(' ')
-    : ([echoText, questionText].filter(Boolean).join(' ') || t('nutri_intro'));
+  const echoText = echo ? t(echo.updated ? 'nutri_echo_updated' : 'nutri_echo').replace('{items}', echo.text) : null;
+  const composerLine = earlierAsk
+    ? t('nutri_which_earlier')
+    : (todayClosed && closedMsg)
+      ? [echoText, t('nutri_day_closed')].filter(Boolean).join(' ')
+      : ([echoText, questionText].filter(Boolean).join(' ') || t('nutri_intro'));
   const eveningOpen = evening && !closedSet.has(evening);
   const foodRows = foodOnly(recent);
   const refused = foodRows.filter((e) => e.parse_status === 'refused');
@@ -503,6 +561,10 @@ export default function NutritionLogger() {
   // today's food so far shown separately — one number, never two "per day"s.
   const intake = rcStart && rcDays >= 1 ? checkIntake(recent, rcStart.date, today, rcDays, 1) : null;
   const unlogged = rcStart ? unloggedCheckDays(recent, rcStart.date, today) : [];
+  // Totals per day, per week and for the whole check, each with its working (FL-24).
+  const totToday = periodTotals(recent, today, today);
+  const totWeek = periodTotals(recent, daysAgoISO(6), today);
+  const totWindow = rcStart && rcStart.date <= today ? periodTotals(recent, rcStart.date, today) : null;
   const todayKcal = Math.round(foodRows.filter((e) => e.entry_date === today).reduce((a, e) => a + (Number(e.kcal) || 0), 0));
   const entries = foodRows.filter((e) => e.parse_status !== 'refused').sort((a, b) => (a.entry_date === b.entry_date ? (b.id || 0) - (a.id || 0) : (a.entry_date < b.entry_date ? 1 : -1)));
 
@@ -569,7 +631,7 @@ export default function NutritionLogger() {
             ref={inputRef}
             style={s.cinput}
             value={text}
-            onChangeText={(v) => { setText(v); if (fixHint) setFixHint(false); }}
+            onChangeText={(v) => { setText(v); if (fixHint) setFixHint(false); if (earlierAsk) setEarlierAsk(false); }}
             placeholder={t('nutri_input_placeholder')}
             placeholderTextColor={colors.textFaint}
             multiline
@@ -591,12 +653,12 @@ export default function NutritionLogger() {
       {/* The parser's one follow-up, worded by the app (FL-10/16/26) */}
       {followup && (
         <View style={s.fu}>
-          <Text style={s.fuQ}>{t(`nutri_ask_${followup.kind}`).replace('{food}', followup.item.food)}</Text>
+          <Text style={s.fuQ}>{t(`nutri_ask_${followup.kind}`).replace('{food}', String(followup.item.food || '').slice(0, 60))}</Text>
           {followup.options.length > 0 && (
             <View style={s.fuChips}>
               {followup.options.map((o, i) => (
-                <TouchableOpacity key={i} style={s.fuChip} activeOpacity={0.75} disabled={fuBusy} onPress={() => answerFollowup(o)}>
-                  <Text style={s.fuChipText}>{o}</Text>
+                <TouchableOpacity key={i} style={s.fuChip} activeOpacity={0.75} disabled={fuBusy} onPress={() => answerFollowup(String(o).slice(0, 40))}>
+                  <Text style={s.fuChipText} numberOfLines={1}>{String(o).slice(0, 40)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -694,6 +756,12 @@ export default function NutritionLogger() {
       {/* Detail: the check's running intake + every entry, newest first */}
       {detailOpen && (
         <>
+          <View style={s.totCard}>
+            <Text style={s.avgLabel}>{t('nutri_tot_title')}</Text>
+            <Text style={s.totLine}>{t('nutri_tot_today').replace('{kcal}', String(totToday.kcal)).replace('{carbs}', String(totToday.carb_g)).replace('{protein}', String(totToday.protein_g))}</Text>
+            <Text style={s.totLine}>{t('nutri_tot_week').replace('{total}', String(totWeek.kcal)).replace('{d}', String(totWeek.days)).replace('{avg}', String(totWeek.avgKcal)).replace('{n}', String(totWeek.loggedDays))}</Text>
+            {totWindow && <Text style={s.totLine}>{t('nutri_tot_window').replace('{total}', String(totWindow.kcal)).replace('{d}', String(totWindow.days)).replace('{avg}', String(totWindow.avgKcal)).replace('{n}', String(totWindow.loggedDays))}</Text>}
+          </View>
           {rcStart ? (
             <View style={s.avgCard}>
               <Text style={s.avgLabel}>{t('nutri_check_label')}</Text>
@@ -763,7 +831,7 @@ export default function NutritionLogger() {
                                 <Text style={s.entryFood}>{itemLabel(it)} · ~{Math.round(it.kcal || 0)} {t('cal_kcal')}</Text>
                                 {catLabel(it.category) && <Text style={s.catChip}>{catLabel(it.category)}</Text>}
                               </View>
-                              {isLowConfidence(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}
+                              {needsEstimateFlag(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}
                             </View>
                           ))}
                           <View style={[s.entryRow, s.entryTot]}>
@@ -915,6 +983,8 @@ const makeStyles = (c) => StyleSheet.create({
   entryTotMacro: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
   pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
   entryItem: { paddingVertical: 1 },
+  totCard: { backgroundColor: c.card2, borderRadius: 14, padding: 13, marginTop: 10 },
+  totLine: { fontSize: 12.5, color: c.text, lineHeight: 18, marginTop: 5 },
   catChip: { fontSize: 10, fontWeight: '700', color: c.accentSoftText, backgroundColor: c.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
   estFlag: { fontSize: 11, fontWeight: '600', color: c.warningSoftText, backgroundColor: c.warningSoft, alignSelf: 'flex-start', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2, overflow: 'hidden' },
   // "That's all for today" quick answer under the question

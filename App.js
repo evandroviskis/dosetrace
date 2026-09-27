@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -13,6 +13,7 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, RC_START_KEY } from './lib/notifications';
 import { getRealityStart } from './lib/realityCheck';
+import { foodTapParams, responseKey } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
@@ -225,7 +226,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding }) {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
@@ -250,7 +251,7 @@ function ThemedRoot({ session, navigationRef, recovering, onRecoveryDone, justCo
     },
   };
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={onNavReady}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {recovering ? (
@@ -317,6 +318,40 @@ export default function App() {
   const navigationRef = useRef(null);
   const fontsLoaded = useAppFonts();
 
+  // Food-reminder taps (FL-18) wait here until the signed-in app (the 'Main'
+  // route) exists — a tap that LAUNCHED the app arrives before navigation does.
+  const pendingNavRef = useRef(null);
+  const flushPendingNav = useCallback(() => {
+    const nav = navigationRef.current;
+    const params = pendingNavRef.current;
+    if (!params || !nav || (nav.isReady && !nav.isReady())) return;
+    const names = (nav.getRootState && nav.getRootState()?.routeNames) || [];
+    if (!names.includes('Main')) return;
+    pendingNavRef.current = null;
+    nav.navigate('Main', { screen: 'MainTabs', params: { screen: 'Journey', params } });
+  }, []);
+  // Each tap is routed once, whether it comes from the running listener or the
+  // launch path (persisted, so a relaunch never replays an old tap).
+  const routedRef = useRef(new Set());
+  const routeFoodTap = useCallback(async (response, maxAgeMs) => {
+    const params = foodTapParams(response, Date.now());
+    if (!params) return false;
+    const key = responseKey(response);
+    if (routedRef.current.has(key)) return true;
+    routedRef.current.add(key);
+    const at = Number(response?.notification?.date) || 0;
+    if (maxAgeMs && at && Date.now() - at > maxAgeMs) return true; // a stale launch response
+    try {
+      const raw = await AsyncStorage.getItem('dosetrace_nav_handled');
+      const list = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(list) && list.includes(key)) return true;
+      await AsyncStorage.setItem('dosetrace_nav_handled', JSON.stringify([...(Array.isArray(list) ? list : []), key].slice(-30)));
+    } catch { /* best effort — the in-memory set still dedupes this run */ }
+    pendingNavRef.current = params;
+    flushPendingNav();
+    return true;
+  }, [flushPendingNav]);
+
   // Auth deep links from emailed links. Both carry a PKCE `code` that must be
   // exchanged for a session:
   //   dosetrace://reset-password  → show the set-new-password screen
@@ -369,28 +404,25 @@ export default function App() {
         if (response.actionIdentifier === 'SNOOZE_HOUR' || response.actionIdentifier === 'SNOOZE_TOMORROW') return;
         // "Nothing else today" (food question) closes the day in lib/notificationActions — no navigation.
         if (response.actionIdentifier === 'FOOD_DAY_DONE') return;
-        // "Log it": straight to the food log's composer.
-        if (response.actionIdentifier === 'FOOD_LOG_IT') {
-          if (navigationRef.current) navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Journey', params: { scrollTo: 'logger', foodLogIt: Date.now() } } });
-          return;
-        }
+        // Food reminder: body tap → the 3-button question; "Log it" → the composer.
+        if (data.type === 'food_log' || response.actionIdentifier === 'FOOD_LOG_IT') { routeFoodTap(response, 0); return; }
 
         if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
           navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
-        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check' || data.type === 'food_log') && navigationRef.current) {
-          // Measurements / reality-check / food-log nudge — deep-link into the
-          // Journey tab. A food-log nudge scrolls straight to the logger and shows
-          // that evening's question (Log it · Nothing else today · I'll eat later,
-          // FL-18); the others land at the top (calculator / reality-check).
-          const foodParams = data.type === 'food_log'
-            ? { scrollTo: 'logger', foodAsk: `${typeof data.dayKey === 'string' ? data.dayKey : ''}|${Date.now()}` }
-            : {};
+        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check') && navigationRef.current) {
+          // Measurements / reality-check nudge — deep-link into the Journey tab.
           navigationRef.current.navigate('Main', {
             screen: 'MainTabs',
-            params: { screen: 'Journey', params: foodParams },
+            params: { screen: 'Journey', params: {} },
           });
         }
       });
+      // Cold start: a tap on the food reminder that LAUNCHED the app may never
+      // reach the listener above — route the launch response too (deduped with
+      // the listener by responseKey; older than 12 h = stale, ignored).
+      if (N.getLastNotificationResponseAsync) {
+        N.getLastNotificationResponseAsync().then((last) => { if (last) routeFoodTap(last, 12 * 3600 * 1000); }).catch(() => {});
+      }
     } catch {
       // expo-notifications not available — skip listener
     }
@@ -607,6 +639,7 @@ export default function App() {
             <ThemedRoot
               session={session}
               navigationRef={navigationRef}
+              onNavReady={flushPendingNav}
               recovering={recovering}
               onRecoveryDone={() => setRecovering(false)}
               justConfirmed={justConfirmed}

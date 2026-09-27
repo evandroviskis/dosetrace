@@ -107,6 +107,13 @@ export const translations = {
     nutri_marked_not_recorded: 'Marked not recorded',
     nutri_undo: 'Undo',
     nutri_nothing_logged: 'Nothing logged',
+    nutri_echo_updated: 'Updated — {items}.',
+    nutri_echo_more: '+{n} more',
+    nutri_which_earlier: 'Another what? Tell me what you had.',
+    nutri_tot_title: 'Totals',
+    nutri_tot_today: 'Today: {kcal} kcal · {carbs} g carbs · {protein} g protein',
+    nutri_tot_week: 'Last 7 days: {total} kcal ÷ {d} days ≈ {avg}/day (food on {n} days)',
+    nutri_tot_window: 'Whole check so far, incl. today: {total} kcal ÷ {d} days ≈ {avg}/day (food on {n} days)',
     tab_settings: 'Settings',
 
     // TODAY
@@ -1802,6 +1809,13 @@ export const translations = {
     nutri_marked_not_recorded: 'Marcado como no registrado',
     nutri_undo: 'Deshacer',
     nutri_nothing_logged: 'Nada registrado',
+    nutri_echo_updated: 'Actualizado: {items}.',
+    nutri_echo_more: '+{n} más',
+    nutri_which_earlier: '¿Otro qué? Dime qué tomaste.',
+    nutri_tot_title: 'Totales',
+    nutri_tot_today: 'Hoy: {kcal} kcal · {carbs} g carbohidratos · {protein} g proteína',
+    nutri_tot_week: 'Últimos 7 días: {total} kcal ÷ {d} días ≈ {avg}/día (comida en {n} días)',
+    nutri_tot_window: 'Toda la comprobación hasta ahora, con hoy: {total} kcal ÷ {d} días ≈ {avg}/día (comida en {n} días)',
     tab_settings: 'Configuración',
 
     // TODAY
@@ -3497,6 +3511,13 @@ export const translations = {
     nutri_marked_not_recorded: 'Marcado como não registrado',
     nutri_undo: 'Desfazer',
     nutri_nothing_logged: 'Nada registrado',
+    nutri_echo_updated: 'Atualizado — {items}.',
+    nutri_echo_more: '+{n} a mais',
+    nutri_which_earlier: 'Outro o quê? Me diga o que você comeu.',
+    nutri_tot_title: 'Totais',
+    nutri_tot_today: 'Hoje: {kcal} kcal · {carbs} g carboidratos · {protein} g proteína',
+    nutri_tot_week: 'Últimos 7 dias: {total} kcal ÷ {d} dias ≈ {avg}/dia (comida em {n} dias)',
+    nutri_tot_window: 'Acompanhamento inteiro até agora, com hoje: {total} kcal ÷ {d} dias ≈ {avg}/dia (comida em {n} dias)',
     tab_settings: 'Configurações',
 
     // TODAY
@@ -5191,6 +5212,13 @@ export const translations = {
     nutri_marked_not_recorded: 'Marqué comme non noté',
     nutri_undo: 'Annuler',
     nutri_nothing_logged: 'Rien de noté',
+    nutri_echo_updated: 'Mis à jour — {items}.',
+    nutri_echo_more: '+{n} de plus',
+    nutri_which_earlier: 'Un autre quoi ? Dites-moi ce que vous avez pris.',
+    nutri_tot_title: 'Totaux',
+    nutri_tot_today: "Aujourd'hui : {kcal} kcal · {carbs} g glucides · {protein} g protéines",
+    nutri_tot_week: '7 derniers jours : {total} kcal ÷ {d} jours ≈ {avg}/jour (repas notés sur {n} jours)',
+    nutri_tot_window: "Tout le suivi jusqu'ici, aujourd'hui compris : {total} kcal ÷ {d} jours ≈ {avg}/jour (repas notés sur {n} jours)",
     tab_settings: 'Paramètres',
 
     // TODAY
@@ -6885,6 +6913,13 @@ export const translations = {
     nutri_marked_not_recorded: 'Als nicht erfasst markiert',
     nutri_undo: 'Rückgängig',
     nutri_nothing_logged: 'Nichts eingetragen',
+    nutri_echo_updated: 'Aktualisiert – {items}.',
+    nutri_echo_more: '+{n} weitere',
+    nutri_which_earlier: 'Noch ein was? Sag mir, was du hattest.',
+    nutri_tot_title: 'Summen',
+    nutri_tot_today: 'Heute: {kcal} kcal · {carbs} g Kohlenhydrate · {protein} g Protein',
+    nutri_tot_week: 'Letzte 7 Tage: {total} kcal ÷ {d} Tage ≈ {avg}/Tag (Essen an {n} Tagen)',
+    nutri_tot_window: 'Ganzer Check bisher, inkl. heute: {total} kcal ÷ {d} Tage ≈ {avg}/Tag (Essen an {n} Tagen)',
     tab_settings: 'Einstellungen',
 
     // TODAY
@@ -8580,6 +8615,13 @@ export const translations = {
     nutri_marked_not_recorded: 'Segnato come non registrato',
     nutri_undo: 'Annulla',
     nutri_nothing_logged: 'Niente registrato',
+    nutri_echo_updated: 'Aggiornato — {items}.',
+    nutri_echo_more: '+{n} altri',
+    nutri_which_earlier: 'Un altro cosa? Dimmi cosa hai preso.',
+    nutri_tot_title: 'Totali',
+    nutri_tot_today: 'Oggi: {kcal} kcal · {carbs} g carboidrati · {protein} g proteine',
+    nutri_tot_week: 'Ultimi 7 giorni: {total} kcal ÷ {d} giorni ≈ {avg}/giorno (cibo in {n} giorni)',
+    nutri_tot_window: 'Tutto il controllo finora, oggi incluso: {total} kcal ÷ {d} giorni ≈ {avg}/giorno (cibo in {n} giorni)',
     tab_settings: 'Impostazioni',
 
     // TODAY
