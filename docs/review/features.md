@@ -205,7 +205,7 @@ Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S
 
 ### A-30 note — how to identify existing backfilled dose_logs (read-only check, 2026-09-27, cloud data)
 Rule tested: outcome = 'Taken' AND logged_at < protocol.created_at (absolute instants).
-- Today it finds 6 rows on 4 protocols; every one looks like backfill (inserted within seconds of the protocol, or in the same later sync batch, at exact slot times). No real dose was caught. So for the CURRENT data the rule is complete and clean.
+- Today it finds 6 Taken rows on 4 protocols. 5 are clearly backfill (inserted 6 s to 2.5 min after the protocol, at exact slot times). 1 row was inserted 1 h 14 min after its protocol (logged 2 days before it): most likely the same backfill reaching the cloud in a later sync, but that cannot be proven from cloud data alone. No row looks like a real in-app dose. So for the CURRENT data the rule appears complete and clean, with that one row to confirm.
 - It is NOT robust in general:
   1. cloud protocols.created_at is the server time of the FIRST PUSH, not the moment the user created it (created_at is not in the sync payload — lib/syncMappers.js CLOUD_FIELDS.protocols). A protocol created offline and synced later gets a later created_at in the cloud and on every other device / after reinstall (lib/syncCore.js ~163 copies cloudRow.created_at). A real dose logged between offline creation and first sync would then look "before registration" there, while the creating device disagrees.
   2. Missed rows can sit minutes before created_at (3 found: slots in the same minutes as creation). If a user later fixes one to Taken, that REAL dose would match the rule.
