@@ -64,3 +64,4 @@ screenshots_v2/*.png
 
 # Google Play service-account key (secret — never commit)
 google-play-service-account.json
+grok/
