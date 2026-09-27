@@ -2,7 +2,7 @@
 
 - source-spec: docs/nutrition-logger-conversation-spec.md (locked 2026-09-10, founder role-play validated; amended 2026-09-24)
 - purpose: capture intake across the reality-check window so the check can compute real maintenance. Not a diet diary; never advice.
-- checklist-signed: pending
+- checklist-signed: 2026-09-27 by the founder (in chat: "Signed"); FL-18 reminder cadence still awaits his decision
 - last-audit: 2026-09-27 spec-auditor — REJECT (5 rows had been recorded better than reality: FL-4, 12, 15, 18, 19; FL-20 data-loss bug)
 - committed-to: next build (founder "approved → next build" rule; gaps found 2026-09-27)
 
