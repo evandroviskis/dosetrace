@@ -46,7 +46,7 @@ test('FX-3 chain: a gap in the food log gives no intake number (reality check ca
 });
 
 // ── FX-2: one mark-taken for Today and the notification (L-07, L-08) → S-02
-test('FX-2: mark taken plans ONE Taken row, flips an auto-Missed row instead of duplicating, and moves the vial count once', { todo: 'S-02 (one shared mark-taken)' }, () => {
+test('FX-2: mark taken plans ONE Taken row, flips an auto-Missed row instead of duplicating, and moves the vial count once', () => {
   const { planMarkTaken } = load('../lib/markTaken');
   const protocol = { id: 1, type: 'recon', doses_per_day: 1, interval_days: 1, dose: '250', dose_unit: 'mcg', amount: '5', unit: 'mg' };
   const vial = { id: 9, doses_taken: 3, total_doses: 20 };

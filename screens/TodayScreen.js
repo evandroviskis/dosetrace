@@ -24,12 +24,11 @@ import {
   getBiomarkers,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
-import { scanMissedDoses } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import { newVialRecords } from '../lib/newVial';
-import { computeServings } from '../lib/oralMath';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
@@ -541,15 +540,19 @@ export default function TodayScreen() {
     actionInProgressRef.current = true;
     let saved = false;
     try {
-      const user = await getCachedUser();
-      if (!user) { actionInProgressRef.current = false; resetTake(protocol.id); return; }
-
-      const logId = insertDoseLog({
-        user_id: user.id,
-        protocol_id: protocol.id,
-        protocol_remote_id: protocol.remote_id || null,
-        outcome: 'Taken',
-      });
+      // The ONE mark-taken path shared with the notification action (S-02):
+      // never a second row for a dose already logged (e.g. from the banner), an
+      // auto-Missed row is flipped, and vial/oral counts move once.
+      const res = recordDoseTaken(protocol.id);
+      if (!res || !res.logId) {
+        // Paused/deleted, or already logged elsewhere: show the real state.
+        actionInProgressRef.current = false;
+        resetTake(protocol.id);
+        fetchTodayLogs();
+        fetchProtocols();
+        return;
+      }
+      const logId = res.logId;
       saved = true;
 
       const newTakenToday = (takenCounts[protocol.id] || 0) + 1;
@@ -572,45 +575,18 @@ export default function TodayScreen() {
       // Cancel today's reminder(s) for the slots now taken, so no "dose pending" fires later.
       cancelTodaysDoseReminders(protocol.id, newTakenToday).catch(() => {});
 
-      // Update vial doses_taken if this protocol has an active vial
-      const vial = vials[protocol.id];
-      const prevVialDosesTaken = vial ? (vial.doses_taken || 0) : null;
+      // Vial and oral supply already moved (once) inside recordDoseTaken.
       let vialPromptShown = false;
-      if (vial) {
-        const newTaken = (vial.doses_taken || 0) + 1;
-        updateVial(vial.id, { doses_taken: newTaken });
-        // Capacity: stored if known, else derived (older vials have null total_doses).
-        const capacity = (vial.total_doses && vial.total_doses > 0)
-          ? vial.total_doses
-          : dosesPerVial({ amount: protocol.amount, unit: protocol.unit, dose: protocol.dose, doseUnit: protocol.dose_unit });
-        if (capacity && newTaken >= capacity) {
-          updateVial(vial.id, { active: 0 });
-          if (protocol.type === 'recon') {
-            setContinuationProtocol(protocol);
-            setNewVialDoses('');
-            setNewVialMonth(new Date().getMonth());
-            setNewVialDay(String(new Date().getDate()));
-            setShowVialPrompt(true);
-            vialPromptShown = true;
-          }
-        }
-        fetchProtocols();
+      if (res.vialFinished && protocol.type === 'recon') {
+        setContinuationProtocol(protocol);
+        setNewVialDoses('');
+        setNewVialMonth(new Date().getMonth());
+        setNewVialDay(String(new Date().getDate()));
+        setShowVialPrompt(true);
+        vialPromptShown = true;
       }
-
-      // Oral supply: subtract the calculated units-per-dose from the bottle.
-      let oralPrevUnitsTaken = null;
-      if (protocol.type === 'oral' && protocol.container_units) {
-        const r = computeServings({
-          targetDose: protocol.dose, doseUnit: protocol.dose_unit,
-          servingStrength: protocol.serving_strength, servingStrengthUnit: protocol.serving_strength_unit,
-          servingUnits: protocol.serving_units, form: protocol.notes,
-        });
-        if (r.valid && r.unitsNeeded > 0) {
-          oralPrevUnitsTaken = protocol.units_taken || 0;
-          updateProtocol(protocol.id, { units_taken: oralPrevUnitsTaken + r.unitsNeeded });
-          fetchProtocols();
-        }
-      }
+      const oralPrevUnitsTaken = res.oralPrevUnitsTaken;
+      if (res.vialId || oralPrevUnitsTaken != null) fetchProtocols();
       syncVialAlerts().catch(() => {});
       requestSync();
 
@@ -618,9 +594,10 @@ export default function TodayScreen() {
       const timer = setTimeout(() => setUndoData(null), 5000);
       setUndoData({
         logId,
+        flipped: res.flipped,
         protocolId: protocol.id,
-        vialId: vial?.id || null,
-        prevDosesTaken: prevVialDosesTaken,
+        vialId: res.vialId,
+        prevDosesTaken: res.prevVialDosesTaken,
         oralPrevUnitsTaken,
         timer,
         fx,
@@ -723,7 +700,8 @@ export default function TodayScreen() {
         clearTimeout(fx.applyT);
         clearTimeout(fx.siteT);
       }
-      deleteDoseLog(undoData.logId);
+      if (undoData.flipped) updateDoseLog(undoData.logId, { outcome: 'Missed', injection_site: null });
+      else deleteDoseLog(undoData.logId);
       // Only take back a count bump that actually landed.
       if (!fx || fx.applied) {
         setTakenCounts(prev => {
