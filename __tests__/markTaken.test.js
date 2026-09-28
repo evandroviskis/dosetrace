@@ -102,7 +102,7 @@ test('the plan returns the day\'s Taken count after the write (stale screen coun
 // tap-time skip path (TodayScreen.js:745). Red until A-40 builds it. planSkipPending is a
 // PLACEHOLDER name (review #018): the A-40 session may rename it or change its signature;
 // the binding behavior is one Skipped row at slotMs and no vial/supply change.
-test('A-40: ignore yesterday\'s pending dose → one Skipped row at yesterday\'s slot time (not the tap time)', { todo: 'A-40 — 1.2.5 S-17' }, () => {
+test('A-40: ignore yesterday\'s pending dose → one Skipped row at yesterday\'s slot time (not the tap time)', () => {
   const { planSkipPending } = require('../lib/markTaken');
   assert.equal(typeof planSkipPending, 'function', 'planSkipPending not built yet');
   const slotMs = local(2026, 9, 26, 20, 0);
@@ -115,7 +115,7 @@ test('A-40: ignore yesterday\'s pending dose → one Skipped row at yesterday\'s
 // Review #018 item 2: the binding behavior, not the API name (planSkipPending is a
 // placeholder the A-40 session may rename): if yesterday's slot already has a row
 // (any outcome), "ignore" writes nothing — never twice.
-test('A-40: ignore yesterday\'s pending dose when that slot already has a row (any outcome) → writes nothing', { todo: 'A-40 — 1.2.5 S-17' }, () => {
+test('A-40: ignore yesterday\'s pending dose when that slot already has a row (any outcome) → writes nothing', () => {
   const { planSkipPending } = require('../lib/markTaken');
   assert.equal(typeof planSkipPending, 'function', 'planSkipPending (placeholder name) not built yet');
   const slotMs = local(2026, 9, 26, 20, 0);
@@ -124,4 +124,18 @@ test('A-40: ignore yesterday\'s pending dose when that slot already has a row (a
     const p = planSkipPending({ protocol: { ...recon, doses_per_day: 1 }, todayLogs: [existing], dayKey: '2026-09-26', slotMs, nowMs: local(2026, 9, 27, 7, 0) });
     assert.equal(p.insert, null, `no new row when the slot already has a ${outcome} row`);
   }
+});
+
+// A-40 journey review row 1 (confirmed defect in the shared planner): with a slot
+// given, only a Missed row AT that slot may be flipped — never a Missed row of
+// another slot that day (08:00 Missed must stay Missed when 20:00 is logged).
+test('A-40: marking yesterday\'s 20:00 slot taken never flips the 08:00 Missed row of the same day', () => {
+  const twice = { ...recon, doses_per_day: 2 };
+  const missed8 = { id: 70, protocol_id: 1, outcome: 'Missed', logged_at: new Date(local(2026, 9, 26, 8, 0)).toISOString() };
+  const p = planMarkTaken({ protocol: twice, todayLogs: [missed8], dayKey: '2026-09-26', slotMs: local(2026, 9, 26, 20, 0), nowMs: local(2026, 9, 27, 1, 0) });
+  assert.equal(p.update, null, 'the 08:00 Missed row is not touched');
+  assert.equal(Date.parse(p.insert.logged_at), local(2026, 9, 26, 20, 0), 'a Taken row is inserted at 20:00');
+  const missed20 = { id: 71, protocol_id: 1, outcome: 'Missed', logged_at: new Date(local(2026, 9, 26, 20, 0)).toISOString() };
+  const q = planMarkTaken({ protocol: twice, todayLogs: [missed8, missed20], dayKey: '2026-09-26', slotMs: local(2026, 9, 26, 20, 0), nowMs: local(2026, 9, 27, 9, 0) });
+  assert.equal(q.update.id, 71, 'the Missed row AT the slot is the one flipped');
 });

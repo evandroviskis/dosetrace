@@ -24,7 +24,8 @@ import {
   getBiomarkers,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
-import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken, recordSkipPending } from '../lib/doseActions';
+import { pendingFromYesterday } from '../lib/pendingYesterday';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
@@ -147,6 +148,8 @@ export default function TodayScreen() {
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
   const resetTake = (protocolId) => setTakeReset(prev => ({ ...prev, [protocolId]: (prev[protocolId] || 0) + 1 }));
   const [undoData, setUndoData] = useState(null);
+  // A-40: yesterday's un-logged slots, shown until slot + 12 h (lib/pendingYesterday).
+  const [pendingYest, setPendingYest] = useState([]);
   const [snoozeOpen, setSnoozeOpen] = useState(null); // alert id whose "remind me" strip is open // { logId, protocolId, vialId, prevDosesTaken, timer }
   const [protocolStreaks, setProtocolStreaks] = useState({}); // { protocol_id: number }
 
@@ -189,6 +192,7 @@ export default function TodayScreen() {
       }).catch(() => {});
       fetchProtocols();
       fetchTodayLogs();
+      fetchPendingYesterday();
       fetchStreakData();
       fetchProtocolStreaks();
       fetchLastSites();
@@ -220,6 +224,7 @@ export default function TodayScreen() {
       if (e.type === 'import_complete' || e.type === 'sync_complete' || e.type === 'data_changed') {
         fetchProtocols();
         fetchTodayLogs();
+        fetchPendingYesterday();
         fetchStreakData();
         fetchProtocolStreaks();
         fetchLastSites();
@@ -438,6 +443,54 @@ export default function TodayScreen() {
     setLoading(false);
   }
 
+  // A-40 "Pending from yesterday": yesterday's slots with no row of any outcome,
+  // matched like the Missed scan, until slot + 12 h. Display only.
+  async function fetchPendingYesterday() {
+    try {
+      const user = await getCachedUser();
+      if (!user) { setPendingYest([]); return; }
+      const since = new Date();
+      since.setHours(0, 0, 0, 0);
+      since.setDate(since.getDate() - 1);
+      since.setHours(since.getHours() - 3);
+      const logs = getLogsSince(user.id, since.toISOString()) || [];
+      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now() }));
+    } catch { setPendingYest([]); }
+  }
+
+  function afterPendingWrite() {
+    fetchPendingYesterday();
+    fetchProtocols();
+    fetchStreakData();
+    fetchProtocolStreaks();
+    syncVialAlerts().catch(() => {});
+    requestSync();
+  }
+
+  // Taken for a pending slot: logged AT yesterday's slot time through the shared
+  // mark-taken path. Never touches today's count or today's reminders.
+  function takePending(item) {
+    const res = recordDoseTaken(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
+    if (res && res.logId) {
+      const timer = setTimeout(() => setUndoData(null), 5000);
+      setUndoData({
+        logId: res.logId, flipped: res.flipped, protocolId: item.protocolId, pending: true,
+        vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
+      });
+    }
+    afterPendingWrite();
+  }
+
+  // "Didn't take": one Skipped row at yesterday's slot time (never the tap time).
+  function skipPending(item) {
+    const res = recordSkipPending(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
+    if (res && res.logId) {
+      const timer = setTimeout(() => setUndoData(null), 5000);
+      setUndoData({ logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null });
+    }
+    afterPendingWrite();
+  }
+
   async function fetchTodayLogs() {
     const user = await getCachedUser();
     if (!user) return;
@@ -597,6 +650,7 @@ export default function TodayScreen() {
       setUndoData({
         logId,
         flipped: res.flipped,
+        extraDeleteIds: opts.extraDeleteIds || [],
         protocolId: protocol.id,
         vialId: res.vialId,
         prevDosesTaken: res.prevVialDosesTaken,
@@ -704,8 +758,13 @@ export default function TodayScreen() {
       }
       if (undoData.flipped) updateDoseLog(undoData.logId, { outcome: 'Missed', injection_site: null });
       else deleteDoseLog(undoData.logId);
-      // Only take back a count bump that actually landed.
-      if (!fx || fx.applied) {
+      // "Today's dose — skip yesterday" wrote two rows: undo removes both (A-40).
+      for (const id of undoData.extraDeleteIds || []) deleteDoseLog(id);
+      // Only take back a count bump that actually landed (a pending-from-yesterday
+      // row never changed today's count).
+      if (undoData.pending) {
+        // nothing to take back on today's cards
+      } else if (!fx || fx.applied) {
         setTakenCounts(prev => {
           const updated = { ...prev };
           updated[undoData.protocolId] = Math.max((updated[undoData.protocolId] || 1) - 1, 0);
@@ -723,6 +782,7 @@ export default function TodayScreen() {
         fetchProtocols();
       }
       setUndoData(null);
+      fetchPendingYesterday();
       fetchStreakData();
       fetchProtocolStreaks();
       syncVialAlerts().catch(() => {});
@@ -880,22 +940,43 @@ export default function TodayScreen() {
     }
   }, [ringTarget, doneDoses]);
 
-  function handleTake(p, btnRect, attempt = 0) {
+  function handleTake(p, btnRect, attempt = 0, opts = {}) {
     // Another card's write is mid-flight: retry shortly rather than let the
     // button show "Taken" for a dose that was never logged.
     if (actionInProgressRef.current) {
-      if (attempt < 12) setTimeout(() => handleTake(p, btnRect, attempt + 1), 250);
+      if (attempt < 12) setTimeout(() => handleTake(p, btnRect, attempt + 1, opts), 250);
       else {
         resetTake(p.id);
         Alert.alert(t('error'), t('error_save_failed'));
       }
       return;
     }
-    if (reduceRef.current || !btnRect) { markTaken(p); return; }
+    // A-40: yesterday's dose for this protocol is still pending — ask which day this
+    // dose is for before writing anything (earliest pending slot).
+    const pend = !opts.pendingResolved && pendingYest.find((x) => x.protocolId === p.id);
+    if (pend) {
+      const vars = (str) => str.replace('{name}', p.compound_id ? t(p.compound_id) : p.name).replace('{time}', formatTimeAMPM(new Date(pend.slotMs).toTimeString().slice(0, 5)));
+      Alert.alert(
+        t('today_pending_prompt_title'),
+        vars(t('today_pending_prompt_msg')),
+        [
+          { text: t('today_pending_prompt_yesterday'), onPress: () => { resetTake(p.id); takePending(pend); } },
+          { text: t('today_pending_prompt_today'), onPress: () => {
+            const skipped = recordSkipPending(p.id, { dayKey: pend.dayKey, slotMs: pend.slotMs });
+            handleTake(p, btnRect, 0, { pendingResolved: true, extraDeleteIds: skipped && skipped.logId ? [skipped.logId] : [] });
+            fetchPendingYesterday();
+          } },
+          { text: t('cancel'), style: 'cancel', onPress: () => resetTake(p.id) },
+        ],
+        { cancelable: true, onDismiss: () => resetTake(p.id) },
+      );
+      return;
+    }
+    if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds: opts.extraDeleteIds }); return; }
     const LIFT = 110, FLIGHT = 500;
     landingAtRef.current = Date.now() + LIFT + FLIGHT;
     // Write now; let the card re-sort and the site picker open after the drop lands.
-    markTaken(p, { deferUi: 380, siteDelay: 900 });
+    markTaken(p, { deferUi: 380, siteDelay: 900, extraDeleteIds: opts.extraDeleteIds });
     setTimeout(() => { if (landingAtRef.current && Date.now() > landingAtRef.current + 400) landingAtRef.current = 0; }, 1500);
     Promise.all([measureWin(rootRef), measureWin(ringRef)]).then(([root, ring]) => {
       if (!root || !ring) return;
@@ -1276,6 +1357,33 @@ export default function TodayScreen() {
             ? <Text style={s.sub}>{t('today_no_protocols')}</Text>
             : <AnimatedNumber value={doneShown} format={subFmt} style={[s.sub, s.subFill]} />}
         </View>
+
+        {pendingYest.length > 0 && (
+          <View style={s.pendingSection}>
+            <Text style={s.alertsHeader}>{t('today_pending_title').toUpperCase()}</Text>
+            {pendingYest.map((item) => {
+              const pr = protocols.find((x) => x.id === item.protocolId);
+              if (!pr) return null;
+              const name = pr.compound_id ? t(pr.compound_id) : pr.name;
+              const when = t('today_pending_row')
+                .replace('{name}', name)
+                .replace('{time}', formatTimeAMPM(new Date(item.slotMs).toTimeString().slice(0, 5)));
+              return (
+                <View key={`${item.protocolId}-${item.slotMs}`} style={s.pendingCard}>
+                  <Text style={s.alertTitle}>{when}</Text>
+                  <View style={s.pendingActions}>
+                    <TouchableOpacity style={s.pendingSkip} onPress={() => skipPending(item)}>
+                      <Text style={s.pendingSkipText}>{t('today_pending_skip')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.pendingTake} onPress={() => takePending(item)}>
+                      <Text style={s.pendingTakeText}>{t('today_pending_take')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={s.progressRow}>
           <View style={s.ringCard}>
@@ -1733,6 +1841,14 @@ const makeStyles = (c) => StyleSheet.create({
   streakLogChevron: { fontSize: 15, color: c.accent, fontWeight: '600', marginTop: -1 },
   // Alerts panel (pending reminders under the streak)
   alertsSection: { marginHorizontal: 18, marginBottom: 22 },
+  // A-40 Pending from yesterday
+  pendingSection: { marginHorizontal: 18, marginBottom: 18 },
+  pendingCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: c.warning, ...c.shadowSoft },
+  pendingActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 12 },
+  pendingSkip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: c.card2 },
+  pendingSkipText: { fontSize: 14, fontWeight: '600', color: c.textMuted },
+  pendingTake: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12, backgroundColor: c.accent },
+  pendingTakeText: { fontSize: 14, fontWeight: '700', color: c.accentText },
   alertsHeader: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12 },
   alertCard: { backgroundColor: c.card, borderRadius: 18, marginBottom: 10, ...c.shadowSoft },
   alertRow: { flexDirection: 'row', alignItems: 'stretch' },

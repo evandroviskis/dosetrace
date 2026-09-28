@@ -91,3 +91,22 @@ test('A-35(b) guard: 00:30 covering last night\'s 20:00 does not also cover toda
   assert.equal(alone[0].scheduledAtMs, local(2026, 9, 26, 20, 0));
   assert.deepEqual(scan([at0030, { protocol_id: 7, outcome: 'Taken', logged_at: iso(local(2026, 9, 26, 22, 0)) }]), []);
 });
+
+// Sim run 2026-09-28 (A-40 check): relaunching in Asia/Tokyo made the Missed scan
+// recompute past slots in Tokyo time; doses logged at New-York slot times no longer
+// matched, and 7 false Missed rows were written (Test03). A traveller hits the same.
+// Registry A-49. This test runs a NY-logged history through the scan as if the
+// device were now in Tokyo.
+test('A-49: a time-zone change does not turn past doses logged on time into false Missed rows', { todo: 'A-49 — target pending founder' }, () => {
+  // Doses logged daily at 20:00 New York (= 00:00Z next day) for Sep 20–26.
+  const logs = [];
+  for (let d = 21; d <= 27; d++) logs.push({ protocol_id: 9, outcome: 'Taken', logged_at: `2026-09-${d}T00:00:00.000Z` });
+  const p = { id: 9, user_id: 'u1', start_date: '2026-09-20', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: '2026-09-19T12:00:00.000Z' };
+  const nowTokyo = Date.parse('2026-09-28T12:00:00.000Z');
+  const prevTz = process.env.TZ;
+  process.env.TZ = 'Asia/Tokyo'; // the device is now in Tokyo
+  let missed;
+  try { missed = computeMissedDoses([p], logs, nowTokyo, Date.parse('2026-09-21T00:00:00.000Z'), { lookbackDays: 6 }); }
+  finally { process.env.TZ = prevTz; }
+  assert.deepEqual(missed, [], `${missed.length} false Missed row(s) after a time-zone change`);
+});
