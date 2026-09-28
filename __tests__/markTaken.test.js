@@ -96,3 +96,16 @@ test('the plan returns the day\'s Taken count after the write (stale screen coun
   const flip = planMarkTaken({ protocol: recon, todayLogs: [{ id: 12, protocol_id: 1, outcome: 'Missed', logged_at: new Date(local(2026, 9, 27, 8)).toISOString() }], nowMs: NOW });
   assert.equal(flip.takenAfter, 1, 'a flipped Missed row counts once');
 });
+
+// A-40 (S-17, review #017 item 1): "ignore yesterday's" from the Pending-from-yesterday
+// prompt writes ONE Skipped row with logged_at = yesterday's slotMs — never Today's
+// tap-time skip path (TodayScreen.js:745). Red until A-40 adds planSkipPending.
+test('A-40: ignore yesterday\'s pending dose → one Skipped row at yesterday\'s slot time (not the tap time)', { todo: 'A-40 — 1.2.5 S-17' }, () => {
+  const { planSkipPending } = require('../lib/markTaken');
+  assert.equal(typeof planSkipPending, 'function', 'planSkipPending not built yet');
+  const slotMs = local(2026, 9, 26, 20, 0);
+  const p = planSkipPending({ protocol: recon, todayLogs: [], dayKey: '2026-09-26', slotMs, nowMs: local(2026, 9, 27, 7, 0) });
+  assert.equal(p.insert.outcome, 'Skipped');
+  assert.equal(Date.parse(p.insert.logged_at), slotMs);
+  assert.equal(p.vialUpdate, null, 'a skip never moves supply');
+});
