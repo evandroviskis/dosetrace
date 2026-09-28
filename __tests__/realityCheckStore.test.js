@@ -209,3 +209,27 @@ test('display: getRealityStart uses displayOpenCheck and runRealityMigration rec
   const mig = src.slice(src.indexOf('export async function runRealityMigration'), src.indexOf('export async function getRealityStart'));
   assert.ok(mig.indexOf('PULLED_KEY') > mig.indexOf('if (!pulled) return;'), 'flag set only after a successful pull');
 });
+
+// #025 reply item 2: sign-out clears the per-device S-03 flags, so after a new
+// sign-in (local table wiped) the display falls back to the mirror until the
+// first successful pull — never "no check" while one is open in the cloud.
+test('sign-out: the per-device S-03 flags are selected for removal (all users on this device), nothing else', () => {
+  const { rcDeviceFlagKeys } = require('../lib/realityCheckStore');
+  const keys = ['dosetrace_rc_pulled_u1', 'dosetrace_rc_store_migrated_u1', 'dosetrace_rc_pulled_u2', 'dosetrace_rc_start', 'dosetrace_theme', 'other'];
+  assert.deepEqual(rcDeviceFlagKeys(keys).sort(), ['dosetrace_rc_pulled_u1', 'dosetrace_rc_pulled_u2', 'dosetrace_rc_store_migrated_u1']);
+});
+
+test('sign-out: every App.js wipe path that clears RC_START_KEY also clears the S-03 device flags', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
+  const wipes = src.split('AsyncStorage.removeItem(RC_START_KEY)').length - 1;
+  const flagClears = src.split('clearRealityDeviceFlags()').length - 1;
+  assert.ok(wipes >= 3, 'three wipe paths expected');
+  assert.equal(flagClears, wipes, 'one flag clear per wipe path');
+});
+
+test('sign-out → sign-in, before the first pull: flags gone → display falls back to the mirror', () => {
+  const { displayOpenCheck } = require('../lib/realityCheckStore');
+  const mirror = { date: '2026-09-28', weightKg: 86.5 };
+  // Cloud flag still says migrated; the local pulled flag was cleared on sign-out; table wiped.
+  assert.deepEqual(displayOpenCheck({ rows: [], migrated: true, pulledOnce: false, asyncStart: null, metaOpen: mirror }), mirror);
+});

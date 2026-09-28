@@ -13,7 +13,7 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
-import { runRealityMigration } from './lib/realityCheck';
+import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
 import { foodTapParams, responseKey } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -479,6 +479,7 @@ export default function App() {
           if (localUid && localUid !== session.user.id) {
             clearLocalDatabase();
             AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+            await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
             cancelAllNotifications().catch(() => {}); // symmetry with SIGNED_IN — don't let the prior user's dose reminders fire
           }
         } catch { /* ignore */ }
@@ -539,6 +540,7 @@ export default function App() {
           logOutPurchases().catch(() => {});
           clearOnboarding().catch(() => {});
           AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+          clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
           clearSeenOnboarding().catch(() => {});
         }, 0);
       }
@@ -568,6 +570,7 @@ export default function App() {
             if (localUid && localUid !== session.user.id) {
               clearLocalDatabase();
               AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+              await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
               cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
             }
           } catch { /* ignore */ }
