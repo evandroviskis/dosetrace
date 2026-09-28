@@ -2,6 +2,8 @@
 
 checklist-signed: pending (founder brief "ADMIN PANEL SESSION — full redo", 2026-09-27; rows below await founder proof)
 
+**Founder decision 2026-09-27 19:53 ET (Panel #001, relayed from the app session):** the extras beyond header-only auth (UTC time windows, metric definitions and the Data sources section, versioned SQL) are **approved as part of Panel #001**. There is still no push or deploy until the founder rotates ADMIN_TOKEN in Vercel. Push and deploy then go together, followed by the live test.
+
 ## Scope
 
 - **In scope:** the web admin panel only.
@@ -26,7 +28,7 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 ### Phase 1 — this redo (branch `feature/admin-panel`, not pushed)
 
 - [x] **1.1 Header-only auth.** `api/adm.js` reads the token only from `Authorization: Bearer <token>`. The query fallback is removed.
-  - Evidence: 2026-09-27, mocked-request test with a dummy ADMIN_TOKEN: 8/8 on the branch (main 4/8). The only request fields read are `req.headers.authorization` and `req.url` (the latter only to refuse query tokens). There are no cookie, body or `req.query` reads (note 002).
+  - Evidence: `__tests__/adm.test.js`: "adm auth: valid header and no query is served (200)" and the 401 cases, 10/10 on the branch and 5/10 on main (2026-09-28). The earlier scratch mocked-request test with a dummy ADMIN_TOKEN gave 8/8 on the branch and 4/8 on main. The only request fields read are `req.headers.authorization` and `req.url` (the latter only to refuse query tokens). There are no cookie, body or `req.query` reads (note 002).
 - [x] **1.2 Query token rejected.** `tokenInQuery(req)` returns a generic 401 `{error:'Unauthorized'}` when `t`, `token`, `admin_token` or `access_token` is in the query string, even with a valid header. The check runs before any data fetch.
   - Evidence: 2026-09-27, the same script on main's `api/adm.js`: 3/7 (the four query-token cases return 200 with 3 data fetches). On the branch: 7/7, with 0 data fetches on every 401 and a body of exactly `{"error":"Unauthorized"}` (notes 002 and 003).
 - [x] **1.3 No logging.** `api/adm.js` has no `console.*` calls and never echoes the token.
@@ -54,10 +56,10 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 ### Phase 2 — needs the founder's go
 
-- [ ] **2.1 Push** `feature/admin-panel` (this triggers a Vercel preview deploy).
+- [ ] **2.1 Push + deploy together**, only after the founder rotates ADMIN_TOKEN in Vercel (founder decision 2026-09-27 19:53 ET). A push triggers a Vercel preview deploy.
 - [x] **2.2 Apply the A-1 lockdown** (`supabase_admin_rpcs.sql`), then re-read `proacl`.
   - Evidence: applied 2026-09-27 23:42 UTC on founder go (Panel #002), with only the six REVOKE/GRANT statements run. After: `proacl` = `{postgres=X/postgres,service_role=X/postgres}` for all three, and the body md5s are unchanged. `has_function_privilege`: anon/authenticated false, service_role true. Live `POST /rest/v1/rpc/admin_*` with the anon key → HTTP 401, code 42501, for all three. As service_role (SQL role switch; the service key isn't on this machine): all three return data, 1 row.
-- [ ] **2.3 Post-deploy curl checks** (below) on the live URL.
+- [ ] **2.3 Post-deploy live test** (curl checks below) on the live URL: token in the URL → 401, header only → 200.
 - [ ] **2.4 Merge to main:** rebase on the latest main, full suite green, founder go.
 
 ### Phase 3 — not specced yet (founder specs first)
@@ -70,7 +72,7 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 - **Header-only.** The only accepted credential is `Authorization: Bearer <ADMIN_TOKEN>`.
 - **Refusals.** A token-like query parameter (`t`, `token`, `admin_token`, `access_token`) is refused with 401 even when the header is valid. Cookies and the body are never read.
 - **Fail closed.** No `ADMIN_TOKEN` set → 503.
-- **ADMIN_TOKEN rotation.** Rotated in Vercel on **2026-09-27**. This is founder-reported and **not verified**: this session has no Vercel access. The value is never written anywhere in the repo.
+- **ADMIN_TOKEN rotation.** The redo brief (2026-09-27) reported a rotation that day. The founder decision of 2026-09-27 19:53 ET makes the push wait until the founder rotates ADMIN_TOKEN in Vercel, so the rotation is treated as **pending, done by the founder right before the push**. It is **not verified**: this session has no Vercel access. The value is never written anywhere in the repo.
 - **Post-deploy checks.** Run by the founder after the push. `$ADMIN_TOKEN` comes from the password manager and is never pasted into chat.
   ```bash
   curl -s -o /dev/null -w "%{http_code}\n" "https://dosetrace.io/api/adm?t=x"
@@ -209,4 +211,7 @@ The findings were re-verified on 2026-09-27 with read-only aggregate queries: co
   - The rows here are shaped so the script ignores them.
   - Align the format at merge time if the founder wants this spec gated by spec-audit.
 - **O-9** Pre-existing hardcoded chart colors in `web/adm.html`: `drawOverview`, `drawCmp`, `drawEngagement`, `cc()`, and the retention heat cell. They are not part of this diff; move them to CSS tokens in a later pass.
-- **O-10** Permanent repo tests for the token and DAU fixes, under `__tests__/`. Evolution rule 1 wants the test in the repo, but this brief's allowlist excludes `__tests__/`. Today the failing-then-passing proof runs from a scratch script (notes 001 and 003). Needs the founder's OK to add the file.
+- **O-10** ~~Permanent repo test for the token fix~~: done 2026-09-28 on founder decision (Panel #001). The file is `__tests__/adm.test.js` (10 tests).
+  - Red on main's `api/adm.js`: 5/10. The five URL-token cases fail.
+  - Green on the branch: 10/10.
+  - Still open: the DAU/WAU/MAU logic lives inside the page script, so it is only proven by the headless render harness (note 001). A repo test needs the function moved into a testable module, which is a founder call.
