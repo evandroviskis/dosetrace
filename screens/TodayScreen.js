@@ -1538,23 +1538,6 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {/* Undo toast */}
-        {undoData && (
-          <View style={s.undoBar}>
-            <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
-            <View style={s.undoBarActions}>
-              {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
-                <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
-                  <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={undoTake}>
-                <Text style={s.undoBarAction}>{t('today_undo')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         {/* Compliance disclaimer */}
         {protocols.length > 0 && (
           <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>
@@ -1562,6 +1545,24 @@ export default function TodayScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Undo toast — pinned above the tab bar, outside the ScrollView, so it is
+        visible wherever the list is scrolled (S-02). */}
+      {undoData && (
+        <View style={s.undoBar}>
+          <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
+          <View style={s.undoBarActions}>
+            {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
+              <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
+                <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={undoTake}>
+              <Text style={s.undoBarAction}>{t('today_undo')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Body map modal — auto-opens after taking an injectable dose,
           and re-openable from the undo toast "Add site" button */}
@@ -1859,10 +1860,10 @@ const makeStyles = (c) => StyleSheet.create({
   promptBtnPrimary: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center' },
   promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
   // Undo bar
-  undoBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 12, backgroundColor: c.toast, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  undoBar: { position: 'absolute', left: 16, right: 16, bottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
   undoBarText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
   undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
-  undoBarAction: { fontSize: 13, color: '#5CB8FF', fontWeight: '700' },
+  undoBarAction: { fontSize: 13, color: c.toastText, fontWeight: '700', textDecorationLine: 'underline' },
   // Yesterday / Today shortcut pills
   yesterdayRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   yesterdayPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: c.accentSoft, borderWidth: 0.5, borderColor: c.border },
