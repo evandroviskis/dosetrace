@@ -167,3 +167,31 @@ test('single open check: the same rule holds through pullTable (migration pull)'
   const open = a.getAllSync(`SELECT start_date FROM reality_check_open WHERE user_id = ? AND stopped_at IS NULL`, [USER]);
   assert.deepEqual(open.map((r) => r.start_date), ['2026-09-25']);
 });
+
+// FX-9 two-simulator run 2026-09-28, finding F2: a pull that stops an older open
+// check (enforceSingleOpenCheck) leaves that stop PENDING with no push after it —
+// the cloud keeps two open checks until this device's next sync (seen live).
+// The fix: one sync pass = push, pull, then push again when the pull queued writes.
+test('FX-9 F2: one sync pass leaves the cloud with a single open check (the enforced stop is pushed in the same pass)', { todo: 'FX-9 F2 — awaiting founder go' }, async () => {
+  const { syncOnce } = require('../lib/syncCore');
+  assert.equal(typeof syncOnce, 'function', 'syncOnce not built yet');
+  const cloud = makeCloud();
+  const a = makeDb(); const b = makeDb();
+  startCheck(a, { start_date: '2026-09-28', updated_at: '2026-09-28T21:20:46.000Z' });
+  await pushPending(a, cloud, USER);
+  startCheck(b, { start_date: '2026-09-28', updated_at: '2026-09-28T21:21:17.000Z' });
+  await syncOnce(b, cloud, USER);
+  const open = cloud.rows('reality_check_open', USER).filter((r) => !r.stopped_at);
+  assert.equal(open.length, 1, 'exactly one open check in the cloud after one sync pass');
+});
+
+// Finding F1: a device resumed from the background never pulls (App.js foreground
+// handler only re-plans notifications), so a Stop made on another device does not
+// reach it until a cold start or its own write.
+test('FX-9 F1: returning to the foreground requests a sync (throttled), so another device\'s Stop arrives without a cold start', { todo: 'FX-9 F1 — awaiting founder go' }, () => {
+  const fs = require('fs'); const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
+  const i = src.indexOf("AppState.addEventListener('change'");
+  const handler = src.slice(i, src.indexOf('});', i) + 3);
+  assert.match(handler, /requestSync\(\)/);
+});
