@@ -62,6 +62,10 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 - [ ] **2.3 Post-deploy live test** (curl checks below) on the live URL: token in the URL → 401, header only → 200.
 - [ ] **2.4 Merge to main:** rebase on the latest main, full suite green, founder go.
 
+### Phase 2b — Management view
+
+- [ ] Spec "Phase 2 — Management view" (section below) reviewed and approved by the founder. No code until then.
+
 ### Phase 3 — not specced yet (founder specs first)
 
 - [ ] 3.1 Login/password for the panel.
@@ -178,6 +182,199 @@ There are 38 rows. Every row is **not yet proven**.
 | S5 | Google active devices | Google Play stats bucket | same row, "Active Device Installs" | latest day in the latest monthly file | not yet proven |
 | S6 | Google installs · month | Google Play stats bucket | sum of "Daily Device Installs" over the latest monthly file | month of the latest file | not yet proven |
 | S7 | Google average rating | Google Play stats bucket | latest `stats/ratings` CSV, last row, "Total Average Rating" | cumulative to the latest day | not yet proven |
+
+## Phase 2 — Management view (redesign spec, awaiting founder review)
+
+**Status:** spec only (Panel #005, 2026-09-28). No code yet. Every metric row below starts as **not yet proven**.
+
+This is not the same as the Phase 2 *checklist* above, which covers the push, lockdown and deploy steps.
+
+**Goal:** one trustworthy view for running the business. Every number:
+- counts people, not IDs;
+- excludes test accounts;
+- uses a stated UTC window;
+- shows its source, definition and window on the page (panel rule 1.7).
+
+### MV-0 Shared definitions
+
+**New customer (founder decision, 2026-09-28 17:39 ET).**
+- Every **real** account created in Supabase `auth.users`, even if the email was never confirmed.
+- **Real** means not a test account (below).
+- The creation time is `auth.users.created_at` (UTC).
+
+**Test accounts: one list, used by every metric.**
+- **Where it lives:** a service-role-only table `public.admin_test_accounts (email text primary key, reason text, added_at timestamptz)`.
+- **The domain rule** "any `@dosetrace.io`" lives in one SQL function, `public.admin_is_test(email)`, which checks the table and the domain.
+- **Who uses it:** every panel RPC filters with `admin_is_test`. No metric may keep its own list.
+- **Seed** (from note 008):
+  - the `DEVELOPER_EMAILS` in lib/purchases.js:24–31;
+  - `evandro1985@gmail.com`.
+- **Guard test (repo):** every entry of `DEVELOPER_EMAILS` must be in the seed, so the app's premium whitelist and the panel's test list can't drift apart.
+- **Scope note:** the table is the *metrics* list. `DEVELOPER_EMAILS` stays the app's premium whitelist. Merging the two into one app+panel source is an app change (see MV-8).
+- **Founder to decide: are these test accounts?** They are currently counted as real. The emails are listed only in the local note `Admin Panel Files/009-redesign-spec.md`; user emails are never committed.
+  - **Candidate 1:** a gmail address containing "testreviewer". Email sign-up, created 2026-09-12, never confirmed, onboarded, no events. Looks like a store reviewer.
+  - **Candidate 2:** an address at `cloudtestlabaccounts.com`. Google sign-in, created 2026-09-21, no events. The domain belongs to Google Play pre-launch report robots (Firebase Test Lab). Suggest adding the whole domain to the rule.
+  - **Candidate 3:** one account on a company domain (named in note 009). Created in the window, not onboarded.
+
+**Windows.**
+- "N days" means the **last N full UTC days**, ending at 00:00 UTC today. Today's partial day is excluded.
+- "Previous period" means the N full UTC days before that.
+- Weeks are ISO weeks (Monday 00:00 UTC).
+
+**Platform per account (inferred; never guessed).** The rules apply in this order; the first that gives an answer wins:
+1. `raw_app_meta_data->>'provider' = 'apple'` → **iOS**. Sign in with Apple is iOS-only: lib/supabase.js:275.
+2. `analytics_events.properties.platform` (lib/analytics.js:29).
+3. `push_tokens.platform`.
+4. `auth.sessions.user_agent`: `okhttp/…` → Android; `DoseTrace/… CFNetwork … Darwin` → iOS.
+5. Otherwise **unknown**.
+
+If the sources disagree (both iOS and Android), the account counts as **unknown (mixed)**. Unknown is always shown as its own number, never shared out between the platforms. Note 008 found 16 of 69 unknown.
+
+**Correction to note 008 about `last_sign_in_at`.**
+- It updates only on a new sign-in, not on a session refresh. So it can't mean "left the app".
+- Note 008's "46 signed in once, within 5 min, then never again" only means *no new sign-in after the first 5 minutes*. It does not mean they left.
+- No metric may use `last_sign_in_at` for churn or activity. It may be used only as "has signed in at least once" (not null).
+
+### MV-1 Headline cards
+
+| ID | Metric | Source | Definition | Window (UTC) | How it is proven | Proven |
+|---|---|---|---|---|---|---|
+| H1 | New customers · 7 days | Supabase `auth.users` + `admin_is_test` | count of real accounts created in the window, plus the change vs the previous 7 days (absolute and %) | last 7 full days vs the 7 before | the same SQL run by hand in Supabase; the founder spot-checks against the Supabase Auth list | not yet proven |
+| H2 | New customers · 30 days | same | same, 30 days | last 30 vs previous 30 | same | not yet proven |
+| H3 | New customers · 90 days | same | same, 90 days | last 90 vs previous 90 | same | not yet proven |
+| H4 | Platform split (on H1–H3) | Supabase (MV-0 platform rule) | the H1–H3 count split into iOS / Android / unknown; the three always add up to the total | same as the card | per-platform SQL; sum check iOS + Android + unknown = total | not yet proven |
+
+### MV-2 Funnel (one cohort, one window)
+
+**Cohort:** the real accounts created in the chosen window (7, 30 or 90 days). Every step counts accounts **from that cohort** that reached the step at any time up to page load. Late conversions are counted, and the page says so.
+- **Default window:** 30 days.
+- **Split:** iOS / Android / unknown, with the same platform rule as MV-0.
+
+| ID | Step | Source | Definition | Window (UTC) | How it is proven | Proven |
+|---|---|---|---|---|---|---|
+| W0 | Store downloads | ASC Sales Reports / Google Play stats | Apple: first-time units (product type 1*/F1), redownloads (3*) shown separately. Google: sum of "Daily User Installs" (and device installs) from the daily CSV rows. **Shown as its own bar, not as a funnel base, and never divided into the account steps** (different entities) | the same full UTC days as the cohort window | ASC Trends / Play Console → Statistics for the same dates | **not measured** until MV-6 is unblocked |
+| W1 | Accounts created | Supabase `auth.users` | the cohort (= H2 when the window is 30 days) | window | = H card for the same window | not yet proven |
+| W2 | Email confirmed or signed in | Supabase `auth.users` | `email_confirmed_at is not null OR last_sign_in_at is not null` (OAuth accounts are confirmed at creation) | cohort; status at page load | SQL | not yet proven |
+| W3 | Onboarded | Supabase `raw_user_meta_data.onboarded_at` | the `onboarded_at` key is present. Email sign-up writes it at sign-up (screens/AuthScreen.js:144); OAuth writes it when onboarding finishes (screens/OnboardingFlowScreen.js:259, lib/onboardingStore.js:100) | cohort; status at page load | SQL | not yet proven |
+| W4 | ≥1 protocol | Supabase `protocols` | the account has ever had ≥1 protocol row, deleted ones included; the live count is shown next to it | cohort; any time | SQL | not yet proven |
+| W5 | ≥1 dose logged | Supabase `dose_logs` | ≥1 dose_logs row of any outcome. Flag: backfilled "history before registration" rows (A-30) count until A-30 lands | cohort; any time | SQL | not yet proven |
+| W6 | Premium | RevenueCat (app_user_id = Supabase id) | the account has had entitlement `DoseTrace Pro` (lib/purchases.js:19) from a **store purchase**. Promotional grants (`rc_promo_*`) are counted separately, and never as conversion | cohort; any time | RC dashboard customer page for each counted id | not yet proven (needs the RC data path, MV-3) |
+
+**Rules:**
+- Step-to-step % is shown only between W1 and W6.
+- No step uses `last_sign_in_at` except W2's "ever signed in".
+
+### MV-3 Reconciliation panel (same window for every column)
+
+| ID | Row | Source | Definition | Window (UTC) | How it is proven | Proven |
+|---|---|---|---|---|---|---|
+| X1 | Store downloads (Apple / Google) | ASC / Play | as W0 | window | as W0 | **not measured** |
+| X2 | Supabase accounts: all / test / real | Supabase | all `auth.users` created in the window; test = `admin_is_test`; real = the rest | window | SQL | not yet proven |
+| X3 | **RevenueCat IDs** (never labelled "customers"): total first seen | RevenueCat v2 customers list | RC customers with `first_seen_at` in the window | window | the RC dashboard filter `firstSeenAt afterOrOn … before …` (note 008) | not yet proven |
+| X4 | … of which anonymous | RevenueCat | app_user_id starts with `$RCAnonymousID`. **Cause:** `Purchases.logOut()` on sign-out (lib/purchases.js:114, App.js:536) | window | RC filter `customerId contains RCAnonymousID` | not yet proven |
+| X5 | … identified and matching a Supabase account (real / test) | RevenueCat × Supabase | app_user_id equals an `auth.users.id` (exact, full id) | window | exact join; must equal X2 real + test minus accounts that never signed in | not yet proven |
+| X6 | … identified with no Supabase account (orphans) | RevenueCat × Supabase | app_user_id is not anonymous and matches no `auth.users.id`. **Named cause:** account deleted. `delete-user` removes the auth user but not the RC customer (supabase/functions/delete-user/index.ts:165). Shown as "likely deleted accounts" until MV-8 D2 lands | window | exact join | not yet proven |
+
+**Rules:**
+- X3 = X4 + X5 + X6 must hold. The page shows ✓, or the difference.
+- Each gap row names its cause:
+  - test accounts;
+  - accounts that never signed in (they never reach RC);
+  - anonymous IDs;
+  - orphans;
+  - window differences (stores).
+- RC "New Customers" and "Active Customers" appear only here, relabelled **"RevenueCat IDs"**.
+- **Data path (to confirm before build):** RevenueCat's v2 API list-customers endpoint with first-seen time, paged, called from `api/adm.js` with the existing `REVENUECAT_API_KEY`. Its exact fields must be verified against the API docs and one real response before any code is written. The dashboard numbers in note 008 are the baseline to match.
+
+### MV-4 Charts (each answers one stated question)
+
+| ID | Chart | Question it answers (shown as the subtitle) | Source | Definition | Window (UTC) | How it is proven | Proven |
+|---|---|---|---|---|---|---|---|
+| G1 | New customers per day, stacked by platform | "Is acquisition growing, and on which platform?" | Supabase | the daily count of H-definition accounts, stacked iOS / Android / unknown | last 90 full days | daily sums add up to H3 | not yet proven |
+| G2 | Weekly signup cohorts, retention | "Do new customers keep using the app week after week?" | Supabase `auth.users` + `analytics_events` | cohort = real accounts by signup ISO week; cell W*n* = share with ≥1 analytics event in week *n*. **Marked as a floor** until an app-open event exists (A-6, MV-8 D3) | last 8 signup weeks | SQL per cohort cell | not yet proven |
+| G3 | Premium conversion by signup week | "What share of each signup week becomes paid Premium, and how fast?" | Supabase + RevenueCat | for each signup week, the share of the cohort reaching W6 (store purchase) by week 0/1/2/4 | last 12 signup weeks | RC customer pages for the converted ids | not yet proven |
+
+**Details tab (secondary, collapsed by default).** It holds everything without a stated management question: the feature adoption table, audience, searches and top compounds, protocol types, top biomarkers, adherence, the WAU/DAU/MAU floors, the compare tool, and raw totals.
+- **Removed outright:** the V2 Plan chart, which can never show Premium (A-3).
+
+### MV-5 Every number shows source, definition and window
+
+- Every H, W, X and G row gets a DEFS entry `{id,name,src,def,range,proven:null}`, plus a "Source · range" button (the existing panel rule).
+- The Data sources table lists them.
+- The panel rules list gains:
+  - "Test accounts are excluded (one list: admin_test_accounts)."
+  - "RevenueCat IDs are not customers."
+  - This replaces the rule "Counts include test accounts".
+
+### MV-6 Store rows: how they plug in
+
+**Apple** (needs the founder-provided `ASC_VENDOR_NUMBER`):
+- For each full UTC day in the window: `GET /v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=…&filter[reportDate]=YYYY-MM-DD`.
+- Sum the Units by Product Type Identifier: 1*/F1* = downloads, 3* = redownloads, 7* = updates (these last are not shown in the funnel).
+- **Missing days are shown as "no report"**, not skipped silently. Apple reports lag about 1 day, so the latest day may be "pending".
+
+**Google** (needs `GOOGLE_PLAY_BUCKET` and read access for the service account, or a Play Console session as dosetrace.io@gmail.com):
+- Read every monthly `stats/installs/installs_<pkg>_YYYYMM_overview.csv` that overlaps the window.
+- Sum "Daily User Installs" (and "Daily Device Installs") over the exact window days. This replaces today's "latest monthly file".
+- **Lag is shown as the latest available date.**
+
+**Until then:** W0, X1 and G-store show **"not measured — needs vendor number / bucket"**, never an estimate.
+
+### MV-7 Map of the existing metric rows
+
+| Existing | Decision | Reason |
+|---|---|---|
+| O1 Total users | **change** → "Real customers (all time)", excluding test | test accounts are included today |
+| O2 Signups today | **move to Details** ("today so far") | the headline uses full days only |
+| O3 / O4 New 7 / 30 days | **change** → H1 / H2 (plus H3 90 days), real only, vs the previous period, split by platform | founder's new-customer definition |
+| O5 / O6 / O7 WAU / DAU / MAU | **move to Details** as "activity floors" | no app-open event (A-6); not a management number yet |
+| O8 Stickiness | **remove** until D3 | formula mismatch (O-7) and an activity floor |
+| O9 Profiles complete | **remove** → replaced by W3 Onboarded | 4 fields vs the app's 8 (O-7); W3 is the real step |
+| O10 Signups & active chart | **change** → G1 | per platform, real only |
+| O11 Protocols | **move to Details**, excluding deleted rows | raw total, no question (O-4) |
+| O12 Dose logs | **move to Details** | raw total |
+| O13 Biomarkers | **move to Details** | raw total |
+| C1 Compare signups | **change** → covered by H1–H3 vs the previous period | same question, clearer |
+| C2–C5 Compare active / doses / protocols / scans | **move to Details** (the compare tool stays there) | no management question |
+| E1 Adherence | **move to Details** | product health, not acquisition or revenue |
+| E2 Activation funnel | **change** → W1–W6 (one cohort, one window, real only) | today's steps are independent all-time counts |
+| E3 Doses · 90 days | **move to Details** | raw activity |
+| F1 / F2 Feature adoption | **move to Details** | no stated question |
+| R1 Weekly cohorts | **change** → G2 (real only, stated question, floor label) | test accounts included; unlabeled floor |
+| P1–P3 Compounds / searches / types | **move to Details** | product insight, no management question |
+| P4 Top biomarkers | **move to Details** | same |
+| V1 RevenueCat overview | **change**: keep MRR, Revenue and Active subscriptions as money cards; "New / Active Customers" move to X3, relabelled "RevenueCat IDs" | IDs aren't customers (note 008) |
+| V2 Plan (Supabase field) | **remove** | always "free"; can never show Premium (A-3) |
+| U1 Audience | **move to Details** | no stated question |
+| S1 / S2 Apple downloads / updates | **change** → W0 / X1 on the cohort window; redownloads split out; updates Details only | same window as everything else |
+| S3 Apple latest day | **move to Details** | freshness indicator only |
+| S4 / S5 Google total installs / active devices | **move to Details** | cumulative, not window-based |
+| S6 Google installs · month | **change** → W0 / X1 (window sum of daily user installs) | the "latest monthly file" window doesn't match |
+| S7 Google rating | **move to Details** | not an acquisition number |
+
+### MV-8 App-side dependencies (not panel work: main app session / founder)
+
+- **D1 Store platform per account.** Write `signup_platform` (ios/android) once, at account creation or first sign-in, e.g. in user_metadata or a profiles column. It turns "unknown" (16 of 69) into facts. Needs a spec in the app registry.
+- **D2 Account deletion leaves the RevenueCat customer behind.** `delete-user` (supabase/functions/delete-user/index.ts:165) should also delete the RC customer, or at least write a deletion record (id, created_at, deleted_at, platform) so orphans are provable. Legal/privacy review is relevant (GDPR erasure).
+- **D3 App-open event** (O-1 / A-6). Retention and "active" stay floors without it.
+- **D4 One test list for app and panel.** Today the app's `DEVELOPER_EMAILS` and the panel's `admin_test_accounts` are separate. A single source would be an app change.
+- **D5 Anonymous RC IDs.** `logOut` on sign-out is RevenueCat's recommended behaviour, so the panel labels them rather than changing the app. Any change here is the founder's call.
+
+### MV audit (facts this spec relies on, checked 2026-09-28)
+
+| Claim | File:line / query | Verified |
+|---|---|---|
+| Sign in with Apple is iOS-only, so provider=apple means iOS | lib/supabase.js:275 | yes |
+| Events carry `platform: Platform.OS` | lib/analytics.js:29 | yes |
+| Premium entitlement id is `DoseTrace Pro` | lib/purchases.js:19 | yes |
+| RC identity = Supabase user id; anonymous only after logOut | lib/purchases.js:62, :114; App.js:536 | yes |
+| `onboarded_at` writers | screens/AuthScreen.js:144; screens/OnboardingFlowScreen.js:259; lib/onboardingStore.js:100 | yes |
+| delete-user removes the auth user, not the RC customer | supabase/functions/delete-user/index.ts:165 | yes (code read) |
+| Test seed = DEVELOPER_EMAILS + evandro1985 + @dosetrace.io | lib/purchases.js:24–31; SQL presence check (note 008) | yes |
+| 3 test-candidate accounts exist as described | SQL on auth.users (pattern + domain counts) | yes |
+| `last_sign_in_at` only changes on a new sign-in | founder statement 2026-09-28; Supabase Auth behaviour | **no** (not independently tested here) |
+| RC v2 list-customers exposes first-seen time | — | **no**: to verify against the API before build (MV-3) |
+| Store rows measurable | — | **no**: needs the vendor number and the Play bucket/session (MV-6) |
 
 ## Audit table (findings)
 
