@@ -555,7 +555,9 @@ export default function TodayScreen() {
       const logId = res.logId;
       saved = true;
 
-      const newTakenToday = (takenCounts[protocol.id] || 0) + 1;
+      // The day's real Taken count from the write, not the screen's count (which
+      // is stale if the banner already logged a dose).
+      const newTakenToday = res.takenAfter;
       // Deferred follow-ups are tracked so an Undo inside the delay cancels them:
       // otherwise the count bump lands after the undo, or the site picker opens
       // for (and re-syncs) the deleted log.
@@ -563,7 +565,7 @@ export default function TodayScreen() {
       const applyTaken = () => {
         if (fx.undone) return;
         fx.applied = true;
-        setTakenCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
+        setTakenCounts(prev => ({ ...prev, [protocol.id]: newTakenToday }));
       };
       fx.flush = applyTaken;
       pendingFxRef.current.add(fx);

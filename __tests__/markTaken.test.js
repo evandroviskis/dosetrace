@@ -86,3 +86,13 @@ test('FX-7: Today and the notification action both mark taken through recordDose
   assert.match(notif, /recordDoseTaken\(/, 'the notification calls the shared function');
   assert.match(read('lib/doseActions.js'), /planMarkTaken\(/, 'recordDoseTaken applies the shared plan');
 });
+
+// Review #013 item 2: Today must not use its (possibly stale) screen count to
+// cancel reminders — the plan returns the day's Taken count after this write.
+test('the plan returns the day\'s Taken count after the write (stale screen count cannot cancel the wrong slots)', () => {
+  const first = { id: 10, protocol_id: 1, outcome: 'Taken', logged_at: new Date(local(2026, 9, 27, 8)).toISOString() };
+  const p = planMarkTaken({ protocol: recon, todayLogs: [first], nowMs: NOW });
+  assert.equal(p.takenAfter, 2, 'first logged from the banner + this one');
+  const flip = planMarkTaken({ protocol: recon, todayLogs: [{ id: 12, protocol_id: 1, outcome: 'Missed', logged_at: new Date(local(2026, 9, 27, 8)).toISOString() }], nowMs: NOW });
+  assert.equal(flip.takenAfter, 1, 'a flipped Missed row counts once');
+});
