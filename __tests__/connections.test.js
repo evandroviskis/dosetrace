@@ -73,7 +73,7 @@ test('FX-4: store unreachable → the cached entitlement decides, with its expir
 });
 
 // ── FX-5: reality-check start/stop and its reminders (L-20, L-21, L-47) → S-03
-test('FX-5: Stop clears the open check and cancels the day-21 and 8 PM reminders', { todo: 'S-03 (synced reality-check storage)' }, () => {
+test('FX-5: Stop clears the open check and cancels the day-21 and 8 PM reminders', () => {
   const { stopRealityCheckPlan } = load('../lib/realityCheckStore');
   const plan = stopRealityCheckPlan({ open: { date: '2026-09-10', weightKg: 88 } });
   assert.equal(plan.open, null);

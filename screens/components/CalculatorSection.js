@@ -29,7 +29,7 @@ import {
 } from '../../lib/energyCalc';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
-import { getRealityStart, setRealityStart, clearRealityStart } from '../../lib/realityCheck';
+import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight } from '../../lib/realityCheckRules';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync } from '../../lib/sync';
@@ -226,7 +226,8 @@ export default function CalculatorSection({ header = null }) {
       if (yrs > 0 && yrs < 120) setAge(String(yrs));
     }
 
-    const saved = user?.user_metadata?.calc_inputs;
+    // Synced calc_inputs table (S-03); the old metadata only before migration.
+    const saved = await getCalcInputs().catch(() => null);
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
       if (saved.weight != null) setWeight(String(saved.weight));
@@ -277,7 +278,7 @@ export default function CalculatorSection({ header = null }) {
     if (!loadedRef.current) return;
     const timer = setTimeout(() => {
       const payload = { unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist };
-      supabase.auth.updateUser({ data: { calc_inputs: payload } }).catch(() => {});
+      saveCalcInputs(payload).catch(() => {}); // synced table + user_metadata mirror
     }, 900);
     return () => clearTimeout(timer);
   }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist]);

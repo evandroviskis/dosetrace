@@ -12,8 +12,8 @@ import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendin
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, RC_START_KEY } from './lib/notifications';
-import { getRealityStart } from './lib/realityCheck';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
+import { runRealityMigration } from './lib/realityCheck';
 import { foodTapParams, responseKey } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -457,6 +457,9 @@ export default function App() {
       if (nowTs - lastFoodResync < 30000) return;
       lastFoodResync = nowTs;
       syncFoodLogReminder().catch(() => {});
+      // A Stop (or new check) pulled from another device must also cancel / re-arm
+      // the day-21 weigh-in reminder here, not only on the next cold start (FX-9).
+      syncRealityCheckReminder().catch(() => {});
     });
 
     // Resolve the first-launch intro flag; the loading gate holds until it's
@@ -488,9 +491,9 @@ export default function App() {
           requestSync();
         }
 
-        // Rehydrate the reality-check weigh-in cache from cloud before scheduling
-        // (its reminder path reads the local cache; data itself is already durable).
-        await getRealityStart().catch(() => {});
+        // One-time move of the open reality check + calculator inputs into the
+        // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
+        await runRealityMigration().catch(() => {});
 
         // Schedule reminders AFTER the initial import — otherwise fresh
         // installs sync notifications against an empty local DB.
@@ -576,10 +579,9 @@ export default function App() {
             requestSync();
           }
 
-          // Restore the reality-check weigh-in cache from cloud BEFORE scheduling,
-          // so its reminder re-arms on a fresh sign-in / after a wipe (the weigh-in
-          // data itself is already durable; this rehydrates the notifications path).
-          await getRealityStart().catch(() => {});
+          // One-time move of the open reality check + calculator inputs into the
+          // synced tables (S-03), after the import and BEFORE scheduling reminders.
+          await runRealityMigration().catch(() => {});
 
           // Schedule reminders AFTER the import so they reflect the user's data
           requestNotificationPermissions()
