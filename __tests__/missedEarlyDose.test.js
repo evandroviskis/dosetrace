@@ -41,3 +41,25 @@ test('F-MISS-2 (guard, passes today): a dose logged within 3 h before its slot c
   assert.equal(none.length, 1);
   assert.equal(none[0].scheduledAtMs, local(2026, 9, 26, 20, 0));
 });
+
+// Review #016 item 2: Today's Skip writes logged_at = tap time (TodayScreen.js:745),
+// so skipping an evening dose in the morning leaves Skipped + a Missed.
+test('F-MISS-2: once-daily 20:00 dose Skipped at 09:00 the same day → 0 Missed', { todo: 'A-43 / F-MISS-2 — target none' }, () => {
+  const p = { id: 4, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: created };
+  const logs = [{ protocol_id: 4, outcome: 'Skipped', logged_at: iso(local(2026, 9, 26, 9, 0)) }];
+  const missed = computeMissedDoses([p], logs, local(2026, 9, 27, 21, 0), local(2026, 9, 26, 0, 0), { lookbackDays: 1 });
+  assert.deepEqual(missed, [], `${missed.length} Missed row(s) next to a same-day Skipped`);
+});
+
+// Review #016 item 3 (A-40 design + A-43 window): the A-40 pending prompt at 07:00
+// with "ignore" writes yesterday's Skipped AT yesterday's slot time; today's dose is
+// then taken at 07:00. Next scan → 0 Missed. Needs A-43's window fix for today's slot.
+test('A-40 + F-MISS-2: "ignore yesterday" = Skipped at yesterday\'s slot time, today Taken at 07:00 → 0 Missed after the next scan', { todo: 'A-40 (option pending) + A-43 window fix' }, () => {
+  const p = { id: 5, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: created };
+  const logs = [
+    { protocol_id: 5, outcome: 'Skipped', logged_at: iso(local(2026, 9, 25, 20, 0)) },
+    { protocol_id: 5, outcome: 'Taken', logged_at: iso(local(2026, 9, 26, 7, 0)) },
+  ];
+  const missed = computeMissedDoses([p], logs, local(2026, 9, 27, 21, 0), local(2026, 9, 25, 0, 0), { lookbackDays: 2 });
+  assert.deepEqual(missed, [], `${missed.length} Missed row(s)`);
+});
