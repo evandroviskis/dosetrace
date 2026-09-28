@@ -99,7 +99,9 @@ test('the plan returns the day\'s Taken count after the write (stale screen coun
 
 // A-40 (S-17, review #017 item 1): "ignore yesterday's" from the Pending-from-yesterday
 // prompt writes ONE Skipped row with logged_at = yesterday's slotMs — never Today's
-// tap-time skip path (TodayScreen.js:745). Red until A-40 adds planSkipPending.
+// tap-time skip path (TodayScreen.js:745). Red until A-40 builds it. planSkipPending is a
+// PLACEHOLDER name (review #018): the A-40 session may rename it or change its signature;
+// the binding behavior is one Skipped row at slotMs and no vial/supply change.
 test('A-40: ignore yesterday\'s pending dose → one Skipped row at yesterday\'s slot time (not the tap time)', { todo: 'A-40 — 1.2.5 S-17' }, () => {
   const { planSkipPending } = require('../lib/markTaken');
   assert.equal(typeof planSkipPending, 'function', 'planSkipPending not built yet');
@@ -108,4 +110,18 @@ test('A-40: ignore yesterday\'s pending dose → one Skipped row at yesterday\'s
   assert.equal(p.insert.outcome, 'Skipped');
   assert.equal(Date.parse(p.insert.logged_at), slotMs);
   assert.equal(p.vialUpdate, null, 'a skip never moves supply');
+});
+
+// Review #018 item 2: the binding behavior, not the API name (planSkipPending is a
+// placeholder the A-40 session may rename): if yesterday's slot already has a row
+// (any outcome), "ignore" writes nothing — never twice.
+test('A-40: ignore yesterday\'s pending dose when that slot already has a row (any outcome) → writes nothing', { todo: 'A-40 — 1.2.5 S-17' }, () => {
+  const { planSkipPending } = require('../lib/markTaken');
+  assert.equal(typeof planSkipPending, 'function', 'planSkipPending (placeholder name) not built yet');
+  const slotMs = local(2026, 9, 26, 20, 0);
+  for (const outcome of ['Taken', 'Skipped', 'Missed']) {
+    const existing = { id: 40, protocol_id: 1, outcome, logged_at: new Date(slotMs).toISOString() };
+    const p = planSkipPending({ protocol: { ...recon, doses_per_day: 1 }, todayLogs: [existing], dayKey: '2026-09-26', slotMs, nowMs: local(2026, 9, 27, 7, 0) });
+    assert.equal(p.insert, null, `no new row when the slot already has a ${outcome} row`);
+  }
 });
