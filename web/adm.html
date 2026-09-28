@@ -87,6 +87,27 @@
   .src:hover{color:var(--ink);border-color:var(--accent)}
   .src .ids{color:var(--accent);font-variant-numeric:tabular-nums}
   .tscroll{overflow-x:auto}
+  .tabs{display:flex;gap:6px;margin:4px 0 2px}
+  .tabs button{font-weight:700}
+  .winsel{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+  .winsel .range{color:var(--muted);font-size:12.5px}
+  .kpi .plat{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+  .dot-ios,.dot-android,.dot-unknown{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .dot-ios{background:var(--accent)}.dot-android{background:var(--good)}.dot-unknown{background:var(--muted)}
+  .nm{color:var(--warn);font-weight:700}
+  .nmwhy{color:var(--muted);font-size:12.5px}
+  table.mv{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  table.mv th,table.mv td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13.5px;text-align:right;vertical-align:middle}
+  table.mv th:first-child,table.mv td:first-child,table.mv th:nth-child(2),table.mv td:nth-child(2){text-align:left}
+  table.mv th{color:var(--muted);font-weight:600;font-size:12px}
+  table.mv td.id{color:var(--accent);font-weight:800;width:44px;text-align:left}
+  table.mv tr.sub td{color:var(--muted)}
+  table.mv tr.sub td:nth-child(2){padding-left:24px}
+  .bar{display:inline-block;width:90px;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:8px}
+  .bar span{display:block;height:100%;background:var(--accent)}
+  .check-ok{color:var(--good);font-weight:700}.check-bad{color:var(--bad);font-weight:700}
+  .qsub{color:var(--muted);font-size:12.5px;margin:-6px 0 8px}
+  table.g2 td{text-align:center;padding:6px 8px;border-radius:6px;font-size:12.5px}
   ul.rules{margin:0;padding-left:18px;color:var(--ink)}
   ul.rules li{margin:5px 0}
   table.ds{width:100%;border-collapse:collapse}
@@ -121,7 +142,8 @@
     en:{
       updated:'Updated {d}', refresh:'Refresh', loading:'Loading…', close:'Close',
       need_link:"This page needs the admin token. Reload the page to enter it.",
-      err_unauth:"Unauthorized — the admin token is missing or wrong. Reload the page to enter it again.",
+      err_unauth:"Unauthorized — the admin token is missing or wrong. Reload the page to enter it again.", win_n:"{n} days",
+      tab_mgmt:"Management", tab_details:"Details", details_note:"Secondary numbers. Unless stated, these still include test accounts.", nav_headline:"New customers", nav_funnel:"Funnel", nav_recon:"Reconciliation", nav_charts:"Charts", nav_activity:"Activity & totals", sec_headline:"New customers", sec_funnel:"Funnel — accounts created in the window", sec_recon:"Reconciliation — stores vs Supabase vs RevenueCat", sec_charts:"Charts", sec_activity:"Activity & totals", mv_na:"Management view unavailable: the Phase 2 SQL (admin_accounts) is not applied yet.", h_title:"New customers · {n} days", h_prev:"Previous {n} days: {p}", h_real_all:"Real customers · all time", h_real_all_sub:"Test accounts excluded", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Unknown", pf_mixed:"{n} with conflicting signals", win_range:"{a} to {b} · full UTC days", w0:"Store downloads", w1:"Accounts created", w2:"Email confirmed or signed in", w3:"Onboarded", w4:"At least 1 protocol", w5:"At least 1 dose logged", w6:"Premium (store purchase)", of_w1:"{p}% of W1", nm:"Not measured", nm_stores:"needs the Apple vendor number and the Play bucket", nm_premium:"needs RevenueCat key permission and the subscriptions path", nm_rc_perm:"key needs customers:read", nm_rc_conf:"RevenueCat key not configured", nm_rc_err:"RevenueCat request failed ({s})", nm_match:"Account match failed ({s}); those IDs stay unclassified.", late_note:"Later steps count anything reached up to now.", x1:"Store downloads", x2:"Supabase accounts created", x2_all:"all", x2_test:"test", x2_real:"real", x3:"RevenueCat IDs · first seen or purchased", x3_env:"all environments", x4:"of which anonymous ($RCAnonymousID, created at sign-out)", x5:"of which matching a Supabase account", x5_split:"real {r} · test {t}", x6:"of which with no Supabase account (likely deleted accounts)", x_check_ok:"Check: X3 = X4 + X5 + X6", x_check_bad:"Check failed: X3 differs from X4 + X5 + X6 by {n}", x_gap:"Real accounts in this window not matched to a RevenueCat ID: {n} (never signed in, or first seen by RevenueCat on another day)", g1_t:"New customers per day, by platform", g1_q:"Is acquisition growing, and on which platform?", g2_t:"Weekly signup cohorts — retention", g2_q:"Do new customers keep using the app week after week?", g2_floor:"A floor: \"active\" means any tracked event, and there is no app-open event. The current week is partial.", g3_t:"Premium conversion by signup week", g3_q:"What share of each signup week becomes paid Premium, and how fast?", g_cohort:"Signup week", g_size:"Accounts", rule_test2:"Management tab: test accounts are excluded (one list: admin_test_accounts). Details tab numbers still include them unless stated.", rule_rcids:"RevenueCat IDs are not customers: sign-outs and deleted accounts create extra IDs.", s_window_note:"Different window from the Management tab, not comparable with it.",
       nav_sources:"Data sources", sec_sources:"Data sources", src_btn:"Source · range", ds_rules:"Rules", ds_id:"ID", ds_metric:"Metric", ds_source:"Source", ds_def:"Definition", ds_range:"Range", ds_proven:"Proven", ds_not_proven:"not yet proven", ds_proven_on:"proven {d}", ds_def_lang:"Definitions are in English for now.", rule_utc:"Supabase days are UTC calendar days.", rule_test:"Counts include test accounts.", rule_active:"\"Active\" means any tracked analytics event. There is no app-open event, so active counts are a floor.", rule_window:"Compare only has the last 180 days loaded (older periods show 0). Product lists and Audience load all-time rows and filter them by the first Compare period.",
       err_notconf:'Panel not configured yet (ADMIN_TOKEN not set).',
       err_failed:'Request failed ({n}).', supabase_status:'Supabase {s}',
@@ -167,7 +189,8 @@
     es:{
       updated:'Actualizado {d}', refresh:'Actualizar', loading:'Cargando…', close:'Cerrar',
       need_link:"Esta página necesita el token de administrador. Recarga la página para introducirlo.",
-      err_unauth:"No autorizado — falta el token de administrador o es incorrecto. Recarga la página para introducirlo de nuevo.",
+      err_unauth:"No autorizado — falta el token de administrador o es incorrecto. Recarga la página para introducirlo de nuevo.", win_n:"{n} días",
+      tab_mgmt:"Gestión", tab_details:"Detalles", details_note:"Cifras secundarias. Salvo indicación, aún incluyen cuentas de prueba.", nav_headline:"Clientes nuevos", nav_funnel:"Embudo", nav_recon:"Conciliación", nav_charts:"Gráficos", nav_activity:"Actividad y totales", sec_headline:"Clientes nuevos", sec_funnel:"Embudo — cuentas creadas en la ventana", sec_recon:"Conciliación — tiendas vs Supabase vs RevenueCat", sec_charts:"Gráficos", sec_activity:"Actividad y totales", mv_na:"Vista de gestión no disponible: el SQL de la fase 2 (admin_accounts) aún no está aplicado.", h_title:"Clientes nuevos · {n} días", h_prev:"{n} días anteriores: {p}", h_real_all:"Clientes reales · todo el historial", h_real_all_sub:"Cuentas de prueba excluidas", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Desconocido", pf_mixed:"{n} con señales contradictorias", win_range:"{a} a {b} · días UTC completos", w0:"Descargas en tiendas", w1:"Cuentas creadas", w2:"Email confirmado o sesión iniciada", w3:"Onboarding completado", w4:"Al menos 1 protocolo", w5:"Al menos 1 dosis registrada", w6:"Premium (compra en tienda)", of_w1:"{p}% de W1", nm:"No medido", nm_stores:"requiere el número de proveedor de Apple y el bucket de Play", nm_premium:"requiere permiso de la clave de RevenueCat y la ruta de suscripciones", nm_rc_perm:"la clave necesita customers:read", nm_rc_conf:"clave de RevenueCat no configurada", nm_rc_err:"la solicitud a RevenueCat falló ({s})", nm_match:"Falló la correspondencia de cuentas ({s}); esos IDs quedan sin clasificar.", late_note:"Los pasos posteriores cuentan todo lo alcanzado hasta ahora.", x1:"Descargas en tiendas", x2:"Cuentas de Supabase creadas", x2_all:"todas", x2_test:"prueba", x2_real:"reales", x3:"IDs de RevenueCat · vistos por primera vez o con compra", x3_env:"todos los entornos", x4:"de ellos anónimos ($RCAnonymousID, creados al cerrar sesión)", x5:"de ellos con cuenta de Supabase", x5_split:"reales {r} · prueba {t}", x6:"de ellos sin cuenta de Supabase (probablemente cuentas eliminadas)", x_check_ok:"Comprobación: X3 = X4 + X5 + X6", x_check_bad:"Comprobación fallida: X3 difiere de X4 + X5 + X6 en {n}", x_gap:"Cuentas reales de esta ventana sin ID de RevenueCat: {n} (nunca iniciaron sesión, o RevenueCat las vio otro día)", g1_t:"Clientes nuevos por día, por plataforma", g1_q:"¿Crece la adquisición y en qué plataforma?", g2_t:"Cohortes semanales de registro — retención", g2_q:"¿Los clientes nuevos siguen usando la app semana tras semana?", g2_floor:"Un mínimo: \"activo\" es cualquier evento registrado y no hay evento de apertura de la app. La semana actual está incompleta.", g3_t:"Conversión a Premium por semana de registro", g3_q:"¿Qué parte de cada semana de registro pasa a Premium de pago, y con qué rapidez?", g_cohort:"Semana de registro", g_size:"Cuentas", rule_test2:"Pestaña Gestión: se excluyen las cuentas de prueba (una lista: admin_test_accounts). Las cifras de Detalles aún las incluyen salvo indicación.", rule_rcids:"Los IDs de RevenueCat no son clientes: los cierres de sesión y las cuentas eliminadas crean IDs extra.", s_window_note:"Ventana distinta de la pestaña Gestión; no son comparables.",
       nav_sources:"Fuentes de datos", sec_sources:"Fuentes de datos", src_btn:"Fuente · rango", ds_rules:"Reglas", ds_id:"ID", ds_metric:"Métrica", ds_source:"Fuente", ds_def:"Definición", ds_range:"Rango", ds_proven:"Verificado", ds_not_proven:"aún no verificado", ds_proven_on:"verificado {d}", ds_def_lang:"Por ahora las definiciones están en inglés.", rule_utc:"Los días de Supabase son días naturales UTC.", rule_test:"Los recuentos incluyen cuentas de prueba.", rule_active:"\"Activo\" significa cualquier evento de analítica registrado. No hay evento de apertura de la app, así que los activos son un mínimo.", rule_window:"Comparar solo tiene cargados los últimos 180 días (los periodos anteriores muestran 0). Las listas de Producto y Audiencia cargan filas de todo el historial y se filtran por el primer periodo de Comparar.",
       err_notconf:'El panel aún no está configurado (ADMIN_TOKEN no definido).',
       err_failed:'La solicitud falló ({n}).', supabase_status:'Supabase {s}',
@@ -213,7 +236,8 @@
     pt:{
       updated:'Atualizado {d}', refresh:'Atualizar', loading:'Carregando…', close:'Fechar',
       need_link:"Esta página precisa do token de administrador. Recarregue a página para inseri-lo.",
-      err_unauth:"Não autorizado — o token de administrador está ausente ou incorreto. Recarregue a página para inseri-lo de novo.",
+      err_unauth:"Não autorizado — o token de administrador está ausente ou incorreto. Recarregue a página para inseri-lo de novo.", win_n:"{n} dias",
+      tab_mgmt:"Gestão", tab_details:"Detalhes", details_note:"Números secundários. Salvo indicação, ainda incluem contas de teste.", nav_headline:"Novos clientes", nav_funnel:"Funil", nav_recon:"Conciliação", nav_charts:"Gráficos", nav_activity:"Atividade e totais", sec_headline:"Novos clientes", sec_funnel:"Funil — contas criadas na janela", sec_recon:"Conciliação — lojas vs Supabase vs RevenueCat", sec_charts:"Gráficos", sec_activity:"Atividade e totais", mv_na:"Visão de gestão indisponível: o SQL da fase 2 (admin_accounts) ainda não foi aplicado.", h_title:"Novos clientes · {n} dias", h_prev:"{n} dias anteriores: {p}", h_real_all:"Clientes reais · todo o histórico", h_real_all_sub:"Contas de teste excluídas", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Desconhecido", pf_mixed:"{n} com sinais conflitantes", win_range:"{a} a {b} · dias UTC completos", w0:"Downloads nas lojas", w1:"Contas criadas", w2:"Email confirmado ou login feito", w3:"Onboarding concluído", w4:"Pelo menos 1 protocolo", w5:"Pelo menos 1 dose registrada", w6:"Premium (compra na loja)", of_w1:"{p}% de W1", nm:"Não medido", nm_stores:"precisa do número de fornecedor da Apple e do bucket do Play", nm_premium:"precisa de permissão da chave do RevenueCat e do caminho de assinaturas", nm_rc_perm:"a chave precisa de customers:read", nm_rc_conf:"chave do RevenueCat não configurada", nm_rc_err:"a requisição ao RevenueCat falhou ({s})", nm_match:"Falha ao cruzar contas ({s}); esses IDs ficam sem classificação.", late_note:"As etapas seguintes contam tudo o que foi alcançado até agora.", x1:"Downloads nas lojas", x2:"Contas do Supabase criadas", x2_all:"todas", x2_test:"teste", x2_real:"reais", x3:"IDs do RevenueCat · vistos pela primeira vez ou com compra", x3_env:"todos os ambientes", x4:"dos quais anônimos ($RCAnonymousID, criados no logout)", x5:"dos quais com conta no Supabase", x5_split:"reais {r} · teste {t}", x6:"dos quais sem conta no Supabase (provavelmente contas excluídas)", x_check_ok:"Verificação: X3 = X4 + X5 + X6", x_check_bad:"Verificação falhou: X3 difere de X4 + X5 + X6 em {n}", x_gap:"Contas reais desta janela sem ID do RevenueCat: {n} (nunca fizeram login, ou o RevenueCat as viu em outro dia)", g1_t:"Novos clientes por dia, por plataforma", g1_q:"A aquisição está crescendo, e em qual plataforma?", g2_t:"Coortes semanais de cadastro — retenção", g2_q:"Os novos clientes continuam usando o app semana após semana?", g2_floor:"Um piso: \"ativo\" é qualquer evento registrado e não existe evento de abertura do app. A semana atual está incompleta.", g3_t:"Conversão para Premium por semana de cadastro", g3_q:"Que parte de cada semana de cadastro vira Premium pago, e em quanto tempo?", g_cohort:"Semana de cadastro", g_size:"Contas", rule_test2:"Aba Gestão: contas de teste são excluídas (uma lista: admin_test_accounts). Os números de Detalhes ainda as incluem, salvo indicação.", rule_rcids:"IDs do RevenueCat não são clientes: logouts e contas excluídas criam IDs extras.", s_window_note:"Janela diferente da aba Gestão; não são comparáveis.",
       nav_sources:"Fontes de dados", sec_sources:"Fontes de dados", src_btn:"Fonte · período", ds_rules:"Regras", ds_id:"ID", ds_metric:"Métrica", ds_source:"Fonte", ds_def:"Definição", ds_range:"Período", ds_proven:"Comprovado", ds_not_proven:"ainda não comprovado", ds_proven_on:"comprovado {d}", ds_def_lang:"Por enquanto as definições estão em inglês.", rule_utc:"Os dias do Supabase são dias corridos em UTC.", rule_test:"As contagens incluem contas de teste.", rule_active:"\"Ativo\" significa qualquer evento de analytics registrado. Não há evento de abertura do app, então os ativos são um piso.", rule_window:"Comparar só tem os últimos 180 dias carregados (períodos anteriores mostram 0). As listas de Produto e Público carregam linhas de todo o histórico e são filtradas pelo primeiro período de Comparar.",
       err_notconf:'O painel ainda não está configurado (ADMIN_TOKEN não definido).',
       err_failed:'A solicitação falhou ({n}).', supabase_status:'Supabase {s}',
@@ -259,7 +283,8 @@
     fr:{
       updated:'Mis à jour {d}', refresh:'Actualiser', loading:'Chargement…', close:'Fermer',
       need_link:"Cette page nécessite le jeton d'administration. Rechargez la page pour le saisir.",
-      err_unauth:"Non autorisé — le jeton d'administration est absent ou incorrect. Rechargez la page pour le saisir à nouveau.",
+      err_unauth:"Non autorisé — le jeton d'administration est absent ou incorrect. Rechargez la page pour le saisir à nouveau.", win_n:"{n} jours",
+      tab_mgmt:"Pilotage", tab_details:"Détails", details_note:"Chiffres secondaires. Sauf mention, ils incluent encore les comptes de test.", nav_headline:"Nouveaux clients", nav_funnel:"Entonnoir", nav_recon:"Rapprochement", nav_charts:"Graphiques", nav_activity:"Activité et totaux", sec_headline:"Nouveaux clients", sec_funnel:"Entonnoir — comptes créés dans la fenêtre", sec_recon:"Rapprochement — stores vs Supabase vs RevenueCat", sec_charts:"Graphiques", sec_activity:"Activité et totaux", mv_na:"Vue de pilotage indisponible : le SQL de la phase 2 (admin_accounts) n'est pas encore appliqué.", h_title:"Nouveaux clients · {n} jours", h_prev:"{n} jours précédents : {p}", h_real_all:"Clients réels · depuis le début", h_real_all_sub:"Comptes de test exclus", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Inconnu", pf_mixed:"{n} avec des signaux contradictoires", win_range:"{a} au {b} · jours UTC complets", w0:"Téléchargements stores", w1:"Comptes créés", w2:"E-mail confirmé ou connecté", w3:"Onboarding terminé", w4:"Au moins 1 protocole", w5:"Au moins 1 dose enregistrée", w6:"Premium (achat en store)", of_w1:"{p} % de W1", nm:"Non mesuré", nm_stores:"nécessite le numéro de fournisseur Apple et le bucket Play", nm_premium:"nécessite l'autorisation de la clé RevenueCat et le chemin des abonnements", nm_rc_perm:"la clé doit avoir customers:read", nm_rc_conf:"clé RevenueCat non configurée", nm_rc_err:"la requête RevenueCat a échoué ({s})", nm_match:"Le rapprochement des comptes a échoué ({s}) ; ces IDs restent non classés.", late_note:"Les étapes suivantes comptent tout ce qui a été atteint jusqu'à maintenant.", x1:"Téléchargements stores", x2:"Comptes Supabase créés", x2_all:"tous", x2_test:"test", x2_real:"réels", x3:"IDs RevenueCat · vus pour la première fois ou achat", x3_env:"tous les environnements", x4:"dont anonymes ($RCAnonymousID, créés à la déconnexion)", x5:"dont liés à un compte Supabase", x5_split:"réels {r} · test {t}", x6:"dont sans compte Supabase (probablement des comptes supprimés)", x_check_ok:"Contrôle : X3 = X4 + X5 + X6", x_check_bad:"Contrôle échoué : X3 diffère de X4 + X5 + X6 de {n}", x_gap:"Comptes réels de cette fenêtre sans ID RevenueCat : {n} (jamais connectés, ou vus par RevenueCat un autre jour)", g1_t:"Nouveaux clients par jour, par plateforme", g1_q:"L'acquisition progresse-t-elle, et sur quelle plateforme ?", g2_t:"Cohortes hebdomadaires d'inscription — rétention", g2_q:"Les nouveaux clients continuent-ils d'utiliser l'app semaine après semaine ?", g2_floor:"Un minimum : « actif » signifie tout événement suivi, et il n'y a pas d'événement d'ouverture de l'app. La semaine en cours est partielle.", g3_t:"Conversion Premium par semaine d'inscription", g3_q:"Quelle part de chaque semaine d'inscription passe à Premium payant, et en combien de temps ?", g_cohort:"Semaine d'inscription", g_size:"Comptes", rule_test2:"Onglet Pilotage : les comptes de test sont exclus (une liste : admin_test_accounts). Les chiffres de l'onglet Détails les incluent encore, sauf mention.", rule_rcids:"Les IDs RevenueCat ne sont pas des clients : les déconnexions et les comptes supprimés créent des IDs en plus.", s_window_note:"Fenêtre différente de l'onglet Pilotage ; non comparable.",
       nav_sources:"Sources de données", sec_sources:"Sources de données", src_btn:"Source · période", ds_rules:"Règles", ds_id:"ID", ds_metric:"Métrique", ds_source:"Source", ds_def:"Définition", ds_range:"Période", ds_proven:"Vérifié", ds_not_proven:"pas encore vérifié", ds_proven_on:"vérifié le {d}", ds_def_lang:"Les définitions sont en anglais pour l'instant.", rule_utc:"Les jours Supabase sont des jours civils UTC.", rule_test:"Les décomptes incluent les comptes de test.", rule_active:"« Actif » signifie tout événement d'analyse suivi. Il n'y a pas d'événement d'ouverture de l'app, les actifs sont donc un minimum.", rule_window:"Comparer ne charge que les 180 derniers jours (les périodes plus anciennes affichent 0). Les listes Produit et Audience chargent tout l'historique et sont filtrées par la première période de Comparer.",
       err_notconf:"Le panneau n'est pas encore configuré (ADMIN_TOKEN non défini).",
       err_failed:'Échec de la requête ({n}).', supabase_status:'Supabase {s}',
@@ -305,7 +330,8 @@
     de:{
       updated:'Aktualisiert {d}', refresh:'Aktualisieren', loading:'Wird geladen…', close:'Schließen',
       need_link:"Diese Seite benötigt das Admin-Token. Laden Sie die Seite neu, um es einzugeben.",
-      err_unauth:"Nicht autorisiert — das Admin-Token fehlt oder ist falsch. Laden Sie die Seite neu, um es erneut einzugeben.",
+      err_unauth:"Nicht autorisiert — das Admin-Token fehlt oder ist falsch. Laden Sie die Seite neu, um es erneut einzugeben.", win_n:"{n} Tage",
+      tab_mgmt:"Steuerung", tab_details:"Details", details_note:"Nebenkennzahlen. Sofern nicht anders angegeben, enthalten sie noch Testkonten.", nav_headline:"Neue Kunden", nav_funnel:"Trichter", nav_recon:"Abgleich", nav_charts:"Diagramme", nav_activity:"Aktivität & Summen", sec_headline:"Neue Kunden", sec_funnel:"Trichter — im Zeitraum erstellte Konten", sec_recon:"Abgleich — Stores vs. Supabase vs. RevenueCat", sec_charts:"Diagramme", sec_activity:"Aktivität & Summen", mv_na:"Steuerungsansicht nicht verfügbar: Das SQL der Phase 2 (admin_accounts) ist noch nicht angewendet.", h_title:"Neue Kunden · {n} Tage", h_prev:"Vorherige {n} Tage: {p}", h_real_all:"Echte Kunden · gesamt", h_real_all_sub:"Testkonten ausgeschlossen", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Unbekannt", pf_mixed:"{n} mit widersprüchlichen Signalen", win_range:"{a} bis {b} · volle UTC-Tage", w0:"Store-Downloads", w1:"Konten erstellt", w2:"E-Mail bestätigt oder angemeldet", w3:"Onboarding abgeschlossen", w4:"Mindestens 1 Protokoll", w5:"Mindestens 1 Dosis erfasst", w6:"Premium (Store-Kauf)", of_w1:"{p} % von W1", nm:"Nicht gemessen", nm_stores:"benötigt die Apple-Anbieternummer und den Play-Bucket", nm_premium:"benötigt RevenueCat-Schlüsselberechtigung und den Abonnement-Pfad", nm_rc_perm:"Schlüssel benötigt customers:read", nm_rc_conf:"RevenueCat-Schlüssel nicht konfiguriert", nm_rc_err:"RevenueCat-Anfrage fehlgeschlagen ({s})", nm_match:"Kontenabgleich fehlgeschlagen ({s}); diese IDs bleiben unklassifiziert.", late_note:"Spätere Schritte zählen alles, was bis jetzt erreicht wurde.", x1:"Store-Downloads", x2:"Erstellte Supabase-Konten", x2_all:"alle", x2_test:"Test", x2_real:"echt", x3:"RevenueCat-IDs · erstmals gesehen oder gekauft", x3_env:"alle Umgebungen", x4:"davon anonym ($RCAnonymousID, beim Abmelden erstellt)", x5:"davon mit Supabase-Konto", x5_split:"echt {r} · Test {t}", x6:"davon ohne Supabase-Konto (vermutlich gelöschte Konten)", x_check_ok:"Prüfung: X3 = X4 + X5 + X6", x_check_bad:"Prüfung fehlgeschlagen: X3 weicht um {n} von X4 + X5 + X6 ab", x_gap:"Echte Konten in diesem Zeitraum ohne RevenueCat-ID: {n} (nie angemeldet oder von RevenueCat an einem anderen Tag gesehen)", g1_t:"Neue Kunden pro Tag, nach Plattform", g1_q:"Wächst die Neukundengewinnung, und auf welcher Plattform?", g2_t:"Wöchentliche Anmelde-Kohorten — Bindung", g2_q:"Nutzen neue Kunden die App Woche für Woche weiter?", g2_floor:"Eine Untergrenze: „aktiv“ ist jedes erfasste Ereignis, und es gibt kein App-Öffnen-Ereignis. Die aktuelle Woche ist unvollständig.", g3_t:"Premium-Konversion nach Anmeldewoche", g3_q:"Welcher Anteil jeder Anmeldewoche wird zahlendes Premium, und wie schnell?", g_cohort:"Anmeldewoche", g_size:"Konten", rule_test2:"Tab Steuerung: Testkonten sind ausgeschlossen (eine Liste: admin_test_accounts). Kennzahlen im Tab Details enthalten sie noch, sofern nicht anders angegeben.", rule_rcids:"RevenueCat-IDs sind keine Kunden: Abmeldungen und gelöschte Konten erzeugen zusätzliche IDs.", s_window_note:"Anderer Zeitraum als im Tab Steuerung; nicht vergleichbar.",
       nav_sources:"Datenquellen", sec_sources:"Datenquellen", src_btn:"Quelle · Zeitraum", ds_rules:"Regeln", ds_id:"ID", ds_metric:"Kennzahl", ds_source:"Quelle", ds_def:"Definition", ds_range:"Zeitraum", ds_proven:"Geprüft", ds_not_proven:"noch nicht geprüft", ds_proven_on:"geprüft am {d}", ds_def_lang:"Die Definitionen sind vorerst auf Englisch.", rule_utc:"Supabase-Tage sind UTC-Kalendertage.", rule_test:"Die Zählungen enthalten Testkonten.", rule_active:"„Aktiv“ bedeutet ein beliebiges erfasstes Analytics-Ereignis. Es gibt kein App-Öffnen-Ereignis, daher sind Aktive eine Untergrenze.", rule_window:"Vergleich hat nur die letzten 180 Tage geladen (ältere Zeiträume zeigen 0). Produktlisten und Zielgruppe laden alle Zeilen und werden nach dem ersten Vergleichszeitraum gefiltert.",
       err_notconf:'Panel noch nicht konfiguriert (ADMIN_TOKEN nicht gesetzt).',
       err_failed:'Anfrage fehlgeschlagen ({n}).', supabase_status:'Supabase {s}',
@@ -351,7 +377,8 @@
     it:{
       updated:'Aggiornato {d}', refresh:'Aggiorna', loading:'Caricamento…', close:'Chiudi',
       need_link:"Questa pagina richiede il token di amministrazione. Ricarica la pagina per inserirlo.",
-      err_unauth:"Non autorizzato — il token di amministrazione manca o è errato. Ricarica la pagina per inserirlo di nuovo.",
+      err_unauth:"Non autorizzato — il token di amministrazione manca o è errato. Ricarica la pagina per inserirlo di nuovo.", win_n:"{n} giorni",
+      tab_mgmt:"Gestione", tab_details:"Dettagli", details_note:"Numeri secondari. Salvo indicazione, includono ancora gli account di prova.", nav_headline:"Nuovi clienti", nav_funnel:"Funnel", nav_recon:"Riconciliazione", nav_charts:"Grafici", nav_activity:"Attività e totali", sec_headline:"Nuovi clienti", sec_funnel:"Funnel — account creati nella finestra", sec_recon:"Riconciliazione — store vs Supabase vs RevenueCat", sec_charts:"Grafici", sec_activity:"Attività e totali", mv_na:"Vista di gestione non disponibile: lo SQL della fase 2 (admin_accounts) non è ancora applicato.", h_title:"Nuovi clienti · {n} giorni", h_prev:"{n} giorni precedenti: {p}", h_real_all:"Clienti reali · da sempre", h_real_all_sub:"Account di prova esclusi", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Sconosciuto", pf_mixed:"{n} con segnali contrastanti", win_range:"dal {a} al {b} · giorni UTC completi", w0:"Download dagli store", w1:"Account creati", w2:"Email confermata o accesso effettuato", w3:"Onboarding completato", w4:"Almeno 1 protocollo", w5:"Almeno 1 dose registrata", w6:"Premium (acquisto nello store)", of_w1:"{p}% di W1", nm:"Non misurato", nm_stores:"richiede il numero fornitore Apple e il bucket di Play", nm_premium:"richiede il permesso della chiave RevenueCat e il percorso degli abbonamenti", nm_rc_perm:"la chiave richiede customers:read", nm_rc_conf:"chiave RevenueCat non configurata", nm_rc_err:"richiesta a RevenueCat non riuscita ({s})", nm_match:"Abbinamento account non riuscito ({s}); quegli ID restano non classificati.", late_note:"I passaggi successivi contano tutto ciò che è stato raggiunto finora.", x1:"Download dagli store", x2:"Account Supabase creati", x2_all:"tutti", x2_test:"prova", x2_real:"reali", x3:"ID RevenueCat · visti per la prima volta o con acquisto", x3_env:"tutti gli ambienti", x4:"di cui anonimi ($RCAnonymousID, creati al logout)", x5:"di cui con account Supabase", x5_split:"reali {r} · prova {t}", x6:"di cui senza account Supabase (probabilmente account eliminati)", x_check_ok:"Controllo: X3 = X4 + X5 + X6", x_check_bad:"Controllo non riuscito: X3 differisce da X4 + X5 + X6 di {n}", x_gap:"Account reali di questa finestra senza ID RevenueCat: {n} (mai effettuato l'accesso, o visti da RevenueCat in un altro giorno)", g1_t:"Nuovi clienti al giorno, per piattaforma", g1_q:"L'acquisizione sta crescendo, e su quale piattaforma?", g2_t:"Coorti settimanali di iscrizione — retention", g2_q:"I nuovi clienti continuano a usare l'app settimana dopo settimana?", g2_floor:"Un minimo: «attivo» è qualsiasi evento tracciato e non esiste un evento di apertura dell'app. La settimana corrente è parziale.", g3_t:"Conversione a Premium per settimana di iscrizione", g3_q:"Quale quota di ogni settimana di iscrizione diventa Premium a pagamento, e in quanto tempo?", g_cohort:"Settimana di iscrizione", g_size:"Account", rule_test2:"Scheda Gestione: gli account di prova sono esclusi (una lista: admin_test_accounts). I numeri della scheda Dettagli li includono ancora, salvo indicazione.", rule_rcids:"Gli ID RevenueCat non sono clienti: logout e account eliminati creano ID in più.", s_window_note:"Finestra diversa dalla scheda Gestione; non confrontabile.",
       nav_sources:"Fonti dei dati", sec_sources:"Fonti dei dati", src_btn:"Fonte · periodo", ds_rules:"Regole", ds_id:"ID", ds_metric:"Metrica", ds_source:"Fonte", ds_def:"Definizione", ds_range:"Periodo", ds_proven:"Verificato", ds_not_proven:"non ancora verificato", ds_proven_on:"verificato il {d}", ds_def_lang:"Per ora le definizioni sono in inglese.", rule_utc:"I giorni di Supabase sono giorni di calendario UTC.", rule_test:"I conteggi includono gli account di prova.", rule_active:"«Attivo» significa qualsiasi evento di analytics tracciato. Non esiste un evento di apertura dell'app, quindi gli attivi sono un minimo.", rule_window:"Confronta ha caricati solo gli ultimi 180 giorni (i periodi precedenti mostrano 0). Gli elenchi Prodotto e Pubblico caricano tutto lo storico e vengono filtrati per il primo periodo di Confronta.",
       err_notconf:'Pannello non ancora configurato (ADMIN_TOKEN non impostato).',
       err_failed:'Richiesta non riuscita ({n}).', supabase_status:'Supabase {s}',
@@ -423,36 +450,47 @@
   // proven = null until the founder proves the number against the source dashboard.
   // Definitions stay English for now (spec open item O-6).
   var DEFS=[
-    {id:"O1",name:"Total users",src:"Supabase · auth.users",def:"count(*) of auth.users: every account, including test and unconfirmed accounts.",range:"All time",proven:null},
+    {id:"H1",name:"New customers · 7 days",src:"Supabase · auth.users (admin_accounts)",def:"Real accounts (test excluded) created in the window, confirmed or not, with the change vs the previous 7 days.",range:"Last 7 full UTC days vs the 7 before",proven:null},
+    {id:"H2",name:"New customers · 30 days",src:"Supabase · auth.users (admin_accounts)",def:"Same as H1 over 30 days.",range:"Last 30 full UTC days vs the 30 before",proven:null},
+    {id:"H3",name:"New customers · 90 days",src:"Supabase · auth.users (admin_accounts)",def:"Same as H1 over 90 days.",range:"Last 90 full UTC days vs the 90 before",proven:null},
+    {id:"H4",name:"Platform split",src:"Supabase · events, push_tokens, sessions, sign-in provider",def:"Apple sign-in = iOS always. Otherwise event platform, push token and session user agent are collected together: agree = that platform; disagree = unknown (mixed); none = unknown. iOS + Android + unknown = total.",range:"Same as the card",proven:null},
+    {id:"W0",name:"Store downloads",src:"App Store Connect / Google Play",def:"Not measured yet: needs the Apple vendor number and the Play bucket.",range:"Same full UTC days as the cohort",proven:null},
+    {id:"W1",name:"Accounts created",src:"Supabase · auth.users",def:"The cohort: real accounts created in the window.",range:"Chosen window (7 / 30 / 90 full UTC days)",proven:null},
+    {id:"W2",name:"Email confirmed or signed in",src:"Supabase · auth.users",def:"email_confirmed_at set, or has signed in at least once (last_sign_in_at not null; never used for churn).",range:"Cohort; status now",proven:null},
+    {id:"W3",name:"Onboarded",src:"Supabase · user metadata",def:"The onboarded_at key is present.",range:"Cohort; status now",proven:null},
+    {id:"W4",name:"At least 1 protocol",src:"Supabase · protocols",def:"Has ever had a protocol row (deleted ones included).",range:"Cohort; any time",proven:null},
+    {id:"W5",name:"At least 1 dose logged",src:"Supabase · dose_logs",def:"At least 1 dose_logs row of any outcome (backfilled rows count until A-30).",range:"Cohort; any time",proven:null},
+    {id:"W6",name:"Premium (store purchase)",src:"RevenueCat",def:"Not measured yet: needs RevenueCat key permission and the per-customer subscriptions path.",range:"Cohort; any time",proven:null},
+    {id:"X1",name:"Store downloads",src:"App Store Connect / Google Play",def:"Not measured yet (as W0).",range:"Chosen window",proven:null},
+    {id:"X2",name:"Supabase accounts: all / test / real",src:"Supabase · auth.users",def:"All accounts created in the window; test = admin_is_test; real = the rest.",range:"Chosen window",proven:null},
+    {id:"X3",name:"RevenueCat IDs · first seen or purchased",src:"RevenueCat v2 · customers list",def:"RevenueCat customers whose first_seen_at falls in the window, all environments. IDs, not people.",range:"Chosen window",proven:null},
+    {id:"X4",name:"RevenueCat IDs · anonymous",src:"RevenueCat v2 · customers list",def:"IDs starting with $RCAnonymousID (created by Purchases.logOut at sign-out).",range:"Chosen window",proven:null},
+    {id:"X5",name:"RevenueCat IDs · matching a Supabase account",src:"RevenueCat × Supabase (admin_match_ids)",def:"Exact full-id join of the app_user_id to auth.users.id; split real / test.",range:"Chosen window",proven:null},
+    {id:"X6",name:"RevenueCat IDs · no Supabase account",src:"RevenueCat × Supabase (admin_match_ids)",def:"Identified IDs matching no auth.users.id: likely deleted accounts (delete-user leaves the RevenueCat customer).",range:"Chosen window",proven:null},
+    {id:"G1",name:"New customers per day, by platform",src:"Supabase · auth.users (admin_accounts)",def:"Daily count of H-definition accounts, stacked iOS / Android / unknown. Daily sums add up to H3.",range:"Last 90 full UTC days",proven:null},
+    {id:"G2",name:"Weekly signup cohorts — retention",src:"Supabase · auth.users + analytics_events",def:"Real accounts by signup ISO week (Monday UTC); cell Wn = share with at least 1 analytics event in week n. A floor (no app-open event).",range:"Last 8 signup weeks",proven:null},
+    {id:"G3",name:"Premium conversion by signup week",src:"Supabase + RevenueCat",def:"Not measured yet (as W6).",range:"Last 12 signup weeks",proven:null},
+    {id:"O1",name:"Real customers (all time)",src:"Supabase · auth.users (admin_accounts)",def:"Every account in auth.users that is not a test account (admin_is_test: admin_test_accounts list + @dosetrace.io rule), confirmed or not.",range:"All time",proven:null},
     {id:"O2",name:"Signups today (+N today)",src:"Supabase · profiles",def:"Profiles whose created_at falls on the current UTC day.",range:"Current UTC day",proven:null},
-    {id:"O3",name:"New · 7 days",src:"Supabase · profiles",def:"Sum of daily signups (profiles.created_at) over the last 7 days.",range:"7 UTC days incl. today",proven:null},
-    {id:"O4",name:"New · 30 days",src:"Supabase · profiles",def:"Sum of daily signups (profiles.created_at) over the last 30 days.",range:"30 UTC days incl. today",proven:null},
     {id:"O5",name:"WAU",src:"Supabase · analytics_events",def:"Distinct users with at least one analytics event dated today or up to 6 days before.",range:"7 UTC days incl. today",proven:null},
     {id:"O6",name:"DAU",src:"Supabase · analytics_events",def:"Distinct users with at least one analytics event dated today.",range:"Current UTC day",proven:null},
     {id:"O7",name:"MAU",src:"Supabase · analytics_events",def:"Distinct users with at least one analytics event dated today or up to 29 days before.",range:"30 UTC days incl. today",proven:null},
-    {id:"O8",name:"Stickiness",src:"Derived (O6 ÷ O7)",def:"Today's DAU divided by MAU. Not an average of daily DAU.",range:"Today / 30 UTC days",proven:null},
-    {id:"O9",name:"Profiles complete",src:"Supabase · auth.users metadata",def:"Accounts with display_name, country, primary_goal and activity_level all filled, divided by total users. The app itself checks 8 fields, so this is looser.",range:"All time",proven:null},
-    {id:"O10",name:"Signups & active users chart",src:"Supabase · profiles + analytics_events",def:"Per UTC day: signups (profiles.created_at) and DAU (distinct users with any event).",range:"Last 90 UTC days",proven:null},
-    {id:"O11",name:"Protocols (and active)",src:"Supabase · protocols",def:"count(*) of protocols including deleted (tombstoned) rows. \"Active\" = rows with active = true.",range:"All time",proven:null},
+    {id:"O11",name:"Protocols (live)",src:"Supabase · protocols (admin_accounts)",def:"count(*) of protocols whose deleted_at is null (deleted rows excluded). Includes test accounts.",range:"All time",proven:null},
     {id:"O12",name:"Dose logs",src:"Supabase · dose_logs",def:"count(*) of dose logs, all outcomes (Taken, Missed, Skipped).",range:"All time",proven:null},
     {id:"O13",name:"Biomarkers",src:"Supabase · biomarkers",def:"count(*) of biomarker rows.",range:"All time",proven:null},
-    {id:"C1",name:"Signups",src:"Supabase · profiles",def:"Profiles by created_at UTC date, summed over the period.",range:"Chosen period (last 180 days loaded)",proven:null},
     {id:"C2",name:"Active users",src:"Supabase · analytics_events",def:"Distinct users with any analytics event in the period.",range:"Chosen period (last 180 days loaded)",proven:null},
     {id:"C3",name:"Doses logged",src:"Supabase · dose_logs",def:"Dose logs by logged_at UTC date, all outcomes.",range:"Chosen period (last 180 days loaded)",proven:null},
     {id:"C4",name:"Protocols created",src:"Supabase · protocols",def:"Protocol rows by created_at UTC date, including deleted rows.",range:"Chosen period (last 180 days loaded)",proven:null},
     {id:"C5",name:"AI lab scans",src:"Supabase · analytics_events",def:"bloodwork_uploaded events by UTC date.",range:"Chosen period (last 180 days loaded)",proven:null},
     {id:"E1",name:"Adherence",src:"Supabase · dose_logs",def:"Dose logs with outcome Taken divided by all dose logs.",range:"All time",proven:null},
-    {id:"E2",name:"Activation funnel",src:"Supabase",def:"Five independent counts, not a strict sequence: accounts; profiles complete (O9); users with any protocol row (incl. deleted); users with any dose log; users with a lab scan event.",range:"All time",proven:null},
     {id:"E3",name:"Doses logged · 90 days",src:"Supabase · dose_logs",def:"Dose logs per logged_at UTC day.",range:"Last 90 UTC days",proven:null},
     {id:"F1",name:"Active users · 30 days (of total)",src:"Supabase · analytics_events + profiles",def:"Distinct users with an analytics event in the last 30×24 hours (rolling, not UTC days), over the number of profiles.",range:"Rolling 30 days",proven:null},
     {id:"F2",name:"Feature adoption table",src:"Supabase · analytics_events + profiles",def:"Per event: Uses = event count; Users = distinct users; Reach = Users ÷ number of profiles.",range:"All time",proven:null},
-    {id:"R1",name:"Weekly retention cohorts",src:"Supabase · auth.users + analytics_events",def:"Accounts grouped by signup week (Monday, UTC). Cell Wn = share of the cohort with at least one analytics event in week n (0–7).",range:"Last 8 signup weeks",proven:null},
     {id:"P1",name:"Top compounds created",src:"Supabase · analytics_events",def:"protocol_created events grouped by compound. Events, not protocol rows.",range:"First Compare period (all-time rows)",proven:null},
     {id:"P2",name:"Top searches",src:"Supabase · analytics_events",def:"compound_search events grouped by query text.",range:"First Compare period (all-time rows)",proven:null},
     {id:"P3",name:"Protocol type",src:"Supabase · analytics_events",def:"protocol_created events grouped by type (reconstituted / ready-to-use).",range:"First Compare period (all-time rows)",proven:null},
     {id:"P4",name:"Top biomarkers",src:"Supabase · biomarkers",def:"Biomarker rows grouped by marker, top 12.",range:"All time",proven:null},
     {id:"V1",name:"RevenueCat overview",src:"RevenueCat v2 · metrics/overview",def:"Each card is one metric exactly as RevenueCat returns it (its own name, value and description).",range:"As defined by RevenueCat per metric",proven:null},
-    {id:"V2",name:"Plan (Supabase field)",src:"Supabase · profiles.plan",def:"Profiles grouped by plan. Every row is \"free\", so this cannot show Premium; RevenueCat is authoritative.",range:"All time",proven:null},
     {id:"U1",name:"Audience",src:"Supabase · auth.users metadata",def:"Counts of country, primary goal, activity level and gender; age = current year − birth year. Accounts whose signup date is in the first Compare period.",range:"First Compare period (all accounts)",proven:null},
     {id:"S1",name:"Apple downloads · 30 days",src:"App Store Connect · Sales Reports",def:"Sum of Units with product type 1* or F1* over the daily sales summaries of the 30 days before today. Days without a report are skipped.",range:"30 days ending yesterday (UTC)",proven:null},
     {id:"S2",name:"Apple updates · 30 days",src:"App Store Connect · Sales Reports",def:"Sum of Units with product type 7* over the same reports.",range:"30 days ending yesterday (UTC)",proven:null},
@@ -517,6 +555,9 @@
   // ---- state ----
   var D={}, RC={}, AP={}, GP={}, gran='week', periods=[];
   var KPI=[], ACT=[], UDIM=[], SEARCH=[], PROTO=[];
+  // Management view (Phase 2): MG = payload.management (server-computed counts only).
+  var MG=null, TAB='mgmt', MWIN=30;
+  try{ TAB=localStorage.getItem('dt_adm_tab')==='details'?'details':'mgmt'; }catch(e){}
 
   function kpiFor(p){
     var s={signups:0,doses:0,protocols_created:0,scans:0,active:0};
@@ -530,7 +571,7 @@
   }
 
   // ---- render primitives ----
-  function metrics(){return [{k:'signups',l:t('m_signups')},{k:'active',l:t('m_active'),t:'active'},{k:'doses',l:t('m_doses')},{k:'protocols_created',l:t('m_protocols_created')},{k:'scans',l:t('m_scans')}];}
+  function metrics(){return [{k:'active',l:t('m_active'),t:'active'},{k:'doses',l:t('m_doses')},{k:'protocols_created',l:t('m_protocols_created')},{k:'scans',l:t('m_scans')}];}
   function deltaHTML(cur,base){if(base==null||base===0)return cur>0?'<span class="delta up">new</span>':'';var d=Math.round((cur-base)/base*1000)/10;var cls=d>0?'up':(d<0?'down':'flat');var sign=d>0?'+':'';return '<span class="delta '+cls+'">'+sign+d+'%</span>';}
   function rows(list,max){if(!list||!list.length)return '<div class="muted">'+t('no_data')+'</div>';max=max||Math.max.apply(null,list.map(function(x){return x.n;}).concat([1]));return list.map(function(x){return '<div class="row"><div class="k" title="'+esc(x.k)+'">'+esc(x.k)+'</div><div class="track"><div class="fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="n">'+fmt(x.n)+'</div></div>';}).join('');}
   function kpiCard(label,val,sub,term,ids){return '<div class="card kpi"><div class="label">'+esc(label)+(term?' '+iBtn(term):'')+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+(ids?srcBtn(ids):'')+'</div>';}
@@ -550,30 +591,105 @@
   function secOverview(){
     var tt=D.totals||{},f=D.funnel||{};
     var last=KPI[KPI.length-1]||{};
-    var s7=KPI.slice(-7).reduce(function(a,r){return a+r.signups;},0);
-    var s30=KPI.slice(-30).reduce(function(a,r){return a+r.signups;},0);
     // 1 / 7 / 30 UTC days including today (was 2 / 8 / 31 local days: finding A-4).
     var actSet=function(days){var u={},cut=utcDay(days-1);ACT.forEach(function(e){if(e.d>=cut)u[e.u]=1;});return Object.keys(u).length;};
     var dau=actSet(1),wau=actSet(7),mau=actSet(30);
-    var pcComplete=tt.users?Math.round(f.profile_complete/tt.users*100):0;
-    var h='<section id="overview"><h2>'+t('sec_overview')+'</h2><div class="grid kpis">'
-      +kpiCard(t('k_total_users'),fmt(tt.users),t('today_plus',{n:fmt(last.signups)}),null,'O1,O2')
-      +kpiCard(t('k_new_7_30'),fmt(s7)+' / '+fmt(s30),null,null,'O3,O4')
+    var live=MG&&MG.protocols_live!=null?MG.protocols_live:null;
+    var h='<section id="activity"><h2>'+t('sec_activity')+'</h2><div class="grid kpis">'
+      +kpiCard(t('m_signups'),fmt(last.signups),t('today_plus',{n:fmt(last.signups)}),null,'O2')
       +kpiCard(t('k_wau'),fmt(wau),t('dau_mau_sub',{dau:fmt(dau),mau:fmt(mau)}),'wau','O5,O6,O7')
-      +kpiCard(t('k_stickiness'),mau?pct(dau/mau*100):'—',t('dau_mau'),'stick','O8')
-      +kpiCard(t('k_profiles_complete'),pcComplete+'%',t('of_n',{a:fmt(f.profile_complete),b:fmt(tt.users)}),null,'O9')
       +'</div>';
-    h+='<div class="card" style="margin-top:12px"><h3>'+t('chart_signups_active')+'</h3>'+srcBtn('O10')+'<canvas id="c-overview" height="90"></canvas></div>';
     h+='<div class="grid three" style="margin-top:12px">'
-      +kpiCard(t('k_protocols'),fmt(tt.protocols),t('n_active',{n:fmt(tt.protocols_active)}),null,'O11')
+      +kpiCard(t('k_protocols'),live==null?'—':fmt(live),null,null,'O11')
       +kpiCard(t('k_dose_logs'),fmt(tt.dose_logs),null,null,'O12')
       +kpiCard(t('k_biomarkers'),fmt(tt.biomarkers),null,null,'O13')+'</div>';
     h+='</section>';
     return h;
   }
-  function drawOverview(){
-    var C=cc();var d=KPI.slice(-90);
-    makeChart('c-overview',{type:'line',data:{labels:d.map(function(r){return r.date;}),datasets:[lineDS(t('m_signups'),d.map(function(r){return r.signups;}),'#4FA3E8'),lineDS('DAU',d.map(function(r){return r.dau;}),'#2CD3A7')]},options:{responsive:true,plugins:{legend:{labels:{color:C.ink,boxWidth:12}}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,maxTicksLimit:8,font:{size:10}}},y:{grid:{color:C.grid},ticks:{color:C.muted,font:{size:11}},beginAtZero:true}}}});
+
+
+  // ---- Management view (docs/specs/admin-panel.md "Phase 2 — Management view") ----
+  function cssVar(n){try{return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}catch(e){return '';}}
+  function platLine(p){
+    if(!p)return '';
+    return '<div class="plat"><span><i class="dot-ios"></i>'+t('pf_ios')+' '+fmt(p.ios)+'</span><span><i class="dot-android"></i>'+t('pf_android')+' '+fmt(p.android)+'</span><span><i class="dot-unknown"></i>'+t('pf_unknown')+' '+fmt(p.unknown)+(p.mixed?' ('+esc(t('pf_mixed',{n:fmt(p.mixed)}))+')':'')+'</span></div>';
+  }
+  function nmCell(why){return '<span class="nm">'+t('nm')+'</span> <span class="nmwhy">— '+esc(why)+'</span>';}
+  // Windows are [start, end) in full UTC days; show the last included day.
+  function lastDay(end){return new Date(Date.parse(end+'T00:00:00Z')-864e5).toISOString().slice(0,10);}
+  function rangeText(w){return w?t('win_range',{a:w.start,b:lastDay(w.end)}):'';}
+  function winSel(){
+    var w=MG&&MG.windows[MWIN]?MG.windows[MWIN].window:null;
+    return '<div class="winsel">'+[7,30,90].map(function(n){return '<button class="'+(MWIN===n?'on':'')+'" onclick="setMwin('+n+')">'+esc(t('win_n',{n:n}))+'</button>';}).join('')+'<span class="range">'+esc(rangeText(w))+'</span></div>';
+  }
+  function secHeadline(){
+    var h='<section id="headline"><h2>'+t('sec_headline')+'</h2><div class="grid kpis">';
+    MG.headline.forEach(function(c){
+      var d=c.delta>0?'up':(c.delta<0?'down':'flat');
+      var sub=t('h_prev',{n:c.days,p:fmt(c.prev)})+' · '+(c.delta>0?'+':'')+fmt(c.delta)+(c.pct==null?'':' ('+(c.pct>0?'+':'')+c.pct+'%)');
+      h+='<div class="card kpi"><div class="label">'+esc(t('h_title',{n:c.days}))+'</div><div class="val">'+fmt(c.count)+'</div><div class="sub"><span class="'+d+'">'+esc(sub)+'</span></div>'
+        +'<div class="sub">'+esc(rangeText(c.window))+'</div>'+platLine(c.platforms)+srcBtn({7:'H1',30:'H2',90:'H3'}[c.days]+',H4')+'</div>';
+    });
+    h+=kpiCard(t('h_real_all'),fmt(MG.real_all_time),t('h_real_all_sub'),null,'O1');
+    return h+'</div></section>';
+  }
+  function secFunnel(){
+    var W=MG.windows[MWIN];if(!W)return '';
+    var base=(W.funnel[0]||{}).total||0;
+    var h='<section id="funnel"><h2>'+t('sec_funnel')+'</h2><div class="card">'+winSel()+srcBtn('W0,W1,W2,W3,W4,W5,W6');
+    h+='<div class="tscroll"><table class="mv"><tr><th></th><th style="text-align:left">'+t('metric')+'</th><th>'+t('pf_ios')+'</th><th>'+t('pf_android')+'</th><th>'+t('pf_unknown')+'</th><th>Total</th></tr>';
+    h+='<tr><td class="id">W0</td><td style="text-align:left">'+t('w0')+'</td><td colspan="4" style="text-align:left">'+nmCell(t('nm_stores'))+'</td></tr>';
+    W.funnel.forEach(function(st){
+      var p=base?Math.round(st.total/base*100):0;
+      h+='<tr><td class="id">'+st.id+'</td><td style="text-align:left">'+esc(t(st.id.toLowerCase()))+'</td><td>'+fmt(st.ios)+'</td><td>'+fmt(st.android)+'</td><td>'+fmt(st.unknown)+(st.mixed?' <span class="nmwhy">('+esc(t('pf_mixed',{n:fmt(st.mixed)}))+')</span>':'')+'</td>'
+        +'<td><span class="bar"><span style="width:'+p+'%"></span></span>'+fmt(st.total)+(st.id!=='W1'?' <span class="nmwhy">'+esc(t('of_w1',{p:p}))+'</span>':'')+'</td></tr>';
+    });
+    h+='<tr><td class="id">W6</td><td style="text-align:left">'+t('w6')+'</td><td colspan="4" style="text-align:left">'+nmCell(t('nm_premium'))+'</td></tr>';
+    return h+'</table></div><div class="sub muted" style="margin-top:8px">'+t('late_note')+'</div></div></section>';
+  }
+  function rcWhy(st){if(st==='no_permission')return t('nm_rc_perm');if(st==='not_configured')return t('nm_rc_conf');return t('nm_rc_err',{s:st});}
+  function secRecon(){
+    var W=MG.windows[MWIN];if(!W)return '';var R=W.recon;var x2=R.x2;var rc=R.rc||{};
+    var h='<section id="recon"><h2>'+t('sec_recon')+'</h2><div class="card">'+winSel()+srcBtn('X1,X2,X3,X4,X5,X6');
+    h+='<div class="tscroll"><table class="mv">';
+    h+='<tr><td class="id">X1</td><td>'+t('x1')+'</td><td>'+nmCell(t('nm_stores'))+'</td></tr>';
+    h+='<tr><td class="id">X2</td><td>'+t('x2')+'</td><td>'+t('x2_all')+' '+fmt(x2.all)+' · '+t('x2_test')+' '+fmt(x2.test)+' · <b>'+t('x2_real')+' '+fmt(x2.real)+'</b></td></tr>';
+    if(rc.status==='ok'){
+      h+='<tr><td class="id">X3</td><td>'+t('x3')+' <span class="nmwhy">('+t('x3_env')+')</span></td><td><b>'+fmt(rc.x3)+'</b></td></tr>';
+      h+='<tr class="sub"><td class="id">X4</td><td>'+t('x4')+'</td><td>'+fmt(rc.x4)+'</td></tr>';
+      h+='<tr class="sub"><td class="id">X5</td><td>'+t('x5')+'</td><td>'+fmt(rc.x5.real+rc.x5.test)+' <span class="nmwhy">('+esc(t('x5_split',{r:fmt(rc.x5.real),t:fmt(rc.x5.test)}))+')</span></td></tr>';
+      h+='<tr class="sub"><td class="id">X6</td><td>'+t('x6')+'</td><td>'+fmt(rc.x6)+'</td></tr>';
+      h+='</table></div><div style="margin-top:10px" class="'+(rc.check_ok?'check-ok':'check-bad')+'">'+esc(rc.check_ok?t('x_check_ok'):t('x_check_bad',{n:fmt(rc.diff)}))+'</div>';
+      if(MG.rc_match_status&&MG.rc_match_status!=='ok')h+='<div class="sub muted">'+esc(t('nm_match',{s:MG.rc_match_status}))+'</div>';
+      h+='<div class="sub muted" style="margin-top:6px">'+esc(t('x_gap',{n:fmt(rc.real_not_in_rc)}))+'</div>';
+    } else {
+      ['X3','X4','X5','X6'].forEach(function(id){h+='<tr><td class="id">'+id+'</td><td>'+t(id.toLowerCase())+'</td><td>'+nmCell(rcWhy(rc.status))+'</td></tr>';});
+      h+='</table></div>';
+    }
+    return h+'<div class="sub muted" style="margin-top:6px">'+esc(t('rule_rcids'))+'</div></div></section>';
+  }
+  function secCharts(){
+    var h='<section id="charts"><h2>'+t('sec_charts')+'</h2>';
+    h+='<div class="card"><h3>'+t('g1_t')+'</h3><div class="qsub">'+t('g1_q')+'</div>'+srcBtn('G1')+'<canvas id="c-g1" height="90"></canvas></div>';
+    var co=MG.g2||[];var maxN=0;co.forEach(function(c){maxN=Math.max(maxN,c.cells.length-1);});
+    var head='<tr><td style="text-align:left;color:var(--muted)">'+t('g_cohort')+'</td><td style="color:var(--muted)">'+t('g_size')+'</td>';
+    for(var n=0;n<=maxN;n++)head+='<td style="color:var(--muted)">W'+n+'</td>';head+='</tr>';
+    var body=co.map(function(c){
+      var tds='';for(var n=0;n<=maxN;n++){if(n>=c.cells.length){tds+='<td class="muted">·</td>';continue;}var p=c.size?Math.round(c.cells[n]/c.size*100):0;tds+='<td style="background:color-mix(in srgb, var(--accent) '+(10+Math.round(p*0.6))+'%, transparent)">'+(c.size?p+'%':'—')+'</td>';}
+      return '<tr><td style="text-align:left">'+esc(c.week)+'</td><td>'+fmt(c.size)+'</td>'+tds+'</tr>';
+    }).join('');
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('g2_t')+'</h3><div class="qsub">'+t('g2_q')+'</div>'+srcBtn('G2')+'<div class="tscroll"><table class="g2">'+head+body+'</table></div><div class="sub muted" style="margin-top:8px">'+t('g2_floor')+'</div></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('g3_t')+'</h3><div class="qsub">'+t('g3_q')+'</div>'+srcBtn('G3')+nmCell(t('nm_premium'))+'</div>';
+    return h+'</section>';
+  }
+  function drawCharts(){
+    if(!MG||!MG.g1)return;var C=cc();var d=MG.g1.days;
+    var col={ios:cssVar('--accent'),android:cssVar('--good'),unknown:cssVar('--muted')};
+    makeChart('c-g1',{type:'bar',data:{labels:d.map(function(r){return r.d;}),datasets:[
+      {label:t('pf_ios'),data:d.map(function(r){return r.ios;}),backgroundColor:col.ios,stack:'p'},
+      {label:t('pf_android'),data:d.map(function(r){return r.android;}),backgroundColor:col.android,stack:'p'},
+      {label:t('pf_unknown'),data:d.map(function(r){return r.unknown;}),backgroundColor:col.unknown,stack:'p'}]},
+      options:{responsive:true,plugins:{legend:{labels:{color:C.ink,boxWidth:12}}},scales:{x:{stacked:true,grid:{color:C.grid},ticks:{color:C.muted,maxTicksLimit:8,font:{size:10}}},y:{stacked:true,grid:{color:C.grid},ticks:{color:C.muted,precision:0},beginAtZero:true}}}});
   }
 
   function comparator(){
@@ -591,7 +707,7 @@
       var cells=vals.map(function(v,i){var val=v[m.k];var dd=i>0?deltaHTML(val,vals[0][m.k]):'';return '<td>'+fmt(val)+dd+'</td>';}).join('');
       return '<tr><td>'+m.l+(m.t?' '+iBtn(m.t):'')+'</td>'+cells+'</tr>';
     }).join('');
-    return '<div class="card"><h3>'+t('period_comparison')+'</h3>'+srcBtn('C1,C2,C3,C4,C5')+'<div class="tscroll"><table class="cmp">'+head+body+'</table></div></div>';
+    return '<div class="card"><h3>'+t('period_comparison')+'</h3>'+srcBtn('C2,C3,C4,C5')+'<div class="tscroll"><table class="cmp">'+head+body+'</table></div></div>';
   }
   function drawCmp(){
     var C=cc();var M=metrics();var vals=periods.map(kpiFor);var palette=['#4FA3E8','#2CD3A7','#E8B54F','#E8776B','#9E7BE8','#46C6EE'];
@@ -602,15 +718,13 @@
     var a=D.adherence||{};var arate=a.total?Math.round(a.taken/a.total*100):0;
     var h='<section id="engagement"><h2>'+t('sec_engagement')+'</h2>';
     h+='<div class="grid two"><div class="card"><h3>'+t('eng_adherence')+' '+iBtn('adherence')+'</h3>'+srcBtn('E1')+'<canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+t('adh_sub',{p:arate,n:fmt(a.total)})+'</div></div>';
-    h+='<div class="card"><h3>'+t('eng_funnel')+' '+iBtn('funnel')+'</h3>'+srcBtn('E2')+'<canvas id="c-funnel" height="150"></canvas></div></div>';
+    h+='</div>';
     h+='<div class="card" style="margin-top:12px"><h3>'+t('doses_90')+'</h3>'+srcBtn('E3')+'<canvas id="c-doses" height="80"></canvas></div>';
     h+='</section>';return h;
   }
   function drawEngagement(){
     var C=cc();var a=D.adherence||{};
     makeChart('c-adh',{type:'doughnut',data:{labels:[t('taken'),t('missed'),t('skipped')],datasets:[{data:[a.taken||0,a.missed||0,a.skipped||0],backgroundColor:['#2CD3A7','#E8776B','#E8B54F'],borderWidth:0}]},options:{plugins:{legend:{labels:{color:C.ink,boxWidth:12}}}}});
-    var f=D.funnel||{};var stages=[[t('st_signed_up'),f.signed_up],[t('st_profile_complete'),f.profile_complete],[t('st_created_protocol'),f.created_protocol],[t('st_logged_dose'),f.logged_dose],[t('st_scanned'),f.scanned]];
-    makeChart('c-funnel',{type:'bar',data:{labels:stages.map(function(x){return x[0];}),datasets:[{data:stages.map(function(x){return x[1];}),backgroundColor:'#4FA3E8'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted},beginAtZero:true},y:{grid:{display:false},ticks:{color:C.ink,font:{size:11}}}}}});
     var d=KPI.slice(-90);
     makeChart('c-doses',{type:'bar',data:{labels:d.map(function(r){return r.date;}),datasets:[{label:t('m_doses'),data:d.map(function(r){return r.doses;}),backgroundColor:'#46C6EE'}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,maxTicksLimit:8,font:{size:10}}},y:{grid:{color:C.grid},ticks:{color:C.muted},beginAtZero:true}}}});
   }
@@ -631,6 +745,7 @@
     return h;
   }
 
+  // R1 replaced by G2 (Management view, real accounts only). Kept out of the render.
   function secRetention(){
     var cohorts=(D.retention&&D.retention.cohorts)||[];
     if(!cohorts.length)return '<section id="retention"><h2>'+t('sec_retention_short')+' '+iBtn('retention')+'</h2><div class="card">'+srcBtn('R1')+'<div class="muted">'+t('ret_nodata')+'</div></div></section>';
@@ -662,9 +777,8 @@
   function secRevenue(){
     var h='<section id="revenue"><h2>'+t('sec_revenue')+' '+statusPill(RC.status)+'</h2>';
     if(RC.status==='ok'&&RC.data&&RC.data.metrics){
-      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(LANG,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;return kpiCard(m.name||m.id,v,m.description||'',term,'V1');}).join('')+'</div>';
+      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(LANG,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;var isIds=/customer|active_users/i.test(String(m.id||''));return kpiCard(isIds?('RevenueCat IDs · '+(m.name||m.id)):(m.name||m.id),v,isIds?t('rule_rcids'):(m.description||''),term,'V1');}).join('')+'</div>';
     } else h+='<div class="card">'+srcBtn('V1')+'<div class="muted">'+esc(RC.message||t('not_configured'))+'</div></div>';
-    h+='<div class="card" style="margin-top:12px"><h3>'+t('rev_plan')+'</h3>'+srcBtn('V2')+rows((D.plans||[]).map(function(x){return {k:x.plan,n:x.n};}))+'<div class="sub muted" style="margin-top:6px">'+t('rev_plan_note')+'</div></div>';
     h+='</section>';return h;
   }
 
@@ -693,11 +807,11 @@
     h+='</div><div class="card"><div style="display:flex;justify-content:space-between"><b>'+t('store_google')+'</b> '+statusPill(GP.status)+'</div>';
     if(GP.status==='ok'&&GP.data){var g=GP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_total_installs'),fmt(g.total_user_installs),null,null,'S4')+kpiCard(t('k_active_devices'),fmt(g.active_device_installs),null,null,'S5')+kpiCard(t('k_installs_month'),fmt(g.installs_this_month),null,null,'S6')+kpiCard(t('k_avg_rating'),g.total_average_rating!=null?Number(g.total_average_rating).toFixed(2)+' ★':'—',null,null,'S7')+'</div>';}
     else h+='<div class="muted" style="margin-top:6px">'+esc(GP.message||'')+'</div>';
-    h+='</div></section>';return h;
+    h+='</div><div class="sub muted" style="margin-top:8px">S1 · S2 · S6: '+esc(t('s_window_note'))+'</div></section>';return h;
   }
 
   function secSources(){
-    var rules=['rule_utc','rule_test','rule_active','rule_window'].map(function(k){return '<li>'+esc(t(k))+'</li>';}).join('');
+    var rules=['rule_utc','rule_test2','rule_rcids','rule_active','rule_window'].map(function(k){return '<li>'+esc(t(k))+'</li>';}).join('');
     var cols=[t('ds_id'),t('ds_metric'),t('ds_source'),t('ds_def'),t('ds_range'),t('ds_proven')];
     var head='<thead><tr>'+cols.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr></thead>';
     var body='<tbody>'+DEFS.map(function(d){
@@ -711,7 +825,11 @@
     return h;
   }
 
-  function navItems(){return [['overview','nav_overview'],['compare','nav_compare'],['engagement','nav_engagement'],['adoption','nav_adoption'],['retention','nav_retention'],['product','nav_product'],['revenue','nav_revenue'],['audience','nav_audience'],['stores','nav_stores'],['sources','nav_sources']];}
+  function navItems(){
+    if(TAB==='mgmt')return [['headline','nav_headline'],['funnel','nav_funnel'],['recon','nav_recon'],['charts','nav_charts'],['sources','nav_sources']];
+    return [['activity','nav_activity'],['compare','nav_compare'],['engagement','nav_engagement'],['adoption','nav_adoption'],['product','nav_product'],['revenue','nav_revenue'],['audience','nav_audience'],['stores','nav_stores']];
+  }
+  function tabsBar(){return '<div class="tabs">'+[['mgmt','tab_mgmt'],['details','tab_details']].map(function(x){return '<button class="'+(TAB===x[0]?'on':'')+'" onclick="setTab(\''+x[0]+'\')">'+t(x[1])+'</button>';}).join('')+'</div>';}
   function langSelect(){return '<select id="lang" title="Language">'+LANGS.map(function(l){return '<option value="'+l[0]+'"'+(l[0]===LANG?' selected':'')+'>'+l[1]+'</option>';}).join('')+'</select>';}
   function themeBtn(){var dark=curTheme()==='dark';return '<button id="theme" class="icon" title="'+esc(dark?t('theme_light'):t('theme_dark'))+'">'+(dark?'☀':'☾')+'</button>';}
 
@@ -721,17 +839,27 @@
       +'<div class="controls">'+langSelect()+themeBtn()
       +'<span class="meta">'+t('updated',{d:esc(new Date(D.generated_at||Date.now()).toLocaleString(LANG))})+'</span>'
       +'<button id="refresh">'+t('refresh')+'</button></div></header>';
+    h+=tabsBar();
     h+='<nav class="sections">'+navItems().map(function(n){return '<a href="#'+n[0]+'">'+t(n[1])+'</a>';}).join('')+'</nav>';
-    h+=secOverview();
-    h+='<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>'+t('side_by_side')+'</h3>'+srcBtn('C1,C2,C3,C4,C5')+'<canvas id="c-cmp" height="90"></canvas></div></section>';
-    h+=secEngagement();h+=secAdoption();h+=secRetention();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();h+=secSources();
+    if(TAB==='mgmt'){
+      if(MG){h+=secHeadline();h+=secFunnel();h+=secRecon();h+=secCharts();}
+      else h+='<section><div class="card muted">'+t('mv_na')+'</div></section>';
+      h+=secSources();
+    } else {
+      h+='<div class="sub muted" style="margin-top:10px">'+t('details_note')+'</div>';
+      h+=secOverview();
+      h+='<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>'+t('side_by_side')+'</h3>'+srcBtn('C2,C3,C4,C5')+'<canvas id="c-cmp" height="90"></canvas></div></section>';
+      h+=secEngagement();h+=secAdoption();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();
+    }
     app.innerHTML=h;
-    drawOverview();drawCmp();drawEngagement();
+    if(TAB==='mgmt'){if(MG)drawCharts();} else {drawCmp();drawEngagement();}
     document.getElementById('refresh').onclick=load;
     document.getElementById('lang').onchange=function(){LANG=this.value;try{localStorage.setItem('dt_adm_lang',LANG);}catch(e){}periods=periods.map(function(p){return periodFor(gran,p.start);});render();};
     document.getElementById('theme').onclick=function(){var toLight=curTheme()!=='light';if(toLight)document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('dt_adm_theme',toLight?'light':'dark');}catch(e){}render();};
   }
   window.setGran=function(g){gran=g;periods=presets(g);render();};
+  window.setTab=function(x){TAB=x==='details'?'details':'mgmt';try{localStorage.setItem('dt_adm_tab',TAB);}catch(e){}render();};
+  window.setMwin=function(n){MWIN=[7,30,90].indexOf(n)>=0?n:30;render();};
   window.addPeriod=function(){var el=document.getElementById('addp');if(!el||!el.value)return;periods.push(periodFor(gran,pd(el.value)));render();};
   window.rmPeriod=function(i){periods.splice(i,1);if(!periods.length)periods=presets(gran);render();};
 
@@ -746,6 +874,7 @@
       RC=S.revenuecat||{};AP=S.apple||{};GP=S.google_play||{};
       if(sb.status!=='ok'||!sb.data){app.innerHTML='<div class="center">'+t('supabase_status',{s:esc(sb.status||'')})+(sb.message?(' — '+esc(sb.message)):'')+'</div>';return;}
       D=sb.data;D.generated_at=payload.generated_at||D.generated_at;
+      MG=payload.management||null;
       KPI=D.kpi_timeseries||[];ACT=D.activity_events||[];UDIM=D.users_dim||[];SEARCH=D.searches||[];PROTO=D.protocols_created_events||[];
       periods=presets(gran);
       render();

@@ -67,6 +67,13 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 - [x] Spec "Phase 2 — Management view" (section below) reviewed and approved by the founder.
   - Evidence: founder approval 2026-09-28 17:50 ET (Panel #006) of commit 910e4ef, with 3 fixes applied in the next commit: the platform rule, the MV audit source for `last_sign_in_at`, and the note 008 correction.
   - Still no panel code until the founder's go.
+- [~] **Phase 2 first-phase build (Panel #007, founder go 2026-09-28 18:02 ET).** Code done; not verified live.
+  - **In scope:** MV-0, H1–H4, W1–W5, X2–X6, G1–G2, the Details tab, MV-5 and MV-7.
+  - **Shown as "not measured" with the reason:** W0, X1, W6 and G3.
+  - **Tests:** `__tests__/admManagement.test.js` (21 tests, red → green).
+  - **SQL:** in `supabase_admin_rpcs.sql`, section "Phase 2 — Management view": `admin_test_accounts`, `admin_is_test`, `admin_accounts`, `admin_match_ids`. **Not applied** (stop point 1).
+  - **Every H/W/X/G row stays "not yet proven"** until the founder checks it.
+  - **Deviation for founder acceptance:** S1, S2 and S6 stay visible in Details, flagged "different window", instead of disappearing until W0/X1 are measurable.
 
 ### Phase 3 — not specced yet (founder specs first)
 

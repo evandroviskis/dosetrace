@@ -62,7 +62,8 @@ function assertRefused(r) {
 }
 function assertServed(r) {
   assert.equal(r.code, 200);
-  assert.equal(r.fetches, 3, 'the three Supabase admin RPCs are fetched');
+  // admin_metrics, admin_activity, admin_feature_adoption + admin_accounts (Management view, Panel #007).
+  assert.equal(r.fetches, 4, 'the four Supabase admin RPCs are fetched');
   assert.equal(r.consoleCalls, 0);
   assert.ok(!r.body.includes(DUMMY), 'token must never be echoed');
 }

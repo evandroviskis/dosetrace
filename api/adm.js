@@ -53,15 +53,18 @@ async function fetchSupabase() {
   const base = url.replace(/\/$/, '');
   const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   try {
-    const [mr, ar, fr] = await Promise.all([
+    const [mr, ar, fr, acr] = await Promise.all([
       fetch(`${base}/rest/v1/rpc/admin_metrics`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_activity`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_feature_adoption`, { method: 'POST', headers, body: '{}' }),
+      fetch(`${base}/rest/v1/rpc/admin_accounts`, { method: 'POST', headers, body: '{}' }),
     ]);
     if (!mr.ok) return { status: 'error', message: `Supabase ${mr.status}: ${(await mr.text()).slice(0, 200)}` };
     const data = await mr.json();
     if (ar.ok) { try { data.activity_events = await ar.json(); } catch (e) { /* optional */ } }
     if (fr.ok) { try { data.feature_adoption = await fr.json(); } catch (e) { /* optional */ } }
+    // Management view rows (admin_accounts). Missing until the Phase 2 SQL is applied.
+    if (acr && acr.ok) { try { const j = await acr.json(); data.accounts = j.accounts; data.protocols_live = j.protocols_live; } catch (e) { /* optional */ } }
     return { status: 'ok', data };
   } catch (e) {
     return { status: 'error', message: String(e && e.message || e) };
@@ -223,6 +226,221 @@ async function fetchApple() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Management view (docs/specs/admin-panel.md "Phase 2 — Management view").
+// The pure functions below are exported for __tests__/admManagement.test.js.
+// Everything is computed here, server-side: the browser gets counts, never ids.
+// ---------------------------------------------------------------------------
+const DAY_MS = 86400000;
+const RC_ANON_PREFIX = '$RCAnonymousID';
+const MV_WINDOWS = [7, 30, 90];
+
+function utcDay(ms) { return new Date(ms).toISOString().slice(0, 10); }
+function addDaysStr(day, n) { return utcDay(Date.parse(day + 'T00:00:00Z') + n * DAY_MS); }
+
+// MV-0: the last `days` full UTC days, ending today 00:00 UTC (today excluded).
+// `back` shifts by whole periods (1 = the previous period). End is exclusive.
+function fullDayWindow(nowMs, days, back = 0) {
+  const end = addDaysStr(utcDay(nowMs), -days * back);
+  return { start: addDaysStr(end, -days), end };
+}
+function inWindow(day, w) { return !!day && day >= w.start && day < w.end; }
+
+// MV-0 platform rule: Apple sign-in is iOS always (lib/supabase.js:275-276). Otherwise
+// collect event / push / session signals together: all agree -> that platform,
+// disagree -> 'mixed', none -> 'unknown'. No signal outranks another.
+function platformOf(a) {
+  if (a && a.apple) return 'ios';
+  const seen = new Set();
+  for (const k of ['ev', 'pu', 'ua']) {
+    for (const v of (a && a[k]) || []) {
+      const p = String(v).toLowerCase();
+      if (p === 'ios' || p === 'android') seen.add(p);
+    }
+  }
+  if (seen.size === 0) return 'unknown';
+  if (seen.size > 1) return 'mixed';
+  return [...seen][0];
+}
+
+// Unknown always includes mixed; `mixed` is shown as a sub-count, never split out.
+function splitPlatforms(rows) {
+  const s = { total: rows.length, ios: 0, android: 0, unknown: 0, mixed: 0 };
+  for (const r of rows) {
+    const p = platformOf(r);
+    if (p === 'ios') s.ios++;
+    else if (p === 'android') s.android++;
+    else { s.unknown++; if (p === 'mixed') s.mixed++; }
+  }
+  return s;
+}
+
+// H1–H4: real new customers per window vs the previous period, split by platform.
+function headlineCards(accounts, nowMs) {
+  const real = accounts.filter((a) => !a.t);
+  return MV_WINDOWS.map((days) => {
+    const window = fullDayWindow(nowMs, days);
+    const previous = fullDayWindow(nowMs, days, 1);
+    const cur = real.filter((a) => inWindow(a.c, window));
+    const prev = real.filter((a) => inWindow(a.c, previous)).length;
+    const count = cur.length;
+    return {
+      days, window, previous, count, prev, delta: count - prev,
+      pct: prev ? Math.round(((count - prev) / prev) * 1000) / 10 : null,
+      platforms: splitPlatforms(cur),
+    };
+  });
+}
+
+// W1–W5: one cohort (real accounts created in the window); each step counts
+// accounts from that cohort that reached it at any time up to now.
+const FUNNEL_STEPS = [
+  ['W1', () => true],
+  ['W2', (a) => !!a.e],
+  ['W3', (a) => !!a.o],
+  ['W4', (a) => !!a.pr],
+  ['W5', (a) => !!a.d],
+];
+function funnel(accounts, w) {
+  const cohort = accounts.filter((a) => !a.t && inWindow(a.c, w));
+  return FUNNEL_STEPS.map(([id, reached]) => ({ id, ...splitPlatforms(cohort.filter(reached)) }));
+}
+
+function isAnonymousRcId(id) { return typeof id === 'string' && id.startsWith(RC_ANON_PREFIX); }
+
+// X2–X6 for one window. RevenueCat rows only when the customers list was readable;
+// an id the match step didn't classify is never guessed: it breaks the X3 check.
+function reconciliation(accounts, rc, w) {
+  const inW = accounts.filter((a) => inWindow(a.c, w));
+  const x2 = { all: inW.length, test: inW.filter((a) => a.t).length, real: inW.filter((a) => !a.t).length };
+  if (!rc || rc.status !== 'ok') return { window: w, x2, rc: { status: rc ? rc.status : 'not_configured' } };
+  const ids = rc.customers.filter((c) => inWindow(c.day, w));
+  let x4 = 0, real = 0, test = 0, x6 = 0, unclassified = 0;
+  for (const c of ids) {
+    if (isAnonymousRcId(c.id)) { x4++; continue; }
+    const m = rc.match ? rc.match[c.id] : undefined;
+    if (m === 'real') real++;
+    else if (m === 'test') test++;
+    else if (m === 'none') x6++;
+    else unclassified++;
+  }
+  const x3 = ids.length;
+  const diff = x3 - (x4 + real + test + x6);
+  return {
+    window: w, x2,
+    rc: { status: 'ok', x3, x4, x5: { real, test }, x6, unclassified, check_ok: diff === 0, diff, real_not_in_rc: x2.real - real },
+  };
+}
+
+// G1: new customers per day, last `days` full UTC days, by platform, real only.
+function dailyNew(accounts, nowMs, days = 90) {
+  const window = fullDayWindow(nowMs, days);
+  const out = [];
+  for (let d = window.start; d < window.end; d = addDaysStr(d, 1)) out.push({ d, ios: 0, android: 0, unknown: 0 });
+  const idx = Object.fromEntries(out.map((r, i) => [r.d, i]));
+  for (const a of accounts) {
+    if (a.t || !inWindow(a.c, window)) continue;
+    const p = platformOf(a);
+    const r = out[idx[a.c]];
+    if (p === 'ios') r.ios++; else if (p === 'android') r.android++; else r.unknown++;
+  }
+  return { window, days: out };
+}
+
+// G2: weekly signup cohorts (ISO weeks, Monday 00:00 UTC), real only. Cell n = members
+// with >=1 analytics event in week n (a floor: there is no app-open event).
+function isoWeekStart(day) {
+  const ms = Date.parse(day + 'T00:00:00Z');
+  return utcDay(ms - ((new Date(ms).getUTCDay() + 6) % 7) * DAY_MS);
+}
+function weeklyCohorts(accounts, nowMs, weeks = 8) {
+  const thisWeek = isoWeekStart(utcDay(nowMs));
+  const cohorts = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const week = addDaysStr(thisWeek, -7 * i);
+    const members = accounts.filter((a) => !a.t && a.c && isoWeekStart(a.c) === week);
+    const cells = [];
+    for (let n = 0; n <= i; n++) cells.push(members.filter((a) => (a.w || []).includes(n)).length);
+    cohorts.push({ week, size: members.length, cells });
+  }
+  return cohorts;
+}
+
+function buildManagement(sb, rc, nowMs) {
+  const accounts = Array.isArray(sb.accounts) ? sb.accounts : [];
+  const windows = {};
+  for (const days of MV_WINDOWS) {
+    const w = fullDayWindow(nowMs, days);
+    windows[days] = { window: w, funnel: funnel(accounts, w), recon: reconciliation(accounts, rc, w) };
+  }
+  return {
+    headline: headlineCards(accounts, nowMs),
+    real_all_time: accounts.filter((a) => !a.t).length,
+    protocols_live: sb.protocols_live == null ? null : Number(sb.protocols_live),
+    windows,
+    g1: dailyNew(accounts, nowMs, 90),
+    g2: weeklyCohorts(accounts, nowMs, 8),
+    rc_status: rc ? rc.status : 'not_configured',
+    rc_match_status: rc && rc.match_status ? rc.match_status : null,
+  };
+}
+
+// RevenueCat v2 customers list: limit 100, follow next_page to the end (capped), keep
+// only id + first-seen UTC day. 401/403 = the key lacks customers:read (no fallback).
+const RC_BASE = 'https://api.revenuecat.com';
+const RC_MAX_PAGES = 100;
+function rcFirstSeenDay(v) {
+  if (v == null) return null;
+  const ms = typeof v === 'number' ? v : Date.parse(v);
+  return Number.isFinite(ms) ? utcDay(ms) : null;
+}
+async function fetchRevenueCatCustomers() {
+  const key = process.env.REVENUECAT_API_KEY;
+  const project = process.env.REVENUECAT_PROJECT_ID;
+  if (!key || !project) return { status: 'not_configured' };
+  const headers = { Authorization: `Bearer ${key}`, Accept: 'application/json' };
+  let url = `${RC_BASE}/v2/projects/${encodeURIComponent(project)}/customers?limit=100`;
+  const customers = [];
+  try {
+    for (let page = 0; url; page++) {
+      if (page >= RC_MAX_PAGES) return { status: 'incomplete', customers };
+      const r = await fetch(url, { headers });
+      if (r.status === 401 || r.status === 403) return { status: 'no_permission', http: r.status };
+      if (!r.ok) return { status: 'error', http: r.status };
+      const j = await r.json();
+      for (const c of j.items || []) customers.push({ id: String(c.id), day: rcFirstSeenDay(c.first_seen_at) });
+      const next = j.next_page;
+      url = next ? (/^https?:\/\//.test(next) ? next : RC_BASE + (next.startsWith('/') ? '' : '/') + next) : null;
+    }
+    return { status: 'ok', customers };
+  } catch (e) {
+    return { status: 'error', message: String(e && e.message || e) };
+  }
+}
+
+// Classify identified RevenueCat ids first seen in the last 90 full days via the
+// service-role RPC admin_match_ids (exact full-id join). Ids stay server-side.
+async function withRcMatch(rc, nowMs) {
+  if (!rc || rc.status !== 'ok') return rc;
+  const w = fullDayWindow(nowMs, 90);
+  const ids = [...new Set(rc.customers.filter((c) => inWindow(c.day, w) && !isAnonymousRcId(c.id)).map((c) => c.id))];
+  if (!ids.length) return { ...rc, match: {}, match_status: 'ok' };
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return { ...rc, match: {}, match_status: 'not_configured' };
+  try {
+    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/rpc/admin_match_ids`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_ids: ids }),
+    });
+    if (!r.ok) return { ...rc, match: {}, match_status: 'error' };
+    return { ...rc, match: (await r.json()) || {}, match_status: 'ok' };
+  } catch (e) {
+    return { ...rc, match: {}, match_status: 'error' };
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -237,10 +455,26 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const [supabase, revenuecat, google_play, apple] = await Promise.all([fetchSupabase(), fetchRevenueCat(), fetchGooglePlay(), fetchApple()]);
+  const [supabase, revenuecat, google_play, apple, rcCustomers] = await Promise.all([
+    fetchSupabase(), fetchRevenueCat(), fetchGooglePlay(), fetchApple(), fetchRevenueCatCustomers(),
+  ]);
+
+  // Management view: built only when admin_accounts answered (Phase 2 SQL applied).
+  let management = null;
+  if (supabase.status === 'ok' && supabase.data && Array.isArray(supabase.data.accounts)) {
+    const now = Date.now();
+    management = buildManagement(supabase.data, await withRcMatch(rcCustomers, now), now);
+    delete supabase.data.accounts; // per-account rows stay server-side
+  }
 
   res.status(200).json({
     generated_at: new Date().toISOString(),
     sources: { supabase, revenuecat, google_play, apple },
+    management,
   });
 };
+
+Object.assign(module.exports, {
+  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation,
+  isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
+});

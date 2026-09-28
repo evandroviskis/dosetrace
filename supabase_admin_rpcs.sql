@@ -117,3 +117,112 @@ REVOKE EXECUTE ON FUNCTION public.admin_feature_adoption() FROM PUBLIC, anon, au
 GRANT EXECUTE ON FUNCTION public.admin_metrics() TO service_role;
 GRANT EXECUTE ON FUNCTION public.admin_activity() TO service_role;
 GRANT EXECUTE ON FUNCTION public.admin_feature_adoption() TO service_role;
+
+-- ===========================================================================
+-- Phase 2 — Management view (docs/specs/admin-panel.md "Phase 2 — Management view")
+-- STATUS: NOT APPLIED. Apply only on the founder's explicit go (Panel #007 stop point 1).
+-- Same ACL pattern as the A-1 lockdown: REVOKE from PUBLIC, anon, authenticated;
+-- GRANT to service_role only. Supabase's default privileges grant new objects to
+-- anon/authenticated, so the REVOKEs are required, not decorative.
+-- ===========================================================================
+
+-- MV-0: ONE test-account list for every panel metric. Adding a test account is a
+-- single row:  insert into public.admin_test_accounts (email, reason)
+--              values ('someone@example.com', 'founder decision YYYY-MM-DD');
+create table if not exists public.admin_test_accounts (
+  email text primary key check (email = lower(email)),
+  reason text not null,
+  added_at timestamptz not null default now()
+);
+alter table public.admin_test_accounts enable row level security;
+revoke all on table public.admin_test_accounts from public, anon, authenticated;
+grant select, insert, update, delete on table public.admin_test_accounts to service_role;
+
+-- Seed: DEVELOPER_EMAILS (lib/purchases.js, main) + the test account. Guarded by
+-- __tests__/admManagement.test.js (every DEVELOPER_EMAILS entry must be here).
+insert into public.admin_test_accounts (email, reason) values
+  ('jootaerre@gmail.com', 'DEVELOPER_EMAILS (lib/purchases.js)'),
+  ('hello@dosetrace.io', 'DEVELOPER_EMAILS (lib/purchases.js)'),
+  ('appreview@dosetrace.io', 'DEVELOPER_EMAILS (lib/purchases.js)'),
+  ('victor.s.engenharia@gmail.com', 'DEVELOPER_EMAILS (lib/purchases.js)'),
+  ('jootaerre@yahoo.com.br', 'DEVELOPER_EMAILS (lib/purchases.js)'),
+  ('jeovane_m@live.com', 'DEVELOPER_EMAILS (lib/purchases.js)'),
+  ('evandro1985@gmail.com', 'test account (spec MV-0)')
+on conflict (email) do nothing;
+
+-- MV-0: is this email a test account? The table, plus the @dosetrace.io domain rule.
+create or replace function public.admin_is_test(p_email text)
+ returns boolean
+ language sql
+ stable
+ set search_path to 'public'
+as $$
+  select coalesce(lower(p_email) like '%@dosetrace.io', false)
+      or exists (select 1 from public.admin_test_accounts t where t.email = lower(p_email));
+$$;
+
+-- One row per account, no ids and no emails: the created UTC day, the test flag, the
+-- raw platform signals (the MV-0 rule is applied in api/adm.js platformOf, tested),
+-- funnel flags, and the ISO-week offsets with >=1 analytics event (for G2).
+-- 'e' uses last_sign_in_at only as "ever signed in" (spec MV-0).
+create or replace function public.admin_accounts()
+ returns jsonb
+ language sql
+ security definer
+ set search_path to 'public', 'auth'
+as $$
+  select jsonb_build_object(
+    'accounts', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'c', to_char(u.created_at at time zone 'UTC', 'YYYY-MM-DD'),
+        't', public.admin_is_test(u.email),
+        'apple', coalesce(u.raw_app_meta_data->>'provider', '') = 'apple',
+        'ev', coalesce((select jsonb_agg(distinct lower(a.properties->>'platform'))
+                          from public.analytics_events a
+                         where a.user_id = u.id and a.properties ? 'platform'), '[]'::jsonb),
+        'pu', coalesce((select jsonb_agg(distinct lower(p.platform))
+                          from public.push_tokens p
+                         where p.user_id = u.id and p.platform is not null), '[]'::jsonb),
+        'ua', coalesce((select jsonb_agg(distinct x.k) from (
+                          select case when s.user_agent ~* '(okhttp|android)' then 'android'
+                                      when s.user_agent ~* '(cfnetwork|darwin)' then 'ios' end as k
+                            from auth.sessions s where s.user_id = u.id) x
+                         where x.k is not null), '[]'::jsonb),
+        'e', (u.email_confirmed_at is not null or u.last_sign_in_at is not null),
+        'o', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
+        'pr', exists (select 1 from public.protocols pr where pr.user_id = u.id),
+        'd', exists (select 1 from public.dose_logs dl where dl.user_id = u.id),
+        'w', coalesce((select jsonb_agg(distinct ((date_trunc('week', e.created_at at time zone 'UTC')::date
+                                                  - date_trunc('week', u.created_at at time zone 'UTC')::date) / 7))
+                         from public.analytics_events e
+                        where e.user_id = u.id
+                          and e.created_at >= date_trunc('week', u.created_at at time zone 'UTC') at time zone 'UTC'), '[]'::jsonb)
+      ))
+      from auth.users u), '[]'::jsonb),
+    'protocols_live', (select count(*) from public.protocols where deleted_at is null)
+  );
+$$;
+
+-- X5/X6: exact full-id join of RevenueCat app_user_ids to auth.users. Returns
+-- { "<id>": "real" | "test" | "none" } for the ids passed in. Called server-side only;
+-- api/adm.js turns it into counts and never sends ids to the browser.
+create or replace function public.admin_match_ids(p_ids text[])
+ returns jsonb
+ language sql
+ security definer
+ set search_path to 'public', 'auth'
+as $$
+  select coalesce(jsonb_object_agg(i.id,
+           case when u.id is null then 'none'
+                when public.admin_is_test(u.email) then 'test'
+                else 'real' end), '{}'::jsonb)
+  from (select distinct unnest(p_ids) as id) i
+  left join auth.users u on u.id::text = i.id;
+$$;
+
+revoke execute on function public.admin_is_test(text) from public, anon, authenticated;
+revoke execute on function public.admin_accounts() from public, anon, authenticated;
+revoke execute on function public.admin_match_ids(text[]) from public, anon, authenticated;
+grant execute on function public.admin_is_test(text) to service_role;
+grant execute on function public.admin_accounts() to service_role;
+grant execute on function public.admin_match_ids(text[]) to service_role;
