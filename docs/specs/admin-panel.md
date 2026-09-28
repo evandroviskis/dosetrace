@@ -64,7 +64,9 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 ### Phase 2b — Management view
 
-- [ ] Spec "Phase 2 — Management view" (section below) reviewed and approved by the founder. No code until then.
+- [x] Spec "Phase 2 — Management view" (section below) reviewed and approved by the founder.
+  - Evidence: founder approval 2026-09-28 17:50 ET (Panel #006) of commit 910e4ef, with 3 fixes applied in the next commit: the platform rule, the MV audit source for `last_sign_in_at`, and the note 008 correction.
+  - Still no panel code until the founder's go.
 
 ### Phase 3 — not specced yet (founder specs first)
 
@@ -221,14 +223,19 @@ This is not the same as the Phase 2 *checklist* above, which covers the push, lo
 - "Previous period" means the N full UTC days before that.
 - Weeks are ISO weeks (Monday 00:00 UTC).
 
-**Platform per account (inferred; never guessed).** The rules apply in this order; the first that gives an answer wins:
-1. `raw_app_meta_data->>'provider' = 'apple'` → **iOS**. Sign in with Apple is iOS-only: lib/supabase.js:275.
-2. `analytics_events.properties.platform` (lib/analytics.js:29).
-3. `push_tokens.platform`.
-4. `auth.sessions.user_agent`: `okhttp/…` → Android; `DoseTrace/… CFNetwork … Darwin` → iOS.
-5. Otherwise **unknown**.
+**Platform per account (inferred; never guessed).**
+1. `raw_app_meta_data->>'provider' = 'apple'` → **iOS, always.** Sign in with Apple is blocked off iOS (lib/supabase.js:275–276), so it overrides every other signal.
+2. For every other account, collect **all** of these signals:
+   - `analytics_events.properties.platform` (lib/analytics.js:29);
+   - `push_tokens.platform`;
+   - `auth.sessions.user_agent`: `okhttp/…` → Android; `DoseTrace/… CFNetwork … Darwin` → iOS.
+3. The result:
+   - all collected signals agree → that platform;
+   - they disagree → **unknown (mixed)**;
+   - none exist → **unknown**.
+   - No signal outranks another.
 
-If the sources disagree (both iOS and Android), the account counts as **unknown (mixed)**. Unknown is always shown as its own number, never shared out between the platforms. Note 008 found 16 of 69 unknown.
+Unknown (mixed) and unknown (no signal) are always shown as their own number, never shared out between the platforms. Note 008 found 16 of 69 unknown.
 
 **Correction to note 008 about `last_sign_in_at`.**
 - It updates only on a new sign-in, not on a session refresh. So it can't mean "left the app".
@@ -372,7 +379,7 @@ If the sources disagree (both iOS and Android), the account counts as **unknown 
 | delete-user removes the auth user, not the RC customer | supabase/functions/delete-user/index.ts:165 | yes (code read) |
 | Test seed = DEVELOPER_EMAILS + evandro1985 + @dosetrace.io | lib/purchases.js:24–31; SQL presence check (note 008) | yes |
 | 3 test-candidate accounts exist as described | SQL on auth.users (pattern + domain counts) | yes |
-| `last_sign_in_at` only changes on a new sign-in | founder statement 2026-09-28; Supabase Auth behaviour | **no** (not independently tested here) |
+| `last_sign_in_at` only changes on a new sign-in | Panel advisor statement, 28 Sep (not tested here) | **no**. Harmless either way: the spec only uses it as "ever signed in" (not null), never for churn or activity |
 | RC v2 list-customers exposes first-seen time | — | **no**: to verify against the API before build (MV-3) |
 | Store rows measurable | — | **no**: needs the vendor number and the Play bucket/session (MV-6) |
 
