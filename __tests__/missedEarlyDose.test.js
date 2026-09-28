@@ -97,7 +97,7 @@ test('A-35(b) guard: 00:30 covering last night\'s 20:00 does not also cover toda
 // matched, and 7 false Missed rows were written (Test03). A traveller hits the same.
 // Registry A-49. This test runs a NY-logged history through the scan as if the
 // device were now in Tokyo.
-test('A-49: a time-zone change does not turn past doses logged on time into false Missed rows', { todo: 'A-49 — target pending founder' }, () => {
+test('A-49: a time-zone change does not turn past doses logged on time into false Missed rows', { todo: 'A-49 — 1.2.5 S-19 (after S-18)' }, () => {
   // Doses logged daily at 20:00 New York (= 00:00Z next day) for Sep 20–26.
   const logs = [];
   for (let d = 21; d <= 27; d++) logs.push({ protocol_id: 9, outcome: 'Taken', logged_at: `2026-09-${d}T00:00:00.000Z` });

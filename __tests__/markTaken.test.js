@@ -139,3 +139,27 @@ test('A-40: marking yesterday\'s 20:00 slot taken never flips the 08:00 Missed r
   const q = planMarkTaken({ protocol: twice, todayLogs: [missed8, missed20], dayKey: '2026-09-26', slotMs: local(2026, 9, 26, 20, 0), nowMs: local(2026, 9, 27, 9, 0) });
   assert.equal(q.update.id, 71, 'the Missed row AT the slot is the one flipped');
 });
+
+// Founder decision 2026-09-28 (#031 reply, item 1): a notification "Mark taken"
+// tapped after midnight — snoozed copy or original — logs to YESTERDAY's slot while
+// now < slot + 12 h (the Missed scan's window), using the notification's slotMs.
+// After that window a snoozed copy is logged now (honestly late), as before.
+test('A-40: a snoozed dose tapped after midnight inside slot + 12 h logs to yesterday\'s slot', () => {
+  const { notificationTakeTarget } = require('../lib/markTaken');
+  assert.equal(typeof notificationTakeTarget, 'function', 'notificationTakeTarget not built yet');
+  const slotMs = local(2026, 9, 27, 23, 30);
+  const t = notificationTakeTarget({ dayKey: '2026-09-27', slotMs, snoozed: true, nowMs: local(2026, 9, 28, 0, 30) });
+  assert.deepEqual(t, { dayKey: '2026-09-27', slotMs });
+  const late = notificationTakeTarget({ dayKey: '2026-09-27', slotMs, snoozed: true, nowMs: local(2026, 9, 28, 11, 31) });
+  assert.deepEqual(late, { atNow: true }, 'past slot + 12 h: logged now');
+  const same = notificationTakeTarget({ dayKey: '2026-09-28', slotMs: local(2026, 9, 28, 8, 0), snoozed: true, nowMs: local(2026, 9, 28, 9, 0) });
+  assert.deepEqual(same, { dayKey: '2026-09-28', slotMs: local(2026, 9, 28, 8, 0) }, 'same day: that slot');
+  const orig = notificationTakeTarget({ dayKey: '2026-09-27', slotMs, snoozed: false, nowMs: local(2026, 9, 28, 0, 30) });
+  assert.deepEqual(orig, { dayKey: '2026-09-27', slotMs }, 'an un-snoozed banner from yesterday: that slot (unchanged)');
+});
+
+test('A-40: notificationActions.markTaken routes through notificationTakeTarget', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'notificationActions.js'), 'utf8');
+  const i = src.indexOf('async function markTaken(');
+  assert.match(src.slice(i, src.indexOf('\nasync function ', i + 10)), /notificationTakeTarget\(/);
+});
