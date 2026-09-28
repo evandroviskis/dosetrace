@@ -136,3 +136,34 @@ test('reality_check_open keeps its device created_at in the cloud', async () => 
   await pushPending(a, cloud, USER);
   assert.equal(cloud.rows('reality_check_open', USER)[0].created_at, '2026-09-20T08:00:00.000Z');
 });
+
+// #024 reply item 2: never two open checks on an account. A new check started
+// offline on A + an older open check pulled later → the older ends stopped and
+// that stop is pushed.
+test('single open check: a new local check + an older open check pulled later → the older is stopped and pushed', async () => {
+  const cloud = makeCloud();
+  const a = makeDb(); const b = makeDb();
+  startCheck(b, { start_date: '2026-09-10', updated_at: '2026-09-10T08:00:00.000Z' });
+  await pushPending(b, cloud, USER);
+  startCheck(a, { start_date: '2026-09-25', updated_at: '2026-09-25T08:00:00.000Z' });
+  await pullChanges(a, cloud, USER);
+  const rowsA = a.getAllSync(`SELECT start_date, stopped_at FROM reality_check_open WHERE user_id = ? ORDER BY start_date`, [USER]);
+  assert.equal(rowsA.length, 2);
+  assert.ok(rowsA[0].stopped_at, 'older (pulled) check is stopped');
+  assert.equal(rowsA[1].stopped_at, null, 'the new check stays open');
+  await pushPending(a, cloud, USER);
+  const older = cloud.rows('reality_check_open', USER).find((r) => r.start_date === '2026-09-10');
+  assert.ok(older.stopped_at, 'the stop reached the cloud');
+});
+
+test('single open check: the same rule holds through pullTable (migration pull)', async () => {
+  const { pullTable } = require('../lib/syncCore');
+  const cloud = makeCloud();
+  const a = makeDb(); const b = makeDb();
+  startCheck(b, { start_date: '2026-09-10', updated_at: '2026-09-10T08:00:00.000Z' });
+  await pushPending(b, cloud, USER);
+  startCheck(a, { start_date: '2026-09-25', updated_at: '2026-09-25T08:00:00.000Z' });
+  await pullTable(a, cloud, USER, 'reality_check_open');
+  const open = a.getAllSync(`SELECT start_date FROM reality_check_open WHERE user_id = ? AND stopped_at IS NULL`, [USER]);
+  assert.deepEqual(open.map((r) => r.start_date), ['2026-09-25']);
+});

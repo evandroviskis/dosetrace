@@ -178,3 +178,34 @@ test('FX-8: runRealityMigration returns before planning unless the reality_check
   assert.ok(pull > 0 && pull < plan, 'pull happens before planning');
   assert.match(body.slice(pull, plan), /if \(!pulled\) return;/);
 });
+
+// #024 reply item 1: display gap on a new device / reinstall of a migrated account.
+test('display: migrated account, no local rows, no successful pull yet → the mirror is shown (display only)', () => {
+  const { displayOpenCheck } = require('../lib/realityCheckStore');
+  const mirror = { date: '2026-09-20', weightKg: 88.4 };
+  assert.deepEqual(displayOpenCheck({ rows: [], migrated: true, pulledOnce: false, asyncStart: null, metaOpen: mirror }), mirror);
+});
+
+test('display: after the first successful pull the TABLE decides (a stopped check is not shown from the mirror)', () => {
+  const { displayOpenCheck } = require('../lib/realityCheckStore');
+  const mirror = { date: '2026-09-20', weightKg: 88.4 };
+  assert.equal(displayOpenCheck({ rows: [], migrated: true, pulledOnce: true, asyncStart: null, metaOpen: mirror }), null);
+  const open = [{ id: 1, start_date: '2026-09-25', start_weight_kg: 87.1, stopped_at: null }];
+  assert.deepEqual(displayOpenCheck({ rows: open, migrated: true, pulledOnce: true, metaOpen: mirror }), { date: '2026-09-25', weightKg: 87.1 });
+});
+
+test('display: not migrated → old storage (local copy first, then metadata); table row wins when present', () => {
+  const { displayOpenCheck } = require('../lib/realityCheckStore');
+  const a = { date: '2026-09-21', weightKg: 80 };
+  const m = { date: '2026-09-20', weightKg: 81 };
+  assert.deepEqual(displayOpenCheck({ rows: [], migrated: false, pulledOnce: false, asyncStart: a, metaOpen: m }), a);
+  assert.deepEqual(displayOpenCheck({ rows: [], migrated: false, pulledOnce: false, asyncStart: null, metaOpen: m }), m);
+});
+
+test('display: getRealityStart uses displayOpenCheck and runRealityMigration records the first successful pull', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'realityCheck.js'), 'utf8');
+  const get = src.slice(src.indexOf('export async function getRealityStart'), src.indexOf('export async function setRealityStart'));
+  assert.match(get, /displayOpenCheck\(/);
+  const mig = src.slice(src.indexOf('export async function runRealityMigration'), src.indexOf('export async function getRealityStart'));
+  assert.ok(mig.indexOf('PULLED_KEY') > mig.indexOf('if (!pulled) return;'), 'flag set only after a successful pull');
+});
