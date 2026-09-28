@@ -3,15 +3,23 @@
  * DoseTrace admin metrics endpoint (Vercel serverless, dependency-free).
  *
  * Security: ALL secrets live in Vercel environment variables and never reach the
- * browser. The page authenticates with a single opaque ADMIN_TOKEN (the "magic
- * link"), validated here in constant time. Without ADMIN_TOKEN set the endpoint
- * fails closed (503) — it can never be left open by accident.
+ * browser. The page authenticates with a single opaque ADMIN_TOKEN, accepted ONLY
+ * from the "Authorization: Bearer <token>" header and validated in constant time.
+ * A token-like query parameter (t, token, admin_token, access_token) is refused
+ * with 401 even when the header is valid, so a token never lives in a URL (logs,
+ * history, referrers). Cookies and the body are never read. Without ADMIN_TOKEN
+ * set the endpoint fails closed (503) — it can never be left open by accident.
+ * Nothing here logs; the token is never echoed.
  *
  * Sources (each degrades independently, so a missing key never breaks the page):
- *   - Supabase      : SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  (calls rpc/admin_metrics)
+ *   - Supabase      : SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+ *                     (rpc/admin_metrics, admin_activity, admin_feature_adoption;
+ *                      bodies versioned in supabase_admin_rpcs.sql)
  *   - RevenueCat    : REVENUECAT_API_KEY + REVENUECAT_PROJECT_ID (v2 overview metrics)
- *   - Google Play   : phase 2 (needs Play Developer Reporting API creds + a live test)
- *   - Apple ASC     : phase 2 (needs an App Store Connect API key + a live test)
+ *   - Google Play   : GOOGLE_PLAY_SA_JSON + GOOGLE_PLAY_BUCKET (stats bucket CSVs)
+ *   - Apple ASC     : ASC_PRIVATE_KEY + ASC_ISSUER_ID + ASC_KEY_ID + ASC_VENDOR_NUMBER
+ *                     (Sales Reports, last 30 daily summaries)
+ * Every metric the panel shows is defined in docs/specs/admin-panel.md.
  */
 const crypto = require('crypto');
 
@@ -22,12 +30,20 @@ function timingSafeEqual(a, b) {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+// Header only. There is deliberately no query/cookie/body fallback.
 function presentedToken(req) {
-  const auth = req.headers['authorization'] || '';
+  const auth = (req.headers && req.headers['authorization']) || '';
   if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
-  // Fallback for convenience; the page sends the header, not the query string.
-  const q = req.query && (req.query.t || req.query.token);
-  return q ? String(q) : '';
+  return '';
+}
+
+// A token must never travel in a URL. Any token-like query parameter is a 401,
+// even alongside a valid header, so old token links stop working outright.
+const TOKEN_QUERY_KEYS = ['t', 'token', 'admin_token', 'access_token'];
+function tokenInQuery(req) {
+  let params;
+  try { params = new URL(req.url || '/', 'http://x').searchParams; } catch (e) { return true; }
+  return TOKEN_QUERY_KEYS.some((k) => params.has(k));
 }
 
 async function fetchSupabase() {
@@ -216,7 +232,7 @@ module.exports = async (req, res) => {
     res.status(503).json({ error: 'Admin panel not configured (ADMIN_TOKEN unset).' });
     return;
   }
-  if (!timingSafeEqual(presentedToken(req), expected)) {
+  if (tokenInQuery(req) || !timingSafeEqual(presentedToken(req), expected)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

@@ -75,7 +75,33 @@
   .center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
   code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:12.5px}
   #gloss{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
-  #gloss .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;max-width:420px;padding:20px 22px}
+  #gloss .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:20px 22px}
+  #gloss .defs h5{margin:14px 0 0;font-size:14px;color:var(--ink)}
+  #gloss .defs:first-child h5{margin-top:4px}
+  #gloss .defs dl{margin:0}
+  #gloss .defs dt{margin-top:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  #gloss .defs dd{margin:2px 0 0;color:var(--ink);line-height:1.5}
+  .srcrow{margin:-4px 0 10px}
+  .kpi .srcrow{margin:8px 0 0}
+  .src{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;font-size:11px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px}
+  .src:hover{color:var(--ink);border-color:var(--accent)}
+  .src .ids{color:var(--accent);font-variant-numeric:tabular-nums}
+  .tscroll{overflow-x:auto}
+  ul.rules{margin:0;padding-left:18px;color:var(--ink)}
+  ul.rules li{margin:5px 0}
+  table.ds{width:100%;border-collapse:collapse}
+  table.ds th,table.ds td{padding:9px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);font-size:13px}
+  table.ds th{color:var(--muted);font-weight:600;font-size:12px}
+  table.ds td.c-id{font-weight:800;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums}
+  table.ds td.c-name{font-weight:600}
+  table.ds td.c-src,table.ds td.c-range{color:var(--muted)}
+  @media(max-width:640px){
+    table.ds thead{display:none}
+    table.ds,table.ds tbody,table.ds tr,table.ds td{display:block;width:100%}
+    table.ds tr{padding:10px 0;border-bottom:1px solid var(--line)}
+    table.ds td{border:none;padding:3px 0}
+    table.ds td::before{content:attr(data-l);display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  }
   #gloss h4{margin:0 0 8px;font-size:16px}
   #gloss p{margin:0;color:var(--muted);line-height:1.55}
   #gloss button{margin-top:16px}
@@ -83,7 +109,7 @@
 </head>
 <body>
 <div class="wrap" id="app"><div class="center" id="boot">Loading…</div></div>
-<div id="gloss"><div class="box"><h4 id="gloss-t"></h4><p id="gloss-p"></p><button id="gloss-close" onclick="document.getElementById('gloss').style.display='none'">Close</button></div></div>
+<div id="gloss"><div class="box"><h4 id="gloss-t"></h4><p id="gloss-p"></p><div id="gloss-body"></div><button id="gloss-close" onclick="document.getElementById('gloss').style.display='none'">Close</button></div></div>
 
 <script>
 (function(){
@@ -94,8 +120,9 @@
   var T={
     en:{
       updated:'Updated {d}', refresh:'Refresh', loading:'Loading…', close:'Close',
-      need_link:'This page needs a magic link.',
-      err_unauth:'Unauthorized — the magic link is missing or wrong.',
+      need_link:"This page needs the admin token. Reload the page to enter it.",
+      err_unauth:"Unauthorized — the admin token is missing or wrong. Reload the page to enter it again.",
+      nav_sources:"Data sources", sec_sources:"Data sources", src_btn:"Source · range", ds_rules:"Rules", ds_id:"ID", ds_metric:"Metric", ds_source:"Source", ds_def:"Definition", ds_range:"Range", ds_proven:"Proven", ds_not_proven:"not yet proven", ds_proven_on:"proven {d}", ds_def_lang:"Definitions are in English for now.", rule_utc:"Supabase days are UTC calendar days.", rule_test:"Counts include test accounts.", rule_active:"\"Active\" means any tracked analytics event. There is no app-open event, so active counts are a floor.", rule_window:"Compare only has the last 180 days loaded (older periods show 0). Product lists and Audience load all-time rows and filter them by the first Compare period.",
       err_notconf:'Panel not configured yet (ADMIN_TOKEN not set).',
       err_failed:'Request failed ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Switch to light theme', theme_dark:'Switch to dark theme',
@@ -139,8 +166,9 @@
     },
     es:{
       updated:'Actualizado {d}', refresh:'Actualizar', loading:'Cargando…', close:'Cerrar',
-      need_link:'Esta página necesita un enlace mágico.',
-      err_unauth:'No autorizado — falta el enlace mágico o es incorrecto.',
+      need_link:"Esta página necesita el token de administrador. Recarga la página para introducirlo.",
+      err_unauth:"No autorizado — falta el token de administrador o es incorrecto. Recarga la página para introducirlo de nuevo.",
+      nav_sources:"Fuentes de datos", sec_sources:"Fuentes de datos", src_btn:"Fuente · rango", ds_rules:"Reglas", ds_id:"ID", ds_metric:"Métrica", ds_source:"Fuente", ds_def:"Definición", ds_range:"Rango", ds_proven:"Verificado", ds_not_proven:"aún no verificado", ds_proven_on:"verificado {d}", ds_def_lang:"Por ahora las definiciones están en inglés.", rule_utc:"Los días de Supabase son días naturales UTC.", rule_test:"Los recuentos incluyen cuentas de prueba.", rule_active:"\"Activo\" significa cualquier evento de analítica registrado. No hay evento de apertura de la app, así que los activos son un mínimo.", rule_window:"Comparar solo tiene cargados los últimos 180 días (los periodos anteriores muestran 0). Las listas de Producto y Audiencia cargan filas de todo el historial y se filtran por el primer periodo de Comparar.",
       err_notconf:'El panel aún no está configurado (ADMIN_TOKEN no definido).',
       err_failed:'La solicitud falló ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Cambiar a tema claro', theme_dark:'Cambiar a tema oscuro',
@@ -184,8 +212,9 @@
     },
     pt:{
       updated:'Atualizado {d}', refresh:'Atualizar', loading:'Carregando…', close:'Fechar',
-      need_link:'Esta página precisa de um link mágico.',
-      err_unauth:'Não autorizado — o link mágico está ausente ou incorreto.',
+      need_link:"Esta página precisa do token de administrador. Recarregue a página para inseri-lo.",
+      err_unauth:"Não autorizado — o token de administrador está ausente ou incorreto. Recarregue a página para inseri-lo de novo.",
+      nav_sources:"Fontes de dados", sec_sources:"Fontes de dados", src_btn:"Fonte · período", ds_rules:"Regras", ds_id:"ID", ds_metric:"Métrica", ds_source:"Fonte", ds_def:"Definição", ds_range:"Período", ds_proven:"Comprovado", ds_not_proven:"ainda não comprovado", ds_proven_on:"comprovado {d}", ds_def_lang:"Por enquanto as definições estão em inglês.", rule_utc:"Os dias do Supabase são dias corridos em UTC.", rule_test:"As contagens incluem contas de teste.", rule_active:"\"Ativo\" significa qualquer evento de analytics registrado. Não há evento de abertura do app, então os ativos são um piso.", rule_window:"Comparar só tem os últimos 180 dias carregados (períodos anteriores mostram 0). As listas de Produto e Público carregam linhas de todo o histórico e são filtradas pelo primeiro período de Comparar.",
       err_notconf:'O painel ainda não está configurado (ADMIN_TOKEN não definido).',
       err_failed:'A solicitação falhou ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Mudar para tema claro', theme_dark:'Mudar para tema escuro',
@@ -229,8 +258,9 @@
     },
     fr:{
       updated:'Mis à jour {d}', refresh:'Actualiser', loading:'Chargement…', close:'Fermer',
-      need_link:'Cette page nécessite un lien magique.',
-      err_unauth:"Non autorisé — le lien magique est absent ou incorrect.",
+      need_link:"Cette page nécessite le jeton d'administration. Rechargez la page pour le saisir.",
+      err_unauth:"Non autorisé — le jeton d'administration est absent ou incorrect. Rechargez la page pour le saisir à nouveau.",
+      nav_sources:"Sources de données", sec_sources:"Sources de données", src_btn:"Source · période", ds_rules:"Règles", ds_id:"ID", ds_metric:"Métrique", ds_source:"Source", ds_def:"Définition", ds_range:"Période", ds_proven:"Vérifié", ds_not_proven:"pas encore vérifié", ds_proven_on:"vérifié le {d}", ds_def_lang:"Les définitions sont en anglais pour l'instant.", rule_utc:"Les jours Supabase sont des jours civils UTC.", rule_test:"Les décomptes incluent les comptes de test.", rule_active:"« Actif » signifie tout événement d'analyse suivi. Il n'y a pas d'événement d'ouverture de l'app, les actifs sont donc un minimum.", rule_window:"Comparer ne charge que les 180 derniers jours (les périodes plus anciennes affichent 0). Les listes Produit et Audience chargent tout l'historique et sont filtrées par la première période de Comparer.",
       err_notconf:"Le panneau n'est pas encore configuré (ADMIN_TOKEN non défini).",
       err_failed:'Échec de la requête ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Passer au thème clair', theme_dark:'Passer au thème sombre',
@@ -274,8 +304,9 @@
     },
     de:{
       updated:'Aktualisiert {d}', refresh:'Aktualisieren', loading:'Wird geladen…', close:'Schließen',
-      need_link:'Diese Seite benötigt einen Magic Link.',
-      err_unauth:'Nicht autorisiert — der Magic Link fehlt oder ist falsch.',
+      need_link:"Diese Seite benötigt das Admin-Token. Laden Sie die Seite neu, um es einzugeben.",
+      err_unauth:"Nicht autorisiert — das Admin-Token fehlt oder ist falsch. Laden Sie die Seite neu, um es erneut einzugeben.",
+      nav_sources:"Datenquellen", sec_sources:"Datenquellen", src_btn:"Quelle · Zeitraum", ds_rules:"Regeln", ds_id:"ID", ds_metric:"Kennzahl", ds_source:"Quelle", ds_def:"Definition", ds_range:"Zeitraum", ds_proven:"Geprüft", ds_not_proven:"noch nicht geprüft", ds_proven_on:"geprüft am {d}", ds_def_lang:"Die Definitionen sind vorerst auf Englisch.", rule_utc:"Supabase-Tage sind UTC-Kalendertage.", rule_test:"Die Zählungen enthalten Testkonten.", rule_active:"„Aktiv“ bedeutet ein beliebiges erfasstes Analytics-Ereignis. Es gibt kein App-Öffnen-Ereignis, daher sind Aktive eine Untergrenze.", rule_window:"Vergleich hat nur die letzten 180 Tage geladen (ältere Zeiträume zeigen 0). Produktlisten und Zielgruppe laden alle Zeilen und werden nach dem ersten Vergleichszeitraum gefiltert.",
       err_notconf:'Panel noch nicht konfiguriert (ADMIN_TOKEN nicht gesetzt).',
       err_failed:'Anfrage fehlgeschlagen ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Zum hellen Design wechseln', theme_dark:'Zum dunklen Design wechseln',
@@ -319,8 +350,9 @@
     },
     it:{
       updated:'Aggiornato {d}', refresh:'Aggiorna', loading:'Caricamento…', close:'Chiudi',
-      need_link:'Questa pagina richiede un link magico.',
-      err_unauth:'Non autorizzato — il link magico manca o è errato.',
+      need_link:"Questa pagina richiede il token di amministrazione. Ricarica la pagina per inserirlo.",
+      err_unauth:"Non autorizzato — il token di amministrazione manca o è errato. Ricarica la pagina per inserirlo di nuovo.",
+      nav_sources:"Fonti dei dati", sec_sources:"Fonti dei dati", src_btn:"Fonte · periodo", ds_rules:"Regole", ds_id:"ID", ds_metric:"Metrica", ds_source:"Fonte", ds_def:"Definizione", ds_range:"Periodo", ds_proven:"Verificato", ds_not_proven:"non ancora verificato", ds_proven_on:"verificato il {d}", ds_def_lang:"Per ora le definizioni sono in inglese.", rule_utc:"I giorni di Supabase sono giorni di calendario UTC.", rule_test:"I conteggi includono gli account di prova.", rule_active:"«Attivo» significa qualsiasi evento di analytics tracciato. Non esiste un evento di apertura dell'app, quindi gli attivi sono un minimo.", rule_window:"Confronta ha caricati solo gli ultimi 180 giorni (i periodi precedenti mostrano 0). Gli elenchi Prodotto e Pubblico caricano tutto lo storico e vengono filtrati per il primo periodo di Confronta.",
       err_notconf:'Pannello non ancora configurato (ADMIN_TOKEN non impostato).',
       err_failed:'Richiesta non riuscita ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Passa al tema chiaro', theme_dark:'Passa al tema scuro',
@@ -376,9 +408,10 @@
   (function initTheme(){var th='dark';try{th=localStorage.getItem('dt_adm_theme')||'dark';}catch(e){}if(th==='light')document.documentElement.setAttribute('data-theme','light');})();
   function cc(){var l=curTheme()==='light';return {ink:l?'#0C2340':'#EAF2FB',muted:l?'#5A7085':'#8FA6BD',grid:l?'rgba(0,0,0,.08)':'rgba(255,255,255,.07)'};}
 
-  var token=''; var hm=location.hash.match(/(?:^#|&)(?:t|token)=([^&]+)/); var qm=location.search.match(/(?:^\?|&)(?:t|token)=([^&]+)/);
-  if(hm) token=decodeURIComponent(hm[1]); else if(qm) token=decodeURIComponent(qm[1]);
-  try{ if(token) sessionStorage.setItem('dt_adm_token',token); else token=sessionStorage.getItem('dt_adm_token')||''; }catch(e){}
+  // Admin token: kept in sessionStorage only and sent only in the Authorization
+  // header. It is never read from the URL (query or hash); old token links are
+  // stripped below, and the server refuses any token-like query parameter.
+  var token=''; try{ token=sessionStorage.getItem('dt_adm_token')||''; }catch(e){}
   try{ history.replaceState(null,'',location.pathname); }catch(e){}
   var app=document.getElementById('app');
   var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
@@ -386,18 +419,81 @@
   var pct=function(n){return (n==null||isNaN(n))?'—':(Math.round(n*10)/10)+'%';};
   var charts=[]; function clearCharts(){charts.forEach(function(c){try{c.destroy();}catch(e){}});charts=[];}
 
+  // ---- metric definitions: one row per number on the panel (docs/specs/admin-panel.md).
+  // proven = null until the founder proves the number against the source dashboard.
+  // Definitions stay English for now (spec open item O-6).
+  var DEFS=[
+    {id:"O1",name:"Total users",src:"Supabase · auth.users",def:"count(*) of auth.users: every account, including test and unconfirmed accounts.",range:"All time",proven:null},
+    {id:"O2",name:"Signups today (+N today)",src:"Supabase · profiles",def:"Profiles whose created_at falls on the current UTC day.",range:"Current UTC day",proven:null},
+    {id:"O3",name:"New · 7 days",src:"Supabase · profiles",def:"Sum of daily signups (profiles.created_at) over the last 7 days.",range:"7 UTC days incl. today",proven:null},
+    {id:"O4",name:"New · 30 days",src:"Supabase · profiles",def:"Sum of daily signups (profiles.created_at) over the last 30 days.",range:"30 UTC days incl. today",proven:null},
+    {id:"O5",name:"WAU",src:"Supabase · analytics_events",def:"Distinct users with at least one analytics event dated today or up to 6 days before.",range:"7 UTC days incl. today",proven:null},
+    {id:"O6",name:"DAU",src:"Supabase · analytics_events",def:"Distinct users with at least one analytics event dated today.",range:"Current UTC day",proven:null},
+    {id:"O7",name:"MAU",src:"Supabase · analytics_events",def:"Distinct users with at least one analytics event dated today or up to 29 days before.",range:"30 UTC days incl. today",proven:null},
+    {id:"O8",name:"Stickiness",src:"Derived (O6 ÷ O7)",def:"Today's DAU divided by MAU. Not an average of daily DAU.",range:"Today / 30 UTC days",proven:null},
+    {id:"O9",name:"Profiles complete",src:"Supabase · auth.users metadata",def:"Accounts with display_name, country, primary_goal and activity_level all filled, divided by total users. The app itself checks 8 fields, so this is looser.",range:"All time",proven:null},
+    {id:"O10",name:"Signups & active users chart",src:"Supabase · profiles + analytics_events",def:"Per UTC day: signups (profiles.created_at) and DAU (distinct users with any event).",range:"Last 90 UTC days",proven:null},
+    {id:"O11",name:"Protocols (and active)",src:"Supabase · protocols",def:"count(*) of protocols including deleted (tombstoned) rows. \"Active\" = rows with active = true.",range:"All time",proven:null},
+    {id:"O12",name:"Dose logs",src:"Supabase · dose_logs",def:"count(*) of dose logs, all outcomes (Taken, Missed, Skipped).",range:"All time",proven:null},
+    {id:"O13",name:"Biomarkers",src:"Supabase · biomarkers",def:"count(*) of biomarker rows.",range:"All time",proven:null},
+    {id:"C1",name:"Signups",src:"Supabase · profiles",def:"Profiles by created_at UTC date, summed over the period.",range:"Chosen period (last 180 days loaded)",proven:null},
+    {id:"C2",name:"Active users",src:"Supabase · analytics_events",def:"Distinct users with any analytics event in the period.",range:"Chosen period (last 180 days loaded)",proven:null},
+    {id:"C3",name:"Doses logged",src:"Supabase · dose_logs",def:"Dose logs by logged_at UTC date, all outcomes.",range:"Chosen period (last 180 days loaded)",proven:null},
+    {id:"C4",name:"Protocols created",src:"Supabase · protocols",def:"Protocol rows by created_at UTC date, including deleted rows.",range:"Chosen period (last 180 days loaded)",proven:null},
+    {id:"C5",name:"AI lab scans",src:"Supabase · analytics_events",def:"bloodwork_uploaded events by UTC date.",range:"Chosen period (last 180 days loaded)",proven:null},
+    {id:"E1",name:"Adherence",src:"Supabase · dose_logs",def:"Dose logs with outcome Taken divided by all dose logs.",range:"All time",proven:null},
+    {id:"E2",name:"Activation funnel",src:"Supabase",def:"Five independent counts, not a strict sequence: accounts; profiles complete (O9); users with any protocol row (incl. deleted); users with any dose log; users with a lab scan event.",range:"All time",proven:null},
+    {id:"E3",name:"Doses logged · 90 days",src:"Supabase · dose_logs",def:"Dose logs per logged_at UTC day.",range:"Last 90 UTC days",proven:null},
+    {id:"F1",name:"Active users · 30 days (of total)",src:"Supabase · analytics_events + profiles",def:"Distinct users with an analytics event in the last 30×24 hours (rolling, not UTC days), over the number of profiles.",range:"Rolling 30 days",proven:null},
+    {id:"F2",name:"Feature adoption table",src:"Supabase · analytics_events + profiles",def:"Per event: Uses = event count; Users = distinct users; Reach = Users ÷ number of profiles.",range:"All time",proven:null},
+    {id:"R1",name:"Weekly retention cohorts",src:"Supabase · auth.users + analytics_events",def:"Accounts grouped by signup week (Monday, UTC). Cell Wn = share of the cohort with at least one analytics event in week n (0–7).",range:"Last 8 signup weeks",proven:null},
+    {id:"P1",name:"Top compounds created",src:"Supabase · analytics_events",def:"protocol_created events grouped by compound. Events, not protocol rows.",range:"First Compare period (all-time rows)",proven:null},
+    {id:"P2",name:"Top searches",src:"Supabase · analytics_events",def:"compound_search events grouped by query text.",range:"First Compare period (all-time rows)",proven:null},
+    {id:"P3",name:"Protocol type",src:"Supabase · analytics_events",def:"protocol_created events grouped by type (reconstituted / ready-to-use).",range:"First Compare period (all-time rows)",proven:null},
+    {id:"P4",name:"Top biomarkers",src:"Supabase · biomarkers",def:"Biomarker rows grouped by marker, top 12.",range:"All time",proven:null},
+    {id:"V1",name:"RevenueCat overview",src:"RevenueCat v2 · metrics/overview",def:"Each card is one metric exactly as RevenueCat returns it (its own name, value and description).",range:"As defined by RevenueCat per metric",proven:null},
+    {id:"V2",name:"Plan (Supabase field)",src:"Supabase · profiles.plan",def:"Profiles grouped by plan. Every row is \"free\", so this cannot show Premium; RevenueCat is authoritative.",range:"All time",proven:null},
+    {id:"U1",name:"Audience",src:"Supabase · auth.users metadata",def:"Counts of country, primary goal, activity level and gender; age = current year − birth year. Accounts whose signup date is in the first Compare period.",range:"First Compare period (all accounts)",proven:null},
+    {id:"S1",name:"Apple downloads · 30 days",src:"App Store Connect · Sales Reports",def:"Sum of Units with product type 1* or F1* over the daily sales summaries of the 30 days before today. Days without a report are skipped.",range:"30 days ending yesterday (UTC)",proven:null},
+    {id:"S2",name:"Apple updates · 30 days",src:"App Store Connect · Sales Reports",def:"Sum of Units with product type 7* over the same reports.",range:"30 days ending yesterday (UTC)",proven:null},
+    {id:"S3",name:"Apple latest day",src:"App Store Connect · Sales Reports",def:"The most recent of those days that has a report, and its downloads.",range:"Latest report day",proven:null},
+    {id:"S4",name:"Google total installs",src:"Google Play · stats bucket",def:"Latest installs CSV, last row, \"Total User Installs\".",range:"Latest day in the latest monthly file",proven:null},
+    {id:"S5",name:"Google active devices",src:"Google Play · stats bucket",def:"Latest installs CSV, last row, \"Active Device Installs\".",range:"Latest day in the latest monthly file",proven:null},
+    {id:"S6",name:"Google installs · month",src:"Google Play · stats bucket",def:"Sum of \"Daily Device Installs\" over the latest monthly installs CSV.",range:"Month of the latest file",proven:null},
+    {id:"S7",name:"Google average rating",src:"Google Play · stats bucket",def:"Latest ratings CSV, last row, \"Total Average Rating\".",range:"Cumulative to the latest day",proven:null}
+  ];
+  var DEF_BY={};DEFS.forEach(function(d){DEF_BY[d.id]=d;});
+  function provenLabel(d){return d.proven?t('ds_proven_on',{d:d.proven}):t('ds_not_proven');}
+  window.showDef=function(ids){
+    var list=String(ids).split(',').map(function(i){return DEF_BY[i];}).filter(Boolean);
+    if(!list.length)return;
+    document.getElementById('gloss-t').textContent=list.length===1?(list[0].id+' · '+list[0].name):list.map(function(d){return d.id;}).join(' · ');
+    document.getElementById('gloss-p').textContent=LANG==='en'?'':t('ds_def_lang');
+    document.getElementById('gloss-body').innerHTML=list.map(function(d){
+      return '<div class="defs">'+(list.length>1?'<h5>'+esc(d.id+' · '+d.name)+'</h5>':'')
+        +'<dl><dt>'+esc(t('ds_source'))+'</dt><dd>'+esc(d.src)+'</dd><dt>'+esc(t('ds_def'))+'</dt><dd>'+esc(d.def)+'</dd>'
+        +'<dt>'+esc(t('ds_range'))+'</dt><dd>'+esc(d.range)+'</dd><dt>'+esc(t('ds_proven'))+'</dt><dd>'+esc(provenLabel(d))+'</dd></dl></div>';
+    }).join('');
+    document.getElementById('gloss-close').textContent=t('close');
+    document.getElementById('gloss').style.display='flex';
+  };
+  function srcBtn(ids){return '<div class="srcrow"><button class="src" onclick="showDef(\''+ids+'\')">'+esc(t('src_btn'))+' <span class="ids">'+esc(ids.replace(/,/g,' · '))+'</span></button></div>';}
+
   // ---- glossary (keys map to gl_<term>_t / gl_<term>_d) ----
   window.showGloss=function(term){
     var ti=t('gl_'+term+'_t'), de=t('gl_'+term+'_d');
     if(ti==='gl_'+term+'_t')return;
     document.getElementById('gloss-t').textContent=ti;
     document.getElementById('gloss-p').textContent=de;
+    document.getElementById('gloss-body').innerHTML='';
     document.getElementById('gloss-close').textContent=t('close');
     document.getElementById('gloss').style.display='flex';
   };
   function iBtn(term){return '<button class="info" onclick="showGloss(\''+term+'\')" title="'+esc(t('close')==='Close'?'What is this?':t('gl_'+term+'_t'))+'">i</button>';}
 
   // ---- date helpers ----
+  // Server dates are UTC 'YYYY-MM-DD'. utcDay(0) = today (UTC), utcDay(6) = six days ago.
+  function utcDay(back){return new Date(Date.now()-back*864e5).toISOString().slice(0,10);}
   function pd(s){var p=String(s).split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
   function inR(dateStr,start,end){var d=pd(dateStr);return d>=start&&d<end;}
   function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);x.setHours(0,0,0,0);return x;}
@@ -412,7 +508,7 @@
     var s2=monthStart(a);return {label:fmtMY(s2),start:s2,end:new Date(s2.getFullYear(),s2.getMonth()+1,1)};
   }
   function presets(gran){
-    var now=new Date();
+    var now=pd(utcDay(0));
     if(gran==='day')return [periodFor('day',now),periodFor('day',addDays(now,-1))];
     if(gran==='week')return [periodFor('week',now),periodFor('week',addDays(now,-7))];
     return [periodFor('month',now),periodFor('month',new Date(now.getFullYear(),now.getMonth()-1,1))];
@@ -437,7 +533,7 @@
   function metrics(){return [{k:'signups',l:t('m_signups')},{k:'active',l:t('m_active'),t:'active'},{k:'doses',l:t('m_doses')},{k:'protocols_created',l:t('m_protocols_created')},{k:'scans',l:t('m_scans')}];}
   function deltaHTML(cur,base){if(base==null||base===0)return cur>0?'<span class="delta up">new</span>':'';var d=Math.round((cur-base)/base*1000)/10;var cls=d>0?'up':(d<0?'down':'flat');var sign=d>0?'+':'';return '<span class="delta '+cls+'">'+sign+d+'%</span>';}
   function rows(list,max){if(!list||!list.length)return '<div class="muted">'+t('no_data')+'</div>';max=max||Math.max.apply(null,list.map(function(x){return x.n;}).concat([1]));return list.map(function(x){return '<div class="row"><div class="k" title="'+esc(x.k)+'">'+esc(x.k)+'</div><div class="track"><div class="fill" style="width:'+Math.round(x.n/max*100)+'%"></div></div><div class="n">'+fmt(x.n)+'</div></div>';}).join('');}
-  function kpiCard(label,val,sub,term){return '<div class="card kpi"><div class="label">'+esc(label)+(term?' '+iBtn(term):'')+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>';}
+  function kpiCard(label,val,sub,term,ids){return '<div class="card kpi"><div class="label">'+esc(label)+(term?' '+iBtn(term):'')+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+(ids?srcBtn(ids):'')+'</div>';}
   function statusPill(s){if(s==='ok')return '<span class="pill ok">'+t('pill_live')+'</span>';if(s==='error')return '<span class="pill err">'+t('pill_error')+'</span>';if(s==='planned'||s==='pending')return '<span class="pill off">'+t('pill_pending')+'</span>';return '<span class="pill off">'+t('pill_notset')+'</span>';}
 
   // ---- goal / activity labels (localized) ----
@@ -456,21 +552,22 @@
     var last=KPI[KPI.length-1]||{};
     var s7=KPI.slice(-7).reduce(function(a,r){return a+r.signups;},0);
     var s30=KPI.slice(-30).reduce(function(a,r){return a+r.signups;},0);
-    var actSet=function(days){var u={},cut=addDays(new Date(),-days);ACT.forEach(function(e){if(pd(e.d)>=cut)u[e.u]=1;});return Object.keys(u).length;};
+    // 1 / 7 / 30 UTC days including today (was 2 / 8 / 31 local days: finding A-4).
+    var actSet=function(days){var u={},cut=utcDay(days-1);ACT.forEach(function(e){if(e.d>=cut)u[e.u]=1;});return Object.keys(u).length;};
     var dau=actSet(1),wau=actSet(7),mau=actSet(30);
     var pcComplete=tt.users?Math.round(f.profile_complete/tt.users*100):0;
     var h='<section id="overview"><h2>'+t('sec_overview')+'</h2><div class="grid kpis">'
-      +kpiCard(t('k_total_users'),fmt(tt.users),t('today_plus',{n:fmt(last.signups)}))
-      +kpiCard(t('k_new_7_30'),fmt(s7)+' / '+fmt(s30))
-      +kpiCard(t('k_wau'),fmt(wau),t('dau_mau_sub',{dau:fmt(dau),mau:fmt(mau)}),'wau')
-      +kpiCard(t('k_stickiness'),mau?pct(dau/mau*100):'—',t('dau_mau'),'stick')
-      +kpiCard(t('k_profiles_complete'),pcComplete+'%',t('of_n',{a:fmt(f.profile_complete),b:fmt(tt.users)}))
+      +kpiCard(t('k_total_users'),fmt(tt.users),t('today_plus',{n:fmt(last.signups)}),null,'O1,O2')
+      +kpiCard(t('k_new_7_30'),fmt(s7)+' / '+fmt(s30),null,null,'O3,O4')
+      +kpiCard(t('k_wau'),fmt(wau),t('dau_mau_sub',{dau:fmt(dau),mau:fmt(mau)}),'wau','O5,O6,O7')
+      +kpiCard(t('k_stickiness'),mau?pct(dau/mau*100):'—',t('dau_mau'),'stick','O8')
+      +kpiCard(t('k_profiles_complete'),pcComplete+'%',t('of_n',{a:fmt(f.profile_complete),b:fmt(tt.users)}),null,'O9')
       +'</div>';
-    h+='<div class="card" style="margin-top:12px"><h3>'+t('chart_signups_active')+'</h3><canvas id="c-overview" height="90"></canvas></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('chart_signups_active')+'</h3>'+srcBtn('O10')+'<canvas id="c-overview" height="90"></canvas></div>';
     h+='<div class="grid three" style="margin-top:12px">'
-      +kpiCard(t('k_protocols'),fmt(tt.protocols),t('n_active',{n:fmt(tt.protocols_active)}))
-      +kpiCard(t('k_dose_logs'),fmt(tt.dose_logs))
-      +kpiCard(t('k_biomarkers'),fmt(tt.biomarkers))+'</div>';
+      +kpiCard(t('k_protocols'),fmt(tt.protocols),t('n_active',{n:fmt(tt.protocols_active)}),null,'O11')
+      +kpiCard(t('k_dose_logs'),fmt(tt.dose_logs),null,null,'O12')
+      +kpiCard(t('k_biomarkers'),fmt(tt.biomarkers),null,null,'O13')+'</div>';
     h+='</section>';
     return h;
   }
@@ -494,7 +591,7 @@
       var cells=vals.map(function(v,i){var val=v[m.k];var dd=i>0?deltaHTML(val,vals[0][m.k]):'';return '<td>'+fmt(val)+dd+'</td>';}).join('');
       return '<tr><td>'+m.l+(m.t?' '+iBtn(m.t):'')+'</td>'+cells+'</tr>';
     }).join('');
-    return '<div class="card"><h3>'+t('period_comparison')+'</h3><table class="cmp">'+head+body+'</table></div>';
+    return '<div class="card"><h3>'+t('period_comparison')+'</h3>'+srcBtn('C1,C2,C3,C4,C5')+'<div class="tscroll"><table class="cmp">'+head+body+'</table></div></div>';
   }
   function drawCmp(){
     var C=cc();var M=metrics();var vals=periods.map(kpiFor);var palette=['#4FA3E8','#2CD3A7','#E8B54F','#E8776B','#9E7BE8','#46C6EE'];
@@ -504,9 +601,9 @@
   function secEngagement(){
     var a=D.adherence||{};var arate=a.total?Math.round(a.taken/a.total*100):0;
     var h='<section id="engagement"><h2>'+t('sec_engagement')+'</h2>';
-    h+='<div class="grid two"><div class="card"><h3>'+t('eng_adherence')+' '+iBtn('adherence')+'</h3><canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+t('adh_sub',{p:arate,n:fmt(a.total)})+'</div></div>';
-    h+='<div class="card"><h3>'+t('eng_funnel')+' '+iBtn('funnel')+'</h3><canvas id="c-funnel" height="150"></canvas></div></div>';
-    h+='<div class="card" style="margin-top:12px"><h3>'+t('doses_90')+'</h3><canvas id="c-doses" height="80"></canvas></div>';
+    h+='<div class="grid two"><div class="card"><h3>'+t('eng_adherence')+' '+iBtn('adherence')+'</h3>'+srcBtn('E1')+'<canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+t('adh_sub',{p:arate,n:fmt(a.total)})+'</div></div>';
+    h+='<div class="card"><h3>'+t('eng_funnel')+' '+iBtn('funnel')+'</h3>'+srcBtn('E2')+'<canvas id="c-funnel" height="150"></canvas></div></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('doses_90')+'</h3>'+srcBtn('E3')+'<canvas id="c-doses" height="80"></canvas></div>';
     h+='</section>';return h;
   }
   function drawEngagement(){
@@ -521,22 +618,22 @@
   function secAdoption(){
     var fa=D.feature_adoption||{};var total=fa.total_users||0;var feats=fa.features||[];
     var h='<section id="adoption"><h2>'+t('sec_adoption')+'</h2><div class="card">';
-    h+='<div class="sub muted" style="margin-bottom:10px">'+t('fa_active',{n:fmt(fa.active_users_30d),total:fmt(total)})+'</div>';
+    h+='<div class="sub muted">'+t('fa_active',{n:fmt(fa.active_users_30d),total:fmt(total)})+'</div>'+srcBtn('F1,F2');
     if(!feats.length){return h+'<div class="muted">'+t('fa_nodata')+'</div></div></section>';}
-    h+='<table class="cmp"><tr><th>'+t('fa_feature')+'</th><th>'+t('fa_reach')+'</th><th>'+t('fa_users')+'</th><th>'+t('fa_events')+'</th></tr>';
+    h+='<div class="tscroll"><table class="cmp"><tr><th>'+t('fa_feature')+'</th><th>'+t('fa_reach')+'</th><th>'+t('fa_users')+'</th><th>'+t('fa_events')+'</th></tr>';
     h+=feats.map(function(f){
       var label=t('fa_'+f.event);if(label==='fa_'+f.event)label=titleCase(f.event);
       var reach=total?Math.round(f.users/total*100):0;
       var bar='<span style="display:inline-block;width:80px;height:8px;background:var(--surface2);border-radius:4px;vertical-align:middle;margin-right:8px;overflow:hidden"><span style="display:block;height:100%;width:'+reach+'%;background:var(--accent)"></span></span>';
       return '<tr><td>'+esc(label)+'</td><td>'+bar+reach+'%</td><td>'+fmt(f.users)+(total?' / '+fmt(total):'')+'</td><td>'+fmt(f.events)+'</td></tr>';
     }).join('');
-    h+='</table><div class="sub muted" style="margin-top:8px">'+t('fa_note')+'</div></div></section>';
+    h+='</table></div><div class="sub muted" style="margin-top:8px">'+t('fa_note')+'</div></div></section>';
     return h;
   }
 
   function secRetention(){
     var cohorts=(D.retention&&D.retention.cohorts)||[];
-    if(!cohorts.length)return '<section id="retention"><h2>'+t('sec_retention_short')+' '+iBtn('retention')+'</h2><div class="card muted">'+t('ret_nodata')+'</div></section>';
+    if(!cohorts.length)return '<section id="retention"><h2>'+t('sec_retention_short')+' '+iBtn('retention')+'</h2><div class="card">'+srcBtn('R1')+'<div class="muted">'+t('ret_nodata')+'</div></div></section>';
     var maxWk=0;cohorts.forEach(function(c){Object.keys(c.cells||{}).forEach(function(k){maxWk=Math.max(maxWk,+k);});});
     var head='<tr><td style="text-align:left;color:var(--muted)">'+t('ret_cohort_week')+'</td><td style="color:var(--muted)">'+t('ret_users')+'</td>';
     for(var w=0;w<=maxWk;w++)head+='<td style="color:var(--muted)">W'+w+'</td>';head+='</tr>';
@@ -544,7 +641,7 @@
       var tds='';for(var w=0;w<=maxWk;w++){var a=(c.cells||{})[w];if(a==null){tds+='<td class="muted">·</td>';continue;}var p=c.size?Math.round(a/c.size*100):0;var bg='rgba(79,163,232,'+(0.12+0.6*(p/100)).toFixed(2)+')';tds+='<td style="background:'+bg+'">'+p+'%</td>';}
       return '<tr><td style="text-align:left">'+esc(c.cohort)+'</td><td>'+fmt(c.size)+'</td>'+tds+'</tr>';
     }).join('');
-    return '<section id="retention"><h2>'+t('sec_retention')+' '+iBtn('retention')+'</h2><div class="card" style="overflow-x:auto"><table class="cmp heat">'+head+body+'</table><div class="sub muted" style="margin-top:8px">'+t('ret_footer')+'</div></div></section>';
+    return '<section id="retention"><h2>'+t('sec_retention')+' '+iBtn('retention')+'</h2><div class="card">'+srcBtn('R1')+'<div class="tscroll"><table class="cmp heat">'+head+body+'</table></div><div class="sub muted" style="margin-top:8px">'+t('ret_footer')+'</div></div></section>';
   }
 
   function secProduct(){
@@ -554,10 +651,10 @@
     var types=tally(PROTO,function(x){return x.type;},p0&&p0.start,p0&&p0.end,'date').map(function(x){return {k:x.k==='recon'?t('type_recon'):(x.k==='rtu'?t('type_rtu'):titleCase(x.k)),n:x.n};});
     var scope=p0?('· '+p0.label):'';
     var h='<section id="product"><h2>'+t('sec_product')+' '+scope+'</h2><div class="grid two">';
-    h+='<div class="card"><h3>'+t('prod_top_compounds')+'</h3>'+rows(comp.slice(0,10))+'</div>';
-    h+='<div class="card"><h3>'+t('prod_top_searches')+'</h3>'+rows(srch.slice(0,10))+'</div></div>';
-    h+='<div class="grid two" style="margin-top:12px"><div class="card"><h3>'+t('prod_type')+'</h3>'+rows(types)+'</div>';
-    h+='<div class="card"><h3>'+t('prod_top_biomarkers')+'</h3>'+rows((D.top_biomarkers||[]).map(function(x){return {k:titleCase(x.k),n:x.n};}).slice(0,10))+'</div></div>';
+    h+='<div class="card"><h3>'+t('prod_top_compounds')+'</h3>'+srcBtn('P1')+rows(comp.slice(0,10))+'</div>';
+    h+='<div class="card"><h3>'+t('prod_top_searches')+'</h3>'+srcBtn('P2')+rows(srch.slice(0,10))+'</div></div>';
+    h+='<div class="grid two" style="margin-top:12px"><div class="card"><h3>'+t('prod_type')+'</h3>'+srcBtn('P3')+rows(types)+'</div>';
+    h+='<div class="card"><h3>'+t('prod_top_biomarkers')+'</h3>'+srcBtn('P4')+rows((D.top_biomarkers||[]).map(function(x){return {k:titleCase(x.k),n:x.n};}).slice(0,10))+'</div></div>';
     h+='<div class="sub muted" style="margin-top:8px">'+t('prod_footer',{label:esc(p0?p0.label:'all')})+'</div></section>';
     return h;
   }
@@ -565,9 +662,9 @@
   function secRevenue(){
     var h='<section id="revenue"><h2>'+t('sec_revenue')+' '+statusPill(RC.status)+'</h2>';
     if(RC.status==='ok'&&RC.data&&RC.data.metrics){
-      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(LANG,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;return kpiCard(m.name||m.id,v,m.description||'',term);}).join('')+'</div>';
-    } else h+='<div class="card muted">'+esc(RC.message||t('not_configured'))+'</div>';
-    h+='<div class="card" style="margin-top:12px"><h3>'+t('rev_plan')+'</h3>'+rows((D.plans||[]).map(function(x){return {k:x.plan,n:x.n};}))+'<div class="sub muted" style="margin-top:6px">'+t('rev_plan_note')+'</div></div>';
+      h+='<div class="grid kpis">'+RC.data.metrics.map(function(m){var v=m.unit==='$'?('$'+Number(m.value||0).toLocaleString(LANG,{minimumFractionDigits:2,maximumFractionDigits:2})):fmt(m.value);var term=m.id==='mrr'?'mrr':null;return kpiCard(m.name||m.id,v,m.description||'',term,'V1');}).join('')+'</div>';
+    } else h+='<div class="card">'+srcBtn('V1')+'<div class="muted">'+esc(RC.message||t('not_configured'))+'</div></div>';
+    h+='<div class="card" style="margin-top:12px"><h3>'+t('rev_plan')+'</h3>'+srcBtn('V2')+rows((D.plans||[]).map(function(x){return {k:x.plan,n:x.n};}))+'<div class="sub muted" style="margin-top:6px">'+t('rev_plan_note')+'</div></div>';
     h+='</section>';return h;
   }
 
@@ -582,24 +679,39 @@
     var age=Object.keys(ageBuckets).map(function(k){return {k:k,n:ageBuckets[k]};}).sort(function(a,b){return b.n-a.n;});
     var scope=p0?t('aud_scope_signups',{label:p0.label}):t('aud_scope_all');
     var h='<section id="audience"><h2>'+t('sec_audience')+' — '+esc(scope)+' ('+use.length+')</h2><div class="grid two">';
-    h+='<div class="card"><h3>'+t('aud_country')+'</h3>'+rows(country.slice(0,10).map(function(x){return {k:x.k==='(unset)'?t('not_set'):x.k,n:x.n};}))+'</div>';
-    h+='<div class="card"><h3>'+t('aud_goal')+'</h3>'+rows(goal.slice(0,12))+'</div></div>';
-    h+='<div class="grid three" style="margin-top:12px"><div class="card"><h3>'+t('aud_activity')+'</h3>'+rows(activity)+'</div><div class="card"><h3>'+t('aud_gender')+'</h3>'+rows(gender)+'</div><div class="card"><h3>'+t('aud_age')+'</h3>'+rows(age)+'</div></div></section>';
+    h+='<div class="card"><h3>'+t('aud_country')+'</h3>'+srcBtn('U1')+rows(country.slice(0,10).map(function(x){return {k:x.k==='(unset)'?t('not_set'):x.k,n:x.n};}))+'</div>';
+    h+='<div class="card"><h3>'+t('aud_goal')+'</h3>'+srcBtn('U1')+rows(goal.slice(0,12))+'</div></div>';
+    h+='<div class="grid three" style="margin-top:12px"><div class="card"><h3>'+t('aud_activity')+'</h3>'+srcBtn('U1')+rows(activity)+'</div><div class="card"><h3>'+t('aud_gender')+'</h3>'+srcBtn('U1')+rows(gender)+'</div><div class="card"><h3>'+t('aud_age')+'</h3>'+srcBtn('U1')+rows(age)+'</div></div></section>';
     return h;
   }
 
   function secStores(){
     var h='<section id="stores"><h2>'+t('sec_stores')+'</h2>';
     h+='<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b>'+t('store_apple')+'</b> '+statusPill(AP.status)+'</div>';
-    if(AP.status==='ok'&&AP.data){var a=AP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_downloads_30'),fmt(a.downloads_30d))+kpiCard(t('k_updates_30'),fmt(a.updates_30d))+kpiCard(t('k_latest_day'),a.latest_day_downloads!=null?t('n_dl',{n:fmt(a.latest_day_downloads)}):'—',a.latest_day||'')+'</div>';}
+    if(AP.status==='ok'&&AP.data){var a=AP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_downloads_30'),fmt(a.downloads_30d),null,null,'S1')+kpiCard(t('k_updates_30'),fmt(a.updates_30d),null,null,'S2')+kpiCard(t('k_latest_day'),a.latest_day_downloads!=null?t('n_dl',{n:fmt(a.latest_day_downloads)}):'—',a.latest_day||'',null,'S3')+'</div>';}
     else h+='<div class="muted" style="margin-top:6px">'+esc(AP.message||'')+'</div>';
     h+='</div><div class="card"><div style="display:flex;justify-content:space-between"><b>'+t('store_google')+'</b> '+statusPill(GP.status)+'</div>';
-    if(GP.status==='ok'&&GP.data){var g=GP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_total_installs'),fmt(g.total_user_installs))+kpiCard(t('k_active_devices'),fmt(g.active_device_installs))+kpiCard(t('k_installs_month'),fmt(g.installs_this_month))+kpiCard(t('k_avg_rating'),g.total_average_rating!=null?Number(g.total_average_rating).toFixed(2)+' ★':'—')+'</div>';}
+    if(GP.status==='ok'&&GP.data){var g=GP.data;h+='<div class="grid kpis" style="margin-top:12px">'+kpiCard(t('k_total_installs'),fmt(g.total_user_installs),null,null,'S4')+kpiCard(t('k_active_devices'),fmt(g.active_device_installs),null,null,'S5')+kpiCard(t('k_installs_month'),fmt(g.installs_this_month),null,null,'S6')+kpiCard(t('k_avg_rating'),g.total_average_rating!=null?Number(g.total_average_rating).toFixed(2)+' ★':'—',null,null,'S7')+'</div>';}
     else h+='<div class="muted" style="margin-top:6px">'+esc(GP.message||'')+'</div>';
     h+='</div></section>';return h;
   }
 
-  function navItems(){return [['overview','nav_overview'],['compare','nav_compare'],['engagement','nav_engagement'],['adoption','nav_adoption'],['retention','nav_retention'],['product','nav_product'],['revenue','nav_revenue'],['audience','nav_audience'],['stores','nav_stores']];}
+  function secSources(){
+    var rules=['rule_utc','rule_test','rule_active','rule_window'].map(function(k){return '<li>'+esc(t(k))+'</li>';}).join('');
+    var cols=[t('ds_id'),t('ds_metric'),t('ds_source'),t('ds_def'),t('ds_range'),t('ds_proven')];
+    var head='<thead><tr>'+cols.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr></thead>';
+    var body='<tbody>'+DEFS.map(function(d){
+      var cells=[['c-id',d.id],['c-name',d.name],['c-src',d.src],['c-def',d.def],['c-range',d.range]];
+      return '<tr>'+cells.map(function(c,i){return '<td class="'+c[0]+'" data-l="'+esc(cols[i])+'">'+esc(c[1])+'</td>';}).join('')
+        +'<td data-l="'+esc(cols[5])+'"><span class="pill '+(d.proven?'ok':'off')+'">'+esc(provenLabel(d))+'</span></td></tr>';
+    }).join('')+'</tbody>';
+    var h='<section id="sources"><h2>'+t('sec_sources')+'</h2>';
+    h+='<div class="card"><h3>'+t('ds_rules')+'</h3><ul class="rules">'+rules+'</ul></div>';
+    h+='<div class="card" style="margin-top:12px"><table class="ds">'+head+body+'</table>'+(LANG==='en'?'':'<div class="sub muted" style="margin-top:8px">'+esc(t('ds_def_lang'))+'</div>')+'</div></section>';
+    return h;
+  }
+
+  function navItems(){return [['overview','nav_overview'],['compare','nav_compare'],['engagement','nav_engagement'],['adoption','nav_adoption'],['retention','nav_retention'],['product','nav_product'],['revenue','nav_revenue'],['audience','nav_audience'],['stores','nav_stores'],['sources','nav_sources']];}
   function langSelect(){return '<select id="lang" title="Language">'+LANGS.map(function(l){return '<option value="'+l[0]+'"'+(l[0]===LANG?' selected':'')+'>'+l[1]+'</option>';}).join('')+'</select>';}
   function themeBtn(){var dark=curTheme()==='dark';return '<button id="theme" class="icon" title="'+esc(dark?t('theme_light'):t('theme_dark'))+'">'+(dark?'☀':'☾')+'</button>';}
 
@@ -611,8 +723,8 @@
       +'<button id="refresh">'+t('refresh')+'</button></div></header>';
     h+='<nav class="sections">'+navItems().map(function(n){return '<a href="#'+n[0]+'">'+t(n[1])+'</a>';}).join('')+'</nav>';
     h+=secOverview();
-    h+='<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>'+t('side_by_side')+'</h3><canvas id="c-cmp" height="90"></canvas></div></section>';
-    h+=secEngagement();h+=secAdoption();h+=secRetention();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();
+    h+='<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>'+t('side_by_side')+'</h3>'+srcBtn('C1,C2,C3,C4,C5')+'<canvas id="c-cmp" height="90"></canvas></div></section>';
+    h+=secEngagement();h+=secAdoption();h+=secRetention();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();h+=secSources();
     app.innerHTML=h;
     drawOverview();drawCmp();drawEngagement();
     document.getElementById('refresh').onclick=load;
@@ -626,7 +738,7 @@
   function load(){
     app.innerHTML='<div class="center">'+t('loading')+'</div>';
     fetch('/api/adm',{headers:{Authorization:'Bearer '+token}}).then(function(r){
-      if(r.status===401)throw new Error(t('err_unauth'));
+      if(r.status===401){try{sessionStorage.removeItem('dt_adm_token');}catch(e){}token='';throw new Error(t('err_unauth'));}
       if(r.status===503)throw new Error(t('err_notconf'));
       if(!r.ok)throw new Error(t('err_failed',{n:r.status}));return r.json();
     }).then(function(payload){
@@ -639,9 +751,8 @@
       render();
     }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'</div>';});
   }
-  // No token from a link or this session? Offer a URL-free entry: prompt once and
-  // keep it in sessionStorage (cleared when the tab closes). Preferred over a
-  // sticky ?token= in the URL. The URL is already stripped above (replaceState).
+  // No token in this session? Prompt once and keep it in sessionStorage (cleared
+  // when the tab closes). A 401 removes it, so a reload asks again.
   if(!token){
     try{ token=(window.prompt('Admin token')||'').trim(); }catch(e){ token=''; }
     if(token){ try{ sessionStorage.setItem('dt_adm_token',token); }catch(e){} }
