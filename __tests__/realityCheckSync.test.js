@@ -172,7 +172,7 @@ test('single open check: the same rule holds through pullTable (migration pull)'
 // check (enforceSingleOpenCheck) leaves that stop PENDING with no push after it —
 // the cloud keeps two open checks until this device's next sync (seen live).
 // The fix: one sync pass = push, pull, then push again when the pull queued writes.
-test('FX-9 F2: one sync pass leaves the cloud with a single open check (the enforced stop is pushed in the same pass)', { todo: 'FX-9 F2 — awaiting founder go' }, async () => {
+test('FX-9 F2: one sync pass leaves the cloud with a single open check (the enforced stop is pushed in the same pass)', { todo: 'A-48 — parked (founder 2026-09-28)' }, async () => {
   const { syncOnce } = require('../lib/syncCore');
   assert.equal(typeof syncOnce, 'function', 'syncOnce not built yet');
   const cloud = makeCloud();
@@ -188,7 +188,7 @@ test('FX-9 F2: one sync pass leaves the cloud with a single open check (the enfo
 // Finding F1: a device resumed from the background never pulls (App.js foreground
 // handler only re-plans notifications), so a Stop made on another device does not
 // reach it until a cold start or its own write.
-test('FX-9 F1: returning to the foreground requests a sync (throttled), so another device\'s Stop arrives without a cold start', { todo: 'FX-9 F1 — awaiting founder go' }, () => {
+test('FX-9 F1: returning to the foreground requests a sync (throttled), so another device\'s Stop arrives without a cold start', { todo: 'A-47 — target 1.2.6' }, () => {
   const fs = require('fs'); const path = require('path');
   const src = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
   const i = src.indexOf("AppState.addEventListener('change'");
