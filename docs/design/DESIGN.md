@@ -32,6 +32,12 @@ Founder decisions since (2026-09-29):
   "Recently deleted" + Restore at the bottom of the list, and a confirm before New vial /
   New bottle. Today alerts naming one protocol open that protocol (recommended answer, taken as
   approved unless the founder says otherwise).
+- **Dose log look APPROVED (2026-09-29, founder):** "I like the dose log without those bars we had
+  before. Keep it this way." Plain Taken / Skipped / Missed numbers, no tinted stat boxes (as in
+  `prototype.html`).
+- **Add steps, no placeholder sentence (2026-09-29, founder):** the dose-step result (syringe /
+  serving) sits under the fields it depends on and appears only once it can be computed; no
+  "Complete your dose details…" line in its place.
 - **Tracker block colors (2026-09-29, founder):** dark theme = the light inverted block ("the
   dark version looks good"); light theme = dark grey `#383C41`, not black ("less aggressive").
   Measured on it: text 9.97, secondary 6.56, captions 4.93, data blue `#8AA8FF` 4.83, ticks 3.44.

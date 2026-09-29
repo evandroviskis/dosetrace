@@ -409,13 +409,13 @@ textarea.winp { resize: none; }
         <button data-jump="1">My Protocols heroes</button>
         <button data-jump="1:list">Protocols list</button>
         <button data-jump="1:list:bpc">BPC-157 protocol screen</button>
-        <button data-jump="1:log">Dose log<small>main's screen in the new look; its own redesign later</small></button>
+        <button data-jump="1:log">Dose log<small>approved: plain counts, no tinted boxes</small></button>
       </div>
       <div>
         <h3>Open questions (My Protocols part 2)</h3>
         <ol class="qs" style="margin-top: 10px">
           <li><b>Same five steps as main</b> (type and name → color → dose details → schedule → vial mix date). <b>Cancel moves to the top-left</b>; <b>Back and Next sit together at the bottom</b>. On main, Back is top-left and Cancel bottom-left. OK?</li>
-          <li><b>The syringe is live on the dose step.</b> "Draw to" and the syringe update as you type. Main only shows one line of text there. Over-capacity turns the syringe red and blocks Next, as main's check does today. OK?</li>
+          <li><b>The syringe is live on the dose step</b>, right under the fields it depends on. It appears once the numbers are complete and updates as you type; until then nothing stands in its place (no "Complete your dose details…" sentence, as you asked). Main only shows one line of text there. Over-capacity turns the syringe red and blocks Next, as main's check does today. OK?</li>
           <li><b>Suggestion: Cancel asks "Discard this protocol?"</b> once something is typed. Main closes without asking and loses what you entered. New copy, 6 languages.</li>
           <li><b>A typed name counts.</b> Next on step 1 takes what you typed, even if you didn't tap a suggestion. With nothing typed it says "Missing name" right away (main only checks at Save). OK?</li>
           <li><b>Wrong text on main:</b> skipping the vial date says "log your vial mix anytime from the Vials tab". There is no Vials tab. Proposed: "…from Today (+ Add vial)." Copy change, 6 languages.</li>
@@ -766,7 +766,7 @@ textarea.winp { resize: none; }
     var tk = 9 + Object.keys(st.taken).length - 4;
     h += '<div class="trio" style="padding: 0 4px"><div><span class="r-display d34">' + tk + '</span><span class="r-cap c2">Taken</span></div><div><span class="r-display d34">' + Object.keys(st.skipped).length + '</span><span class="r-cap c2">Skipped</span></div><div><span class="r-display d34">0</span><span class="r-cap c2">Missed</span></div></div>';
     var rows = Object.keys(st.taken).map(function (id) { return [P[id].name, st.taken[id]]; }).reverse();
-    return h + '<div class="lab"><span class="r-head">Mon, Sep 28</span><span class="r-foot c2">' + rows.length + ' doses</span></div><div class="list">' + rows.map(function (r) { return '<div class="li"><span class="okc">' + ic(I.check, 18, 'color: currentColor') + '</span><span class="r-body grow">' + r[0] + '</span><span class="r-sec c2 tnum">' + r[1] + '</span></div>'; }).join('') + '</div><span class="r-foot c3" style="padding: 0 4px">Main\'s Dose log with the new look. Its own redesign comes later.</span>';
+    return h + '<div class="lab"><span class="r-head">Mon, Sep 28</span><span class="r-foot c2">' + rows.length + ' doses</span></div><div class="list">' + rows.map(function (r) { return '<div class="li"><span class="okc">' + ic(I.check, 18, 'color: currentColor') + '</span><span class="r-body grow">' + r[0] + '</span><span class="r-sec c2 tnum">' + r[1] + '</span></div>'; }).join('') + '</div>';
   }
   function notYet(name, img) {
     return '<div class="hrow"><h3 class="r-large">' + name + '</h3></div><div class="expl r-sec c2">Not redesigned yet. This tab keeps main\'s screen until its turn comes.</div>' + (img ? '<img src="current/' + img + '" alt="' + name + ' on main" style="width: 100%; border-radius: 20px">' : '');
@@ -854,13 +854,13 @@ textarea.winp { resize: none; }
   function liveHero(w) {
     if (w.type === 'oral') {
       var sv = serveOf(w);
-      if (!sv) return '<span class="r-sec c3">Fill in the dose and the strength per serving to see how much to take.</span>';
+      if (!sv) return '';
       if (sv.mismatch) return '<div class="warnbox">The dose unit and the serving unit don\'t match.</div>';
       if (sv.warn) return '<div class="warnbox">' + sv.warn + '</div><span class="r-foot c2 tnum">' + sv.nearest + '</span>';
       return '<span class="r-sec c2">Based on the numbers you entered:</span><span class="r-display d56 cd">' + sv.take + '<span class="unit">' + sv.noun + '</span></span>';
     }
     var dr = drawOf(w);
-    if (!dr) return '<span class="r-sec c3">' + (w.type === 'rtu' ? 'Add concentration to your protocol to see the syringe guide.' : 'Complete your dose details to see the syringe guide.') + '</span>';
+    if (!dr) return '';
     if (dr.mismatch) return '<div class="warnbox">Cannot mix IU with mg/mcg. Use the same unit type for compound and dose.</div>';
     var over = dr.u > dr.cap;
     var h = '<div class="drawh"><span class="r-sec c2">Draw to</span><span class="r-display d56 ' + (over ? 'crisk' : 'cd') + '">' + fx(dr.u) + '<span class="unit">units</span></span></div>' + (over ? syrOver(dr.cap) : syr(dr.cap, dr.u)) + '<span class="r-foot c2 tnum">' + fx(dr.ml) + ' ml</span>';
@@ -912,7 +912,6 @@ textarea.winp { resize: none; }
     if (w.step === 3) {
       h += '<div class="wt"><span class="r-title">Dose details</span><span class="r-sec c2">How do you prepare and measure each dose?</span></div>';
       if (w.type !== 'oral') h += '<span class="obtn2"' + A('say', 'Scan vial label: the AI consent and photo choice come in part 3 (popups).') + '>' + ic('<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/>', 20, 'color: currentColor') + 'Scan vial label</span>';
-      h += '<div class="hobj live" id="live">' + liveHero(w) + '</div>';
       if (w.type === 'recon') {
         h += fld('Compound amount', '<div class="inrow">' + inp('amt', 'e.g. 5', w) + seg('unit', ['mg', 'mcg', 'IU'], w.unit) + '</div>');
         h += fld('Diluent', pills('dil', ['Bacteriostatic water', 'Sterile water', 'Sodium chloride 0.9%', 'Other'], w.dil, true) + (w.dil === 'Other' ? '<input class="winp" data-f="dilOther" inputmode="text" placeholder="Enter diluent…" value="' + w.dilOther + '">' : ''));
@@ -939,6 +938,8 @@ textarea.winp { resize: none; }
         h += fld('Units per serving', inp('per', '1', w), 'How many capsules, scoops, ml, etc. make one serving');
         h += fld('Units per container — optional', inp('container', 'e.g. 60', w), 'Total in the bottle, for supply tracking');
       }
+      var lh = liveHero(w);
+      h += '<div class="hobj live" id="live"' + (lh ? '' : ' hidden') + '>' + lh + '</div>';
       h += '<span class="r-foot c3">This is arithmetic from the values you entered — DoseTrace does not set, recommend, or verify any amount. You choose every number. Always follow your healthcare provider\'s instructions.</span>';
     }
     if (w.step === 4) {
@@ -1022,7 +1023,7 @@ textarea.winp { resize: none; }
     var t = e.target, f = t.getAttribute && t.getAttribute('data-f'); if (!f || !st.wiz) return;
     st.wiz[f] = t.value;
     if (f === 'q') { st.wiz.name = ''; var sg = document.getElementById('sugg'); if (sg) sg.innerHTML = suggestions(st.wiz); }
-    var lv = document.getElementById('live'); if (lv) lv.innerHTML = liveHero(st.wiz);
+    var lv = document.getElementById('live'); if (lv) { var lx = liveHero(st.wiz); lv.innerHTML = lx; lv.hidden = !lx; }
     var nx = phone.querySelector('[data-a="wnext"]'); if (nx) nx.classList.toggle('blocked', st.wiz.step === 3 && !!blocked(st.wiz));
   });
   document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
@@ -1158,7 +1159,7 @@ textarea.winp { resize: none; }
     ['C1a–i', 'Step 1: title, subtitle, Type tiles (icon, label, sub-label), name search, blend and insulin notes, suggestions (8, +N more, Add "…"), spelling hint, own-label warning', 'same step', 'selected tile outlined in ink; typed name accepted (question 4)'],
     ['C2a–g', 'Step 2: title, subtitle, preview pill with color name, 20 swatches, used-color marker and legend, used-color warning, tip', 'same step', 'main\'s exact 20 colors; the ● in the legend becomes the same marker as on the swatches'],
     ['C3b–c', 'Scan vial label + "filled from your label" warning', 'same place', 'popups in part 3'],
-    ['C3 recon', 'Compound amount + units, diluent pills + Other, diluent stepper (hint), desired dose + units, IU converter + Use as dose, syringe size, mismatch box, draw result text, over-capacity warning', 'same fields', '<b>live syringe hero</b> at the top of the step (question 2); the IU converter folds'],
+    ['C3 recon', 'Compound amount + units, diluent pills + Other, diluent stepper (hint), desired dose + units, IU converter + Use as dose, syringe size, mismatch box, draw result text, over-capacity warning', 'same fields', '<b>live syringe</b> under the fields, shown once complete (question 2); the IU converter folds'],
     ['C3 rtu', 'Dose per injection, concentration (optional), mismatch, vial size, expiry month + year pills', 'same fields', 'live syringe once the concentration is filled'],
     ['C3 oral', 'Dose amount, form, divisible Yes/No, strength per serving, units per serving, units per container', 'same fields', 'live "take 2 capsules" hero, same half/split messages'],
     ['C4a–k', 'Step 4: first dose Today/Tomorrow + info, start date, how often (Every day / Custom, every N days), doses per day, times, wellness goals, blend mix, notes', 'same step', 'segmented controls; pickers in part 3; goals question 6'],
