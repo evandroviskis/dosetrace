@@ -24,6 +24,8 @@ Founder decisions since (2026-09-29):
 - **Bolder look (2026-09-29, first on Today/My Protocols):** titles 700, big numbers 500 (the
   §3 sizes stay; "weights stop at 600" no longer holds there), and the tracker is a solid ink
   block drawn with the opposite palette.
+- **Today v2.1 APPROVED (2026-09-29, founder)** with the recommended answers to every open
+  question. Built by the Mac session after 1.2.5: `today-build-handoff.md`.
 - **Tracker block colors (2026-09-29, founder):** dark theme = the light inverted block ("the
   dark version looks good"); light theme = dark grey `#383C41`, not black ("less aggressive").
   Measured on it: text 9.97, secondary 6.56, captions 4.93, data blue `#8AA8FF` 4.83, ticks 3.44.

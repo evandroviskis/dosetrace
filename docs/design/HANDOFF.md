@@ -115,6 +115,12 @@ needs redesign and approval. You commit, build into the simulator and I see the 
 - All CLAUDE.md gates still apply to the app work (spec checklist, tests, both themes, dt-council
   and ship-check before any EAS build).
 
+## 5c. Status 2026-09-29 (late)
+
+- **Today v2.1 APPROVED.** Build handoff: `today-build-handoff.md` (Mac session, after 1.2.5).
+- **Next screen: My Protocols** (list, protocol detail, add/edit form, its popups). Design it,
+  stop, get approval. Builds follow in approval order.
+
 ## 6. Current work: Today proposal v2 (published 2026-09-29, waiting for the founder)
 
 The founder answered v1 with a new brief (quoted in `today-dashboard.md`): alerts on top and gone
