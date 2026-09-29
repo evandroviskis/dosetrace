@@ -38,6 +38,16 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Settings part 2 (profile, language, legal, FAQ) APPROVED (2026-09-29, founder: "Approved")**
+  with the recommended answers: sheets for edit profile / country / language / legal, FAQ its own
+  screen; language codes (EN…IT) replace the flag emoji; **one activity level**: Edit profile shows
+  Progress's 5 levels (the ones the energy math uses) instead of its own 4; the FAQ gets 4–6 new
+  answers (AI food log, reality check, Dose accumulation, Vaccine journal; "Lab test journal"
+  naming) in the build, 6 languages; the privacy policy's AI section not mentioning the AI food log
+  is flagged for the founder / counsel (legal text, not design). Legal and FAQ headings in
+  sentence case.
+- **Today rings (2026-09-29, founder "Could you explain the 150%?"):** a ring is scheduled doses
+  taken ÷ scheduled in its window; a dose counts once; never above 100% (Today build item 22).
 - **Settings part 1 (the screen) APPROVED (2026-09-29, founder: "Approved")**: profile card, upgrade
   card for free users, then groups as cards (closed until opened, remembered) in this order:
   **Preferences** (renamed from "Account & preferences"; Appearance, Time format, Language),

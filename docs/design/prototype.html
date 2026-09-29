@@ -462,6 +462,7 @@ textarea.winp { resize: none; }
 .mgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .mgrid .pill { justify-content: center; display: flex; align-items: center; }
 .lcode { width: 40px; height: 40px; border-radius: 12px; background: var(--well); color: var(--ink); display: flex; align-items: center; justify-content: center; font: 600 calc(13px * var(--ts)) var(--mono); flex: none; }
+.rpt { margin: 0; padding: 14px; border-radius: 14px; background: var(--well); color: var(--ink); font: 400 calc(12.5px * var(--ts)) / 1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
 .deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
 .typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
@@ -508,7 +509,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Settings part 1 is approved.</b> <b>Under review now: Settings part 2</b>: edit profile, country, language, the legal pages and FAQ.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Settings parts 1 and 2 are approved.</b> <b>Under review now: Settings part 3</b>: sign out, delete account, the adherence report, download my data, and "Delete forever".</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -520,7 +521,16 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Settings part 2: profile, language, legal, FAQ <span class="stat rev">under review</span></h3>
+        <h3>Settings part 3: account and data <span class="stat rev">under review</span></h3>
+        <button data-sgo="pro" data-spop="signout">Sign out</button>
+        <button data-sgo="pro" data-spop="signout" data-sflag="unsynced">Sign out while offline, with unsynced changes<small>suggested warning (your "never lose data" rule)</small></button>
+        <button data-sgo="pro" data-spop="delacct">Delete account<small>two confirms, as main; then back to the welcome screen</small></button>
+        <button data-sgo="pro" data-spop="delacct" data-sflag="offline">Delete account while offline<small>after both confirms: "must be connected"</small></button>
+        <button data-sgo="pro" data-spop="delacct" data-sflag="apple">Delete account, signed in with Apple<small>after both confirms: "Account deleted" with the Apple note</small></button>
+        <button data-sgo="pro" data-spop="report">Adherence report<small>see exactly what is shared, then Share (suggested)</small></button>
+        <button data-sgo="pro" data-spop="report" data-sflag="noproto">Adherence report with no protocols</button>
+        <button data-sgo="pro" data-spop="recdel">Recently deleted: Delete forever<small>on the Protocols list, carried over from Settings</small></button>
+        <h3 style="margin-top: 10px">Settings part 2: profile, language, legal, FAQ <span class="stat ok">approved</span></h3>
         <button data-sgo="pro" data-spop="prof">Edit profile<small>change the name, goals or country; Save updates the card (initials too)</small></button>
         <button data-sgo="pro" data-spop="lang">Language<small>six languages with a code instead of the flag emoji</small></button>
         <button data-sgo="pro" data-spop="privacy">Privacy policy</button>
@@ -615,15 +625,14 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Settings part 2)</h3>
+        <h3>Open questions (Settings part 3)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Edit profile, country, language and the legal pages open as sheets from the bottom</b>; FAQ is its own screen. Same fields and words as main. OK?</li>
-          <li><b>The language list loses its flag emoji</b> (your "no emoji in the UI" rule) and shows a code instead: EN, ES, PT, FR, DE, IT. OK?</li>
-          <li><b>Found on main: two different "Activity level"s.</b> Edit profile has 4 (Sedentary … Very active) and nothing uses it for maths; Progress has the 5 that drive the calorie numbers. Recommendation: keep one, Progress's 5, and have Edit profile show the same choice (one source). Yes or no?</li>
-          <li><b>Found on main: the FAQ misses your newest features</b> (AI food log, reality check, Dose accumulation, Vaccine journal) and still says "bloodwork" where the screen now says Lab test journal. Recommendation: add 4–6 answers (new copy, 6 languages) in the build. Yes or no?</li>
-          <li><b>Found on main: the privacy policy's "AI extraction" section doesn't mention the AI food log</b> (meal text sent to the AI), though the consent sheet does. This is a legal text: flag it for you / counsel, not a design change. OK to note it for the Mac session?</li>
+          <li><b>Every confirm keeps main's words</b> as DoseTrace sheets: Sign out; Delete account in two steps ("Delete my account", then "Are you absolutely sure?" → "Yes, delete everything"); the offline and Apple messages. OK?</li>
+          <li><b>Suggestion (your "never lose data" rule): if you sign out while offline with changes not yet backed up, warn first</b> ("Some changes aren't backed up yet … Connect to the internet first"), with "Sign out anyway". Main signs out and those changes are gone. New copy. Recommendation: yes.</li>
+          <li><b>Suggestion: the Adherence report shows you exactly what will be sent before the share sheet</b> ("This is exactly what your provider will receive"). Main opens the share sheet straight away, so you never see what you are sending. New copy; one extra tap. Recommendation: yes.</li>
+          <li><b>"Delete forever" comes back</b>: main had it in Settings next to Restore; when Recently deleted moved to the Protocols list only Restore came along. Now a trash button with main's confirm ("Delete permanently?"). OK?</li>
         </ol>
-        <p class="r-foot" style="color: var(--ink2)"><b>Part 1 approved.</b> Fixed on the way: the legal pages' ALL-CAPS headings show in sentence case; FAQ categories likewise; the FAQ's ▶ ▲ become arrows. Legal texts and FAQ answers are main's, word for word.</p>
+        <p class="r-foot" style="color: var(--ink2)"><b>Settings parts 1–2 approved.</b> The report text is main's, with "DOSETRACE ADHERENCE REPORT" in sentence case; numbers match Today (90% = the 7-day ring). Contact us and Rate DoseTrace open Mail and the App Store (as main). After Sign out / Delete account the app returns to the welcome screen: sign-in is the next screen to design.</p>
         <h3>Journey part 5: decisions</h3>
         <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
@@ -933,7 +942,7 @@ textarea.winp { resize: none; }
         if (grp.length) h += '<div class="blk"><span class="secth" data-i="' + g[2] + '">' + g[1] + '</span>' + grp.map(pcard).join('') + '</div>';
       });
     } else h += '<div class="blk">' + ORDER[st.sort].filter(function (id) { return ids.indexOf(id) >= 0; }).map(pcard).join('') + '</div>';
-    if (st.deleted.length) h += '<div class="blk"><span class="secth">' + nc('Recently deleted') + '</span><div class="list">' + st.deleted.map(function (id) { return '<div class="li"><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-body">' + P[id].name + '</span><span class="r-foot c2">Deleted 0d ago</span></div><span class="pill r-foot"' + A('restore', id) + '>Restore</span></div>'; }).join('') + '</div></div>';
+    if (st.deleted.length) h += '<div class="blk"><span class="secth">' + nc('Recently deleted') + '</span><div class="list">' + st.deleted.map(function (id) { return '<div class="li"><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-body">' + P[id].name + '</span><span class="r-foot c2">Deleted 0d ago</span></div><span class="pill r-foot"' + A('restore', id) + '>Restore</span><span class="round" style="width: 40px; height: 40px; color: var(--risk); background: transparent"' + A('delforever', id) + ' aria-label="Delete forever">' + fic('trash', 22, 'color: var(--risk)') + '</span></div>'; }).join('') + '</div></div>';
     return h;
   }
   function rowsBlock(title, rows) {
@@ -1006,6 +1015,7 @@ textarea.winp { resize: none; }
     if (o.t === 'country') return countrySheet();
     if (o.t === 'lang') return langSheet();
     if (o.t === 'legal') return legalHTML(o.k);
+    if (o.t === 'report') return reportSheet();
     if (o.t === 'medit') return meditSheet();
     if (o.t === 'export') return exportSheet();
     if (o.t === 'upgrade') return upgradeHTML();
@@ -1966,9 +1976,9 @@ textarea.winp { resize: none; }
     var sums = { account: nc('Appearance, time format, language'), notif: nc('Reminders, alerts, silent mode'), privacy: nc('Legal, analytics, your data'), support: nc('FAQ, contact, rate') };
     h += setSection('account', nc('Preferences'), '<div class="setstack">' + setRow('palette', 'Appearance', '', '', null) + seg('stheme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.themePref || st.theme) + '</div><div class="setstack">' + setRow('clock', 'Time format', '', '', null) + seg('stime', [['auto', 'Auto'], ['12h', 'AM/PM'], ['24h', '24h']], st.timeFmt || 'auto') + '</div>' + setRow('globe', 'Language', LANGS.filter(function (l) { return l[0] === (st.lang || 'en'); })[0][1], null, ['langpick']), sums.account);
     h += setSection('notif', 'Notifications', swRow('bell', 'Dose reminders', 'Get notified when it\'s time to take a dose', 'dose') + swRow('chat', 'Check-in reminders', 'Weekly check-in prompts', 'checkin') + swRow('food', 'Food-log reminder', '8 pm while a reality check is running. If you turn it off, it stays off for future checks.', 'food') + swRow('lock', 'Show names in notifications', 'Off: reminders on the lock screen say “Dose reminder” instead of the compound name.', 'names') + swRow('type_vial', 'Vial expiry alerts', 'Alerts when vials are expiring soon', 'vial') + swRow('mute', 'Silent mode', 'Pause all notifications', 'silent') + swRow('repeat', 'Persistent reminders', 'Repeat reminders every 5 min until acknowledged', 'persistent'), sums.notif);
-    h += setSection('privacy', nc('Data &amp; privacy'), setRow('lock', 'Privacy policy', '', null, ['legal', 'privacy']) + setRow('clipboard', 'Terms of service', '', null, ['legal', 'terms']) + setRow('shield', 'Medical disclaimer', '', null, ['legal', 'disclaimer']) + swRow('calc_bars', nc('Usage analytics'), 'Help improve DoseTrace with anonymous data', 'analytics') + setRow('calc_trend', 'Adherence report', 'Share a 30-day summary with your provider', null, ['say', 'Adherence report: Settings part 3.']) + setRow('download', nc('Download my data'), 'Export all your data as a JSON file', null, ['say', 'Download my data: Settings part 3.']), sums.privacy);
+    h += setSection('privacy', nc('Data &amp; privacy'), setRow('lock', 'Privacy policy', '', null, ['legal', 'privacy']) + setRow('clipboard', 'Terms of service', '', null, ['legal', 'terms']) + setRow('shield', 'Medical disclaimer', '', null, ['legal', 'disclaimer']) + swRow('calc_bars', nc('Usage analytics'), 'Help improve DoseTrace with anonymous data', 'analytics') + setRow('calc_trend', 'Adherence report', 'Share a 30-day summary with your provider', null, ['report']) + setRow('download', nc('Download my data'), 'Export all your data as a JSON file', null, ['dlexport']), sums.privacy);
     h += setSection('support', nc('Support'), setRow('help', 'FAQ', '', null, ['go', 'faq']) + setRow('mail', 'Contact us', '', null, ['say', 'Contact us: opens Mail to support (as main).']) + setRow('star', 'Rate DoseTrace', '', null, ['say', 'Rate DoseTrace: the App Store rating prompt (as main).']), sums.support);
-    h += '<div class="list" data-i="S-out" style="margin-top: 8px">' + setRow('door', 'Sign out', '', null, ['say', 'Sign out: Settings part 3.']) + setRow('trash', 'Delete account', '', null, ['say', 'Delete account: Settings part 3.'], true) + '</div>';
+    h += '<div class="list" data-i="S-out" style="margin-top: 8px">' + setRow('door', 'Sign out', '', null, ['signout']) + setRow('trash', 'Delete account', '', null, ['delacct'], true) + '</div>';
     return h + '<span class="r-foot c2 tnum" data-i="S9" style="text-align: center; padding: 8px 0 4px">DoseTrace v1.2.5<br>Not medical advice. For informational purposes only.</span>';
   }
 
@@ -2023,6 +2033,23 @@ textarea.winp { resize: none; }
       h += '</div>';
     });
     return h + '<div class="card pc" style="align-items: center; text-align: center"><span class="r-head">Still have questions?</span><span class="r-sec c2">Reach out to us anytime at</span><span class="btnlink r-body"' + A('say', 'Opens Mail to hello@dosetrace.io.') + '>hello@dosetrace.io</span></div>';
+  }
+
+  /* ================= Settings part 3: account and data actions (under review) ================= */
+  var WARN = '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.2"/>';
+  function signOutSheet(unsynced) {
+    if (unsynced) return { t: 'sheet', pi: 'S3o2', icon: WARN, title: nc('Some changes aren\'t backed up yet'), body: nc('You\'re offline, and signing out removes DoseTrace data from this device. Connect to the internet first so nothing you entered is lost.'), btns: [['Cancel', 'close', 'o'], [nc('Sign out anyway'), 'sodone', 'd']], note: 'Suggestion (question 2): main signs out anyway and the unsynced changes are lost. New copy.' };
+    return { t: 'sheet', pi: 'S3o', title: 'Sign out', body: 'Signing out will remove DoseTrace data stored on this device. We\'ll try to sync any unsynced changes first. Sign out?', btns: [['Cancel', 'close', 'o'], ['Sign out', 'sodone', 'd']] };
+  }
+  function reportText() {
+    var ids = active().filter(function (id) { return P[id].freq === 'Daily'; }), taken = ids.filter(function (id) { return st.taken[id]; }).length;
+    var tot = ids.length + taken, sched = ids.length * 2, pct = Math.round(100 * Math.min(tot, sched) / sched);
+    var t = 'DoseTrace adherence report\nUser: ' + prof().name + '\nPeriod: Aug 30 – Sep 28, 2026 (30 days)\nOverall adherence: ' + pct + '%\nActive protocols: ' + active().length + '\nTotal doses logged: ' + tot + '\n';
+    active().forEach(function (id) { var x = P[id], daily = x.freq === 'Daily', tk = daily ? 1 + (st.taken[id] ? 1 : 0) : 1, ex = daily ? 2 : 1; t += '\n' + x.name + '\n  Dose: ' + (x.dose + ' ' + (x.dunit || 'mg')) + ' · ' + x.freq + '\n  Taken: ' + tk + ' · Skipped: 0 · Adherence: ' + Math.round(100 * tk / ex) + '%\n  Current streak: ' + (tk === ex ? 2 : 1) + ' day(s)\n' + (x.vial ? '  Vial: ' + x.vial[1] + ' doses remaining\n' : ''); });
+    return t + '\nGenerated by DoseTrace on September 28, 2026\nThis is a user-generated wellness tracking summary.\nIt does not constitute medical advice or a clinical record.';
+  }
+  function reportSheet() {
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="S3r" style="max-height: 90%; overflow-y: auto">' + sheetHead('Adherence report', '<span class="txtbtn"' + A('rshare') + '>' + nc('Share') + '</span>') + '<span class="r-sec c2">' + nc('This is exactly what your provider will receive. Nothing else is shared.') + '</span><pre class="rpt">' + reportText().replace(/</g, '&lt;') + '</pre><span class="btn p"' + A('rshare') + '>' + nc('Share') + '</span></div></div>';
   }
 
   function curvePicker() {
@@ -2136,6 +2163,16 @@ textarea.winp { resize: none; }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
     else if (a === 'rep') push({ s: 'report', k: v });
     else if (a === 'profedit') openProf();
+    else if (a === 'signout') st.overlay = signOutSheet(st.unsynced);
+    else if (a === 'sodone') { st.overlay = null; toast('Signed out: back to the welcome screen (sign-in is a later part).'); }
+    else if (a === 'delacct') st.overlay = { t: 'sheet', pi: 'S3d1', icon: WARN, title: 'Delete account', body: 'This will permanently delete your account. All your data will be lost and this cannot be undone.', btns: [['Cancel', 'close', 'o'], ['Delete my account', 'delacct2', 'd']] };
+    else if (a === 'delacct2') st.overlay = { t: 'sheet', pi: 'S3d2', icon: WARN, title: 'Are you absolutely sure?', body: 'This is your last chance. Your account and all associated data will be permanently deleted.', btns: [['Cancel', 'close', 'o'], ['Yes, delete everything', 'delacct3', 'd']] };
+    else if (a === 'delacct3') { if (st.offline) st.overlay = { t: 'sheet', pi: 'S3d-off', icon: WARN, title: 'Error', body: 'You must be connected to the internet to delete your account.' }; else if (st.apple) st.overlay = { t: 'sheet', pi: 'S3d-apple', icon: I.check, title: 'Account deleted', body: 'Your account and data have been deleted. You can also remove DoseTrace\'s Sign in with Apple access anytime in the Settings app, under your Apple ID.', btns: [['Done', 'sodone', 'p']] }; else { st.overlay = null; toast('Account deleted: back to the welcome screen.'); } }
+    else if (a === 'report') st.overlay = st.noproto ? { t: 'sheet', pi: 'S3r0', title: 'Adherence report', body: 'No active protocols to report on.' } : { t: 'report' };
+    else if (a === 'rshare') { st.overlay = null; toast('Opens the iPhone share sheet with the report text.'); }
+    else if (a === 'dlexport') st.overlay = { t: 'sheet', pi: 'S3x', icon: I.check, title: 'Download my data', body: 'Your data has been exported successfully.', note: 'After the iPhone share sheet saves dosetrace export JSON (as main).' };
+    else if (a === 'delforever') st.overlay = { t: 'sheet', pi: 'S3p', icon: WARN, title: 'Delete permanently?', body: '"' + P[v].name + '" will be permanently deleted. This can’t be undone.', btns: [['Cancel', 'close', 'o'], ['Delete forever', 'delforeverok', 'd', v]] };
+    else if (a === 'delforeverok') { st.deleted = st.deleted.filter(function (x) { return x !== v; }); st.overlay = null; }
     else if (a === 'pfbm') st.pf.bm = +v;
     else if (a === 'pfsex') st.pf.sex = v;
     else if (a === 'pfact') st.pf.act = v;
@@ -2282,7 +2319,7 @@ textarea.winp { resize: none; }
   function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false; st.vax = null; st.vaxq = ''; st.vscan = false; st.lab = null; st.after = null; st.exp = null;
     (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'pop') { var pk = kv[1]; if (BERR[pk]) st.overlay = bErr(pk); else if (pk === 'upgrade') st.overlay = upgradeSheet(); else if (pk === 'spreview') st.overlay = { t: 'spreview' }; else if (pk === 'vprem') st.overlay = vaxPremium(); else if (pk === 'consent') { st.consent = false; st.after = kv[2] || 'lab'; st.overlay = consentSheet(); } else if (pk === 'src') { st.after = kv[2] || 'lab'; st.overlay = srcSheet(st.after); } else if (pk === 'export') { var ms9 = markerSeries(), vl9 = vaxList(); st.exp = { m: ms9.map(function (x) { return x.name; }), v: vl9.map(function (x) { return x.name; }) }; st.overlay = { t: 'export' }; } else if (pk === 'medit') { st.form = { mk: '2026-08-20', mn0: 'Hematocrit', mn: 'Hematocrit', mv: '47.6', mu: '%', md: +new Date('2026-08-20T12:00:00') }; st.overlay = { t: 'medit' }; } } else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
   document.querySelectorAll('[data-sgo]').forEach(function (b) {
-    b.addEventListener('click', function () { st.sstate = b.getAttribute('data-sgo'); st.wiz = null; st.overlay = null; st.tab = 4; st.stacks[4] = [{ s: 'settings' }]; st.sopen = {}; st.prof = null; st.lang = null; st.faqOpen = null; var gp = b.getAttribute('data-spop'); if (gp === 'prof') openProf(); else if (gp === 'lang') st.overlay = { t: 'lang' }; else if (gp === 'faq') st.stacks[4].push({ s: 'faq' }); else if (gp) st.overlay = { t: 'legal', k: gp }; (b.getAttribute('data-sopen') || '').split(',').filter(Boolean).forEach(function (k) { st.sopen[k] = true; }); st.toast = null; toPhone(); });
+    b.addEventListener('click', function () { st.sstate = b.getAttribute('data-sgo'); st.wiz = null; st.overlay = null; st.tab = 4; st.stacks[4] = [{ s: 'settings' }]; st.sopen = {}; st.prof = null; st.lang = null; st.faqOpen = null; st.unsynced = false; st.offline = false; st.apple = false; st.noproto = false; (b.getAttribute('data-sflag') || '').split(',').filter(Boolean).forEach(function (f) { st[f] = true; }); var gp = b.getAttribute('data-spop'); if (gp === 'signout') st.overlay = signOutSheet(st.unsynced); else if (gp === 'delacct') st.overlay = { t: 'sheet', pi: 'S3d1', icon: WARN, title: 'Delete account', body: 'This will permanently delete your account. All your data will be lost and this cannot be undone.', btns: [['Cancel', 'close', 'o'], ['Delete my account', 'delacct2', 'd']] }; else if (gp === 'report') st.overlay = st.noproto ? { t: 'sheet', pi: 'S3r0', title: 'Adherence report', body: 'No active protocols to report on.' } : { t: 'report' }; else if (gp === 'recdel') { st.deleted = ['zinc']; st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }]; } else if (gp === 'prof') openProf(); else if (gp === 'lang') st.overlay = { t: 'lang' }; else if (gp === 'faq') st.stacks[4].push({ s: 'faq' }); else if (gp) st.overlay = { t: 'legal', k: gp }; (b.getAttribute('data-sopen') || '').split(',').filter(Boolean).forEach(function (k) { st.sopen[k] = true; }); st.toast = null; toPhone(); });
   });
   document.querySelectorAll('[data-bgo]').forEach(function (b) {
     b.addEventListener('click', function () { bgo(b.getAttribute('data-bgo'), b.getAttribute('data-bscr')); st.toast = null; toPhone(); });
