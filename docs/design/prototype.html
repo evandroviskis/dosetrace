@@ -463,6 +463,18 @@ textarea.winp { resize: none; }
 .mgrid .pill { justify-content: center; display: flex; align-items: center; }
 .lcode { width: 40px; height: 40px; border-radius: 12px; background: var(--well); color: var(--ink); display: flex; align-items: center; justify-content: center; font: 600 calc(13px * var(--ts)) var(--mono); flex: none; }
 .rpt { margin: 0; padding: 14px; border-radius: 14px; background: var(--well); color: var(--ink); font: 400 calc(12.5px * var(--ts)) / 1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
+.applebtn, .googbtn { min-height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; gap: 10px; font: 600 calc(17px * var(--ts)) var(--sys); cursor: pointer; }
+.applebtn { background: #000; color: #fff; }
+.ph.dark .applebtn { background: #fff; color: #000; }
+.googbtn { background: #fff; color: #1F1F1F; box-shadow: inset 0 0 0 1px #747775; }
+.ph.dark .googbtn { background: #131314; color: #E3E3E3; box-shadow: inset 0 0 0 1px #8E918F; }
+.ordiv { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.ordiv i { flex: 1; height: 1px; background: var(--line); }
+.eyebtn { position: absolute; right: 6px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.consent { gap: 12px; align-items: flex-start; padding: 4px 2px; cursor: pointer; }
+.consent .btnlink { display: inline; min-height: 0; padding: 0; color: var(--ink); }
+.okbadge { width: 72px; height: 72px; border-radius: 36px; background: var(--ok); display: flex; align-items: center; justify-content: center; }
+.obtn2.dim { color: var(--ink3); pointer-events: none; }
 .deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
 .typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
@@ -509,7 +521,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Settings parts 1 and 2 are approved.</b> <b>Under review now: Settings part 3</b>: sign out, delete account, the adherence report, download my data, and "Delete forever".</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Settings is approved, all 3 parts.</b> <b>Under review now: Sign-in</b>: create account, sign in, "Account created", forgot password and set a new password (use the Sign-in buttons).</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -521,7 +533,13 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Settings part 3: account and data <span class="stat rev">under review</span></h3>
+        <h3>Sign-in <span class="stat rev">under review</span></h3>
+        <button data-ago="create">Create account (the end of onboarding)<small>empty: tap Create account to see the checks one by one (email, 6 characters, consent)</small></button>
+        <button data-ago="create:filled">Create account, filled in<small>Create account → "Account created"; try the email taken@x.com</small></button>
+        <button data-ago="signin">Sign in<small>Forgot password? with and without an email; a password containing "wrong" fails; the eye shows the password</small></button>
+        <button data-ago="confirm:confirm">Account created (check your email)<small>Resend link starts a 30-second wait</small></button>
+        <button data-ago="reset">Set a new password (from the email link)</button>
+        <h3 style="margin-top: 10px">Settings part 3: account and data <span class="stat ok">approved</span></h3>
         <button data-sgo="pro" data-spop="signout">Sign out</button>
         <button data-sgo="pro" data-spop="signout" data-sflag="unsynced">Sign out while offline, with unsynced changes<small>suggested warning (your "never lose data" rule)</small></button>
         <button data-sgo="pro" data-spop="delacct">Delete account<small>two confirms, as main; then back to the welcome screen</small></button>
@@ -625,14 +643,15 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Settings part 3)</h3>
+        <h3>Open questions (Sign-in)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Every confirm keeps main's words</b> as DoseTrace sheets: Sign out; Delete account in two steps ("Delete my account", then "Are you absolutely sure?" → "Yes, delete everything"); the offline and Apple messages. OK?</li>
-          <li><b>Suggestion (your "never lose data" rule): if you sign out while offline with changes not yet backed up, warn first</b> ("Some changes aren't backed up yet … Connect to the internet first"), with "Sign out anyway". Main signs out and those changes are gone. New copy. Recommendation: yes.</li>
-          <li><b>Suggestion: the Adherence report shows you exactly what will be sent before the share sheet</b> ("This is exactly what your provider will receive"). Main opens the share sheet straight away, so you never see what you are sending. New copy; one extra tap. Recommendation: yes.</li>
-          <li><b>"Delete forever" comes back</b>: main had it in Settings next to Restore; when Recently deleted moved to the Protocols list only Restore came along. Now a trash button with main's confirm ("Delete permanently?"). OK?</li>
+          <li><b>Apple first, then Google</b>, as the two big buttons (main has Google first). On an iPhone, Apple is what most people tap, and Apple asks it to be at least as prominent. OK?</li>
+          <li><b>Fixed: Google's real logo</b> (main draws a letter "G" in text, which Google's rules don't allow) and Apple's logo on its button. These are the only fixed colors, as the brands require. OK?</li>
+          <li><b>Labels above the fields</b> ("Email address", "Password", the same words main uses as placeholders, so they stay visible while you type) and <b>an eye button</b> to show the password. OK?</li>
+          <li><b>Found on main: the consent line says "Terms of Use" but only links the privacy policy</b>, and Settings calls it "Terms of service". Now both are links, one name: "Terms of service". OK?</li>
+          <li><b>Found on main: "Set a new password" says "You will be signed in right after", then "You can now use your new password to sign in"</b>; and any error shows the raw server message in English. Recommendation: say it once, as it happens (you are signed in: "You're signed in with your new password", then Today), and show errors in plain words in every language. OK?</li>
         </ol>
-        <p class="r-foot" style="color: var(--ink2)"><b>Settings parts 1–2 approved.</b> The report text is main's, with "DOSETRACE ADHERENCE REPORT" in sentence case; numbers match Today (90% = the 7-day ring). Contact us and Rate DoseTrace open Mail and the App Store (as main). After Sign out / Delete account the app returns to the welcome screen: sign-in is the next screen to design.</p>
+        <p class="r-foot" style="color: var(--ink2)"><b>Settings approved, all 3 parts.</b> Every other message is main's, word for word. "Account created" keeps main's order: open the email first, resend, sign in, wrong address. Back on Create account goes to the last onboarding step (onboarding is next).</p>
         <h3>Journey part 5: decisions</h3>
         <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
@@ -2052,6 +2071,39 @@ textarea.winp { resize: none; }
     return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="S3r" style="max-height: 90%; overflow-y: auto">' + sheetHead('Adherence report', '<span class="txtbtn"' + A('rshare') + '>' + nc('Share') + '</span>') + '<span class="r-sec c2">' + nc('This is exactly what your provider will receive. Nothing else is shared.') + '</span><pre class="rpt">' + reportText().replace(/</g, '&lt;') + '</pre><span class="btn p"' + A('rshare') + '>' + nc('Share') + '</span></div></div>';
   }
 
+  /* ================= Sign-in (under review) ================= */
+  // brand marks keep their official colors on purpose (Apple / Google guidelines): the only fixed colors here
+  var GLOGO = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+  var ALOGO = '<svg width="18" height="20" viewBox="0 0 17 20" aria-hidden="true"><path fill="currentColor" d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.5 4.8 1.9 5.8 1 7.4c-1.9 3.2-.5 8 1.3 10.6.9 1.3 1.9 2.7 3.3 2.6 1.3-.1 1.8-.8 3.4-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.9-1.1-2.9-4.4zM11.5 3c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.2 1.1.1 2.3-.6 3-1.5z"/></svg>';
+  var EYE = '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>';
+  var EYEOFF = '<path d="M3 3l18 18M10.6 5.6A10 10 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.8M6.5 7.4A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>';
+  function authField(label, key, type, ph) {
+    var f = st.form || {}, pw = type === 'password', shown = st.pwShow && st.pwShow[key];
+    return '<div class="fld"><span class="r-foot c2">' + nc(label) + '</span><div class="srch"><input class="winp" data-s="' + key + '" type="' + (pw && !shown ? 'password' : type === 'email' ? 'email' : 'text') + '" autocomplete="off" placeholder="' + (ph || '') + '" value="' + (f[key] || '').replace(/"/g, '&quot;') + '" style="padding-left: 16px' + (pw ? '; padding-right: 52px' : '') + '">' + (pw ? '<span class="eyebtn"' + A('pweye', key) + ' role="button" aria-label="' + (shown ? 'Hide password' : 'Show password') + '">' + ic(shown ? EYEOFF : EYE, 22, 'color: var(--ink2); position: static') + '</span>' : '') + '</div></div>';
+  }
+  function authScreen() {
+    var m = st.auth.mode, f = st.form || {};
+    if (m === 'confirm') {
+      var cd = st.resendCd || 0;
+      return '<div class="navrow"><span class="back"' + A('aback') + '>' + CHEV + '</span></div><div class="col" style="align-items: center; text-align: center; gap: 14px; padding: 18px 8px 0" data-i="A10"><span class="okbadge">' + ic(I.check, 34, 'color: var(--onInk)') + '</span><h3 class="r-large" style="font-size: calc(30px * var(--ts))">Account created</h3><span class="r-body c2">We sent a confirmation link to <b style="color: var(--ink)">' + (f.auE || 'you@example.com') + '</b>. Open it to activate your account — the link may open a web page, that is fine. Then come back here and sign in.</span><span class="r-foot c3">Check your spam folder if you don\'t see it within a few minutes.</span></div>'
+        + '<div class="col" style="gap: 10px; padding-top: 10px"><span class="btn p"' + A('say', 'Opens the Mail app.') + '>Open email app</span><span class="obtn2' + (cd ? ' dim' : '') + '"' + (cd ? '' : A('resend')) + '>Resend link' + (cd ? ' (' + cd + ')' : '') + '</span><span class="obtn2"' + A('amode', 'signin') + '>Sign in with my account</span><span class="btnlink r-body" style="align-self: center; min-height: 44px"' + A('amode', 'create') + '>Wrong address? Go back</span></div>';
+    }
+    if (m === 'reset') {
+      return '<div class="col" style="gap: 14px; padding-top: 24px" data-i="A20"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">Set a new password</h3><span class="r-body c2">' + nc('Choose a new password for your account.') + '</span>' + authField('New password', 'auN', 'password', '') + authField('Confirm password', 'auN2', 'password', '') + '<span class="btn p"' + A('resetsave') + '>Save new password</span></div>';
+    }
+    var create = m === 'create';
+    var h = '<div class="navrow"><span class="back"' + A('aback') + '>' + CHEV + '</span></div>';
+    h += create ? '<div class="col" style="gap: 10px; padding-top: 4px" data-i="A1">' + ic(JI.curve, 48, 'color: var(--data)') + '<h3 class="r-large" style="font-size: calc(32px * var(--ts))">You\'re all set!</h3><span class="r-body c2">Sign in to your existing account or create a new one to start tracking.</span></div>' : '<div class="col" style="gap: 8px; padding-top: 4px" data-i="A2"><h3 class="r-large" style="font-size: calc(32px * var(--ts))">Sign in</h3><span class="r-body c2">Sign in to your account</span></div>';
+    h += '<div class="col" style="gap: 10px; padding-top: 6px" data-i="A3"><span class="applebtn"' + A('say', 'Sign in with Apple: the system sheet (Face ID), then Today.') + '>' + ALOGO + 'Continue with Apple</span><span class="googbtn"' + A('say', 'Google sign-in: the account chooser, then Today.') + '>' + GLOGO + 'Continue with Google</span></div>';
+    h += '<div class="ordiv r-foot c2"><i></i>or<i></i></div>';
+    h += authField('Email address', 'auE', 'email', 'you@example.com') + authField('Password', 'auP', 'password', '');
+    if (!create) h += '<span class="btnlink r-body" style="align-self: flex-end; min-height: 40px" data-i="A5"' + A('forgot') + '>Forgot password?</span>';
+    if (create) h += '<div class="row consent" data-i="A6"' + A('consent') + ' role="checkbox" aria-checked="' + !!st.auConsent + '"><span class="exbox' + (st.auConsent ? ' on' : '') + '" style="' + (st.auConsent ? 'background: var(--ink); border-color: var(--ink)' : '') + '">' + (st.auConsent ? ic(I.check, 16, 'color: var(--onInk)') : '') + '</span><span class="r-sec c2 grow">I agree to the <span class="btnlink"' + A('legal', 'terms') + '>' + nc('Terms of service') + '</span> and <span class="btnlink"' + A('legal', 'privacy') + '>Privacy policy</span></span></div>';
+    h += '<span class="btn p" data-i="A7"' + A('asubmit') + '>' + (create ? 'Create account' : 'Sign in') + '</span>';
+    return h + '<span class="btnlink r-body" style="align-self: center; min-height: 44px" data-i="A8"' + A('amode', create ? 'signin' : 'create') + '>' + (create ? 'Already have an account? Sign in' : 'Create account') + '</span>';
+  }
+  function aErr(body, title) { return { t: 'sheet', pi: 'A-err', title: title || 'Error', body: body, icon: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.2"/>' }; }
+
   function curvePicker() {
     var sel = st.csel || [curveDefault()];
     return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Choose compounds</span><span class="txtbtn"' + A('close') + '>Done</span></div><span class="r-sec c2">Select one or more to overlay their curves.</span><div class="actlist">' + curveIds().map(function (id) { var on = sel.indexOf(id) >= 0; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('ctog', id) + '><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-head">' + P[id].name + '</span><span class="r-sec c2">' + TIER[HL[id].tier] + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div><span class="r-foot c2">Not charted: Magnesium Bisglycinate, Vitmin C, Zinc (oral; the curve covers injectable compounds with half-life data).</span></div></div>';
@@ -2080,6 +2132,11 @@ textarea.winp { resize: none; }
     var times = ['8:10', '8:11', '8:12'];
     phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
     phone.style.setProperty('--ts', st.ts);
+    if (st.auth) {
+      phone.innerHTML = sbar('8:10') + '<div class="scroller" id="scroller"><div class="scr pscr">' + authScreen() + '</div></div>' + (st.toast ? '<div class="toast" style="bottom: 40px"><span class="r-body grow">' + st.toast.text + '</span></div>' : '') + overlay() + '<div class="home"></div>';
+      document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
+      return;
+    }
     if (st.wiz) {
       phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
       phone.style.setProperty('--ts', st.ts);
@@ -2163,6 +2220,26 @@ textarea.winp { resize: none; }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
     else if (a === 'rep') push({ s: 'report', k: v });
     else if (a === 'profedit') openProf();
+    else if (a === 'amode') { st.auth.mode = v; st.form.auP = ''; }
+    else if (a === 'aback') { if (st.auth.mode === 'confirm') st.auth.mode = 'create'; else toast('Back to the last onboarding step (onboarding is designed next).'); }
+    else if (a === 'pweye') { st.pwShow = st.pwShow || {}; st.pwShow[v] = !st.pwShow[v]; }
+    else if (a === 'consent') { if (e.target.closest('.btnlink')) return; st.auConsent = !st.auConsent; }
+    else if (a === 'forgot') { var em = (st.form.auE || '').trim(); st.overlay = !em ? aErr('Enter your email address first, then tap Forgot password.') : { t: 'sheet', pi: 'A-sent', icon: I.check, title: 'Reset link sent', body: 'We sent a password reset link to ' + em + '. Open it on this phone — you will set the new password inside DoseTrace.' }; }
+    else if (a === 'asubmit') { var f9 = st.form, em9 = (f9.auE || '').trim(), pw9 = (f9.auP || '').trim(), cr = st.auth.mode === 'create';
+      if (!em9 || !pw9) st.overlay = aErr('Please enter your email and password.');
+      else if (!/^\S+@\S+\.\S+$/.test(em9)) st.overlay = aErr('Please enter a valid email address.');
+      else if (cr && pw9.length < 6) st.overlay = aErr('Password must be at least 6 characters.');
+      else if (cr && !st.auConsent) st.overlay = aErr('You must accept the data & privacy terms to create an account.');
+      else if (cr && /taken@/.test(em9)) st.overlay = aErr('An account with this email already exists. Please sign in instead, or use "Forgot password" to reset your password.', 'Email already registered');
+      else if (!cr && /wrong/.test(pw9)) st.overlay = aErr('Couldn\'t sign in. Please try again.');
+      else if (cr) { st.auth.mode = 'confirm'; st.resendCd = 0; }
+      else { st.auth = null; st.tab = 0; st.stacks[0] = [{ s: 'today' }]; toast('Signed in.'); } }
+    else if (a === 'resend') { st.resendCd = 30; st.overlay = { t: 'sheet', pi: 'A-resent', icon: I.check, title: 'Confirmation link sent again', body: 'We sent a confirmation link to ' + (st.form.auE || '') + '. Open it to activate your account — the link may open a web page, that is fine. Then come back here and sign in.' }; }
+    else if (a === 'resetsave') { var n1 = st.form.auN || '', n2 = st.form.auN2 || '';
+      if (n1.length < 6) st.overlay = aErr('Password must be at least 6 characters.');
+      else if (n1 !== n2) st.overlay = aErr('The passwords don\'t match.');
+      else st.overlay = { t: 'sheet', pi: 'A-reset-ok', icon: I.check, title: 'Password updated', body: nc('You\'re signed in with your new password.'), btns: [['Done', 'resetdone', 'p']] }; }
+    else if (a === 'resetdone') { st.auth = null; st.overlay = null; st.tab = 0; st.stacks[0] = [{ s: 'today' }]; }
     else if (a === 'signout') st.overlay = signOutSheet(st.unsynced);
     else if (a === 'sodone') { st.overlay = null; toast('Signed out: back to the welcome screen (sign-in is a later part).'); }
     else if (a === 'delacct') st.overlay = { t: 'sheet', pi: 'S3d1', icon: WARN, title: 'Delete account', body: 'This will permanently delete your account. All your data will be lost and this cannot be undone.', btns: [['Cancel', 'close', 'o'], ['Delete my account', 'delacct2', 'd']] };
@@ -2318,6 +2395,14 @@ textarea.winp { resize: none; }
   };
   function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false; st.vax = null; st.vaxq = ''; st.vscan = false; st.lab = null; st.after = null; st.exp = null;
     (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'pop') { var pk = kv[1]; if (BERR[pk]) st.overlay = bErr(pk); else if (pk === 'upgrade') st.overlay = upgradeSheet(); else if (pk === 'spreview') st.overlay = { t: 'spreview' }; else if (pk === 'vprem') st.overlay = vaxPremium(); else if (pk === 'consent') { st.consent = false; st.after = kv[2] || 'lab'; st.overlay = consentSheet(); } else if (pk === 'src') { st.after = kv[2] || 'lab'; st.overlay = srcSheet(st.after); } else if (pk === 'export') { var ms9 = markerSeries(), vl9 = vaxList(); st.exp = { m: ms9.map(function (x) { return x.name; }), v: vl9.map(function (x) { return x.name; }) }; st.overlay = { t: 'export' }; } else if (pk === 'medit') { st.form = { mk: '2026-08-20', mn0: 'Hematocrit', mn: 'Hematocrit', mv: '47.6', mu: '%', md: +new Date('2026-08-20T12:00:00') }; st.overlay = { t: 'medit' }; } } else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
+  // any other side-panel jump leaves the sign-in screens
+  document.querySelector('.side').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt && !bt.hasAttribute('data-ago') && !bt.hasAttribute('data-ctl')) st.auth = null; }, true);
+  document.querySelectorAll('[data-ago]').forEach(function (b) {
+    b.addEventListener('click', function () { var kv = b.getAttribute('data-ago').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.auth = { mode: kv[0] }; st.form = {}; st.auConsent = false; st.pwShow = {}; st.resendCd = 0;
+      if (kv[1] === 'filled') { st.form = { auE: 'sam@example.com', auP: 'secret12' }; st.auConsent = true; }
+      if (kv[1] === 'confirm') { st.form = { auE: 'sam@example.com' }; }
+      toPhone(); });
+  });
   document.querySelectorAll('[data-sgo]').forEach(function (b) {
     b.addEventListener('click', function () { st.sstate = b.getAttribute('data-sgo'); st.wiz = null; st.overlay = null; st.tab = 4; st.stacks[4] = [{ s: 'settings' }]; st.sopen = {}; st.prof = null; st.lang = null; st.faqOpen = null; st.unsynced = false; st.offline = false; st.apple = false; st.noproto = false; (b.getAttribute('data-sflag') || '').split(',').filter(Boolean).forEach(function (f) { st[f] = true; }); var gp = b.getAttribute('data-spop'); if (gp === 'signout') st.overlay = signOutSheet(st.unsynced); else if (gp === 'delacct') st.overlay = { t: 'sheet', pi: 'S3d1', icon: WARN, title: 'Delete account', body: 'This will permanently delete your account. All your data will be lost and this cannot be undone.', btns: [['Cancel', 'close', 'o'], ['Delete my account', 'delacct2', 'd']] }; else if (gp === 'report') st.overlay = st.noproto ? { t: 'sheet', pi: 'S3r0', title: 'Adherence report', body: 'No active protocols to report on.' } : { t: 'report' }; else if (gp === 'recdel') { st.deleted = ['zinc']; st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }]; } else if (gp === 'prof') openProf(); else if (gp === 'lang') st.overlay = { t: 'lang' }; else if (gp === 'faq') st.stacks[4].push({ s: 'faq' }); else if (gp) st.overlay = { t: 'legal', k: gp }; (b.getAttribute('data-sopen') || '').split(',').filter(Boolean).forEach(function (k) { st.sopen[k] = true; }); st.toast = null; toPhone(); });
   });

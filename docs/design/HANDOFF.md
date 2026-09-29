@@ -126,7 +126,8 @@ needs redesign and approval. You commit, build into the simulator and I see the 
 - **My Protocols APPROVED** (list, protocol screen, add/edit, every popup). Dose log look approved.
 - **Journey APPROVED, all 5 parts (dashboard, Progress, AI food log, Dose accumulation, popups).**
 - **My Body APPROVED, all 3 parts (hub + Lab test journal, Vaccine journal, popups).**
-- **Settings parts 1–2 APPROVED. Part 3 (sign out, delete account, report, download) UNDER REVIEW.** Parts: 1 screen, 2 edit profile + language + legal + FAQ, 3 sign out + delete account + report + download.
+- **Settings APPROVED, all 3 parts.**
+- **Sign-in (create account, sign in, account created, forgot + reset password) UNDER REVIEW.** Then onboarding, paywall, injection-site picker. Parts: 1 screen, 2 edit profile + language + legal + FAQ, 3 sign out + delete account + report + download.
 - **After My Body:** the remaining screens (Settings, onboarding/auth, paywall, site picker,
   ...). Design each, stop, get approval. Builds follow in approval order.
 

@@ -38,6 +38,13 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Settings part 3 APPROVED (2026-09-29, founder: "All approved") → Settings fully approved.**
+  Main's confirms as DoseTrace sheets (Sign out; Delete account in two steps; offline + Apple
+  messages); **signing out offline with unsynced changes warns first** ("Some changes aren't backed
+  up yet … Connect to the internet first", "Sign out anyway"; new copy; the never-lose-data rule);
+  **the adherence report is shown before the share sheet** ("This is exactly what your provider
+  will receive"; new copy); "Delete forever" (with main's "Delete permanently?") comes back on the
+  Protocols list's Recently deleted.
 - **Settings part 2 (profile, language, legal, FAQ) APPROVED (2026-09-29, founder: "Approved")**
   with the recommended answers: sheets for edit profile / country / language / legal, FAQ its own
   screen; language codes (EN…IT) replace the flag emoji; **one activity level**: Edit profile shows
