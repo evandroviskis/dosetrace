@@ -398,6 +398,10 @@ textarea.winp { resize: none; }
 .goal { cursor: pointer; }
 .opt { cursor: pointer; }
 
+
+.btn .nc, .obtn2 .nc { align-self: center; }
+.pvslot { min-height: 150px; border-radius: 18px; border: 1.5px dashed var(--tick); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -422,7 +426,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Under review now: Journey part 2, the Progress screen</b> (tap the Progress tile, or use the buttons): your numbers, the reality check in each state, weigh-ins with the trend, your target on a graduated scale, and your daily plan. The popups it opens (Start over, Stop, add a weigh-in, set a target) are Journey part 5.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Under review now: Journey part 2, the Progress screen, reordered by how often you need each part</b> (your feedback): Progress with your target and a "Log today's weight" button, your daily plan, the reality check, then weigh-ins and your numbers folded. Before any numbers exist, the form comes first. The popups it opens (Start over, Stop, add a past weigh-in, set or edit a target) are Journey part 5.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -439,6 +443,7 @@ textarea.winp { resize: none; }
         <button data-jstate="done" data-jgo="progress">After the reality check<small>daily burn Measured, your checks over time</small></button>
         <button data-jstate="test03" data-jgo="progress">Test03: check running, no numbers yet<small>the form opens with the prompt</small></button>
         <button data-jstate="fresh" data-jgo="progress">New user<small>reality check not run yet</small></button>
+        <button data-jstate="free" data-jgo="progress">Free plan<small>Reality check shows PRO: See how it works → explainer → Unlock with Pro</small></button>
         <h3 style="margin-top: 10px">Journey dashboard <span class="stat ok">approved</span></h3>
         <button data-jstate="test03">Test03 today<small>check just started, nothing logged, TB-500 at 0.0 mg</small></button>
         <button data-jstate="run">Daily user, reality check running<small>weight, estimated daily burn, testosterone level</small></button>
@@ -470,14 +475,14 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Journey part 2: Progress)</h3>
+        <h3>Open questions (Journey part 2: Progress, reordered)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Your v5 order, unchanged:</b> hero (weight, daily burn), your numbers, reality check, weigh-ins, target, daily plan, disclaimer, explainers. OK?</li>
-          <li><b>The target is a graduated scale</b> (start weight → goal, covered distance in blue) instead of v5's rounded bar. You turned bars down twice; the design rules ban them. OK?</li>
-          <li><b>Weigh-ins list:</b> the newest five, then "Show all" opens the rest in place (v5 had "Show ▸"). OK?</li>
-          <li><b>Setup folds after the first entry</b> into one line with Edit (height, body-fat source, activity), as v5. OK?</li>
-          <li>Still open from the Journey plan: the reality check uses the <b>latest weigh-in</b> for its start and end weight instead of its own fields (A-54), and "Use my food log" / "See my actual maintenance" show <b>only from day 14</b>, when a result is possible. Recommendation: yes to both.</li>
-          <li><b>New words</b> (6 languages): "Weigh-ins", "Two weigh-ins make a trend.", "Show all", "Show less".</li>
+          <li><b>New order, most-used first:</b> Progress (weight, daily burn, your target, Log today's weight) → Your daily plan → Reality check → Weigh-ins (folded) → Your numbers (folded) → disclaimer → explainers. OK?</li>
+          <li><b>Your target inside Progress</b> (my recommendation: the target is where the weight is heading, so it sits under it), not in Your numbers. OK?</li>
+          <li><b>"Log today's weight"</b> in the Progress card opens a small sheet (weight; body fat and waist optional). Without it, folding Your numbers would hide the only place to record a weight. New copy: "Log today's weight" and its one-line note. OK?</li>
+          <li><b>Daily plan:</b> Lose / Maintain / Gain first, protein under it, "What this is" folded at the bottom. OK?</li>
+          <li><b>Free users:</b> the reality check shows PRO and "See how it works" → explainer (its animation comes with the parked set) → Unlock with Pro. OK?</li>
+          <li>Still open from before: the reality check uses the latest weigh-in for its start and end weight; "Use my food log" / "See my actual maintenance" only from day 14. Recommendation: yes to both.</li>
         </ol>
       </div>
       <div id="cov" class="coverage"></div>
@@ -847,6 +852,8 @@ textarea.winp { resize: none; }
     if (o.t === 'sheet') return sheetHTML(o);
     if (o.t === 'action') return '<div class="scrim bot"' + A('scrim') + '><div class="actwrap"><div class="actgrp">' + (o.title ? '<span class="r-foot c2 acttitle">' + o.title + '</span>' : '') + o.opts.map(function (x) { return '<span class="actopt"' + A(x[1], x[2]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="actopt actcancel"' + A('close') + '>Cancel</span></div></div>';
     if (o.t === 'wheel') return wheelHTML(o);
+    if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
+    if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: reality_check).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
     if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
     return '';
   }
@@ -1226,80 +1233,85 @@ textarea.winp { resize: none; }
   }
   function progCard(title, inner, extra) { return '<div class="card pc"' + (extra || '') + '>' + (title ? '<span class="r-title">' + title + '</span>' : '') + inner + '</div>'; }
   function progressScreen() {
-    var ps = pstate(), done = ps === 'done', filled = ps === 'run' || ps === 'done', W = done ? W_DONE : W_RUN, cur = W[W.length - 1];
+    var ps = pstate(), done = ps === 'done', free = st.jstate === 'free', filled = ps === 'run' || ps === 'done';
+    var W = (done ? W_DONE : W_RUN).concat(st.extraW || []), cur = W[W.length - 1];
     var wNow = st.pw != null ? num(st.pw) : cur[1];
     var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Progress</h3></div>';
-    if (filled) {
-      h += '<div class="hero2"><div class="col" style="gap: 6px"><span class="r-foot c2">Weight</span><span class="r-display d56">' + kg(wNow) + '<span class="unit">' + wu() + '</span></span></div><div class="col" style="gap: 6px"><span class="r-foot c2">Daily burn (TDEE)</span><span class="r-display d56">' + (done ? '2,670' : '2,810') + '<span class="unit">kcal</span></span><span class="chip r-cap' + (done ? ' meas' : '') + '" style="' + (done ? 'color: var(--data); border-color: var(--data)' : '') + '">' + (done ? 'Measured' : 'Estimated') + '</span></div></div>';
-      h += '<span class="r-sec c2 tnum" style="padding: 0 4px">Since Aug 31: Weight <span class="vin">' + (wNow - 88 > 0 ? '+' : '−') + kg(Math.abs(wNow - 88)) + ' ' + wu() + '</span> · Waist <span class="vin">−' + cm(done ? 4 : 3) + ' ' + lu() + '</span></span>';
-      h += '<span class="r-foot c2 tnum" style="padding: 0 4px; margin-top: -8px">' + (done ? 'Measured from your reality check · estimate 2,810' : 'Katch-McArdle · lean mass · BMR (at rest) 1,810') + '</span>';
+    // ---- sections ----
+    function heroCard() {
+      var x = '<div class="card pc" data-i="J17h"><div class="hero2" style="padding: 0"><div class="col" style="gap: 6px"><span class="r-foot c2">Weight</span><span class="r-display d56">' + kg(wNow) + '<span class="unit">' + wu() + '</span></span></div><div class="col" style="gap: 6px"><span class="r-foot c2">Daily burn (TDEE)</span><span class="r-display d56">' + (done ? '2,670' : '2,810') + '<span class="unit">kcal</span></span><span class="chip r-cap"' + (done ? ' style="color: var(--data); border-color: var(--data)"' : '') + '>' + (done ? 'Measured' : 'Estimated') + '</span></div></div>';
+      x += '<span class="r-sec c2 tnum">Since Aug 31: Weight <span class="vin">' + (wNow - 88 > 0 ? '+' : '−') + kg(Math.abs(wNow - 88)) + ' ' + wu() + '</span> · Waist <span class="vin">−' + cm(done ? 4 : 3) + ' ' + lu() + '</span></span>';
+      x += '<span class="r-foot c2 tnum" style="margin-top: -6px">' + (done ? 'Measured from your reality check · estimate 2,810' : 'Katch-McArdle · lean mass · BMR (at rest) 1,810') + '</span>';
+      x += '<div class="sep"></div><div class="row"><span class="r-head grow">Your target</span><span class="btnlink r-body" data-i="J14"' + A('say', 'Edit target: its sheet comes in Journey part 5.') + '>Edit</span></div>';
+      x += '<div class="row"><span class="r-sec c2 grow">Weight</span><span class="r-value v15">' + kg(wNow) + ' → ' + kg(80) + ' ' + wu() + '</span></div>' + targetScale(88, Math.min(88, Math.max(80, wNow)), 80);
+      x += '<span class="r-body tnum">' + (done ? '~7 weeks to go · around Nov 30, if this pace holds' : '~5 weeks to go · around Nov 2, if this pace holds') + '</span><span class="r-foot c2 tnum">Based on your weigh-ins ' + (done ? 'Aug 31–Oct 12' : 'Aug 31–Sep 28') + ' · healthy range for your height: ' + kg(61).replace('.0', '') + '–' + kg(82).replace('.0', '') + ' ' + wu() + '.</span>';
+      return x + '<span class="btn p"' + A('weighin') + '>' + nc('Log today\'s weight') + '</span></div>';
     }
-    // Your numbers
-    var v = filled ? [kg(wNow), String(cur[3]), cm(cur[2])] : ['', '', ''];
-    var yn = '<div class="row"><span class="r-title grow">Your numbers</span><span class="segw">' + [['metric', 'Metric'], ['imperial', 'Imperial']].map(function (u) { return '<span class="' + ((st.units || 'metric') === u[0] ? 'on' : '') + '"' + A('units', u[0]) + '>' + u[1] + '</span>'; }).join('') + '</span></div>';
-    if (!filled) yn += '<span class="r-sec c2">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
-    yn += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" data-p="pw" inputmode="decimal" placeholder="e.g. ' + kg(80) + '" value="' + v[0] + '"></div><div class="fld"><span class="r-foot c2">Body fat (%)</span><input class="winp" inputmode="decimal" placeholder="e.g. 20" value="' + v[1] + '"></div></div>';
-    yn += '<div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(90) + '" value="' + v[2] + '"></div><span class="r-foot c2">The most useful non-scale number: it tracks fat loss even when the scale won\'t budge.</span>';
-    var setupOpen = !filled || st.fold.setup;
-    if (filled && !setupOpen) yn += '<div class="row sep" style="padding-top: 12px"><span class="r-sec c2 grow tnum">' + kg(wNow) + ' ' + wu() + ' · ' + cur[3] + '% BF · ' + (st.act || 'Moderate — 4–5 sessions/week') + '</span><span class="btnlink r-body"' + A('fold', 'setup') + '>Edit</span></div>';
-    else {
-      yn += '<div class="sep"></div><div class="fld"><span class="r-foot c2">Height (' + lu() + ')</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(178) + '" value="' + (filled ? cm(178) : '') + '"></div>';
-      var srcs = [['DEXA scan', 'Very accurate (~1–2% error).'], ['Gym scan', 'Good (~3–5% error). Many gyms offer body-composition scans.'], ['Calipers', 'Fair (~3–5% error) when done by a trained person.'], ['Home scale', 'Rough (±5% or more). Best for trends, not the exact number.'], ['I don\'t know', 'We\'ll estimate from your height, age and sex instead.']], cs = st.bfsrc || 'Gym scan';
-      yn += '<div class="fld"><span class="r-foot c2">Body-fat source</span><div class="pills">' + srcs.map(function (x) { return '<span class="pill r-foot' + (cs === x[0] ? ' on' : '') + '"' + A('bfsrc', x[0]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="r-foot c2">' + srcs.filter(function (x) { return x[0] === cs; })[0][1] + '</span></div>';
-      var acts = ['Desk job, little or no exercise', 'Light — 1–3 sessions/week', 'Moderate — 4–5 sessions/week', 'High — 6–7 sessions/week', 'Very high — physical job + daily training'], ca = st.act || 'Moderate — 4–5 sessions/week';
-      yn += '<div class="fld"><span class="r-head row" style="gap: 6px">' + ic(JX.bolt, 18) + 'Activity level</span><div class="acts5">' + acts.map(function (x, i) { return '<div class="opt r-sec' + (ca === x ? ' on' : '') + (i === 4 ? ' wide' : '') + '"' + A('act', x) + '><i></i>' + x + '</div>'; }).join('') + '</div></div>';
-      if (filled) yn += '<span class="btnlink r-body"' + A('fold', 'setup') + '>Done</span>';
+    function planCard() {
+      var g = st.goal || 'Lose', cals = done ? { Lose: '2,200', Maintain: '2,670', Gain: '3,000' } : { Lose: '2,320', Maintain: '2,810', Gain: '3,160' };
+      var pl = '<span class="r-title">Your daily plan</span>';
+      pl += '<div class="goals">' + [['Lose', '−15–20%'], ['Maintain', 'Daily burn (TDEE)'], ['Gain', '+10–15%']].map(function (y) { return '<div class="goal' + (g === y[0] ? ' on' : '') + '"' + A('goal', y[0]) + '><span class="r-cap c2">' + y[0] + '</span><span class="r-value">' + cals[y[0]] + '</span><span class="r-cap c2 tnum">' + y[1] + '</span></div>'; }).join('') + '</div>';
+      pl += '<div class="cell"><span class="r-cap c2">Protein</span><span class="r-value">145 g/day</span><span class="r-foot c2 tnum">135–160 · per kg lean mass</span></div>';
+      pl += '<div class="chips r-cap c2 tnum"><span>BMI 25.7 · healthy range ' + kg(61).replace('.0', '') + '–' + kg(82).replace('.0', '') + ' ' + wu() + '</span><span>fat ≈ 80 g · carbs ≈ ' + (g === 'Lose' ? '360' : g === 'Maintain' ? '480' : '560') + ' g</span></div>';
+      pl += '<div class="fh"' + A('fold', 'wti') + ' style="min-height: 40px; border-top: 1px solid var(--line)"><span class="r-sec grow">What this is</span><span style="color: var(--ink3)">' + (st.fold.wti ? UP : DOWN) + '</span></div>';
+      if (st.fold.wti) pl += '<p class="r-sec c2" style="margin: 0">Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. Every weigh-in is saved, so you can watch the numbers change over time.</p>';
+      pl += '<span class="r-foot c2">These are estimates — a starting point, not a target set in stone. Plug the number into whatever you use to track food, then adjust based on what actually happens over 3–4 weeks.</span>';
+      return progCard('', pl);
     }
-    h += progCard('', yn, ' data-i="J5"');
-    // Reality check
-    var rc = '<div class="row">' + ic(JX.scale, 22) + '<span class="r-title grow">Reality check</span></div>';
-    if (ps === 'fresh') rc += '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><div class="fh" style="border-top: 1px solid var(--line)"' + A('say', 'Starting needs a weigh-in first: enter your weight above.') + '><span class="r-body grow">Not run yet — tap to start</span>' + CHEV + '</div>';
-    else if (done) {
-      rc += '<span class="r-body tnum">Your actual maintenance looks like about <b class="vin">2,670 kcal/day</b>.</span>';
-      rc += '<div class="col" style="gap: 6px"><span class="r-cap c2">Your checks over time</span><div class="row sep r-sec tnum" style="padding-top: 8px"><span class="grow">Oct 12</span><span class="vin c2" style="color: var(--ink2)">−0.33 ' + wu() + '/week</span><span class="vin">2,670 kcal</span></div></div>';
-      rc += '<span class="obtn2"' + A('say', 'Sets the reminder for the next check (popups in part 5).') + '>Weigh in again in 21 days</span>';
-    } else {
-      var t03 = ps === 'first', so = st.fold.rcso;
+    function rcCard() {
+      var rc = '<div class="row">' + ic(JX.scale, 22) + '<span class="r-title grow">Reality check</span>' + (free ? '<span class="otag">PRO</span>' : '') + '</div>';
+      if (free) return progCard('', rc + '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><div class="fh" style="border-top: 1px solid var(--line)"' + A('rcexplain') + '><span class="r-head grow">See how it works</span>' + CHEV + '</div>', ' data-i="J23"');
+      if (ps === 'fresh') return progCard('', rc + '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><div class="fh" style="border-top: 1px solid var(--line)"' + A('say', 'Starting needs a weigh-in first: enter your weight above.') + '><span class="r-body grow">Not run yet — tap to start</span>' + CHEV + '</div>', ' data-i="J23"');
+      if (done) return progCard('', rc + '<span class="r-body tnum">Your actual maintenance looks like about <b class="vin">2,670 kcal/day</b>.</span><div class="col" style="gap: 6px"><span class="r-cap c2">Your checks over time</span><div class="row sep r-sec tnum" style="padding-top: 8px"><span class="grow">Oct 12</span><span class="vin" style="color: var(--ink2)">−0.33 ' + wu() + '/week</span><span class="vin">2,670 kcal</span></div></div><span class="obtn2"' + A('say', 'Sets the reminder for the next check (popups in part 5).') + '>Weigh in again in 21 days</span>', ' data-i="J23"');
+      var t03 = ps === 'first', so = st.fold.rcso, on = st.rcrem !== false;
       rc += '<span class="r-body tnum">In progress · weigh in ' + (t03 ? 'Oct 19' : 'Oct 12') + ', 2026</span>';
       if (!t03) rc += '<span class="r-sec c2 tnum">① <span class="vin">' + kg(85.3) + ' ' + wu() + '</span> · Sep 21</span>';
       rc += '<span class="r-sec c2 tnum">The reality check needs 7 days in a row of full food logs — ' + (t03 ? '0' : '5') + ' of 7 so far.</span>';
       rc += '<div class="fh" style="border-top: 1px solid var(--line)"' + A('fold', 'rcso') + '><span class="r-body grow">Your reality check so far</span><span style="color: var(--ink3)">' + (so ? UP : DOWN) + '</span></div>';
       if (so) rc += t03 ? '<span class="r-sec c2">Day 1 of 21. Nothing logged yet today.</span>' : '<div class="list" style="padding: 0; background: transparent">' + [['Sep 28', '1,420 kcal · 3 items'], ['Sep 27', '2,610 kcal · 6 items'], ['Sep 26', '2,380 kcal · 5 items'], ['Sep 25', '2,540 kcal · 7 items'], ['Sep 24', '2,290 kcal · 5 items'], ['Sep 23', 'nothing logged']].map(function (r) { return '<div class="li" style="min-height: 44px"><span class="r-sec tnum" style="width: 64px">' + r[0] + '</span><span class="r-sec c2 tnum grow">' + r[1] + '</span></div>'; }).join('') + '</div><span class="r-foot c2 tnum">Run: 5 days · ~2,450 kcal/day logged</span>';
-      var on = st.rcrem !== false;
       rc += '<div class="row sep" style="padding-top: 12px">' + ic(JX.fork, 22) + '<div class="grow col" style="gap: 2px"><span class="r-head">Food-log reminder</span><span class="r-foot c2">8 pm while a reality check is running. If you turn it off, it stays off for future checks.</span></div><span class="switch' + (on ? '' : ' off') + '"' + A('rcrem') + ' role="switch" aria-checked="' + on + '"></span></div>';
       rc += '<div class="row" style="gap: 24px"><span class="btnlink r-body"' + A('say', 'Start over: confirm popup in Journey part 5.') + '>Start over</span><span class="btnlink risk r-body"' + A('say', 'Stop reality check: confirm popup in Journey part 5.') + '>Stop reality check</span></div>';
+      return progCard('', rc, ' data-i="J23"');
     }
-    h += progCard('', rc, ' data-i="J23"');
-    // Weigh-ins
-    var wi = '<span class="r-title">' + nc('Weigh-ins') + '</span>';
-    if (!filled) wi += '<span class="r-sec c2">' + nc('Two weigh-ins make a trend.') + '</span>';
-    else {
-      wi += trendChart(W, done ? [['Aug 31', 0], ['Sep 21', 21], ['Oct 12', 42]] : [['Aug 31', 0], ['Sep 14', 14], ['Sep 28', 28]]);
-      var rows = W.slice().reverse().map(function (p) { return [p[4], p[1], p[3], p[2]]; }).slice(0, 5);
-      if (st.fold.allw) rows = W.slice().reverse().map(function (p) { return [p[4], p[1], p[3], p[2]]; });
-      wi += '<div class="hist"><span class="h r-cap c2">Date</span><span class="h r r-cap c2">Weight</span><span class="h r r-cap c2">Body fat</span><span class="h r r-cap c2">Waist</span>' + rows.map(function (r) { return '<span class="r-sec tnum">' + r[0] + '</span><span class="r r-value v15">' + kg(r[1]) + ' ' + wu() + '</span><span class="r r-value v15">' + r[2] + '%</span><span class="r r-value v15">' + cm(r[3]) + ' ' + lu() + '</span>'; }).join('') + '</div>';
+    function weighCard() {
+      var open = st.fold.wopen, last = W[W.length - 1];
+      var x = '<div class="fh"' + A('fold', 'wopen') + '><div class="grow col" style="gap: 2px"><span class="r-title">' + nc('Weigh-ins') + '</span>' + (filled ? '<span class="r-foot c2 tnum">' + W.length + ' · last ' + last[4] + ' · ' + kg(last[1]) + ' ' + wu() + '</span>' : '') + '</div><span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span></div>';
+      if (open) {
+        if (!filled) x += '<span class="r-sec c2">' + nc('Two weigh-ins make a trend.') + '</span>';
+        else {
+          x += trendChart(W, done ? [['Aug 31', 0], ['Sep 21', 21], ['Oct 12', 42]] : [['Aug 31', 0], ['Sep 14', 14], ['Sep 28', 28]]);
+          var rows = W.slice().reverse().map(function (p) { return [p[4], p[1], p[3], p[2]]; }); if (!st.fold.allw) rows = rows.slice(0, 5);
+          x += '<div class="hist"><span class="h r-cap c2">Date</span><span class="h r r-cap c2">Weight</span><span class="h r r-cap c2">Body fat</span><span class="h r r-cap c2">Waist</span>' + rows.map(function (r) { return '<span class="r-sec tnum">' + r[0] + '</span><span class="r r-value v15">' + kg(r[1]) + ' ' + wu() + '</span><span class="r r-value v15">' + r[2] + '%</span><span class="r r-value v15">' + cm(r[3]) + ' ' + lu() + '</span>'; }).join('') + '</div>';
+        }
+        x += '<div class="row"><span class="btnlink r-body grow"' + A('say', '+ Add a past weigh-in: its sheet comes in Journey part 5.') + '>+ Add a past weigh-in</span>' + (filled && W.length > 5 ? '<span class="btnlink r-body"' + A('fold', 'allw') + '>' + (st.fold.allw ? 'Show less' : 'Show all') + '</span>' : '') + '</div>';
+      }
+      return progCard('', x, ' data-i="J24"');
     }
-    wi += '<div class="row"><span class="btnlink r-body grow"' + A('say', '+ Add a past weigh-in: its sheet comes in Journey part 5.') + '>+ Add a past weigh-in</span>' + (filled && W.length > 5 ? '<span class="btnlink r-body"' + A('fold', 'allw') + '>' + (st.fold.allw ? 'Show less' : 'Show all') + '</span>' : '') + '</div>';
-    h += progCard('', wi, ' data-i="J24"');
-    // Target
-    var tg = '<div class="row"><span class="r-title grow">Your target</span>' + (filled ? '<span class="btnlink r-body"' + A('say', 'Edit target: its sheet comes in Journey part 5.') + '>Edit</span>' : '') + '</div><span class="r-sec c2">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span>';
-    if (!filled) tg += '<span class="obtn2"' + A('say', 'Set a target: its sheet comes in Journey part 5.') + '>Set a target</span>';
-    else tg += '<div class="row"><span class="r-sec c2 grow">Weight</span><span class="r-value v15">' + kg(wNow) + ' → ' + kg(80) + ' ' + wu() + '</span></div>' + targetScale(88, Math.min(88, Math.max(80, wNow)), 80) + '<span class="r-body tnum">' + (done ? '~7 weeks to go · around Nov 30, if this pace holds' : '~5 weeks to go · around Nov 2, if this pace holds') + '</span><span class="r-foot c2 tnum">Based on your weigh-ins ' + (done ? 'Aug 31–Oct 12' : 'Aug 31–Sep 28') + '.</span><span class="r-foot c2 tnum">Healthy range for your height: ' + kg(61).replace('.0', '') + '–' + kg(82).replace('.0', '') + ' ' + wu() + '.</span>';
-    h += progCard('', tg, ' data-i="J14"');
-    // Daily plan
-    if (filled) {
-      var g = st.goal || 'Lose', cals = done ? { Lose: '2,200', Maintain: '2,670', Gain: '3,000' } : { Lose: '2,320', Maintain: '2,810', Gain: '3,160' };
-      var pl = '<span class="r-title">Your daily plan</span><div class="fh"' + A('fold', 'wti') + ' style="min-height: 40px"><span class="r-sec grow">What this is</span><span style="color: var(--ink3)">' + (st.fold.wti ? UP : DOWN) + '</span></div>';
-      if (st.fold.wti) pl += '<p class="r-sec c2" style="margin: 0">Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. ' + nc('Every weigh-in is saved, so you can watch the numbers change over time.') + '</p>';
-      pl += '<div class="cell"><span class="r-cap c2">Protein</span><span class="r-value">145 g/day</span><span class="r-foot c2 tnum">135–160 · per kg lean mass</span></div>';
-      pl += '<div class="goals">' + [['Lose', '−15–20%'], ['Maintain', 'Daily burn (TDEE)'], ['Gain', '+10–15%']].map(function (x) { return '<div class="goal' + (g === x[0] ? ' on' : '') + '"' + A('goal', x[0]) + '><span class="r-cap c2">' + x[0] + '</span><span class="r-value">' + cals[x[0]] + '</span><span class="r-cap c2 tnum">' + x[1] + '</span></div>'; }).join('') + '</div>';
-      pl += '<div class="chips r-cap c2 tnum"><span>BMI 25.7 · healthy range ' + kg(61).replace('.0', '') + '–' + kg(82).replace('.0', '') + ' ' + wu() + '</span><span>fat ≈ 80 g · carbs ≈ ' + (g === 'Lose' ? '360' : g === 'Maintain' ? '480' : '560') + ' g</span></div>';
-      pl += '<span class="r-foot c2">These are estimates — a starting point, not a target set in stone. Plug the number into whatever you use to track food, then adjust based on what actually happens over 3–4 weeks.</span>';
-      h += progCard('', pl);
+    function numbersCard(forceOpen) {
+      var open = forceOpen || st.fold.nopen;
+      var x = '<div class="fh"' + (forceOpen ? '' : A('fold', 'nopen')) + '><div class="grow col" style="gap: 2px"><span class="r-title">Your numbers</span>' + (!open ? '<span class="r-foot c2 tnum">' + kg(wNow) + ' ' + wu() + ' · ' + cur[3] + '% BF · ' + cm(178) + ' ' + lu() + ' · ' + (st.act || 'Moderate — 4–5 sessions/week').split(' —')[0] + '</span>' : '') + '</div>' + (forceOpen ? '' : '<span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span>') + '</div>';
+      if (open) {
+        x += '<span class="segw" style="align-self: flex-start">' + [['metric', 'Metric'], ['imperial', 'Imperial']].map(function (u) { return '<span class="' + ((st.units || 'metric') === u[0] ? 'on' : '') + '"' + A('units', u[0]) + '>' + u[1] + '</span>'; }).join('') + '</span>';
+        if (!filled) x += '<span class="r-sec c2">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
+        var v = filled ? [kg(wNow), String(cur[3]), cm(cur[2])] : ['', '', ''];
+        x += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" data-p="pw" inputmode="decimal" placeholder="e.g. ' + kg(80) + '" value="' + v[0] + '"></div><div class="fld"><span class="r-foot c2">Body fat (%)</span><input class="winp" inputmode="decimal" placeholder="e.g. 20" value="' + v[1] + '"></div></div>';
+        x += '<div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(90) + '" value="' + v[2] + '"></div><span class="r-foot c2">The most useful non-scale number: it tracks fat loss even when the scale won\'t budge.</span>';
+        x += '<div class="sep"></div><div class="fld"><span class="r-foot c2">Height (' + lu() + ')</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(178) + '" value="' + (filled ? cm(178) : '') + '"></div>';
+        var srcs = [['DEXA scan', 'Very accurate (~1–2% error).'], ['Gym scan', 'Good (~3–5% error). Many gyms offer body-composition scans.'], ['Calipers', 'Fair (~3–5% error) when done by a trained person.'], ['Home scale', 'Rough (±5% or more). Best for trends, not the exact number.'], ['I don\'t know', 'We\'ll estimate from your height, age and sex instead.']], cs = st.bfsrc || 'Gym scan';
+        x += '<div class="fld"><span class="r-foot c2">Body-fat source</span><div class="pills">' + srcs.map(function (y) { return '<span class="pill r-foot' + (cs === y[0] ? ' on' : '') + '"' + A('bfsrc', y[0]) + '>' + y[0] + '</span>'; }).join('') + '</div><span class="r-foot c2">' + srcs.filter(function (y) { return y[0] === cs; })[0][1] + '</span></div>';
+        var acts = ['Desk job, little or no exercise', 'Light — 1–3 sessions/week', 'Moderate — 4–5 sessions/week', 'High — 6–7 sessions/week', 'Very high — physical job + daily training'], ca = st.act || 'Moderate — 4–5 sessions/week';
+        x += '<div class="fld"><span class="r-head row" style="gap: 6px">' + ic(JX.bolt, 18) + 'Activity level</span><div class="acts5">' + acts.map(function (y, k) { return '<div class="opt r-sec' + (ca === y ? ' on' : '') + (k === 4 ? ' wide' : '') + '"' + A('act', y) + '><i></i>' + y + '</div>'; }).join('') + '</div></div>';
+      }
+      return progCard('', x, ' data-i="J5"');
     }
+    function setTarget() { return progCard('', '<span class="r-title">Your target</span><span class="r-sec c2">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span><span class="obtn2" data-i="J14"' + A('say', 'Set a target: its sheet comes in Journey part 5.') + '>Set a target</span>'); }
+    // ---- order: what the user needs every visit first ----
+    if (filled) h += heroCard() + planCard() + rcCard() + weighCard() + numbersCard(false);
+    else h += numbersCard(true) + rcCard() + setTarget() + weighCard();
     h += '<span class="r-foot c2" style="padding: 0 4px" data-i="J16">An estimate for general wellness, not medical advice or a prescription. It is never linked to any medication or dose — just energy math from the numbers you enter. Individual variation of ±10–15% is normal.</span>';
     return h + learnBlock();
   }
+
 
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
@@ -1375,6 +1387,9 @@ textarea.winp { resize: none; }
     else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
     else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
     else if (a === 'say') toast(v);
+    else if (a === 'weighin') st.overlay = { t: 'weighin' };
+    else if (a === 'rcexplain') st.overlay = { t: 'rcexplain' };
+    else if (a === 'weighsave') { var wv = num(document.getElementById('wiw').value); if (!wv) { toast('Enter your weight first.'); } else { var kgv = imp() ? wv / 2.20462 : wv, bfv = num(document.getElementById('wib').value) || 20.9, wcv = num(document.getElementById('wic').value), wcm = wcv ? (imp() ? wcv * 2.54 : wcv) : 92; st.extraW = (st.extraW || []).concat([[(pstate() === 'done' ? 43 : 29), Math.round(kgv * 10) / 10, wcm, bfv, pstate() === 'done' ? 'Oct 13' : 'Sep 29']]); st.pw = Math.round(kgv * 10) / 10; st.overlay = null; toast('Weigh-in saved'); } }
     else if (a === 'units') st.units = v;
     else if (a === 'bfsrc') st.bfsrc = v;
     else if (a === 'act') st.act = v;
@@ -1417,7 +1432,7 @@ textarea.winp { resize: none; }
   });
   document.getElementById('badges').addEventListener('change', render);
   document.querySelectorAll('[data-jstate]').forEach(function (b) {
-    b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.fold = {}; if (b.getAttribute('data-jgo')) st.stacks[2].push({ s: b.getAttribute('data-jgo') }); render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.extraW = []; st.fold = {}; if (b.getAttribute('data-jgo')) st.stacks[2].push({ s: b.getAttribute('data-jgo') }); render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   });
   document.querySelectorAll('[data-pop]').forEach(function (b) {
     b.addEventListener('click', function () { POPS[b.getAttribute('data-pop')](); st.toast = null; render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });

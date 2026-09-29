@@ -38,6 +38,12 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Journey Progress reorder (2026-09-29, founder):** order the screen by how often it is needed.
+  After numbers exist, "Your numbers" folds away; the reality check sits under Progress and stays
+  (weigh in again later); for free users a tap explains it, then the paywall; weigh-ins fold; the
+  target stays open; the daily plan sits right under Progress. Design session's proposal (under
+  review): Progress card = weight, daily burn, target + ETA, "Log today's weight" → daily plan →
+  reality check → weigh-ins (folded) → your numbers (folded). Before any numbers: the form first.
 - **Parked (2026-09-29, founder):** every feature gets an explainer animation (why use it,
   benefits, expected results). After the design pass; see HANDOFF §5d. Remind the founder then.
 - **My Protocols part 3 APPROVED (2026-09-29, founder: "Ok, keep going")**, so all of My
