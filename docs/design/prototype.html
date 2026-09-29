@@ -409,6 +409,33 @@ textarea.winp { resize: none; }
 .actrow.on { box-shadow: inset 0 0 0 2px var(--ink); border-radius: 16px; border-top-color: transparent; }
 .actrow.on + .actrow { border-top-color: transparent; }
 
+
+/* ---- AI food log ---- */
+.chatsheet { position: absolute; inset: 0; z-index: 6; background: var(--ground); display: flex; flex-direction: column; }
+.chathd { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--line); min-height: 52px; }
+.chatbody { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: none; }
+.chatbody > :first-child { margin-top: auto; }
+.bub { max-width: 84%; padding: 12px 14px; border-radius: 20px; }
+.bub.app { background: var(--raised); align-self: flex-start; border-bottom-left-radius: 6px; display: flex; flex-direction: column; gap: 10px; }
+.bub.user { background: var(--act); color: var(--onAct); align-self: flex-end; border-bottom-right-radius: 6px; }
+.seehow { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: -4px 0 0 6px; }
+.entry { align-self: flex-end; width: 88%; background: var(--raised); border-radius: 20px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+.erow { display: flex; align-items: center; gap: 8px; }
+.etot { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 2px; }
+.chips2 { display: flex; flex-wrap: wrap; gap: 6px; }
+.deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
+.typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
+.typing .dots i:nth-child(2) { animation-delay: .2s; } .typing .dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 100% { opacity: .2 } 50% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .typing .dots i { animation: none; opacity: .6; } }
+.composer2 { display: flex; gap: 10px; align-items: center; padding: 10px 14px 4px; border-top: 1px solid var(--line); background: var(--ground); }
+.composer2 .winp { flex: 1; min-height: 46px; border-radius: 23px; }
+.send2 { width: 46px; height: 46px; border-radius: 23px; background: var(--act); color: var(--onAct); display: flex; align-items: center; justify-content: center; flex: none; cursor: pointer; }
+.chatfoot { text-align: center; padding: 4px 16px 30px; }
+.feitem { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.fe3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -433,7 +460,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Under review now: Journey part 2, the Progress screen, reordered by how often you need each part</b> (your feedback): Progress with your target and a "Log today's weight" button, your daily plan, the reality check, then weigh-ins and your numbers folded. Before any numbers exist, the form comes first. The popups it opens (Start over, Stop, add a past weigh-in, set or edit a target) are Journey part 5.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Under review now: Journey part 3, the AI food log.</b> Open it from the food card on Today or Journey (or the button). Type a meal and it logs it as a card, asks a follow-up when something is vague, and the totals flow to both food cards. The replies are canned sample data for the prototype; the app sends your text to the AI.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -445,7 +472,10 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Journey: Progress screen <span class="stat rev">under review</span></h3>
+        <h3>Journey: AI food log <span class="stat rev">under review</span></h3>
+        <button data-chat="open">Open the AI food log<small>Type "3 eggs, 2 toasts and a coffee": it logs, then asks how the coffee was made. Tap the entry to fix it. Try "should I eat less?"</small></button>
+        <button data-chat="locked">Free days over<small>the locked state: Log your day in a sentence → Unlock Premium</small></button>
+        <h3 style="margin-top: 10px">Journey: Progress screen <span class="stat ok">approved</span></h3>
         <button data-jstate="run" data-jgo="progress">Daily user, reality check running<small>Metric / Imperial, type a new weight, Edit setup, the check so far, the reminder switch, Show all weigh-ins, Lose / Maintain / Gain</small></button>
         <button data-jstate="done" data-jgo="progress">After the reality check<small>daily burn Measured, your checks over time</small></button>
         <button data-jstate="test03" data-jgo="progress">Test03: check running, no numbers yet<small>the form opens with the prompt</small></button>
@@ -482,14 +512,13 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Journey part 2: Progress, reordered)</h3>
+        <h3>Open questions (Journey part 3: AI food log)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>New order, most-used first:</b> Progress (weight, daily burn, your target, Log today's weight) → Your daily plan → Reality check → Weigh-ins (folded) → Your numbers (folded) → disclaimer → explainers. OK?</li>
-          <li><b>Your target inside Progress</b> (my recommendation: the target is where the weight is heading, so it sits under it), not in Your numbers. OK?</li>
-          <li><b>"Log today's weight"</b> in the Progress card opens a small sheet (weight; body fat and waist optional). Without it, folding Your numbers would hide the only place to record a weight. New copy: "Log today's weight" and its one-line note. OK?</li>
-          <li><b>Daily plan:</b> Lose / Maintain / Gain first, protein under it, "What this is" folded at the bottom. OK?</li>
-          <li><b>Free users:</b> the reality check shows PRO and "See how it works" → explainer (its animation comes with the parked set) → Unlock with Pro. OK?</li>
-          <li>Still open from before: the reality check uses the latest weigh-in for its start and end weight; "Use my food log" / "See my actual maintenance" only from day 14. Recommendation: yes to both.</li>
+          <li><b>Same chat as main, new look:</b> the app's messages on white, yours in ink; each logged meal as a card (every item with its calories and a Meal / Snack / Drink / Supplement tag, "estimate · tap to fix" when the AI guessed, the total with carbs and protein). OK?</li>
+          <li><b>Follow-up questions</b> keep main's answer chips, "Or type it", Skip and "That's all for today". OK?</li>
+          <li><b>"Fix this entry"</b> opens as a sheet: the day (Today / Yesterday / Earlier day), each item's name, kcal, carbs and protein, Save, and Remove entry at the bottom in red. OK?</li>
+          <li><b>"See how it works"</b> stays under the first message; it will open this feature's explainer animation (parked set). OK?</li>
+          <li><b>Diet questions</b> get main's "I don't give diet advice" card (try "should I eat less?"). Unchanged, as the AI hard line requires. OK?</li>
         </ol>
       </div>
       <div id="cov" class="coverage"></div>
@@ -736,7 +765,7 @@ textarea.winp { resize: none; }
     h += alerts(al, st.snooze, ['Tomorrow', 'In 3 days']).replace(/<span class="round/g, function (m) { return '<span' + A('snooze', k++) + ' class="round'; });
     var day = [taken.length, dueIds.length], all = taken.length === dueIds.length;
     h += tracker({ day: day, week: [5 + taken.length, 6], month: [5 + taken.length, 6], days: [['Tue', 'rest'], ['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'done'], ['Mon', all ? 'done' : 'part', true]], streak: all ? '2 days without a miss' : '1 day without a miss' }).replace('data-i="25">', 'data-i="25"' + A('log') + '>');
-    h += '<div class="blk">' + food(['Nothing logged yet today', 'Reality check · day 1 of 21 · 0 of 7 days in a row']).replace('<div class="food"', '<div class="food"' + A('say', 'Opens the AI food log (FoodChat). That screen is redesigned later.')) + '</div>';
+    h += '<div class="blk">' + food([foodLine('Nothing logged yet today'), 'Reality check · day 1 of 21 · 0 of 7 days in a row']).replace('<div class="food"', '<div class="food"' + A('chat')) + '</div>';
     h += '<div class="blk"><div class="lab"><span class="r-title">Doses</span><span class="cnt">' + day[0] + ' of ' + day[1] + ' taken</span></div>';
     dueIds.filter(function (id) { return !st.taken[id]; }).forEach(function (id) {
       var p = P[id], u = p.type !== 'oral' ? units(p) : null;
@@ -859,6 +888,7 @@ textarea.winp { resize: none; }
     if (o.t === 'sheet') return sheetHTML(o);
     if (o.t === 'action') return '<div class="scrim bot"' + A('scrim') + '><div class="actwrap"><div class="actgrp">' + (o.title ? '<span class="r-foot c2 acttitle">' + o.title + '</span>' : '') + o.opts.map(function (x) { return '<span class="actopt"' + A(x[1], x[2]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="actopt actcancel"' + A('close') + '>Cancel</span></div></div>';
     if (o.t === 'wheel') return wheelHTML(o);
+    if (o.t === 'chat') return chatScreen();
     if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
     if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: reality_check).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
     if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
@@ -1181,7 +1211,7 @@ textarea.winp { resize: none; }
   function journeyDash() {
     var d = JS[st.jstate || 'test03'], stack = st.ts >= 1.3;
     var h = '<div class="hrow"><h3 class="r-large" data-i="J1">Journey</h3></div><span class="r-sec c2" data-i="J2" style="padding: 0 4px; margin-top: -8px">Track how your body is actually responding.</span>';
-    h += '<div class="food" data-i="J19"' + A('say', 'Opens the AI food log (FoodChat): Journey part 3.') + '><div class="row" style="gap: 10px">' + ic(I.spark, 22) + '<span class="r-head grow">AI food log</span><span data-i="J18">' + CHEV + '</span></div><span class="r-title tnum" style="font-size: calc(19px * var(--ts))">' + d.food[0] + '</span>' + (d.food[1] ? '<span class="r-sec c2 tnum">' + d.food[1] + '</span>' : '') + '</div>';
+    h += '<div class="food" data-i="J19"' + A('chat') + '><div class="row" style="gap: 10px">' + ic(I.spark, 22) + '<span class="r-head grow">AI food log</span><span data-i="J18">' + CHEV + '</span></div><span class="r-title tnum" style="font-size: calc(19px * var(--ts))">' + foodLine(d.food[0]) + '</span>' + (d.food[1] ? '<span class="r-sec c2 tnum">' + d.food[1] + '</span>' : '') + '</div>';
     var p = '<div class="tile jt" data-i="J17"' + A('go', 'progress') + '><div class="top">' + ic(JI.trend, 22) + CHEV + '</div><span class="r-head">Progress</span>';
     var JN = d.prog ? jnums() : null;
     if (d.prog) p += '<div class="num"><span class="r-cap c2">Weight</span><span class="r-display d34">' + kg(JN.w) + '<span class="unit">' + wu() + '</span></span><span class="r-foot c2 tnum">Since Aug 31: <span class="vin">' + (JN.w - 88 > 0 ? '+' : '−') + kg(Math.abs(JN.w - 88)) + ' ' + wu() + '</span></span></div><div class="num sep end"><span class="r-cap c2">Daily burn (TDEE)</span><span class="r-display d34">' + fk(JN.tdee) + '<span class="unit">kcal</span></span><span class="chip r-cap' + (d.prog[3] ? ' meas' : '') + '">' + (d.prog[3] ? 'Measured' : 'Estimated') + '</span></div>';
@@ -1333,6 +1363,80 @@ textarea.winp { resize: none; }
   }
 
 
+
+  /* ================= Journey part 3: AI food log / FoodChat (under review) ================= */
+  // Sample parser for the prototype only (the app sends the text to the AI). kcal, carbs g, protein g, category.
+  var FOODS = [
+    [/egg/i, '3 eggs', 215, 1, 19, 'Meal'], [/toast|bread/i, '2 toasts', 160, 30, 6, 'Meal'], [/coffee/i, 'coffee', 5, 0, 0, 'Drink', ['preparation', 'coffee', ['Black', 'With milk', 'Latte']]],
+    [/rice/i, 'rice', 205, 45, 4, 'Meal', ['amount', 'rice', ['1 cup', 'Half a cup', 'A big plate']]], [/chicken/i, 'chicken breast', 280, 0, 52, 'Meal'], [/banana/i, 'banana', 105, 27, 1, 'Snack'],
+    [/shake|whey|protein/i, 'protein shake', 130, 4, 25, 'Supplement'], [/beer/i, 'beer', 150, 13, 2, 'Drink'], [/salad/i, 'salad', 180, 12, 5, 'Meal', ['size', 'salad', ['Side', 'Bowl', 'Large bowl']]]
+  ];
+  var FIX = { 'With milk': ['coffee with milk', 25, 2, 1], 'Latte': ['latte', 120, 10, 6], 'Black': ['black coffee', 5, 0, 0], '1 cup': ['1 cup of rice', 205, 45, 4], 'Half a cup': ['half a cup of rice', 103, 22, 2], 'A big plate': ['a big plate of rice', 410, 90, 8], 'Side': ['side salad', 90, 6, 2], 'Bowl': ['salad bowl', 180, 12, 5], 'Large bowl': ['large salad bowl', 320, 20, 9] };
+  function parseFood(t) {
+    var items = [], fu = null;
+    FOODS.forEach(function (fd) { if (fd[0].test(t)) { items.push({ food: fd[1], kcal: fd[2], carb: fd[3], prot: fd[4], cat: fd[5] }); if (fd[6] && !fu) fu = { kind: fd[6][0], food: fd[6][1], opts: fd[6][2] }; } });
+    if (!items.length) items.push({ food: t.slice(0, 40), kcal: 250, carb: 25, prot: 12, cat: 'Meal', est: true });
+    return { items: items, fu: fu };
+  }
+  var ASK = { amount: 'How much {food}?', brand: 'Which {food} was it?', size: 'What size was the {food}?', preparation: 'How was the {food} made?', identity: 'What was "{food}" exactly?' };
+  function chatInit() { if (!st.chat) st.chat = { msgs: [{ t: 'app', text: 'So, what have you eaten? Earlier days count too.', intro: true }], typing: false }; }
+  function foodTotals() { var k = 0, n = 0; (st.chat ? st.chat.msgs : []).forEach(function (m) { if (m.t === 'entry' && !m.gone) m.items.forEach(function (it) { k += it.kcal; n++; }); }); return { kcal: k, n: n }; }
+  function foodLine(def) { var t = foodTotals(); return t.n ? 'Today: ' + t.n + ' item' + (t.n === 1 ? '' : 's') + ' · ~' + fk(t.kcal) + ' kcal' : def; }
+  function chatScreen() {
+    chatInit();
+    var c = st.chat, locked = st.chatLocked;
+    var h = '<div class="chatsheet">' + sbar('8:10') + '<div class="chathd"><span class="row" style="gap: 8px">' + ic(I.spark, 20, 'color: var(--ink)') + '<span class="r-head">AI food log</span></span><span class="txtbtn"' + A('chatdone') + '>Done</span></div>';
+    if (locked) {
+      h += '<div class="chatbody" style="justify-content: center"><div class="card pc" style="margin: 0 4px">' + ic(I.spark, 28) + '<span class="r-title">Log your day in a sentence</span><span class="r-sec c2">Describe what you ate — DoseTrace estimates the calories, carbs and protein and feeds your reality-check.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: food_log).') + '>Unlock Premium</span></div></div>';
+      return h + '</div>';
+    }
+    h += '<div class="chatbody" id="chatbody"><div class="daydiv r-cap">Today</div>';
+    c.msgs.forEach(function (m, i) {
+      if (m.t === 'app') { h += '<div class="bub app r-body">' + m.text + (m.chips || '') + '</div>'; if (m.intro) h += '<span class="btnlink r-sec seehow"' + A('say', 'See how it works: the explainer animation, part of the parked feature animations.') + '>' + ic(I.spark, 15, 'color: currentColor') + 'See how it works</span>'; }
+      else if (m.t === 'user') h += '<div class="bub user r-body">' + m.text + '</div>';
+      else if (m.t === 'entry' && !m.gone) {
+        var tk = 0, tc = 0, tp = 0;
+        h += '<div class="entry"' + A('foodedit', i) + '>' + m.items.map(function (it) { tk += it.kcal; tc += it.carb; tp += it.prot; return '<div class="erow"><span class="r-body grow">' + it.food + ' · <span class="vin">~' + fk(it.kcal) + '</span> kcal</span><span class="otag">' + it.cat + '</span></div>' + (it.est ? '<span class="r-foot" style="color: var(--attention)">estimate · tap to fix</span>' : ''); }).join('');
+        h += '<div class="etot"><span class="r-head tnum">≈ ' + fk(tk) + ' kcal</span><span class="r-foot c2 tnum">' + tc + ' g carbs · ' + tp + ' g protein</span></div></div>';
+      }
+      else if (m.t === 'fu') {
+        h += '<div class="bub app r-body">' + ASK[m.kind].replace('{food}', m.food) + (m.answered ? '' : '<div class="chips2">' + m.opts.map(function (o) { return '<span class="pill r-foot"' + A('fuans', i + '|' + o) + '>' + o + '</span>'; }).join('') + '</div><div class="inrow"><input class="winp" id="fuin" placeholder="Or type it" style="min-height: 44px"><span class="pill r-foot on"' + A('fuans', i + '|typed') + '>Update</span></div><div class="row r-foot" style="justify-content: space-between"><span class="btnlink"' + A('fuskip', i) + '>Skip</span><span class="btnlink"' + A('dayclose') + '>That\'s all for today</span></div>') + '</div>';
+        if (m.answered) h += '<div class="bub user r-body">' + m.answered + '</div>';
+      }
+      else if (m.t === 'deflect') h += '<div class="deflect"><span class="r-head">I don\'t give diet advice</span><span class="r-sec c2">DoseTrace logs and totals what you eat — it doesn\'t recommend what to eat. For guidance, talk to a doctor or registered dietitian.</span></div>';
+    });
+    if (c.typing) h += '<div class="bub app r-sec c2 typing">Reading your message<span class="dots"><i></i><i></i><i></i></span></div>';
+    h += '</div>';
+    h += '<div class="composer2"><input class="winp" id="chatin" placeholder="e.g. 3 eggs, 2 toasts and a coffee" autocomplete="off"><span class="send2"' + A('chatsend') + ' aria-label="Log with AI">' + ic(I.spark, 20, 'color: currentColor') + '</span></div>';
+    h += '<div class="chatfoot r-cap c2">AI estimates (±10–15%) — not medical or diet advice.' + (st.jstate === 'free' ? ' · 5 free days left, then Premium.' : '') + '</div>';
+    if (st.foodEdit != null) h += foodEditor(st.foodEdit);
+    return h + '</div>';
+  }
+  function foodEditor(i) {
+    var m = st.chat.msgs[i], d = st.foodDay || 'Today';
+    var h = '<div class="scrim bot" style="z-index: 8"' + A('fecancel') + '><div class="sheet bsheet" data-i="FC-edit"><div class="row" style="justify-content: space-between"><span class="txtbtn" style="font-weight: 400"' + A('fecancel') + '>Cancel</span><span class="r-head">Fix this entry</span><span class="txtbtn"' + A('fesave', i) + '>Save</span></div>';
+    h += '<span class="segw" style="align-self: flex-start">' + ['Today', 'Yesterday', 'Earlier day'].map(function (x) { return '<span class="' + (d === x ? 'on' : '') + '"' + A('feday', x) + '>' + x + '</span>'; }).join('') + '</span>';
+    h += m.items.map(function (it, k) { return '<div class="feitem"><input class="winp" id="fe' + k + 'n" value="' + it.food.replace(/"/g, '&quot;') + '"><div class="fe3"><div class="fld"><span class="r-foot c2">kcal</span><input class="winp" id="fe' + k + 'k" inputmode="numeric" value="' + it.kcal + '"></div><div class="fld"><span class="r-foot c2">carbs</span><input class="winp" id="fe' + k + 'c" inputmode="numeric" value="' + it.carb + '"></div><div class="fld"><span class="r-foot c2">protein</span><input class="winp" id="fe' + k + 'p" inputmode="numeric" value="' + it.prot + '"></div></div></div>'; }).join('');
+    return h + '<span class="dangerbtn"' + A('fedel', i) + '>Remove entry</span></div></div>';
+  }
+  function chatScroll() { var b = document.getElementById('chatbody'); if (b) b.scrollTop = b.scrollHeight; }
+  function chatSend() {
+    var inp = document.getElementById('chatin'), t = inp ? inp.value.trim() : ''; if (!t) return;
+    var c = st.chat; c.msgs.push({ t: 'user', text: t }); c.typing = true; render(); chatScroll();
+    setTimeout(function () {
+      c.typing = false;
+      if (/should i|how much should|is it ok|recommend|advice|lose weight/i.test(t)) c.msgs.push({ t: 'deflect' });
+      else {
+        var r = parseFood(t), names = r.items.map(function (x) { return x.food; });
+        c.msgs.push({ t: 'entry', items: r.items });
+        c.msgs.push({ t: 'app', text: 'Got it — ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) + ' more' : '') + '.' });
+        if (r.fu) c.msgs.push({ t: 'fu', kind: r.fu.kind, food: r.fu.food, opts: r.fu.opts, entry: c.msgs.length - 2 });
+        else if (!c.askedSnack) { c.askedSnack = true; c.msgs.push({ t: 'app', text: 'Any snacks along the way — a bar, some fruit, a little something?' }); }
+      }
+      render(); chatScroll();
+    }, 900);
+  }
+
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
   function render() {
@@ -1378,6 +1482,7 @@ textarea.winp { resize: none; }
     var lv = document.getElementById('live'); if (lv) { var lx = liveHero(st.wiz); lv.innerHTML = lx; lv.hidden = !lx; }
     var nx = phone.querySelector('[data-a="wnext"]'); if (nx) nx.classList.toggle('blocked', st.wiz.step === 3 && !!blocked(st.wiz));
   });
+  phone.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'chatin') { e.preventDefault(); chatSend(); } });
   phone.addEventListener('change', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-p') === 'pw') render(); });
   phone.addEventListener('click', function (e) {
     var el = e.target.closest('[data-a]'); if (!el || !phone.contains(el)) return;
@@ -1407,6 +1512,17 @@ textarea.winp { resize: none; }
     else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
     else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
     else if (a === 'say') toast(v);
+    else if (a === 'chat') { st.overlay = { t: 'chat' }; setTimeout(chatScroll, 0); }
+    else if (a === 'chatdone') { st.overlay = null; st.foodEdit = null; }
+    else if (a === 'chatsend') { chatSend(); return; }
+    else if (a === 'fuans') { var pr = v.split('|'), m = st.chat.msgs[+pr[0]], ans = pr[1] === 'typed' ? ((document.getElementById('fuin') || {}).value || '').trim() : pr[1]; if (ans) { m.answered = ans; var ent = st.chat.msgs[m.entry], fx2 = FIX[ans]; ent.items = ent.items.map(function (it) { return it.food === m.food && fx2 ? { food: fx2[0], kcal: fx2[1], carb: fx2[2], prot: fx2[3], cat: it.cat } : it; }); st.chat.msgs.push({ t: 'app', text: 'Updated — ' + (fx2 ? fx2[0] : m.food + ', ' + ans) + '.' }); setTimeout(chatScroll, 0); } }
+    else if (a === 'fuskip') { st.chat.msgs[+v].answered = 'Skip'; }
+    else if (a === 'dayclose') { st.chat.msgs.forEach(function (m) { if (m.t === 'fu' && !m.answered) m.answered = 'That\'s all for today'; }); st.chat.msgs.push({ t: 'app', text: 'All set for today — thanks. See you tomorrow.' }); setTimeout(chatScroll, 0); }
+    else if (a === 'foodedit') { st.foodEdit = +v; st.foodDay = 'Today'; }
+    else if (a === 'feday') st.foodDay = v;
+    else if (a === 'fecancel') { if (e.target === el || el.classList.contains('txtbtn')) st.foodEdit = null; else return; }
+    else if (a === 'fesave') { var em = st.chat.msgs[+v]; em.items = em.items.map(function (it, k) { var g2 = function (x) { return document.getElementById('fe' + k + x).value; }; return { food: g2('n'), kcal: num(g2('k')), carb: num(g2('c')), prot: num(g2('p')), cat: it.cat }; }); st.foodEdit = null; toast('Entry updated'); }
+    else if (a === 'fedel') { st.chat.msgs[+v].gone = true; st.foodEdit = null; toast('Entry removed'); }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
     else if (a === 'rcexplain') st.overlay = { t: 'rcexplain' };
     else if (a === 'weighsave') { var wv = num(document.getElementById('wiw').value); if (!wv) { toast('Enter your weight first.'); } else { var kgv = imp() ? wv / 2.20462 : wv, bfv = num(document.getElementById('wib').value) || 20.9, wcv = num(document.getElementById('wic').value), wcm = wcv ? (imp() ? wcv * 2.54 : wcv) : 92; st.extraW = (st.extraW || []).concat([[(pstate() === 'done' ? 43 : 29), Math.round(kgv * 10) / 10, wcm, bfv, pstate() === 'done' ? 'Oct 13' : 'Sep 29']]); st.pw = Math.round(kgv * 10) / 10; st.overlay = null; toast('Weigh-in saved'); } }
@@ -1453,6 +1569,9 @@ textarea.winp { resize: none; }
   document.getElementById('badges').addEventListener('change', render);
   document.querySelectorAll('[data-jstate]').forEach(function (b) {
     b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.extraW = []; st.fold = {}; if (b.getAttribute('data-jgo')) st.stacks[2].push({ s: b.getAttribute('data-jgo') }); render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  });
+  document.querySelectorAll('[data-chat]').forEach(function (b) {
+    b.addEventListener('click', function () { st.wiz = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.chatLocked = b.getAttribute('data-chat') === 'locked'; st.overlay = { t: 'chat' }; render(); setTimeout(function () { chatScroll(); var i2 = document.getElementById('chatin'); if (i2) i2.focus(); }, 0); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   });
   document.querySelectorAll('[data-pop]').forEach(function (b) {
     b.addEventListener('click', function () { POPS[b.getAttribute('data-pop')](); st.toast = null; render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });

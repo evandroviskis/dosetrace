@@ -38,6 +38,11 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Journey part 2 (Progress) APPROVED (2026-09-29, founder: "Much better. Keep going")**: the
+  reordered screen as in `prototype.html` (Progress card with target + "Log today's weight" sheet →
+  daily plan → reality check → weigh-ins folded → your numbers folded; form first when empty),
+  activity level as a list, one weigh-in updates every number (main's energy math). Recommended
+  answers taken: the reality check uses the latest weigh-in (A-54); its result buttons from day 14.
 - **Journey Progress reorder (2026-09-29, founder):** order the screen by how often it is needed.
   After numbers exist, "Your numbers" folds away; the reality check sits under Progress and stays
   (weigh in again later); for free users a tap explains it, then the paywall; weigh-ins fold; the
