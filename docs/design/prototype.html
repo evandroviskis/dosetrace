@@ -431,6 +431,7 @@ textarea.winp { resize: none; }
         <button data-jstate="run">Daily user, reality check running<small>weight, estimated daily burn, testosterone level</small></button>
         <button data-jstate="done">After the reality check<small>daily burn turns Measured</small></button>
         <button data-jstate="fresh">New user</button>
+        <button data-jstate="free">Free plan (same user as "daily")<small>Dose accumulation shows PRO and no number, as on main</small></button>
         <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
         <button data-jump="1:list::add">Add a protocol<small>10 mg, 2 ml, 2 mg: draw to 40 units</small></button>
         <button data-jump="1:list:bpc:edit">Edit BPC-157</button>
@@ -1148,7 +1149,8 @@ textarea.winp { resize: none; }
     test03: { food: ['Nothing logged yet today', '0 of 7 days in a row'], prog: null, dose: ['--p2', 'TB-500', '0.0'] },
     run: { food: ['Today: 3 items · ~1,420 kcal', '5 of 7 days in a row'], prog: ['84.6', '−3.4', '2,810', false], dose: ['--p1', 'Testosterone Cypionate', '122'] },
     done: { food: ['Today: 2 items · ~860 kcal', null], prog: ['84.3', '−3.7', '2,670', true], dose: ['--p1', 'Testosterone Cypionate', '131'] },
-    fresh: { food: ['Nothing logged yet today', null], prog: null, dose: null }
+    fresh: { food: ['Nothing logged yet today', null], prog: null, dose: null },
+    free: { food: ['Today: 3 items · ~1,420 kcal', '5 of 7 days in a row'], prog: ['84.6', '−3.4', '2,810', false], dose: ['--p1', 'Testosterone Cypionate', '122'], free: true }
   };
   function journeyDash() {
     var d = JS[st.jstate || 'test03'], stack = st.ts >= 1.3;
@@ -1158,8 +1160,9 @@ textarea.winp { resize: none; }
     if (d.prog) p += '<div class="num"><span class="r-cap c2">Weight</span><span class="r-display d34">' + d.prog[0] + '<span class="unit">kg</span></span><span class="r-foot c2 tnum">Since Aug 31: <span class="vin">' + d.prog[1] + ' kg</span></span></div><div class="num sep end"><span class="r-cap c2">Daily burn (TDEE)</span><span class="r-display d34">' + d.prog[2] + '<span class="unit">kcal</span></span><span class="chip r-cap' + (d.prog[3] ? ' meas' : '') + '">' + (d.prog[3] ? 'Measured' : 'Estimated') + '</span></div>';
     else p += '<span class="r-sec c2" data-i="J15">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
     p += '</div>';
-    var q = '<div class="tile jt" data-i="J3"' + A('go', 'curve') + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + CHEV + '</div><span class="r-head">Dose accumulation</span>';
-    if (d.dose) q += '<div class="row" style="gap: 7px; align-items: flex-start"><span class="dot" style="background: var(' + d.dose[0] + '); margin-top: 6px"></span><span class="r-sec">' + d.dose[1] + '</span></div><div class="num end"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + d.dose[2] + '<span class="unit">mg</span></span><span class="chip r-cap">Estimated</span></div>';
+    var q = '<div class="tile jt" data-i="J3"' + (d.free ? A('say', 'Free plan: opens the Paywall (main does the same).') : A('go', 'curve')) + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + (d.free ? '<span class="otag">PRO</span>' : CHEV) + '</div><span class="r-head">Dose accumulation</span>';
+    if (d.dose && d.free) q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
+    else if (d.dose) q += '<div class="row" style="gap: 7px; align-items: flex-start"><span class="dot" style="background: var(' + d.dose[0] + '); margin-top: 6px"></span><span class="r-sec">' + d.dose[1] + '</span></div><div class="num end"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + d.dose[2] + '<span class="unit">mg</span></span><span class="chip r-cap">Estimated</span></div>';
     else q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
     q += '</div>';
     h += '<div class="duo' + (stack ? ' stack' : '') + '">' + p + q + '</div>';
