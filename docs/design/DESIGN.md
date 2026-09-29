@@ -32,6 +32,12 @@ Founder decisions since (2026-09-29):
   "Recently deleted" + Restore at the bottom of the list, and a confirm before New vial /
   New bottle. Today alerts naming one protocol open that protocol (recommended answer, taken as
   approved unless the founder says otherwise).
+- **Journey part 1 (dashboard) APPROVED (2026-09-29, founder: "ok, keep going")** with the
+  recommended answers: v5 layout unchanged in the new look; name "Progress"; food card stays "AI
+  food log"; Est. level ships with the A-07 wording ("based on your planned schedule") and "count
+  only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
+  explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
+  saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
 - **Parked (2026-09-29, founder):** every feature gets an explainer animation (why use it,
   benefits, expected results). After the design pass; see HANDOFF §5d. Remind the founder then.
 - **My Protocols part 3 APPROVED (2026-09-29, founder: "Ok, keep going")**, so all of My
