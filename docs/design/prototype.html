@@ -518,6 +518,7 @@ textarea.winp { resize: none; }
           <li><b>Follow-up questions</b> keep main's answer chips, "Or type it", Skip and "That's all for today". OK?</li>
           <li><b>"Fix this entry"</b> opens as a sheet: the day (Today / Yesterday / Earlier day), each item's name, kcal, carbs and protein, Save, and Remove entry at the bottom in red. OK?</li>
           <li><b>"See how it works"</b> stays under the first message; it will open this feature's explainer animation (parked set). OK?</li>
+          <li><b>Rule: nothing you type is ever dropped.</b> Every food in a message becomes its own line, in your words and quantity; anything the AI can't place stays as a line marked "estimate · tap to fix" (main's wording). You found the orange juice vanishing in this prototype; the same rule should be an acceptance test for the real app. OK?</li>
           <li><b>Diet questions</b> get main's "I don't give diet advice" card (try "should I eat less?"). Unchanged, as the AI hard line requires. OK?</li>
         </ol>
       </div>
@@ -1369,15 +1370,32 @@ textarea.winp { resize: none; }
   var FOODS = [
     [/egg/i, '3 eggs', 215, 1, 19, 'Meal'], [/toast|bread/i, '2 toasts', 160, 30, 6, 'Meal'], [/coffee/i, 'coffee', 5, 0, 0, 'Drink', ['preparation', 'coffee', ['Black', 'With milk', 'Latte']]],
     [/rice/i, 'rice', 205, 45, 4, 'Meal', ['amount', 'rice', ['1 cup', 'Half a cup', 'A big plate']]], [/chicken/i, 'chicken breast', 280, 0, 52, 'Meal'], [/banana/i, 'banana', 105, 27, 1, 'Snack'],
-    [/shake|whey|protein/i, 'protein shake', 130, 4, 25, 'Supplement'], [/beer/i, 'beer', 150, 13, 2, 'Drink'], [/salad/i, 'salad', 180, 12, 5, 'Meal', ['size', 'salad', ['Side', 'Bowl', 'Large bowl']]]
+    [/shake|whey|protein/i, 'protein shake', 130, 4, 25, 'Supplement'], [/beer/i, 'beer', 150, 13, 2, 'Drink'],
+    [/juice/i, 'orange juice', 110, 26, 2, 'Drink', ['size', 'orange juice', ['Small glass', 'Large glass', 'Bottle']]], [/apple/i, 'apple', 95, 25, 0, 'Snack'], [/yogurt|yoghurt/i, 'yogurt', 150, 17, 9, 'Snack'],
+    [/oat/i, 'oatmeal', 150, 27, 5, 'Meal'], [/pasta/i, 'pasta', 310, 62, 11, 'Meal', ['amount', 'pasta', ['Small plate', 'Regular plate', 'Big plate']]], [/steak|beef/i, 'steak', 450, 0, 46, 'Meal'], [/water/i, 'water', 0, 0, 0, 'Drink'], [/salad/i, 'salad', 180, 12, 5, 'Meal', ['size', 'salad', ['Side', 'Bowl', 'Large bowl']]]
   ];
-  var FIX = { 'With milk': ['coffee with milk', 25, 2, 1], 'Latte': ['latte', 120, 10, 6], 'Black': ['black coffee', 5, 0, 0], '1 cup': ['1 cup of rice', 205, 45, 4], 'Half a cup': ['half a cup of rice', 103, 22, 2], 'A big plate': ['a big plate of rice', 410, 90, 8], 'Side': ['side salad', 90, 6, 2], 'Bowl': ['salad bowl', 180, 12, 5], 'Large bowl': ['large salad bowl', 320, 20, 9] };
+  var FIX = { 'With milk': ['coffee with milk', 25, 2, 1], 'Latte': ['latte', 120, 10, 6], 'Black': ['black coffee', 5, 0, 0], '1 cup': ['1 cup of rice', 205, 45, 4], 'Half a cup': ['half a cup of rice', 103, 22, 2], 'A big plate': ['a big plate of rice', 410, 90, 8], 'Side': ['side salad', 90, 6, 2], 'Bowl': ['salad bowl', 180, 12, 5], 'Large bowl': ['large salad bowl', 320, 20, 9], 'Small glass': ['small glass of orange juice', 85, 20, 1], 'Large glass': ['large glass of orange juice', 170, 39, 3], 'Bottle': ['bottle of orange juice', 220, 52, 3], 'Small plate': ['small plate of pasta', 220, 44, 8], 'Regular plate': ['plate of pasta', 310, 62, 11], 'Big plate': ['big plate of pasta', 480, 96, 17] };
+  // Every part of the message becomes a line: a known food gets its numbers; anything else is kept as
+  // its own line flagged "estimate · tap to fix". Nothing the user typed is ever dropped silently.
   function parseFood(t) {
     var items = [], fu = null;
-    FOODS.forEach(function (fd) { if (fd[0].test(t)) { items.push({ food: fd[1], kcal: fd[2], carb: fd[3], prot: fd[4], cat: fd[5] }); if (fd[6] && !fu) fu = { kind: fd[6][0], food: fd[6][1], opts: fd[6][2] }; } });
-    if (!items.length) items.push({ food: t.slice(0, 40), kcal: 250, carb: 25, prot: 12, cat: 'Meal', est: true });
+    t.split(/,|;|\+|\band\b|\bwith\b|\bthen\b/i).forEach(function (part) {
+      var seg = part.replace(/^\s*(i\s+)?(had|ate|drank|some|a|an)\s+/i, '').replace(/^\s*(some|a|an)\s+/i, '').trim();
+      if (!seg || seg.length < 2) return;
+      var hit = FOODS.filter(function (fd) { return fd[0].test(seg); })[0];
+      if (hit) {
+        // Use the user's own words and quantity: "2 eggs" stays 2 eggs, scaled from the sample's per-unit numbers.
+        var mine = seg.match(/^(\d+(?:[.,]\d+)?)/), base = hit[1].match(/^(\d+)/), k = mine && base ? num(mine[1]) / num(base[1]) : 1;
+        var name = mine || !base ? seg.slice(0, 40) : hit[1];
+        items.push({ food: name, kcal: Math.round(hit[2] * k), carb: Math.round(hit[3] * k), prot: Math.round(hit[4] * k), cat: hit[5] });
+        if (hit[6] && !fu) fu = { kind: hit[6][0], food: hit[6][1], opts: hit[6][2] };
+      }
+      else items.push({ food: seg.slice(0, 40), kcal: 150, carb: 15, prot: 5, cat: 'Meal', est: true });
+    });
+    if (!items.length) items.push({ food: t.slice(0, 40), kcal: 150, carb: 15, prot: 5, cat: 'Meal', est: true });
     return { items: items, fu: fu };
   }
+
   var ASK = { amount: 'How much {food}?', brand: 'Which {food} was it?', size: 'What size was the {food}?', preparation: 'How was the {food} made?', identity: 'What was "{food}" exactly?' };
   function chatInit() { if (!st.chat) st.chat = { msgs: [{ t: 'app', text: 'So, what have you eaten? Earlier days count too.', intro: true }], typing: false }; }
   function foodTotals() { var k = 0, n = 0; (st.chat ? st.chat.msgs : []).forEach(function (m) { if (m.t === 'entry' && !m.gone) m.items.forEach(function (it) { k += it.kcal; n++; }); }); return { kcal: k, n: n }; }
