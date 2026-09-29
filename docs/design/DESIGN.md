@@ -26,6 +26,12 @@ Founder decisions since (2026-09-29):
   block drawn with the opposite palette.
 - **Today v2.1 APPROVED (2026-09-29, founder)** with the recommended answers to every open
   question. Built by the Mac session after 1.2.5: `today-build-handoff.md`.
+- **My Protocols part 1 APPROVED (2026-09-29, founder: "Approved so far"):** the list and a
+  protocol screen (calculator first, then vial, schedule, dose details, notes; Edit top-right,
+  Delete at the bottom), as in `prototype.html`, including the two suggestions it shows:
+  "Recently deleted" + Restore at the bottom of the list, and a confirm before New vial /
+  New bottle. Today alerts naming one protocol open that protocol (recommended answer, taken as
+  approved unless the founder says otherwise).
 - **Tracker block colors (2026-09-29, founder):** dark theme = the light inverted block ("the
   dark version looks good"); light theme = dark grey `#383C41`, not black ("less aggressive").
   Measured on it: text 9.97, secondary 6.56, captions 4.93, data blue `#8AA8FF` 4.83, ticks 3.44.

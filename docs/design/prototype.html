@@ -312,6 +312,58 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .pscr { gap: 14px; }
 .pscr > .blk + .blk { margin-top: 12px; }
 
+
+/* ---- add / edit steps (part 2) ---- */
+.wnav { display: grid; grid-template-columns: 70px 1fr 70px; align-items: center; min-height: 48px; padding: 0 16px; text-align: center; flex: none; }
+.wnav > :last-child { justify-self: end; }
+.wnav > :first-child { justify-self: start; }
+.prog { display: grid; grid-auto-flow: column; gap: 6px; padding: 4px 16px 10px; flex: none; }
+.prog i { height: 4px; border-radius: 2px; background: var(--line); }
+.prog i.on { background: var(--ink); }
+.wiz { gap: 20px; padding-bottom: 32px; }
+.wt { display: flex; flex-direction: column; gap: 4px; padding: 6px 4px 0; }
+.fld { display: flex; flex-direction: column; gap: 10px; }
+.fld > .r-head { padding: 0 4px; }
+.fld > .r-foot { padding: 0 4px; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tile2 { background: var(--raised); border-radius: 18px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; color: var(--ink2); box-shadow: inset 0 0 0 1px var(--line); }
+.tile2.on { color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.winp { font: 400 calc(17px * var(--ts)) / 1.3 var(--sys); color: var(--ink); background: var(--raised); border: 0; border-radius: 14px; min-height: 50px; padding: 12px 14px; width: 100%; box-shadow: inset 0 0 0 1px var(--line); font-variant-numeric: tabular-nums; }
+.winp:focus { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
+.winp::placeholder { color: var(--ink3); }
+textarea.winp { resize: none; }
+.inrow { display: flex; align-items: center; gap: 10px; }
+.inrow .winp { flex: 1; min-width: 0; }
+.segw { display: inline-flex; gap: 2px; padding: 3px; border-radius: 14px; background: var(--well); flex: none; flex-wrap: wrap; }
+.segw span { min-height: 42px; padding: 0 12px; border-radius: 11px; display: inline-flex; align-items: center; color: var(--ink2); font: 500 calc(15px * var(--ts)) / 1 var(--sys); }
+.segw span.on { background: var(--raised); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; background: var(--raised); border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line); min-height: 56px; }
+.stepper > span:first-child, .stepper > span:last-child { display: flex; align-items: center; justify-content: center; min-height: 56px; color: var(--ink); }
+.stepper .sv { text-align: center; font: 400 calc(17px * var(--ts)) var(--sys); }
+.stepper .sv b { font: 500 calc(24px * var(--ts)) var(--mono); }
+.live { background: var(--raised); gap: 10px; }
+.warnbox { border: 1px solid var(--attention); color: var(--ink); border-radius: 14px; padding: 12px 14px; font: 400 calc(15px * var(--ts)) / 1.35 var(--sys); }
+.warnbox.risk { border-color: var(--risk); color: var(--risk); font-weight: 600; }
+.infobox { background: var(--well); border-radius: 14px; padding: 12px 14px; color: var(--ink2); font: 400 calc(15px * var(--ts)) / 1.35 var(--sys); }
+.pickbtn { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px; background: var(--raised); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); font: 400 calc(17px * var(--ts)) / 1 var(--sys); }
+.pickbtn b { margin-left: auto; }
+.swatches { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; justify-items: center; padding: 4px 8px; }
+.sw { width: 44px; height: 44px; border-radius: 22px; position: relative; }
+.sw.on { box-shadow: 0 0 0 3px var(--ground), 0 0 0 5.5px var(--ink); }
+.sw i, .usedmk { width: 10px; height: 10px; border-radius: 5px; background: var(--raised); box-shadow: 0 0 0 1.5px var(--ink); position: absolute; right: -1px; top: -1px; }
+.usedmk { position: static; display: inline-block; flex: none; }
+.prev { display: inline-flex; align-items: center; gap: 10px; background: var(--raised); border-radius: 22px; padding: 10px 16px; align-self: flex-start; }
+.hscroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 18px; }
+.hscroll::-webkit-scrollbar { display: none; }
+.hscroll .pill { flex: none; }
+.pills .pill { min-height: 36px; }
+.fold2 { background: var(--raised); border-radius: 18px; padding: 0 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.fold2 .fh { min-height: 54px; }
+.sugg { margin-top: -2px; }
+.sugg .li { min-height: 50px; }
+.wfoot { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding: 10px 16px 6px; border-top: 1px solid var(--line); flex: none; background: var(--ground); }
+.btn.blocked { background: var(--well); color: var(--risk); }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -336,7 +388,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Today</b> and the <b>My Protocols heroes</b> are approved. <b>Under review now: My Protocols part 1</b>, the list and the protocol screen. Tap anything: cards, Back, tabs, sort, Mark taken, Skip, the folds, the syringe, the note, Delete and Restore. Buttons for screens not drawn yet (Edit, + Add, the food log) say so.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the My Protocols heroes, and My Protocols part 1 (the list and the protocol screen). <b>Under review now: My Protocols part 2, adding and editing a protocol.</b> Every field works: type a name, pick a color, enter real numbers and watch the syringe move, schedule it, save it and find it in your list. Buttons for screens not drawn yet (the food log, the date and time pickers, Scan vial label) say so.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -349,30 +401,33 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       </div>
       <div class="jump">
         <h3>Jump to <span class="stat rev">under review</span></h3>
-        <button data-jump="1:list">Protocols list<small>Sort pills, By type sections, cards</small></button>
-        <button data-jump="1:list:bpc">BPC-157, reconstituted<small>Draw to 50 units, syringe (tap it), vial, notes, Delete</small></button>
-        <button data-jump="1:list:test">Testosterone Cypionate, ready to use (invented)<small>Box expiry, New vial with the suggested confirm</small></button>
-        <button data-jump="1:list:mag">Magnesium Bisglycinate, oral<small>Serving calculator: take 2 capsules, New bottle</small></button>
+        <button data-jump="1:list::add">Add a protocol<small>Try "reta" or "bpc", then 10 mg, 2 ml, 2 mg: draw to 40 units. Try 6 mg to see the over-capacity block.</small></button>
+        <button data-jump="1:list:bpc:edit">Edit BPC-157<small>4 steps, Save top-right on every step</small></button>
+        <button data-jump="1:list:tb:remind">+ Reminder on TB-500<small>Opens straight on the schedule step</small></button>
         <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
         <button data-jump="0">Today<small>Mark taken on BPC-157, Undo, folds, Remind me</small></button>
         <button data-jump="1">My Protocols heroes</button>
+        <button data-jump="1:list">Protocols list</button>
+        <button data-jump="1:list:bpc">BPC-157 protocol screen</button>
         <button data-jump="1:log">Dose log<small>main's screen in the new look; its own redesign later</small></button>
       </div>
       <div>
-        <h3>Open questions (My Protocols part 1)</h3>
+        <h3>Open questions (My Protocols part 2)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>A protocol gets its own screen</b> instead of opening in place in the list. Today cards land straight on it. The cost is one Back tap to return. OK?</li>
-          <li><b>Edit moves to the top-right</b> (the usual iPhone place). "+ Reminder" sits under the schedule. <b>Delete moves to the bottom</b> as red text. OK?</li>
-          <li><b>Suggestion: "Recently deleted" at the bottom of the list</b>, with Restore (delete a protocol to see it). Main sends people to Settings. The strings already exist. Here, or keep it in Settings?</li>
-          <li><b>"New vial" / "New bottle" reset the count with no confirmation</b> on main. Add the confirm you see here (new copy)?</li>
-          <li>Should the Today alerts "Supply low" and "Vial expiring soon" open the protocol they name (when it is one) instead of the list?</li>
+          <li><b>Same five steps as main</b> (type and name → color → dose details → schedule → vial mix date). <b>Cancel moves to the top-left</b>; <b>Back and Next sit together at the bottom</b>. On main, Back is top-left and Cancel bottom-left. OK?</li>
+          <li><b>The syringe is live on the dose step.</b> "Draw to" and the syringe update as you type. Main only shows one line of text there. Over-capacity turns the syringe red and blocks Next, as main's check does today. OK?</li>
+          <li><b>Suggestion: Cancel asks "Discard this protocol?"</b> once something is typed. Main closes without asking and loses what you entered. New copy, 6 languages.</li>
+          <li><b>A typed name counts.</b> Next on step 1 takes what you typed, even if you didn't tap a suggestion. With nothing typed it says "Missing name" right away (main only checks at Save). OK?</li>
+          <li><b>Wrong text on main:</b> skipping the vial date says "log your vial mix anytime from the Vials tab". There is no Vials tab. Proposed: "…from Today (+ Add vial)." Copy change, 6 languages.</li>
+          <li>The <b>30 wellness goals</b> stay as one long pill list, as on main. Keep it, or fold it behind "Wellness goal — optional ›"?</li>
         </ol>
       </div>
       <div id="cov" class="coverage"></div>
     </div>
   </section>
 
-  <section class="band"><h2>Where every item from main lives (My Protocols part 1)</h2><p>Numbered as in the inventory of main's ProtocolsScreen.js. The add/edit steps are part 2 and the popups part 3.</p><div class="tablewrap"><table class="t" id="fates"></table></div></section>
+  <section class="band"><h2>Where every item from main lives (My Protocols part 2: add / edit)</h2><p>Numbered as in the inventory of main (C = the add/edit steps). The pickers and every popup are part 3.</p><div class="tablewrap"><table class="t" id="fates2"></table></div></section>
+  <section class="band"><h2>Where every item from main lives (My Protocols part 1, approved)</h2><p>Numbered as in the inventory of main's ProtocolsScreen.js. The add/edit steps are part 2 and the popups part 3.</p><div class="tablewrap"><table class="t" id="fates"></table></div></section>
   <section class="band"><h2>Flows, tap by tap</h2><div class="tablewrap"><table class="t" id="flows"></table></div></section>
   <section class="band"><h2>Copy</h2><div class="tablewrap"><table class="t" id="copy"></table></div></section>
   <section class="band"><h2>Fixed on the way</h2><div class="rule" id="fixes"></div></section>
@@ -566,7 +621,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   // ready-to-use protocol.
   var P = {
     bpc: { name: 'BPC-157', color: '--p3', type: 'recon', amt: 1, unit: 'mg', water: 1, diluent: 'Bacteriostatic water', dose: 0.5, dunit: 'mg', syr: 100, freq: 'Daily', time: '7:20 PM', vial: [2, 2], mixed: 'Sep 27', days: 29, goals: [], streak: '1 day without a miss' },
-    tb: { name: 'TB-500', color: '--p2', type: 'recon', amt: 2, unit: 'mg', water: 2, diluent: 'Bacteriostatic water', dose: 0.5, dunit: 'mg', syr: 100, freq: 'Daily', time: '7:40 PM', vial: [4, 2], mixed: 'Sep 27', days: 29, goals: ['Recovery'], streak: '1 day without a miss' },
+    tb: { name: 'TB-500', color: '--p2', type: 'recon', amt: 2, unit: 'mg', water: 2, diluent: 'Bacteriostatic water', dose: 0.5, dunit: 'mg', syr: 100, freq: 'Daily', time: '7:40 PM', vial: [4, 2], mixed: 'Sep 27', days: 29, goals: ['Recovery Support'], streak: '1 day without a miss' },
     mag: { name: 'Magnesium Bisglycinate', color: '--p1', type: 'oral', strength: 200, dose: 400, dunit: 'mg', per: 1, form: 'Capsule', noun: 'capsules', container: 60, left: 50, freq: 'Daily', time: '7:40 PM', goals: ['Sleep Quality'], streak: '1 day without a miss' },
     vitc: { name: 'Vitmin C', color: '--p3', type: 'oral', strength: 500, dose: 500, dunit: 'mg', per: 1, form: 'Tablet', noun: 'tablets', freq: 'Daily', time: '12:25 PM', goals: [], streak: '1 day without a miss' },
     zinc: { name: 'Zinc', color: '--p3', type: 'oral', strength: 25, dose: 25, dunit: 'mg', per: 1, form: 'Capsule', noun: 'capsules', freq: 'Daily', time: '12:20 PM', goals: [], streak: '1 day without a miss' },
@@ -637,7 +692,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   /* ---------- My Protocols: heroes (approved), list, protocol (under review) ---------- */
   function dash() {
     var ids = active();
-    var h = '<div class="hrow"><h3 class="r-large">My Protocols</h3><span class="addbtn"' + A('say', '+ Add opens the add steps: part 2, not drawn yet.') + '>+ Add</span></div>';
+    var h = '<div class="hrow"><h3 class="r-large">My Protocols</h3><span class="addbtn"' + A('add') + '>+ Add</span></div>';
     h += '<div class="hero"' + A('go', 'list') + '><div class="ht">' + ic(I.capsule, 22) + '<span class="r-title grow">Protocols</span>' + CHEV + '</div>';
     h += '<div class="row" style="align-items: baseline; gap: 10px"><span class="r-display d56">' + ids.length + '</span><span class="r-body c2">' + nc('active') + '</span></div>';
     h += '<div class="names">' + ids.map(function (id) { return '<span class="row r-body" style="gap: 10px"><span class="dot" style="background: var(' + P[id].color + ')"></span>' + P[id].name + '</span>'; }).join('') + '</div>';
@@ -661,7 +716,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   }
   function list() {
     var ids = active(), h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'My Protocols</span></div>';
-    h += '<div class="hrow" style="padding-top: 0"><h3 class="r-large" data-i="A1a">Protocols</h3><span class="addbtn" data-i="A1b"' + A('say', '+ Add opens the add steps: part 2, not drawn yet.') + '>+ Add</span></div>';
+    h += '<div class="hrow" style="padding-top: 0"><h3 class="r-large" data-i="A1a">Protocols</h3><span class="addbtn" data-i="A1b"' + A('add') + '>+ Add</span></div>';
     h += '<div class="sortrow" data-i="A3"><span class="r-foot c2" data-i="A3a">Sort:</span>' + SORTS.map(function (s) { return '<span class="pill r-foot' + (st.sort === s[0] ? ' on' : '') + '"' + A('sort', s[0]) + '>' + s[1] + '</span>'; }).join('') + '</div>';
     if (st.sort === 'type') {
       [['recon', 'Lyophilized', 'A4a'], ['rtu', 'Ready-to-use', 'A4b'], ['oral', 'Oral', 'A4c']].forEach(function (g) {
@@ -677,7 +732,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   }
   function protocol(id) {
     var p = P[id], back = st.tab === 0 ? 'Today' : 'Protocols';
-    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + back + '</span><span class="txtbtn" data-i="A6p"' + A('say', 'Edit opens the add/edit steps with this protocol filled in: part 2.') + '>Edit</span></div>';
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + back + '</span><span class="txtbtn" data-i="A6p"' + A('edit', id) + '>Edit</span></div>';
     h += '<div class="ptitle"><span class="row" style="gap: 10px"><span class="dot" style="background: var(' + p.color + '); width: 12px; height: 12px"></span><span class="r-sec c2 tnum">' + sizeLabel(p) + '</span></span><h3 class="r-large">' + p.name + '</h3><div class="tags"><span class="otag">' + TYPE[p.type] + '</span>' + p.goals.map(function (g) { return '<span class="otag">' + g + '</span>'; }).join('') + '</div></div>';
     if (p.type !== 'oral') {
       var u = units(p);
@@ -696,7 +751,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       h += '<span class="r-foot c3" data-i="A8h">This is arithmetic from the values you entered — DoseTrace does not set, recommend, or verify any amount. You choose every number. Always follow your healthcare provider\'s instructions.</span></div>';
     }
     h += rowsBlock('Schedule & reminders', [['Frequency', p.freq, false, 'A6g'], ['Reminder', p.time, true, 'A6h']].concat(p.goals.length ? [['Goal', p.goals.join(', '), false, 'A6j']] : []));
-    h += '<span class="obtn2"' + A('say', '+ Reminder opens the schedule step: part 2.') + '>+ Reminder</span>';
+    h += '<span class="obtn2"' + A('remind', id) + '>+ Reminder</span>';
     if (p.type === 'recon') h += rowsBlock('Dose details', [['Compound amount', p.amt + ' ' + p.unit, true, 'A6a'], ['Diluent', p.diluent, false, 'A6c'], ['Diluent amount (ml)', p.water + ' ml', true, 'A6b'], ['Concentration', fx(p.amt / p.water) + ' ' + p.unit + '/ml', true, 'A6d'], ['Desired dose', p.dose + ' ' + p.dunit, true, 'A6e']]);
     if (p.type === 'rtu') h += rowsBlock('Dose details', [['Dose per injection', p.dose + ' ' + p.dunit, true, 'A6e'], ['Concentration', p.conc + ' ' + p.cunit, true, 'A6f'], ['Vial size (ml)', p.ml + ' ml', true]]);
     if (p.type === 'oral') h += rowsBlock('Dose details', [['Dose amount', p.dose + ' ' + p.dunit, true, 'A6e'], ['Form', p.form, false, 'A6k'], ['Strength per serving', p.strength + ' ' + p.dunit, true], ['Units per serving', p.per, true]].concat(p.container ? [['Units per container', p.container, true]] : []));
@@ -732,6 +787,216 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     return '';
   }
 
+
+  /* ================= My Protocols part 2: add / edit steps (under review) ================= */
+  var CMP = {
+    recon: ['BPC-157', 'TB-500', 'Retatrutide', 'Tirzepatide', 'Semaglutide', 'Cagrilintide', 'Ipamorelin', 'CJC-1295 with DAC', 'CJC-1295 without DAC', 'Tesamorelin', 'NAD+', 'GHK-Cu', 'KPV', 'MOTS-c', 'Pinealon', 'Glow', 'KLOW', 'Wolverine'],
+    rtu: ['Testosterone Cypionate', 'Testosterone Enanthate', 'Testosterone Suspension', 'Nandrolone Decanoate', 'Trenbolone Acetate', 'Semaglutide', 'Tirzepatide', 'Insulin Glargine'],
+    oral: ['Vitamin C', 'Vitamin D3', 'Vitamin K2', 'Zinc', 'Magnesium Bisglycinate', 'Magnesium Threonate', 'Omega-3', 'Creatine', 'Ashwagandha', 'Melatonin', 'NAC', 'CoQ10', 'Berberine']
+  };
+  var BLEND = { 'Glow': 'GHK-Cu / BPC-157 / TB-500', 'KLOW': 'KPV / GHK-Cu / BPC-157 / TB-500', 'Wolverine': 'BPC-157 / TB-500' };
+  var GOALS = {
+    inj: ['Anabolic Support', 'Antioxidant Support', 'Appetite Regulation', 'Athletic Performance', 'Body Composition', 'Circadian Support', 'Cognitive Support', 'Hormonal Wellness', 'Energy Metabolism', 'Metabolic Wellness', 'Gut Health', 'Hormone Balance', 'Recovery Support', 'Joint Support', 'Libido Support', 'Longevity Support', 'Metabolic Support', 'Cellular Energy', 'Mood Regulation', 'Muscle Recovery', 'Physical Endurance', 'Rest & Recovery', 'Sexual Wellness', 'Skin Vitality', 'Sleep Optimization', 'Strength Optimization', 'Stress Management', 'Tissue Recovery', 'Vitality', 'Weight Management'],
+    oral: ['Antioxidant Defense', 'ATP Production', 'Heart Wellness', 'Neurological Wellness', 'Cognitive Vitality', 'Electrolyte Balance', 'Digestive Wellness', 'Blood Sugar Wellness', 'Liver Wellness', 'Stress Adaptation', 'Immune Support', 'Joint Health', 'Mental Clarity', 'Cellular Optimization', 'Kidney Wellness', 'Sleep Quality', 'Stress Management']
+  };
+  // the app's 20 protocol colors, exactly as on main (ProtocolsScreen.js COLORS); a deliberately fixed palette
+  var PAL = [['#185FA5', 'Ocean'], ['#1D9E75', 'Forest'], ['#D85A30', 'Coral'], ['#7F77DD', 'Lavender'], ['#BA7517', 'Amber'], ['#D4537E', 'Rose'], ['#5DCAA5', 'Mint'], ['#378ADD', 'Sky'], ['#639922', 'Olive'], ['#888780', 'Stone'], ['#E24B4A', 'Red'], ['#2C2C2A', 'Charcoal'], ['#0E8C8C', 'Teal'], ['#6A3FB5', 'Grape'], ['#C13A9E', 'Magenta'], ['#8A5A2B', 'Bronze'], ['#4C6E8F', 'Slate'], ['#E0A500', 'Gold'], ['#17B0B8', 'Turquoise'], ['#A82E55', 'Wine']];
+  var USED = ['#185FA5', '#1D9E75', '#D85A30']; // Test03: Ocean, Forest, Coral
+  var FORMS = [['Capsule', 'capsules'], ['Tablet', 'tablets'], ['Powder', 'scoops'], ['Liquid', 'ml'], ['Gummy', 'gummies'], ['Softgel', 'softgels']];
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function newWiz() {
+    return { mode: 'new', step: 1, type: 'recon', name: '', q: '', color: '#185FA5', amt: '', unit: 'mg', dil: 'Bacteriostatic water', dilOther: '', water: '2', dose: '', dunit: 'mg', syr: 100, conc: '', cunit: 'mg/ml', ml: '', expM: '', expY: '', form: 'Capsule', div: '', strength: '', sunit: 'mg', per: '1', container: '', first: 'today', every: 'day', n: '14', perDay: 1, times: ['7:40 PM', '2:00 PM', '9:00 PM'], goals: [], notes: '', blend: '', mixM: 'Sep', mixD: '29', valid: '30', skip: false, iv: false, ivU: '' };
+  }
+  function wizFrom(id, step) {
+    var p = P[id], w = newWiz();
+    w.mode = 'edit'; w.id = id; w.step = step || 1; w.type = p.type; w.name = p.name; w.q = p.name; w.color = '#185FA5';
+    if (p.type === 'recon') { w.amt = String(p.amt); w.unit = p.unit; w.water = String(p.water); w.dose = String(p.dose); w.dunit = p.dunit; w.syr = p.syr; }
+    if (p.type === 'rtu') { w.dose = String(p.dose); w.conc = String(p.conc); w.ml = String(p.ml); w.expM = 'Mar'; w.expY = '2027'; }
+    if (p.type === 'oral') { w.dose = String(p.dose); w.strength = String(p.strength); w.per = String(p.per); w.container = p.container ? String(p.container) : ''; w.form = p.form; }
+    w.every = p.freq === 'Daily' ? 'day' : 'custom'; if (w.every === 'custom') w.n = p.freq.replace(/\D/g, '');
+    w.times = [p.time, '2:00 PM', '9:00 PM']; w.goals = p.goals.slice(); w.notes = st.note[id] || '';
+    return w;
+  }
+  function steps(w) { return w.mode === 'edit' ? 4 : (w.type === 'recon' ? 5 : 4); }
+  function num(v) { var n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : 0; }
+  function toMg(v, u) { return u === 'mcg' ? v / 1000 : v; }
+  // the same arithmetic as lib/doseMath computeDraw: dose ÷ concentration = ml; U-100, so ml × 100 = units
+  function drawOf(w) {
+    if (w.type === 'recon') {
+      var a = num(w.amt), wa = num(w.water), d = num(w.dose);
+      if (!a || !wa || !d) return null;
+      if ((w.unit === 'IU') !== (w.dunit === 'IU')) return { mismatch: true };
+      var ml = w.unit === 'IU' ? d / (a / wa) : toMg(d, w.dunit) / (toMg(a, w.unit) / wa);
+      return { ml: ml, u: Math.round(ml * 1000) / 10, cap: w.syr };
+    }
+    if (w.type === 'rtu') {
+      var c = num(w.conc), dd = num(w.dose);
+      if (!c || !dd) return null;
+      var cu = w.cunit.split('/')[0];
+      if ((cu === 'IU') !== (w.dunit === 'IU')) return { mismatch: true };
+      var ml2 = cu === 'IU' ? dd / c : toMg(dd, w.dunit) / toMg(c, cu);
+      return { ml: ml2, u: Math.round(ml2 * 1000) / 10, cap: 100 };
+    }
+    return null;
+  }
+  function serveOf(w) {
+    var d = num(w.dose), s = num(w.strength), per = num(w.per) || 1;
+    if (!d || !s) return null;
+    if (w.dunit !== w.sunit) return { mismatch: true };
+    var t = d / s * per, noun = (FORMS.filter(function (f) { return f[0] === w.form; })[0] || FORMS[0])[1];
+    var whole = Math.abs(t - Math.round(t)) < 1e-9, half = Math.abs(t * 2 - Math.round(t * 2)) < 1e-9;
+    if (whole) return { take: String(Math.round(t)), noun: noun };
+    if (half && w.div === 'yes') return { take: (Math.floor(t) ? Math.floor(t) : '') + '½', noun: noun };
+    return { warn: half ? 'Can\'t be split — each unit is ' + s + ' ' + w.sunit + ' (' + (s / d).toFixed(2).replace(/\.?0+$/, '') + '× your dose).' : 'Not an exact half — nearest options below.', nearest: Math.floor(t) + ' ' + noun + ' = ' + (Math.floor(t) * s / per) + ' ' + w.sunit + ' · ' + Math.ceil(t) + ' ' + noun + ' = ' + (Math.ceil(t) * s / per) + ' ' + w.sunit };
+  }
+  function syrOver(cap) { return syr(cap, cap).replace(/fill="var\(--data\)"/, 'fill="var(--risk)"'); }
+  function liveHero(w) {
+    if (w.type === 'oral') {
+      var sv = serveOf(w);
+      if (!sv) return '<span class="r-sec c3">Fill in the dose and the strength per serving to see how much to take.</span>';
+      if (sv.mismatch) return '<div class="warnbox">The dose unit and the serving unit don\'t match.</div>';
+      if (sv.warn) return '<div class="warnbox">' + sv.warn + '</div><span class="r-foot c2 tnum">' + sv.nearest + '</span>';
+      return '<span class="r-sec c2">Based on the numbers you entered:</span><span class="r-display d56 cd">' + sv.take + '<span class="unit">' + sv.noun + '</span></span>';
+    }
+    var dr = drawOf(w);
+    if (!dr) return '<span class="r-sec c3">' + (w.type === 'rtu' ? 'Add concentration to your protocol to see the syringe guide.' : 'Complete your dose details to see the syringe guide.') + '</span>';
+    if (dr.mismatch) return '<div class="warnbox">Cannot mix IU with mg/mcg. Use the same unit type for compound and dose.</div>';
+    var over = dr.u > dr.cap;
+    var h = '<div class="drawh"><span class="r-sec c2">Draw to</span><span class="r-display d56 ' + (over ? 'crisk' : 'cd') + '">' + fx(dr.u) + '<span class="unit">units</span></span></div>' + (over ? syrOver(dr.cap) : syr(dr.cap, dr.u)) + '<span class="r-foot c2 tnum">' + fx(dr.ml) + ' ml</span>';
+    if (over) h += '<div class="warnbox risk">This dose needs ' + fx(dr.u) + 'u, more than your ' + dr.cap + 'u syringe holds. Something may be off — re-check the compound amount, water/diluent volume, dose, or syringe size.</div>';
+    return h;
+  }
+  function blocked(w) {
+    if (w.type === 'oral') return null;
+    var dr = drawOf(w);
+    if (dr && dr.mismatch) return 'Cannot mix IU with mg/mcg. Use the same unit type for compound and dose.';
+    if (dr && w.type === 'recon' && dr.u > dr.cap) return 'This dose needs ' + fx(dr.u) + 'u, more than your ' + dr.cap + 'u syringe holds. Something may be off — re-check the compound amount, water/diluent volume, dose, or syringe size.';
+    return null;
+  }
+  function seg(field, opts, curv) { return '<span class="segw">' + opts.map(function (o) { var v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return '<span class="' + (String(curv) === String(v) ? 'on' : '') + '"' + A('wset', field + '=' + v) + '>' + l + '</span>'; }).join('') + '</span>'; }
+  function pills(field, opts, curv, toggle) { return '<div class="pills">' + opts.map(function (o) { return '<span class="pill r-foot' + (curv === o ? ' on' : '') + '"' + A(toggle ? 'wtog' : 'wset', field + '=' + o) + '>' + o + '</span>'; }).join('') + '</div>'; }
+  function inp(field, ph, w, mode) { return '<input class="winp" data-f="' + field + '" inputmode="' + (mode || 'decimal') + '" placeholder="' + ph + '" value="' + (w[field] || '').replace(/"/g, '&quot;') + '">'; }
+  function fld(label, inner, hint) { return '<div class="fld"><span class="r-head">' + label + '</span>' + inner + (hint ? '<span class="r-foot c2">' + hint + '</span>' : '') + '</div>'; }
+  function suggestions(w) {
+    var q = w.q.trim().toLowerCase();
+    if (q.length < 2) return '';
+    var all = CMP[w.type].filter(function (n) { return n.toLowerCase().indexOf(q) >= 0; }), show = all.slice(0, 8);
+    var h = '<div class="list sugg">' + show.map(function (n) { return '<div class="li"' + A('wpick', n) + '><div class="grow col" style="gap: 1px"><span class="r-body">' + n + '</span>' + (BLEND[n] ? '<span class="r-foot c2">' + BLEND[n] + ' · commonly; varies by source</span>' : '') + '</div>' + (w.name === n ? ic(I.check, 18, 'color: var(--ink)') : '') + '</div>'; }).join('');
+    if (all.length > 8) h += '<div class="li"><span class="r-foot c2">+' + (all.length - 8) + ' more — keep typing to narrow down</span></div>';
+    var exact = CMP[w.type].some(function (n) { return n.toLowerCase() === q; });
+    if (!exact) h += '<div class="li"' + A('wpick', '+' + w.q.trim()) + '><span class="r-head">Add "' + w.q.trim() + '"</span></div>';
+    return h + '</div>';
+  }
+  function wizStep(w) {
+    var h = '';
+    if (w.step === 1) {
+      h += '<div class="wt"><span class="r-title">' + (w.mode === 'edit' ? 'Edit compound' : 'Name your compound') + '</span><span class="r-sec c2">Select a type then search for your compound.</span></div>';
+      h += fld('Type', '<div class="tiles">' + [['recon', 'Lyophilized', 'To be diluted', '<path d="M9 3h6M10 3v4l-4 6v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6l-4-6V3"/><path d="M6 14h12"/>'], ['rtu', 'Ready to use', 'Pre-mixed', I.syringe], ['oral', 'Oral', 'Supplement', I.capsule]].map(function (t) { return '<span class="tile2' + (w.type === t[0] ? ' on' : '') + '"' + A('wtype', t[0]) + '>' + ic(t[3], 26, 'color: currentColor') + '<span class="r-head">' + t[1] + '</span><span class="r-foot c2">' + t[2] + '</span></span>'; }).join('') + '</div>');
+      var inner = '<input class="winp" id="wq" data-f="q" inputmode="text" autocomplete="off" placeholder="Type a compound" value="' + w.q.replace(/"/g, '&quot;') + '"><div id="sugg">' + suggestions(w) + '</div>';
+      if (BLEND[w.name]) inner = '<span class="r-foot c2">Each component shows on the serum curve, split by the common ratio.</span>' + inner;
+      if (/insulin/i.test(w.name)) inner = '<span class="r-foot c2">Logged for your records — accumulation isn\'t modeled for insulin.</span>' + inner;
+      h += fld('Compound name', inner);
+      if (w.name && CMP[w.type].indexOf(w.name) < 0) h += '<span class="r-foot" style="color: var(--attention)">Saved as your own label — not from the list.</span>';
+      h += '<span class="r-foot c3">Suggestions help with spelling only. DoseTrace makes no recommendations — you choose what to enter.</span>';
+    }
+    if (w.step === 2) {
+      var cn = PAL.filter(function (c) { return c[0] === w.color; })[0];
+      h += '<div class="wt"><span class="r-title">Pick a color</span><span class="r-sec c2">Identifies this compound across the app.</span></div>';
+      h += '<span class="prev"><span class="dot" style="width: 12px; height: 12px; background: ' + w.color + '"></span><span class="r-head">' + (w.name || 'Your compound') + '</span><span class="r-foot c2">' + (cn ? cn[1] : '') + '</span></span>';
+      h += '<div class="swatches">' + PAL.map(function (c) { return '<span class="sw' + (w.color === c[0] ? ' on' : '') + '" style="background: ' + c[0] + '"' + A('wset', 'color=' + c[0]) + ' aria-label="' + c[1] + '">' + (USED.indexOf(c[0]) >= 0 ? '<i></i>' : '') + '</span>'; }).join('') + '</div>';
+      h += '<span class="r-foot c2 row" style="gap: 8px"><span class="usedmk"></span>marks a color already used by another protocol.</span>';
+      if (USED.indexOf(w.color) >= 0) h += '<div class="warnbox">This color is already used by another protocol. That\'s fine if you\'re grouping them on purpose.</div>';
+      h += '<span class="r-foot c2">Tip: pick one color for everything, or group by goal or type (e.g. one color for all weight-management protocols). The color only helps you tell protocols apart.</span>';
+    }
+    if (w.step === 3) {
+      h += '<div class="wt"><span class="r-title">Dose details</span><span class="r-sec c2">How do you prepare and measure each dose?</span></div>';
+      if (w.type !== 'oral') h += '<span class="obtn2"' + A('say', 'Scan vial label: the AI consent and photo choice come in part 3 (popups).') + '>' + ic('<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/>', 20, 'color: currentColor') + 'Scan vial label</span>';
+      h += '<div class="hobj live" id="live">' + liveHero(w) + '</div>';
+      if (w.type === 'recon') {
+        h += fld('Compound amount', '<div class="inrow">' + inp('amt', 'e.g. 5', w) + seg('unit', ['mg', 'mcg', 'IU'], w.unit) + '</div>');
+        h += fld('Diluent', pills('dil', ['Bacteriostatic water', 'Sterile water', 'Sodium chloride 0.9%', 'Other'], w.dil, true) + (w.dil === 'Other' ? '<input class="winp" data-f="dilOther" inputmode="text" placeholder="Enter diluent…" value="' + w.dilOther + '">' : ''));
+        h += fld('Diluent amount (ml)', '<div class="stepper"><span' + A('wstep', '-0.5') + '>' + ic('<path d="M6 12h12"/>', 20, 'color: currentColor') + '</span><span class="sv tnum"><b>' + fx(num(w.water)) + '</b> ml</span><span' + A('wstep', '0.5') + '>' + ic('<path d="M12 6v12M6 12h12"/>', 20, 'color: currentColor') + '</span></div>', 'Steps of 0.5 ml');
+        h += fld('Desired dose', '<div class="inrow">' + inp('dose', 'e.g. 0.5', w) + seg('dunit', ['mg', 'mcg', 'IU'], w.dunit) + '</div>');
+        if (w.unit !== 'IU' && num(w.amt) && num(w.water)) {
+          h += '<div class="fold2"><div class="fh"' + A('wset', 'iv=' + (!w.iv)) + '><span class="r-head grow">Know your dose in syringe units?</span><span style="color: var(--ink3)">' + (w.iv ? UP : DOWN) + '</span></div>';
+          if (w.iv) { var mcg = num(w.ivU) / 100 * (toMg(num(w.amt), w.unit) / num(w.water)) * 1000; h += '<span class="r-foot c2">Enter the units you draw on the syringe to see it in mcg / mg.</span><div class="inrow">' + inp('ivU', 'e.g. 10', w) + '<span class="r-body c2">u</span></div>' + (num(w.ivU) ? '<div class="inrow"><span class="r-body tnum grow">' + w.ivU + ' u = ' + fx(mcg) + ' mcg (' + fx(mcg / 1000) + ' mg)</span><span class="pill r-foot"' + A('wuse', fx(mcg / 1000)) + '>Use as dose</span></div>' : ''); }
+          h += '</div>';
+        }
+        h += fld('Syringe size', seg('syr', [[100, '1 ml · 100u'], [50, '0.5 ml · 50u'], [30, '0.3 ml · 30u']], w.syr));
+      }
+      if (w.type === 'rtu') {
+        h += fld('Dose per injection', '<div class="inrow">' + inp('dose', 'e.g. 100', w) + seg('dunit', ['mg', 'mcg', 'IU'], w.dunit) + '</div>');
+        h += fld('Concentration — optional', '<div class="inrow">' + inp('conc', 'e.g. 200', w) + seg('cunit', ['mg/ml', 'mcg/ml', 'IU/ml'], w.cunit) + '</div>');
+        h += fld('Vial size (ml)', inp('ml', 'e.g. 10', w), 'Total volume in the vial, to track injections left');
+        h += fld('Expiration date — optional', '<div class="hscroll">' + MONTHS.map(function (m) { return '<span class="pill r-foot' + (w.expM === m ? ' on' : '') + '"' + A('wtog', 'expM=' + m) + '>' + m + '</span>'; }).join('') + '</div><div class="hscroll">' + ['2026', '2027', '2028', '2029', '2030', '2031'].map(function (y) { return '<span class="pill r-foot' + (w.expY === y ? ' on' : '') + '"' + A('wtog', 'expY=' + y) + '>' + y + '</span>'; }).join('') + '</div>', 'From the box: month and year');
+      }
+      if (w.type === 'oral') {
+        h += fld('Dose amount', '<div class="inrow">' + inp('dose', 'e.g. 500', w) + seg('dunit', ['mg', 'mcg', 'IU', 'g'], w.dunit) + '</div>');
+        h += fld('Form', pills('form', FORMS.map(function (f) { return f[0]; }), w.form, true));
+        if (['Capsule', 'Tablet', 'Softgel', 'Gummy'].indexOf(w.form) >= 0) h += fld('Can it be divided?', seg('div', [['yes', 'Yes'], ['no', 'No']], w.div));
+        h += fld('Strength per serving', '<div class="inrow">' + inp('strength', 'e.g. 1600', w) + seg('sunit', ['mg', 'mcg', 'IU', 'g'], w.sunit) + '</div>', 'How much active compound is in one serving');
+        h += fld('Units per serving', inp('per', '1', w), 'How many capsules, scoops, ml, etc. make one serving');
+        h += fld('Units per container — optional', inp('container', 'e.g. 60', w), 'Total in the bottle, for supply tracking');
+      }
+      h += '<span class="r-foot c3">This is arithmetic from the values you entered — DoseTrace does not set, recommend, or verify any amount. You choose every number. Always follow your healthcare provider\'s instructions.</span>';
+    }
+    if (w.step === 4) {
+      h += '<div class="wt"><span class="r-title">Schedule & reminders</span><span class="r-sec c2">How often do you take this compound?</span></div>';
+      h += fld('When is your first dose?', seg('first', [['today', 'Today'], ['tomorrow', 'Tomorrow']], w.first));
+      if (w.first === 'today' && w.perDay > 1) h += '<div class="infobox">Starting today: only dose times from now on count today. Earlier times begin tomorrow.</div>';
+      h += fld('When did you start (or will start)?', '<span class="pickbtn"' + A('say', 'Opens the iPhone date picker. Any past or future date; a past date asks to log the doses since then (part 3).') + '>' + ic('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 18, 'color: currentColor') + 'Tue, Sep 29, 2026</span>');
+      h += fld('How often?', seg('every', [['day', 'Every day'], ['custom', 'Custom']], w.every) + (w.every === 'custom' ? '<div class="inrow"><span class="r-body">Every</span><span style="width: 96px; flex: none">' + inp('n', '14', w, 'numeric') + '</span><span class="r-body">days</span></div>' : ''));
+      var n = w.every === 'custom' ? num(w.n) : 1;
+      if (n <= 2) h += fld('How many doses per day?', seg('perDay', [[1, 'Once'], [2, 'Twice'], [3, '3 times']], w.perDay));
+      var pd = n <= 2 ? w.perDay : 1;
+      h += fld('What time?', '<div class="col" style="gap: 8px">' + w.times.slice(0, pd).map(function (t, i) { return '<span class="pickbtn"' + A('say', 'Opens the iPhone time picker.') + '>' + ic(I.clock, 18, 'color: currentColor') + (pd > 1 ? '<span class="c2">Dose ' + (i + 1) + '</span>' : '') + '<b style="font-weight: 600">' + t + '</b></span>'; }).join('') + '</div>');
+      var gl = w.type === 'oral' ? GOALS.oral : GOALS.inj;
+      h += fld('Wellness goal — optional', '<div class="pills">' + gl.map(function (g) { return '<span class="pill r-foot' + (w.goals.indexOf(g) >= 0 ? ' on' : '') + '"' + A('wgoal', g) + '>' + g + '</span>'; }).join('') + '</div>');
+      if (BLEND[w.name]) h += fld('What\'s in the vial — optional', inp('blend', 'e.g. 50 GHK / 10 KPV / 10 TB / 10 BPC', w, 'text'), 'A note of your vial\'s mix. Recipes vary by source — this doesn\'t change the serum curve.');
+      h += fld('Notes — optional', '<textarea class="winp" data-f="notes" rows="3" placeholder="' + (w.type === 'oral' ? 'e.g. take with food' : 'e.g. Rotate injection sites') + '">' + w.notes + '</textarea>');
+    }
+    if (w.step === 5) {
+      h += '<div class="wt"><span class="r-title">Vial mix date</span><span class="r-sec c2">When did you mix this vial? This starts the 30-day expiry clock.</span></div>';
+      if (!w.skip) {
+        h += fld('Date mixed', '<div class="hscroll">' + MONTHS.map(function (m) { return '<span class="pill r-foot' + (w.mixM === m ? ' on' : '') + '"' + A('wset', 'mixM=' + m) + '>' + m + '</span>'; }).join('') + '</div><div class="inrow"><span class="r-body c2">Day</span>' + inp('mixD', 'DD', w, 'numeric') + '</div>');
+        h += fld('Days the vial stays good', inp('valid', '30', w, 'numeric'), 'A general reference (~30 days). Adjust it to match your storage — this is your own tracking, not medical advice.');
+        h += '<div class="infobox">Bacteriostatic water keeps reconstituted peptides stable for ~30 days refrigerated.</div>';
+        h += '<span class="btnlink r-body"' + A('wset', 'skip=true') + '>I haven\'t mixed this vial yet — skip</span>';
+      } else {
+        h += '<div class="infobox">No problem — you can log your vial mix anytime from Today (+ Add vial).</div><span class="btnlink r-body"' + A('wset', 'skip=false') + '>I have mixed it — add date</span>';
+      }
+      var dr = drawOf(w);
+      h += '<div class="blk"><span class="secth">Protocol summary</span><div class="rows">' + [['Compound', w.name || '—'], ['Amount', w.amt ? w.amt + ' ' + w.unit : '—'], ['Water', fx(num(w.water)) + ' ml'], ['Dose', w.dose ? w.dose + ' ' + w.dunit : '—']].concat(dr && !dr.mismatch ? [['Draw', fx(dr.u) + ' units']] : []).concat([['Frequency', w.every === 'day' ? 'Daily' : 'Every ' + w.n + ' days']]).map(function (r) { return '<div class="rw"><span class="r-body k">' + r[0] + '</span><span class="r-body val">' + r[1] + '</span></div>'; }).join('') + '</div></div>';
+    }
+    return h;
+  }
+  function wizard() {
+    var w = st.wiz, n = steps(w), last = w.step === n, blk = w.step === 3 && blocked(w);
+    var h = '<div class="wnav"><span class="txtbtn" style="font-weight: 400"' + A('wcancel') + '>Cancel</span><span class="r-head">' + (w.mode === 'edit' ? 'Edit protocol' : 'New protocol') + '</span>' + (w.mode === 'edit' ? '<span class="txtbtn"' + A('wsave') + '>Save</span>' : '<span style="width: 56px"></span>') + '</div>';
+    h += '<div class="prog">' + Array.apply(null, Array(n)).map(function (x, i) { return '<i class="' + (i < w.step ? 'on' : '') + '"></i>'; }).join('') + '</div>';
+    h += '<div class="scroller" id="scroller"><div class="scr pscr wiz">' + wizStep(w) + '</div></div>';
+    h += '<div class="wfoot">' + (w.step > 1 ? '<span class="btn o"' + A('wback') + '>Back</span>' : '<span></span>') + (last ? '<span class="btn p"' + A('wsave') + '>Save</span>' : '<span class="btn p' + (blk ? ' blocked' : '') + '"' + A('wnext') + '>Next</span>') + '</div>';
+    return h;
+  }
+  function wizSave() {
+    var w = st.wiz;
+    if (!w.name) { st.overlay = { t: 'confirm', title: 'Missing name', body: 'Please enter a compound name.', ok: 'close', okText: 'OK' }; return; }
+    var b = blocked(w); if (b) { st.overlay = { t: 'confirm', title: 'Let\'s double-check', body: b, ok: 'close', okText: 'OK' }; return; }
+    var id = w.mode === 'edit' ? w.id : 'new' + Date.now(), dr = drawOf(w), freq = w.every === 'day' ? 'Daily' : 'Every ' + (num(w.n) || 14) + ' days';
+    var p = { name: w.name, color: w.mode === 'edit' ? P[id].color : '--p' + (1 + (Object.keys(P).length % 4)), type: w.type, freq: freq, time: w.times[0], goals: w.goals.slice(), streak: 'Start today' };
+    if (w.type === 'recon') { Object.assign(p, { amt: num(w.amt), unit: w.unit, water: num(w.water), diluent: w.dil === 'Other' ? w.dilOther : (w.dil || 'Bacteriostatic water'), dose: num(w.dose), dunit: w.dunit, syr: w.syr }); var per = dr && !dr.mismatch ? Math.floor(num(w.water) / dr.ml) : 0; if (!w.skip && per) { p.vial = [per, per]; p.mixed = w.mixM + ' ' + (num(w.mixD) || 29); p.days = num(w.valid) || 30; } }
+    if (w.type === 'rtu') { Object.assign(p, { conc: num(w.conc), cunit: w.cunit, dose: num(w.dose), dunit: w.dunit, syr: 100, ml: num(w.ml) }); var pv = dr && !dr.mismatch && num(w.ml) ? Math.floor(num(w.ml) / dr.ml) : 0; if (pv) { p.vial = [pv, pv]; p.expiry = w.expM && w.expY ? w.expM + ' ' + w.expY : '—'; p.days = 180; } }
+    if (w.type === 'oral') Object.assign(p, { strength: num(w.strength), dose: num(w.dose), dunit: w.dunit, per: num(w.per) || 1, form: w.form, noun: (FORMS.filter(function (f) { return f[0] === w.form; })[0] || FORMS[0])[1], container: num(w.container) || null, left: num(w.container) || null });
+    if (w.mode === 'edit') p.color = P[id].color;
+    P[id] = p;
+    if (w.mode === 'new') { ORDER.due.push(id); ORDER.az.push(id); ORDER.az.sort(function (a, b) { return P[a].name.localeCompare(P[b].name); }); ORDER.vial.push(id); ORDER.added.unshift(id); }
+    if (w.notes) st.note[id] = w.notes;
+    st.wiz = null;
+    if (w.mode === 'new') { st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }, { s: 'proto', id: id }]; st.scroll = {}; toast('Protocol saved'); }
+    else toast('Changes saved');
+  }
+
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
   function render() {
@@ -747,6 +1012,22 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     var times = ['8:10', '8:11', '8:12'];
     phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
     phone.style.setProperty('--ts', st.ts);
+    if (st.wiz) {
+      phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
+      phone.style.setProperty('--ts', st.ts);
+      phone.innerHTML = sbar('8:10') + wizard() + (st.toast ? '<div class="toast" style="bottom: 100px"><span class="r-body grow">' + st.toast.text + '</span></div>' : '') + overlay() + '<div class="home"></div>';
+      var sw = document.getElementById('scroller'); sw.scrollTop = st.scroll['wiz' + st.wiz.step] || 0;
+      sw.addEventListener('scroll', function () { st.scroll['wiz' + st.wiz.step] = sw.scrollTop; });
+      phone.addEventListener('input', function (e) {
+    var t = e.target, f = t.getAttribute && t.getAttribute('data-f'); if (!f || !st.wiz) return;
+    st.wiz[f] = t.value;
+    if (f === 'q') { st.wiz.name = ''; var sg = document.getElementById('sugg'); if (sg) sg.innerHTML = suggestions(st.wiz); }
+    var lv = document.getElementById('live'); if (lv) lv.innerHTML = liveHero(st.wiz);
+    var nx = phone.querySelector('[data-a="wnext"]'); if (nx) nx.classList.toggle('blocked', st.wiz.step === 3 && !!blocked(st.wiz));
+  });
+  document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
+      return;
+    }
     phone.innerHTML = sbar(Object.keys(st.taken).length > 4 ? '8:11' : '8:10') + '<div class="scroller" id="scroller"><div class="scr' + (c.s === 'today' ? '' : ' pscr') + '">' + body + '</div></div>' + (st.toast ? '<div class="toast" data-i="40"><span class="r-body grow">' + st.toast.text + '</span>' + (st.toast.undo ? '<span class="r-body tl"' + A('undo', st.toast.undo) + '>Undo</span>' : '') + '</div>' : '') + overlay() + tabs(st.tab).replace(/<a class="r-tab([^"]*)" href="#todayLight"/g, function (m, cls) { return '<a class="r-tab' + cls + '" href="#phone"'; }).replace(/<a class="r-tab/g, (function () { var i = 0; return function (m) { return '<a' + A('tab', i++) + ' class="r-tab'; }; })()) + '<div class="home"></div>';
     var sc = document.getElementById('scroller'); sc.scrollTop = st.scroll[key()] || 0;
     sc.addEventListener('scroll', function () { st.scroll[key()] = sc.scrollTop; });
@@ -785,6 +1066,20 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
     else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
     else if (a === 'say') toast(v);
+    else if (a === 'add') { st.wiz = newWiz(); st.overlay = null; }
+    else if (a === 'edit') st.wiz = wizFrom(v, 1);
+    else if (a === 'remind') st.wiz = wizFrom(v, 4);
+    else if (a === 'wtype') { if (st.wiz.type !== v) { st.wiz.type = v; st.wiz.name = ''; st.wiz.q = ''; st.wiz.goals = []; } }
+    else if (a === 'wset' || a === 'wtog') { var kv2 = v.split('='), f2 = kv2[0], v2 = kv2.slice(1).join('='); if (f2 === 'syr' || f2 === 'perDay') v2 = +v2; if (v2 === 'true') v2 = true; if (v2 === 'false') v2 = false; st.wiz[f2] = (a === 'wtog' && st.wiz[f2] === v2) ? '' : v2; }
+    else if (a === 'wgoal') { var gi = st.wiz.goals.indexOf(v); if (gi >= 0) st.wiz.goals.splice(gi, 1); else st.wiz.goals.push(v); }
+    else if (a === 'wpick') { var nm = v.charAt(0) === '+' ? v.slice(1) : v; st.wiz.name = nm; st.wiz.q = nm; }
+    else if (a === 'wstep') st.wiz.water = String(Math.max(0.5, Math.round((num(st.wiz.water) + (+v)) * 2) / 2));
+    else if (a === 'wuse') st.wiz.dose = v;
+    else if (a === 'wback') { st.wiz.step--; }
+    else if (a === 'wnext') { var ww = st.wiz; if (ww.step === 1 && !ww.name) { if (ww.q.trim()) { ww.name = ww.q.trim(); ww.step++; } else st.overlay = { t: 'confirm', title: 'Missing name', body: 'Please enter a compound name.', ok: 'close', okText: 'OK' }; } else if (ww.step === 3 && blocked(ww)) st.overlay = { t: 'confirm', title: 'Let\'s double-check', body: blocked(ww), ok: 'close', okText: 'OK' }; else ww.step++; }
+    else if (a === 'wsave') { st.overlay = null; wizSave(); }
+    else if (a === 'wcancel') { var wc = st.wiz; if (wc.mode === 'new' && (wc.q || wc.amt || wc.dose)) st.overlay = { t: 'confirm', title: 'Discard this protocol?', body: 'What you entered will be lost.', ok: 'wdiscard', okText: 'Discard', danger: true, note: 'Suggestion (question 3): main closes with no warning. New copy.' }; else st.wiz = null; }
+    else if (a === 'wdiscard') { st.wiz = null; st.overlay = null; }
     render();
   });
   document.querySelectorAll('[data-ctl]').forEach(function (b) {
@@ -802,6 +1097,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       st.stacks[st.tab] = st.tab === 0 ? [{ s: 'today' }] : [{ s: 'dash' }];
       if (j[1]) st.stacks[st.tab].push({ s: j[1] });
       if (j[2]) st.stacks[st.tab].push({ s: 'proto', id: j[2] });
+      st.wiz = j[3] === 'add' ? newWiz() : j[3] === 'edit' ? wizFrom(j[2], 1) : j[3] === 'remind' ? wizFrom(j[2], 4) : null;
       render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
@@ -854,6 +1150,23 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
     ['N11', 'Confirm before New vial / New bottle', 'overlay', '<span class="nc">suggestion</span> (question 4), new copy']
   ];
   table('fates', ['#', 'Item on main', 'Where it lives now', 'Change'], FATES);
+  table('fates2', ['#', 'Item on main', 'In the proposal', 'Change'], [
+    ['C0a', 'Nav: ← Back (steps 2+), title New / Edit protocol', 'Cancel top-left, title centre, Save top-right in edit', 'Back moves to the footer'],
+    ['C0b', 'Progress bar, one segment per step', 'same', 'ink segments'],
+    ['C0c', 'Footer: Cancel, Next → (red when blocked), Save / Saving…', 'Back + Next (or Save on the last step)', 'Cancel to the top; Next shows red text when blocked, as main'],
+    ['C0d', 'Android back steps back', 'same', ''],
+    ['C1a–i', 'Step 1: title, subtitle, Type tiles (icon, label, sub-label), name search, blend and insulin notes, suggestions (8, +N more, Add "…"), spelling hint, own-label warning', 'same step', 'selected tile outlined in ink; typed name accepted (question 4)'],
+    ['C2a–g', 'Step 2: title, subtitle, preview pill with color name, 20 swatches, used-color marker and legend, used-color warning, tip', 'same step', 'main\'s exact 20 colors; the ● in the legend becomes the same marker as on the swatches'],
+    ['C3b–c', 'Scan vial label + "filled from your label" warning', 'same place', 'popups in part 3'],
+    ['C3 recon', 'Compound amount + units, diluent pills + Other, diluent stepper (hint), desired dose + units, IU converter + Use as dose, syringe size, mismatch box, draw result text, over-capacity warning', 'same fields', '<b>live syringe hero</b> at the top of the step (question 2); the IU converter folds'],
+    ['C3 rtu', 'Dose per injection, concentration (optional), mismatch, vial size, expiry month + year pills', 'same fields', 'live syringe once the concentration is filled'],
+    ['C3 oral', 'Dose amount, form, divisible Yes/No, strength per serving, units per serving, units per container', 'same fields', 'live "take 2 capsules" hero, same half/split messages'],
+    ['C4a–k', 'Step 4: first dose Today/Tomorrow + info, start date, how often (Every day / Custom, every N days), doses per day, times, wellness goals, blend mix, notes', 'same step', 'segmented controls; pickers in part 3; goals question 6'],
+    ['C5a–g', 'Step 5 (new lyophilized): date mixed (month + day), days it stays good, info, skip link / skipped box, summary card', 'same step', 'summary in sentence case; the skipped text fixed (question 5)'],
+    ['C6', 'Save: missing name, check values, limit, errors, backfill', 'same rules', 'the popups themselves are part 3'],
+    ['B3', 'Edit and + Reminder reuse the steps (4 steps, Save everywhere, + Reminder opens step 4)', 'same', ''],
+    ['N12', 'Discard confirm on Cancel', 'overlay', '<span class="nc">suggestion</span>, new copy (question 3)']
+  ]);
   table('flows', ['Task', 'Main', 'Proposal'], [
     ['From a Today card, see how much to draw', 'tap → My Protocols tab, card expanded, scroll to the calculator', 'tap → "Draw to 50 units" is the first thing'],
     ['Open a protocol from the tab', 'tab + card: 2 taps', 'tab + Protocols hero + card: 3 taps <b>(one longer, from the approved heroes)</b>'],

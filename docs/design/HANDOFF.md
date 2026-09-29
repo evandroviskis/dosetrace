@@ -123,6 +123,8 @@ needs redesign and approval. You commit, build into the simulator and I see the 
   screen"): `prototype.html`, published https://claude.ai/artifact/UgjFfJ7S5JBxZZ93REWhNJ. One
   phone that grows screen by screen; approved screens stay in it; the screen under review is
   marked. Republish the same file for every new screen.
+- **My Protocols part 1 APPROVED** (list + protocol screen). **Part 2 (add/edit steps) under
+  review** in the prototype. Part 3 = every popup and picker.
 - **Next screen: My Protocols** (list, protocol detail, add/edit form, its popups). Design it,
   stop, get approval. Builds follow in approval order.
 
