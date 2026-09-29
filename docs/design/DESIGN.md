@@ -38,6 +38,15 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Settings part 1 (the screen) APPROVED (2026-09-29, founder: "Approved")**: profile card, upgrade
+  card for free users, then groups as cards (closed until opened, remembered) in this order:
+  **Preferences** (renamed from "Account & preferences"; Appearance, Time format, Language),
+  Notifications, Data & privacy, Support. Each card shows a one-line summary naming 2–3 items inside
+  (founder: "describe 2 or 3 hidden items"): "Appearance, time format, language" / "Reminders,
+  alerts, silent mode" / "Legal, analytics, your data" / "FAQ, contact, rate" (new copy, 6
+  languages); a large dark arrow in a round button. Sign out + Delete account sit alone at the very
+  bottom. Recently deleted protocols leave Settings (they live at the bottom of the Protocols list).
+  Sentence-case group names; the Food-log reminder is one switch shared with Progress.
 - **My Body part 3 (popups) APPROVED (2026-09-29, founder: "Approved") → My Body fully approved.**
   Recommended answers: popups keep main's words as DoseTrace sheets; the Premium card becomes
   "First upload free · Unlimited with Premium" (new copy; there is no pay-per-upload); "or enter

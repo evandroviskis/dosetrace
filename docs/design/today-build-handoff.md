@@ -103,3 +103,8 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
     add/edit steps shows a number every 10 units, starting at 0 (0, 10, 20 … 100 on a 100-unit
     syringe; 0 … 50 and 0 … 30 on the smaller ones). Minor ticks every 2 units, longer every 10,
     unchanged. The enlarged syringe already numbers every 10.
+22. Ring math (founder question 2026-09-29, "150%"): each ring is scheduled doses taken ÷ doses
+    scheduled in that window (today / last 7 days / last 30 days, counted from the protocol start
+    if newer). A dose counts once, against its own schedule: an extra or duplicate "taken" never
+    adds, so a ring can never show more than 100% and "{n} of {m}" never has n > m. Add a unit
+    test with an extra dose logged.

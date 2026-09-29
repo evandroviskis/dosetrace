@@ -459,6 +459,9 @@ textarea.winp { resize: none; }
 .setcard .setsec + .li, .setcard .setsec + .setstack { border-top: 0; }
 .setchev { width: 36px; height: 36px; border-radius: 18px; background: var(--well); color: var(--ink); display: flex; align-items: center; justify-content: center; flex: none; }
 .setchev .chev { width: 16px; height: 10px; }
+.mgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mgrid .pill { justify-content: center; display: flex; align-items: center; }
+.lcode { width: 40px; height: 40px; border-radius: 12px; background: var(--well); color: var(--ink); display: flex; align-items: center; justify-content: center; font: 600 calc(13px * var(--ts)) var(--mono); flex: none; }
 .deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
 .typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
@@ -505,7 +508,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Under review now: Settings part 1, the screen</b> (tap the Settings tab or the buttons).</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Settings part 1 is approved.</b> <b>Under review now: Settings part 2</b>: edit profile, country, language, the legal pages and FAQ.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -517,7 +520,14 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Settings part 1: the screen <span class="stat rev">under review</span></h3>
+        <h3>Settings part 2: profile, language, legal, FAQ <span class="stat rev">under review</span></h3>
+        <button data-sgo="pro" data-spop="prof">Edit profile<small>change the name, goals or country; Save updates the card (initials too)</small></button>
+        <button data-sgo="pro" data-spop="lang">Language<small>six languages with a code instead of the flag emoji</small></button>
+        <button data-sgo="pro" data-spop="privacy">Privacy policy</button>
+        <button data-sgo="pro" data-spop="terms">Terms of service</button>
+        <button data-sgo="pro" data-spop="disclaimer">Medical disclaimer</button>
+        <button data-sgo="pro" data-spop="faq">FAQ<small>tap a question to open its answer</small></button>
+        <h3 style="margin-top: 10px">Settings part 1: the screen <span class="stat ok">approved</span></h3>
         <button data-sgo="pro">Settings, Premium user<small>every group closed, as main (it remembers what you open)</small></button>
         <button data-sgo="pro" data-sopen="notif,privacy,support,account">Every group open<small>switches work; Appearance switches the whole prototype's theme; the Food-log reminder is the same switch as on Progress</small></button>
         <button data-sgo="free">Free plan<small>"Upgrade to Premium" card under your profile</small></button>
@@ -605,14 +615,15 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Settings part 1)</h3>
+        <h3>Open questions (Settings part 2)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Group order (founder 2026-09-29):</b> your profile, the upgrade card for free users, then <b>Preferences first</b> (Appearance, Time format, Language; renamed from "Account &amp; preferences", new copy), Notifications, Data &amp; privacy, Support, each closed until you open it (remembered). <b>Sign out and Delete account sit alone at the very bottom</b>, always visible, so the riskiest button is never near the top. OK?</li>
-          <li><b>"Recently deleted protocols" leaves Settings</b>: you approved it at the bottom of the Protocols list, and one place is enough (rebuild means replace). OK?</li>
-          <li><b>Group names in sentence case</b> ("Data &amp; privacy" instead of "DATA &amp; PRIVACY"); plus "Usage analytics", "Download my data" and the new name "Preferences". Main's strings are typed in capitals, so these are copy changes in all 6 languages. OK?</li>
-          <li><b>The Food-log reminder stays in two places</b> (Settings and the reality-check card on Progress), one switch underneath: turn it off in one, it is off in the other. OK?</li>
+          <li><b>Edit profile, country, language and the legal pages open as sheets from the bottom</b>; FAQ is its own screen. Same fields and words as main. OK?</li>
+          <li><b>The language list loses its flag emoji</b> (your "no emoji in the UI" rule) and shows a code instead: EN, ES, PT, FR, DE, IT. OK?</li>
+          <li><b>Found on main: two different "Activity level"s.</b> Edit profile has 4 (Sedentary … Very active) and nothing uses it for maths; Progress has the 5 that drive the calorie numbers. Recommendation: keep one, Progress's 5, and have Edit profile show the same choice (one source). Yes or no?</li>
+          <li><b>Found on main: the FAQ misses your newest features</b> (AI food log, reality check, Dose accumulation, Vaccine journal) and still says "bloodwork" where the screen now says Lab test journal. Recommendation: add 4–6 answers (new copy, 6 languages) in the build. Yes or no?</li>
+          <li><b>Found on main: the privacy policy's "AI extraction" section doesn't mention the AI food log</b> (meal text sent to the AI), though the consent sheet does. This is a legal text: flag it for you / counsel, not a design change. OK to note it for the Mac session?</li>
         </ol>
-        <p class="r-foot" style="color: var(--ink2)"><b>My Body is approved, all 3 parts.</b> Icons are your FeatureIcon set, taken as-is from main. Android only, not drawn: "Reminders not arriving?" (battery settings), which stays as main. Part 2: edit profile, language, the legal pages and FAQ. Part 3: sign out, delete account, adherence report, download my data.</p>
+        <p class="r-foot" style="color: var(--ink2)"><b>Part 1 approved.</b> Fixed on the way: the legal pages' ALL-CAPS headings show in sentence case; FAQ categories likewise; the FAQ's ▶ ▲ become arrows. Legal texts and FAQ answers are main's, word for word.</p>
         <h3>Journey part 5: decisions</h3>
         <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
@@ -726,7 +737,8 @@ textarea.winp { resize: none; }
       return '<div class="pend"><div class="row" style="gap: 10px"><span class="dot" style="background: var(--attention)"></span><span class="r-body grow tnum">' + r + '</span></div><div class="acts2"><span class="btn o sm">Skipped</span><span class="btn p sm">Taken</span></div></div>';
     }).join('') + '</div>';
   }
-  function pctOf(r) { return r ? Math.round(100 * r[0] / r[1]) : null; }
+  // a ring counts scheduled doses taken out of doses scheduled: never above 100%
+  function pctOf(r) { return r ? Math.min(100, Math.round(100 * Math.min(r[0], r[1]) / r[1])) : null; }
   function side(label, r, id) {
     var p = pctOf(r);
     return '<div class="grow2" data-i="' + id + '"><span class="gsm">' + gauge(p, false) + '</span><div class="col" style="gap: 2px; min-width: 0"><span class="t nc">' + label + '</span><span class="s">' + r[0] + ' of ' + r[1] + '</span></div><span class="p">' + p + '<small>%</small></span></div>';
@@ -861,7 +873,7 @@ textarea.winp { resize: none; }
     var k = 0;
     h += alerts(al, st.snooze, ['Tomorrow', 'In 3 days']).replace(/<span class="round/g, function (m) { return '<span' + A('snooze', k++) + ' class="round'; });
     var day = [taken.length, dueIds.length], all = taken.length === dueIds.length;
-    h += tracker({ day: day, week: [5 + taken.length, 6], month: [5 + taken.length, 6], days: [['Tue', 'rest'], ['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'done'], ['Mon', all ? 'done' : 'part', true]], streak: all ? '2 days without a miss' : '1 day without a miss' }).replace('data-i="25">', 'data-i="25"' + A('log') + '>');
+    h += tracker({ day: day, week: [dueIds.length + taken.length, dueIds.length * 2], month: [dueIds.length + taken.length, dueIds.length * 2], days: [['Tue', 'rest'], ['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'done'], ['Mon', all ? 'done' : 'part', true]], streak: all ? '2 days without a miss' : '1 day without a miss' }).replace('data-i="25">', 'data-i="25"' + A('log') + '>');
     h += '<div class="blk">' + food([foodLine('Nothing logged yet today'), 'Reality check · day 1 of 21 · 0 of 7 days in a row']).replace('<div class="food"', '<div class="food"' + A('chat')) + '</div>';
     h += '<div class="blk"><div class="lab"><span class="r-title">Doses</span><span class="cnt">' + day[0] + ' of ' + day[1] + ' taken</span></div>';
     dueIds.filter(function (id) { return !st.taken[id]; }).forEach(function (id) {
@@ -990,6 +1002,10 @@ textarea.winp { resize: none; }
     if (o.t === 'past') return pastSheet();
     if (o.t === 'rcstart') return rcStartSheet();
     if (o.t === 'vaxform') return vaxForm();
+    if (o.t === 'prof') return profSheet();
+    if (o.t === 'country') return countrySheet();
+    if (o.t === 'lang') return langSheet();
+    if (o.t === 'legal') return legalHTML(o.k);
     if (o.t === 'medit') return meditSheet();
     if (o.t === 'export') return exportSheet();
     if (o.t === 'upgrade') return upgradeHTML();
@@ -1945,15 +1961,68 @@ textarea.winp { resize: none; }
   function settingsScreen() {
     var free = st.sstate === 'free', seg = function (k, opts, cur) { return '<span class="segw fill sm">' + opts.map(function (o) { return '<span class="' + (cur === o[0] ? 'on' : '') + '"' + A(k, o[0]) + '>' + o[1] + '</span>'; }).join('') + '</span>'; };
     var h = '<div class="hrow"><h3 class="r-large" data-i="S1">Settings</h3></div>';
-    h += '<div class="hero" data-i="S2"' + A('say', 'Edit profile: its sheet is Settings part 2.') + '><div class="row" style="gap: 14px"><span class="avatar">SC</span><div class="grow col" style="gap: 3px"><span class="r-title">Sam Carter</span><span class="r-sec c2">sam@example.com</span></div>' + CHEV + '</div><div class="chips2"><span class="otag">' + (free ? 'Free plan' : 'Premium') + '</span><span class="otag">Body composition, Hormonal Balance</span></div></div>';
+    h += '<div class="hero" data-i="S2"' + A('profedit') + '><div class="row" style="gap: 14px"><span class="avatar">' + initials(prof().name) + '</span><div class="grow col" style="gap: 3px">' + (prof().name ? '<span class="r-title">' + prof().name + '</span>' : '') + '<span class="r-sec c2">sam@example.com</span></div>' + CHEV + '</div><div class="chips2"><span class="otag">' + (free ? 'Free plan' : 'Premium') + '</span>' + (prof().goals.length ? '<span class="otag">' + prof().goals.slice(0, 3).map(goalLabel).join(', ') + '</span>' : '') + '</div></div>';
     if (free) h += '<div class="card pc" data-i="S3"><span class="r-title">Upgrade to Premium</span><span class="r-sec c2">Unlock all features and get the most out of DoseTrace.</span><div class="names">' + ['Cloud sync &amp; backup across devices', 'Reality check &amp; progress tracking', 'Check-in follow-ups &amp; searchable tags', 'Unlimited protocols &amp; scans', 'PDF export &amp; priority support'].map(function (x) { return '<span class="row r-body" style="gap: 10px">' + ic(I.check, 20, 'color: var(--ink)') + x + '</span>'; }).join('') + '</div><span class="btn p"' + A('say', 'Opens the Paywall (source: settings).') + '>See plans</span></div>';
     var sums = { account: nc('Appearance, time format, language'), notif: nc('Reminders, alerts, silent mode'), privacy: nc('Legal, analytics, your data'), support: nc('FAQ, contact, rate') };
-    h += setSection('account', nc('Preferences'), '<div class="setstack">' + setRow('palette', 'Appearance', '', '', null) + seg('stheme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.themePref || st.theme) + '</div><div class="setstack">' + setRow('clock', 'Time format', '', '', null) + seg('stime', [['auto', 'Auto'], ['12h', 'AM/PM'], ['24h', '24h']], st.timeFmt || 'auto') + '</div>' + setRow('globe', 'Language', 'English', null, ['say', 'Language: its sheet is Settings part 2.']), sums.account);
+    h += setSection('account', nc('Preferences'), '<div class="setstack">' + setRow('palette', 'Appearance', '', '', null) + seg('stheme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.themePref || st.theme) + '</div><div class="setstack">' + setRow('clock', 'Time format', '', '', null) + seg('stime', [['auto', 'Auto'], ['12h', 'AM/PM'], ['24h', '24h']], st.timeFmt || 'auto') + '</div>' + setRow('globe', 'Language', LANGS.filter(function (l) { return l[0] === (st.lang || 'en'); })[0][1], null, ['langpick']), sums.account);
     h += setSection('notif', 'Notifications', swRow('bell', 'Dose reminders', 'Get notified when it\'s time to take a dose', 'dose') + swRow('chat', 'Check-in reminders', 'Weekly check-in prompts', 'checkin') + swRow('food', 'Food-log reminder', '8 pm while a reality check is running. If you turn it off, it stays off for future checks.', 'food') + swRow('lock', 'Show names in notifications', 'Off: reminders on the lock screen say “Dose reminder” instead of the compound name.', 'names') + swRow('type_vial', 'Vial expiry alerts', 'Alerts when vials are expiring soon', 'vial') + swRow('mute', 'Silent mode', 'Pause all notifications', 'silent') + swRow('repeat', 'Persistent reminders', 'Repeat reminders every 5 min until acknowledged', 'persistent'), sums.notif);
-    h += setSection('privacy', nc('Data &amp; privacy'), setRow('lock', 'Privacy policy', '', null, ['say', 'Privacy policy: its sheet is Settings part 2.']) + setRow('clipboard', 'Terms of service', '', null, ['say', 'Terms of service: its sheet is Settings part 2.']) + setRow('shield', 'Medical disclaimer', '', null, ['say', 'Medical disclaimer: its sheet is Settings part 2.']) + swRow('calc_bars', nc('Usage analytics'), 'Help improve DoseTrace with anonymous data', 'analytics') + setRow('calc_trend', 'Adherence report', 'Share a 30-day summary with your provider', null, ['say', 'Adherence report: Settings part 3.']) + setRow('download', nc('Download my data'), 'Export all your data as a JSON file', null, ['say', 'Download my data: Settings part 3.']), sums.privacy);
-    h += setSection('support', nc('Support'), setRow('help', 'FAQ', '', null, ['say', 'FAQ: its screen is Settings part 2.']) + setRow('mail', 'Contact us', '', null, ['say', 'Contact us: opens Mail to support (as main).']) + setRow('star', 'Rate DoseTrace', '', null, ['say', 'Rate DoseTrace: the App Store rating prompt (as main).']), sums.support);
+    h += setSection('privacy', nc('Data &amp; privacy'), setRow('lock', 'Privacy policy', '', null, ['legal', 'privacy']) + setRow('clipboard', 'Terms of service', '', null, ['legal', 'terms']) + setRow('shield', 'Medical disclaimer', '', null, ['legal', 'disclaimer']) + swRow('calc_bars', nc('Usage analytics'), 'Help improve DoseTrace with anonymous data', 'analytics') + setRow('calc_trend', 'Adherence report', 'Share a 30-day summary with your provider', null, ['say', 'Adherence report: Settings part 3.']) + setRow('download', nc('Download my data'), 'Export all your data as a JSON file', null, ['say', 'Download my data: Settings part 3.']), sums.privacy);
+    h += setSection('support', nc('Support'), setRow('help', 'FAQ', '', null, ['go', 'faq']) + setRow('mail', 'Contact us', '', null, ['say', 'Contact us: opens Mail to support (as main).']) + setRow('star', 'Rate DoseTrace', '', null, ['say', 'Rate DoseTrace: the App Store rating prompt (as main).']), sums.support);
     h += '<div class="list" data-i="S-out" style="margin-top: 8px">' + setRow('door', 'Sign out', '', null, ['say', 'Sign out: Settings part 3.']) + setRow('trash', 'Delete account', '', null, ['say', 'Delete account: Settings part 3.'], true) + '</div>';
     return h + '<span class="r-foot c2 tnum" data-i="S9" style="text-align: center; padding: 8px 0 4px">DoseTrace v1.2.5<br>Not medical advice. For informational purposes only.</span>';
+  }
+
+  /* ================= Settings part 2: profile, language, legal, FAQ (under review) ================= */
+  // main's own texts, word for word (i18n/translations.js, English)
+  var TXT = {"faq_intro": "Find answers to common questions about DoseTrace.", "faq_categories": [{"category": "GETTING STARTED", "questions": [{"q": "What is DoseTrace?", "a": "DoseTrace is a personal wellness tracking app for managing compounds, doses, and vials. It includes a reconstitution calculator, syringe guide, and injection log."}, {"q": "Is DoseTrace free?", "a": "Yes! The core features are free forever — including cloud backup. Premium unlocks unlimited protocols, unlimited lab scans, the dose-accumulation curve, and PDF export."}, {"q": "How do I add my first protocol?", "a": "Go to the Protocols tab, tap \"+ Add\", choose your compound type, and follow the steps to set up your dose details."}]}, {"category": "RECONSTITUTION & DOSING", "questions": [{"q": "How does the reconstitution calculator work?", "a": "Enter your compound amount and the volume of bacteriostatic water you added. DoseTrace calculates the concentration and shows exactly how much to draw in your syringe."}, {"q": "What syringe sizes are supported?", "a": "DoseTrace supports 1ml (100 unit), 0.5ml (50 unit), and 0.3ml (30 unit) insulin syringes."}, {"q": "How long does a reconstituted vial last?", "a": "Most reconstituted peptides remain stable for approximately 30 days when refrigerated with bacteriostatic water."}]}, {"category": "VIALS & TRACKING", "questions": [{"q": "How do I log a vial mix?", "a": "When you create a new lyophilized protocol, you can log the mix date right away. You can also add vials anytime from the Vials tab."}, {"q": "What happens when a vial expires?", "a": "DoseTrace will show a warning when your vial is approaching its 30-day expiry. Expired vials are marked in red."}]}, {"category": "BLOODWORK", "questions": [{"q": "How does bloodwork upload work?", "a": "Upload a PDF lab report and our AI automatically extracts all biomarker values. It works with LabCorp, Quest, and most private clinic reports."}, {"q": "Is my bloodwork data private?", "a": "Your data is stored on your device and synced to our secure cloud, so it is backed up across your devices. When you scan a lab report, the file is sent once to Anthropic to read the numbers, then not kept for training — see our Privacy Policy. We never sell your data or use it for ads."}]}, {"category": "PREMIUM", "questions": [{"q": "What does Premium include?", "a": "Cloud backup, multi-device sync, unlimited protocols, unlimited bloodwork uploads, reality check & progress tracking, PDF export, and priority support."}, {"q": "How much does Premium cost?", "a": "Current prices for Monthly and Annual Premium are shown in the app on the upgrade screen. Both plans include a 7-day free trial."}, {"q": "Can I cancel anytime?", "a": "Yes. Cancel at least 24 hours before your renewal date in Settings → Apple ID → Subscriptions."}]}], "settings_privacy_body": "PRIVACY POLICY\n\nLast updated: April 2026\n\nOutcom operates the DoseTrace mobile application.\n\nDATA WE COLLECT\nWhen you create an account, we collect your email address. You may optionally provide your name, gender, birth month and year, country, wellness goals, activity level, and whether you work with a healthcare provider. Protocol data, dose logs, vial records, and reminders you create are saved on your device and synced — encrypted in transit — to our secure cloud (Supabase, United States), so your data is backed up and available across your devices.\n\nHOW WE USE YOUR DATA\nWe use your data to provide and personalize the DoseTrace service. Profile information (name, gender, age range, country, goals, activity level) may be used in aggregate and anonymized form to improve our service and develop wellness partnerships. Apart from the AI extraction described below, we do not share individual user data with third parties. We do not sell your personal data. We do not use your health data for advertising purposes.\n\nAI EXTRACTION (OPTIONAL)\nIf you choose to scan a lab report or vaccine card, the photo or PDF you select is transmitted to Anthropic PBC (the Claude AI service) for one-time text extraction, only after you give explicit permission in the app. Only the selected file is sent. It is used solely to extract the values, is not used to train AI models, and is not retained by Anthropic beyond short-term abuse monitoring. Anthropic protects this data with safeguards equivalent to this policy.\n\nDATA STORAGE\nYour data is stored on your device and synced, encrypted in transit, to Supabase secure cloud servers in the United States, so it is backed up and available across your devices.\nLab reports and vaccine cards you choose to scan are additionally sent once to Anthropic for text extraction, as described above.\n\nYOUR RIGHTS\nYou may delete your account and all associated data at any time from Settings in the app, or by contacting hello@dosetrace.io.\n\nCHILDREN\nDoseTrace is not intended for use by individuals under the age of 18.\n\nCHANGES\nWe may update this policy periodically. Continued use of the app constitutes acceptance of the updated policy.\n\nCONTACT\nhello@dosetrace.io", "settings_terms_body": "TERMS OF SERVICE\n\nLast updated: April 2026\n\nBy downloading or using DoseTrace, you agree to these terms.\n\nUSE OF THE APP\nDoseTrace is provided for personal wellness tracking purposes only. You must be 18 or older to use this app. You are responsible for maintaining the confidentiality of your account credentials.\n\nMEDICAL DISCLAIMER\nDoseTrace does not provide medical advice. See our Medical Disclaimer for full details.\n\nPREMIUM SUBSCRIPTION\nPremium features are available via subscription at the price shown in the app at the time of purchase. Subscriptions auto-renew unless cancelled at least 24 hours before the renewal date. Manage subscriptions in your Apple ID settings.\n\nINTELLECTUAL PROPERTY\nAll content, features, and functionality of DoseTrace are owned by Outcom and protected by applicable intellectual property laws.\n\nLIMITATION OF LIABILITY\nOutcom shall not be liable for any indirect, incidental, or consequential damages arising from your use of DoseTrace.\n\nTERMINATION\nWe reserve the right to terminate accounts that violate these terms.\n\nGOVERNING LAW\nThese terms are governed by the laws of the State of Florida, United States.\n\nCONTACT\nhello@dosetrace.io", "settings_disclaimer_body": "WELLNESS DISCLAIMER\n\nDoseTrace is a personal wellness tracking tool designed for informational and organizational purposes only.\n\nDoseTrace does not provide medical advice, diagnosis, or treatment recommendations. All content within this app is for general informational purposes only.\n\nNothing in this app should be construed as medical advice or used as a substitute for professional medical advice, diagnosis, or treatment. Always seek the guidance of a qualified healthcare provider before starting, adjusting, or stopping any wellness regimen.\n\nAll features within DoseTrace are passive data recording utilities. They help you log and visualize your own self-reported data. They do not validate, endorse, or recommend any specific protocol, dosage, or outcome. All mathematical calculations are estimates based on user-provided inputs and are not biological predictions.\n\nBy using DoseTrace, you acknowledge that:\n\n- You are using this app at your own risk\n- You take full responsibility for any decisions made based on information recorded in this app\n- DoseTrace and Outcom are not liable for any harm arising from use of this app\n- This app is not intended to diagnose, treat, cure, or prevent any disease or medical condition\n\nIf you are experiencing a medical emergency, call emergency services immediately."};
+  var GOALS_P = [['fitness', 'Fitness'], ['strength', 'Strength & Power'], ['fat_loss', 'Fat Loss'], ['endurance', 'Endurance'], ['body_composition', 'Body composition'], ['wellness', 'Wellness'], ['energy', 'Energy & Vitality'], ['sleep', 'Sleep Quality'], ['hormonal_balance', 'Hormonal Balance'], ['longevity', 'Longevity'], ['immune', 'Immune Function'], ['recovery', 'Recovery & Healing'], ['skin_collagen', 'Skin & Collagen'], ['mood', 'Mood & Mental Health'], ['sexual_health', 'Sexual Health'], ['joint_bone', 'Joint & Bone Health'], ['cardiovascular', 'Cardiovascular Health'], ['stress', 'Stress Management']].sort(function (a, b) { return a[1].localeCompare(b[1]); });
+  var LANGS = [['en', 'English', 'English'], ['es', 'Español', 'Spanish'], ['pt', 'Português', 'Portuguese'], ['fr', 'Français', 'French'], ['de', 'Deutsch', 'German'], ['it', 'Italiano', 'Italian']];
+  var COUNTRIES = ['Argentina', 'Australia', 'Austria', 'Belgium', 'Brazil', 'Canada', 'Chile', 'Colombia', 'Denmark', 'Finland', 'France', 'Germany', 'Greece', 'India', 'Ireland', 'Italy', 'Japan', 'Mexico', 'Netherlands', 'New Zealand', 'Norway', 'Poland', 'Portugal', 'Singapore', 'South Africa', 'Spain', 'Sweden', 'Switzerland', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay'];
+  var PROF0 = { name: 'Sam Carter', bm: 5, by: '1988', sex: 'male', country: 'United States', goals: ['body_composition', 'hormonal_balance'], act: 'moderate', prov: 'yes' };
+  function prof() { return st.prof || PROF0; }
+  function initials(n) { return (n || '').trim().split(/\s+/).map(function (w) { return w.charAt(0).toUpperCase(); }).slice(0, 2).join('') || '?'; }
+  function goalLabel(k) { var g = GOALS_P.filter(function (x) { return x[0] === k; })[0]; return g ? g[1] : k; }
+  function openProf() { st.pf = JSON.parse(JSON.stringify(prof())); st.overlay = { t: 'prof' }; }
+  function profSheet() {
+    var f = st.pf, pill = function (act, v, label, on) { return '<span class="pill r-foot' + (on ? ' on' : '') + '"' + A(act, v) + '>' + label + '</span>'; };
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="S2e" style="max-height: 90%; overflow-y: auto">' + sheetHead('Edit profile', '<span class="txtbtn"' + A('profsave') + '>Save</span>');
+    h += '<span class="r-title" style="padding: 4px 4px 0">About you</span>';
+    h += '<div class="fld"><span class="r-foot c2">Your name</span><input class="winp" id="pfname" placeholder="How should we call you?" value="' + (f.name || '').replace(/"/g, '&quot;') + '"></div>';
+    h += '<div class="fld"><span class="r-foot c2">Birth month</span><div class="mgrid">' + MN.map(function (m, i) { return pill('pfbm', i, m, f.bm === i); }).join('') + '</div></div>';
+    h += '<div class="fld"><span class="r-foot c2">Birth year</span><input class="winp" id="pfby" inputmode="numeric" maxlength="4" placeholder="e.g. 1994" value="' + (f.by || '') + '"></div>';
+    h += '<div class="fld"><span class="r-foot c2">Sex at birth</span><span class="segw fill">' + [['male', 'Male'], ['female', 'Female']].map(function (o) { return '<span class="' + (f.sex === o[0] ? 'on' : '') + '"' + A('pfsex', o[0]) + '>' + o[1] + '</span>'; }).join('') + '</span><span class="r-foot c2">Used for calorie &amp; energy estimates — choose the sex you were assigned at birth.</span></div>';
+    h += '<div class="fld"><span class="r-foot c2">Country</span><div class="datebtn"' + A('pfcountry') + '><span class="r-body' + (f.country ? '' : ' c2') + '">' + (f.country || 'Where are you based?') + '</span>' + CHEV + '</div></div>';
+    h += '<span class="r-title" style="padding: 10px 4px 0">Your goals</span>';
+    h += '<div class="fld"><span class="r-foot c2">Primary goal · Select all that apply</span><div class="pills">' + GOALS_P.map(function (g) { return pill('pfgoal', g[0], g[1], f.goals.indexOf(g[0]) >= 0); }).join('') + '</div></div>';
+    h += '<div class="fld"><span class="r-foot c2">Activity level</span><div class="pills">' + [['sedentary', 'Sedentary'], ['moderate', 'Moderate'], ['active', 'Active'], ['very_active', 'Very active']].map(function (a) { return pill('pfact', a[0], a[1], f.act === a[0]); }).join('') + '</div></div>';
+    h += '<div class="fld"><span class="r-foot c2">Do you work with a healthcare provider?</span><span class="segw fill">' + [['yes', 'Yes'], ['no', 'No']].map(function (o) { return '<span class="' + (f.prov === o[0] ? 'on' : '') + '"' + A('pfprov', o[0]) + '>' + o[1] + '</span>'; }).join('') + '</span></div>';
+    return h + '<span class="r-foot c3" style="padding: 4px 4px 8px">This information helps personalize your experience and may be used in aggregate to improve our service. We never share individual data.</span></div></div>';
+  }
+  function countrySheet() {
+    var q = (st.cq || '').toLowerCase(), cur = st.pf.country;
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="S2c" style="max-height: 90%; overflow-y: auto"><div class="row" style="justify-content: space-between"><span class="r-head">Country</span><span class="txtbtn"' + A('cdone') + '>Done</span></div>';
+    h += '<div class="srch">' + ic(BI.search, 18, 'color: var(--ink3)') + '<input class="winp" id="cq" placeholder="Search countries..." autocomplete="off" value="' + (st.cq || '') + '"></div>';
+    return h + '<div class="list" style="padding: 0; background: transparent">' + COUNTRIES.map(function (c) { return '<div class="li" data-cname="' + c.toLowerCase() + '"' + (q && c.toLowerCase().indexOf(q) < 0 ? ' hidden' : '') + A('cpick2', c) + '><span class="r-body grow">' + c + '</span>' + (cur === c ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div></div></div>';
+  }
+  function langSheet() {
+    var cur = st.lang || 'en';
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="S2l"><div class="row" style="justify-content: space-between"><span class="r-head">Language</span><span class="txtbtn"' + A('close') + '>Done</span></div><span class="r-sec c2">Choose your preferred language. The app will update immediately.</span>';
+    return h + '<div class="list" style="padding: 0; background: transparent">' + LANGS.map(function (l) { return '<div class="li"' + A('langset', l[0]) + '><span class="lcode">' + l[0].toUpperCase() + '</span><div class="grow col" style="gap: 2px"><span class="r-head">' + l[1] + '</span><span class="r-foot c2">' + l[2] + '</span></div>' + (cur === l[0] ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div></div></div>';
+  }
+  // legal texts: main's words; the ALL-CAPS headings are shown in sentence case (a copy fix)
+  function legalHTML(k) {
+    var map = { privacy: ['Privacy policy', 'settings_privacy_body'], terms: ['Terms of service', 'settings_terms_body'], disclaimer: ['Medical disclaimer', 'settings_disclaimer_body'] }[k];
+    var body = TXT[map[1]].split('\n').map(function (l) { var t = l.trim(); if (!t) return ''; if (t.toLowerCase() === map[0].toLowerCase()) return ''; if (t === t.toUpperCase() && /[A-Z]/.test(t) && t.length < 60) return '<span class="r-head" style="padding-top: 10px">' + t.charAt(0) + t.slice(1).toLowerCase() + '</span>'; return '<p class="r-sec c2" style="margin: 0">' + t.replace(/</g, '&lt;') + '</p>'; }).join('');
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="S2-' + k + '" style="max-height: 90%; overflow-y: auto"><div class="row" style="justify-content: space-between"><span class="r-title">' + map[0] + '</span><span class="txtbtn"' + A('close') + '>Done</span></div>' + body + '</div></div>';
+  }
+  function faqScreen() {
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Settings</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">FAQ</h3></div><span class="r-sec c2" style="padding: 0 4px; margin-top: -8px">' + TXT.faq_intro + '</span>';
+    TXT.faq_categories.forEach(function (c, ci) {
+      var t = c.category; h += '<span class="r-head" style="padding: 10px 4px 0">' + t.charAt(0) + t.slice(1).toLowerCase().replace('premium', 'Premium') + '</span><div class="list">';
+      c.questions.forEach(function (q, qi) { var k = ci + '.' + qi, open = st.faqOpen === k; h += '<div class="li col" style="align-items: stretch; gap: 8px"' + A('faq', k) + '><div class="row" style="gap: 10px"><span class="r-body grow" style="font-weight: 600">' + q.q + '</span><span style="color: var(--ink2)">' + (open ? UP : DOWN) + '</span></div>' + (open ? '<span class="r-sec c2">' + q.a + '</span>' : '') + '</div>'; });
+      h += '</div>';
+    });
+    return h + '<div class="card pc" style="align-items: center; text-align: center"><span class="r-head">Still have questions?</span><span class="r-sec c2">Reach out to us anytime at</span><span class="btnlink r-body"' + A('say', 'Opens Mail to hello@dosetrace.io.') + '>hello@dosetrace.io</span></div>';
   }
 
   function curvePicker() {
@@ -1979,6 +2048,7 @@ textarea.winp { resize: none; }
     else if (c.s === 'marker') body = markerScreen(c.n);
     else if (c.s === 'vax') body = vaxScreen();
     else if (c.s === 'settings') body = settingsScreen();
+    else if (c.s === 'faq') body = faqScreen();
     else body = notYet('Settings');
     var times = ['8:10', '8:11', '8:12'];
     phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
@@ -2005,6 +2075,9 @@ textarea.winp { resize: none; }
   phone.addEventListener('input', function (e) {
     var t = e.target;
     if (t.id === 'labq') { st.labq = t.value; filterLabs(); return; }
+    if (t.id === 'pfname' && st.pf) { st.pf.name = t.value; return; }
+    if (t.id === 'pfby' && st.pf) { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 4); st.pf.by = t.value; return; }
+    if (t.id === 'cq') { st.cq = t.value; var q8 = t.value.toLowerCase(); phone.querySelectorAll('[data-cname]').forEach(function (el) { el.hidden = !!q8 && el.getAttribute('data-cname').indexOf(q8) < 0; }); return; }
     if (t.id === 'vaxq') { st.vaxq = t.value; var q9 = t.value.trim().toLowerCase(), any9 = false; phone.querySelectorAll('[data-vname]').forEach(function (el) { el.hidden = !!q9 && el.getAttribute('data-vname').indexOf(q9) < 0; if (!el.hidden) any9 = true; }); var n9 = document.getElementById('vaxnone'); if (n9) n9.hidden = any9; return; }
     var sk = t.getAttribute && t.getAttribute('data-s');
     if (sk) { st.form[sk] = t.value; if (sk === 'rcw') st.form.rauto = null; if (sk === 'tw') { var nt = document.getElementById('tgtnote'), v7 = num(t.value), k7 = v7 ? (imp() ? v7 / 2.20462 : v7) : null; if (nt) nt.hidden = !(k7 && k7 < jnums().hmin); } return; }
@@ -2062,6 +2135,20 @@ textarea.winp { resize: none; }
     else if (a === 'fedel') { st.chat.msgs[+v].gone = true; st.foodEdit = null; toast('Entry removed'); }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
     else if (a === 'rep') push({ s: 'report', k: v });
+    else if (a === 'profedit') openProf();
+    else if (a === 'pfbm') st.pf.bm = +v;
+    else if (a === 'pfsex') st.pf.sex = v;
+    else if (a === 'pfact') st.pf.act = v;
+    else if (a === 'pfprov') st.pf.prov = v;
+    else if (a === 'pfgoal') { var gi2 = st.pf.goals.indexOf(v); if (gi2 >= 0) st.pf.goals.splice(gi2, 1); else st.pf.goals.push(v); }
+    else if (a === 'pfcountry') { st.cq = ''; st.overlay = { t: 'country' }; }
+    else if (a === 'cpick2') { st.pf.country = v; st.overlay = { t: 'prof' }; }
+    else if (a === 'cdone') st.overlay = { t: 'prof' };
+    else if (a === 'profsave') { st.prof = JSON.parse(JSON.stringify(st.pf)); st.overlay = null; }
+    else if (a === 'langpick') st.overlay = { t: 'lang' };
+    else if (a === 'langset') { st.lang = v; st.overlay = null; if (v !== 'en') toast('The app switches to ' + LANGS.filter(function (l) { return l[0] === v; })[0][1] + ' at once (this prototype stays in English).'); }
+    else if (a === 'legal') st.overlay = { t: 'legal', k: v };
+    else if (a === 'faq') st.faqOpen = st.faqOpen === v ? null : v;
     else if (a === 'sopen') { st.sopen = st.sopen || {}; st.sopen[v] = !st.sopen[v]; }
     else if (a === 'sw') { if (v === 'food') st.rcrem = st.rcrem === false; else { st.sw = st.sw || {}; st.sw[v] = !swOn(v); } }
     else if (a === 'stheme') { st.themePref = v; st.theme = v === 'system' ? 'light' : v; }
@@ -2195,7 +2282,7 @@ textarea.winp { resize: none; }
   function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false; st.vax = null; st.vaxq = ''; st.vscan = false; st.lab = null; st.after = null; st.exp = null;
     (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'pop') { var pk = kv[1]; if (BERR[pk]) st.overlay = bErr(pk); else if (pk === 'upgrade') st.overlay = upgradeSheet(); else if (pk === 'spreview') st.overlay = { t: 'spreview' }; else if (pk === 'vprem') st.overlay = vaxPremium(); else if (pk === 'consent') { st.consent = false; st.after = kv[2] || 'lab'; st.overlay = consentSheet(); } else if (pk === 'src') { st.after = kv[2] || 'lab'; st.overlay = srcSheet(st.after); } else if (pk === 'export') { var ms9 = markerSeries(), vl9 = vaxList(); st.exp = { m: ms9.map(function (x) { return x.name; }), v: vl9.map(function (x) { return x.name; }) }; st.overlay = { t: 'export' }; } else if (pk === 'medit') { st.form = { mk: '2026-08-20', mn0: 'Hematocrit', mn: 'Hematocrit', mv: '47.6', mu: '%', md: +new Date('2026-08-20T12:00:00') }; st.overlay = { t: 'medit' }; } } else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
   document.querySelectorAll('[data-sgo]').forEach(function (b) {
-    b.addEventListener('click', function () { st.sstate = b.getAttribute('data-sgo'); st.wiz = null; st.overlay = null; st.tab = 4; st.stacks[4] = [{ s: 'settings' }]; st.sopen = {}; (b.getAttribute('data-sopen') || '').split(',').filter(Boolean).forEach(function (k) { st.sopen[k] = true; }); st.toast = null; toPhone(); });
+    b.addEventListener('click', function () { st.sstate = b.getAttribute('data-sgo'); st.wiz = null; st.overlay = null; st.tab = 4; st.stacks[4] = [{ s: 'settings' }]; st.sopen = {}; st.prof = null; st.lang = null; st.faqOpen = null; var gp = b.getAttribute('data-spop'); if (gp === 'prof') openProf(); else if (gp === 'lang') st.overlay = { t: 'lang' }; else if (gp === 'faq') st.stacks[4].push({ s: 'faq' }); else if (gp) st.overlay = { t: 'legal', k: gp }; (b.getAttribute('data-sopen') || '').split(',').filter(Boolean).forEach(function (k) { st.sopen[k] = true; }); st.toast = null; toPhone(); });
   });
   document.querySelectorAll('[data-bgo]').forEach(function (b) {
     b.addEventListener('click', function () { bgo(b.getAttribute('data-bgo'), b.getAttribute('data-bscr')); st.toast = null; toPhone(); });
