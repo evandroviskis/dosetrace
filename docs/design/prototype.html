@@ -435,6 +435,13 @@ textarea.winp { resize: none; }
 .tnote { color: var(--attention); }
 .caret { animation: caretb 1s steps(1) infinite; color: var(--ink3); }
 @keyframes caretb { 50% { opacity: 0 } }
+.srch { position: relative; display: flex; align-items: center; }
+.srch .ico { position: absolute; left: 14px; pointer-events: none; }
+.srch .winp { width: 100%; padding-left: 42px; min-height: 46px; }
+.starb { display: flex; align-items: center; justify-content: center; width: 36px; min-height: 44px; flex: none; }
+.spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--ink); animation: spin 0.9s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg) } }
+.tagx { display: inline-flex; align-items: center; gap: 6px; }
 .deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
 .typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
@@ -481,7 +488,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). Next: the remaining screens, one at a time.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>Under review now: My Body part 1</b>, the hub and the Lab test journal (a test, a marker, search, favorites, labels). Tap the My Body tab or use the buttons. The bloodwork is invented sample data.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -493,7 +500,18 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Journey popups (part 5) <span class="stat ok">approved</span></h3>
+        <h3>My Body part 1: hub + Lab test journal <span class="stat rev">under review</span></h3>
+        <button data-bgo="pro">My Body, Pro user<small>Lab test journal with 2 tests and your starred markers; Vaccine journal; Dose accumulation with the same number as Journey</small></button>
+        <button data-bgo="pro" data-bscr="labs">Lab test journal, by date<small>Newest / Oldest; type "tsh" in the search</small></button>
+        <button data-bgo="pro" data-bscr="labs,bym">Lab test journal, by marker<small>star or unstar a marker; Favorites filter</small></button>
+        <button data-bgo="pro" data-bscr="labs,rep:2026-08-20">A test: August 20, 2026<small>add or remove labels; Delete this blood test → confirm</small></button>
+        <button data-bgo="pro" data-bscr="labs,mk:Total Testosterone">A marker: Total Testosterone<small>your two readings charted: no ranges, no colors for good or bad</small></button>
+        <button data-bgo="pro" data-bscr="labs,mk:ALT">A marker with one reading</button>
+        <button data-bgo="empty" data-bscr="labs">No bloodwork yet</button>
+        <button data-bgo="free" data-bscr="labs">Free plan, after the free upload<small>the Premium card on top</small></button>
+        <button data-bgo="free">Free plan: My Body<small>Dose accumulation shows PRO and a lock</small></button>
+        <button data-bgo="pro" data-bscr="labs,up">Reading a lab report (uploading)</button>
+        <h3 style="margin-top: 10px">Journey popups (part 5) <span class="stat ok">approved</span></h3>
         <button data-jpop="tgtedit">Edit your target<small>type 70 to see the healthy-range note; set a date; Save updates the ETA. Remove target → confirm</small></button>
         <button data-jpop="tgtnew">Set a target (new user)</button>
         <button data-jpop="past">Add a past weigh-in<small>pick a date and weight: it joins the weigh-ins, the trend and the pace</small></button>
@@ -548,6 +566,15 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
+        <h3>Open questions (My Body part 1)</h3>
+        <ol class="qs" style="margin-top: 10px">
+          <li><b>My Body opens on heroes</b>, like My Protocols: Lab test journal and Vaccine journal as big cards with their counts, then Dose accumulation. Main has three equal rows with tinted badges. OK?</li>
+          <li><b>Suggestion: your starred markers on the Lab test journal hero</b> (their latest values, your numbers only, no ranges). New line "Starred markers · latest test Aug 20". Yes or no?</li>
+          <li><b>A test and a marker open their own screens</b> instead of expanding in place (the same change you approved for protocols). One Back tap to return. OK?</li>
+          <li><b>Dose accumulation stays in My Body too</b> and shows the same Est. level as the Journey tile, instead of main's line "Accumulation Curve" (that name is gone). Two doors, one screen. OK?</li>
+          <li><b>The Premium banner becomes a plain card</b> under the title (same words), instead of a tinted strip. OK?</li>
+        </ol>
+        <p class="r-foot" style="color: var(--ink2)"><b>Fixed on the way:</b> text glyphs used as icons (✎ ★ ☆ ▶ ▲ ↑ ›) become icons from your set; "WHAT WE CAN READ" is sentence case; the marker chart stays a plain plot of your own numbers (as main). Not in this part: upload, review, marker edit, export and the upgrade/preview sheets (part 3), the Vaccine journal (part 2).</p>
         <h3>Journey part 5: decisions</h3>
         <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
@@ -1594,7 +1621,7 @@ textarea.winp { resize: none; }
   function fmtMg(v) { return v >= 10 ? fk(v) : v.toFixed(1); }
   function curveScreen() {
     var sel = st.csel || [curveDefault()], ahead = st.cahead || 7, past = 14, single = sel.length === 1 ? sel[0] : null;
-    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Dose accumulation</h3></div>';
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + (st.tab === 3 ? 'My Body' : 'Journey') + '</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Dose accumulation</h3></div>';
     h += '<div class="pickrow"' + A('cpick') + '>' + sel.map(function (id) { return '<span class="dot" style="background: var(' + P[id].color + ')"></span>'; }).join('') + '<span class="r-head grow">' + (single ? P[single].name : sel.length + ' compounds') + '</span>' + DOWN + '</div>';
     // hero: the number the Journey tile shows
     h += '<div class="card pc">' + (single ? '<div class="row" style="justify-content: space-between; align-items: flex-start"><div class="col" style="gap: 4px"><span class="r-foot c2">Est. level · now</span><span class="r-display d56 cd">' + fmtMg(levelAt(single, 0)) + '<span class="unit">mg</span></span></div><span class="chip r-cap">Estimated</span></div>' : sel.map(function (id) { return '<div class="row"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-body grow">' + P[id].name + '</span><span class="r-value">' + fmtMg(levelAt(id, 0)) + ' mg</span></div>'; }).join('') + '<span class="chip r-cap" style="align-self: flex-start">Estimated</span>');
@@ -1643,6 +1670,100 @@ textarea.winp { resize: none; }
     h += '<span class="r-foot c2" style="padding: 0 4px">Estimated model based on published elimination half-lives and ' + nc('your planned schedule') + '. Individual pharmacokinetics vary significantly. This is an educational visualization — not a measurement of actual blood levels. Confirm with real bloodwork. This is not medical advice, and DoseTrace is not a medical device.</span>';
     return h;
   }
+  /* ================= My Body part 1: hub + Lab test journal (under review) ================= */
+  // Invented sample bloodwork (two reports). Values are shown exactly as entered: no ranges, no flags, no verdicts.
+  var LAB = [
+    { key: '2026-08-20', label: 'August 20, 2026', short: 'Aug 20', tags: ['on cycle', 'fasted'], m: [['Total Testosterone', 986, 'ng/dL'], ['Free Testosterone', 21.4, 'ng/dL'], ['Estradiol', 41, 'pg/mL'], ['SHBG', 31, 'nmol/L'], ['Hematocrit', 47.6, '%'], ['Hemoglobin', 16.1, 'g/dL'], ['HbA1c', 5.2, '%'], ['Glucose', 91, 'mg/dL'], ['LDL', 121, 'mg/dL'], ['HDL', 44, 'mg/dL'], ['TSH', 2.1, 'mIU/L'], ['ALT', 34, 'U/L'], ['AST', 29, 'U/L'], ['Vitamin D', 38, 'ng/mL']] },
+    { key: '2026-05-12', label: 'May 12, 2026', short: 'May 12', tags: ['baseline'], m: [['Total Testosterone', 512, 'ng/dL'], ['Free Testosterone', 11.2, 'ng/dL'], ['Estradiol', 24, 'pg/mL'], ['SHBG', 38, 'nmol/L'], ['Hematocrit', 44.1, '%'], ['Hemoglobin', 15.0, 'g/dL'], ['HbA1c', 5.3, '%'], ['Glucose', 88, 'mg/dL'], ['LDL', 112, 'mg/dL'], ['HDL', 51, 'mg/dL'], ['TSH', 1.9, 'mIU/L'], ['Vitamin D', 31, 'ng/mL']] }
+  ];
+  // the founder's monoline set (assets/feature-icons), redrawn on the 24 grid
+  var BI = {
+    labs: '<path d="M5 8.6V5.9c0-.7.5-1.2 1.2-1.2h2.7M19 8.6V5.9c0-.7-.5-1.2-1.2-1.2h-2.7M5 15.4v2.7c0 .7.5 1.2 1.2 1.2h2.7M19 15.4v2.7c0 .7-.5 1.2-1.2 1.2h-2.7"/><path d="M12 7.6c-1.5 2.4-3 4.1-3 6.1 0 1.8 1.3 3.3 3 3.3s3-1.5 3-3.3c0-2-1.5-3.7-3-6.1z"/>',
+    vax: '<g transform="rotate(-45 12 12)"><path d="M3 12h3M6 9.5h10v5H6zM16 8v8M16 12h3M19 10v4M9 9.5v2M12 9.5v2"/></g>',
+    star: '<path d="M12 5l1.7 4.6 5 .2-3.9 3.1 1.3 4.8L12 15l-4.1 2.7 1.3-4.8-3.9-3.1 5-.2z"/>',
+    search: '<circle cx="10.6" cy="10.6" r="5"/><path d="M14.1 14.1 19 19"/>',
+    lock: '<rect x="7" y="11" width="10" height="7.8" rx="1.1"/><path d="M9 11V9a3 3 0 0 1 6 0v2M12 13.3v2.3"/>',
+    up: '<path d="M12 19V5.5M8.3 9.2 12 5.5l3.7 3.7"/>',
+    pen: '<path d="M5 19l1-4L15.5 5.5a2 2 0 0 1 3 3L9 18z"/><path d="M13.5 7.5l3 3"/>',
+    x: '<path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/>'
+  };
+  function bfree() { return st.bstate === 'free'; }
+  function labReports() { if (st.bstate === 'empty') return []; var r = LAB.filter(function (x) { return (st.labDel || []).indexOf(x.key) < 0; }); return st.oldest ? r.slice().reverse() : r; }
+  function labTags(r) { return (st.labTags && st.labTags[r.key]) || r.tags; }
+  function favList() { return st.favs || ['Total Testosterone', 'Hematocrit']; }
+  function markerSeries() {
+    var map = {}, order = [], favs = favList();
+    LAB.filter(function (x) { return st.bstate !== 'empty' && (st.labDel || []).indexOf(x.key) < 0; }).slice().reverse().forEach(function (r) { r.m.forEach(function (x) { if (!map[x[0]]) { map[x[0]] = { name: x[0], unit: x[2], pts: [] }; order.push(x[0]); } map[x[0]].pts.push({ d: r.short, full: r.label, v: x[1] }); }); });
+    return order.map(function (n) { var m = map[n]; m.fav = favs.indexOf(n) >= 0; m.latest = m.pts[m.pts.length - 1]; return m; }).sort(function (a, b) { return (b.fav - a.fav) || a.name.localeCompare(b.name); });
+  }
+  function labMatch(names) { var q = (st.labq || '').trim().toLowerCase(); return !q || names.toLowerCase().indexOf(q) >= 0; }
+  function filterLabs() {
+    var any = false, q = st.labq;
+    phone.querySelectorAll('[data-names]').forEach(function (el) { var ok = labMatch(el.getAttribute('data-names')) && !(st.favOnly && el.getAttribute('data-fav') === '0'); el.hidden = !ok; if (ok) any = true; });
+    var none = document.getElementById('labnone'); if (none) none.hidden = any;
+  }
+  function bodyHub() {
+    var reps = labReports(), ms = markerSeries(), free = bfree();
+    var h = '<div class="hrow"><h3 class="r-large" data-i="B1">My Body</h3></div><span class="r-sec c2" data-i="B2" style="padding: 0 4px; margin-top: -8px">Your records &amp; body insights</span>';
+    h += '<div class="hero" data-i="B3"' + A('go', 'labs') + '><div class="ht">' + ic(BI.labs, 24) + '<span class="r-title grow">Lab test journal</span>' + CHEV + '</div>';
+    if (reps.length) {
+      h += '<div class="row" style="align-items: baseline; gap: 10px"><span class="r-display d56">' + reps.length + '</span><span class="r-body c2">' + (reps.length === 1 ? 'test' : 'tests') + '</span></div>';
+      var favs = ms.filter(function (m) { return m.fav; });
+      if (favs.length) h += '<div class="names" data-i="B3s">' + favs.map(function (m) { return '<span class="row r-body" style="gap: 10px">' + ic(BI.star, 16, 'color: var(--ink2)') + '<span class="grow">' + m.name + '</span><span class="r-value v15">' + m.latest.v + ' ' + m.unit + '</span></span>'; }).join('') + '</div><span class="r-foot c2 tnum">' + nc('Starred markers · latest test ' + LAB.filter(function (x) { return (st.labDel || []).indexOf(x.key) < 0; })[0].short) + '</span>';
+    } else h += '<span class="r-body c2">Nothing logged yet</span>';
+    h += '<span class="r-sec c2">Keep every blood test in one place. Chart any marker over time, label your tests, and export a clean history for any doctor.</span></div>';
+    h += '<div class="hero" data-i="B4"' + A('go', 'vax') + '><div class="ht">' + ic(BI.vax, 24) + '<span class="r-title grow">Vaccine journal</span>' + CHEV + '</div>';
+    h += st.bstate === 'empty' ? '<span class="r-body c2">Nothing logged yet</span>' : '<div class="row" style="align-items: baseline; gap: 10px"><span class="r-display d56">3</span><span class="r-body c2">vaccines</span></div>';
+    h += '<span class="r-sec c2">Log your vaccines and boosters — dates, next-due reminders and notes, always ready to hand to a clinic.</span></div>';
+    h += '<div class="card pc" data-i="B5"' + (free ? A('say', 'Free plan: the preview sheet "See your compound build up", then the Paywall (My Body part 3).') : A('go', 'curve')) + '><div class="row" style="gap: 10px">' + ic(JI.curve, 22, 'color: var(--data)') + '<span class="r-title grow">Dose accumulation</span>' + (free ? '<span class="otag">PRO</span>' + ic(BI.lock, 18, 'color: var(--ink3)') : CHEV) + '</div><span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
+    if (!free) { var cid = tileCid(); h += '<div class="row sep" style="justify-content: space-between; align-items: flex-end; padding-top: 12px"><span class="row r-sec" style="gap: 7px"><span class="dot" style="background: var(' + P[cid].color + ')"></span>' + P[cid].name + '</span><span class="col" style="align-items: flex-end; gap: 2px"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + fmtMg(levelAt(cid, 0)) + '<span class="unit">mg</span></span></span></div>'; }
+    return h + '</div><span class="r-foot c2" data-i="B6" style="padding: 0 4px">Not a medical service. For any medical question, consult a qualified professional.</span>';
+  }
+  function labsScreen() {
+    var reps = labReports(), ms = markerSeries(), free = bfree(), view = st.labView || 'date';
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'My Body</span><span class="row" style="gap: 14px">' + (reps.length || st.bstate !== 'empty' ? '<span class="txtbtn row" data-i="B9" style="gap: 5px"' + A('say', 'Export: the export sheet (CSV or PDF, Premium) is My Body part 3.') + '>' + ic(BI.up, 16, 'color: currentColor') + 'Export</span>' : '') + '<span class="addbtn" data-i="B10"' + A('upload') + '>+ Upload</span></span></div>';
+    h += '<div class="hrow" style="padding-top: 0"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">Lab test journal</h3></div>';
+    if (st.uploading) h += '<div class="card pc row" style="gap: 12px; flex-direction: row" data-i="B11"><span class="spin"></span><span class="r-body">Reading your lab report...</span></div>';
+    if (free) h += '<div class="card pc" data-i="B12"><span class="r-head">Bloodwork scan — Premium feature</span><span class="r-sec c2">' + (ms.length ? 'You\'ve scanned ' + ms.length + ' markers. Pro charts every one over time and reads unlimited labs — any language, photo or PDF.' : 'First upload free · Pay per upload after · Unlimited with Premium') + '</span><span class="btn sm p" style="align-self: flex-start"' + A('say', 'Upgrade: the "Upload bloodwork" sheet, then the Paywall (My Body part 3).') + '>Upgrade</span></div>';
+    if (!reps.length) {
+      h += '<div class="card pc" data-i="B13" style="align-items: center; text-align: center; padding-top: 28px">' + ic(I.drop, 44, 'color: var(--ink3)') + '<span class="r-title">No bloodwork yet</span><span class="r-sec c2">Upload a PDF lab report and we\'ll automatically extract all your biomarker values. Your first upload is free.</span><span class="btn p" style="align-self: stretch"' + A('upload') + '>Upload lab report</span></div>';
+      h += progCard('', '<span class="r-head">What we can read</span><div class="names">' + ['LabCorp, Quest, and private clinic reports', 'Hormones — Testosterone, Estradiol, IGF-1, DHEA', 'Metabolic — HbA1c, glucose, insulin, lipids', 'Thyroid — TSH, Free T3, Free T4', 'Inflammation, CBC, vitamins and more'].map(function (x) { return '<span class="row r-sec" style="gap: 10px; align-items: baseline"><span class="dot" style="background: var(--ink3); width: 6px; height: 6px; flex: none"></span>' + x + '</span>'; }).join('') + '</div>', ' data-i="B14"');
+      return h;
+    }
+    h += '<span class="r-foot c2" data-i="B15" style="padding: 0 4px">You entered this data. DoseTrace organizes and charts it — it never interprets your results. For any medical question, consult a qualified professional.</span>';
+    h += '<span class="segw fill" data-i="B16">' + [['date', 'By date'], ['marker', 'By marker']].map(function (x) { return '<span class="' + (view === x[0] ? 'on' : '') + '"' + A('labview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</span>';
+    h += '<div class="row" style="gap: 8px" data-i="B17"><div class="srch grow">' + ic(BI.search, 18, 'color: var(--ink3)') + '<input class="winp" id="labq" placeholder="Search markers…" autocomplete="off" value="' + (st.labq || '').replace(/"/g, '&quot;') + '"></div>' + (view === 'date' ? '<span class="pill r-foot"' + A('labsort') + '>' + (st.oldest ? 'Oldest' : 'Newest') + '</span>' : '<span class="pill r-foot row' + (st.favOnly ? ' on' : '') + '" style="gap: 6px"' + A('favonly') + '>' + ic(BI.star, 15, st.favOnly ? 'fill: currentColor' : '') + 'Favorites</span>') + '</div>';
+    if (view === 'date') h += reps.map(function (r) { var tg = labTags(r), hid = !labMatch(r.m.map(function (x) { return x[0]; }).join('|')); return '<div class="card pc" data-i="B18" data-names="' + r.m.map(function (x) { return x[0]; }).join('|') + '"' + (hid ? ' hidden' : '') + A('rep', r.key) + '><div class="row"><div class="grow col" style="gap: 6px"><span class="r-title">' + r.label + '</span><span class="r-sec c2 tnum">' + r.m.length + ' markers</span>' + (tg.length ? '<div class="chips2">' + tg.map(function (x) { return '<span class="otag">' + x + '</span>'; }).join('') + '</div>' : '') + '</div>' + CHEV + '</div></div>'; }).join('');
+    else h += '<div class="list" data-i="B19">' + ms.map(function (m) { var hid = !labMatch(m.name) || (st.favOnly && !m.fav); return '<div class="li" data-names="' + m.name + '" data-fav="' + (m.fav ? 1 : 0) + '"' + (hid ? ' hidden' : '') + A('mk', m.name) + '><span class="starb"' + A('fav', m.name) + ' role="button" aria-label="Favorite">' + ic(BI.star, 20, m.fav ? 'color: var(--ink); fill: var(--ink)' : 'color: var(--ink3)') + '</span><div class="grow col" style="gap: 2px"><span class="r-head">' + m.name + '</span><span class="r-foot c2 tnum">' + m.pts.length + ' ' + (m.pts.length === 1 ? 'reading' : 'readings') + '</span></div><span class="r-value v15">' + m.latest.v + ' ' + m.unit + '</span>' + CHEV + '</div>'; }).join('') + '</div>';
+    return h + '<span class="r-sec c2" id="labnone" style="padding: 0 4px"' + (view === 'date' ? (reps.some(function (r) { return labMatch(r.m.map(function (x) { return x[0]; }).join('|')); }) ? ' hidden' : '') : (ms.some(function (m) { return labMatch(m.name) && !(st.favOnly && !m.fav); }) ? ' hidden' : '')) + '>No markers match your search.</span>';
+  }
+  function reportScreen(key) {
+    var r = LAB.filter(function (x) { return x.key === key; })[0], tg = labTags(r);
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Lab test journal</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">' + r.label + '</h3></div><span class="r-sec c2 tnum" style="padding: 0 4px; margin-top: -8px">' + r.m.length + ' markers</span>';
+    h += progCard('', '<span class="r-head">Labels</span>' + (tg.length ? '<div class="chips2">' + tg.map(function (x) { return '<span class="pill r-foot on tagx"' + A('tagrm', x) + ' aria-label="Remove ' + x + '">' + x + ic(BI.x, 14, 'color: currentColor') + '</span>'; }).join('') + '</div>' : '') + '<div class="row" style="gap: 8px"><input class="winp grow" id="tagin" placeholder="Add a label…" autocomplete="off"><span class="btn sm o"' + A('tagadd') + '>Add</span></div>', ' data-i="B20"');
+    h += '<div class="list" data-i="B21">' + r.m.map(function (x) { return '<div class="li"' + A('say', 'Edit a marker: its sheet is My Body part 3.') + '><span class="r-body grow">' + x[0] + '</span><span class="r-value v15">' + x[1] + ' ' + x[2] + '</span>' + ic(BI.pen, 18, 'color: var(--ink3)') + '</div>'; }).join('') + '</div>';
+    h += '<span class="dangerbtn" data-i="B22"' + A('repdel', key) + '>Delete this blood test</span>';
+    return h + '<span class="r-foot c2" style="padding: 0 4px">You entered this data. DoseTrace organizes and charts it — it never interprets your results. For any medical question, consult a qualified professional.</span>';
+  }
+  function markerChart(pts, unit) {
+    var W2 = 326, H2 = 170, L = 12, R = W2 - 12, T = 26, B = H2 - 30, vs = pts.map(function (p) { return p.v; }), lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs), pad = (hi - lo) * 0.25 || Math.abs(hi) * 0.1 || 1;
+    lo -= pad; hi += pad;
+    var X = function (i) { return L + 16 + i / Math.max(1, pts.length - 1) * (R - L - 32); }, Y = function (v) { return B - (v - lo) / (hi - lo) * (B - T); };
+    var sv = '<svg class="full" viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="' + unit + ' over your tests">';
+    [T, (T + B) / 2, B].forEach(function (y) { sv += '<line x1="' + L + '" x2="' + R + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-dasharray="2 3"/>'; });
+    sv += '<polyline fill="none" stroke="var(--data)" stroke-width="2" points="' + pts.map(function (p, i) { return X(i).toFixed(1) + ',' + Y(p.v).toFixed(1); }).join(' ') + '"/>';
+    pts.forEach(function (p, i) { sv += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="4.5" fill="var(--data)"/><text x="' + X(i).toFixed(1) + '" y="' + (Y(p.v) - 10).toFixed(1) + '" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="var(--ink)">' + p.v + '</text><text x="' + X(i).toFixed(1) + '" y="' + (H2 - 8) + '" text-anchor="middle" font-family="-apple-system, Roboto, sans-serif" font-size="11" fill="var(--ink3)">' + p.d + '</text>'; });
+    return sv + '</svg>';
+  }
+  function markerScreen(name) {
+    var m = markerSeries().filter(function (x) { return x.name === name; })[0];
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Lab test journal</span><span class="starb"' + A('fav', name) + ' role="button" aria-label="Favorite">' + ic(BI.star, 24, m.fav ? 'color: var(--ink); fill: var(--ink)' : 'color: var(--ink2)') + '</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">' + name + '</h3></div>';
+    h += '<div class="card pc" data-i="B23"><span class="r-foot c2 tnum">Latest · ' + m.latest.full + '</span><span class="r-display d56">' + m.latest.v + '<span class="unit">' + m.unit + '</span></span><span class="r-foot c2 tnum">' + m.pts.length + ' ' + (m.pts.length === 1 ? 'reading' : 'readings') + '</span>';
+    h += m.pts.length >= 2 ? markerChart(m.pts, m.unit) : '<span class="r-sec c2">Add another test with this marker to see how it changes over time.</span>';
+    h += '</div><div class="list" data-i="B24">' + m.pts.slice().reverse().map(function (p) { return '<div class="li"' + A('say', 'Edit a reading: its sheet is My Body part 3.') + '><span class="r-body grow">' + p.full + '</span><span class="r-value v15">' + p.v + ' ' + m.unit + '</span>' + ic(BI.pen, 18, 'color: var(--ink3)') + '</div>'; }).join('') + '</div>';
+    return h + '<span class="r-foot c2" style="padding: 0 4px">You entered this data. DoseTrace organizes and charts it — it never interprets your results. For any medical question, consult a qualified professional.</span>';
+  }
+
   function curvePicker() {
     var sel = st.csel || [curveDefault()];
     return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Choose compounds</span><span class="txtbtn"' + A('close') + '>Done</span></div><span class="r-sec c2">Select one or more to overlay their curves.</span><div class="actlist">' + curveIds().map(function (id) { var on = sel.indexOf(id) >= 0; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('ctog', id) + '><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-head">' + P[id].name + '</span><span class="r-sec c2">' + TIER[HL[id].tier] + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div><span class="r-foot c2">Not charted: Magnesium Bisglycinate, Vitmin C, Zinc (oral; the curve covers injectable compounds with half-life data).</span></div></div>';
@@ -1660,7 +1781,11 @@ textarea.winp { resize: none; }
     else if (c.s === 'journey') body = journeyDash();
     else if (c.s === 'progress') body = progressScreen();
     else if (c.s === 'curve') body = curveScreen();
-    else if (c.s === 'body') body = notYet('My Body');
+    else if (c.s === 'body') body = bodyHub();
+    else if (c.s === 'labs') body = labsScreen();
+    else if (c.s === 'report') body = reportScreen(c.k);
+    else if (c.s === 'marker') body = markerScreen(c.n);
+    else if (c.s === 'vax') body = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'My Body</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Vaccine journal</h3></div><div class="expl r-sec c2">My Body part 2 (the Vaccine journal) comes after you approve part 1.</div>';
     else body = notYet('Settings');
     var times = ['8:10', '8:11', '8:12'];
     phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
@@ -1686,6 +1811,7 @@ textarea.winp { resize: none; }
   function push(x) { st.stacks[st.tab].push(x); st.scroll[key()] = 0; }
   phone.addEventListener('input', function (e) {
     var t = e.target;
+    if (t.id === 'labq') { st.labq = t.value; filterLabs(); return; }
     var sk = t.getAttribute && t.getAttribute('data-s');
     if (sk) { st.form[sk] = t.value; if (sk === 'rcw') st.form.rauto = null; if (sk === 'tw') { var nt = document.getElementById('tgtnote'), v7 = num(t.value), k7 = v7 ? (imp() ? v7 / 2.20462 : v7) : null; if (nt) nt.hidden = !(k7 && k7 < jnums().hmin); } return; }
     if (t.getAttribute && t.getAttribute('data-p') === 'pw') { var val = num(t.value); st.pw = val ? (imp() ? val / 2.20462 : val) : null; }
@@ -1741,6 +1867,17 @@ textarea.winp { resize: none; }
     else if (a === 'fesave') { var em = st.chat.msgs[+v]; em.items = em.items.map(function (it, k) { var g2 = function (x) { return document.getElementById('fe' + k + x).value; }; return { food: g2('n'), kcal: num(g2('k')), carb: num(g2('c')), prot: num(g2('p')), cat: it.cat }; }); st.foodEdit = null; toast('Entry updated'); }
     else if (a === 'fedel') { st.chat.msgs[+v].gone = true; st.foodEdit = null; toast('Entry removed'); }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
+    else if (a === 'rep') push({ s: 'report', k: v });
+    else if (a === 'mk') push({ s: 'marker', n: v });
+    else if (a === 'fav') { var fl = favList().slice(), fi = fl.indexOf(v); if (fi >= 0) fl.splice(fi, 1); else fl.push(v); st.favs = fl; }
+    else if (a === 'labview') st.labView = v;
+    else if (a === 'labsort') st.oldest = !st.oldest;
+    else if (a === 'favonly') st.favOnly = !st.favOnly;
+    else if (a === 'upload') toast('Upload: "Add a lab report" (photo, image or PDF), then the review sheet. My Body part 3.');
+    else if (a === 'tagrm') { var ck = cur().k, r1 = LAB.filter(function (x) { return x.key === ck; })[0]; st.labTags = st.labTags || {}; st.labTags[ck] = labTags(r1).filter(function (x) { return x !== v; }); }
+    else if (a === 'tagadd') { var ck2 = cur().k, r2 = LAB.filter(function (x) { return x.key === ck2; })[0], tv = ((document.getElementById('tagin') || {}).value || '').trim(); if (tv && labTags(r2).indexOf(tv) < 0) { st.labTags = st.labTags || {}; st.labTags[ck2] = labTags(r2).concat([tv]); } }
+    else if (a === 'repdel') { var r3 = LAB.filter(function (x) { return x.key === v; })[0]; st.overlay = { t: 'confirm', title: 'Delete this blood test', body: r3.label + ' · ' + r3.m.length + ' markers<br><br>This permanently deletes this uploaded blood test and cannot be undone. You can upload it again afterwards.', ok: 'repdelok', okText: 'Delete', danger: true, id: v }; }
+    else if (a === 'repdelok') { st.labDel = (st.labDel || []).concat([v]); st.overlay = null; st.stacks[st.tab].pop(); }
     else if (a === 'tgt') openTgt(v);
     else if (a === 'tgtsave') { var f8 = st.form, w8 = num(f8.tw), b8 = num(f8.tb); if (!w8 && !b8) toast('Enter a target weight or body fat first.'); else { st.tgt = { w: w8 ? (imp() ? w8 / 2.20462 : w8) : null, bf: b8 || null, date: f8.tdate || null }; st.tgtRemoved = false; st.overlay = null; } }
     else if (a === 'tgtdate') openDate({ title: 'Target date (optional)', pi: 'J5-tdate', for: 'tgt', min: addDays(jToday(), 1) }, st.form.tdate ? new Date(st.form.tdate) : addDays(jToday(), 61));
@@ -1834,6 +1971,11 @@ textarea.winp { resize: none; }
     sex: function () { jgo('fresh', 'progress'); st.bfsrc = 'I don\'t know'; st.nosex = true; },
     cdate: function () { jgo('run', 'curve'); openDate({ title: 'Estimate on a date', pi: 'J5-cdate', for: 'curve' }, addDays(CURVE0, 30)); }
   };
+  function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false;
+    (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
+  document.querySelectorAll('[data-bgo]').forEach(function (b) {
+    b.addEventListener('click', function () { bgo(b.getAttribute('data-bgo'), b.getAttribute('data-bscr')); st.toast = null; toPhone(); });
+  });
   document.querySelectorAll('[data-jpop]').forEach(function (b) {
     b.addEventListener('click', function () { JPOP[b.getAttribute('data-jpop')](); st.toast = null; toPhone(); });
   });
