@@ -38,6 +38,14 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Syringe numbers (2026-09-29, founder):** every drawn syringe numbers every 10 units from 0
+  ("0, 10, 20 … 100"); it used to number every 20. Applies to Today, the protocol screen and
+  add/edit (one shared drawing).
+- **My Body part 1 (hub + Lab test journal) APPROVED (2026-09-29, founder: "Approved")** as in
+  `prototype.html`, with the recommended answers: heroes like My Protocols; starred markers' latest
+  values on the Lab test journal hero (new line "Starred markers · latest test {date}"); a test and
+  a marker open their own screens; Dose accumulation stays in My Body with the same Est. level as
+  Journey; the Premium banner is a plain card. Glyph icons replaced; sentence case.
 - **Journey part 5 (popups) APPROVED (2026-09-29, founder: "Everything else approved")** as in
   `prototype.html`, with the recommended answers: Start over gets a confirm (new copy); target, past
   weigh-in and reality-check start open as bottom sheets; the start sheet says "Weight (kg)"; the

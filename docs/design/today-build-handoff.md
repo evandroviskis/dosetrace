@@ -99,3 +99,7 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
 18. i18n parity test passes with the 6 new keys.
 19. F1 and F6 fixed with failing-then-passing tests.
 20. Full test suite green; `npx expo export --platform ios` completes.
+21. Syringe scale (founder 2026-09-29): the drawn syringe on Today, the protocol screen and the
+    add/edit steps shows a number every 10 units, starting at 0 (0, 10, 20 … 100 on a 100-unit
+    syringe; 0 … 50 and 0 … 30 on the smaller ones). Minor ticks every 2 units, longer every 10,
+    unchanged. The enlarged syringe already numbers every 10.

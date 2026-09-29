@@ -125,7 +125,7 @@ needs redesign and approval. You commit, build into the simulator and I see the 
   marked. Republish the same file for every new screen.
 - **My Protocols APPROVED** (list, protocol screen, add/edit, every popup). Dose log look approved.
 - **Journey APPROVED, all 5 parts (dashboard, Progress, AI food log, Dose accumulation, popups).**
-- **My Body part 1 (hub + Lab test journal) UNDER REVIEW in prototype.html.** Parts: 1 hub + labs, 2 Vaccine journal, 3 popups (upload, review, marker edit, export, upgrade, preview).
+- **My Body part 1 (hub + Lab test journal) APPROVED. Part 2 (Vaccine journal) UNDER REVIEW.** Parts: 1 hub + labs, 2 Vaccine journal, 3 popups (upload, review, marker edit, export, upgrade, preview).
 - **After My Body:** the remaining screens (Settings, onboarding/auth, paywall, site picker,
   ...). Design each, stop, get approval. Builds follow in approval order.
 

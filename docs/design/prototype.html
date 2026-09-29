@@ -488,7 +488,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>Under review now: My Body part 1</b>, the hub and the Lab test journal (a test, a marker, search, favorites, labels). Tap the My Body tab or use the buttons. The bloodwork is invented sample data.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>Under review now: My Body part 2, the Vaccine journal</b> (list, search, add, edit, delete). The records are invented sample data.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -500,7 +500,14 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>My Body part 1: hub + Lab test journal <span class="stat rev">under review</span></h3>
+        <h3>My Body part 2: Vaccine journal <span class="stat rev">under review</span></h3>
+        <button data-bgo="pro" data-bscr="vax">Vaccine journal<small>3 invented records, newest first; search "flu"; tap a record to edit</small></button>
+        <button data-bgo="pro" data-bscr="vax,vadd">Add vaccine<small>pick the dates on the wheel; Save adds it to the list and the My Body count</small></button>
+        <button data-bgo="pro" data-bscr="vax,vedit:0">Edit a vaccine<small>Clear the next-due date; Delete vaccine → confirm (suggested)</small></button>
+        <button data-bgo="empty" data-bscr="vax">No vaccines logged</button>
+        <button data-bgo="pro" data-bscr="vax,vscan">Reading a record (scanning)</button>
+        <button data-bgo="pro">My Body with the next-due line<small>suggestion on the Vaccine journal card</small></button>
+        <h3 style="margin-top: 10px">My Body part 1: hub + Lab test journal <span class="stat ok">approved</span></h3>
         <button data-bgo="pro">My Body, Pro user<small>Lab test journal with 2 tests and your starred markers; Vaccine journal; Dose accumulation with the same number as Journey</small></button>
         <button data-bgo="pro" data-bscr="labs">Lab test journal, by date<small>Newest / Oldest; type "tsh" in the search</small></button>
         <button data-bgo="pro" data-bscr="labs,bym">Lab test journal, by marker<small>star or unstar a marker; Favorites filter</small></button>
@@ -566,15 +573,14 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (My Body part 1)</h3>
+        <h3>Open questions (My Body part 2: Vaccine journal)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>My Body opens on heroes</b>, like My Protocols: Lab test journal and Vaccine journal as big cards with their counts, then Dose accumulation. Main has three equal rows with tinted badges. OK?</li>
-          <li><b>Suggestion: your starred markers on the Lab test journal hero</b> (their latest values, your numbers only, no ranges). New line "Starred markers · latest test Aug 20". Yes or no?</li>
-          <li><b>A test and a marker open their own screens</b> instead of expanding in place (the same change you approved for protocols). One Back tap to return. OK?</li>
-          <li><b>Dose accumulation stays in My Body too</b> and shows the same Est. level as the Journey tile, instead of main's line "Accumulation Curve" (that name is gone). Two doors, one screen. OK?</li>
-          <li><b>The Premium banner becomes a plain card</b> under the title (same words), instead of a tinted strip. OK?</li>
+          <li><b>Records as cards, newest first</b>: name, date given, dose · maker · lot, next due, notes, all as main. Tap to edit. OK?</li>
+          <li><b>Add / edit is a sheet from the bottom</b> with main's fields and words; the dates use the wheel you approved. OK?</li>
+          <li><b>Suggestion: a confirm before "Delete vaccine"</b>. Main deletes at once. New copy. Recommendation: yes.</li>
+          <li><b>Suggestion: the nearest next-due date on the My Body card</b> ("Next due: Influenza (flu) · Oct 1"): the date you typed, no advice. New copy. Yes or no?</li>
         </ol>
-        <p class="r-foot" style="color: var(--ink2)"><b>Fixed on the way:</b> text glyphs used as icons (✎ ★ ☆ ▶ ▲ ↑ ›) become icons from your set; "WHAT WE CAN READ" is sentence case; the marker chart stays a plain plot of your own numbers (as main). Not in this part: upload, review, marker edit, export and the upgrade/preview sheets (part 3), the Vaccine journal (part 2).</p>
+        <p class="r-foot" style="color: var(--ink2)"><b>Part 1 approved</b> with every recommended answer. Not in this part: Scan / upload and its review sheet, the Premium prompt, export (My Body part 3).</p>
         <h3>Journey part 5: decisions</h3>
         <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
@@ -661,7 +667,8 @@ textarea.winp { resize: none; }
       var lg = u % 10 === 0;
       s += '<line x1="' + X(u).toFixed(1) + '" y1="' + (top + 1) + '" x2="' + X(u).toFixed(1) + '" y2="' + (top + (lg ? 10 : 5)) + '" stroke="' + (u < v ? 'var(--onData)' : 'var(--tick)') + '" stroke-opacity="' + (u < v ? 0.75 : 1) + '" stroke-width="' + (lg ? 1.2 : 0.8) + '"/>';
     }
-    for (var L = 0; L <= cap; L += 20) s += '<text x="' + X(L).toFixed(1) + '" y="43" text-anchor="middle" fill="var(--ink3)" font-family="Geist Mono, ui-monospace, monospace" font-size="9">' + L + '</text>';
+    // a number every 10 units, from 0 (founder 2026-09-29: "0, 10, 20 ... 100")
+    for (var L = 0; L <= cap; L += 10) s += '<text x="' + X(L).toFixed(1) + '" y="43" text-anchor="middle" fill="var(--ink3)" font-family="Geist Mono, ui-monospace, monospace" font-size="9">' + L + '</text>';
     s += '<rect x="' + (X(v) - 1).toFixed(1) + '" y="' + (top - 1) + '" width="6" height="' + (bot - top + 2) + '" rx="2" fill="var(--ink)"/>';
     s += '<rect x="' + (X(v) + 5).toFixed(1) + '" y="17" width="' + Math.max(0, 318 - X(v) - 5).toFixed(1) + '" height="4" rx="1" fill="var(--ink2)"/>';
     s += '<rect x="318" y="7" width="8" height="24" rx="3" fill="var(--ink)"/>';
@@ -950,6 +957,7 @@ textarea.winp { resize: none; }
     if (o.t === 'tgt') return tgtSheet();
     if (o.t === 'past') return pastSheet();
     if (o.t === 'rcstart') return rcStartSheet();
+    if (o.t === 'vaxform') return vaxForm();
     if (o.t === 'chat') return chatScreen();
     if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
     if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: reality_check).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
@@ -1186,7 +1194,7 @@ textarea.winp { resize: none; }
     return h + '</div>';
   }
   function wheelCols(o) {
-    if (o.kind === 'jdate') { var jd = st.jd, dd = []; for (var i2 = 1; i2 <= 31; i2++) dd.push(i2); return [[MN, jd.m], [dd, jd.d - 1], [[2025, 2026, 2027], jd.y - 2025]]; }
+    if (o.kind === 'jdate') { var jd = st.jd, dd = []; for (var i2 = 1; i2 <= 31; i2++) dd.push(i2); var yy = []; for (var y2 = 2010; y2 <= 2035; y2++) yy.push(y2); return [[MN, jd.m], [dd, jd.d - 1], [yy, jd.y - 2010]]; }
     var w = st.wiz;
     if (o.kind === 'date') { var days = []; for (var i = 1; i <= 31; i++) days.push(i); return [[MN, w.start.m], [days, w.start.d - 1], [[2025, 2026, 2027], w.start.y - 2025]]; }
     var t = w.times[o.idx].match(/(\d+):(\d+) (AM|PM)/), hrs = [], mins = [];
@@ -1713,7 +1721,8 @@ textarea.winp { resize: none; }
     } else h += '<span class="r-body c2">Nothing logged yet</span>';
     h += '<span class="r-sec c2">Keep every blood test in one place. Chart any marker over time, label your tests, and export a clean history for any doctor.</span></div>';
     h += '<div class="hero" data-i="B4"' + A('go', 'vax') + '><div class="ht">' + ic(BI.vax, 24) + '<span class="r-title grow">Vaccine journal</span>' + CHEV + '</div>';
-    h += st.bstate === 'empty' ? '<span class="r-body c2">Nothing logged yet</span>' : '<div class="row" style="align-items: baseline; gap: 10px"><span class="r-display d56">3</span><span class="r-body c2">vaccines</span></div>';
+    var vl = vaxList(), nd = vl.filter(function (v) { return v.due && v.due >= +new Date(2026, 8, 29); }).sort(function (a, b) { return a.due - b.due; })[0];
+    h += !vl.length ? '<span class="r-body c2">Nothing logged yet</span>' : '<div class="row" style="align-items: baseline; gap: 10px"><span class="r-display d56">' + vl.length + '</span><span class="r-body c2">' + (vl.length === 1 ? 'vaccine' : 'vaccines') + '</span></div>' + (nd ? '<span class="r-body row tnum" data-i="B4n" style="gap: 8px">' + ic('<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>', 16, 'color: var(--ink2)') + nc('Next due: ' + nd.name + ' · ' + MN[new Date(nd.due).getMonth()] + ' ' + new Date(nd.due).getDate()) + '</span>' : '');
     h += '<span class="r-sec c2">Log your vaccines and boosters — dates, next-due reminders and notes, always ready to hand to a clinic.</span></div>';
     h += '<div class="card pc" data-i="B5"' + (free ? A('say', 'Free plan: the preview sheet "See your compound build up", then the Paywall (My Body part 3).') : A('go', 'curve')) + '><div class="row" style="gap: 10px">' + ic(JI.curve, 22, 'color: var(--data)') + '<span class="r-title grow">Dose accumulation</span>' + (free ? '<span class="otag">PRO</span>' + ic(BI.lock, 18, 'color: var(--ink3)') : CHEV) + '</div><span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
     if (!free) { var cid = tileCid(); h += '<div class="row sep" style="justify-content: space-between; align-items: flex-end; padding-top: 12px"><span class="row r-sec" style="gap: 7px"><span class="dot" style="background: var(' + P[cid].color + ')"></span>' + P[cid].name + '</span><span class="col" style="align-items: flex-end; gap: 2px"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + fmtMg(levelAt(cid, 0)) + '<span class="unit">mg</span></span></span></div>'; }
@@ -1764,6 +1773,54 @@ textarea.winp { resize: none; }
     return h + '<span class="r-foot c2" style="padding: 0 4px">You entered this data. DoseTrace organizes and charts it — it never interprets your results. For any medical question, consult a qualified professional.</span>';
   }
 
+  /* ================= My Body part 2: Vaccine journal (under review) ================= */
+  // Invented sample records. Everything is user-entered: no schedules, no advice.
+  var VAX0 = [
+    { name: 'Influenza (flu)', given: +new Date(2025, 9, 2), due: +new Date(2026, 9, 1), dn: '1', man: 'Sanofi', lot: 'UT7731', prov: 'City Health Clinic', loc: 'left arm', notes: 'No reaction.' },
+    { name: 'COVID-19', given: +new Date(2025, 8, 8), due: null, dn: '4', man: 'Pfizer', lot: 'FF1234', prov: '', loc: '', notes: '' },
+    { name: 'Tetanus, diphtheria (Td)', given: +new Date(2019, 2, 14), due: +new Date(2029, 2, 14), dn: '', man: '', lot: '', prov: '', loc: 'right arm', notes: 'Booster after a cut.' }
+  ];
+  var MONTHS_L = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function longDate(ms) { var d = new Date(ms); return MONTHS_L[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+  function vaxList() { if (st.bstate === 'empty' && !st.vax) return []; return (st.vax || VAX0).slice().sort(function (a, b) { return b.given - a.given; }); }
+  function vaxScreen() {
+    var list = vaxList(), q = (st.vaxq || '').trim().toLowerCase();
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'My Body</span>' + (list.length ? '<span class="txtbtn row" style="gap: 5px"' + A('say', 'Export: the export sheet (CSV or PDF, Premium) is My Body part 3.') + '>' + ic(BI.up, 16, 'color: currentColor') + 'Export</span>' : '') + '</div>';
+    h += '<div class="hrow" style="padding-top: 0"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">Vaccine journal</h3></div>';
+    h += '<span class="r-foot c2" data-i="V1" style="padding: 0 4px">You enter your own vaccine records. DoseTrace stores and organizes them — it never advises which vaccines to get or when. For any medical question, consult a qualified professional.</span>';
+    h += '<div class="acts2" data-i="V2"' + (st.ts >= 1.3 ? ' style="grid-template-columns: 1fr; display: grid"' : '') + '><span class="btn p"' + A('vaxadd') + '>+ Add vaccine</span><span class="obtn2"' + A('say', 'Scan / upload: Premium check, then "Scan a vaccine record" (photo, image or PDF) and the review sheet. My Body part 3.') + '>' + ic(BI.labs, 18, 'color: currentColor') + 'Scan / upload</span></div>';
+    if (st.vscan) h += '<div class="card pc row" style="gap: 12px; flex-direction: row"><span class="spin"></span><span class="r-body">Reading your record…</span></div>';
+    if (!list.length) return h + '<div class="card pc" data-i="V3" style="align-items: center; text-align: center; padding-top: 28px">' + ic(BI.vax, 44, 'color: var(--ink3)') + '<span class="r-title">No vaccines logged</span><span class="r-sec c2">Add your vaccines to keep them in one place — dates, boosters, and notes you can hand to any doctor.</span></div>';
+    h += '<div class="srch" data-i="V4">' + ic(BI.search, 18, 'color: var(--ink3)') + '<input class="winp" id="vaxq" placeholder="Search vaccines…" autocomplete="off" value="' + (st.vaxq || '').replace(/"/g, '&quot;') + '"></div>';
+    var any = false;
+    h += list.map(function (v) {
+      var hid = q && v.name.toLowerCase().indexOf(q) < 0; if (!hid) any = true;
+      var meta = [v.dn ? 'Dose ' + v.dn : '', v.man, v.lot ? 'Lot ' + v.lot : ''].filter(Boolean).join(' · ');
+      return '<div class="card pc" data-i="V5" data-vname="' + v.name.toLowerCase() + '"' + (hid ? ' hidden' : '') + A('vaxedit', (st.vax || VAX0).indexOf(v)) + '><div class="row" style="align-items: flex-start"><div class="grow col" style="gap: 5px"><span class="r-title">' + v.name + '</span><span class="r-sec c2 tnum">' + longDate(v.given) + '</span>' + (meta ? '<span class="r-foot c2 tnum">' + meta + '</span>' : '') + (v.due ? '<span class="r-sec row tnum" style="gap: 7px">' + ic('<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>', 16, 'color: var(--ink2)') + 'Next due: ' + longDate(v.due) + '</span>' : '') + (v.notes ? '<span class="r-foot c2">' + v.notes + '</span>' : '') + '</div>' + CHEV + '</div></div>';
+    }).join('');
+    return h + '<span class="r-sec c2" id="vaxnone" style="padding: 0 4px"' + (any ? ' hidden' : '') + '>No vaccines match your search.</span>';
+  }
+  function openVax(i) {
+    var v = i == null ? null : (st.vax || VAX0)[i];
+    st.form = v ? { vn: v.name, vd: v.given, vdue: v.due, vm: v.man, vdn: v.dn, vlot: v.lot, vprov: v.prov, vloc: v.loc, vnotes: v.notes } : { vn: '', vd: +new Date(2026, 8, 29), vdue: null, vm: '', vdn: '', vlot: '', vprov: '', vloc: '', vnotes: '' };
+    st.overlay = { t: 'vaxform', i: i == null ? null : +i };
+  }
+  function vaxForm() {
+    var f = st.form, o = st.overlay, esc = function (x) { return String(x || '').replace(/"/g, '&quot;'); };
+    var fld2 = function (label, key, ph, mode) { return '<div class="fld"><span class="r-foot c2">' + label + '</span><input class="winp" data-s="' + key + '"' + (mode ? ' inputmode="' + mode + '"' : '') + ' placeholder="' + ph + '" value="' + esc(f[key]) + '"></div>'; };
+    var cal = ic('<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>', 20, 'color: var(--ink2)');
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="V6" style="max-height: 88%; overflow-y: auto">' + sheetHead(o.i == null ? 'Add vaccine' : 'Edit vaccine', '<span class="txtbtn"' + A('vaxsave') + '>Save</span>');
+    h += fld2('Vaccine', 'vn', 'Vaccine name');
+    h += '<div class="fld"><span class="r-foot c2">Date given</span><div class="datebtn"' + A('vaxdate', 'vd') + '><span class="r-body">' + longDate(f.vd) + '</span>' + cal + '</div></div>';
+    h += '<div class="fld"><div class="row" style="justify-content: space-between; padding: 0 4px"><span class="r-foot c2">Next due (optional)</span>' + (f.vdue ? '<span class="btnlink r-foot"' + A('vaxclear') + '>Clear</span>' : '') + '</div><div class="datebtn"' + A('vaxdate', 'vdue') + '><span class="r-body' + (f.vdue ? '' : ' c2') + '">' + (f.vdue ? longDate(f.vdue) : 'Not set') + '</span>' + cal + '</div></div>';
+    h += '<span class="r-head" style="padding: 6px 4px 0">Details (optional)</span>';
+    h += '<div class="fieldgrid" style="grid-template-columns: 1fr 96px">' + fld2('Manufacturer', 'vm', 'e.g. Pfizer') + fld2('Dose #', 'vdn', '1', 'numeric') + '</div>';
+    h += fld2('Batch / Lot', 'vlot', 'e.g. FF1234') + fld2('Provider / clinic', 'vprov', 'e.g. City Health Clinic') + fld2('Where given', 'vloc', 'e.g. left arm');
+    h += '<div class="fld"><span class="r-foot c2">Notes</span><textarea class="winp" data-s="vnotes" rows="3" placeholder="Batch, clinic, reaction… (optional)" style="min-height: 88px; padding-top: 12px; resize: none">' + (f.vnotes || '') + '</textarea></div>';
+    if (o.i != null) h += '<span class="dangerbtn"' + A('vaxdel') + '>Delete vaccine</span>';
+    return h + '</div></div>';
+  }
+
   function curvePicker() {
     var sel = st.csel || [curveDefault()];
     return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Choose compounds</span><span class="txtbtn"' + A('close') + '>Done</span></div><span class="r-sec c2">Select one or more to overlay their curves.</span><div class="actlist">' + curveIds().map(function (id) { var on = sel.indexOf(id) >= 0; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('ctog', id) + '><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-head">' + P[id].name + '</span><span class="r-sec c2">' + TIER[HL[id].tier] + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div><span class="r-foot c2">Not charted: Magnesium Bisglycinate, Vitmin C, Zinc (oral; the curve covers injectable compounds with half-life data).</span></div></div>';
@@ -1785,7 +1842,7 @@ textarea.winp { resize: none; }
     else if (c.s === 'labs') body = labsScreen();
     else if (c.s === 'report') body = reportScreen(c.k);
     else if (c.s === 'marker') body = markerScreen(c.n);
-    else if (c.s === 'vax') body = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'My Body</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Vaccine journal</h3></div><div class="expl r-sec c2">My Body part 2 (the Vaccine journal) comes after you approve part 1.</div>';
+    else if (c.s === 'vax') body = vaxScreen();
     else body = notYet('Settings');
     var times = ['8:10', '8:11', '8:12'];
     phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
@@ -1812,6 +1869,7 @@ textarea.winp { resize: none; }
   phone.addEventListener('input', function (e) {
     var t = e.target;
     if (t.id === 'labq') { st.labq = t.value; filterLabs(); return; }
+    if (t.id === 'vaxq') { st.vaxq = t.value; var q9 = t.value.trim().toLowerCase(), any9 = false; phone.querySelectorAll('[data-vname]').forEach(function (el) { el.hidden = !!q9 && el.getAttribute('data-vname').indexOf(q9) < 0; if (!el.hidden) any9 = true; }); var n9 = document.getElementById('vaxnone'); if (n9) n9.hidden = any9; return; }
     var sk = t.getAttribute && t.getAttribute('data-s');
     if (sk) { st.form[sk] = t.value; if (sk === 'rcw') st.form.rauto = null; if (sk === 'tw') { var nt = document.getElementById('tgtnote'), v7 = num(t.value), k7 = v7 ? (imp() ? v7 / 2.20462 : v7) : null; if (nt) nt.hidden = !(k7 && k7 < jnums().hmin); } return; }
     if (t.getAttribute && t.getAttribute('data-p') === 'pw') { var val = num(t.value); st.pw = val ? (imp() ? val / 2.20462 : val) : null; }
@@ -1868,6 +1926,13 @@ textarea.winp { resize: none; }
     else if (a === 'fedel') { st.chat.msgs[+v].gone = true; st.foodEdit = null; toast('Entry removed'); }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
     else if (a === 'rep') push({ s: 'report', k: v });
+    else if (a === 'vaxadd') openVax(null);
+    else if (a === 'vaxedit') openVax(+v);
+    else if (a === 'vaxdate') openDate(v === 'vd' ? { title: 'Date given', pi: 'V7', for: 'vax', key: 'vd', max: new Date(2026, 8, 29) } : { title: 'Next due (optional)', pi: 'V8', for: 'vax', key: 'vdue' }, new Date(st.form[v] || +new Date(2026, 8, 29)));
+    else if (a === 'vaxclear') st.form.vdue = null;
+    else if (a === 'vaxsave') { var f5 = st.form; if (!(f5.vn || '').trim()) toast('Enter the vaccine name first.'); else { var rec = { name: f5.vn.trim(), given: f5.vd, due: f5.vdue || null, dn: f5.vdn || '', man: f5.vm || '', lot: f5.vlot || '', prov: f5.vprov || '', loc: f5.vloc || '', notes: (f5.vnotes || '').trim() }, L5 = (st.vax || (st.bstate === 'empty' ? [] : VAX0)).slice(); if (st.overlay.i == null) L5.push(rec); else L5[st.overlay.i] = rec; st.vax = L5; st.overlay = null; } }
+    else if (a === 'vaxdel') { var vi = st.overlay.i; st.overlay = { t: 'confirm', title: nc('Delete vaccine?'), body: nc('This removes ' + (st.vax || VAX0)[vi].name + ' from your vaccine journal. It cannot be undone.'), ok: 'vaxdelok', okText: 'Delete', danger: true, id: vi, note: 'Suggestion (question 3): main deletes with no warning. New copy.' }; }
+    else if (a === 'vaxdelok') { var L6 = (st.vax || VAX0).slice(); L6.splice(+v, 1); st.vax = L6; st.overlay = null; }
     else if (a === 'mk') push({ s: 'marker', n: v });
     else if (a === 'fav') { var fl = favList().slice(), fi = fl.indexOf(v); if (fi >= 0) fl.splice(fi, 1); else fl.push(v); st.favs = fl; }
     else if (a === 'labview') st.labView = v;
@@ -1885,7 +1950,7 @@ textarea.winp { resize: none; }
     else if (a === 'tgtrm') st.overlay = { t: 'confirm', title: 'Remove target?', body: 'This clears your goal. Your weigh-ins and history are kept.', ok: 'tgtrmok', okText: 'Remove', danger: true };
     else if (a === 'tgtrmok') { st.tgtRemoved = true; st.tgt = null; st.overlay = null; }
     else if (a === 'jdone') { if (el.classList.contains('scrim') && e.target !== el) return; var o4 = st.overlay, d4 = new Date(st.jd.y, st.jd.m, Math.min(st.jd.d, new Date(st.jd.y, st.jd.m + 1, 0).getDate())); if (o4.min && d4 < o4.min) d4 = new Date(o4.min); if (o4.max && d4 > o4.max) d4 = new Date(o4.max);
-      if (o4.for === 'curve') { st.cdate = Math.round((d4 - CURVE0) / 864e5); st.overlay = null; } else { st.form[o4.for === 'tgt' ? 'tdate' : 'pdate'] = d4.getTime(); st.overlay = o4.back; } }
+      if (o4.for === 'curve') { st.cdate = Math.round((d4 - CURVE0) / 864e5); st.overlay = null; } else { st.form[o4.key || (o4.for === 'tgt' ? 'tdate' : 'pdate')] = d4.getTime(); st.overlay = o4.back; } }
     else if (a === 'past') openPast();
     else if (a === 'pastdate') openDate({ title: 'Date', pi: 'J5-pdate', for: 'past', max: jToday() }, new Date(st.form.pdate));
     else if (a === 'pastsave') { var w9 = num(st.form.pw2); if (!w9) toast('Enter your weight first.'); else { var d9 = new Date(st.form.pdate); st.extraW = (st.extraW || []).concat([[dayOf(d9), Math.round((imp() ? w9 / 2.20462 : w9) * 10) / 10, null, num(st.form.pb2) || null, md(d9)]]); st.overlay = null; st.fold.wopen = true; toast('Snapshot saved'); } }
@@ -1971,8 +2036,8 @@ textarea.winp { resize: none; }
     sex: function () { jgo('fresh', 'progress'); st.bfsrc = 'I don\'t know'; st.nosex = true; },
     cdate: function () { jgo('run', 'curve'); openDate({ title: 'Estimate on a date', pi: 'J5-cdate', for: 'curve' }, addDays(CURVE0, 30)); }
   };
-  function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false;
-    (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
+  function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false; st.vax = null; st.vaxq = ''; st.vscan = false;
+    (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
   document.querySelectorAll('[data-bgo]').forEach(function (b) {
     b.addEventListener('click', function () { bgo(b.getAttribute('data-bgo'), b.getAttribute('data-bscr')); st.toast = null; toPhone(); });
   });
