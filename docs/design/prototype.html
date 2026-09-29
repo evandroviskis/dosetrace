@@ -1,0 +1,909 @@
+<title>DoseTrace Prototype</title>
+<meta name="description" content="Clickable DoseTrace prototype: approved screens plus the screen under review, in light and dark, at 100% and 135% text size.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a proposal sheet. Main's Today, then proposal v2 in six states (light), four in dark,
+   then the dose card anatomy, the fate of every item on main (#1-#41, new N1-N9), My Protocols heroes, ring rules, flows,
+   copy, findings and engineering size. Skin = Graduated v3; type = the approved v4 roles. */
+:root {
+  --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8;
+  --ok: #17623F; --risk: #9E1F19; --attention: #7E4A00;
+  --geist: 'Geist', -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sys: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF;
+  --ok: #62C597; --risk: #F08A80; --attention: #E3A54E; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF;
+  --ok: #62C597; --risk: #F08A80; --attention: #E3A54E; color-scheme: dark; }
+.ph.light { --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8; --onData: #FFFFFF;
+  --ok: #17623F; --risk: #9E1F19; --badge: #7E4A00; --p1: #C8643A; --p2: #2E9C78; }
+.ph.dark { --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --onData: #0F1114;
+  --ok: #62C597; --risk: #F08A80; --badge: #E3A54E; --p1: #E8875C; --p2: #4CC49B; }
+.ph { --act: var(--ink); --onAct: var(--onInk); --ts: 1; }
+
+/* ---- the nine type roles (v4); --ts = the phone's text size ---- */
+.r-large { font: 600 calc(34px * var(--ts)) / 1.2 var(--geist); letter-spacing: -0.02em; margin: 0; }
+.r-display { font-family: var(--geist); font-weight: 300; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.d56 { font-size: calc(56px * var(--ts)); } .d34 { font-size: calc(34px * var(--ts)); }
+.unit { font: 400 calc(13px * var(--ts)) var(--mono); color: var(--ink3); letter-spacing: 0; margin-left: 3px; }
+.r-title { font: 600 calc(22px * var(--ts)) / 1.27 var(--geist); letter-spacing: -0.01em; }
+.r-head { font: 600 calc(17px * var(--ts)) / 1.29 var(--sys); }
+.r-body { font: 400 calc(17px * var(--ts)) / 1.29 var(--sys); }
+.r-value { font: 500 calc(17px * var(--ts)) / 1.29 var(--mono); font-variant-numeric: tabular-nums; }
+.r-value.v15 { font-size: calc(15px * var(--ts)); }
+.r-sec { font: 400 calc(15px * var(--ts)) / 1.33 var(--sys); }
+.r-foot { font: 400 calc(13px * var(--ts)) / 1.38 var(--sys); }
+.r-cap { font: 500 calc(12px * var(--ts)) / 1.33 var(--sys); }
+.r-tab { font: 500 11px / 1.2 var(--sys); } /* iOS keeps tab-bar labels fixed; large text uses the Large Content Viewer */
+.tnum { font-variant-numeric: tabular-nums; }
+.c2 { color: var(--ink2); } .c3 { color: var(--ink3); } .cd { color: var(--data); } .cok { color: var(--ok); } .crisk { color: var(--risk); }
+.vin { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+* { box-sizing: border-box; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--geist); -webkit-font-smoothing: antialiased; padding-inline: 20px; padding-block: 40px 72px; }
+.wrap { max-width: 1760px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.intro { display: flex; flex-direction: column; gap: 14px; max-width: 80ch; }
+.intro h1 { margin: 0; font-weight: 300; font-size: clamp(36px, 5vw, 56px); letter-spacing: -0.03em; line-height: 1.02; }
+.intro p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+.intro p b { font-weight: 500; color: var(--ink); }
+.status { font-family: var(--mono); font-size: 12.5px; color: var(--ink3); }
+.q { font-size: 20px; font-weight: 500; line-height: 1.35; letter-spacing: -0.01em; max-width: 60ch; margin: 0; color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13.5px; color: var(--ink2); align-items: center; }
+.legend .nc { border-bottom: 1.5px dotted var(--attention); color: var(--ink); }
+.band { display: flex; flex-direction: column; gap: 18px; }
+.band > h2 { margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.015em; }
+.band > p { margin: -6px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 84ch; }
+.cmp { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 390px)); gap: 32px; align-items: start; }
+.rowlabel { grid-column: 1 / -1; font-size: 14px; font-weight: 500; color: var(--ink2); margin-bottom: -16px; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figcaption { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+figcaption b { font-weight: 500; color: var(--ink); }
+.now { display: flex; flex-direction: column; gap: 8px; }
+.now img { display: block; width: 100%; max-width: 390px; height: auto; border-radius: 28px; outline: 1px solid var(--line); }
+.pick { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink2); min-height: 44px; }
+.pick input { width: 18px; height: 18px; accent-color: var(--ink); }
+.coverage { font-family: var(--mono); font-size: 13px; }
+.coverage.pass { color: var(--ok); } .coverage.fail { color: var(--risk); }
+.tablewrap { overflow-x: auto; }
+table.t { width: 100%; max-width: 1240px; border-collapse: collapse; font-size: 13.5px; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+table.t th { font-weight: 500; color: var(--ink2); font-size: 13px; }
+table.t td.n { font-family: var(--mono); color: var(--ink3); width: 44px; }
+table.t td.where { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+td.flag { color: var(--risk); font-weight: 500; }
+td.good { color: var(--ok); font-weight: 500; }
+ol.qs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 86ch; font-size: 15px; line-height: 1.5; }
+.rule { max-width: 760px; background: var(--raised); border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; font-size: 14.5px; line-height: 1.55; color: var(--ink2); }
+.rule b { color: var(--ink); font-weight: 500; }
+.rule ol { margin: 0; padding-left: 20px; }
+
+/* ---- phone ---- */
+.ph { width: 100%; max-width: 390px; border-radius: 36px; overflow: hidden; background: var(--ground); color: var(--ink); display: flex; flex-direction: column; outline: 1px solid var(--line); font-family: var(--sys); position: relative; }
+.scr { padding: 56px 16px 22px; display: flex; flex-direction: column; gap: 12px; }
+.navbar { display: flex; align-items: center; gap: 4px; min-height: 44px; margin: -8px 0 -4px -6px; color: var(--ink2); }
+.card { background: var(--raised); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.dcard { background: var(--raised); border-radius: 22px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.dhead { display: flex; align-items: center; gap: 10px; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+.duo.stack { grid-template-columns: 1fr; }
+/* Tiles take the height of their content; the pair stretches to the taller one. The number
+   block in each tile sits at the bottom so Daily burn and Est. level line up across the pair. */
+.tile { background: var(--raised); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tile .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: -2px; }
+.tile .num { display: flex; flex-direction: column; gap: 4px; }
+.tile .num.sep { padding-top: 10px; }
+.tile .num.end { margin-top: auto; }
+.tile .num .chip { margin-top: 2px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 3px; }
+.ico { color: var(--ink2); flex: none; display: block; }
+.chev { color: var(--tick); flex: none; }
+.chip { min-height: 26px; border-radius: 13px; border: 1px solid var(--line); padding: 2px 10px; display: inline-flex; align-items: center; flex: none; align-self: flex-start; color: var(--ink2); }
+.chip.meas { border-color: var(--data); color: var(--data); }
+.dot { width: 9px; height: 9px; border-radius: 5px; flex: none; }
+.btnlink { background: none; border: 0; padding: 0; min-height: 44px; text-align: left; color: var(--ink); display: inline-flex; align-items: center; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--tick); }
+.btnlink.risk { color: var(--risk); text-decoration-color: var(--risk); }
+.obtn { min-height: 50px; border-radius: 25px; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 0 20px; }
+.pill { min-height: 36px; border-radius: 18px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--ink2); white-space: nowrap; }
+.pill.on { border: 1.5px solid var(--ink); color: var(--ink); background: var(--raised); font-weight: 600; }
+.seg { display: flex; padding: 3px; border-radius: 12px; background: var(--well); gap: 2px; flex: none; }
+.seg span { padding: 6px 10px; border-radius: 9px; color: var(--ink3); }
+.seg span.on { background: var(--raised); color: var(--ink); font-weight: 600; }
+.fieldgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.input { min-height: 50px; border-radius: 14px; background: var(--well); display: flex; align-items: center; padding: 0 14px; }
+.input.empty { color: var(--ink3); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts5 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opt { min-height: 54px; border-radius: 14px; border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: var(--ink2); }
+.opt i { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid var(--tick); flex: none; }
+.opt.on { border: 1.5px solid var(--ink); color: var(--ink); background: var(--raised); }
+.opt.on i { border: 5px solid var(--ink); }
+.opt.wide { grid-column: 1 / -1; }
+.switch { width: 51px; height: 31px; border-radius: 16px; background: var(--ink); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 27px; height: 27px; border-radius: 14px; background: var(--raised); }
+.frow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; background: var(--raised); border-radius: 16px; }
+.hero2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 2px 0; }
+.hist { display: grid; grid-template-columns: 1fr 1fr 0.9fr 0.8fr; }
+.hist > span { padding: 9px 0; border-top: 1px solid var(--line); }
+.hist > span.h { border-top: 0; padding-top: 0; }
+.hist .r { text-align: right; }
+.bar { height: 6px; border-radius: 3px; background: var(--well); overflow: hidden; }
+.bar i { display: block; height: 6px; background: var(--data); }
+.cell { background: var(--well); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 3px; }
+.goals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.goal { border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.goal.on { border: 1.5px solid var(--ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { border: 1px solid var(--line); border-radius: 12px; padding: 4px 9px; }
+.sep { border-top: 1px solid var(--line); }
+svg.full { display: block; width: 100%; height: auto; }
+.nc { border-bottom: 1.5px dotted var(--attention); align-self: flex-start; }
+.chat { background: var(--ground); display: flex; flex-direction: column; }
+.chathead { background: var(--raised); display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.bubble { background: var(--raised); border-radius: 18px 18px 18px 6px; padding: 12px 14px; max-width: 84%; }
+.composer { display: flex; gap: 10px; align-items: center; padding: 10px 14px 6px; background: var(--raised); border-top: 1px solid var(--line); }
+.composer .in { flex: 1; min-height: 44px; border-radius: 22px; background: var(--well); display: flex; align-items: center; padding: 0 16px; color: var(--ink3); }
+.send { width: 44px; height: 44px; border-radius: 22px; background: var(--act); color: var(--onAct); display: flex; align-items: center; justify-content: center; flex: none; }
+.daydiv { display: flex; align-items: center; gap: 10px; color: var(--ink3); }
+.daydiv::before, .daydiv::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+nav.tabs { display: flex; border-top: 1px solid var(--line); padding: 8px 4px 26px; background: var(--ground); margin-top: auto; }
+nav.tabs a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 44px; text-decoration: none; color: var(--ink3); white-space: nowrap; }
+nav.tabs a.on { color: var(--ink); font-weight: 600; }
+
+[data-i] { position: relative; }
+.badges [data-i]::before { content: attr(data-i); position: absolute; top: -7px; left: -6px; z-index: 3; font: 500 10px/1 var(--mono); color: var(--badge); background: var(--ground); border: 1px solid var(--badge); border-radius: 8px; padding: 2px 5px; pointer-events: none; }
+.badges nav[data-i]::before { top: 4px; left: 6px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+
+/* ---- Today (proposal v2.1, 2026-09-29): craft pass ---- */
+.ph.light { --p3: #4D77BD; --p4: #8A63C7; --attention: #7E4A00; }
+.ph.dark { --p3: #87A7DE; --p4: #B99BE8; --attention: #E3A54E; }
+/* Bolder look (founder 2026-09-29): titles 700, big numbers 500. Sizes stay the approved v4 roles. */
+.ph .r-large { font-weight: 700; letter-spacing: -0.025em; }
+.ph .r-title { font-weight: 700; }
+.ph .r-display { font-weight: 500; }
+/* annotations only when the toggle is on: numbers and new-copy underlines */
+.ph:not(.badges) .nc { border-bottom: 0; }
+.ph.viewport { height: 844px; }
+.ph.viewport .scr { flex: 1; min-height: 0; overflow: hidden; }
+/* device chrome */
+.sbar { height: 50px; flex: none; display: grid; grid-template-columns: 1fr 126px 1fr; align-items: center; padding: 0 30px 0 34px; font: 600 16px/1 var(--sys); color: var(--ink); }
+.sbar .island { height: 36px; border-radius: 18px; background: #000; }
+.sbar .sig { justify-self: end; display: flex; gap: 6px; align-items: center; }
+.home { height: 5px; width: 134px; border-radius: 3px; background: var(--ink); margin: 0 auto 8px; flex: none; }
+.ph > nav.tabs { padding-bottom: 12px; }
+.scr { padding: 6px 16px 24px; gap: 0; }
+/* rhythm: 10 inside a block, 28 between blocks */
+.blk { display: flex; flex-direction: column; gap: 10px; }
+.blk + .blk { margin-top: 26px; }
+.hdr { display: flex; flex-direction: column; gap: 0; padding: 8px 4px 0; }
+.lab { padding: 0 4px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lab .cnt { font: 500 calc(15px * var(--ts)) / 1 var(--sys); color: var(--ink3); font-variant-numeric: tabular-nums; }
+.tag .nc { align-self: center; }
+/* the tracker slab (opposite palette inside) */
+.ph.light .inv { --ink: #F2F3EF; --ink2: #C4C8C3; --ink3: #A9AEA9; --tick: #8A9095; --line: #4B5056; --data: #8AA8FF; --onData: #0F1114; --attention: #E3A54E; --ok: #62C597; background: #383C41; color: #F2F3EF; }
+.ph.dark .inv { --ink: #111315; --ink2: #454A4F; --ink3: #5D6267; --tick: #A5AAA3; --line: #D6D9D2; --data: #2350D8; --onData: #FFFFFF; --attention: #7E4A00; --ok: #17623F; background: #EEEFEB; color: #111315; }
+.ph.dark .inv.alt { --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --tick: #5B6166; --line: #3C4147; --data: #8AA8FF; --onData: #0F1114; --attention: #E3A54E; --ok: #62C597; background: #1B1E21; color: #EEEFEB; box-shadow: inset 0 0 0 1px #3C4147; }
+.inv { border-radius: 28px; padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 18px; }
+.gauges { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; }
+.gmain { position: relative; width: calc(132px * min(var(--ts), 1.15)); aspect-ratio: 1; }
+.gmain svg, .gsm svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gmain .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.gnum { font: 500 calc(38px * var(--ts)) / 1 var(--geist); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.gnum small { font-size: 0.5em; color: var(--ink2); margin-left: 1px; letter-spacing: 0; }
+.gcap { font: 600 calc(12px * var(--ts)) / 1.2 var(--sys); color: var(--ink2); }
+.gside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.grow2 { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.gsm { position: relative; width: 44px; height: 44px; }
+.gside .t { font: 600 calc(15px * var(--ts)) / 1.2 var(--sys); }
+.gside .s { font: 400 calc(13px * var(--ts)) / 1.3 var(--sys); color: var(--ink2); font-variant-numeric: tabular-nums; }
+.gside .p { font: 500 calc(26px * var(--ts)) / 1 var(--geist); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.gside .p small { font-size: 0.55em; color: var(--ink2); }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wd { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.wd svg { width: 22px; height: 22px; display: block; }
+.wd .r-cap { color: var(--ink3); }
+.wd.today .r-cap { color: var(--ink); font-weight: 700; }
+.strk { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); }
+.strk .ico { color: var(--attention); }
+.strk > .r-head { flex: 1 1 auto; white-space: nowrap; }
+.strk > [data-i="25"] { margin-left: auto; }
+.fire { border: 1px solid var(--attention); color: var(--attention); border-radius: 12px; padding: 2px 9px; font-weight: 600; }
+/* alerts: one quiet list */
+.alist { background: var(--raised); border-radius: 22px; padding: 0 8px 0 16px; display: flex; flex-direction: column; }
+.alist .li { min-height: 64px; }
+.round { width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); background: var(--well); }
+.round.on { background: var(--ink); color: var(--onInk); }
+.snz { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 14px 34px; }
+/* dose card */
+.dose { background: var(--raised); border-radius: 24px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+.dtop { display: flex; align-items: flex-start; gap: 12px; }
+.dname { font: 700 calc(20px * var(--ts)) / 1.2 var(--sys); letter-spacing: -0.01em; }
+.damt { font: 500 calc(16px * var(--ts)) / 1.3 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -0.02em; }
+.dtime { font: 600 calc(17px * var(--ts)) / 1.2 var(--sys); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 0 9px; border-radius: 12px; border: 1px solid currentColor; font: 700 calc(12px * var(--ts)) / 1 var(--sys); white-space: nowrap; }
+.tag.due { color: var(--attention); }
+.tag.due i { width: 6px; height: 6px; border-radius: 3px; background: currentColor; }
+.tag.later { color: var(--ink3); border-color: var(--line); font-weight: 500; }
+.draw { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 10px; background: var(--well); border-radius: 16px; }
+.drawh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.meta span { display: inline-flex; align-items: center; gap: 5px; }
+.vialrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); }
+.acts { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.acts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn { min-height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; padding: 0 16px; text-align: center; font: 700 calc(17px * var(--ts)) / 1.2 var(--sys); }
+.btn.o { background: var(--well); color: var(--ink); }
+.btn.p { background: var(--act); color: var(--onAct); }
+.btn.sm { min-height: 44px; font-size: calc(15px * var(--ts)); }
+.list { background: var(--raised); border-radius: 22px; padding: 0 16px; display: flex; flex-direction: column; }
+.li { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 0; border-top: 1px solid var(--line); }
+.li:first-child { border-top: 0; }
+.li .tcol { width: calc(88px * var(--ts)); flex: none; }
+.okc { color: var(--ok); display: inline-flex; flex: none; }
+.taken { display: flex; align-items: flex-start; gap: 12px; padding: 4px 6px; }
+.pend { background: var(--raised); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.food { background: var(--raised); border-radius: 24px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.fh { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+.toast { position: absolute; left: 12px; right: 12px; bottom: 96px; z-index: 4; background: var(--ink); color: var(--onInk); border-radius: 18px; padding: 14px 18px; display: flex; align-items: center; gap: 18px; }
+.toast .tl { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.grace { background: var(--raised); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.hero { background: var(--raised); border-radius: 26px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.hero .ht { display: flex; align-items: center; gap: 10px; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.trio > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.names { display: flex; flex-direction: column; gap: 8px; }
+.addbtn { min-height: 40px; border-radius: 20px; background: var(--act); color: var(--onAct); padding: 0 16px; display: inline-flex; align-items: center; font: 700 calc(15px * var(--ts)) var(--sys); flex: none; }
+.hrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 4px 0; }
+.expl { background: var(--raised); border-radius: 20px; padding: 14px 16px; }
+.ph .pill { display: inline-flex; align-items: center; }
+.pscr { gap: 14px; }
+/* ---- My Protocols (proposal v1, part 1: list + protocol) ---- */
+.navrow { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 2px; }
+.back { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font: 400 calc(17px * var(--ts)) / 1 var(--sys); }
+.back svg { transform: scaleX(-1); color: var(--ink); }
+.txtbtn { font: 600 calc(17px * var(--ts)) / 1 var(--sys); color: var(--ink); min-height: 44px; display: inline-flex; align-items: center; }
+.sortrow { display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 18px; }
+.sortrow::-webkit-scrollbar { display: none; }
+.sortrow .pill { flex: none; min-height: 34px; }
+.pcard { background: var(--raised); border-radius: 22px; padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.pname { font: 700 calc(18px * var(--ts)) / 1.25 var(--sys); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.otag { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 0 9px; border-radius: 12px; border: 1px solid var(--line); color: var(--ink2); font: 600 calc(12px * var(--ts)) / 1 var(--sys); white-space: nowrap; }
+.otag.risk { color: var(--risk); border-color: var(--risk); }
+.otag.attn { color: var(--attention); border-color: var(--attention); }
+.supply { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.secth { padding: 0 4px; font: 600 calc(15px * var(--ts)) / 1.2 var(--sys); color: var(--ink2); }
+.ptitle { display: flex; flex-direction: column; gap: 6px; padding: 4px 4px 0; }
+.ptitle .r-large { font-size: calc(30px * var(--ts)); }
+.hobj { background: var(--raised); border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.hobj .big { display: flex; align-items: baseline; gap: 6px; }
+.reads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.reads > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.reads .v { font: 500 calc(17px * var(--ts)) / 1.2 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.hint { display: inline-flex; align-items: center; gap: 6px; }
+.rows { background: var(--raised); border-radius: 22px; padding: 0 16px; display: flex; flex-direction: column; }
+.rw { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; min-height: 50px; padding: 13px 0; border-top: 1px solid var(--line); }
+.rw:first-child { border-top: 0; }
+.rw .k { color: var(--ink2); }
+.rw .val { text-align: right; font-weight: 600; }
+.rw .val.m { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+.note { min-height: 72px; border-radius: 16px; background: var(--well); padding: 12px 14px; color: var(--ink3); }
+.note.on { color: var(--ink); outline: 1.5px solid var(--ink); outline-offset: -1.5px; }
+.dangerbtn { min-height: 50px; display: flex; align-items: center; justify-content: center; color: var(--risk); font: 600 calc(17px * var(--ts)) / 1 var(--sys); }
+.obtn2 { min-height: 50px; border-radius: 25px; background: var(--well); color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 calc(17px * var(--ts)) / 1 var(--sys); }
+.scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 5; display: flex; align-items: center; padding: 16px; }
+.sheet { background: var(--raised); border-radius: 26px; padding: 20px; display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.ruler { overflow: hidden; border-radius: 14px; background: var(--well); padding: 14px 0 8px; }
+.pscr { gap: 14px; }
+.pscr > .blk + .blk { margin-top: 12px; }
+
+/* ---- prototype shell ---- */
+.proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
+.ph.app { height: 844px; max-width: 390px; }
+.scroller { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.scroller::-webkit-scrollbar { display: none; }
+.ph.app [data-a] { cursor: pointer; }
+.ctlbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.seg2 { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--well); }
+.seg2 button { font: 500 13.5px/1 var(--geist); border: 0; background: transparent; color: var(--ink2); padding: 9px 12px; border-radius: 9px; cursor: pointer; min-height: 36px; }
+.seg2 button[aria-pressed="true"] { background: var(--raised); color: var(--ink); font-weight: 600; }
+.jump { display: flex; flex-direction: column; gap: 6px; }
+.jump button { font: 500 14.5px/1.3 var(--geist); text-align: left; border: 1px solid var(--line); background: var(--raised); color: var(--ink); padding: 10px 14px; border-radius: 12px; cursor: pointer; }
+.jump button small { display: block; color: var(--ink3); font-size: 12.5px; margin-top: 2px; }
+.side { display: flex; flex-direction: column; gap: 22px; max-width: 70ch; min-width: 0; }
+.side h3 { margin: 0; font-size: 17px; font-weight: 600; }
+.stat { font: 500 12px/1 var(--mono); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); color: var(--ink2); margin-left: 6px; }
+.stat.ok { color: var(--ok); border-color: var(--ok); } .stat.rev { color: var(--attention); border-color: var(--attention); }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
+    <h1>DoseTrace, clickable</h1>
+    <p>One phone that grows screen by screen. <b>Today</b> and the <b>My Protocols heroes</b> are approved. <b>Under review now: My Protocols part 1</b>, the list and the protocol screen. Tap anything: cards, Back, tabs, sort, Mark taken, Skip, the folds, the syringe, the note, Delete and Restore. Buttons for screens not drawn yet (Edit, + Add, the food log) say so.</p>
+  </header>
+  <section class="proto">
+    <div class="ph app light" id="phone"></div>
+    <div class="side">
+      <div class="ctlbar">
+        <span class="seg2" role="group" aria-label="Theme"><button data-ctl="theme:light">Light</button><button data-ctl="theme:dark">Dark</button></span>
+        <span class="seg2" role="group" aria-label="Text size"><button data-ctl="ts:1">Text 100%</button><button data-ctl="ts:1.35">135%</button></span>
+        <span class="seg2"><button data-ctl="reset:1">Start over</button></span>
+        <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
+      </div>
+      <div class="jump">
+        <h3>Jump to <span class="stat rev">under review</span></h3>
+        <button data-jump="1:list">Protocols list<small>Sort pills, By type sections, cards</small></button>
+        <button data-jump="1:list:bpc">BPC-157, reconstituted<small>Draw to 50 units, syringe (tap it), vial, notes, Delete</small></button>
+        <button data-jump="1:list:test">Testosterone Cypionate, ready to use (invented)<small>Box expiry, New vial with the suggested confirm</small></button>
+        <button data-jump="1:list:mag">Magnesium Bisglycinate, oral<small>Serving calculator: take 2 capsules, New bottle</small></button>
+        <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
+        <button data-jump="0">Today<small>Mark taken on BPC-157, Undo, folds, Remind me</small></button>
+        <button data-jump="1">My Protocols heroes</button>
+        <button data-jump="1:log">Dose log<small>main's screen in the new look; its own redesign later</small></button>
+      </div>
+      <div>
+        <h3>Open questions (My Protocols part 1)</h3>
+        <ol class="qs" style="margin-top: 10px">
+          <li><b>A protocol gets its own screen</b> instead of opening in place in the list. Today cards land straight on it. The cost is one Back tap to return. OK?</li>
+          <li><b>Edit moves to the top-right</b> (the usual iPhone place). "+ Reminder" sits under the schedule. <b>Delete moves to the bottom</b> as red text. OK?</li>
+          <li><b>Suggestion: "Recently deleted" at the bottom of the list</b>, with Restore (delete a protocol to see it). Main sends people to Settings. The strings already exist. Here, or keep it in Settings?</li>
+          <li><b>"New vial" / "New bottle" reset the count with no confirmation</b> on main. Add the confirm you see here (new copy)?</li>
+          <li>Should the Today alerts "Supply low" and "Vial expiring soon" open the protocol they name (when it is one) instead of the list?</li>
+        </ol>
+      </div>
+      <div id="cov" class="coverage"></div>
+    </div>
+  </section>
+
+  <section class="band"><h2>Where every item from main lives (My Protocols part 1)</h2><p>Numbered as in the inventory of main's ProtocolsScreen.js. The add/edit steps are part 2 and the popups part 3.</p><div class="tablewrap"><table class="t" id="fates"></table></div></section>
+  <section class="band"><h2>Flows, tap by tap</h2><div class="tablewrap"><table class="t" id="flows"></table></div></section>
+  <section class="band"><h2>Copy</h2><div class="tablewrap"><table class="t" id="copy"></table></div></section>
+  <section class="band"><h2>Fixed on the way</h2><div class="rule" id="fixes"></div></section>
+  <section class="band"><h2>Engineering size</h2><div class="rule" id="eng"></div></section>
+</div>
+
+<script>
+(function () {
+  function ic(d, size, style) {
+    return '<svg class="ico" width="' + (size || 20) + '" height="' + (size || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (style ? ' style="' + style + '"' : '') + '>' + d + '</svg>';
+  }
+  var I = {
+    flame: '<path d="M12 3c.8 3 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-1.9 1-3.1 2-4 .2 1.5 1 2.4 2 2.6-.6-2.6-.3-5.2.5-7.6z"/>',
+    scale: '<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0zM19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+    syringe: '<path d="M3 12h3M6 9.5h10v5H6zM16 8v8M16 12h3M19 10v4"/>',
+    spark: '<path d="M12 3.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z"/>',
+    snooze: '<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.6M5 4.5 3 6.5M19 4.5l2 2"/>',
+    drop: '<path d="M12 3.5c3 4 6 7.3 6 10.5a6 6 0 0 1-12 0c0-3.2 3-6.5 6-10.5z"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    check: '<path d="M5.5 12.5l4.2 4.2L18.5 8"/>',
+    journal: '<path d="M6 3.5h11a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H6z"/><path d="M6 3.5v17M9.5 8h6M9.5 11.5h6"/>',
+    capsule: '<path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z"/><path d="M8.5 8.5l7 7"/>'
+  };
+  var CHEV = '<svg class="chev" width="9" height="15" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var DOWN = '<svg class="chev" width="15" height="9" viewBox="0 0 16 10" aria-hidden="true"><path d="M2 2l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var UP = '<svg class="chev" width="15" height="9" viewBox="0 0 16 10" aria-hidden="true"><path d="M2 8l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var TABS = [
+    ['Today', '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'],
+    ['My Protocols', I.capsule],
+    ['Journey', '<path d="M6 21V4"/><path d="M6 4.5c3.5-1.7 7 1.7 11.5 0v6c-4.5 1.7-8-1.7-11.5 0"/>'],
+    ['My Body', '<circle cx="12" cy="7.5" r="3.6"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'],
+    ['Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>']
+  ];
+  function tabs(active) {
+    active = active || 0;
+    return '<nav class="tabs" aria-label="Tabs" data-i="39">' + TABS.map(function (t, i) {
+      return '<a class="r-tab' + (i === active ? ' on' : '') + '" href="#todayLight"' + (i === active ? ' aria-current="page"' : '') + '>' + ic(t[1], 24, 'color: currentColor') + t[0] + '</a>';
+    }).join('') + '</nav>';
+  }
+
+  /* ---------- graduated drawings ---------- */
+  // A gauge: fine graduation outside (a tick every 5%, longer every 25%), the done share as a solid
+  // data-blue arc on a quiet track. Small gauges drop the graduation.
+  function gauge(pct, big) {
+    var c = 50, r = big ? 38 : 40, sw = big ? 9 : 10, s = '<svg viewBox="0 0 100 100" aria-hidden="true">';
+    if (big) for (var k = 0; k < 20; k++) {
+      var a = (-90 + k * 18) * Math.PI / 180, maj = k % 5 === 0, r0 = maj ? 45 : 46.5;
+      s += '<line x1="' + (c + r0 * Math.cos(a)).toFixed(2) + '" y1="' + (c + r0 * Math.sin(a)).toFixed(2) + '" x2="' + (c + 49.5 * Math.cos(a)).toFixed(2) + '" y2="' + (c + 49.5 * Math.sin(a)).toFixed(2) + '" stroke="var(--tick)" stroke-width="' + (maj ? 1.6 : 1) + '" stroke-linecap="round"/>';
+    }
+    s += '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="var(--line)" stroke-width="' + sw + '"/>';
+    if (pct != null && pct > 0) {
+      var L = 2 * Math.PI * r, d = Math.min(pct, 100) / 100 * L;
+      s += '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="var(--data)" stroke-width="' + sw + '" stroke-linecap="' + (pct >= 100 ? 'butt' : 'round') + '" stroke-dasharray="' + d.toFixed(2) + ' ' + L.toFixed(2) + '" transform="rotate(-90 50 50)"/>';
+    }
+    return s + '</svg>';
+  }
+  // Vial cells: one per dose in the vial, remaining ones in data blue.
+  function cells(total, left) {
+    var w = Math.min(12, Math.floor(150 / total)), s = '<svg width="' + (total * w) + '" height="10" viewBox="0 0 ' + (total * w) + ' 10" aria-hidden="true">';
+    for (var k = 0; k < total; k++) s += '<rect x="' + (k * w + 0.5) + '" y="0.5" width="' + (w - 3) + '" height="9" rx="2" fill="' + (k < left ? 'var(--data)' : 'none') + '" stroke="' + (k < left ? 'var(--data)' : 'var(--tick)') + '"/>';
+    return s + '</svg>';
+  }
+  // The protocol's own syringe drawn to scale: needle, barrel with graduation, the dose in data blue,
+  // stopper at the dose, rod and thumb rest. Numbers under the barrel every 20 units.
+  function syr(cap, v) {
+    var x0 = 34, x1 = 290, top = 8, bot = 30, X = function (u) { return x0 + (u / cap) * (x1 - x0); };
+    var s = '<svg class="full" viewBox="0 0 330 46" role="img" aria-label="Syringe: draw to ' + v + ' of ' + cap + ' units">';
+    s += '<line x1="1" y1="19" x2="22" y2="19" stroke="var(--ink3)" stroke-width="1.4" stroke-linecap="round"/>';
+    s += '<path d="M22 15h8l4 2v4l-4 2h-8z" fill="var(--ink3)"/>';
+    s += '<rect x="' + x0 + '" y="' + top + '" width="' + (x1 - x0) + '" height="' + (bot - top) + '" rx="5" fill="var(--raised)" stroke="var(--tick)" stroke-width="1.2"/>';
+    s += '<rect x="' + (x0 + 1) + '" y="' + (top + 1) + '" width="' + Math.max(0, X(v) - x0 - 1).toFixed(1) + '" height="' + (bot - top - 2) + '" rx="4" fill="var(--data)"/>';
+    for (var u = 2; u < cap; u += 2) {
+      var lg = u % 10 === 0;
+      s += '<line x1="' + X(u).toFixed(1) + '" y1="' + (top + 1) + '" x2="' + X(u).toFixed(1) + '" y2="' + (top + (lg ? 10 : 5)) + '" stroke="' + (u < v ? 'var(--onData)' : 'var(--tick)') + '" stroke-opacity="' + (u < v ? 0.75 : 1) + '" stroke-width="' + (lg ? 1.2 : 0.8) + '"/>';
+    }
+    for (var L = 0; L <= cap; L += 20) s += '<text x="' + X(L).toFixed(1) + '" y="43" text-anchor="middle" fill="var(--ink3)" font-family="Geist Mono, ui-monospace, monospace" font-size="9">' + L + '</text>';
+    s += '<rect x="' + (X(v) - 1).toFixed(1) + '" y="' + (top - 1) + '" width="6" height="' + (bot - top + 2) + '" rx="2" fill="var(--ink)"/>';
+    s += '<rect x="' + (X(v) + 5).toFixed(1) + '" y="17" width="' + Math.max(0, 318 - X(v) - 5).toFixed(1) + '" height="4" rx="1" fill="var(--ink2)"/>';
+    s += '<rect x="318" y="7" width="8" height="24" rx="3" fill="var(--ink)"/>';
+    return s + '</svg>';
+  }
+
+  /* ---------- Today blocks ---------- */
+  var SIG = '<svg width="18" height="11" viewBox="0 0 18 11" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="6" rx="1" fill="currentColor"/><rect x="10" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="11" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12" aria-hidden="true"><rect x="0.5" y="0.5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" stroke-opacity="0.45"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx="0.7" fill="currentColor" fill-opacity="0.45"/></svg>';
+  function sbar(t) { return '<div class="sbar"><span>' + (t || '9:41') + '</span><i class="island"></i><span class="sig">' + SIG + '</span></div>'; }
+  function hdr(date) {
+    return '<div class="hdr"><span class="r-sec c2 tnum" data-i="1">' + date + '</span><h3 class="r-large">Today</h3></div>';
+  }
+  function alerts(list, openIdx, strip) {
+    var h = '<div class="blk" data-i="26"><div class="lab"><span class="r-head">Alerts</span><span class="cnt">' + list.length + '</span></div><div class="alist">';
+    list.forEach(function (a, k) {
+      h += '<div class="li" data-i="' + a.i + '">' + ic(a.icon, 22) + '<div class="grow col" style="gap: 2px; min-width: 0"><span class="r-head row" style="gap: 7px">' + a.title + (a.dot ? '<span class="dot" style="width: 7px; height: 7px; background: var(--' + a.dot + ')"></span>' : '') + '</span><span class="r-sec c2 tnum">' + a.body + '</span></div><span class="round' + (k === openIdx ? ' on' : '') + '" aria-label="Remind me">' + ic(I.snooze, 20, 'color: currentColor') + '</span></div>';
+      if (k === openIdx) h += '<div class="snz">' + strip.map(function (s) { return '<span class="pill r-sec">' + s + '</span>'; }).join('') + '</div>';
+    });
+    return h + '</div></div>';
+  }
+  function pending(rows) {
+    return '<div class="blk" data-i="7"><div class="lab"><span class="r-head">Pending from yesterday</span></div>' + rows.map(function (r) {
+      return '<div class="pend"><div class="row" style="gap: 10px"><span class="dot" style="background: var(--attention)"></span><span class="r-body grow tnum">' + r + '</span></div><div class="acts2"><span class="btn o sm">Skipped</span><span class="btn p sm">Taken</span></div></div>';
+    }).join('') + '</div>';
+  }
+  function pctOf(r) { return r ? Math.round(100 * r[0] / r[1]) : null; }
+  function side(label, r, id) {
+    var p = pctOf(r);
+    return '<div class="grow2" data-i="' + id + '"><span class="gsm">' + gauge(p, false) + '</span><div class="col" style="gap: 2px; min-width: 0"><span class="t nc">' + label + '</span><span class="s">' + r[0] + ' of ' + r[1] + '</span></div><span class="p">' + p + '<small>%</small></span></div>';
+  }
+  var WK = {
+    done: '<circle cx="11" cy="11" r="10" fill="var(--data)"/><path d="M6.5 11.3l3 3 6-6.3" fill="none" stroke="var(--onData)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    part: '<circle cx="11" cy="11" r="9.25" fill="none" stroke="var(--data)" stroke-width="1.5"/><path d="M11 1.75a9.25 9.25 0 0 1 0 18.5z" fill="var(--data)"/>',
+    miss: '<circle cx="11" cy="11" r="9.25" fill="none" stroke="var(--tick)" stroke-width="1.5"/>',
+    rest: '<circle cx="11" cy="11" r="2.5" fill="var(--tick)"/>'
+  };
+  function week(days) {
+    return '<div class="week" data-i="23">' + days.map(function (d) {
+      return '<div class="wd' + (d[2] ? ' today' : '') + '"><svg viewBox="0 0 22 22" aria-hidden="true">' + WK[d[1]] + '</svg><span class="r-cap">' + d[0] + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function tracker(t, alt) {
+    var p = pctOf(t.day);
+    var h = '<div class="blk"><div class="inv' + (alt ? ' alt' : '') + '" data-i="22">';
+    h += '<div class="gauges"><div class="gmain" data-i="4">' + gauge(p, true) + '<div class="in">' + (t.day ? '<span class="gnum">' + p + '<small>%</small></span><span class="gcap tnum" data-i="3"><span data-i="5">' + t.day[0] + '</span> of ' + t.day[1] + ' today</span>' : '<span class="gcap nc" style="font-size: calc(15px * var(--ts)); color: var(--ink)">Nothing due</span><span class="gcap">today</span>') + '</div></div>';
+    h += '<div class="gside">' + side('7 days', t.week, 'N5') + side('30 days', t.month, 'N6') + '</div></div>';
+    h += week(t.days);
+    h += '<div class="strk">' + ic(I.flame, 20, 'color: var(--attention)') + '<span class="r-head grow">' + t.streak + '</span>' + (t.fire ? '<span class="r-cap fire">On fire!</span>' : '') + '<span class="r-sec c2 row" style="gap: 6px" data-i="25">View history' + CHEV + '</span></div>';
+    return h + '</div></div>';
+  }
+  function card(o) {
+    var h = '<div class="dose" data-i="8">';
+    h += '<div class="dtop" data-i="9"><span class="dot" style="background: var(' + o.color + '); margin-top: 8px; width: 10px; height: 10px"></span><div class="grow col" style="gap: 4px; min-width: 0"><span class="dname">' + o.name + '</span><span class="r-sec c2"><span class="damt">' + o.amount + '</span> · ' + o.freq + '</span></div>';
+    h += '<div class="col" style="align-items: flex-end; gap: 6px; flex: none"><span class="row" style="gap: 8px"><span class="dtime">' + o.time + '</span>' + CHEV + '</span>';
+    h += o.due ? '<span class="tag due" data-i="N1"><i></i><span class="nc">Due</span></span>' : '<span class="tag later">reminder</span>';
+    h += '</div></div>';
+    if (o.skipped) h += '<span class="r-sec c2" data-i="17">Skipped — you can still log it</span>';
+    if (o.partial) h += '<span class="r-sec c2 tnum" data-i="18">' + o.partial + ' taken today</span>';
+    if (o.draw) h += '<div class="draw" data-i="N3"><div class="drawh"><span class="r-sec c2">Draw to</span><span class="r-display d34 cd">' + o.draw[1] + '<span class="unit">units</span></span></div>' + syr(o.draw[0], o.draw[1]) + '</div>';
+    var foot = [];
+    if (o.dayOf) foot.push('<span data-i="11">' + o.dayOf + '</span>');
+    if (o.last) foot.push('<span data-i="12">Last: ' + o.last + '</span>');
+    if (o.streak) foot.push('<span data-i="10">' + ic(I.flame, 14, 'color: var(--attention)') + o.streak + '</span>');
+    if (foot.length) h += '<div class="r-foot c2 tnum meta">' + foot.join('') + '</div>';
+    if (o.vial) h += '<div class="vialrow" data-i="13">' + cells(o.vial[0], o.vial[1]) + '<span class="r-foot c2 tnum">Mixed ' + o.vial[2] + ' · ' + o.vial[1] + ' doses remaining · ' + o.vial[3] + ' days left</span></div>';
+    if (o.addVial) h += '<div class="vialrow"><span class="btnlink r-body" data-i="14" style="min-height: 32px">+ Add vial</span></div>';
+    h += '<div class="acts"><span class="btn o" data-i="15">Skip</span><span class="btn p" data-i="16">' + (o.primary || 'Mark taken') + '</span></div>';
+    return h + '</div>';
+  }
+  function takenBlock(rows, open) {
+    if (!open) return '<div class="taken" data-i="N2"><span class="okc" style="margin-top: 1px">' + ic(I.check, 20, 'color: currentColor') + '</span><div class="grow col" style="gap: 2px; min-width: 0"><span class="r-head">Taken</span><span class="r-sec c2">' + rows.map(function (r) { return r[0]; }).join(', ') + '</span></div><span style="margin-top: 4px; color: var(--ink3)">' + DOWN + '</span></div>';
+    return '<div class="list" data-i="N2"><div class="li" style="min-height: 48px"><span class="okc">' + ic(I.check, 20, 'color: currentColor') + '</span><span class="r-head grow">Taken</span><span style="color: var(--ink3)">' + UP + '</span></div>' + rows.map(function (r) {
+      return '<div class="li" style="min-height: 44px"><span class="dot" style="background: var(' + r[2] + '); margin-left: 6px"></span><span class="r-body grow">' + r[0] + '</span><span class="r-sec c2 tnum">' + r[1] + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function food(o) {
+    return '<div class="food" data-i="31"><div class="row" style="gap: 10px">' + ic(I.spark, 22) + '<span class="r-head grow">AI food log</span>' + CHEV + '</div><span class="r-title tnum" style="font-size: calc(19px * var(--ts))">' + o[0] + '</span><span class="r-sec c2 tnum">' + o[1] + '</span></div>';
+  }
+  function grace(text) {
+    return '<div class="grace" data-i="32"><span class="r-foot c2 tnum">' + text + '</span><span class="btn o sm" style="align-self: flex-start">See Premium</span></div>';
+  }
+  function uprow(r) {
+    return '<div class="li"><div class="col tcol" style="gap: 1px">' + (r.day ? '<span class="r-sec tnum" style="white-space: nowrap">' + r.day + '</span>' : '') + '<span class="r-sec c2 tnum">' + r.time + '</span></div><span class="dot" style="background: var(' + r.color + ')"></span><div class="grow col" style="gap: 1px; min-width: 0"><span class="r-body">' + r.name + '</span><span class="r-sec c2 tnum"><span class="vin">' + r.amount + '</span> · ' + r.freq + '</span></div>' + CHEV + '</div>';
+  }
+  // Tomorrow and Next 5 days share one list; each is a fold row with its count.
+  function ahead(tom, next5, n5open, later) {
+    if (!(tom && tom.length) && !(next5 && next5.length)) return '';
+    function head(i, title, rows, open, extra) {
+      var n = rows.length + (extra || 0);
+      return '<div class="fh" data-i="' + i + '" data-n="N7"><span class="r-head grow">' + title + '</span><span class="r-sec c2 tnum">' + n + ' ' + (n === 1 ? 'dose' : 'doses') + '</span><span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span></div>';
+    }
+    var h = '<div class="blk"><div class="list">';
+    if (tom && tom.length) h += head(35, 'Tomorrow', tom, false);
+    if (next5 && next5.length) {
+      h += '<div' + (tom && tom.length ? ' style="border-top: 1px solid var(--line)"' : '') + '>' + head(36, 'Next 5 days', next5, n5open, later) + '</div>';
+      if (n5open) h += next5.map(uprow).join('').replace('<div class="li">', '<div class="li" style="border-top: 1px solid var(--line)">') + (later ? '<div class="li" style="min-height: 44px"><span class="r-sec c3 tnum" data-i="37">' + later + ' more scheduled later</span></div>' : '');
+    }
+    return h + '</div></div>';
+  }
+  function empty() {
+    return '<div class="blk"><div class="food" data-i="34" style="gap: 10px; padding: 22px 20px">' + ic(I.syringe, 28) + '<span class="r-title">No protocols yet</span><span class="r-sec c2">Add your first compound in the Protocols tab to start tracking doses.</span><span class="btn p" data-i="N4" style="margin-top: 8px"><span class="nc" style="align-self: center">Add a protocol</span></span></div></div>';
+  }
+  function rest(next) {
+    return '<div class="food" data-i="19" style="gap: 4px"><span class="r-head">No dose scheduled today</span><span class="r-sec c2 tnum">Next dose: ' + next + '</span></div>';
+  }
+  function caught() {
+    return '<div class="food" data-i="20" style="flex-direction: row; align-items: center; gap: 10px"><span class="okc">' + ic(I.check, 22, 'color: currentColor') + '</span><span class="r-head">You’re all caught up for today</span></div>';
+  }
+  var DISC = '<p class="r-foot c3" data-i="38" style="margin: 22px 4px 0">This is a personal tracking tool, not medical advice. Consult your healthcare provider.</p>';
+  var TOAST = '<div class="toast" data-i="40"><span class="r-body grow">Dose logged</span><span class="r-body tl">Add site</span><span class="r-body tl">Undo</span></div>';
+
+
+  /* ================= clickable prototype ================= */
+  // Data: Test03 as captured on main (Sep 28, 8:10 PM); BPC-157's water (1 ml) is assumed, main's capture does not show it. Testosterone Cypionate is invented, to show a
+  // ready-to-use protocol.
+  var P = {
+    bpc: { name: 'BPC-157', color: '--p3', type: 'recon', amt: 1, unit: 'mg', water: 1, diluent: 'Bacteriostatic water', dose: 0.5, dunit: 'mg', syr: 100, freq: 'Daily', time: '7:20 PM', vial: [2, 2], mixed: 'Sep 27', days: 29, goals: [], streak: '1 day without a miss' },
+    tb: { name: 'TB-500', color: '--p2', type: 'recon', amt: 2, unit: 'mg', water: 2, diluent: 'Bacteriostatic water', dose: 0.5, dunit: 'mg', syr: 100, freq: 'Daily', time: '7:40 PM', vial: [4, 2], mixed: 'Sep 27', days: 29, goals: ['Recovery'], streak: '1 day without a miss' },
+    mag: { name: 'Magnesium Bisglycinate', color: '--p1', type: 'oral', strength: 200, dose: 400, dunit: 'mg', per: 1, form: 'Capsule', noun: 'capsules', container: 60, left: 50, freq: 'Daily', time: '7:40 PM', goals: ['Sleep Quality'], streak: '1 day without a miss' },
+    vitc: { name: 'Vitmin C', color: '--p3', type: 'oral', strength: 500, dose: 500, dunit: 'mg', per: 1, form: 'Tablet', noun: 'tablets', freq: 'Daily', time: '12:25 PM', goals: [], streak: '1 day without a miss' },
+    zinc: { name: 'Zinc', color: '--p3', type: 'oral', strength: 25, dose: 25, dunit: 'mg', per: 1, form: 'Capsule', noun: 'capsules', freq: 'Daily', time: '12:20 PM', goals: [], streak: '1 day without a miss' },
+    test: { name: 'Testosterone Cypionate', color: '--p4', type: 'rtu', conc: 200, cunit: 'mg/ml', dose: 100, dunit: 'mg', syr: 100, ml: 10, vial: [20, 13], expiry: 'Mar 2027', days: 182, freq: 'Every 7 days', time: '9:00 AM', next: 'Thu, Oct 1', goals: ['Anabolic Support'], streak: '5 days without a miss', invented: true }
+  };
+  var ORDER = {
+    due: ['bpc', 'zinc', 'vitc', 'mag', 'tb', 'test'],
+    az: ['bpc', 'mag', 'tb', 'test', 'vitc', 'zinc'],
+    vial: ['bpc', 'tb', 'test', 'mag', 'vitc', 'zinc'],
+    added: ['test', 'bpc', 'tb', 'mag', 'zinc', 'vitc']
+  };
+  var SORTS = [['due', 'Due next'], ['az', 'A–Z'], ['vial', 'Vial age'], ['added', 'Recently added'], ['type', 'By type']];
+  var TYPE = { recon: 'Lyophilized', rtu: 'Ready to use', oral: 'Oral' };
+  var TAKEN0 = { zinc: '12:22 PM', vitc: '12:26 PM', mag: '7:41 PM', tb: '7:42 PM' };
+
+  var st;
+  function reset() {
+    st = { tab: 0, stacks: [[{ s: 'today' }], [{ s: 'dash' }], [{ s: 'journey' }], [{ s: 'body' }], [{ s: 'settings' }]],
+      theme: 'light', ts: 1, sort: 'due', taken: Object.assign({}, TAKEN0), skipped: {}, fold: {}, snooze: -1,
+      deleted: [], overlay: null, toast: null, note: {}, noteEdit: null, used: { test: 7 }, scroll: {} };
+  }
+  reset();
+  function cur() { var s = st.stacks[st.tab]; return s[s.length - 1]; }
+  function key() { return st.tab + ':' + st.stacks[st.tab].length; }
+  function active() { return Object.keys(P).filter(function (id) { return st.deleted.indexOf(id) < 0; }); }
+  function fx(n) { return (Math.round(n * 100) / 100).toString(); }
+  function units(p) { var mlv = p.type === 'rtu' ? p.dose / p.conc : p.dose / (p.amt / p.water); return { ml: mlv, u: Math.round(mlv * 100) }; }
+  function sizeLabel(p) { return p.type === 'recon' ? p.amt + ' ' + p.unit + ' vial · ' + p.dose + ' ' + p.dunit + ' dose' : p.type === 'rtu' ? p.ml + ' ml vial · ' + p.dose + ' ' + p.dunit + ' dose' : p.strength + ' ' + p.dunit + ' · ' + p.dose + ' ' + p.dunit; }
+  function A(k, v) { return ' data-a="' + k + '"' + (v != null ? ' data-v="' + v + '"' : ''); }
+  function nc(t) { return '<span class="nc">' + t + '</span>'; }
+
+  /* ---------- Today (approved v2.1) ---------- */
+  function todayScreen() {
+    var ids = active(), dueIds = ids.filter(function (id) { return P[id].freq === 'Daily'; });
+    var taken = dueIds.filter(function (id) { return st.taken[id]; });
+    var h = '<div class="blk">' + hdr('Monday, September 28') + '</div>';
+    var al = [{ i: 27, icon: I.scale, title: 'Reality-check weigh-in', body: 'Weigh in on Oct 19' }];
+    var low = ids.filter(function (id) { return P[id].vial && P[id].vial[1] <= 3; }).map(function (id) { return P[id].name; });
+    if (low.length) al.push({ i: 29, icon: I.syringe, dot: 'attention', title: 'Supply low', body: low.join(', ') + ' running low' });
+    var k = 0;
+    h += alerts(al, st.snooze, ['Tomorrow', 'In 3 days']).replace(/<span class="round/g, function (m) { return '<span' + A('snooze', k++) + ' class="round'; });
+    var day = [taken.length, dueIds.length], all = taken.length === dueIds.length;
+    h += tracker({ day: day, week: [5 + taken.length, 6], month: [5 + taken.length, 6], days: [['Tue', 'rest'], ['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'done'], ['Mon', all ? 'done' : 'part', true]], streak: all ? '2 days without a miss' : '1 day without a miss' }).replace('data-i="25">', 'data-i="25"' + A('log') + '>');
+    h += '<div class="blk">' + food(['Nothing logged yet today', 'Reality check · day 1 of 21 · 0 of 7 days in a row']).replace('<div class="food"', '<div class="food"' + A('say', 'Opens the AI food log (FoodChat). That screen is redesigned later.')) + '</div>';
+    h += '<div class="blk"><div class="lab"><span class="r-title">Doses</span><span class="cnt">' + day[0] + ' of ' + day[1] + ' taken</span></div>';
+    dueIds.filter(function (id) { return !st.taken[id]; }).forEach(function (id) {
+      var p = P[id], u = p.type !== 'oral' ? units(p) : null;
+      var c = card({ name: p.name, color: p.color, amount: p.dose + ' ' + p.dunit, freq: p.freq, time: p.time, due: true, skipped: st.skipped[id], draw: p.type === 'recon' ? [p.syr, u.u] : null, streak: p.streak, vial: p.vial ? [p.vial[0], p.vial[1], p.mixed, p.days] : null });
+      c = c.replace('<div class="dose" data-i="8">', '<div class="dose" data-i="8"' + A('open', id) + '>').replace('<span class="btn o" data-i="15">', '<span class="btn o" data-i="15"' + A('skip', id) + '>').replace('<span class="btn p" data-i="16">', '<span class="btn p" data-i="16"' + A('take', id) + '>');
+      h += c;
+    });
+    if (all) h += caught();
+    var rows = dueIds.filter(function (id) { return st.taken[id]; }).map(function (id) { return [P[id].name, st.taken[id], P[id].color]; });
+    if (rows.length) h += takenBlock(rows, st.fold.taken).replace('data-i="N2"', 'data-i="N2"' + A('fold', 'taken'));
+    h += '</div>';
+    var tom = dueIds.map(function (id) { return { time: P[id].time, color: P[id].color, name: P[id].name, amount: P[id].dose + ' ' + P[id].dunit, freq: P[id].freq, id: id }; });
+    var n5 = ids.filter(function (id) { return P[id].next; }).map(function (id) { return { day: P[id].next, time: P[id].time, color: P[id].color, name: P[id].name, amount: P[id].dose + ' ' + P[id].dunit, freq: P[id].freq, id: id }; });
+    h += '<div class="blk"><div class="list">' + foldRow(35, 'tom', 'Tomorrow', tom) + (n5.length ? '<div style="border-top: 1px solid var(--line)">' + foldRow(36, 'n5', 'Next 5 days', n5) + '</div>' : '') + '</div></div>';
+    return h + DISC;
+  }
+  function foldRow(i, k, title, rows) {
+    var open = st.fold[k];
+    var h = '<div class="fh" data-i="' + i + '"' + A('fold', k) + '><span class="r-head grow">' + title + '</span><span class="r-sec c2 tnum">' + rows.length + ' ' + (rows.length === 1 ? 'dose' : 'doses') + '</span><span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span></div>';
+    if (open) h += rows.map(function (r) { return uprow(r).replace('<div class="li">', '<div class="li" style="border-top: 1px solid var(--line)"' + A('open', r.id) + '>'); }).join('');
+    return h;
+  }
+
+  /* ---------- My Protocols: heroes (approved), list, protocol (under review) ---------- */
+  function dash() {
+    var ids = active();
+    var h = '<div class="hrow"><h3 class="r-large">My Protocols</h3><span class="addbtn"' + A('say', '+ Add opens the add steps: part 2, not drawn yet.') + '>+ Add</span></div>';
+    h += '<div class="hero"' + A('go', 'list') + '><div class="ht">' + ic(I.capsule, 22) + '<span class="r-title grow">Protocols</span>' + CHEV + '</div>';
+    h += '<div class="row" style="align-items: baseline; gap: 10px"><span class="r-display d56">' + ids.length + '</span><span class="r-body c2">' + nc('active') + '</span></div>';
+    h += '<div class="names">' + ids.map(function (id) { return '<span class="row r-body" style="gap: 10px"><span class="dot" style="background: var(' + P[id].color + ')"></span>' + P[id].name + '</span>'; }).join('') + '</div>';
+    var low = ids.filter(function (id) { return P[id].vial && P[id].vial[1] <= 3; }).map(function (id) { return P[id].name; });
+    if (low.length) h += '<span class="r-sec row" style="gap: 8px"><span class="dot" style="background: var(--attention)"></span>' + low.join(', ') + ' running low</span>';
+    h += '</div>';
+    var tk = 9 + Object.keys(st.taken).length - 4;
+    h += '<div class="hero"' + A('log') + '><div class="ht">' + ic(I.journal, 22) + '<span class="r-title grow">Dose log</span>' + CHEV + '</div>';
+    h += '<div class="trio">' + [['Taken', tk, 'ok'], ['Skipped', Object.keys(st.skipped).length, 'risk'], ['Missed', 0, 'attention']].map(function (c) { return '<div><span class="r-display d34">' + c[1] + '</span><span class="r-cap c2 row" style="gap: 6px"><span class="dot" style="width: 7px; height: 7px; background: var(--' + c[2] + ')"></span>' + c[0] + '</span></div>'; }).join('') + '</div>';
+    return h + '<span class="r-sec c2 tnum">Last: TB-500 · Mon 7:42 PM</span></div>';
+  }
+  function pcard(id) {
+    var p = P[id], h = '<div class="pcard" data-i="A5"' + A('open', id) + '>';
+    h += '<div class="row" style="align-items: flex-start; gap: 12px"><span class="dot" data-i="A5a" style="background: var(' + p.color + '); margin-top: 7px; width: 10px; height: 10px"></span><div class="grow col" style="gap: 3px"><span class="pname" data-i="A5b">' + p.name + '</span><span class="r-sec c2 tnum" data-i="A5c">' + sizeLabel(p) + ' · ' + p.freq + '</span></div><span style="margin-top: 5px" data-i="A5g">' + CHEV + '</span></div>';
+    if (p.vial) h += '<div class="supply" data-i="A5d">' + cells(p.vial[0], p.vial[1]) + '<span class="r-foot tnum"><b style="font-weight: 600">' + p.vial[1] + ' of ' + p.vial[0] + ' doses left</b><span class="c2" data-i="A5e"> · ' + p.days + ' days left</span></span></div>';
+    var tags = '';
+    if (p.vial && p.vial[1] <= 3) tags += '<span class="otag risk" data-i="A5f">Low · ' + p.vial[1] + ' left</span>';
+    tags += '<span class="otag">' + TYPE[p.type] + '</span>';
+    p.goals.forEach(function (g) { tags += '<span class="otag">' + g + '</span>'; });
+    return h + '<div class="tags">' + tags + '</div></div>';
+  }
+  function list() {
+    var ids = active(), h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'My Protocols</span></div>';
+    h += '<div class="hrow" style="padding-top: 0"><h3 class="r-large" data-i="A1a">Protocols</h3><span class="addbtn" data-i="A1b"' + A('say', '+ Add opens the add steps: part 2, not drawn yet.') + '>+ Add</span></div>';
+    h += '<div class="sortrow" data-i="A3"><span class="r-foot c2" data-i="A3a">Sort:</span>' + SORTS.map(function (s) { return '<span class="pill r-foot' + (st.sort === s[0] ? ' on' : '') + '"' + A('sort', s[0]) + '>' + s[1] + '</span>'; }).join('') + '</div>';
+    if (st.sort === 'type') {
+      [['recon', 'Lyophilized', 'A4a'], ['rtu', 'Ready-to-use', 'A4b'], ['oral', 'Oral', 'A4c']].forEach(function (g) {
+        var grp = ORDER.az.filter(function (id) { return ids.indexOf(id) >= 0 && P[id].type === g[0]; });
+        if (grp.length) h += '<div class="blk"><span class="secth" data-i="' + g[2] + '">' + g[1] + '</span>' + grp.map(pcard).join('') + '</div>';
+      });
+    } else h += '<div class="blk">' + ORDER[st.sort].filter(function (id) { return ids.indexOf(id) >= 0; }).map(pcard).join('') + '</div>';
+    if (st.deleted.length) h += '<div class="blk"><span class="secth">' + nc('Recently deleted') + '</span><div class="list">' + st.deleted.map(function (id) { return '<div class="li"><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-body">' + P[id].name + '</span><span class="r-foot c2">Deleted 0d ago</span></div><span class="pill r-foot"' + A('restore', id) + '>Restore</span></div>'; }).join('') + '</div></div>';
+    return h;
+  }
+  function rowsBlock(title, rows) {
+    return '<div class="blk"><span class="secth">' + title + '</span><div class="rows">' + rows.map(function (r) { return '<div class="rw"' + (r[3] ? ' data-i="' + r[3] + '"' : '') + '><span class="r-body k">' + r[0] + '</span><span class="r-body val' + (r[2] ? ' m' : '') + '">' + r[1] + '</span></div>'; }).join('') + '</div></div>';
+  }
+  function protocol(id) {
+    var p = P[id], back = st.tab === 0 ? 'Today' : 'Protocols';
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + back + '</span><span class="txtbtn" data-i="A6p"' + A('say', 'Edit opens the add/edit steps with this protocol filled in: part 2.') + '>Edit</span></div>';
+    h += '<div class="ptitle"><span class="row" style="gap: 10px"><span class="dot" style="background: var(' + p.color + '); width: 12px; height: 12px"></span><span class="r-sec c2 tnum">' + sizeLabel(p) + '</span></span><h3 class="r-large">' + p.name + '</h3><div class="tags"><span class="otag">' + TYPE[p.type] + '</span>' + p.goals.map(function (g) { return '<span class="otag">' + g + '</span>'; }).join('') + '</div></div>';
+    if (p.type !== 'oral') {
+      var u = units(p);
+      h += '<div class="hobj" data-i="A7"><span class="r-head" data-i="A7a">Syringe calculator</span><div class="draw" style="padding: 14px 14px 8px"' + A('zoom', id) + ' data-i="A7c"><div class="drawh"><span class="r-sec c2">Draw to</span><span class="r-display d56 cd">' + u.u + '<span class="unit">units</span></span></div>' + syr(p.syr, u.u) + '<span class="r-foot c2 hint" data-i="A7d">' + ic('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>', 14) + 'Tap to enlarge</span></div>';
+      h += '<div class="reads" data-i="A7e"><div><span class="r-cap c2">Volume</span><span class="v">' + fx(u.ml) + ' ml</span></div><div><span class="r-cap c2">Dose</span><span class="v">' + p.dose + ' ' + p.dunit + '</span><span class="r-cap c3 tnum">= ' + (p.dunit === 'mg' ? p.dose * 1000 + ' mcg' : p.dose / 1000 + ' mg') + '</span></div><div><span class="r-cap c2">Syringe</span><span class="v">' + p.syr + ' u</span></div></div>';
+      h += '<span class="r-foot c3">This is arithmetic from the values you entered — DoseTrace does not set, recommend, or verify any amount. You choose every number. Always follow your healthcare provider\'s instructions.</span></div>';
+      if (p.vial) {
+        var used = st.used[id] != null ? st.used[id] : p.vial[0] - p.vial[1], left = p.vial[0] - used;
+        h += '<div class="blk"><span class="secth">Vial</span><div class="hobj" style="gap: 10px" data-i="A5d"><div class="supply">' + cells(p.vial[0], left) + '</div><span class="r-head tnum">' + left + ' of ' + p.vial[0] + ' doses left</span><span class="r-sec c2 tnum" data-i="A5e">' + (p.type === 'recon' ? 'Mixed ' + p.mixed + ' · ' : 'Box expiry ' + p.expiry + ' · ') + p.days + ' days left</span>' + (left <= 3 ? '<span class="otag risk" style="align-self: flex-start">Low · ' + left + ' left</span>' : '') + (p.type === 'rtu' && used > 0 ? '<span class="obtn2" data-i="A6o"' + A('newvial', id) + '>' + ic('<path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/>', 18, 'color: currentColor') + 'New vial</span>' : '') + '</div></div>';
+      }
+    } else {
+      var take = p.dose / p.strength * p.per;
+      h += '<div class="hobj" data-i="A8"><span class="r-head" data-i="A8a">Serving calculator</span><div class="draw" style="padding: 14px"><span class="r-sec c2" data-i="A8c">Based on the numbers you entered:</span><span class="r-display d56 cd">' + take + '<span class="unit">' + p.noun + '</span></span></div>';
+      h += '<div class="reads" data-i="A8f"><div><span class="r-cap c2">Dose</span><span class="v">' + p.dose + ' ' + p.dunit + '</span></div>' + (p.container ? '<div><span class="r-cap c2">Left</span><span class="v">' + p.left + '</span></div><div><span class="r-cap c2">Days left</span><span class="v">' + p.left / take + '</span></div>' : '<div></div><div></div>') + '</div>';
+      if (p.container) h += '<span class="obtn2" data-i="A8g"' + A('newvial', id) + '>' + ic('<path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/>', 18, 'color: currentColor') + 'New bottle</span>';
+      h += '<span class="r-foot c3" data-i="A8h">This is arithmetic from the values you entered — DoseTrace does not set, recommend, or verify any amount. You choose every number. Always follow your healthcare provider\'s instructions.</span></div>';
+    }
+    h += rowsBlock('Schedule & reminders', [['Frequency', p.freq, false, 'A6g'], ['Reminder', p.time, true, 'A6h']].concat(p.goals.length ? [['Goal', p.goals.join(', '), false, 'A6j']] : []));
+    h += '<span class="obtn2"' + A('say', '+ Reminder opens the schedule step: part 2.') + '>+ Reminder</span>';
+    if (p.type === 'recon') h += rowsBlock('Dose details', [['Compound amount', p.amt + ' ' + p.unit, true, 'A6a'], ['Diluent', p.diluent, false, 'A6c'], ['Diluent amount (ml)', p.water + ' ml', true, 'A6b'], ['Concentration', fx(p.amt / p.water) + ' ' + p.unit + '/ml', true, 'A6d'], ['Desired dose', p.dose + ' ' + p.dunit, true, 'A6e']]);
+    if (p.type === 'rtu') h += rowsBlock('Dose details', [['Dose per injection', p.dose + ' ' + p.dunit, true, 'A6e'], ['Concentration', p.conc + ' ' + p.cunit, true, 'A6f'], ['Vial size (ml)', p.ml + ' ml', true]]);
+    if (p.type === 'oral') h += rowsBlock('Dose details', [['Dose amount', p.dose + ' ' + p.dunit, true, 'A6e'], ['Form', p.form, false, 'A6k'], ['Strength per serving', p.strength + ' ' + p.dunit, true], ['Units per serving', p.per, true]].concat(p.container ? [['Units per container', p.container, true]] : []));
+    var editing = st.noteEdit === id, txt = st.note[id];
+    h += '<div class="blk" data-i="A6l"><span class="secth">Notes</span>' + (editing ? '<textarea id="noteta" class="note on" style="font: inherit; width: 100%; border: 0; resize: none" rows="3" placeholder="' + (p.type === 'oral' ? 'e.g. take with food' : 'e.g. Rotate injection sites') + '">' + (txt || '') + '</textarea><div class="acts2"><span class="btn o sm"' + A('notecancel') + '>Cancel</span><span class="btn p sm"' + A('notesave', id) + '>Save</span></div>' : '<div class="note r-body' + (txt ? '" style="color: var(--ink)' : '') + '"' + A('note', id) + '>' + (txt || (p.type === 'oral' ? 'e.g. take with food' : 'e.g. Rotate injection sites')) + '</div>') + '</div>';
+    h += '<span class="dangerbtn" data-i="A6p2"' + A('del', id) + '>Delete protocol</span>';
+    return h;
+  }
+  function doseLog() {
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + (st.tab === 0 ? 'Today' : 'My Protocols') + '</span><span class="pill r-foot"' + A('say', 'Curve opens the estimate curve (Premium). Redesigned later.') + '>Curve</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Dose log</h3></div>';
+    h += '<div class="expl r-sec c2">You started your protocols with a goal. Keeping them on time — without missing doses — is how you get there. This shows how well you are keeping up.</div>';
+    var tk = 9 + Object.keys(st.taken).length - 4;
+    h += '<div class="trio" style="padding: 0 4px"><div><span class="r-display d34">' + tk + '</span><span class="r-cap c2">Taken</span></div><div><span class="r-display d34">' + Object.keys(st.skipped).length + '</span><span class="r-cap c2">Skipped</span></div><div><span class="r-display d34">0</span><span class="r-cap c2">Missed</span></div></div>';
+    var rows = Object.keys(st.taken).map(function (id) { return [P[id].name, st.taken[id]]; }).reverse();
+    return h + '<div class="lab"><span class="r-head">Mon, Sep 28</span><span class="r-foot c2">' + rows.length + ' doses</span></div><div class="list">' + rows.map(function (r) { return '<div class="li"><span class="okc">' + ic(I.check, 18, 'color: currentColor') + '</span><span class="r-body grow">' + r[0] + '</span><span class="r-sec c2 tnum">' + r[1] + '</span></div>'; }).join('') + '</div><span class="r-foot c3" style="padding: 0 4px">Main\'s Dose log with the new look. Its own redesign comes later.</span>';
+  }
+  function notYet(name, img) {
+    return '<div class="hrow"><h3 class="r-large">' + name + '</h3></div><div class="expl r-sec c2">Not redesigned yet. This tab keeps main\'s screen until its turn comes.</div>' + (img ? '<img src="current/' + img + '" alt="' + name + ' on main" style="width: 100%; border-radius: 20px">' : '');
+  }
+
+  /* ---------- overlays ---------- */
+  function overlay() {
+    var o = st.overlay; if (!o) return '';
+    if (o.t === 'zoom') {
+      var p = P[o.id], u = units(p), W = 1640, x0 = 40, per = (W - 80) / p.syr, X = function (v) { return x0 + v * per; };
+      var s = '<svg width="' + W + '" height="96" viewBox="0 0 ' + W + ' 96" aria-hidden="true"><rect x="' + x0 + '" y="20" width="' + (W - 80) + '" height="40" rx="8" fill="var(--raised)" stroke="var(--tick)"/><rect x="' + (x0 + 1) + '" y="21" width="' + (X(u.u) - x0) + '" height="38" rx="7" fill="var(--data)"/>';
+      for (var k = 1; k < p.syr; k++) { var lg = k % 10 === 0, md = k % 2 === 0; if (!md && !lg) continue; s += '<line x1="' + X(k) + '" y1="21" x2="' + X(k) + '" y2="' + (lg ? 42 : 32) + '" stroke="' + (k < u.u ? 'var(--onData)' : 'var(--tick)') + '" stroke-width="' + (lg ? 2 : 1.2) + '"/>'; }
+      for (var L = 0; L <= p.syr; L += 10) s += '<text x="' + X(L) + '" y="84" text-anchor="middle" fill="var(--ink2)" font-family="Geist Mono, ui-monospace, monospace" font-size="15">' + L + '</text>';
+      s += '<rect x="' + (X(u.u) - 3) + '" y="14" width="8" height="52" rx="3" fill="var(--ink)"/></svg>';
+      return '<div class="scrim"' + A('scrim') + '><div class="sheet" data-i="A7f"><span class="r-title">' + p.name + '</span><span class="r-body tnum">Draw to <b class="cd" style="font-weight: 700">' + u.u + 'u</b> · ' + fx(u.ml) + ' ml</span><div class="ruler" id="ruler" data-center="' + (X(u.u) - 150) + '">' + s + '</div><span class="btn p"' + A('close') + '>Done</span></div></div>';
+    }
+    if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
+    return '';
+  }
+
+  /* ---------- render ---------- */
+  var phone = document.getElementById('phone');
+  function render() {
+    var c = cur(), body;
+    if (c.s === 'today') body = todayScreen();
+    else if (c.s === 'dash') body = dash();
+    else if (c.s === 'list') body = list();
+    else if (c.s === 'proto') body = protocol(c.id);
+    else if (c.s === 'log') body = doseLog();
+    else if (c.s === 'journey') body = notYet('Journey', 'journey-light-1.jpg');
+    else if (c.s === 'body') body = notYet('My Body');
+    else body = notYet('Settings');
+    var times = ['8:10', '8:11', '8:12'];
+    phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
+    phone.style.setProperty('--ts', st.ts);
+    phone.innerHTML = sbar(Object.keys(st.taken).length > 4 ? '8:11' : '8:10') + '<div class="scroller" id="scroller"><div class="scr' + (c.s === 'today' ? '' : ' pscr') + '">' + body + '</div></div>' + (st.toast ? '<div class="toast" data-i="40"><span class="r-body grow">' + st.toast.text + '</span>' + (st.toast.undo ? '<span class="r-body tl"' + A('undo', st.toast.undo) + '>Undo</span>' : '') + '</div>' : '') + overlay() + tabs(st.tab).replace(/<a class="r-tab([^"]*)" href="#todayLight"/g, function (m, cls) { return '<a class="r-tab' + cls + '" href="#phone"'; }).replace(/<a class="r-tab/g, (function () { var i = 0; return function (m) { return '<a' + A('tab', i++) + ' class="r-tab'; }; })()) + '<div class="home"></div>';
+    var sc = document.getElementById('scroller'); sc.scrollTop = st.scroll[key()] || 0;
+    sc.addEventListener('scroll', function () { st.scroll[key()] = sc.scrollTop; });
+    var r = document.getElementById('ruler'); if (r) r.scrollLeft = +r.getAttribute('data-center');
+    var ta = document.getElementById('noteta'); if (ta) ta.focus();
+    document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
+  }
+  var toastTimer;
+  function toast(text, undo) { st.toast = { text: text, undo: undo }; clearTimeout(toastTimer); toastTimer = setTimeout(function () { st.toast = null; render(); }, 4000); }
+  function push(x) { st.stacks[st.tab].push(x); st.scroll[key()] = 0; }
+  phone.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-a]'); if (!el || !phone.contains(el)) return;
+    e.preventDefault();
+    var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
+    if (a === 'tab') { st.tab = +v; st.overlay = null; }
+    else if (a === 'back') st.stacks[st.tab].pop();
+    else if (a === 'open') push({ s: 'proto', id: v });
+    else if (a === 'go') push({ s: v });
+    else if (a === 'log') push({ s: 'log' });
+    else if (a === 'take') { st.taken[v] = '8:11 PM'; delete st.skipped[v]; toast('Dose logged', v); }
+    else if (a === 'undo') { delete st.taken[v]; st.toast = null; }
+    else if (a === 'skip') st.overlay = { t: 'confirm', title: 'Skip dose?', body: 'Skip today\'s dose of ' + P[v].name + '?', ok: 'skipok', okText: 'Skip', id: v };
+    else if (a === 'skipok') { st.skipped[v] = true; st.overlay = null; }
+    else if (a === 'fold') st.fold[v] = !st.fold[v];
+    else if (a === 'snooze') st.snooze = st.snooze === +v ? -1 : +v;
+    else if (a === 'sort') st.sort = v;
+    else if (a === 'zoom') st.overlay = { t: 'zoom', id: v };
+    else if (a === 'close') st.overlay = null;
+    else if (a === 'scrim') { if (e.target !== el) return; st.overlay = null; }
+    else if (a === 'note') st.noteEdit = v;
+    else if (a === 'notecancel') st.noteEdit = null;
+    else if (a === 'notesave') { st.note[v] = document.getElementById('noteta').value; st.noteEdit = null; }
+    else if (a === 'del') st.overlay = { t: 'confirm', title: 'Delete protocol', body: 'This protocol will be recoverable for 7 days from Settings.', ok: 'delok', okText: 'Delete', danger: true, id: v, note: 'Main\'s own wording. With question 3 approved, it would say "from Recently deleted" instead.' };
+    else if (a === 'delok') { st.deleted.push(v); st.overlay = null; st.stacks[st.tab].pop(); if (cur().s === 'dash' || cur().s === 'today') push({ s: 'list' }); if (st.tab === 0) { st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }]; } }
+    else if (a === 'restore') st.deleted = st.deleted.filter(function (x) { return x !== v; });
+    else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
+    else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
+    else if (a === 'say') toast(v);
+    render();
+  });
+  document.querySelectorAll('[data-ctl]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var kv = b.getAttribute('data-ctl').split(':');
+      if (kv[0] === 'reset') reset(); else st[kv[0]] = kv[0] === 'ts' ? +kv[1] : kv[1];
+      render();
+    });
+  });
+  document.getElementById('badges').addEventListener('change', render);
+  document.querySelectorAll('[data-jump]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var j = b.getAttribute('data-jump').split(':');
+      st.overlay = null; st.tab = +j[0];
+      st.stacks[st.tab] = st.tab === 0 ? [{ s: 'today' }] : [{ s: 'dash' }];
+      if (j[1]) st.stacks[st.tab].push({ s: j[1] });
+      if (j[2]) st.stacks[st.tab].push({ s: 'proto', id: j[2] });
+      render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  render();
+
+
+  /* ---------- review tables ---------- */
+  function table(id, head, rows) {
+    document.getElementById(id).innerHTML = '<thead><tr>' + head.map(function (x) { return '<th>' + x + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
+      return '<tr>' + r.map(function (x, i) { return '<td' + (i === 0 && head[0] === '#' ? ' class="n"' : '') + '>' + x + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+  }
+  var FATES = [
+    ['A1a', 'Title "My Protocols"', 'list title "Protocols" (the tab title now sits on the heroes screen)', 'approved with Today'],
+    ['A1b', '+ Add', 'list header, and the heroes screen header', 'stays, one tap'],
+    ['A2', 'Empty state (icon, "No protocols yet", subtitle, "Add first compound")', 'the Protocols hero', 'approved with Today (same strings)'],
+    ['A3a', '"Sort:"', 'list', 'stays'],
+    ['A3b', 'Sort pills: Due next, A–Z, Vial age, Recently added, By type (remembered)', 'list', 'stays; outline pills, the chosen one outlined in ink'],
+    ['A4a–c', 'By type section headers "LYOPHILIZED / READY-TO-USE / ORAL"', 'list', 'sentence case (same words), no letter-spacing'],
+    ['A5a', 'Color dot', 'card', 'stays'],
+    ['A5b', 'Name', 'card', 'stays, 18/700'],
+    ['A5c', 'Size · dose · frequency', 'card', 'stays'],
+    ['A5d', '"{n} of {total} doses left" / "{total} doses per vial"', 'card, with vial cells', 'stays, plus cells'],
+    ['A5e', '"{n} days left" / "Past window" (hardcoded colors)', 'card + protocol screen', 'stays; colors become tokens (fix)'],
+    ['A5f', 'Low · {n} left, type badge, goal chips', 'card', 'outline tags instead of tinted chips'],
+    ['A5g', 'Chevron ▶ / ▲', 'card', 'a chevron icon; the card opens a screen, so no ▲'],
+    ['A6a–e', 'Compound amount, water, diluent, concentration, desired dose', 'protocol screen, "Dose details"', 'stays; the water row now says "Diluent amount (ml)" (fix)'],
+    ['A6f', 'RTU concentration', 'protocol screen, "Dose details"', 'stays'],
+    ['A6g–h', 'Frequency, reminder times', 'protocol screen, "Schedule & reminders"', 'stays'],
+    ['A6i', 'Total doses in this protocol (legacy only)', 'Schedule rows, only when set', 'stays conditional'],
+    ['A6j', 'Goal', 'Schedule rows + tags under the name', 'stays'],
+    ['A6k', 'Form (oral)', 'Dose details', 'stays'],
+    ['A6l', 'Notes, editable in place, Cancel / Save', 'protocol screen', 'stays'],
+    ['A6m', 'Syringe calculator', 'protocol screen, first', 'moved to the top: the hero'],
+    ['A6n', 'Serving calculator (oral)', 'protocol screen, first', 'moved to the top: the hero'],
+    ['A6o', '↺ New vial (RTU)', 'Vial block', 'icon instead of ↺; confirm suggested (question 4)'],
+    ['A6p', 'Edit · + Reminder · Delete', 'Edit top-right; + Reminder under the schedule; Delete at the bottom', 'question 2'],
+    ['A7a', 'Title "Syringe calculator"', 'hero', 'stays'],
+    ['A7b', 'No-data states ("Complete your dose details…")', 'hero, same place', 'stays, same wording (not drawn)'],
+    ['A7c', 'Animated syringe drawing, tap to enlarge', 'hero, bigger', 'stays; the Graduated syringe'],
+    ['A7d', 'Tap to enlarge', 'under the syringe', 'stays'],
+    ['A7e', 'Draw to / Volume / Dose (= conversion) / Syringe + disclaimer', 'hero: Draw to as the 56 pt number; the other three below', 'no uppercase labels'],
+    ['A7f', 'Zoom modal: name, Draw to · ml, large ruler, Done', 'overlay', 'stays; shows the translated name (fix)'],
+    ['A8a–h', 'Serving calculator: title, mismatch, achievable amount, half/split notes, nearest, Take/Dose/Left/Days left, New bottle, disclaimer', 'hero for oral protocols', 'stays; the amount to take is the 56 pt number'],
+    ['B1', 'Tap a card expands it in place', 'tap opens the protocol screen', '<b>changed</b> (question 1)'],
+    ['B2', 'Deep link from Today (openProtocolId)', 'opens the protocol screen', 'lands on the dose, not a scrolled list'],
+    ['B3', 'Edit / + Reminder open the wizard', 'same', 'part 2'],
+    ['E', 'Paywall from the limit, privacy link, camera', 'same', 'part 3 / part 2'],
+    ['N10', 'Recently deleted + Restore on the list', 'list bottom', '<span class="nc">suggestion</span> (question 3), existing strings'],
+    ['N11', 'Confirm before New vial / New bottle', 'overlay', '<span class="nc">suggestion</span> (question 4), new copy']
+  ];
+  table('fates', ['#', 'Item on main', 'Where it lives now', 'Change'], FATES);
+  table('flows', ['Task', 'Main', 'Proposal'], [
+    ['From a Today card, see how much to draw', 'tap → My Protocols tab, card expanded, scroll to the calculator', 'tap → "Draw to 50 units" is the first thing'],
+    ['Open a protocol from the tab', 'tab + card: 2 taps', 'tab + Protocols hero + card: 3 taps <b>(one longer, from the approved heroes)</b>'],
+    ['Back to the list', 'collapse the card', 'Back, 1 tap'],
+    ['Edit a protocol', 'card + Edit: 2 taps', 'card + Edit: 2 taps'],
+    ['Delete', 'card + Delete + confirm', 'card + scroll + Delete protocol + confirm'],
+    ['Restore a deleted protocol', 'Settings tab → scroll → Restore', 'list bottom → Restore (if question 3 approved)'],
+    ['Change the sort', '1 tap', '1 tap'],
+    ['Write a note', 'card + type + Save', 'card + type + Save']
+  ]);
+  table('copy', ['Where', 'English', 'Status'], [
+    ['Recently deleted (if approved)', 'Recently deleted · Deleted {days}d ago · Restore', 'existing, unused on main'],
+    ['New vial confirm (if approved)', 'Start counting from a full vial? The doses already logged stay in your history. · Start new', '<span class="nc">new</span>: 6 languages'],
+    ['Water row label', 'Diluent amount (ml)', 'existing (the wizard\'s label)'],
+    ['Sections on the protocol screen', 'Syringe calculator · Serving calculator · Vial · Schedule & reminders · Dose details · Notes', 'existing ("Vial" is protocols_vial_noun, capitalised by style)'],
+    ['Delete button', 'Delete protocol', 'existing (the confirm\'s title)'],
+    ['Everything else', 'word for word from main', '']
+  ]);
+  document.getElementById('fixes').innerHTML = '<ol>' + [
+    '<b>Wrong label:</b> the card always says "Bacteriostatic water" for the water amount, even when the diluent is sterile water or saline. It now uses the wizard\'s own label, "Diluent amount (ml)".',
+    '<b>Hardcoded colors:</b> the days-left colors (lib/vialExpiry.js) are fixed hex values that ignore the theme. They become the attention and risk tokens.',
+    '<b>Enlarged syringe shows the raw stored name</b> instead of the translated compound name. Fixed.',
+    '<b>Uppercase letter-spaced labels</b> (DRAW TO, VOLUME…, LYOPHILIZED…) are shown in sentence case with the same words.',
+    '<b>Text glyphs used as icons</b> (▶ ▲ ↺) become icons from the monoline set.'
+  ].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>';
+  document.getElementById('eng').innerHTML = [
+    '<b>New route:</b> a protocol screen (ProtocolDetail) replacing the accordion body; the list card becomes a plain row that opens it. openProtocolId from Today opens it directly.',
+    '<b>Reused, not rewritten:</b> ProtocolSyringeGuide and ProtocolServingGuide (restyled), the zoom modal, the notes save path.',
+    '<b>Removed with it:</b> the accordion (expanded state), the 3-button row. Rebuild means replace: the old expanding card goes in the same change.',
+    '<b>Tests:</b> a link test for list → protocol and Today → protocol (app-map), the calculator tests stay green, both themes on every state, i18n parity if question 4 adds copy.'
+  ].map(function (x) { return '<p style="margin: 0">' + x + '</p>'; }).join('');
+
+  /* coverage: render every reviewed state offscreen and look for each item from main */
+  (function () {
+    var saveSort = st.sort, html = '';
+    ['due', 'type'].forEach(function (s) { st.sort = s; html += list(); });
+    st.sort = saveSort;
+    st.deleted = ['zinc']; html += list(); st.deleted = [];
+    html += protocol('bpc') + protocol('test') + protocol('mag');
+    st.overlay = { t: 'zoom', id: 'bpc' }; html += overlay(); st.overlay = null;
+    var box = document.createElement('div'); box.hidden = true; box.innerHTML = html; document.body.appendChild(box);
+    var need = ['A1a', 'A1b', 'A3', 'A3a', 'A4a', 'A4b', 'A4c', 'A5', 'A5a', 'A5b', 'A5c', 'A5d', 'A5e', 'A5f', 'A5g', 'A6a', 'A6b', 'A6c', 'A6d', 'A6e', 'A6f', 'A6g', 'A6h', 'A6j', 'A6k', 'A6l', 'A6o', 'A6p', 'A6p2', 'A7', 'A7a', 'A7c', 'A7d', 'A7e', 'A7f', 'A8', 'A8a', 'A8c', 'A8f', 'A8g', 'A8h'];
+    var have = {}; box.querySelectorAll('[data-i]').forEach(function (n) { have[n.getAttribute('data-i')] = 1; });
+    box.remove();
+    var miss = need.filter(function (x) { return !have[x]; });
+    var cov = document.getElementById('cov');
+    cov.className = 'coverage ' + (miss.length ? 'fail' : 'pass');
+    cov.textContent = miss.length ? 'Coverage check: missing ' + miss.join(', ') : 'Coverage check: all ' + need.length + ' drawn items from main are on the list or protocol screens; the rest (A2 empty state, A6i legacy row, A7b / A8b / A8d / A8e conditional messages) keep their wording, see the table.';
+    render();
+  })();
+
+})();
+</script>

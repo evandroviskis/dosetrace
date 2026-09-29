@@ -30,6 +30,7 @@ writes its spec checklist and builds it.
 
 | File | What it is | Published page (claude.ai artifact) |
 |---|---|---|
+| `prototype.html` | the clickable prototype (approved screens + the one under review) | https://claude.ai/artifact/UgjFfJ7S5JBxZZ93REWhNJ |
 | `DESIGN.md` | the identity spec: palette, **approved type (§3)**, shapes, honesty lines, forbidden "AI template" tells, founder decisions at the top | — |
 | `today-dashboard.html` / `.md` | **current work:** Today tab layout proposal v1 | https://claude.ai/artifact/XidQf4a75nzeySHFeeaeZx |
 | `today-journey-findings.md` | real-world journey review of Today on main (logic defects found) | — |
@@ -118,6 +119,10 @@ needs redesign and approval. You commit, build into the simulator and I see the 
 ## 5c. Status 2026-09-29 (late)
 
 - **Today v2.1 APPROVED.** Build handoff: `today-build-handoff.md` (Mac session, after 1.2.5).
+- **Clickable prototype** (founder 2026-09-29: "I need the clickable versions to approve every
+  screen"): `prototype.html`, published https://claude.ai/artifact/UgjFfJ7S5JBxZZ93REWhNJ. One
+  phone that grows screen by screen; approved screens stay in it; the screen under review is
+  marked. Republish the same file for every new screen.
 - **Next screen: My Protocols** (list, protocol detail, add/edit form, its popups). Design it,
   stop, get approval. Builds follow in approval order.
 
