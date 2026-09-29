@@ -125,10 +125,9 @@ needs redesign and approval. You commit, build into the simulator and I see the 
   marked. Republish the same file for every new screen.
 - **My Protocols APPROVED** (list, protocol screen, add/edit, every popup). Dose log look approved.
 - **Journey APPROVED, all 5 parts (dashboard, Progress, AI food log, Dose accumulation, popups).**
-- **My Body part 1 (hub + Lab test journal) UNDER REVIEW in prototype.html.** Parts: 1 hub + labs, 2 Vaccine journal, 3 popups (upload, review, marker edit, export, upgrade, preview). Parts: 2 Progress screen, 3 FoodChat,
-  4 Accumulation Curve, 5 Journey popups.
-- **After Journey:** the remaining screens (site picker, My Body, Settings, onboarding/auth,
-  paywall, ...). Design each, stop, get approval. Builds follow in approval order.
+- **My Body part 1 (hub + Lab test journal) UNDER REVIEW in prototype.html.** Parts: 1 hub + labs, 2 Vaccine journal, 3 popups (upload, review, marker edit, export, upgrade, preview).
+- **After My Body:** the remaining screens (Settings, onboarding/auth, paywall, site picker,
+  ...). Design each, stop, get approval. Builds follow in approval order.
 
 ## 5d. Parked by the founder until the design pass is finished (2026-09-29)
 
