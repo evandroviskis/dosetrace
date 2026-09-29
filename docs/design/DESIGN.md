@@ -38,6 +38,12 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Sign-in APPROVED (2026-09-29, founder: "Approved")** with the recommended answers: Apple first,
+  then Google, with the official logos (the only fixed colors; brand rules); labels above the fields
+  (main's placeholder words) + a show-password eye; the consent line links both documents under one
+  name, "Terms of service"; after a password reset the user is signed in ("You're signed in with
+  your new password", new copy) and errors are plain-language in every language (no raw server
+  text). Otherwise main's words: create account, sign in, forgot password, Account created.
 - **Settings part 3 APPROVED (2026-09-29, founder: "All approved") → Settings fully approved.**
   Main's confirms as DoseTrace sheets (Sign out; Delete account in two steps; offline + Apple
   messages); **signing out offline with unsynced changes warns first** ("Some changes aren't backed

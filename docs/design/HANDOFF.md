@@ -127,7 +127,8 @@ needs redesign and approval. You commit, build into the simulator and I see the 
 - **Journey APPROVED, all 5 parts (dashboard, Progress, AI food log, Dose accumulation, popups).**
 - **My Body APPROVED, all 3 parts (hub + Lab test journal, Vaccine journal, popups).**
 - **Settings APPROVED, all 3 parts.**
-- **Sign-in (create account, sign in, account created, forgot + reset password) UNDER REVIEW.** Then onboarding, paywall, injection-site picker.
+- **Sign-in APPROVED.**
+- **Onboarding (9 steps) UNDER REVIEW.** Then paywall, injection-site picker.
 - **After My Body:** the remaining screens (Settings, onboarding/auth, paywall, site picker,
   ...). Design each, stop, get approval. Builds follow in approval order.
 
