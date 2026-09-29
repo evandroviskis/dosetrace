@@ -129,6 +129,18 @@ needs redesign and approval. You commit, build into the simulator and I see the 
 - **Next screen: My Protocols** (list, protocol detail, add/edit form, its popups). Design it,
   stop, get approval. Builds follow in approval order.
 
+## 5d. Parked by the founder until the design pass is finished (2026-09-29)
+
+**Feature explainer animations.** Founder: "Every feature should have an animation explaining the
+user why to use it, benefits and expected results. No need to do it now, but I want this in the
+app. Let's finish the design first and remind me of the animations after we are done with the
+current task." → When every screen is approved, REMIND the founder and propose the animation set
+(one per feature). Starting point: main already has one (`components/AccumulationHero.js`, the
+Example dose-accumulation curve in My Body's free preview sheet). First candidate: Journey's
+Dose accumulation tile for free users (PRO tile → explainer sheet → Unlock with Pro), drafted and
+not built. Guardrail for "expected results": show what the feature measures or calculates, with
+Example data, never a promised health outcome (AI hard line / Apple 1.4.1).
+
 ## 6. Current work: Today proposal v2 (published 2026-09-29, waiting for the founder)
 
 The founder answered v1 with a new brief (quoted in `today-dashboard.md`): alerts on top and gone

@@ -390,6 +390,13 @@ textarea.winp { resize: none; }
 .jt .chip { color: var(--ink2); }
 .jt .chip.meas { border-color: var(--data); color: var(--data); }
 
+
+/* ---- free-plan explainer ---- */
+.pv { gap: 14px; }
+.pvchart { background: var(--well); border-radius: 18px; padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+.pvchart .chip { color: var(--ink2); }
+.pvcap { min-height: 1.4em; color: var(--ink); font-weight: 600; }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -431,7 +438,7 @@ textarea.winp { resize: none; }
         <button data-jstate="run">Daily user, reality check running<small>weight, estimated daily burn, testosterone level</small></button>
         <button data-jstate="done">After the reality check<small>daily burn turns Measured</small></button>
         <button data-jstate="fresh">New user</button>
-        <button data-jstate="free">Free plan (same user as "daily")<small>Dose accumulation shows PRO and no number, as on main</small></button>
+        <button data-jstate="free">Free plan (same user as "daily")<small>Dose accumulation shows PRO and no number. Tap it: the explainer plays, then Unlock with Pro</small></button>
         <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
         <button data-jump="1:list::add">Add a protocol<small>10 mg, 2 ml, 2 mg: draw to 40 units</small></button>
         <button data-jump="1:list:bpc:edit">Edit BPC-157</button>
@@ -465,6 +472,7 @@ textarea.winp { resize: none; }
           <li><b>Est. level</b> follows the <i>planned</i> schedule, so a skipped dose still counts (the known F-051). Recommendation: ship the tile with the clearer wording already registered as A-07 ("based on your planned schedule"), and register "count only doses marked Taken" as a model change for the pharmacometrics review.</li>
           <li><b>Fast compounds read 0.0 mg</b> between doses (TB-500 on Test03), exactly as the Curve screen does today. Keep, or show the compound with the slowest clearance first?</li>
           <li><b>The explainers open in place</b> (Understand the numbers, Sources &amp; references), as on main. "What this is" is now their first entry, as the approved v5 plan says. OK?</li>
+          <li><b>Free users: an explainer before the paywall</b> (your idea). Tapping the PRO tile opens main's own "See your compound build up" sheet with its Example animation (the same model as main's AccumulationHero: each dose drops in, falls by the half-life, the peaks creep up, a dashed line joins them). New: three short captions that play in step with it ("Each dose adds to the estimate." / "Between doses it falls, by the half-life you enter." / "The peaks creep up: that's accumulation."), 6 languages. Then "Unlock with Pro" → Paywall; the X closes without the paywall. Tap the chart to replay. OK?</li>
           <li><b>"What this is" ends with an outdated sentence</b> (underlined in the prototype): "A quick reality check, not a food tracker — save snapshots to watch the numbers change over time." The app now has a food log, the reality check is its own feature, and snapshots are saved automatically (A-53). Suggestion: "Every weigh-in is saved, so you can watch the numbers change over time." (new copy, 6 languages).</li>
         </ol>
       </div>
@@ -835,6 +843,7 @@ textarea.winp { resize: none; }
     if (o.t === 'sheet') return sheetHTML(o);
     if (o.t === 'action') return '<div class="scrim bot"' + A('scrim') + '><div class="actwrap"><div class="actgrp">' + (o.title ? '<span class="r-foot c2 acttitle">' + o.title + '</span>' : '') + o.opts.map(function (x) { return '<span class="actopt"' + A(x[1], x[2]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="actopt actcancel"' + A('close') + '>Cancel</span></div></div>';
     if (o.t === 'wheel') return wheelHTML(o);
+    if (o.t === 'preview') return previewSheet();
     if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
     return '';
   }
@@ -1160,7 +1169,7 @@ textarea.winp { resize: none; }
     if (d.prog) p += '<div class="num"><span class="r-cap c2">Weight</span><span class="r-display d34">' + d.prog[0] + '<span class="unit">kg</span></span><span class="r-foot c2 tnum">Since Aug 31: <span class="vin">' + d.prog[1] + ' kg</span></span></div><div class="num sep end"><span class="r-cap c2">Daily burn (TDEE)</span><span class="r-display d34">' + d.prog[2] + '<span class="unit">kcal</span></span><span class="chip r-cap' + (d.prog[3] ? ' meas' : '') + '">' + (d.prog[3] ? 'Measured' : 'Estimated') + '</span></div>';
     else p += '<span class="r-sec c2" data-i="J15">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
     p += '</div>';
-    var q = '<div class="tile jt" data-i="J3"' + (d.free ? A('say', 'Free plan: opens the Paywall (main does the same).') : A('go', 'curve')) + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + (d.free ? '<span class="otag">PRO</span>' : CHEV) + '</div><span class="r-head">Dose accumulation</span>';
+    var q = '<div class="tile jt" data-i="J3"' + (d.free ? A('preview') : A('go', 'curve')) + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + (d.free ? '<span class="otag">PRO</span>' : CHEV) + '</div><span class="r-head">Dose accumulation</span>';
     if (d.dose && d.free) q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
     else if (d.dose) q += '<div class="row" style="gap: 7px; align-items: flex-start"><span class="dot" style="background: var(' + d.dose[0] + '); margin-top: 6px"></span><span class="r-sec">' + d.dose[1] + '</span></div><div class="num end"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + d.dose[2] + '<span class="unit">mg</span></span><span class="chip r-cap">Estimated</span></div>';
     else q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
@@ -1173,6 +1182,62 @@ textarea.winp { resize: none; }
     return h + '</div></div>';
   }
   function nextPart(title, text) { return '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">' + title + '</h3></div><div class="expl r-sec c2">' + text + '</div>'; }
+
+
+  /* ---------- Journey: free-plan explainer before the paywall (under review) ---------- */
+  // Same model as main's AccumulationHero ("Version B"): HALF 2.2, INTERVAL 3, DOSE 5, 5 doses.
+  var PV = { HALF: 2.2, INT: 3, DOSE: 5, N: 5, TEND: 21 };
+  PV.K = Math.LN2 / PV.HALF;
+  function pvLevel(t) { var v = 0; for (var i = 0; i < PV.N; i++) { var ti = i * PV.INT; if (ti <= t) v += PV.DOSE * Math.exp(-PV.K * (t - ti)); } return v; }
+  var PVW = 320, PVH = 170, PVX = function (t) { return 14 + t / PV.TEND * (PVW - 28); }, PVY = function (v) { return PVH - 26 - v / 10 * (PVH - 50); };
+  function pvPath(tNow) {
+    var d = 'M' + PVX(0) + ' ' + PVY(0), steps = 180;
+    for (var k = 1; k <= steps; k++) {
+      var t = k / steps * tNow;
+      for (var i = 0; i < PV.N; i++) { var ti = i * PV.INT, tp = (k - 1) / steps * tNow; if (tp < ti && t >= ti) d += ' L' + PVX(ti).toFixed(1) + ' ' + PVY(pvLevel(ti - 1e-6)).toFixed(1) + ' L' + PVX(ti).toFixed(1) + ' ' + PVY(pvLevel(ti)).toFixed(1); }
+      d += ' L' + PVX(t).toFixed(1) + ' ' + PVY(pvLevel(t)).toFixed(1);
+    }
+    return d;
+  }
+  function previewSheet() {
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet pv" data-i="J3p">';
+    h += '<div class="row" style="justify-content: space-between"><span class="r-title">See your compound build up</span><span class="round" style="width: 36px; height: 36px"' + A('close') + ' aria-label="Close">' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div>';
+    h += '<div class="pvchart"' + A('replay') + '><div class="row" style="justify-content: space-between; align-items: flex-start"><div class="col" style="gap: 2px"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd"><span id="pvnum">0.0</span><span class="unit">mg</span></span></div><span class="chip r-cap">Example</span></div>';
+    h += '<svg viewBox="0 0 ' + PVW + ' ' + PVH + '" class="full" aria-label="Example: five doses, each adding to the estimate, falling between doses, the peaks creeping up">';
+    [0, 5, 10].forEach(function (v) { h += '<line x1="14" x2="' + (PVW - 14) + '" y1="' + PVY(v) + '" y2="' + PVY(v) + '" stroke="var(--line)" stroke-dasharray="2 3"/>'; });
+    h += '<path id="pvfill" fill="var(--data)" fill-opacity="0.12" d=""/><path id="pvline" fill="none" stroke="var(--data)" stroke-width="2.4" stroke-linejoin="round" d=""/>';
+    var peaks = []; for (var i = 0; i < PV.N; i++) { var ti = i * PV.INT; peaks.push([PVX(ti), PVY(pvLevel(ti))]); h += '<g id="pvd' + i + '" opacity="0"><line x1="' + PVX(ti) + '" x2="' + PVX(ti) + '" y1="' + (PVH - 22) + '" y2="' + (PVH - 14) + '" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><text x="' + PVX(ti) + '" y="' + (PVY(pvLevel(ti)) - 10) + '" text-anchor="middle" font-family="Geist Mono, ui-monospace, monospace" font-size="11" fill="var(--data)" id="pvp' + i + '">+5.0</text></g>'; }
+    h += '<polyline id="pvpeaks" points="' + peaks.map(function (p) { return p[0] + ',' + p[1]; }).join(' ') + '" fill="none" stroke="var(--ink2)" stroke-width="1.4" stroke-dasharray="4 4" opacity="0"/>';
+    h += '<circle id="pvpen" r="4.5" fill="var(--data)" cx="' + PVX(0) + '" cy="' + PVY(0) + '"/>';
+    h += '<text x="' + PVX(0) + '" y="' + (PVH - 2) + '" font-family="-apple-system, Roboto, sans-serif" font-size="10" fill="var(--ink3)">doses</text></svg>';
+    h += '<span class="r-sec pvcap nc" id="pvcap">Each dose adds to the estimate.</span></div>';
+    h += '<span class="r-body c2">DoseTrace models how each dose stacks on the last, so you see your estimated serum level between doses — not just what you took.</span>';
+    h += '<span class="btn p"' + A('say', 'Opens the Paywall (source: journey_serum_preview).') + '>Unlock with Pro</span>';
+    h += '<span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span>';
+    return h + '</div></div>';
+  }
+  var pvRaf = null;
+  function pvPlay() {
+    if (pvRaf) cancelAnimationFrame(pvRaf);
+    var line = document.getElementById('pvline'); if (!line) return;
+    var fill = document.getElementById('pvfill'), pen = document.getElementById('pvpen'), num = document.getElementById('pvnum'), cap = document.getElementById('pvcap'), peaks = document.getElementById('pvpeaks');
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var DUR = 7000, t0 = null, lastCap = '';
+    function frame(ts) {
+      if (t0 === null) t0 = ts;
+      var p = reduce ? 1 : Math.min(1, (ts - t0) / DUR), tNow = p * PV.TEND, v = pvLevel(tNow);
+      var d = pvPath(Math.max(tNow, 0.001));
+      line.setAttribute('d', d); fill.setAttribute('d', d + ' L' + PVX(tNow).toFixed(1) + ' ' + PVY(0) + ' L' + PVX(0) + ' ' + PVY(0) + ' Z');
+      pen.setAttribute('cx', PVX(tNow).toFixed(1)); pen.setAttribute('cy', PVY(v).toFixed(1));
+      num.textContent = v.toFixed(1);
+      for (var i = 0; i < PV.N; i++) { var ti = i * PV.INT, g = document.getElementById('pvd' + i), pl = document.getElementById('pvp' + i); var age = tNow - ti; g.setAttribute('opacity', age >= 0 ? '1' : '0'); pl.setAttribute('opacity', age >= 0 ? Math.max(0, 1 - age / 1.6).toFixed(2) : '0'); pl.setAttribute('transform', 'translate(0 ' + (age >= 0 ? -Math.min(age, 1.6) * 6 : 0).toFixed(1) + ')'); }
+      peaks.setAttribute('opacity', tNow >= PV.INT * (PV.N - 1) + 0.8 ? '1' : '0');
+      var c = tNow < 2.2 ? 'Each dose adds to the estimate.' : tNow < 8 ? 'Between doses it falls, by the half-life you enter.' : 'The peaks creep up: that\'s accumulation.';
+      if (c !== lastCap) { cap.textContent = c; lastCap = c; }
+      if (p < 1) pvRaf = requestAnimationFrame(frame); else pvRaf = null;
+    }
+    pvRaf = requestAnimationFrame(frame);
+  }
 
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
@@ -1211,6 +1276,7 @@ textarea.winp { resize: none; }
     var sc = document.getElementById('scroller'); sc.scrollTop = st.scroll[key()] || 0;
     sc.addEventListener('scroll', function () { st.scroll[key()] = sc.scrollTop; });
     var r = document.getElementById('ruler'); if (r) r.scrollLeft = +r.getAttribute('data-center');
+    if (st.overlay && st.overlay.t === 'preview') pvPlay(); else if (pvRaf) { cancelAnimationFrame(pvRaf); pvRaf = null; }
     var ta = document.getElementById('noteta'); if (ta) ta.focus();
     document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
   }
@@ -1245,6 +1311,8 @@ textarea.winp { resize: none; }
     else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
     else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
     else if (a === 'say') toast(v);
+    else if (a === 'preview') st.overlay = { t: 'preview' };
+    else if (a === 'replay') { pvPlay(); return; }
     else if (a === 'scan') st.overlay = st.consent ? scanChoice() : consentSheet();
     else if (a === 'consentok') { st.consent = true; st.overlay = scanChoice(); }
     else if (a === 'scanphoto') { st.overlay = null; Object.assign(st.wiz, { type: 'recon', amt: '5', unit: 'mg', scanned: true }); if (!st.wiz.name) { st.wiz.name = 'BPC-157'; st.wiz.q = 'BPC-157'; } }

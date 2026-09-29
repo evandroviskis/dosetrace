@@ -32,6 +32,8 @@ Founder decisions since (2026-09-29):
   "Recently deleted" + Restore at the bottom of the list, and a confirm before New vial /
   New bottle. Today alerts naming one protocol open that protocol (recommended answer, taken as
   approved unless the founder says otherwise).
+- **Parked (2026-09-29, founder):** every feature gets an explainer animation (why use it,
+  benefits, expected results). After the design pass; see HANDOFF §5d. Remind the founder then.
 - **My Protocols part 3 APPROVED (2026-09-29, founder: "Ok, keep going")**, so all of My
   Protocols is approved: one DoseTrace sheet replaces the system alerts (pickers keep the iPhone
   wheel inside it; camera and photo library stay system screens); photo choice as a bottom sheet;
