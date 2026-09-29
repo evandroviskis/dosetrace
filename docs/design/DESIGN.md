@@ -38,6 +38,13 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **My Body part 3 (popups) APPROVED (2026-09-29, founder: "Approved") → My Body fully approved.**
+  Recommended answers: popups keep main's words as DoseTrace sheets; the Premium card becomes
+  "First upload free · Unlimited with Premium" (new copy; there is no pay-per-upload); "or enter
+  values manually" is dropped from "Scan service unavailable" (labs can't be typed in); a confirm
+  before "Delete this value" (new copy); the preview's example curve joins the parked feature
+  animations. The unused "Review extracted markers" / "Review vaccines" sheets on main are deleted
+  in the build (rebuild = replace).
 - **My Body part 2 (Vaccine journal) APPROVED (2026-09-29, founder: "Approved")** as in
   `prototype.html`, with the recommended answers: cards newest first, add/edit as a bottom sheet
   (main's fields, date wheels), a confirm before "Delete vaccine" (new copy), and the nearest
