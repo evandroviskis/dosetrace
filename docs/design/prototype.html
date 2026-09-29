@@ -402,6 +402,13 @@ textarea.winp { resize: none; }
 .btn .nc, .obtn2 .nc { align-self: center; }
 .pvslot { min-height: 150px; border-radius: 18px; border: 1.5px dashed var(--tick); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
 
+
+.actlist { background: var(--raised); border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.actrow { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.actrow:first-child { border-top: 0; }
+.actrow.on { box-shadow: inset 0 0 0 2px var(--ink); border-radius: 16px; border-top-color: transparent; }
+.actrow.on + .actrow { border-top-color: transparent; }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -1176,7 +1183,8 @@ textarea.winp { resize: none; }
     var h = '<div class="hrow"><h3 class="r-large" data-i="J1">Journey</h3></div><span class="r-sec c2" data-i="J2" style="padding: 0 4px; margin-top: -8px">Track how your body is actually responding.</span>';
     h += '<div class="food" data-i="J19"' + A('say', 'Opens the AI food log (FoodChat): Journey part 3.') + '><div class="row" style="gap: 10px">' + ic(I.spark, 22) + '<span class="r-head grow">AI food log</span><span data-i="J18">' + CHEV + '</span></div><span class="r-title tnum" style="font-size: calc(19px * var(--ts))">' + d.food[0] + '</span>' + (d.food[1] ? '<span class="r-sec c2 tnum">' + d.food[1] + '</span>' : '') + '</div>';
     var p = '<div class="tile jt" data-i="J17"' + A('go', 'progress') + '><div class="top">' + ic(JI.trend, 22) + CHEV + '</div><span class="r-head">Progress</span>';
-    if (d.prog) p += '<div class="num"><span class="r-cap c2">Weight</span><span class="r-display d34">' + d.prog[0] + '<span class="unit">kg</span></span><span class="r-foot c2 tnum">Since Aug 31: <span class="vin">' + d.prog[1] + ' kg</span></span></div><div class="num sep end"><span class="r-cap c2">Daily burn (TDEE)</span><span class="r-display d34">' + d.prog[2] + '<span class="unit">kcal</span></span><span class="chip r-cap' + (d.prog[3] ? ' meas' : '') + '">' + (d.prog[3] ? 'Measured' : 'Estimated') + '</span></div>';
+    var JN = d.prog ? jnums() : null;
+    if (d.prog) p += '<div class="num"><span class="r-cap c2">Weight</span><span class="r-display d34">' + kg(JN.w) + '<span class="unit">' + wu() + '</span></span><span class="r-foot c2 tnum">Since Aug 31: <span class="vin">' + (JN.w - 88 > 0 ? '+' : '−') + kg(Math.abs(JN.w - 88)) + ' ' + wu() + '</span></span></div><div class="num sep end"><span class="r-cap c2">Daily burn (TDEE)</span><span class="r-display d34">' + fk(JN.tdee) + '<span class="unit">kcal</span></span><span class="chip r-cap' + (d.prog[3] ? ' meas' : '') + '">' + (d.prog[3] ? 'Measured' : 'Estimated') + '</span></div>';
     else p += '<span class="r-sec c2" data-i="J15">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
     p += '</div>';
     var q = '<div class="tile jt" data-i="J3"' + (d.free ? A('say', 'Free plan: opens the Paywall (main does the same).') : A('go', 'curve')) + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + (d.free ? '<span class="otag">PRO</span>' : CHEV) + '</div><span class="r-head">Dose accumulation</span>';
@@ -1232,27 +1240,39 @@ textarea.winp { resize: none; }
     return s2 + '<rect x="' + (X(now) - 2).toFixed(1) + '" y="3" width="4" height="26" rx="1.5" fill="var(--ink)"/></svg>';
   }
   function progCard(title, inner, extra) { return '<div class="card pc"' + (extra || '') + '>' + (title ? '<span class="r-title">' + title + '</span>' : '') + inner + '</div>'; }
+  var ACTS = [['Desk job, little or no exercise', 1.2], ['Light — 1–3 sessions/week', 1.375], ['Moderate — 4–5 sessions/week', 1.55], ['High — 6–7 sessions/week', 1.725], ['Very high — physical job + daily training', 1.9]];
+  var HEIGHT = 181;
+  function fk(n) { return Math.round(n).toLocaleString('en-US'); }
+  // Same arithmetic as main (lib/energyCalc.js): Katch-McArdle BMR, activity multiplier, goal %, protein 2.2 g/kg lean mass, fat 25% (floor 0.6 g/kg), carbs = the rest.
+  function jnums() {
+    var ps = pstate(), done = ps === 'done', W = (done ? W_DONE : W_RUN).concat(st.extraW || []), cur = W[W.length - 1];
+    var w = st.pw != null ? num(st.pw) : cur[1], bf = cur[3], lbm = w * (1 - bf / 100), bmr = 370 + 21.6 * lbm;
+    var act = ACTS.filter(function (a) { return a[0] === (st.act || ACTS[2][0]); })[0], tdeeF = bmr * act[1], tdee = done ? 2670 : tdeeF;
+    var goals = { Lose: Math.max(tdee * 0.825, bmr), Maintain: tdee, Gain: tdee * 1.125 };
+    var g = st.goal || 'Lose', pf = { Lose: 1.0, Maintain: 0.9, Gain: 0.95 }[g], prot = 2.2 * lbm * pf, fat = Math.max(goals[g] * 0.25 / 9, 0.6 * w), carbs = Math.max(0, (goals[g] - prot * 4 - fat * 9) / 4);
+    var m = HEIGHT / 100;
+    return { ps: ps, done: done, W: W, cur: cur, w: w, bf: bf, lbm: lbm, bmr: bmr, tdeeF: tdeeF, tdee: tdee, goals: goals, g: g, prot: prot, protLo: 2.0 * lbm, protHi: 2.4 * lbm, fat: fat, carbs: carbs, bmi: w / (m * m), hmin: 18.5 * m * m, hmax: 24.9 * m * m, act: act };
+  }
   function progressScreen() {
-    var ps = pstate(), done = ps === 'done', free = st.jstate === 'free', filled = ps === 'run' || ps === 'done';
-    var W = (done ? W_DONE : W_RUN).concat(st.extraW || []), cur = W[W.length - 1];
-    var wNow = st.pw != null ? num(st.pw) : cur[1];
+    var J = jnums(), ps = J.ps, done = J.done, free = st.jstate === 'free', filled = ps === 'run' || ps === 'done';
+    var W = J.W, cur = J.cur, wNow = J.w;
     var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Progress</h3></div>';
     // ---- sections ----
     function heroCard() {
-      var x = '<div class="card pc" data-i="J17h"><div class="hero2" style="padding: 0"><div class="col" style="gap: 6px"><span class="r-foot c2">Weight</span><span class="r-display d56">' + kg(wNow) + '<span class="unit">' + wu() + '</span></span></div><div class="col" style="gap: 6px"><span class="r-foot c2">Daily burn (TDEE)</span><span class="r-display d56">' + (done ? '2,670' : '2,810') + '<span class="unit">kcal</span></span><span class="chip r-cap"' + (done ? ' style="color: var(--data); border-color: var(--data)"' : '') + '>' + (done ? 'Measured' : 'Estimated') + '</span></div></div>';
+      var x = '<div class="card pc" data-i="J17h"><div class="hero2" style="padding: 0"><div class="col" style="gap: 6px"><span class="r-foot c2">Weight</span><span class="r-display d56">' + kg(wNow) + '<span class="unit">' + wu() + '</span></span></div><div class="col" style="gap: 6px"><span class="r-foot c2">Daily burn (TDEE)</span><span class="r-display d56">' + fk(J.tdee) + '<span class="unit">kcal</span></span><span class="chip r-cap"' + (done ? ' style="color: var(--data); border-color: var(--data)"' : '') + '>' + (done ? 'Measured' : 'Estimated') + '</span></div></div>';
       x += '<span class="r-sec c2 tnum">Since Aug 31: Weight <span class="vin">' + (wNow - 88 > 0 ? '+' : '−') + kg(Math.abs(wNow - 88)) + ' ' + wu() + '</span> · Waist <span class="vin">−' + cm(done ? 4 : 3) + ' ' + lu() + '</span></span>';
-      x += '<span class="r-foot c2 tnum" style="margin-top: -6px">' + (done ? 'Measured from your reality check · estimate 2,810' : 'Katch-McArdle · lean mass · BMR (at rest) 1,810') + '</span>';
+      x += '<span class="r-foot c2 tnum" style="margin-top: -6px">' + (done ? 'Measured from your reality check · estimate ' + fk(J.tdeeF) : 'Katch-McArdle · lean mass · BMR (at rest) ' + fk(J.bmr)) + '</span>';
       x += '<div class="sep"></div><div class="row"><span class="r-head grow">Your target</span><span class="btnlink r-body" data-i="J14"' + A('say', 'Edit target: its sheet comes in Journey part 5.') + '>Edit</span></div>';
       x += '<div class="row"><span class="r-sec c2 grow">Weight</span><span class="r-value v15">' + kg(wNow) + ' → ' + kg(80) + ' ' + wu() + '</span></div>' + targetScale(88, Math.min(88, Math.max(80, wNow)), 80);
-      x += '<span class="r-body tnum">' + (done ? '~7 weeks to go · around Nov 30, if this pace holds' : '~5 weeks to go · around Nov 2, if this pace holds') + '</span><span class="r-foot c2 tnum">Based on your weigh-ins ' + (done ? 'Aug 31–Oct 12' : 'Aug 31–Sep 28') + ' · healthy range for your height: ' + kg(61).replace('.0', '') + '–' + kg(82).replace('.0', '') + ' ' + wu() + '.</span>';
+      x += '<span class="r-body tnum">' + (done ? '~7 weeks to go · around Nov 30, if this pace holds' : '~5 weeks to go · around Nov 2, if this pace holds') + '</span><span class="r-foot c2 tnum">Based on your weigh-ins ' + (done ? 'Aug 31–Oct 12' : 'Aug 31–Sep 28') + ' · healthy range for your height: ' + Math.round(imp() ? J.hmin * 2.20462 : J.hmin) + '–' + Math.round(imp() ? J.hmax * 2.20462 : J.hmax) + ' ' + wu() + '.</span>';
       return x + '<span class="btn p"' + A('weighin') + '>' + nc('Log today\'s weight') + '</span></div>';
     }
     function planCard() {
-      var g = st.goal || 'Lose', cals = done ? { Lose: '2,200', Maintain: '2,670', Gain: '3,000' } : { Lose: '2,320', Maintain: '2,810', Gain: '3,160' };
+      var g = J.g, cals = { Lose: fk(J.goals.Lose), Maintain: fk(J.goals.Maintain), Gain: fk(J.goals.Gain) };
       var pl = '<span class="r-title">Your daily plan</span>';
       pl += '<div class="goals">' + [['Lose', '−15–20%'], ['Maintain', 'Daily burn (TDEE)'], ['Gain', '+10–15%']].map(function (y) { return '<div class="goal' + (g === y[0] ? ' on' : '') + '"' + A('goal', y[0]) + '><span class="r-cap c2">' + y[0] + '</span><span class="r-value">' + cals[y[0]] + '</span><span class="r-cap c2 tnum">' + y[1] + '</span></div>'; }).join('') + '</div>';
-      pl += '<div class="cell"><span class="r-cap c2">Protein</span><span class="r-value">145 g/day</span><span class="r-foot c2 tnum">135–160 · per kg lean mass</span></div>';
-      pl += '<div class="chips r-cap c2 tnum"><span>BMI 25.7 · healthy range ' + kg(61).replace('.0', '') + '–' + kg(82).replace('.0', '') + ' ' + wu() + '</span><span>fat ≈ 80 g · carbs ≈ ' + (g === 'Lose' ? '360' : g === 'Maintain' ? '480' : '560') + ' g</span></div>';
+      pl += '<div class="cell"><span class="r-cap c2">Protein</span><span class="r-value">' + fk(J.prot) + ' g/day</span><span class="r-foot c2 tnum">' + fk(J.protLo) + '–' + fk(J.protHi) + ' · per kg lean mass</span></div>';
+      pl += '<div class="chips r-cap c2 tnum"><span>BMI ' + J.bmi.toFixed(1) + ' · healthy range ' + Math.round(imp() ? J.hmin * 2.20462 : J.hmin) + '–' + Math.round(imp() ? J.hmax * 2.20462 : J.hmax) + ' ' + wu() + '</span><span>fat ≈ ' + fk(J.fat) + ' g · carbs ≈ ' + fk(J.carbs) + ' g</span></div>';
       pl += '<div class="fh"' + A('fold', 'wti') + ' style="min-height: 40px; border-top: 1px solid var(--line)"><span class="r-sec grow">What this is</span><span style="color: var(--ink3)">' + (st.fold.wti ? UP : DOWN) + '</span></div>';
       if (st.fold.wti) pl += '<p class="r-sec c2" style="margin: 0">Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. Every weigh-in is saved, so you can watch the numbers change over time.</p>';
       pl += '<span class="r-foot c2">These are estimates — a starting point, not a target set in stone. Plug the number into whatever you use to track food, then adjust based on what actually happens over 3–4 weeks.</span>';
@@ -1289,18 +1309,18 @@ textarea.winp { resize: none; }
     }
     function numbersCard(forceOpen) {
       var open = forceOpen || st.fold.nopen;
-      var x = '<div class="fh"' + (forceOpen ? '' : A('fold', 'nopen')) + '><div class="grow col" style="gap: 2px"><span class="r-title">Your numbers</span>' + (!open ? '<span class="r-foot c2 tnum">' + kg(wNow) + ' ' + wu() + ' · ' + cur[3] + '% BF · ' + cm(178) + ' ' + lu() + ' · ' + (st.act || 'Moderate — 4–5 sessions/week').split(' —')[0] + '</span>' : '') + '</div>' + (forceOpen ? '' : '<span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span>') + '</div>';
+      var x = '<div class="fh"' + (forceOpen ? '' : A('fold', 'nopen')) + '><div class="grow col" style="gap: 2px"><span class="r-title">Your numbers</span>' + (!open ? '<span class="r-foot c2 tnum">' + kg(wNow) + ' ' + wu() + ' · ' + cur[3] + '% BF · ' + cm(HEIGHT) + ' ' + lu() + ' · ' + J.act[0].split(/ —|,/)[0] + '</span>' : '') + '</div>' + (forceOpen ? '' : '<span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span>') + '</div>';
       if (open) {
         x += '<span class="segw" style="align-self: flex-start">' + [['metric', 'Metric'], ['imperial', 'Imperial']].map(function (u) { return '<span class="' + ((st.units || 'metric') === u[0] ? 'on' : '') + '"' + A('units', u[0]) + '>' + u[1] + '</span>'; }).join('') + '</span>';
         if (!filled) x += '<span class="r-sec c2">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
         var v = filled ? [kg(wNow), String(cur[3]), cm(cur[2])] : ['', '', ''];
         x += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" data-p="pw" inputmode="decimal" placeholder="e.g. ' + kg(80) + '" value="' + v[0] + '"></div><div class="fld"><span class="r-foot c2">Body fat (%)</span><input class="winp" inputmode="decimal" placeholder="e.g. 20" value="' + v[1] + '"></div></div>';
         x += '<div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(90) + '" value="' + v[2] + '"></div><span class="r-foot c2">The most useful non-scale number: it tracks fat loss even when the scale won\'t budge.</span>';
-        x += '<div class="sep"></div><div class="fld"><span class="r-foot c2">Height (' + lu() + ')</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(178) + '" value="' + (filled ? cm(178) : '') + '"></div>';
+        x += '<div class="sep"></div><div class="fld"><span class="r-foot c2">Height (' + lu() + ')</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(178) + '" value="' + (filled ? cm(HEIGHT) : '') + '"></div>';
         var srcs = [['DEXA scan', 'Very accurate (~1–2% error).'], ['Gym scan', 'Good (~3–5% error). Many gyms offer body-composition scans.'], ['Calipers', 'Fair (~3–5% error) when done by a trained person.'], ['Home scale', 'Rough (±5% or more). Best for trends, not the exact number.'], ['I don\'t know', 'We\'ll estimate from your height, age and sex instead.']], cs = st.bfsrc || 'Gym scan';
         x += '<div class="fld"><span class="r-foot c2">Body-fat source</span><div class="pills">' + srcs.map(function (y) { return '<span class="pill r-foot' + (cs === y[0] ? ' on' : '') + '"' + A('bfsrc', y[0]) + '>' + y[0] + '</span>'; }).join('') + '</div><span class="r-foot c2">' + srcs.filter(function (y) { return y[0] === cs; })[0][1] + '</span></div>';
-        var acts = ['Desk job, little or no exercise', 'Light — 1–3 sessions/week', 'Moderate — 4–5 sessions/week', 'High — 6–7 sessions/week', 'Very high — physical job + daily training'], ca = st.act || 'Moderate — 4–5 sessions/week';
-        x += '<div class="fld"><span class="r-head row" style="gap: 6px">' + ic(JX.bolt, 18) + 'Activity level</span><div class="acts5">' + acts.map(function (y, k) { return '<div class="opt r-sec' + (ca === y ? ' on' : '') + (k === 4 ? ' wide' : '') + '"' + A('act', y) + '><i></i>' + y + '</div>'; }).join('') + '</div></div>';
+        var ca = J.act[0];
+        x += '<div class="fld"><span class="r-head row" style="gap: 6px">' + ic(JX.bolt, 18) + 'Activity level</span><div class="actlist">' + ACTS.map(function (y) { var parts = y[0].split(/ — |, /), on = ca === y[0]; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('act', y[0]) + '><div class="grow col" style="gap: 2px"><span class="r-head">' + parts[0] + '</span><span class="r-sec c2">' + parts.slice(1).join(', ') + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div></div>';
       }
       return progCard('', x, ' data-i="J5"');
     }
