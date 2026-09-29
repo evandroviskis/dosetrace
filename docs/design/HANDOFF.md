@@ -141,6 +141,15 @@ Dose accumulation tile for free users (PRO tile → explainer sheet → Unlock w
 not built. Guardrail for "expected results": show what the feature measures or calculates, with
 Example data, never a promised health outcome (AI hard line / Apple 1.4.1).
 
+**Clarified by the founder (2026-09-29):** "every single feature of the app" gets an explanation
+with an animation, so a feature the user never used has an explanation and a reason to start
+using it. If the user has used the feature, no animation is shown. Why (founder): people don't use
+what they don't understand; using more of the app brings them back more, raises time in the app,
+reminds them DoseTrace exists and makes it feel serious. Design-session opinions (founder asked):
+trigger on first reach of the feature, never on launch; one tap to skip; at most one per day;
+never on the dose-logging path; "used" defined per feature and stored in synced storage; example
+data only, no promised health outcomes; measure feature adoption + days active rather than hours.
+
 ## 6. Current work: Today proposal v2 (published 2026-09-29, waiting for the founder)
 
 The founder answered v1 with a new brief (quoted in `today-dashboard.md`): alerts on top and gone
