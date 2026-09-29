@@ -337,6 +337,8 @@ textarea.winp { resize: none; }
 .inrow .winp { flex: 1; min-width: 0; }
 .segw { display: inline-flex; gap: 2px; padding: 3px; border-radius: 14px; background: var(--well); flex: none; flex-wrap: wrap; }
 .segw span { min-height: 42px; padding: 0 12px; border-radius: 11px; display: inline-flex; align-items: center; color: var(--ink2); font: 500 calc(15px * var(--ts)) / 1 var(--sys); }
+.segw.fill { display: flex; flex-wrap: nowrap; }
+.segw.fill span { flex: 1; justify-content: center; padding: 0 4px; }
 .segw span.on { background: var(--raised); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
 .stepper { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; background: var(--raised); border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line); min-height: 56px; }
 .stepper > span:first-child, .stepper > span:last-child { display: flex; align-items: center; justify-content: center; min-height: 56px; color: var(--ink); }
@@ -400,7 +402,7 @@ textarea.winp { resize: none; }
 .opt { cursor: pointer; }
 
 
-.btn .nc, .obtn2 .nc { align-self: center; }
+.btn .nc, .obtn2 .nc, .pill .nc, .txtbtn .nc, .r-head .nc { align-self: center; }
 .pvslot { min-height: 150px; border-radius: 18px; border: 1.5px dashed var(--tick); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
 
 
@@ -479,7 +481,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey parts 1–4 are approved</b> (dashboard, Progress, AI food log, Accumulation Curve). <b>Under review now: Journey part 5, every Journey popup</b>: target, past weigh-in, reality-check start / start over / stop, the sex prompt, the curve's date wheel, and the AI food log's notes and alerts. Use the buttons, or tap through Progress yourself: every link that used to say "part 5" now opens its popup.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). Next: the remaining screens, one at a time.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -491,7 +493,7 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Journey popups (part 5) <span class="stat rev">under review</span></h3>
+        <h3>Journey popups (part 5) <span class="stat ok">approved</span></h3>
         <button data-jpop="tgtedit">Edit your target<small>type 70 to see the healthy-range note; set a date; Save updates the ETA. Remove target → confirm</small></button>
         <button data-jpop="tgtnew">Set a target (new user)</button>
         <button data-jpop="past">Add a past weigh-in<small>pick a date and weight: it joins the weigh-ins, the trend and the pace</small></button>
@@ -503,7 +505,7 @@ textarea.winp { resize: none; }
         <button data-jpop="cdate">Curve: Other date<small>a date wheel, then the estimate for that day</small></button>
         <span class="r-foot" style="display: block; margin: 8px 0 4px; color: var(--ink2)">AI food log notes and alerts, in main's words:</span>
         <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-chat="offline">Offline</button><button data-chat="retry">AI unreachable</button><button data-chat="unread">Unreadable</button><button data-chat="quota">Daily limit</button><button data-chat="old">Too old</button><button data-chat="hints">Hints</button><button data-chat="eveY">Evening: yesterday</button><button data-chat="eveT">Evening: today</button><button data-chat="savefail">Save failed</button><button data-chat="demo">See how it works</button></div>
-        <h3 style="margin-top: 10px">Journey: Accumulation Curve <span class="stat ok">approved</span></h3>
+        <h3 style="margin-top: 10px">Journey: Dose accumulation <span class="stat ok">approved</span></h3>
         <button data-jstate="run" data-jgo="curve">Testosterone Cypionate (invented, weekly)<small>real model: 8-day half-life, peak ~3 days after each shot; Project ahead, Estimate on a date, Source</small></button>
         <button data-jstate="test03" data-jgo="curve">Test03: TB-500<small>fast compound: one spike per dose. Tap the compound to overlay BPC-157 or testosterone</small></button>
         <h3 style="margin-top: 10px">Journey: AI food log <span class="stat ok">approved</span></h3>
@@ -546,15 +548,8 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Journey part 5: popups)</h3>
-        <ol class="qs" style="margin-top: 10px">
-          <li><b>Start over gets a confirm</b> (new copy). On main one tap wipes the check's start weight with no warning. Recommendation: yes.</li>
-          <li><b>Target, past weigh-in and the reality-check start open as sheets from the bottom</b>, instead of forms unfolding inside the card. Same fields, same words. OK?</li>
-          <li><b>The start sheet's weight field says "Weight (kg)"</b> instead of main's "Weight today", because the start can be up to 7 days back. OK?</li>
-          <li><b>"Other date" on the curve</b> opens a date wheel (main has a date button with the system picker). New label. OK?</li>
-          <li><b>Food-log notes stay as chat bubbles, word for word.</b> A note under your own message is tappable when it needs an action (offline, unreadable): Remove entry, with a confirm. OK?</li>
-          <li><b>"See how it works" keeps main's typing demo</b> until the feature animations you parked replace it. OK?</li>
-        </ol>
+        <h3>Journey part 5: decisions</h3>
+        <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
       </div>
       <div id="cov" class="coverage"></div>
@@ -1599,7 +1594,7 @@ textarea.winp { resize: none; }
   function fmtMg(v) { return v >= 10 ? fk(v) : v.toFixed(1); }
   function curveScreen() {
     var sel = st.csel || [curveDefault()], ahead = st.cahead || 7, past = 14, single = sel.length === 1 ? sel[0] : null;
-    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">Accumulation Curve</h3></div>';
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Dose accumulation</h3></div>';
     h += '<div class="pickrow"' + A('cpick') + '>' + sel.map(function (id) { return '<span class="dot" style="background: var(' + P[id].color + ')"></span>'; }).join('') + '<span class="r-head grow">' + (single ? P[single].name : sel.length + ' compounds') + '</span>' + DOWN + '</div>';
     // hero: the number the Journey tile shows
     h += '<div class="card pc">' + (single ? '<div class="row" style="justify-content: space-between; align-items: flex-start"><div class="col" style="gap: 4px"><span class="r-foot c2">Est. level · now</span><span class="r-display d56 cd">' + fmtMg(levelAt(single, 0)) + '<span class="unit">mg</span></span></div><span class="chip r-cap">Estimated</span></div>' : sel.map(function (id) { return '<div class="row"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-body grow">' + P[id].name + '</span><span class="r-value">' + fmtMg(levelAt(id, 0)) + ' mg</span></div>'; }).join('') + '<span class="chip r-cap" style="align-self: flex-start">Estimated</span>');
@@ -1632,7 +1627,7 @@ textarea.winp { resize: none; }
     svg += '<text x="' + L + '" y="' + (H2 - 6) + '" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">−' + past + 'd</text><text x="' + R + '" y="' + (H2 - 6) + '" text-anchor="end" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">+' + ahead + 'd</text></svg>';
     h += '<span class="r-foot c2 tnum">Last ' + past + 'd · +' + ahead + 'd projection · peak ≈ ' + fmtMg(maxV) + ' mg</span>' + svg;
     h += '<div class="row r-cap c2" style="gap: 14px; flex-wrap: wrap"><span class="row" style="gap: 6px"><i class="lg solid"></i>estimate</span><span class="row" style="gap: 6px"><i class="lg dash"></i>projection</span><span class="row" style="gap: 6px"><i class="lg tick"></i>scheduled doses</span></div>';
-    h += '<div class="fld"><span class="r-foot c2">Project ahead</span><span class="segw">' + [7, 14, 30, 60, 90].map(function (d) { return '<span class="' + (ahead === d ? 'on' : '') + '"' + A('cahead', d) + '>+' + d + 'd</span>'; }).join('') + '</span></div></div>';
+    h += '<div class="fld"><span class="r-foot c2">Project ahead</span><span class="segw fill">' + [7, 14, 30, 60, 90].map(function (d) { return '<span class="' + (ahead === d ? 'on' : '') + '"' + A('cahead', d) + '>+' + d + 'd</span>'; }).join('') + '</span></div></div>';
     // stats for one compound
     if (single) { var e2 = HL[single], cnt = doseTimes(single, t0, 0).length; h += '<div class="trio curvestats"><div><span class="r-cap c2">Est. level</span><span class="r-value">' + fmtMg(levelAt(single, 0)) + ' mg</span></div><div><span class="r-cap c2">Half-life</span><span class="r-value">' + (e2.hours >= 48 ? Math.round(e2.hours / 24) + ' d' : e2.hours + ' h') + '</span></div><div><span class="r-cap c2">Doses counted</span><span class="r-value">' + cnt + '</span></div></div>'; }
     // estimate on a date

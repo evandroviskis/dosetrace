@@ -38,12 +38,20 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Journey part 5 (popups) APPROVED (2026-09-29, founder: "Everything else approved")** as in
+  `prototype.html`, with the recommended answers: Start over gets a confirm (new copy); target, past
+  weigh-in and reality-check start open as bottom sheets; the start sheet says "Weight (kg)"; the
+  curve gets an "Other date" chip + date wheel (new label); food-log notes stay chat bubbles in
+  main's words, tappable to "Remove entry" with a confirm; the typing demo stays until the parked
+  feature animations. Fixed on the way in Progress: body-fat hints = main's words, "I don't know"
+  swaps body fat for age + sex, hero numbers stack at 135%. **Journey is fully approved.**
 - **Journey part 4 (Accumulation Curve) APPROVED (2026-09-29, founder: "Accumulation Curve
   approved")** as in `prototype.html`: estimated level first, then the chart (solid past, dashed
   shaded planned future, dose ticks), Project ahead, stats, Estimate on a date (incl. the
   bloodwork date), one data-rating card per compound with its source, plain-text disclaimer with
-  the A-07 wording "based on your planned schedule" (new copy, 6 languages). Title kept as main's
-  "Accumulation Curve" (what the founder approved). Model: main's lib/halfLives.js unchanged.
+  the A-07 wording "based on your planned schedule" (new copy, 6 languages). Screen title
+  **"Dose accumulation"** (founder 2026-09-29: "Keep Dose Accumulation"; the tile's existing string,
+  one name for one feature; main's "Accumulation Curve" goes). Model: main's lib/halfLives.js unchanged.
 - **Journey part 3 (AI food log) APPROVED (2026-09-29, founder: "Approved. Keep Going")** as in
   `prototype.html`, with the recommended answers and the never-drop rule below.
 - **AI food log rule (2026-09-29, from the founder's test):** nothing the user types is dropped.
