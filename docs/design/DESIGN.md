@@ -32,6 +32,11 @@ Founder decisions since (2026-09-29):
   "Recently deleted" + Restore at the bottom of the list, and a confirm before New vial /
   New bottle. Today alerts naming one protocol open that protocol (recommended answer, taken as
   approved unless the founder says otherwise).
+- **My Protocols part 2 APPROVED (2026-09-29, founder: "Perfect. Keep going"):** the add/edit
+  steps as in `prototype.html`, with the recommended answers: Cancel top-left, Back + Next in the
+  footer; live syringe under its fields; discard confirm on Cancel (new copy); a typed name counts
+  and Next without a name says "Missing name"; skip-vial text points to Today (+ Add vial) instead
+  of the non-existent Vials tab (copy change); wellness goals stay one list as on main.
 - **Dose log look APPROVED (2026-09-29, founder):** "I like the dose log without those bars we had
   before. Keep it this way." Plain Taken / Skipped / Missed numbers, no tinted stat boxes (as in
   `prototype.html`).

@@ -364,6 +364,26 @@ textarea.winp { resize: none; }
 .wfoot { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding: 10px 16px 6px; border-top: 1px solid var(--line); flex: none; background: var(--ground); }
 .btn.blocked { background: var(--well); color: var(--risk); }
 
+
+/* ---- popups and pickers (part 3) ---- */
+.scrim.bot { align-items: flex-end; padding: 8px 8px 30px; }
+.sheet .shic { width: 48px; height: 48px; border-radius: 24px; background: var(--well); display: flex; align-items: center; justify-content: center; color: var(--ink); }
+.sheetbtns { display: flex; flex-direction: column; gap: 8px; }
+.btn.dng { background: var(--risk); color: var(--onInk); }
+.btn.txt { background: transparent; color: var(--ink); }
+.actwrap { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.actgrp { background: var(--raised); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+.acttitle { padding: 14px 18px; text-align: center; border-bottom: 1px solid var(--line); }
+.actopt { min-height: 56px; display: flex; align-items: center; justify-content: center; font: 400 calc(19px * var(--ts)) / 1 var(--sys); color: var(--ink); border-top: 1px solid var(--line); }
+.actgrp .actopt:first-child, .acttitle + .actopt { border-top: 0; }
+.actcancel { background: var(--raised); border-radius: 18px; font-weight: 700; border: 0; }
+.bsheet { border-radius: 26px; }
+.wheel { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px 0; }
+.wheel .band { position: absolute; left: 0; right: 0; top: 50%; height: 40px; margin-top: -20px; border-radius: 10px; background: var(--well); z-index: 0; }
+.wcol { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1; }
+.wv { min-height: 40px; display: flex; align-items: center; justify-content: center; width: 100%; font: 400 calc(19px * var(--ts)) / 1 var(--sys); color: var(--ink3); font-variant-numeric: tabular-nums; }
+.wv.on { color: var(--ink); font-weight: 600; font-size: calc(21px * var(--ts)); }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -388,7 +408,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the My Protocols heroes, and My Protocols part 1 (the list and the protocol screen). <b>Under review now: My Protocols part 2, adding and editing a protocol.</b> Every field works: type a name, pick a color, enter real numbers and watch the syringe move, schedule it, save it and find it in your list. Buttons for screens not drawn yet (the food log, the date and time pickers, Scan vial label) say so.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>Under review now: My Protocols part 3, every popup and picker.</b> They are real in the flow too: Scan vial label asks for AI consent, then offers Take a photo / Choose a photo; the start date and the reminder times open wheels you can tap; saving with a past start date asks to log the doses since then. Buttons for screens not drawn yet (the food log, the paywall, the curve) say so.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -400,11 +420,23 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Jump to <span class="stat rev">under review</span></h3>
-        <button data-jump="1:list::add">Add a protocol<small>Try "reta" or "bpc", then 10 mg, 2 ml, 2 mg: draw to 40 units. Try 6 mg to see the over-capacity block.</small></button>
-        <button data-jump="1:list:bpc:edit">Edit BPC-157<small>4 steps, Save top-right on every step</small></button>
-        <button data-jump="1:list:tb:remind">+ Reminder on TB-500<small>Opens straight on the schedule step</small></button>
+        <h3>Popups and pickers <span class="stat rev">under review</span></h3>
+        <button data-pop="consent">Scan vial label: AI consent<small>Agree &amp; continue → photo choice → Take a photo fills the fields</small></button>
+        <button data-pop="choose">Photo choice</button>
+        <button data-pop="filled">After a scan: "check every value"</button>
+        <button data-pop="date">Start date picker<small>Pick a past date, then save: "Log past doses?"</small></button>
+        <button data-pop="time">Reminder time picker</button>
+        <button data-pop="backfill">Log past doses?</button>
+        <button data-pop="missing">Missing name</button>
+        <button data-pop="check">Let's double-check (over capacity)</button>
+        <button data-pop="del">Delete protocol</button>
+        <button data-pop="limit">Protocol limit reached (free plan)</button>
+        <button data-pop="incomplete">A protocol with its dose details missing</button>
+        <button data-pop="e_unread">Scan error: couldn't read that label</button>
+        <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-pop="e_empty">Nothing readable</button><button data-pop="e_limit">Scan limit</button><button data-pop="e_down">Service down</button><button data-pop="e_camoff">Camera off</button><button data-pop="e_pdf">"PDF" error</button><button data-pop="e_big">Too large</button><button data-pop="e_signin">Not signed in</button><button data-pop="e_save">Save failed</button></div>
         <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
+        <button data-jump="1:list::add">Add a protocol<small>10 mg, 2 ml, 2 mg: draw to 40 units</small></button>
+        <button data-jump="1:list:bpc:edit">Edit BPC-157</button>
         <button data-jump="0">Today<small>Mark taken on BPC-157, Undo, folds, Remind me</small></button>
         <button data-jump="1">My Protocols heroes</button>
         <button data-jump="1:list">Protocols list</button>
@@ -412,21 +444,22 @@ textarea.winp { resize: none; }
         <button data-jump="1:log">Dose log<small>approved: plain counts, no tinted boxes</small></button>
       </div>
       <div>
-        <h3>Open questions (My Protocols part 2)</h3>
+        <h3>Open questions (My Protocols part 3)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Same five steps as main</b> (type and name → color → dose details → schedule → vial mix date). <b>Cancel moves to the top-left</b>; <b>Back and Next sit together at the bottom</b>. On main, Back is top-left and Cancel bottom-left. OK?</li>
-          <li><b>The syringe is live on the dose step</b>, right under the fields it depends on. It appears once the numbers are complete and updates as you type; until then nothing stands in its place (no "Complete your dose details…" sentence, as you asked). Main only shows one line of text there. Over-capacity turns the syringe red and blocks Next, as main's check does today. OK?</li>
-          <li><b>Suggestion: Cancel asks "Discard this protocol?"</b> once something is typed. Main closes without asking and loses what you entered. New copy, 6 languages.</li>
-          <li><b>A typed name counts.</b> Next on step 1 takes what you typed, even if you didn't tap a suggestion. With nothing typed it says "Missing name" right away (main only checks at Save). OK?</li>
-          <li><b>Wrong text on main:</b> skipping the vial date says "log your vial mix anytime from the Vials tab". There is no Vials tab. Proposed: "…from Today (+ Add vial)." Copy change, 6 languages.</li>
-          <li>The <b>30 wellness goals</b> stay as one long pill list, as on main. Keep it, or fold it behind "Wellness goal — optional ›"?</li>
+          <li><b>One DoseTrace sheet for every popup</b>, instead of the iPhone's grey system alert box: the same type, buttons and colors as the rest of the app, in both themes. The pickers keep the iPhone's own wheel behavior inside it; the camera and photo library stay the iPhone's own screens. Cost: one component replacing about 20 system alerts. OK?</li>
+          <li><b>Photo choice as a bottom sheet</b> (Take a photo / Choose a photo / Cancel), the iPhone's usual place for "where from". OK?</li>
+          <li><b>Wrong wording on main for vial photos:</b> "Could not read the PDF…", "choose a PDF under 10 MB" and "Turn it on in Settings to snap a report" were written for lab reports. Suggestion: reuse "Couldn't read that label" for the first and adjust the other two (new copy, 6 languages). Yes?</li>
+          <li><b>"Error" as a title</b> (camera off, not signed in, save failed) says nothing. Suggestion: the title says what happened, e.g. "Camera access is off", "Couldn't save" (new copy). Yes, or keep main's?</li>
+          <li><b>Delete now says where to restore</b>: "…recoverable for 7 days from Recently deleted, at the bottom of your list" (new copy, follows your part 1 approval).</li>
+          <li><b>A protocol with missing dose details</b> keeps main's sentence in the calculator's place, with a "Dose details ›" row under it that opens Edit on the dose step. OK, or drop the sentence and show only the row?</li>
         </ol>
       </div>
       <div id="cov" class="coverage"></div>
     </div>
   </section>
 
-  <section class="band"><h2>Where every item from main lives (My Protocols part 2: add / edit)</h2><p>Numbered as in the inventory of main (C = the add/edit steps). The pickers and every popup are part 3.</p><div class="tablewrap"><table class="t" id="fates2"></table></div></section>
+  <section class="band"><h2>Where every item from main lives (My Protocols part 3: popups and pickers)</h2><p>Numbered as in the inventory of main (D = popups, pickers and modals).</p><div class="tablewrap"><table class="t" id="fates3"></table></div></section>
+  <section class="band"><h2>Where every item from main lives (My Protocols part 2: add / edit, approved)</h2><p>Numbered as in the inventory of main (C = the add/edit steps). The pickers and every popup are part 3.</p><div class="tablewrap"><table class="t" id="fates2"></table></div></section>
   <section class="band"><h2>Where every item from main lives (My Protocols part 1, approved)</h2><p>Numbered as in the inventory of main's ProtocolsScreen.js. The add/edit steps are part 2 and the popups part 3.</p><div class="tablewrap"><table class="t" id="fates"></table></div></section>
   <section class="band"><h2>Flows, tap by tap</h2><div class="tablewrap"><table class="t" id="flows"></table></div></section>
   <section class="band"><h2>Copy</h2><div class="tablewrap"><table class="t" id="copy"></table></div></section>
@@ -641,7 +674,7 @@ textarea.winp { resize: none; }
   function reset() {
     st = { tab: 0, stacks: [[{ s: 'today' }], [{ s: 'dash' }], [{ s: 'journey' }], [{ s: 'body' }], [{ s: 'settings' }]],
       theme: 'light', ts: 1, sort: 'due', taken: Object.assign({}, TAKEN0), skipped: {}, fold: {}, snooze: -1,
-      deleted: [], overlay: null, toast: null, note: {}, noteEdit: null, used: { test: 7 }, scroll: {} };
+      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, note: {}, noteEdit: null, used: { test: 7 }, scroll: {} };
   }
   reset();
   function cur() { var s = st.stacks[st.tab]; return s[s.length - 1]; }
@@ -734,7 +767,9 @@ textarea.winp { resize: none; }
     var p = P[id], back = st.tab === 0 ? 'Today' : 'Protocols';
     var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + back + '</span><span class="txtbtn" data-i="A6p"' + A('edit', id) + '>Edit</span></div>';
     h += '<div class="ptitle"><span class="row" style="gap: 10px"><span class="dot" style="background: var(' + p.color + '); width: 12px; height: 12px"></span><span class="r-sec c2 tnum">' + sizeLabel(p) + '</span></span><h3 class="r-large">' + p.name + '</h3><div class="tags"><span class="otag">' + TYPE[p.type] + '</span>' + p.goals.map(function (g) { return '<span class="otag">' + g + '</span>'; }).join('') + '</div></div>';
-    if (p.type !== 'oral') {
+    if (p.type !== 'oral' && st.incomplete === id) {
+      h += '<div class="hobj" data-i="A7b"><span class="r-head">Syringe calculator</span><span class="r-sec c2">Complete your dose details to see the syringe guide.</span><div class="fh" style="border-top: 1px solid var(--line); min-height: 52px"' + A('editstep', id) + '><span class="r-head grow">Dose details</span>' + CHEV + '</div></div>';
+    } else if (p.type !== 'oral') {
       var u = units(p);
       h += '<div class="hobj" data-i="A7"><span class="r-head" data-i="A7a">Syringe calculator</span><div class="draw" style="padding: 14px 14px 8px"' + A('zoom', id) + ' data-i="A7c"><div class="drawh"><span class="r-sec c2">Draw to</span><span class="r-display d56 cd">' + u.u + '<span class="unit">units</span></span></div>' + syr(p.syr, u.u) + '<span class="r-foot c2 hint" data-i="A7d">' + ic('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>', 14) + 'Tap to enlarge</span></div>';
       h += '<div class="reads" data-i="A7e"><div><span class="r-cap c2">Volume</span><span class="v">' + fx(u.ml) + ' ml</span></div><div><span class="r-cap c2">Dose</span><span class="v">' + p.dose + ' ' + p.dunit + '</span><span class="r-cap c3 tnum">= ' + (p.dunit === 'mg' ? p.dose * 1000 + ' mcg' : p.dose / 1000 + ' mg') + '</span></div><div><span class="r-cap c2">Syringe</span><span class="v">' + p.syr + ' u</span></div></div>';
@@ -752,7 +787,7 @@ textarea.winp { resize: none; }
     }
     h += rowsBlock('Schedule & reminders', [['Frequency', p.freq, false, 'A6g'], ['Reminder', p.time, true, 'A6h']].concat(p.goals.length ? [['Goal', p.goals.join(', '), false, 'A6j']] : []));
     h += '<span class="obtn2"' + A('remind', id) + '>+ Reminder</span>';
-    if (p.type === 'recon') h += rowsBlock('Dose details', [['Compound amount', p.amt + ' ' + p.unit, true, 'A6a'], ['Diluent', p.diluent, false, 'A6c'], ['Diluent amount (ml)', p.water + ' ml', true, 'A6b'], ['Concentration', fx(p.amt / p.water) + ' ' + p.unit + '/ml', true, 'A6d'], ['Desired dose', p.dose + ' ' + p.dunit, true, 'A6e']]);
+    if (p.type === 'recon') h += rowsBlock('Dose details', [['Compound amount', p.amt + ' ' + p.unit, true, 'A6a'], ['Diluent', p.diluent, false, 'A6c'], ['Diluent amount (ml)', p.water + ' ml', true, 'A6b'], ['Concentration', fx(p.amt / p.water) + ' ' + p.unit + '/ml', true, 'A6d'], ['Desired dose', st.incomplete === id ? '—' : p.dose + ' ' + p.dunit, true, 'A6e']]);
     if (p.type === 'rtu') h += rowsBlock('Dose details', [['Dose per injection', p.dose + ' ' + p.dunit, true, 'A6e'], ['Concentration', p.conc + ' ' + p.cunit, true, 'A6f'], ['Vial size (ml)', p.ml + ' ml', true]]);
     if (p.type === 'oral') h += rowsBlock('Dose details', [['Dose amount', p.dose + ' ' + p.dunit, true, 'A6e'], ['Form', p.form, false, 'A6k'], ['Strength per serving', p.strength + ' ' + p.dunit, true], ['Units per serving', p.per, true]].concat(p.container ? [['Units per container', p.container, true]] : []));
     var editing = st.noteEdit === id, txt = st.note[id];
@@ -783,6 +818,9 @@ textarea.winp { resize: none; }
       s += '<rect x="' + (X(u.u) - 3) + '" y="14" width="8" height="52" rx="3" fill="var(--ink)"/></svg>';
       return '<div class="scrim"' + A('scrim') + '><div class="sheet" data-i="A7f"><span class="r-title">' + p.name + '</span><span class="r-body tnum">Draw to <b class="cd" style="font-weight: 700">' + u.u + 'u</b> · ' + fx(u.ml) + ' ml</span><div class="ruler" id="ruler" data-center="' + (X(u.u) - 150) + '">' + s + '</div><span class="btn p"' + A('close') + '>Done</span></div></div>';
     }
+    if (o.t === 'sheet') return sheetHTML(o);
+    if (o.t === 'action') return '<div class="scrim bot"' + A('scrim') + '><div class="actwrap"><div class="actgrp">' + (o.title ? '<span class="r-foot c2 acttitle">' + o.title + '</span>' : '') + o.opts.map(function (x) { return '<span class="actopt"' + A(x[1], x[2]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="actopt actcancel"' + A('close') + '>Cancel</span></div></div>';
+    if (o.t === 'wheel') return wheelHTML(o);
     if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
     return '';
   }
@@ -806,7 +844,7 @@ textarea.winp { resize: none; }
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   function newWiz() {
-    return { mode: 'new', step: 1, type: 'recon', name: '', q: '', color: '#185FA5', amt: '', unit: 'mg', dil: 'Bacteriostatic water', dilOther: '', water: '2', dose: '', dunit: 'mg', syr: 100, conc: '', cunit: 'mg/ml', ml: '', expM: '', expY: '', form: 'Capsule', div: '', strength: '', sunit: 'mg', per: '1', container: '', first: 'today', every: 'day', n: '14', perDay: 1, times: ['7:40 PM', '2:00 PM', '9:00 PM'], goals: [], notes: '', blend: '', mixM: 'Sep', mixD: '29', valid: '30', skip: false, iv: false, ivU: '' };
+    return { mode: 'new', step: 1, type: 'recon', name: '', q: '', color: '#185FA5', amt: '', unit: 'mg', dil: 'Bacteriostatic water', dilOther: '', water: '2', dose: '', dunit: 'mg', syr: 100, conc: '', cunit: 'mg/ml', ml: '', expM: '', expY: '', form: 'Capsule', div: '', strength: '', sunit: 'mg', per: '1', container: '', first: 'today', every: 'day', n: '14', perDay: 1, times: ['7:40 PM', '2:00 PM', '9:00 PM'], goals: [], notes: '', blend: '', mixM: 'Sep', mixD: '29', valid: '30', skip: false, iv: false, ivU: '', start: { m: 8, d: 29, y: 2026 }, scanned: false };
   }
   function wizFrom(id, step) {
     var p = P[id], w = newWiz();
@@ -911,7 +949,8 @@ textarea.winp { resize: none; }
     }
     if (w.step === 3) {
       h += '<div class="wt"><span class="r-title">Dose details</span><span class="r-sec c2">How do you prepare and measure each dose?</span></div>';
-      if (w.type !== 'oral') h += '<span class="obtn2"' + A('say', 'Scan vial label: the AI consent and photo choice come in part 3 (popups).') + '>' + ic('<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/>', 20, 'color: currentColor') + 'Scan vial label</span>';
+      if (w.scanned) h += '<div class="warnbox" data-i="C3c">We filled these in from your vial label. Check every value before you save — the app read the label, it didn\'t verify it.</div>';
+      if (w.type !== 'oral') h += '<span class="obtn2"' + A('scan') + '>' + ic('<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/>', 20, 'color: currentColor') + 'Scan vial label</span>';
       if (w.type === 'recon') {
         h += fld('Compound amount', '<div class="inrow">' + inp('amt', 'e.g. 5', w) + seg('unit', ['mg', 'mcg', 'IU'], w.unit) + '</div>');
         h += fld('Diluent', pills('dil', ['Bacteriostatic water', 'Sterile water', 'Sodium chloride 0.9%', 'Other'], w.dil, true) + (w.dil === 'Other' ? '<input class="winp" data-f="dilOther" inputmode="text" placeholder="Enter diluent…" value="' + w.dilOther + '">' : ''));
@@ -946,12 +985,12 @@ textarea.winp { resize: none; }
       h += '<div class="wt"><span class="r-title">Schedule & reminders</span><span class="r-sec c2">How often do you take this compound?</span></div>';
       h += fld('When is your first dose?', seg('first', [['today', 'Today'], ['tomorrow', 'Tomorrow']], w.first));
       if (w.first === 'today' && w.perDay > 1) h += '<div class="infobox">Starting today: only dose times from now on count today. Earlier times begin tomorrow.</div>';
-      h += fld('When did you start (or will start)?', '<span class="pickbtn"' + A('say', 'Opens the iPhone date picker. Any past or future date; a past date asks to log the doses since then (part 3).') + '>' + ic('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 18, 'color: currentColor') + 'Tue, Sep 29, 2026</span>');
+      h += fld('When did you start (or will start)?', '<span class="pickbtn"' + A('pickdate') + '>' + ic('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 18, 'color: currentColor') + fmtDate(w.start) + '</span>');
       h += fld('How often?', seg('every', [['day', 'Every day'], ['custom', 'Custom']], w.every) + (w.every === 'custom' ? '<div class="inrow"><span class="r-body">Every</span><span style="width: 96px; flex: none">' + inp('n', '14', w, 'numeric') + '</span><span class="r-body">days</span></div>' : ''));
       var n = w.every === 'custom' ? num(w.n) : 1;
       if (n <= 2) h += fld('How many doses per day?', seg('perDay', [[1, 'Once'], [2, 'Twice'], [3, '3 times']], w.perDay));
       var pd = n <= 2 ? w.perDay : 1;
-      h += fld('What time?', '<div class="col" style="gap: 8px">' + w.times.slice(0, pd).map(function (t, i) { return '<span class="pickbtn"' + A('say', 'Opens the iPhone time picker.') + '>' + ic(I.clock, 18, 'color: currentColor') + (pd > 1 ? '<span class="c2">Dose ' + (i + 1) + '</span>' : '') + '<b style="font-weight: 600">' + t + '</b></span>'; }).join('') + '</div>');
+      h += fld('What time?', '<div class="col" style="gap: 8px">' + w.times.slice(0, pd).map(function (t, i) { return '<span class="pickbtn"' + A('picktime', i) + '>' + ic(I.clock, 18, 'color: currentColor') + (pd > 1 ? '<span class="c2">Dose ' + (i + 1) + '</span>' : '') + '<b style="font-weight: 600">' + t + '</b></span>'; }).join('') + '</div>');
       var gl = w.type === 'oral' ? GOALS.oral : GOALS.inj;
       h += fld('Wellness goal — optional', '<div class="pills">' + gl.map(function (g) { return '<span class="pill r-foot' + (w.goals.indexOf(g) >= 0 ? ' on' : '') + '"' + A('wgoal', g) + '>' + g + '</span>'; }).join('') + '</div>');
       if (BLEND[w.name]) h += fld('What\'s in the vial — optional', inp('blend', 'e.g. 50 GHK / 10 KPV / 10 TB / 10 BPC', w, 'text'), 'A note of your vial\'s mix. Recipes vary by source — this doesn\'t change the serum curve.');
@@ -980,7 +1019,7 @@ textarea.winp { resize: none; }
     h += '<div class="wfoot">' + (w.step > 1 ? '<span class="btn o"' + A('wback') + '>Back</span>' : '<span></span>') + (last ? '<span class="btn p"' + A('wsave') + '>Save</span>' : '<span class="btn p' + (blk ? ' blocked' : '') + '"' + A('wnext') + '>Next</span>') + '</div>';
     return h;
   }
-  function wizSave() {
+  function wizSaveCore() {
     var w = st.wiz;
     if (!w.name) { st.overlay = { t: 'confirm', title: 'Missing name', body: 'Please enter a compound name.', ok: 'close', okText: 'OK' }; return; }
     var b = blocked(w); if (b) { st.overlay = { t: 'confirm', title: 'Let\'s double-check', body: b, ok: 'close', okText: 'OK' }; return; }
@@ -997,6 +1036,80 @@ textarea.winp { resize: none; }
     if (w.mode === 'new') { st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }, { s: 'proto', id: id }]; st.scroll = {}; toast('Protocol saved'); }
     else toast('Changes saved');
   }
+
+  /* ---------- part 3: popups and pickers (under review) ---------- */
+  function sheetHTML(o) {
+    var b = o.btns || [['OK', 'close', 'p']];
+    var stack = b.length !== 2 || b.some(function (x) { return x[0].length > 14; });
+    if (stack && b.length === 2) b = [b[1], b[0]];
+    var btns = b.map(function (x) { return '<span class="btn sm ' + (x[2] === 'd' ? 'dng' : x[2] === 't' ? 'txt' : x[2] || 'o') + '"' + A(x[1], x[3]) + '>' + x[0] + '</span>'; }).join('');
+    return '<div class="scrim"' + A('scrim') + '><div class="sheet"' + (o.pi ? ' data-i="' + o.pi + '"' : '') + '>' + (o.icon ? '<span class="shic">' + ic(o.icon, 26, 'color: currentColor') + '</span>' : '') + '<span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span>' + (o.link ? '<span class="btnlink r-body" style="min-height: 36px"' + A('say', 'Opens dosetrace.io/privacy-policy in the browser.') + '>' + o.link + '</span>' : '') + '<div class="' + (stack ? 'sheetbtns' : 'acts2') + '">' + btns + '</div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
+  }
+  var MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var TODAY = new Date(2026, 8, 29);
+  function fmtDate(d) { var x = new Date(d.y, d.m, d.d); return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][x.getDay()] + ', ' + MN[d.m] + ' ' + d.d + ', ' + d.y; }
+  function wcol(ci, vals, sel) {
+    var h = '<div class="wcol">';
+    for (var k = sel - 2; k <= sel + 2; k++) h += '<span class="wv' + (k === sel ? ' on' : '') + '"' + (vals[k] != null ? A('wheelset', ci + ':' + k) : '') + '>' + (vals[k] != null ? vals[k] : '') + '</span>';
+    return h + '</div>';
+  }
+  function wheelCols(o) {
+    var w = st.wiz;
+    if (o.kind === 'date') { var days = []; for (var i = 1; i <= 31; i++) days.push(i); return [[MN, w.start.m], [days, w.start.d - 1], [[2025, 2026, 2027], w.start.y - 2025]]; }
+    var t = w.times[o.idx].match(/(\d+):(\d+) (AM|PM)/), hrs = [], mins = [];
+    for (var hh = 1; hh <= 12; hh++) hrs.push(hh);
+    for (var mm = 0; mm < 60; mm += 5) mins.push((mm < 10 ? '0' : '') + mm);
+    return [[hrs, +t[1] - 1], [mins, Math.round(+t[2] / 5)], [['AM', 'PM'], t[3] === 'AM' ? 0 : 1]];
+  }
+  function wheelHTML(o) {
+    var cols = wheelCols(o);
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="' + (o.kind === 'date' ? 'D3' : 'D4') + '"><div class="row" style="justify-content: space-between"><span class="r-head">' + (o.kind === 'date' ? 'When did you start (or will start)?' : 'What time?') + '</span><span class="txtbtn"' + A('close') + '>Done</span></div><div class="wheel">' + cols.map(function (c, ci) { return wcol(ci, c[0], c[1]); }).join('') + '<i class="band"></i></div></div></div>';
+  }
+  var ERR = {
+    camoff: ['Error', 'Camera access is off. Turn it on in Settings to snap a report.', 'D2e'],
+    pdf: ['Error', 'Could not read the PDF. Please try a different file.', 'D2e'],
+    big: ['Error', 'This file is too large. Please choose a PDF under 10 MB.', 'D2e'],
+    limit: ['Monthly scan limit reached', 'You\'ve used your 3 free scans this month (labs, vaccine cards, and vials combined). You can still enter everything by hand.', 'D2e'],
+    down: ['Scan service unavailable', 'The scan service is temporarily unavailable. Your photo is fine — please try again in a little while, or enter the values by hand.', 'D2e'],
+    unread: ['Couldn\'t read that label', 'Try a clearer, closer photo of the label — or just enter the values by hand.', 'D2e'],
+    empty: ['Couldn\'t read that label', 'Nothing readable on that label. Try a clearer photo, or enter the values by hand.', 'D2e'],
+    signin: ['Error', 'Not signed in', 'D11'],
+    save: ['Error', 'Couldn\'t save your changes. Please try again.', 'D12']
+  };
+  function errSheet(k) { var e = ERR[k]; return { t: 'sheet', title: e[0], body: e[1], pi: e[2], icon: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.2"/>' }; }
+  function wizAt(step, extra) { var w = newWiz(); w.name = 'BPC-157'; w.q = 'BPC-157'; w.step = step; Object.assign(w, extra || {}); st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }]; st.wiz = w; }
+  var POPS = {
+    consent: function () { st.consent = false; wizAt(3); st.overlay = consentSheet(); },
+    choose: function () { wizAt(3); st.overlay = scanChoice(); },
+    filled: function () { wizAt(3, { amt: '5', unit: 'mg', scanned: true }); st.overlay = null; },
+    date: function () { wizAt(4); st.overlay = { t: 'wheel', kind: 'date' }; },
+    time: function () { wizAt(4); st.overlay = { t: 'wheel', kind: 'time', idx: 0 }; },
+    missing: function () { wizAt(1, { name: '', q: '' }); st.overlay = { t: 'sheet', title: 'Missing name', body: 'Please enter a compound name.', pi: 'D5' }; },
+    check: function () { wizAt(3, { amt: '1', dose: '1' }); st.overlay = { t: 'sheet', title: 'Let\'s double-check', body: blocked(st.wiz), pi: 'D6' }; },
+    backfill: function () { wizAt(4, { amt: '5', dose: '0.25', start: { m: 8, d: 15, y: 2026 } }); st.overlay = backfillSheet(st.wiz); },
+    del: function () { st.wiz = null; st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }, { s: 'proto', id: 'bpc' }]; st.overlay = delSheet('bpc'); },
+    limit: function () { st.wiz = null; st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }]; st.overlay = limitSheet(); },
+    incomplete: function () { st.wiz = null; st.incomplete = 'bpc'; st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }, { s: 'proto', id: 'bpc' }]; st.overlay = null; }
+  };
+  ['camoff', 'pdf', 'big', 'limit', 'down', 'unread', 'empty'].forEach(function (k) { POPS['e_' + k] = function () { wizAt(3); st.overlay = errSheet(k); }; });
+  POPS.e_signin = function () { wizAt(4); st.overlay = errSheet('signin'); };
+  POPS.e_save = function () { wizAt(4); st.overlay = errSheet('save'); };
+  function consentSheet() { return { t: 'sheet', pi: 'D1', icon: I.spark, title: 'Send to AI for extraction?', body: 'To read or estimate the values automatically, the photo, PDF, or meal description you provide is sent to Claude, an AI service by Anthropic, for one-time processing. Details: dosetrace.io/privacy-policy', link: 'View privacy policy', btns: [['Cancel', 'close', 'o'], ['Agree & continue', 'consentok', 'p']] }; }
+  function scanChoice() { return { t: 'action', title: 'Take a photo of the vial label, or pick one from your library. We\'ll read the compound and strength to fill in the fields.', opts: [['Take a photo', 'scanphoto'], ['Choose a photo', 'scanlib']] }; }
+  function backfillSheet(w) {
+    var start = new Date(w.start.y, w.start.m, w.start.d), days = Math.round((TODAY - start) / 864e5), every = w.every === 'day' ? 1 : (num(w.n) || 1), n = Math.floor(days / every) * (every <= 2 ? w.perDay : 1);
+    return { t: 'sheet', pi: 'D7', title: 'Log past doses?', body: 'You marked this as started on ' + MN[w.start.m] + ' ' + w.start.d + ', ' + w.start.y + '. Log the ' + n + ' scheduled doses since then as taken? This updates your adherence and history.', btns: [['Not now', 'bfno', 'o'], ['Log ' + n + ' doses', 'bfyes', 'p', n]] };
+  }
+  function delSheet(id) { return { t: 'sheet', pi: 'D8', title: 'Delete protocol', body: 'This protocol will be recoverable for 7 days from ' + nc('Recently deleted, at the bottom of your list') + '.', btns: [['Cancel', 'close', 'o'], ['Delete', 'delok', 'd', id]], note: 'Suggestion: main says "from Settings"; Restore now lives on the list (approved in part 1).' }; }
+  function limitSheet() { return { t: 'sheet', pi: 'D9', title: 'Protocol limit reached', body: 'The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days.', btns: [['Cancel', 'close', 'o'], ['Start free trial', 'say', 'p', 'Opens the Paywall (redesigned later).']] }; }
+  function wizSave() {
+    var w = st.wiz;
+    if (!w.name) { st.overlay = { t: 'sheet', title: 'Missing name', body: 'Please enter a compound name.', pi: 'D5' }; return; }
+    var b = blocked(w); if (b) { st.overlay = { t: 'sheet', title: 'Let\'s double-check', body: b, pi: 'D6' }; return; }
+    if (w.mode === 'new' && new Date(w.start.y, w.start.m, w.start.d) < TODAY) { st.overlay = backfillSheet(w); return; }
+    wizSaveCore();
+  }
+  function doSaveFinal(logged) { var w = st.wiz; wizSaveCore(); if (logged) toast('Protocol saved · ' + logged + ' past doses logged'); }
 
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
@@ -1061,12 +1174,24 @@ textarea.winp { resize: none; }
     else if (a === 'note') st.noteEdit = v;
     else if (a === 'notecancel') st.noteEdit = null;
     else if (a === 'notesave') { st.note[v] = document.getElementById('noteta').value; st.noteEdit = null; }
-    else if (a === 'del') st.overlay = { t: 'confirm', title: 'Delete protocol', body: 'This protocol will be recoverable for 7 days from Settings.', ok: 'delok', okText: 'Delete', danger: true, id: v, note: 'Main\'s own wording. With question 3 approved, it would say "from Recently deleted" instead.' };
+    else if (a === 'del') st.overlay = delSheet(v);
     else if (a === 'delok') { st.deleted.push(v); st.overlay = null; st.stacks[st.tab].pop(); if (cur().s === 'dash' || cur().s === 'today') push({ s: 'list' }); if (st.tab === 0) { st.tab = 1; st.stacks[1] = [{ s: 'dash' }, { s: 'list' }]; } }
     else if (a === 'restore') st.deleted = st.deleted.filter(function (x) { return x !== v; });
     else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
     else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
     else if (a === 'say') toast(v);
+    else if (a === 'scan') st.overlay = st.consent ? scanChoice() : consentSheet();
+    else if (a === 'consentok') { st.consent = true; st.overlay = scanChoice(); }
+    else if (a === 'scanphoto') { st.overlay = null; Object.assign(st.wiz, { type: 'recon', amt: '5', unit: 'mg', scanned: true }); if (!st.wiz.name) { st.wiz.name = 'BPC-157'; st.wiz.q = 'BPC-157'; } }
+    else if (a === 'scanlib') st.overlay = errSheet('unread');
+    else if (a === 'pickdate') st.overlay = { t: 'wheel', kind: 'date' };
+    else if (a === 'picktime') st.overlay = { t: 'wheel', kind: 'time', idx: +v };
+    else if (a === 'wheelset') { var cv = v.split(':').map(Number), o3 = st.overlay, cols3 = wheelCols(o3), val = cols3[cv[0]][0][cv[1]];
+      if (o3.kind === 'date') { if (cv[0] === 0) st.wiz.start.m = cv[1]; if (cv[0] === 1) st.wiz.start.d = val; if (cv[0] === 2) st.wiz.start.y = val; }
+      else { var tm = st.wiz.times[o3.idx].match(/(\d+):(\d+) (AM|PM)/), hh3 = tm[1], mm3 = tm[2], ap = tm[3]; if (cv[0] === 0) hh3 = val; if (cv[0] === 1) mm3 = val; if (cv[0] === 2) ap = val; st.wiz.times[o3.idx] = hh3 + ':' + mm3 + ' ' + ap; } }
+    else if (a === 'bfno') { st.overlay = null; doSaveFinal(0); }
+    else if (a === 'bfyes') { st.overlay = null; doSaveFinal(+v); }
+    else if (a === 'editstep') { st.incomplete = null; st.wiz = wizFrom(v, 3); }
     else if (a === 'add') { st.wiz = newWiz(); st.overlay = null; }
     else if (a === 'edit') st.wiz = wizFrom(v, 1);
     else if (a === 'remind') st.wiz = wizFrom(v, 4);
@@ -1091,6 +1216,9 @@ textarea.winp { resize: none; }
     });
   });
   document.getElementById('badges').addEventListener('change', render);
+  document.querySelectorAll('[data-pop]').forEach(function (b) {
+    b.addEventListener('click', function () { POPS[b.getAttribute('data-pop')](); st.toast = null; render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  });
   document.querySelectorAll('[data-jump]').forEach(function (b) {
     b.addEventListener('click', function () {
       var j = b.getAttribute('data-jump').split(':');
@@ -1167,6 +1295,24 @@ textarea.winp { resize: none; }
     ['C6', 'Save: missing name, check values, limit, errors, backfill', 'same rules', 'the popups themselves are part 3'],
     ['B3', 'Edit and + Reminder reuse the steps (4 steps, Save everywhere, + Reminder opens step 4)', 'same', ''],
     ['N12', 'Discard confirm on Cancel', 'overlay', '<span class="nc">suggestion</span>, new copy (question 3)']
+  ]);
+  table('fates3', ['#', 'Popup on main', 'In the proposal', 'Change'], [
+    ['D1', 'AI consent (Send to AI for extraction?, privacy link, Cancel, Agree & continue)', 'DoseTrace sheet', 'same words; shown once, before the first scan'],
+    ['D2', 'Scan source (Take a photo / Choose a photo / Cancel)', 'bottom action sheet', 'question 2'],
+    ['D2e', '8 scan errors (camera off, PDF, too large, scan limit, service unavailable, unreadable ×2)', 'DoseTrace sheet with an icon', 'same words; questions 3 and 4'],
+    ['C3c', '"We filled these in from your vial label…"', 'top of the dose step', 'outlined box instead of a tinted one'],
+    ['D3', 'Start date picker (iOS inline spinner + Done)', 'bottom sheet with month / day / year wheels + Done', 'Done top-right'],
+    ['D4', 'Reminder time picker', 'bottom sheet with hour / minute / AM-PM wheels + Done', 'as D3'],
+    ['D5', 'Missing name', 'sheet', 'same words; now at Next on step 1 (approved)'],
+    ['D6', 'Let\'s double-check (unit mismatch / over capacity)', 'sheet', 'same words'],
+    ['D7', 'Log past doses? (Not now / Log {n} doses)', 'sheet after Save', 'same words'],
+    ['D8', 'Delete protocol', 'sheet, red Delete', 'says where to restore (question 5)'],
+    ['D9', 'Protocol limit reached → Start free trial', 'sheet', 'same words'],
+    ['D10', 'Syringe zoom', 'sheet', 'approved in part 1'],
+    ['D11', 'Not signed in', 'sheet', 'question 4'],
+    ['D12', 'Couldn\'t save your changes', 'sheet', 'question 4'],
+    ['A7b', 'Syringe calculator with dose details missing', 'protocol screen, calculator slot + "Dose details ›"', 'question 6'],
+    ['N11, N12', 'New vial confirm, Discard confirm', 'sheet', 'approved in parts 1 and 2']
   ]);
   table('flows', ['Task', 'Main', 'Proposal'], [
     ['From a Today card, see how much to draw', 'tap → My Protocols tab, card expanded, scroll to the calculator', 'tap → "Draw to 50 units" is the first thing'],
