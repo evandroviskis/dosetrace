@@ -1,0 +1,370 @@
+--- /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/a2fac48e-4aa0-4fec-bcc7-23c2204d8071/scratchpad/DESIGN.v1.md	2026-09-28 19:57:40
++++ DESIGN.md	2026-09-28 20:01:26
+@@ -1,209 +1,225 @@
+ # DoseTrace visual identity: "Graduated"
+ 
+-Status: **PROPOSAL, awaiting founder approval** (2026-09-28). Nothing here is applied to any
+-screen until the founder approves it. Copy shown in the mockups is English placeholder; any
+-new or changed string needs founder approval and all 6 languages before it ships.
++Status: **PROPOSAL v2, awaiting founder approval** (2026-09-28, after founder feedback #035:
++"right direction, too bland, data scattered"). Nothing here is applied to any screen until the
++founder approves it. Copy shown in the mockups is English placeholder; any new or changed string
++needs founder approval and all 6 languages before it ships.
+ 
+-Mockups: `docs/design/identity-mockups.html` (Today + Journey, filled + empty, light + dark).
++Mockups: `docs/design/identity-mockups.html` (Today + Journey, filled + empty, light + dark;
++two blue options; ink vs blue primary action).
+ 
++**Open decisions for the founder:** (a) blue option, Cobalt or Azure (§2.3); (b) primary action,
++ink or blue (§1 rule 1). Recommendation: Cobalt + ink.
++
+ ## 1. The idea in one line
+ 
+ DoseTrace should feel like a **measuring instrument**, not a wellness app. The look comes from
+ the object the user actually holds: a U-100 syringe barrel, a vial label, a lab scale readout.
+-Its signature element is the **graduated scale**: fine ticks with a marker, used wherever the
+-app shows an amount or a count (units to draw, doses left in a vial, days of a reality check).
++Its signature element is the **graduated scale**: the syringe barrel with the dose drawn in
++blue, and the day scale of a reality check.
+ 
+-Three rules carry most of the identity:
++Four rules carry the identity:
+ 
+-1. **Ink acts, blue measures.** The only filled button on a screen is ink (near-black in light,
+-   near-white in dark). DoseTrace blue is reserved for *data*: the estimate curve, the scale
+-   marker, a measured trend. Blue is never a button, a tab, a chip or a background.
+-2. **One object per screen.** Each screen has exactly one raised surface: the thing you act on
+-   (the due dose, the running reality check). Everything else sits flat on the ground, divided
+-   by hairlines.
+-3. **Numbers first, words last.** The hero is 2-3 large numbers and one short sentence. Detail
+-   and explanation are one tap down, never on the surface.
++1. **One moment of color per screen, owned by the data.** DoseTrace blue fills the scale or the
++   curve, big and solid. It is never a tab, chip, background or decoration.
++   *Primary action, pending founder choice:*
++   - **Variant A, ink (recommended):** the one primary button is ink. Blue appears once per screen.
++   - **Variant B, blue:** the one primary button is also blue. Louder brand, but two blue
++     elements per screen. If chosen, blue is still never used for anything else.
++2. **One object per screen.** One raised surface: the thing you act on. Everything else sits
++   flat on the ground. No shadows; the surface step itself must be visible at arm's length.
++3. **One question, one hero.** Each screen answers one question (Today: "what do I draw now?";
++   Journey: "where am I in the check?") with at most 3 numbers. Every other value is one tap down.
++4. **Few, big rows.** Under the object: 2-4 rows, each one label on the left and one value on
++   the right.
+ 
+ ## 2. Palette
+ 
+-Neutrals are a slightly green-grey "bench" grey, chosen so the ground is not the cool blue-grey
+-of the default AI template and not cream. All text pairs below were measured (WCAG ratio).
++Neutrals are a green-grey "bench" grey: not the cool blue-grey of the AI template, not cream.
++All text pairs below were measured (WCAG ratio).
+ 
+-### Light (default; designed first)
++### 2.1 Light (default; designed first)
+ 
+ | Token | Hex | Use | Contrast |
+ |---|---|---|---|
+-| `ground` | `#EEEFEC` | screen background | - |
+-| `raised` | `#FAFAF8` | the ONE object per screen (+ hairline border) | - |
+-| `well` | `#E4E6E2` | inset areas: inputs, alert rows, segmented track | - |
+-| `line` | `#D2D5D0` | hairlines, dividers, object border | - |
+-| `tick` | `#858A84` | unfilled scale ticks (graphic, 3:1) | 3.0 on ground |
+-| `ink` | `#141618` | primary text, primary action fill, filled ticks | 15.7 on ground |
+-| `ink2` | `#4B5055` | secondary text | 7.1 on ground |
+-| `ink3` | `#5C6166` | captions, units, timestamps | 5.4 ground / 5.0 well |
+-| `onInk` | `#FAFAF8` | text/icon on the ink button | 17.4 |
+-| `data` | `#1A5C9E` | curve, scale marker, measured trend (DoseTrace blue, one step deeper) | 5.9 on ground |
+-| `attention` | `#8C5300` | expiring / low supply / due soon | 5.4 on ground |
+-| `risk` | `#A8231C` | missed / overdue / out of supply | 6.2 on ground |
+-| `ok` | `#1B6B4A` | taken / done | 5.6 on ground |
++| `ground` | `#DDE0DB` | screen background | - |
++| `raised` | `#FFFFFF` | the ONE object per screen | 1.33 vs ground |
++| `well` | `#EEF0EC` | inset areas **inside the raised object only** (inputs, segmented track) | - |
++| `line` | `#C3C7C0` | hairlines, row dividers, outline controls | 1.71 vs raised |
++| `tick` | `#71766F` | unfilled scale ticks, stubs (graphic) | 3.5 ground / 4.6 raised / 4.1 well |
++| `ink` | `#111315` | hero numbers, values, primary text, ink action | 14.0 ground / 18.6 raised |
++| `ink2` | `#454A4F` | row labels, sentences | 6.7 ground |
++| `ink3` | `#53585D` | captions, units, eyebrow | 5.4 ground / 6.3 well |
++| `onInk` | `#FFFFFF` | on the ink button | 18.6 |
++| `data` | see §2.3 | scale fill, curve, marker | |
++| `onData` | `#FFFFFF` | ticks inside the blue fill; text on a blue button | 6.2-6.5 |
++| `attention` | `#7E4A00` | expiring, low supply, due soon | 5.5 ground |
++| `risk` | `#9E1F19` | missed, overdue, out of supply | 5.9 ground |
++| `ok` | `#17623F` | taken, done | 5.5 ground |
+ 
+-### Dark (charcoal, never pitch black)
++### 2.2 Dark (charcoal, never pitch black)
+ 
+ | Token | Hex | Contrast |
+ |---|---|---|
+-| `ground` | `#17191B` | - |
+-| `raised` | `#212427` | - |
+-| `well` | `#1D2023` | - |
+-| `line` | `#33373B` | - |
+-| `tick` | `#6C7175` | 3.6 on ground |
+-| `ink` | `#ECEDE9` | 15.0 on ground |
+-| `ink2` | `#B3B7B2` | 8.7 on ground |
+-| `ink3` | `#969B96` | 6.2 on ground / 5.5 raised |
+-| `onInk` | `#17191B` | 15.0 |
+-| `data` | `#7DB1EC` | 7.9 on ground |
+-| `attention` | `#E3A54E` | 8.2 on ground |
+-| `risk` | `#F08A80` | 7.3 on ground |
+-| `ok` | `#62C597` | 8.4 on ground |
++| `ground` | `#121416` | - |
++| `raised` | `#282B30` | 1.30 vs ground |
++| `well` | `#1D2024` | inset inside raised |
++| `line` | `#3C4147` | 1.79 vs ground |
++| `tick` | `#747A7F` | 4.3 ground / 3.3 raised / 3.8 well |
++| `ink` | `#EEEFEB` | 16.0 ground / 12.3 raised |
++| `ink2` | `#B5B9B4` | 9.3 ground |
++| `ink3` | `#9A9F9A` | 6.9 ground / 5.3 raised |
++| `onInk` | `#121416` | |
++| `onData` | `#0F1114` | 8.0-8.2 on the dark blues |
++| `attention` / `risk` / `ok` | `#E3A54E` / `#F08A80` / `#62C597` | 7.3-8.7 ground |
+ 
+-Dark is not an inversion: the ink button becomes a light button with charcoal text, the raised
+-object steps *up* in lightness, and blue lifts to `#7DB1EC` so the curve keeps its contrast.
++The raised step is visible without a border or shadow in both themes (v1 was 1.10 light /
++1.13 dark, too faint; v2 is 1.33 / 1.30).
+ 
+-### Protocol colors
++### 2.3 Blue: two options (founder picks one)
+ 
+-The user's protocol color is shown **only as a dot** (8-10 pt) or as the curve/row it labels.
+-Never as a card fill, tinted background or icon tile. The existing user palette stays.
++Both are bolder than the current app blue (`#185FA5`) and pass as text and as a button fill.
+ 
+-### Semantic color rule
++| Option | Light | Dark | White on light fill | Dark fill on ground |
++|---|---|---|---|---|
++| **Cobalt** (recommended) | `#2350D8` | `#8AA8FF` | 6.5:1 | 8.0:1 |
++| **Azure** | `#0A5FBE` | `#5FAEF7` | 6.2:1 | 7.8:1 |
+ 
+-`attention`, `risk` and `ok` color **text, dots and tick marks**, never whole surfaces. No
+-soft-tinted callout boxes. An alert is a `well` row with a colored dot and ink text.
++Cobalt is deeper and reads as instrument ink-blue. Azure is closer to today's brand blue, so less
++of a change for existing users. The app icon/logo rebrand (parked) should use the same blue.
+ 
++### 2.4 Protocol colors
++
++The user's protocol color is shown **only as a dot** (9 pt) or as the curve it labels. Never as
++a fill, tinted background or icon tile.
++
++### 2.5 Semantic color rule
++
++`attention`, `risk` and `ok` color **dots, ticks and short status words**, never surfaces. An
++alert is a flat row on the ground: dot, one line of ink text, `+N` for more, a round Remind me.
++
+ ## 3. Type
+ 
+ | Role | Face | Size / weight | Notes |
+ |---|---|---|---|
+-| Hero number | Geist | 72-88 pt, weight 200, tracking -3% | one per screen; tabular figures |
+-| Secondary number | Geist | 32-40 pt, weight 300 | max 2 beside the hero |
+-| Screen title | Geist | 28 pt, weight 600, sentence case | |
+-| Object title | Geist | 19 pt, weight 500 | compound name on the object |
+-| Body | Geist | 16 pt, weight 400 | rows, sentences |
+-| Secondary | Geist | 14 pt, weight 400 | |
+-| Readout | **Geist Mono** | 13-15 pt, weight 400-500 | every measured value in running UI: `2.5 mg/mL`, `0.10 mL`, `20:00`, `12 / 20` |
+-| Caption | Geist | 12.5 pt, weight 400 | `ink3` only; the floor for any text |
++| Hero number | Geist | 112-144 pt, weight 300, tracking -5% | one per screen, `ink`; tabular figures |
++| Hero unit | Geist Mono | 18 pt | `ink3` |
++| Secondary hero value | Geist Mono | 20 pt, weight 500, `ink` | max 2, under the hero |
++| Question (empty state) | Geist | 30 pt, weight 500 | |
++| Object title | Geist | 17 pt, weight 500 | compound name, "Reality check" |
++| Screen title | Geist | 20 pt, weight 600 | small on purpose: the hero, not the title, leads |
++| Row label | Geist | 17 pt, weight 400, `ink2` | |
++| Row value | Geist Mono | 18 pt, weight 500, `ink` | one per row |
++| Sentence | Geist | 15 pt, weight 400, `ink2` | max one per screen |
++| Caption | Geist | 12.5-13 pt, weight 400, `ink3` | the floor for any text |
+ 
++- **Contrast between hero and the rest is the point.** The hero number is at least 5x the size
++  of the largest other text on the screen. Values are `ink`; labels are `ink2`; captions `ink3`.
++  Never grey-on-grey at the same weight.
+ - Geist is already wired app-wide on design/hybrid (`lib/fonts.js`). **Geist Mono is new**
+-  (`@expo-google-fonts/geist-mono`, weights 400 + 500 only). It is what makes the numbers read
+-  like an instrument readout instead of a dashboard.
+-- Units are lowercase, in mono, one step smaller and `ink3`: `250 mcg`, `10 units`.
+-- Weights stop at 600 for text. No 700/800 headings.
+-- **No uppercase letter-spaced labels.** Section names, when needed at all, are sentence case,
+-  14 pt, weight 500, `ink2`.
++  (`@expo-google-fonts/geist-mono`, on npm, weights 400 + 500 only) for every measured value.
++- Units are lowercase, in mono, `ink3`: `250 mcg`, `10 units`.
++- Weights stop at 600 for text. **No uppercase letter-spaced labels.**
+ 
+ ## 4. Spacing and grid
+ 
+ - 4-pt base. Steps: 4, 8, 12, 16, 20, 24, 32, 48.
+-- Screen side gutter: 20. Inside the raised object: 20.
+-- Rows: min height 52 (touch targets stay 44+), separated by a hairline, no gap.
+-- Between groups: 32 of ground plus a hairline, not another card.
++- Screen gutter 16, plus 4 inside rows (20 to text). Inside the raised object: 20.
++- Rows: min height 68, hairline between, no fill.
++- The object sits within the first screenful with the hero fully visible (iPhone 390 x 844).
+ 
+ ## 5. Component shapes
+ 
+ | Component | Shape |
+ |---|---|
+-| Raised object | radius 20, `raised` fill, 1 px `line` border, **no shadow** |
+-| Well | radius 14, `well` fill, no border |
+-| Primary action | ink capsule, height 52, full-width or flex; OR a 60 pt ink circle in the control row |
+-| Secondary action | 60 pt circle with 1 px `line` border and a label under it (Cabin's round controls), or a plain text button |
+-| Row | full-bleed hairline row, dot or small glyph left, readout right |
+-| Graduated scale | 1 px ticks; every 5th tick taller; filled part in `ink`, marker in `data`; always paired with the number it shows |
+-| Status | a dot + a word (`Due`, `Taken 8:04`, `Missed`). At most ONE chip per object, and only for a state change |
+-| Input | `well` fill, radius 14, height 56, value in Geist 24/300, unit in mono |
+-| Tab bar | flat on `ground`, hairline top, active = `ink` + weight 600, inactive = `ink3`. No blue |
+-| Icons | the founder's monoline set (`components/FeatureIcon.js`), stroke only, `ink2`. Protocol identity = color dot, not an icon |
++| Raised object | radius 24, `raised` fill, **no border, no shadow** |
++| Well | radius 16, `well` fill; only inside the raised object |
++| Primary action | a 60 pt circle in the control row, or a 54 pt capsule; fill = `ink` (A) or `data` (B) |
++| Secondary action | 60 pt circle / 54 pt capsule with a 1 px `line` outline, or an underlined text button |
++| Object footer | full-width hairline row inside the object (`Vial · 12 of 20 left ›`) for the detail link |
++| Row | label left, one mono value right, chevron; 68 pt |
++| Syringe scale | the protocol's own `syringe_size` barrel (default 100 units), drawn to scale: dose as solid `data` fill, `onData` ticks inside it, stopper and rod in `ink`, 3-4 axis numbers |
++| Day scale | one bar per day: full food day = solid `data` bar, today = `data` outline, missed = short `tick` stub, future = small `tick` stub |
++| Status | a dot + a word. At most ONE per object |
++| Input | `well`, radius 16, height 72, value Geist 36/300, unit in mono |
++| Tab bar | flat on `ground`, hairline top, active = `ink` + 600, inactive = `ink3`. Never blue |
++| Icons | the founder's monoline set (`components/FeatureIcon.js`), stroke only |
+ 
+-**Shadows: none.** Separation is done with the `raised` step and a hairline. This alone removes
+-most of the "floating white card" look.
++## 6. Hierarchy and data budget
+ 
+-## 6. Hierarchy rules
++1. **One hero per screen**, max 3 numbers, max 1 sentence (<= 90 characters in English).
++2. **One primary action per screen.** Two filled buttons on one screen is a bug.
++3. **Visible-value budget: about 10 per filled screen.** A visible value is any number, date,
++   time, amount, site or data status the user has to read. One scale's axis counts as 1; labels,
++   buttons and honesty tags count as 0. Count them in every design review (v1 Today was 23,
++   v2 is 10; v1 Journey was 24, v2 is 8).
++4. **2-4 rows under the object**, one label and one value each. No two-value rows, no lists of
++   meals, no stat strips.
++5. **Daily before one-time.** Setup ("Your numbers") leaves the page body: a round button in
++   the header after first entry.
++6. **Detail is one tap down**: vial facts behind the object footer, site behind the Site
++   control, the rest of the day behind a row, method behind "How this is calculated", sources
++   behind "Sources".
++7. **Alerts stay on Today**, above the object, as one flat row (the most urgent) with `+N`.
++8. **The due dose is the object**: compound, time, units to draw (hero), dose amount, the syringe
++   drawn to scale, the Log/Snooze/Site/Note controls, and one vial line linking to all vial facts
++   (size, concentration, doses left, mix date and window, box expiry).
+ 
+-1. **One hero per screen.** The largest number on the screen answers the screen's question
+-   (Today: "what do I draw now?"; Journey: "where am I in the check?"). Max 3 numbers in the
+-   hero, max 1 sentence under them (<= 90 characters in English).
+-2. **One primary action per screen**: the single ink-filled control. Everything else is a round
+-   outline control, a row, or text. Two ink buttons on one screen is a bug.
+-3. **Daily before one-time.** What the user does every day sits above what they set up once.
+-   Setup collapses to a single row (`Your numbers · 181 cm · 41 · Edit`) after first entry.
+-4. **Detail is one tap down.** Explanations, method, formula and sources live behind a row
+-   (`How this is calculated`, `Sources`). The surface shows the number and its honesty tag only.
+-5. **Alerts stay on Today**, above the hero, as `well` rows with a colored dot, the fact, and a
+-   `Remind me` round control. Max 2 visible; the rest behind `+N more`.
+-6. **The due dose reads as the object**, with everything needed to act on it: compound, dose,
+-   volume, units to draw on the syringe scale, site, and the vial facts (size, concentration,
+-   doses left, mix date / days left in the mix window, box expiry).
++## 7. Honesty lines (non-negotiable)
+ 
+-## 7. Honesty lines (non-negotiable, carried into every design)
++- Every estimated number carries the word **estimate** in its own row or caption (`Testosterone
++  in body · estimate, not a blood level`; `Today's food · estimate`).
++- The method and sources are **one tap away** on every screen that shows an estimate.
++- Estimates are drawn as a line or fill in `data`; values the user measured are drawn as points.
++  Projections are dashed.
++- No recommendation, no good/bad color on a health value (weight change is `ink`, not green),
++  no suggested dose change. Color describes schedule and supply, not the body.
+ 
+-- Every estimated number carries the word **estimate** in the same line or the sentence directly
+-  under it (`Estimated in body · a model, not a blood level`).
+-- The source/method is **one tap away** from any estimate (a `Source` or `How this is
+-  calculated` row). Never removed to save space.
+-- Visual rule: estimates are drawn as a line in `data` blue; measured values the user entered
+-  (weigh-ins, labs) are drawn as **points**. Projections are dashed. The eye can always tell a
+-  model from a measurement.
+-- The design never shows a recommendation, a "good/bad" verdict color on a health value, or a
+-  suggested dose change. Color states describe *schedule and supply*, not the body.
+-
+ ## 8. Empty-state rule
+ 
+ An empty screen shows **one question and one action**. Nothing else competes.
+ 
+-- Never render a disabled primary button, a `-`/`—` placeholder, `0 of N`, `Nothing yet`, or an
+-  empty chart as a state the user must read.
+-- A feature whose prerequisite is missing does **not** render; at most one `Next:` line says
+-  what it unlocks after the current step.
+-- Explanatory copy in an empty state: max one sentence.
+-- The empty state uses the same raised object as the filled state (same place, same size
+-  class), so the screen does not jump when data arrives.
++- Never a disabled primary button, `-`/`—`, `0 of N`, `Nothing yet`, or an empty chart.
++- A feature whose prerequisite is missing does not render; at most one `Next:` line.
++- Max one sentence of explanation.
++- The empty state uses the same raised object in the same place as the filled state.
+ 
+ ## 9. Forbidden: the "AI template" tells
+ 
+-Any of these in a diff is a design bug, same as a hardcoded color:
+-
+ 1. Cool blue-grey background with a stack of identical white rounded cards.
+-2. Drop shadows on cards (`shadowCard`, `shadowSoft`).
+-3. Blue buttons, blue tab highlight, blue chips, blue-tinted callout boxes.
+-4. Uppercase, letter-spaced section labels (`YOUR NUMBERS`, `TRACK YOUR PROGRESS`).
+-5. Greeting header (`Good morning, Evandro`) and a progress ring as the Today hero.
+-6. Explanatory paragraphs on the surface (`What this is`, multi-line intros under a title).
+-7. A subtitle under every screen title (`Track how your body is actually responding.`).
+-8. Icon-in-a-rounded-square tiles leading every row.
+-9. Rounded pill progress bars. Use the graduated scale.
+-10. Equal-weight 2-column stat tile grids.
+-11. Soft-tinted status chips on every item; more than one chip per object.
+-12. Left accent-stripe cards, gradients, glow, glassmorphism.
+-13. Emoji, sparkle "AI" icons, cute illustrations, pastel fills.
+-14. Dead states: disabled buttons, `—`, `0 of 7`, `Nothing logged yet`.
+-15. Pure black (`#000`) dark mode.
+-16. Centered-everything layouts. Text is left-aligned; only the round control row centers.
++2. Drop shadows (`shadowCard`, `shadowSoft`).
++3. Blue anywhere except the data moment and (Variant B only) the one primary action: no blue
++   tabs, chips, links, tinted callouts.
++4. Uppercase, letter-spaced section labels.
++5. Greeting header and a progress ring as the Today hero.
++6. Explanatory paragraphs on the surface; a subtitle under every screen title.
++7. Icon-in-a-rounded-square tiles leading rows.
++8. Rounded pill progress bars. Use the graduated scale.
++9. Equal-weight stat tile grids; rows with two or more values.
++10. Soft-tinted status chips; more than one status per object.
++11. Left accent-stripe cards, gradients, glow, glassmorphism.
++12. Emoji, sparkle "AI" icons, cute illustrations, pastel fills.
++13. Dead states: disabled buttons, `—`, `0 of 7`, `Nothing logged yet`.
++14. Pure black dark mode.
++15. Centered-everything layouts.
++16. **Same-weight grey on grey**: a screen where no number is clearly bigger than the rest.
++17. **Data scatter**: more than ~10 visible values on a screen, or the same fact shown twice.
+ 
+ ## 10. Mapping to `lib/theme.js` (for when it is applied)
+ 
+-Keep the existing keys so screens migrate by value, then retire the template-only keys.
+-
+ | Existing key | Becomes | Note |
+ |---|---|---|
+ | `bg` | `ground` | |
+ | `card` | `raised` | only the one object per screen may use it |
+-| `card2` | `well` | |
++| `card2` | `well` | only inside the object |
+ | `border` | `line` | |
+-| `text` / `textMuted` / `textSubtle`+`textFaint` | `ink` / `ink2` / `ink3` | `textFaint` retires (failed 4.5:1 as text) |
+-| `accent` | split: `act` (= `ink`) for buttons, `data` for charts | the 248 `accent` uses on hybrid must each be classified |
+-| `accentText` | `onInk` | |
+-| `accentSoft`, `accentSoftText`, `*Soft`, `*SoftText` | retire | tinted surfaces are forbidden (rule 9.3, 9.11) |
++| `text` / `textMuted` / `textSubtle`+`textFaint` | `ink` / `ink2` / `ink3` | `textFaint` retires |
++| `accent` | split: `act` (ink or data, per §1) for the one button, `data` for charts | the 248 `accent` uses on hybrid must each be classified |
++| `accentText` | `onInk` / `onData` | |
++| `accentSoft`, `accentSoftText`, `*Soft`, `*SoftText` | retire | tinted surfaces are forbidden |
+ | `warning` / `danger` / `success` | `attention` / `risk` / `ok` | |
+-| `shadowCard`, `shadowSoft` | retire | no shadows |
+-| `ringTrack` | retire | no rings |
+-| new | `tick` | scale ticks |
++| `shadowCard`, `shadowSoft`, `ringTrack` | retire | |
++| new | `tick`, `data`, `onData`, `act` | |
+ 
+ Deliberately fixed surfaces (toast, share-card export, brand marks, protocol palette) keep their
+ own colors per CLAUDE.md, and must still be checked in both themes.

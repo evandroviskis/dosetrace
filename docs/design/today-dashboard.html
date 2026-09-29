@@ -1,0 +1,685 @@
+<title>Today Tab Redesign</title>
+<meta name="description" content="Today tab layout proposal v1 in the Graduated skin with the approved v4 type: doses first, the counter in the header, everything else in main's order.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a proposal sheet. Main's Today, then the proposal in six states (light), three in dark,
+   then the dose card anatomy, the fate of every item on main (#1-#41, new N1-N4), flows, rules,
+   copy, findings and engineering size. Skin = Graduated v3; type = the approved v4 roles. */
+:root {
+  --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8;
+  --ok: #17623F; --risk: #9E1F19; --attention: #7E4A00;
+  --geist: 'Geist', -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sys: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF;
+  --ok: #62C597; --risk: #F08A80; --attention: #E3A54E; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF;
+  --ok: #62C597; --risk: #F08A80; --attention: #E3A54E; color-scheme: dark; }
+.ph.light { --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8; --onData: #FFFFFF;
+  --ok: #17623F; --risk: #9E1F19; --badge: #7E4A00; --p1: #C8643A; --p2: #2E9C78; }
+.ph.dark { --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --onData: #0F1114;
+  --ok: #62C597; --risk: #F08A80; --badge: #E3A54E; --p1: #E8875C; --p2: #4CC49B; }
+.ph { --act: var(--ink); --onAct: var(--onInk); --ts: 1; }
+
+/* ---- the nine type roles (v4); --ts = the phone's text size ---- */
+.r-large { font: 600 calc(34px * var(--ts)) / 1.2 var(--geist); letter-spacing: -0.02em; margin: 0; }
+.r-display { font-family: var(--geist); font-weight: 300; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.d56 { font-size: calc(56px * var(--ts)); } .d34 { font-size: calc(34px * var(--ts)); }
+.unit { font: 400 calc(13px * var(--ts)) var(--mono); color: var(--ink3); letter-spacing: 0; margin-left: 3px; }
+.r-title { font: 600 calc(22px * var(--ts)) / 1.27 var(--geist); letter-spacing: -0.01em; }
+.r-head { font: 600 calc(17px * var(--ts)) / 1.29 var(--sys); }
+.r-body { font: 400 calc(17px * var(--ts)) / 1.29 var(--sys); }
+.r-value { font: 500 calc(17px * var(--ts)) / 1.29 var(--mono); font-variant-numeric: tabular-nums; }
+.r-value.v15 { font-size: calc(15px * var(--ts)); }
+.r-sec { font: 400 calc(15px * var(--ts)) / 1.33 var(--sys); }
+.r-foot { font: 400 calc(13px * var(--ts)) / 1.38 var(--sys); }
+.r-cap { font: 500 calc(12px * var(--ts)) / 1.33 var(--sys); }
+.r-tab { font: 500 11px / 1.2 var(--sys); } /* iOS keeps tab-bar labels fixed; large text uses the Large Content Viewer */
+.tnum { font-variant-numeric: tabular-nums; }
+.c2 { color: var(--ink2); } .c3 { color: var(--ink3); } .cd { color: var(--data); } .cok { color: var(--ok); } .crisk { color: var(--risk); }
+.vin { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+* { box-sizing: border-box; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--geist); -webkit-font-smoothing: antialiased; padding-inline: 20px; padding-block: 40px 72px; }
+.wrap { max-width: 1760px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.intro { display: flex; flex-direction: column; gap: 14px; max-width: 80ch; }
+.intro h1 { margin: 0; font-weight: 300; font-size: clamp(36px, 5vw, 56px); letter-spacing: -0.03em; line-height: 1.02; }
+.intro p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+.intro p b { font-weight: 500; color: var(--ink); }
+.status { font-family: var(--mono); font-size: 12.5px; color: var(--ink3); }
+.q { font-size: 20px; font-weight: 500; line-height: 1.35; letter-spacing: -0.01em; max-width: 60ch; margin: 0; color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13.5px; color: var(--ink2); align-items: center; }
+.legend .nc { border-bottom: 1.5px dotted var(--attention); color: var(--ink); }
+.band { display: flex; flex-direction: column; gap: 18px; }
+.band > h2 { margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.015em; }
+.band > p { margin: -6px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 84ch; }
+.cmp { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 390px)); gap: 32px; align-items: start; }
+.rowlabel { grid-column: 1 / -1; font-size: 14px; font-weight: 500; color: var(--ink2); margin-bottom: -16px; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figcaption { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+figcaption b { font-weight: 500; color: var(--ink); }
+.now { display: flex; flex-direction: column; gap: 8px; }
+.now img { display: block; width: 100%; max-width: 390px; height: auto; border-radius: 28px; outline: 1px solid var(--line); }
+.pick { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink2); min-height: 44px; }
+.pick input { width: 18px; height: 18px; accent-color: var(--ink); }
+.coverage { font-family: var(--mono); font-size: 13px; }
+.coverage.pass { color: var(--ok); } .coverage.fail { color: var(--risk); }
+.tablewrap { overflow-x: auto; }
+table.t { width: 100%; max-width: 1240px; border-collapse: collapse; font-size: 13.5px; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+table.t th { font-weight: 500; color: var(--ink2); font-size: 13px; }
+table.t td.n { font-family: var(--mono); color: var(--ink3); width: 44px; }
+table.t td.where { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+td.flag { color: var(--risk); font-weight: 500; }
+td.good { color: var(--ok); font-weight: 500; }
+ol.qs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 86ch; font-size: 15px; line-height: 1.5; }
+.rule { max-width: 760px; background: var(--raised); border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; font-size: 14.5px; line-height: 1.55; color: var(--ink2); }
+.rule b { color: var(--ink); font-weight: 500; }
+.rule ol { margin: 0; padding-left: 20px; }
+
+/* ---- phone ---- */
+.ph { width: 100%; max-width: 390px; border-radius: 36px; overflow: hidden; background: var(--ground); color: var(--ink); display: flex; flex-direction: column; outline: 1px solid var(--line); font-family: var(--sys); position: relative; }
+.scr { padding: 56px 16px 22px; display: flex; flex-direction: column; gap: 12px; }
+.navbar { display: flex; align-items: center; gap: 4px; min-height: 44px; margin: -8px 0 -4px -6px; color: var(--ink2); }
+.card { background: var(--raised); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.dcard { background: var(--raised); border-radius: 22px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.dhead { display: flex; align-items: center; gap: 10px; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+.duo.stack { grid-template-columns: 1fr; }
+/* Tiles take the height of their content; the pair stretches to the taller one. The number
+   block in each tile sits at the bottom so Daily burn and Est. level line up across the pair. */
+.tile { background: var(--raised); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tile .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: -2px; }
+.tile .num { display: flex; flex-direction: column; gap: 4px; }
+.tile .num.sep { padding-top: 10px; }
+.tile .num.end { margin-top: auto; }
+.tile .num .chip { margin-top: 2px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 3px; }
+.ico { color: var(--ink2); flex: none; display: block; }
+.chev { color: var(--tick); flex: none; }
+.chip { min-height: 26px; border-radius: 13px; border: 1px solid var(--line); padding: 2px 10px; display: inline-flex; align-items: center; flex: none; align-self: flex-start; color: var(--ink2); }
+.chip.meas { border-color: var(--data); color: var(--data); }
+.dot { width: 9px; height: 9px; border-radius: 5px; flex: none; }
+.btnlink { background: none; border: 0; padding: 0; min-height: 44px; text-align: left; color: var(--ink); display: inline-flex; align-items: center; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--tick); }
+.btnlink.risk { color: var(--risk); text-decoration-color: var(--risk); }
+.obtn { min-height: 50px; border-radius: 25px; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 0 20px; }
+.pill { min-height: 36px; border-radius: 18px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--ink2); white-space: nowrap; }
+.pill.on { border: 1.5px solid var(--ink); color: var(--ink); background: var(--raised); font-weight: 600; }
+.seg { display: flex; padding: 3px; border-radius: 12px; background: var(--well); gap: 2px; flex: none; }
+.seg span { padding: 6px 10px; border-radius: 9px; color: var(--ink3); }
+.seg span.on { background: var(--raised); color: var(--ink); font-weight: 600; }
+.fieldgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.input { min-height: 50px; border-radius: 14px; background: var(--well); display: flex; align-items: center; padding: 0 14px; }
+.input.empty { color: var(--ink3); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts5 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opt { min-height: 54px; border-radius: 14px; border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: var(--ink2); }
+.opt i { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid var(--tick); flex: none; }
+.opt.on { border: 1.5px solid var(--ink); color: var(--ink); background: var(--raised); }
+.opt.on i { border: 5px solid var(--ink); }
+.opt.wide { grid-column: 1 / -1; }
+.switch { width: 51px; height: 31px; border-radius: 16px; background: var(--ink); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 27px; height: 27px; border-radius: 14px; background: var(--raised); }
+.frow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; background: var(--raised); border-radius: 16px; }
+.hero2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 2px 0; }
+.hist { display: grid; grid-template-columns: 1fr 1fr 0.9fr 0.8fr; }
+.hist > span { padding: 9px 0; border-top: 1px solid var(--line); }
+.hist > span.h { border-top: 0; padding-top: 0; }
+.hist .r { text-align: right; }
+.bar { height: 6px; border-radius: 3px; background: var(--well); overflow: hidden; }
+.bar i { display: block; height: 6px; background: var(--data); }
+.cell { background: var(--well); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 3px; }
+.goals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.goal { border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.goal.on { border: 1.5px solid var(--ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { border: 1px solid var(--line); border-radius: 12px; padding: 4px 9px; }
+.sep { border-top: 1px solid var(--line); }
+svg.full { display: block; width: 100%; height: auto; }
+.nc { border-bottom: 1.5px dotted var(--attention); align-self: flex-start; }
+.chat { background: var(--ground); display: flex; flex-direction: column; }
+.chathead { background: var(--raised); display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.bubble { background: var(--raised); border-radius: 18px 18px 18px 6px; padding: 12px 14px; max-width: 84%; }
+.composer { display: flex; gap: 10px; align-items: center; padding: 10px 14px 6px; background: var(--raised); border-top: 1px solid var(--line); }
+.composer .in { flex: 1; min-height: 44px; border-radius: 22px; background: var(--well); display: flex; align-items: center; padding: 0 16px; color: var(--ink3); }
+.send { width: 44px; height: 44px; border-radius: 22px; background: var(--act); color: var(--onAct); display: flex; align-items: center; justify-content: center; flex: none; }
+.daydiv { display: flex; align-items: center; gap: 10px; color: var(--ink3); }
+.daydiv::before, .daydiv::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+nav.tabs { display: flex; border-top: 1px solid var(--line); padding: 8px 4px 26px; background: var(--ground); margin-top: auto; }
+nav.tabs a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 44px; text-decoration: none; color: var(--ink3); white-space: nowrap; }
+nav.tabs a.on { color: var(--ink); font-weight: 600; }
+
+[data-i] { position: relative; }
+.badges [data-i]::before { content: attr(data-i); position: absolute; top: -7px; left: -6px; z-index: 3; font: 500 10px/1 var(--mono); color: var(--badge); background: var(--ground); border: 1px solid var(--badge); border-radius: 8px; padding: 2px 5px; pointer-events: none; }
+.badges nav[data-i]::before { top: 4px; left: 6px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+
+/* ---- Today (proposal v1) ---- */
+.ph.light { --p3: #4D77BD; --p4: #8A63C7; }
+.ph.dark { --p3: #87A7DE; --p4: #B99BE8; }
+.ph.viewport { height: 844px; }
+.ph.viewport .scr { flex: 1; min-height: 0; overflow: hidden; }
+.hdr { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px 12px; flex-wrap: wrap; }
+.counter { display: flex; align-items: center; gap: 10px; flex: none; }
+.lab { padding: 4px 4px 0; }
+.sect { display: flex; flex-direction: column; gap: 8px; }
+.dose { background: var(--raised); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.dtop { display: flex; align-items: flex-start; gap: 10px; }
+.status { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.status i { width: 8px; height: 8px; border-radius: 4px; background: var(--attention); flex: none; }
+.draw { display: flex; flex-direction: column; gap: 4px; }
+.vialrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line); }
+.acts { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.acts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn { min-height: 50px; border-radius: 25px; display: flex; align-items: center; justify-content: center; padding: 0 16px; text-align: center; font: 600 calc(17px * var(--ts)) / 1.2 var(--sys); }
+.btn.o { border: 1px solid var(--line); color: var(--ink); }
+.btn.p { background: var(--act); color: var(--onAct); }
+.btn.sm { min-height: 44px; font-size: calc(15px * var(--ts)); }
+.list { background: var(--raised); border-radius: 20px; padding: 0 16px; display: flex; flex-direction: column; }
+.li { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 0; border-top: 1px solid var(--line); }
+.li:first-child { border-top: 0; }
+.li .tcol { width: calc(88px * var(--ts)); flex: none; }
+.round { width: 44px; height: 44px; border-radius: 22px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); }
+.round.on { border: 1.5px solid var(--ink); color: var(--ink); }
+.snz { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 12px 34px; }
+.pill.risk { color: var(--risk); border-color: var(--risk); }
+.okc { color: var(--ok); display: inline-flex; flex: none; }
+.pend { background: var(--raised); border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wd { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+.wd .c { width: 100%; max-width: 38px; aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.wd .c.done { background: var(--data); color: var(--onData); }
+.wd .c.part { border: 1.5px solid var(--data); }
+.wd .c.miss { background: var(--well); }
+.wd .c.rest { border: 1px dashed var(--tick); }
+.wd.today .c { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+.wd.today .r-cap { color: var(--ink); font-weight: 600; }
+.toast { position: absolute; left: 12px; right: 12px; bottom: 90px; z-index: 4; background: var(--ink); color: var(--onInk); border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 18px; }
+.toast .tl { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.grace { background: var(--raised); border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="status">Today · layout proposal v1 · 29 Sep 2026 · main 57b6910 · skin Graduated v3, ink · type v4 (approved)</div>
+    <h1>Today, doses first</h1>
+    <p class="q">"What do I take now, and is today on track?"</p>
+    <p>One change of order: <b>today's doses move from 6th place to the top</b>, and the dose counter joins them in the header. <b>Everything else keeps main's order</b>, just tighter: streak, alerts, food log, then Tomorrow and Next 5 days. The greeting and the share card go, as you decided. Every other item from main is placed below (checklist #1–#41); new things are marked N1–N4.</p>
+    <div class="legend"><label class="pick"><input type="checkbox" id="badges" checked> Show item numbers</label><span><span class="nc">dotted underline</span> = new copy or a suggestion</span><span>Test03 is the real account as captured on main; the other users are invented. Taken times on Test03 are illustrative.</span></div>
+  </header>
+
+  <section class="band">
+    <h2>1 · The Today tab</h2>
+    <p>Left: Today on main (Test03, 8:10 PM). Then the same moment in the proposal, the second after Mark taken, a busy morning, a rest day for a weekly user, a brand-new user, and Test03 at 135% text size.</p>
+    <div class="cmp" id="todayLight"></div>
+    <div class="cmp" id="todayDark"></div>
+    <div id="cov" class="coverage"></div>
+  </section>
+
+  <section class="band">
+    <h2>2 · The dose card, piece by piece</h2>
+    <p>The card is the thing you act on, so it carries everything needed at dose time, in this order.</p>
+    <div class="tablewrap"><table class="t" id="anatomy"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>3 · Where every item from main lives</h2>
+    <div class="tablewrap"><table class="t" id="fates"></table></div>
+    <p class="c2" style="font-size: 14px; margin: 0">Pop-ups keep their behaviour and get the skin in a later pass: site picker (S-20 changes it in 1.2.5), new-vial prompt, "Still going?", skip confirm, "Yesterday's dose isn't logged", remove-reminder confirm, errors.</p>
+  </section>
+
+  <section class="band">
+    <h2>4 · Flows, tap by tap</h2>
+    <p>From landing on Today.</p>
+    <div class="tablewrap"><table class="t" id="flows"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>5 · When each block shows</h2>
+    <div class="tablewrap"><table class="t" id="when"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>6 · Copy</h2>
+    <div class="tablewrap"><table class="t" id="copy"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>7 · Found on the way</h2>
+    <p>A real-world review of Today on main (it asks what already happened before the user opened the app) found problems that are logic, not layout. The layout fixes one; the rest need registry entries on main, and the build is your call. Full list with file references: <span class="mono">docs/design/today-journey-findings.md</span>.</p>
+    <div class="rule" id="found"></div>
+  </section>
+
+  <section class="band">
+    <h2>8 · Engineering size</h2>
+    <div class="rule" id="eng"></div>
+  </section>
+
+  <section class="band">
+    <h2>Open questions</h2>
+    <ol class="qs">
+      <li>Doses first, then main's order (streak, alerts, food log, Tomorrow, Next 5 days): OK?</li>
+      <li>The counter in the header, with a dial of one segment per dose (the ring's fill-from-zero and the drop fly there). Drop the "80%" (the same number as 4 / 5) and the "Protocols" tile (it counts only protocols due today, so it reads 0 on rest days)?</li>
+      <li>The "Taken" line under today's cards (new): keep it? It answers "did I take it?" without reading Tomorrow.</li>
+      <li>Suggestion N3: "Draw to 50 units" with the syringe drawn to scale on reconstituted doses. Same number and same safety warning as the Protocols calculator. Want it?</li>
+      <li>The streak explanation moves to the top of the Dose log, and the empty state's three "How it works" tips go (they repeat its sentence). OK?</li>
+      <li>One new word, "Due", for doses that are due or late. Or two words, "Due" and "Late"?</li>
+      <li>The findings in section 7: register them on main now? "Yes, it's finished" hiding the protocol's history is the most serious.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  function ic(d, size, style) {
+    return '<svg class="ico" width="' + (size || 20) + '" height="' + (size || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (style ? ' style="' + style + '"' : '') + '>' + d + '</svg>';
+  }
+  var I = {
+    flame: '<path d="M12 3c.8 3 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-1.9 1-3.1 2-4 .2 1.5 1 2.4 2 2.6-.6-2.6-.3-5.2.5-7.6z"/>',
+    scale: '<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0zM19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+    syringe: '<path d="M3 12h3M6 9.5h10v5H6zM16 8v8M16 12h3M19 10v4"/>',
+    spark: '<path d="M12 3.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z"/>',
+    snooze: '<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.6M5 4.5 3 6.5M19 4.5l2 2"/>',
+    drop: '<path d="M12 3.5c3 4 6 7.3 6 10.5a6 6 0 0 1-12 0c0-3.2 3-6.5 6-10.5z"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    check: '<path d="M5.5 12.5l4.2 4.2L18.5 8"/>'
+  };
+  var CHEV = '<svg class="chev" width="9" height="15" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var DOWN = '<svg class="chev" width="15" height="9" viewBox="0 0 16 10" aria-hidden="true"><path d="M2 2l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var UP = '<svg class="chev" width="15" height="9" viewBox="0 0 16 10" aria-hidden="true"><path d="M2 8l6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var TABS = [
+    ['Today', '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'],
+    ['My Protocols', '<path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z"/><path d="M8.5 8.5l7 7"/>'],
+    ['Journey', '<path d="M6 21V4"/><path d="M6 4.5c3.5-1.7 7 1.7 11.5 0v6c-4.5 1.7-8-1.7-11.5 0"/>'],
+    ['My Body', '<circle cx="12" cy="7.5" r="3.6"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'],
+    ['Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>']
+  ];
+  function tabs() {
+    return '<nav class="tabs" aria-label="Tabs" data-i="39">' + TABS.map(function (t, i) {
+      return '<a class="r-tab' + (i === 0 ? ' on' : '') + '" href="#todayLight"' + (i === 0 ? ' aria-current="page"' : '') + '>' + ic(t[1], 24, 'color: currentColor') + t[0] + '</a>';
+    }).join('') + '</nav>';
+  }
+
+  /* ---------- graduated drawings ---------- */
+  // The counter's dial: one segment per dose due today, taken ones in data blue.
+  function dial(done, total, size) {
+    var c = size / 2, r = c - 4, h = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">';
+    if (total <= 1) return h + '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + (done ? 'var(--data)' : 'var(--tick)') + '" stroke-width="' + (done ? 5 : 1.6) + '"/></svg>';
+    var gap = Math.min(14, 120 / total);
+    for (var k = 0; k < total; k++) {
+      var a0 = (-90 + k * 360 / total + gap / 2) * Math.PI / 180, a1 = (-90 + (k + 1) * 360 / total - gap / 2) * Math.PI / 180, on = k < done;
+      h += '<path d="M' + (c + r * Math.cos(a0)).toFixed(2) + ' ' + (c + r * Math.sin(a0)).toFixed(2) + ' A' + r + ' ' + r + ' 0 ' + ((a1 - a0) > Math.PI ? 1 : 0) + ' 1 ' + (c + r * Math.cos(a1)).toFixed(2) + ' ' + (c + r * Math.sin(a1)).toFixed(2) + '" fill="none" stroke="' + (on ? 'var(--data)' : 'var(--tick)') + '" stroke-width="' + (on ? 5 : 1.6) + '"/>';
+    }
+    return h + '</svg>';
+  }
+  // Vial cells: one per dose in the vial, remaining ones in data blue.
+  function cells(total, left) {
+    var w = Math.min(12, Math.floor(150 / total)), s = '<svg width="' + (total * w) + '" height="8" viewBox="0 0 ' + (total * w) + ' 8" aria-hidden="true">';
+    for (var k = 0; k < total; k++) s += '<rect x="' + (k * w + 0.5) + '" y="0.5" width="' + (w - 3) + '" height="7" rx="1.5" fill="' + (k < left ? 'var(--data)' : 'none') + '" stroke="' + (k < left ? 'var(--data)' : 'var(--tick)') + '"/>';
+    return s + '</svg>';
+  }
+  // The protocol's own syringe drawn to scale, the dose filled in data blue (same parts as the Protocols calculator).
+  function syr(cap, v) {
+    var x0 = 30, x1 = 296, top = 14, bot = 34, X = function (u) { return x0 + (u / cap) * (x1 - x0); };
+    var s = '<svg class="full" viewBox="0 0 330 40" role="img" aria-label="Syringe: draw to ' + v + ' of ' + cap + ' units">';
+    s += '<line x1="2" y1="24" x2="18" y2="24" stroke="var(--ink3)" stroke-width="1.5" stroke-linecap="round"/>';
+    s += '<rect x="18" y="19" width="12" height="10" rx="2" fill="var(--ink3)"/>';
+    s += '<rect x="' + x0 + '" y="' + (top + 1) + '" width="' + (X(v) - x0).toFixed(1) + '" height="' + (bot - top - 2) + '" fill="var(--data)"/>';
+    s += '<rect x="' + x0 + '" y="' + top + '" width="' + (x1 - x0) + '" height="' + (bot - top) + '" rx="4" fill="none" stroke="var(--ink3)" stroke-width="1.3"/>';
+    for (var u = 2; u < cap; u += 2) {
+      var lg = u % 10 === 0;
+      s += '<line x1="' + X(u).toFixed(1) + '" y1="' + (top + 1) + '" x2="' + X(u).toFixed(1) + '" y2="' + (top + (lg ? 9 : 5)) + '" stroke="' + (u < v ? 'var(--onData)' : 'var(--tick)') + '" stroke-width="' + (lg ? 1.3 : 0.9) + '"/>';
+    }
+    for (var L = 0; L <= cap; L += 20) s += '<text x="' + X(L).toFixed(1) + '" y="10" text-anchor="middle" fill="var(--ink3)" font-family="Geist Mono, ui-monospace, monospace" font-size="8.5">' + L + '</text>';
+    s += '<rect x="' + X(v).toFixed(1) + '" y="' + (top - 2) + '" width="5" height="' + (bot - top + 4) + '" rx="1.5" fill="var(--ink)"/>';
+    s += '<rect x="' + (X(v) + 5).toFixed(1) + '" y="22" width="' + (322 - X(v) - 5).toFixed(1) + '" height="4" fill="var(--ink)"/>';
+    s += '<rect x="322" y="12" width="7" height="24" rx="2" fill="var(--ink)"/>';
+    return s + '</svg>';
+  }
+  function week(days) {
+    return '<div class="week" data-i="23">' + days.map(function (d) {
+      return '<div class="wd' + (d[2] ? ' today' : '') + '"><span class="c ' + d[1] + '">' + (d[1] === 'done' ? ic(I.check, 16, 'color: var(--onData)') : '') + '</span><span class="r-cap c3">' + d[0] + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- blocks ---------- */
+  function hdr(date, done, total) {
+    var h = '<div class="hdr"><div class="col" style="gap: 2px; min-width: 0"><h3 class="r-large">Today</h3><span class="r-sec c2 tnum" data-i="1">' + date + '</span></div>';
+    if (total) h += '<div class="counter" data-i="3"><span data-i="4" style="display: flex">' + dial(done, total, 44) + '</span><div class="col" style="align-items: flex-end; gap: 1px"><span class="r-display d34"><span data-i="5">' + done + '</span><span class="c3"> / ' + total + '</span></span><span class="r-cap c3">doses</span></div></div>';
+    return h + '</div>';
+  }
+  function pending(rows) {
+    return '<div class="sect" data-i="7"><span class="r-head lab">Pending from yesterday</span>' + rows.map(function (r) {
+      return '<div class="pend"><div class="row" style="gap: 10px"><span class="dot" style="background: var(--attention)"></span><span class="r-body grow tnum">' + r + '</span></div><div class="acts2"><span class="btn o sm">Skipped</span><span class="btn p sm">Taken</span></div></div>';
+    }).join('') + '</div>';
+  }
+  function card(o) {
+    var h = '<div class="dose" data-i="8">';
+    h += '<div class="dtop" data-i="9"><span class="dot" style="background: var(' + o.color + '); margin-top: 7px"></span><div class="grow col" style="gap: 2px; min-width: 0"><span class="r-head">' + o.name + '</span><span class="r-sec c2 tnum"><span class="vin">' + o.amount + '</span> · ' + o.freq + '</span></div>';
+    h += '<div class="col" style="align-items: flex-end; gap: 3px; flex: none"><span class="row" style="gap: 6px"><span class="r-body tnum">' + o.time + '</span>' + CHEV + '</span>';
+    h += o.due ? '<span class="status r-cap" data-i="N1"><i></i><span class="nc">Due</span></span>' : '<span class="r-cap c3">reminder</span>';
+    h += '</div></div>';
+    if (o.skipped) h += '<span class="r-sec c2" data-i="17">Skipped — you can still log it</span>';
+    if (o.partial) h += '<span class="r-sec c2 tnum" data-i="18">' + o.partial + ' taken today</span>';
+    if (o.draw) h += '<div class="draw" data-i="N3"><div class="row" style="justify-content: space-between"><span class="r-cap c3 nc">Draw to</span><span class="r-value v15 cd">' + o.draw[1] + '<span class="unit">units</span></span></div>' + syr(o.draw[0], o.draw[1]) + '</div>';
+    var foot = [];
+    if (o.dayOf) foot.push('<span data-i="11">' + o.dayOf + '</span>');
+    if (o.last) foot.push('<span data-i="12">Last: ' + o.last + '</span>');
+    if (o.streak) foot.push('<span class="row" style="gap: 5px" data-i="10">' + ic(I.flame, 14) + o.streak + '</span>');
+    if (foot.length) h += '<div class="r-foot c3 tnum col" style="gap: 4px">' + foot.join('') + '</div>';
+    if (o.vial) h += '<div class="vialrow" data-i="13">' + cells(o.vial[0], o.vial[1]) + '<span class="r-foot c2 tnum">Mixed ' + o.vial[2] + ' · ' + o.vial[1] + ' doses remaining · ' + o.vial[3] + ' days left</span></div>';
+    if (o.addVial) h += '<div class="vialrow"><span class="btnlink r-body" data-i="14" style="min-height: 32px">+ Add vial</span></div>';
+    h += '<div class="acts"><span class="btn o" data-i="15">Skip</span><span class="btn p" data-i="16">' + (o.primary || 'Mark taken') + '</span></div>';
+    return h + '</div>';
+  }
+  function takenBlock(rows, open) {
+    if (!open) return '<div class="card" data-i="N2" style="flex-direction: row; align-items: flex-start; gap: 12px"><span class="okc" style="margin-top: 1px">' + ic(I.check, 20) + '</span><div class="grow col" style="gap: 2px; min-width: 0"><span class="r-head">Taken</span><span class="r-sec c2">' + rows.map(function (r) { return r[0]; }).join(', ') + '</span></div><span style="margin-top: 6px; color: var(--tick)">' + DOWN + '</span></div>';
+    return '<div class="list" data-i="N2"><div class="li" style="min-height: 48px"><span class="okc">' + ic(I.check, 20) + '</span><span class="r-head grow">Taken</span><span style="color: var(--tick)">' + UP + '</span></div>' + rows.map(function (r) {
+      return '<div class="li" style="min-height: 48px"><span class="dot" style="background: var(' + r[2] + '); margin-left: 6px"></span><span class="r-body grow">' + r[0] + '</span><span class="r-sec c2 tnum">' + r[1] + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function streak(o) {
+    var h = '<div class="card" data-i="22" style="gap: 12px"><div class="row" style="gap: 10px; align-items: flex-start">' + ic(I.flame, 22) + '<div class="grow col" style="gap: 2px"><span class="r-head">' + o.text + (o.fire ? '<span class="r-cap c2" style="margin-left: 8px">On fire!</span>' : '') + '</span><span class="r-sec c2 tnum">' + o.month + '% this month</span></div>' + CHEV + '</div>';
+    h += week(o.week) + '<span class="btnlink r-body" data-i="25" style="min-height: 32px; align-self: flex-start">View history</span>';
+    return h + '</div>';
+  }
+  function alerts(list, openIdx, strip) {
+    var h = '<div class="sect" data-i="26"><span class="r-head lab">Alerts</span><div class="list">';
+    list.forEach(function (a, k) {
+      h += '<div class="li" data-i="' + a.i + '">' + ic(a.icon, 22) + '<div class="grow col" style="gap: 2px; min-width: 0"><span class="r-head row" style="gap: 7px">' + (a.dot ? '<span class="dot" style="background: var(--' + a.dot + ')"></span>' : '') + a.title + '</span><span class="r-sec c2 tnum">' + a.body + '</span></div><span class="round' + (k === openIdx ? ' on' : '') + '" aria-label="Remind me">' + ic(I.snooze, 20) + '</span></div>';
+      if (k === openIdx) h += '<div class="snz">' + strip.map(function (s) { return '<span class="pill r-sec' + (s[1] ? ' risk' : '') + '" style="display: inline-flex; align-items: center">' + s[0] + '</span>'; }).join('') + '</div>';
+    });
+    return h + '</div></div>';
+  }
+  function food(o) {
+    return '<div class="dcard" data-i="31"><div class="dhead">' + ic(I.spark, 22) + '<span class="r-head grow">AI food log</span>' + CHEV + '</div><span class="r-body tnum">' + o[0] + '</span><span class="r-sec c2 tnum">' + o[1] + '</span></div>';
+  }
+  function grace(text) {
+    return '<div class="grace" data-i="32"><span class="r-foot c2 tnum">' + text + '</span><span class="btn o sm" style="align-self: flex-start">See Premium</span></div>';
+  }
+  function uprow(r) {
+    return '<div class="li"><div class="col tcol" style="gap: 1px">' + (r.day ? '<span class="r-sec tnum" style="white-space: nowrap">' + r.day + '</span>' : '') + '<span class="r-sec c2 tnum">' + r.time + '</span></div><span class="dot" style="background: var(' + r.color + ')"></span><div class="grow col" style="gap: 1px; min-width: 0"><span class="r-body">' + r.name + '</span><span class="r-sec c2 tnum"><span class="vin">' + r.amount + '</span> · ' + r.freq + '</span></div>' + CHEV + '</div>';
+  }
+  function upcoming(tom, next5, later) {
+    var h = '';
+    if (tom && tom.length) h += '<div class="sect" data-i="35"><span class="r-head lab">Tomorrow</span><div class="list">' + tom.map(uprow).join('') + '</div></div>';
+    if (next5 && next5.length) h += '<div class="sect" data-i="36"><span class="r-head lab">Next 5 days</span><div class="list">' + next5.map(uprow).join('') + (later ? '<div class="li" style="min-height: 44px"><span class="r-sec c3 tnum" data-i="37">' + later + ' more scheduled later</span></div>' : '') + '</div></div>';
+    return h;
+  }
+  function empty() {
+    return '<div class="card" data-i="34" style="gap: 10px; padding: 20px">' + ic(I.syringe, 26) + '<span class="r-title">No protocols yet</span><span class="r-sec c2">Add your first compound in the Protocols tab to start tracking doses.</span><span class="btn p" data-i="N4" style="margin-top: 6px"><span class="nc" style="align-self: center">Add a protocol</span></span></div>';
+  }
+  function rest(next) {
+    return '<div class="card" data-i="19" style="gap: 4px"><span class="r-head">No dose scheduled today</span><span class="r-sec c2 tnum">Next dose: ' + next + '</span></div>';
+  }
+  function caught() {
+    return '<div class="card" data-i="20" style="flex-direction: row; align-items: center; gap: 10px"><span class="okc">' + ic(I.check, 22) + '</span><span class="r-head">You’re all caught up for today</span></div>';
+  }
+  var DISC = '<p class="r-foot c3" data-i="38" style="margin: 6px 4px 0">This is a personal tracking tool, not medical advice. Consult your healthcare provider.</p>';
+  var TOAST = '<div class="toast" data-i="40"><span class="r-body grow">Dose logged</span><span class="r-body tl">Add site</span><span class="r-body tl">Undo</span></div>';
+
+  /* ---------- states ---------- */
+  var WK_T03 = [['Tue', 'rest'], ['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'done'], ['Mon', 'part', true]];
+  var T03_TOM = [
+    { time: '12:20 PM', color: '--p3', name: 'Zinc', amount: '25 mg', freq: 'Daily' },
+    { time: '12:25 PM', color: '--p3', name: 'Vitmin C', amount: '500 mg', freq: 'Daily' },
+    { time: '7:40 PM', color: '--p1', name: 'Magnesium Bisglycinate', amount: '400 mg', freq: 'Daily' },
+    { time: '7:40 PM', color: '--p2', name: 'TB-500', amount: '0.5 mg', freq: 'Daily' }
+  ];
+  var T03_ALERTS = [
+    { i: 27, icon: I.scale, title: 'Reality-check weigh-in', body: 'Weigh in on Oct 19' },
+    { i: 29, icon: I.syringe, dot: 'attention', title: 'Supply low', body: 'TB-500, BPC-157 running low' }
+  ];
+  var BPC_T03 = { name: 'BPC-157', color: '--p3', amount: '0.5 mg', freq: 'Daily', time: '7:20 PM', due: true, draw: [100, 50], streak: '1 day without a miss', vial: [4, 2, 'Sep 27', 29] };
+  var S = {
+    test03: {
+      date: 'Monday, September 28', done: 4, total: 5,
+      cards: [BPC_T03],
+      taken: [['Zinc', '12:22 PM', '--p3'], ['Vitmin C', '12:26 PM', '--p3'], ['Magnesium Bisglycinate', '7:41 PM', '--p1'], ['TB-500', '7:42 PM', '--p2']],
+      streak: { text: '1 day without a miss', month: 100, week: WK_T03 },
+      alerts: T03_ALERTS,
+      food: ['Nothing logged yet today', 'Reality check · day 1 of 21 · 0 of 7 days in a row'],
+      tom: T03_TOM
+    },
+    logged: {
+      date: 'Monday, September 28', done: 5, total: 5, caught: true, toast: true,
+      taken: [['Zinc', '12:22 PM', '--p3'], ['Vitmin C', '12:26 PM', '--p3'], ['Magnesium Bisglycinate', '7:41 PM', '--p1'], ['TB-500', '7:42 PM', '--p2'], ['BPC-157', '8:11 PM', '--p3']], takenOpen: true,
+      streak: { text: '2 days without a miss', month: 100, week: [['Tue', 'rest'], ['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'done'], ['Mon', 'done', true]] },
+      alerts: T03_ALERTS,
+      food: ['Nothing logged yet today', 'Reality check · day 1 of 21 · 0 of 7 days in a row'],
+      tom: T03_TOM.slice(0, 2).concat([{ time: '7:20 PM', color: '--p3', name: 'BPC-157', amount: '0.5 mg', freq: 'Daily' }], T03_TOM.slice(2))
+    },
+    morning: {
+      date: 'Tuesday, September 29', done: 1, total: 5,
+      pending: ['Tesamorelin · yesterday, 10:00 PM'],
+      cards: [
+        { name: 'NAD+', color: '--p1', amount: '100 mg', freq: 'Every 2 days', time: '7:00 AM', due: true, skipped: true, dayOf: 'Day 12 of 30' },
+        { name: 'BPC-157', color: '--p3', amount: '250 mcg', freq: 'Daily', time: '8:00 AM', due: true, draw: [100, 10], last: 'Abdomen · 1d ago', streak: '12 days without a miss', vial: [20, 12, 'Sep 20', 21] },
+        { name: 'Vitamin C', color: '--p2', amount: '500 mg', freq: 'Daily', time: '6:00 AM · 6:00 PM', partial: '1/2', streak: '12 days without a miss', primary: 'Take 6:00 PM dose' },
+        { name: 'Tesamorelin', color: '--p4', amount: '1 mg', freq: 'Daily', time: '10:00 PM', addVial: true, streak: '11 days without a miss' }
+      ],
+      taken: [['Vitamin C', '6:04 AM', '--p2']],
+      streak: { text: '12 days without a miss', fire: true, month: 96, week: [['Wed', 'done'], ['Thu', 'done'], ['Fri', 'done'], ['Sat', 'done'], ['Sun', 'done'], ['Mon', 'done'], ['Tue', 'part', true]] },
+      alerts: [{ i: 28, icon: I.drop, dot: 'attention', title: 'Bloodwork due', body: 'It\'s been 7 months since your last panel' }],
+      next5: [
+        { day: 'Thu, Oct 1', time: '9:00 AM', color: '--p2', name: 'Testosterone Cypionate', amount: '100 mg', freq: 'Every 3 days' },
+        { day: 'Sat, Oct 3', time: '8:00 AM', color: '--p1', name: 'Retatrutide', amount: '2 mg', freq: 'Every 7 days' }
+      ]
+    },
+    rest: {
+      date: 'Tuesday, September 29', rest: 'Oct 5',
+      streak: { text: '6 days without a miss', month: 100, week: [['Wed', 'rest'], ['Thu', 'rest'], ['Fri', 'rest'], ['Sat', 'rest'], ['Sun', 'rest'], ['Mon', 'done'], ['Tue', 'rest', true]] },
+      alerts: [
+        { i: 30, icon: I.clock, dot: 'attention', title: 'Vial expiring soon', body: 'Testosterone Cypionate — 5 days left' },
+        { i: 27, icon: I.scale, title: 'Reality-check weigh-in', body: 'Weigh in on Oct 15' }
+      ],
+      food: ['Today: 2 items · ~860 kcal', 'Reality check · day 6 of 21 · 5 of 7 days in a row'],
+      grace: 'Your 7 free days end on Sep 30. Your reality check is on day 6, with food logged on 5 days. Your weigh-in on Oct 15 turns 7 days in a row of full logs into your measured daily burn — Premium keeps the log open after Sep 30.',
+      next5: [{ day: 'Mon, Oct 5', time: '9:00 AM', color: '--p2', name: 'Testosterone Cypionate', amount: '100 mg', freq: 'Every 7 days' }],
+      later: 1
+    },
+    empty: { date: 'Tuesday, September 29', empty: true }
+  };
+  S.test03dark = Object.assign({}, S.test03, { snoozeOpen: 1, strip: [['Tomorrow'], ['In 3 days']] });
+
+  function screen(key) {
+    var d = S[key], h = '<div class="scr">' + hdr(d.date, d.done, d.total);
+    if (d.pending) h += pending(d.pending);
+    if (d.empty) h += empty();
+    if (d.rest) h += rest(d.rest);
+    (d.cards || []).forEach(function (c) { h += card(c); });
+    if (d.caught) h += caught();
+    if (d.taken) h += takenBlock(d.taken, d.takenOpen);
+    if (d.streak) h += streak(d.streak);
+    if (d.alerts) h += alerts(d.alerts, d.snoozeOpen, d.strip);
+    if (d.food) h += food(d.food);
+    if (d.grace) h += grace(d.grace);
+    h += upcoming(d.tom, d.next5, d.later);
+    if (!d.empty) h += DISC;
+    return h + '</div>' + (d.toast ? TOAST : '') + tabs();
+  }
+
+  /* ---------- figures ---------- */
+  function nowFig(files, cap) {
+    var f = document.createElement('figure');
+    f.innerHTML = '<div class="now">' + files.map(function (s, k) { return '<img src="current/' + s + '.jpg" alt="Main today, frame ' + (k + 1) + '" loading="lazy">'; }).join('') + '</div><figcaption>' + cap + '</figcaption>';
+    return f;
+  }
+  function fig(html, theme, cap, ts) {
+    var f = document.createElement('figure'), ph = document.createElement('div');
+    ph.className = 'ph ' + theme + ' badges';
+    if (ts) ph.style.setProperty('--ts', ts);
+    ph.innerHTML = html;
+    f.appendChild(ph);
+    var c = document.createElement('figcaption');
+    c.innerHTML = cap;
+    f.appendChild(c);
+    return f;
+  }
+  function label(box, text) { var d = document.createElement('div'); d.className = 'rowlabel'; d.textContent = text; box.appendChild(d); }
+  var tl = document.getElementById('todayLight'), td = document.getElementById('todayDark');
+  label(tl, 'Light');
+  tl.appendChild(nowFig(['today-light-1', 'today-light-1b', 'today-light-2', 'today-light-3'], '<b>Now on main.</b> Test03, 8:10 PM: the one dose still due (BPC-157) is the 6th block, under the ring, streak, alerts, food log and share button.'));
+  tl.appendChild(fig(screen('test03'), 'light', '<b>Test03, same moment.</b> The due dose is the first thing on the screen, marked "Due". "4 / 5" and its dial replace the greeting line, the ring and both tiles. The four doses already taken sit in one "Taken" line; on main they only show up faded under Tomorrow.'));
+  tl.appendChild(fig(screen('logged'), 'light viewport', '<b>One second after Mark taken.</b> The drop lands in the dial (5 / 5), the card joins the Taken list, the day reads "all caught up", and the Undo bar sits above the tab bar as on main. For injectables the site picker opens next, as today.'));
+  tl.appendChild(fig(screen('morning'), 'light', '<b>Busy morning (invented user), 8:06 AM.</b> Yesterday\'s unlogged dose first, then the due ones: NAD+ (skipped earlier, still loggable) and BPC-157, then later today. A two-a-day protocol shows "1/2 taken today". A protocol without a mixed vial shows "+ Add vial".'));
+  tl.appendChild(fig(screen('rest'), 'light', '<b>Rest day, weekly user.</b> No counter and no zeros: "No dose scheduled today · Next dose: Oct 5". On main this day reads "No protocols yet", "—" and "0 Protocols".'));
+  tl.appendChild(fig(screen('empty'), 'light', '<b>New user.</b> One sentence and one button that opens the add form. The "How it works" tips go: they repeat the sentence.'));
+  tl.appendChild(fig(screen('test03'), 'light', '<b>Test03 at 135% text size.</b> Every role grows; when the date line gets too long the counter moves under it. The syringe keeps its scale.', 1.35));
+  label(td, 'Dark');
+  td.appendChild(fig(screen('test03dark'), 'dark', '<b>Test03, dark.</b> Remind me open on "Supply low": after 6 PM "Later today" is hidden, as on main.'));
+  td.appendChild(fig(screen('morning'), 'dark', '<b>Busy morning, dark.</b>'));
+  td.appendChild(fig(screen('logged'), 'dark viewport', '<b>After Mark taken, dark.</b>'));
+
+  /* ---------- coverage: every item from main is placed, merged or removed on purpose ---------- */
+  var REMOVED = { 2: 'greeting', 6: 'Protocols tile', 21: 'faded cards', 33: 'share card' };
+  var OFF = { 24: 'moves to the Dose log', 41: 'motion (described)' };
+  var placed = {};
+  document.querySelectorAll('.ph [data-i]').forEach(function (n) { placed[n.getAttribute('data-i')] = true; });
+  var miss = [];
+  for (var k = 1; k <= 41; k++) if (!placed[k] && !REMOVED[k] && !OFF[k]) miss.push('#' + k);
+  ['N1', 'N2', 'N3', 'N4'].forEach(function (n) { if (!placed[n]) miss.push(n); });
+  var cov = document.getElementById('cov');
+  cov.className = 'coverage ' + (miss.length ? 'fail' : 'pass');
+  cov.textContent = miss.length ? 'Coverage check: missing ' + miss.join(', ') : 'Coverage check: all 41 items from main are accounted for (' + (41 - Object.keys(REMOVED).length - Object.keys(OFF).length) + ' on these phones, 4 removed on purpose, 2 off the screen), plus the 4 new ones.';
+  document.getElementById('badges').addEventListener('change', function (e) {
+    document.querySelectorAll('.ph').forEach(function (p) { p.classList.toggle('badges', e.target.checked); });
+  });
+
+  /* ---------- tables ---------- */
+  function table(id, head, rows) {
+    document.getElementById(id).innerHTML = '<thead><tr>' + head.map(function (x) { return '<th>' + x + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
+      return '<tr>' + r.map(function (x, i) { return '<td' + (i === 0 && head[0] === '#' ? ' class="n"' : '') + '>' + x + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+  }
+  table('anatomy', ['Part', 'What it shows', 'Type role', 'From main'], [
+    ['Top row', 'color dot, compound, dose (Geist Mono) · frequency, time, ›  (tap: that protocol in My Protocols)', 'Headline 17 · Value 15 · Secondary 15 · Body 17', 'same (12e)'],
+    ['Status', '"Due" with an attention dot once the dose is due or late; otherwise "reminder" under the time', 'Caption 12', 'new: main computes it (isDoseDue) but never shows it'],
+    ['State line', '"Skipped — you can still log it" or "1/2 taken today"', 'Secondary 15', 'same (12c, 12d), now plain text, not a tinted banner'],
+    ['Draw to (suggestion)', '"Draw to 50 units" and the protocol\'s own syringe drawn to scale; only reconstituted protocols with a mixed vial', 'Value 15 in Cobalt; syringe in data blue', 'new on Today; the number the Protocols calculator already shows'],
+    ['Footnotes', 'Day X of Y (older protocols only), last site, the protocol\'s own streak', 'Footnote 13', 'same (12f, 12g, 12e); the streak loses its tinted chip'],
+    ['Vial footer', 'one cell per dose in the vial, remaining in blue, and "Mixed Sep 27 · 2 doses remaining · 29 days left"; or "+ Add vial"', 'Footnote 13', 'same (12h, 12i); the expiry color comes from theme tokens'],
+    ['Actions', 'Skip (outline) and Mark taken / Take {time} dose (ink capsule)', 'Body 17, 600', 'same (12j, 12k)']
+  ]);
+  table('fates', ['#', 'Item on main', 'Where it lives now', 'Change'], [
+    [1, 'Date line', 'header, under the title "Today"', 'stays'],
+    [2, 'Greeting "Good evening, Test03"', 'removed', 'your call 2026-09-29; the title "Today" (the tab\'s own name) takes its place'],
+    [3, 'Dose counter "4 / 5 doses"', 'header, right', 'moved; hidden when nothing is due, so no more "No protocols yet" on rest days'],
+    [4, 'Ring with "80%" and "of doses"', 'the counter\'s dial', 'merged: one segment per dose; the % goes (same number as 4 / 5)'],
+    [5, 'Done tile', 'the counter\'s number', 'merged (same number)'],
+    [6, 'Protocols tile', 'removed from Today', 'it counts only protocols due today (0 on rest days); the cards and My Protocols show them'],
+    [7, 'Pending from yesterday', 'first, under the header', 'stays first; S-17 behaviour unchanged'],
+    [8, 'Today\'s dose cards', 'right under the header', 'moved up from 6th to 1st; due and late ones first'],
+    [9, 'Card top row (dot, name, dose · frequency, times, "reminder", tap → the protocol)', 'card', 'stays'],
+    [10, 'The protocol\'s own streak', 'card footnote', 'stays on today\'s cards as plain text; no longer repeated on Tomorrow'],
+    [11, 'Day X of Y + bar (older protocols only)', 'card footnote', 'stays as text'],
+    [12, 'Last site', 'card footnote', 'stays'],
+    [13, 'Vial line', 'card footer, with vial cells', 'stays'],
+    [14, '+ Add vial', 'card footer', 'stays'],
+    [15, 'Skip (+ confirm)', 'card', 'stays'],
+    [16, 'Mark taken / Take {time} dose', 'card', 'stays (the one ink button)'],
+    [17, 'Skipped banner', 'card state line', 'stays'],
+    [18, 'Partial banner "1/2 taken today"', 'card state line', 'stays'],
+    [19, '"No dose scheduled today · Next dose"', 'the dose area, on days with nothing due', 'moved from each faded card to the section'],
+    [20, 'All caught up', 'the dose area', 'stays'],
+    [21, 'Faded cards', 'removed', 'done and not-due protocols become rows (Taken, Tomorrow, Next 5 days)'],
+    [22, 'Streak card (flame, count, month %, On fire!)', 'after the doses', 'same relative place, compact'],
+    [23, 'Week dots', 'streak card', 'graduated cells: blue = complete, outline = part, grey = missed, dashed = nothing due'],
+    [24, 'Streak explanation paragraph', 'top of the Dose log', 'one tap down (your approval)'],
+    [25, 'View history → Dose log', 'streak card', 'stays; still the only way into the Dose log'],
+    [26, 'Alerts + Remind me + snooze options', 'after the streak', 'same relative place; one grouped card'],
+    [27, 'Reality-check weigh-in', 'Alerts', 'stays'],
+    [28, 'Bloodwork due', 'Alerts', 'stays'],
+    [29, 'Supply low', 'Alerts', 'stays'],
+    [30, 'Vial expiring soon', 'Alerts', 'stays'],
+    [31, 'Food-log hero (while a reality check runs)', 'after Alerts', 'same card as Journey; the whole card opens FoodChat as before, so the "Log food" pill goes'],
+    [32, 'Free-days / grace note', 'under the food card', 'stays'],
+    [33, 'Share my progress + share card', 'removed', 'A-29, your call 2026-09-27, confirmed 2026-09-29'],
+    [34, 'Empty state', 'the dose area', 'stays, plus an "Add a protocol" button; the 3 tips go'],
+    [35, 'Tomorrow', 'near the end', 'same relative place; rows instead of faded cards'],
+    [36, 'Next 5 days', 'near the end', 'rows that show the day'],
+    [37, '"{count} more scheduled later"', 'last row', 'stays'],
+    [38, 'Disclaimer', 'bottom', 'stays'],
+    [39, 'Tab bar', 'bottom', 'stays'],
+    [40, 'Undo bar', 'above the tab bar', 'stays (its position is test-guarded)'],
+    [41, 'Drop that flies to the ring', 'flies to the dial', 'same motion, new target; the dial fills from zero on each visit (your ring rule)'],
+    ['N1', '"Due" on due or late cards', 'card', 'new word'],
+    ['N2', 'Taken line', 'under today\'s cards', 'new view of today\'s logs; tap to see the times'],
+    ['N3', 'Draw to {n} units + syringe', 'reconstituted cards', 'suggestion'],
+    ['N4', 'Add a protocol', 'empty state', 'new button, opens the add form']
+  ]);
+  table('flows', ['#', 'Task', 'Main', 'Proposal'], [
+    ['F1', 'Log the dose that is due now', 'scroll about 2 screens (the list is 6th) + 1 tap', '1 tap, no scroll'],
+    ['F2', 'Log yesterday\'s pending dose', '1 tap (top)', 'same'],
+    ['F3', 'Skip a dose', 'scroll + Skip + confirm', 'Skip + confirm, no scroll'],
+    ['F4', '"Did I take my zinc today?"', 'find Zinc faded under Tomorrow, at the bottom', 'the Taken line, first screen'],
+    ['F5', 'Add a site', 'picker opens after Mark taken / "Add site" on the Undo bar', 'same'],
+    ['F6', 'Undo', 'Undo bar, 5 s', 'same'],
+    ['F7', 'Open the dose history', 'streak card, 1 tap', 'same card, 1 tap (it now follows the doses)'],
+    ['F8', 'Snooze an alert', 'Remind me + an option: 2 taps', 'same'],
+    ['F9', 'Log food', '1 tap', 'same'],
+    ['F10', 'See tomorrow', 'scroll to the end: 4 faded cards', 'scroll to the end: 4 rows'],
+    ['F11', 'When is my weekly shot?', 'Next 5 days: a faded card with "Next dose"', 'Next 5 days: a row with the day'],
+    ['F12', 'Open a protocol', 'card top row, 1 tap', 'card top row or any row, 1 tap'],
+    ['F13', 'New user adds a first protocol', 'tab bar → My Protocols → + Add: 2 taps', 'Add a protocol: 1 tap'],
+    ['F14', 'Stop the reality-check reminder', 'Remind me → Remove → confirm: 3 taps', 'same']
+  ]);
+  table('when', ['Block', 'Shows when'], [
+    ['Counter', 'at least one dose is due today (hidden on rest days and for new users)'],
+    ['Pending from yesterday', 'as on main (S-17): after midnight, until yesterday\'s dose time + 12 h'],
+    ['Dose cards', 'a protocol is due today and not fully taken; due and late first, then by time'],
+    ['Taken', 'at least one dose was taken today'],
+    ['All caught up', 'every dose due today is taken'],
+    ['No dose scheduled today', 'protocols exist but none is due today'],
+    ['Empty state', 'no protocols'],
+    ['Streak', 'at least one protocol'],
+    ['Alerts', 'at least one alert, same four rules as main'],
+    ['Food log', 'while a reality check runs (FL-43, as main)'],
+    ['Tomorrow / Next 5 days / later', 'a protocol\'s next dose falls there (same buckets as main)'],
+    ['Disclaimer', 'at least one protocol (as main)']
+  ]);
+  table('copy', ['Where', 'English', 'Status'], [
+    ['Card status', 'Due', '<span class="nc">new</span>: 6 languages, needs your approval'],
+    ['Empty state button', 'Add a protocol', '<span class="nc">new</span>: 6 languages, needs your approval'],
+    ['Title', 'Today', 'existing (the tab name)'],
+    ['Counter', '{done} / {total} doses', 'existing'],
+    ['Nothing due', 'No dose scheduled today · Next dose: {date}', 'existing, now for the whole day instead of each card'],
+    ['Taken line', 'Taken', 'existing'],
+    ['Draw to (only with N3)', 'Draw to {n} units', 'existing (the Protocols calculator\'s strings)'],
+    ['Streak explanation', 'You started your protocols with a goal. Keeping them on time — without missing doses — is how you get there. This shows how well you are keeping up.', 'existing, moves to the top of the Dose log'],
+    ['Everything else', 'word for word from main', '']
+  ]);
+  document.getElementById('found').innerHTML = '<ol>' + [
+    '<b>"Yes, it\'s finished" hides the protocol\'s whole dose history.</b> In the "Still going?" window it deletes the protocol; its doses leave the Log at once, it can be restored for 7 days, then it is gone. Your never-lose-data rule says this cannot stay. Checked in the code.',
+    '<b>Rest days say "No protocols yet" and "0 Protocols"</b> for anyone whose protocols are not due today (weekly users: 6 days a week). Checked in the code. <b>This layout fixes it</b> (the counter hides, the day says "No dose scheduled today · Next dose").',
+    '<b>A dose logged more than 12 hours after its time gets a false "Missed"</b> next to the "Taken" (a 7 AM dose logged at 8:30 PM).',
+    '<b>Skipping one dose of a twice-a-day protocol</b> leaves the button on the skipped time, and that dose\'s reminder still fires.',
+    '<b>Today does not change date</b> if the app stays open past midnight (a tap then logs for the new day without asking).',
+    '<b>A vial prompt button, "Protocol finished", does nothing</b> to the protocol; reminders continue.',
+    '<b>Choices only you can make:</b> how a weekly shot taken a day late or early gets logged; whether twice-weekly or as-needed schedules are in scope; whether a skip counts as handled for the counter.'
+  ].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>';
+  document.getElementById('eng').innerHTML = [
+    '<b>One screen rebuilt</b> (TodayScreen.js layout and styles). No new routes, no data model change. The Dose log gets the streak explanation at its top.',
+    '<b>Uses data Today already loads:</b> "Due" (isDoseDue, computed and unused today), the Taken line (today\'s logs, with their times), the same Tomorrow / Next 5 days buckets. The dial takes over the ring\'s animation hooks. "Add a protocol" needs one navigation parameter to open the add form.',
+    '<b>Removed with it:</b> greeting, "80%", both tiles, faded cards, the tips, and the share toggle and card (A-29, which also removes the screen\'s 15 hardcoded colors). The vial expiry colors move to theme tokens.',
+    '<b>Draw to (only if you want it):</b> reuse the Protocols calculator\'s function and its "more than your syringe holds" warning; never a second formula.',
+    '<b>Tests:</b> the two tests that read TodayScreen\'s code (Undo bar position, shared Mark taken) must stay green; the i18n parity test covers the 2 new words; the links from Today to other screens (L-44) get tests when it is rebuilt.',
+    '<b>When:</b> after 1.2.5 ships. S-17 (Pending from yesterday) and S-20 (site picker) are being built in TodayScreen right now; rebuilding the same file in parallel would collide. It absorbs A-29, and A-44, A-45 and A-46 (1.2.6) land in the Alerts card drawn here.'
+  ].map(function (x) { return '<p style="margin: 0">' + x + '</p>'; }).join('');
+})();
+</script>

@@ -1,0 +1,226 @@
+--- /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/a2fac48e-4aa0-4fec-bcc7-23c2204d8071/scratchpad/DESIGN.v2.md	2026-09-28 20:30:26
++++ DESIGN.md	2026-09-28 20:31:33
+@@ -1,16 +1,37 @@
+ # DoseTrace visual identity: "Graduated"
+ 
+-Status: **PROPOSAL v2, awaiting founder approval** (2026-09-28, after founder feedback #035:
+-"right direction, too bland, data scattered"). Nothing here is applied to any screen until the
+-founder approves it. Copy shown in the mockups is English placeholder; any new or changed string
+-needs founder approval and all 6 languages before it ships.
++Status: **PROPOSAL v3, awaiting founder approval** (2026-09-28, after founder feedback #036:
++"be more faithful to how the app is laid out today; nobody should have to relearn the app").
++Nothing here is applied to any screen until the founder approves it.
+ 
+-Mockups: `docs/design/identity-mockups.html` (Today + Journey, filled + empty, light + dark;
+-two blue options; ink vs blue primary action).
++Mockups: `docs/design/identity-mockups.html`: main's real Today, Journey, My Protocols and site
++picker (simulator captures in `docs/design/current/`, Test03, light + dark) beside the same
++screens in Graduated, primary action in ink and in Cobalt.
+ 
+-**Open decisions for the founder:** (a) blue option, Cobalt or Azure (§2.3); (b) primary action,
+-ink or blue (§1 rule 1). Recommendation: Cobalt + ink.
++**Open decision for the founder:** primary action ink or Cobalt (§1 rule 1). Cobalt is the data
++color (founder #036); Azure is dropped.
+ 
++## 0. LAYOUT FREEZE (hard rule, above everything else in this file)
++
++Founder directive 2026-09-28 (#036). This redesign is a **skin**, not a new layout.
++
++- Every screen keeps its current structure, section order, item positions, tabs, buttons and
++  flows **exactly as on main** (baseline: main @ a7d8275). No item moves, disappears, merges,
++  collapses or goes "one tap down". Nothing new is added except a graduated drawing of a value
++  the element already shows.
++- **Copy is frozen too.** Every string stays as it is in `i18n/translations.js`, in all 6
++  languages. Case changes done by style (an uppercase header shown in sentence case) are skin;
++  changing words is not.
++- Graduated may change only: palette, type (Geist + Geist Mono readouts), surfaces (no shadows;
++  raised / well / hairline), component shapes (capsule buttons, outline pills, plain icons without
++  tiles), icon style, the graduated scale where a value is already shown (dial, syringe, vial
++  cells, day ticks), contrast, and hierarchy **within** each existing element.
++- Proof per screen: a numbered list of every item on main in order, and the Graduated version
++  must show the same items in the same order. Any exception is a bug.
++- Rules marked **FUTURE UX** below (§1 rules 2-4, §6, §8 and the marked items in §9) describe
++  a later layout project. They are **not part of this redesign** and need their own founder
++  approval, spec and journey review.
++
+ ## 1. The idea in one line
+ 
+ DoseTrace should feel like a **measuring instrument**, not a wellness app. The look comes from
+@@ -18,20 +39,21 @@
+ Its signature element is the **graduated scale**: the syringe barrel with the dose drawn in
+ blue, and the day scale of a reality check.
+ 
+-Four rules carry the identity:
++Rule 1 is the skin and applies now. Rules 2-4 are **FUTURE UX** (they move or merge items, so
++§0 keeps them out of this redesign).
+ 
+-1. **One moment of color per screen, owned by the data.** DoseTrace blue fills the scale or the
+-   curve, big and solid. It is never a tab, chip, background or decoration.
++1. **Blue is owned by the data.** Cobalt fills scales, dials, curves and vial cells, big and
++   solid. It is never a tab, chip, background, link or decoration.
+    *Primary action, pending founder choice:*
+-   - **Variant A, ink (recommended):** the one primary button is ink. Blue appears once per screen.
+-   - **Variant B, blue:** the one primary button is also blue. Louder brand, but two blue
+-     elements per screen. If chosen, blue is still never used for anything else.
+-2. **One object per screen.** One raised surface: the thing you act on. Everything else sits
+-   flat on the ground. No shadows; the surface step itself must be visible at arm's length.
+-3. **One question, one hero.** Each screen answers one question (Today: "what do I draw now?";
+-   Journey: "where am I in the check?") with at most 3 numbers. Every other value is one tap down.
+-4. **Few, big rows.** Under the object: 2-4 rows, each one label on the left and one value on
+-   the right.
++   - **Variant A, ink (recommended):** the primary button of each element is ink.
++   - **Variant B, Cobalt:** the primary button is Cobalt too. Louder brand; blue then means
++     "data or the main action", nothing else.
++2. *(FUTURE UX)* **One object per screen.** One raised surface: the thing you act on. Under the
++   freeze every existing card stays a card; the skin only removes shadows and tints.
++3. *(FUTURE UX)* **One question, one hero.** Each screen answers one question with at most 3
++   numbers; every other value one tap down. Under the freeze, only the existing big number of an
++   element gets stronger type (Today's 80% ring, the syringe's "Draw to").
++4. *(FUTURE UX)* **Few, big rows.** 2-4 rows under the object, one label and one value each.
+ 
+ ## 2. Palette
+ 
+@@ -76,18 +98,15 @@
+ The raised step is visible without a border or shadow in both themes (v1 was 1.10 light /
+ 1.13 dark, too faint; v2 is 1.33 / 1.30).
+ 
+-### 2.3 Blue: two options (founder picks one)
++### 2.3 Blue: Cobalt (founder #036)
+ 
+-Both are bolder than the current app blue (`#185FA5`) and pass as text and as a button fill.
++| Token | Light | Dark | Contrast |
++|---|---|---|---|
++| `data` | `#2350D8` | `#8AA8FF` | white on light fill 6.5:1; dark fill 8.0:1 on ground |
+ 
+-| Option | Light | Dark | White on light fill | Dark fill on ground |
+-|---|---|---|---|---|
+-| **Cobalt** (recommended) | `#2350D8` | `#8AA8FF` | 6.5:1 | 8.0:1 |
+-| **Azure** | `#0A5FBE` | `#5FAEF7` | 6.2:1 | 7.8:1 |
++Bolder than the current app blue (`#185FA5`). Azure (`#0A5FBE` / `#5FAEF7`) was the other v2
++option and is dropped. The app icon/logo rebrand (parked) should use the same blue.
+ 
+-Cobalt is deeper and reads as instrument ink-blue. Azure is closer to today's brand blue, so less
+-of a change for existing users. The app icon/logo rebrand (parked) should use the same blue.
+-
+ ### 2.4 Protocol colors
+ 
+ The user's protocol color is shown **only as a dot** (9 pt) or as the curve it labels. Never as
+@@ -102,7 +121,7 @@
+ 
+ | Role | Face | Size / weight | Notes |
+ |---|---|---|---|
+-| Hero number | Geist | 112-144 pt, weight 300, tracking -5% | one per screen, `ink`; tabular figures |
++| Hero number | Geist | 112-144 pt, weight 300, tracking -5% | FUTURE UX sizes; under the freeze the existing big number of an element goes to 48-56 pt / 300 (Today's ring %, Draw to 22 pt mono in Cobalt) |
+ | Hero unit | Geist Mono | 18 pt | `ink3` |
+ | Secondary hero value | Geist Mono | 20 pt, weight 500, `ink` | max 2, under the hero |
+ | Question (empty state) | Geist | 30 pt, weight 500 | |
+@@ -113,9 +132,9 @@
+ | Sentence | Geist | 15 pt, weight 400, `ink2` | max one per screen |
+ | Caption | Geist | 12.5-13 pt, weight 400, `ink3` | the floor for any text |
+ 
+-- **Contrast between hero and the rest is the point.** The hero number is at least 5x the size
+-  of the largest other text on the screen. Values are `ink`; labels are `ink2`; captions `ink3`.
+-  Never grey-on-grey at the same weight.
++- **Contrast inside each element is the point.** The element's own big number clearly outranks
++  everything else in that element. Values are `ink`; labels are `ink2`; captions `ink3`. Never
++  grey-on-grey at the same weight. (The screen-wide "5x" hero ratio is FUTURE UX.)
+ - Geist is already wired app-wide on design/hybrid (`lib/fonts.js`). **Geist Mono is new**
+   (`@expo-google-fonts/geist-mono`, on npm, weights 400 + 500 only) for every measured value.
+ - Units are lowercase, in mono, `ink3`: `250 mcg`, `10 units`.
+@@ -126,14 +145,24 @@
+ - 4-pt base. Steps: 4, 8, 12, 16, 20, 24, 32, 48.
+ - Screen gutter 16, plus 4 inside rows (20 to text). Inside the raised object: 20.
+ - Rows: min height 68, hairline between, no fill.
+-- The object sits within the first screenful with the hero fully visible (iPhone 390 x 844).
++- *(FUTURE UX)* The object sits within the first screenful (iPhone 390 x 844). Under the freeze
++  spacing stays close to main's so every item stays where users expect it.
+ 
+ ## 5. Component shapes
+ 
+ | Component | Shape |
+ |---|---|
+-| Raised object | radius 24, `raised` fill, **no border, no shadow** |
+-| Well | radius 16, `well` fill; only inside the raised object |
++| Card (every card that exists on main) | radius 20, `raised` fill, **no border, no shadow, no tint** (the blue-tinted "What this is" / AI food log boxes become plain cards) |
++| Raised object *(FUTURE UX)* | radius 24; the single object per screen |
++| Well | radius 14-16, `well` fill: inputs, segmented tracks, rule/notes boxes |
++| Progress ring | stays a ring, drawn as a graduated dial (50 ticks, done share in `data`), the % beside it in Geist 52/300 |
++| Week day cells | same 7 cells; done day = `data` fill with check, today = `ink` outline, rest = `well` |
++| Doses left / remaining | the existing text plus vial cells (one cell per dose, remaining in `data`) |
++| Day counts (day 1 of 21, 0 of 7) | the existing text plus a tick strip (filled = counted days, today = `data`) |
++| Body figure (site picker) | one smooth outline on the app's 100 x 220 site grid, `well` fill, `tick` stroke, themed in both modes; dots at `lib/injectionSites.js` coordinates; available = outline ring, selected = `data` dot, longest unused = dashed `data` ring |
++| Selection (pills, options, Front/Back) | selected = 1.5 px `ink` outline on `raised`; unselected = 1 px `line` outline |
++| Switch | on = `ink` track |
++| Disabled button | `well` fill, `ink3` text, dashed `line` border: readable, clearly inactive |
+ | Primary action | a 60 pt circle in the control row, or a 54 pt capsule; fill = `ink` (A) or `data` (B) |
+ | Secondary action | 60 pt circle / 54 pt capsule with a 1 px `line` outline, or an underlined text button |
+ | Object footer | full-width hairline row inside the object (`Vial · 12 of 20 left ›`) for the detail link |
+@@ -145,7 +174,7 @@
+ | Tab bar | flat on `ground`, hairline top, active = `ink` + 600, inactive = `ink3`. Never blue |
+ | Icons | the founder's monoline set (`components/FeatureIcon.js`), stroke only |
+ 
+-## 6. Hierarchy and data budget
++## 6. Hierarchy and data budget — FUTURE UX (not part of this redesign, see §0)
+ 
+ 1. **One hero per screen**, max 3 numbers, max 1 sentence (<= 90 characters in English).
+ 2. **One primary action per screen.** Two filled buttons on one screen is a bug.
+@@ -175,7 +204,7 @@
+ - No recommendation, no good/bad color on a health value (weight change is `ink`, not green),
+   no suggested dose change. Color describes schedule and supply, not the body.
+ 
+-## 8. Empty-state rule
++## 8. Empty-state rule — FUTURE UX (not part of this redesign, see §0)
+ 
+ An empty screen shows **one question and one action**. Nothing else competes.
+ 
+@@ -186,25 +215,32 @@
+ 
+ ## 9. Forbidden: the "AI template" tells
+ 
+-1. Cool blue-grey background with a stack of identical white rounded cards.
+-2. Drop shadows (`shadowCard`, `shadowSoft`).
+-3. Blue anywhere except the data moment and (Variant B only) the one primary action: no blue
+-   tabs, chips, links, tinted callouts.
+-4. Uppercase, letter-spaced section labels.
+-5. Greeting header and a progress ring as the Today hero.
+-6. Explanatory paragraphs on the surface; a subtitle under every screen title.
+-7. Icon-in-a-rounded-square tiles leading rows.
+-8. Rounded pill progress bars. Use the graduated scale.
+-9. Equal-weight stat tile grids; rows with two or more values.
+-10. Soft-tinted status chips; more than one status per object.
+-11. Left accent-stripe cards, gradients, glow, glassmorphism.
+-12. Emoji, sparkle "AI" icons, cute illustrations, pastel fills.
+-13. Dead states: disabled buttons, `—`, `0 of 7`, `Nothing logged yet`.
+-14. Pure black dark mode.
+-15. Centered-everything layouts.
+-16. **Same-weight grey on grey**: a screen where no number is clearly bigger than the rest.
+-17. **Data scatter**: more than ~10 visible values on a screen, or the same fact shown twice.
++**[skin]** = removed by this redesign. **[FUTURE UX]** = a layout tell that the freeze (§0)
++keeps for now; it is fixed only in the later layout project.
+ 
++1. **[skin]** Cool blue-grey background; cards floating on shadows.
++2. **[skin]** Drop shadows (`shadowCard`, `shadowSoft`).
++3. **[skin]** Blue on tabs, chips, links, selections or tinted callouts. Blue = data (and, in
++   Variant B, the primary action).
++4. **[skin]** Uppercase, letter-spaced section labels (shown in sentence case; the words stay).
++5. **[FUTURE UX]** Greeting header + progress ring as the Today hero. The freeze keeps both;
++   the skin redraws the ring as a graduated dial.
++6. **[FUTURE UX]** Explanatory paragraphs on the surface; a subtitle under every screen title.
++7. **[skin]** Icon-in-a-rounded-square tiles. The icon stays in place; the tile goes.
++8. **[skin]** Rounded pill progress bars. Use the graduated scale.
++9. **[FUTURE UX]** Equal-weight stat tile grids; rows with two or more values.
++10. **[skin]** Soft-tinted status chips (outline tags instead). *[FUTURE UX]* more than one status
++    per object.
++11. **[skin]** Left accent-stripe cards, gradients, glow, glassmorphism.
++12. **[skin]** Emoji, cute illustrations, pastel fills. The existing `ai_spark` icon stays (freeze)
++    but is drawn as a plain monoline glyph; replacing it is FUTURE UX.
++13. **[FUTURE UX]** Dead states: disabled buttons, `—`, `0 of 7`, `Nothing logged yet`. The skin
++    only makes them readable (disabled = well + ink3, not faded blue).
++14. **[skin]** Pure black dark mode; fixed light surfaces in dark mode (the body figure on main).
++15. **[FUTURE UX]** Centered-everything layouts.
++16. **[skin]** Same-weight grey on grey inside an element.
++17. **[FUTURE UX]** Data scatter: more than ~10 visible values on a screen.
++
+ ## 10. Mapping to `lib/theme.js` (for when it is applied)
+ 
+ | Existing key | Becomes | Note |
