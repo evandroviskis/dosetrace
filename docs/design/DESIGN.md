@@ -38,6 +38,10 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **My Body part 2 (Vaccine journal) APPROVED (2026-09-29, founder: "Approved")** as in
+  `prototype.html`, with the recommended answers: cards newest first, add/edit as a bottom sheet
+  (main's fields, date wheels), a confirm before "Delete vaccine" (new copy), and the nearest
+  next-due date on the My Body card (new copy; the user's own date, no advice).
 - **Syringe numbers (2026-09-29, founder):** every drawn syringe numbers every 10 units from 0
   ("0, 10, 20 … 100"); it used to number every 20. Applies to Today, the protocol screen and
   add/edit (one shared drawing).
