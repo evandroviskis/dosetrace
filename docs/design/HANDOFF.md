@@ -70,7 +70,7 @@ data; never touch `main`; commit/push `design/hybrid` only on request.
 - Every opinion starts from how a feature works and **why it exists**.
 - Plain English for the founder. Every answer has two parts: the part for the founder, and a
   numbered double-check note for Grok (the founder's outside reviewer). The Grok folder is on the
-  Mac and git-ignored, so in the cloud put the note at the end of the reply. **Next number: 050.**
+  Mac and git-ignored, so in the cloud put the note at the end of the reply. **Next number: 068.**
 - Design lessons the founder taught (do not repeat these mistakes):
   - Four Claude-invented "design DNA" menus were all rejected. Don't pitch menus; build from the
     founder's reference: "modern, clean, simple like a Tesla interior but functional", Apple's
@@ -124,7 +124,7 @@ needs redesign and approval. You commit, build into the simulator and I see the 
   phone that grows screen by screen; approved screens stay in it; the screen under review is
   marked. Republish the same file for every new screen.
 - **My Protocols APPROVED** (list, protocol screen, add/edit, every popup). Dose log look approved.
-- **Journey parts 1 (dashboard) and 2 (Progress) APPROVED. Part 3 (AI food log / FoodChat) under review.** Parts: 2 Progress screen, 3 FoodChat,
+- **Journey parts 1–3 APPROVED (dashboard, Progress, AI food log). Part 4 (Dose accumulation curve) UNDER REVIEW in prototype.html.** Parts: 2 Progress screen, 3 FoodChat,
   4 Accumulation Curve, 5 Journey popups.
 - **Next screen: My Protocols** (list, protocol detail, add/edit form, its popups). Design it,
   stop, get approval. Builds follow in approval order.

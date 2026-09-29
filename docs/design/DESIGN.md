@@ -38,6 +38,8 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Journey part 3 (AI food log) APPROVED (2026-09-29, founder: "Approved. Keep Going")** as in
+  `prototype.html`, with the recommended answers and the never-drop rule below.
 - **AI food log rule (2026-09-29, from the founder's test):** nothing the user types is dropped.
   Every food in a message becomes its own entry line, in the user's words and quantity ("2 eggs"
   stays 2 eggs); anything the AI cannot place is kept as a line flagged "estimate · tap to fix".

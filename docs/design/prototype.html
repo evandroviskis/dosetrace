@@ -436,6 +436,15 @@ textarea.winp { resize: none; }
 .feitem { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .fe3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 
+
+/* ---- curve ---- */
+.pickrow { display: flex; align-items: center; gap: 10px; background: var(--raised); border-radius: 18px; min-height: 56px; padding: 0 16px; cursor: pointer; }
+.pickrow .chev { color: var(--ink3); }
+.lg { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--data); }
+.lg.dash { border-top-style: dashed; }
+.lg.tick { width: 2px; height: 8px; border: 0; background: var(--data); }
+.curvestats { background: var(--raised); border-radius: 20px; padding: 14px 16px; }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -460,7 +469,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Under review now: Journey part 3, the AI food log.</b> Open it from the food card on Today or Journey (or the button). Type a meal and it logs it as a card, asks a follow-up when something is vague, and the totals flow to both food cards. The replies are canned sample data for the prototype; the app sends your text to the AI.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey's dashboard, Progress and AI food log are approved.</b> <b>Under review now: Journey part 4, the Dose accumulation curve</b> (tap the Dose accumulation tile, the Dose log's Curve, or the buttons). The curves are real: main's half-lives, data tiers and absorption model, from each protocol's planned schedule. The Journey tile shows the same number as this screen.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -472,7 +481,10 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Journey: AI food log <span class="stat rev">under review</span></h3>
+        <h3>Journey: Dose accumulation curve <span class="stat rev">under review</span></h3>
+        <button data-jstate="run" data-jgo="curve">Testosterone Cypionate (invented, weekly)<small>real model: 8-day half-life, peak ~3 days after each shot; Project ahead, Estimate on a date, Source</small></button>
+        <button data-jstate="test03" data-jgo="curve">Test03: TB-500<small>fast compound: one spike per dose. Tap the compound to overlay BPC-157 or testosterone</small></button>
+        <h3 style="margin-top: 10px">Journey: AI food log <span class="stat ok">approved</span></h3>
         <button data-chat="open">Open the AI food log<small>Type "3 eggs, 2 toasts and a coffee": it logs, then asks how the coffee was made. Tap the entry to fix it. Try "should I eat less?"</small></button>
         <button data-chat="locked">Free days over<small>the locked state: Log your day in a sentence → Unlock Premium</small></button>
         <h3 style="margin-top: 10px">Journey: Progress screen <span class="stat ok">approved</span></h3>
@@ -512,14 +524,14 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Journey part 3: AI food log)</h3>
+        <h3>Open questions (Journey part 4: curve)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Same chat as main, new look:</b> the app's messages on white, yours in ink; each logged meal as a card (every item with its calories and a Meal / Snack / Drink / Supplement tag, "estimate · tap to fix" when the AI guessed, the total with carbs and protein). OK?</li>
-          <li><b>Follow-up questions</b> keep main's answer chips, "Or type it", Skip and "That's all for today". OK?</li>
-          <li><b>"Fix this entry"</b> opens as a sheet: the day (Today / Yesterday / Earlier day), each item's name, kcal, carbs and protein, Save, and Remove entry at the bottom in red. OK?</li>
-          <li><b>"See how it works"</b> stays under the first message; it will open this feature's explainer animation (parked set). OK?</li>
-          <li><b>Rule: nothing you type is ever dropped.</b> Every food in a message becomes its own line, in your words and quantity; anything the AI can't place stays as a line marked "estimate · tap to fix" (main's wording). You found the orange juice vanishing in this prototype; the same rule should be an acceptance test for the real app. OK?</li>
-          <li><b>Diet questions</b> get main's "I don't give diet advice" card (try "should I eat less?"). Unchanged, as the AI hard line requires. OK?</li>
+          <li><b>Hero first:</b> the compound picker, then the Est. level now in big type (the same number as the Journey tile), then the chart. Main starts with the range line and a tinted disclaimer box. OK?</li>
+          <li><b>Chart:</b> the estimate solid, the projection dashed on a shaded "after now" area, a tick under the axis for every scheduled dose, a legend. OK?</li>
+          <li><b>The data rating stays next to each compound</b> ("Clinical data", "Estimated — no human data") with its note and a Source fold, in one card below the chart. OK?</li>
+          <li><b>The disclaimer stays in full, under everything</b>, as plain text instead of an orange box, and says <i>planned schedule</i> instead of <i>logged doses</i> (the A-07 wording you approved for the tile; it is what the model actually counts). OK?</li>
+          <li><b>Screen name:</b> keep "Accumulation Curve" (main), or call it "Dose accumulation" like the tile that opens it (existing string)? Recommendation: "Dose accumulation", one name for one feature.</li>
+          <li><b>Estimate on a date:</b> the next three scheduled dose days plus your bloodwork dates as chips. OK?</li>
         </ol>
       </div>
       <div id="cov" class="coverage"></div>
@@ -864,7 +876,7 @@ textarea.winp { resize: none; }
     return h;
   }
   function doseLog() {
-    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + (st.tab === 0 ? 'Today' : 'My Protocols') + '</span><span class="pill r-foot"' + A('say', 'Curve opens the estimate curve (Premium). Redesigned later.') + '>Curve</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Dose log</h3></div>';
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + (st.tab === 0 ? 'Today' : 'My Protocols') + '</span><span class="pill r-foot"' + A('go', 'curve') + '>Curve</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Dose log</h3></div>';
     h += '<div class="expl r-sec c2">You started your protocols with a goal. Keeping them on time — without missing doses — is how you get there. This shows how well you are keeping up.</div>';
     var tk = 9 + Object.keys(st.taken).length - 4;
     h += '<div class="trio" style="padding: 0 4px"><div><span class="r-display d34">' + tk + '</span><span class="r-cap c2">Taken</span></div><div><span class="r-display d34">' + Object.keys(st.skipped).length + '</span><span class="r-cap c2">Skipped</span></div><div><span class="r-display d34">0</span><span class="r-cap c2">Missed</span></div></div>';
@@ -889,6 +901,7 @@ textarea.winp { resize: none; }
     if (o.t === 'sheet') return sheetHTML(o);
     if (o.t === 'action') return '<div class="scrim bot"' + A('scrim') + '><div class="actwrap"><div class="actgrp">' + (o.title ? '<span class="r-foot c2 acttitle">' + o.title + '</span>' : '') + o.opts.map(function (x) { return '<span class="actopt"' + A(x[1], x[2]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="actopt actcancel"' + A('close') + '>Cancel</span></div></div>';
     if (o.t === 'wheel') return wheelHTML(o);
+    if (o.t === 'cpick') return curvePicker();
     if (o.t === 'chat') return chatScreen();
     if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
     if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: reality_check).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
@@ -1220,7 +1233,7 @@ textarea.winp { resize: none; }
     p += '</div>';
     var q = '<div class="tile jt" data-i="J3"' + (d.free ? A('say', 'Free plan: opens the Paywall (main does the same).') : A('go', 'curve')) + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + (d.free ? '<span class="otag">PRO</span>' : CHEV) + '</div><span class="r-head">Dose accumulation</span>';
     if (d.dose && d.free) q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
-    else if (d.dose) q += '<div class="row" style="gap: 7px; align-items: flex-start"><span class="dot" style="background: var(' + d.dose[0] + '); margin-top: 6px"></span><span class="r-sec">' + d.dose[1] + '</span></div><div class="num end"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + d.dose[2] + '<span class="unit">mg</span></span><span class="chip r-cap">Estimated</span></div>';
+    else if (d.dose) q += '<div class="row" style="gap: 7px; align-items: flex-start"><span class="dot" style="background: var(' + P[tileCid()].color + '); margin-top: 6px"></span><span class="r-sec">' + P[tileCid()].name + '</span></div><div class="num end"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + fmtMg(levelAt(tileCid(), 0)) + '<span class="unit">mg</span></span><span class="chip r-cap">Estimated</span></div>';
     else q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
     q += '</div>';
     h += '<div class="duo' + (stack ? ' stack' : '') + '">' + p + q + '</div>';
@@ -1455,6 +1468,84 @@ textarea.winp { resize: none; }
     }, 900);
   }
 
+
+  /* ================= Journey part 4: Dose accumulation curve (under review) ================= */
+  // Main's model (lib/halfLives.js): half-life, tier, source, Tmax; amountFraction = e^(−kd·t), or the Bateman
+  // shape when a Tmax is published. Doses follow each protocol's planned schedule (as main does, see A-07).
+  var HL = {
+    test: { hours: 192, tier: 'clinical', source: 'Depo-Testosterone IM ~8d; Tmax median 71.7h, range 24–191h (Azmiro FDA label §12.3)', tmaxHours: 71.7, peak: '3 days', range: '1–8 days' },
+    tb: { hours: 2, tier: 'estimated', source: 'No PK for the Ac-LKKTETQ fragment; value borrowed from full-length Tβ4 IV data (PMID 34346165)' },
+    bpc: { hours: 0.5, tier: 'estimated', source: 'Rat/dog IM t½ 8–30 min (He 2022, PMID 36588717); no human PK' }
+  };
+  var TIER = { clinical: 'Clinical data', studied: 'Human studies', estimated: 'Estimated — no human data' };
+  function riseRate(hours, tmax) { var kd = Math.LN2 / hours, lo = kd * 1.000001, hi = 100; for (var i = 0; i < 200; i++) { var mid = (lo + hi) / 2, tm = Math.log(mid / kd) / (mid - kd); if (tm > tmax) lo = mid; else hi = mid; } return (lo + hi) / 2; }
+  function amountFraction(e, dt) { if (!(dt >= 0)) return 0; var kd = Math.LN2 / e.hours; if (!e.tmaxHours) return Math.exp(-kd * dt); var kr = e.kr || (e.kr = riseRate(e.hours, e.tmaxHours)); return (kr / (kr - kd)) * (Math.exp(-kd * dt) - Math.exp(-kr * dt)); }
+  // Hours relative to "now" (Mon Sep 28, 8:10 PM).
+  function doseTimes(id, fromH, toH) {
+    var out = [];
+    if (id === 'test') { for (var d = -60; d <= 120; d += 7) { var h = (d + 2) * 24 + (9 - 20.17); if (h >= fromH && h <= toH) out.push(h); } }
+    else { var hh = id === 'tb' ? 19.67 : 19.33; for (var d2 = -1; d2 <= 120; d2++) { var h2 = d2 * 24 + (hh - 20.17); if (h2 >= fromH && h2 <= toH) out.push(h2); } }
+    return out;
+  }
+  function levelAt(id, t) { var e = HL[id], v = 0; doseTimes(id, t - e.hours * 12, t).forEach(function (td) { v += P[id].dose * amountFraction(e, t - td); }); return v; }
+  function curveIds() { return ['test', 'tb', 'bpc'].filter(function (id) { return active().indexOf(id) >= 0; }); }
+  function curveDefault() { var j = st.jstate || 'test03'; return j === 'test03' ? 'tb' : 'test'; }
+  function tileCid() { return (st.csel || [curveDefault()])[0]; }
+  function fmtMg(v) { return v >= 10 ? fk(v) : v.toFixed(1); }
+  function curveScreen() {
+    var sel = st.csel || [curveDefault()], ahead = st.cahead || 7, past = 14, single = sel.length === 1 ? sel[0] : null;
+    var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large" style="font-size: calc(30px * var(--ts))">Accumulation Curve</h3></div>';
+    h += '<div class="pickrow"' + A('cpick') + '>' + sel.map(function (id) { return '<span class="dot" style="background: var(' + P[id].color + ')"></span>'; }).join('') + '<span class="r-head grow">' + (single ? P[single].name : sel.length + ' compounds') + '</span>' + DOWN + '</div>';
+    // hero: the number the Journey tile shows
+    h += '<div class="card pc">' + (single ? '<div class="row" style="justify-content: space-between; align-items: flex-start"><div class="col" style="gap: 4px"><span class="r-foot c2">Est. level · now</span><span class="r-display d56 cd">' + fmtMg(levelAt(single, 0)) + '<span class="unit">mg</span></span></div><span class="chip r-cap">Estimated</span></div>' : sel.map(function (id) { return '<div class="row"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-body grow">' + P[id].name + '</span><span class="r-value">' + fmtMg(levelAt(id, 0)) + ' mg</span></div>'; }).join('') + '<span class="chip r-cap" style="align-self: flex-start">Estimated</span>');
+    // chart
+    var W2 = 326, H2 = 200, L = 30, R = W2 - 6, T = 12, B = H2 - 24, t0 = -past * 24, t1 = ahead * 24;
+    var X = function (t) { return L + (t - t0) / (t1 - t0) * (R - L); }, maxV = 0, series = [];
+    sel.forEach(function (id) {
+      var pts = [], n = 700, ds = doseTimes(id, t0 - HL[id].hours * 10, t1), ts = [];
+      for (var k = 0; k <= n; k++) ts.push(t0 + (t1 - t0) * k / n);
+      ds.forEach(function (td) { if (td >= t0 && td <= t1) { ts.push(td - 1e-3); ts.push(td + 1e-3); ts.push(td + 0.3); ts.push(td + 1); } });
+      ts.sort(function (a, b) { return a - b; });
+      ts.forEach(function (t) { var v = levelAt(id, t); pts.push([t, v]); if (v > maxV) maxV = v; });
+      series.push({ id: id, pts: pts, ds: ds.filter(function (td) { return td >= t0 && td <= t1; }) });
+    });
+    var top = maxV > 0 ? maxV * 1.12 : 1, Y = function (v) { return B - v / top * (B - T); };
+    var svg = '<svg class="full" viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="Estimated amount over time">';
+    svg += '<rect x="' + X(0) + '" y="' + T + '" width="' + (R - X(0)) + '" height="' + (B - T) + '" fill="var(--well)"/>';
+    [0, 0.5, 1].forEach(function (f2) { var v = top / 1.12 * f2; svg += '<line x1="' + L + '" x2="' + R + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="var(--line)" stroke-dasharray="2 3"/><text x="' + (L - 4) + '" y="' + (Y(v) + 3).toFixed(1) + '" text-anchor="end" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">' + fmtMg(v) + '</text>'; });
+    svg += '<text x="2" y="' + (T + 2) + '" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">mg</text>';
+    series.forEach(function (sr) {
+      var col = single ? 'var(--data)' : 'var(' + P[sr.id].color + ')';
+      var past2 = sr.pts.filter(function (p2) { return p2[0] <= 0; }), fut = sr.pts.filter(function (p2) { return p2[0] >= 0; });
+      var pl = function (a2) { return a2.map(function (p2) { return X(p2[0]).toFixed(1) + ',' + Y(p2[1]).toFixed(1); }).join(' '); };
+      svg += '<polyline fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" points="' + pl(past2) + '"/>';
+      svg += '<polyline fill="none" stroke="' + col + '" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round" points="' + pl(fut) + '"/>';
+      sr.ds.forEach(function (td) { svg += '<line x1="' + X(td).toFixed(1) + '" x2="' + X(td).toFixed(1) + '" y1="' + (B + 2) + '" y2="' + (B + 7) + '" stroke="' + col + '" stroke-width="1.4"/>'; });
+    });
+    if (st.cdate != null) { var xd = X(st.cdate * 24); svg += '<line x1="' + xd + '" x2="' + xd + '" y1="' + T + '" y2="' + B + '" stroke="var(--ink2)" stroke-dasharray="2 3" stroke-width="1.2"/>'; sel.forEach(function (id) { svg += '<circle cx="' + xd + '" cy="' + Y(levelAt(id, st.cdate * 24)).toFixed(1) + '" r="3.5" fill="' + (single ? 'var(--data)' : 'var(' + P[id].color + ')') + '"/>'; }); }
+    svg += '<line x1="' + X(0) + '" x2="' + X(0) + '" y1="' + T + '" y2="' + B + '" stroke="var(--ink)" stroke-width="1.4"/><text x="' + X(0) + '" y="' + (H2 - 6) + '" text-anchor="middle" font-family="-apple-system, Roboto, sans-serif" font-size="10" font-weight="700" fill="var(--ink)">NOW</text>';
+    svg += '<text x="' + L + '" y="' + (H2 - 6) + '" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">−' + past + 'd</text><text x="' + R + '" y="' + (H2 - 6) + '" text-anchor="end" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">+' + ahead + 'd</text></svg>';
+    h += '<span class="r-foot c2 tnum">Last ' + past + 'd · +' + ahead + 'd projection · peak ≈ ' + fmtMg(maxV) + ' mg</span>' + svg;
+    h += '<div class="row r-cap c2" style="gap: 14px; flex-wrap: wrap"><span class="row" style="gap: 6px"><i class="lg solid"></i>estimate</span><span class="row" style="gap: 6px"><i class="lg dash"></i>projection</span><span class="row" style="gap: 6px"><i class="lg tick"></i>scheduled doses</span></div>';
+    h += '<div class="fld"><span class="r-foot c2">Project ahead</span><span class="segw">' + [7, 14, 30, 60, 90].map(function (d) { return '<span class="' + (ahead === d ? 'on' : '') + '"' + A('cahead', d) + '>+' + d + 'd</span>'; }).join('') + '</span></div></div>';
+    // stats for one compound
+    if (single) { var e2 = HL[single], cnt = doseTimes(single, t0, 0).length; h += '<div class="trio curvestats"><div><span class="r-cap c2">Est. level</span><span class="r-value">' + fmtMg(levelAt(single, 0)) + ' mg</span></div><div><span class="r-cap c2">Half-life</span><span class="r-value">' + (e2.hours >= 48 ? Math.round(e2.hours / 24) + ' d' : e2.hours + ' h') + '</span></div><div><span class="r-cap c2">Doses counted</span><span class="r-value">' + cnt + '</span></div></div>'; }
+    // estimate on a date
+    var dates = [[3, 'Thu, Oct 1'], [10, 'Thu, Oct 8'], [17, 'Thu, Oct 15'], [-39, 'Aug 20 · bloodwork']];
+    var od = '<span class="r-head">Estimate on a date</span><div class="chips2">' + dates.slice(0, 3).map(function (d) { return '<span class="pill r-foot' + (st.cdate === d[0] ? ' on' : '') + '"' + A('cdate', d[0]) + '>' + d[1] + '</span>'; }).join('') + '</div><span class="r-foot c2">Jump to a blood-draw date:</span><div class="chips2"><span class="pill r-foot' + (st.cdate === -39 ? ' on' : '') + '"' + A('cdate', -39) + '>Aug 20 · bloodwork</span></div>';
+    if (st.cdate != null) { var dl = dates.filter(function (d) { return d[0] === st.cdate; })[0][1].replace(' · bloodwork', ''); od += '<div class="sep"></div>' + sel.map(function (id) { return '<div class="row"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-body grow">' + P[id].name + ' · ' + dl + '</span><span class="r-value">' + (Math.abs(st.cdate * 24) > HL[id].hours * 12 && st.cdate < 0 ? '—' : fmtMg(levelAt(id, st.cdate * 24))) + ' mg</span></div>'; }).join(''); }
+    h += progCard('', od);
+    // honesty: tier, source, notes, disclaimer
+    var notes = sel.map(function (id) { var e3 = HL[id]; return '<div class="col" style="gap: 6px"><div class="row" style="gap: 8px; flex-wrap: wrap"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-head">' + P[id].name + '</span><span class="otag' + (e3.tier === 'estimated' ? ' attn' : '') + '">' + TIER[e3.tier] + '</span></div>' + (e3.tmaxHours ? '<span class="r-foot c2">' + P[id].name + ': each dose is modeled rising to a peak around ' + e3.peak + ' after injection (published range ' + e3.range + '; varies by person).</span>' : '<span class="r-foot c2">In this model, ' + P[id].name + ' clears within hours, so each spike is one scheduled dose and the estimate does not build up between doses.</span>') + (st.fold['src' + id] ? '<span class="r-foot c3">' + e3.source + '</span>' : '') + '<span class="btnlink r-foot" style="min-height: 28px"' + A('fold', 'src' + id) + '>Source ' + (st.fold['src' + id] ? '▴' : '▾') + '</span></div>'; }).join('<div class="sep"></div>');
+    h += progCard('', notes);
+    h += '<span class="r-foot c2" style="padding: 0 4px">Estimated model based on published elimination half-lives and ' + nc('your planned schedule') + '. Individual pharmacokinetics vary significantly. This is an educational visualization — not a measurement of actual blood levels. Confirm with real bloodwork. This is not medical advice, and DoseTrace is not a medical device.</span>';
+    return h;
+  }
+  function curvePicker() {
+    var sel = st.csel || [curveDefault()];
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Choose compounds</span><span class="txtbtn"' + A('close') + '>Done</span></div><span class="r-sec c2">Select one or more to overlay their curves.</span><div class="actlist">' + curveIds().map(function (id) { var on = sel.indexOf(id) >= 0; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('ctog', id) + '><span class="dot" style="background: var(' + P[id].color + ')"></span><div class="grow col" style="gap: 2px"><span class="r-head">' + P[id].name + '</span><span class="r-sec c2">' + TIER[HL[id].tier] + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div><span class="r-foot c2">Not charted: Magnesium Bisglycinate, Vitmin C, Zinc (oral; the curve covers injectable compounds with half-life data).</span></div></div>';
+  }
+
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
   function render() {
@@ -1466,7 +1557,7 @@ textarea.winp { resize: none; }
     else if (c.s === 'log') body = doseLog();
     else if (c.s === 'journey') body = journeyDash();
     else if (c.s === 'progress') body = progressScreen();
-    else if (c.s === 'curve') body = nextPart('Dose accumulation', 'Journey part 4: the accumulation curve, opening on the compound you last viewed. Drawn later.');
+    else if (c.s === 'curve') body = curveScreen();
     else if (c.s === 'body') body = notYet('My Body');
     else body = notYet('Settings');
     var times = ['8:10', '8:11', '8:12'];
@@ -1530,6 +1621,10 @@ textarea.winp { resize: none; }
     else if (a === 'newvial') st.overlay = { t: 'confirm', title: P[v].type === 'oral' ? 'New bottle' : 'New vial', body: 'Start counting from a full ' + (P[v].type === 'oral' ? 'bottle' : 'vial') + '? The doses already logged stay in your history.', ok: 'newok', okText: 'Start new', id: v, note: 'Suggestion (question 4): main resets with no confirmation. New copy.' };
     else if (a === 'newok') { st.used[v] = 0; if (P[v].type === 'oral') P[v].left = P[v].container; st.overlay = null; toast(P[v].type === 'oral' ? 'New bottle started' : 'New vial started'); }
     else if (a === 'say') toast(v);
+    else if (a === 'cpick') st.overlay = { t: 'cpick' };
+    else if (a === 'ctog') { var cs = (st.csel || [curveDefault()]).slice(), ix = cs.indexOf(v); if (ix >= 0) { if (cs.length > 1) cs.splice(ix, 1); } else cs.push(v); st.csel = cs; st.clast = cs[0]; }
+    else if (a === 'cahead') st.cahead = +v;
+    else if (a === 'cdate') st.cdate = st.cdate === +v ? null : +v;
     else if (a === 'chat') { st.overlay = { t: 'chat' }; setTimeout(chatScroll, 0); }
     else if (a === 'chatdone') { st.overlay = null; st.foodEdit = null; }
     else if (a === 'chatsend') { chatSend(); return; }
@@ -1586,7 +1681,7 @@ textarea.winp { resize: none; }
   });
   document.getElementById('badges').addEventListener('change', render);
   document.querySelectorAll('[data-jstate]').forEach(function (b) {
-    b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.extraW = []; st.fold = {}; if (b.getAttribute('data-jgo')) st.stacks[2].push({ s: b.getAttribute('data-jgo') }); render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.extraW = []; st.fold = {}; st.csel = null; st.cdate = null; st.cahead = 7; if (b.getAttribute('data-jgo')) st.stacks[2].push({ s: b.getAttribute('data-jgo') }); render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   });
   document.querySelectorAll('[data-chat]').forEach(function (b) {
     b.addEventListener('click', function () { st.wiz = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.chatLocked = b.getAttribute('data-chat') === 'locked'; st.overlay = { t: 'chat' }; render(); setTimeout(function () { chatScroll(); var i2 = document.getElementById('chatin'); if (i2) i2.focus(); }, 0); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
