@@ -137,6 +137,7 @@ ol.qs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; ga
 .switch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 27px; height: 27px; border-radius: 14px; background: var(--raised); }
 .frow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; background: var(--raised); border-radius: 16px; }
 .hero2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 2px 0; }
+.hero2.stack { grid-template-columns: 1fr; gap: 18px; }
 .hist { display: grid; grid-template-columns: 1fr 1fr 0.9fr 0.8fr; }
 .hist > span { padding: 9px 0; border-top: 1px solid var(--line); }
 .hist > span.h { border-top: 0; padding-top: 0; }
@@ -423,6 +424,15 @@ textarea.winp { resize: none; }
 .erow { display: flex; align-items: center; gap: 8px; }
 .etot { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 2px; }
 .chips2 { display: flex; flex-wrap: wrap; gap: 6px; }
+.unote { align-self: flex-end; max-width: 84%; text-align: right; margin-top: -4px; color: var(--ink2); }
+.unote.warn { color: var(--attention); }
+.bub.user.tap { cursor: pointer; }
+.logday { align-self: flex-start; margin: 8px 14px 0; }
+.stepper > span.off { opacity: .35; pointer-events: none; }
+.datebtn { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-radius: 14px; background: var(--well); color: var(--ink); }
+.tnote { color: var(--attention); }
+.caret { animation: caretb 1s steps(1) infinite; color: var(--ink3); }
+@keyframes caretb { 50% { opacity: 0 } }
 .deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
 .typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
@@ -469,7 +479,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey's dashboard, Progress and AI food log are approved.</b> <b>Under review now: Journey part 4, the Dose accumulation curve</b> (tap the Dose accumulation tile, the Dose log's Curve, or the buttons). The curves are real: main's half-lives, data tiers and absorption model, from each protocol's planned schedule. The Journey tile shows the same number as this screen.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey parts 1–4 are approved</b> (dashboard, Progress, AI food log, Accumulation Curve). <b>Under review now: Journey part 5, every Journey popup</b>: target, past weigh-in, reality-check start / start over / stop, the sex prompt, the curve's date wheel, and the AI food log's notes and alerts. Use the buttons, or tap through Progress yourself: every link that used to say "part 5" now opens its popup.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -481,7 +491,19 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Journey: Dose accumulation curve <span class="stat rev">under review</span></h3>
+        <h3>Journey popups (part 5) <span class="stat rev">under review</span></h3>
+        <button data-jpop="tgtedit">Edit your target<small>type 70 to see the healthy-range note; set a date; Save updates the ETA. Remove target → confirm</small></button>
+        <button data-jpop="tgtnew">Set a target (new user)</button>
+        <button data-jpop="past">Add a past weigh-in<small>pick a date and weight: it joins the weigh-ins, the trend and the pace</small></button>
+        <button data-jpop="rcstart">Start a reality check<small>step back up to 7 days; a weigh-in saved on that day fills the weight</small></button>
+        <button data-jpop="rcreset">Start over (suggested confirm)</button>
+        <button data-jpop="rcstop">Stop reality check</button>
+        <button data-jpop="rcnext">After a check: "Weigh in again in 21 days"<small>starts the next check at once, as main</small></button>
+        <button data-jpop="sex">Body fat "I don't know", sex not in profile<small>age and sex replace body fat (as main); Set sex at birth → the popup</small></button>
+        <button data-jpop="cdate">Curve: Other date<small>a date wheel, then the estimate for that day</small></button>
+        <span class="r-foot" style="display: block; margin: 8px 0 4px; color: var(--ink2)">AI food log notes and alerts, in main's words:</span>
+        <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-chat="offline">Offline</button><button data-chat="retry">AI unreachable</button><button data-chat="unread">Unreadable</button><button data-chat="quota">Daily limit</button><button data-chat="old">Too old</button><button data-chat="hints">Hints</button><button data-chat="eveY">Evening: yesterday</button><button data-chat="eveT">Evening: today</button><button data-chat="savefail">Save failed</button><button data-chat="demo">See how it works</button></div>
+        <h3 style="margin-top: 10px">Journey: Accumulation Curve <span class="stat ok">approved</span></h3>
         <button data-jstate="run" data-jgo="curve">Testosterone Cypionate (invented, weekly)<small>real model: 8-day half-life, peak ~3 days after each shot; Project ahead, Estimate on a date, Source</small></button>
         <button data-jstate="test03" data-jgo="curve">Test03: TB-500<small>fast compound: one spike per dose. Tap the compound to overlay BPC-157 or testosterone</small></button>
         <h3 style="margin-top: 10px">Journey: AI food log <span class="stat ok">approved</span></h3>
@@ -524,15 +546,16 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Journey part 4: curve)</h3>
+        <h3>Open questions (Journey part 5: popups)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Hero first:</b> the compound picker, then the Est. level now in big type (the same number as the Journey tile), then the chart. Main starts with the range line and a tinted disclaimer box. OK?</li>
-          <li><b>Chart:</b> the estimate solid, the projection dashed on a shaded "after now" area, a tick under the axis for every scheduled dose, a legend. OK?</li>
-          <li><b>The data rating stays next to each compound</b> ("Clinical data", "Estimated — no human data") with its note and a Source fold, in one card below the chart. OK?</li>
-          <li><b>The disclaimer stays in full, under everything</b>, as plain text instead of an orange box, and says <i>planned schedule</i> instead of <i>logged doses</i> (the A-07 wording you approved for the tile; it is what the model actually counts). OK?</li>
-          <li><b>Screen name:</b> keep "Accumulation Curve" (main), or call it "Dose accumulation" like the tile that opens it (existing string)? Recommendation: "Dose accumulation", one name for one feature.</li>
-          <li><b>Estimate on a date:</b> the next three scheduled dose days plus your bloodwork dates as chips. OK?</li>
+          <li><b>Start over gets a confirm</b> (new copy). On main one tap wipes the check's start weight with no warning. Recommendation: yes.</li>
+          <li><b>Target, past weigh-in and the reality-check start open as sheets from the bottom</b>, instead of forms unfolding inside the card. Same fields, same words. OK?</li>
+          <li><b>The start sheet's weight field says "Weight (kg)"</b> instead of main's "Weight today", because the start can be up to 7 days back. OK?</li>
+          <li><b>"Other date" on the curve</b> opens a date wheel (main has a date button with the system picker). New label. OK?</li>
+          <li><b>Food-log notes stay as chat bubbles, word for word.</b> A note under your own message is tappable when it needs an action (offline, unreadable): Remove entry, with a confirm. OK?</li>
+          <li><b>"See how it works" keeps main's typing demo</b> until the feature animations you parked replace it. OK?</li>
         </ol>
+        <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
       </div>
       <div id="cov" class="coverage"></div>
     </div>
@@ -754,7 +777,7 @@ textarea.winp { resize: none; }
   function reset() {
     st = { tab: 0, stacks: [[{ s: 'today' }], [{ s: 'dash' }], [{ s: 'journey' }], [{ s: 'body' }], [{ s: 'settings' }]],
       theme: 'light', ts: 1, sort: 'due', taken: Object.assign({}, TAKEN0), skipped: {}, fold: {}, snooze: -1,
-      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, jstate: 'test03', note: {}, noteEdit: null, used: { test: 7 }, scroll: {} };
+      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, jstate: 'test03', note: {}, noteEdit: null, used: { test: 7 }, scroll: {}, form: {} };
   }
   reset();
   function cur() { var s = st.stacks[st.tab]; return s[s.length - 1]; }
@@ -902,6 +925,9 @@ textarea.winp { resize: none; }
     if (o.t === 'action') return '<div class="scrim bot"' + A('scrim') + '><div class="actwrap"><div class="actgrp">' + (o.title ? '<span class="r-foot c2 acttitle">' + o.title + '</span>' : '') + o.opts.map(function (x) { return '<span class="actopt"' + A(x[1], x[2]) + '>' + x[0] + '</span>'; }).join('') + '</div><span class="actopt actcancel"' + A('close') + '>Cancel</span></div></div>';
     if (o.t === 'wheel') return wheelHTML(o);
     if (o.t === 'cpick') return curvePicker();
+    if (o.t === 'tgt') return tgtSheet();
+    if (o.t === 'past') return pastSheet();
+    if (o.t === 'rcstart') return rcStartSheet();
     if (o.t === 'chat') return chatScreen();
     if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
     if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: reality_check).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
@@ -1138,6 +1164,7 @@ textarea.winp { resize: none; }
     return h + '</div>';
   }
   function wheelCols(o) {
+    if (o.kind === 'jdate') { var jd = st.jd, dd = []; for (var i2 = 1; i2 <= 31; i2++) dd.push(i2); return [[MN, jd.m], [dd, jd.d - 1], [[2025, 2026, 2027], jd.y - 2025]]; }
     var w = st.wiz;
     if (o.kind === 'date') { var days = []; for (var i = 1; i <= 31; i++) days.push(i); return [[MN, w.start.m], [days, w.start.d - 1], [[2025, 2026, 2027], w.start.y - 2025]]; }
     var t = w.times[o.idx].match(/(\d+):(\d+) (AM|PM)/), hrs = [], mins = [];
@@ -1147,7 +1174,8 @@ textarea.winp { resize: none; }
   }
   function wheelHTML(o) {
     var cols = wheelCols(o);
-    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="' + (o.kind === 'date' ? 'D3' : 'D4') + '"><div class="row" style="justify-content: space-between"><span class="r-head">' + (o.kind === 'date' ? 'When did you start (or will start)?' : 'What time?') + '</span><span class="txtbtn"' + A('close') + '>Done</span></div><div class="wheel">' + cols.map(function (c, ci) { return wcol(ci, c[0], c[1]); }).join('') + '<i class="band"></i></div></div></div>';
+    var jd = o.kind === 'jdate';
+    return '<div class="scrim bot"' + A(jd ? 'jdone' : 'scrim') + '><div class="sheet bsheet" data-i="' + (jd ? o.pi : o.kind === 'date' ? 'D3' : 'D4') + '"><div class="row" style="justify-content: space-between"><span class="r-head">' + (jd ? o.title : o.kind === 'date' ? 'When did you start (or will start)?' : 'What time?') + '</span><span class="txtbtn"' + A(jd ? 'jdone' : 'close') + '>Done</span></div><div class="wheel">' + cols.map(function (c, ci) { return wcol(ci, c[0], c[1]); }).join('') + '<i class="band"></i></div></div></div>';
   }
   var ERR = {
     camoff: ['Error', 'Camera access is off. Turn it on in Settings to snap a report.', 'D2e'],
@@ -1261,16 +1289,18 @@ textarea.winp { resize: none; }
   function lu() { return imp() ? 'in' : 'cm'; }
   function pstate() { var j = st.jstate || 'test03'; return j === 'test03' ? 'first' : j === 'fresh' ? 'fresh' : j === 'done' ? 'done' : 'run'; }
   function trendChart(pts, labels) {
-    var wd = 320, ht = 150, span = pts[pts.length - 1][0], X = function (d) { return 26 + d / span * (wd - 52); };
-    var Yw = function (v) { return 14 + (88.4 - v) / (88.4 - 84.0) * 100; }, Yc = function (v) { return 14 + (95.4 - v) / (95.4 - 90.6) * 100; };
+    var d0 = Math.min(0, pts[0][0]), wd = 320, ht = 150, span = pts[pts.length - 1][0] - d0, X = function (d) { return 26 + (d - d0) / span * (wd - 52); };
+    var ws = pts.map(function (p) { return p[1]; }), hiW = Math.max(88.4, Math.max.apply(null, ws) + 0.4), loW = Math.min(84.0, Math.min.apply(null, ws) - 0.4);
+    var wpts = pts.filter(function (p) { return p[2] != null; });
+    var Yw = function (v) { return 14 + (hiW - v) / (hiW - loW) * 100; }, Yc = function (v) { return 14 + (95.4 - v) / (95.4 - 90.6) * 100; };
     var s2 = '<svg class="full" viewBox="0 0 ' + wd + ' ' + ht + '" role="img" aria-label="Weight and waist over your weigh-ins">';
     [14, 64, 114].forEach(function (y) { s2 += '<line x1="26" x2="' + (wd - 26) + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-dasharray="2 3"/>'; });
-    s2 += '<polyline fill="none" stroke="var(--ink2)" stroke-width="1.3" points="' + pts.map(function (p) { return X(p[0]) + ',' + Yc(p[2]).toFixed(1); }).join(' ') + '"/>';
-    pts.forEach(function (p) { s2 += '<rect x="' + (X(p[0]) - 3) + '" y="' + (Yc(p[2]) - 3).toFixed(1) + '" width="6" height="6" fill="var(--raised)" stroke="var(--ink2)" stroke-width="1.3"/>'; });
+    s2 += '<polyline fill="none" stroke="var(--ink2)" stroke-width="1.3" points="' + wpts.map(function (p) { return X(p[0]) + ',' + Yc(p[2]).toFixed(1); }).join(' ') + '"/>';
+    wpts.forEach(function (p) { s2 += '<rect x="' + (X(p[0]) - 3) + '" y="' + (Yc(p[2]) - 3).toFixed(1) + '" width="6" height="6" fill="var(--raised)" stroke="var(--ink2)" stroke-width="1.3"/>'; });
     s2 += '<polyline fill="none" stroke="var(--data)" stroke-width="2" points="' + pts.map(function (p) { return X(p[0]) + ',' + Yw(p[1]).toFixed(1); }).join(' ') + '"/>';
     pts.forEach(function (p) { s2 += '<circle cx="' + X(p[0]) + '" cy="' + Yw(p[1]).toFixed(1) + '" r="4" fill="var(--data)"/>'; });
     labels.forEach(function (l) { s2 += '<text x="' + X(l[1]) + '" y="' + (ht - 6) + '" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" fill="var(--ink3)">' + l[0] + '</text>'; });
-    s2 += '<text x="22" y="18" text-anchor="end" font-family="Geist Mono, monospace" font-size="11" fill="var(--data)">' + kg(88).replace('.0', '') + '</text><text x="22" y="118" text-anchor="end" font-family="Geist Mono, monospace" font-size="11" fill="var(--data)">' + kg(84).replace('.0', '') + '</text>';
+    s2 += '<text x="22" y="18" text-anchor="end" font-family="Geist Mono, monospace" font-size="11" fill="var(--data)">' + kg(Math.round(hiW - 0.4)).replace('.0', '') + '</text><text x="22" y="118" text-anchor="end" font-family="Geist Mono, monospace" font-size="11" fill="var(--data)">' + kg(Math.round(loW)).replace('.0', '') + '</text>';
     s2 += '<text x="' + (wd - 22) + '" y="18" font-family="Geist Mono, monospace" font-size="11" fill="var(--ink2)">' + Math.round(cm(95)) + '</text><text x="' + (wd - 22) + '" y="118" font-family="Geist Mono, monospace" font-size="11" fill="var(--ink2)">' + Math.round(cm(91)) + '</text>';
     return s2 + '</svg><div class="row r-cap c2" style="gap: 16px"><span class="row" style="gap: 6px"><span class="dot" style="background: var(--data)"></span>Weight (' + wu() + ')</span><span class="row" style="gap: 6px"><span style="width: 8px; height: 8px; border: 1.3px solid var(--ink2); display: inline-block"></span>Waist (' + lu() + ')</span></div>';
   }
@@ -1289,26 +1319,91 @@ textarea.winp { resize: none; }
   function fk(n) { return Math.round(n).toLocaleString('en-US'); }
   // Same arithmetic as main (lib/energyCalc.js): Katch-McArdle BMR, activity multiplier, goal %, protein 2.2 g/kg lean mass, fat 25% (floor 0.6 g/kg), carbs = the rest.
   function jnums() {
-    var ps = pstate(), done = ps === 'done', W = (done ? W_DONE : W_RUN).concat(st.extraW || []), cur = W[W.length - 1];
-    var w = st.pw != null ? num(st.pw) : cur[1], bf = cur[3], lbm = w * (1 - bf / 100), bmr = 370 + 21.6 * lbm;
+    var ps = pstate(), done = ps === 'done', W0 = (done ? W_DONE : W_RUN).concat(st.extraW || []).sort(function (a, b) { return a[0] - b[0]; }), W = [];
+    // a weigh-in on a day that already has one merges into it: nothing already saved is lost
+    W0.forEach(function (p) { var q = W.length && W[W.length - 1][0] === p[0] ? W[W.length - 1] : null; if (q) { q[1] = p[1]; if (p[2] != null) q[2] = p[2]; if (p[3] != null) q[3] = p[3]; } else W.push(p.slice()); });
+    var cur = W[W.length - 1], lastOf = function (k) { for (var i = W.length - 1; i >= 0; i--) if (W[i][k] != null) return W[i][k]; return null; };
+    var w = st.pw != null ? num(st.pw) : cur[1], bf = lastOf(3), waist = lastOf(2), lbm = w * (1 - bf / 100), bmr = 370 + 21.6 * lbm;
     var act = ACTS.filter(function (a) { return a[0] === (st.act || ACTS[2][0]); })[0], tdeeF = bmr * act[1], tdee = done ? 2670 : tdeeF;
     var goals = { Lose: Math.max(tdee * 0.825, bmr), Maintain: tdee, Gain: tdee * 1.125 };
     var g = st.goal || 'Lose', pf = { Lose: 1.0, Maintain: 0.9, Gain: 0.95 }[g], prot = 2.2 * lbm * pf, fat = Math.max(goals[g] * 0.25 / 9, 0.6 * w), carbs = Math.max(0, (goals[g] - prot * 4 - fat * 9) / 4);
     var m = HEIGHT / 100;
-    return { ps: ps, done: done, W: W, cur: cur, w: w, bf: bf, lbm: lbm, bmr: bmr, tdeeF: tdeeF, tdee: tdee, goals: goals, g: g, prot: prot, protLo: 2.0 * lbm, protHi: 2.4 * lbm, fat: fat, carbs: carbs, bmi: w / (m * m), hmin: 18.5 * m * m, hmax: 24.9 * m * m, act: act };
+    return { ps: ps, done: done, W: W, cur: cur, w: w, bf: bf, lbm: lbm, bmr: bmr, tdeeF: tdeeF, tdee: tdee, goals: goals, g: g, prot: prot, protLo: 2.0 * lbm, protHi: 2.4 * lbm, fat: fat, carbs: carbs, bmi: w / (m * m), hmin: 18.5 * m * m, hmax: 24.9 * m * m, act: act, waist: waist };
   }
+  /* ================= Journey part 5: popups (under review) ================= */
+  var D0 = new Date(2026, 7, 31), CURVE0 = new Date(2026, 8, 28);
+  function jToday() { return pstate() === 'done' ? new Date(2026, 9, 13) : new Date(2026, 8, 29); }
+  function dayOf(d) { return Math.round((d - D0) / 864e5); }
+  function md(d) { return MN[d.getMonth()] + ' ' + d.getDate(); }
+  function wdl(d) { return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] + ', ' + md(d); }
+  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function hrange(J) { return Math.round(imp() ? J.hmin * 2.20462 : J.hmin) + '–' + Math.round(imp() ? J.hmax * 2.20462 : J.hmax) + ' ' + wu(); }
+  function openDate(o, d) { st.jd = { m: d.getMonth(), d: d.getDate(), y: d.getFullYear() }; o.t = 'wheel'; o.kind = 'jdate'; o.back = st.overlay; st.overlay = o; }
+  function tgtOf() { if (st.tgtRemoved) return null; if (st.tgt) return st.tgt; var ps = pstate(); return ps === 'run' || ps === 'done' ? { w: 80, bf: null, date: null } : null; }
+  function sheetHead(title, right) { return '<div class="row" style="justify-content: space-between; gap: 8px"><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span><span class="r-head" style="text-align: center">' + title + '</span>' + (right || '<span style="width: 52px"></span>') + '</div>'; }
+  function openTgt(mode) { var T0 = tgtOf(), ed = mode === 'edit' && T0; st.form = { tw: ed && T0.w ? kg(T0.w) : '', tb: ed && T0.bf ? String(T0.bf) : '', tdate: ed ? T0.date : null }; st.overlay = { t: 'tgt', edit: !!ed }; }
+  function tgtSheet() {
+    var J = jnums(), f = st.form, twk = num(f.tw), low = twk && (imp() ? twk / 2.20462 : twk) < J.hmin;
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="J5-tgt">' + sheetHead('Your target', '<span class="txtbtn"' + A('tgtsave') + '>Save</span>');
+    h += '<span class="r-sec c2">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span>';
+    h += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Target weight (' + wu() + ') · optional</span><input class="winp" data-s="tw" inputmode="decimal" placeholder="—" value="' + (f.tw || '') + '"></div><div class="fld"><span class="r-foot c2">Target body fat (%) · optional</span><input class="winp" data-s="tb" inputmode="decimal" placeholder="—" value="' + (f.tb || '') + '"></div></div>';
+    h += '<span class="r-foot tnote" id="tgtnote"' + (low ? '' : ' hidden') + '>This target is below the healthy range for your height (' + hrange(J) + ').</span>';
+    h += '<div class="fld"><span class="r-foot c2">Target date (optional)</span><div class="datebtn"' + A('tgtdate') + '><span class="r-body">' + (f.tdate ? wdl(new Date(f.tdate)) + ', ' + new Date(f.tdate).getFullYear() : 'No date — just track') + '</span>' + ic(JX.cal || '<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>', 20, 'color: var(--ink2)') + '</div>' + (f.tdate ? '<span class="btnlink r-foot" style="align-self: flex-start; min-height: 36px"' + A('tgtnodate') + '>Remove date</span>' : '') + '</div>';
+    if (st.overlay.edit) h += '<span class="dangerbtn"' + A('tgtrm') + '>Remove target</span>';
+    return h + '</div></div>';
+  }
+  function targetBlock(J, wNow) {
+    var T = tgtOf(), W = J.W;
+    if (!T) return '<div class="row"><span class="r-head grow">Your target</span><span class="btnlink r-body" data-i="J14"' + A('tgt', 'new') + '>Set a target</span></div>';
+    var x = '<div class="row"><span class="r-head grow">Your target</span><span class="btnlink r-body" data-i="J14"' + A('tgt', 'edit') + '>Edit</span></div>';
+    if (T.w) {
+      var f0 = W[0], l0 = W[W.length - 1], rate = (f0[1] - l0[1]) / ((l0[0] - f0[0]) / 7), diff = wNow - T.w, eta;
+      x += '<div class="row"><span class="r-sec c2 grow">Weight</span><span class="r-value v15">' + kg(wNow) + ' → ' + kg(T.w) + ' ' + wu() + '</span></div>';
+      if (T.w < f0[1] && diff > 0) x += targetScale(f0[1], Math.min(f0[1], Math.max(T.w, wNow)), T.w);
+      if (Math.abs(diff) < 0.3) eta = 'You\'re at your target.';
+      else if (st.jstate === 'free') eta = '<span class="btnlink"' + A('say', 'Opens the Paywall (as main).') + '>Unlock Premium to project a timeline from your measured pace.</span>';
+      else if ((diff > 0) !== (rate > 0)) eta = 'Moving away from this target at your current pace — no timeline yet.';
+      else { var wk = Math.max(1, Math.round(diff / rate)); eta = '~' + wk + ' weeks to go · around ' + md(addDays(new Date(2026, 7, 31 + l0[0]), wk * 7)) + ', if this pace holds'; }
+      x += '<span class="r-body tnum">' + eta + '</span>';
+      if (T.w < J.hmin) x += '<span class="r-foot tnote">This target is below the healthy range for your height (' + hrange(J) + ').</span>';
+    }
+    if (T.bf) x += '<div class="row"><span class="r-sec c2 grow">Body fat</span><span class="r-value v15">' + J.bf + ' → ' + T.bf + '%</span></div>';
+    if (T.date) x += '<span class="r-foot c2 tnum">' + nc('Target date: ' + md(new Date(T.date)) + ', ' + new Date(T.date).getFullYear()) + '</span>';
+    return x + '<span class="r-foot c2 tnum">Based on your weigh-ins ' + W[0][4] + '–' + W[W.length - 1][4] + ' · healthy range for your height: ' + hrange(J) + '.</span>';
+  }
+  function openPast() { st.form = { pdate: addDays(jToday(), -7).getTime(), pw2: '', pb2: '' }; st.overlay = { t: 'past' }; }
+  function pastSheet() {
+    var f = st.form, pd = new Date(f.pdate);
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="J5-past">' + sheetHead(nc('Add a past weigh-in'));
+    h += '<span class="r-sec c2">Already underway? Add a weigh-in from a past date so your pace shows sooner.</span>';
+    h += '<div class="fld"><span class="r-foot c2">Date</span><div class="datebtn"' + A('pastdate') + '><span class="r-body">' + wdl(pd) + ', ' + pd.getFullYear() + '</span>' + ic('<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>', 20, 'color: var(--ink2)') + '</div></div>';
+    h += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" data-s="pw2" inputmode="decimal" placeholder="—" value="' + (f.pw2 || '') + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" data-s="pb2" inputmode="decimal" placeholder="—" value="' + (f.pb2 || '') + '"></div></div>';
+    return h + '<span class="btn p"' + A('pastsave') + '>Save weigh-in</span></div></div>';
+  }
+  function weighOn(d) { var k = dayOf(d), hit = jnums().W.filter(function (p) { return p[0] === k; })[0]; return hit ? kg(hit[1]) : null; }
+  function openRcStart() { var t0 = weighOn(jToday()); st.form = { rback: 0, rcw: t0 || '', rauto: t0 }; st.overlay = { t: 'rcstart' }; }
+  function rcStartSheet() {
+    var f = st.form, back = f.rback || 0, sd = addDays(jToday(), -back);
+    var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="J5-rc">' + sheetHead('Reality check');
+    h += '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span>';
+    h += '<div class="fld"><span class="r-foot c2">Start weigh-in on</span><div class="stepper"><span class="' + (back >= 7 ? 'off' : '') + '"' + A('rcstep', 1) + ' aria-label="Earlier day">' + ic('<path d="M15 6l-6 6 6 6"/>', 20, 'color: currentColor') + '</span><span class="sv tnum"><b style="font: 600 calc(17px * var(--ts)) var(--sys)">' + (back ? wdl(sd) : 'Today') + '</b></span><span class="' + (back <= 0 ? 'off' : '') + '"' + A('rcstep', -1) + ' aria-label="Later day">' + ic('<path d="M9 6l6 6-6 6"/>', 20, 'color: currentColor') + '</span></div><span class="r-foot c2">Today, or a weigh-in from the last 7 days — not further back.</span></div>';
+    h += '<div class="fld"><span class="r-foot c2">' + nc('Weight (' + wu() + ')') + '</span><input class="winp" data-s="rcw" inputmode="decimal" placeholder="—" value="' + (f.rcw || '') + '"></div>';
+    return h + '<span class="btn p"' + A('rcgo') + '>Log today &amp; set my reminder</span><span class="r-foot c2">We\'ll remind you in 21 days to weigh in again and finish your reality check.</span></div></div>';
+  }
+  function resetConfirm() { return { t: 'confirm', title: nc('Start over?'), body: nc('This clears the start weight of this check and its reminders. Your weigh-ins and logged meals are kept.'), ok: 'rcresetok', okText: 'Start over', danger: true, note: 'Suggestion (question 1): main starts over with no warning. New copy.' }; }
+  function stopConfirm() { return { t: 'confirm', title: 'Stop reality check?', body: 'This clears your reality-check numbers and stops the daily food-log reminder. Your logged meals are kept.', ok: 'rcstopok', okText: 'Stop', danger: true }; }
+  function sexSheet() { return { t: 'sheet', pi: 'J5-sex', title: 'Set your sex to continue', body: 'Calorie &amp; BMR math is sex-specific, so we won’t estimate it from a default. Add your sex at birth to your profile for an accurate result.', btns: [['Male', 'sexset', 'o', 'male'], ['Female', 'sexset', 'o', 'female'], ['Cancel', 'close', 't']] }; }
+
   function progressScreen() {
     var J = jnums(), ps = J.ps, done = J.done, free = st.jstate === 'free', filled = ps === 'run' || ps === 'done';
     var W = J.W, cur = J.cur, wNow = J.w;
     var h = '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">Progress</h3></div>';
     // ---- sections ----
     function heroCard() {
-      var x = '<div class="card pc" data-i="J17h"><div class="hero2" style="padding: 0"><div class="col" style="gap: 6px"><span class="r-foot c2">Weight</span><span class="r-display d56">' + kg(wNow) + '<span class="unit">' + wu() + '</span></span></div><div class="col" style="gap: 6px"><span class="r-foot c2">Daily burn (TDEE)</span><span class="r-display d56">' + fk(J.tdee) + '<span class="unit">kcal</span></span><span class="chip r-cap"' + (done ? ' style="color: var(--data); border-color: var(--data)"' : '') + '>' + (done ? 'Measured' : 'Estimated') + '</span></div></div>';
+      var x = '<div class="card pc" data-i="J17h"><div class="hero2' + (st.ts >= 1.3 ? ' stack' : '') + '" style="padding: 0"><div class="col" style="gap: 6px"><span class="r-foot c2">Weight</span><span class="r-display d56">' + kg(wNow) + '<span class="unit">' + wu() + '</span></span></div><div class="col" style="gap: 6px"><span class="r-foot c2">Daily burn (TDEE)</span><span class="r-display d56">' + fk(J.tdee) + '<span class="unit">kcal</span></span><span class="chip r-cap"' + (done ? ' style="color: var(--data); border-color: var(--data)"' : '') + '>' + (done ? 'Measured' : 'Estimated') + '</span></div></div>';
       x += '<span class="r-sec c2 tnum">Since Aug 31: Weight <span class="vin">' + (wNow - 88 > 0 ? '+' : '−') + kg(Math.abs(wNow - 88)) + ' ' + wu() + '</span> · Waist <span class="vin">−' + cm(done ? 4 : 3) + ' ' + lu() + '</span></span>';
       x += '<span class="r-foot c2 tnum" style="margin-top: -6px">' + (done ? 'Measured from your reality check · estimate ' + fk(J.tdeeF) : 'Katch-McArdle · lean mass · BMR (at rest) ' + fk(J.bmr)) + '</span>';
-      x += '<div class="sep"></div><div class="row"><span class="r-head grow">Your target</span><span class="btnlink r-body" data-i="J14"' + A('say', 'Edit target: its sheet comes in Journey part 5.') + '>Edit</span></div>';
-      x += '<div class="row"><span class="r-sec c2 grow">Weight</span><span class="r-value v15">' + kg(wNow) + ' → ' + kg(80) + ' ' + wu() + '</span></div>' + targetScale(88, Math.min(88, Math.max(80, wNow)), 80);
-      x += '<span class="r-body tnum">' + (done ? '~7 weeks to go · around Nov 30, if this pace holds' : '~5 weeks to go · around Nov 2, if this pace holds') + '</span><span class="r-foot c2 tnum">Based on your weigh-ins ' + (done ? 'Aug 31–Oct 12' : 'Aug 31–Sep 28') + ' · healthy range for your height: ' + Math.round(imp() ? J.hmin * 2.20462 : J.hmin) + '–' + Math.round(imp() ? J.hmax * 2.20462 : J.hmax) + ' ' + wu() + '.</span>';
+      x += '<div class="sep"></div>' + targetBlock(J, wNow);
       return x + '<span class="btn p"' + A('weighin') + '>' + nc('Log today\'s weight') + '</span></div>';
     }
     function planCard() {
@@ -1325,16 +1420,17 @@ textarea.winp { resize: none; }
     function rcCard() {
       var rc = '<div class="row">' + ic(JX.scale, 22) + '<span class="r-title grow">Reality check</span>' + (free ? '<span class="otag">PRO</span>' : '') + '</div>';
       if (free) return progCard('', rc + '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><div class="fh" style="border-top: 1px solid var(--line)"' + A('rcexplain') + '><span class="r-head grow">See how it works</span>' + CHEV + '</div>', ' data-i="J23"');
-      if (ps === 'fresh') return progCard('', rc + '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><div class="fh" style="border-top: 1px solid var(--line)"' + A('say', 'Starting needs a weigh-in first: enter your weight above.') + '><span class="r-body grow">Not run yet — tap to start</span>' + CHEV + '</div>', ' data-i="J23"');
-      if (done) return progCard('', rc + '<span class="r-body tnum">Your actual maintenance looks like about <b class="vin">2,670 kcal/day</b>.</span><div class="col" style="gap: 6px"><span class="r-cap c2">Your checks over time</span><div class="row sep r-sec tnum" style="padding-top: 8px"><span class="grow">Oct 12</span><span class="vin" style="color: var(--ink2)">−0.33 ' + wu() + '/week</span><span class="vin">2,670 kcal</span></div></div><span class="obtn2"' + A('say', 'Sets the reminder for the next check (popups in part 5).') + '>Weigh in again in 21 days</span>', ' data-i="J23"');
-      var t03 = ps === 'first', so = st.fold.rcso, on = st.rcrem !== false;
-      rc += '<span class="r-body tnum">In progress · weigh in ' + (t03 ? 'Oct 19' : 'Oct 12') + ', 2026</span>';
-      if (!t03) rc += '<span class="r-sec c2 tnum">① <span class="vin">' + kg(85.3) + ' ' + wu() + '</span> · Sep 21</span>';
+      if ((ps === 'fresh' && !st.rcState) || st.rcState === 'none') return progCard('', rc + '<span class="r-sec c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><div class="fh" style="border-top: 1px solid var(--line)"' + A('rcstart') + '><span class="r-body grow">Not run yet — tap to start</span>' + CHEV + '</div>', ' data-i="J23"');
+      if (done && !st.rcState) return progCard('', rc + '<span class="r-body tnum">Your actual maintenance looks like about <b class="vin">2,670 kcal/day</b>.</span><div class="col" style="gap: 6px"><span class="r-cap c2">Your checks over time</span><div class="row sep r-sec tnum" style="padding-top: 8px"><span class="grow">Oct 12</span><span class="vin" style="color: var(--ink2)">−0.33 ' + wu() + '/week</span><span class="vin">2,670 kcal</span></div></div><span class="obtn2"' + A('rcnext') + '>Weigh in again in 21 days</span>', ' data-i="J23"');
+      var rs = st.rcState === 'started' ? st.rcStart : null, t03 = ps === 'first' || !!rs, so = st.fold.rcso, on = st.rcrem !== false;
+      rc += '<span class="r-body tnum">In progress · weigh in ' + (rs ? md(addDays(new Date(rs.d), 21)) : t03 ? 'Oct 19' : 'Oct 12') + ', 2026</span>';
+      if (rs) rc += '<span class="r-sec c2 tnum">① <span class="vin">' + kg(rs.w) + ' ' + wu() + '</span> · ' + md(new Date(rs.d)) + '</span>';
+      else if (!t03) rc += '<span class="r-sec c2 tnum">① <span class="vin">' + kg(85.3) + ' ' + wu() + '</span> · Sep 21</span>';
       rc += '<span class="r-sec c2 tnum">The reality check needs 7 days in a row of full food logs — ' + (t03 ? '0' : '5') + ' of 7 so far.</span>';
       rc += '<div class="fh" style="border-top: 1px solid var(--line)"' + A('fold', 'rcso') + '><span class="r-body grow">Your reality check so far</span><span style="color: var(--ink3)">' + (so ? UP : DOWN) + '</span></div>';
       if (so) rc += t03 ? '<span class="r-sec c2">Day 1 of 21. Nothing logged yet today.</span>' : '<div class="list" style="padding: 0; background: transparent">' + [['Sep 28', '1,420 kcal · 3 items'], ['Sep 27', '2,610 kcal · 6 items'], ['Sep 26', '2,380 kcal · 5 items'], ['Sep 25', '2,540 kcal · 7 items'], ['Sep 24', '2,290 kcal · 5 items'], ['Sep 23', 'nothing logged']].map(function (r) { return '<div class="li" style="min-height: 44px"><span class="r-sec tnum" style="width: 64px">' + r[0] + '</span><span class="r-sec c2 tnum grow">' + r[1] + '</span></div>'; }).join('') + '</div><span class="r-foot c2 tnum">Run: 5 days · ~2,450 kcal/day logged</span>';
       rc += '<div class="row sep" style="padding-top: 12px">' + ic(JX.fork, 22) + '<div class="grow col" style="gap: 2px"><span class="r-head">Food-log reminder</span><span class="r-foot c2">8 pm while a reality check is running. If you turn it off, it stays off for future checks.</span></div><span class="switch' + (on ? '' : ' off') + '"' + A('rcrem') + ' role="switch" aria-checked="' + on + '"></span></div>';
-      rc += '<div class="row" style="gap: 24px"><span class="btnlink r-body"' + A('say', 'Start over: confirm popup in Journey part 5.') + '>Start over</span><span class="btnlink risk r-body"' + A('say', 'Stop reality check: confirm popup in Journey part 5.') + '>Stop reality check</span></div>';
+      rc += '<div class="row" style="gap: 24px"><span class="btnlink r-body"' + A('rcreset') + '>Start over</span><span class="btnlink risk r-body"' + A('rcstop') + '>Stop reality check</span></div>';
       return progCard('', rc, ' data-i="J23"');
     }
     function weighCard() {
@@ -1345,30 +1441,35 @@ textarea.winp { resize: none; }
         else {
           x += trendChart(W, done ? [['Aug 31', 0], ['Sep 21', 21], ['Oct 12', 42]] : [['Aug 31', 0], ['Sep 14', 14], ['Sep 28', 28]]);
           var rows = W.slice().reverse().map(function (p) { return [p[4], p[1], p[3], p[2]]; }); if (!st.fold.allw) rows = rows.slice(0, 5);
-          x += '<div class="hist"><span class="h r-cap c2">Date</span><span class="h r r-cap c2">Weight</span><span class="h r r-cap c2">Body fat</span><span class="h r r-cap c2">Waist</span>' + rows.map(function (r) { return '<span class="r-sec tnum">' + r[0] + '</span><span class="r r-value v15">' + kg(r[1]) + ' ' + wu() + '</span><span class="r r-value v15">' + r[2] + '%</span><span class="r r-value v15">' + cm(r[3]) + ' ' + lu() + '</span>'; }).join('') + '</div>';
+          x += '<div class="hist"><span class="h r-cap c2">Date</span><span class="h r r-cap c2">Weight</span><span class="h r r-cap c2">Body fat</span><span class="h r r-cap c2">Waist</span>' + rows.map(function (r) { return '<span class="r-sec tnum">' + r[0] + '</span><span class="r r-value v15">' + kg(r[1]) + ' ' + wu() + '</span><span class="r r-value v15">' + (r[2] != null ? r[2] + '%' : '—') + '</span><span class="r r-value v15">' + (r[3] != null ? cm(r[3]) + ' ' + lu() : '—') + '</span>'; }).join('') + '</div>';
         }
-        x += '<div class="row"><span class="btnlink r-body grow"' + A('say', '+ Add a past weigh-in: its sheet comes in Journey part 5.') + '>+ Add a past weigh-in</span>' + (filled && W.length > 5 ? '<span class="btnlink r-body"' + A('fold', 'allw') + '>' + (st.fold.allw ? 'Show less' : 'Show all') + '</span>' : '') + '</div>';
+        x += '<div class="row"><span class="btnlink r-body grow"' + A('past') + '>+ Add a past weigh-in</span>' + (filled && W.length > 5 ? '<span class="btnlink r-body"' + A('fold', 'allw') + '>' + (st.fold.allw ? 'Show less' : 'Show all') + '</span>' : '') + '</div>';
       }
       return progCard('', x, ' data-i="J24"');
     }
     function numbersCard(forceOpen) {
       var open = forceOpen || st.fold.nopen;
-      var x = '<div class="fh"' + (forceOpen ? '' : A('fold', 'nopen')) + '><div class="grow col" style="gap: 2px"><span class="r-title">Your numbers</span>' + (!open ? '<span class="r-foot c2 tnum">' + kg(wNow) + ' ' + wu() + ' · ' + cur[3] + '% BF · ' + cm(HEIGHT) + ' ' + lu() + ' · ' + J.act[0].split(/ —|,/)[0] + '</span>' : '') + '</div>' + (forceOpen ? '' : '<span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span>') + '</div>';
+      var x = '<div class="fh"' + (forceOpen ? '' : A('fold', 'nopen')) + '><div class="grow col" style="gap: 2px"><span class="r-title">Your numbers</span>' + (!open ? '<span class="r-foot c2 tnum">' + kg(wNow) + ' ' + wu() + ' · ' + J.bf + '% BF · ' + cm(HEIGHT) + ' ' + lu() + ' · ' + J.act[0].split(/ —|,/)[0] + '</span>' : '') + '</div>' + (forceOpen ? '' : '<span style="color: var(--ink3)">' + (open ? UP : DOWN) + '</span>') + '</div>';
       if (open) {
         x += '<span class="segw" style="align-self: flex-start">' + [['metric', 'Metric'], ['imperial', 'Imperial']].map(function (u) { return '<span class="' + ((st.units || 'metric') === u[0] ? 'on' : '') + '"' + A('units', u[0]) + '>' + u[1] + '</span>'; }).join('') + '</span>';
         if (!filled) x += '<span class="r-sec c2">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
-        var v = filled ? [kg(wNow), String(cur[3]), cm(cur[2])] : ['', '', ''];
-        x += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" data-p="pw" inputmode="decimal" placeholder="e.g. ' + kg(80) + '" value="' + v[0] + '"></div><div class="fld"><span class="r-foot c2">Body fat (%)</span><input class="winp" inputmode="decimal" placeholder="e.g. 20" value="' + v[1] + '"></div></div>';
+        var srcs = [['DEXA scan', 'Most accurate (~1–3% error).'], ['Gym scan', 'Good (~3–5% error). Many gyms offer body-composition scans.'], ['Calipers', 'Good (~3–4% error).'], ['Home scale', 'Rough — varies with hydration and time of day (~5–10% error).'], ['I don\'t know', 'No problem — we\'ll estimate from your height, age and sex instead.']], cs = st.bfsrc || 'Gym scan', unk = cs === 'I don\'t know';
+        var v = filled ? [kg(wNow), String(J.bf), J.waist != null ? cm(J.waist) : ''] : ['', '', ''];
+        x += '<div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" data-p="pw" inputmode="decimal" placeholder="e.g. ' + kg(80) + '" value="' + v[0] + '"></div>' + (unk ? '<div class="fld" data-i="J5-age"><span class="r-foot c2">Age</span><input class="winp" inputmode="numeric" placeholder="—" value="' + (filled ? '38' : '') + '"></div>' : '<div class="fld"><span class="r-foot c2">Body fat (%)</span><input class="winp" inputmode="decimal" placeholder="e.g. 20" value="' + v[1] + '"></div>') + '</div>';
+        if (unk) x += '<div class="fld" data-i="J5-sexrow"><span class="r-foot c2">Sex</span>' + (st.nosex ? '<span class="obtn2"' + A('sexgate') + '>Set sex at birth</span>' : '<span class="segw" style="align-self: flex-start">' + [['male', 'Male'], ['female', 'Female']].map(function (y) { return '<span class="' + ((st.sex || 'male') === y[0] ? 'on' : '') + '"' + A('sexset', y[0]) + '>' + y[1] + '</span>'; }).join('') + '</span>') + '</div>';
         x += '<div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(90) + '" value="' + v[2] + '"></div><span class="r-foot c2">The most useful non-scale number: it tracks fat loss even when the scale won\'t budge.</span>';
         x += '<div class="sep"></div><div class="fld"><span class="r-foot c2">Height (' + lu() + ')</span><input class="winp" inputmode="decimal" placeholder="e.g. ' + cm(178) + '" value="' + (filled ? cm(HEIGHT) : '') + '"></div>';
-        var srcs = [['DEXA scan', 'Very accurate (~1–2% error).'], ['Gym scan', 'Good (~3–5% error). Many gyms offer body-composition scans.'], ['Calipers', 'Fair (~3–5% error) when done by a trained person.'], ['Home scale', 'Rough (±5% or more). Best for trends, not the exact number.'], ['I don\'t know', 'We\'ll estimate from your height, age and sex instead.']], cs = st.bfsrc || 'Gym scan';
         x += '<div class="fld"><span class="r-foot c2">Body-fat source</span><div class="pills">' + srcs.map(function (y) { return '<span class="pill r-foot' + (cs === y[0] ? ' on' : '') + '"' + A('bfsrc', y[0]) + '>' + y[0] + '</span>'; }).join('') + '</div><span class="r-foot c2">' + srcs.filter(function (y) { return y[0] === cs; })[0][1] + '</span></div>';
         var ca = J.act[0];
         x += '<div class="fld"><span class="r-head row" style="gap: 6px">' + ic(JX.bolt, 18) + 'Activity level</span><div class="actlist">' + ACTS.map(function (y) { var parts = y[0].split(/ — |, /), on = ca === y[0]; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('act', y[0]) + '><div class="grow col" style="gap: 2px"><span class="r-head">' + parts[0] + '</span><span class="r-sec c2">' + parts.slice(1).join(', ') + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div></div>';
       }
       return progCard('', x, ' data-i="J5"');
     }
-    function setTarget() { return progCard('', '<span class="r-title">Your target</span><span class="r-sec c2">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span><span class="obtn2" data-i="J14"' + A('say', 'Set a target: its sheet comes in Journey part 5.') + '>Set a target</span>'); }
+    function setTarget() {
+      var T = tgtOf();
+      if (T) return progCard('', '<div class="row"><span class="r-title grow">Your target</span><span class="btnlink r-body" data-i="J14"' + A('tgt', 'edit') + '>Edit</span></div>' + (T.w ? '<div class="row"><span class="r-sec c2 grow">Target weight</span><span class="r-value v15">' + kg(T.w) + ' ' + wu() + '</span></div>' : '') + (T.bf ? '<div class="row"><span class="r-sec c2 grow">Target body fat</span><span class="r-value v15">' + T.bf + '%</span></div>' : '') + '<span class="r-foot c2">Log two weigh-ins about two weeks apart (or add past ones under ' + nc('Weigh-ins') + ') to project a timeline.</span>');
+      return progCard('', '<span class="r-title">Your target</span><span class="r-sec c2">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span><span class="obtn2" data-i="J14"' + A('tgt', 'new') + '>Set a target</span>');
+    }
     // ---- order: what the user needs every visit first ----
     if (filled) h += heroCard() + planCard() + rcCard() + weighCard() + numbersCard(false);
     else h += numbersCard(true) + rcCard() + setTarget() + weighCard();
@@ -1423,8 +1524,9 @@ textarea.winp { resize: none; }
     }
     h += '<div class="chatbody" id="chatbody"><div class="daydiv r-cap">Today</div>';
     c.msgs.forEach(function (m, i) {
-      if (m.t === 'app') { h += '<div class="bub app r-body">' + m.text + (m.chips || '') + '</div>'; if (m.intro) h += '<span class="btnlink r-sec seehow"' + A('say', 'See how it works: the explainer animation, part of the parked feature animations.') + '>' + ic(I.spark, 15, 'color: currentColor') + 'See how it works</span>'; }
-      else if (m.t === 'user') h += '<div class="bub user r-body">' + m.text + '</div>';
+      if (m.t === 'app') { h += '<div class="bub app r-body">' + m.text + (m.chips || '') + '</div>'; if (m.intro) h += '<span class="btnlink r-sec seehow"' + A('fdemo') + '>' + ic(I.spark, 15, 'color: currentColor') + 'See how it works</span>'; }
+      else if (m.t === 'user') { if (!m.gone) h += '<div class="bub user r-body' + (m.note ? ' tap' : '') + '"' + (m.note ? A('crm', i) : '') + '>' + m.text + '</div>' + (m.note ? '<span class="unote r-foot' + (m.warn ? ' warn' : '') + '">' + m.note + '</span>' : ''); }
+      else if (m.t === 'eve' && !m.gone) h += '<div class="bub app r-body" data-i="FC-eve">' + (m.day === 'today' ? 'Anything you ate today that isn\'t logged yet — and will you eat again today?' : 'Anything you ate yesterday that isn\'t logged yet?') + '<div class="chips2"><span class="pill r-foot on"' + A('evlog', i) + '>Log it</span><span class="pill r-foot"' + A('evdone', i) + '>' + (m.day === 'today' ? 'Nothing else today' : 'Nothing else that day') + '</span>' + (m.day === 'today' ? '<span class="pill r-foot"' + A('evlater', i) + '>I\'ll eat later</span>' : '') + '</div></div>';
       else if (m.t === 'entry' && !m.gone) {
         var tk = 0, tc = 0, tp = 0;
         h += '<div class="entry"' + A('foodedit', i) + '>' + m.items.map(function (it) { tk += it.kcal; tc += it.carb; tp += it.prot; return '<div class="erow"><span class="r-body grow">' + it.food + ' · <span class="vin">~' + fk(it.kcal) + '</span> kcal</span><span class="otag">' + it.cat + '</span></div>' + (it.est ? '<span class="r-foot" style="color: var(--attention)">estimate · tap to fix</span>' : ''); }).join('');
@@ -1438,9 +1540,12 @@ textarea.winp { resize: none; }
     });
     if (c.typing) h += '<div class="bub app r-sec c2 typing">Reading your message<span class="dots"><i></i><i></i><i></i></span></div>';
     h += '</div>';
-    h += '<div class="composer2"><input class="winp" id="chatin" placeholder="e.g. 3 eggs, 2 toasts and a coffee" autocomplete="off"><span class="send2"' + A('chatsend') + ' aria-label="Log with AI">' + ic(I.spark, 20, 'color: currentColor') + '</span></div>';
+    if (st.logDay) h += '<span class="pill r-foot on logday"' + A('logdayx') + '>Logging for ' + st.logDay + ' ×</span>';
+    h += '<div class="composer2"><input class="winp" id="chatin" placeholder="e.g. 3 eggs, 2 toasts and a coffee" autocomplete="off" value="' + (c.draft || '').replace(/"/g, '&quot;') + '"><span class="send2"' + A('chatsend') + ' aria-label="Log with AI">' + ic(I.spark, 20, 'color: currentColor') + '</span></div>';
     h += '<div class="chatfoot r-cap c2">AI estimates (±10–15%) — not medical or diet advice.' + (st.jstate === 'free' ? ' · 5 free days left, then Premium.' : '') + '</div>';
     if (st.foodEdit != null) h += foodEditor(st.foodEdit);
+    if (st.chatAlert) { var ca = st.chatAlert; h += '<div class="scrim" style="z-index: 9"' + A('caclose') + '><div class="sheet" data-i="' + (ca.pi || 'FC-rm') + '"><span class="r-title">' + ca.title + '</span><span class="r-body c2">' + ca.body + '</span><div class="acts2">' + (ca.ok ? '<span class="btn o sm"' + A('caclose2') + '>Cancel</span><span class="btn sm" style="background: var(--risk); color: var(--onInk)"' + A(ca.ok, ca.id) + '>Remove entry</span>' : '<span class="btn p sm"' + A('caclose2') + '>OK</span>') + '</div></div></div>'; }
+    if (st.fdemo) h += '<div class="scrim" style="z-index: 9"' + A('fdemox') + '><div class="sheet" data-i="FC-demo"><div class="bub app r-body" style="max-width: 100%; min-height: 48px; background: var(--well)"><span><span id="typer"></span><span class="caret">▎</span></span></div><div class="bub user r-body">3 eggs, 2 toasts and a coffee</div><div class="etot"><span class="r-head tnum">≈ 480 kcal</span><span class="r-foot c2 tnum">55 g carbs · 26 g protein</span></div><span class="r-title">Log your day in a sentence</span><span class="r-sec c2">Describe what you ate — DoseTrace estimates the calories, carbs and protein and feeds your reality-check.</span><span class="btn p"' + A('fdemoclose') + '>Got it</span></div></div>';
     return h + '</div>';
   }
   function foodEditor(i) {
@@ -1453,7 +1558,7 @@ textarea.winp { resize: none; }
   function chatScroll() { var b = document.getElementById('chatbody'); if (b) b.scrollTop = b.scrollHeight; }
   function chatSend() {
     var inp = document.getElementById('chatin'), t = inp ? inp.value.trim() : ''; if (!t) return;
-    var c = st.chat; c.msgs.push({ t: 'user', text: t }); c.typing = true; render(); chatScroll();
+    var c = st.chat; c.draft = null; c.msgs.push({ t: 'user', text: t }); c.typing = true; render(); chatScroll();
     setTimeout(function () {
       c.typing = false;
       if (/should i|how much should|is it ok|recommend|advice|lose weight/i.test(t)) c.msgs.push({ t: 'deflect' });
@@ -1522,7 +1627,7 @@ textarea.winp { resize: none; }
       svg += '<polyline fill="none" stroke="' + col + '" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round" points="' + pl(fut) + '"/>';
       sr.ds.forEach(function (td) { svg += '<line x1="' + X(td).toFixed(1) + '" x2="' + X(td).toFixed(1) + '" y1="' + (B + 2) + '" y2="' + (B + 7) + '" stroke="' + col + '" stroke-width="1.4"/>'; });
     });
-    if (st.cdate != null) { var xd = X(st.cdate * 24); svg += '<line x1="' + xd + '" x2="' + xd + '" y1="' + T + '" y2="' + B + '" stroke="var(--ink2)" stroke-dasharray="2 3" stroke-width="1.2"/>'; sel.forEach(function (id) { svg += '<circle cx="' + xd + '" cy="' + Y(levelAt(id, st.cdate * 24)).toFixed(1) + '" r="3.5" fill="' + (single ? 'var(--data)' : 'var(' + P[id].color + ')') + '"/>'; }); }
+    if (st.cdate != null && st.cdate * 24 >= t0 && st.cdate * 24 <= t1) { var xd = X(st.cdate * 24); svg += '<line x1="' + xd + '" x2="' + xd + '" y1="' + T + '" y2="' + B + '" stroke="var(--ink2)" stroke-dasharray="2 3" stroke-width="1.2"/>'; sel.forEach(function (id) { svg += '<circle cx="' + xd + '" cy="' + Y(levelAt(id, st.cdate * 24)).toFixed(1) + '" r="3.5" fill="' + (single ? 'var(--data)' : 'var(' + P[id].color + ')') + '"/>'; }); }
     svg += '<line x1="' + X(0) + '" x2="' + X(0) + '" y1="' + T + '" y2="' + B + '" stroke="var(--ink)" stroke-width="1.4"/><text x="' + X(0) + '" y="' + (H2 - 6) + '" text-anchor="middle" font-family="-apple-system, Roboto, sans-serif" font-size="10" font-weight="700" fill="var(--ink)">NOW</text>';
     svg += '<text x="' + L + '" y="' + (H2 - 6) + '" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">−' + past + 'd</text><text x="' + R + '" y="' + (H2 - 6) + '" text-anchor="end" font-family="Geist Mono, monospace" font-size="9" fill="var(--ink3)">+' + ahead + 'd</text></svg>';
     h += '<span class="r-foot c2 tnum">Last ' + past + 'd · +' + ahead + 'd projection · peak ≈ ' + fmtMg(maxV) + ' mg</span>' + svg;
@@ -1533,7 +1638,9 @@ textarea.winp { resize: none; }
     // estimate on a date
     var dates = [[3, 'Thu, Oct 1'], [10, 'Thu, Oct 8'], [17, 'Thu, Oct 15'], [-39, 'Aug 20 · bloodwork']];
     var od = '<span class="r-head">Estimate on a date</span><div class="chips2">' + dates.slice(0, 3).map(function (d) { return '<span class="pill r-foot' + (st.cdate === d[0] ? ' on' : '') + '"' + A('cdate', d[0]) + '>' + d[1] + '</span>'; }).join('') + '</div><span class="r-foot c2">Jump to a blood-draw date:</span><div class="chips2"><span class="pill r-foot' + (st.cdate === -39 ? ' on' : '') + '"' + A('cdate', -39) + '>Aug 20 · bloodwork</span></div>';
-    if (st.cdate != null) { var dl = dates.filter(function (d) { return d[0] === st.cdate; })[0][1].replace(' · bloodwork', ''); od += '<div class="sep"></div>' + sel.map(function (id) { return '<div class="row"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-body grow">' + P[id].name + ' · ' + dl + '</span><span class="r-value">' + (Math.abs(st.cdate * 24) > HL[id].hours * 12 && st.cdate < 0 ? '—' : fmtMg(levelAt(id, st.cdate * 24))) + ' mg</span></div>'; }).join(''); }
+    var custom = st.cdate != null && [3, 10, 17, -39].indexOf(st.cdate) < 0;
+    od = od.replace('</div><span class="r-foot c2">Jump', '<span class="pill r-foot' + (custom ? ' on' : '') + '" data-i="J5-cdate"' + A('cother') + '>' + (custom ? wdl(addDays(CURVE0, st.cdate)) : nc('Other date')) + '</span></div><span class="r-foot c2">Jump');
+    if (st.cdate != null) { var dl = (dates.filter(function (d) { return d[0] === st.cdate; })[0] || [0, wdl(addDays(CURVE0, st.cdate))])[1].replace(' · bloodwork', ''); od += '<div class="sep"></div>' + sel.map(function (id) { return '<div class="row"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-body grow">' + P[id].name + ' · ' + dl + '</span><span class="r-value">' + (Math.abs(st.cdate * 24) > HL[id].hours * 12 && st.cdate < 0 ? '—' : fmtMg(levelAt(id, st.cdate * 24))) + ' mg</span></div>'; }).join(''); }
     h += progCard('', od);
     // honesty: tier, source, notes, disclaimer
     var notes = sel.map(function (id) { var e3 = HL[id]; return '<div class="col" style="gap: 6px"><div class="row" style="gap: 8px; flex-wrap: wrap"><span class="dot" style="background: var(' + P[id].color + ')"></span><span class="r-head">' + P[id].name + '</span><span class="otag' + (e3.tier === 'estimated' ? ' attn' : '') + '">' + TIER[e3.tier] + '</span></div>' + (e3.tmaxHours ? '<span class="r-foot c2">' + P[id].name + ': each dose is modeled rising to a peak around ' + e3.peak + ' after injection (published range ' + e3.range + '; varies by person).</span>' : '<span class="r-foot c2">In this model, ' + P[id].name + ' clears within hours, so each spike is one scheduled dose and the estimate does not build up between doses.</span>') + (st.fold['src' + id] ? '<span class="r-foot c3">' + e3.source + '</span>' : '') + '<span class="btnlink r-foot" style="min-height: 28px"' + A('fold', 'src' + id) + '>Source ' + (st.fold['src' + id] ? '▴' : '▾') + '</span></div>'; }).join('<div class="sep"></div>');
@@ -1584,6 +1691,8 @@ textarea.winp { resize: none; }
   function push(x) { st.stacks[st.tab].push(x); st.scroll[key()] = 0; }
   phone.addEventListener('input', function (e) {
     var t = e.target;
+    var sk = t.getAttribute && t.getAttribute('data-s');
+    if (sk) { st.form[sk] = t.value; if (sk === 'rcw') st.form.rauto = null; if (sk === 'tw') { var nt = document.getElementById('tgtnote'), v7 = num(t.value), k7 = v7 ? (imp() ? v7 / 2.20462 : v7) : null; if (nt) nt.hidden = !(k7 && k7 < jnums().hmin); } return; }
     if (t.getAttribute && t.getAttribute('data-p') === 'pw') { var val = num(t.value); st.pw = val ? (imp() ? val / 2.20462 : val) : null; }
     var f = t.getAttribute && t.getAttribute('data-f'); if (!f || !st.wiz) return;
     st.wiz[f] = t.value;
@@ -1637,6 +1746,39 @@ textarea.winp { resize: none; }
     else if (a === 'fesave') { var em = st.chat.msgs[+v]; em.items = em.items.map(function (it, k) { var g2 = function (x) { return document.getElementById('fe' + k + x).value; }; return { food: g2('n'), kcal: num(g2('k')), carb: num(g2('c')), prot: num(g2('p')), cat: it.cat }; }); st.foodEdit = null; toast('Entry updated'); }
     else if (a === 'fedel') { st.chat.msgs[+v].gone = true; st.foodEdit = null; toast('Entry removed'); }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
+    else if (a === 'tgt') openTgt(v);
+    else if (a === 'tgtsave') { var f8 = st.form, w8 = num(f8.tw), b8 = num(f8.tb); if (!w8 && !b8) toast('Enter a target weight or body fat first.'); else { st.tgt = { w: w8 ? (imp() ? w8 / 2.20462 : w8) : null, bf: b8 || null, date: f8.tdate || null }; st.tgtRemoved = false; st.overlay = null; } }
+    else if (a === 'tgtdate') openDate({ title: 'Target date (optional)', pi: 'J5-tdate', for: 'tgt', min: addDays(jToday(), 1) }, st.form.tdate ? new Date(st.form.tdate) : addDays(jToday(), 61));
+    else if (a === 'tgtnodate') st.form.tdate = null;
+    else if (a === 'tgtrm') st.overlay = { t: 'confirm', title: 'Remove target?', body: 'This clears your goal. Your weigh-ins and history are kept.', ok: 'tgtrmok', okText: 'Remove', danger: true };
+    else if (a === 'tgtrmok') { st.tgtRemoved = true; st.tgt = null; st.overlay = null; }
+    else if (a === 'jdone') { if (el.classList.contains('scrim') && e.target !== el) return; var o4 = st.overlay, d4 = new Date(st.jd.y, st.jd.m, Math.min(st.jd.d, new Date(st.jd.y, st.jd.m + 1, 0).getDate())); if (o4.min && d4 < o4.min) d4 = new Date(o4.min); if (o4.max && d4 > o4.max) d4 = new Date(o4.max);
+      if (o4.for === 'curve') { st.cdate = Math.round((d4 - CURVE0) / 864e5); st.overlay = null; } else { st.form[o4.for === 'tgt' ? 'tdate' : 'pdate'] = d4.getTime(); st.overlay = o4.back; } }
+    else if (a === 'past') openPast();
+    else if (a === 'pastdate') openDate({ title: 'Date', pi: 'J5-pdate', for: 'past', max: jToday() }, new Date(st.form.pdate));
+    else if (a === 'pastsave') { var w9 = num(st.form.pw2); if (!w9) toast('Enter your weight first.'); else { var d9 = new Date(st.form.pdate); st.extraW = (st.extraW || []).concat([[dayOf(d9), Math.round((imp() ? w9 / 2.20462 : w9) * 10) / 10, null, num(st.form.pb2) || null, md(d9)]]); st.overlay = null; st.fold.wopen = true; toast('Snapshot saved'); } }
+    else if (a === 'rcstart') openRcStart();
+    else if (a === 'rcstep') { var f6 = st.form; f6.rback = Math.max(0, Math.min(7, (f6.rback || 0) + (+v))); var hit6 = weighOn(addDays(jToday(), -f6.rback)); if (!f6.rcw || f6.rcw === f6.rauto) { f6.rcw = hit6 || ''; f6.rauto = hit6; } }
+    else if (a === 'rcgo') { var w6 = num(st.form.rcw); if (!w6) toast('Enter your weight first.'); else { var sd6 = addDays(jToday(), -(st.form.rback || 0)); st.rcState = 'started'; st.rcStart = { d: sd6.getTime(), w: imp() ? w6 / 2.20462 : w6 }; st.overlay = null; toast('Reminder set for ' + md(addDays(sd6, 21))); } }
+    else if (a === 'rcnext') { st.rcState = 'started'; st.rcStart = { d: jToday().getTime(), w: jnums().w }; toast('Reminder set for ' + md(addDays(jToday(), 21))); }
+    else if (a === 'rcreset') st.overlay = resetConfirm();
+    else if (a === 'rcresetok') { st.rcState = 'none'; openRcStart(); }
+    else if (a === 'rcstop') st.overlay = stopConfirm();
+    else if (a === 'rcstopok') { st.rcState = 'none'; st.overlay = null; }
+    else if (a === 'sexgate') st.overlay = sexSheet();
+    else if (a === 'sexset') { st.sex = v; st.nosex = false; st.overlay = null; }
+    else if (a === 'cother') openDate({ title: 'Estimate on a date', pi: 'J5-cdate', for: 'curve' }, st.cdate != null ? addDays(CURVE0, st.cdate) : addDays(CURVE0, 30));
+    else if (a === 'crm') st.chatAlert = { title: 'Daily intake', body: st.chat.msgs[+v].note, ok: 'crmok', id: v };
+    else if (a === 'crmok') { st.chat.msgs[+v].gone = true; st.chatAlert = null; }
+    else if (a === 'caclose') { if (e.target !== el) return; st.chatAlert = null; }
+    else if (a === 'caclose2') st.chatAlert = null;
+    else if (a === 'evlog') { var m10 = st.chat.msgs[+v]; m10.gone = true; st.logDay = m10.day === 'today' ? null : 'Yesterday'; setTimeout(function () { var i3 = document.getElementById('chatin'); if (i3) i3.focus(); }, 0); }
+    else if (a === 'evdone') { var m11 = st.chat.msgs[+v]; m11.gone = true; st.chat.msgs.push({ t: 'app', text: m11.day === 'today' ? 'All set for today — thanks. See you tomorrow.' : 'Yesterday is closed — thanks.' }); setTimeout(chatScroll, 0); }
+    else if (a === 'evlater') st.chat.msgs[+v].gone = true;
+    else if (a === 'logdayx') st.logDay = null;
+    else if (a === 'fdemo') st.fdemo = true;
+    else if (a === 'fdemox') { if (e.target !== el) return; st.fdemo = false; }
+    else if (a === 'fdemoclose') st.fdemo = false;
     else if (a === 'rcexplain') st.overlay = { t: 'rcexplain' };
     else if (a === 'weighsave') { var wv = num(document.getElementById('wiw').value); if (!wv) { toast('Enter your weight first.'); } else { var kgv = imp() ? wv / 2.20462 : wv, bfv = num(document.getElementById('wib').value) || 20.9, wcv = num(document.getElementById('wic').value), wcm = wcv ? (imp() ? wcv * 2.54 : wcv) : 92; st.extraW = (st.extraW || []).concat([[(pstate() === 'done' ? 43 : 29), Math.round(kgv * 10) / 10, wcm, bfv, pstate() === 'done' ? 'Oct 13' : 'Sep 29']]); st.pw = Math.round(kgv * 10) / 10; st.overlay = null; toast('Weigh-in saved'); } }
     else if (a === 'units') st.units = v;
@@ -1651,7 +1793,8 @@ textarea.winp { resize: none; }
     else if (a === 'pickdate') st.overlay = { t: 'wheel', kind: 'date' };
     else if (a === 'picktime') st.overlay = { t: 'wheel', kind: 'time', idx: +v };
     else if (a === 'wheelset') { var cv = v.split(':').map(Number), o3 = st.overlay, cols3 = wheelCols(o3), val = cols3[cv[0]][0][cv[1]];
-      if (o3.kind === 'date') { if (cv[0] === 0) st.wiz.start.m = cv[1]; if (cv[0] === 1) st.wiz.start.d = val; if (cv[0] === 2) st.wiz.start.y = val; }
+      if (o3.kind === 'jdate') { if (cv[0] === 0) st.jd.m = cv[1]; if (cv[0] === 1) st.jd.d = val; if (cv[0] === 2) st.jd.y = val; }
+      else if (o3.kind === 'date') { if (cv[0] === 0) st.wiz.start.m = cv[1]; if (cv[0] === 1) st.wiz.start.d = val; if (cv[0] === 2) st.wiz.start.y = val; }
       else { var tm = st.wiz.times[o3.idx].match(/(\d+):(\d+) (AM|PM)/), hh3 = tm[1], mm3 = tm[2], ap = tm[3]; if (cv[0] === 0) hh3 = val; if (cv[0] === 1) mm3 = val; if (cv[0] === 2) ap = val; st.wiz.times[o3.idx] = hh3 + ':' + mm3 + ' ' + ap; } }
     else if (a === 'bfno') { st.overlay = null; doSaveFinal(0); }
     else if (a === 'bfyes') { st.overlay = null; doSaveFinal(+v); }
@@ -1680,11 +1823,41 @@ textarea.winp { resize: none; }
     });
   });
   document.getElementById('badges').addEventListener('change', render);
+  function jgo(js, go) { st.jstate = js; st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.extraW = []; st.fold = {}; st.csel = null; st.cdate = null; st.cahead = 7; st.form = {}; st.tgt = null; st.tgtRemoved = false; st.rcState = null; st.rcStart = null; st.nosex = false; st.bfsrc = null; st.sex = null; st.chatAlert = null; st.fdemo = false; st.logDay = null; if (go) st.stacks[2].push({ s: go }); }
+  function toPhone() { render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   document.querySelectorAll('[data-jstate]').forEach(function (b) {
-    b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.pw = null; st.extraW = []; st.fold = {}; st.csel = null; st.cdate = null; st.cahead = 7; if (b.getAttribute('data-jgo')) st.stacks[2].push({ s: b.getAttribute('data-jgo') }); render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    b.addEventListener('click', function () { jgo(b.getAttribute('data-jstate'), b.getAttribute('data-jgo')); toPhone(); });
   });
+  var JPOP = {
+    tgtedit: function () { jgo('run', 'progress'); openTgt('edit'); },
+    tgtnew: function () { jgo('fresh', 'progress'); openTgt('new'); },
+    past: function () { jgo('run', 'progress'); st.fold.wopen = true; openPast(); },
+    rcstart: function () { jgo('fresh', 'progress'); openRcStart(); },
+    rcreset: function () { jgo('run', 'progress'); st.overlay = resetConfirm(); },
+    rcstop: function () { jgo('run', 'progress'); st.overlay = stopConfirm(); },
+    rcnext: function () { jgo('done', 'progress'); },
+    sex: function () { jgo('fresh', 'progress'); st.bfsrc = 'I don\'t know'; st.nosex = true; },
+    cdate: function () { jgo('run', 'curve'); openDate({ title: 'Estimate on a date', pi: 'J5-cdate', for: 'curve' }, addDays(CURVE0, 30)); }
+  };
+  document.querySelectorAll('[data-jpop]').forEach(function (b) {
+    b.addEventListener('click', function () { JPOP[b.getAttribute('data-jpop')](); st.toast = null; toPhone(); });
+  });
+  var SCEN = {
+    offline: function (c) { c.msgs.push({ t: 'user', text: '2 eggs and a toast', note: 'Saved — I\'ll estimate the calories when you\'re back online.' }); },
+    retry: function (c) { c.msgs.push({ t: 'user', text: 'chicken and rice', note: 'Saved — the AI couldn\'t be reached just now. I\'ll try again in a moment, and each time you open the log.' }); },
+    unread: function (c) { c.msgs.push({ t: 'user', text: 'asdf qwer', note: 'Couldn\'t read this one — tap to remove.', warn: true }); },
+    quota: function (c) { c.msgs.push({ t: 'user', text: 'a banana' }); c.msgs.push({ t: 'app', text: 'You\'ve reached today\'s logging limit — it resets tomorrow.' }); },
+    old: function (c) { c.msgs.push({ t: 'user', text: 'pizza two weeks ago' }); c.msgs.push({ t: 'app', text: 'I can log food from the last 7 days — anything older is too hard to remember exactly.' }); c.msgs.push({ t: 'user', text: 'rice on Monday and pizza two weeks ago' }); c.msgs.push({ t: 'entry', items: [{ food: 'rice', kcal: 205, carb: 45, prot: 4, cat: 'Meal' }] }); c.msgs.push({ t: 'app', text: 'I logged the part from the last 7 days. The rest was more than 7 days back, so I left it out — your message is back in the box if you want to change it.' }); c.draft = 'rice on Monday and pizza two weeks ago'; },
+    hints: function (c) { c.msgs.push({ t: 'user', text: 'another one' }); c.msgs.push({ t: 'app', text: 'Another what? Tell me what you had.' }); c.msgs.push({ t: 'user', text: 'change the rice to 2 cups' }); c.msgs.push({ t: 'app', text: 'To change something you already logged, tap it in your log below.' }); },
+    eveY: function (c) { c.msgs.push({ t: 'eve', day: 'yesterday' }); },
+    eveT: function (c) { c.msgs.push({ t: 'eve', day: 'today' }); },
+    savefail: function (c) { c.msgs.push({ t: 'user', text: '2 eggs' }); st.chatAlert = { title: 'Error', body: 'Couldn’t save your changes. Please try again.', pi: 'FC-err' }; },
+    demo: function () { st.fdemo = true; }
+  };
+  var TY = { i: 0, hold: 0, full: 'So, what have you eaten? Earlier days count too.' };
+  setInterval(function () { var el = document.getElementById('typer'); if (!el) { TY.i = 0; TY.hold = 0; return; } if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = TY.full; return; } if (TY.i >= TY.full.length) { if (++TY.hold > 80) { TY.i = 0; TY.hold = 0; } } else TY.i++; el.textContent = TY.full.slice(0, TY.i); }, 38);
   document.querySelectorAll('[data-chat]').forEach(function (b) {
-    b.addEventListener('click', function () { st.wiz = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; st.chatLocked = b.getAttribute('data-chat') === 'locked'; st.overlay = { t: 'chat' }; render(); setTimeout(function () { chatScroll(); var i2 = document.getElementById('chatin'); if (i2) i2.focus(); }, 0); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    b.addEventListener('click', function () { st.wiz = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; var sc = b.getAttribute('data-chat'); st.chatLocked = sc === 'locked'; st.chatAlert = null; st.fdemo = false; st.logDay = null; if (SCEN[sc]) { st.chat = null; chatInit(); SCEN[sc](st.chat); } st.overlay = { t: 'chat' }; render(); setTimeout(function () { chatScroll(); var i2 = document.getElementById('chatin'); if (i2) i2.focus(); }, 0); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   });
   document.querySelectorAll('[data-pop]').forEach(function (b) {
     b.addEventListener('click', function () { POPS[b.getAttribute('data-pop')](); st.toast = null; render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });

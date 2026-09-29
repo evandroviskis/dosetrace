@@ -124,10 +124,10 @@ needs redesign and approval. You commit, build into the simulator and I see the 
   phone that grows screen by screen; approved screens stay in it; the screen under review is
   marked. Republish the same file for every new screen.
 - **My Protocols APPROVED** (list, protocol screen, add/edit, every popup). Dose log look approved.
-- **Journey parts 1–3 APPROVED (dashboard, Progress, AI food log). Part 4 (Dose accumulation curve) UNDER REVIEW in prototype.html.** Parts: 2 Progress screen, 3 FoodChat,
+- **Journey parts 1–4 APPROVED (dashboard, Progress, AI food log, Accumulation Curve). Part 5 (Journey popups) UNDER REVIEW in prototype.html.** Parts: 2 Progress screen, 3 FoodChat,
   4 Accumulation Curve, 5 Journey popups.
-- **Next screen: My Protocols** (list, protocol detail, add/edit form, its popups). Design it,
-  stop, get approval. Builds follow in approval order.
+- **After Journey:** the remaining screens (site picker, My Body, Settings, onboarding/auth,
+  paywall, ...). Design each, stop, get approval. Builds follow in approval order.
 
 ## 5d. Parked by the founder until the design pass is finished (2026-09-29)
 
