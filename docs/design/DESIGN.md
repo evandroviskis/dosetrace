@@ -5,11 +5,30 @@ Status: **PROPOSAL v3, awaiting founder approval** (2026-09-28, after founder fe
 Nothing here is applied to any screen until the founder approves it.
 
 Founder decisions since (2026-09-29):
+- **Process (2026-09-29, founder):** "All that is visible by the user needs redesign and
+  approval." Every screen, popup and picker gets a redesign proposal. One screen at a time:
+  propose → founder feedback → changes → founder approval → build it in the app → the founder sees
+  it running → only then the next screen. Nothing moves to the next screen without an explicit
+  approval. This supersedes the "skin only" layout freeze (§0) for every screen as it comes up.
 - **Typography approved:** §3 is the v4 role scale from `typography-review.html` ("keep the
   typography we just approved").
 - **Journey:** the dashboard proposal (`journey-dashboard.html`, v5) is liked and kept; its open
   questions are still open.
 - **Today:** the layout freeze is lifted for Today (see §0).
+- **Today v2 answers (2026-09-29):** alerts on top (gone when none); a tracker with three dose
+  rings (today / 7 days / 30 days, doses not days); clear dose cards (whole card opens the
+  protocol, Mark taken on the card); Tomorrow and Next 5 days fold; Taken line kept; Draw to +
+  syringe approved; only the word "Due". Details: `today-dashboard.md`.
+- **My Protocols (2026-09-29):** the Dose log moves there; the tab opens on two heroes,
+  Protocols and Dose log under it. The layout freeze is lifted for this change only.
+- **Bolder look (2026-09-29, first on Today/My Protocols):** titles 700, big numbers 500 (the
+  §3 sizes stay; "weights stop at 600" no longer holds there), and the tracker is a solid ink
+  block drawn with the opposite palette.
+- **Tracker block colors (2026-09-29, founder):** dark theme = the light inverted block ("the
+  dark version looks good"); light theme = dark grey `#383C41`, not black ("less aggressive").
+  Measured on it: text 9.97, secondary 6.56, captions 4.93, data blue `#8AA8FF` 4.83, ticks 3.44.
+- **AI "why on-time dosing matters" explainer (2026-09-29):** council (regulatory,
+  pharmacometrics, product) says do not build it; founder decision pending.
 
 Mockups: `docs/design/identity-mockups.html`: main's real Today, Journey, My Protocols and site
 picker (simulator captures in `docs/design/current/`, Test03, light + dark) beside the same

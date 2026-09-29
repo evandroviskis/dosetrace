@@ -69,7 +69,7 @@ data; never touch `main`; commit/push `design/hybrid` only on request.
 - Every opinion starts from how a feature works and **why it exists**.
 - Plain English for the founder. Every answer has two parts: the part for the founder, and a
   numbered double-check note for Grok (the founder's outside reviewer). The Grok folder is on the
-  Mac and git-ignored, so in the cloud put the note at the end of the reply. **Next number: 049.**
+  Mac and git-ignored, so in the cloud put the note at the end of the reply. **Next number: 050.**
 - Design lessons the founder taught (do not repeat these mistakes):
   - Four Claude-invented "design DNA" menus were all rejected. Don't pitch menus; build from the
     founder's reference: "modern, clean, simple like a Tesla interior but functional", Apple's
@@ -101,28 +101,37 @@ data; never touch `main`; commit/push `design/hybrid` only on request.
   on. I need all the features but I am open to suggestions." The Share my progress card may go
   "for now" (already registered as A-29, target 1.2.6); the "Good morning" greeting need not stay.
 
-## 6. Current work: Today proposal v1 (waiting for the founder's answers)
+## 5b. Process from 2026-09-29 (founder directive, outranks §4 scope lines where they conflict)
 
-Idea: today's doses move from the 6th block to the top; the counter "4 / 5 doses" sits in the
-header with a dial of one segment per dose (it replaces the greeting line, the ring, "80%" and
-the Done tile); everything else keeps main's relative order: streak → alerts → food log →
-Tomorrow → Next 5 days → disclaimer. New: "Due" on due or late cards, a "Taken" line, an "Add a
-protocol" button for new users; suggestion: "Draw to 50 units" with the protocol's syringe drawn
-to scale on reconstituted doses (existing strings). Removed: greeting, the Protocols tile (it
-counts only protocols due today, so it reads 0 on rest days), faded cards, share card.
-The page's fate table places all 41 items from main's Today; its coverage check must stay green.
+"I need to approve screen by screen so I need you to stop at every design, confirm with me, we
+make changes and after every approval, we go to the next screen. All that is visible by the user
+needs redesign and approval. You commit, build into the simulator and I see the final results."
 
-Open questions (Q1–Q7, also on the page):
-1. Doses first, then main's order: OK?
-2. Counter in the header with the dial; drop "80%" and the Protocols tile?
-3. Keep the "Taken" line?
-4. Want the "Draw to" syringe on reconstituted doses?
-5. Streak explanation → top of the Dose log; empty-state tips dropped: OK?
-6. One new word "Due" (due and late), or "Due" and "Late"?
-7. Register the journey findings (§8) on `main` now, and in which build?
+- One screen at a time. Stop after every proposal and wait for the founder. No next screen
+  until he approves the current one in words.
+- After approval: implement that screen in the app, then the founder sees it running in the
+  simulator (the cloud has no iOS Simulator: implementation can happen here, the simulator run
+  happens on the Mac).
+- All CLAUDE.md gates still apply to the app work (spec checklist, tests, both themes, dt-council
+  and ship-check before any EAS build).
 
-Timing note for when it is approved: build it after 1.2.5 ships (S-17 "Pending from yesterday"
-and S-20 site picker are being built in `TodayScreen.js` now); it absorbs A-29.
+## 6. Current work: Today proposal v2 (published 2026-09-29, waiting for the founder)
+
+The founder answered v1 with a new brief (quoted in `today-dashboard.md`): alerts on top and gone
+when none; a tracker with three rings (today / 7 days / 30 days, counting doses so weekly and
+monthly shots count); clear dose cards (tap → protocol, Mark taken on Today); Tomorrow and Next 5
+days fold; the Dose log moves to My Protocols, which opens on two heroes (Protocols, Dose log);
+bolder look (titles 700, numbers 500, ink block). Kept: Taken line, Draw to + syringe, "Due" only.
+The AI "why on time" idea went to a 3-reviewer council: all said don't build it (claims risk,
+thin peptide PK data, and the curve ignores logged doses, F-051).
+
+Open questions (v2, also on the page): dark ink block inverted or dark; keep week cells; keep
+the tracker → Dose log shortcut; streak explanation → Dose log + tips dropped; new words (7 days,
+30 days, Nothing due, active, Add a protocol); 30-day ring counts doses, not days; AI explainer
+drop or fixed line; register the findings (F4b first).
+
+Timing when approved: after 1.2.5 (S-17, S-20 edit `TodayScreen.js`); absorbs A-29; the My
+Protocols heroes need their own registry item. F1 and F6 would corrupt the rings.
 
 ## 7. Journey questions still open
 
