@@ -384,6 +384,12 @@ textarea.winp { resize: none; }
 .wv { min-height: 40px; display: flex; align-items: center; justify-content: center; width: 100%; font: 400 calc(19px * var(--ts)) / 1 var(--sys); color: var(--ink3); font-variant-numeric: tabular-nums; }
 .wv.on { color: var(--ink); font-weight: 600; font-size: calc(21px * var(--ts)); }
 
+
+/* ---- Journey dashboard ---- */
+.jt { padding: 16px; border-radius: 24px; }
+.jt .chip { color: var(--ink2); }
+.jt .chip.meas { border-color: var(--data); color: var(--data); }
+
 /* ---- prototype shell ---- */
 .proto { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 40px; align-items: start; }
 @media (max-width: 860px) { .proto { grid-template-columns: minmax(0, 1fr); } }
@@ -408,7 +414,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>Under review now: My Protocols part 3, every popup and picker.</b> They are real in the flow too: Scan vial label asks for AI consent, then offers Take a photo / Choose a photo; the start date and the reminder times open wheels you can tap; saving with a past start date asks to log the doses since then. Buttons for screens not drawn yet (the food log, the paywall, the curve) say so.</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Under review now: Journey part 1, the dashboard</b> (your v5 layout in the approved look): the AI food log, the Progress and Dose accumulation tiles, and the two explainers, which open in place. Switch the user with the buttons; try 135% text to see the tiles stack. Progress, the food log and the curve are Journey parts 2 to 4.</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -420,7 +426,20 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Popups and pickers <span class="stat rev">under review</span></h3>
+        <h3>Journey dashboard <span class="stat rev">under review</span></h3>
+        <button data-jstate="test03">Test03 today<small>check just started, nothing logged, TB-500 at 0.0 mg</small></button>
+        <button data-jstate="run">Daily user, reality check running<small>weight, estimated daily burn, testosterone level</small></button>
+        <button data-jstate="done">After the reality check<small>daily burn turns Measured</small></button>
+        <button data-jstate="fresh">New user</button>
+        <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
+        <button data-jump="1:list::add">Add a protocol<small>10 mg, 2 ml, 2 mg: draw to 40 units</small></button>
+        <button data-jump="1:list:bpc:edit">Edit BPC-157</button>
+        <button data-jump="0">Today<small>Mark taken on BPC-157, Undo, folds, Remind me</small></button>
+        <button data-jump="1">My Protocols heroes</button>
+        <button data-jump="1:list">Protocols list</button>
+        <button data-jump="1:list:bpc">BPC-157 protocol screen</button>
+        <button data-jump="1:log">Dose log<small>approved: plain counts, no tinted boxes</small></button>
+        <h3 style="margin-top: 10px">My Protocols popups <span class="stat ok">approved</span></h3>
         <button data-pop="consent">Scan vial label: AI consent<small>Agree &amp; continue → photo choice → Take a photo fills the fields</small></button>
         <button data-pop="choose">Photo choice</button>
         <button data-pop="filled">After a scan: "check every value"</button>
@@ -434,24 +453,17 @@ textarea.winp { resize: none; }
         <button data-pop="incomplete">A protocol with its dose details missing</button>
         <button data-pop="e_unread">Scan error: couldn't read that label</button>
         <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-pop="e_empty">Nothing readable</button><button data-pop="e_limit">Scan limit</button><button data-pop="e_down">Service down</button><button data-pop="e_camoff">Camera off</button><button data-pop="e_pdf">"PDF" error</button><button data-pop="e_big">Too large</button><button data-pop="e_signin">Not signed in</button><button data-pop="e_save">Save failed</button></div>
-        <h3 style="margin-top: 10px">Approved <span class="stat ok">approved</span></h3>
-        <button data-jump="1:list::add">Add a protocol<small>10 mg, 2 ml, 2 mg: draw to 40 units</small></button>
-        <button data-jump="1:list:bpc:edit">Edit BPC-157</button>
-        <button data-jump="0">Today<small>Mark taken on BPC-157, Undo, folds, Remind me</small></button>
-        <button data-jump="1">My Protocols heroes</button>
-        <button data-jump="1:list">Protocols list</button>
-        <button data-jump="1:list:bpc">BPC-157 protocol screen</button>
-        <button data-jump="1:log">Dose log<small>approved: plain counts, no tinted boxes</small></button>
+        
       </div>
       <div>
-        <h3>Open questions (My Protocols part 3)</h3>
+        <h3>Open questions (Journey part 1: dashboard)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>One DoseTrace sheet for every popup</b>, instead of the iPhone's grey system alert box: the same type, buttons and colors as the rest of the app, in both themes. The pickers keep the iPhone's own wheel behavior inside it; the camera and photo library stay the iPhone's own screens. Cost: one component replacing about 20 system alerts. OK?</li>
-          <li><b>Photo choice as a bottom sheet</b> (Take a photo / Choose a photo / Cancel), the iPhone's usual place for "where from". OK?</li>
-          <li><b>Wrong wording on main for vial photos:</b> "Could not read the PDF…", "choose a PDF under 10 MB" and "Turn it on in Settings to snap a report" were written for lab reports. Suggestion: reuse "Couldn't read that label" for the first and adjust the other two (new copy, 6 languages). Yes?</li>
-          <li><b>"Error" as a title</b> (camera off, not signed in, save failed) says nothing. Suggestion: the title says what happened, e.g. "Camera access is off", "Couldn't save" (new copy). Yes, or keep main's?</li>
-          <li><b>Delete now says where to restore</b>: "…recoverable for 7 days from Recently deleted, at the bottom of your list" (new copy, follows your part 1 approval).</li>
-          <li><b>A protocol with missing dose details</b> keeps main's sentence in the calculator's place, with a "Dose details ›" row under it that opens Edit on the dose step. OK, or drop the sentence and show only the row?</li>
+          <li><b>Your v5 layout, unchanged</b>, in the approved look (bolder numbers, the same cards as Today). Nothing moved. OK?</li>
+          <li><b>Name: "Progress"</b> for the tile and its screen (existing word in all 6 languages), or "Your progress" (new copy)? Recommendation: Progress.</li>
+          <li><b>Food card title:</b> keep "AI food log" (as on Today and main), or "Food"? Recommendation: keep "AI food log", so Today and Journey say the same thing.</li>
+          <li><b>Est. level</b> follows the <i>planned</i> schedule, so a skipped dose still counts (the known F-051). Recommendation: ship the tile with the clearer wording already registered as A-07 ("based on your planned schedule"), and register "count only doses marked Taken" as a model change for the pharmacometrics review.</li>
+          <li><b>Fast compounds read 0.0 mg</b> between doses (TB-500 on Test03), exactly as the Curve screen does today. Keep, or show the compound with the slowest clearance first?</li>
+          <li><b>The explainers open in place</b> (Understand the numbers, Sources &amp; references), as on main. OK?</li>
         </ol>
       </div>
       <div id="cov" class="coverage"></div>
@@ -674,7 +686,7 @@ textarea.winp { resize: none; }
   function reset() {
     st = { tab: 0, stacks: [[{ s: 'today' }], [{ s: 'dash' }], [{ s: 'journey' }], [{ s: 'body' }], [{ s: 'settings' }]],
       theme: 'light', ts: 1, sort: 'due', taken: Object.assign({}, TAKEN0), skipped: {}, fold: {}, snooze: -1,
-      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, note: {}, noteEdit: null, used: { test: 7 }, scroll: {} };
+      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, jstate: 'test03', note: {}, noteEdit: null, used: { test: 7 }, scroll: {} };
   }
   reset();
   function cur() { var s = st.stacks[st.tab]; return s[s.length - 1]; }
@@ -1111,6 +1123,52 @@ textarea.winp { resize: none; }
   }
   function doSaveFinal(logged) { var w = st.wiz; wizSaveCore(); if (logged) toast('Protocol saved · ' + logged + ' past doses logged'); }
 
+
+  /* ================= Journey part 1: the dashboard (under review) ================= */
+  var JI = {
+    trend: '<path d="M3.5 17l5-5 4 3 7-8"/><path d="M15 7h4.5v4.5"/>',
+    curve: '<path d="M3 19c3 0 4-12 7-12s3 8 6 8 3-5 5-5"/><path d="M3 21h18"/>'
+  };
+  var EXPL = [
+    ['Why the scale lies (water & glycogen)', 'Your weight on the scale isn\'t just fat. Glycogen — the carbohydrate your muscles store for energy — binds about 3 g of water for every gram of glycogen, and your body holds roughly 400–500 g of it. So just going from low glycogen (empty muscles) to full can swing the scale 1.5–2 kg (3–4 lb) with no change in fat at all. Add sodium, a big meal, your menstrual cycle, stress, and normal digestion, and 1–3 kg (2–7 lb) of day-to-day bounce is completely normal. Someone in a genuine fat-loss deficit can still watch the scale climb for a week. You can\'t calculate this noise away — weigh yourself under the same conditions…'],
+    ['Why "500 kcal = 1 lb/week" stops working', 'The "500 kcal a day = 1 lb a week" rule comes from the idea that a pound of fat holds about 3,500 kcal. It\'s a fine short-term ballpark, but it assumes your metabolism never changes. As you lose weight, a smaller body burns fewer calories, so your maintenance number falls with it — real loss is a curve that flattens, not a straight line. Expecting a straight line and hitting the inevitable plateau is one of the biggest reasons people conclude something is broken. Recalculate every few kilos and lower the target as your body changes.'],
+    ['Why measurements beat the scale', 'A tape measure around your waist is cheap, and it tracks fat loss far more clearly than the scale — which is muddied by water, food and glycogen. If you\'re eating well below maintenance you may lose a little lean mass alongside fat, so the scale stalls and you assume it\'s failing. But if your waist is down while your weight is flat, that\'s recomposition — real progress you\'d never see on the scale alone. Measure at the same spot, first thing in the morning, every few weeks.'],
+    ['Why the daily burn moves', 'Your daily burn isn\'t a fixed number. Muscle burns more at rest than fat does, so as you build muscle it drifts up — and as you lose weight, especially any lean mass, it drifts down. That\'s normal, not a glitch. It\'s also why a check from months ago can read too high or too low today. Re-run a reality check every few weeks so the number keeps matching the body you have now.']
+  ];
+  var REFS = [
+    ['Resting-calorie formula (weight, height, age)', 'Mifflin & St Jeor et al. — Am J Clin Nutr, 1990'],
+    ['Resting calories from lean mass', 'Cunningham — Am J Clin Nutr, 1991'],
+    ['Daily protein targets', 'Jäger et al. — ISSN Position Stand, 2017'],
+    ['Water, glycogen & scale fluctuations', 'Muscle glycogen & body water — Nutrients, 2023'],
+    ['Calories per kilogram of body change', 'Hall — Int J Obes, 2008']
+  ];
+  var JS = {
+    test03: { food: ['Nothing logged yet today', '0 of 7 days in a row'], prog: null, dose: ['--p2', 'TB-500', '0.0'] },
+    run: { food: ['Today: 3 items · ~1,420 kcal', '5 of 7 days in a row'], prog: ['84.6', '−3.4', '2,810', false], dose: ['--p1', 'Testosterone Cypionate', '122'] },
+    done: { food: ['Today: 2 items · ~860 kcal', null], prog: ['84.3', '−3.7', '2,670', true], dose: ['--p1', 'Testosterone Cypionate', '131'] },
+    fresh: { food: ['Nothing logged yet today', null], prog: null, dose: null }
+  };
+  function journeyDash() {
+    var d = JS[st.jstate || 'test03'], stack = st.ts >= 1.3;
+    var h = '<div class="hrow"><h3 class="r-large" data-i="J1">Journey</h3></div><span class="r-sec c2" data-i="J2" style="padding: 0 4px; margin-top: -8px">Track how your body is actually responding.</span>';
+    h += '<div class="food" data-i="J19"' + A('say', 'Opens the AI food log (FoodChat): Journey part 3.') + '><div class="row" style="gap: 10px">' + ic(I.spark, 22) + '<span class="r-head grow">AI food log</span><span data-i="J18">' + CHEV + '</span></div><span class="r-title tnum" style="font-size: calc(19px * var(--ts))">' + d.food[0] + '</span>' + (d.food[1] ? '<span class="r-sec c2 tnum">' + d.food[1] + '</span>' : '') + '</div>';
+    var p = '<div class="tile jt" data-i="J17"' + A('go', 'progress') + '><div class="top">' + ic(JI.trend, 22) + CHEV + '</div><span class="r-head">Progress</span>';
+    if (d.prog) p += '<div class="num"><span class="r-cap c2">Weight</span><span class="r-display d34">' + d.prog[0] + '<span class="unit">kg</span></span><span class="r-foot c2 tnum">Since Aug 31: <span class="vin">' + d.prog[1] + ' kg</span></span></div><div class="num sep end"><span class="r-cap c2">Daily burn (TDEE)</span><span class="r-display d34">' + d.prog[2] + '<span class="unit">kcal</span></span><span class="chip r-cap' + (d.prog[3] ? ' meas' : '') + '">' + (d.prog[3] ? 'Measured' : 'Estimated') + '</span></div>';
+    else p += '<span class="r-sec c2" data-i="J15">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
+    p += '</div>';
+    var q = '<div class="tile jt" data-i="J3"' + A('go', 'curve') + '><div class="top">' + ic(JI.curve, 22, 'color: var(--data)') + CHEV + '</div><span class="r-head">Dose accumulation</span>';
+    if (d.dose) q += '<div class="row" style="gap: 7px; align-items: flex-start"><span class="dot" style="background: var(' + d.dose[0] + '); margin-top: 6px"></span><span class="r-sec">' + d.dose[1] + '</span></div><div class="num end"><span class="r-cap c2">Est. level</span><span class="r-display d34 cd">' + d.dose[2] + '<span class="unit">mg</span></span><span class="chip r-cap">Estimated</span></div>';
+    else q += '<span class="r-sec c2">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span>';
+    q += '</div>';
+    h += '<div class="duo' + (stack ? ' stack' : '') + '">' + p + q + '</div>';
+    h += '<div class="list" style="margin-top: 6px"><div class="fh" data-i="J25"' + A('fold', 'learn') + '><span class="r-head grow">Understand the numbers</span><span style="color: var(--ink3)">' + (st.fold.learn ? UP : DOWN) + '</span></div>';
+    if (st.fold.learn) h += EXPL.map(function (e, i) { var o = st.fold['ex' + i]; return '<div style="border-top: 1px solid var(--line)"><div class="fh"' + A('fold', 'ex' + i) + ' style="min-height: 52px"><span class="r-body grow">' + e[0] + '</span><span style="color: var(--ink3)">' + (o ? UP : DOWN) + '</span></div>' + (o ? '<p class="r-sec c2" style="margin: 0 0 14px">' + e[1] + '</p>' : '') + '</div>'; }).join('');
+    h += '<div style="border-top: 1px solid var(--line)"><div class="fh" data-i="J26"' + A('fold', 'src') + '><span class="r-head grow">Sources &amp; references</span><span style="color: var(--ink3)">' + (st.fold.src ? UP : DOWN) + '</span></div>';
+    if (st.fold.src) h += '<p class="r-foot c2" style="margin: 0 0 10px">The formulas and figures in this calculator come from published research. Tap a source to read it.</p>' + REFS.map(function (r) { return '<div class="li" style="border-top: 1px solid var(--line)"' + A('say', 'Opens the source in the browser.') + '><div class="grow col" style="gap: 2px"><span class="r-body">' + r[0] + '</span><span class="r-foot c2">' + r[1] + '</span></div>' + ic('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>', 16) + '</div>'; }).join('');
+    return h + '</div></div>';
+  }
+  function nextPart(title, text) { return '<div class="navrow"><span class="back"' + A('back') + '>' + CHEV + 'Journey</span></div><div class="hrow" style="padding-top: 0"><h3 class="r-large">' + title + '</h3></div><div class="expl r-sec c2">' + text + '</div>'; }
+
   /* ---------- render ---------- */
   var phone = document.getElementById('phone');
   function render() {
@@ -1120,7 +1178,9 @@ textarea.winp { resize: none; }
     else if (c.s === 'list') body = list();
     else if (c.s === 'proto') body = protocol(c.id);
     else if (c.s === 'log') body = doseLog();
-    else if (c.s === 'journey') body = notYet('Journey', 'journey-light-1.jpg');
+    else if (c.s === 'journey') body = journeyDash();
+    else if (c.s === 'progress') body = nextPart('Progress', 'Journey part 2: your numbers, the reality check, weigh-ins, your target and your daily plan. Drawn after you approve the dashboard.');
+    else if (c.s === 'curve') body = nextPart('Dose accumulation', 'Journey part 4: the accumulation curve, opening on the compound you last viewed. Drawn later.');
     else if (c.s === 'body') body = notYet('My Body');
     else body = notYet('Settings');
     var times = ['8:10', '8:11', '8:12'];
@@ -1216,6 +1276,9 @@ textarea.winp { resize: none; }
     });
   });
   document.getElementById('badges').addEventListener('change', render);
+  document.querySelectorAll('[data-jstate]').forEach(function (b) {
+    b.addEventListener('click', function () { st.jstate = b.getAttribute('data-jstate'); st.wiz = null; st.overlay = null; st.tab = 2; st.stacks[2] = [{ s: 'journey' }]; render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  });
   document.querySelectorAll('[data-pop]').forEach(function (b) {
     b.addEventListener('click', function () { POPS[b.getAttribute('data-pop')](); st.toast = null; render(); document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   });

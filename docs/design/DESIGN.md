@@ -32,6 +32,12 @@ Founder decisions since (2026-09-29):
   "Recently deleted" + Restore at the bottom of the list, and a confirm before New vial /
   New bottle. Today alerts naming one protocol open that protocol (recommended answer, taken as
   approved unless the founder says otherwise).
+- **My Protocols part 3 APPROVED (2026-09-29, founder: "Ok, keep going")**, so all of My
+  Protocols is approved: one DoseTrace sheet replaces the system alerts (pickers keep the iPhone
+  wheel inside it; camera and photo library stay system screens); photo choice as a bottom sheet;
+  vial-photo errors reuse "Couldn't read that label" and drop the lab-report wording (new copy);
+  titles say what happened instead of "Error" (new copy); Delete says it restores from Recently
+  deleted (new copy); a protocol with missing dose details keeps main's sentence + "Dose details ›".
 - **My Protocols part 2 APPROVED (2026-09-29, founder: "Perfect. Keep going"):** the add/edit
   steps as in `prototype.html`, with the recommended answers: Cancel top-left, Back + Next in the
   footer; live syringe under its fields; discard confirm on Cancel (new copy); a typed name counts
