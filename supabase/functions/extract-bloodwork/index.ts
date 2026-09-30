@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
     // Parse and validate the request body. Accepts either a PDF (pdf_base64)
     // or a photo of a report (image_base64 + media_type) — the "snap a report"
     // path. Claude's vision handles both.
-    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown; kind?: unknown };
+    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown; kind?: unknown; lang?: unknown };
     try {
       body = await req.json();
     } catch {
@@ -365,6 +365,7 @@ Deno.serve(async (req) => {
     }
     return outcome.response;
   } catch (err) {
+    console.error('[extract] internal_error', err?.message);
     return jsonResponse({ error: err.message, code: 'internal_error' }, 500);
   }
 });
