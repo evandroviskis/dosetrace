@@ -512,12 +512,14 @@ textarea.winp { resize: none; }
 .sitefig { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .sitefig .segw span { min-height: 34px; padding: 0 12px; font-size: calc(14px * var(--ts)); }
 .bodyfig g:focus { outline: none; }
-.sitelist { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
-.siteopt { display: flex; gap: 10px; align-items: center; min-height: 44px; padding: 6px 10px; border-radius: 12px; background: var(--well); color: var(--ink); font: 400 calc(14px * var(--ts)) / 1.25 var(--sys); cursor: pointer; }
-.siteopt > i { width: 20px; height: 20px; border-radius: 10px; box-shadow: inset 0 0 0 1.5px var(--tick); flex: none; display: flex; align-items: center; justify-content: center; color: var(--onInk); }
-.siteopt.on { background: var(--raised); box-shadow: inset 0 0 0 1.5px var(--ink); font-weight: 600; }
-.siteopt.on > i { background: var(--ink); box-shadow: none; }
-.siteopt small { display: block; color: var(--ink2); font-size: calc(12px * var(--ts)); font-weight: 400; }
+.sitelist { display: flex; flex-direction: column; background: var(--well); border-radius: 16px; padding: 2px 12px; }
+.siterow { display: flex; align-items: center; gap: 8px; min-height: 54px; }
+.siterow + .siterow { border-top: 1px solid var(--line); }
+.sidebtn { flex: none; min-width: 72px; min-height: 40px; padding: 0 12px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--raised); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); font: 600 calc(14px * var(--ts)) / 1 var(--sys); cursor: pointer; }
+.sidebtn.wide { min-width: 152px; }
+.sidebtn .nc { align-self: center; }
+.sidebtn.on { background: var(--ink); color: var(--onInk); box-shadow: none; }
+.sidebtn.sug { box-shadow: none; outline: 1.5px dashed var(--ink2); outline-offset: -1.5px; }
 .sitefree { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--well); }
 .sugk { display: inline-block; width: 12px; height: 12px; border-radius: 6px; border: 1.2px dashed var(--ink2); vertical-align: -1px; margin-right: 6px; }
 .cmpt .cmprow { min-height: 44px; gap: 8px; padding: 8px 0; }
@@ -1141,7 +1143,17 @@ textarea.winp { resize: none; }
     });
     var fig = bodyFig(o.view, marks) + dots + '</svg>';
     h += '<div class="sitewrap" data-i="IS3"><div class="sitefig"><div class="segw" data-i="IS4">' + [['front', 'Front'], ['back', 'Back']].map(function (x) { return '<span class="' + (o.view === x[0] ? 'on' : '') + '"' + A('siteview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</div>' + fig + '<div class="row r-cap c2" style="width: 300px; justify-content: space-between" data-i="IS5"><span>' + nc(o.view === 'front' ? 'Your right' : 'Your left') + '</span><span>' + nc(o.view === 'front' ? 'Your left' : 'Your right') + '</span></div></div>';
-    h += '<div class="sitelist" data-i="IS6">' + vis.map(function (s) { var on = siteOn(o.sel, s.id), sug = lg && spot(lg.s.id) === spot(s.id); return '<span class="siteopt' + (on ? ' on' : '') + '"' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '"><i>' + (on ? ic(I.check, 14, 'color: currentColor') : '') + '</i><span>' + s.label + (sug ? '<small>' + nc('Longest unused') + '</small>' : '') + '</span></span>'; }).join('') + '<span class="siteopt' + (o.other != null ? ' on' : '') + '"' + A('siteother') + ' role="checkbox" aria-checked="' + (o.other != null) + '"><i>' + (o.other != null ? ic(I.check, 14, 'color: currentColor') : '') + '</i><span>' + nc('Somewhere else') + '<small>' + nc('Type it in') + '</small></span></span>' + '</div></div>';
+    // One row per area, Left / Right buttons in the image's order (front: Right first). vis holds pairs in that order.
+    var rowsH = '';
+    for (var r2 = 0; r2 + 1 < vis.length; r2 += 2) {
+      var pr = [vis[r2], vis[r2 + 1]], area = pr[0].label.replace(/,? (left|right)$/, '');
+      rowsH += '<div class="siterow"><span class="r-body grow">' + area + '</span>' + pr.map(function (s) {
+        var on = siteOn(o.sel, s.id), sug = lg && spot(lg.s.id) === spot(s.id) && !on, side = /left$/.test(s.label) ? 'Left' : 'Right';
+        return '<span class="sidebtn' + (on ? ' on' : '') + (sug ? ' sug' : '') + '"' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '" aria-label="' + s.label + '">' + (on ? ic(I.check, 14, 'color: currentColor') : '') + side + '</span>';
+      }).join('') + '</div>';
+    }
+    rowsH += '<div class="siterow"><span class="r-body grow">' + nc('Somewhere else') + '</span><span class="sidebtn wide' + (o.other != null ? ' on' : '') + '"' + A('siteother') + ' role="checkbox" aria-checked="' + (o.other != null) + '">' + (o.other != null ? ic(I.check, 14, 'color: currentColor') : '') + nc('Type it in') + '</span></div>';
+    h += '<div class="sitelist" data-i="IS6">' + rowsH + '</div></div>';
     if (o.other != null) h += '<label class="col" style="gap: 6px" data-i="IS12"><span class="r-sec c2">' + nc('Where? (your words)') + '</span><input id="siteothin" class="winp" maxlength="40" placeholder="e.g. right calf" value="' + (o.other || '').replace(/"/g, '&quot;') + '"></label>';
     if (o.free && !o.sel.length && o.other == null) h += '<div class="sitefree" data-i="IS13"><span class="r-sec">' + nc('Saved earlier as text: ') + '<b style="font-weight: 600">\u201c' + o.free + '\u201d</b></span><span class="r-foot c2">' + nc('Kept as it is unless you pick a spot or tap Remove site.') + '</span></div>';
     if (lg) h += '<span class="r-foot c2 tnum" data-i="IS7"><span class="sugk"></span>' + nc('Longest unused in your log: ') + '<b style="color: var(--ink); font-weight: 600">' + lg.s.label + '</b>' + (lg.d >= 999 ? nc(' · not in your log yet') : nc(' · last used ' + lg.d + (lg.d === 1 ? ' day' : ' days') + ' ago')) + '</span>';
