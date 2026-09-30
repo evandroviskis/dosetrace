@@ -1,0 +1,281 @@
+<title>DoseTrace Type Check</title>
+<meta name="description" content="Typography review of the DoseTrace app and the Graduated proposal, using the rules of Impeccable, Emil Kowalski and Taste, with specimens before and after.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a review sheet. Numbers first (what the app's code actually uses), then the rules as a
+   table (which skill says it, what the app does, what Graduated v3 does, the change), then the same
+   elements set three ways, then stress (text size, languages). Page chrome = Graduated tokens. */
+:root {
+  --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --data: #2350D8; --risk: #9E1F19; --ok: #17623F; --attention: #7E4A00;
+  --onInk: #FFFFFF;
+  --geist: 'Geist', -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --jak: 'Plus Jakarta Sans', -apple-system, 'Helvetica Neue', sans-serif;
+  --sys: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --sysd: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --data: #8AA8FF; --risk: #F08A80; --ok: #62C597; --attention: #E3A54E;
+  --onInk: #121416; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --data: #8AA8FF; --risk: #F08A80; --ok: #62C597; --attention: #E3A54E;
+  --onInk: #121416; color-scheme: dark; }
+/* The three specimen frames are pinned to the app's light palettes so they compare like for like. */
+.frame.main { --fbg: #F4F7FB; --fcard: #FFFFFF; --ftext: #111827; --fmuted: #5B6673; --ffaint: #98A2B3; --faccent: #185FA5; --fwarnbg: #FAEEDA; --fwarn: #633806; --fok: #1D9E75; }
+.frame.grad { --fbg: #DDE0DB; --fcard: #FFFFFF; --ftext: #111315; --fmuted: #454A4F; --ffaint: #53585D; --faccent: #2350D8; --fline: #C3C7C0; --fwell: #EEF0EC; --fok: #17623F; }
+
+* { box-sizing: border-box; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--geist); -webkit-font-smoothing: antialiased; padding-inline: 20px; padding-block: 40px 80px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.intro { display: flex; flex-direction: column; gap: 14px; max-width: 76ch; }
+.status { font-family: var(--mono); font-size: 12.5px; color: var(--ink3); }
+.intro h1 { margin: 0; font-weight: 300; font-size: clamp(38px, 5.5vw, 60px); letter-spacing: -0.03em; line-height: 1.02; }
+.intro p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+.intro p b { font-weight: 500; color: var(--ink); }
+.band { display: flex; flex-direction: column; gap: 18px; }
+.band > h2 { margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.015em; }
+.band > p { margin: -6px 0 0; font-size: 15px; line-height: 1.55; color: var(--ink2); max-width: 84ch; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+.stat { background: var(--raised); border-radius: 18px; padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+.stat b { font-size: 40px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat b.bad { color: var(--risk); }
+.stat span { font-size: 13.5px; line-height: 1.45; color: var(--ink2); }
+.stat em { font-style: normal; font-size: 12.5px; color: var(--ink3); }
+.chartbox { background: var(--raised); border-radius: 18px; padding: 18px 18px 10px; }
+.chartscroll { overflow-x: auto; position: relative; }
+.chartlegend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink2); margin-bottom: 8px; }
+.chartlegend span { display: inline-flex; align-items: center; gap: 7px; }
+.chartlegend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--onInk); font: 500 12.5px var(--mono); padding: 6px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, -110%); opacity: 0; transition: opacity 0.12s; }
+details { font-size: 14px; color: var(--ink2); }
+details summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; }
+.tablewrap { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 10px 14px 10px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+table.t th { font-weight: 500; color: var(--ink2); font-size: 13px; }
+table.t td.n { font-family: var(--mono); color: var(--ink3); width: 32px; }
+table.t td b { font-weight: 500; }
+.src { display: inline-block; font: 500 11.5px var(--mono); border: 1px solid var(--line); border-radius: 10px; padding: 1px 7px; margin: 0 4px 3px 0; color: var(--ink2); white-space: nowrap; }
+.v-bad { color: var(--risk); } .v-ok { color: var(--ok); } .v-part { color: var(--attention); }
+.cmp { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 24px; align-items: start; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figcaption { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+figcaption b { font-weight: 500; color: var(--ink); }
+.frame { background: var(--fbg); border-radius: 28px; padding: 22px 16px; display: flex; flex-direction: column; gap: 12px; outline: 1px solid var(--line); color: var(--ftext); }
+.fcard { background: var(--fcard); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.frame.grad .fcard { border-radius: 20px; }
+.frame.main .fcard { box-shadow: 0 8px 16px rgba(18,35,59,0.08); }
+.row { display: flex; align-items: center; gap: 10px; }
+.grow { flex: 1; min-width: 0; }
+.col { display: flex; flex-direction: column; }
+.dot { width: 9px; height: 9px; border-radius: 5px; flex: none; background: #3E6FB0; }
+.roles { display: flex; flex-direction: column; gap: 0; background: var(--raised); border-radius: 18px; padding: 6px 18px; }
+.roles .r { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(0, 2fr) minmax(130px, 1fr); gap: 14px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.roles .r:last-child { border-bottom: 0; }
+.roles .k { font: 500 12.5px var(--mono); color: var(--ink3); }
+.roles .spec { color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+.roles .m { font: 400 12px var(--mono); color: var(--ink3); }
+.qs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 88ch; font-size: 15px; line-height: 1.55; }
+.qs b { font-weight: 500; }
+.note { font-size: 13.5px; line-height: 1.55; color: var(--ink2); max-width: 88ch; }
+.tilebox { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.tileset { display: flex; flex-direction: column; gap: 8px; width: min(100%, 358px); }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.duo.stack { grid-template-columns: 1fr; }
+.tile { background: #FFFFFF; color: #111315; border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tilecap { font: 500 12.5px var(--mono); color: var(--ink3); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="status">Type check · main 57b6910 + Graduated v3 · rules from Impeccable, Emil Kowalski and Taste · 29 Sep 2026</div>
+    <h1>DoseTrace type, checked</h1>
+    <p>I measured every text style in the app's code on main and checked it, and the Graduated proposal, against the typography rules of the three skills. <b>Impeccable's detector did not run</b>: its program is not installed, so I applied its written rules (typeset, iOS, Android, craft floor) by hand. <b>Emil's skill has no typography rules</b>; it adds one point about numbers that animate. <b>Taste</b> is written for websites; its type rules that also hold in an app are used.</p>
+  </header>
+
+  <section class="band">
+    <h2>1 · The app today, measured</h2>
+    <p>From the code on main (29 source files, every <span class="mono">fontSize</span>, <span class="mono">fontWeight</span> and text setting). One family, Plus Jakarta Sans, sets every piece of text.</p>
+    <div class="stats">
+      <div class="stat"><b class="bad">32</b><span>different font sizes, 689 declarations. Today alone uses 20.</span><em>Rule: one role scale</em></div>
+      <div class="stat"><b class="bad">51</b><span>declarations below 11 pt (8 to 10.5 pt): reminder labels, badges, streak chips.</span><em>Rule: 11 pt floor</em></div>
+      <div class="stat"><b class="bad">53%</b><span>of all text is 12 to 14 pt, so most reading text sits well under body size.</span><em>Rule: body 17 pt on iOS</em></div>
+      <div class="stat"><b class="bad">90%</b><span>of weighted text is semibold, bold or extra bold (384 of 429).</span><em>Rule: hierarchy by weight contrast</em></div>
+      <div class="stat"><b class="bad">16</b><span>uppercase labels, plus 46 letter-spacing tweaks.</span><em>Rule: no eyebrow labels</em></div>
+      <div class="stat"><b class="bad">5</b><span>places with aligned (tabular) numbers. Today and My Protocols: none.</span><em>Rule: numeric features for numbers</em></div>
+    </div>
+    <div class="chartbox">
+      <div class="chartlegend"><span><i style="background: var(--risk)"></i>Below the 11 pt floor</span><span><i style="background: var(--ink3)"></i>11 pt and up</span><span><i style="background: var(--data)"></i>17 pt, iOS body size</span></div>
+      <div class="chartscroll" id="chartscroll"><svg id="sizechart" role="img" aria-label="Font size declarations on main: most text is 11 to 14 point; 51 declarations are below 11 point; 7 are at the iOS body size of 17 point."></svg><div class="tip" id="tip"></div></div>
+      <details><summary>Show as a table</summary><div class="tablewrap"><table class="t" id="sizetable"></table></div></details>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>2 · The rules, and where each design stands</h2>
+    <p>Main is the app today. Graduated v3 is the proposal you are reviewing. Of the 11 rules, v3 already fixes 3, partly fixes 3, and 5 need a change (the v3 column says which).</p>
+    <div class="tablewrap"><table class="t" id="rules"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>3 · The same card, three ways</h2>
+    <p>The top of Today and one dose card, with the same words. Left: the app today. Middle: Graduated v3 (Geist for everything). Right: the proposed v4 (the phone's own font for reading text, Geist for titles and big numbers, Geist Mono only for measured values, one role scale).</p>
+    <div class="cmp" id="spec"></div>
+    <p class="note">The system font shows as San Francisco on an Apple device; on Android it is Roboto. In a browser on another system it falls back to that system's font.</p>
+  </section>
+
+  <section class="band">
+    <h2>4 · The proposed role scale (v4)</h2>
+    <p>Nine roles instead of 32 sizes, each tied to an iOS text style so it grows with the user's text size, and to an Android type role.</p>
+    <div class="roles" id="roles"></div>
+  </section>
+
+  <section class="band">
+    <h2>5 · Stress: text size and languages</h2>
+    <p>Impeccable's stress test: large text, longer languages, narrow boxes. The two dashboard tiles at the phone's default size, at 135% and at 200% (accessibility sizes), and in German.</p>
+    <div class="tilebox" id="stress"></div>
+  </section>
+
+  <section class="band">
+    <h2>6 · What changes, for your approval</h2>
+    <ol class="qs">
+      <li><b>Font split (Impeccable, iOS and Android):</b> reading text, labels and buttons in the phone's own font (San Francisco / Roboto); Geist for screen titles and the big numbers; Geist Mono only for measured values. The alternative is Geist for everything, as in v3; Taste endorses Geist, but Impeccable's native rules say the system font carries the interface. Recommended: the split.</li>
+      <li><b>One role scale</b> of nine roles (section 4) replacing 32 sizes; nothing under 11 pt; body 17 pt.</li>
+      <li><b>Text size:</b> every screen tested at the largest text sizes; no text in fixed-height boxes. The stress test shows the side-by-side tiles break at 135% ("Dose accumulation" splits mid-word), so they stack from about 130% text size up.</li>
+      <li><b>Monospace only on values</b> (84.6 kg, 2,810 kcal, 20:00, 50.0 u). Sentences such as "In progress · weigh in Oct 12, 2026" go back to the reading font, with aligned digits. This corrects my own v3 mockups.</li>
+      <li><b>Tracking:</b> big numbers at −0.03em, not the −0.045 to −0.055em I used (Impeccable's floor is −0.04em).</li>
+      <li><b>Animated numbers (Emil):</b> Today's ring and counts replay from zero every time Today opens; a screen opened many times a day should not replay them. Show the numbers at rest; animate only when a value changes (a dose logged), and never with Reduce Motion on.</li>
+      <li><b>Fonts loaded:</b> only the weights used (Geist 300 and 600, Geist Mono 400 and 500 with the split). Today the app loads five weights, and every request for a light weight silently renders as regular.</li>
+      <li><b>Later (layout, not type):</b> Impeccable bans a small label above a heading, which is what Today's date line is. It stays under the layout freeze; noted for the Today layout pass.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  /* ---------- chart: font-size declarations on main ---------- */
+  var DATA = [[8,2],[9,5],[9.5,2],[10,36],[10.5,6],[11,90],[11.5,9],[12,102],[12.5,27],[13,143],[13.5,3],[14,91],[14.5,5],[15,51],[15.5,1],[16,30],[17,7],[18,16],[19,1],[20,11],[22,14],[24,10],[25,1],[26,7],[27,1],[28,3],[30,4],[32,2],[34,2],[40,1],[44,2],[48,4]];
+  var NS = 'http://www.w3.org/2000/svg';
+  var svg = document.getElementById('sizechart'), tip = document.getElementById('tip'), box = document.getElementById('chartscroll');
+  var W = Math.max(820, box.clientWidth || 820), H = 260, L = 38, R = 8, T = 14, B = 34;
+  var max = 150, step = (W - L - R) / DATA.length, bw = Math.max(8, Math.min(18, step - 6));
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  function el(tag, a, p) { var n = document.createElementNS(NS, tag); for (var k in a) n.setAttribute(k, a[k]); (p || svg).appendChild(n); return n; }
+  var Y = function (v) { return T + (1 - v / max) * (H - T - B); };
+  [0, 50, 100, 150].forEach(function (v) {
+    el('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: 'var(--line)', 'stroke-dasharray': v ? '2 4' : '' });
+    var t = el('text', { x: L - 8, y: Y(v) + 4, 'text-anchor': 'end', 'font-family': 'Geist Mono, monospace', 'font-size': 11, fill: 'var(--ink3)' }); t.textContent = v;
+  });
+  DATA.forEach(function (d, i) {
+    var x = L + i * step + (step - bw) / 2, y = Y(d[1]), h = Y(0) - y;
+    var fill = d[0] < 11 ? 'var(--risk)' : d[0] === 17 ? 'var(--data)' : 'var(--ink3)';
+    var r = Math.min(4, bw / 2);
+    var path = 'M' + x + ' ' + Y(0) + ' V' + (y + r) + ' Q' + x + ' ' + y + ' ' + (x + r) + ' ' + y + ' H' + (x + bw - r) + ' Q' + (x + bw) + ' ' + y + ' ' + (x + bw) + ' ' + (y + r) + ' V' + Y(0) + ' Z';
+    if (h < r) path = 'M' + x + ' ' + Y(0) + ' h' + bw + ' v' + (-Math.max(h, 1)) + ' h' + (-bw) + ' Z';
+    el('path', { d: path, fill: fill });
+    var hit = el('rect', { x: L + i * step, y: T, width: step, height: H - T - B, fill: 'transparent', tabindex: 0, role: 'img', 'aria-label': d[0] + ' point: ' + d[1] + ' declarations' });
+    function show() { tip.textContent = d[0] + ' pt · ' + d[1] + (d[1] === 1 ? ' use' : ' uses'); tip.style.left = (x + bw / 2) + 'px'; tip.style.top = y + 'px'; tip.style.opacity = 1; }
+    function hide() { tip.style.opacity = 0; }
+    hit.addEventListener('mouseenter', show); hit.addEventListener('focus', show); hit.addEventListener('mouseleave', hide); hit.addEventListener('blur', hide);
+    var lab = el('text', { x: x + bw / 2, y: H - B + 16, 'text-anchor': 'middle', 'font-family': 'Geist Mono, monospace', 'font-size': 11, fill: d[0] < 11 ? 'var(--risk)' : 'var(--ink3)' });
+    lab.textContent = String(d[0]).replace('.5', '½');
+  });
+  var ax = el('text', { x: L, y: H - 4, 'font-family': 'Geist, sans-serif', 'font-size': 11.5, fill: 'var(--ink3)' }); ax.textContent = 'font size (pt) · bar height = number of declarations';
+  document.getElementById('sizetable').innerHTML = '<thead><tr><th>Size (pt)</th><th>Declarations</th></tr></thead><tbody>' + DATA.map(function (d) { return '<tr><td class="mono">' + d[0] + '</td><td class="mono">' + d[1] + '</td></tr>'; }).join('') + '</tbody>';
+
+  /* ---------- rules table ---------- */
+  function src(list) { return list.map(function (s) { return '<span class="src">' + s + '</span>'; }).join(''); }
+  var RULES = [
+    ['One role scale, not one-off sizes', ['Impeccable typeset', 'Impeccable Android'], '32 sizes; Today alone 20', ['bad', 'DESIGN.md defines roles, but my mockups still used about 20 sizes'], 'Nine roles tied to iOS text styles (section 4)'],
+    ['Body 17 pt, nothing under 11 pt', ['Impeccable iOS'], 'Most text 12–14 pt; 51 declarations under 11 pt', ['part', 'Sentences 15, captions 12.5–13, tile labels 11–11.5'], 'Body 17, secondary 15, footnote 13, caption 12; 11 only for tab labels'],
+    ['Text follows the phone\'s text size', ['Impeccable iOS', 'Impeccable Android'], 'Scaling is on, but never tested; fixed-height ring and tiles', ['bad', 'Two fixed-height tiles side by side'], 'Test at the largest sizes; tiles stack from about 130% text size (section 5)'],
+    ['The system font carries the interface; a brand face for display', ['Impeccable iOS', 'Impeccable Android'], 'Plus Jakarta Sans for every piece of text', ['part', 'Geist for every piece of text (Taste endorses Geist + Geist Mono)'], 'System font for reading text and controls; Geist for titles and big numbers (decision 1)'],
+    ['Hierarchy by weight contrast', ['Taste', 'Impeccable typeset'], '90% of weighted text is 600–800', ['ok', 'Weights 300 / 400 / 500 / 600'], 'Keep; cap at 600'],
+    ['No uppercase eyebrow labels', ['Taste', 'Impeccable craft floor'], '16 uppercase labels, 46 tracking tweaks', ['ok', 'Sentence case everywhere'], 'Keep'],
+    ['Monospace only for data and measurements', ['Impeccable craft floor', 'Taste (one register)'], 'No monospace', ['bad', 'Status sentences also set in mono'], 'Mono on values only; sentences in the reading font with aligned digits'],
+    ['Aligned (tabular) digits for numbers', ['Impeccable typeset', 'Taste'], '5 uses; none on Today or My Protocols', ['ok', 'Tabular digits and mono values'], 'Keep; extend to times and percentages'],
+    ['Letter-spacing no tighter than −0.04em', ['Impeccable craft floor'], 'Within the floor', ['bad', 'Big numbers at −0.045 to −0.055em'], '−0.03em on big numbers, 0 on text'],
+    ['Load only the weights you use', ['Impeccable typeset'], '5 weights; light requests silently render regular', ['part', 'Geist 200–700 (6) + Mono'], 'Geist 300 and 600, Geist Mono 400 and 500'],
+    ['Numbers seen many times a day do not animate', ['Emil Kowalski'], 'Today\'s ring and counts replay from zero on every open', ['bad', 'Kept the count-ups'], 'Numbers at rest; animate only when a value changes; respect Reduce Motion']
+  ];
+  var cls = { bad: 'v-bad', part: 'v-part', ok: 'v-ok' }, word = { bad: 'Change', part: 'Partly', ok: 'Already fixed' };
+  document.getElementById('rules').innerHTML = '<thead><tr><th>#</th><th>Rule</th><th>Where from</th><th>App today (main)</th><th>Graduated v3</th><th>Proposed change</th></tr></thead><tbody>' + RULES.map(function (r, i) {
+    return '<tr><td class="n">' + (i + 1) + '</td><td><b>' + r[0] + '</b></td><td>' + src(r[1]) + '</td><td>' + r[2] + '</td><td><span class="' + cls[r[3][0]] + '" style="font-weight: 500">' + word[r[3][0]] + '.</span> ' + r[3][1] + '</td><td>' + r[4] + '</td></tr>';
+  }).join('') + '</tbody>';
+
+  /* ---------- specimens: same content, three type systems ---------- */
+  function mainSpec() {
+    var j = 'font-family: var(--jak);';
+    return '<div class="frame main" style="' + j + '">'
+      + '<div class="col" style="gap: 2px"><span style="font: 600 13px var(--jak); letter-spacing: 0.2px; color: var(--fmuted)">Monday, September 28</span><span style="font: 800 27px var(--jak); letter-spacing: -0.6px">Good evening, Test03</span><span style="font: 500 14px var(--jak); color: var(--fmuted)">4 / 5 doses</span></div>'
+      + '<div class="fcard" style="flex-direction: row; align-items: center; gap: 12px"><span style="font: 800 22px var(--jak)">80%</span><span style="font: 400 12px var(--jak); color: var(--fmuted)">of doses</span></div>'
+      + '<span style="font: 700 13px var(--jak); letter-spacing: 0.6px">TODAY</span>'
+      + '<div class="fcard"><div class="row"><span class="dot"></span><div class="grow col" style="gap: 2px"><span style="font: 700 16px var(--jak)">BPC-157</span><span style="font: 400 13px var(--jak); color: var(--fmuted)">0.5 mg · Daily</span></div><div class="col" style="align-items: flex-end; gap: 2px"><span style="font: 500 12px var(--jak); color: var(--fmuted)">7:20 PM</span><span style="font: 400 10px var(--jak); color: var(--ffaint)">reminder</span><span style="font: 600 10px var(--jak); color: var(--fwarn); background: var(--fwarnbg); padding: 2px 6px; border-radius: 8px">1 day without a miss</span></div></div>'
+      + '<span style="font: 400 11px var(--jak); color: var(--fmuted)">Mixed Sep 27 · 2 doses remaining · <span style="color: var(--fok)">29 days left</span></span>'
+      + '<div class="row" style="gap: 8px"><span style="flex: 1; text-align: center; font: 600 14px var(--jak); color: var(--fmuted); border: 1px solid #E4EBF3; border-radius: 12px; padding: 11px 0">Skip</span><span style="flex: 2; text-align: center; font: 600 14px var(--jak); color: #fff; background: var(--faccent); border-radius: 12px; padding: 11px 0">Mark taken</span></div></div></div>';
+  }
+  function v3Spec() {
+    return '<div class="frame grad">'
+      + '<div class="col" style="gap: 2px"><span style="font: 400 13px var(--geist); color: var(--ffaint)">Monday, September 28</span><span style="font: 600 28px var(--geist); letter-spacing: -0.02em">Good evening, Test03</span><span style="font: 400 14px var(--mono); color: var(--fmuted)">4 / 5 doses</span></div>'
+      + '<div class="fcard" style="flex-direction: row; align-items: center; gap: 12px"><span style="font: 300 52px var(--geist); letter-spacing: -0.04em; line-height: 0.95">80<span style="font: 400 16px var(--mono); color: var(--ffaint); letter-spacing: 0">%</span></span><span style="font: 400 13px var(--geist); color: var(--ffaint)">of doses</span></div>'
+      + '<span style="font: 500 14px var(--geist); color: var(--fmuted)">Today</span>'
+      + '<div class="fcard"><div class="row"><span class="dot"></span><div class="grow col" style="gap: 2px"><span style="font: 500 18px var(--geist)">BPC-157</span><span style="font: 400 13px var(--mono); color: var(--fmuted)">0.5 mg · Daily</span></div><div class="col" style="align-items: flex-end; gap: 2px"><span style="font: 400 14px var(--mono)">7:20 PM</span><span style="font: 400 12.5px var(--geist); color: var(--ffaint)">reminder</span><span style="font: 400 12px var(--geist); color: var(--ffaint)">1 day without a miss</span></div></div>'
+      + '<span style="font: 400 12px var(--mono); color: var(--ffaint); border-top: 1px solid var(--fline); padding-top: 8px">Mixed Sep 27 · 2 doses remaining · <span style="color: var(--fok)">29 days left</span></span>'
+      + '<div class="row" style="gap: 8px"><span style="flex: 1; text-align: center; font: 500 16px var(--geist); border: 1px solid var(--fline); border-radius: 24px; padding: 12px 0">Skip</span><span style="flex: 2; text-align: center; font: 500 16px var(--geist); color: #fff; background: var(--ftext); border-radius: 24px; padding: 12px 0">Mark taken</span></div></div></div>';
+  }
+  function v4Spec() {
+    var tab = 'font-variant-numeric: tabular-nums;';
+    return '<div class="frame grad">'
+      + '<div class="col" style="gap: 3px"><span style="font: 400 15px var(--sys); color: var(--ffaint)">Monday, September 28</span><span style="font: 600 28px var(--geist); letter-spacing: -0.02em; line-height: 1.15">Good evening, Test03</span><span style="font: 400 15px var(--sys); color: var(--fmuted); ' + tab + '">4 / 5 doses</span></div>'
+      + '<div class="fcard" style="flex-direction: row; align-items: center; gap: 12px"><span style="font: 300 56px var(--geist); letter-spacing: -0.03em; line-height: 1; ' + tab + '">80<span style="font: 400 17px var(--mono); color: var(--ffaint); letter-spacing: 0">%</span></span><span style="font: 400 15px var(--sys); color: var(--ffaint)">of doses</span></div>'
+      + '<span style="font: 600 15px var(--sys); color: var(--fmuted)">Today</span>'
+      + '<div class="fcard"><div class="row"><span class="dot"></span><div class="grow col" style="gap: 3px"><span style="font: 600 17px var(--sys)">BPC-157</span><span style="font: 400 15px var(--sys); color: var(--fmuted)"><span style="font: 500 15px var(--mono); color: var(--ftext)">0.5 mg</span> · Daily</span></div><div class="col" style="align-items: flex-end; gap: 3px"><span style="font: 500 15px var(--mono)">7:20 PM</span><span style="font: 400 12px var(--sys); color: var(--ffaint)">reminder</span><span style="font: 400 13px var(--sys); color: var(--ffaint)">1 day without a miss</span></div></div>'
+      + '<span style="font: 400 13px var(--sys); color: var(--ffaint); border-top: 1px solid var(--fline); padding-top: 8px; ' + tab + '">Mixed Sep 27 · 2 doses remaining · <span style="color: var(--fok)">29 days left</span></span>'
+      + '<div class="row" style="gap: 8px"><span style="flex: 1; text-align: center; font: 600 17px var(--sys); border: 1px solid var(--fline); border-radius: 24px; padding: 12px 0">Skip</span><span style="flex: 2; text-align: center; font: 600 17px var(--sys); color: #fff; background: var(--ftext); border-radius: 24px; padding: 12px 0">Mark taken</span></div></div></div>';
+  }
+  function fig(html, cap) { var f = document.createElement('figure'); f.innerHTML = html + '<figcaption>' + cap + '</figcaption>'; return f; }
+  var spec = document.getElementById('spec');
+  spec.appendChild(fig(mainSpec(), '<b>App today.</b> Plus Jakarta Sans, sizes 10–27, weights 600–800. The reminder label and streak chip are 10 pt; the vial line is 11 pt; numbers do not align.'));
+  spec.appendChild(fig(v3Spec(), '<b>Graduated v3.</b> Geist for everything. Better weights and no uppercase, but sentences in mono ("0.5 mg · Daily", the vial line) and 12–12.5 pt captions.'));
+  spec.appendChild(fig(v4Spec(), '<b>Proposed v4.</b> Reading text and buttons in the system font at 15–17 pt; Geist only for the greeting and the big number; mono only on "0.5 mg" and "7:20 PM"; aligned digits; nothing under 12 pt.'));
+
+  /* ---------- role scale ---------- */
+  var ROLES = [
+    ['Large title', '<span style="font: 600 34px var(--geist); letter-spacing: -0.02em">Journey</span>', 'Geist 600 · 34 / 41<br>iOS Large Title · M3 Headline Large'],
+    ['Display number', '<span style="font: 300 56px var(--geist); letter-spacing: -0.03em; line-height: 1">84.6<span style="font: 400 17px var(--mono); color: var(--ink3); letter-spacing: 0">kg</span></span>', 'Geist 300 · 34 on tiles, 56 on Progress<br>scales with text size, capped'],
+    ['Title', '<span style="font: 600 22px var(--geist); letter-spacing: -0.01em">Your daily plan</span>', 'Geist 600 · 22 / 28<br>iOS Title 2 · M3 Title Large'],
+    ['Headline', '<span style="font: 600 17px var(--sys)">BPC-157</span>', 'System 600 · 17 / 22<br>iOS Headline · M3 Title Medium'],
+    ['Body', '<span style="font: 400 17px var(--sys)">Enter your weight and body fat to see your estimate.</span>', 'System 400 · 17 / 22<br>iOS Body · M3 Body Large'],
+    ['Value', '<span style="font: 500 17px var(--mono)">2,810 kcal · 0.50 ml · 50.0 u</span>', 'Geist Mono 500 · 15–17<br>measured values only'],
+    ['Secondary', '<span style="font: 400 15px var(--sys); color: var(--ink2)">Mixed Sep 27 · 2 doses remaining · 29 days left</span>', 'System 400 · 15 / 20<br>iOS Subheadline · M3 Body Medium'],
+    ['Footnote', '<span style="font: 400 13px var(--sys); color: var(--ink3)">An estimate for general wellness, not medical advice or a prescription.</span>', 'System 400 · 13 / 18<br>iOS Footnote · M3 Body Small'],
+    ['Caption', '<span style="font: 500 12px var(--sys); color: var(--ink3)">Daily burn (TDEE)</span>', 'System 500 · 12 / 16 (11 only in the tab bar)<br>iOS Caption 1 · M3 Label Medium']
+  ];
+  document.getElementById('roles').innerHTML = ROLES.map(function (r) { return '<div class="r"><span class="k">' + r[0] + '</span><span class="spec">' + r[1] + '</span><span class="m">' + r[2] + '</span></div>'; }).join('');
+
+  /* ---------- stress: text size and German ---------- */
+  function tiles(scale, de) {
+    var f = function (px) { return Math.round(px * scale * 10) / 10 + 'px'; };
+    var t1 = de ? 'Fortschritt' : 'Progress', t2 = de ? 'Dosis-Akkumulation' : 'Dose accumulation';
+    var l1 = de ? 'Gewicht' : 'Weight', l2 = de ? 'Tagesverbrauch (TDEE)' : 'Daily burn (TDEE)', l3 = de ? 'Gesch. Niveau' : 'Est. level', ch = de ? 'Geschätzt' : 'Estimated';
+    var a = '<div class="tile"><span style="font: 600 ' + f(17) + ' var(--sys); overflow-wrap: anywhere">' + t1 + '</span><span style="font: 500 ' + f(12) + ' var(--sys); color: #53585D">' + l1 + '</span><span style="font: 300 ' + f(38) + ' var(--geist); letter-spacing: -0.03em; line-height: 1">84.6<span style="font: 400 ' + f(12.5) + ' var(--mono); color: #53585D; letter-spacing: 0">kg</span></span><span style="font: 500 ' + f(12) + ' var(--sys); color: #53585D">' + l2 + '</span><span style="font: 300 ' + f(30) + ' var(--geist); letter-spacing: -0.03em; line-height: 1">2,810<span style="font: 400 ' + f(12.5) + ' var(--mono); color: #53585D; letter-spacing: 0">kcal</span></span></div>';
+    var b = '<div class="tile"><span style="font: 600 ' + f(17) + ' var(--sys); overflow-wrap: anywhere">' + t2 + '</span><span style="font: 500 ' + f(14) + ' var(--sys)">Testosterone Cypionate</span><span style="font: 500 ' + f(12) + ' var(--sys); color: #53585D">' + l3 + '</span><span style="font: 300 ' + f(38) + ' var(--geist); letter-spacing: -0.03em; line-height: 1; color: #2350D8">122<span style="font: 400 ' + f(12.5) + ' var(--mono); color: #53585D; letter-spacing: 0">mg</span></span><span style="font: 400 ' + f(12) + ' var(--sys); color: #454A4F; border: 1px solid #C3C7C0; border-radius: 12px; padding: 2px 9px; align-self: flex-start">' + ch + '</span></div>';
+    return '<div class="duo' + (scale >= 2 ? ' stack' : '') + '">' + a + b + '</div>';
+  }
+  var stress = document.getElementById('stress');
+  [[1, false, 'Default text size'], [1.35, false, '135% text size: "Dose accumulation" no longer fits and breaks mid-word. Stack from here'], [2, false, '200% (accessibility size): the tiles stack'], [1, true, 'German at default size: "Dosis-Akkumulation" breaks at the hyphen']].forEach(function (s) {
+    var d = document.createElement('div'); d.className = 'tileset';
+    d.innerHTML = '<span class="tilecap">' + s[2] + '</span><div style="background: #DDE0DB; padding: 12px; border-radius: 24px">' + tiles(s[0], s[1]) + '</div>';
+    stress.appendChild(d);
+  });
+})();
+</script>

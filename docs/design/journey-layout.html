@@ -1,0 +1,378 @@
+<title>Journey Layout Pass</title>
+<meta name="description" content="A-52 proposal: every one of Journey's 27 items gets a fate (stay, one tap down, merge), shown in the Graduated skin next to main.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a proposal sheet. Main's Journey capture beside the proposed Journey (default, then the
+   two places items move to). Every element carries its checklist number so each item can be
+   traced. Skin = Graduated v3 (docs/design/DESIGN.md), ink action. */
+:root {
+  --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8; --ok: #17623F; --risk: #9E1F19; --attention: #7E4A00;
+  --sans: 'Geist', -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --ok: #62C597; --risk: #F08A80; --attention: #E3A54E; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --ok: #62C597; --risk: #F08A80; --attention: #E3A54E; color-scheme: dark; }
+.ph.light { --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8; --onData: #FFFFFF; --badge: #7E4A00; }
+.ph.dark { --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --onData: #0F1114; --badge: #E3A54E; }
+.ph { --act: var(--ink); --onAct: var(--onInk); }
+
+* { box-sizing: border-box; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--sans); -webkit-font-smoothing: antialiased; padding-inline: 20px; padding-block: 40px 72px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.intro { display: flex; flex-direction: column; gap: 14px; max-width: 72ch; }
+.intro h1 { margin: 0; font-weight: 300; font-size: clamp(36px, 5vw, 56px); letter-spacing: -0.03em; line-height: 1.02; }
+.intro p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+.status { font-family: var(--mono); font-size: 12.5px; color: var(--ink3); }
+.q { font-size: 20px; font-weight: 500; line-height: 1.35; letter-spacing: -0.01em; max-width: 60ch; margin: 0; }
+.tally { display: flex; gap: 28px; flex-wrap: wrap; font-size: 14px; color: var(--ink2); }
+.tally b { font-family: var(--mono); font-weight: 500; color: var(--ink); font-size: 22px; display: block; }
+.band { display: flex; flex-direction: column; gap: 18px; }
+.band > h2 { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -0.015em; }
+.band > p { margin: -6px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 74ch; }
+.cmp { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 390px)); gap: 28px 32px; align-items: start; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figcaption { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+figcaption b { font-weight: 500; color: var(--ink); }
+.now { display: flex; flex-direction: column; gap: 8px; }
+.now img { display: block; width: 100%; max-width: 390px; height: auto; border-radius: 28px; outline: 1px solid var(--line); }
+.pick { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink2); min-height: 44px; }
+.pick input { width: 18px; height: 18px; accent-color: var(--ink); }
+.coverage { font-family: var(--mono); font-size: 13px; }
+.coverage.pass { color: var(--ok); } .coverage.fail { color: var(--risk); }
+.tablewrap { overflow-x: auto; }
+table.t { width: 100%; max-width: 1180px; border-collapse: collapse; font-size: 13.5px; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+table.t th { font-weight: 500; color: var(--ink2); font-size: 13px; }
+table.t td.n { font-family: var(--mono); color: var(--ink3); width: 40px; }
+table.t td.f { font-family: var(--mono); font-weight: 500; white-space: nowrap; }
+.f-STAY { color: var(--ink); } .f-DOWN { color: var(--data); } .f-MERGE { color: var(--attention); }
+td.flag { color: var(--risk); font-weight: 500; }
+ol.qs { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 80ch; font-size: 15px; line-height: 1.5; }
+
+/* ---- phone ---- */
+.ph { width: 100%; max-width: 390px; border-radius: 36px; overflow: hidden; background: var(--ground); color: var(--ink); display: flex; flex-direction: column; outline: 1px solid var(--line); font-family: var(--sans); }
+.fixedhead { padding: 56px 20px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.scr { padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.partial { padding-top: 22px; }
+.card { background: var(--raised); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.sl { font-size: 14px; font-weight: 500; color: var(--ink2); padding: 12px 4px 0; display: flex; align-items: center; gap: 8px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 3px; }
+.h-title { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.h-tsub { font-size: 15px; color: var(--ink2); }
+.ttl { font-size: 17px; font-weight: 500; }
+.body { font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.cap { font-size: 12.5px; line-height: 1.45; color: var(--ink3); }
+.lbl { font-size: 13px; color: var(--ink3); }
+.val { font-family: var(--mono); font-size: 14px; color: var(--ink2); }
+.ico { color: var(--ink2); flex: none; display: block; }
+.chev { color: var(--tick); flex: none; }
+.link { font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--tick); background: none; border: 0; padding: 0; font-family: var(--sans); min-height: 36px; text-align: left; }
+.pbtn { height: 52px; border-radius: 26px; border: 0; background: var(--act); color: var(--onAct); font: 500 17px var(--sans); padding: 0 20px; }
+.obtn { height: 48px; border-radius: 24px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 500 16px var(--sans); padding: 0 20px; }
+.disabled { height: 48px; border-radius: 24px; background: var(--well); color: var(--ink3); border: 1px dashed var(--line); font: 500 16px var(--sans); }
+.pill { height: 36px; border-radius: 18px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--ink2); font: 400 14px var(--sans); white-space: nowrap; }
+.pill.on { border: 1.5px solid var(--ink); color: var(--ink); font-weight: 500; background: var(--raised); }
+.seg { display: flex; padding: 3px; border-radius: 14px; background: var(--well); gap: 2px; flex: none; }
+.seg span { padding: 7px 12px; border-radius: 11px; font-size: 13.5px; color: var(--ink3); }
+.seg span.on { background: var(--raised); color: var(--ink); font-weight: 500; }
+.fieldgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.input { height: 50px; border-radius: 14px; background: var(--well); display: flex; align-items: center; padding: 0 14px; font-family: var(--mono); font-size: 16px; color: var(--ink3); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts5 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opt { min-height: 56px; border-radius: 14px; border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 13.5px; line-height: 1.3; color: var(--ink2); }
+.opt i { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid var(--tick); flex: none; }
+.opt.on { border: 1.5px solid var(--ink); color: var(--ink); background: var(--raised); }
+.opt.on i { border: 5px solid var(--ink); }
+.opt.wide { grid-column: 1 / -1; }
+.switch { width: 50px; height: 30px; border-radius: 15px; background: var(--ink); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; right: 3px; top: 3px; width: 24px; height: 24px; border-radius: 12px; background: var(--raised); }
+.bigrow { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 0 16px; background: var(--raised); border-radius: 20px; }
+.bigrow .ttl { font-size: 17px; }
+.inner { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.hero { gap: 12px; padding: 20px 18px 18px; }
+.hero .status { font-family: var(--mono); font-size: 14px; color: var(--ink2); margin-top: -6px; }
+svg.days { display: block; width: 100%; height: auto; }
+svg.strip { display: block; width: 100%; height: 12px; }
+.rule { background: var(--well); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.foodline { display: flex; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.acc { flex-direction: row; align-items: center; padding: 16px; font-size: 16px; font-weight: 500; }
+.expl { display: flex; align-items: center; min-height: 48px; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--ink); gap: 10px; }
+nav.tabs { display: flex; border-top: 1px solid var(--line); padding: 8px 4px 26px; background: var(--ground); margin-top: auto; }
+nav.tabs a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 44px; font-size: 10.5px; text-decoration: none; color: var(--ink3); white-space: nowrap; }
+nav.tabs a.on { color: var(--ink); font-weight: 600; }
+
+/* item number badges */
+[data-i] { position: relative; }
+.badges [data-i]::before { content: attr(data-i); position: absolute; top: -7px; left: -6px; z-index: 2; font: 500 10px/1 var(--mono); color: var(--badge); background: var(--ground); border: 1px solid var(--badge); border-radius: 8px; padding: 2px 5px; pointer-events: none; }
+.badges nav[data-i]::before { top: 4px; left: 6px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="status">A-52 · Journey layout pass · proposal · 28 Sep 2026 · main 7ecaf2d · skin Graduated v3, ink action</div>
+    <h1>Journey, one question</h1>
+    <p class="q">"Is my body responding to what I'm doing, and what do I log today to keep measuring it?"</p>
+    <p>Nothing is deleted and no copy changes. Each of the 27 items on main either stays on screen, goes one tap down, or merges into another item with all its words. The small numbers on the phones are the checklist numbers, so every item can be traced.</p>
+    <div class="tally"><span><b>14</b>stay</span><span><b>10</b>one tap down</span><span><b>3</b>merge</span><span><b>0</b>new strings</span><span><b>7</b>flows longer</span></div>
+  </header>
+
+  <section class="band">
+    <h2>Now and proposed</h2>
+    <p>Left: Journey on main (Test03, no numbers yet, reality check running). Then the proposed screen as it opens, and the two places where items went one tap down, shown open.</p>
+    <label class="pick"><input type="checkbox" id="badges" checked> Show item numbers</label>
+    <div class="cmp" id="light"></div>
+    <div id="cov" class="coverage"></div>
+    <div class="cmp" id="dark"></div>
+  </section>
+
+  <section class="band">
+    <h2>Fate of every item</h2>
+    <div class="tablewrap"><table class="t" id="fates"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>Flows, tap by tap</h2>
+    <p>Counted from landing on Journey; typing not counted. Screen = which screenful the control sits on at rest.</p>
+    <div class="tablewrap"><table class="t" id="flows"></table></div>
+  </section>
+
+  <section class="band">
+    <h2>Open questions</h2>
+    <ol class="qs">
+      <li>Keep the subtitle (#2) as the screen's question, or move it behind Understand the numbers?</li>
+      <li>First-time users now see "Your numbers" collapsed, with the prompt as its caption: one extra tap before the form. OK, or keep the form open until the first plan exists, as main does today?</li>
+      <li>Food-log reminder behind Daily intake (and still in Settings), or keep the switch on the surface while a check is running?</li>
+      <li>With a plan: daily burn and protein as the "Your daily plan" row value, full block one tap down, so choosing Lose / Maintain / Gain costs one more tap. OK?</li>
+      <li>With no check running, the hero reads "Not run yet — tap to start" and Log food stays the primary button. Should the primary action become starting the check? That changes the flow, so it needs your call and a journey review.</li>
+      <li>The hero repeats "Reality check" in its title and in the food-log line, because both strings stay verbatim. Shortening the second is a copy change for later.</li>
+      <li>Dose accumulation as a row lower down, or keep it first?</li>
+      <li>Primary action ink or Cobalt (still open from v3).</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  function ic(d, size, style) {
+    return '<svg class="ico" width="' + (size || 20) + '" height="' + (size || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (style ? ' style="' + style + '"' : '') + '>' + d + '</svg>';
+  }
+  var I = {
+    spark: '<path d="M12 3.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z"/>',
+    curve: '<path d="M3 19h18"/><path d="M4 16c2.5 0 2.5-8 5.5-8s2.5 6 5 6 2-4 5.5-4"/>',
+    bars: '<path d="M5 19v-7M10 19V6M15 19v-9M20 19v-5"/>',
+    bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+    trend: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
+    fork: '<path d="M7 3v8M5 3v4.5a2 2 0 0 0 4 0V3M7 11.5V21M16.5 21V3c-2 1-3.5 4-3.5 7.5h3.5"/>'
+  };
+  var CHEV = '<svg class="chev" width="9" height="15" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var DOWNC = '<svg class="chev" width="15" height="9" viewBox="0 0 16 10" aria-hidden="true"><path d="M2 2l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var TABS = [
+    ['Today', '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'],
+    ['My Protocols', '<path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z"/><path d="M8.5 8.5l7 7"/>'],
+    ['Journey', '<path d="M6 21V4"/><path d="M6 4.5c3.5-1.7 7 1.7 11.5 0v6c-4.5 1.7-8-1.7-11.5 0"/>'],
+    ['My Body', '<circle cx="12" cy="7.5" r="3.6"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'],
+    ['Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>']
+  ];
+  function tabs() {
+    return '<nav class="tabs" aria-label="Tabs" data-i="27">' + TABS.map(function (t, i) {
+      return '<a href="#light"' + (i === 2 ? ' class="on" aria-current="page"' : '') + '>' + ic(t[1], 22, 'color: currentColor') + t[0] + '</a>';
+    }).join('') + '</nav>';
+  }
+  // 21-day check: day 1 is today (outlined), no full food days yet.
+  function days() {
+    var s = '<svg class="days" viewBox="0 0 310 44" role="img" aria-label="21-day check, day 1, no full food days yet">', slot = 310 / 21, bw = 8;
+    for (var d = 1; d <= 21; d++) {
+      var x = (d - 1) * slot + (slot - bw) / 2;
+      if (d === 1) s += '<rect x="' + (x + 0.75) + '" y="0.75" width="' + (bw - 1.5) + '" height="38.5" rx="2.5" fill="none" stroke="var(--data)" stroke-width="1.5"/>';
+      else s += '<rect x="' + (x + 2.5) + '" y="34" width="' + (bw - 5) + '" height="6" rx="1.5" fill="var(--tick)"/>';
+    }
+    return s + '<line x1="0" y1="42.5" x2="310" y2="42.5" stroke="var(--line)"/></svg>';
+  }
+  function strip(total) {
+    var s = '<svg class="strip" viewBox="0 0 300 12" preserveAspectRatio="none" aria-hidden="true">';
+    for (var d = 1; d <= total; d++) { var x = (d - 0.5) * (300 / total); s += '<rect x="' + (x - 1.5) + '" y="5" width="3" height="7" rx="1" fill="var(--tick)"/>'; }
+    return s + '</svg>';
+  }
+
+  /* ---- proposed Journey pieces (data-i = checklist number on main) ---- */
+  function head() {
+    return '<div class="fixedhead"><h3 class="h-title" data-i="1">Journey</h3><div class="h-tsub" data-i="2">Track how your body is actually responding.</div></div>';
+  }
+  function hero() {
+    var h = '<div class="card hero" data-i="19">';
+    h += '<div data-i="23" class="col" style="gap: 10px"><div class="row"><span class="ttl grow" style="font-size: 19px">Reality check</span>' + CHEV + '</div><span class="status">In progress · weigh in Oct 19, 2026</span></div>';
+    h += days();
+    h += '<span class="val" style="color: var(--ink)">Reality check · day 1 of 21 · 0 of 7 days in a row</span>';
+    h += '<div class="rule" data-i="22"><span class="body">The reality check needs 7 days in a row of full food logs — 0 of 7 so far.</span>' + strip(7) + '</div>';
+    h += '<div class="foodline">' + ic(I.spark, 20) + '<div class="grow col"><span style="font-size: 15px; font-weight: 500">AI food log</span><span class="cap">Nothing logged yet today</span></div></div>';
+    h += '<button class="pbtn">Log food</button></div>';
+    return h;
+  }
+  function intake(open) {
+    var h = '<div class="card" data-i="18" style="padding: 0 16px"><div class="row" style="min-height: 64px"><span class="ttl grow">Daily intake</span>' + (open ? DOWNC : CHEV) + '</div>';
+    if (open) {
+      h += '<div class="inner" style="padding-bottom: 16px">';
+      h += '<div data-i="20"><button class="link">' + ic(I.spark, 14, 'display: inline; vertical-align: -2px; margin-right: 4px') + 'See how it works</button></div>';
+      h += '<div class="row" data-i="21">' + ic(I.fork, 20) + '<div class="grow col"><span style="font-size: 15px; font-weight: 500">Food-log reminder</span><span class="cap">8 pm while a reality check is running. If you turn it off, it stays off for future checks.</span></div><span class="switch" role="img" aria-label="On"></span></div>';
+      h += '<div class="col" style="gap: 4px; padding-top: 10px; border-top: 1px solid var(--line)"><span style="font-size: 15px; font-weight: 500">Totals</span><span class="val">Today: 0 kcal · 0 g carbs · 0 g protein</span><span class="val">Last 7 days: 0 kcal ÷ 7 days ≈ 0/day (food on 0 days)</span></div>';
+      h += '<div class="col" style="gap: 4px"><span style="font-size: 15px; font-weight: 500">Your reality check so far</span><span class="body">The reality check needs 7 days in a row of full food logs — 0 of 7 so far.</span></div>';
+      h += '<div class="col" style="gap: 4px"><span style="font-size: 15px; font-weight: 500">Days with nothing logged</span><span class="cap">A day with nothing logged breaks the 7-day run. Mark a day you didn\'t record so it\'s clear why the count restarted.</span></div>';
+      h += '<span class="cap" style="font-style: italic">Illustrative detail for Test03 (nothing logged yet). Content and order as the Daily intake detail on main.</span></div>';
+    }
+    return h + '</div>';
+  }
+  function progressGroup() {
+    var h = '<div class="sl" data-i="17">' + ic(I.trend, 18) + 'Track your progress</div>';
+    h += '<div class="card" data-i="14"><span class="ttl">Your target</span><span class="body">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span><button class="obtn">Set a target</button></div>';
+    h += '<div class="card" data-i="24"><span class="ttl">Progress</span><span class="body">Premium. Save a snapshot each time you run this, then watch weight and waist together. When waist falls while weight stalls, that\'s the fat loss the scale hides.</span><button class="disabled" disabled>Save a snapshot</button><span class="cap">Save one now, then run this again in a few weeks — two points make a trend.</span><div><button class="link">+ Add a past weigh-in</button></div></div>';
+    h += '<div class="card" data-i="3"><div class="row">' + ic(I.curve, 24, 'color: var(--data)') + '<div class="grow col"><span class="ttl">Dose accumulation</span><span class="cap">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span></div>' + CHEV + '</div></div>';
+    return h;
+  }
+  function numbers(open) {
+    var h = '<div class="card" data-i="5" style="padding: 14px 16px"><div class="row">' + ic(I.bars, 18) + '<span class="ttl grow">Your numbers</span><div class="seg" data-i="6"><span class="on">Metric</span><span>Imperial</span></div>' + (open ? DOWNC : CHEV) + '</div>';
+    if (!open) h += '<span class="body" data-i="15">Enter your weight and body fat (or height, age and sex) to see your estimate.</span>';
+    if (open) {
+      h += '<div class="inner" style="gap: 14px">';
+      h += '<div class="fieldgrid" data-i="7"><div class="field"><span class="lbl">Weight (kg)</span><div class="input">—</div></div><div class="field"><span class="lbl">Height (cm)</span><div class="input">—</div></div></div>';
+      h += '<div class="field" data-i="8"><span class="lbl">Body-fat source</span><div class="pills"><button class="pill">DEXA scan</button><button class="pill on">Gym scan</button><button class="pill">Calipers</button><button class="pill">Home scale</button><button class="pill">I don\'t know</button></div></div>';
+      h += '<div class="cap" data-i="9" style="margin-top: -6px">Good (~3–5% error). Many gyms offer body-composition scans.</div>';
+      h += '<div class="fieldgrid" data-i="10"><div class="field"><span class="lbl">Body fat (%)</span><div class="input">—</div></div><div class="field"><span class="lbl">Waist (cm) · optional</span><div class="input">—</div></div></div>';
+      h += '<div class="cap" data-i="11" style="margin-top: -6px">The most useful non-scale number: it tracks fat loss even when the scale won\'t budge.</div>';
+      h += '<div class="lbl row" data-i="12" style="color: var(--ink2); font-weight: 500; gap: 6px">' + ic(I.bolt, 16) + 'Activity level</div>';
+      h += '<div class="acts5" data-i="13"><div class="opt"><i></i>Desk job, little or no exercise</div><div class="opt on"><i></i>Light — 1–3 sessions/week</div><div class="opt"><i></i>Moderate — 4–5 sessions/week</div><div class="opt"><i></i>High — 6–7 sessions/week</div><div class="opt wide"><i></i>Very high — physical job + daily training</div></div>';
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+  function footer(learnOpen) {
+    var h = '<div class="cap" data-i="16" style="padding: 4px 4px 0">An estimate for general wellness, not medical advice or a prescription. It is never linked to any medication or dose — just energy math from the numbers you enter. Individual variation of ±10–15% is normal.</div>';
+    h += '<div class="card" data-i="25" style="padding: 0 16px"><div class="row" style="min-height: 56px; font-size: 16px; font-weight: 500"><span class="grow">Understand the numbers</span>' + (learnOpen ? DOWNC : CHEV) + '</div>';
+    if (learnOpen) {
+      h += '<div data-i="4" style="padding: 12px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 500">What this is</span><span class="body">Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. A quick reality check, not a food tracker — save snapshots to watch the numbers change over time.</span></div>';
+      ['Why the scale lies (water & glycogen)', 'Why "500 kcal = 1 lb/week" stops working', 'Why measurements beat the scale', 'Why the daily burn moves'].forEach(function (x) { h += '<div class="expl"><span class="grow">' + x.replace('&', '&amp;') + '</span>' + CHEV + '</div>'; });
+      h += '<div style="height: 6px"></div>';
+    }
+    h += '</div><div class="card" data-i="26" style="padding: 0 16px"><div class="row" style="min-height: 56px; font-size: 16px; font-weight: 500"><span class="grow">Sources &amp; references</span>' + CHEV + '</div></div>';
+    return h;
+  }
+
+  var VIEWS = {
+    open: function () { return head() + '<div class="scr">' + hero() + intake(false) + progressGroup() + numbers(false) + footer(false) + '</div>' + tabs(); },
+    numbers: function () { return '<div class="scr partial">' + numbers(true) + footer(false) + '</div>' + tabs(); },
+    intake: function () { return '<div class="scr partial">' + intake(true) + '<div style="height: 4px"></div>' + footer(true) + '</div>' + tabs(); }
+  };
+  var CAPS = {
+    open: '<b>Proposed, as it opens.</b> The hero answers the question: the running check and today\'s food, with Log food as the one filled button. Setup is one row.',
+    numbers: '<b>One tap down: Your numbers, open.</b> Items 7–13 expand in place under the row, same fields, same order. Scrolled view.',
+    intake: '<b>One tap down: Daily intake and Understand the numbers, open.</b> See how it works (20) and the reminder (21) sit at the top of Daily intake; What this is (4) is the first explainer. Scrolled view.'
+  };
+  function nowFig(list, theme) {
+    var f = document.createElement('figure');
+    f.innerHTML = '<div class="now">' + list.map(function (s, k) { return '<img src="current/' + s + '.jpg" alt="Journey on main, ' + theme + ', frame ' + (k + 1) + '" loading="lazy">'; }).join('') + '</div><figcaption><b>Now on main.</b> Simulator, Test03, ' + theme + '. Frames overlap while scrolling.</figcaption>';
+    return f;
+  }
+  function fig(view, theme) {
+    var f = document.createElement('figure');
+    var ph = document.createElement('div');
+    ph.className = 'ph ' + theme + ' badges';
+    ph.innerHTML = VIEWS[view]();
+    f.appendChild(ph);
+    var c = document.createElement('figcaption');
+    c.innerHTML = CAPS[view];
+    f.appendChild(c);
+    return f;
+  }
+  var light = document.getElementById('light'), dark = document.getElementById('dark');
+  light.appendChild(nowFig(['journey-light-1', 'journey-light-2', 'journey-light-3', 'journey-light-4', 'journey-light-5'], 'light'));
+  ['open', 'numbers', 'intake'].forEach(function (v) { light.appendChild(fig(v, 'light')); });
+  dark.appendChild(nowFig(['journey-dark-1', 'journey-dark-2', 'journey-dark-3', 'journey-dark-4'], 'dark'));
+  ['open', 'numbers', 'intake'].forEach(function (v) { dark.appendChild(fig(v, 'dark')); });
+
+  // Coverage: every checklist item 1-27 must appear in the proposed light views.
+  var seen = {};
+  light.querySelectorAll('.ph [data-i]').forEach(function (n) { seen[n.getAttribute('data-i')] = true; });
+  var missing = [];
+  for (var k = 1; k <= 27; k++) if (!seen[k]) missing.push(k);
+  var onOpen = {};
+  light.querySelectorAll('figure:nth-child(2) .ph [data-i]').forEach(function (n) { onOpen[n.getAttribute('data-i')] = true; });
+  var cov = document.getElementById('cov');
+  cov.className = 'coverage ' + (missing.length ? 'fail' : 'pass');
+  cov.textContent = missing.length ? 'Coverage check: missing ' + missing.join(', ') : 'Coverage check: 27/27 items present · ' + Object.keys(onOpen).length + ' on the opening screen (14 stay + 3 merged) · 10 one tap down';
+
+  document.getElementById('badges').addEventListener('change', function (e) {
+    document.querySelectorAll('.ph').forEach(function (p) { p.classList.toggle('badges', e.target.checked); });
+  });
+
+  var FATES = [
+    [1, 'Title "Journey"', 'STAY', 'top', 'Names the tab.'],
+    [2, 'Subtitle', 'STAY', 'under the title', 'It is the screen\'s question in one line (Q1).'],
+    [3, 'Dose accumulation card', 'STAY', 'row after Progress', 'A separate tool, not today\'s answer; honesty line kept as its caption.'],
+    [4, '"What this is" card', 'DOWN', 'behind Understand the numbers, first entry', 'Explains the BMR once; returning users never need it on the surface.'],
+    [5, 'Your numbers header', 'STAY', 'one row, collapsed by default', 'One-time setup; row shows the existing summary + Edit once numbers exist.'],
+    [6, 'Metric / Imperial', 'STAY', 'right side of the Your numbers row', 'Unit switch stays one tap.'],
+    [7, 'Weight / Height fields', 'DOWN', 'behind Your numbers (expands in place)', 'Setup, not a daily answer.'],
+    [8, 'Body-fat source pills', 'DOWN', 'behind Your numbers', 'Setup.'],
+    [9, 'Source hint', 'DOWN', 'behind Your numbers', 'Explains #8, travels with it.'],
+    [10, 'Body fat / Waist fields', 'DOWN', 'behind Your numbers', 'Setup.'],
+    [11, 'Waist hint', 'DOWN', 'behind Your numbers', 'Explains #10, travels with it.'],
+    [12, 'Activity level header', 'DOWN', 'behind Your numbers', 'Setup (already only shown with numbers open on main).'],
+    [13, '5 activity options', 'DOWN', 'behind Your numbers', 'Setup.'],
+    [14, 'Your target card', 'STAY', 'under Track your progress', '"Where am I going" belongs to "is it responding".'],
+    [15, 'Estimate prompt', 'MERGE', 'into #5 as its caption while no plan exists', 'Turns a dead card into the reason to open Your numbers; same text.'],
+    [16, 'Wellness disclaimer', 'STAY', 'footer', 'Honesty line stays visible.'],
+    [17, 'Track your progress header', 'STAY', 'above target, progress, dose accumulation', 'Groups the "how is it going" rows.'],
+    [18, 'Daily intake ▸', 'STAY', 'row under the hero', 'Today\'s food detail one tap away, as now.'],
+    [19, 'AI food log card', 'STAY', 'the hero', 'The daily action that keeps the measurement going.'],
+    [20, 'See how it works', 'DOWN', 'behind Daily intake, top', 'Learning aid, used once.'],
+    [21, 'Food-log reminder + switch', 'DOWN', 'behind Daily intake; still in Settings', 'Set once. +1 tap (F2).'],
+    [22, '7-day rule line', 'MERGE', 'into the hero, under the day scale', 'It is the running check\'s progress.'],
+    [23, 'Reality check row', 'MERGE', 'into the hero: status line + header opens the panel', 'One card instead of three; same one tap to the panel.'],
+    [24, 'Progress card', 'STAY', 'under Your target', 'Measured progress answers "is it responding".'],
+    [25, 'Understand the numbers', 'STAY', 'footer', 'Method one tap away.'],
+    [26, 'Sources & references', 'STAY', 'footer', 'Sources one tap away.'],
+    [27, 'Tab bar', 'STAY', 'bottom', 'Navigation.']
+  ];
+  document.getElementById('fates').innerHTML = '<thead><tr><th>#</th><th>Item on main</th><th>Fate</th><th>Where</th><th>Reason</th></tr></thead><tbody>' + FATES.map(function (r) {
+    return '<tr><td class="n">' + r[0] + '</td><td>' + r[1].replace('&', '&amp;') + '</td><td class="f f-' + r[2] + '">' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td></tr>';
+  }).join('') + '</tbody>';
+  var FLOWS = [
+    ['F1', 'Log food', '1 tap · screen 3', '1 tap · screen 1', 'shorter scroll'],
+    ['F2', 'Food-log reminder', '1 tap · screen 3', 'Daily intake → switch · 2 taps (Settings unchanged)', '+1 tap'],
+    ['F3', 'Set a target', 'Set a target → Save · 2', 'same · 2', 'same'],
+    ['F4', 'First entry of your numbers', '0 taps (form open)', 'Your numbers → form · 1', '+1 tap'],
+    ['F5', 'Metric / Imperial', '1', '1', 'same'],
+    ['F6', 'Body-fat source, activity', '1 (visible)', 'Your numbers → choice · 2', '+1 tap'],
+    ['F7', 'Reality check panel', 'row · 1 · screen 3-4', 'hero header · 1 · screen 1', 'shorter scroll'],
+    ['F8', 'Save a snapshot', '1 · screen 4', '1 · screen 2', 'same'],
+    ['F9', 'Add a past weigh-in', '2', '2', 'same'],
+    ['F10', 'Sources (open one)', '2 · screen 4', '2 · screen 2', 'same'],
+    ['F11', 'One explainer', '2', '2', 'same'],
+    ['F11b', 'Read "What this is"', '0 (1 with a plan)', 'Understand → What this is · 2', '+2 (+1)'],
+    ['F12', 'Dose accumulation', '1 · screen 1', '1 · screen 2', 'lower on screen'],
+    ['F13', 'Daily intake detail', '1', '1', 'same'],
+    ['F14', 'See how it works', '1', 'Daily intake → link · 2', '+1 tap'],
+    ['F15', 'Lose / Maintain / Gain (plan)', '1', 'Your daily plan → goal · 2', '+1 tap'],
+    ['F16', 'Fix an entry, mark a day', '2', '2', 'same'],
+    ['F17', 'Sex gate button (plan blocked)', '1', 'Your numbers → button · 2', '+1 tap']
+  ];
+  document.getElementById('flows').innerHTML = '<thead><tr><th>#</th><th>Flow</th><th>Before (main)</th><th>After</th><th>Change</th></tr></thead><tbody>' + FLOWS.map(function (r) {
+    var flag = /\+|lower/.test(r[4]);
+    return '<tr><td class="n">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + r[3] + '</td><td' + (flag ? ' class="flag"' : '') + '>' + r[4] + '</td></tr>';
+  }).join('') + '</tbody>';
+})();
+</script>

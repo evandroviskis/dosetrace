@@ -1,0 +1,571 @@
+<title>DoseTrace Graduated</title>
+<meta name="description" content="DoseTrace Graduated v3: the app exactly as laid out on main today, reskinned. Today, Journey, Protocols and the site picker, light and dark, ink vs Cobalt primary action.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a comparison sheet. Each screen: the real screen on main (captures) beside the same
+   screen in the Graduated skin, ink action and Cobalt action. Page chrome follows the viewer's
+   theme; each phone is pinned to its theme. Tokens = docs/design/DESIGN.md v3. */
+:root {
+  --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8; --ok: #17623F; --risk: #9E1F19;
+  --sans: 'Geist', -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --ok: #62C597; --risk: #F08A80; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --ok: #62C597; --risk: #F08A80; color-scheme: dark; }
+
+/* Phone palettes (fixed on purpose). */
+.ph.light { --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F;
+  --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --onInk: #FFFFFF; --data: #2350D8; --onData: #FFFFFF;
+  --attention: #7E4A00; --risk: #9E1F19; --ok: #17623F; --scrim: rgba(17,19,21,0.38);
+  --p-blue: #3E6FB0; --p-orange: #C8643A; --p-green: #2E9C78; }
+.ph.dark { --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F;
+  --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --onInk: #121416; --data: #8AA8FF; --onData: #0F1114;
+  --attention: #E3A54E; --risk: #F08A80; --ok: #62C597; --scrim: rgba(0,0,0,0.55);
+  --p-blue: #6E9BE0; --p-orange: #E8875C; --p-green: #4CC49B; }
+.ph.act-ink { --act: var(--ink); --onAct: var(--onInk); }
+.ph.act-blue { --act: var(--data); --onAct: var(--onData); }
+
+* { box-sizing: border-box; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--sans); -webkit-font-smoothing: antialiased; padding-inline: 20px; padding-block: 40px 72px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 64px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ---- page chrome ---- */
+.intro { display: flex; flex-direction: column; gap: 14px; max-width: 70ch; }
+.intro h1 { margin: 0; font-weight: 300; font-size: clamp(40px, 6vw, 64px); letter-spacing: -0.03em; line-height: 1; }
+.intro p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+.status { font-family: var(--mono); font-size: 12.5px; color: var(--ink3); }
+.skinlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 0 32px; border-top: 1px solid var(--line); max-width: 1100px; }
+.skinlist div { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; }
+.skinlist b { font-weight: 500; font-size: 15px; }
+.skinlist span { font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+.screen { display: flex; flex-direction: column; gap: 20px; }
+.screen > h2 { margin: 0; font-size: 28px; font-weight: 500; letter-spacing: -0.02em; }
+.screen > p { margin: -8px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 72ch; }
+.cmp { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 390px)); gap: 28px 32px; align-items: start; }
+.rowlabel { grid-column: 1 / -1; font-size: 14px; font-weight: 500; color: var(--ink2); display: flex; gap: 10px; align-items: baseline; margin-bottom: -12px; }
+.rowlabel .mono { font-size: 12px; color: var(--ink3); font-weight: 400; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figcaption { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+figcaption b { font-weight: 500; color: var(--ink); }
+figcaption .chk { font-family: var(--mono); font-size: 12px; }
+figcaption .chk.pass { color: var(--ok); }
+figcaption .chk.fail { color: var(--risk); }
+.now { display: flex; flex-direction: column; gap: 8px; }
+.now img { display: block; width: 100%; max-width: 390px; height: auto; border-radius: 28px; outline: 1px solid var(--line); }
+table.check { width: 100%; max-width: 1100px; border-collapse: collapse; font-size: 13.5px; }
+table.check th, table.check td { text-align: left; vertical-align: top; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+table.check th { font-weight: 500; color: var(--ink2); font-size: 13px; }
+table.check td:first-child { font-family: var(--mono); color: var(--ink3); width: 36px; }
+table.check td.ok { font-family: var(--mono); color: var(--ok); white-space: nowrap; }
+table.check td.skin { color: var(--ink2); }
+.tablewrap { overflow-x: auto; }
+.note { font-size: 13.5px; line-height: 1.5; color: var(--ink2); max-width: 90ch; }
+
+/* ---- phone ---- */
+.ph { width: 100%; max-width: 390px; border-radius: 36px; overflow: hidden; background: var(--ground); color: var(--ink); display: flex; flex-direction: column; outline: 1px solid var(--line); font-family: var(--sans); position: relative; }
+.scr { padding: 56px 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.fixedhead { padding: 56px 20px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.card { background: var(--raised); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.sl { font-size: 14px; font-weight: 500; color: var(--ink2); padding: 12px 4px 0; display: flex; align-items: center; gap: 8px; }
+.sl svg { color: var(--ink2); }
+.row { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 2px; }
+.h-date { font-size: 13px; color: var(--ink3); padding: 0 4px; }
+.h-greet { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; padding: 0 4px; }
+.h-sub { font-family: var(--mono); font-size: 14px; color: var(--ink2); padding: 0 4px; }
+.h-title { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.h-tsub { font-size: 15px; color: var(--ink2); }
+.ttl { font-size: 17px; font-weight: 500; }
+.body { font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.cap { font-size: 12.5px; line-height: 1.45; color: var(--ink3); }
+.lbl { font-size: 13px; color: var(--ink3); }
+.val { font-family: var(--mono); font-size: 14px; color: var(--ink); }
+.dot { width: 9px; height: 9px; border-radius: 5px; flex: none; }
+.ico { color: var(--ink2); flex: none; display: block; }
+.chev { color: var(--tick); flex: none; }
+.link { font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--tick); background: none; border: 0; padding: 0; font-family: var(--sans); min-height: 36px; }
+.pbtn { height: 48px; border-radius: 24px; border: 0; background: var(--act); color: var(--onAct); font: 500 16px var(--sans); padding: 0 20px; }
+.obtn { height: 48px; border-radius: 24px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 500 16px var(--sans); padding: 0 20px; }
+.obtn.risk { color: var(--risk); }
+.pill { height: 36px; border-radius: 18px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--ink2); font: 400 14px var(--sans); white-space: nowrap; }
+.pill.on { border: 1.5px solid var(--ink); color: var(--ink); font-weight: 500; background: var(--raised); }
+.pill.sm { height: 32px; font-size: 13.5px; }
+.round { width: 44px; height: 44px; border-radius: 22px; border: 1px solid var(--line); background: transparent; color: var(--ink2); display: flex; align-items: center; justify-content: center; flex: none; padding: 0; }
+
+/* Today */
+.prog { display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; }
+.ringcard { flex-direction: row; align-items: center; gap: 14px; padding: 18px 16px; }
+.ringcard .pct { font-size: 52px; font-weight: 300; letter-spacing: -0.04em; line-height: 0.95; font-variant-numeric: tabular-nums; }
+.ringcard .pct small { font-family: var(--mono); font-size: 16px; color: var(--ink3); letter-spacing: 0; margin-left: 2px; }
+.tiles { display: flex; flex-direction: column; gap: 10px; }
+.tile { padding: 12px 16px; gap: 0; flex: 1; justify-content: center; }
+.tile .n { font-size: 30px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.days .d { display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; color: var(--ink3); }
+.days .c { width: 100%; max-width: 38px; aspect-ratio: 1; border-radius: 10px; background: var(--well); display: flex; align-items: center; justify-content: center; color: var(--onData); }
+.days .c.done { background: var(--data); }
+.days .c.today { background: transparent; border: 1.5px solid var(--ink); }
+.days .d.today { color: var(--ink); font-weight: 500; }
+.alert { flex-direction: row; align-items: center; gap: 14px; padding: 14px 12px 14px 16px; }
+.alert .ttl { font-size: 16px; }
+.alert .att { color: var(--attention); }
+.food { gap: 8px; }
+.food .chkline { font-size: 12.5px; color: var(--ink2); line-height: 1.45; }
+svg.strip { display: block; width: 100%; height: 14px; }
+.center { display: flex; justify-content: center; }
+.share { height: 38px; border-radius: 19px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 500 14px var(--sans); padding: 0 16px; }
+.dose { gap: 8px; }
+.dose .name { font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+.dose .meta { font-family: var(--mono); font-size: 13px; color: var(--ink2); }
+.dose .time { font-family: var(--mono); font-size: 14px; text-align: right; }
+.dose .streak { font-size: 12px; color: var(--ink3); display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.dose .vial { font-family: var(--mono); font-size: 12px; color: var(--ink3); padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; }
+.dose .vial .okt { color: var(--ok); }
+.dose.dim .name, .dose.dim .time { color: var(--ink2); }
+.acts { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding-top: 4px; }
+.disc { font-size: 12px; line-height: 1.5; color: var(--ink3); text-align: center; padding: 12px 20px 0; }
+
+/* Journey */
+.fieldgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.input { height: 50px; border-radius: 14px; background: var(--well); display: flex; align-items: center; padding: 0 14px; font-family: var(--mono); font-size: 16px; color: var(--ink3); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg { display: flex; padding: 3px; border-radius: 14px; background: var(--well); gap: 2px; }
+.seg span { padding: 7px 12px; border-radius: 11px; font-size: 13.5px; color: var(--ink3); }
+.seg span.on { background: var(--raised); color: var(--ink); font-weight: 500; }
+.acts5 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opt { min-height: 56px; border-radius: 14px; border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 13.5px; line-height: 1.3; color: var(--ink2); }
+.opt i { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid var(--tick); flex: none; }
+.opt.on { border: 1.5px solid var(--ink); color: var(--ink); background: var(--raised); }
+.opt.on i { border: 5px solid var(--ink); }
+.opt.wide { grid-column: 1 / -1; }
+.plan { align-items: center; text-align: center; padding: 22px 16px; }
+.switch { width: 50px; height: 30px; border-radius: 15px; background: var(--ink); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; right: 3px; top: 3px; width: 24px; height: 24px; border-radius: 12px; background: var(--raised); }
+.rule { background: var(--well); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.rcrow { flex-direction: row; align-items: center; }
+.disabled { height: 48px; border-radius: 24px; background: var(--well); color: var(--ink3); border: 1px dashed var(--line); font: 500 16px var(--sans); }
+.acc { flex-direction: row; align-items: center; padding: 16px; font-size: 16px; font-weight: 500; }
+
+/* Protocols */
+.phead { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 0; }
+.addbtn { height: 40px; border-radius: 20px; border: 0; background: var(--act); color: var(--onAct); font: 500 15px var(--sans); padding: 0 16px; }
+.sort { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding: 2px 4px; scrollbar-width: none; }
+.sort .lbl { flex: none; }
+.pc { gap: 6px; }
+.pc .name { font-size: 17px; font-weight: 500; }
+.pc .meta { font-family: var(--mono); font-size: 12.5px; color: var(--ink2); }
+.pc .left { font-family: var(--mono); font-size: 12.5px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.pc .days2 { font-family: var(--mono); font-size: 12.5px; color: var(--ok); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+.tag { height: 24px; border-radius: 12px; border: 1px solid var(--line); padding: 0 9px; font-size: 12px; color: var(--ink2); display: inline-flex; align-items: center; gap: 4px; }
+.tag.att { color: var(--attention); border-color: var(--attention); }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.kv span:first-child { color: var(--ink2); }
+.kv span:last-child { font-family: var(--mono); color: var(--ink); text-align: right; }
+.notes { background: var(--well); border-radius: 12px; min-height: 64px; padding: 12px; font-size: 13.5px; color: var(--ink3); }
+.calc { border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cells div { display: flex; flex-direction: column; gap: 2px; }
+.cells span { font-size: 11.5px; color: var(--ink3); }
+.cells b { font-family: var(--mono); font-weight: 500; font-size: 15px; }
+.cells b.hero { font-size: 22px; color: var(--data); font-weight: 500; }
+.cells em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+.act3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.act3 button { height: 44px; font-size: 14.5px; padding: 0 8px; }
+svg.syr { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Site picker */
+.behind { padding: 56px 16px 28px; display: flex; align-items: center; justify-content: space-between; opacity: 0.45; }
+.scrim { position: absolute; inset: 0; background: var(--scrim); pointer-events: none; }
+.sheet { position: relative; background: var(--raised); border-radius: 28px 28px 0 0; padding: 10px 16px 30px; display: flex; flex-direction: column; gap: 12px; margin-top: 0; }
+.grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 4px; }
+.fb { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fb span { height: 38px; border-radius: 12px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--ink2); }
+.fb span.on { border: 1.5px solid var(--ink); color: var(--ink); font-weight: 500; }
+.seg.full span { flex: 1; text-align: center; padding: 9px 8px; font-size: 14px; }
+.figure { display: flex; justify-content: center; padding: 6px 0; }
+.legend { display: flex; justify-content: center; gap: 16px; font-size: 12.5px; color: var(--ink2); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.hint { text-align: center; font-size: 15px; font-weight: 500; }
+.sheet .disc { padding: 0 8px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+nav.tabs { display: flex; border-top: 1px solid var(--line); padding: 8px 4px 26px; background: var(--ground); margin-top: auto; }
+nav.tabs a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 44px; font-size: 10.5px; text-decoration: none; color: var(--ink3); white-space: nowrap; }
+nav.tabs a.on { color: var(--ink); font-weight: 600; }
+
+button:focus-visible, a:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="status">Proposal v3 · layout freeze · after founder feedback #036 · 28 Sep 2026 · main a7d8275</div>
+    <h1>Graduated</h1>
+    <p>The app exactly as it is laid out today, with a new skin. Every section, card, button and tab stays where it is on main. Left in each row: the real screen, captured on the simulator (Test03). Middle and right: the same screen in Graduated, with the primary action in ink and in Cobalt blue.</p>
+  </header>
+
+  <section class="skinlist" aria-label="What the skin changes">
+    <div><b>Palette</b><span>Green-grey ground, white cards with no shadow, charcoal dark mode. Cobalt blue only on data.</span></div>
+    <div><b>Type</b><span>Geist for text, Geist Mono for every measured value. The existing big number on each element gets heavier contrast.</span></div>
+    <div><b>Graduated scales</b><span>Values the screen already shows are drawn on scales: the dose ring as a dial, the syringe to scale, doses left as vial cells.</span></div>
+    <div><b>Shapes and icons</b><span>Capsule buttons, hairline outlines, sentence-case headers, plain monoline icons without tiles. New body figure.</span></div>
+  </section>
+
+  <section class="screen" id="today">
+    <h2>Today</h2>
+    <p>Same 24 items in the same order. The ring becomes a graduated dial with 80% in large type; the week, the alerts, the food log and the dose cards keep their places.</p>
+    <div class="cmp" data-screen="today" data-now-light="today-light-1,today-light-1b,today-light-2,today-light-3" data-now-dark="today-dark-1,today-dark-2,today-dark-3"></div>
+    <div class="tablewrap"><table class="check" data-check="today"></table></div>
+    <p class="note">Items that only appear in other states keep the same skin rules and places: Pending from yesterday (above the ring), the open share card, the no-protocols empty state, Next 5 days, the undo bar, the new-vial and still-going dialogs.</p>
+  </section>
+
+  <section class="screen" id="journey">
+    <h2>Journey</h2>
+    <p>Same 27 items in the same order, including the explanation blocks and the empty fields. Only the skin changes: no tinted boxes, no uppercase labels, mono readouts, the 7-day rule and the 21-day check drawn as scales.</p>
+    <div class="cmp" data-screen="journey" data-now-light="journey-light-1,journey-light-2,journey-light-3,journey-light-4,journey-light-5" data-now-dark="journey-dark-1,journey-dark-2,journey-dark-3,journey-dark-4"></div>
+    <div class="tablewrap"><table class="check" data-check="journey"></table></div>
+  </section>
+
+  <section class="screen" id="protocols">
+    <h2>My Protocols</h2>
+    <p>Same 13 items, shown with the TB-500 card open as in the captures. The syringe calculator becomes the signature: the barrel drawn to scale with the dose in Cobalt, and "Draw to" as the big readout.</p>
+    <div class="cmp" data-screen="protocols" data-now-light="protocols-light-1,protocols-light-2,protocols-light-3" data-now-dark="protocols-dark-1,protocols-dark-2,protocols-dark-3,protocols-dark-4"></div>
+    <div class="tablewrap"><table class="check" data-check="protocols"></table></div>
+  </section>
+
+  <section class="screen" id="site">
+    <h2>Site picker</h2>
+    <p>Same 11 items. The new body figure is one drawn outline instead of eight blocks, themed for dark (on main it stays light in dark mode). Every dot sits at the app's own coordinates.</p>
+    <div class="cmp" data-screen="site" data-now-light="site-light-1" data-now-dark="site-dark-1"></div>
+    <div class="cmp" data-screen="siteback" data-now-light="" data-now-dark="site-dark-back"></div>
+    <div class="tablewrap"><table class="check" data-check="site"></table></div>
+    <p class="note">Main has 24 sites (lib/injectionSites.js: 8 subcutaneous front, 8 back, 4 intramuscular front, 4 back). The brief says 25; no 25-site figure exists in either repo, so this uses the 24 real ones.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  /* ---------- icons (monoline, 24 grid) ---------- */
+  function ic(d, size, cls, style) {
+    return '<svg class="' + (cls || 'ico') + '" width="' + (size || 20) + '" height="' + (size || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (style ? ' style="' + style + '"' : '') + '>' + d + '</svg>';
+  }
+  var I = {
+    flame: '<path d="M12 3c.8 3 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-1.9 1-3.1 2-4 .2 1.5 1 2.4 2 2.6-.6-2.6-.3-5.2.5-7.6z"/>',
+    scale: '<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0zM19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+    syringe: '<path d="M3 12h3M6 9.5h10v5H6zM16 8v8M16 12h3M19 10v4"/>',
+    spark: '<path d="M12 3.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z"/>',
+    snooze: '<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.6M5 4.5 3 6.5M19 4.5l2 2"/>',
+    curve: '<path d="M3 19h18"/><path d="M4 16c2.5 0 2.5-8 5.5-8s2.5 6 5 6 2-4 5.5-4"/>',
+    bars: '<path d="M5 19v-7M10 19V6M15 19v-9M20 19v-5"/>',
+    bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+    trend: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
+    fork: '<path d="M7 3v8M5 3v4.5a2 2 0 0 0 4 0V3M7 11.5V21M16.5 21V3c-2 1-3.5 4-3.5 7.5h3.5"/>',
+    lens: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',
+    warn: '<path d="M12 4 21 20H3z"/><path d="M12 10v4.5M12 17.2v.1"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    back: '<path d="M15 5l-7 7 7 7"/>',
+    check: '<path d="M5.5 12.5l4.2 4.2L18.5 8"/>'
+  };
+  var CHEV = '<svg class="chev" width="9" height="15" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var TRI = '<svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7.5 5 3 8.5z" fill="currentColor"/></svg>';
+  var TRI_UP = '<svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 7 5 2.5 8.5 7z" fill="currentColor"/></svg>';
+  var TRI_DOWN = '<svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3 5 7.5 8.5 3z" fill="currentColor"/></svg>';
+  var TABS = [
+    ['Today', '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'],
+    ['My Protocols', '<path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z"/><path d="M8.5 8.5l7 7"/>'],
+    ['Journey', '<path d="M6 21V4"/><path d="M6 4.5c3.5-1.7 7 1.7 11.5 0v6c-4.5 1.7-8-1.7-11.5 0"/>'],
+    ['My Body', '<circle cx="12" cy="7.5" r="3.6"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'],
+    ['Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>']
+  ];
+  function tabs(on, n) {
+    return '<nav class="tabs" aria-label="Tabs" data-i="' + n + '">' + TABS.map(function (t, i) {
+      return '<a href="#' + ['today', 'protocols', 'journey', 'today', 'today'][i] + '"' + (i === on ? ' class="on" aria-current="page"' : '') + '>' + ic(t[1], 22, 'ico', 'color: currentColor') + t[0] + '</a>';
+    }).join('') + '</nav>';
+  }
+
+  /* ---------- graduated drawings ---------- */
+  // Dose ring as a graduated dial: 50 ticks, the done share in data blue.
+  function dial(pct) {
+    var s = '<svg width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">', n = 50;
+    for (var k = 0; k < n; k++) {
+      var a = -Math.PI / 2 + (k / n) * Math.PI * 2, on = k < Math.round(pct / 100 * n);
+      var r1 = on ? 33 : 36, r2 = 44;
+      s += '<line x1="' + (46 + r1 * Math.cos(a)).toFixed(2) + '" y1="' + (46 + r1 * Math.sin(a)).toFixed(2) + '" x2="' + (46 + r2 * Math.cos(a)).toFixed(2) + '" y2="' + (46 + r2 * Math.sin(a)).toFixed(2) + '" stroke="' + (on ? 'var(--data)' : 'var(--tick)') + '" stroke-width="' + (on ? 2.4 : 1.2) + '" stroke-linecap="round"/>';
+    }
+    return s + '</svg>';
+  }
+  // A row of day ticks: filled = counted days, marker = today.
+  function strip(total, filled, today) {
+    var s = '<svg class="strip" viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true">';
+    for (var d = 1; d <= total; d++) {
+      var x = (d - 0.5) * (300 / total);
+      if (d === today) s += '<rect x="' + (x - 2) + '" y="0" width="4" height="14" rx="1.5" fill="var(--data)"/>';
+      else if (d <= filled) s += '<rect x="' + (x - 2) + '" y="0" width="4" height="14" rx="1.5" fill="var(--data)"/>';
+      else s += '<rect x="' + (x - 1) + '" y="8" width="2" height="6" rx="1" fill="var(--tick)"/>';
+    }
+    return s + '</svg>';
+  }
+  // Doses left as vial cells.
+  function cells(total, left) {
+    var s = '<svg width="' + (total * 12) + '" height="8" viewBox="0 0 ' + (total * 12) + ' 8" aria-hidden="true">';
+    for (var k = 0; k < total; k++) s += '<rect x="' + (k * 12 + 0.5) + '" y="0.5" width="9" height="7" rx="1.5" fill="' + (k < left ? 'var(--data)' : 'none') + '" stroke="' + (k < left ? 'var(--data)' : 'var(--tick)') + '"/>';
+    return s + '</svg>';
+  }
+  // U-100 syringe drawn to scale with the riding draw tag (same parts as the app's calculator).
+  function syringe(cap, v, tag) {
+    var x0 = 30, x1 = 296, top = 30, bot = 56, X = function (u) { return x0 + (u / cap) * (x1 - x0); };
+    var s = '<svg class="syr" viewBox="0 0 330 64" role="img" aria-label="Syringe: draw to ' + v + ' of ' + cap + ' units">';
+    s += '<line x1="2" y1="43" x2="18" y2="43" stroke="var(--ink3)" stroke-width="1.5" stroke-linecap="round"/>';
+    s += '<rect x="18" y="37" width="12" height="12" rx="2" fill="var(--ink3)"/>';
+    s += '<rect x="' + x0 + '" y="' + (top + 1) + '" width="' + (X(v) - x0) + '" height="' + (bot - top - 2) + '" fill="var(--data)"/>';
+    s += '<rect x="' + x0 + '" y="' + top + '" width="' + (x1 - x0) + '" height="' + (bot - top) + '" rx="4" fill="none" stroke="var(--ink3)" stroke-width="1.4"/>';
+    for (var u = 2; u < cap; u += 2) {
+      var long = u % 10 === 0;
+      s += '<line x1="' + X(u) + '" y1="' + (top + 1) + '" x2="' + X(u) + '" y2="' + (top + (long ? 13 : 7)) + '" stroke="' + (u < v ? 'var(--onData)' : 'var(--tick)') + '" stroke-width="' + (long ? 1.4 : 1) + '"/>';
+    }
+    for (var L = 0; L <= cap; L += 10) s += '<text x="' + X(L) + '" y="25" text-anchor="middle" fill="var(--ink3)" font-family="Geist Mono, ui-monospace, monospace" font-size="8.5">' + L + '</text>';
+    s += '<rect x="' + X(v) + '" y="' + (top - 3) + '" width="6" height="' + (bot - top + 6) + '" rx="2" fill="var(--ink)"/>';
+    s += '<rect x="' + (X(v) + 6) + '" y="41" width="' + (322 - X(v) - 6) + '" height="4" fill="var(--ink)"/>';
+    s += '<rect x="322" y="30" width="7" height="26" rx="2" fill="var(--ink)"/>';
+    s += '<rect x="' + (X(v) - 19) + '" y="0" width="38" height="15" rx="7.5" fill="var(--data)"/>';
+    s += '<text x="' + X(v) + '" y="11" text-anchor="middle" fill="var(--onData)" font-family="Geist Mono, ui-monospace, monospace" font-size="9.5" font-weight="500">' + tag + '</text>';
+    return s + '</svg>';
+  }
+  // New body figure: one smooth outline on the app's 100 x 220 site grid.
+  var HALF = [[45.5,31],[45,37],[36,40.5],[27.5,43],[23.5,47.5],[21,56],[19.5,70],[18,86],[16.5,102],[15.5,116],[14.5,124],[15.5,130],[19,131],[21,125],[22.5,110],[24.5,94],[27,78],[29,64],[30.5,58],[31,70],[32,84],[32.5,96],[31,108],[30,118],[30.5,132],[31.5,150],[33,170],[34,190],[34.5,204],[33,211],[36,214],[42,214],[44,208],[45,190],[46,170],[47.5,150],[48.5,134],[50,128]];
+  function bodyPath() {
+    var pts = HALF.slice();
+    for (var k = HALF.length - 2; k >= 0; k--) pts.push([100 - HALF[k][0], HALF[k][1]]);
+    var n = pts.length, d = 'M' + pts[0][0] + ' ' + pts[0][1];
+    for (var i = 0; i < n; i++) {
+      var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      var c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ' C' + c1[0].toFixed(2) + ' ' + c1[1].toFixed(2) + ' ' + c2[0].toFixed(2) + ' ' + c2[1].toFixed(2) + ' ' + p2[0] + ' ' + p2[1];
+    }
+    return d + 'Z';
+  }
+  var SITES = {
+    front: [['abdomen_ul',42,92],['abdomen_ur',58,92],['abdomen_ll',44,105],['abdomen_lr',56,105],['thigh_f_l',40,145],['thigh_f_r',60,145],['arm_back_l_f',22,68],['arm_back_r_f',78,68]],
+    back: [['arm_back_l_b',22,68],['arm_back_r_b',78,68],['flank_l',34,100],['flank_r',66,100],['glute_dimple_l',40,128],['glute_dimple_r',60,128],['thigh_b_l',40,160],['thigh_b_r',60,160]]
+  };
+  function body(view, suggest) {
+    var s = '<svg width="200" height="440" viewBox="0 0 100 220" role="img" aria-label="Body, ' + view + ' view, subcutaneous sites">';
+    s += '<path d="' + bodyPath() + '" fill="var(--well)" stroke="var(--tick)" stroke-width="0.7" stroke-linejoin="round"/>';
+    s += '<circle cx="50" cy="20" r="10.5" fill="var(--well)" stroke="var(--tick)" stroke-width="0.7"/>';
+    if (view === 'front') s += '<path d="M40 44.5 Q45 46.5 49 45.5 M60 44.5 Q55 46.5 51 45.5" fill="none" stroke="var(--tick)" stroke-width="0.5" stroke-linecap="round"/><circle cx="50" cy="99" r="0.8" fill="var(--tick)"/>';
+    else s += '<path d="M50 44 V114" fill="none" stroke="var(--tick)" stroke-width="0.5" stroke-dasharray="1.4 1.6"/>';
+    SITES[view].forEach(function (p) {
+      if (p[0] === suggest) s += '<circle cx="' + p[1] + '" cy="' + p[2] + '" r="7.2" fill="none" stroke="var(--data)" stroke-width="0.9" stroke-dasharray="2 1.6"/>';
+      s += '<circle cx="' + p[1] + '" cy="' + p[2] + '" r="4.3" fill="var(--raised)" stroke="var(--ink2)" stroke-width="1.1"/>';
+    });
+    return s + '</svg>';
+  }
+
+  /* ---------- Today ---------- */
+  function doseCard(o) {
+    var h = '<div class="card dose' + (o.dim ? ' dim' : '') + '" data-i="' + o.i + '">';
+    h += '<div class="row"><span class="dot" style="background: var(' + o.color + ')"></span><div class="grow col"><span class="name">' + o.name + '</span><span class="meta">' + o.meta + '</span></div>';
+    h += '<div class="col" style="align-items: flex-end"><span class="time">' + o.time + '</span><span class="cap">reminder</span><span class="streak">' + ic(I.flame, 13, 'ico', 'color: var(--ink3)') + o.streak + '</span></div>' + CHEV + '</div>';
+    if (o.vial) h += '<div class="vial"><span>Mixed Sep 27</span><span>·</span>' + cells(2, 2) + '<span>2 doses remaining</span><span>·</span><span class="okt">29 days left</span></div>';
+    if (o.actions) h += '<div class="acts"><button class="obtn">Skip</button><button class="pbtn">Mark taken</button></div>';
+    return h + '</div>';
+  }
+  function foodCard(i) {
+    return '<div class="card food" data-i="' + i + '"><div class="row">' + ic(I.spark, 22) + '<div class="grow col"><span class="ttl">AI food log</span><span class="chkline">Reality check · day 1 of 21 · 0 of 7 days in a row</span></div><button class="pbtn" style="height: 40px; padding: 0 16px; font-size: 15px">Log food</button></div>' + strip(21, 0, 1) + '<span class="cap">Nothing logged yet today</span></div>';
+  }
+  function today() {
+    var h = '<div class="scr">';
+    h += '<div class="h-date" data-i="1">Monday, September 28</div>';
+    h += '<h3 class="h-greet" data-i="2">Good evening, Test03</h3>';
+    h += '<div class="h-sub" data-i="3">4 / 5 doses</div>';
+    h += '<div class="prog"><div class="card ringcard" data-i="4">' + dial(80) + '<div class="col"><span class="pct">80<small>%</small></span><span class="lbl">of doses</span></div></div>';
+    h += '<div class="tiles"><div class="card tile" data-i="5"><span class="n">4</span><span class="lbl">Done</span></div><div class="card tile" data-i="6"><span class="n">5</span><span class="lbl">Protocols</span></div></div></div>';
+    h += '<div class="card"><div class="row" data-i="7">' + ic(I.flame, 22) + '<div class="col"><span class="ttl">1 day without a miss</span><span class="lbl">100% this month</span></div></div>';
+    h += '<div class="days" data-i="8">' + ['Tue','Wed','Thu','Fri','Sat','Sun','Mon'].map(function (d, k) {
+      var cls = k === 5 ? ' done' : k === 6 ? ' today' : '';
+      return '<div class="d' + (k === 6 ? ' today' : '') + '"><span class="c' + cls + '">' + (k === 5 ? ic(I.check, 16, 'ico', 'color: var(--onData)') : '') + '</span>' + d + '</div>';
+    }).join('') + '</div>';
+    h += '<div class="body" data-i="9" style="padding-top: 6px; border-top: 1px solid var(--line)">You started your protocols with a goal. Keeping them on time — without missing doses — is how you get there. This shows how well you are keeping up.</div>';
+    h += '<div class="center" data-i="10"><button class="link">View history ›</button></div></div>';
+    h += '<div class="sl" data-i="11">Alerts</div>';
+    h += '<div class="card alert" data-i="12">' + ic(I.scale, 22) + '<div class="grow col"><span class="ttl">Reality-check weigh-in</span><span class="body">Weigh in on Oct 19</span></div><button class="round" aria-label="Remind me">' + ic(I.snooze, 20) + '</button></div>';
+    h += '<div class="card alert" data-i="13">' + ic(I.syringe, 22, 'ico', 'color: var(--attention)') + '<div class="grow col"><span class="ttl">Supply low</span><span class="body att">TB-500, BPC-157 running low</span></div><button class="round" aria-label="Remind me">' + ic(I.snooze, 20) + '</button></div>';
+    h += foodCard(14);
+    h += '<div class="center" data-i="15"><button class="share">Share my progress</button></div>';
+    h += '<div class="sl" data-i="16">Today</div>';
+    h += doseCard({ i: 17, name: 'BPC-157', color: '--p-blue', meta: '0.5 mg · Daily', time: '7:20 PM', streak: '1 day without a miss', vial: true, actions: true });
+    h += '<div class="sl" data-i="18">Tomorrow</div>';
+    h += doseCard({ i: 19, name: 'Zinc', color: '--p-blue', meta: '25 mg · Daily', time: '12:20 PM', streak: '1 day without a miss', dim: true });
+    h += doseCard({ i: 20, name: 'Vitmin C', color: '--p-blue', meta: '500 mg · Daily', time: '12:25 PM', streak: '1 day without a miss', dim: true });
+    h += doseCard({ i: 21, name: 'Magnesium Bisglycinate', color: '--p-orange', meta: '400 mg · Daily', time: '7:40 PM', streak: '2 days without a miss', dim: true });
+    h += doseCard({ i: 22, name: 'TB-500', color: '--p-green', meta: '0.5 mg · Daily', time: '7:40 PM', streak: '2 days without a miss', dim: true, vial: true });
+    h += '<div class="disc" data-i="23">This is a personal tracking tool, not medical advice. Consult your healthcare provider.</div>';
+    return h + '</div>' + tabs(0, 24);
+  }
+
+  /* ---------- Journey ---------- */
+  function journey() {
+    var h = '<div class="fixedhead"><h3 class="h-title" data-i="1">Journey</h3><div class="h-tsub" data-i="2">Track how your body is actually responding.</div></div><div class="scr" style="padding-top: 14px">';
+    h += '<div class="card" data-i="3"><div class="row">' + ic(I.curve, 26, 'ico', 'color: var(--data)') + '<div class="grow col" style="gap: 4px"><span class="ttl">Dose accumulation</span><span class="body">See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.</span></div>' + CHEV + '</div></div>';
+    h += '<div class="card" data-i="4"><span class="ttl" style="font-size: 16px">What this is</span><span class="body">Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. A quick reality check, not a food tracker — save snapshots to watch the numbers change over time.</span></div>';
+    h += '<div class="row" style="padding: 12px 4px 0"><div class="sl" data-i="5" style="padding: 0; flex: 1">' + ic(I.bars, 18) + 'Your numbers ' + TRI_DOWN + '</div><div class="seg" data-i="6"><span class="on">Metric</span><span>Imperial</span></div></div>';
+    h += '<div class="card" style="gap: 14px"><div class="fieldgrid" data-i="7"><div class="field"><span class="lbl">Weight (kg)</span><div class="input">—</div></div><div class="field"><span class="lbl">Height (cm)</span><div class="input">—</div></div></div>';
+    h += '<div class="field" data-i="8"><span class="lbl">Body-fat source</span><div class="pills"><button class="pill">DEXA scan</button><button class="pill on">Gym scan</button><button class="pill">Calipers</button><button class="pill">Home scale</button><button class="pill">I don\'t know</button></div></div>';
+    h += '<div class="cap" data-i="9" style="margin-top: -6px">Good (~3–5% error). Many gyms offer body-composition scans.</div>';
+    h += '<div class="fieldgrid" data-i="10"><div class="field"><span class="lbl">Body fat (%)</span><div class="input">—</div></div><div class="field"><span class="lbl">Waist (cm) · optional</span><div class="input">—</div></div></div>';
+    h += '<div class="cap" data-i="11" style="margin-top: -6px">The most useful non-scale number: it tracks fat loss even when the scale won\'t budge.</div></div>';
+    h += '<div class="sl" data-i="12">' + ic(I.bolt, 18) + 'Activity level</div>';
+    h += '<div class="card"><div class="acts5" data-i="13"><div class="opt"><i></i>Desk job, little or no exercise</div><div class="opt on"><i></i>Light — 1–3 sessions/week</div><div class="opt"><i></i>Moderate — 4–5 sessions/week</div><div class="opt"><i></i>High — 6–7 sessions/week</div><div class="opt wide"><i></i>Very high — physical job + daily training</div></div></div>';
+    h += '<div class="card" data-i="14"><span class="ttl">Your target</span><span class="body">Set a goal weight and/or body fat. As you log weigh-ins you get an honest ETA from your measured pace — never a prescription.</span><button class="obtn">Set a target</button></div>';
+    h += '<div class="card plan" data-i="15"><span class="body">Enter your weight and body fat (or height, age and sex) to see your estimate.</span></div>';
+    h += '<div class="cap" data-i="16" style="padding: 0 4px">An estimate for general wellness, not medical advice or a prescription. It is never linked to any medication or dose — just energy math from the numbers you enter. Individual variation of ±10–15% is normal.</div>';
+    h += '<div class="sl" data-i="17">' + ic(I.trend, 18) + 'Track your progress</div>';
+    h += '<div class="row" data-i="18" style="padding: 4px 4px 0"><span class="lbl grow" style="color: var(--ink2); font-weight: 500">Daily intake</span>' + TRI + '</div>';
+    h += foodCard(19);
+    h += '<div class="center" data-i="20"><button class="link">' + ic(I.spark, 14, 'ico', 'display: inline; vertical-align: -2px; margin-right: 4px') + 'See how it works</button></div>';
+    h += '<div class="row" data-i="21" style="padding: 4px 4px">' + ic(I.fork, 20) + '<div class="grow col"><span class="ttl" style="font-size: 16px">Food-log reminder</span><span class="cap">8 pm while a reality check is running. If you turn it off, it stays off for future checks.</span></div><span class="switch" role="img" aria-label="On"></span></div>';
+    h += '<div class="rule" data-i="22"><span class="body">The reality check needs 7 days in a row of full food logs — 0 of 7 so far.</span>' + strip(7, 0, 0) + '</div>';
+    h += '<div class="card rcrow" data-i="23"><div class="grow col"><span class="lbl">Reality check</span><span class="val" style="font-size: 15px; color: var(--ink2)">In progress · weigh in Oct 19, 2026</span></div>' + CHEV + '</div>';
+    h += '<div class="card" data-i="24"><span class="ttl">Progress</span><span class="body">Premium. Save a snapshot each time you run this, then watch weight and waist together. When waist falls while weight stalls, that\'s the fat loss the scale hides.</span><button class="disabled" disabled>Save a snapshot</button><span class="cap">Save one now, then run this again in a few weeks — two points make a trend.</span><div><button class="link">+ Add a past weigh-in</button></div></div>';
+    h += '<div class="card acc" data-i="25"><span class="grow">Understand the numbers</span>' + TRI + '</div>';
+    h += '<div class="card acc" data-i="26"><span class="grow">Sources &amp; references</span>' + TRI + '</div>';
+    return h + '</div>' + tabs(2, 27);
+  }
+
+  /* ---------- Protocols ---------- */
+  function pcard(o) {
+    var h = '<div class="card pc" data-i="' + o.i + '"><div class="row"><span class="dot" style="background: var(' + o.color + ')"></span><div class="grow col" style="gap: 4px"><span class="name">' + o.name + '</span><span class="meta">' + o.meta + '</span>';
+    if (o.left) h += '<span class="left">' + cells(o.total, o.leftN) + o.left + '</span><span class="days2">29 days left</span>';
+    h += '<div class="tags">' + (o.low ? '<span class="tag att">' + ic(I.warn, 12, 'ico', 'color: var(--attention)') + 'Low · 2 left</span>' : '') + '<span class="tag">' + o.type + '</span></div></div>' + (o.open ? TRI_UP : TRI) + '</div>';
+    return h + (o.extra || '') + '</div>';
+  }
+  function protocols() {
+    var h = '<div class="scr">';
+    h += '<div class="phead"><h3 class="h-title" data-i="1">My Protocols</h3><button class="addbtn" data-i="2">+ Add</button></div>';
+    h += '<div class="sort" data-i="3"><span class="lbl">Sort:</span><button class="pill sm on">Due next</button><button class="pill sm">A–Z</button><button class="pill sm">Vial age</button><button class="pill sm">Recently added</button><button class="pill sm">By type</button></div>';
+    h += pcard({ i: 4, name: 'Vitmin C', color: '--p-blue', meta: '500 mg · 500 mg · Daily', type: 'Oral' });
+    h += pcard({ i: 5, name: 'Zinc', color: '--p-blue', meta: '25 mg · 25 mg · Daily', type: 'Oral' });
+    h += pcard({ i: 6, name: 'Magnesium Bisglycinate', color: '--p-orange', meta: '200 mg · 400 mg · Daily', type: 'Oral' });
+    var body = '<div data-i="8">' + [['Compound amount', '2 mg'], ['Bacteriostatic water', '2 ml'], ['Diluent', 'Bacteriostatic water'], ['Concentration', '1.00 mg/ml'], ['Desired dose', '0.5 mg'], ['Frequency', 'Daily'], ['Reminder', '7:40 PM']].map(function (r) { return '<div class="kv"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('') + '</div>';
+    body += '<div class="col" data-i="9" style="gap: 6px; padding-top: 6px"><span class="lbl">Notes</span><div class="notes">e.g. Rotate injection sites</div></div>';
+    body += '<div class="calc" data-i="10"><span class="ttl" style="font-size: 15px">Syringe calculator</span>' + syringe(100, 50, '50.0u') + '<div class="center"><button class="link" style="font-size: 12.5px; min-height: 28px">' + ic(I.lens, 13, 'ico', 'display: inline; vertical-align: -2px; margin-right: 4px') + 'Tap to enlarge</button></div>';
+    body += '<div class="cells"><div><span>Draw to</span><b class="hero">50.0u</b></div><div><span>Volume</span><b>0.50 ml</b></div><div><span>Dose</span><b>0.5 mg</b><em>= 500 mcg</em></div><div><span>Syringe</span><b>100u</b></div></div>';
+    body += '<span class="cap" style="text-align: center">This is arithmetic from the values you entered — DoseTrace does not set, recommend, or verify any amount. You choose every number. Always follow your healthcare provider\'s instructions.</span></div>';
+    body += '<div class="act3" data-i="11"><button class="obtn">Edit</button><button class="obtn">+ Reminder</button><button class="obtn risk">Delete</button></div>';
+    h += pcard({ i: 7, name: 'TB-500', color: '--p-green', meta: '2 mg vial · 0.5 mg dose · Daily', left: '2 of 4 doses left', total: 4, leftN: 2, low: true, type: 'Lyophilized', open: true, extra: body });
+    h += pcard({ i: 12, name: 'BPC-157', color: '--p-blue', meta: '1 mg vial · 0.5 mg dose · Daily', left: '2 of 2 doses left', total: 2, leftN: 2, low: true, type: 'Lyophilized' });
+    return h + '</div>' + tabs(1, 13);
+  }
+
+  /* ---------- Site picker ---------- */
+  function site(view) {
+    var h = '<div class="behind" data-i="1">' + ic(I.back, 22) + '<span class="ttl" style="font-size: 18px; font-weight: 600">Dose log</span><span class="tag" style="height: 32px; border-radius: 16px; padding: 0 12px">' + ic(I.curve, 14) + 'Curve</span></div>';
+    h += '<div class="scrim"></div><div class="sheet"><div class="grab" data-i="2"></div>';
+    h += '<div class="row" data-i="3"><span class="grow" style="font-size: 20px; font-weight: 600">Pick site(s)</span><button class="round" aria-label="Cancel" style="border: 0">' + ic(I.x, 20) + '</button></div>';
+    h += '<div class="lbl" data-i="4" style="margin-top: -12px">TB-500 · Subcutaneous</div>';
+    h += '<div class="seg full" data-i="5"><span class="on">Subcutaneous</span><span>Intramuscular</span></div>';
+    h += '<div class="fb" data-i="6"><span' + (view === 'front' ? ' class="on"' : '') + '>Front</span><span' + (view === 'back' ? ' class="on"' : '') + '>Back</span></div>';
+    h += '<div class="figure" data-i="7">' + body(view, view === 'front' ? 'abdomen_ul' : null) + '</div>';
+    h += '<div class="legend" data-i="8"><span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--raised)" stroke="var(--ink2)" stroke-width="1.3"/></svg>Available</span><span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="var(--data)"/></svg>Selected</span><span><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--data)" stroke-width="1.2" stroke-dasharray="2.4 2"/></svg>Longest unused</span></div>';
+    h += '<div class="hint" data-i="9">Tap a spot on the body</div>';
+    h += '<div class="disc" data-i="10">Personal log only. Follow your healthcare provider\'s instructions for injection technique and site selection.</div>';
+    h += '<div class="two" data-i="11"><button class="obtn">Cancel</button><button class="pbtn">Save</button></div>';
+    return h + '</div>';
+  }
+
+  /* ---------- checklists (what main shows, in order) ---------- */
+  var CHECK = {
+    today: [
+      ['Date line', 'Geist 13, ink3'], ['Greeting "Good evening, Test03"', 'Geist 28/600'], ['"4 / 5 doses"', 'Geist Mono'],
+      ['Progress ring card, 80% of doses', 'ring drawn as a graduated dial in Cobalt; 80% at 52 pt'], ['Done tile, 4', 'flat card, thin 30 pt number'], ['Protocols tile, 5', 'flat card, thin 30 pt number'],
+      ['Streak card: flame, "1 day without a miss", "100% this month"', 'icon without tile'], ['Streak card: 7 day cells Tue–Mon', 'done day = Cobalt, today = ink outline, labels mono'],
+      ['Streak card: explainer text', 'kept word for word, ink2'], ['Streak card: View history ›', 'ink link'], ['Alerts header', 'sentence case instead of uppercase'],
+      ['Alert: Reality-check weigh-in, Weigh in on Oct 19, remind-me button', 'icon without tile, outline round button'], ['Alert: Supply low, TB-500 + BPC-157 running low, remind-me button', 'amber text, no tinted tile'],
+      ['AI food log card: title, check line, Nothing logged yet today, Log food', 'white card instead of blue tint; day 1 of 21 drawn as a tick strip; Log food = primary'], ['Share my progress', 'outline capsule'],
+      ['Today header', 'sentence case'], ['BPC-157 card: dot, name, dose, time + reminder, streak, chevron, vial line, Skip, Mark taken', 'mono readouts; doses remaining as vial cells; Mark taken = primary'],
+      ['Tomorrow header', 'sentence case'], ['Zinc card', 'dimmed as on main'], ['Vitmin C card', 'dimmed as on main (name as the user typed it)'], ['Magnesium Bisglycinate card', 'dimmed as on main'],
+      ['TB-500 card + vial line', 'dimmed as on main'], ['Disclaimer', 'kept word for word'], ['Tab bar: Today, My Protocols, Journey, My Body, Settings', 'flat, active tab ink']
+    ],
+    journey: [
+      ['Title "Journey"', 'Geist 30/600'], ['Subtitle', 'kept'], ['Dose accumulation card', 'curve icon in Cobalt, no tile'], ['"What this is" card', 'white card instead of blue tint; text kept'],
+      ['Your numbers header + chevron', 'sentence case'], ['Metric / Imperial', 'segmented, well track'], ['Weight (kg) | Height (cm) fields', 'well inputs, mono'],
+      ['Body-fat source pills (5), Gym scan selected', 'outline pills, selected = ink outline'], ['Source hint', 'caption'], ['Body fat (%) | Waist (cm) · optional', 'well inputs'], ['Waist hint', 'caption'],
+      ['Activity level header', 'sentence case'], ['5 activity options, Light selected', 'outline cells, ink radio'], ['Your target card + Set a target', 'outline capsule'],
+      ['Estimate prompt card', 'kept'], ['Wellness disclaimer', 'kept word for word'], ['Track your progress header', 'sentence case'], ['Daily intake ▸', 'kept'],
+      ['AI food log card', 'same as on Today'], ['See how it works', 'ink link'], ['Food-log reminder + switch (on)', 'switch on = ink'], ['7-days rule note, 0 of 7', 'well box; 0 of 7 drawn as 7 empty ticks'],
+      ['Reality check row: In progress · weigh in Oct 19, 2026', 'mono readout'], ['Progress card: Save a snapshot (disabled), hint, + Add a past weigh-in', 'disabled button stays readable'],
+      ['Understand the numbers ▸', 'kept'], ['Sources & references ▸', 'kept'], ['Tab bar', 'flat, active tab ink']
+    ],
+    protocols: [
+      ['Title "My Protocols"', 'Geist 30/600'], ['+ Add', 'primary'], ['Sort: Due next, A–Z, Vial age, Recently added, By type', 'selected = ink outline; row scrolls as on main'],
+      ['Vitmin C card, Oral', 'outline tag'], ['Zinc card, Oral', 'outline tag'], ['Magnesium Bisglycinate card, Oral', 'outline tag'],
+      ['TB-500 card: vial + dose, 2 of 4 doses left, 29 days left, Low · 2 left, Lyophilized, ▲', 'doses left as vial cells; tags outlined'],
+      ['TB-500 rows: compound, water, diluent, concentration, dose, frequency, reminder', 'mono values, hairlines'], ['Notes box', 'well'],
+      ['Syringe calculator: syringe with 50.0u tag, Tap to enlarge, Draw to / Volume / Dose / Syringe, disclaimer', 'barrel to scale with Cobalt liquid; Draw to is the big readout'],
+      ['Edit · + Reminder · Delete', 'outline; Delete in red text'], ['BPC-157 card, 2 of 2 doses left', 'vial cells'], ['Tab bar', 'flat, active tab ink']
+    ],
+    site: [
+      ['Dose log screen behind the sheet (dimmed)', 'kept'], ['Grab handle', 'kept'], ['"Pick site(s)" + close', 'Geist 20/600'], ['"TB-500 · Subcutaneous"', 'caption'],
+      ['Subcutaneous | Intramuscular', 'segmented, well track'], ['Front | Back', 'selected = ink outline'], ['Body figure with the 8 site dots for this view, longest-unused ring', 'new outline figure, themed for dark; dots at the app coordinates'],
+      ['Legend: Available, Selected, Longest unused', 'Selected = Cobalt'], ['"Tap a spot on the body"', 'kept'], ['Disclaimer', 'kept word for word'], ['Cancel | Save', 'Save = primary']
+    ]
+  };
+
+  /* ---------- build ---------- */
+  var BUILD = { today: today, journey: journey, protocols: protocols, site: function () { return site('front'); }, siteback: function () { return site('back'); } };
+  var CHECKKEY = { today: 'today', journey: 'journey', protocols: 'protocols', site: 'site', siteback: 'site' };
+  var results = {};
+  function verify(ph, key) {
+    var got = Array.prototype.map.call(ph.querySelectorAll('[data-i]'), function (n) { return +n.getAttribute('data-i'); });
+    var want = CHECK[key].length, ok = got.length === want;
+    for (var k = 0; ok && k < got.length; k++) if (got[k] !== k + 1) ok = false;
+    return { ok: ok, n: got.length, want: want };
+  }
+  function nowFig(list, theme) {
+    var f = document.createElement('figure');
+    f.innerHTML = '<div class="now">' + list.split(',').map(function (s, k) { return '<img src="current/' + s + '.jpg" alt="Main today, ' + theme + ', frame ' + (k + 1) + '" loading="lazy">'; }).join('') + '</div><figcaption><b>Now on main.</b> Simulator, Test03, ' + theme + '. Frames overlap while scrolling.</figcaption>';
+    return f;
+  }
+  function gradFig(key, theme, act) {
+    var f = document.createElement('figure');
+    var ph = document.createElement('div');
+    ph.className = 'ph ' + theme + ' act-' + act;
+    ph.innerHTML = BUILD[key]();
+    f.appendChild(ph);
+    var r = verify(ph, CHECKKEY[key]);
+    results[CHECKKEY[key]] = results[CHECKKEY[key]] === false ? false : r.ok;
+    var cap = document.createElement('figcaption');
+    cap.innerHTML = '<b>Graduated, ' + (act === 'ink' ? 'ink' : 'Cobalt') + ' action.</b> <span class="chk ' + (r.ok ? 'pass' : 'fail') + '">order check ' + r.n + '/' + r.want + (r.ok ? ' in order' : ' MISMATCH') + '</span>';
+    f.appendChild(cap);
+    return f;
+  }
+  document.querySelectorAll('.cmp').forEach(function (box) {
+    var key = box.getAttribute('data-screen');
+    [['light', box.getAttribute('data-now-light')], ['dark', box.getAttribute('data-now-dark')]].forEach(function (t) {
+      var lab = document.createElement('div');
+      lab.className = 'rowlabel';
+      lab.innerHTML = (key === 'siteback' ? 'Back view, ' : '') + (t[0] === 'light' ? 'Light' : 'Dark') + ' <span class="mono">now · ink · Cobalt</span>';
+      box.appendChild(lab);
+      if (t[1]) box.appendChild(nowFig(t[1], t[0]));
+      box.appendChild(gradFig(key, t[0], 'ink'));
+      box.appendChild(gradFig(key, t[0], 'blue'));
+    });
+  });
+  document.querySelectorAll('table.check').forEach(function (tb) {
+    var key = tb.getAttribute('data-check'), ok = results[key];
+    tb.innerHTML = '<thead><tr><th>#</th><th>On main today, in order</th><th>In Graduated</th><th>Skin change only</th></tr></thead><tbody>' +
+      CHECK[key].map(function (r, k) { return '<tr><td>' + (k + 1) + '</td><td>' + r[0] + '</td><td class="ok">' + (ok ? 'present, #' + (k + 1) : 'check failed') + '</td><td class="skin">' + r[1] + '</td></tr>'; }).join('') + '</tbody>';
+  });
+})();
+</script>
