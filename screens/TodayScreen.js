@@ -25,7 +25,8 @@ import {
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending } from '../lib/doseActions';
-import { pendingFromYesterday } from '../lib/pendingYesterday';
+import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
+import { planUndoTake } from '../lib/markTaken';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
@@ -756,15 +757,17 @@ export default function TodayScreen() {
         clearTimeout(fx.applyT);
         clearTimeout(fx.siteT);
       }
-      if (undoData.flipped) updateDoseLog(undoData.logId, { outcome: 'Missed', injection_site: null });
-      else deleteDoseLog(undoData.logId);
-      // "Today's dose — skip yesterday" wrote two rows: undo removes both (A-40).
-      for (const id of undoData.extraDeleteIds || []) deleteDoseLog(id);
+      // The ONE undo plan (lib/markTaken.js planUndoTake, __tests__/pendingFlow.test.js):
+      // a flipped Missed row goes back to Missed; "today's dose — skip yesterday"
+      // wrote two rows and undo removes both (A-40).
+      const plan = planUndoTake(undoData);
+      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: 'Missed', injection_site: null });
+      for (const id of plan.deleteIds) deleteDoseLog(id);
       // Only take back a count bump that actually landed (a pending-from-yesterday
       // row never changed today's count).
-      if (undoData.pending) {
+      if (plan.todayCount === 'none') {
         // nothing to take back on today's cards
-      } else if (!fx || fx.applied) {
+      } else if (plan.todayCount === 'decrement') {
         setTakenCounts(prev => {
           const updated = { ...prev };
           updated[undoData.protocolId] = Math.max((updated[undoData.protocolId] || 1) - 1, 0);
@@ -773,12 +776,13 @@ export default function TodayScreen() {
       } else {
         resetTake(undoData.protocolId); // the pressed button is still showing "Taken"
       }
-      if (undoData.vialId && undoData.prevDosesTaken !== null) {
-        updateVial(undoData.vialId, { doses_taken: undoData.prevDosesTaken, active: 1 });
+      if (plan.vialRestore) {
+        const { id, ...fields } = plan.vialRestore;
+        updateVial(id, fields);
         fetchProtocols();
       }
-      if (undoData.oralPrevUnitsTaken != null) {
-        updateProtocol(undoData.protocolId, { units_taken: undoData.oralPrevUnitsTaken });
+      if (plan.oralRestore) {
+        updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
         fetchProtocols();
       }
       setUndoData(null);
@@ -953,7 +957,7 @@ export default function TodayScreen() {
     }
     // A-40: yesterday's dose for this protocol is still pending — ask which day this
     // dose is for before writing anything (earliest pending slot).
-    const pend = !opts.pendingResolved && pendingYest.find((x) => x.protocolId === p.id);
+    const pend = pendingPromptFor(pendingYest, p.id, { pendingResolved: !!opts.pendingResolved });
     if (pend) {
       const vars = (str) => str.replace('{name}', p.compound_id ? t(p.compound_id) : p.name).replace('{time}', formatTimeAMPM(new Date(pend.slotMs).toTimeString().slice(0, 5)));
       Alert.alert(
