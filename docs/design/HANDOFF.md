@@ -1,6 +1,6 @@
 # Handoff — DoseTrace visual identity "Graduated" (design session → cloud, 2026-09-29)
 
-Read this whole file before doing anything. It carries the rules and decisions that live only on
+**On the Mac? Start with `MAC-HANDOFF.md` (2026-09-30): the design pass is finished and approved; it says how to bring it onto `main` and what to build first.** Read this whole file before doing anything. It carries the rules and decisions that live only on
 the founder's Mac (Claude's memory, the Grok notes), and says where the rest is in the repo (§2).
 
 ## 1. What this work is
