@@ -18,7 +18,7 @@ import { Analytics } from '../lib/analytics';
 import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
 import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
 import {
-  getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
+  getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
   getBiomarkers,
@@ -27,6 +27,7 @@ import { requestSync, addSyncListener } from '../lib/sync';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake } from '../lib/markTaken';
+import { planSitePickerAction } from '../lib/sitePickerActions';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
@@ -146,6 +147,8 @@ export default function TodayScreen() {
   // their own picker, and a site is never saved onto the other dose.
   const siteQueueRef = useRef([]);
   const bodyMapOpenRef = useRef(false);
+  const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
+  const takeNoticeT = useRef(null);
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
   const resetTake = (protocolId) => setTakeReset(prev => ({ ...prev, [protocolId]: (prev[protocolId] || 0) + 1 }));
   const [undoData, setUndoData] = useState(null);
@@ -166,7 +169,8 @@ export default function TodayScreen() {
 
   // Body map (injection site picker) state
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
-  const [bodyMapTarget, setBodyMapTarget] = useState(null); // { logId, protocolId, recentLogs, initialStored }
+  const [bodyMapTarget, setBodyMapTarget] = useState(null); // { logId, protocolId, recentLogs, initialStored, undo, mode }
+  const [takeNotice, setTakeNotice] = useState(false); // "dose not marked" after Cancel / back in the picker (S-20)
 
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
   // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
@@ -648,23 +652,28 @@ export default function TodayScreen() {
 
       // Setup undo (5 second window) — previous timer is cleared by the undoData effect
       const timer = setTimeout(() => setUndoData(null), 5000);
-      setUndoData({
+      // The full undo record of THIS take: the Undo bar and this take's site picker
+      // both use it, so a queued picker never undoes a later dose (S-20).
+      const record = {
         logId,
         flipped: res.flipped,
         extraDeleteIds: opts.extraDeleteIds || [],
         protocolId: protocol.id,
         vialId: res.vialId,
         prevDosesTaken: res.prevVialDosesTaken,
+        vialFinished: !!res.vialFinished,
         oralPrevUnitsTaken,
+        oralUnitsAdded: res.oralUnitsAdded,
         timer,
         fx,
-      });
+      };
+      setUndoData(record);
 
       // Injectables (lyophilized / ready-to-use): prompt for the injection
       // site right after logging, instead of leaving it as an optional step.
       // Oral supplements have no site, so they skip this.
       if (protocol.type === 'recon' || protocol.type === 'rtu') {
-        const openSite = () => openBodyMapForUndo({ logId, protocolId: protocol.id, timer, fx });
+        const openSite = () => openBodyMapForUndo(record, 'take');
         // With the vial-finished prompt up, open together as before (no delayed
         // second modal racing the first).
         if (opts.siteDelay && !vialPromptShown) fx.siteT = setTimeout(openSite, opts.siteDelay); else openSite();
@@ -686,8 +695,11 @@ export default function TodayScreen() {
 
   // Open the body map for the just-logged dose. Cancels the undo timer
   // so the toast stays on screen while the modal is open.
-  async function openBodyMapForUndo(undo) {
+  // mode 'take': opened by Mark taken (Cancel / back = undo that dose); 'add': the
+  // user tapped "Add site" on the Undo bar (Cancel / back only close).
+  async function openBodyMapForUndo(undo, mode = 'add') {
     if (!undo || !undo.logId) return;
+    if (undoneIdsRef.current.has(undo.logId)) return;
     if (undo.fx) {
       if (undo.fx.undone) return;
       clearTimeout(undo.fx.siteT);
@@ -695,7 +707,7 @@ export default function TodayScreen() {
     }
     if (undo.timer) clearTimeout(undo.timer);
     if (bodyMapOpenRef.current) {
-      if (!siteQueueRef.current.some(u => u.logId === undo.logId)) siteQueueRef.current.push(undo);
+      if (!siteQueueRef.current.some(q => q.undo.logId === undo.logId)) siteQueueRef.current.push({ undo, mode });
       return;
     }
     bodyMapOpenRef.current = true;
@@ -710,6 +722,8 @@ export default function TodayScreen() {
         protocolId: undo.protocolId,
         recentLogs: recent,
         initialStored: null,
+        undo,
+        mode,
       });
       setBodyMapVisible(true);
     } catch { bodyMapOpenRef.current = false; }
@@ -719,39 +733,70 @@ export default function TodayScreen() {
   function openNextSite() {
     bodyMapOpenRef.current = false;
     let next;
-    do { next = siteQueueRef.current.shift(); } while (next && next.fx && next.fx.undone);
-    if (next) setTimeout(() => openBodyMapForUndo(next), 350);
+    do { next = siteQueueRef.current.shift(); } while (next && ((next.undo.fx && next.undo.fx.undone) || undoneIdsRef.current.has(next.undo.logId)));
+    if (next) setTimeout(() => openBodyMapForUndo(next.undo, next.mode), 350);
   }
 
-  function handleBodyMapClose() {
-    const closedLogId = bodyMapTarget?.logId;
-    setBodyMapVisible(false);
-    setBodyMapTarget(null);
-    // Toast was kept open while modal was up — clear it now (only if it belongs
-    // to this log: a queued take keeps its own Undo until its picker closes)
-    setUndoData(prev => (prev && prev.logId === closedLogId ? null : prev));
-    openNextSite();
-  }
-
-  function handleBodyMapSave({ stored }) {
-    if (bodyMapTarget?.logId) {
+  // Every way out of the site picker goes through ONE plan (lib/sitePickerActions.js,
+  // __tests__/sitePickerUndo.test.js): in a picker opened by Mark taken, Cancel / X
+  // (and a CONFIRMED Android back) undo THAT dose (its own record, never the latest take) and say so;
+  // Skip keeps the dose without a site; Save keeps it with the site.
+  function pickerAction(action, stored) {
+    const tgt = bodyMapTarget;
+    if (!tgt) return;
+    const undone = undoneIdsRef.current.has(tgt.logId) || !!(tgt.undo && tgt.undo.fx && tgt.undo.fx.undone);
+    const plan = planSitePickerAction({ mode: tgt.mode, action, undone });
+    if (!plan.close) return; // a bare Android back in a take picker is handled by handleBodyMapBack
+    if (plan.writeSite && tgt.logId) {
       try {
-        updateDoseLog(bodyMapTarget.logId, { injection_site: stored });
+        updateDoseLog(tgt.logId, { injection_site: stored });
         requestSync();
       } catch { /* ignore */ }
     }
-    const closedLogId = bodyMapTarget?.logId;
     setBodyMapVisible(false);
     setBodyMapTarget(null);
-    setUndoData(prev => (prev && prev.logId === closedLogId ? null : prev));
+    if (plan.undo) applyUndo(tgt.undo);
+    // Toast was kept open while the modal was up — clear it now (only if it belongs
+    // to this log: a queued take keeps its own Undo until its picker closes)
+    else setUndoData(prev => (prev && prev.logId === tgt.logId ? null : prev));
+    if (plan.notice) {
+      clearTimeout(takeNoticeT.current);
+      setTakeNotice(true);
+      takeNoticeT.current = setTimeout(() => setTakeNotice(false), 6000);
+    }
     openNextSite();
   }
 
-  async function undoTake() {
-    if (!undoData) return;
+  function handleBodyMapClose() { pickerAction('cancel'); }
+  // Android back (button or gesture) in a picker opened by Mark taken never undoes by
+  // itself (founder 2026-09-30): ask — stay in the picker, or leave (= Cancel = undo).
+  function handleBodyMapBack() {
+    const tgt = bodyMapTarget;
+    if (!tgt) return;
+    const undone = undoneIdsRef.current.has(tgt.logId) || !!(tgt.undo && tgt.undo.fx && tgt.undo.fx.undone);
+    if (!planSitePickerAction({ mode: tgt.mode, action: 'back', undone }).confirm) { pickerAction('back'); return; }
+    Alert.alert(
+      t('today_site_back_title'),
+      t('today_site_back_msg'),
+      [
+        { text: t('today_site_back_stay'), style: 'cancel' },
+        { text: t('today_site_back_leave'), style: 'destructive', onPress: () => pickerAction('leave') },
+      ],
+      { cancelable: true },
+    );
+  }
+  function handleBodyMapSkip() { pickerAction('skip'); }
+  function handleBodyMapSave({ stored }) { pickerAction('save', stored); }
+
+  function undoTake() { applyUndo(undoData); }
+
+  // Undo ONE take, from its own record. Never twice for the same log.
+  function applyUndo(record) {
+    if (!record || record.logId == null || undoneIdsRef.current.has(record.logId)) return;
+    undoneIdsRef.current.add(record.logId);
     try {
-      if (undoData.timer) clearTimeout(undoData.timer);
-      const fx = undoData.fx;
+      if (record.timer) clearTimeout(record.timer);
+      const fx = record.fx;
       if (fx) {
         fx.undone = true;
         clearTimeout(fx.applyT);
@@ -759,8 +804,13 @@ export default function TodayScreen() {
       }
       // The ONE undo plan (lib/markTaken.js planUndoTake, __tests__/pendingFlow.test.js):
       // a flipped Missed row goes back to Missed; "today's dose — skip yesterday"
-      // wrote two rows and undo removes both (A-40).
-      const plan = planUndoTake(undoData);
+      // wrote two rows and undo removes both (A-40). Supply goes back by one dose
+      // from what it is NOW, read fresh (another dose may have moved it since).
+      const proto = getProtocolById(record.protocolId);
+      const vialNow = record.vialId ? getVialById(record.vialId) : null;
+      const otherActiveVial = !!(record.vialId && proto
+        && (getActiveVials(proto.user_id) || []).some(v => v.protocol_id === record.protocolId && v.id !== record.vialId));
+      const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null });
       if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: 'Missed', injection_site: null });
       for (const id of plan.deleteIds) deleteDoseLog(id);
       // Only take back a count bump that actually landed (a pending-from-yesterday
@@ -770,11 +820,11 @@ export default function TodayScreen() {
       } else if (plan.todayCount === 'decrement') {
         setTakenCounts(prev => {
           const updated = { ...prev };
-          updated[undoData.protocolId] = Math.max((updated[undoData.protocolId] || 1) - 1, 0);
+          updated[record.protocolId] = Math.max((updated[record.protocolId] || 1) - 1, 0);
           return updated;
         });
       } else {
-        resetTake(undoData.protocolId); // the pressed button is still showing "Taken"
+        resetTake(record.protocolId); // the pressed button is still showing "Taken"
       }
       if (plan.vialRestore) {
         const { id, ...fields } = plan.vialRestore;
@@ -785,7 +835,14 @@ export default function TodayScreen() {
         updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
         fetchProtocols();
       }
-      setUndoData(null);
+      // The "start a new vial?" prompt of the undone dose must not stay up.
+      if (plan.closeVialPrompt) {
+        if (continuationProtocol && continuationProtocol.id === record.protocolId) {
+          setShowVialPrompt(false);
+          setContinuationProtocol(null);
+        }
+      }
+      setUndoData(prev => (prev && prev.logId === record.logId ? null : prev));
       fetchPendingYesterday();
       fetchStreakData();
       fetchProtocolStreaks();
@@ -1676,11 +1733,20 @@ export default function TodayScreen() {
         </View>
       )}
 
+      {/* S-20: the dose was undone from the site picker (Cancel / back) — say so. */}
+      {takeNotice && !undoData && (
+        <View style={s.takeNoticeBar} accessibilityLiveRegion="polite">
+          <Text style={s.takeNoticeText}>{t('today_take_undone')}</Text>
+        </View>
+      )}
+
       {/* Body map modal — auto-opens after taking an injectable dose,
           and re-openable from the undo toast "Add site" button */}
       <BodyMapModal
         visible={bodyMapVisible}
         onClose={handleBodyMapClose}
+        onBack={handleBodyMapBack}
+        onSkip={bodyMapTarget?.mode === 'take' ? handleBodyMapSkip : null}
         onSave={handleBodyMapSave}
         initialStored={bodyMapTarget?.initialStored || null}
         protocolName={protocols.find(p => p.id === bodyMapTarget?.protocolId)?.name || null}
@@ -1981,6 +2047,9 @@ const makeStyles = (c) => StyleSheet.create({
   promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
   // Undo bar
   undoBar: { position: 'absolute', left: 16, right: 16, bottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  // S-20 notice (same pinned surface as the Undo bar, text only)
+  takeNoticeBar: { position: 'absolute', left: 16, right: 16, bottom: 12, backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  takeNoticeText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
   undoBarText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
   undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
   undoBarAction: { fontSize: 13, color: c.toastText, fontWeight: '700', textDecorationLine: 'underline' },

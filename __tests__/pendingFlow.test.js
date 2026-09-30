@@ -172,7 +172,9 @@ test('S-17: notification "Mark taken" after midnight inside slot + 12 h logs to 
 
 test('S-17: TodayScreen applies planUndoTake and pendingPromptFor (the tested functions are the ones on screen)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
-  const u = src.indexOf('async function undoTake(');
+  // undoTake() applies the undo of the Undo bar's record through applyUndo (S-20).
+  assert.match(src, /function undoTake\(\) \{ applyUndo\(undoData\); \}/);
+  const u = src.indexOf('function applyUndo(');
   assert.match(src.slice(u, src.indexOf('\n  function ', u + 10)), /planUndoTake\(/);
   const h = src.indexOf('function handleTake(');
   assert.match(src.slice(h, h + 3000), /pendingPromptFor\(/);

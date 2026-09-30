@@ -227,11 +227,24 @@ Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S
 | S-17 | A-40: doses logged after midnight / no way to log yesterday's dose — option 1 "Pending from yesterday" (founder 2026-09-28 12:31 ET) | A-40 | markTaken.test.js A-40 write-layer test (todo → green) + tests per A-40 row | **CLOSED 2026-09-30** — automated proof (founder dropped the overnight device wait): __tests__/pendingYesterday.test.js (11), __tests__/pendingFlow.test.js (12), markTaken.test.js A-40 tests (5); screen wiring guarded by source tests. Device tap + dark-theme render → pre-build pass. 1.2.5 DATA-LOSS EXCEPTION added after scope close by the founder on 2026-09-28 |
 | S-18 | A-43 (F-MISS-2): early same-day dose or Skip gets a false Missed | A-43 | __tests__/missedEarlyDose.test.js: 5 todo → green (3 F-MISS-2 + the Skipped-yesterday/07:00 scenario + DST Nov 1); guards (3 h early, A-35(b)) stay green; full suite passes except energy.test.ts | open — 1.2.5 DATA-INTEGRITY EXCEPTION added after scope close by the founder on 2026-09-28 |
 | S-19 | A-49 cheap guard: the Missed scan never scans days before the last time-zone change | A-49 | __tests__/missedEarlyDose.test.js A-49 todo → green | open — 1.2.5 exception added by the founder on 2026-09-28, after S-18 |
-| S-20 | A-39: site picker Cancel after Mark taken = full undo; "Skip site" keeps the dose; dismiss gestures never silently keep/drop; + A-55: saving the picker empty never erases a stored site | A-39 (+ A-38(d)) + A-55 | tests per A-39 row, RED → GREEN; sim check light + dark | open — 1.2.5 exception added by the founder on 2026-09-28, right after S-17 and before S-18 |
+| S-20 | A-39: site picker Cancel after Mark taken = full undo; "Skip site" keeps the dose; dismiss gestures never silently keep/drop; + A-55: saving the picker empty never erases a stored site | A-39 (+ A-38(d)) + A-55 | tests per A-39 row, RED → GREEN; sim check light + dark | **BUILT 2026-09-30** — __tests__/sitePickerUndo.test.js (15, red → green) + sitePickerKeepsSite.test.js (4); copy x6 approved by the founder 2026-09-30; sim (Test03) light + dark: Skip, Cancel → undo + notice, Remove site. NOT seen on screen → pre-build pass: Android back confirmation (needs Android), typed-site chip, queued pickers, vial-finished prompt. 1.2.5 exception added by the founder on 2026-09-28 |
 | S-21 | A-56: EULA + Privacy links on the paywall, both platforms, 6 languages (ASC Pro → Premium rename is a console task, tracked here) | A-56 | FX-17 | open — 1.2.5 exception added by the founder on 2026-09-29 |
 | S-22 | A-57: Pro → Premium in all user copy + settings_premium_feat_3 = "AI food log, every day", 6 languages, wording approved first | A-57 | FX-18 | open — 1.2.5 exception added by the founder on 2026-09-29 |
 | S-23 | A-58 part 1: extract-bloodwork gives Premium 20 scans/month via a server-side RevenueCat check; free stays 3 (server, deployable before the build; Gate B) | A-58 | FX-19 | open — 1.2.5 exception added by the founder on 2026-09-29; needs the RevenueCat secret key |
 | S-24 | A-58 part 2: "unlimited scans/uploads" → "20 scans a month", 6 languages; ships only if S-23 is live and verified | A-58 | FX-20 | open — 1.2.5 exception added by the founder on 2026-09-29; gated on S-23 |
+
+### S-20 product decisions (founder 2026-09-30) — do not re-ask
+
+- **Injection sites are OPTIONAL.** They help rotation (avoid nodules / fibrosis); a Taken dose may have no site. Never required.
+- **Skip** (picker opened by Mark taken) = keep the dose, no site. Why: the site is optional.
+- **Cancel / X** (picker opened by Mark taken) = full undo of that Mark taken. Why: founder field report 2026-09-28 (Cancel left the dose Taken).
+- **Save** = write the site on that dose.
+- **Android back (button or gesture)** in that picker = a confirmation first (stay / leave); only a confirmed leave undoes (= Cancel). Why: an accidental back must never undo by itself.
+- **Pickers the user opened** (Undo bar "Add site", Dose-log row): Cancel / back only close, no confirmation. Why: nothing is written without Save.
+- **Remove site**: an explicit control clears a saved site (picked or typed) WITHOUT undoing the dose; the site can also be changed (e.g. glute → vastus) the same way. Why: the user may change where they actually inject after marking.
+- **A typed-in site from an older version is never erased by an empty Save** (A-55); it goes only by Remove site or by picking a spot.
+- **Undo safety** (journey review 2026-09-30): each picker undoes ITS OWN dose; supply goes back by one dose from the current count; never two active vials (a newer vial stays the active one); never twice.
+- **S-20 on main is BEHAVIOUR ONLY** with minimal wiring on the current picker; the Graduated picker visuals (item 27) are built on redesign/graduated later.
 
 ## Testing accounts (founder 2026-09-27)
 - Every simulator/device check runs on the test account **evandro1985@gmail.com** (free tier by default; not in DEVELOPER_EMAILS). Test data may be created and deleted freely there. Never use the founder's main account for checks.

@@ -14,6 +14,8 @@
  *   visible:        boolean
  *   onClose:        () => void
  *   onSave:         ({ stored, siteIds, type }) => void
+ *   onSkip:         () => void   (optional — shows "Skip": keep the dose, no site; S-20)
+ *   onBack:         () => void   (optional — Android back; defaults to onClose)
  *   initialStored:  string (existing dose_logs.injection_site value)
  *   protocolName:   string (e.g. "BPC-157") — shown in subtitle
  *   recentLogs:     dose_log rows (used for rotation suggestion)
@@ -36,6 +38,7 @@ import {
   suggestNextSite,
   parseStored,
   siteToStore,
+  hasSavedSite as siteIsSaved,
 } from '../../lib/injectionSites';
 import { CrossMark } from '../../components/CheckMark';
 
@@ -49,6 +52,8 @@ export default function BodyMapModal({
   visible,
   onClose,
   onSave,
+  onSkip = null,
+  onBack = null,
   initialStored = null,
   protocolName = null,
   recentLogs = [],
@@ -93,8 +98,9 @@ export default function BodyMapModal({
   // An older typed-in site ("left glute") has no dot: show the saved text itself so
   // the user sees what is stored; it is kept unless they pick a spot (A-55).
   const freeText = parseStored(initialStored).freeText;
+  const hasSavedSite = siteIsSaved(initialStored);
   const summary = selected.length === 0
-    ? (freeText || t('bodymap_no_selection'))
+    ? t('bodymap_no_selection')
     : t('bodymap_n_selected').replace('{count}', String(selected.length));
 
   function handleSave() {
@@ -105,12 +111,18 @@ export default function BodyMapModal({
     });
   }
 
+  // "Remove site" (S-20): sites are optional — clear the saved site (picked or typed)
+  // without touching the dose. Goes through the same onSave path with no site.
+  function handleRemove() {
+    onSave({ stored: null, siteIds: [], type });
+  }
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={onBack || onClose}
     >
       <View style={s.overlay}>
         <View style={s.sheet}>
@@ -243,7 +255,15 @@ export default function BodyMapModal({
           </View>
 
           {/* Selected count */}
-          <Text style={s.summary}>{summary}</Text>
+          {freeText && selected.length === 0 ? (
+            <View style={s.textChipRow}>
+              <View style={s.textChip}>
+                <Text style={s.textChipText} numberOfLines={1}>{freeText}</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={s.summary}>{summary}</Text>
+          )}
 
           {/* Disclaimer */}
           <Text style={s.disclaimer}>{t('bodymap_disclaimer')}</Text>
@@ -257,6 +277,16 @@ export default function BodyMapModal({
               <Text style={s.btnPrimaryText}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
+          {hasSavedSite && (
+            <TouchableOpacity style={s.btnSkip} onPress={handleRemove} accessibilityRole="button">
+              <Text style={s.btnRemoveText}>{t('bodymap_remove_site')}</Text>
+            </TouchableOpacity>
+          )}
+          {onSkip && (
+            <TouchableOpacity style={s.btnSkip} onPress={onSkip} accessibilityRole="button">
+              <Text style={s.btnSkipText}>{t('today_pick_site_skip')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -400,7 +430,13 @@ const makeStyles = (c) => StyleSheet.create({
     lineHeight: 14,
     paddingHorizontal: 16,
   },
+  textChipRow: { alignItems: 'center', marginTop: 4 },
+  textChip: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 14, backgroundColor: c.accentSoft },
+  textChipText: { flexShrink: 1, fontSize: 13, fontWeight: '500', color: c.accentSoftText },
   actions: { flexDirection: 'row', gap: 10, paddingTop: 4 },
+  btnSkip: { alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16, marginTop: 2 },
+  btnRemoveText: { fontSize: 14, fontWeight: '600', color: c.dangerSoftText, textDecorationLine: 'underline' },
+  btnSkipText: { fontSize: 14, fontWeight: '600', color: c.textMuted, textDecorationLine: 'underline' },
   btnSecondary: {
     flex: 1,
     paddingVertical: 12,
