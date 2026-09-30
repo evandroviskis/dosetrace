@@ -85,32 +85,25 @@ Suíte: 382 testes — 374 passam, 1 falha conhecida (`docs/research/bmr-calcula
 - Cores só dos tokens de `lib/theme.js`; conferir tema claro E escuro; 6 idiomas em paridade.
 - Toda resposta: parte para o fundador + nota numerada para o Grok, salva em `grok/` (próxima: **115**).
 
-## 4. Onde paramos: S-19 (A-49, guarda de fuso horário) — AGUARDANDO O FUNDADOR
+## 4. Onde paramos
 
-Nenhum código escrito. Relatório enviado antes de codar (nota Grok #114). Plano:
-1. Função pura `missedScanWatermark({storedSinceMs, storedTz, currentTz, nowMs})`: se o fuso
-   mudou, a varredura de "Perdidas" passa a começar de agora; primeira execução só guarda o fuso.
-   `scanMissedDoses` (`lib/doseActions.js`) aplica. O teste todo existente
-   (`__tests__/missedEarlyDose.test.js`, "A-49: …") precisa ser reescrito para passar por essa função.
-2. O fuso é identificado pelo NOME (ex.: "America/New_York"), não pelo deslocamento em horas
-   (senão o horário de verão dispararia a guarda).
-3. **Pergunta aberta:** aplicar a mesma guarda ao bloco "Pendente de ontem"? (recomendado: sim)
-
-Custo aceito da guarda: uma dose realmente perdida logo antes da troca de fuso pode não ser
-registrada. A correção completa é o A-51 (1.2.6).
+S-19 (A-49, guarda de fuso horário) FECHADO em 30/09: quando o NOME do fuso do aparelho muda,
+a varredura de "Perdidas" passa a começar de agora, e o bloco "Pendente de ontem" não oferece
+doses de antes da troca (aprovado pelo fundador). Primeira execução só guarda o fuso; horário de
+verão não dispara. Custo aceito: uma dose realmente perdida logo antes da troca pode não ser
+registrada. Correção completa = A-51 (1.2.6). Não visto em aparelho.
 
 ## 5. Próximos passos, em ordem
 
-1. Resposta do fundador sobre o S-19 (itens 1–3 acima) → construir, teste primeiro.
-2. S-21 (links EULA/Privacidade) e S-22 (Pro → Premium) — propor os textos ×6 e esperar aprovação.
-3. S-23 (servidor, 20 scans) — pedir a chave secreta do RevenueCat de forma segura; Gate B.
+1. S-21 (links EULA/Privacidade) e S-22 (Pro → Premium) — propor os textos ×6 e esperar aprovação.
+2. S-23 (servidor, 20 scans) — pedir a chave secreta do RevenueCat de forma segura; Gate B.
    Depois S-24 (texto).
-4. S-16 / FX-15 (pesagens nunca atrás do paywall) — está no escopo, ainda sem lugar na ordem.
-5. Itens abertos do escopo original: S-04 a S-15 (ver tabela em `features.md`). O
+3. S-16 / FX-15 (pesagens nunca atrás do paywall) — está no escopo, ainda sem lugar na ordem.
+4. Itens abertos do escopo original: S-04 a S-15 (ver tabela em `features.md`). O
    `node scripts/spec-audit.cjs` precisa passar antes de qualquer build.
-6. Quando o 1.2.5 fechar: redesign tela por tela no `redesign/graduated` (Today primeiro,
+5. Quando o 1.2.5 fechar: redesign tela por tela no `redesign/graduated` (Today primeiro,
    `docs/design/today-build-handoff.md` itens 1–22), o fundador confere cada tela no simulador.
-7. Antes do build único (1.3.0): dt-council → ship-check → passada completa do app nos dois
+6. Antes do build único (1.3.0): dt-council → ship-check → passada completa do app nos dois
    temas → "go" do fundador → build → `/tf-status`.
 
 **Pendências de verificação para a passada pré-build (nunca vistas na tela):**
@@ -121,8 +114,8 @@ registrada. A correção completa é o A-51 (1.2.6).
 - A camada que grava no banco (`recordDoseTaken` / `recordSkipPending`) só foi verificada por
   leitura de código (teste dessa camada = A-38(a), 1.2.6).
 
-**Aguardando resposta do fundador (além do S-19):**
-- Push dos 7 commits.
+**Aguardando o fundador:**
+- Push do `main` (o push pelo Claude foi bloqueado pela permissão; rodar `git push origin main`).
 - A-54: incluir idade / dia de nascimento opcional e os achados de objetivo, país/unidades e
   idioma/tema; regra de quem vence na migração.
 - Onde o S-16 entra na ordem.

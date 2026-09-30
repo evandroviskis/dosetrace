@@ -105,3 +105,13 @@ test('S-18: yesterday\'s 20:00 dose logged at 10:00 yesterday is not pending (sa
   assert.equal(typeof coverStartMs, 'function');
   assert.match(src, /coverStartMs\(/, 'the block shares the scan\'s window helper (no private copy of the 3 h rule)');
 });
+
+// S-19 (A-49 guard, founder 2026-09-30): after a time-zone change, yesterday's slot is
+// rebuilt in the NEW zone and no longer matches the dose logged in the old one. The
+// block never offers a slot from before the zone change (a Taken there = a duplicate).
+test('S-19: a slot from before the last time-zone change is never offered as pending', () => {
+  const slot = local(2026, 9, 27, 20, 0);
+  assert.equal(pendingFromYesterday({ protocols: [daily()], logs: [], nowMs: NOW, tzSinceMs: slot + 60000 }).length, 0, 'zone changed after the slot: hidden');
+  assert.equal(pendingFromYesterday({ protocols: [daily()], logs: [], nowMs: NOW, tzSinceMs: slot - 60000 }).length, 1, 'zone changed before the slot: shown');
+  assert.equal(pendingFromYesterday({ protocols: [daily()], logs: [], nowMs: NOW, tzSinceMs: null }).length, 1, 'no zone change known: shown (unchanged)');
+});

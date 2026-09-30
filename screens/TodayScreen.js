@@ -24,7 +24,7 @@ import {
   getBiomarkers,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
-import { scanMissedDoses, recordDoseTaken, recordSkipPending } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken, recordSkipPending, getMissedWatermark } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake } from '../lib/markTaken';
 import { planSitePickerAction } from '../lib/sitePickerActions';
@@ -459,7 +459,10 @@ export default function TodayScreen() {
       since.setDate(since.getDate() - 1);
       since.setHours(since.getHours() - 3);
       const logs = getLogsSince(user.id, since.toISOString()) || [];
-      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now() }));
+      // A-49 guard: never offer a slot from before the last time-zone change.
+      let tzSinceMs = null;
+      try { tzSinceMs = (await getMissedWatermark()).tzSinceMs; } catch { /* guard is best-effort */ }
+      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs }));
     } catch { setPendingYest([]); }
   }
 
