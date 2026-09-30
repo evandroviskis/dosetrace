@@ -166,4 +166,12 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
     Replace the old modal in the same change. List: one row per area, Left / Right buttons.
     Intramuscular shows Right side / Left side images (m_right, m_left, f_right, f_left = f_right
     mirrored); subcutaneous shows Front / Back.
+28. Free-feature explainers (founder approved 2026-09-30, prototype "Free-feature explainers"): port
+    the 8 animations (FX engine, react-native-svg + Reanimated; Reduce Motion = last frame) with the
+    rules in DESIGN.md: first reach of an unused feature, never on launch, Not now / Try it, at most
+    one a day, never on the dose-logging path, "used" per feature in synced storage (never
+    AsyncStorage alone). 6 languages.
+29. Copy fixes (founder approved 2026-09-30): "Unlock with Premium" everywhere (no "Pro"); Settings
+    upgrade card: replace settings_premium_feat_3 "Check-in follow-ups & searchable tags" (not a
+    real feature) with "AI food log, every day"; PRO tile badges -> "Premium". All 6 languages.
 

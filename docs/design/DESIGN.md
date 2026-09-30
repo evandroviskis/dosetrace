@@ -38,6 +38,16 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Free-feature explainer animations APPROVED (2026-09-30, founder: "Approved")**: eight, on the
+  Premium-preview engine (prototype "Free-feature explainers"): reconstitution calculator, vial
+  tracker, reminders, injection-site rotation (on the founder's body image), dose log + streak,
+  energy + protein calculator, lab journal typed by hand (no chart: charts are Premium), dose notes.
+  Shown the first time someone reaches a feature they have not used, never on launch; "Not now" /
+  "Try it"; at most one a day; never on the dose-logging path; gone once the feature is used (stored
+  in synced storage). Example numbers only, no promised results. With the recommended copy fixes:
+  preview sheets say "Unlock with Premium" (not Pro); Settings' upgrade card drops "Check-in
+  follow-ups & searchable tags" (tag search does not exist; tags are free) for "AI food log, every
+  day"; the "PRO" tile badges read "Premium".
 - **Injection-site picker APPROVED (2026-09-30, founder: "Approved")** with the recommended answers.
   The founder's own body images (ChatGPT-generated mannequins, front and back, male or female from
   "Sex at birth"; `docs/design/body/*.webp`, cropped shoulders to knees) with every site placed where
