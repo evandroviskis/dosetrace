@@ -2,6 +2,7 @@
 
 - source-spec: docs/review/features.md scope S-11…S-14
 - purpose: release steps committed to 1.2.5 that are not code bugs, tracked with proof so nothing falls through.
+- store version: the combined release (1.2.5 work + Graduated redesign) is submitted as 1.3.0 (founder 2026-09-29); "the 1.2.5 version / release build" below means the 1.3.0 store version.
 - checklist-signed: 2026-09-27 by the founder ("1.2.5 scope ok")
 
 ## Acceptance checklist
