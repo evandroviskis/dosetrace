@@ -163,5 +163,7 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
     arm's front/back ids count as one spot), "Not now" + toast Add site / Undo, "Undo dose" in the
     sheet, "Somewhere else" free text (stored in the existing free-text format), dose-log site
     lines. The front view flips to the chart convention: only x/y change, stored ids never do.
-    Replace the old modal in the same change.
+    Replace the old modal in the same change. List: one row per area, Left / Right buttons.
+    Intramuscular shows Right side / Left side images (m_right, m_left, f_right, f_left = f_right
+    mirrored); subcutaneous shows Front / Back.
 

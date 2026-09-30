@@ -1098,22 +1098,26 @@ textarea.winp { resize: none; }
   function spot(id) { return id.replace(/^(arm_back_[lr])_[fb]$/, '$1'); }
   function siteAges() { var age = {}; hist().forEach(function (h) { var k = spot(h[1]); if (age[k] == null || h[2] < age[k]) age[k] = h[2]; }); Object.keys(st.sites).forEach(function (pid) { (st.sites[pid].sites || []).forEach(function (id) { age[spot(id)] = 0; }); }); return age; }
   // Main's "Longest unused": the site in this view and route that has gone longest without use in your log; never-used first. A recall, not advice.
-  function siteLongest(view, type) { var age = siteAges(), best = null, bd = -1, any = false; SITES.forEach(function (s) { if (s.view !== view || s.type !== type || /^arm_back_[lr]_f$/.test(s.id)) return; var d = age[spot(s.id)] == null ? 999 : age[spot(s.id)]; if (d < 999) any = true; if (d > bd) { bd = d; best = s; } }); return any && best ? { s: best, d: bd } : null; }
+  function siteLongest(view, type) { var age = siteAges(), best = null, bd = -1, any = false; SITES.forEach(function (s) { if (s.type !== type || (type !== 'im' && s.view !== view) || /^arm_back_[lr]_f$/.test(s.id)) return; var d = age[spot(s.id)] == null ? 999 : age[spot(s.id)]; if (d < 999) any = true; if (d > bd) { bd = d; best = s; } }); return any && best ? { s: best, d: bd } : null; }
   function siteText(v) { return v.free ? '\u201c' + v.free + '\u201d' : siteSummary(v.sites); }
   function lastSite(pid) { if (st.sites[pid]) return siteText(st.sites[pid]) + ' · today'; var h = null; hist().forEach(function (x) { if (x[0] === pid && (!h || x[2] < h[2])) h = x; }); return h ? siteById(h[1]).label + ' · ' + h[2] + 'd ago' : null; }
   // The route opens on the one this protocol last used (your own history); subcutaneous if none.
   function lastRoute(pid) { if (st.sites[pid] && st.sites[pid].type) return st.sites[pid].type; var h = null; hist().forEach(function (x) { if (x[0] === pid && (!h || x[2] < h[2])) h = x; }); return h ? h[3] : 'subq'; }
-  function openSite(pid) { var cur2 = st.sites[pid]; st.overlay = { t: 'site', pid: pid, type: cur2 && cur2.type ? cur2.type : lastRoute(pid), view: 'front', sel: cur2 ? cur2.sites.slice() : [], free: cur2 && cur2.free ? cur2.free : '', other: null, edit: !!cur2 }; }
+  function openSite(pid) { var cur2 = st.sites[pid]; st.overlay = { t: 'site', pid: pid, type: cur2 && cur2.type ? cur2.type : lastRoute(pid), view: null, sel: cur2 ? cur2.sites.slice() : [], free: cur2 && cur2.free ? cur2.free : '', other: null, edit: !!cur2 }; st.overlay.view = st.overlay.type === 'im' ? 'right' : 'front'; }
   // Body images: the founder's front/back mannequins (docs/design/body/*.webp, cropped shoulders to knees, 768 x 960).
   // Each point is placed on the image where the site really is. Display only: a log stores the site id, never a position.
   // Front views face you (your right on the viewer's left); back views show your left on the left.
   var PTS = {
     male: {
       front: { abdomen_ur: [329, 355], abdomen_ul: [439, 355], abdomen_lr: [329, 460], abdomen_ll: [439, 460], thigh_f_r: [300, 690], thigh_f_l: [468, 690], deltoid_r: [205, 165], deltoid_l: [563, 165], vastus_r: [258, 700], vastus_l: [510, 700] },
+      right: { deltoid_r: [350, 150], ventroglute_r: [400, 478], dorsoglute_r: [328, 476], vastus_r: [390, 720] },
+      left: { deltoid_l: [440, 150], ventroglute_l: [368, 478], dorsoglute_l: [456, 476], vastus_l: [395, 720] },
       back: { arm_back_l_b: [185, 255], arm_back_r_b: [583, 255], flank_l: [285, 395], flank_r: [483, 395], glute_dimple_l: [310, 480], glute_dimple_r: [458, 480], thigh_b_l: [300, 720], thigh_b_r: [468, 720], ventroglute_l: [262, 470], ventroglute_r: [506, 470], dorsoglute_l: [298, 495], dorsoglute_r: [470, 495] }
     },
     female: {
       front: { abdomen_ur: [334, 345], abdomen_ul: [434, 345], abdomen_lr: [334, 435], abdomen_ll: [434, 435], thigh_f_r: [305, 690], thigh_f_l: [463, 690], deltoid_r: [228, 170], deltoid_l: [540, 170], vastus_r: [256, 690], vastus_l: [512, 690] },
+      right: { deltoid_r: [335, 150], ventroglute_r: [382, 470], dorsoglute_r: [308, 470], vastus_r: [376, 720] },
+      left: { deltoid_l: [433, 150], ventroglute_l: [386, 470], dorsoglute_l: [460, 470], vastus_l: [392, 720] },
       back: { arm_back_l_b: [210, 260], arm_back_r_b: [558, 260], flank_l: [290, 380], flank_r: [478, 380], glute_dimple_l: [305, 480], glute_dimple_r: [463, 480], thigh_b_l: [305, 720], thigh_b_r: [463, 720], ventroglute_l: [263, 462], ventroglute_r: [505, 462], dorsoglute_l: [298, 492], dorsoglute_r: [470, 492] }
     }
   };
@@ -1125,9 +1129,11 @@ textarea.winp { resize: none; }
   }
   function siteSheet() {
     var o = st.overlay, p = P[o.pid], lg = siteLongest(o.view, o.type);
-    var PV = PTS[figSex()][o.view], vis = SITES.filter(function (s) { return s.view === o.view && s.type === o.type && PV[s.id]; });
+    var PV = PTS[figSex()][o.view], vis = SITES.filter(function (s) { return s.type === o.type && PV[s.id]; });
+    // Intramuscular is shown from the side (deltoid, ventrogluteal, dorsogluteal, vastus lateralis); its list keeps both sides, Right then Left like the tabs
+    var IMROWS = ['deltoid', 'ventroglute', 'dorsoglute', 'vastus'], listSites = o.type === 'im' ? [].concat.apply([], IMROWS.map(function (g) { return [siteById(g + '_r'), siteById(g + '_l')]; })) : null;
     // Front view is chart-style (your right on the viewer's left): swap each left/right pair so the list columns match the figure
-    if (o.view === 'front') for (var q = 0; q + 1 < vis.length; q += 2) { var tq = vis[q]; vis[q] = vis[q + 1]; vis[q + 1] = tq; }
+    if (o.type !== 'im' && o.view === 'front') for (var q = 0; q + 1 < vis.length; q += 2) { var tq = vis[q]; vis[q] = vis[q + 1]; vis[q + 1] = tq; }
     var h = '<div class="scrim bot"' + A('sitescrim') + '><div class="sheet bsheet sitesheet" data-i="IS1">';
     h += '<div class="row" style="justify-content: space-between; gap: 12px"><div class="col" style="gap: 2px"><span class="r-title">' + nc('Injection site') + '</span><span class="r-sec c2 tnum">' + p.name + ' · ' + (o.edit ? 'taken ' : nc('dose logged ')) + (st.taken[o.pid] || 'today') + '</span>' + (o.edit ? '' : '<span class="btnlink r-sec" style="align-self: flex-start; min-height: 32px"' + A('siteundo', o.pid) + '>' + nc('Undo dose') + '</span>') + '</div><span class="round" style="width: 36px; height: 36px; flex: none"' + A('siteno') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>';
     h += '<div class="segw fill" role="radiogroup" data-i="IS2">' + [['subq', 'Subcutaneous'], ['im', 'Intramuscular']].map(function (x) { return '<span class="' + (o.type === x[0] ? 'on' : '') + '"' + A('sitetype', x[0]) + ' role="radio" aria-checked="' + (o.type === x[0]) + '">' + x[1] + '</span>'; }).join('') + '</div>';
@@ -1142,11 +1148,11 @@ textarea.winp { resize: none; }
       dots += '</g>';
     });
     var fig = bodyFig(o.view, marks) + dots + '</svg>';
-    h += '<div class="sitewrap" data-i="IS3"><div class="sitefig"><div class="segw" data-i="IS4">' + [['front', 'Front'], ['back', 'Back']].map(function (x) { return '<span class="' + (o.view === x[0] ? 'on' : '') + '"' + A('siteview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</div>' + fig + '<div class="row r-cap c2" style="width: 300px; justify-content: space-between" data-i="IS5"><span>' + nc(o.view === 'front' ? 'Your right' : 'Your left') + '</span><span>' + nc(o.view === 'front' ? 'Your left' : 'Your right') + '</span></div></div>';
+    h += '<div class="sitewrap" data-i="IS3"><div class="sitefig"><div class="segw" data-i="IS4">' + (o.type === 'im' ? [['right', 'Right side'], ['left', 'Left side']] : [['front', 'Front'], ['back', 'Back']]).map(function (x) { return '<span class="' + (o.view === x[0] ? 'on' : '') + '"' + A('siteview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</div>' + fig + '<div class="row r-cap c2" style="width: 300px; justify-content: space-between" data-i="IS5"><span>' + nc({ front: 'Your right', back: 'Your left', right: 'Back', left: 'Front' }[o.view]) + '</span><span>' + nc({ front: 'Your left', back: 'Your right', right: 'Front', left: 'Back' }[o.view]) + '</span></div></div>';
     // One row per area, Left / Right buttons in the image's order (front: Right first). vis holds pairs in that order.
-    var rowsH = '';
-    for (var r2 = 0; r2 + 1 < vis.length; r2 += 2) {
-      var pr = [vis[r2], vis[r2 + 1]], area = pr[0].label.replace(/,? (left|right)$/, '');
+    var rowsH = '', LS = listSites || vis;
+    for (var r2 = 0; r2 + 1 < LS.length; r2 += 2) {
+      var pr = [LS[r2], LS[r2 + 1]], area = pr[0].label.replace(/,? (left|right)$/, '');
       rowsH += '<div class="siterow"><span class="r-body grow">' + area + '</span>' + pr.map(function (s) {
         var on = siteOn(o.sel, s.id), sug = lg && spot(lg.s.id) === spot(s.id) && !on, side = /left$/.test(s.label) ? 'Left' : 'Right';
         return '<span class="sidebtn' + (on ? ' on' : '') + (sug ? ' sug' : '') + '"' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '" aria-label="' + s.label + '">' + (on ? ic(I.check, 14, 'color: currentColor') : '') + side + '</span>';
@@ -1157,8 +1163,8 @@ textarea.winp { resize: none; }
     if (o.other != null) h += '<label class="col" style="gap: 6px" data-i="IS12"><span class="r-sec c2">' + nc('Where? (your words)') + '</span><input id="siteothin" class="winp" maxlength="40" placeholder="e.g. right calf" value="' + (o.other || '').replace(/"/g, '&quot;') + '"></label>';
     if (o.free && !o.sel.length && o.other == null) h += '<div class="sitefree" data-i="IS13"><span class="r-sec">' + nc('Saved earlier as text: ') + '<b style="font-weight: 600">\u201c' + o.free + '\u201d</b></span><span class="r-foot c2">' + nc('Kept as it is unless you pick a spot or tap Remove site.') + '</span></div>';
     if (lg) h += '<span class="r-foot c2 tnum" data-i="IS7"><span class="sugk"></span>' + nc('Longest unused in your log: ') + '<b style="color: var(--ink); font-weight: 600">' + lg.s.label + '</b>' + (lg.d >= 999 ? nc(' · not in your log yet') : nc(' · last used ' + lg.d + (lg.d === 1 ? ' day' : ' days') + ' ago')) + '</span>';
-    var others = o.sel.filter(function (id) { return vis.every(function (s) { return s.id !== id; }); });
-    h += '<span class="r-body tnum" data-i="IS8" style="min-height: 22px">' + (o.sel.length ? '<b style="font-weight: 600">' + o.sel.length + ' selected:</b> ' + siteNames(o.sel) + (others.length ? nc(' (' + others.length + ' on the ' + (o.view === 'front' ? 'back' : 'front') + ')') : '') : '<span class="c2">' + nc('Tap a spot on the body or pick from the list. You can pick more than one.') + '</span>') + '</span>';
+    var others = o.sel.filter(function (id) { return vis.every(function (s) { return spot(s.id) !== spot(id); }); });
+    h += '<span class="r-body tnum" data-i="IS8" style="min-height: 22px">' + (o.sel.length ? '<b style="font-weight: 600">' + o.sel.length + ' selected:</b> ' + siteNames(o.sel) + (others.length ? nc(' (' + others.length + ' on the ' + { front: 'back', back: 'front', right: 'left side', left: 'right side' }[o.view] + ')') : '') : '<span class="c2">' + nc('Tap a spot on the body or pick from the list. You can pick more than one.') + '</span>') + '</span>';
     h += '<span class="r-foot c2" data-i="IS9">Personal log only. Follow your healthcare provider\'s instructions for injection technique and site selection.</span>';
     var can = o.sel.length || (o.other != null && o.other.trim()) || (o.edit && o.free);
     h += '<div class="row" style="gap: 10px" data-i="IS10"><span class="btn o" style="flex: 1"' + A('siteno') + '>' + nc(o.edit ? 'Cancel' : 'Not now') + '</span><span id="sitesavebtn" class="btn p' + (can ? '' : ' obdim') + '" style="flex: 1.4"' + A('sitesave') + ' aria-disabled="' + !can + '">Save</span></div>';
@@ -2622,9 +2628,9 @@ textarea.winp { resize: none; }
     else if (a === 'log') push({ s: 'log' });
     else if (a === 'take') { st.taken[v] = '8:11 PM'; delete st.skipped[v]; delete st.sites[v]; toast('Dose logged', v); if (P[v].type !== 'oral') { clearTimeout(toastTimer); openSite(v); } }
     else if (a === 'siteadd') { clearTimeout(toastTimer); st.toast = null; openSite(v); }
-    else if (a === 'sitetype') { if (st.overlay.type !== v) { st.overlay.type = v; st.overlay.sel = []; } }
+    else if (a === 'sitetype') { if (st.overlay.type !== v) { st.overlay.type = v; st.overlay.sel = []; st.overlay.view = v === 'im' ? 'right' : 'front'; } }
     else if (a === 'siteview') st.overlay.view = v;
-    else if (a === 'sitetog') { var ss = st.overlay.sel, ix = -1; ss.forEach(function (x, k) { if (spot(x) === spot(v)) ix = k; }); if (ix >= 0) ss.splice(ix, 1); else { ss.push(v); st.overlay.other = null; } }
+    else if (a === 'sitetog') { var ss = st.overlay.sel, ix = -1; ss.forEach(function (x, k) { if (spot(x) === spot(v)) ix = k; }); if (ix >= 0) ss.splice(ix, 1); else { ss.push(v); st.overlay.other = null; if (st.overlay.type === 'im') st.overlay.view = /_l$/.test(v) ? 'left' : 'right'; } }
     else if (a === 'siteno' || a === 'sitescrim') { if (a === 'sitescrim' && e.target !== el) return; var so = st.overlay; st.overlay = null; if (!so.edit && st.taken[so.pid]) { toast('Dose logged', so.pid); st.toast.site = so.pid; } }
     else if (a === 'sitesave') { var sv = st.overlay; var oth = sv.other != null ? sv.other.trim() : ''; if (!sv.sel.length && !oth && !(sv.edit && sv.free)) return; st.overlay = null; if (sv.sel.length) st.sites[sv.pid] = { type: sv.type, sites: sv.sel.slice() }; else if (oth) st.sites[sv.pid] = { type: sv.type, sites: [], free: oth }; if (st.sites[sv.pid]) toast('Site saved · ' + siteText(st.sites[sv.pid]), sv.edit ? null : sv.pid); }
     else if (a === 'siteclear') { st.siteClear = st.overlay.pid; st.overlay = { t: 'sheet', pi: 'IS14', title: 'Remove the site from this dose?', body: 'The dose stays logged. Only where you injected is cleared.', btns: [['Cancel', 'close', 'o'], ['Remove site', 'siteclear2', 'd']] }; }

@@ -49,8 +49,12 @@ Founder decisions since (2026-09-29):
   counts the arm as one spot. "Not now" (never "Cancel") keeps Add site + Undo in the toast; "Undo
   dose" sits in the sheet. "Somewhere else" takes typed text. An older typed-text site is kept, not
   erased. The dose log shows each dose's site, "+ Add site", and a confirmed "Remove site".
-  **Deferred by the founder:** adding sites for injections from before install. Side views not used
-  (the female side images wear a swimsuit; regenerate first if wanted).
+  **Deferred by the founder:** adding sites for injections from before install.
+  **Update 2026-09-30 (founder):** the list is one row per area with Left / Right buttons (the chip
+  grid looked sloppy). **Intramuscular uses side views** (Right side / Left side), since deltoid,
+  ventrogluteal, dorsogluteal and vastus lateralis are all visible from the side; subcutaneous
+  keeps Front / Back. The founder regenerated the side images without clothing; the female left
+  side is her right side mirrored (the generator refused it).
 - **Paywall APPROVED (2026-09-30, founder: "Approved")** with the recommended answers: main's plans
   (Annual with "Best value", Monthly, Lifetime), trial button and Apple billing text in the new look;
   **Terms of service and Privacy policy links under Restore purchases** (must-fix, App Store 3.1.2,
