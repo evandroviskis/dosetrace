@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { goalOptions } from '../lib/profileGoals';
+import LegalModal from '../components/LegalModal';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -51,28 +52,6 @@ const MONTH_KEYS = [
 const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
-
-function LegalModal({ visible, onClose, title, content, doneLabel }) {
-  const { colors } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={s.modal}>
-        <View style={s.modalNav}>
-          <View style={{ width: 60 }} />
-          <Text style={s.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={{ width: 60, alignItems: 'flex-end' }}>
-            <Text style={s.modalClose}>{doneLabel}</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-          <Text style={s.legalText}>{content}</Text>
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
 
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();

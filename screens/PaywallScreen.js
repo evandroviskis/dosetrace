@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +26,8 @@ import FeatureIcon from '../components/FeatureIcon';
 import AccumulationHero from '../components/AccumulationHero';
 import { FeaturePreviewSheet, PREVIEW_FEATURES } from '../components/FeaturePreviews';
 import { friendlyError } from '../lib/friendlyError';
+import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
+import LegalModal from '../components/LegalModal';
 import { Analytics } from '../lib/analytics';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -183,6 +186,10 @@ export default function PaywallScreen({ navigation, route }) {
   function handleLifetime() {
     doPurchase(lifetimePkg, 'lifetime');
   }
+
+  // Terms link: Apple's Standard EULA on iOS, DoseTrace's own terms (in-app) on Android.
+  const terms = termsTarget(Platform.OS);
+  const [showTerms, setShowTerms] = useState(false);
 
   async function handleRestore() {
     setRestoring(true);
@@ -414,10 +421,32 @@ export default function PaywallScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
 
+        {/* App Store 3.1.2: Terms of Use (EULA) + Privacy Policy in the purchase flow. */}
+        <View style={s.legalRow}>
+          <TouchableOpacity
+            onPress={() => (terms.kind === 'url' ? Linking.openURL(terms.url).catch(() => {}) : setShowTerms(true))}
+            accessibilityRole="link"
+          >
+            <Text style={s.legalLink}>{t(terms.labelKey)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} accessibilityRole="link">
+            <Text style={s.legalLink}>{t('settings_privacy_policy')}</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
       <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} />
+      {terms.kind === 'inApp' && (
+        <LegalModal
+          visible={showTerms}
+          onClose={() => setShowTerms(false)}
+          title={t(terms.titleKey)}
+          content={t(terms.bodyKey)}
+          doneLabel={t('done')}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -499,4 +528,6 @@ const makeStyles = (c) => StyleSheet.create({
   singleUploadNote: { fontSize: 11, color: c.warningSoftText, textAlign: 'center' },
   restoreBtn: { alignItems: 'center', paddingVertical: 14 },
   restoreBtnText: { fontSize: 13, color: c.textMuted },
+  legalRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 18, rowGap: 8, paddingBottom: 8 },
+  legalLink: { fontSize: 13, color: c.textMuted, textDecorationLine: 'underline', paddingVertical: 6 },
 });

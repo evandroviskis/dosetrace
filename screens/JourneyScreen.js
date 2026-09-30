@@ -39,7 +39,7 @@ export default function JourneyScreen() {
       <View style={{ flex: 1 }}>
         <View style={s.curveTitleRow}>
           <Text style={s.curveTitle}>{t('body_card_dosing_title')}</Text>
-          {!premium && <Text style={s.pro}>PRO</Text>}
+          {!premium && <Text style={s.pro}>{t('paywall_premium')}</Text>}
         </View>
         <Text style={s.curveDesc}>{t('body_card_dosing_desc')}</Text>
       </View>

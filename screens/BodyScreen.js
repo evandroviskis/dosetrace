@@ -746,7 +746,7 @@ export default function BodyScreen({ navigation, route }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
                   {!premium && (
-                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>PRO</Text>
+                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>{t('paywall_premium')}</Text>
                   )}
                 </View>
                 <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
