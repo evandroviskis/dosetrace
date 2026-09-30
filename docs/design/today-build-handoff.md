@@ -108,16 +108,44 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
     if newer). A dose counts once, against its own schedule: an extra or duplicate "taken" never
     adds, so a ring can never show more than 100% and "{n} of {m}" never has n > m. Add a unit
     test with an extra dose logged.
-23. Paywall (founder approved 2026-09-30, design in prototype.html "Paywall"): rebuild main's
-    paywall in the Graduated skin; add Terms of service + Privacy policy links under Restore
-    purchases (App Store 3.1.2 must-fix); "Premium" everywhere (no "Pro"); comparison table adds
-    "AI food log: 3 days free"; the Settings upgrade card and the "Upload bloodwork" sheet drop
-    "Cloud sync / backup" (sync is free in sync.js) for "Dose accumulation curves".
-24. Scan limit (founder approved 2026-09-30): extract-bloodwork caps everyone at
-    MONTHLY_SCAN_LIMIT = 3 with no Premium bypass, so "Unlimited scans" is currently false. Premium
-    users skip the monthly cap (keep a server-side abuse ceiling, not shown as a limit). Free copy
-    says "3 free scans a month" everywhere (main also says "1 free lab scan" in one place). Test:
-    a Premium user's 4th scan in a month succeeds; a free user's 4th is refused with the limit sheet.
+23. **NEXT MAIN BUILD, not waiting for the redesign (founder 2026-09-30: "Make it fully acceptable
+    and approvable. Always a priority.")** App Store 3.1.2 on the paywall. Main already has the
+    billing text, Restore, trial eligibility and the store's own prices; add the rest:
+    - Two working links under Restore purchases, in the app, all 6 languages:
+      "Terms of Use (EULA)" -> https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+      (the same link ASC uses; the licence is Apple's Standard EULA) and "Privacy Policy" ->
+      https://dosetrace.io/privacy-policy (the same URL as ASC). Open in an in-app browser.
+    - The subscription's title must match what the store shows. ASC's group and products are
+      named "DoseTrace Pro" while the app says "Premium": rename the ASC group and both products'
+      display names to "DoseTrace Premium" (Annual / Monthly) in every ASC localization (goes to
+      review with the next build). The RevenueCat entitlement id "DoseTrace Pro" is internal: leave it.
+    - The billed amount stays the biggest price on each card ($59.99 per year, the per-month figure
+      smaller); the length (per year / per month) sits next to every price; "Save N%" only from
+      the store's real prices; no buy button until prices load.
+    - The same links in the Play build (Google Play asks for the same disclosure).
+    - Verify: reviewer path on a device, both themes, 135% text, each link opens the right page.
+    The Graduated reskin of the paywall itself ships with the redesign.
+24. **NEXT MAIN BUILD (founder 2026-09-30: "Blood tests should be limited but vials we need a
+    higher cap"; then "Increase the limit to 20 scans total, including vaccines, blood tests and
+    vials").** Today extract-bloodwork caps everyone at 3 scans a month (lab reports, vaccine cards
+    and vial labels in one bucket) with no Premium awareness on the server, so a paying user gets
+    the same 3. New caps, still one shared bucket per month:
+    | Plan | Monthly scans (labs + vaccine cards + vials) |
+    |---|---|
+    | Free | 3 (unchanged; lab reports keep the 1-to-try gate, vaccine cards stay Premium) |
+    | Premium | 20 |
+    The server must
+    know who is Premium: check the RevenueCat entitlement "DoseTrace Pro" for app_user_id =
+    the Supabase user id via the RevenueCat REST API (secret key as an Edge Function secret),
+    and grant the App Review demo account the same way lib/purchases.js does. If RevenueCat is
+    unreachable, use the Premium cap (a real signed-in user never loses a paid feature to an
+    outage; spend is still bounded). Months reset on the 1st (UTC, as today). The 429 response
+    returns limit + premium so the message names the right number (prototype copy: "You've used
+    this month's 3 free scans ... Premium includes 20" / "You've used this month's 20 scans"). Remove every "Unlimited scans / labs /
+    bloodwork uploads" and "Pay per upload" string, all 6 languages (paywall, Settings upgrade
+    card, Upload bloodwork sheet, My Body scan card, FAQ). The FAQ also stops listing cloud
+    backup / sync as Premium. Server + billing change: ship-check Gate B, code review, device
+    test as free and as Premium before upload.
 25. Premium preview animations (founder approved 2026-09-30): one per Premium feature (accumulation,
     reality check, AI food log, lab scan, lab trends, vaccine scan, protocols, PDF export), ported
     from the prototype's HERO/FX engines (react-native-svg + Reanimated), "Example" tag, Reduce
