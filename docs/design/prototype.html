@@ -504,11 +504,10 @@ textarea.winp { resize: none; }
 .plan .radio { position: absolute; top: 16px; right: 14px; width: 22px; height: 22px; border-radius: 11px; box-shadow: inset 0 0 0 1.5px var(--tick); }
 .plan .radio.on { box-shadow: inset 0 0 0 7px var(--ink); }
 /* Injection-site picker */
+/* Marks on the body image: the image is a fixed light surface in both themes, so these are fixed too (same value both palettes) */
+.bodyfig { --figInk: #111315; --figDot: #FFFFFF; --figSel: #2350D8; --figOnSel: #FFFFFF; }
 .sitesheet { max-height: 92%; overflow-y: auto; gap: 12px; }
 .sitesheet > * { flex-shrink: 0; }
-.bodyfig .skin { fill: var(--raised); }
-.bodyfig .contour { fill: none; stroke: var(--tick); stroke-width: .38; stroke-linecap: round; }
-.bodyfig .outline { fill: none; stroke: var(--ink2); stroke-width: .5; stroke-linejoin: round; stroke-linecap: round; }
 .sitewrap { display: flex; flex-direction: column; gap: 12px; }
 .sitefig { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .sitefig .segw span { min-height: 34px; padding: 0 12px; font-size: calc(14px * var(--ts)); }
@@ -1085,16 +1084,6 @@ textarea.winp { resize: none; }
     ['ventroglute_l', 'im', 'back', 'ventroglute', 36, 124, 'Ventrogluteal, left'], ['ventroglute_r', 'im', 'back', 'ventroglute', 64, 124, 'Ventrogluteal, right'],
     ['dorsoglute_l', 'im', 'back', 'dorsoglute', 40, 138, 'Dorsogluteal, left'], ['dorsoglute_r', 'im', 'back', 'dorsoglute', 60, 138, 'Dorsogluteal, right']
   ].map(function (r) { return { id: r[0], type: r[1], view: r[2], group: r[3], x: r[4], y: r[5], label: r[6] }; });
-  // Where each site actually is (founder 2026-09-30: "put the points where they actually are in the body"). Display only:
-  // a log stores the site id, never x/y, so moving a point cannot change logged data. x < 50 is the person's LEFT side;
-  // the back view shows it on the viewer's left, the front view (medical-chart convention) on the viewer's right.
-  var ANAT = { abdomen_ul: [41, 90], abdomen_ur: [59, 90], abdomen_ll: [42, 106], abdomen_lr: [58, 106], thigh_f_l: [40, 150], thigh_f_r: [60, 150],
-    arm_back_l_f: [22, 74], arm_back_r_f: [78, 74], arm_back_l_b: [22, 74], arm_back_r_b: [78, 74], flank_l: [35.4, 103], flank_r: [64.6, 103],
-    glute_dimple_l: [40, 123], glute_dimple_r: [60, 123], thigh_b_l: [40, 158], thigh_b_r: [60, 158], deltoid_l: [23.2, 49], deltoid_r: [76.8, 49],
-    vastus_l: [33.6, 152], vastus_r: [66.4, 152], ventroglute_l: [31.8, 119], ventroglute_r: [68.2, 119], dorsoglute_l: [36, 126.4], dorsoglute_r: [64, 126.4] };
-  SITES.forEach(function (s) { s.x = ANAT[s.id][0]; s.y = ANAT[s.id][1]; });
-  var SZONE = { abdomen: [6.2, 5.4], thigh: [5.6, 9], arm: [3, 7], flank: [2.6, 6], glute: [5.4, 5.4], deltoid: [3.2, 5.6], vastus: [2.8, 9], ventroglute: [2.8, 5], dorsoglute: [5, 5.4] };
-  function siteOn(sel, id) { return sel.some(function (x) { return spot(x) === spot(id); }); }
   var SGROUP = { abdomen: 'Abdomen', thigh: 'Thigh', arm: 'Arm', flank: 'Flank', glute: 'Buttock', deltoid: 'Deltoid', vastus: 'Vastus', ventroglute: 'Ventrogluteal', dorsoglute: 'Dorsogluteal' };
   function siteById(id) { for (var i = 0; i < SITES.length; i++) if (SITES[i].id === id) return SITES[i]; return null; }
   // Sample history (your own log, last 30 days): [protocol, site, days ago, route]
@@ -1113,42 +1102,28 @@ textarea.winp { resize: none; }
   // The route opens on the one this protocol last used (your own history); subcutaneous if none.
   function lastRoute(pid) { if (st.sites[pid] && st.sites[pid].type) return st.sites[pid].type; var h = null; hist().forEach(function (x) { if (x[0] === pid && (!h || x[2] < h[2])) h = x; }); return h ? h[3] : 'subq'; }
   function openSite(pid) { var cur2 = st.sites[pid]; st.overlay = { t: 'site', pid: pid, type: cur2 && cur2.type ? cur2.type : lastRoute(pid), view: 'front', sel: cur2 ? cur2.sites.slice() : [], free: cur2 && cur2.free ? cur2.free : '', other: null, edit: !!cur2 }; }
-  // Line-art figures (founder references 2026-09-30): realistic proportions, thin outline, no face, a few contour lines.
-  // Male or female follows "Sex at birth" in the profile. Each left half is drawn once and mirrored; main's site x/y (100 x 220) sit on both unchanged.
-  var FIG = {
+  // Body images: the founder's front/back mannequins (docs/design/body/*.webp, cropped shoulders to knees, 768 x 960).
+  // Each point is placed on the image where the site really is. Display only: a log stores the site id, never a position.
+  // Front views face you (your right on the viewer's left); back views show your left on the left.
+  var PTS = {
     male: {
-      head: 'M50 3.4C44.8 3.4 41.8 7.4 41.8 12.8C41.8 17.8 43.4 21.6 45.8 23.6C47.2 24.8 48.6 25.2 50 25.2',
-      ear: 'M42 12.2C40.4 11.8 40.2 16 42.2 16.8',
-      half: 'M45.8 23.4C45.8 26.4 45.6 28.6 45 30.2C42.6 32 37.4 33 31.2 34.4C25.6 35.8 21.8 39.4 20.8 45.4C20 50 19.2 56 18.8 62C18.4 70 17.4 78 16.6 86C16 92 15.2 97 14.6 102C13.6 110 12.4 118 11.8 124C10.8 127 9.2 129.4 8.4 132C8 133.6 9 134.4 10 133.4C9.6 136.6 9.8 140.4 10.8 143.6C11.6 146 13.6 146.6 14.8 145.2C15.8 142.4 16.2 138.4 16.2 134.4C16.2 131 16.6 128.4 17 126C17.8 118 19 110 20 102C20.6 97 21.2 93 21.8 90C22.6 84 23.8 76 25.2 70C25.8 67.6 26.6 65.6 27.6 64C28.4 68 29 74 29.6 80C30.4 88 31.8 96 32 102C32.2 108 30.6 114 30 120C29.4 126 29.4 132 29.8 138C30.2 148 31.4 158 32.6 166C33.2 171 33.6 175 33.6 179C33.6 184 32.8 190 33.2 196C33.6 201 34.8 205 35.2 208C35.4 211 34.8 213.4 35.6 215.4C36.8 217.2 42 217.4 44 216.2C45 215.4 44.8 213.2 44.2 211.4C43.8 208.6 44 205.4 44.4 202C45.2 196 45.8 190 45.6 184C45.4 180 45.8 176 46.2 172C46.8 164 47.6 154 48.2 146C48.6 141 49 138 49.6 136.4C49.9 135.8 50.3 135.6 50.6 135.6',
-      front: 'M48.6 35.2C44.6 34.6 40 34.8 36.4 35.8M31.4 44.6C33.2 52.4 38.2 55.8 44 55.2C46.4 54.8 48.4 53.4 49.4 52M17.4 88.6C18.6 89.8 20.2 90 21.4 89.2M33 112C37.2 118 43 123.6 48 127.6M36.2 175.8C37.8 178.2 41 178.6 43.2 176.4M35.6 188C36.6 191 37.2 194 37.4 197',
-      frontMid: 'M50 58.4V94',
-      back: 'M34.2 42.4C34.6 50.4 37.2 56.2 42.4 58.6M17.2 89.4C18.6 88.2 20.2 88.2 21.6 89.4M41.4 111.4C43.4 113.4 45.8 114.2 48 114.2M33.2 138C37.4 142.8 43.8 143.6 49.4 139.8M36 177.6C38.6 175.6 41.4 175.6 43.8 177.6',
-      backMid: 'M50 31.4V108M50 117.4V136'
+      front: { abdomen_ur: [329, 355], abdomen_ul: [439, 355], abdomen_lr: [329, 460], abdomen_ll: [439, 460], thigh_f_r: [300, 690], thigh_f_l: [468, 690], deltoid_r: [205, 165], deltoid_l: [563, 165], vastus_r: [258, 700], vastus_l: [510, 700] },
+      back: { arm_back_l_b: [185, 255], arm_back_r_b: [583, 255], flank_l: [285, 395], flank_r: [483, 395], glute_dimple_l: [310, 480], glute_dimple_r: [458, 480], thigh_b_l: [300, 720], thigh_b_r: [468, 720], ventroglute_l: [262, 470], ventroglute_r: [506, 470], dorsoglute_l: [298, 495], dorsoglute_r: [470, 495] }
     },
     female: {
-      head: 'M50 4.4C45.2 4.4 42.6 8.2 42.6 13.2C42.6 17.8 44 21.4 46.2 23.2C47.4 24.2 48.6 24.6 50 24.6',
-      ear: 'M42.8 12.6C41.4 12.4 41.2 16 43 16.6',
-      half: 'M46.4 23C46.4 26 46.4 28.4 45.8 30C43.8 31.8 39.2 32.8 33.4 34.2C27.6 35.6 23.8 38.8 22.4 44.4C21.4 49.4 20.8 55.6 20.4 62C19.8 70 19 78 18.2 86C17.6 92 16.8 97 16.2 102C15.2 110 14 118 13.4 124C12.4 127 10.8 129.4 10 131.8C9.6 133.4 10.6 134.2 11.6 133.2C11.2 136.4 11.4 140 12.4 143C13.2 145.4 15.2 146 16.4 144.6C17.4 141.8 17.8 138 17.8 134.2C17.8 130.8 18.2 128.2 18.6 125.8C19.4 118 20.6 110 21.6 102C22.2 97 22.8 93 23.4 90C24.2 84 25.4 76 26.6 70C27.2 67.4 27.8 65.4 28.6 63.8C29.4 68 30.2 72.6 31.2 77.2C32.4 84 33.6 92 33.4 98.4C33.2 104.4 31 110.6 29.6 116.8C28.4 122.6 28 129 28.6 136C29.2 146 30.8 157 32.4 166C33 171 33.4 175 33.4 179C33.4 184.4 32.8 190.4 33.4 196.4C33.8 201 35 205 35.6 208.4C35.8 211.2 35.2 213.4 36 215.2C37.2 216.8 41.6 216.8 43.4 215.8C44.4 215 44.2 213 43.6 211.2C43.2 208.4 43.4 205.2 43.8 201.8C44.8 195.8 45.4 189.8 45.2 184C45 180 45.4 176 45.8 172C46.4 163.6 47.4 153.6 48.2 145.6C48.6 140.8 49 137.8 49.6 136.2C49.9 135.6 50.3 135.4 50.6 135.4',
-      front: 'M48.4 34.6C45 34.2 41 34.4 37.6 35.4M32.8 50.4C31.8 57.6 34.6 64.2 40.6 65.2C44.2 65.8 47 64 48.6 61.4M19.2 88.6C20.4 89.8 22 90 23.2 89.2M32.6 116C37.4 121.6 43.2 126.2 48 129M36 175.8C37.6 178.2 40.8 178.6 43 176.4M35.8 188C36.8 191 37.4 194 37.6 197',
-      frontMid: 'M50 70V92',
-      back: 'M35.6 43.2C36 50.6 38.4 55.8 43 58.2M19 89.4C20.4 88.2 22 88.2 23.4 89.4M41.8 110.6C43.8 112.8 46 113.6 48 113.6M31.6 138C36.4 143.6 43.4 144.4 49.4 140.2M35.8 177.6C38.4 175.6 41.2 175.6 43.6 177.6',
-      backMid: 'M50 31V107M50 116.6V136'
+      front: { abdomen_ur: [334, 345], abdomen_ul: [434, 345], abdomen_lr: [334, 435], abdomen_ll: [434, 435], thigh_f_r: [305, 690], thigh_f_l: [463, 690], deltoid_r: [228, 170], deltoid_l: [540, 170], vastus_r: [256, 690], vastus_l: [512, 690] },
+      back: { arm_back_l_b: [210, 260], arm_back_r_b: [558, 260], flank_l: [290, 380], flank_r: [478, 380], glute_dimple_l: [305, 480], glute_dimple_r: [463, 480], thigh_b_l: [305, 720], thigh_b_r: [463, 720], ventroglute_l: [263, 462], ventroglute_r: [505, 462], dorsoglute_l: [298, 492], dorsoglute_r: [470, 492] }
     }
   };
+  var SZONE = { abdomen: [40, 34], thigh: [40, 68], arm: [24, 48], flank: [18, 40], glute: [36, 32], deltoid: [26, 40], vastus: [20, 66], ventroglute: [18, 30], dorsoglute: [32, 32] };
+  function figSex() { return prof().sex === 'female' ? 'female' : 'male'; }
+  function siteOn(sel, id) { return sel.some(function (x) { return spot(x) === spot(id); }); }
   function bodyFig(view, marks) {
-    var F = FIG[prof().sex === 'female' ? 'female' : 'male'], m = 'translate(100 0) scale(-1 1)';
-    var both = function (d, cls) { return '<path class="' + cls + '" d="' + d + '"/><path class="' + cls + '" d="' + d + '" transform="' + m + '"/>'; };
-    var fill = function (d) { return 'M50.6 ' + d.match(/^M[\d.]+ ([\d.]+)/)[1] + 'L' + d.slice(1) + 'Z'; };
-    var s = '<svg class="bodyfig" viewBox="2 30 96 148" width="232" height="358" aria-hidden="true">';
-    s += both(fill(F.head), 'skin') + both(fill(F.half), 'skin') + '<rect class="skin" x="45" y="20" width="10" height="14"/>';
-    s += marks || '';
-    s += both(view === 'back' ? F.back : F.front, 'contour') + '<path class="contour" d="' + (view === 'back' ? F.backMid : F.frontMid) + '"/>' + (view === 'front' ? '<ellipse class="contour" cx="50" cy="98" rx=".9" ry="1.3"/>' : '');
-    s += both(F.head, 'outline') + both(F.ear, 'outline') + both(F.half, 'outline');
-    return s;
+    return '<svg class="bodyfig" viewBox="0 0 768 960" width="300" height="375" aria-hidden="true"><image href="body/' + figSex()[0] + '_' + view + '.webp" width="768" height="960"/>' + (marks || '');
   }
   function siteSheet() {
     var o = st.overlay, p = P[o.pid], lg = siteLongest(o.view, o.type);
-    var vis = SITES.filter(function (s) { return s.view === o.view && s.type === o.type && !/^arm_back_[lr]_f$/.test(s.id); });
+    var PV = PTS[figSex()][o.view], vis = SITES.filter(function (s) { return s.view === o.view && s.type === o.type && PV[s.id]; });
     // Front view is chart-style (your right on the viewer's left): swap each left/right pair so the list columns match the figure
     if (o.view === 'front') for (var q = 0; q + 1 < vis.length; q += 2) { var tq = vis[q]; vis[q] = vis[q + 1]; vis[q + 1] = tq; }
     var h = '<div class="scrim bot"' + A('sitescrim') + '><div class="sheet bsheet sitesheet" data-i="IS1">';
@@ -1156,16 +1131,16 @@ textarea.winp { resize: none; }
     h += '<div class="segw fill" role="radiogroup" data-i="IS2">' + [['subq', 'Subcutaneous'], ['im', 'Intramuscular']].map(function (x) { return '<span class="' + (o.type === x[0] ? 'on' : '') + '"' + A('sitetype', x[0]) + ' role="radio" aria-checked="' + (o.type === x[0]) + '">' + x[1] + '</span>'; }).join('') + '</div>';
     var marks = '', dots = '';
     vis.forEach(function (s) {
-      var on = siteOn(o.sel, s.id), sug = lg && spot(lg.s.id) === spot(s.id) && !on, zr = SZONE[s.group], fx0 = prof().sex === 'female' && s.group === 'flank' ? (s.x < 50 ? 1.6 : -1.6) : 0, sx = o.view === 'front' ? 100 - s.x : s.x + fx0;
-      s = { id: s.id, label: s.label, x: sx, y: s.y };
-      if (on) marks += '<ellipse cx="' + s.x + '" cy="' + s.y + '" rx="' + zr[0] + '" ry="' + zr[1] + '" fill="var(--data)"/>';
-      if (sug) marks += '<ellipse cx="' + s.x + '" cy="' + s.y + '" rx="' + zr[0] + '" ry="' + zr[1] + '" fill="none" stroke="var(--ink)" stroke-width=".55" stroke-dasharray="1.6 1.2"/>';
-      dots += '<g' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '" aria-label="' + s.label + '" style="cursor: pointer"><circle cx="' + s.x + '" cy="' + s.y + '" r="8" fill="transparent"/>';
-      dots += on ? '<path d="M' + (s.x - 2.2) + ' ' + s.y + ' l1.5 1.6 2.9 -3.2" fill="none" stroke="var(--onData)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>' : '<circle cx="' + s.x + '" cy="' + s.y + '" r="2.5" fill="var(--raised)" stroke="var(--ink)" stroke-width=".75"/>';
+      var on = siteOn(o.sel, s.id), sug = lg && spot(lg.s.id) === spot(s.id) && !on, zr = SZONE[s.group];
+      s = { id: s.id, label: s.label, x: PV[s.id][0], y: PV[s.id][1] };
+      if (on) marks += '<ellipse cx="' + s.x + '" cy="' + s.y + '" rx="' + zr[0] + '" ry="' + zr[1] + '" fill="var(--figSel)"/>';
+      if (sug) marks += '<ellipse cx="' + s.x + '" cy="' + s.y + '" rx="' + zr[0] + '" ry="' + zr[1] + '" fill="none" stroke="var(--figInk)" stroke-width="4" stroke-dasharray="11 8"/>';
+      dots += '<g' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '" aria-label="' + s.label + '" style="cursor: pointer"><circle cx="' + s.x + '" cy="' + s.y + '" r="46" fill="transparent"/>';
+      dots += on ? '<path d="M' + (s.x - 11) + ' ' + s.y + ' l7.5 8 14.5 -16" fill="none" stroke="var(--figOnSel)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>' : '<circle cx="' + s.x + '" cy="' + s.y + '" r="12" fill="var(--figDot)" stroke="var(--figInk)" stroke-width="4.5"/>';
       dots += '</g>';
     });
     var fig = bodyFig(o.view, marks) + dots + '</svg>';
-    h += '<div class="sitewrap" data-i="IS3"><div class="sitefig"><div class="segw" data-i="IS4">' + [['front', 'Front'], ['back', 'Back']].map(function (x) { return '<span class="' + (o.view === x[0] ? 'on' : '') + '"' + A('siteview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</div>' + fig + '<div class="row r-cap c2" style="width: 232px; justify-content: space-between" data-i="IS5"><span>' + nc(o.view === 'front' ? 'Your right' : 'Your left') + '</span><span>' + nc(o.view === 'front' ? 'Your left' : 'Your right') + '</span></div></div>';
+    h += '<div class="sitewrap" data-i="IS3"><div class="sitefig"><div class="segw" data-i="IS4">' + [['front', 'Front'], ['back', 'Back']].map(function (x) { return '<span class="' + (o.view === x[0] ? 'on' : '') + '"' + A('siteview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</div>' + fig + '<div class="row r-cap c2" style="width: 300px; justify-content: space-between" data-i="IS5"><span>' + nc(o.view === 'front' ? 'Your right' : 'Your left') + '</span><span>' + nc(o.view === 'front' ? 'Your left' : 'Your right') + '</span></div></div>';
     h += '<div class="sitelist" data-i="IS6">' + vis.map(function (s) { var on = siteOn(o.sel, s.id), sug = lg && spot(lg.s.id) === spot(s.id); return '<span class="siteopt' + (on ? ' on' : '') + '"' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '"><i>' + (on ? ic(I.check, 14, 'color: currentColor') : '') + '</i><span>' + s.label + (sug ? '<small>' + nc('Longest unused') + '</small>' : '') + '</span></span>'; }).join('') + '<span class="siteopt' + (o.other != null ? ' on' : '') + '"' + A('siteother') + ' role="checkbox" aria-checked="' + (o.other != null) + '"><i>' + (o.other != null ? ic(I.check, 14, 'color: currentColor') : '') + '</i><span>' + nc('Somewhere else') + '<small>' + nc('Type it in') + '</small></span></span>' + '</div></div>';
     if (o.other != null) h += '<label class="col" style="gap: 6px" data-i="IS12"><span class="r-sec c2">' + nc('Where? (your words)') + '</span><input id="siteothin" class="winp" maxlength="40" placeholder="e.g. right calf" value="' + (o.other || '').replace(/"/g, '&quot;') + '"></label>';
     if (o.free && !o.sel.length && o.other == null) h += '<div class="sitefree" data-i="IS13"><span class="r-sec">' + nc('Saved earlier as text: ') + '<b style="font-weight: 600">\u201c' + o.free + '\u201d</b></span><span class="r-foot c2">' + nc('Kept as it is unless you pick a spot or tap Remove site.') + '</span></div>';
