@@ -94,3 +94,14 @@ test('A-40: a day whose Taken count already reaches doses_per_day offers no pend
   const q = pendingFromYesterday({ protocols: [twice], logs: [log('Taken', local(2026, 9, 27, 8, 5))], nowMs: NOW });
   assert.equal(q.length, 1, 'one of two taken → the other slot is still offered');
 });
+
+// S-18 (A-43): the block uses the SAME covering window as the Missed scan — a dose
+// logged early on its own day (from that day's local midnight) covers the slot.
+test('S-18: yesterday\'s 20:00 dose logged at 10:00 yesterday is not pending (same window as the scan)', () => {
+  assert.equal(pendingFromYesterday({ protocols: [daily()], logs: [log('Taken', local(2026, 9, 27, 10, 0))], nowMs: NOW }).length, 0);
+  assert.equal(pendingFromYesterday({ protocols: [daily()], logs: [log('Skipped', local(2026, 9, 27, 9, 0))], nowMs: NOW }).length, 0);
+  const { coverStartMs } = require('../lib/missedDoses');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'pendingYesterday.js'), 'utf8');
+  assert.equal(typeof coverStartMs, 'function');
+  assert.match(src, /coverStartMs\(/, 'the block shares the scan\'s window helper (no private copy of the 3 h rule)');
+});
