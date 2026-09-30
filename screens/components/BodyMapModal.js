@@ -35,7 +35,7 @@ import {
   SITES,
   suggestNextSite,
   parseStored,
-  serializeForStorage,
+  siteToStore,
 } from '../../lib/injectionSites';
 import { CrossMark } from '../../components/CheckMark';
 
@@ -90,13 +90,16 @@ export default function BodyMapModal({
     );
   }, []);
 
+  // An older typed-in site ("left glute") has no dot: show the saved text itself so
+  // the user sees what is stored; it is kept unless they pick a spot (A-55).
+  const freeText = parseStored(initialStored).freeText;
   const summary = selected.length === 0
-    ? t('bodymap_no_selection')
+    ? (freeText || t('bodymap_no_selection'))
     : t('bodymap_n_selected').replace('{count}', String(selected.length));
 
   function handleSave() {
     onSave({
-      stored: serializeForStorage(type, selected),
+      stored: siteToStore({ type, selected, initialStored }),
       siteIds: selected,
       type,
     });
