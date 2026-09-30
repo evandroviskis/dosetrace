@@ -38,6 +38,20 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Paywall APPROVED (2026-09-30, founder: "Approved")** with the recommended answers: main's plans
+  (Annual with "Best value", Monthly, Lifetime), trial button and Apple billing text in the new look;
+  **Terms of service and Privacy policy links under Restore purchases** (must-fix, App Store 3.1.2,
+  missing on main); "Premium" is the only name (no "Pro"); the Free vs Premium table adds "AI food
+  log: 3 days free"; free-side crosses become dashes. **Every Premium feature gets a preview
+  animation** (dose accumulation = main's AccumulationHero, reality check, AI food log, lab scan,
+  lab trends, vaccine scan, protocols, PDF export): same timeline engine, "Example" tag, sample
+  numbers only, Reduce Motion shows the last frame. They play in the paywall's "See what you get"
+  list, on any locked feature before the paywall, and on the onboarding hero. Preview copy stays on
+  the AI line: the lab one shows the user's own values over time (no "out of range"), the vaccine one
+  shows the card's own dates (no "Due soon / Up to date"). **Cloud sync stays free** (as the code
+  already does): it is removed from the Settings upgrade card and the "Upload bloodwork" sheet,
+  replaced by "Dose accumulation curves". **"Unlimited scans" is made true on the server** (see
+  today-build-handoff item 24), not dropped from the copy.
 - **Onboarding APPROVED (2026-09-29, founder: "Approved")** with the recommended answers: main's steps
   and words in the new look (progress bar, Back, one Continue that stays dim until answered);
   **the consent line becomes "AI only when you use it — a photo or report you scan, or a meal you

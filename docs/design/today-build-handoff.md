@@ -108,3 +108,18 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
     if newer). A dose counts once, against its own schedule: an extra or duplicate "taken" never
     adds, so a ring can never show more than 100% and "{n} of {m}" never has n > m. Add a unit
     test with an extra dose logged.
+23. Paywall (founder approved 2026-09-30, design in prototype.html "Paywall"): rebuild main's
+    paywall in the Graduated skin; add Terms of service + Privacy policy links under Restore
+    purchases (App Store 3.1.2 must-fix); "Premium" everywhere (no "Pro"); comparison table adds
+    "AI food log: 3 days free"; the Settings upgrade card and the "Upload bloodwork" sheet drop
+    "Cloud sync / backup" (sync is free in sync.js) for "Dose accumulation curves".
+24. Scan limit (founder approved 2026-09-30): extract-bloodwork caps everyone at
+    MONTHLY_SCAN_LIMIT = 3 with no Premium bypass, so "Unlimited scans" is currently false. Premium
+    users skip the monthly cap (keep a server-side abuse ceiling, not shown as a limit). Free copy
+    says "3 free scans a month" everywhere (main also says "1 free lab scan" in one place). Test:
+    a Premium user's 4th scan in a month succeeds; a free user's 4th is refused with the limit sheet.
+25. Premium preview animations (founder approved 2026-09-30): one per Premium feature (accumulation,
+    reality check, AI food log, lab scan, lab trends, vaccine scan, protocols, PDF export), ported
+    from the prototype's HERO/FX engines (react-native-svg + Reanimated), "Example" tag, Reduce
+    Motion = last frame, both themes. Shown from the paywall list and from every locked feature.
+    The lab and vaccine preview copy use the rewritten, AI-line-safe text.
