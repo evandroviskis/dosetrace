@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decideQuota, lookupEntitlement, needsEntitlementLookup } from './quota.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,10 +9,10 @@ const corsHeaders = {
 // ~15MB of base64 (the client pre-checks at 10MB of raw file; this is a hard server cap)
 const MAX_BASE64_LENGTH = 15 * 1024 * 1024;
 
-// Monthly AI-scan budget per user. Lab, vaccine, and vial scans share this one
-// cap — it protects against uncapped spend on the shared Anthropic key and is
-// the product limit for the scan features. One place to change it.
-const MONTHLY_SCAN_LIMIT = 3;
+// Monthly AI-scan budget per user (lab, vaccine and vial scans share it): 3 free,
+// 20 Premium — the limits and the Premium check live in ./quota.ts (one place).
+// It protects against uncapped spend on the shared Anthropic key and is the product
+// limit for the scan features.
 
 // IMPORTANT: this prompt is deliberately regulatory-safe (no interpretation,
 // classification, or clinical assessment). Do not alter its instructions.
@@ -164,11 +165,26 @@ Deno.serve(async (req) => {
         .gte('created_at', monthStart);
       if (countErr) {
         console.error('[extract] quota count failed:', countErr.code, countErr.message);
-      } else if (typeof count === 'number' && count >= MONTHLY_SCAN_LIMIT) {
-        return jsonResponse(
-          { error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: MONTHLY_SCAN_LIMIT },
-          429,
-        );
+      } else if (typeof count === 'number') {
+        // Premium is decided here, by RevenueCat — never by what the client says.
+        // RevenueCat is asked only when the answer matters (3–19 scans this month).
+        let lookup: 'active' | 'inactive' | 'unreachable' | 'misconfigured' | 'skipped' = 'skipped';
+        if (needsEntitlementLookup({ count, email: user.email })) {
+          lookup = await lookupEntitlement({
+            fetchFn: fetch,
+            secret: Deno.env.get('REVENUECAT_SECRET_KEY'),
+            userId: user.id,
+            nowMs: now.getTime(),
+          });
+          if (lookup === 'unreachable' || lookup === 'misconfigured') console.error('[extract] entitlement lookup:', lookup);
+        }
+        const quota = decideQuota({ count, email: user.email, lookup });
+        if (!quota.allowed) {
+          return jsonResponse(
+            { error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: quota.limit },
+            429,
+          );
+        }
       }
     }
 
