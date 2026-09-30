@@ -38,6 +38,19 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Injection-site picker APPROVED (2026-09-30, founder: "Approved")** with the recommended answers.
+  The founder's own body images (ChatGPT-generated mannequins, front and back, male or female from
+  "Sex at birth"; `docs/design/body/*.webp`, cropped shoulders to knees) with every site placed where
+  it really is; a picked site fills its zone. Opens after Mark taken on an injectable (as main); a
+  named list under the image; several spots per dose; the route opens on the protocol's last-used one.
+  **Front views face you (medical-chart convention: your right on the viewer's left)**, back views
+  show your left on the left; "Your right / Your left" labels and the list columns follow.
+  "Longest unused in your log" counts across all compounds, shows only once a site is logged, and
+  counts the arm as one spot. "Not now" (never "Cancel") keeps Add site + Undo in the toast; "Undo
+  dose" sits in the sheet. "Somewhere else" takes typed text. An older typed-text site is kept, not
+  erased. The dose log shows each dose's site, "+ Add site", and a confirmed "Remove site".
+  **Deferred by the founder:** adding sites for injections from before install. Side views not used
+  (the female side images wear a swimsuit; regenerate first if wanted).
 - **Paywall APPROVED (2026-09-30, founder: "Approved")** with the recommended answers: main's plans
   (Annual with "Best value", Monthly, Lifetime), trial button and Apple billing text in the new look;
   **Terms of service and Privacy policy links under Restore purchases** (must-fix, App Store 3.1.2,

@@ -151,3 +151,17 @@ Retire: greeting keys, `today_streak_monthly`, `today_tip_*`, `today_share_*`, `
     from the prototype's HERO/FX engines (react-native-svg + Reanimated), "Example" tag, Reduce
     Motion = last frame, both themes. Shown from the paywall list and from every locked feature.
     The lab and vaccine preview copy use the rewritten, AI-line-safe text.
+26. **NEXT MAIN BUILD (data loss, founder approved 2026-09-30).** BodyMapModal on main erases an older
+    typed-text injection site: parseStored returns sites [] for free text, and Save with nothing
+    picked writes null over it (LogScreen edit path). Fix: show the saved text, keep it unless the
+    user picks a spot or confirms "Remove site"; never write null over a non-empty value by
+    default. Test: a dose_logs row with injection_site "left glute" survives open + Save.
+27. Injection-site picker (founder approved 2026-09-30, prototype "Injection site"): rebuild
+    BodyMapModal on the founder's images (docs/design/body/*.webp; ship @2x/@3x crops from the
+    1024 x 1536 originals), points per sex and view as in prototype.html PTS, the named list, the
+    last-used route per protocol, "Longest unused in your log" (hidden until a site is logged; the
+    arm's front/back ids count as one spot), "Not now" + toast Add site / Undo, "Undo dose" in the
+    sheet, "Somewhere else" free text (stored in the existing free-text format), dose-log site
+    lines. The front view flips to the chart convention: only x/y change, stored ids never do.
+    Replace the old modal in the same change.
+
