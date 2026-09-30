@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { decideQuota, lookupEntitlement, needsEntitlementLookup } from './quota.ts';
+import { lookupEntitlement, withScanBudget } from './quota.ts';
+import type { ScanStore } from './quota.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -147,46 +148,16 @@ Deno.serve(async (req) => {
     }
 
     // ---- Monthly usage cap (spend protection + product limit) ----
-    // Lab, vaccine, and vial scans share one budget. Counted/written with the
-    // service role so a client cannot read or delete its own usage rows to
-    // bypass the cap. Fails OPEN on an infra error — a real, JWT-authenticated
-    // user should not lose a paid-for feature over a transient count failure;
-    // abuse is still bounded to real accounts.
+    // Lab, vaccine, and vial scans share one budget (3 free / 20 Premium, ./quota.ts).
+    // Counted/written with the service role so a client cannot read or delete its own
+    // usage rows to bypass the cap. The row is RESERVED before the AI call (A-59) —
+    // see withScanBudget below. Fails OPEN on an infra error: a real, JWT-authenticated
+    // user should not lose a paid-for feature over a transient failure; abuse is still
+    // bounded to real accounts.
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    let adminClient: ReturnType<typeof createClient> | null = null;
-    if (serviceKey) {
-      adminClient = createClient(supabaseUrl, serviceKey);
-      const now = new Date();
-      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-      const { count, error: countErr } = await adminClient
-        .from('ai_scan_usage')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', monthStart);
-      if (countErr) {
-        console.error('[extract] quota count failed:', countErr.code, countErr.message);
-      } else if (typeof count === 'number') {
-        // Premium is decided here, by RevenueCat — never by what the client says.
-        // RevenueCat is asked only when the answer matters (3–19 scans this month).
-        let lookup: 'active' | 'inactive' | 'unreachable' | 'misconfigured' | 'skipped' = 'skipped';
-        if (needsEntitlementLookup({ count, email: user.email })) {
-          lookup = await lookupEntitlement({
-            fetchFn: fetch,
-            secret: Deno.env.get('REVENUECAT_SECRET_KEY'),
-            userId: user.id,
-            nowMs: now.getTime(),
-          });
-          if (lookup === 'unreachable' || lookup === 'misconfigured') console.error('[extract] entitlement lookup:', lookup);
-        }
-        const quota = decideQuota({ count, email: user.email, lookup });
-        if (!quota.allowed) {
-          return jsonResponse(
-            { error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: quota.limit },
-            429,
-          );
-        }
-      }
-    }
+    const adminClient: ReturnType<typeof createClient> | null = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 
     // Parse and validate the request body. Accepts either a PDF (pdf_base64)
     // or a photo of a report (image_base64 + media_type) — the "snap a report"
@@ -247,6 +218,46 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Extraction service not configured', code: 'not_configured' }, 500);
     }
 
+    // This user's usage rows for the month (service role).
+    const store: ScanStore | null = adminClient ? {
+      count: async () => {
+        const { count, error } = await adminClient
+          .from('ai_scan_usage')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', monthStart);
+        if (error) { console.error('[extract] quota count failed:', error.code, error.message); return null; }
+        return typeof count === 'number' ? count : null;
+      },
+      reserve: async () => {
+        const { data, error } = await adminClient
+          .from('ai_scan_usage')
+          .insert({ user_id: user.id, kind })
+          .select('id')
+          .single();
+        if (error || !data) { console.error('[extract] usage reserve failed:', error?.code, error?.message); return null; }
+        return (data as { id: string | number }).id;
+      },
+      list: async (limit: number) => {
+        const { data, error } = await adminClient
+          .from('ai_scan_usage')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', monthStart)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .limit(limit);
+        if (error || !data) { console.error('[extract] usage list failed:', error?.code, error?.message); return null; }
+        return (data as Array<{ id: string | number }>).map((r) => r.id);
+      },
+      release: async (id: string | number) => {
+        const { error } = await adminClient.from('ai_scan_usage').delete().eq('id', id).eq('user_id', user.id);
+        if (error) console.error('[extract] usage release failed:', error.code, error.message);
+      },
+    } : null;
+
+    // The paid work: one AI call. Returns the final Response (200 = a scan was delivered).
+    const runExtraction = async (): Promise<Response> => {
     // Call the Anthropic API server-side — the key never ships to the device
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -325,15 +336,34 @@ Deno.serve(async (req) => {
       payload = { report_date: parsed.report_date ?? null, markers: parsed.markers };
     }
 
-    // Count this successful extraction against the user's monthly budget.
-    if (adminClient) {
-      const { error: usageErr } = await adminClient
-        .from('ai_scan_usage')
-        .insert({ user_id: user.id, kind });
-      if (usageErr) console.error('[extract] usage insert failed:', usageErr.code, usageErr.message);
-    }
-
     return jsonResponse(payload, 200);
+    };
+
+    // No service key → old rule (uncounted). Otherwise the scan runs inside the budget:
+    // Premium is decided here, by RevenueCat — never by what the client says.
+    if (!store) return await runExtraction();
+    const outcome = await withScanBudget<Response>({
+      store,
+      email: user.email,
+      lookup: async () => {
+        const state = await lookupEntitlement({
+          fetchFn: fetch,
+          secret: Deno.env.get('REVENUECAT_SECRET_KEY'),
+          userId: user.id,
+          nowMs: Date.now(),
+        });
+        if (state === 'unreachable' || state === 'misconfigured') console.error('[extract] entitlement lookup:', state);
+        return state;
+      },
+      work: async () => {
+        const response = await runExtraction();
+        return { ok: response.status === 200, response };
+      },
+    });
+    if (outcome.status === 'refused') {
+      return jsonResponse({ error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: outcome.limit }, 429);
+    }
+    return outcome.response;
   } catch (err) {
     return jsonResponse({ error: err.message, code: 'internal_error' }, 500);
   }

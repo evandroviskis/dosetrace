@@ -5,9 +5,9 @@
 // secret that lives only in Supabase Edge Function secrets.
 // Rules (billing, Gate B):
 //  - under 3 scans: always allowed, RevenueCat is not even asked;
-//  - 3–19 scans: allowed only with an active "DoseTrace Pro" entitlement (RevenueCat
+//  - 3 or more scans: allowed (up to 20) only with an active "DoseTrace Pro" entitlement (RevenueCat
 //    id, unchanged) or for the accounts the app itself treats as Premium (App Review demo);
-//  - 20 or more: refused for everyone;
+//  - 20 or more: refused for everyone (each account is told its own limit: 3 or 20);
 //  - RevenueCat unreachable (timeout / 5xx): a paying user must not lose a paid feature
 //    over a hiccup → allowed, still capped at 20; RevenueCat rate-limited (429) → treated
 //    as not Premium for this request (it can be induced by flooding);
@@ -40,13 +40,13 @@ test('S-23: entitlementActive — future expiry, lifetime (no expiry), billing g
   assert.equal(entitlementActive({ subscriber: {} }, NOW), false);
 });
 
-test('S-23: RevenueCat is asked only between 3 and 19 scans, and never for an app-Premium account', () => {
+test('S-23: RevenueCat is asked only from the 3rd scan on (the tier decides the limit shown), and never for an app-Premium account', () => {
   const { needsEntitlementLookup } = q();
   assert.equal(needsEntitlementLookup({ count: 0, email: 'a@b.c' }), false);
   assert.equal(needsEntitlementLookup({ count: 2, email: 'a@b.c' }), false);
   assert.equal(needsEntitlementLookup({ count: 3, email: 'a@b.c' }), true);
   assert.equal(needsEntitlementLookup({ count: 19, email: 'a@b.c' }), true);
-  assert.equal(needsEntitlementLookup({ count: 20, email: 'a@b.c' }), false);
+  assert.equal(needsEntitlementLookup({ count: 20, email: 'a@b.c' }), true, 'at 20+ the tier still decides which limit the user is told (3 or 20)');
   assert.equal(needsEntitlementLookup({ count: 5, email: 'AppReview@DoseTrace.io ' }), false);
 });
 
@@ -60,8 +60,9 @@ test('S-23: Premium user — the 20th scan allowed, the 21st refused (limit 20)'
   const { decideQuota } = q();
   assert.deepEqual(decideQuota({ count: 3, email: 'a@b.c', lookup: 'active' }), { allowed: true, limit: 20 });
   assert.deepEqual(decideQuota({ count: 19, email: 'a@b.c', lookup: 'active' }), { allowed: true, limit: 20 });
-  assert.deepEqual(decideQuota({ count: 20, email: 'a@b.c', lookup: 'skipped' }), { allowed: false, limit: 20 });
+  assert.deepEqual(decideQuota({ count: 20, email: 'a@b.c', lookup: 'active' }), { allowed: false, limit: 20 });
   assert.deepEqual(decideQuota({ count: 25, email: 'a@b.c', lookup: 'active' }), { allowed: false, limit: 20 });
+  assert.deepEqual(decideQuota({ count: 25, email: 'a@b.c', lookup: 'inactive' }), { allowed: false, limit: 3 }, 'a free account is told its own limit');
 });
 
 test('S-23: the App Review demo account (and the app\'s other Premium accounts) get 20 without RevenueCat', () => {
@@ -114,11 +115,96 @@ test('S-23: extract-bloodwork uses the quota module, reads the secret by name, a
   const src = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'functions', 'extract-bloodwork', 'index.ts'), 'utf8');
   assert.match(src, /from '\.\/quota\.ts'/);
   assert.match(src, /Deno\.env\.get\('REVENUECAT_SECRET_KEY'\)/);
-  assert.match(src, /decideQuota\(/);
+  assert.match(src, /withScanBudget</, 'the decision (decideQuota) runs inside withScanBudget');
   assert.match(src, /lookupEntitlement\(/);
   assert.doesNotMatch(src, /MONTHLY_SCAN_LIMIT/, 'the single hardcoded limit is gone');
   for (const f of ['index.ts', 'quota.ts']) {
     const s = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'functions', 'extract-bloodwork', f), 'utf8');
     assert.doesNotMatch(s, /sk_[A-Za-z0-9]{8,}/, `${f}: no secret key in the source`);
   }
+});
+
+// A-59 (Gate B review 2026-09-30, founder: fix before deploy). The budget used to be
+// counted BEFORE the AI call and written AFTER it, so requests fired together all read
+// the same count and all passed. Now the usage row is RESERVED before the AI call and
+// each request checks its own position in the month: exactly `limit` requests win,
+// however they interleave. A failed extraction gives its reservation back.
+function fakeStore({ failCount = false, failReserve = false } = {}) {
+  let rows = [];
+  let seq = 0;
+  const tick = () => new Promise((r) => setTimeout(r, Math.floor(Math.random() * 3)));
+  return {
+    rows: () => rows,
+    seed(n) { for (let i = 0; i < n; i++) rows.push({ id: ++seq, created_at: seq }); },
+    async count() { await tick(); return failCount ? null : rows.length; },
+    async reserve() { await tick(); if (failReserve) return null; const row = { id: ++seq, created_at: seq }; rows.push(row); return row.id; },
+    async list(limit) { await tick(); return rows.slice().sort((a, b) => a.created_at - b.created_at || a.id - b.id).slice(0, limit).map((r) => r.id); },
+    async release(id) { await tick(); rows = rows.filter((r) => r.id !== id); },
+  };
+}
+const okWork = async () => { await new Promise((r) => setTimeout(r, 2)); return { ok: true, response: 'scan' }; };
+const run = (store, lookup, work = okWork, email = 'a@b.c') => q().withScanBudget({ store, email, lookup: async () => lookup, work });
+
+test('A-59: 30 requests fired together by a free user → exactly 3 scans, 27 refused, 3 rows kept', async () => {
+  const store = fakeStore();
+  const out = await Promise.all(Array.from({ length: 30 }, () => run(store, 'inactive')));
+  assert.equal(out.filter((o) => o.status === 'done').length, 3);
+  assert.equal(out.filter((o) => o.status === 'refused').length, 27);
+  assert.ok(out.filter((o) => o.status === 'refused').every((o) => o.limit === 3));
+  assert.equal(store.rows().length, 3);
+});
+
+test('A-59: 30 requests fired together by a Premium user → exactly 20 scans', async () => {
+  const store = fakeStore();
+  const out = await Promise.all(Array.from({ length: 30 }, () => run(store, 'active')));
+  assert.equal(out.filter((o) => o.status === 'done').length, 20);
+  assert.ok(out.filter((o) => o.status === 'refused').every((o) => o.limit === 20));
+  assert.equal(store.rows().length, 20);
+});
+
+test('A-59: one at a time — free: 3 then refused; Premium from 19: one more, then refused', async () => {
+  const free = fakeStore();
+  for (let i = 0; i < 3; i++) assert.equal((await run(free, 'inactive')).status, 'done');
+  assert.deepEqual(await run(free, 'inactive'), { status: 'refused', limit: 3 });
+  assert.equal(free.rows().length, 3);
+  const prem = fakeStore(); prem.seed(19);
+  assert.equal((await run(prem, 'active')).status, 'done');
+  assert.deepEqual(await run(prem, 'active'), { status: 'refused', limit: 20 });
+  assert.equal(prem.rows().length, 20);
+});
+
+test('A-59: a failed extraction gives the reservation back (a bad photo never costs a scan)', async () => {
+  const store = fakeStore();
+  const failed = await run(store, 'inactive', async () => ({ ok: false, response: 'bad photo' }));
+  assert.deepEqual(failed, { status: 'failed', response: 'bad photo' });
+  assert.equal(store.rows().length, 0);
+  await assert.rejects(run(store, 'inactive', async () => { throw new Error('boom'); }), /boom/);
+  assert.equal(store.rows().length, 0, 'a crash releases it too');
+  assert.equal((await run(store, 'inactive')).status, 'done');
+});
+
+test('A-59: RevenueCat is asked at most once per request, and not at all under the free limit', async () => {
+  let asked = 0;
+  const lookup = async () => { asked++; return 'active'; };
+  const store = fakeStore();
+  await q().withScanBudget({ store, email: 'a@b.c', lookup, work: okWork });
+  assert.equal(asked, 0, '1st scan of the month: no lookup');
+  store.seed(5);
+  await q().withScanBudget({ store, email: 'a@b.c', lookup, work: okWork });
+  assert.equal(asked, 1);
+});
+
+test('A-59: infrastructure errors keep the old rule — count or reservation failing never blocks a real user', async () => {
+  assert.equal((await run(fakeStore({ failCount: true }), 'inactive')).status, 'done');
+  assert.equal((await run(fakeStore({ failReserve: true }), 'inactive')).status, 'done');
+});
+
+test('A-59: extract-bloodwork runs the AI call inside withScanBudget and no longer inserts the usage row afterwards', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'functions', 'extract-bloodwork', 'index.ts'), 'utf8');
+  assert.match(src, /withScanBudget<Response>\(/);
+  const w = src.indexOf('withScanBudget<Response>(');
+  assert.ok(src.indexOf('api.anthropic.com') > 0);
+  assert.equal((src.match(/\.from\('ai_scan_usage'\)\s*\n?\s*\.insert\(/g) || []).length, 1, 'one insert: the reservation');
+  assert.ok(src.indexOf(".insert(") < src.indexOf('api.anthropic.com') || src.indexOf('reserve') < src.indexOf('api.anthropic.com'), 'the reservation is written before the AI call');
+  assert.ok(w > 0);
 });

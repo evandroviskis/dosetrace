@@ -43,11 +43,11 @@ export function entitlementActive(body: any, nowMs: number): boolean {
   return ends.some((t: number) => t > nowMs);
 }
 
-// RevenueCat is only asked when the answer changes the outcome: under the free limit
-// everyone is allowed, at the Premium limit everyone is refused.
+// RevenueCat is only asked when the answer matters: under the free limit everyone is
+// allowed. From there on the tier decides both the outcome and the limit the user is told.
 export function needsEntitlementLookup({ count, email }: { count: number; email?: string | null }): boolean {
   if (isPremiumEmail(email)) return false;
-  return count >= FREE_SCAN_LIMIT && count < PREMIUM_SCAN_LIMIT;
+  return count >= FREE_SCAN_LIMIT;
 }
 
 // The decision. `limit` is what the caller reports on a refusal.
@@ -56,9 +56,9 @@ export function needsEntitlementLookup({ count, email }: { count: number; email?
 //  - misconfigured (secret missing / rejected): the free limit for everyone — never
 //    the Premium budget for all accounts because of a bad key.
 export function decideQuota({ count, email, lookup }: { count: number; email?: string | null; lookup: Lookup }): { allowed: boolean; limit: number } {
-  if (count >= PREMIUM_SCAN_LIMIT) return { allowed: false, limit: PREMIUM_SCAN_LIMIT };
-  if (isPremiumEmail(email) || lookup === 'active' || lookup === 'unreachable') return { allowed: true, limit: PREMIUM_SCAN_LIMIT };
-  return { allowed: count < FREE_SCAN_LIMIT, limit: FREE_SCAN_LIMIT };
+  const premium = isPremiumEmail(email) || lookup === 'active' || lookup === 'unreachable';
+  const limit = premium ? PREMIUM_SCAN_LIMIT : FREE_SCAN_LIMIT;
+  return { allowed: count < limit, limit };
 }
 
 // Ask RevenueCat whether this user (RevenueCat app user id = the Supabase user id,
@@ -89,4 +89,76 @@ export async function lookupEntitlement({ fetchFn, secret, userId, nowMs, timeou
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+// ── Reserving the budget (A-59) ─────────────────────────────────────────────
+// The usage row is written BEFORE the AI call and each request then checks its own
+// position among this month's rows, so requests fired together cannot all pass on
+// the same stale count: exactly `limit` of them win. A failed extraction releases
+// its row (a bad photo never costs a scan).
+//
+// `store` is the month's usage for ONE user (index.ts backs it with ai_scan_usage
+// through the service role):
+//   count()      → rows this month, or null on an infrastructure error
+//   reserve()    → id of the new row, or null when the insert failed
+//   list(n)      → ids of the first n rows this month, oldest first, or null on error
+//   release(id)  → delete that row
+// Infrastructure errors keep the old rule: a real, authenticated user is never
+// blocked by a failing count / insert (the scan runs uncounted and is logged).
+export interface ScanStore {
+  count(): Promise<number | null>;
+  reserve(): Promise<string | number | null>;
+  list(limit: number): Promise<Array<string | number> | null>;
+  release(id: string | number): Promise<void>;
+}
+
+export type BudgetOutcome<T> =
+  | { status: 'refused'; limit: number }
+  | { status: 'done'; response: T }
+  | { status: 'failed'; response: T };
+
+export async function withScanBudget<T>({ store, email, lookup, work }: {
+  store: ScanStore;
+  email?: string | null;
+  lookup: () => Promise<Lookup>; // asks RevenueCat; called at most once, only when it matters
+  work: () => Promise<{ ok: boolean; response: T }>;
+}): Promise<BudgetOutcome<T>> {
+  const finish = (r: { ok: boolean; response: T }): BudgetOutcome<T> =>
+    (r.ok ? { status: 'done', response: r.response } : { status: 'failed', response: r.response });
+
+  let known: Lookup = 'skipped';
+  const decideAt = async (count: number) => {
+    if (known === 'skipped' && needsEntitlementLookup({ count, email })) known = await lookup();
+    return decideQuota({ count, email, lookup: known });
+  };
+
+  // 1. Cheap early refusal on the current count.
+  const count = await store.count();
+  if (count == null) return finish(await work()); // count failed → old rule (uncounted)
+  const first = await decideAt(count);
+  if (!first.allowed) return { status: 'refused', limit: first.limit };
+
+  // 2. Reserve, then decide again on how many rows are AHEAD of this one.
+  const id = await store.reserve();
+  if (id == null) return finish(await work()); // insert failed → old rule (uncounted)
+  let outcome: BudgetOutcome<T>;
+  try {
+    const ids = await store.list(PREMIUM_SCAN_LIMIT);
+    if (ids) {
+      const idx = ids.findIndex((x) => String(x) === String(id));
+      const ahead = idx >= 0 ? idx : PREMIUM_SCAN_LIMIT; // not among the first 20 → over every limit (the tier still sets the limit reported)
+      const second = await decideAt(ahead);
+      if (!second.allowed) {
+        await store.release(id);
+        return { status: 'refused', limit: second.limit };
+      }
+    }
+    // 3. The paid work. Anything but success gives the reservation back.
+    outcome = finish(await work());
+  } catch (err) {
+    await store.release(id).catch(() => {});
+    throw err;
+  }
+  if (outcome.status === 'failed') await store.release(id).catch(() => {});
+  return outcome;
 }
