@@ -23,6 +23,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { requestAIConsent } from '../../lib/aiConsent';
 import { isPremium } from '../../lib/purchases';
+import { quotaLimitFrom, fillQuotaMessage } from '../../lib/scanQuotaMessage';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -177,11 +178,12 @@ export default function VaccinesSection() {
         // Same distinction as lab scanning: a service outage is not the user's card.
         const status = error.context?.status;
         let code = null;
-        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        let errBody = null;
+        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
         } else if (serviceDown) {
           Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
         } else {

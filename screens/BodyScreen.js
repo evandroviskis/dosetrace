@@ -19,6 +19,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
+import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
@@ -453,11 +454,12 @@ export default function BodyScreen({ navigation, route }) {
         // service-side failure (Anthropic down, key/credit) from an actual
         // unreadable file, so we never blame the user's PDF for our outage.
         let code = null;
-        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        let errBody = null;
+        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
         } else if (status === 401) {
           Alert.alert(t('error'), t('blood_error_not_signed_in'));
         } else if (status === 413) {

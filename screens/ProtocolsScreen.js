@@ -32,6 +32,7 @@ import { getCachedUser, supabase } from '../lib/supabase';
 import { isPremium } from '../lib/purchases';
 import { requestAIConsent } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
+import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
@@ -1191,9 +1192,10 @@ export default function ProtocolsScreen() {
       if (error) {
         const status = error.context?.status;
         let code = null;
-        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        let errBody = null;
+        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
           return;
         }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
