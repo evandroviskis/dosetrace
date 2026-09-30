@@ -505,7 +505,7 @@ textarea.winp { resize: none; }
 .plan .radio.on { box-shadow: inset 0 0 0 7px var(--ink); }
 /* Injection-site picker */
 /* Marks on the body image: the image is a fixed light surface in both themes, so these are fixed too (same value both palettes) */
-.bodyfig { --figInk: #111315; --figDot: #FFFFFF; --figSel: #2350D8; --figOnSel: #FFFFFF; }
+.bodyfig, .fxcard { --figInk: #111315; --figDot: #FFFFFF; --figSel: #2350D8; --figOnSel: #FFFFFF; }
 .sitesheet { max-height: 92%; overflow-y: auto; gap: 12px; }
 .sitesheet > * { flex-shrink: 0; }
 .sitewrap { display: flex; flex-direction: column; gap: 12px; }
@@ -583,7 +583,10 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Injection site <span class="stat ok">approved</span></h3>
+        <h3>Free-feature explainers <span class="stat rev">under review</span></h3>
+        <p class="r-foot" style="color: var(--ink2); margin: 0">Shown the first time someone reaches a feature they have not used. One tap to skip, at most one a day, never while logging a dose, gone once the feature is used.</p>
+        <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-xgo="recon">Reconstitution calculator</button><button data-xgo="vial">Vial tracker</button><button data-xgo="remind">Reminders</button><button data-xgo="sites">Site rotation</button><button data-xgo="log">Dose log + streak</button><button data-xgo="energy">Energy + protein</button><button data-xgo="labsman">Lab journal</button><button data-xgo="notes">Dose notes</button></div>
+        <h3 style="margin-top: 10px">Injection site <span class="stat ok">approved</span></h3>
         <button data-igo="take:bpc">Mark BPC-157 taken<small>the site sheet opens by itself; body or list, several spots, Front / Back, "Longest unused in your log"; Not now keeps Add site + Undo in the toast</small></button>
         <button data-igo="take:test">Mark Testosterone Cypionate taken<small>opens on Intramuscular, the route this protocol last used (your own history)</small></button>
         <button data-igo="female">Same, with a female profile<small>the figure follows "Sex at birth" in the profile</small></button>
@@ -1195,6 +1198,7 @@ textarea.winp { resize: none; }
     if (o.t === 'rcstart') return rcStartSheet();
     if (o.t === 'vaxform') return vaxForm();
     if (o.t === 'pv') return previewSheet(o.k);
+    if (o.t === 'xp') return explainerSheet(o.k);
     if (o.t === 'site') return siteSheet();
     if (o.t === 'prof') return profSheet();
     if (o.t === 'country') return countrySheet();
@@ -1207,7 +1211,7 @@ textarea.winp { resize: none; }
     if (o.t === 'spreview') return spreviewHTML();
     if (o.t === 'chat') return chatScreen();
     if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
-    if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('paywall') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
+    if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('paywall') + '>Unlock with Premium</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
     if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
     return '';
   }
@@ -2135,7 +2139,7 @@ textarea.winp { resize: none; }
     var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="B5p"><div class="row" style="justify-content: space-between"><span class="r-head">See your compound build up</span><span class="round" style="width: 36px; height: 36px"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>';
     h += HERO.html('prev');
     h += '<span class="r-sec c2">DoseTrace models how each dose stacks on the last, so you see your estimated serum level between doses — not just what you took.</span>';
-    return h + '<span class="btn p"' + A('paywall') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
+    return h + '<span class="btn p"' + A('paywall') + '>Unlock with Premium</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
   }
 
   /* ================= Settings part 1: the screen (under review) ================= */
@@ -2432,6 +2436,98 @@ textarea.winp { resize: none; }
       }
       if (t > 4700) { var c = eBack(k(t, 4700, 450)); s2 += '<g opacity="' + cl(c * 1.5).toFixed(2) + '"><circle cx="20" cy="112" r="' + (11 * c).toFixed(1) + '" fill="var(--ok)"/>' + tick(20, 112, 1) + txt(38, 117, 'PDF ready', { size: 12, w: 600 }) + txt(8, 142, 'Share it with your doctor', { size: 11, fill: 'var(--ink2)' }) + '</g>'; }
       return s2; } };
+    /* ---------- Free-feature explainers (under review): shown until the feature is first used ---------- */
+    var typed = function (s, t, a, d) { var n = Math.floor(cl((t - a) / d) * s.length); return s.slice(0, n); };
+    var cursor = function (t, on) { return on && Math.floor(t / 420) % 2 ? '▏' : ''; };
+    // Reconstitution calculator: vial + water + dose in, the draw on the syringe out (5 mg in 2 ml = 2.5 mg/ml; 500 mcg = 0.2 ml = 20 units)
+    A.recon = { h: 250, dur: 6000, draw: function (t) {
+      var s2 = '', F = [['Vial', '5 mg', 200], ['Water added', '2 ml', 800], ['Dose', '500 mcg', 1400]];
+      F.forEach(function (f, i) { var a = cl((t - f[2] + 200) / 250); if (a <= 0) return; var y = 8 + i * 42; s2 += '<g opacity="' + a.toFixed(2) + '">' + txt(4, y + 12, f[0], { size: 11, fill: 'var(--ink2)' }) + rect(4, y + 17, 150, 22, 8, 'var(--well)') + txt(12, y + 32, typed(f[1], t, f[2], 450) + cursor(t, t > f[2] && t < f[2] + 600), { mono: 1, size: 13 }) + '</g>'; });
+      var r = eio(k(t, 2300, 1300));
+      if (t > 2200) { var ra = cl((t - 2200) / 300); s2 += txt(180, 22, 'Draw to', { size: 11, fill: 'var(--ink2)', op: ra }) + txt(180, 62, num(20 * r), { mono: 1, size: 38, w: 500, op: ra }) + txt(180 + (r >= 0.5 ? 50 : 26), 62, 'units', { mono: 1, size: 12, fill: 'var(--ink2)', op: ra }) + txt(180, 84, (0.2 * r).toFixed(2) + ' ml', { mono: 1, size: 12, fill: 'var(--ink2)', op: ra }); }
+      var x0 = 22, W = 290, X = function (u) { return x0 + u / 100 * W; }, sy = 150;
+      s2 += '<line x1="4" x2="' + x0 + '" y1="' + (sy + 15) + '" y2="' + (sy + 15) + '" stroke="var(--ink2)" stroke-width="1.6"/>' + rect(x0, sy, W, 30, 6, 'var(--raised)', { stroke: 'var(--tick)' });
+      if (r > 0) s2 += rect(x0 + 1, sy + 1, X(20 * r) - x0, 28, 5, 'var(--data)');
+      for (var u = 2; u < 100; u += 2) { var lg = u % 10 === 0; s2 += '<line x1="' + X(u) + '" x2="' + X(u) + '" y1="' + (sy + 1) + '" y2="' + (sy + (lg ? 15 : 9)) + '" stroke="' + (u < 20 * r ? 'var(--onData)' : 'var(--tick)') + '" stroke-width="' + (lg ? 1.4 : 0.8) + '"/>'; }
+      for (var L = 0; L <= 100; L += 10) s2 += txt(X(L), sy + 46, String(L), { mono: 1, size: 9, anchor: 'middle', fill: 'var(--ink2)' });
+      s2 += rect(X(20 * r) - 2, sy - 5, 5, 40, 2, 'var(--ink)');
+      if (t > 4200) s2 += txt(163, 240, 'Your vial, your dose. The math is done for you.', { size: 11.5, anchor: 'middle', fill: 'var(--ink2)', op: cl((t - 4200) / 400) });
+      return s2; } };
+    // Vial tracker: each logged dose comes off the vial; a warning before it runs out
+    A.vial = { h: 250, dur: 6200, draw: function (t) {
+      var s2 = '', used = 0; for (var j = 0; j < 7; j++) if (t > 700 + j * 430) used++;
+      var left = 10 - used;
+      s2 += txt(4, 18, 'BPC-157 · vial 1', { size: 13, w: 700 }) + txt(322, 18, 'Mixed Sep 27', { size: 11, anchor: 'end', fill: 'var(--ink2)' });
+      for (var i = 0; i < 10; i++) { var gone = i < used, pop = gone && t < 700 + i * 430 + 250 ? 1 - cl((t - 700 - i * 430) / 250) : 0; s2 += rect(4 + i * 32, 32 - pop * 4, 28, 40, 7, gone ? 'var(--well)' : 'var(--data)', gone ? { stroke: 'var(--line)' } : {}); }
+      s2 += txt(4, 98, left + ' doses left · ' + left + ' days left', { mono: 1, size: 13 });
+      if (left <= 3) { var a = eBack(k(t, 3800, 450)); s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '" transform="translate(' + (24 * (1 - a)).toFixed(1) + ' 0)">' + rect(4, 118, 318, 50, 14, 'var(--well)') + '<circle cx="22" cy="143" r="5" fill="var(--attention)"/>' + txt(36, 139, 'Supply low', { size: 12.5, w: 700 }) + txt(36, 156, 'BPC-157 running low · 3 doses left', { size: 11, fill: 'var(--ink2)' }) + '</g>'; }
+      if (t > 4800) { var b = cl((t - 4800) / 400); s2 += txt(4, 200, 'Mix a new vial before you run out', { size: 12, fill: 'var(--ink2)', op: b }) + '<g opacity="' + b.toFixed(2) + '">' + rect(4, 212, 94, 30, 15, 'none', { stroke: 'var(--ink)', sw: 1.4 }) + txt(51, 232, '+ Add vial', { size: 12, w: 600, anchor: 'middle' }) + '</g>'; }
+      return s2; } };
+    // Reminders: the notification arrives, "Mark taken" logs the dose from it
+    A.remind = { h: 250, dur: 6000, draw: function (t) {
+      var s2 = '', done = t > 3300;
+      s2 += txt(163, 40, '7:20', { size: 34, w: 300, anchor: 'middle' }) + txt(163, 58, 'Monday, September 28', { size: 11, anchor: 'middle', fill: 'var(--ink2)' });
+      var dn = eBack(k(t, 400, 550)), out = eio(k(t, 3300, 350));
+      if (dn > 0 && out < 1) {
+        var y = 72 + (1 - dn) * -60 - out * 20;
+        s2 += '<g opacity="' + (cl(dn * 1.5) * (1 - out)).toFixed(2) + '">' + rect(10, y, 306, 70, 16, 'var(--well)') + rect(22, y + 12, 24, 24, 6, 'var(--act)') + '<path d="M' + 34 + ' ' + (y + 17) + 'c-3 4-5 6.5-5 9a5 5 0 0 0 10 0c0-2.5-2-5-5-9z" fill="var(--onAct)"/>' + txt(56, y + 22, 'DOSETRACE', { size: 9, w: 700, fill: 'var(--ink2)' }) + txt(304, y + 22, 'now', { size: 9, anchor: 'end', fill: 'var(--ink2)' }) + txt(56, y + 40, 'BPC-157 · 0.5 mg', { size: 13, w: 700 }) + txt(56, y + 57, 'Time for your dose', { size: 11.5, fill: 'var(--ink2)' }) + '</g>';
+        var ac = eBack(k(t, 1600, 450));
+        if (ac > 0) { s2 += '<g opacity="' + (cl(ac * 1.5) * (1 - out)).toFixed(2) + '">' + rect(10, y + 80, 150, 38, 12, 'var(--act)') + txt(85, y + 104, 'Mark taken', { size: 13, w: 700, anchor: 'middle', fill: 'var(--onAct)' }) + rect(166, y + 80, 150, 38, 12, 'var(--well)') + txt(241, y + 104, 'Snooze 15 min', { size: 13, w: 600, anchor: 'middle' }) + '</g>';
+          var tp = k(t, 2700, 500); if (tp > 0 && tp < 1) s2 += '<circle cx="85" cy="' + (y + 99) + '" r="' + (6 + 26 * tp).toFixed(1) + '" fill="var(--onAct)" opacity="' + (0.45 * (1 - tp)).toFixed(2) + '"/>'; }
+      }
+      if (done) { var c = eBack(k(t, 3500, 450)); s2 += '<g opacity="' + cl(c * 1.5).toFixed(2) + '"><circle cx="24" cy="112" r="' + (11 * c).toFixed(1) + '" fill="var(--ok)"/>' + tick(24, 112, 1) + txt(44, 117, 'BPC-157 · taken 7:20 PM', { size: 13, w: 600 }) + '</g>' + txt(4, 150, 'Logged right from the reminder', { size: 11.5, fill: 'var(--ink2)', op: cl((t - 3900) / 400) }); }
+      return s2; } };
+    // Injection-site rotation: a week of your own sites on your body image, then the longest unused
+    A.sites = { h: 250, dur: 6400, draw: function (t) {
+      var sx = 'm', PT = PTS.male.front; try { if (figSex() === 'female') { sx = 'f'; PT = PTS.female.front; } } catch (e) { }
+      var sc = 0.22, ox = 0, oy = 2, s2 = '<image href="body/' + sx + '_front.webp" x="' + ox + '" y="' + oy + '" width="' + (768 * sc) + '" height="' + (960 * sc) + '"/>';
+      var W7 = [['Mon', 'abdomen_lr'], ['Tue', 'abdomen_ll'], ['Wed', 'thigh_f_r'], ['Thu', 'abdomen_ur'], ['Fri', 'abdomen_ul'], ['Sat', 'thigh_f_l']];
+      W7.forEach(function (d, i) {
+        var at = 400 + i * 560, a = eBack(k(t, at, 420)); if (a <= 0) return; var p = PT[d[1]], x = ox + p[0] * sc, y = oy + p[1] * sc, latest = t < at + 560 || i === W7.length - 1;
+        s2 += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (5.5 * a).toFixed(1) + '" fill="var(--figSel)" opacity="' + (latest ? 1 : 0.5) + '"/>';
+        var ry = 12 + i * 28; s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '">' + txt(172, ry + 12, d[0], { mono: 1, size: 11, fill: 'var(--ink2)' }) + txt(202, ry + 12, siteById(d[1]).label, { size: 11, w: latest ? 700 : 400 }) + '</g>';
+      });
+      if (t > 4000) { var c = cl((t - 4000) / 450), p2 = PT.abdomen_lr; s2 += '<ellipse cx="' + (ox + p2[0] * sc).toFixed(1) + '" cy="' + (oy + p2[1] * sc).toFixed(1) + '" rx="9" ry="8" fill="none" stroke="var(--figInk)" stroke-width="1.2" stroke-dasharray="3 2.4" opacity="' + c.toFixed(2) + '"/>' + txt(172, 196, 'Longest unused in your log', { size: 11, fill: 'var(--ink2)', op: c }) + txt(172, 214, 'Abdomen, lower right', { size: 13, w: 700, op: c }) + txt(172, 231, '6 days ago', { size: 11, fill: 'var(--ink2)', op: c }); }
+      return s2; } };
+    // Dose log and streak: a week fills, the streak and the ring count with it
+    A.log = { h: 250, dur: 5600, draw: function (t) {
+      var s2 = '', D = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], n = 0;
+      D.forEach(function (d, i) { var at = 300 + i * 420, a = eBack(k(t, at, 380)); if (t > at) n++; var cx = 26 + i * 45; s2 += '<circle cx="' + cx + '" cy="34" r="16" fill="var(--well)"/>'; if (a > 0) s2 += '<circle cx="' + cx + '" cy="34" r="' + (16 * a).toFixed(1) + '" fill="var(--data)"/>' + (a > 0.6 ? tick(cx, 34, 1, 'var(--onData)') : ''); s2 += txt(cx, 68, d, { size: 11, anchor: 'middle', fill: 'var(--ink2)' }); });
+      s2 += txt(4, 112, 'Streak', { size: 11, fill: 'var(--ink2)' }) + txt(4, 160, String(n), { mono: 1, size: 44, w: 500 }) + txt(4, 182, n === 1 ? 'day without a miss' : 'days without a miss', { size: 12, fill: 'var(--ink2)' });
+      var R2 = 42, C = 2 * Math.PI * R2, f = n / 7;
+      s2 += '<circle cx="250" cy="148" r="' + R2 + '" fill="none" stroke="var(--well)" stroke-width="10"/><circle cx="250" cy="148" r="' + R2 + '" fill="none" stroke="var(--data)" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + (C * f).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 250 148)"/>' + txt(250, 153, n + ' of 7', { mono: 1, size: 14, w: 500, anchor: 'middle' }) + txt(250, 208, 'this week', { size: 11, anchor: 'middle', fill: 'var(--ink2)' });
+      if (t > 3700) s2 += txt(163, 240, 'Every dose you log fills your week', { size: 11.5, anchor: 'middle', fill: 'var(--ink2)', op: cl((t - 3700) / 400) });
+      return s2; } };
+    // Energy & protein calculator: your numbers in, standard-formula estimates out (Mifflin-St Jeor: 84 kg, 180 cm, 38 y, male = 1,780; x1.55 = ~2,760; 1.6-2.0 g/kg = 134-168 g)
+    A.energy = { h: 250, dur: 6000, draw: function (t) {
+      var s2 = '', IN = ['84 kg', '180 cm', '38 years', 'Moderately active'], x = 4;
+      var cy = 6; IN.forEach(function (c, i) { var a = eBack(k(t, 150 + i * 260, 380)), w = c.length * 6.4 + 22; if (x + w > 322) { x = 4; cy += 32; } if (a > 0) s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '">' + rect(x, cy, w, 26, 13, 'var(--well)') + txt(x + w / 2, cy + 17, c, { size: 11.5, anchor: 'middle' }) + '</g>'; x += w + 6; });
+      var R = [['Resting burn (BMR)', 1780, ' kcal', 0.64], ['Daily burn (estimate)', 2760, ' kcal', 1], ['Protein', 0, 'g / day', 0.5]];
+      R.forEach(function (r, i) { var at = 1500 + i * 700, a = eio(k(t, at, 900)); if (t < at - 150) return; var y = 80 + i * 50; s2 += '<g opacity="' + cl((t - at + 150) / 300).toFixed(2) + '">' + txt(4, y + 12, r[0], { size: 12, fill: 'var(--ink2)' }) + txt(322, y + 12, i === 2 ? num(134 * a) + '–' + num(168 * a) + ' ' + r[2] : num(r[1] * a) + r[2], { mono: 1, size: 15, w: 500, anchor: 'end' }) + rect(4, y + 22, 318, 6, 3, 'var(--well)') + rect(4, y + 22, 318 * r[3] * a, 6, 3, 'var(--data)') + '</g>'; });
+      if (t > 4200) s2 += txt(163, 240, 'Estimates from standard formulas · sources in the app', { size: 11, anchor: 'middle', fill: 'var(--ink2)', op: cl((t - 4200) / 400) });
+      return s2; } };
+    // Lab test journal (typed): values from any report, kept together by date (the chart is Premium)
+    A.labsman = { h: 250, dur: 5800, draw: function (t) {
+      var s2 = '', F = [['Marker', 'Vitamin D', 200], ['Value', '24 ng/mL', 800], ['Date', 'Mar 2, 2026', 1300]];
+      var fo = eio(k(t, 2300, 400));
+      s2 += '<g opacity="' + (1 - 0.55 * fo).toFixed(2) + '">' + rect(4, 4, 318, 92, 14, 'var(--well)');
+      F.forEach(function (f, i) { var y = 22 + i * 26; s2 += txt(16, y, f[0], { size: 11, fill: 'var(--ink2)' }) + txt(96, y, typed(f[1], t, f[2], 420) + cursor(t, t > f[2] && t < f[2] + 520), { mono: 1, size: 12.5 }); });
+      var sv = eBack(k(t, 1800, 350)); if (sv > 0) s2 += '<g opacity="' + cl(sv * 1.5).toFixed(2) + '">' + rect(248, 62, 64, 26, 13, 'var(--act)') + txt(280, 79, 'Save', { size: 12, w: 700, anchor: 'middle', fill: 'var(--onAct)' }) + '</g>';
+      s2 += '</g>';
+      var ROWS = [['Vitamin D', '24 ng/mL', 'Mar 2', 2300], ['Vitamin D', '31 ng/mL', 'Jun 8', 3000], ['Vitamin D', '38 ng/mL', 'Sep 14', 3600]];
+      ROWS.forEach(function (r, i) { var a = eBack(k(t, r[3], 420)); if (a <= 0) return; var y = 108 + i * 38; s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '" transform="translate(0 ' + (10 * (1 - a)).toFixed(1) + ')">' + rect(4, y, 318, 32, 10, 'var(--raised)', { stroke: 'var(--line)' }) + txt(16, y + 21, r[0], { size: 12, w: 600 }) + txt(220, y + 21, r[1], { mono: 1, size: 12, anchor: 'end' }) + txt(310, y + 21, r[2], { size: 11, anchor: 'end', fill: 'var(--ink2)' }) + '</g>'; });
+      if (t > 4300) s2 += txt(163, 242, 'Your values in one place, ready when you need them', { size: 11, anchor: 'middle', fill: 'var(--ink2)', op: cl((t - 4300) / 400) });
+      return s2; } };
+    // Dose notes: a note written when logging, found again in the dose log
+    A.notes = { h: 250, dur: 5800, draw: function (t) {
+      var s2 = '', note = 'Took it after training. Slept well.', mv = eio(k(t, 2900, 500));
+      s2 += '<g opacity="' + (1 - mv).toFixed(2) + '" transform="translate(0 ' + (-20 * mv).toFixed(1) + ')">' + rect(4, 6, 318, 40, 12, 'var(--well)') + '<circle cx="20" cy="26" r="5" fill="var(--p2)"/>' + txt(32, 30, 'TB-500 · 0.5 mg', { size: 12.5, w: 700 }) + txt(310, 30, 'Taken 7:42 PM', { size: 11, anchor: 'end', fill: 'var(--ink2)' });
+      s2 += txt(4, 68, 'Note', { size: 11, fill: 'var(--ink2)' }) + rect(4, 76, 318, 44, 12, 'var(--raised)', { stroke: 'var(--line)' }) + txt(14, 102, typed(note, t, 400, 1700) + cursor(t, t > 300 && t < 2400), { size: 12.5 });
+      var sv = eBack(k(t, 2300, 350)); if (sv > 0) s2 += '<g opacity="' + cl(sv * 1.5).toFixed(2) + '">' + rect(248, 130, 74, 28, 14, 'var(--act)') + txt(285, 148, 'Save', { size: 12, w: 700, anchor: 'middle', fill: 'var(--onAct)' }) + '</g>';
+      s2 += '</g>';
+      if (t > 3100) { var a = eBack(k(t, 3100, 450)); s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '">' + txt(4, 22, 'Dose log', { size: 13, w: 700 }) + txt(4, 46, 'Mon, Sep 28', { size: 11, w: 600, fill: 'var(--ink2)' }) + rect(4, 54, 318, 58, 12, 'var(--well)') + txt(16, 76, 'TB-500', { size: 12.5, w: 700 }) + txt(310, 76, '7:42 PM', { mono: 1, size: 11, anchor: 'end', fill: 'var(--ink2)' }) + txt(16, 97, '“' + note + '”', { size: 11.5, fill: 'var(--ink2)' }) + txt(4, 136, 'Sun, Sep 27', { size: 11, w: 600, fill: 'var(--ink2)' }) + rect(4, 144, 318, 40, 12, 'var(--well)') + txt(16, 168, 'BPC-157', { size: 12.5, w: 700 }) + txt(310, 168, '7:20 PM', { mono: 1, size: 11, anchor: 'end', fill: 'var(--ink2)' }) + '</g>'; }
+      if (t > 4200) s2 += txt(163, 238, 'Weeks later, you know what happened', { size: 11.5, anchor: 'middle', fill: 'var(--ink2)', op: cl((t - 4200) / 400) });
+      return s2; } };
     function html(key) { var a = A[key]; return '<div class="card pc fxcard" data-fx="' + key + '"><span class="otag" style="align-self: flex-start">Example</span><svg class="full" viewBox="0 0 326 ' + a.h + '" role="img" aria-label="Example animation"></svg></div>'; }
     function run() {
       var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2454,9 +2550,24 @@ textarea.winp { resize: none; }
     ['protos', 'stack', nc('Every protocol you run'), nc('The free plan holds 3 protocols. Premium holds as many as you run, each with its own schedule, reminders and calculator.')],
     ['pdf', 'download', nc('A clean PDF for your doctor'), nc('Pick the lab results and vaccines you need and export a formatted PDF — CSV stays free.')]
   ];
+  // Free-feature explainers (founder 2026-09-29 / 30): shown the first time someone reaches a feature they have not used; skip in one tap; at most one a day; never on the dose-logging path; stop once used (stored in synced storage). Example numbers only.
+  var EXPLAINERS = [
+    ['recon', 'Never guess the draw', 'Enter your vial, the water you add and your dose. DoseTrace works out how many units to draw on your syringe, so the math is done for you.'],
+    ['vial', 'Know when a vial runs low', 'Every dose you log comes off the vial. DoseTrace shows the doses and days left and warns you before you run out.'],
+    ['remind', 'A reminder at the right time', 'Get a reminder when a dose is due and mark it taken right from the notification.'],
+    ['sites', 'Rotate your injection sites', 'Log where you injected and see your own rotation at a glance, with the spot you have not used the longest.'],
+    ['log', 'Keep your streak', 'Every dose you log fills your week and your streak, so you see at a glance how consistent you have been.'],
+    ['energy', 'Your daily numbers', 'From your weight, height, age and activity, DoseTrace estimates your resting burn, your daily burn and a protein range, using standard formulas.'],
+    ['labsman', 'All your lab values in one place', 'Type in values from any lab report and keep them together by date, with the units on your report.'],
+    ['notes', 'Notes on your doses', 'Add a note when you log a dose, like how you felt or when you took it, and find it later in your dose log.']
+  ];
+  function explainerSheet(k2) {
+    var xp = EXPLAINERS.filter(function (x) { return x[0] === k2; })[0];
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="XP-' + k2 + '" style="max-height: 92%; overflow-y: auto"><div class="row" style="justify-content: space-between; gap: 10px"><span class="r-title">' + nc(xp[1]) + '</span><span class="round" style="width: 36px; height: 36px; flex: none"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>' + FX.html(k2) + '<span class="r-sec c2">' + nc(xp[2]) + '</span><div class="row" style="gap: 10px"><span class="btn o" style="flex: 1"' + A('close') + '>' + nc('Not now') + '</span><span class="btn p" style="flex: 1.4"' + A('close') + '>' + nc('Try it') + '</span></div><span class="r-foot c2">' + nc('Example numbers. You see this until you first use the feature.') + '</span></div></div>';
+  }
   function previewSheet(k2) {
     var pv = PREVIEWS.filter(function (x) { return x[0] === k2; })[0];
-    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="PW-' + k2 + '" style="max-height: 92%; overflow-y: auto"><div class="row" style="justify-content: space-between; gap: 10px"><span class="r-title">' + pv[2] + '</span><span class="round" style="width: 36px; height: 36px; flex: none"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>' + (k2 === 'serum' ? HERO.html('pv-serum') : FX.html(k2)) + '<span class="r-sec c2">' + pv[3] + '</span><span class="btn p"' + A('paywall') + '>Unlock with Pro</span><span class="r-foot c3">Example only — a math estimate or sample, built from your own data once you use the app. Never a measurement or advice.</span></div></div>';
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="PW-' + k2 + '" style="max-height: 92%; overflow-y: auto"><div class="row" style="justify-content: space-between; gap: 10px"><span class="r-title">' + pv[2] + '</span><span class="round" style="width: 36px; height: 36px; flex: none"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>' + (k2 === 'serum' ? HERO.html('pv-serum') : FX.html(k2)) + '<span class="r-sec c2">' + pv[3] + '</span><span class="btn p"' + A('paywall') + '>Unlock with Premium</span><span class="r-foot c3">Example only — a math estimate or sample, built from your own data once you use the app. Never a measurement or advice.</span></div></div>';
   }
 
   /* ================= Paywall (under review) ================= */
@@ -2867,6 +2978,9 @@ textarea.winp { resize: none; }
     (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'pop') { var pk = kv[1]; if (BERR[pk]) st.overlay = bErr(pk); else if (pk === 'upgrade') st.overlay = upgradeSheet(); else if (pk === 'spreview') st.overlay = { t: 'spreview' }; else if (pk === 'vprem') st.overlay = vaxPremium(); else if (pk === 'consent') { st.consent = false; st.after = kv[2] || 'lab'; st.overlay = consentSheet(); } else if (pk === 'src') { st.after = kv[2] || 'lab'; st.overlay = srcSheet(st.after); } else if (pk === 'export') { var ms9 = markerSeries(), vl9 = vaxList(); st.exp = { m: ms9.map(function (x) { return x.name; }), v: vl9.map(function (x) { return x.name; }) }; st.overlay = { t: 'export' }; } else if (pk === 'medit') { st.form = { mk: '2026-08-20', mn0: 'Hematocrit', mn: 'Hematocrit', mv: '47.6', mu: '%', md: +new Date('2026-08-20T12:00:00') }; st.overlay = { t: 'medit' }; } } else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
   // any other side-panel jump leaves the sign-in screens
   document.querySelector('.side').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt && !bt.hasAttribute('data-ago') && !bt.hasAttribute('data-ogo') && !bt.hasAttribute('data-pgo') && !bt.hasAttribute('data-ctl')) { st.auth = null; st.onb = null; st.pay = null; } }, true);
+  document.querySelectorAll('[data-xgo]').forEach(function (b) {
+    b.addEventListener('click', function () { var k8 = b.getAttribute('data-xgo'); st.wiz = null; st.toast = null; st.auth = null; st.onb = null; st.pay = null; st.fxT = st.fxT || {}; delete st.fxT[k8]; st.overlay = { t: 'xp', k: k8 }; toPhone(); });
+  });
   document.querySelectorAll('[data-igo]').forEach(function (b) {
     b.addEventListener('click', function () { var kv = b.getAttribute('data-igo').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.auth = null; st.onb = null; st.pay = null; st.noHist = false; st.tab = 0; st.stacks[0] = [{ s: 'today' }];
       st.taken = Object.assign({}, TAKEN0); st.sites = { tb: { type: 'subq', sites: ['abdomen_lr'] } };
