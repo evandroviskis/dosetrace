@@ -53,7 +53,7 @@ Founder decisions since (2026-09-29):
   replaced by "Dose accumulation curves". **Scans are never "unlimited"** (founder 2026-09-30: "Increase the limit to 20 scans
   total, including vaccines, blood tests and vials"): Premium gets 20 scans a month shared by lab
   reports, vaccine cards and vial labels; free keeps today's 3 a month (one lab report to try;
-  vaccine cards stay Premium). Paywall links are "Terms of Use (EULA)" (Apple's Standard
+  vaccine cards stay Premium; founder confirmed with "Approved"). Paywall links are "Terms of Use (EULA)" (Apple's Standard
   EULA, as in ASC) and "Privacy Policy" (dosetrace.io, as in ASC); both ship in the next main
   build with the scan caps (today-build-handoff items 23-24).
 - **Onboarding APPROVED (2026-09-29, founder: "Approved")** with the recommended answers: main's steps

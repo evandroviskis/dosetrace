@@ -503,6 +503,22 @@ textarea.winp { resize: none; }
 .plan.on { box-shadow: inset 0 0 0 2.5px var(--ink); }
 .plan .radio { position: absolute; top: 16px; right: 14px; width: 22px; height: 22px; border-radius: 11px; box-shadow: inset 0 0 0 1.5px var(--tick); }
 .plan .radio.on { box-shadow: inset 0 0 0 7px var(--ink); }
+/* Injection-site picker */
+.sitesheet { max-height: 92%; overflow-y: auto; gap: 12px; }
+.sitesheet > * { flex-shrink: 0; }
+.bodyfig .skin { fill: var(--line); }
+.sitewrap { display: flex; gap: 12px; align-items: flex-start; }
+.sitefig { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sitefig .segw span { min-height: 34px; padding: 0 12px; font-size: calc(14px * var(--ts)); }
+.bodyfig g:focus { outline: none; }
+.sitelist { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-top: 42px; }
+.siteopt { display: flex; gap: 10px; align-items: center; min-height: 44px; padding: 6px 10px; border-radius: 12px; background: var(--well); color: var(--ink); font: 400 calc(14px * var(--ts)) / 1.25 var(--sys); cursor: pointer; }
+.siteopt > i { width: 20px; height: 20px; border-radius: 10px; box-shadow: inset 0 0 0 1.5px var(--tick); flex: none; display: flex; align-items: center; justify-content: center; color: var(--onInk); }
+.siteopt.on { background: var(--raised); box-shadow: inset 0 0 0 1.5px var(--ink); font-weight: 600; }
+.siteopt.on > i { background: var(--ink); box-shadow: none; }
+.siteopt small { display: block; color: var(--ink2); font-size: calc(12px * var(--ts)); font-weight: 400; }
+.sitefree { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--well); }
+.sugk { display: inline-block; width: 12px; height: 12px; border-radius: 6px; border: 1.2px dashed var(--ink2); vertical-align: -1px; margin-right: 6px; }
 .cmpt .cmprow { min-height: 44px; gap: 8px; padding: 8px 0; }
 .paylink { min-height: 40px; display: inline-flex; align-items: center; }
 .cmpc { width: 64px; flex: none; display: flex; justify-content: center; text-align: center; }
@@ -564,7 +580,13 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Paywall + Premium feature animations <span class="stat rev">under review</span></h3>
+        <h3>Injection site <span class="stat rev">under review</span></h3>
+        <button data-igo="take:bpc">Mark BPC-157 taken<small>the site sheet opens by itself; body or list, several spots, Front / Back, "Longest unused in your log"; Not now keeps Add site + Undo in the toast</small></button>
+        <button data-igo="take:test">Mark Testosterone Cypionate taken<small>opens on Intramuscular, the route this protocol last used (your own history)</small></button>
+        <button data-igo="fresh">First injection, nothing in your log yet<small>no "Longest unused" marker until you have logged a site</small></button>
+        <button data-igo="log">Dose log<small>each injection shows its site; "+ Add site" on the ones without; tap to edit or remove</small></button>
+        <button data-igo="legacy">An older entry saved as typed text<small>"left glute" is kept unless you pick a spot or remove it (found on main: it was erased)</small></button>
+        <h3 style="margin-top: 10px">Paywall + Premium feature animations <span class="stat ok">approved</span></h3>
         <button data-pgo="open">The paywall<small>the curve plays; tap any "See what you get" row for its animation; Annual / Monthly; Terms + Privacy links</small></button>
         <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-pgo="pv:serum">Dose accumulation</button><button data-pgo="pv:reality">Reality check</button><button data-pgo="pv:food">AI food log</button><button data-pgo="pv:scan">Lab scan</button><button data-pgo="pv:labs">Marker trends</button><button data-pgo="pv:vax">Vaccine scan</button><button data-pgo="pv:protos">Unlimited protocols</button><button data-pgo="pv:pdf">PDF export</button></div>
         <button data-pgo="notrial">Not eligible for the free trial<small>"Subscribe" and the no-trial legal text</small></button>
@@ -915,7 +937,7 @@ textarea.winp { resize: none; }
   function reset() {
     st = { tab: 0, stacks: [[{ s: 'today' }], [{ s: 'dash' }], [{ s: 'journey' }], [{ s: 'body' }], [{ s: 'settings' }]],
       theme: 'light', ts: 1, sort: 'due', taken: Object.assign({}, TAKEN0), skipped: {}, fold: {}, snooze: -1,
-      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, jstate: 'test03', note: {}, noteEdit: null, used: { test: 7 }, scroll: {}, form: {} };
+      deleted: [], overlay: null, toast: null, consent: false, incomplete: null, jstate: 'test03', note: {}, noteEdit: null, used: { test: 7 }, scroll: {}, form: {}, sites: { tb: { type: 'subq', sites: ['abdomen_lr'] } } };
   }
   reset();
   function cur() { var s = st.stacks[st.tab]; return s[s.length - 1]; }
@@ -943,12 +965,12 @@ textarea.winp { resize: none; }
     h += '<div class="blk"><div class="lab"><span class="r-title">Doses</span><span class="cnt">' + day[0] + ' of ' + day[1] + ' taken</span></div>';
     dueIds.filter(function (id) { return !st.taken[id]; }).forEach(function (id) {
       var p = P[id], u = p.type !== 'oral' ? units(p) : null;
-      var c = card({ name: p.name, color: p.color, amount: p.dose + ' ' + p.dunit, freq: p.freq, time: p.time, due: true, skipped: st.skipped[id], draw: p.type === 'recon' ? [p.syr, u.u] : null, streak: p.streak, vial: p.vial ? [p.vial[0], p.vial[1], p.mixed, p.days] : null });
+      var c = card({ name: p.name, color: p.color, amount: p.dose + ' ' + p.dunit, freq: p.freq, time: p.time, due: true, skipped: st.skipped[id], draw: p.type === 'recon' ? [p.syr, u.u] : null, streak: p.streak, last: p.type !== 'oral' ? lastSite(id) : null, vial: p.vial ? [p.vial[0], p.vial[1], p.mixed, p.days] : null });
       c = c.replace('<div class="dose" data-i="8">', '<div class="dose" data-i="8"' + A('open', id) + '>').replace('<span class="btn o" data-i="15">', '<span class="btn o" data-i="15"' + A('skip', id) + '>').replace('<span class="btn p" data-i="16">', '<span class="btn p" data-i="16"' + A('take', id) + '>');
       h += c;
     });
     if (all) h += caught();
-    var rows = dueIds.filter(function (id) { return st.taken[id]; }).map(function (id) { return [P[id].name, st.taken[id], P[id].color]; });
+    var rows = dueIds.filter(function (id) { return st.taken[id]; }).map(function (id) { return [P[id].name, st.taken[id] + (st.sites[id] ? ' · ' + siteText(st.sites[id]) : ''), P[id].color]; });
     if (rows.length) h += takenBlock(rows, st.fold.taken).replace('data-i="N2"', 'data-i="N2"' + A('fold', 'taken'));
     h += '</div>';
     var tom = dueIds.map(function (id) { return { time: P[id].time, color: P[id].color, name: P[id].name, amount: P[id].dose + ' ' + P[id].dunit, freq: P[id].freq, id: id }; });
@@ -1041,8 +1063,81 @@ textarea.winp { resize: none; }
     h += '<div class="expl r-sec c2">You started your protocols with a goal. Keeping them on time — without missing doses — is how you get there. This shows how well you are keeping up.</div>';
     var tk = 9 + Object.keys(st.taken).length - 4;
     h += '<div class="trio" style="padding: 0 4px"><div><span class="r-display d34">' + tk + '</span><span class="r-cap c2">Taken</span></div><div><span class="r-display d34">' + Object.keys(st.skipped).length + '</span><span class="r-cap c2">Skipped</span></div><div><span class="r-display d34">0</span><span class="r-cap c2">Missed</span></div></div>';
-    var rows = Object.keys(st.taken).map(function (id) { return [P[id].name, st.taken[id]]; }).reverse();
-    return h + '<div class="lab"><span class="r-head">Mon, Sep 28</span><span class="r-foot c2">' + rows.length + ' doses</span></div><div class="list">' + rows.map(function (r) { return '<div class="li"><span class="okc">' + ic(I.check, 18, 'color: currentColor') + '</span><span class="r-body grow">' + r[0] + '</span><span class="r-sec c2 tnum">' + r[1] + '</span></div>'; }).join('') + '</div>';
+    var rows = Object.keys(st.taken).map(function (id) { return [P[id].name, st.taken[id], id]; }).reverse();
+    return h + '<div class="lab"><span class="r-head">Mon, Sep 28</span><span class="r-foot c2">' + rows.length + ' doses</span></div><div class="list" data-i="IS11">' + rows.map(function (r) { var inj = P[r[2]].type !== 'oral', sv = st.sites[r[2]]; return '<div class="li"' + (inj ? A('siteadd', r[2]) : '') + '><span class="okc">' + ic(I.check, 18, 'color: currentColor') + '</span><span class="grow col" style="gap: 2px; min-width: 0"><span class="r-body">' + r[0] + '</span>' + (inj ? (sv ? '<span class="r-sec c2">' + (sv.free ? siteText(sv) : siteNames(sv.sites)) + '</span>' : '<span class="r-sec tl">' + nc('+ Add site') + '</span>') : '') + '</span><span class="r-sec c2 tnum">' + r[1] + '</span>' + (inj ? CHEV : '') + '</div>'; }).join('') + '</div>';
+  }
+  /* ---------- Injection-site picker (under review) ---------- */
+  // Site list, ids, positions (100 x 220 figure) and words: main's lib/injectionSites.js + i18n, unchanged.
+  var SITES = [
+    ['abdomen_ul', 'subq', 'front', 'abdomen', 42, 92, 'Abdomen, upper left'], ['abdomen_ur', 'subq', 'front', 'abdomen', 58, 92, 'Abdomen, upper right'],
+    ['abdomen_ll', 'subq', 'front', 'abdomen', 44, 105, 'Abdomen, lower left'], ['abdomen_lr', 'subq', 'front', 'abdomen', 56, 105, 'Abdomen, lower right'],
+    ['thigh_f_l', 'subq', 'front', 'thigh', 40, 145, 'Thigh, front left'], ['thigh_f_r', 'subq', 'front', 'thigh', 60, 145, 'Thigh, front right'],
+    ['arm_back_l_f', 'subq', 'front', 'arm', 22, 68, 'Back of upper arm, left'], ['arm_back_r_f', 'subq', 'front', 'arm', 78, 68, 'Back of upper arm, right'],
+    ['arm_back_l_b', 'subq', 'back', 'arm', 22, 68, 'Back of upper arm, left'], ['arm_back_r_b', 'subq', 'back', 'arm', 78, 68, 'Back of upper arm, right'],
+    ['flank_l', 'subq', 'back', 'flank', 34, 100, 'Flank, left'], ['flank_r', 'subq', 'back', 'flank', 66, 100, 'Flank, right'],
+    ['glute_dimple_l', 'subq', 'back', 'glute', 40, 128, 'Upper buttock, left'], ['glute_dimple_r', 'subq', 'back', 'glute', 60, 128, 'Upper buttock, right'],
+    ['thigh_b_l', 'subq', 'back', 'thigh', 40, 160, 'Thigh, back left'], ['thigh_b_r', 'subq', 'back', 'thigh', 60, 160, 'Thigh, back right'],
+    ['deltoid_l', 'im', 'front', 'deltoid', 22, 58, 'Deltoid, left'], ['deltoid_r', 'im', 'front', 'deltoid', 78, 58, 'Deltoid, right'],
+    ['vastus_l', 'im', 'front', 'vastus', 36, 145, 'Vastus lateralis, left'], ['vastus_r', 'im', 'front', 'vastus', 64, 145, 'Vastus lateralis, right'],
+    ['ventroglute_l', 'im', 'back', 'ventroglute', 36, 124, 'Ventrogluteal, left'], ['ventroglute_r', 'im', 'back', 'ventroglute', 64, 124, 'Ventrogluteal, right'],
+    ['dorsoglute_l', 'im', 'back', 'dorsoglute', 40, 138, 'Dorsogluteal, left'], ['dorsoglute_r', 'im', 'back', 'dorsoglute', 60, 138, 'Dorsogluteal, right']
+  ].map(function (r) { return { id: r[0], type: r[1], view: r[2], group: r[3], x: r[4], y: r[5], label: r[6] }; });
+  var SGROUP = { abdomen: 'Abdomen', thigh: 'Thigh', arm: 'Arm', flank: 'Flank', glute: 'Buttock', deltoid: 'Deltoid', vastus: 'Vastus', ventroglute: 'Ventrogluteal', dorsoglute: 'Dorsogluteal' };
+  function siteById(id) { for (var i = 0; i < SITES.length; i++) if (SITES[i].id === id) return SITES[i]; return null; }
+  // Sample history (your own log, last 30 days): [protocol, site, days ago, route]
+  var SHIST = [['tb', 'abdomen_lr', 1, 'subq'], ['bpc', 'abdomen_ll', 1, 'subq'], ['tb', 'abdomen_ur', 2, 'subq'], ['bpc', 'thigh_f_r', 2, 'subq'], ['tb', 'abdomen_ul', 3, 'subq'], ['bpc', 'arm_back_r_f', 5, 'subq'], ['tb', 'arm_back_l_f', 8, 'subq'], ['bpc', 'thigh_f_l', 12, 'subq'], ['test', 'deltoid_r', 7, 'im'], ['test', 'vastus_l', 14, 'im']];
+  function hist() { return st.noHist ? [] : SHIST; }
+  function siteSummary(ids) { if (ids.length === 1) return siteById(ids[0]).label; var g = []; ids.forEach(function (id) { var s = siteById(id); if (s && g.indexOf(SGROUP[s.group]) < 0) g.push(SGROUP[s.group]); }); return ids.length + ' sites · ' + g.join(', '); }
+  function siteNames(ids) { return ids.map(function (id) { return siteById(id).label; }).join(' · '); }
+  // Days since each site was last used, today's saved sites included (0 days)
+  // arm_back_l_f and arm_back_l_b are one physical spot: ages are kept per spot, not per id
+  function spot(id) { return id.replace(/^(arm_back_[lr])_[fb]$/, '$1'); }
+  function siteAges() { var age = {}; hist().forEach(function (h) { var k = spot(h[1]); if (age[k] == null || h[2] < age[k]) age[k] = h[2]; }); Object.keys(st.sites).forEach(function (pid) { (st.sites[pid].sites || []).forEach(function (id) { age[spot(id)] = 0; }); }); return age; }
+  // Main's "Longest unused": the site in this view and route that has gone longest without use in your log; never-used first. A recall, not advice.
+  function siteLongest(view, type) { var age = siteAges(), best = null, bd = -1, any = false; SITES.forEach(function (s) { if (s.view !== view || s.type !== type) return; var d = age[spot(s.id)] == null ? 999 : age[spot(s.id)]; if (d < 999) any = true; if (d > bd) { bd = d; best = s; } }); return any && best ? { s: best, d: bd } : null; }
+  function siteText(v) { return v.free ? '\u201c' + v.free + '\u201d' : siteSummary(v.sites); }
+  function lastSite(pid) { if (st.sites[pid]) return siteText(st.sites[pid]) + ' · today'; var h = null; hist().forEach(function (x) { if (x[0] === pid && (!h || x[2] < h[2])) h = x; }); return h ? siteById(h[1]).label + ' · ' + h[2] + 'd ago' : null; }
+  // The route opens on the one this protocol last used (your own history); subcutaneous if none.
+  function lastRoute(pid) { if (st.sites[pid] && st.sites[pid].type) return st.sites[pid].type; var h = null; hist().forEach(function (x) { if (x[0] === pid && (!h || x[2] < h[2])) h = x; }); return h ? h[3] : 'subq'; }
+  function openSite(pid) { var cur2 = st.sites[pid]; st.overlay = { t: 'site', pid: pid, type: cur2 && cur2.type ? cur2.type : lastRoute(pid), view: 'front', sel: cur2 ? cur2.sites.slice() : [], free: cur2 && cur2.free ? cur2.free : '', other: null, edit: !!cur2 }; }
+  function bodyFig(view) {
+    var f = 'class="skin"', s = '<svg class="bodyfig" viewBox="0 0 100 220" width="140" height="308" aria-hidden="true">';
+    s += '<ellipse cx="50" cy="16" rx="9" ry="11" ' + f + '/><rect x="45" y="24" width="10" height="10" rx="3" ' + f + '/>';
+    s += '<rect x="29" y="32" width="42" height="58" rx="13" ' + f + '/><rect x="31.5" y="80" width="37" height="54" rx="11" ' + f + '/>';
+    s += '<rect x="16.5" y="37" width="12" height="52" rx="6" ' + f + ' transform="rotate(7 22.5 37)"/><rect x="71.5" y="37" width="12" height="52" rx="6" ' + f + ' transform="rotate(-7 77.5 37)"/>';
+    s += '<rect x="13" y="84" width="10" height="44" rx="5" ' + f + ' transform="rotate(4 18 84)"/><rect x="77" y="84" width="10" height="44" rx="5" ' + f + ' transform="rotate(-4 82 84)"/>';
+    s += '<rect x="32.5" y="124" width="16.5" height="88" rx="8" ' + f + '/><rect x="51" y="124" width="16.5" height="88" rx="8" ' + f + '/>';
+    if (view === 'back') s += '<line x1="50" y1="36" x2="50" y2="112" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 2.5"/>';
+    else s += '<circle cx="50" cy="99" r="1.1" fill="var(--tick)"/>';
+    return s;
+  }
+  function siteSheet() {
+    var o = st.overlay, p = P[o.pid], lg = siteLongest(o.view, o.type);
+    var vis = SITES.filter(function (s) { return s.view === o.view && s.type === o.type; });
+    var h = '<div class="scrim bot"' + A('sitescrim') + '><div class="sheet bsheet sitesheet" data-i="IS1">';
+    h += '<div class="row" style="justify-content: space-between; gap: 12px"><div class="col" style="gap: 2px"><span class="r-title">' + nc('Injection site') + '</span><span class="r-sec c2 tnum">' + p.name + ' · ' + (o.edit ? 'taken ' : nc('dose logged ')) + (st.taken[o.pid] || 'today') + '</span>' + (o.edit ? '' : '<span class="btnlink r-sec" style="align-self: flex-start; min-height: 32px"' + A('siteundo', o.pid) + '>' + nc('Undo dose') + '</span>') + '</div><span class="round" style="width: 36px; height: 36px; flex: none"' + A('siteno') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>';
+    h += '<div class="segw fill" role="radiogroup" data-i="IS2">' + [['subq', 'Subcutaneous'], ['im', 'Intramuscular']].map(function (x) { return '<span class="' + (o.type === x[0] ? 'on' : '') + '"' + A('sitetype', x[0]) + ' role="radio" aria-checked="' + (o.type === x[0]) + '">' + x[1] + '</span>'; }).join('') + '</div>';
+    var fig = bodyFig(o.view);
+    vis.forEach(function (s) {
+      var on = o.sel.indexOf(s.id) >= 0, sug = lg && lg.s.id === s.id && !on;
+      fig += '<g' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '" aria-label="' + s.label + '" style="cursor: pointer"><circle cx="' + s.x + '" cy="' + s.y + '" r="8" fill="transparent"/>';
+      if (sug) fig += '<circle cx="' + s.x + '" cy="' + s.y + '" r="7.2" fill="none" stroke="var(--ink2)" stroke-width="1" stroke-dasharray="2 1.8"/>';
+      fig += on ? '<circle cx="' + s.x + '" cy="' + s.y + '" r="5.6" fill="var(--ink)"/><path d="M' + (s.x - 2.4) + ' ' + s.y + ' l1.7 1.8 3.2 -3.6" fill="none" stroke="var(--onInk)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' : '<circle cx="' + s.x + '" cy="' + s.y + '" r="4.4" fill="var(--raised)" stroke="var(--ink2)" stroke-width="1.2"/>';
+      fig += '</g>';
+    });
+    fig += '</svg>';
+    h += '<div class="sitewrap" data-i="IS3"><div class="sitefig"><div class="segw" data-i="IS4">' + [['front', 'Front'], ['back', 'Back']].map(function (x) { return '<span class="' + (o.view === x[0] ? 'on' : '') + '"' + A('siteview', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</div>' + fig + '<div class="row r-cap c2" style="width: 140px; justify-content: space-between" data-i="IS5"><span>' + nc('Your left') + '</span><span>' + nc('Your right') + '</span></div></div>';
+    h += '<div class="sitelist" data-i="IS6">' + vis.map(function (s) { var on = o.sel.indexOf(s.id) >= 0, sug = lg && lg.s.id === s.id; return '<span class="siteopt' + (on ? ' on' : '') + '"' + A('sitetog', s.id) + ' role="checkbox" aria-checked="' + on + '"><i>' + (on ? ic(I.check, 14, 'color: currentColor') : '') + '</i><span>' + s.label + (sug ? '<small>' + nc('Longest unused') + '</small>' : '') + '</span></span>'; }).join('') + '<span class="siteopt' + (o.other != null ? ' on' : '') + '"' + A('siteother') + ' role="checkbox" aria-checked="' + (o.other != null) + '"><i>' + (o.other != null ? ic(I.check, 14, 'color: currentColor') : '') + '</i><span>' + nc('Somewhere else') + '<small>' + nc('Type it in') + '</small></span></span>' + '</div></div>';
+    if (o.other != null) h += '<label class="col" style="gap: 6px" data-i="IS12"><span class="r-sec c2">' + nc('Where? (your words)') + '</span><input id="siteothin" class="winp" maxlength="40" placeholder="e.g. right calf" value="' + (o.other || '').replace(/"/g, '&quot;') + '"></label>';
+    if (o.free && !o.sel.length && o.other == null) h += '<div class="sitefree" data-i="IS13"><span class="r-sec">' + nc('Saved earlier as text: ') + '<b style="font-weight: 600">\u201c' + o.free + '\u201d</b></span><span class="r-foot c2">' + nc('Kept as it is unless you pick a spot or tap Remove site.') + '</span></div>';
+    if (lg) h += '<span class="r-foot c2 tnum" data-i="IS7"><span class="sugk"></span>' + nc('Longest unused in your log: ') + '<b style="color: var(--ink); font-weight: 600">' + lg.s.label + '</b>' + (lg.d >= 999 ? nc(' · not in your log yet') : nc(' · last used ' + lg.d + (lg.d === 1 ? ' day' : ' days') + ' ago')) + '</span>';
+    var others = o.sel.filter(function (id) { return vis.every(function (s) { return s.id !== id; }); });
+    h += '<span class="r-body tnum" data-i="IS8" style="min-height: 22px">' + (o.sel.length ? '<b style="font-weight: 600">' + o.sel.length + ' selected:</b> ' + siteNames(o.sel) + (others.length ? nc(' (' + others.length + ' on the ' + (o.view === 'front' ? 'back' : 'front') + ')') : '') : '<span class="c2">' + nc('Tap a spot on the body or pick from the list. You can pick more than one.') + '</span>') + '</span>';
+    h += '<span class="r-foot c2" data-i="IS9">Personal log only. Follow your healthcare provider\'s instructions for injection technique and site selection.</span>';
+    var can = o.sel.length || (o.other != null && o.other.trim()) || (o.edit && o.free);
+    h += '<div class="row" style="gap: 10px" data-i="IS10"><span class="btn o" style="flex: 1"' + A('siteno') + '>' + nc(o.edit ? 'Cancel' : 'Not now') + '</span><span id="sitesavebtn" class="btn p' + (can ? '' : ' obdim') + '" style="flex: 1.4"' + A('sitesave') + ' aria-disabled="' + !can + '">Save</span></div>';
+    if (o.edit) h += '<span class="btnlink r-body" style="align-self: center; min-height: 40px; color: var(--risk)"' + A('siteclear') + '>' + nc('Remove site') + '</span>';
+    return h + '</div></div>';
   }
   function notYet(name, img) {
     return '<div class="hrow"><h3 class="r-large">' + name + '</h3></div><div class="expl r-sec c2">Not redesigned yet. This tab keeps main\'s screen until its turn comes.</div>' + (img ? '<img src="current/' + img + '" alt="' + name + ' on main" style="width: 100%; border-radius: 20px">' : '');
@@ -1068,6 +1163,7 @@ textarea.winp { resize: none; }
     if (o.t === 'rcstart') return rcStartSheet();
     if (o.t === 'vaxform') return vaxForm();
     if (o.t === 'pv') return previewSheet(o.k);
+    if (o.t === 'site') return siteSheet();
     if (o.t === 'prof') return profSheet();
     if (o.t === 'country') return countrySheet();
     if (o.t === 'lang') return langSheet();
@@ -2458,12 +2554,13 @@ textarea.winp { resize: none; }
   document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
       return;
     }
-    phone.innerHTML = sbar(Object.keys(st.taken).length > 4 ? '8:11' : '8:10') + '<div class="scroller" id="scroller"><div class="scr' + (c.s === 'today' ? '' : ' pscr') + '">' + body + '</div></div>' + (st.toast ? '<div class="toast" data-i="40"><span class="r-body grow">' + st.toast.text + '</span>' + (st.toast.undo ? '<span class="r-body tl"' + A('undo', st.toast.undo) + '>Undo</span>' : '') + '</div>' : '') + overlay() + tabs(st.tab).replace(/<a class="r-tab([^"]*)" href="#todayLight"/g, function (m, cls) { return '<a class="r-tab' + cls + '" href="#phone"'; }).replace(/<a class="r-tab/g, (function () { var i = 0; return function (m) { return '<a' + A('tab', i++) + ' class="r-tab'; }; })()) + '<div class="home"></div>';
+    phone.innerHTML = sbar(Object.keys(st.taken).length > 4 ? '8:11' : '8:10') + '<div class="scroller" id="scroller"><div class="scr' + (c.s === 'today' ? '' : ' pscr') + '">' + body + '</div></div>' + (st.toast ? '<div class="toast" data-i="40"><span class="r-body grow">' + st.toast.text + '</span>' + (st.toast.site ? '<span class="r-body tl"' + A('siteadd', st.toast.site) + '>Add site</span>' : '') + (st.toast.undo ? '<span class="r-body tl"' + A('undo', st.toast.undo) + '>Undo</span>' : '') + '</div>' : '') + overlay() + tabs(st.tab).replace(/<a class="r-tab([^"]*)" href="#todayLight"/g, function (m, cls) { return '<a class="r-tab' + cls + '" href="#phone"'; }).replace(/<a class="r-tab/g, (function () { var i = 0; return function (m) { return '<a' + A('tab', i++) + ' class="r-tab'; }; })()) + '<div class="home"></div>';
     HERO.run(); FX.run();
     var sc = document.getElementById('scroller'); sc.scrollTop = st.scroll[key()] || 0;
     sc.addEventListener('scroll', function () { st.scroll[key()] = sc.scrollTop; });
     var r = document.getElementById('ruler'); if (r) r.scrollLeft = +r.getAttribute('data-center');
     var ta = document.getElementById('noteta'); if (ta) ta.focus();
+    var so9 = document.getElementById('siteothin'); if (so9 && document.activeElement !== so9 && !so9.value) so9.focus();
     document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
   }
   var toastTimer;
@@ -2471,6 +2568,7 @@ textarea.winp { resize: none; }
   function push(x) { st.stacks[st.tab].push(x); st.scroll[key()] = 0; }
   phone.addEventListener('input', function (e) {
     var t = e.target;
+    if (t.id === 'siteothin' && st.overlay && st.overlay.t === 'site') { st.overlay.other = t.value; var sb = document.getElementById('sitesavebtn'), ok9 = !!t.value.trim() || st.overlay.sel.length > 0; if (sb) { sb.classList.toggle('obdim', !ok9); sb.setAttribute('aria-disabled', String(!ok9)); } return; }
     if (t.id === 'labq') { st.labq = t.value; filterLabs(); return; }
     if (t.id === 'pfname' && (st.onb || st.pf)) { (st.onb ? st.onb.d : st.pf).name = t.value; if (st.onb) obRefresh(); return; }
     if (t.id === 'pfby' && (st.onb || st.pf)) { t.value = t.value.replace(/[^0-9]/g, '').slice(0, 4); (st.onb ? st.onb.d : st.pf).by = t.value; if (st.onb) { var yb = document.getElementById('obyear'); if (yb) yb.hidden = !(/^\d{4}$/.test(t.value) && !obYearOk(t.value)); obRefresh(); } return; }
@@ -2496,8 +2594,18 @@ textarea.winp { resize: none; }
     else if (a === 'open') push({ s: 'proto', id: v });
     else if (a === 'go') push({ s: v });
     else if (a === 'log') push({ s: 'log' });
-    else if (a === 'take') { st.taken[v] = '8:11 PM'; delete st.skipped[v]; toast('Dose logged', v); }
-    else if (a === 'undo') { delete st.taken[v]; st.toast = null; }
+    else if (a === 'take') { st.taken[v] = '8:11 PM'; delete st.skipped[v]; delete st.sites[v]; toast('Dose logged', v); if (P[v].type !== 'oral') { clearTimeout(toastTimer); openSite(v); } }
+    else if (a === 'siteadd') { clearTimeout(toastTimer); st.toast = null; openSite(v); }
+    else if (a === 'sitetype') { if (st.overlay.type !== v) { st.overlay.type = v; st.overlay.sel = []; } }
+    else if (a === 'siteview') st.overlay.view = v;
+    else if (a === 'sitetog') { var ss = st.overlay.sel, ix = ss.indexOf(v); if (ix >= 0) ss.splice(ix, 1); else { ss.push(v); st.overlay.other = null; } }
+    else if (a === 'siteno' || a === 'sitescrim') { if (a === 'sitescrim' && e.target !== el) return; var so = st.overlay; st.overlay = null; if (!so.edit && st.taken[so.pid]) { toast('Dose logged', so.pid); st.toast.site = so.pid; } }
+    else if (a === 'sitesave') { var sv = st.overlay; var oth = sv.other != null ? sv.other.trim() : ''; if (!sv.sel.length && !oth && !(sv.edit && sv.free)) return; st.overlay = null; if (sv.sel.length) st.sites[sv.pid] = { type: sv.type, sites: sv.sel.slice() }; else if (oth) st.sites[sv.pid] = { type: sv.type, sites: [], free: oth }; if (st.sites[sv.pid]) toast('Site saved · ' + siteText(st.sites[sv.pid]), sv.edit ? null : sv.pid); }
+    else if (a === 'siteclear') { st.siteClear = st.overlay.pid; st.overlay = { t: 'sheet', pi: 'IS14', title: 'Remove the site from this dose?', body: 'The dose stays logged. Only where you injected is cleared.', btns: [['Cancel', 'close', 'o'], ['Remove site', 'siteclear2', 'd']] }; }
+    else if (a === 'siteclear2') { delete st.sites[st.siteClear]; st.overlay = null; toast('Site removed'); }
+    else if (a === 'siteundo') { delete st.taken[v]; delete st.sites[v]; st.overlay = null; toast('Dose removed'); }
+    else if (a === 'siteother') { var so2 = st.overlay; so2.other = so2.other == null ? '' : null; if (so2.other != null) so2.sel = []; }
+    else if (a === 'undo') { delete st.taken[v]; delete st.sites[v]; st.toast = null; if (st.overlay && st.overlay.t === 'site' && st.overlay.pid === v) st.overlay = null; }
     else if (a === 'skip') st.overlay = { t: 'confirm', title: 'Skip dose?', body: 'Skip today\'s dose of ' + P[v].name + '?', ok: 'skipok', okText: 'Skip', id: v };
     else if (a === 'skipok') { st.skipped[v] = true; st.overlay = null; }
     else if (a === 'fold') st.fold[v] = !st.fold[v];
@@ -2727,6 +2835,15 @@ textarea.winp { resize: none; }
     (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'pop') { var pk = kv[1]; if (BERR[pk]) st.overlay = bErr(pk); else if (pk === 'upgrade') st.overlay = upgradeSheet(); else if (pk === 'spreview') st.overlay = { t: 'spreview' }; else if (pk === 'vprem') st.overlay = vaxPremium(); else if (pk === 'consent') { st.consent = false; st.after = kv[2] || 'lab'; st.overlay = consentSheet(); } else if (pk === 'src') { st.after = kv[2] || 'lab'; st.overlay = srcSheet(st.after); } else if (pk === 'export') { var ms9 = markerSeries(), vl9 = vaxList(); st.exp = { m: ms9.map(function (x) { return x.name; }), v: vl9.map(function (x) { return x.name; }) }; st.overlay = { t: 'export' }; } else if (pk === 'medit') { st.form = { mk: '2026-08-20', mn0: 'Hematocrit', mn: 'Hematocrit', mv: '47.6', mu: '%', md: +new Date('2026-08-20T12:00:00') }; st.overlay = { t: 'medit' }; } } else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
   // any other side-panel jump leaves the sign-in screens
   document.querySelector('.side').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt && !bt.hasAttribute('data-ago') && !bt.hasAttribute('data-ogo') && !bt.hasAttribute('data-pgo') && !bt.hasAttribute('data-ctl')) { st.auth = null; st.onb = null; st.pay = null; } }, true);
+  document.querySelectorAll('[data-igo]').forEach(function (b) {
+    b.addEventListener('click', function () { var kv = b.getAttribute('data-igo').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.auth = null; st.onb = null; st.pay = null; st.noHist = false; st.tab = 0; st.stacks[0] = [{ s: 'today' }];
+      st.taken = Object.assign({}, TAKEN0); st.sites = { tb: { type: 'subq', sites: ['abdomen_lr'] } };
+      if (kv[0] === 'take') { st.taken[kv[1]] = '8:11 PM'; delete st.sites[kv[1]]; toast('Dose logged', kv[1]); clearTimeout(toastTimer); openSite(kv[1]); }
+      if (kv[0] === 'fresh') { st.noHist = true; st.sites = {}; st.taken.bpc = '8:11 PM'; toast('Dose logged', 'bpc'); clearTimeout(toastTimer); openSite('bpc'); }
+      if (kv[0] === 'log') st.stacks[0].push({ s: 'log' });
+      if (kv[0] === 'legacy') { st.sites.tb = { type: null, sites: [], free: 'left glute' }; st.stacks[0].push({ s: 'log' }); openSite('tb'); }
+      toPhone(); });
+  });
   document.querySelectorAll('[data-pgo]').forEach(function (b) {
     b.addEventListener('click', function () { var kv = b.getAttribute('data-pgo').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.auth = null; st.onb = null; st.pay = { sel: 'annual' }; st.payScroll = 0; st.heroT = {}; st.fxT = {};
       if (kv[0] === 'pv') st.overlay = { t: 'pv', k: kv[1] }; if (kv[0] === 'notrial') st.pay.noTrial = true; if (kv[0] === 'unavail') st.pay.unavail = true; if (kv[0] === 'fail') st.pay.fail = true;
