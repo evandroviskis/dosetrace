@@ -233,6 +233,14 @@ Work order (founder, 2026-09-27): S-15 connection tests FIRST, then S-01, then S
 | S-23 | A-58 part 1: extract-bloodwork gives Premium 20 scans/month via a server-side RevenueCat check; free stays 3 (server, deployable before the build; Gate B) | A-58 | FX-19 | open — 1.2.5 exception added by the founder on 2026-09-29; needs the RevenueCat secret key |
 | S-24 | A-58 part 2: "unlimited scans/uploads" → "20 scans a month", 6 languages; ships only if S-23 is live and verified | A-58 | FX-20 | open — 1.2.5 exception added by the founder on 2026-09-29; gated on S-23 |
 
+### S-21 / S-22 / S-23 decisions (founder 2026-09-30) — do not re-ask
+
+- **Paywall Terms link per platform.** iOS: "Terms of Use (EULA)" → Apple's Standard EULA. Android: DoseTrace's OWN terms, not Apple's (why: an Apple agreement inside an Android app is wrong). dosetrace.io has no terms page (checked 2026-09-30: /terms, /terms-of-use, /terms-of-service, /eula, /tos, /legal all 404), so Android opens the in-app Terms of service (settings_terms / settings_terms_body, shared components/LegalModal.js). If a web terms page is published later, lib/legalLinks.js termsTarget is the one place to change.
+- **Privacy link** on both platforms → https://dosetrace.io/privacy-policy, label = the existing settings_privacy_policy.
+- **RevenueCat secret key (S-23):** the founder has it placed in Supabase Edge Function secrets through Cowork — never in chat, never in git.
+- **App Store Connect rename Pro → Premium (executed 2026-09-30 via scripts/asc-subscription-names.cjs):** internal reference names DONE and read back — group "DoseTrace Premium", "DoseTrace Premium Monthly", "DoseTrace Premium Yearly", "DoseTrace Premium Lifetime". Customer-facing display names (1 group localization + 12 subscription + 6 lifetime localizations) NOT changed: the API refuses edits while they are live ("Cannot edit … when it is in ACTIVE state"); they must be edited in the App Store Connect website (creates a version that goes to review). Product ids (monthly / yearly / lifetime) and the RevenueCat entitlement id "DoseTrace Pro" are unchanged on purpose.
+- **Simulator check of the paywall links** → pre-build pass (founder ok).
+
 ### S-20 product decisions (founder 2026-09-30) — do not re-ask
 
 - **Injection sites are OPTIONAL.** They help rotation (avoid nodules / fibrosis); a Taken dose may have no site. Never required.
