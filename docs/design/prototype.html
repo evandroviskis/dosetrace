@@ -402,7 +402,7 @@ textarea.winp { resize: none; }
 .opt { cursor: pointer; }
 
 
-.btn .nc, .obtn2 .nc, .pill .nc, .txtbtn .nc, .r-head .nc { align-self: center; }
+.btn .nc, .obtn2 .nc, .pill .nc, .txtbtn .nc, .r-head .nc, .otag .nc { align-self: center; }
 .pvslot { min-height: 150px; border-radius: 18px; border: 1.5px dashed var(--tick); display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; }
 
 
@@ -479,7 +479,18 @@ textarea.winp { resize: none; }
 .obtop { display: flex; align-items: center; gap: 12px; min-height: 44px; }
 .obdash { flex: 1; display: flex; gap: 4px; }
 .obdash i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
-.obdash i.on { background: var(--ink); }
+.obdash i { position: relative; overflow: hidden; }
+.obdash i b { position: absolute; inset: 0; width: 0; background: var(--ink); border-radius: 2px; }
+.obdash i.on b { width: 100%; }
+.obdash i.grow b { animation: dashgrow 340ms cubic-bezier(.33, 1, .68, 1); }
+.obdash i.shrink b { animation: dashshrink 240ms cubic-bezier(.33, 1, .68, 1); }
+@keyframes dashgrow { from { width: 0 } to { width: 100% } }
+@keyframes dashshrink { from { width: 100% } to { width: 0 } }
+.obin-r { animation: obinr 320ms cubic-bezier(.33, 1, .68, 1); }
+.obin-l { animation: obinl 320ms cubic-bezier(.33, 1, .68, 1); }
+@keyframes obinr { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+@keyframes obinl { from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .obin-r, .obin-l, .obdash i b { animation: none !important; } }
 .obbody { flex: 1; }
 .obfoot { display: flex; flex-direction: column; gap: 6px; padding: 16px 0 8px; position: sticky; bottom: 0; background: var(--ground); }
 .btn.obdim { opacity: .35; }
@@ -487,6 +498,14 @@ textarea.winp { resize: none; }
 .applogo.sm { width: 84px; height: 84px; border-radius: 20px; }
 .brand { font-size: calc(42px * var(--ts)); font-weight: 700; letter-spacing: -0.02em; }
 .featic { width: 48px; height: 48px; border-radius: 14px; background: var(--raised); display: flex; align-items: center; justify-content: center; flex: none; }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plan { background: var(--raised); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 4px; box-shadow: inset 0 0 0 1.5px var(--line); cursor: pointer; position: relative; }
+.plan.on { box-shadow: inset 0 0 0 2.5px var(--ink); }
+.plan .radio { position: absolute; top: 16px; right: 14px; width: 22px; height: 22px; border-radius: 11px; box-shadow: inset 0 0 0 1.5px var(--tick); }
+.plan .radio.on { box-shadow: inset 0 0 0 7px var(--ink); }
+.cmpt .cmprow { min-height: 44px; gap: 8px; padding: 8px 0; }
+.paylink { min-height: 40px; display: inline-flex; align-items: center; }
+.cmpc { width: 64px; flex: none; display: flex; justify-content: center; text-align: center; }
 .deflect { align-self: stretch; border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .typing .dots { display: inline-flex; gap: 3px; margin-left: 6px; }
 .typing .dots i { width: 5px; height: 5px; border-radius: 3px; background: var(--ink3); animation: blink 1s infinite; }
@@ -533,7 +552,7 @@ textarea.winp { resize: none; }
   <header class="intro">
     <div class="status">DoseTrace prototype · 29 Sep 2026 · main 57b6910 (28 Sep, 22:52) · Graduated</div>
     <h1>DoseTrace, clickable</h1>
-    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Sign-in is approved.</b> <b>Under review now: Onboarding</b>, the 9 first-run steps before Create account (use the Onboarding buttons).</p>
+    <p>One phone that grows screen by screen. <b>Approved:</b> Today, the Dose log, and My Protocols parts 1 and 2 (the list, the protocol screen, adding and editing). <b>My Protocols is approved, popups included.</b> <b>Journey's dashboard is approved.</b> <b>Journey's dashboard and Progress screen are approved.</b> <b>Journey is approved, popups included</b> (dashboard, Progress, AI food log, Dose accumulation, every popup). <b>My Body part 1 is approved</b> (hub + Lab test journal). <b>My Body is approved, all 3 parts.</b> <b>Sign-in is approved.</b> <b>Onboarding is approved.</b> <b>Under review now: the Paywall and an animation for every Premium feature</b> (use the Paywall buttons).</p>
   </header>
   <section class="proto">
     <div class="ph app light" id="phone"></div>
@@ -545,13 +564,18 @@ textarea.winp { resize: none; }
         <label class="pick"><input type="checkbox" id="badges"> Item numbers and new copy</label>
       </div>
       <div class="jump">
-        <h3>Onboarding <span class="stat rev">under review</span></h3>
+        <h3>Paywall + Premium feature animations <span class="stat rev">under review</span></h3>
+        <button data-pgo="open">The paywall<small>the curve plays; tap any "See what you get" row for its animation; Annual / Monthly; Terms + Privacy links</small></button>
+        <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-pgo="pv:serum">Dose accumulation</button><button data-pgo="pv:reality">Reality check</button><button data-pgo="pv:food">AI food log</button><button data-pgo="pv:scan">Lab scan</button><button data-pgo="pv:labs">Marker trends</button><button data-pgo="pv:vax">Vaccine scan</button><button data-pgo="pv:protos">Unlimited protocols</button><button data-pgo="pv:pdf">PDF export</button></div>
+        <button data-pgo="notrial">Not eligible for the free trial<small>"Subscribe" and the no-trial legal text</small></button>
+        <button data-pgo="unavail">Plans unavailable (offline)</button>
+        <div class="row" style="flex-wrap: wrap; gap: 6px"><button data-pgo="restore:ok">Restore: found</button><button data-pgo="restore:none">Restore: none</button><button data-pgo="restore:fail">Restore: failed</button><button data-pgo="fail">Purchase failed</button></div>
+        <h3 style="margin-top: 10px">Onboarding <span class="stat ok">approved</span></h3>
         <button data-ogo="0">Start at the beginning<small>Get started, then Continue through the 9 steps; Continue stays dim until the step is answered; "EN" opens the language list</small></button>
         <button data-ogo="4">About you<small>try a birth year like 2012: the adults-only note (suggested); pick a country</small></button>
         <button data-ogo="5">Your routine<small>the 5 activity levels (one activity level, as approved)</small></button>
         <button data-ogo="6:filled">Before we begin (consent)<small>the AI line now names the AI food log too</small></button>
-        <button data-ogo="7">Never miss a dose</button>
-        <button data-ogo="8">You're all set → Create account<small>then the approved sign-in screen</small></button>
+        <button data-ogo="7">Never miss a dose<small>either button goes straight to Create account (the duplicate "You're all set" step is gone)</small></button>
         <h3 style="margin-top: 10px">Sign-in <span class="stat ok">approved</span></h3>
         <button data-ago="create">Create account (the end of onboarding)<small>empty: tap Create account to see the checks one by one (email, 6 characters, consent)</small></button>
         <button data-ago="create:filled">Create account, filled in<small>Create account → "Account created"; try the email taken@x.com</small></button>
@@ -662,15 +686,15 @@ textarea.winp { resize: none; }
         
       </div>
       <div>
-        <h3>Open questions (Onboarding)</h3>
+        <h3>Open questions (Paywall + animations)</h3>
         <ol class="qs" style="margin-top: 10px">
-          <li><b>Same 9 steps, same order and words as main</b>, in the new look: a thin progress bar, Back top-left, one clear Continue at the bottom that stays dim until the step is answered. OK?</li>
-          <li><b>Found on main, and a must-fix: the consent step says "AI only for document scans"</b>, but the AI food log also sends what you type to Anthropic. New line: "AI only when you use it — a photo or report you scan, or a meal you describe in the AI food log, is sent to Anthropic to read it — only with your consent." (new copy; this is a consent the user signs, so it has to be true). OK?</li>
-          <li><b>Found on main: "You're all set" twice in a row</b> (the last onboarding step, then the create-account screen says "You're all set!" again). Recommendation: drop the last step and go straight to Create account after "Never miss a dose" (one screen fewer, rebuild means replace). Yes or no?</li>
-          <li><b>One activity level</b>: "Your routine" shows Progress's 5 levels, as you approved for Edit profile. And <b>"What's your primary goal?" becomes "What are your goals?"</b>, since you can pick several (new copy). OK?</li>
-          <li><b>The feature list uses today's names</b>: "Dose accumulation" and "Lab test journal" (main: "Accumulation curve", "Lab scan"). <b>Suggestion:</b> an adults-only note when the birth year is under 18 (main just keeps Continue dim with no reason). OK?</li>
+          <li><b>Every Premium feature gets its own animation</b>, same engine and care as the curve (a timeline, easing, "Example", your sample numbers, Reduce Motion shows the last frame): Dose accumulation, Reality check, AI food log, Lab scan, Marker trends, Vaccine scan, Unlimited protocols, PDF export. They open from "See what you get" and from each locked feature. OK? Anything to change in any of them?</li>
+          <li><b>Must fix (App Store 3.1.2): the paywall has no Terms of service or Privacy policy link</b> on main; auto-renewing subscriptions need both on the purchase screen. Added next to Restore purchases. OK?</li>
+          <li><b>Found on main: "Unlimited lab &amp; vaccine scans" is not true.</b> The server caps everyone, Premium included, at 3 scans a month (labs, vaccine cards and vials together). Either raise the cap for Premium (a server change) or stop saying unlimited. Your call; the words stay as main until you decide. Also "1 free lab scan" (paywall) vs "3 free scans this month" (the limit message) disagree.</li>
+          <li><b>Found on main: Cloud sync is free</b> (no Premium lock in the code, and this table says so), but two Premium lists you approved in main's words sell it as Premium: Settings' "Upgrade to Premium" card and My Body's "Upload bloodwork" sheet. Recommendation: remove it from both. And the AI food log (Premium after 3 free days) is missing from the table: added "3 days" / ✓ (new copy). OK?</li>
+          <li><b>Found on main: two preview texts cross your line.</b> The lab one promised to show what's "drifting out of range" (the app never shows ranges) and the vaccine one labelled shots "Due soon" / "Up to date". Rewritten to your own values and your own dates (new copy). Also one name: "Premium" everywhere (main mixes "Pro" and "Premium"), "Best value" in sentence case, crosses become dashes (not a red ✗). OK?</li>
         </ol>
-        <p class="r-foot" style="color: var(--ink2)"><b>Sign-in approved.</b> Main also runs a shorter version of this flow for someone who signs in with Apple or Google and has missing details: only the missing steps, then "Finish setup", with Sign out top-right. It uses these same screens. The "About you" intro drops main's word "now" ("DoseTrace now personalizes…"), which reads oddly to a new user. The splash shows the app icon (here a stand-in).</p>
+        <p class="r-foot" style="color: var(--ink2)"><b>Onboarding approved</b>, now 8 steps (the duplicate "You're all set" is gone) with main's step slide, progress fill and the full curve animation. Prices here are samples; the App Store sets the real ones per country. The same animation engine can carry the explainers you parked for every free feature too (shown until the feature is first used): tell me when you want those.</p>
         <h3>Journey part 5: decisions</h3>
         <p class="r-foot" style="color: var(--ink2)">Approved with the recommended answers: Start over gets a confirm; target, past weigh-in and reality-check start are sheets; "Weight (kg)" on the start sheet; "Other date" on the curve; food-log notes as chat bubbles in main's words; the typing demo stays until the feature animations. Screen name: "Dose accumulation" (the tile's name).</p>
         <p class="r-foot" style="color: var(--ink2)"><b>Fixed in approved Progress on the way:</b> the body-fat source hints now use main's exact words (the prototype had drifted), and "I don't know" swaps body fat for age and sex, as main does. The target's "no timeline yet" line says "under Weigh-ins" instead of "under snapshots" (that label no longer exists). Free users see "Unlock Premium to project a timeline" instead of the ETA, as main. At 135% text the weight and daily-burn numbers now stack (the daily burn ran past the card edge).</p>
@@ -1049,6 +1073,7 @@ textarea.winp { resize: none; }
     if (o.t === 'past') return pastSheet();
     if (o.t === 'rcstart') return rcStartSheet();
     if (o.t === 'vaxform') return vaxForm();
+    if (o.t === 'pv') return previewSheet(o.k);
     if (o.t === 'prof') return profSheet();
     if (o.t === 'country') return countrySheet();
     if (o.t === 'lang') return langSheet();
@@ -1060,7 +1085,7 @@ textarea.winp { resize: none; }
     if (o.t === 'spreview') return spreviewHTML();
     if (o.t === 'chat') return chatScreen();
     if (o.t === 'weighin') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">' + nc('Log today\'s weight') + '</span><span class="txtbtn" style="font-weight: 400"' + A('close') + '>Cancel</span></div><div class="fieldgrid"><div class="fld"><span class="r-foot c2">Weight (' + wu() + ')</span><input class="winp" id="wiw" inputmode="decimal" placeholder="' + kg(84) + '"></div><div class="fld"><span class="r-foot c2">Body fat (%) · optional</span><input class="winp" id="wib" inputmode="decimal" placeholder="21"></div></div><div class="fld"><span class="r-foot c2">Waist (' + lu() + ') · optional</span><input class="winp" id="wic" inputmode="decimal" placeholder="' + cm(92) + '"></div><span class="r-foot c2">Saved as today\'s weigh-in. It updates your progress, your target and your reality check.</span><span class="btn p"' + A('weighsave') + '>Save</span></div></div>';
-    if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: reality_check).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
+    if (o.t === 'rcexplain') return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet"><div class="row" style="justify-content: space-between"><span class="r-title">Reality check</span><span class="round" style="width: 36px; height: 36px"' + A('close') + '>' + ic('<path d="M6 6l12 12M18 6L6 18"/>', 18, 'color: currentColor') + '</span></div><div class="pvslot"><span class="r-foot c2">Explainer animation goes here: part of the feature animations you parked until the design pass is done.</span></div><span class="r-body c2">Three numbers you already know reveal your ACTUAL maintenance — often far from what a generic calculator says.</span><span class="btn p"' + A('paywall') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
     if (o.t === 'confirm') return '<div class="scrim"' + A('scrim') + '><div class="sheet"><span class="r-title">' + o.title + '</span><span class="r-body c2">' + o.body + '</span><div class="acts2"><span class="btn o sm"' + A('close') + '>Cancel</span><span class="btn sm" style="background: ' + (o.danger ? 'var(--risk)' : 'var(--act)') + '; color: var(--onInk)"' + A(o.ok, o.id) + '>' + o.okText + '</span></div>' + (o.note ? '<span class="r-foot c3">' + o.note + '</span>' : '') + '</div></div>';
     return '';
   }
@@ -1343,7 +1368,7 @@ textarea.winp { resize: none; }
     return { t: 'sheet', pi: 'D7', title: 'Log past doses?', body: 'You marked this as started on ' + MN[w.start.m] + ' ' + w.start.d + ', ' + w.start.y + '. Log the ' + n + ' scheduled doses since then as taken? This updates your adherence and history.', btns: [['Not now', 'bfno', 'o'], ['Log ' + n + ' doses', 'bfyes', 'p', n]] };
   }
   function delSheet(id) { return { t: 'sheet', pi: 'D8', title: 'Delete protocol', body: 'This protocol will be recoverable for 7 days from ' + nc('Recently deleted, at the bottom of your list') + '.', btns: [['Cancel', 'close', 'o'], ['Delete', 'delok', 'd', id]], note: 'Suggestion: main says "from Settings"; Restore now lives on the list (approved in part 1).' }; }
-  function limitSheet() { return { t: 'sheet', pi: 'D9', title: 'Protocol limit reached', body: 'The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days.', btns: [['Cancel', 'close', 'o'], ['Start free trial', 'say', 'p', 'Opens the Paywall (redesigned later).']] }; }
+  function limitSheet() { return { t: 'sheet', pi: 'D9', title: 'Protocol limit reached', body: 'The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days.', btns: [['Cancel', 'close', 'o'], ['Start free trial', 'paywall', 'p']] }; }
   function wizSave() {
     var w = st.wiz;
     if (!w.name) { st.overlay = { t: 'sheet', title: 'Missing name', body: 'Please enter a compound name.', pi: 'D5' }; return; }
@@ -1491,7 +1516,7 @@ textarea.winp { resize: none; }
       x += '<div class="row"><span class="r-sec c2 grow">Weight</span><span class="r-value v15">' + kg(wNow) + ' → ' + kg(T.w) + ' ' + wu() + '</span></div>';
       if (T.w < f0[1] && diff > 0) x += targetScale(f0[1], Math.min(f0[1], Math.max(T.w, wNow)), T.w);
       if (Math.abs(diff) < 0.3) eta = 'You\'re at your target.';
-      else if (st.jstate === 'free') eta = '<span class="btnlink"' + A('say', 'Opens the Paywall (as main).') + '>Unlock Premium to project a timeline from your measured pace.</span>';
+      else if (st.jstate === 'free') eta = '<span class="btnlink"' + A('paywall') + '>Unlock Premium to project a timeline from your measured pace.</span>';
       else if ((diff > 0) !== (rate > 0)) eta = 'Moving away from this target at your current pace — no timeline yet.';
       else { var wk = Math.max(1, Math.round(diff / rate)); eta = '~' + wk + ' weeks to go · around ' + md(addDays(new Date(2026, 7, 31 + l0[0]), wk * 7)) + ', if this pace holds'; }
       x += '<span class="r-body tnum">' + eta + '</span>';
@@ -1649,7 +1674,7 @@ textarea.winp { resize: none; }
     var c = st.chat, locked = st.chatLocked;
     var h = '<div class="chatsheet">' + sbar('8:10') + '<div class="chathd"><span class="row" style="gap: 8px">' + ic(I.spark, 20, 'color: var(--ink)') + '<span class="r-head">AI food log</span></span><span class="txtbtn"' + A('chatdone') + '>Done</span></div>';
     if (locked) {
-      h += '<div class="chatbody" style="justify-content: center"><div class="card pc" style="margin: 0 4px">' + ic(I.spark, 28) + '<span class="r-title">Log your day in a sentence</span><span class="r-sec c2">Describe what you ate — DoseTrace estimates the calories, carbs and protein and feeds your reality-check.</span><span class="btn p"' + A('say', 'Opens the Paywall (source: food_log).') + '>Unlock Premium</span></div></div>';
+      h += '<div class="chatbody" style="justify-content: center"><div class="card pc" style="margin: 0 4px">' + ic(I.spark, 28) + '<span class="r-title">Log your day in a sentence</span><span class="r-sec c2">Describe what you ate — DoseTrace estimates the calories, carbs and protein and feeds your reality-check.</span><span class="btn p"' + A('paywall') + '>Unlock Premium</span></div></div>';
       return h + '</div>';
     }
     h += '<div class="chatbody" id="chatbody"><div class="daydiv r-cap">Today</div>';
@@ -1925,7 +1950,7 @@ textarea.winp { resize: none; }
 
   /* ================= My Body part 3: popups (under review) ================= */
   function srcSheet(kind) { return { t: 'action', title: kind === 'lab' ? '<b>Add a lab report</b><br>Snap a photo, pick an image, or choose a PDF — any lab, any language.' : '<b>Scan a vaccine record</b><br>Snap a vaccine card, choose a photo, or pick a PDF — any language.', opts: [['Take a photo', 'srcpick'], ['Choose a photo', 'srcpick'], ['PDF file', 'srcpick']] }; }
-  function vaxPremium() { return { t: 'sheet', pi: 'M9', title: 'A Premium feature', body: 'Scanning a vaccine card or doctor\'s sheet is part of Premium. You can always add vaccines by hand for free.', btns: [['Cancel', 'close', 'o'], ['Go Premium', 'say', 'p', 'Opens the Paywall.']] }; }
+  function vaxPremium() { return { t: 'sheet', pi: 'M9', title: 'A Premium feature', body: 'Scanning a vaccine card or doctor\'s sheet is part of Premium. You can always add vaccines by hand for free.', btns: [['Cancel', 'close', 'o'], ['Go Premium', 'paywall', 'p']] }; }
   function upgradeSheet() { return { t: 'upgrade' }; }
   var BERR = {
     extract: ['Extraction failed', 'Could not read lab values from this PDF. Make sure it is a standard lab report and try again.'],
@@ -1981,14 +2006,14 @@ textarea.winp { resize: none; }
     var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="M1" style="max-height: 88%; overflow-y: auto"><div class="row" style="justify-content: space-between"><span class="r-head">Upload bloodwork</span><span class="round" style="width: 36px; height: 36px"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>';
     h += '<div class="col" style="align-items: center; text-align: center; gap: 10px; padding: 6px 0">' + ic(I.drop, 44, 'color: var(--ink)') + '<span class="r-title">Unlimited bloodwork uploads</span><span class="r-sec c2">Premium includes unlimited PDF uploads with automatic biomarker extraction — plus everything else.</span></div>';
     h += '<div class="names">' + ['Unlimited bloodwork uploads', 'Cloud backup &amp; multi-device sync', 'Reality check &amp; progress tracking', 'Any-language scanning — photo or PDF', 'PDF export &amp; priority support'].map(function (x) { return '<span class="row r-body" style="gap: 10px">' + ic(I.check, 20, 'color: var(--ink)') + x + '</span>'; }).join('') + '</div>';
-    return h + '<span class="btn p col" style="gap: 2px; min-height: 64px"' + A('say', 'Opens the Paywall (source: bloodwork_upload).') + '><span>Start 7-day free trial</span><span class="r-cap" style="font-weight: 500; opacity: .8">Price shown at checkout · Cancel anytime</span></span><span class="r-foot c2" style="text-align: center">Free for 7 days — no charge today</span></div></div>';
+    return h + '<span class="btn p col" style="gap: 2px; min-height: 64px"' + A('paywall') + '><span>Start 7-day free trial</span><span class="r-cap" style="font-weight: 500; opacity: .8">Price shown at checkout · Cancel anytime</span></span><span class="r-foot c2" style="text-align: center">Free for 7 days — no charge today</span></div></div>';
   }
   function spreviewHTML() {
     var pts = [], x = 0, lvl = 0; for (var k = 0; k <= 120; k++) { if (k % 20 === 0) lvl += 1; lvl *= 0.985; pts.push((12 + k * 2.55).toFixed(1) + ',' + (132 - lvl * 26).toFixed(1)); }
     var h = '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="B5p"><div class="row" style="justify-content: space-between"><span class="r-head">See your compound build up</span><span class="round" style="width: 36px; height: 36px"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>';
-    h += '<div class="card pc" style="background: var(--well); padding: 14px"><svg class="full" viewBox="0 0 330 150" role="img" aria-label="Example accumulation curve"><line x1="12" x2="318" y1="136" y2="136" stroke="var(--line)"/><polyline class="drawin" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round" points="' + pts.join(' ') + '"/></svg><span class="otag" style="align-self: flex-start">Example</span></div>';
+    h += HERO.html('prev');
     h += '<span class="r-sec c2">DoseTrace models how each dose stacks on the last, so you see your estimated serum level between doses — not just what you took.</span>';
-    return h + '<span class="btn p"' + A('say', 'Opens the Paywall (source: serum_preview_sheet).') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
+    return h + '<span class="btn p"' + A('paywall') + '>Unlock with Pro</span><span class="r-foot c3">Not a medical service. For any medical question, consult a qualified professional.</span></div></div>';
   }
 
   /* ================= Settings part 1: the screen (under review) ================= */
@@ -2010,7 +2035,7 @@ textarea.winp { resize: none; }
     var free = st.sstate === 'free', seg = function (k, opts, cur) { return '<span class="segw fill sm">' + opts.map(function (o) { return '<span class="' + (cur === o[0] ? 'on' : '') + '"' + A(k, o[0]) + '>' + o[1] + '</span>'; }).join('') + '</span>'; };
     var h = '<div class="hrow"><h3 class="r-large" data-i="S1">Settings</h3></div>';
     h += '<div class="hero" data-i="S2"' + A('profedit') + '><div class="row" style="gap: 14px"><span class="avatar">' + initials(prof().name) + '</span><div class="grow col" style="gap: 3px">' + (prof().name ? '<span class="r-title">' + prof().name + '</span>' : '') + '<span class="r-sec c2">sam@example.com</span></div>' + CHEV + '</div><div class="chips2"><span class="otag">' + (free ? 'Free plan' : 'Premium') + '</span>' + (prof().goals.length ? '<span class="otag">' + prof().goals.slice(0, 3).map(goalLabel).join(', ') + '</span>' : '') + '</div></div>';
-    if (free) h += '<div class="card pc" data-i="S3"><span class="r-title">Upgrade to Premium</span><span class="r-sec c2">Unlock all features and get the most out of DoseTrace.</span><div class="names">' + ['Cloud sync &amp; backup across devices', 'Reality check &amp; progress tracking', 'Check-in follow-ups &amp; searchable tags', 'Unlimited protocols &amp; scans', 'PDF export &amp; priority support'].map(function (x) { return '<span class="row r-body" style="gap: 10px">' + ic(I.check, 20, 'color: var(--ink)') + x + '</span>'; }).join('') + '</div><span class="btn p"' + A('say', 'Opens the Paywall (source: settings).') + '>See plans</span></div>';
+    if (free) h += '<div class="card pc" data-i="S3"><span class="r-title">Upgrade to Premium</span><span class="r-sec c2">Unlock all features and get the most out of DoseTrace.</span><div class="names">' + ['Cloud sync &amp; backup across devices', 'Reality check &amp; progress tracking', 'Check-in follow-ups &amp; searchable tags', 'Unlimited protocols &amp; scans', 'PDF export &amp; priority support'].map(function (x) { return '<span class="row r-body" style="gap: 10px">' + ic(I.check, 20, 'color: var(--ink)') + x + '</span>'; }).join('') + '</div><span class="btn p"' + A('paywall') + '>See plans</span></div>';
     var sums = { account: nc('Appearance, time format, language'), notif: nc('Reminders, alerts, silent mode'), privacy: nc('Legal, analytics, your data'), support: nc('FAQ, contact, rate') };
     h += setSection('account', nc('Preferences'), '<div class="setstack">' + setRow('palette', 'Appearance', '', '', null) + seg('stheme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.themePref || st.theme) + '</div><div class="setstack">' + setRow('clock', 'Time format', '', '', null) + seg('stime', [['auto', 'Auto'], ['12h', 'AM/PM'], ['24h', '24h']], st.timeFmt || 'auto') + '</div>' + setRow('globe', 'Language', LANGS.filter(function (l) { return l[0] === (st.lang || 'en'); })[0][1], null, ['langpick']), sums.account);
     h += setSection('notif', 'Notifications', swRow('bell', 'Dose reminders', 'Get notified when it\'s time to take a dose', 'dose') + swRow('chat', 'Check-in reminders', 'Weekly check-in prompts', 'checkin') + swRow('food', 'Food-log reminder', '8 pm while a reality check is running. If you turn it off, it stays off for future checks.', 'food') + swRow('lock', 'Show names in notifications', 'Off: reminders on the lock screen say “Dose reminder” instead of the compound name.', 'names') + swRow('type_vial', 'Vial expiry alerts', 'Alerts when vials are expiring soon', 'vial') + swRow('mute', 'Silent mode', 'Pause all notifications', 'silent') + swRow('repeat', 'Persistent reminders', 'Repeat reminders every 5 min until acknowledged', 'persistent'), sums.notif);
@@ -2123,8 +2148,220 @@ textarea.winp { resize: none; }
   }
   function aErr(body, title) { return { t: 'sheet', pi: 'A-err', title: title || 'Error', body: body, icon: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.2"/>' }; }
 
+  /* ================= The accumulation hero (main's AccumulationHero "Version B", redrawn) ================= */
+  // A pen moves in time; each dose drops in (peak jumps, ring pulses, "+5.0" floats up, the number bumps);
+  // the camera starts close on the first dose and pulls back; at the end a dashed line links the rising
+  // peaks. Illustrative model, always labelled "Example". Reduce Motion → final state at once.
+  var HERO = (function () {
+    var HALF = 2.2, INTERVAL = 3, DOSE = 5, N = 5, SEG = 22, TAIL = INTERVAL * 0.95, PRE = 420, DUR = 3400, DROP = 230, FIN = 1500, K = Math.LN2 / HALF;
+    var W = 326, H = 150, PL = 6, PR = 6, PT = 14, PB = 10;
+    var clamp01 = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; }, eOutQuad = function (t) { return 1 - (1 - t) * (1 - t); }, eInOutQuad = function (t) { return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t); };
+    var eInOutSine = function (t) { return -(Math.cos(Math.PI * t) - 1) / 2; }, eInOutCubic = function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }, invInOutSine = function (y) { return Math.acos(1 - 2 * clamp01(y)) / Math.PI; };
+    var pts = [{ t: 0, v: 0 }], level = DOSE; pts.push({ t: 0, v: level });
+    for (var i = 1; i < N; i++) { var t0 = (i - 1) * INTERVAL, t1 = i * INTERVAL; for (var q = 1; q <= SEG; q++) { var tt = t0 + INTERVAL * q / SEG; pts.push({ t: tt, v: level * Math.exp(-K * (tt - t0)) }); } level = level * Math.exp(-K * INTERVAL) + DOSE; pts.push({ t: t1, v: level }); }
+    var tLast = (N - 1) * INTERVAL; for (var q2 = 1; q2 <= SEG; q2++) { var t3 = tLast + TAIL * q2 / SEG; pts.push({ t: t3, v: level * Math.exp(-K * (t3 - tLast)) }); }
+    var endT = tLast + TAIL, plotW = W - PL - PR, plotH = H - PT - PB, maxV = pts.reduce(function (m, p) { return Math.max(m, p.v); }, 0), yTop = maxV * 1.14, baseY = PT + plotH;
+    var xFor = function (t) { return PL + t / endT * plotW; }, yFor = function (v) { return PT + plotH - v / yTop * plotH; };
+    var G = { ts: pts.map(function (p) { return p.t; }), vs: pts.map(function (p) { return p.v; }), xs: pts.map(function (p) { return xFor(p.t); }), ys: pts.map(function (p) { return yFor(p.v); }), px: [], py: [], hits: [] };
+    var lv = DOSE; for (var j = 0; j < N; j++) { G.px.push(xFor(j * INTERVAL)); G.py.push(yFor(lv)); lv = lv * Math.exp(-K * INTERVAL) + DOSE; G.hits.push(PRE + DUR * invInOutSine(j * INTERVAL / endT)); }
+    var TOTAL = PRE + DUR + FIN;
+    function frame(t) {
+      var el = t - PRE, p = clamp01(el / DUR), T = eInOutSine(p) * endT, n = G.ts.length, i = n, x = G.xs[n - 1], y = G.ys[n - 1], v = G.vs[n - 1];
+      if (T < endT) { i = 1; while (i < n && G.ts[i] <= T) i++; var f = (T - G.ts[i - 1]) / ((G.ts[i] - G.ts[i - 1]) || 1); x = G.xs[i - 1] + (G.xs[i] - G.xs[i - 1]) * f; y = G.ys[i - 1] + (G.ys[i] - G.ys[i - 1]) * f; v = G.vs[i - 1] + (G.vs[i] - G.vs[i - 1]) * f; }
+      var z = eInOutCubic(clamp01((p - 0.22) / 0.5)), sc = 1.9 + (1 - 1.9) * z;
+      return { el: el, i: i, x: x, y: y, v: el < 0 ? 0 : v, s: sc, tx: (1 - z) * (W * 0.38 - sc * x), ty: baseY * (1 - sc) };
+    }
+    function bump(t) { var s2 = 1; G.hits.forEach(function (h) { var k = (t - h) / 500; if (k >= 0 && k < 1) s2 += 0.16 * (k < 0.3 ? eOutQuad(k / 0.3) : 1 - eInOutQuad((k - 0.3) / 0.7)); }); return s2; }
+    function drop(x, y, s2) { var P = function (dx, dy) { return (x + dx * s2).toFixed(1) + ' ' + (y + dy * s2).toFixed(1); }; return 'M ' + P(0, -7) + ' C ' + P(3, -2) + ' ' + P(4.5, 0.5) + ' ' + P(4.5, 2.5) + ' A ' + (4.5 * s2).toFixed(2) + ' ' + (4.5 * s2).toFixed(2) + ' 0 0 1 ' + P(-4.5, 2.5) + ' C ' + P(-4.5, 0.5) + ' ' + P(-3, -2) + ' ' + P(0, -7) + ' Z'; }
+    function draw(root, t) {
+      var c = frame(t), X = function (vx) { return (c.s * vx + c.tx).toFixed(1); }, Y = function (vy) { return (c.s * vy + c.ty).toFixed(1); }, svg = '';
+      svg += '<line x1="' + X(PL) + '" x2="' + X(PL + plotW) + '" y1="' + Y(baseY) + '" y2="' + Y(baseY) + '" stroke="var(--line)" stroke-width="1"/>';
+      G.px.forEach(function (px, i) { if (t >= G.hits[i]) svg += '<line x1="' + X(px) + '" x2="' + X(px) + '" y1="' + Y(baseY) + '" y2="' + Y(PT + 4) + '" stroke="var(--tick)" stroke-dasharray="2 3" opacity=".5"/>'; });
+      if (c.el >= 0) {
+        var d = 'M ' + X(G.xs[0]) + ' ' + Y(G.ys[0]); for (var k = 1; k < c.i; k++) d += ' L ' + X(G.xs[k]) + ' ' + Y(G.ys[k]); d += ' L ' + X(c.x) + ' ' + Y(c.y);
+        svg += '<path d="' + d + ' L ' + X(c.x) + ' ' + Y(baseY) + ' L ' + X(G.xs[0]) + ' ' + Y(baseY) + ' Z" fill="var(--data)" opacity=".12"/><path d="' + d + '" fill="none" stroke="var(--data)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+      var fin = clamp01((t - (PRE + DUR)) / FIN);
+      if (fin > 0) { var remain = 0, tot = 0, seg = []; for (var a = 1; a < N; a++) { var l = Math.hypot(G.px[a] - G.px[a - 1], G.py[a] - G.py[a - 1]); seg.push(l); tot += l; } remain = tot * eOutQuad(clamp01(fin / 0.6)); var pd = 'M ' + X(G.px[0]) + ' ' + Y(G.py[0]); for (var b = 1; b < N && remain > 0; b++) { var fr = Math.min(1, remain / seg[b - 1]); remain -= seg[b - 1]; pd += ' L ' + X(G.px[b - 1] + (G.px[b] - G.px[b - 1]) * fr) + ' ' + Y(G.py[b - 1] + (G.py[b] - G.py[b - 1]) * fr); } svg += '<path d="' + pd + '" fill="none" stroke="var(--ink2)" stroke-width="1.4" stroke-dasharray="4 4"/>'; }
+      G.px.forEach(function (px, i) {
+        var h = G.hits[i], kd = (t - (h - DROP)) / DROP;
+        if (kd >= 0 && kd < 1) { var ty = c.s * (G.py[i] - 6) + c.ty; svg += '<path d="' + drop(c.s * px + c.tx, -8 + (ty + 8) * kd * kd, 1) + '" fill="var(--data)"/>'; }
+        var kr = (t - h) / 700; if (kr >= 0 && kr < 1) svg += '<circle cx="' + X(px) + '" cy="' + Y(G.py[i]) + '" r="' + ((4 + 12 * eOutQuad(kr)) * c.s).toFixed(1) + '" fill="none" stroke="var(--data)" stroke-width="1.6" opacity="' + (0.55 * (1 - kr)).toFixed(2) + '"/>';
+        var kp = (t - h) / 900; if (kp >= 0 && kp < 1) svg += '<text x="' + (c.s * px + c.tx + 6).toFixed(1) + '" y="' + (c.s * G.py[i] + c.ty - 8 - 12 * eOutQuad(kp)).toFixed(1) + '" font-family="Geist Mono, monospace" font-size="11" font-weight="600" fill="var(--data)" opacity="' + (1 - kp).toFixed(2) + '">+' + DOSE.toFixed(1) + '</text>';
+      });
+      if (c.el > 0) { svg += '<circle cx="' + X(c.x) + '" cy="' + Y(c.y) + '" r="4.5" fill="var(--data)"/>'; if (fin > 0) { var ph = (fin * 2) % 1; svg += '<circle cx="' + X(c.x) + '" cy="' + Y(c.y) + '" r="' + (4 + 9 * eOutQuad(ph)).toFixed(1) + '" fill="var(--data)" opacity="' + (0.3 * (1 - ph)).toFixed(2) + '"/>'; } }
+      root.querySelector('svg').innerHTML = svg;
+      var num = root.querySelector('.hnum'); num.textContent = c.v.toFixed(1); num.style.transform = 'scale(' + bump(t).toFixed(3) + ')';
+      var enter = clamp01(t / 600); root.style.opacity = Math.min(1, enter * 1.6); root.style.transform = 'translateY(' + (8 * (1 - enter)).toFixed(1) + 'px)';
+    }
+    function html(key) { return '<div class="hero3 card pc" data-hero="' + key + '"><div class="row" style="gap: 8px"><span class="r-cap c2">Est. level</span><span class="otag">Example</span></div><div class="row" style="align-items: baseline; gap: 4px"><span class="r-display d34 cd hnum" style="display: inline-block; transform-origin: left bottom">0.0</span><span class="unit">mg</span></div><svg class="full" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Example: each dose stacks on the last, so the estimated level builds up over time"></svg></div>'; }
+    function run() {
+      var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelectorAll('#phone [data-hero]').forEach(function (root) {
+        var key = root.getAttribute('data-hero'); st.heroT = st.heroT || {}; if (st.heroT[key] == null) st.heroT[key] = performance.now();
+        if (reduce) { draw(root, TOTAL); return; }
+        (function tick() { if (!root.isConnected) return; var t = performance.now() - st.heroT[key]; draw(root, Math.min(t, TOTAL)); if (t < TOTAL) requestAnimationFrame(tick); })();
+      });
+    }
+    return { html: html, run: run, TOTAL: TOTAL };
+  })();
+
+  /* ================= Feature animations (Premium previews), same engine and care as the hero ================= */
+  // Each is a timeline drawn from one clock (no per-frame re-render of the page), labelled "Example",
+  // made from sample data that matches the rest of the prototype; Reduce Motion shows the last frame.
+  var FX = (function () {
+    var cl = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; }, eo = function (t) { return 1 - (1 - t) * (1 - t); }, eio = function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+    var eBack = function (t) { var c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+    var k = function (t, a, d) { return cl((t - a) / d); };
+    var M = 'font-family="Geist Mono, ui-monospace, monospace"', SY = 'font-family="-apple-system, BlinkMacSystemFont, Roboto, sans-serif"';
+    var txt = function (x, y, s, o) { o = o || {}; return '<text x="' + x + '" y="' + y + '" ' + (o.mono ? M : SY) + ' font-size="' + (o.size || 12) + '" font-weight="' + (o.w || 400) + '" fill="' + (o.fill || 'var(--ink)') + '"' + (o.anchor ? ' text-anchor="' + o.anchor + '"' : '') + (o.op != null ? ' opacity="' + o.op.toFixed(2) + '"' : '') + '>' + s + '</text>'; };
+    var rect = function (x, y, w, h, r, fill, o) { o = o || {}; return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + Math.max(0, w).toFixed(1) + '" height="' + Math.max(0, h).toFixed(1) + '" rx="' + r + '" fill="' + fill + '"' + (o.stroke ? ' stroke="' + o.stroke + '" stroke-width="' + (o.sw || 1) + '"' : '') + (o.op != null ? ' opacity="' + o.op.toFixed(2) + '"' : '') + '/>'; };
+    var num = function (v) { return Math.round(v).toLocaleString('en-US'); };
+    var tick = function (x, y, s, fill) { return '<path d="M' + (x - 5 * s) + ' ' + y + ' l' + (3.5 * s) + ' ' + (3.5 * s) + ' l' + (6.5 * s) + ' ' + (-7 * s) + '" fill="none" stroke="' + (fill || 'var(--onInk)') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'; };
+    var scanBeam = function (x, y, w, h, p) { var yy = y + h * p; return '<rect x="' + x + '" y="' + (yy - 14) + '" width="' + w + '" height="14" fill="var(--data)" opacity=".10"/><line x1="' + (x - 4) + '" x2="' + (x + w + 4) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--data)" stroke-width="2"/>'; };
+    var corners = function (x, y, w, h, op) { var c = 12, st2 = 'stroke="var(--ink)" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="' + op.toFixed(2) + '"'; return '<path d="M' + x + ' ' + (y + c) + 'V' + y + 'H' + (x + c) + 'M' + (x + w - c) + ' ' + y + 'H' + (x + w) + 'V' + (y + c) + 'M' + x + ' ' + (y + h - c) + 'V' + (y + h) + 'H' + (x + c) + 'M' + (x + w - c) + ' ' + (y + h) + 'H' + (x + w) + 'V' + (y + h - c) + '" ' + st2 + '/>'; };
+    var A = {};
+    // Reality check: two weigh-ins + the food log → measured maintenance vs the formula (main's 2,780 / 2,540 / −240)
+    A.reality = { h: 250, dur: 5600, draw: function (t) {
+      var s2 = '', c1 = eBack(k(t, 0, 500)), c2 = eBack(k(t, 500, 500)), ln = eo(k(t, 950, 450));
+      s2 += '<g opacity="' + cl(c1 * 1.4).toFixed(2) + '" transform="translate(0 ' + (10 * (1 - c1)).toFixed(1) + ')">' + rect(4, 6, 138, 58, 14, 'var(--well)') + txt(16, 26, 'Day 1 · weigh-in', { size: 11, fill: 'var(--ink2)' }) + txt(16, 52, '85.3', { mono: 1, size: 22, w: 500 }) + txt(70, 52, 'kg', { mono: 1, size: 11, fill: 'var(--ink2)' }) + '</g>';
+      s2 += '<g opacity="' + cl(c2 * 1.4).toFixed(2) + '" transform="translate(0 ' + (10 * (1 - c2)).toFixed(1) + ')">' + rect(184, 6, 138, 58, 14, 'var(--well)') + txt(196, 26, 'Day 21 · weigh-in', { size: 11, fill: 'var(--ink2)' }) + txt(196, 52, '84.7', { mono: 1, size: 22, w: 500 }) + txt(250, 52, 'kg', { mono: 1, size: 11, fill: 'var(--ink2)' }) + '</g>';
+      if (ln > 0) s2 += '<line x1="142" y1="35" x2="' + (142 + 42 * ln).toFixed(1) + '" y2="35" stroke="var(--ink3)" stroke-dasharray="3 3"/>' + txt(163, 80, '−0.6 kg', { mono: 1, size: 11, anchor: 'middle', fill: 'var(--ink2)', op: ln });
+      var fb = k(t, 1500, 1100);
+      if (t > 1400) { s2 += txt(4, 106, 'Food log · 21 days', { size: 11, fill: 'var(--ink2)', op: cl((t - 1400) / 300) }) + rect(4, 114, 318, 10, 5, 'var(--well)') + rect(4, 114, 318 * eio(fb), 10, 5, 'var(--data)') + txt(322, 106, '~' + num(2320 * eio(fb)) + ' kcal/day', { mono: 1, size: 11, anchor: 'end', op: cl((t - 1400) / 300) }); }
+      var r1 = k(t, 2700, 400), r2 = k(t, 3100, 900), r3 = eBack(k(t, 4100, 450));
+      if (r1 > 0) s2 += '<g opacity="' + r1.toFixed(2) + '">' + txt(4, 152, 'Estimated (formula)', { size: 12, fill: 'var(--ink2)' }) + txt(322, 152, '2,780', { mono: 1, size: 14, anchor: 'end', fill: 'var(--ink2)' }) + '</g>';
+      if (r2 > 0) s2 += txt(4, 182, 'Measured (your weigh-ins)', { size: 12, w: 600, op: cl(r2 * 3) }) + txt(322, 182, num(2540 * eio(r2)), { mono: 1, size: 18, w: 600, anchor: 'end', fill: 'var(--data)' });
+      if (r3 > 0) s2 += '<g opacity="' + cl(r3 * 1.5).toFixed(2) + '" transform="translate(163 222) scale(' + (0.85 + 0.15 * r3).toFixed(3) + ') translate(-163 -222)">' + rect(78, 204, 170, 36, 18, 'var(--act)') + txt(163, 227, 'Difference  −240 / day', { size: 13, w: 700, anchor: 'middle', fill: 'var(--onAct)' }) + '</g>';
+      return s2; } };
+    // AI food log: a sentence becomes itemised, estimated entries (main's demo: ≈ 480 kcal · 55 g carbs · 26 g protein)
+    A.food = { h: 250, dur: 6000, draw: function (t) {
+      var s2 = '', full = '3 eggs, 2 toasts and a coffee', n = Math.floor(cl((t - 200) / 1300) * full.length), sent = t > 1700;
+      if (!sent) { s2 += rect(4, 200, 272, 40, 20, 'var(--well)', { stroke: 'var(--line)' }) + txt(20, 225, full.slice(0, n) + (Math.floor(t / 450) % 2 ? '▏' : ''), { size: 13 }) + '<circle cx="302" cy="220" r="18" fill="var(--act)"/>' + '<path d="M302 212 l1.6 4.6 4.6 1.6 -4.6 1.6 -1.6 4.6 -1.6 -4.6 -4.6 -1.6 4.6 -1.6z" fill="var(--onAct)"/>'; }
+      else { var up = eo(k(t, 1700, 350)), yb = 200 - 186 * up; s2 += rect(96, yb, 226, 34, 17, 'var(--act)') + txt(209, yb + 22, full, { size: 12.5, anchor: 'middle', fill: 'var(--onAct)' }); }
+      if (t > 2050 && t < 2700) { var ph = Math.floor((t - 2050) / 200) % 3; s2 += rect(4, 58, 150, 30, 15, 'var(--well)') + txt(16, 78, 'Reading your message', { size: 11.5, fill: 'var(--ink2)' }) + [0, 1, 2].map(function (i) { return '<circle cx="' + (132 + i * 7) + '" cy="74" r="2.2" fill="var(--ink2)" opacity="' + (i === ph ? 1 : 0.35) + '"/>'; }).join(''); }
+      var rows = [['3 eggs', 215, 'Meal'], ['2 toasts', 240, 'Meal'], ['coffee with milk', 25, 'Drink']], tot = 0;
+      rows.forEach(function (r, i) { var a = eBack(k(t, 2700 + i * 280, 380)); if (a <= 0) return; tot += r[1] * cl(k(t, 2700 + i * 280, 600)); var y = 60 + i * 34; s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '" transform="translate(' + (-16 * (1 - a)).toFixed(1) + ' 0)">' + txt(12, y + 16, r[0] + ' · <tspan ' + M + ' font-weight="500">~' + r[1] + '</tspan> kcal', { size: 13 }) + rect(262, y + 3, 56, 20, 10, 'none', { stroke: 'var(--line)' }) + txt(290, y + 17, r[2], { size: 10.5, anchor: 'middle', fill: 'var(--ink2)' }) + '</g>'; });
+      if (t > 2700) s2 = rect(0, 52, 326, 138, 18, 'var(--well)', { op: cl((t - 2700) / 300) }) + s2;
+      var tt2 = k(t, 3700, 900);
+      if (tt2 > 0) s2 += '<line x1="12" x2="314" y1="166" y2="166" stroke="var(--line)"/>' + txt(12, 184, '≈ ' + num(480 * eio(tt2)) + ' kcal', { mono: 1, size: 15, w: 600 }) + txt(314, 184, Math.round(55 * eio(tt2)) + ' g carbs · ' + Math.round(26 * eio(tt2)) + ' g protein', { size: 11.5, anchor: 'end', fill: 'var(--ink2)' });
+      if (t > 4700) s2 += txt(163, 226, 'Estimates (±10–15%) — not medical or diet advice.', { size: 10.5, anchor: 'middle', fill: 'var(--ink3)', op: cl((t - 4700) / 400) });
+      return s2; } };
+    // Lab scan: one photo → every value read (the sample August 20 report)
+    A.scan = { h: 250, dur: 5600, draw: function (t) {
+      var s2 = '', px = 8, py = 14, pw = 120, ph2 = 168, cop = cl(t / 400);
+      s2 += rect(px, py, pw, ph2, 8, 'var(--raised)', { stroke: 'var(--line)', op: cop }) + txt(px + 10, py + 18, 'LAB REPORT', { size: 8.5, w: 700, fill: 'var(--ink3)', op: cop });
+      var LINES = 12, bp = eio(k(t, 700, 2200));
+      for (var i = 0; i < LINES; i++) { var ly = py + 30 + i * 11.5, lit = t > 700 && bp * ph2 > (ly - py); s2 += rect(px + 10, ly, 58 - (i % 3) * 10, 4, 2, lit ? 'var(--data)' : 'var(--line)', { op: cop * (lit ? 0.9 : 1) }) + rect(px + 84, ly, 24, 4, 2, lit ? 'var(--data)' : 'var(--line)', { op: cop }); }
+      s2 += corners(px - 6, py - 6, pw + 12, ph2 + 12, cl((t - 250) / 350));
+      if (t > 700 && t < 3000) s2 += scanBeam(px, py, pw, ph2, bp);
+      var MK = [['Total Testosterone', '986 ng/dL'], ['Free Testosterone', '21.4 ng/dL'], ['Estradiol', '41 pg/mL'], ['SHBG', '31 nmol/L'], ['Hematocrit', '47.6 %'], ['HbA1c', '5.2 %'], ['LDL', '121 mg/dL']];
+      MK.forEach(function (m, i) { var at = 900 + i * 300, a = eBack(k(t, at, 420)); if (a <= 0) return; var y = 20 + i * 24; s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '" transform="translate(' + (-26 * (1 - a)).toFixed(1) + ' 0)">' + txt(146, y + 10, m[0], { size: 11.5 }) + txt(322, y + 10, m[1], { mono: 1, size: 11.5, anchor: 'end', w: 500 }) + '</g>'; });
+      if (t > 3300) { var c = eBack(k(t, 3300, 450)); s2 += '<g opacity="' + cl(c * 1.5).toFixed(2) + '">' + '<circle cx="20" cy="214" r="' + (11 * c).toFixed(1) + '" fill="var(--ok)"/>' + tick(20, 214, 1) + txt(38, 219, '14 markers extracted automatically', { size: 12, w: 600 }) + '</g>'; }
+      return s2; } };
+    // Lab test journal: each marker becomes a line, test after test (no ranges, no verdicts)
+    A.labs = { h: 250, dur: 5400, draw: function (t) {
+      var s2 = '', pts = [['Feb 3', 498], ['May 12', 512], ['Aug 20', 986]], X = function (i) { return 40 + i * 120; }, Y = function (v) { return 190 - (v - 400) / (1100 - 400) * 112; };
+      pts.forEach(function (p, i) { var a = eBack(k(t, 100 + i * 250, 400)); if (a > 0) s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '">' + rect(X(i) - 34, 6, 68, 26, 13, 'var(--well)') + txt(X(i), 23, p[0], { size: 11, anchor: 'middle', fill: 'var(--ink2)' }) + '</g>'; });
+      if (t > 900) s2 += txt(4, 52, 'Total Testosterone', { size: 13, w: 700, op: cl((t - 900) / 300) }) + txt(322, 52, 'ng/dL', { mono: 1, size: 11, anchor: 'end', fill: 'var(--ink2)', op: cl((t - 900) / 300) }) + '<line x1="4" x2="322" y1="206" y2="206" stroke="var(--line)" opacity="' + cl((t - 900) / 300).toFixed(2) + '"/>';
+      var d = '';
+      pts.forEach(function (p, i) { var at = 1300 + i * 700, a = k(t, at, 450); if (a <= 0) return; if (i > 0) { var sp = eo(k(t, at - 450, 450)), x0 = X(i - 1), y0 = Y(pts[i - 1][1]); d += '<line x1="' + x0 + '" y1="' + y0.toFixed(1) + '" x2="' + (x0 + (X(i) - x0) * sp).toFixed(1) + '" y2="' + (y0 + (Y(p[1]) - y0) * sp).toFixed(1) + '" stroke="var(--data)" stroke-width="2.2"/>'; } var ea = eBack(a); d += '<circle cx="' + X(i) + '" cy="' + Y(p[1]).toFixed(1) + '" r="' + (5 * ea).toFixed(1) + '" fill="var(--data)"/>' + txt(X(i), Y(p[1]) - 12, String(p[1]), { mono: 1, size: 12, w: 600, anchor: 'middle', op: cl(a * 1.4) }) + txt(X(i), 224, p[0], { size: 11, anchor: 'middle', fill: 'var(--ink3)', op: cl(a * 1.4) }); });
+      s2 += d;
+      if (t > 3700) { var c = eBack(k(t, 3700, 450)); s2 += txt(4, 246, '3 readings · your own numbers, nothing added', { size: 11, fill: 'var(--ink2)', op: cl(c * 1.5) }); }
+      return s2; } };
+    // Vaccine scan: a card photo → your records, dates as written (no status verdicts)
+    A.vax = { h: 250, dur: 5600, draw: function (t) {
+      var s2 = '', px = 8, py = 14, pw = 128, ph2 = 110, cop = cl(t / 400);
+      s2 += rect(px, py, pw, ph2, 8, 'var(--raised)', { stroke: 'var(--line)', op: cop }) + txt(px + 10, py + 17, 'VACCINATION CARD', { size: 8, w: 700, fill: 'var(--ink3)', op: cop });
+      for (var i = 0; i < 6; i++) { var ly = py + 30 + i * 12.5; s2 += rect(px + 10, ly, 50, 4, 2, 'var(--line)', { op: cop }) + rect(px + 70, ly, 44, 4, 2, 'var(--line)', { op: cop }); }
+      s2 += corners(px - 6, py - 6, pw + 12, ph2 + 12, cl((t - 250) / 350));
+      var bp = eio(k(t, 700, 1600)); if (t > 700 && t < 2400) s2 += scanBeam(px, py, pw, ph2, bp);
+      var R = [['Influenza (flu)', 'Oct 2, 2025', 'Next due: Oct 1, 2026'], ['COVID-19', 'Sep 8, 2025', 'Dose 4 · Pfizer'], ['Tetanus, diphtheria (Td)', 'Mar 14, 2019', 'Next due: Mar 14, 2029']];
+      R.forEach(function (r, i) { var a = eBack(k(t, 1600 + i * 450, 480)); if (a <= 0) return; var y = 8 + i * 70; s2 += '<g opacity="' + cl(a * 1.5).toFixed(2) + '" transform="translate(' + (30 * (1 - a)).toFixed(1) + ' 0)">' + rect(150, y, 172, 62, 14, 'var(--well)') + txt(162, y + 20, r[0], { size: 12, w: 700 }) + txt(162, y + 37, r[1], { size: 11, fill: 'var(--ink2)' }) + txt(162, y + 53, r[2], { size: 10.5, fill: 'var(--ink2)' }) + '</g>'; });
+      if (t > 3300) { var c = eBack(k(t, 3300, 450)); s2 += '<g opacity="' + cl(c * 1.5).toFixed(2) + '"><circle cx="20" cy="164" r="' + (11 * c).toFixed(1) + '" fill="var(--ok)"/>' + tick(20, 164, 1) + txt(38, 169, '3 vaccines saved', { size: 12, w: 600 }) + '</g>' + txt(8, 192, 'Dates as on your card', { size: 11, fill: 'var(--ink2)', op: cl((t - 3600) / 400) }); }
+      return s2; } };
+    // Unlimited protocols: the free plan's 3 slots, then as many as you run
+    A.protos = { h: 250, dur: 5600, draw: function (t) {
+      var s2 = '', P6 = [['BPC-157', 'var(--p1)'], ['TB-500', 'var(--p2)'], ['Testosterone Cypionate', 'var(--p4)'], ['Magnesium Bisglycinate', 'var(--p3)'], ['Vitamin D3', '#BA7517'], ['Semaglutide', '#D4537E']]; // the last two from the protocol palette (PAL)
+      var unlocked = t > 2600, lim = '3 of 3 on the free plan';
+      P6.forEach(function (p, i) {
+        var y = 6 + i * 34, at = i < 3 ? 150 + i * 250 : (i === 3 ? 1300 : 2900 + (i - 3) * 260), a = eBack(k(t, at, 420)); if (a <= 0) return;
+        var shake = (i === 3 && !unlocked) ? Math.sin((t - 1500) / 40) * 6 * cl(1 - (t - 1500) / 700) * (t > 1500 ? 1 : 0) : 0;
+        var dim = (i === 3 && !unlocked) ? 0.45 : 1;
+        s2 += '<g opacity="' + (cl(a * 1.5) * dim).toFixed(2) + '" transform="translate(' + ((-20 * (1 - a)) + shake).toFixed(1) + ' 0)">' + rect(4, y, 318, 28, 14, 'var(--well)') + '<circle cx="20" cy="' + (y + 14) + '" r="5" fill="' + p[1] + '"/>' + txt(34, y + 18.5, p[0], { size: 12.5, w: 600 }) + '</g>';
+        if (i === 3 && !unlocked && t > 1500) s2 += '<g transform="translate(296 ' + (y + 6) + ')" opacity="' + cl((t - 1500) / 300).toFixed(2) + '"><rect x="0" y="6" width="14" height="10" rx="2" fill="none" stroke="var(--ink)" stroke-width="1.6"/><path d="M3 6V4a4 4 0 0 1 8 0v2" fill="none" stroke="var(--ink)" stroke-width="1.6"/></g>';
+      });
+      var lab = unlocked ? num(Math.min(6, 3 + Math.floor((t - 2900) / 260) + 1)) + ' protocols · unlimited with Premium' : lim;
+      if (t > 900) s2 += txt(163, 232, lab, { size: 12.5, w: 600, anchor: 'middle', fill: unlocked ? 'var(--data)' : 'var(--ink2)', op: cl((t - 900) / 300) });
+      return s2; } };
+    // PDF export for your doctor: choose, then the pages print themselves
+    A.pdf = { h: 250, dur: 5800, draw: function (t) {
+      var s2 = '', items = ['Lab results', 'Vaccines'];
+      items.forEach(function (it, i) { var a = k(t, 100 + i * 200, 300), on = t > 700 + i * 350; s2 += '<g opacity="' + a.toFixed(2) + '">' + rect(4, 10 + i * 36, 22, 22, 7, on ? 'var(--ink)' : 'none', { stroke: on ? 'var(--ink)' : 'var(--tick)', sw: 1.5 }) + (on ? tick(15, 21 + i * 36, 0.9) : '') + txt(36, 26 + i * 36, it, { size: 12.5, w: 600 }) + '</g>'; });
+      var pg = eBack(k(t, 1500, 500)), fly = eio(k(t, 4300, 700)), sx = 1 - 0.12 * fly, dx = 0, dy = -6 * fly;
+      if (pg > 0) {
+        var pxp = 150, pyp = 6, pwp = 168, php = 216;
+        s2 += '<g opacity="' + cl(pg * 1.5).toFixed(2) + '" transform="translate(' + (pxp + pwp / 2 + dx).toFixed(1) + ' ' + (pyp + php / 2 + dy).toFixed(1) + ') scale(' + (sx * (0.9 + 0.1 * pg)).toFixed(3) + ') translate(' + (-(pxp + pwp / 2)) + ' ' + (-(pyp + php / 2)) + ')">';
+        s2 += rect(pxp, pyp, pwp, php, 6, 'var(--raised)', { stroke: 'var(--line)' }) + txt(pxp + 12, pyp + 22, 'DoseTrace records', { size: 12, w: 700 }) + txt(pxp + 12, pyp + 36, 'Exported September 29, 2026', { size: 8.5, fill: 'var(--ink3)' });
+        var rows = [['Lab results', 1], ['Total Testosterone', 0], ['Hematocrit', 0], ['HbA1c', 0], ['Vaccines', 1], ['Influenza (flu)', 0], ['COVID-19', 0], ['Tetanus (Td)', 0]];
+        rows.forEach(function (r, i) { var a = k(t, 2100 + i * 220, 220); if (a <= 0) return; var y = pyp + 56 + i * 17; s2 += r[1] ? txt(pxp + 12, y + 8, r[0], { size: 9.5, w: 700, op: a }) : rect(pxp + 12, y + 3, 64 * a, 4, 2, 'var(--ink3)') + rect(pxp + 118, y + 3, 36 * a, 4, 2, 'var(--data)'); });
+        s2 += txt(pxp + 12, pyp + php - 10, 'Your own records. Not medical advice.', { size: 7.5, fill: 'var(--ink3)', op: k(t, 3900, 300) }) + '</g>';
+        var sb = eBack(k(t, 4700, 450)); if (sb > 0) s2 += '<g transform="translate(' + (pxp + pwp - 6) + ' ' + (pyp + 12) + ') scale(' + sb.toFixed(3) + ')"><circle r="17" fill="var(--act)"/><path d="M0 7V-6M-5 -1 0 -6l5 5" fill="none" stroke="var(--onAct)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>';
+      }
+      if (t > 4700) { var c = eBack(k(t, 4700, 450)); s2 += '<g opacity="' + cl(c * 1.5).toFixed(2) + '"><circle cx="20" cy="112" r="' + (11 * c).toFixed(1) + '" fill="var(--ok)"/>' + tick(20, 112, 1) + txt(38, 117, 'PDF ready', { size: 12, w: 600 }) + txt(8, 142, 'Share it with your doctor', { size: 11, fill: 'var(--ink2)' }) + '</g>'; }
+      return s2; } };
+    function html(key) { var a = A[key]; return '<div class="card pc fxcard" data-fx="' + key + '"><span class="otag" style="align-self: flex-start">Example</span><svg class="full" viewBox="0 0 326 ' + a.h + '" role="img" aria-label="Example animation"></svg></div>'; }
+    function run() {
+      var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelectorAll('#phone [data-fx]').forEach(function (root) {
+        var key = root.getAttribute('data-fx'), a = A[key], svg = root.querySelector('svg'); st.fxT = st.fxT || {}; if (st.fxT[key] == null) st.fxT[key] = performance.now();
+        if (reduce) { svg.innerHTML = a.draw(a.dur); return; }
+        (function tick2() { if (!root.isConnected) return; var t = performance.now() - st.fxT[key]; svg.innerHTML = a.draw(Math.min(t, a.dur)); if (t < a.dur) requestAnimationFrame(tick2); })();
+      });
+    }
+    return { html: html, run: run, A: A };
+  })();
+  // the Premium previews: main's titles and texts where they exist (three fixed), new copy for the rest
+  var PREVIEWS = [
+    ['serum', 'curve', 'See your compound build up', 'DoseTrace models how each dose stacks on the last, so you see your estimated serum level between doses — not just what you took.'],
+    ['reality', 'calc_trend', 'What your body actually burns', 'From your weigh-ins, DoseTrace back-calculates your real daily burn and compares it to the estimate — plain math from your own numbers.'],
+    ['food', 'food', nc('Log your day in a sentence'), 'Describe what you ate — DoseTrace estimates the calories, carbs and protein and feeds your reality-check.'],
+    ['scan', 'scan', 'One photo, every marker', nc('Scan a lab as a photo or PDF, in any language, and every value drops straight onto its chart.')],
+    ['labs', 'calc_bars', 'Every marker, over time', nc('After a few labs, each marker becomes a line — see how your own values change from test to test.')],
+    ['vax', 'shield', 'Your shots, always to hand', nc('Every vaccine and booster with the dates on your card, next-due reminders and notes — ready for any clinic.')],
+    ['protos', 'stack', nc('Every protocol you run'), nc('The free plan holds 3 protocols. Premium holds as many as you run, each with its own schedule, reminders and calculator.')],
+    ['pdf', 'download', nc('A clean PDF for your doctor'), nc('Pick the lab results and vaccines you need and export a formatted PDF — CSV stays free.')]
+  ];
+  function previewSheet(k2) {
+    var pv = PREVIEWS.filter(function (x) { return x[0] === k2; })[0];
+    return '<div class="scrim bot"' + A('scrim') + '><div class="sheet bsheet" data-i="PW-' + k2 + '" style="max-height: 92%; overflow-y: auto"><div class="row" style="justify-content: space-between; gap: 10px"><span class="r-title">' + pv[2] + '</span><span class="round" style="width: 36px; height: 36px; flex: none"' + A('close') + ' aria-label="Close">' + ic(BI.x, 18, 'color: currentColor') + '</span></div>' + (k2 === 'serum' ? HERO.html('pv-serum') : FX.html(k2)) + '<span class="r-sec c2">' + pv[3] + '</span><span class="btn p"' + A('paywall') + '>Unlock with Pro</span><span class="r-foot c3">Example only — a math estimate or sample, built from your own data once you use the app. Never a measurement or advice.</span></div></div>';
+  }
+
+  /* ================= Paywall (under review) ================= */
+  // sample prices: the store sets the real ones (RevenueCat offerings), per country
+  var PRICE = { annual: '$59.99', monthly: '$7.99', lifetime: '$149.99', annualPm: '$5.00', save: 37 };
+  function paywallScreen() {
+    var p = st.pay, trial = !p.noTrial, sel = p.sel;
+    var h = '<div class="navrow"><span class="back"' + A('payback') + '>' + CHEV + 'Back</span><span class="r-head">Upgrade to Premium</span><span style="width: 52px"></span></div>';
+    h += '<div class="col" style="gap: 10px">' + HERO.html('pay') + '<h3 class="r-large" style="font-size: calc(30px * var(--ts)); text-align: center">DoseTrace Premium</h3><span class="r-body c2" style="text-align: center">Dose-accumulation curves from your own log, unlimited protocols, unlimited lab scans, and PDF export.</span></div>';
+    h += '<div class="col" style="gap: 6px" data-i="PW-see"><span class="r-title">See what you get</span><span class="r-sec c2">Tap a feature to preview it</span><div class="list">' + PREVIEWS.map(function (pv) { return '<div class="li"' + A('pv', pv[0]) + '>' + fic(pv[1], 26, 'color: var(--data); flex: none') + '<span class="r-body grow">' + pv[2] + '</span>' + CHEV + '</div>'; }).join('') + '</div></div>';
+    if (p.unavail) h += '<div class="card pc" style="align-items: center; text-align: center"><span class="r-sec c2">Plans are currently unavailable. Please check your connection and try again later.</span></div>';
+    else {
+      h += '<div class="plans" data-i="PW-plans">' + [['annual', 'Annual', PRICE.annual, 'per year'], ['monthly', 'Monthly', PRICE.monthly, 'per month']].map(function (x) { var on = sel === x[0]; return '<div class="plan' + (on ? ' on' : '') + '"' + A('paysel', x[0]) + ' role="radio" aria-checked="' + on + '">' + (x[0] === 'annual' ? '<span class="otag" style="align-self: flex-start">' + nc('Best value') + '</span>' : '<span style="height: 26px"></span>') + '<span class="radio' + (on ? ' on' : '') + '"></span><span class="r-head">' + x[1] + '</span><span class="r-display d34" style="font-size: calc(28px * var(--ts))">' + x[2] + '</span><span class="r-foot c2">' + x[3] + '</span>' + (x[0] === 'annual' ? '<span class="r-foot tnum" style="color: var(--data); font-weight: 700">Save ' + PRICE.save + '%</span><span class="r-foot c2 tnum">' + PRICE.annualPm + ' per month</span>' : '<span class="r-foot c2" style="margin-top: auto">Billed monthly</span>') + '</div>'; }).join('') + '</div>';
+      h += '<div class="card pc" data-i="PW-life"><div class="row" style="gap: 12px"><div class="grow col" style="gap: 3px"><span class="r-head">Lifetime Access</span><span class="r-sec c2">Pay once, unlock DoseTrace ' + nc('Premium') + ' forever. No recurring charges.</span></div><span class="btn sm o"' + A('paybuy', 'lifetime') + '>' + PRICE.lifetime + '</span></div><span class="r-foot c2">One-time purchase. All premium features included.</span></div>';
+      h += '<span class="btn p col" style="gap: 2px; min-height: 64px" data-i="PW-cta"' + A('paybuy', sel) + '><span>' + (trial ? 'Start 7-day free trial' : 'Subscribe') + '</span><span class="r-cap" style="font-weight: 500; opacity: .85">' + (trial ? 'Then ' : '') + (sel === 'annual' ? PRICE.annual + ' per year' : PRICE.monthly + ' per month') + ' · Cancel anytime</span></span>';
+      h += '<span class="r-foot c2" style="text-align: center">' + (trial ? 'Payment is charged to your Apple ID account at confirmation of purchase. The subscription auto-renews unless cancelled at least 24 hours before the trial ends. Manage it in your Apple ID subscription settings.' : 'Payment is charged to your Apple ID account at confirmation of purchase. The subscription auto-renews unless cancelled at least 24 hours before the end of the current period. Manage it in your Apple ID subscription settings.') + '</span>';
+    }
+    h += '<div class="col" style="align-items: center; gap: 2px" data-i="PW-links"><span class="btnlink r-body paylink"' + A('payrestore') + '>Restore purchases</span><div class="row" style="justify-content: center; gap: 24px"><span class="btnlink r-sec paylink"' + A('legal', 'terms') + '>' + nc('Terms of service') + '</span><span class="btnlink r-sec paylink"' + A('legal', 'privacy') + '>' + nc('Privacy policy') + '</span></div></div>';
+    var yes = ic(I.check, 18, 'color: var(--ink)'), no = '<span style="color: var(--ink3); font-weight: 600">—</span>';
+    var rows = [['Full reconstitution calculator', 1, 1], ['Up to 3 protocols', 1, 1], ['Injection log & vial tracker', 1, 1], ['Reminders', 1, 1], ['Lab & vaccine journals', 1, 1], ['Energy & protein calculator', 1, 1], ['Cloud backup & sync', 1, 1], [nc('AI food log'), nc('3 days'), 1], ['1 free lab scan', 1, 1], ['Unlimited protocols', 0, 1], ['Unlimited lab & vaccine scans', 0, 1], ['PDF export for your doctor', 0, 1], ['Reality check & progress tracking', 0, 1], ['Dose accumulation', 0, 1]];
+    h += '<span class="r-title" style="padding-top: 8px">Free vs Premium</span><div class="list cmpt" data-i="PW-cmp"><div class="li cmprow r-cap c2"><span class="grow">Feature</span><span class="cmpc">Free</span><span class="cmpc" style="color: var(--data); font-weight: 700">Premium</span></div>' + rows.map(function (r) { var cell = function (v) { return v === 1 ? yes : v === 0 ? no : '<span class="r-cap tnum">' + v + '</span>'; }; return '<div class="li cmprow"><span class="r-sec grow">' + r[0] + '</span><span class="cmpc">' + cell(r[1]) + '</span><span class="cmpc">' + cell(r[2]) + '</span></div>'; }).join('') + '</div>';
+    h += '<span class="r-title" style="padding-top: 8px">What\'s included with Premium</span><div class="names">' + ['Everything in Free', 'Unlimited protocols', 'Unlimited scans — photo or PDF, any language', 'PDF export for your doctor', 'Reality check & progress tracking', 'Dose accumulation'].map(function (x) { return '<span class="row r-body" style="gap: 10px">' + ic(I.check, 20, 'color: var(--data)') + x + '</span>'; }).join('') + '</div>';
+    return h;
+  }
+
   /* ================= Onboarding (under review) ================= */
-  var OSTEPS = ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders', 'ready'];
+  var OSTEPS = ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders']; // 'ready' dropped (founder 2026-09-29): Create account follows directly
   var TERMS_O = [['med', 'Not a medical device', 'DoseTrace is an educational tracking tool — it makes no recommendations.'], ['est', 'Estimates, not advice', 'Curves and calculators are math estimates, not measurements or dosing advice.'], ['ai', 'AI only when you use it', 'A photo or report you scan, or a meal you describe in the AI food log, is sent to Anthropic to read it — only with your consent.'], ['priv', 'Your privacy', 'Your data is encrypted in transit and at rest, synced to your private account, and never sold.']];
   function obRefresh() { var b = phone.querySelector('.obfoot .btn'); if (!b || !st.onb) return; var ok = obCan(OSTEPS[st.onb.step], st.onb.d); b.classList.toggle('obdim', !ok); if (ok) b.setAttribute('data-a', 'obnext'); else b.removeAttribute('data-a'); }
   function onbNew() { return { step: 0, d: { name: '', bm: null, by: '', sex: '', country: '', goals: [], track: [], act: '', prov: '', terms: {} } }; }
@@ -2141,12 +2378,13 @@ textarea.winp { resize: none; }
   function obPill(act, v, label, on, icon) { return '<span class="pill r-foot row' + (on ? ' on' : '') + '" style="gap: 8px"' + A(act, v) + '>' + (icon ? fic(icon, 20, 'color: currentColor') : '') + label + '</span>'; }
   function onbScreen() {
     var o = st.onb, k = OSTEPS[o.step], d = o.d, h = '';
-    if (k !== 'splash') h += '<div class="obtop"><span class="back"' + A('obback') + ' aria-label="Back">' + CHEV + '</span><div class="obdash">' + OSTEPS.map(function (x, i) { return '<i class="' + (i <= o.step ? 'on' : '') + '"></i>'; }).join('') + '</div><span style="width: 24px"></span></div>';
-    h += '<div class="col obbody" data-i="O-' + k + '" style="gap: 14px">';
+    if (k !== 'splash') h += '<div class="obtop"><span class="back"' + A('obback') + ' aria-label="Back">' + CHEV + '</span><div class="obdash">' + OSTEPS.map(function (x, i) { var grow = o.anim && o.anim.step === o.step && o.anim.dir > 0 && i === o.step, shrink = o.anim && o.anim.step === o.step && o.anim.dir < 0 && i === o.step + 1; return '<i class="' + (i <= o.step ? 'on' : '') + (grow ? ' grow' : '') + (shrink ? ' shrink' : '') + '"><b></b></i>'; }).join('') + '</div><span style="width: 24px"></span></div>';
+    var anim = o.anim && o.anim.step === o.step ? (o.anim.dir > 0 ? ' obin-r' : ' obin-l') : '';
+    h += '<div class="col obbody' + anim + '" data-i="O-' + k + '" style="gap: 14px">';
     if (k === 'splash') h += '<div class="row" style="justify-content: flex-end"><span class="pill r-foot row" style="gap: 6px"' + A('langpick') + '>' + (st.lang || 'en').toUpperCase() + DOWN + '</span></div><div class="col" style="align-items: center; text-align: center; gap: 14px; padding-top: 90px"><span class="applogo">' + ic(JI.curve, 64, 'color: #fff') + '</span><span class="brand">DoseTrace</span><span class="r-title c2" style="font-weight: 500">Every dose, precisely tracked.</span></div>';
     if (k === 'features') {
       var pts = [], lvl = 0; for (var q = 0; q <= 120; q++) { if (q % 20 === 0) lvl += 1; lvl *= 0.985; pts.push((12 + q * 2.55).toFixed(1) + ',' + (132 - lvl * 26).toFixed(1)); }
-      h += obHead('Built for your protocol', 'What DoseTrace does that a notes app can’t.') + '<div class="card pc" style="background: var(--well); padding: 12px"><svg class="full" viewBox="0 0 330 150" role="img" aria-label="Example accumulation curve"><line x1="12" x2="318" y1="136" y2="136" stroke="var(--line)"/><polyline class="drawin" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round" points="' + pts.join(' ') + '"/></svg><span class="otag" style="align-self: flex-start">Example</span></div>';
+      h += obHead('Built for your protocol', 'What DoseTrace does that a notes app can’t.') + HERO.html('onb');
       h += '<div class="names" style="gap: 14px">' + [['reconstitution', 'Reconstitution & draw math', 'Enter your vial and dose — we handle the mixing and syringe math.'], ['curve', nc('Dose accumulation'), 'See the estimated amount in your body build up over time.'], ['bell', 'Smart reminders', 'Schedule-based alerts so you never miss a dose.'], ['stack', 'Multi-protocol stacks', 'Track several compounds and cycles at once.'], ['scan', nc('Lab test journal'), 'Snap a bloodwork report and pull the numbers in.']].map(function (f) { return '<div class="row" style="gap: 14px; align-items: flex-start"><span class="featic">' + fic(f[0], 30, 'color: var(--ink)') + '</span><div class="col grow" style="gap: 2px"><span class="r-head">' + f[1] + '</span><span class="r-sec c2">' + f[2] + '</span></div></div>'; }).join('') + '</div>';
     }
     if (k === 'goal') h += obHead(nc('What are your goals?'), nc('We’ll tailor your tracking around them.')) + '<span class="r-foot c2">Select all that apply</span><div class="pills">' + GOALS_P.map(function (g) { return obPill('obgoal', g[0], g[1], d.goals.indexOf(g[0]) >= 0); }).join('') + '</div>';
@@ -2163,12 +2401,10 @@ textarea.winp { resize: none; }
     if (k === 'routine') h += obHead('Your routine') + '<div class="fld"><span class="r-head">' + nc('Activity level') + '</span><div class="actlist">' + ACTS.map(function (y) { var parts = y[0].split(/ — |, /), on = d.act === y[0]; return '<div class="actrow' + (on ? ' on' : '') + '"' + A('obact', y[0]) + '><div class="grow col" style="gap: 2px"><span class="r-head">' + parts[0] + '</span><span class="r-sec c2">' + parts.slice(1).join(', ') + '</span></div>' + (on ? ic(I.check, 22, 'color: var(--ink)') : '') + '</div>'; }).join('') + '</div></div><div class="fld"><span class="r-head">Do you work with a healthcare provider?</span><span class="segw fill">' + [['yes', 'Yes'], ['no', 'No']].map(function (x) { return '<span class="' + (d.prov === x[0] ? 'on' : '') + '"' + A('pfprov', x[0]) + '>' + x[1] + '</span>'; }).join('') + '</span></div>';
     if (k === 'consent') h += obHead('Before we begin', 'Tap each to confirm.') + '<div class="list" style="padding: 0 16px">' + TERMS_O.map(function (x) { var on = !!d.terms[x[0]]; return '<div class="li exrow' + (on ? ' on' : '') + '" style="align-items: flex-start; padding: 14px 0"' + A('obterm', x[0]) + ' role="checkbox" aria-checked="' + on + '"><span class="exbox" style="margin-top: 2px">' + (on ? ic(I.check, 16, 'color: var(--onInk)') : '') + '</span><div class="grow col" style="gap: 3px"><span class="r-head">' + (x[0] === 'ai' ? nc(x[1]) : x[1]) + '</span><span class="r-sec c2">' + (x[0] === 'ai' ? nc(x[2]) : x[2]) + '</span></div></div>'; }).join('') + '</div><span class="btnlink r-body" style="align-self: center; min-height: 44px"' + A('legal', 'privacy') + '>Privacy policy</span>';
     if (k === 'reminders') h += '<div class="col" style="align-items: center; text-align: center; gap: 14px; padding-top: 110px">' + fic('bell', 76, 'color: var(--data)') + '<h3 class="r-large" style="font-size: calc(30px * var(--ts))">Never miss a dose</h3><span class="r-body c2">Smart reminders based on your schedule.</span></div>';
-    if (k === 'ready') h += '<div class="col" style="align-items: center; text-align: center; gap: 14px; padding-top: 110px"><span class="applogo sm">' + ic(JI.curve, 44, 'color: #fff') + '</span><h3 class="r-large" style="font-size: calc(30px * var(--ts))">You’re all set</h3><span class="r-body c2">Create your account to save your profile and start tracking.</span></div>';
     h += '</div><div class="obfoot">';
     var can = obCan(k, d);
     if (k === 'splash') h += '<span class="btn p"' + A('obnext') + '>Get started</span><span class="btnlink r-body" style="align-self: center; min-height: 44px"' + A('obsignin') + '>Already have an account? Sign in</span>';
-    else if (k === 'reminders') h += '<span class="btn p"' + A('obnotif') + '>Enable notifications</span><span class="btnlink r-body" style="align-self: center; min-height: 44px"' + A('obnext') + '>Not now</span>';
-    else if (k === 'ready') h += '<span class="btn p"' + A('obcreate') + '>Create account</span>';
+    else if (k === 'reminders') h += '<span class="btn p"' + A('obnotif') + '>Enable notifications</span><span class="btnlink r-body" style="align-self: center; min-height: 44px"' + A('obcreate') + '>Not now</span>';
     else h += '<span class="btn p' + (can ? '' : ' obdim') + '"' + (can ? A('obnext') : '') + ' aria-disabled="' + !can + '">Continue</span>';
     return h + '</div>';
   }
@@ -2201,8 +2437,16 @@ textarea.winp { resize: none; }
     var times = ['8:10', '8:11', '8:12'];
     phone.className = 'ph app ' + st.theme + (document.getElementById('badges').checked ? ' badges' : '');
     phone.style.setProperty('--ts', st.ts);
+    if (st.pay) {
+      phone.innerHTML = sbar('8:10') + '<div class="scroller" id="scroller"><div class="scr pscr">' + paywallScreen() + '</div></div>' + (st.toast ? '<div class="toast" style="bottom: 40px"><span class="r-body grow">' + st.toast.text + '</span></div>' : '') + overlay() + '<div class="home"></div>';
+      HERO.run(); FX.run();
+      var psc = document.getElementById('scroller'); psc.scrollTop = st.payScroll || 0; psc.addEventListener('scroll', function () { st.payScroll = psc.scrollTop; });
+      document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
+      return;
+    }
     if (st.onb) {
       phone.innerHTML = sbar('8:10') + '<div class="scroller" id="scroller"><div class="scr pscr obscr">' + onbScreen() + '</div></div>' + (st.toast ? '<div class="toast" style="bottom: 120px"><span class="r-body grow">' + st.toast.text + '</span></div>' : '') + overlay() + '<div class="home"></div>';
+      if (st.onb) st.onb.anim = null; HERO.run(); FX.run();
       document.querySelectorAll('[data-ctl]').forEach(function (b) { var kv = b.getAttribute('data-ctl').split(':'); b.setAttribute('aria-pressed', String(String(st[kv[0]]) === kv[1])); });
       return;
     }
@@ -2221,6 +2465,7 @@ textarea.winp { resize: none; }
       return;
     }
     phone.innerHTML = sbar(Object.keys(st.taken).length > 4 ? '8:11' : '8:10') + '<div class="scroller" id="scroller"><div class="scr' + (c.s === 'today' ? '' : ' pscr') + '">' + body + '</div></div>' + (st.toast ? '<div class="toast" data-i="40"><span class="r-body grow">' + st.toast.text + '</span>' + (st.toast.undo ? '<span class="r-body tl"' + A('undo', st.toast.undo) + '>Undo</span>' : '') + '</div>' : '') + overlay() + tabs(st.tab).replace(/<a class="r-tab([^"]*)" href="#todayLight"/g, function (m, cls) { return '<a class="r-tab' + cls + '" href="#phone"'; }).replace(/<a class="r-tab/g, (function () { var i = 0; return function (m) { return '<a' + A('tab', i++) + ' class="r-tab'; }; })()) + '<div class="home"></div>';
+    HERO.run(); FX.run();
     var sc = document.getElementById('scroller'); sc.scrollTop = st.scroll[key()] || 0;
     sc.addEventListener('scroll', function () { st.scroll[key()] = sc.scrollTop; });
     var r = document.getElementById('ruler'); if (r) r.scrollLeft = +r.getAttribute('data-center');
@@ -2294,15 +2539,22 @@ textarea.winp { resize: none; }
     else if (a === 'weighin') st.overlay = { t: 'weighin' };
     else if (a === 'rep') push({ s: 'report', k: v });
     else if (a === 'profedit') openProf();
-    else if (a === 'obnext') { if (st.onb.step < OSTEPS.length - 1) { st.onb.step++; st.scroll = st.scroll || {}; } }
-    else if (a === 'obback') { if (st.onb.step > 0) st.onb.step--; }
+    else if (a === 'obnext') { if (st.onb.step < OSTEPS.length - 1) { st.onb.step++; st.onb.anim = { step: st.onb.step, dir: 1 }; if (OSTEPS[st.onb.step] === 'features' && st.heroT) delete st.heroT.onb; } }
+    else if (a === 'obback') { if (st.onb.step > 0) { st.onb.step--; st.onb.anim = { step: st.onb.step, dir: -1 }; if (OSTEPS[st.onb.step] === 'features' && st.heroT) delete st.heroT.onb; } }
     else if (a === 'obgoal') { var gl = st.onb.d.goals, gx = gl.indexOf(v); if (gx >= 0) gl.splice(gx, 1); else gl.push(v); }
     else if (a === 'obtrack') { var tl = st.onb.d.track, tx = tl.indexOf(v); if (tx >= 0) tl.splice(tx, 1); else tl.push(v); }
     else if (a === 'obact') st.onb.d.act = v;
     else if (a === 'obterm') st.onb.d.terms[v] = !st.onb.d.terms[v];
-    else if (a === 'obnotif') { st.onb.step++; toast('iOS asks: "DoseTrace" Would Like to Send You Notifications (Allow / Don\'t Allow).'); }
+    else if (a === 'obnotif') { var od2 = st.onb.d; st.onb = null; st.auth = { mode: 'create' }; st.form = {}; st.auConsent = true; st.fromOnb = od2; toast('iOS asks: "DoseTrace" Would Like to Send You Notifications (Allow / Don\'t Allow). Then Create account.'); }
     else if (a === 'obsignin') { st.onb = null; st.auth = { mode: 'signin' }; st.form = {}; }
     else if (a === 'obcreate') { var od = st.onb.d; st.onb = null; st.auth = { mode: 'create' }; st.form = {}; st.auConsent = true; st.fromOnb = od; }
+    else if (a === 'paywall') { st.overlay = null; st.pay = { sel: 'annual' }; st.payScroll = 0; if (st.heroT) delete st.heroT.pay; }
+    else if (a === 'payback') st.pay = null;
+    else if (a === 'paysel') st.pay.sel = v;
+    else if (a === 'paybuy') { if (st.pay.fail) st.overlay = { t: 'sheet', pi: 'PW-fail', title: 'Error', body: 'Purchase failed' }; else { st.pay = null; toast('The App Store purchase sheet (Face ID), then back where you were, with Premium on.'); } }
+    else if (a === 'payrestore') st.overlay = st.pay.restore === 'none' ? { t: 'sheet', pi: 'PW-rn', title: 'No purchases found', body: 'We could not find any previous purchases associated with your account.' } : st.pay.restore === 'fail' ? { t: 'sheet', pi: 'PW-rf', title: 'Error', body: 'Restore failed' } : { t: 'sheet', pi: 'PW-ro', icon: I.check, title: 'Purchases restored', body: 'Your premium subscription has been restored.', btns: [['Done', 'payback2', 'p']] };
+    else if (a === 'payback2') { st.overlay = null; st.pay = null; }
+    else if (a === 'pv') { st.overlay = { t: 'pv', k: v }; if (st.fxT) delete st.fxT[v]; if (st.heroT) delete st.heroT['pv-serum']; }
     else if (a === 'amode') { st.auth.mode = v; st.form.auP = ''; }
     else if (a === 'aback') { if (st.auth.mode === 'confirm') st.auth.mode = 'create'; else toast('Back to the last onboarding step (onboarding is designed next).'); }
     else if (a === 'pweye') { st.pwShow = st.pwShow || {}; st.pwShow[v] = !st.pwShow[v]; }
@@ -2364,7 +2616,7 @@ textarea.winp { resize: none; }
     else if (a === 'favonly') st.favOnly = !st.favOnly;
     else if (a === 'upload') { if (bfree()) st.overlay = upgradeSheet(); else { st.after = 'lab'; st.overlay = st.consent ? srcSheet('lab') : consentSheet(); } }
     else if (a === 'upgrade') st.overlay = upgradeSheet();
-    else if (a === 'spreview') st.overlay = { t: 'spreview' };
+    else if (a === 'spreview') { st.overlay = { t: 'pv', k: 'serum' }; if (st.heroT) delete st.heroT['pv-serum']; }
     else if (a === 'vscanbtn') { if (bfree()) st.overlay = vaxPremium(); else { st.after = 'vax'; st.overlay = st.consent ? srcSheet('vax') : consentSheet(); } }
     else if (a === 'srcpick') { var kind = st.after || 'lab'; st.overlay = null; if (kind === 'lab') st.uploading = true; else st.vscan = true; render(); setTimeout(function () { st.uploading = false; st.vscan = false; if (kind === 'lab') { if (st.bstate === 'empty') st.bstate = 'pro'; st.overlay = { t: 'sheet', pi: 'M4', title: 'Report imported', body: '14 markers saved · August 20, 2026<br><br>Tap any marker to edit it anytime.' }; } else { var L7 = (st.vax || (st.bstate === 'empty' ? [] : VAX0)).slice(); L7.push({ name: 'Hepatitis A', given: +new Date(2024, 4, 6), due: null, dn: '2', man: '', lot: '', prov: '', loc: '', notes: '' }, { name: 'Typhoid', given: +new Date(2024, 4, 6), due: +new Date(2027, 4, 6), dn: '', man: '', lot: '', prov: '', loc: '', notes: '' }); st.vax = L7; st.overlay = { t: 'sheet', pi: 'M12', title: 'Vaccines imported', body: '2 vaccines saved<br><br>Tap any record to edit it anytime.' }; } render(); }, 1400); return; }
     else if (a === 'medit') { var mp = v.split('|'), rr = LABS().filter(function (x) { return x.key === mp[0]; })[0], row = rr.m.filter(function (x) { return x[0] === mp[1]; })[0]; st.form = { mk: mp[0], mn0: mp[1], mn: row[0], mv: String(row[1]), mu: row[2], md: +new Date(mp[0] + 'T12:00:00') }; st.overlay = { t: 'medit' }; }
@@ -2377,7 +2629,7 @@ textarea.winp { resize: none; }
     else if (a === 'extog') { var pr8 = v.split('|'), arr = st.exp[pr8[0]], ix8 = arr.indexOf(pr8[1]); if (ix8 >= 0) arr.splice(ix8, 1); else arr.push(pr8[1]); }
     else if (a === 'exall') { var all8 = v === 'm' ? markerSeries().map(function (x) { return x.name; }) : vaxList().map(function (x) { return x.name; }); st.exp[v] = st.exp[v].length === all8.length ? [] : all8; }
     else if (a === 'excsv') { st.overlay = null; toast('Opens the iOS share sheet with dosetrace_records.csv'); }
-    else if (a === 'expdf') { if (bfree()) st.overlay = { t: 'sheet', pi: 'M8p', title: 'PDF export is Premium', body: 'Export a formatted PDF for your doctor with Premium. CSV export stays free.', btns: [['Cancel', 'expback', 'o'], ['Go Premium', 'say', 'p', 'Opens the Paywall (source: export_pdf).']] }; else { st.overlay = null; toast('Opens the iOS share sheet with the PDF'); } }
+    else if (a === 'expdf') { if (bfree()) st.overlay = { t: 'sheet', pi: 'M8p', title: 'PDF export is Premium', body: 'Export a formatted PDF for your doctor with Premium. CSV export stays free.', btns: [['Cancel', 'expback', 'o'], ['Go Premium', 'paywall', 'p']] }; else { st.overlay = null; toast('Opens the iOS share sheet with the PDF'); } }
     else if (a === 'expback') st.overlay = { t: 'export' };
     else if (a === 'tagrm') { var ck = cur().k, r1 = LABS().filter(function (x) { return x.key === ck; })[0]; st.labTags = st.labTags || {}; st.labTags[ck] = labTags(r1).filter(function (x) { return x !== v; }); }
     else if (a === 'tagadd') { var ck2 = cur().k, r2 = LABS().filter(function (x) { return x.key === ck2; })[0], tv = ((document.getElementById('tagin') || {}).value || '').trim(); if (tv && labTags(r2).indexOf(tv) < 0) { st.labTags = st.labTags || {}; st.labTags[ck2] = labTags(r2).concat([tv]); } }
@@ -2416,7 +2668,7 @@ textarea.winp { resize: none; }
     else if (a === 'fdemo') st.fdemo = true;
     else if (a === 'fdemox') { if (e.target !== el) return; st.fdemo = false; }
     else if (a === 'fdemoclose') st.fdemo = false;
-    else if (a === 'rcexplain') st.overlay = { t: 'rcexplain' };
+    else if (a === 'rcexplain') { st.overlay = { t: 'pv', k: 'reality' }; if (st.fxT) delete st.fxT.reality; }
     else if (a === 'weighsave') { var wv = num(document.getElementById('wiw').value); if (!wv) { toast('Enter your weight first.'); } else { var kgv = imp() ? wv / 2.20462 : wv, bfv = num(document.getElementById('wib').value) || 20.9, wcv = num(document.getElementById('wic').value), wcm = wcv ? (imp() ? wcv * 2.54 : wcv) : 92; st.extraW = (st.extraW || []).concat([[(pstate() === 'done' ? 43 : 29), Math.round(kgv * 10) / 10, wcm, bfv, pstate() === 'done' ? 'Oct 13' : 'Sep 29']]); st.pw = Math.round(kgv * 10) / 10; st.overlay = null; toast('Weigh-in saved'); } }
     else if (a === 'units') st.units = v;
     else if (a === 'bfsrc') st.bfsrc = v;
@@ -2479,14 +2731,20 @@ textarea.winp { resize: none; }
   function bgo(bs, scr) { st.bstate = bs; st.wiz = null; st.overlay = null; st.tab = 3; st.stacks[3] = [{ s: 'body' }]; st.labq = ''; st.labView = null; st.favOnly = false; st.oldest = false; st.labDel = []; st.labTags = null; st.favs = null; st.uploading = false; st.vax = null; st.vaxq = ''; st.vscan = false; st.lab = null; st.after = null; st.exp = null;
     (scr || '').split(',').filter(Boolean).forEach(function (x) { var kv = x.split(':'); if (kv[0] === 'rep') st.stacks[3].push({ s: 'report', k: kv[1] }); else if (kv[0] === 'mk') st.stacks[3].push({ s: 'marker', n: kv[1] }); else if (kv[0] === 'up') st.uploading = true; else if (kv[0] === 'vscan') st.vscan = true; else if (kv[0] === 'pop') { var pk = kv[1]; if (BERR[pk]) st.overlay = bErr(pk); else if (pk === 'upgrade') st.overlay = upgradeSheet(); else if (pk === 'spreview') st.overlay = { t: 'spreview' }; else if (pk === 'vprem') st.overlay = vaxPremium(); else if (pk === 'consent') { st.consent = false; st.after = kv[2] || 'lab'; st.overlay = consentSheet(); } else if (pk === 'src') { st.after = kv[2] || 'lab'; st.overlay = srcSheet(st.after); } else if (pk === 'export') { var ms9 = markerSeries(), vl9 = vaxList(); st.exp = { m: ms9.map(function (x) { return x.name; }), v: vl9.map(function (x) { return x.name; }) }; st.overlay = { t: 'export' }; } else if (pk === 'medit') { st.form = { mk: '2026-08-20', mn0: 'Hematocrit', mn: 'Hematocrit', mv: '47.6', mu: '%', md: +new Date('2026-08-20T12:00:00') }; st.overlay = { t: 'medit' }; } } else if (kv[0] === 'vadd') openVax(null); else if (kv[0] === 'vedit') openVax(+kv[1]); else if (kv[0] === 'bym') st.labView = 'marker'; else st.stacks[3].push({ s: kv[0] }); }); }
   // any other side-panel jump leaves the sign-in screens
-  document.querySelector('.side').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt && !bt.hasAttribute('data-ago') && !bt.hasAttribute('data-ogo') && !bt.hasAttribute('data-ctl')) { st.auth = null; st.onb = null; } }, true);
+  document.querySelector('.side').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt && !bt.hasAttribute('data-ago') && !bt.hasAttribute('data-ogo') && !bt.hasAttribute('data-pgo') && !bt.hasAttribute('data-ctl')) { st.auth = null; st.onb = null; st.pay = null; } }, true);
+  document.querySelectorAll('[data-pgo]').forEach(function (b) {
+    b.addEventListener('click', function () { var kv = b.getAttribute('data-pgo').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.auth = null; st.onb = null; st.pay = { sel: 'annual' }; st.payScroll = 0; st.heroT = {}; st.fxT = {};
+      if (kv[0] === 'pv') st.overlay = { t: 'pv', k: kv[1] }; if (kv[0] === 'notrial') st.pay.noTrial = true; if (kv[0] === 'unavail') st.pay.unavail = true; if (kv[0] === 'fail') st.pay.fail = true;
+      if (kv[0] === 'restore') { st.pay.restore = kv[1]; st.overlay = kv[1] === 'none' ? { t: 'sheet', pi: 'PW-rn', title: 'No purchases found', body: 'We could not find any previous purchases associated with your account.' } : kv[1] === 'fail' ? { t: 'sheet', pi: 'PW-rf', title: 'Error', body: 'Restore failed' } : { t: 'sheet', pi: 'PW-ro', icon: I.check, title: 'Purchases restored', body: 'Your premium subscription has been restored.', btns: [['Done', 'payback2', 'p']] }; }
+      toPhone(); });
+  });
   document.querySelectorAll('[data-ogo]').forEach(function (b) {
-    b.addEventListener('click', function () { st.wiz = null; st.overlay = null; st.toast = null; st.auth = null; st.onb = onbNew(); var kv = (b.getAttribute('data-ogo') || '').split(':'); st.onb.step = +kv[0] || 0;
+    b.addEventListener('click', function () { st.wiz = null; st.overlay = null; st.toast = null; st.auth = null; st.pay = null; st.onb = onbNew(); var kv = (b.getAttribute('data-ogo') || '').split(':'); st.onb.step = +kv[0] || 0;
       if (kv[1] === 'filled') { st.onb.d = { name: 'Sam Carter', bm: 5, by: '1988', sex: 'male', country: 'United States', goals: ['body_composition'], track: ['peptides'], act: ACTS[2][0], prov: 'yes', terms: {} }; }
       toPhone(); });
   });
   document.querySelectorAll('[data-ago]').forEach(function (b) {
-    b.addEventListener('click', function () { var kv = b.getAttribute('data-ago').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.auth = { mode: kv[0] }; st.form = {}; st.auConsent = false; st.pwShow = {}; st.resendCd = 0;
+    b.addEventListener('click', function () { var kv = b.getAttribute('data-ago').split(':'); st.wiz = null; st.overlay = null; st.toast = null; st.pay = null; st.onb = null; st.auth = { mode: kv[0] }; st.form = {}; st.auConsent = false; st.pwShow = {}; st.resendCd = 0;
       if (kv[1] === 'filled') { st.form = { auE: 'sam@example.com', auP: 'secret12' }; st.auConsent = true; }
       if (kv[1] === 'confirm') { st.form = { auE: 'sam@example.com' }; }
       toPhone(); });

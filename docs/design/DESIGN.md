@@ -38,6 +38,16 @@ Founder decisions since (2026-09-29):
   only Taken doses" goes to the pharmacometrics review as a model change; fast compounds keep 0.0 mg;
   explainers open in place with "What this is" first; its last sentence becomes "Every weigh-in is
   saved, so you can watch the numbers change over time." (new copy); free users see PRO and no number.
+- **Onboarding APPROVED (2026-09-29, founder: "Approved")** with the recommended answers: main's steps
+  and words in the new look (progress bar, Back, one Continue that stays dim until answered);
+  **the consent line becomes "AI only when you use it — a photo or report you scan, or a meal you
+  describe in the AI food log, is sent to Anthropic to read it — only with your consent"** (new copy,
+  must-fix: main's "AI only for document scans" is untrue); **the last step ("You're all set") is
+  dropped**: after "Never miss a dose" both buttons go to Create account (8 steps); Your routine uses
+  Progress's 5 activity levels; "What are your goals?" / "We'll tailor your tracking around them."
+  (new copy); feature list names "Dose accumulation" and "Lab test journal"; an adults-only note
+  when the birth year is under 18 (new copy); the About-you intro drops "now". The signed-in
+  "missing details" variant uses the same screens.
 - **Sign-in APPROVED (2026-09-29, founder: "Approved")** with the recommended answers: Apple first,
   then Google, with the official logos (the only fixed colors; brand rules); labels above the fields
   (main's placeholder words) + a show-password eye; the consent line links both documents under one
