@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { goalOptions } from '../lib/profileGoals';
 import LegalModal from '../components/LegalModal';
 import Constants from 'expo-constants';
@@ -40,6 +40,7 @@ import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken 
 import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
+import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -53,6 +54,36 @@ const MONTH_KEYS = [
 const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
+
+// The Settings groups in screen order: the phone's collapsible sections and, on a wide
+// window (S-26 BK-7), the left page's list. Titles are the existing group-title strings.
+const SETTINGS_GROUPS = [
+  { key: 'notifications', labelKey: 'settings_notifications' },
+  { key: 'privacy', labelKey: 'settings_data_privacy' },
+  { key: 'support', labelKey: 'settings_support' },
+  { key: 'deleted', labelKey: 'settings_recently_deleted' },
+  { key: 'account', labelKey: 'settings_account_prefs' },
+];
+
+// Recently deleted protocols only shows while there is something to restore.
+function groupVisible(key, deletedCount) {
+  return key !== 'deleted' || deletedCount > 0;
+}
+
+// The group on the right page: the chosen one, or Notifications (the default, BK-7) when
+// the choice is unknown or no longer shown (the last deleted protocol was restored).
+function bookGroup(sel, deletedCount) {
+  return SETTINGS_GROUPS.some((g) => g.key === sel) && groupVisible(sel, deletedCount) ? sel : 'notifications';
+}
+
+// BK-10, folding: the group the user opened on the right page opens in the one-column
+// list. Only that key changes; every other remembered open/closed state is kept. A
+// default nobody chose changes nothing.
+function foldCollapsed(collapsed, { sel, explicit, deletedCount }) {
+  if (!explicit || !SETTINGS_GROUPS.some((g) => g.key === sel) || !groupVisible(sel, deletedCount)) return collapsed;
+  if (collapsed[sel] === false) return collapsed;
+  return { ...collapsed, [sel]: false };
+}
 
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
@@ -106,12 +137,55 @@ export default function SettingsScreen({ navigation }) {
     });
   }
 
+  // S-26 book layout: two pages on a wide window (BK-1), today's one column otherwise (BK-2).
+  // The open group is kept per tab while the app is open (BK-8); Notifications by default.
+  const book = useBook();
+  const { sel, explicit, select } = useBookSelection('Settings', 'notifications');
+  const wasBook = useRef(book);
+  const phoneScrollRef = useRef(null);
+  const headerY = useRef({});
+  const foldTarget = useRef(null);
+
+  // BK-10, folding: the group the user had open on the right page opens in the list (the
+  // other remembered sections keep their state) and the list scrolls to it.
+  useEffect(() => {
+    if (wasBook.current && !book) {
+      const target = sel;
+      setCollapsed(prev => {
+        const next = foldCollapsed(prev, { sel: target, explicit, deletedCount: deletedProtocols.length });
+        if (next !== prev) AsyncStorage.setItem('dosetrace_settings_collapsed', JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+      if (explicit) {
+        foldTarget.current = target;
+        requestAnimationFrame(() => { if (foldTarget.current === target) scrollToSection(target); });
+      }
+    } else if (!wasBook.current && book) {
+      headerY.current = {}; // the one-column list is gone; its positions are stale
+      foldTarget.current = null;
+    }
+    wasBook.current = book;
+  }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function scrollToSection(key) {
+    const y = headerY.current[key];
+    if (y == null || !phoneScrollRef.current) return;
+    phoneScrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: false });
+    foldTarget.current = null;
+  }
+
+  function onSectionHeaderLayout(key, e) {
+    headerY.current[key] = e.nativeEvent.layout.y;
+    if (foldTarget.current === key) scrollToSection(key);
+  }
+
   function renderSectionHeader(labelKey, sectionKey) {
     return (
       <TouchableOpacity
         style={s.sectionHeaderRow}
         activeOpacity={0.6}
         onPress={() => toggleSection(sectionKey)}
+        onLayout={(e) => onSectionHeaderLayout(sectionKey, e)}
       >
         <Text style={s.sectionLabel}>{t(labelKey)}</Text>
         <Text style={s.sectionChevron}>{collapsed[sectionKey] ? '▸' : '▾'}</Text>
@@ -516,410 +590,502 @@ export default function SettingsScreen({ navigation }) {
     : user?.email ? user.email.slice(0, 2).toUpperCase() : '??';
   const currentLanguage = LANGUAGES.find(l => l.code === language);
 
-  return (
-    <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <Text style={s.headerTitle}>{t('settings_title')}</Text>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
-
-        {/* PROFILE */}
-        <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
-          <View style={s.avatar}>
-            <Text style={s.avatarText}>{initials}</Text>
-          </View>
-          <View style={s.profileInfo}>
-            {displayName ? (
-              <Text style={s.profileName}>{displayName}</Text>
-            ) : null}
-            <Text style={s.profileEmail}>{user?.email || '—'}</Text>
-            <View style={s.profileBadgeRow}>
-              <View style={s.planBadge}>
-                <Text style={s.planBadgeText}>{premium ? t('paywall_premium') : t('settings_free_plan')}</Text>
+  // One render per Settings piece, used by BOTH layouts (the phone list and the book's
+  // pages), so a group shows the same rows and actions wherever it is drawn (S-26 BK-7).
+  function renderProfileCard() {
+    return (
+      <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
+        <View style={s.avatar}>
+          <Text style={s.avatarText}>{initials}</Text>
+        </View>
+        <View style={s.profileInfo}>
+          {displayName ? (
+            <Text style={s.profileName}>{displayName}</Text>
+          ) : null}
+          <Text style={s.profileEmail}>{user?.email || '—'}</Text>
+          <View style={s.profileBadgeRow}>
+            <View style={s.planBadge}>
+              <Text style={s.planBadgeText}>{premium ? t('paywall_premium') : t('settings_free_plan')}</Text>
+            </View>
+            {primaryGoals.length > 0 ? (
+              <View style={s.goalBadge}>
+                <Text style={s.goalBadgeText}>{primaryGoals.slice(0, 3).map(g => {
+                  const keyMap = { body_composition: 'body', hormonal_balance: 'hormonal', skin_collagen: 'skin', sexual_health: 'sexual', joint_bone: 'joint', cardiovascular: 'cardio' };
+                  return t('profile_goal_' + (keyMap[g] || g)) || g;
+                }).join(', ')}</Text>
               </View>
-              {primaryGoals.length > 0 ? (
-                <View style={s.goalBadge}>
-                  <Text style={s.goalBadgeText}>{primaryGoals.slice(0, 3).map(g => {
-                    const keyMap = { body_composition: 'body', hormonal_balance: 'hormonal', skin_collagen: 'skin', sexual_health: 'sexual', joint_bone: 'joint', cardiovascular: 'cardio' };
-                    return t('profile_goal_' + (keyMap[g] || g)) || g;
-                  }).join(', ')}</Text>
+            ) : null}
+          </View>
+        </View>
+        <Text style={s.rowArrow}>›</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // Upsell hidden for premium users.
+  function renderPremiumCard() {
+    if (premium) return null;
+    return (
+      <View style={s.premiumCard}>
+        <Text style={s.premiumTitle}>{t('settings_premium_title')}</Text>
+        <Text style={s.premiumSub}>{t('settings_premium_sub')}</Text>
+        {[
+          t('settings_premium_feat_1'),
+          t('settings_premium_feat_2'),
+          t('settings_premium_feat_3'),
+          t('settings_premium_feat_4'),
+          t('settings_premium_feat_5'),
+        ].map((f, i) => (
+          <View key={i} style={s.premiumFeat}>
+            <CheckMark style={s.premiumCheck} />
+            <Text style={s.premiumFeatText}>{f}</Text>
+          </View>
+        ))}
+        <TouchableOpacity
+          style={s.premiumBtn}
+          onPress={() => navigation.navigate('Paywall', { source: 'settings' })}
+        >
+          <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderVersionFooter() {
+    return (
+      <Text style={s.version}>
+        {`DoseTrace v${Constants.expoConfig?.version || '1.0.0'}`}{'\n'}
+        {t('settings_not_medical')}
+      </Text>
+    );
+  }
+
+  function renderNotificationsBody() {
+    return (
+      <View style={s.group}>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
+              <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={doseReminders}
+            onValueChange={(v) => toggleNotificationPref('dose_reminders', v, setDoseReminders)}
+          />
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
+              <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={checkinReminders}
+            onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
+          />
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="food" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
+              <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={foodReminders}
+            onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
+          />
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_notif_names')}</Text>
+              <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={notifNames}
+            onValueChange={(v) => toggleNotificationPref('notif_show_names', v, setNotifNames)}
+          />
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
+              <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={vialAlerts}
+            onValueChange={(v) => toggleNotificationPref('vial_alerts', v, setVialAlerts)}
+          />
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_silent')}</Text>
+              <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={silentMode}
+            onValueChange={(v) => toggleNotificationPref('silent_mode', v, setSilentMode)}
+          />
+        </View>
+        <View style={[s.row, { borderBottomWidth: 0 }]}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
+              <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={persistentReminders}
+            onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
+          />
+        </View>
+        {/* Android only: battery optimization silently drops scheduled reminders
+            while the app is closed. Guide the user to set the app to Unrestricted. */}
+        {Platform.OS === 'android' && (
+          <TouchableOpacity
+            style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+            onPress={async () => {
+              const ok = await openBatteryOptimizationSettings();
+              if (!ok) Alert.alert(t('settings_reliable_reminders'), t('settings_reliable_reminders_sub'));
+            }}
+          >
+            <View style={s.rowLeft}>
+              <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.accent} /></View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
+                <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
+              </View>
+            </View>
+            <Text style={s.rowArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  function renderPrivacyBody() {
+    return (
+      <View style={s.group}>
+        <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_terms')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
+              <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={analyticsEnabled}
+            onValueChange={toggleAnalytics}
+          />
+        </View>
+        <TouchableOpacity
+          style={s.row}
+          onPress={handleAdherenceReport}
+          disabled={exporting}
+        >
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
+              <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
+            </View>
+          </View>
+          <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.row, { borderBottomWidth: 0 }]}
+          onPress={handleExportData}
+          disabled={exporting}
+        >
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
+              <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
+            </View>
+          </View>
+          <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderSupportBody() {
+    return (
+      <View style={s.group}>
+        <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_faq')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.row} onPress={handleContactSupport}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_contact')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.row, { borderBottomWidth: 0 }]}
+          onPress={handleRateApp}
+        >
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_rate')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderDeletedBody() {
+    return (
+      <View style={s.group}>
+        {deletedProtocols.map((p, idx) => {
+          const isLast = idx === deletedProtocols.length - 1;
+          return (
+            <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
+              <View style={s.rowLeft}>
+                {/* The user's protocol color, only as a 9 pt dot (DESIGN.md §2.4). */}
+                <View style={[s.deletedDot, { backgroundColor: p.color || colors.ink3 }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>{p.name}</Text>
+                  <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
                 </View>
-              ) : null}
+              </View>
+              <View style={s.deletedActions}>
+                <TouchableOpacity
+                  onPress={() => restoreProtocol(p.id)}
+                  style={s.restoreBtn}
+                >
+                  <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => confirmPermanentDelete(p)}
+                  accessibilityLabel={t('settings_delete_forever')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={s.deleteForeverBtn}
+                >
+                  <FeatureIcon name="trash" size={20} color={colors.risk} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+
+  function renderAccountBody() {
+    return (
+      <View style={s.group}>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
+          </View>
+          <View style={s.themePillRow}>
+            {[
+              { key: 'light', label: t('settings_theme_light') },
+              { key: 'dark', label: t('settings_theme_dark') },
+              { key: 'system', label: t('settings_theme_system') },
+            ].map(o => (
+              <TouchableOpacity
+                key={o.key}
+                style={[s.themePill, mode === o.key && s.themePillOn]}
+                onPress={() => setMode(o.key)}
+              >
+                <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
+          </View>
+          <View style={s.themePillRow}>
+            {[
+              { key: 'auto', label: t('settings_time_auto') },
+              { key: '12h', label: t('settings_time_12h') },
+              { key: '24h', label: t('settings_time_24h') },
+            ].map(o => (
+              <TouchableOpacity
+                key={o.key}
+                style={[s.themePill, timeFormat === o.key && s.themePillOn]}
+                onPress={() => setTimeFormat(o.key)}
+              >
+                <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_language')}</Text>
+              <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
             </View>
           </View>
           <Text style={s.rowArrow}>›</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={s.row} onPress={handleSignOut}>
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
+            <Text style={s.rowLabel}>{t('settings_signout')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.row, { borderBottomWidth: 0 }]}
+          onPress={handleDeleteAccount}
+        >
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
+            <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
+          </View>
+          <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-        {/* PREMIUM CARD — upsell hidden for premium users */}
-        {!premium && (
-          <View style={s.premiumCard}>
-            <Text style={s.premiumTitle}>{t('settings_premium_title')}</Text>
-            <Text style={s.premiumSub}>{t('settings_premium_sub')}</Text>
-            {[
-              t('settings_premium_feat_1'),
-              t('settings_premium_feat_2'),
-              t('settings_premium_feat_3'),
-              t('settings_premium_feat_4'),
-              t('settings_premium_feat_5'),
-            ].map((f, i) => (
-              <View key={i} style={s.premiumFeat}>
-                <CheckMark style={s.premiumCheck} />
-                <Text style={s.premiumFeatText}>{f}</Text>
-              </View>
-            ))}
-            <TouchableOpacity
-              style={s.premiumBtn}
-              onPress={() => navigation.navigate('Paywall', { source: 'settings' })}
-            >
-              <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+  const GROUP_BODIES = {
+    notifications: renderNotificationsBody,
+    privacy: renderPrivacyBody,
+    support: renderSupportBody,
+    deleted: renderDeletedBody,
+    account: renderAccountBody,
+  };
+  function renderGroupBody(key) {
+    const fn = GROUP_BODIES[key];
+    return fn ? fn() : null;
+  }
 
-        {/* NOTIFICATIONS */}
-        {renderSectionHeader('settings_notifications', 'notifications')}
-        {!collapsed.notifications && (
-        <View style={s.group}>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
-                <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={doseReminders}
-              onValueChange={(v) => toggleNotificationPref('dose_reminders', v, setDoseReminders)}
-            />
-          </View>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
-                <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={checkinReminders}
-              onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
-            />
-          </View>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="food" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
-                <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={foodReminders}
-              onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
-            />
-          </View>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_notif_names')}</Text>
-                <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={notifNames}
-              onValueChange={(v) => toggleNotificationPref('notif_show_names', v, setNotifNames)}
-            />
-          </View>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
-                <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={vialAlerts}
-              onValueChange={(v) => toggleNotificationPref('vial_alerts', v, setVialAlerts)}
-            />
-          </View>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_silent')}</Text>
-                <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={silentMode}
-              onValueChange={(v) => toggleNotificationPref('silent_mode', v, setSilentMode)}
-            />
-          </View>
-          <View style={[s.row, { borderBottomWidth: 0 }]}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
-                <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={persistentReminders}
-              onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
-            />
-          </View>
-          {/* Android only: battery optimization silently drops scheduled reminders
-              while the app is closed. Guide the user to set the app to Unrestricted. */}
-          {Platform.OS === 'android' && (
-            <TouchableOpacity
-              style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-              onPress={async () => {
-                const ok = await openBatteryOptimizationSettings();
-                if (!ok) Alert.alert(t('settings_reliable_reminders'), t('settings_reliable_reminders_sub'));
-              }}
-            >
-              <View style={s.rowLeft}>
-                <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.accent} /></View>
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
-                  <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
-                </View>
-              </View>
-              <Text style={s.rowArrow}>›</Text>
-            </TouchableOpacity>
-          )}
+  // BK-2: one column = exactly today's Settings (collapsible, remembered sections).
+  function renderPhone() {
+    return (
+      <>
+        <View style={s.header}>
+          <Text style={s.headerTitle}>{t('settings_title')}</Text>
         </View>
-        )}
 
-        {/* DATA & PRIVACY */}
-        {renderSectionHeader('settings_data_privacy', 'privacy')}
-        {!collapsed.privacy && (
-        <View style={s.group}>
-          <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_terms')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
-                <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
-              </View>
-            </View>
-            <GradSwitch
-              value={analyticsEnabled}
-              onValueChange={toggleAnalytics}
-            />
-          </View>
-          <TouchableOpacity
-            style={s.row}
-            onPress={handleAdherenceReport}
-            disabled={exporting}
-          >
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
-                <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
-              </View>
-            </View>
-            <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.row, { borderBottomWidth: 0 }]}
-            onPress={handleExportData}
-            disabled={exporting}
-          >
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
-                <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
-              </View>
-            </View>
-            <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
-          </TouchableOpacity>
+        <ScrollView ref={phoneScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+          {renderProfileCard()}
+          {renderPremiumCard()}
+
+          {SETTINGS_GROUPS.filter(g => groupVisible(g.key, deletedProtocols.length)).map(g => (
+            <Fragment key={g.key}>
+              {renderSectionHeader(g.labelKey, g.key)}
+              {!collapsed[g.key] && renderGroupBody(g.key)}
+            </Fragment>
+          ))}
+
+          {renderVersionFooter()}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </>
+    );
+  }
+
+  // BK-7: left page = title, profile, Premium (free users), the group list with the open
+  // group outlined in ink (BK-8), and the version; right page = that group, always open.
+  function renderBook() {
+    const open = bookGroup(sel, deletedProtocols.length);
+    const openGroup = SETTINGS_GROUPS.find(g => g.key === open);
+    const left = (
+      <>
+        <View style={s.header}>
+          <Text style={s.headerTitle}>{t('settings_title')}</Text>
         </View>
-        )}
-
-        {/* SUPPORT */}
-        {renderSectionHeader('settings_support', 'support')}
-        {!collapsed.support && (
-        <View style={s.group}>
-          <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_faq')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.row} onPress={handleContactSupport}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_contact')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.row, { borderBottomWidth: 0 }]}
-            onPress={handleRateApp}
-          >
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_rate')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-        )}
-
-        {/* RECENTLY DELETED PROTOCOLS */}
-        {deletedProtocols.length > 0 && (
-          <>
-            {renderSectionHeader('settings_recently_deleted', 'deleted')}
-            {!collapsed.deleted && (
-            <View style={s.group}>
-              {deletedProtocols.map((p, idx) => {
-                const isLast = idx === deletedProtocols.length - 1;
-                return (
-                  <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
-                    <View style={s.rowLeft}>
-                      {/* The user's protocol color, only as a 9 pt dot (DESIGN.md §2.4). */}
-                      <View style={[s.deletedDot, { backgroundColor: p.color || colors.ink3 }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.rowLabel}>{p.name}</Text>
-                        <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
-                      </View>
-                    </View>
-                    <View style={s.deletedActions}>
-                      <TouchableOpacity
-                        onPress={() => restoreProtocol(p.id)}
-                        style={s.restoreBtn}
-                      >
-                        <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => confirmPermanentDelete(p)}
-                        accessibilityLabel={t('settings_delete_forever')}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={s.deleteForeverBtn}
-                      >
-                        <FeatureIcon name="trash" size={20} color={colors.risk} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-            )}
-          </>
-        )}
-
-        {/* ACCOUNT & PREFERENCES */}
-        {renderSectionHeader('settings_account_prefs', 'account')}
-        {!collapsed.account && (
-        <View style={s.group}>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
-            </View>
-            <View style={s.themePillRow}>
-              {[
-                { key: 'light', label: t('settings_theme_light') },
-                { key: 'dark', label: t('settings_theme_dark') },
-                { key: 'system', label: t('settings_theme_system') },
-              ].map(o => (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+          {renderProfileCard()}
+          {renderPremiumCard()}
+          <View style={s.bookNav}>
+            {SETTINGS_GROUPS.filter(g => groupVisible(g.key, deletedProtocols.length)).map(g => {
+              const on = g.key === open;
+              return (
                 <TouchableOpacity
-                  key={o.key}
-                  style={[s.themePill, mode === o.key && s.themePillOn]}
-                  onPress={() => setMode(o.key)}
+                  key={g.key}
+                  style={[s.bookNavRow, on && s.bookNavRowOn]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => select(g.key)}
                 >
-                  <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
+                  <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
+                  <Text style={s.rowArrow}>›</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+              );
+            })}
           </View>
-          <View style={s.row}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
-            </View>
-            <View style={s.themePillRow}>
-              {[
-                { key: 'auto', label: t('settings_time_auto') },
-                { key: '12h', label: t('settings_time_12h') },
-                { key: '24h', label: t('settings_time_24h') },
-              ].map(o => (
-                <TouchableOpacity
-                  key={o.key}
-                  style={[s.themePill, timeFormat === o.key && s.themePillOn]}
-                  onPress={() => setTimeFormat(o.key)}
-                >
-                  <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_language')}</Text>
-                <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
-              </View>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.row} onPress={handleSignOut}>
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
-              <Text style={s.rowLabel}>{t('settings_signout')}</Text>
-            </View>
-            <Text style={s.rowArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.row, { borderBottomWidth: 0 }]}
-            onPress={handleDeleteAccount}
-          >
-            <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
-              <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
-            </View>
-            <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
-          </TouchableOpacity>
+          {renderVersionFooter()}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </>
+    );
+    const right = (
+      <>
+        <View style={s.header}>
+          <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
-        )}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
+          {renderGroupBody(open)}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </>
+    );
+    return <BookPanes left={left} right={right} rightKey={open} />;
+  }
 
-        <Text style={s.version}>
-          {`DoseTrace v${Constants.expoConfig?.version || '1.0.0'}`}{'\n'}
-          {t('settings_not_medical')}
-        </Text>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+  return (
+    <SafeAreaView style={s.container}>
+      {/* The sheets below sit outside both layouts, so a fold or unfold never closes
+          one or drops what was typed in it (BK-10). */}
+      {book ? renderBook() : renderPhone()}
 
       {/* LANGUAGE PICKER MODAL */}
       <Modal
@@ -1340,6 +1506,18 @@ const settingsGraduated = (c) => ({
   restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
   restoreBtnText: { fontSize: 15, fontWeight: '600', color: c.ink },
   deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+
+  // Book layout (S-26 BK-7/BK-8): the left page lists the groups as raised rows; the open
+  // one carries the 1.5 pt ink outline (selection, DESIGN.md) and a semibold label. The
+  // unselected rows keep a clear 1.5 pt border so the outline never shifts the text.
+  // The right page's heading is the open group's title.
+  bookNav: { marginHorizontal: 16, marginTop: 14, gap: 8 },
+  bookNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 60, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18, backgroundColor: c.raised, borderWidth: 1.5, borderColor: 'transparent' },
+  bookNavRowOn: { borderColor: c.ink },
+  bookNavLabel: { flex: 1, fontSize: 17, fontWeight: '400', color: c.ink },
+  bookNavLabelOn: { fontWeight: '600' },
+  bookPageTitle: { fontSize: 28, lineHeight: 41, fontWeight: '700', color: c.ink, letterSpacing: -0.4 },
+  bookRightBody: { paddingTop: 12 },
 
   // ── Sheets (Settings part 2: language, edit profile, country) ──────────────
   // A sheet is one raised surface: plain text buttons in ink (Cancel regular, Save /
