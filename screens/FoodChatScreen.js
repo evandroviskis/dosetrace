@@ -613,8 +613,9 @@ export default function FoodChatScreen() {
 
   const canSend = !busy && !!text.trim();
 
+  // iOS shows this as a sheet that already starts below the status bar (A-68).
   return (
-    <SafeAreaView style={s.container} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={s.container} edges={Platform.OS === 'ios' ? ['left', 'right', 'bottom'] : ['top', 'left', 'right', 'bottom']}>
       <View style={s.header}>
         <View style={s.headTitleRow}>
           <FeatureIcon name="ai_spark" size={20} color={colors.ink} />

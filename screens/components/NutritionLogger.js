@@ -16,7 +16,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, AccessibilityInfo, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, AccessibilityInfo } from 'react-native';
+import GradSwitch from '../../components/GradSwitch';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { supabase, getCachedUser } from '../../lib/supabase';
@@ -322,12 +323,9 @@ export default function NutritionLogger() {
           <Text style={s.head}>{t('settings_food_reminders')}</Text>
           <Text style={s.foot2}>{t('settings_food_reminders_sub')}</Text>
         </View>
-        <Switch
+        <GradSwitch
           value={foodReminders}
           onValueChange={toggleFoodReminders}
-          trackColor={{ true: colors.switchTrack, false: colors.line }}
-          ios_backgroundColor={colors.line}
-          thumbColor={colors.raised}
           accessibilityLabel={t('settings_food_reminders')}
         />
       </View>

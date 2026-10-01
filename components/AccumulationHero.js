@@ -236,7 +236,7 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
       </View>
       <View style={s.readout}>
         <Animated.View style={[s.numWrap, numBump]}>
-          <AnimatedNumber value={value} format={fmt} style={s.num} width={84} align="left" />
+          <AnimatedNumber value={value} format={fmt} style={s.num} width={56} align="left" />
         </Animated.View>
         <Text style={s.unit}>mg</Text>
       </View>

@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Switch,
   Modal,
   Linking,
   Share,
@@ -18,6 +17,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
+import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
@@ -584,31 +584,27 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={doseReminders}
-              thumbColor={(doseReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('dose_reminders', v, setDoseReminders)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
                 <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={checkinReminders}
-              thumbColor={(checkinReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
@@ -619,11 +615,9 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={foodReminders}
-              thumbColor={(foodReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
@@ -634,56 +628,48 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={notifNames}
-              thumbColor={(notifNames) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('notif_show_names', v, setNotifNames)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
                 <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={vialAlerts}
-              thumbColor={(vialAlerts) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('vial_alerts', v, setVialAlerts)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_silent')}</Text>
                 <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={silentMode}
-              thumbColor={(silentMode) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('silent_mode', v, setSilentMode)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <View style={[s.row, { borderBottomWidth: 0 }]}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
                 <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={persistentReminders}
-              thumbColor={(persistentReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           {/* Android only: battery optimization silently drops scheduled reminders
@@ -737,16 +723,14 @@ export default function SettingsScreen({ navigation }) {
           <View style={s.row}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
                 <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
               </View>
             </View>
-            <Switch
+            <GradSwitch
               value={analyticsEnabled}
-              thumbColor={(analyticsEnabled) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={toggleAnalytics}
-              trackColor={{ true: colors.switchTrack }}
             />
           </View>
           <TouchableOpacity
@@ -756,7 +740,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
               </View>
@@ -770,7 +754,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
                 <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
               </View>
@@ -902,7 +886,7 @@ export default function SettingsScreen({ navigation }) {
           <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
             <View style={s.rowLeft}>
               <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_language')}</Text>
                 <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
               </View>

@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  Switch,
   Platform,
   PixelRatio,
   useWindowDimensions,
 } from 'react-native';
+import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -20,6 +20,7 @@ import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue, useReducedMotion,
   withTiming, withDelay, withSequence, cancelAnimation, Easing,
 } from 'react-native-reanimated';
+import { numberWidth } from '../lib/numberWidth';
 import { AnimatedNumber, clamp01, eOutQuad, eInOutSine, eOutCubic, invInOutSine, bumpScale, dropPath } from '../components/motion';
 
 import { getCachedUser } from '../lib/supabase';
@@ -602,7 +603,7 @@ export default function SerumCurveScreen() {
   const backLabel = backLabelFor(navigation, t);
   // AnimatedNumber is a fixed-width field: size it to the settled value so it never clips.
   const fontScale = PixelRatio.getFontScale();
-  const numW = (str) => Math.ceil(Math.max(3, String(str).length) * 34 * 0.62 * fontScale) + 4;
+  const numW = (str) => numberWidth(str, 34, fontScale);
   const hl = single ? halfLifeParts(single.entry.hours) : null;
   // One plain-language note per compound on how this model draws it.
   const noteFor = (ser) => {
@@ -637,7 +638,7 @@ export default function SerumCurveScreen() {
 
       {protocols.length === 0 ? (
         <View style={{ flex: 1 }}>
-          {title}
+          <View style={{ paddingHorizontal: 16 }}>{title}</View>
           <View style={s.emptyWrap}>
             <View style={s.emptyIcon}><FeatureIcon name="curve" size={44} color={colors.ink3} /></View>
             <Text style={s.emptyTitle}>{t('curve_empty_title')}</Text>
@@ -857,10 +858,9 @@ export default function SerumCurveScreen() {
                 <Text style={s.toggleLabel}>{t('curve_combined_toggle')}</Text>
                 <Text style={s.toggleHint}>{t('curve_combined_hint')}</Text>
               </View>
-              <Switch
+              <GradSwitch
                 value={showCombined}
                 onValueChange={setShowCombined}
-                trackColor={{ true: colors.switchTrack, false: colors.line }}
               />
             </View>
           )}
@@ -1023,7 +1023,7 @@ function makeStyles(c) {
     container: { flex: 1, backgroundColor: c.ground },
     nav: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
     back: { fontSize: 17, color: c.ink },
-    title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
+    title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 4, paddingTop: 4, paddingBottom: 12 },
     scroll: { paddingHorizontal: 16, paddingBottom: 40, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
     // the title already carries the screen gutter inside the scroll
