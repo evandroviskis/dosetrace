@@ -1,23 +1,25 @@
 /**
- * DoseTrace — Journey tab.
+ * DoseTrace — Journey tab (redesign, A-52 dashboard approved by the founder 2026-09-29:
+ * "I like this proposal. Keep this.").
  *
- * The home for tracking whether things are actually working. Leads with the MOAT
- * — the dose-accumulation / serum-level curve (the one thing no competitor does) —
- * then one loop inside CalculatorSection: your numbers → target → daily plan →
- * food log → reality check → progress → learn more. Moved out of the Body hub (which
- * keeps records — labs, vaccines). Rebuild = replace: Body no longer carries the
- * calculator.
+ * A dashboard: the AI food log card on top (the daily habit), then two tiles side by
+ * side — Progress (your numbers + reality check → the Progress screen, which holds the
+ * full calculator: numbers → target → daily plan → reality check → progress) and Dose
+ * accumulation (→ the curve; Premium). Rebuild = replace: the long scroll moved behind
+ * the Progress tile unchanged, nothing removed.
  */
 
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
-import CalculatorSection from './components/CalculatorSection';
+import { getCalcInputs } from '../lib/realityCheck';
+import FoodLogHero from './components/FoodLogHero';
 import FeatureIcon from '../components/FeatureIcon';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 export default function JourneyScreen() {
   const { t } = useLanguage();
@@ -25,49 +27,83 @@ export default function JourneyScreen() {
   const navigation = useNavigation();
   const s = makeStyles(colors);
   const [premium, setPremium] = useState(false);
-  useFocusEffect(useCallback(() => { hasPremium().then(setPremium); }, []));
+  const [inputs, setInputs] = useState(null);
+  useFocusEffect(useCallback(() => {
+    hasPremium().then(setPremium);
+    getCalcInputs().then(setInputs).catch(() => {});
+  }, []));
 
-  // Leads the tab: the dose-accumulation curve (the moat). Premium-gated like the
-  // Body-hub entry it replaces. Rendered at the very top of the scroll.
-  const curveCard = (
-    <TouchableOpacity
-      style={s.curveCard}
-      activeOpacity={0.75}
-      onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall', premium ? undefined : { source: 'journey_serum' })}
-    >
-      <View style={s.curveIcon}><FeatureIcon name="curve" size={26} color={colors.accent} /></View>
-      <View style={{ flex: 1 }}>
-        <View style={s.curveTitleRow}>
-          <Text style={s.curveTitle}>{t('body_card_dosing_title')}</Text>
-          {!premium && <Text style={s.pro}>{t('paywall_premium')}</Text>}
-        </View>
-        <Text style={s.curveDesc}>{t('body_card_dosing_desc')}</Text>
-      </View>
-      <Text style={s.curveChev}>›</Text>
-    </TouchableOpacity>
-  );
+  const weight = inputs && inputs.weight != null && inputs.weight !== '' ? String(inputs.weight) : null;
+  const unit = inputs && inputs.unit === 'imperial' ? 'lb' : 'kg';
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
-      <View style={s.hero}>
-        <Text style={s.title}>{t('tab_journey')}</Text>
-        <Text style={s.sub}>{t('journey_subtitle')}</Text>
-      </View>
-      <CalculatorSection header={curveCard} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <View style={s.header}>
+          <Text style={s.title}>{t('tab_journey')}</Text>
+          <Text style={s.sub}>{t('journey_subtitle')}</Text>
+        </View>
+
+        <View style={s.block}>
+          <FoodLogHero variant="journey" />
+        </View>
+
+        <View style={s.duo}>
+          <TouchableOpacity style={s.tile} activeOpacity={0.75} onPress={() => navigation.navigate('Progress')} accessibilityRole="button">
+            <View style={s.tileTop}>
+              <FeatureIcon name="calc_trend" size={22} color={colors.ink} />
+              <Text style={s.chev}>›</Text>
+            </View>
+            <Text style={s.tileTitle}>{t('today_section_progress')}</Text>
+            <View style={s.num}>
+              <Text style={s.cap}>{t('cal_weight')}</Text>
+              <Text style={s.big}>{weight || '—'}{weight ? <Text style={s.unit}> {unit}</Text> : null}</Text>
+            </View>
+            <Text style={s.foot}>{t('cal_rc_title')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={s.tile}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall', premium ? undefined : { source: 'journey_serum' })}
+            accessibilityRole="button"
+          >
+            <View style={s.tileTop}>
+              <FeatureIcon name="curve" size={22} color={colors.ink} />
+              {!premium ? <Text style={s.tag}>{t('paywall_premium')}</Text> : <Text style={s.chev}>›</Text>}
+            </View>
+            <Text style={s.tileTitle}>{t('body_card_dosing_title')}</Text>
+            <View style={s.num}>
+              <Text style={s.cap}>{t('curve_current_level')}</Text>
+              <Text style={s.desc}>{t('body_card_dosing_desc')}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+// Graduated (DESIGN.md §3–§5): tiles as tall as their content, 34 pt numbers.
 const makeStyles = (c) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bg },
-  hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, backgroundColor: c.card },
-  title: { fontSize: 26, fontWeight: '800', color: c.text, letterSpacing: -0.3 },
-  sub: { fontSize: 14, color: c.textMuted, marginTop: 6, lineHeight: 20 },
-  curveCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 18, padding: 16, marginBottom: 4, borderWidth: 0.5, borderColor: c.border, ...(c.shadowSoft || {}) },
-  curveIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  curveTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  curveTitle: { fontSize: 15, fontWeight: '800', color: c.text },
-  pro: { marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: c.accentText, backgroundColor: c.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
-  curveDesc: { fontSize: 12.5, color: c.textMuted, marginTop: 3, lineHeight: 17 },
-  curveChev: { fontSize: 20, color: c.textFaint },
+  container: { flex: 1, backgroundColor: c.ground },
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, gap: 4 },
+  title: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  sub: { fontSize: 15, color: c.ink2 },
+  block: { paddingHorizontal: 16, marginBottom: 12 },
+  duo: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, alignItems: 'stretch' },
+  tile: { flex: 1, backgroundColor: c.raised, borderRadius: 24, padding: 16, gap: 8, minWidth: 0 },
+  tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chev: { fontSize: 20, color: c.tick },
+  tag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 13, paddingHorizontal: 9, paddingVertical: 2, fontSize: 12, fontWeight: '500', overflow: 'hidden' },
+  tileTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+  num: { gap: 4, paddingTop: 10, marginTop: 'auto' },
+  cap: { fontSize: 12, fontWeight: '500', color: c.ink3 },
+  big: { fontSize: 34, fontWeight: '500', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  unit: { fontSize: 13, fontWeight: '400', color: c.ink3 },
+  desc: { fontSize: 13, color: c.ink2 },
+  foot: { fontSize: 13, color: c.ink2 },
 });

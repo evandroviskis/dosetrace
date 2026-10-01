@@ -86,6 +86,7 @@ import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
 import SerumCurveScreen from './screens/SerumCurveScreen';
+import ProgressScreen from './screens/ProgressScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -217,6 +218,7 @@ function MainStack() {
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Log" component={LogScreen} />
       <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
+      <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
       {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
