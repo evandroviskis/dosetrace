@@ -4,27 +4,18 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   Modal,
   TextInput,
   Alert,
   Platform,
-  FlatList,
   Keyboard,
   KeyboardAvoidingView,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useReducedMotion,
-  withTiming,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
-import { AnimatedNumber } from '../components/motion';
-import { fontFamilyFor } from '../lib/fonts';
+import { MONO } from '../lib/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -51,11 +42,12 @@ import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
 import { backfillTakenDoses } from '../lib/doseActions';
-import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
+import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
-import CheckMark from '../components/CheckMark';
+import SyringeScale from './components/SyringeScale';
+import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from './components/ProtocolParts';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -92,6 +84,8 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
 const FREE_PROTOCOL_LIMIT = 3;
 
+// The user's own protocol palette (DESIGN.md §2.4): a deliberately fixed set, shown
+// only as a dot or a swatch, never as a surface.
 const COLORS = [
   '#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780',
   '#E24B4A','#2C2C2A','#0E8C8C','#6A3FB5','#C13A9E','#8A5A2B','#4C6E8F','#E0A500','#17B0B8','#A82E55',
@@ -106,6 +100,12 @@ const COLOR_NAMES = {
   '#8A5A2B':'color_bronze','#4C6E8F':'color_slate','#E0A500':'color_gold',
   '#17B0B8':'color_turquoise','#A82E55':'color_wine',
 };
+
+const MONTH_KEYS = [
+  'month_jan', 'month_feb', 'month_mar', 'month_apr',
+  'month_may', 'month_jun', 'month_jul', 'month_aug',
+  'month_sep', 'month_oct', 'month_nov', 'month_dec',
+];
 
 // Diluent options for reconstitution. Stored as canonical tokens so the label
 // renders in any language; 'other' lets the user record their own free text.
@@ -157,11 +157,12 @@ function sizeLabel(p, vial, t) {
   return null;
 }
 
-function getTypeBadge(type, t, c) {
-  if (type === 'recon') return { bg: c.accentSoft, text: c.accentSoftText, label: t('protocols_type_badge_lyophilized') };
-  if (type === 'rtu') return { bg: c.successSoft, text: c.successSoftText, label: t('protocols_type_badge_rtu') };
-  if (type === 'oral') return { bg: c.warningSoft, text: c.warningSoftText, label: t('protocols_type_badge_oral') };
-  return { bg: c.card2, text: c.textMuted, label: type };
+// The compound-type name shown as an outline tag (Graduated: no tinted chips).
+function typeLabel(type, t) {
+  if (type === 'recon') return t('protocols_type_badge_lyophilized');
+  if (type === 'rtu') return t('protocols_type_badge_rtu');
+  if (type === 'oral') return t('protocols_type_badge_oral');
+  return type;
 }
 
 // The oral form is stored in `notes` as an English value (Capsule/Tablet/…);
@@ -174,28 +175,140 @@ function oralFormLabel(form, t) {
   return ORAL_FORM_KEY[form] ? t(ORAL_FORM_KEY[form]) : form;
 }
 
-// One syringe graduation. Lights to the accent once the stopper passes it.
-function SyringeTick({ tickVal, max, pct, s, colors }) {
-  const isMajor = tickVal % 10 === 0;
-  const at = (tickVal / max) * 100;
-  const base = isMajor ? colors.textMuted : colors.textFaint;
-  const lineStyle = useAnimatedStyle(() => ({ backgroundColor: pct.value > 0 && pct.value >= at - 0.001 ? colors.accent : base }));
-  const labelStyle = useAnimatedStyle(() => ({ color: pct.value > 0 && pct.value >= at - 0.001 ? colors.accent : colors.textMuted }));
+// Days left on the active vial. Recon: from the mix date + validity window. RTU: the
+// box date the user entered (vial.expires_on). null when unknown.
+function vialDaysLeftFor(p, vial) {
+  if (!vial) return null;
+  if (p.type === 'recon') return daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+  return vial.expires_on ? Math.ceil((new Date(vial.expires_on + 'T00:00:00') - new Date()) / 86400000) : null;
+}
+
+// Supply words only (DESIGN.md §2.5): ≤3 days risk, ≤7 attention, else the plain caption.
+function daysTone(days, c) {
+  return days <= 3 ? c.risk : days <= 7 ? c.attention : c.ink2;
+}
+
+// A label that arrives all in capitals (an old string) is shown in sentence case.
+function sentenceCase(str) {
+  if (!str || str !== str.toUpperCase()) return str;
+  const lower = str.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1).replace(/-([a-zà-ÿ])/g, (m, ch) => '-' + ch.toUpperCase());
+}
+
+// Halves read as "½" / "1½"; anything else stays decimal.
+function fmtServing(v) {
+  if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return String(Math.round(v * 100) / 100);
+  const whole = Math.floor(v + 1e-9);
+  const isHalf = Math.abs(v - whole - 0.5) < 1e-9;
+  if (!isHalf) return String(whole);
+  return whole > 0 ? `${whole}½` : '½';
+}
+
+// The dose in the other mass unit, so the mcg↔mg equivalence is read beside the draw.
+function altMass(dose, unit) {
+  if (unit === 'mcg') { const pp = massParts(parseDecimal(dose) / 1000); return pp ? `${pp.mg} mg` : null; }
+  if (unit === 'mg') { const pp = massParts(parseDecimal(dose)); return pp ? `${pp.mcg} mcg` : null; }
+  return null;
+}
+
+// ── Small Graduated controls (prototype .winp / .segw / .pill / .fld) ──
+
+// Input: raised, 1 px line inset; 2 px ink while focused.
+function WInput({ s, c, style, onFocus, onBlur, ...props }) {
+  const [focus, setFocus] = useState(false);
   return (
-    <View style={[s.tickGroup, { left: `${at}%` }]}>
-      {isMajor && <Animated.Text style={[s.tickLabel, { fontFamily: fontFamilyFor('400') }, labelStyle]}>{tickVal}</Animated.Text>}
-      <Animated.View style={[s.tick, isMajor && s.tickMajor, lineStyle]} />
+    <TextInput
+      placeholderTextColor={c.ink3}
+      {...props}
+      style={[s.winp, focus && s.winpOn, style]}
+      onFocus={(e) => { setFocus(true); if (onFocus) onFocus(e); }}
+      onBlur={(e) => { setFocus(false); if (onBlur) onBlur(e); }}
+    />
+  );
+}
+
+// Segmented control on a well track; the chosen segment is raised with ink text.
+function Seg({ s, items, fill }) {
+  return (
+    <View style={[s.segw, fill && s.segwFill]} accessibilityRole="radiogroup">
+      {items.map(it => (
+        <TouchableOpacity
+          key={String(it.key)}
+          style={[s.segItem, fill && s.segItemFill, it.on && s.segItemOn]}
+          onPress={it.onPress}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: !!it.on }}
+        >
+          <Text style={[s.segText, it.on && s.segTextOn]} numberOfLines={1}>{it.label}</Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
 
-function ProtocolSyringeGuide({ p, t }) {
-  const { colors } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
+// Selection pill: 1 px line outline; chosen = 1.5 px ink outline on raised.
+function Pill({ s, label, on, onPress }) {
+  return (
+    <TouchableOpacity style={[s.pill, on && s.pillOn]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!on }}>
+      <Text style={[s.pillText, on && s.pillTextOn]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function Fld({ s, label, hint, children }) {
+  return (
+    <View style={s.fld}>
+      {label ? <Text style={s.fldLabel}>{label}</Text> : null}
+      {children}
+      {hint ? <Text style={s.fldHint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function WarnBox({ s, text, risk }) {
+  return (
+    <View style={[s.warnbox, risk && s.warnboxRisk]}>
+      <Text style={[s.warnText, risk && s.warnTextRisk]}>{text}</Text>
+    </View>
+  );
+}
+
+function InfoBox({ s, text }) {
+  return (
+    <View style={s.infobox}>
+      <Text style={s.infoText}>{text}</Text>
+    </View>
+  );
+}
+
+// Rows block (prototype .rows/.rw): section title, then label left / value right.
+function RowsBlock({ s, title, rows }) {
+  const shown = rows.filter(Boolean);
+  if (!shown.length) return null;
+  return (
+    <View style={s.blk}>
+      {title ? <Text style={s.secth}>{title}</Text> : null}
+      <View style={s.rows}>
+        {shown.map((r, i) => (
+          <View key={`${i}-${r.label}`} style={[s.rw, i > 0 && s.rwSep]}>
+            <Text style={s.rwKey}>{r.label}</Text>
+            <Text style={[s.rwVal, r.mono && s.rwValMono]}>{r.value}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ── Protocol screen: the syringe calculator (hero object) ──
+// Draw to + the protocol's own syringe drawn to scale (shared SyringeScale), the
+// volume / dose / syringe reads, and the arithmetic disclaimer. Tap to enlarge.
+function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [zoom, setZoom] = useState(false);
+  const [drawW, setDrawW] = useState(0);
   const { width: windowWidth } = useWindowDimensions();
-  // (Orals are filtered at the call site: an early return here, before the
-  // animation hooks below, would crash when a card's type is edited to oral.)
 
   const draw = computeDraw({
     type: p.type,
@@ -204,195 +317,105 @@ function ProtocolSyringeGuide({ p, t }) {
     concentration: p.concentration, concentrationUnit: p.concentration_unit,
     syringeSize: p.syringe_size,
   });
-  const pDrawML = draw.drawML;
-  const pDrawUnits = draw.drawUnits;
-  const pDrawValid = draw.valid;
-
   const syringeMax = p.syringe_size || 100;
-  const drawFrac = pDrawValid ? Math.min(parseDecimal(pDrawUnits) / syringeMax, 1) : 0;
-  const fillPct = drawFrac * 100;
-  // Zoom modal: an enlarged, horizontally-scrollable ruler (~16px per unit).
-  const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
 
-  // Drawing the dose, the way it happens in the hand: needle + 0 mark on the
-  // left, the stopper pulls back to the target mark and the liquid fills behind
-  // it; each mark lights as the stopper passes; on arrival the mark pulses and the
-  // readout settles. Reduce Motion → final state at once.
-  const reduceMotion = useReducedMotion();
-  const pct = useSharedValue(0);        // stopper position, 0–100% of the barrel
-  const arrive = useSharedValue(0);     // 0→1 arrival pulse / bump
-  useEffect(() => {
-    if (reduceMotion) { pct.value = fillPct; arrive.value = 0; return; }
-    pct.value = 0; arrive.value = 0;
-    pct.value = withDelay(200, withTiming(fillPct, { duration: 1000, easing: Easing.inOut(Easing.cubic) }));
-    arrive.value = withDelay(1200, withTiming(1, { duration: 560 }));
-  }, [fillPct, reduceMotion]);
-
-  const STOPPER_W = 8;
-  const fillStyle = useAnimatedStyle(() => ({ width: `${pct.value}%` }));
-  const stopperStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
-  const faceStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
-  const rodStyle = useAnimatedStyle(() => ({ left: `${pct.value}%` }));
-  const rowW = useSharedValue(0); // tag row width, so the riding tag never leaves the barrel
-  const tagStyle = useAnimatedStyle(() => {
-    const W = rowW.value, TAG = 40;
-    if (!W) return { left: `${pct.value}%` };
-    return { left: Math.min(Math.max((pct.value / 100) * W - TAG / 2, 0), W - TAG), marginLeft: 0 };
-  });
-  const pulseStyle = useAnimatedStyle(() => {
-    const k = arrive.value;
-    return {
-      left: `${pct.value}%`,
-      opacity: k > 0 && k < 1 ? 0.5 * (1 - k) : 0,
-      transform: [{ scale: 1 + 1.6 * (1 - (1 - k) * (1 - k)) }],
-    };
-  });
-  const readBump = useAnimatedStyle(() => {
-    const k = arrive.value;
-    const b = k <= 0 || k >= 1 ? 0 : (k < 0.3 ? k / 0.3 : 1 - (k - 0.3) / 0.7);
-    return { transform: [{ scale: 1 + 0.1 * b }] };
-  });
-  const unitsFinal = `${pDrawUnits}u`;
-  const mlFinal = `${pDrawML} ml`;
-  const mlNum = parseDecimal(pDrawML) || 0;
-  const unitsFmt = (v) => { 'worklet'; return fillPct > 0 && v >= fillPct - 0.001 ? unitsFinal : Math.round((v / 100) * syringeMax) + 'u'; };
-  const tagFmt = (v) => { 'worklet'; return fillPct > 0 && v >= fillPct - 0.001 ? unitsFinal : Math.round((v / 100) * syringeMax) + 'u'; };
-  const mlFmt = (v) => { 'worklet'; return fillPct > 0 && v >= fillPct - 0.001 ? mlFinal : (fillPct > 0 ? (mlNum * v / fillPct).toFixed(2) : '0.00') + ' ml'; };
-
-  if (!pDrawML || !pDrawValid) {
+  if (!draw.drawML || !draw.valid) {
     return (
-      <View style={s.syringeWrap}>
-        <Text style={s.syringeTitle}>{t('protocols_syringe_title')}</Text>
-        <Text style={s.syringeNoData}>
+      <View style={s.hobj}>
+        <Text style={s.hobjTitle}>{t('protocols_syringe_title')}</Text>
+        <Text style={s.hobjSub}>
           {p.type === 'rtu' && !p.concentration
             ? t('protocols_syringe_no_data_conc')
             : t('protocols_syringe_no_data')}
         </Text>
+        <TouchableOpacity style={s.hobjFoot} onPress={onDoseDetails} accessibilityRole="button">
+          <Text style={s.hobjFootText}>{t('protocols_step_dose')}</Text>
+          <Text style={s.chev}>›</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
+  const units = Number(draw.drawUnits);
+  const over = units > syringeMax;
+  const alt = altMass(p.dose, p.dose_unit);
+  const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
+
   return (
-    <View style={s.syringeWrap}>
-      <Text style={s.syringeTitle}>{t('protocols_syringe_title')}</Text>
-      <TouchableOpacity activeOpacity={0.85} onPress={() => setZoom(true)}>
-      <View style={s.syringeOuter}>
-        {/* needle + hub at the 0 end, like the syringe in your hand */}
-        <View style={s.syringeNeedleWrap}>
-          <View style={s.syringeNeedle} />
-          <View style={s.syringeHub} />
+    <View style={s.hobj}>
+      <Text style={s.hobjTitle}>{t('protocols_syringe_title')}</Text>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={s.drawWell}
+        onPress={() => setZoom(true)}
+        onLayout={(e) => setDrawW(e.nativeEvent.layout.width)}
+        accessibilityRole="button"
+        accessibilityHint={t('protocols_syringe_zoom_hint')}
+      >
+        <View style={s.drawHead}>
+          <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
+          <Text style={[s.drawBig, over && s.drawBigRisk]}>
+            {draw.drawUnits}<Text style={s.drawBigUnit}> {t('protocols_syringe_units')}</Text>
+          </Text>
         </View>
-        <View style={s.syringeBody}>
-          <View style={s.syringeTagRow} onLayout={(e) => { rowW.value = e.nativeEvent.layout.width; }}>
-            <Animated.View style={[s.syringeTag, tagStyle]}>
-              <AnimatedNumber value={pct} format={tagFmt} style={s.syringeTagText} width={40} align="center" />
-            </Animated.View>
-          </View>
-          <View style={s.syringeTicks}>
-            {/* One minor tick every 2 units (0.02 ml on a U-100 syringe) so a draw
-                like 18u lands on a mark; a taller, labelled tick every 10 units.
-                Positioned on the true 0–100% scale so ticks line up with the fill
-                and stopper. Each lights as the stopper passes it. */}
-            {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => (
-              <SyringeTick key={i} tickVal={i * 2} max={syringeMax} pct={pct} s={s} colors={colors} />
-            ))}
-          </View>
-          <View style={s.syringeTrack}>
-            <Animated.View style={[s.syringeFill, fillStyle]} />
-            <Animated.View style={[s.syringeRod, rodStyle, { marginLeft: STOPPER_W }]} />
-            <Animated.View style={[s.syringeStopper, stopperStyle, { width: STOPPER_W }]} />
-            <Animated.View style={[s.syringeFace, faceStyle]} />
-          </View>
-          <Animated.View pointerEvents="none" style={[s.syringePulse, pulseStyle]} />
+        {over ? (
+          <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeMax))}</Text>
+        ) : drawW > 0 ? (
+          <SyringeScale units={units} size={syringeMax} width={drawW - 28} />
+        ) : null}
+        <View style={s.hintRow}>
+          <FeatureIcon name="search" size={14} color={c.ink2} />
+          <Text style={s.hintText}>{t('protocols_syringe_zoom_hint')}</Text>
         </View>
-        <View style={s.syringeFlange} />
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 2, marginBottom: 2 }}>
-        <FeatureIcon name="search" size={11} color={colors.accent} />
-        <Text style={[s.syringeZoomHint, { marginTop: 0, marginBottom: 0 }]}>{t('protocols_syringe_zoom_hint')}</Text>
-      </View>
       </TouchableOpacity>
-      <View style={s.syringeInfo}>
-        <View style={s.syringeInfoItem}>
-          <Text style={s.syringeInfoLabel}>{t('protocols_syringe_draw_to')}</Text>
-          <Animated.View style={[s.syringeReadWrap, readBump]}>
-            <AnimatedNumber value={pct} format={unitsFmt} style={s.syringeInfoVal} width={72} />
-          </Animated.View>
+      <View style={s.reads}>
+        <View style={s.readCell}>
+          <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
+          <Text style={s.readVal}>{draw.drawML} ml</Text>
         </View>
-        <View style={s.syringeInfoItem}>
-          <Text style={s.syringeInfoLabel}>{t('protocols_syringe_volume')}</Text>
-          <Animated.View style={[s.syringeReadWrap, readBump]}>
-            <AnimatedNumber value={pct} format={mlFmt} style={s.syringeInfoVal} width={84} />
-          </Animated.View>
+        <View style={s.readCell}>
+          <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
+          <Text style={s.readVal}>{p.dose} {p.dose_unit}</Text>
+          {alt ? <Text style={s.readAlt}>= {alt}</Text> : null}
         </View>
-        <View style={s.syringeInfoItem}>
-          <Text style={s.syringeInfoLabel}>{t('protocols_syringe_dose')}</Text>
-          <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
-          {/* Show the dose in the other mass unit too, so the mcg↔mg equivalence
-              is visible right where the draw is read. */}
-          {(() => {
-            let alt = null;
-            if (p.dose_unit === 'mcg') { const pp = massParts(parseDecimal(p.dose) / 1000); if (pp) alt = `${pp.mg} mg`; }
-            else if (p.dose_unit === 'mg') { const pp = massParts(parseDecimal(p.dose)); if (pp) alt = `${pp.mcg} mcg`; }
-            return alt ? <Text style={s.syringeInfoAlt}>= {alt}</Text> : null;
-          })()}
-        </View>
-        <View style={s.syringeInfoItem}>
-          <Text style={s.syringeInfoLabel}>{t('protocols_syringe_size')}</Text>
-          <Text style={s.syringeInfoVal}>{syringeMax}u</Text>
+        <View style={s.readCell}>
+          <Text style={s.readLabel}>{t('protocols_syringe_size')}</Text>
+          <Text style={s.readVal}>{syringeMax} u</Text>
         </View>
       </View>
-      <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
+      <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
 
       <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
-        <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(false)}>
-          <TouchableOpacity style={s.zoomCard} activeOpacity={1} onPress={() => {}}>
-            <Text style={s.zoomTitle}>{p.name}</Text>
+        <Pressable style={s.zoomScrim} onPress={() => setZoom(false)}>
+          <Pressable style={s.zoomSheet} onPress={() => {}} accessibilityViewIsModal>
+            <Text style={s.zoomTitle}>{name}</Text>
             <Text style={s.zoomReadout}>
-              {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits}u</Text> · {pDrawML} ml
+              {t('protocols_syringe_draw_to')} <Text style={s.zoomReadoutVal}>{draw.drawUnits}u</Text> · {draw.drawML} ml
             </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator
-              contentOffset={{ x: Math.max(0, drawFrac * zoomWidth - (windowWidth - 72) / 2), y: 0 }}
-              style={s.zoomScroll}
+              contentOffset={{ x: Math.max(0, (Math.min(units, syringeMax) / syringeMax) * zoomWidth - (windowWidth - 72) / 2), y: 0 }}
+              style={s.ruler}
             >
-              <View style={{ width: zoomWidth, paddingTop: 4 }}>
-                <View style={[s.zoomTicks, { width: zoomWidth }]}>
-                  {Array.from({ length: Math.floor(syringeMax / 2) + 1 }).map((_, i) => {
-                    const tickVal = i * 2;
-                    const isMajor = tickVal % 10 === 0;
-                    return (
-                      <View key={i} style={[s.zoomTickGroup, { left: (tickVal / syringeMax) * zoomWidth }]}>
-                        {isMajor && <Text style={s.zoomTickLabel}>{tickVal}</Text>}
-                        <View style={[s.zoomTick, isMajor && s.zoomTickMajor]} />
-                      </View>
-                    );
-                  })}
-                </View>
-                <View style={[s.zoomBarrel, { width: zoomWidth }]}>
-                  <View style={[s.zoomFill, { width: drawFrac * zoomWidth }]} />
-                  <View style={[s.zoomPlunger, { left: drawFrac * zoomWidth }]} />
-                </View>
-              </View>
+              <SyringeRuler units={units} size={syringeMax} width={zoomWidth} />
             </ScrollView>
-            <TouchableOpacity style={s.zoomClose} onPress={() => setZoom(false)}>
-              <Text style={s.zoomCloseText}>{t('done')}</Text>
+            <TouchableOpacity style={s.btnPrimary} onPress={() => setZoom(false)} accessibilityRole="button">
+              <Text style={s.btnPrimaryText}>{t('done')}</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
 }
 
-// Oral serving calculator card — the oral twin of the syringe guide. Turns the
-// user's target dose + per-serving strength into how many units to take, and
-// (if a container size is set) how many units / days of supply remain. Pure
+// Oral twin of the syringe calculator: target dose + per-serving strength → how many
+// units to take, and (with a container size) units / days of supply left. Pure
 // arithmetic on the user's own numbers — no recommendation.
-function ProtocolServingGuide({ p, t, onRefill }) {
-  const { colors } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
+function ProtocolServingHero({ p, t, onRefill }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   if (p.type !== 'oral') return null;
 
   const r = computeServings({
@@ -408,9 +431,9 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   if (!r.valid) {
     if (r.unitMismatch) {
       return (
-        <View style={s.syringeWrap}>
-          <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
-          <Text style={s.syringeNoData}>{t('protocols_serving_unit_mismatch')}</Text>
+        <View style={s.hobj}>
+          <Text style={s.hobjTitle}>{t('protocols_serving_title')}</Text>
+          <WarnBox s={s} text={t('protocols_serving_unit_mismatch')} />
         </View>
       );
     }
@@ -418,14 +441,6 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   }
 
   const unitLabel = t(r.unitKey);
-  // Pretty-print halves: 0.5 → "½", 1.5 → "1½"; anything else stays decimal.
-  const fmt = (v) => {
-    if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return String(Math.round(v * 100) / 100);
-    const whole = Math.floor(v + 1e-9);
-    const isHalf = Math.abs(v - whole - 0.5) < 1e-9;
-    if (!isHalf) return String(whole);
-    return whole > 0 ? `${whole}½` : '½';
-  };
   // Show the amount when it's achievable (continuous, whole, or a clean half on
   // a scored unit). Otherwise the unit can't hit the target, so explain instead.
   const canShowAmount = !r.discrete || r.isAchievable;
@@ -437,260 +452,302 @@ function ProtocolServingGuide({ p, t, onRefill }) {
   const unitsTaken = parseDecimal(p.units_taken) || 0;
   const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
   const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
+  const reads = [
+    { label: t('protocols_serving_dose'), value: `${p.dose} ${p.dose_unit}` },
+    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${unitsLeft} ${unitLabel}` } : null,
+    daysLeft != null ? { label: t('protocols_serving_days_left'), value: String(daysLeft) } : null,
+  ].filter(Boolean);
+  while (reads.length < 3) reads.push(null);
 
   return (
-    <View style={s.syringeWrap}>
-      <Text style={s.syringeTitle}>{t('protocols_serving_title')}</Text>
+    <View style={s.hobj}>
+      <Text style={s.hobjTitle}>{t('protocols_serving_title')}</Text>
       {canShowAmount ? (
-        <Text style={s.syringeSubtitle}>
-          {t('protocols_syringe_based_on')}{' '}
-          <Text style={{ fontWeight: '700', color: colors.accent }}>{fmt(r.unitsNeeded)} {unitLabel}</Text>
-        </Text>
-      ) : (
-        <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 8 }]}>
-          <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
-            {r.splittable ? t('protocols_serving_not_half') : containsMsg}
+        <View style={s.drawWell}>
+          <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
+          <Text style={s.drawBig} accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded)} ${unitLabel}`}>
+            {fmtServing(r.unitsNeeded)}<Text style={s.drawBigUnit}> {unitLabel}</Text>
           </Text>
         </View>
+      ) : (
+        <WarnBox s={s} text={r.splittable ? t('protocols_serving_not_half') : containsMsg} />
       )}
-
       {r.nearest && (
-        <Text style={s.servingNearest}>
-          {fmt(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {fmt(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
+        <Text style={s.nearest}>
+          {fmtServing(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {fmtServing(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
         </Text>
       )}
-
-      <View style={[s.syringeInfo, { marginTop: 12 }]}>
-        {canShowAmount && (
-          <View style={s.syringeInfoItem}>
-            <Text style={s.syringeInfoLabel}>{t('protocols_serving_take')}</Text>
-            <Text style={s.syringeInfoVal}>{fmt(r.unitsNeeded)} {unitLabel}</Text>
+      <View style={s.reads}>
+        {reads.map((rd, i) => (
+          <View key={i} style={s.readCell}>
+            {rd ? <Text style={s.readLabel}>{rd.label}</Text> : null}
+            {rd ? <Text style={s.readVal}>{rd.value}</Text> : null}
           </View>
-        )}
-        <View style={s.syringeInfoItem}>
-          <Text style={s.syringeInfoLabel}>{t('protocols_serving_dose')}</Text>
-          <Text style={s.syringeInfoVal}>{p.dose} {p.dose_unit}</Text>
-        </View>
-        {unitsLeft != null && (
-          <View style={s.syringeInfoItem}>
-            <Text style={s.syringeInfoLabel}>{t('protocols_serving_left')}</Text>
-            <Text style={s.syringeInfoVal}>{unitsLeft} {unitLabel}</Text>
-          </View>
-        )}
-        {daysLeft != null && (
-          <View style={s.syringeInfoItem}>
-            <Text style={s.syringeInfoLabel}>{t('protocols_serving_days_left')}</Text>
-            <Text style={s.syringeInfoVal}>{daysLeft}</Text>
-          </View>
-        )}
+        ))}
       </View>
-
       {unitsLeft != null && onRefill && unitsTaken > 0 && (
-        <TouchableOpacity style={s.newBottleBtn} onPress={() => onRefill(p.id)}>
-          <Text style={s.newBottleText}>↺ {t('protocols_serving_new_bottle')}</Text>
+        <TouchableOpacity style={s.obtn2} onPress={() => onRefill(p.id)} accessibilityRole="button">
+          <FeatureIcon name="repeat" size={18} color={c.ink} />
+          <Text style={s.obtn2Text}>{t('protocols_serving_new_bottle')}</Text>
         </TouchableOpacity>
       )}
-
-      <Text style={s.syringeDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
+      <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
     </View>
   );
 }
 
-function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
-  const { colors } = useTheme();
-  const { language, timeFormat } = useLanguage();
-  const s = useMemo(() => makeStyles(colors), [colors]);
-  const badge = getTypeBadge(p.type, t, colors);
-  const isExpanded = expanded === p.id;
+// Vial block on the protocol screen: one cell per dose (remaining in data), doses left,
+// the mix / box date with days left, the supply tags, and New vial for a used RTU vial.
+function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const supply = supplyState(vial, p); // the ONE supply-low rule (S-05)
+  const capacity = supply.capacity != null
+    ? supply.capacity
+    : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+  const remaining = supply.remaining;
+  const daysLeft = vialDaysLeftFor(p, vial);
+  if (capacity == null && daysLeft == null) return null;
+  const dateText = vial && p.type === 'recon' && vial.mixed_on
+    ? (() => { const d = new Date(String(vial.mixed_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('vials_mix_date')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`; })()
+    : vial && p.type === 'rtu' && vial.expires_on
+      ? (() => { const d = new Date(String(vial.expires_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('vials_expires')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getFullYear()}`; })()
+      : null;
+  const past = daysLeft != null && daysLeft <= 0;
+  return (
+    <View style={[s.hobj, s.hobjTight]}>
+      {remaining != null && capacity != null ? <VialCells total={capacity} left={remaining} /> : null}
+      {capacity != null && (
+        <Text style={s.vialHead}>
+          {remaining != null
+            ? t('protocols_doses_left').replace('{n}', String(remaining)).replace('{total}', String(capacity))
+            : t('protocols_doses_capacity').replace('{total}', String(capacity))}
+        </Text>
+      )}
+      {(dateText || (daysLeft != null && !past)) && (
+        <Text style={s.vialSub}>
+          {dateText}
+          {dateText && daysLeft != null && !past ? ' · ' : ''}
+          {daysLeft != null && !past ? (
+            <Text style={{ color: daysTone(daysLeft, c), fontWeight: daysLeft <= 7 ? '600' : '400' }}>
+              {t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
+            </Text>
+          ) : null}
+        </Text>
+      )}
+      {(supply.low || past) && (
+        <View style={s.tags}>
+          {supply.low && (
+            <View style={[s.otag, s.otagAttn]}>
+              <Text style={[s.otagText, s.otagTextAttn]}>{t('protocols_low_supply').replace('{n}', String(remaining))}</Text>
+            </View>
+          )}
+          {past && (
+            <View style={[s.otag, s.otagRisk]}>
+              <Text style={[s.otagText, s.otagTextRisk]}>{t('protocols_vial_past')}</Text>
+            </View>
+          )}
+        </View>
+      )}
+      {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
+        <TouchableOpacity style={s.obtn2} onPress={() => onRefillVial(p.id)} accessibilityRole="button">
+          <FeatureIcon name="repeat" size={18} color={c.ink} />
+          <Text style={s.obtn2Text}>{t('protocols_new_vial')}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
-  // Inline, editable note — saved straight from the card, no need to open Edit.
+// One protocol in the list (prototype pcard): name, size · dose · frequency, the supply
+// line with vial cells, and outline tags. The whole card opens the protocol screen.
+function ProtocolListCard({ p, vial, onOpen, t }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const isInjectable = p.type === 'recon' || p.type === 'rtu';
+  const vialDaysLeft = vialDaysLeftFor(p, vial);
+  // Low-supply flag — must match the Today "Supply low" alert. Capacity uses the
+  // stored count, else derived from vial size ÷ dose (older vials have no count).
+  const supply = supplyState(vial, p); // the ONE supply-low rule (S-05)
+  const dosesRemaining = supply.remaining;
+  // Doses a full vial yields, shown for every injectable (lyophilized or RTU) even
+  // before a vial is opened: the stored/derived vial capacity, else — with no vial —
+  // derived from the vial's total compound ÷ dose (both types store that in `amount`).
+  const vialDoseCapacity = supply.capacity != null
+    ? supply.capacity
+    : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+  const lowSupply = supply.low;
+  const past = vialDaysLeft != null && vialDaysLeft <= 0;
+  const showCap = isInjectable && vialDoseCapacity != null;
+  const showDays = vialDaysLeft != null && !past;
+  const sz = sizeLabel(p, vial, t);
+
+  return (
+    <TouchableOpacity style={s.pcard} activeOpacity={0.75} onPress={() => onOpen(p.id)} accessibilityRole="button">
+      <View style={s.pcardTop}>
+        <View style={[s.pdot, { backgroundColor: p.color || c.data }]} />
+        <View style={s.pcardInfo}>
+          <Text style={s.pname}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
+          <Text style={s.pmeta}>
+            {sz ? `${sz} · ` : ''}
+            {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+          </Text>
+        </View>
+        <Text style={s.pchev}>›</Text>
+      </View>
+      {(showCap || showDays) && (
+        <View style={s.supply}>
+          {showCap && dosesRemaining != null ? <VialCells total={vialDoseCapacity} left={dosesRemaining} /> : null}
+          <Text style={s.supplyText}>
+            {showCap ? (
+              <Text style={s.supplyStrong}>
+                {dosesRemaining != null
+                  ? t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
+                  : t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}
+              </Text>
+            ) : null}
+            {showCap && showDays ? ' · ' : ''}
+            {showDays ? (
+              <Text style={{ color: daysTone(vialDaysLeft, c), fontWeight: vialDaysLeft <= 7 ? '600' : '400' }}>
+                {t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft))}
+              </Text>
+            ) : null}
+          </Text>
+        </View>
+      )}
+      <View style={s.tags}>
+        {lowSupply && (
+          <View style={[s.otag, s.otagAttn]}>
+            <Text style={[s.otagText, s.otagTextAttn]}>{t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
+          </View>
+        )}
+        {past && (
+          <View style={[s.otag, s.otagRisk]}>
+            <Text style={[s.otagText, s.otagTextRisk]}>{t('protocols_vial_past')}</Text>
+          </View>
+        )}
+        <View style={s.otag}><Text style={s.otagText}>{typeLabel(p.type, t)}</Text></View>
+        {p.goal ? p.goal.split(',').filter(Boolean).map(g => (
+          <View key={g} style={s.otag}><Text style={s.otagText}>{t(g) || g}</Text></View>
+        )) : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// The protocol screen (prototype protocol()): title block, the calculator, the vial,
+// schedule rows + "+ Reminder", dose details, the note, and Delete at the bottom.
+function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
+  const { colors: c } = useTheme();
+  const { language, timeFormat } = useLanguage();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const name = p.compound_id ? t(p.compound_id) : p.name;
+  const isInjectable = p.type === 'recon' || p.type === 'rtu';
+  const sz = sizeLabel(p, vial, t);
+
+  // Inline, editable note — saved straight from the protocol screen, no need to open Edit.
   const [noteDraft, setNoteDraft] = useState(p.note || '');
+  const [noteFocus, setNoteFocus] = useState(false);
   useEffect(() => { setNoteDraft(p.note || ''); }, [p.note]);
   const noteDirty = noteDraft !== (p.note || '');
   const saveNote = () => {
     Keyboard.dismiss();
     onSaveNote(p.id, noteDraft);
   };
-  // Recon: expiry is derived from the mix date + validity window. RTU: expiry is
-  // the box date the user entered (vial.expires_on).
-  const vialDaysLeft = vial
-    ? (p.type === 'recon'
-        ? daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date())
-        : (vial.expires_on ? Math.ceil((new Date(vial.expires_on + 'T00:00:00') - new Date()) / 86400000) : null))
-    : null;
-  const isInjectable = p.type === 'recon' || p.type === 'rtu';
-  // Low-supply flag — must match the Today "Supply low" alert. Capacity uses the
-  // stored count, else derived from vial size ÷ dose (older vials have no count).
-  const supply = supplyState(vial, p); // the ONE supply-low rule (S-05)
-  const supplyCapacity = supply.capacity;
-  const dosesRemaining = supply.remaining;
-  // Doses a full vial yields, shown for every injectable (lyophilized or RTU) even
-  // before a vial is opened: the stored/derived vial capacity, else — with no vial —
-  // derived from the vial's total compound ÷ dose (both types store that in `amount`).
-  const vialDoseCapacity = supplyCapacity != null
-    ? supplyCapacity
-    : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-  const lowSupply = supply.low;
+
+  const goals = p.goal ? p.goal.split(',').filter(Boolean) : [];
+  const scheduleRows = [
+    { label: t('protocols_frequency'), value: p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—') },
+    { label: t('protocols_reminder'), value: (p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  '), mono: true },
+    p.schedule_total ? { label: t('protocols_total_doses_schedule'), value: String(p.schedule_total), mono: true } : null,
+    goals.length ? { label: t('protocols_goal'), value: goals.map(g => t(g) || g).join(', ') } : null,
+  ];
+  let doseRows = [];
+  if (p.type === 'recon') {
+    doseRows = [
+      { label: t('protocols_compound_amount'), value: `${p.amount} ${p.unit}`, mono: true },
+      p.diluent ? { label: t('protocols_diluent'), value: diluentLabel(p.diluent, t) } : null,
+      { label: t('protocols_diluent_amount'), value: `${p.water} ml`, mono: true },
+      {
+        label: t('protocols_concentration'),
+        value: `${p.amount && p.water ? (parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2) : '—'} ${p.unit}/ml`,
+        mono: true,
+      },
+      { label: t('protocols_desired_dose'), value: `${p.dose} ${p.dose_unit}`, mono: true },
+    ];
+  } else if (p.type === 'rtu') {
+    doseRows = [
+      { label: t('protocols_dose_per_injection'), value: `${p.dose} ${p.dose_unit}`, mono: true },
+      p.concentration ? { label: t('protocols_concentration'), value: `${p.concentration} ${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
+      vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${vial.water_ml} ml`, mono: true } : null,
+    ];
+  } else if (p.type === 'oral') {
+    doseRows = [
+      { label: t('protocols_dose_amount'), value: `${p.dose} ${p.dose_unit}`, mono: true },
+      p.notes ? { label: t('protocols_form'), value: oralFormLabel(p.notes, t) } : null,
+      p.serving_strength != null ? { label: t('protocols_serving_strength'), value: `${p.serving_strength} ${p.serving_strength_unit || 'mg'}`, mono: true } : null,
+      p.serving_units != null ? { label: t('protocols_serving_units'), value: String(p.serving_units), mono: true } : null,
+      p.container_units != null ? { label: t('protocols_container_units'), value: String(p.container_units), mono: true } : null,
+    ];
+  }
 
   return (
-    <TouchableOpacity
-      style={s.card}
-      onPress={() => setExpanded(isExpanded ? null : p.id)}
-    >
-      <View style={s.cardTop}>
-        <View style={[s.cardDot, { backgroundColor: p.color }]} />
-        <View style={s.cardInfo}>
-          <Text style={s.cardName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-          <Text style={s.cardMeta}>
-            {(() => { const sz = sizeLabel(p, vial, t); return sz ? `${sz} · ` : ''; })()}
-            {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+    <View style={s.detail}>
+      <View style={s.ptitle}>
+        <View style={s.ptitleRow}>
+          <View style={[s.ptitleDot, { backgroundColor: p.color || c.data }]} />
+          <Text style={s.ptitleMeta}>
+            {sz ? `${sz} · ` : ''}{p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
           </Text>
-          {isInjectable && vialDoseCapacity != null && (
-            <Text style={[s.cardMeta, { fontWeight: '600', color: colors.accent }]}>
-              {dosesRemaining != null
-                ? t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
-                : t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}
-            </Text>
-          )}
-          {vialDaysLeft != null && (
-            <Text style={[s.cardMeta, { color: expiryColor(vialDaysLeft), fontWeight: '600' }]}>
-              {vialDaysLeft <= 0
-                ? t('protocols_vial_past')
-                : t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft))}
-            </Text>
-          )}
-          <View style={s.badgeRow}>
-            {lowSupply && (
-              <View style={[s.badgeLow, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
-                <FeatureIcon name="warning" size={10} color={colors.dangerSoftText} />
-                <Text style={s.badgeLowText}>{t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
-              </View>
-            )}
-            <View style={[s.badge, { backgroundColor: badge.bg }]}>
-              <Text style={[s.badgeText, { color: badge.text }]}>{badge.label}</Text>
-            </View>
-            {p.goal ? p.goal.split(',').filter(Boolean).map(g => (
-              <View key={g} style={s.badgeGoal}>
-                <Text style={s.badgeGoalText}>{t(g) || g}</Text>
-              </View>
-            )) : null}
-          </View>
         </View>
-        <Text style={s.chevron}>{isExpanded ? '▲' : '▶'}</Text>
+        <Text style={s.ptitleName} accessibilityRole="header">{name}</Text>
+        <View style={s.tags}>
+          <View style={s.otag}><Text style={s.otagText}>{typeLabel(p.type, t)}</Text></View>
+          {goals.map(g => (
+            <View key={g} style={s.otag}><Text style={s.otagText}>{t(g) || g}</Text></View>
+          ))}
+        </View>
       </View>
 
-      {isExpanded && (
-        <View style={s.cardBody}>
-          {p.type === 'recon' && (
-            <>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('protocols_compound_amount')}</Text>
-                <Text style={s.detailVal}>{p.amount} {p.unit}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('protocols_bac_water')}</Text>
-                <Text style={s.detailVal}>{p.water} ml</Text>
-              </View>
-              {p.diluent && (
-                <View style={s.detailRow}>
-                  <Text style={s.detailLabel}>{t('protocols_diluent')}</Text>
-                  <Text style={s.detailVal}>{diluentLabel(p.diluent, t)}</Text>
-                </View>
-              )}
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('protocols_concentration')}</Text>
-                <Text style={s.detailVal}>
-                  {p.amount && p.water
-                    ? (parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)
-                    : '—'} {p.unit}/ml
-                </Text>
-              </View>
-            </>
-          )}
-          <View style={s.detailRow}>
-            <Text style={s.detailLabel}>{t('protocols_desired_dose')}</Text>
-            <Text style={s.detailVal}>{p.dose} {p.dose_unit}</Text>
-          </View>
-          {p.type === 'rtu' && p.concentration && (
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('protocols_concentration')}</Text>
-              <Text style={s.detailVal}>{p.concentration} {p.concentration_unit || 'mg'}/ml</Text>
-            </View>
-          )}
-          <View style={s.detailRow}>
-            <Text style={s.detailLabel}>{t('protocols_frequency')}</Text>
-            <Text style={s.detailVal}>{p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—')}</Text>
-          </View>
-          <View style={s.detailRow}>
-            <Text style={s.detailLabel}>{t('protocols_reminder')}</Text>
-            <Text style={s.detailVal}>{(p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  ')}</Text>
-          </View>
-          {p.schedule_total && (
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('protocols_total_doses_schedule')}</Text>
-              <Text style={s.detailVal}>{p.schedule_total}</Text>
-            </View>
-          )}
-          {p.goal && (
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('protocols_goal')}</Text>
-              <Text style={s.detailVal}>{p.goal.split(',').filter(Boolean).map(g => t(g) || g).join(', ')}</Text>
-            </View>
-          )}
-          {p.notes && p.type === 'oral' && (
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('protocols_form')}</Text>
-              <Text style={s.detailVal}>{oralFormLabel(p.notes, t)}</Text>
-            </View>
-          )}
-          <View style={s.noteBlock}>
-            <Text style={s.detailLabel}>{t('protocols_notes')}</Text>
-            <TextInput
-              style={s.noteEditBox}
-              value={noteDraft}
-              onChangeText={setNoteDraft}
-              placeholder={p.type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
-              placeholderTextColor={colors.textFaint}
-              multiline
-            />
-            {noteDirty && (
-              <View style={s.noteEditActions}>
-                <TouchableOpacity onPress={() => setNoteDraft(p.note || '')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={s.noteCancelText}>{t('cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.noteSaveBtn} onPress={saveNote}>
-                  <Text style={s.noteSaveText}>{t('save')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+      {isInjectable && <ProtocolDrawHero key={`syr-${p.type}`} p={p} name={name} t={t} onDoseDetails={() => openEdit(p, 3)} />}
+      {isInjectable && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} />}
+      <ProtocolServingHero p={p} t={t} onRefill={onRefill} />
 
-          {p.type !== 'oral' && <ProtocolSyringeGuide key={`syr-${p.type}`} p={p} t={t} />}
-          <ProtocolServingGuide p={p} t={t} onRefill={onRefill} />
+      <RowsBlock s={s} title={t('protocols_step_schedule')} rows={scheduleRows} />
+      <TouchableOpacity style={s.obtn2} onPress={() => openEdit(p, 4)} accessibilityRole="button">
+        <Text style={s.obtn2Text}>{t('protocols_add_reminder')}</Text>
+      </TouchableOpacity>
 
-          {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
-            <TouchableOpacity style={[s.newBottleBtn, { marginTop: 4 }]} onPress={() => onRefillVial(p.id)}>
-              <Text style={s.newBottleText}>↺ {t('protocols_new_vial')}</Text>
-            </TouchableOpacity>
-          )}
+      <RowsBlock s={s} title={t('protocols_step_dose')} rows={doseRows} />
 
-          <View style={s.cardActions}>
-            <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p)}>
-              <Text style={s.actionBtnText}>{t('protocols_edit')}</Text>
+      <View style={s.blk}>
+        <Text style={s.secth}>{t('protocols_notes')}</Text>
+        <TextInput
+          style={[s.noteWell, noteFocus && s.noteWellOn]}
+          value={noteDraft}
+          onChangeText={setNoteDraft}
+          onFocus={() => setNoteFocus(true)}
+          onBlur={() => setNoteFocus(false)}
+          placeholder={p.type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
+          placeholderTextColor={c.ink3}
+          multiline
+        />
+        {noteDirty && (
+          <View style={s.acts2}>
+            <TouchableOpacity style={[s.btnSm, s.btnSec]} onPress={() => setNoteDraft(p.note || '')} accessibilityRole="button">
+              <Text style={s.btnSecText}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(p, 4)}>
-              <Text style={s.actionBtnText}>{t('protocols_add_reminder')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.actionBtn, s.actionBtnDanger]}
-              onPress={() => deleteProtocol(p.id)}
-            >
-              <Text style={s.actionBtnDangerText}>{t('protocols_delete')}</Text>
+            <TouchableOpacity style={[s.btnSm, s.btnPri]} onPress={saveNote} accessibilityRole="button">
+              <Text style={s.btnPriText}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      )}
-    </TouchableOpacity>
+        )}
+      </View>
+
+      <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id)} accessibilityRole="button">
+        <Text style={s.dangerText}>{t('protocols_delete_title')}</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -706,10 +763,19 @@ export default function ProtocolsScreen() {
   const [vialsByProtocol, setVialsByProtocol] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(1);
-  const [expanded, setExpanded] = useState(null);
+  // The protocol screen (prototype protocol()): a tapped card opens it over the list.
+  const [openId, setOpenId] = useState(null);
   // Redesign (founder approved 2026-09-29, item 7): the tab opens on two heroes —
   // Protocols (count, names, low supply → the list) and Dose log (counts → the log).
   const [showList, setShowList] = useState(false);
+  // DoseTrace sheets replace the system alerts (My Protocols part 3, approved
+  // 2026-09-29). screenSheet = delete / limit / log past doses (shown on the screen,
+  // only once the add/edit sheet is fully gone); wizSheet + scanChoice live inside it.
+  const [screenSheet, setScreenSheet] = useState(null);
+  const [wizSheet, setWizSheet] = useState(null);
+  const [scanChoice, setScanChoice] = useState(null);
+  const [wizardPresented, setWizardPresented] = useState(false);
+  const scrollRef = useRef(null);
   const [logCounts, setLogCounts] = useState({ Taken: 0, Skipped: 0, Missed: 0 });
   const [editingId, setEditingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -731,6 +797,7 @@ export default function ProtocolsScreen() {
   const [diluentOther, setDiluentOther] = useState('');
   const [dose, setDose] = useState('');
   const [iuInput, setIuInput] = useState(''); // IU→mass converter (recon dose step)
+  const [iuOpen, setIuOpen] = useState(false); // the converter folds (prototype .fold2)
   const [doseUnit, setDoseUnit] = useState('mg');
   const [syringeSize, setSyringeSize] = useState(100);
   const [concentration, setConcentration] = useState('');
@@ -768,13 +835,6 @@ export default function ProtocolsScreen() {
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Month names for the date selector (translated)
-  const MONTH_KEYS = [
-    'month_jan', 'month_feb', 'month_mar', 'month_apr',
-    'month_may', 'month_jun', 'month_jul', 'month_aug',
-    'month_sep', 'month_oct', 'month_nov', 'month_dec',
-  ];
-
   // Build a Date object from month index (0-11) + day string
   function buildDate(monthIdx, dayStr) {
     return new Date(toSupabaseDateFromMD(monthIdx, dayStr) + 'T00:00:00');
@@ -800,6 +860,27 @@ export default function ProtocolsScreen() {
     if (!iso) return '';
     const d = new Date(iso + 'T12:00:00');
     return d.toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // The time wheel opens on the chosen dose time.
+  function timePickerValue() {
+    const [h, m] = (reminderTimes[activeTimeIndex] || currentTimeRounded5()).split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    return d;
+  }
+  function applyPickedTime(selectedDate) {
+    const h = String(selectedDate.getHours()).padStart(2, '0');
+    const m = String(selectedDate.getMinutes()).padStart(2, '0');
+    setReminderTimes(prev => {
+      // Clamp the index into range and never let the array grow
+      // past doses-per-day. Writing next[activeTimeIndex] with a
+      // stale/out-of-range index (e.g. after Twice→Once) used to
+      // append a phantom extra dose while "Once" stayed selected.
+      const idx = Math.min(Math.max(activeTimeIndex, 0), prev.length - 1);
+      const next = [...prev];
+      next[idx] = `${h}:${m}`;
+      return next.slice(0, Math.max(1, dosesPerDay));
+    });
   }
 
   // Format "HH:MM" (24h) → locale-aware time (AM/PM in en, 24h in de/fr/it, …)
@@ -854,11 +935,26 @@ export default function ProtocolsScreen() {
   useEffect(() => {
     const openId = route.params?.openProtocolId;
     if (openId != null) {
-      setExpanded(openId);
+      setOpenId(openId);
       setShowList(true);
       navigation.setParams({ openProtocolId: undefined });
     }
   }, [route.params?.openProtocolId]);
+
+  // A screen sheet must not be presented while the add/edit sheet is still on screen
+  // or animating out (iOS drops the second presentation). iOS reports the end through
+  // the Modal's onDismiss; Android closes at once; a timer is the fallback.
+  useEffect(() => {
+    if (showModal) { setWizardPresented(true); return undefined; }
+    if (Platform.OS !== 'ios') { setWizardPresented(false); return undefined; }
+    const id = setTimeout(() => setWizardPresented(false), 900);
+    return () => clearTimeout(id);
+  }, [showModal]);
+
+  // Each view (heroes, list, protocol screen) opens at its top.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTo({ y: 0, animated: false });
+  }, [showList, openId]);
 
   useEffect(() => {
     AsyncStorage.getItem(SORT_STORAGE_KEY)
@@ -922,7 +1018,7 @@ export default function ProtocolsScreen() {
   function resetForm() {
     setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor('#185FA5');
     setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
-    setIuInput('');
+    setIuInput(''); setIuOpen(false);
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
     setIntervalDays(1); setDosesPerDay(1);
     setCustomIntervalOpen(false); setCustomIntervalText('');
@@ -1163,24 +1259,37 @@ export default function ProtocolsScreen() {
     setVialScanned(true);
   }
 
+  // A notice inside the add/edit sheet (DoseTrace sheet, one button). Shown a beat
+  // later when it follows the camera / photo library, which is still closing.
+  function wizNotice(title, body, delayed) {
+    const cfg = { icon: 'warning', title, body, buttons: [{ label: t('done'), kind: 'primary' }] };
+    if (delayed) setTimeout(() => setWizSheet(cfg), 450);
+    else setWizSheet(cfg);
+  }
+
   async function handleVialScanPress() {
     // Consent gate: the label photo goes to a third-party AI processor —
     // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending.
     if (!(await requestAIConsent(t))) return;
-    Alert.alert(t('vial_scan_choose_title'), t('vial_scan_choose_sub'), [
-      { text: t('blood_source_camera'), onPress: () => pickVialAndExtract(true) },
-      { text: t('blood_source_photo'), onPress: () => pickVialAndExtract(false) },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
+    // Photo choice as a bottom sheet (approved 2026-09-29); the camera / library
+    // opens only after the sheet is gone.
+    setScanChoice({
+      title: t('vial_scan_choose_sub'),
+      options: [
+        { label: t('blood_source_camera'), onPress: () => pickVialAndExtract(true) },
+        { label: t('blood_source_photo'), onPress: () => pickVialAndExtract(false) },
+      ],
+      cancelLabel: t('cancel'),
+    });
   }
 
   async function pickVialAndExtract(fromCamera) {
-    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    if (!hasNativeModule('ExponentImagePicker')) { wizNotice(t('error'), t('blood_needs_build')); return; }
     const ImagePicker = require('expo-image-picker');
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert(t('error'), t('blood_camera_denied')); return; }
+        if (!perm.granted) { wizNotice(t('error'), t('blood_camera_denied'), true); return; }
       }
       const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
       const result = fromCamera
@@ -1188,8 +1297,9 @@ export default function ProtocolsScreen() {
         : await ImagePicker.launchImageLibraryAsync(opts);
       if (result.canceled) return;
       const asset = result.assets[0];
-      if (!asset?.base64) { Alert.alert(t('error'), t('blood_error_read')); return; }
-      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) { Alert.alert(t('error'), t('blood_error_file_too_large')); return; }
+      // Vial-photo errors reuse "Couldn't read that label" (approved 2026-09-29).
+      if (!asset?.base64) { wizNotice(t('vial_scan_error'), t('vial_scan_error_sub'), true); return; }
+      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) { wizNotice(t('error'), t('blood_error_file_too_large'), true); return; }
       const mediaType = asset.mimeType
         || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
       setVialScanning(true);
@@ -1203,26 +1313,27 @@ export default function ProtocolsScreen() {
         let errBody = null;
         try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
+          wizNotice(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)), true);
           return;
         }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
-        Alert.alert(
+        wizNotice(
           serviceDown ? t('blood_error_service') : t('vial_scan_error'),
           serviceDown ? t('vial_scan_error_service_sub') : t('vial_scan_error_sub'),
+          true,
         );
         return;
       }
       const v = data?.vial;
       if (!v || (v.compound_name == null && v.amount == null && v.concentration == null)) {
-        Alert.alert(t('vial_scan_error'), t('vial_scan_none'));
+        wizNotice(t('vial_scan_error'), t('vial_scan_none'), true);
         return;
       }
       applyVialScan(v);
     } catch (err) {
       setVialScanning(false);
-      Alert.alert(t('error'), t('blood_error_read'));
+      wizNotice(t('vial_scan_error'), t('vial_scan_error_sub'), true);
     }
   }
 
@@ -1254,14 +1365,14 @@ export default function ProtocolsScreen() {
     : null;
 
   async function saveProtocol() {
-    if (!name) { Alert.alert(t('protocols_missing_name'), t('protocols_missing_name_msg')); return; }
+    if (!name) {
+      setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('done'), kind: 'primary' }] });
+      return;
+    }
     // Guard: never persist a protocol whose dose can't be drawn correctly.
     if (doseStepBlocked) {
       setStep(3);
-      Alert.alert(
-        t('protocols_check_values_title'),
-        unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
-      );
+      showCheckValues();
       return;
     }
     setSaving(true);
@@ -1416,13 +1527,15 @@ export default function ProtocolsScreen() {
       const todayStr = new Date().toISOString().split('T')[0];
       const pastCount = (protocolData && safeStart < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
       if (pastCount > 0) {
-        Alert.alert(
-          t('protocols_backfill_title'),
-          t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
-          [
-            { text: t('protocols_backfill_no'), style: 'cancel' },
+        // Shown once the add sheet is gone (screenSheet waits for it).
+        setScreenSheet({
+          title: t('protocols_backfill_title'),
+          body: t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
+          buttons: [
+            { label: t('protocols_backfill_no'), kind: 'secondary' },
             {
-              text: t('protocols_backfill_yes').replace('{n}', String(pastCount)),
+              label: t('protocols_backfill_yes').replace('{n}', String(pastCount)),
+              kind: 'primary',
               onPress: () => {
                 try { backfillTakenDoses(newId); } catch { /* best-effort */ }
                 notifyDataChanged('protocol');
@@ -1431,7 +1544,7 @@ export default function ProtocolsScreen() {
               },
             },
           ],
-        );
+        });
       }
     }
     requestSync();
@@ -1450,35 +1563,46 @@ export default function ProtocolsScreen() {
   // Advance one wizard step, honoring the step-3 dose-safety guard (same rule the
   // old top-right "Next" used). Save has its own guard inside saveProtocol, so the
   // footer's Save can be tapped from any step.
+  function showCheckValues() {
+    setWizSheet({
+      icon: 'warning',
+      title: t('protocols_check_values_title'),
+      body: unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
+      buttons: [{ label: t('done'), kind: 'primary' }],
+    });
+  }
+
   function goNext() {
     if (step === 3 && doseStepBlocked) {
-      Alert.alert(
-        t('protocols_check_values_title'),
-        unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
-      );
+      showCheckValues();
       return;
     }
     if (step < totalSteps) setStep(step + 1);
   }
 
   async function deleteProtocol(id) {
-    Alert.alert(t('protocols_delete_title'), t('protocols_delete_confirm_settings'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('protocols_delete'), style: 'destructive',
-        onPress: async () => {
-          const target = protocols.find(p => p.id === id);
-          softDeleteProtocol(id);
-          deactivateVialsByProtocol(id);
-          cancelDoseReminder(id).catch(() => {});
-          dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
-          if (target) Analytics.protocolDeactivated(target);
-          fetchProtocols();
-          notifyDataChanged('protocol'); // refresh Today immediately
-          requestSync();
+    setScreenSheet({
+      title: t('protocols_delete_title'),
+      body: t('protocols_delete_confirm_settings'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        {
+          label: t('protocols_delete'), kind: 'danger',
+          onPress: () => {
+            const target = protocols.find(p => p.id === id);
+            softDeleteProtocol(id);
+            deactivateVialsByProtocol(id);
+            cancelDoseReminder(id).catch(() => {});
+            dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
+            if (target) Analytics.protocolDeactivated(target);
+            setOpenId(null); // back to the list
+            fetchProtocols();
+            notifyDataChanged('protocol'); // refresh Today immediately
+            requestSync();
+          },
         },
-      },
-    ]);
+      ],
+    });
   }
 
 
@@ -1486,10 +1610,14 @@ export default function ProtocolsScreen() {
   // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
   // second Add right after a save can't slip an extra protocol through.
   function promptUpgrade() {
-    Alert.alert(t('protocols_limit_title'), t('protocols_limit_msg'), [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('protocols_limit_upgrade'), onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
-    ]);
+    setScreenSheet({
+      title: t('protocols_limit_title'),
+      body: t('protocols_limit_msg'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('protocols_limit_upgrade'), kind: 'primary', onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
+      ],
+    });
   }
 
   async function isOverFreeLimit() {
@@ -1534,32 +1662,61 @@ export default function ProtocolsScreen() {
   }
 
   const renderCard = (p) => (
-    <ProtocolCard
-      key={p.id} p={p} vial={vialsByProtocol[p.id]}
-      expanded={expanded} setExpanded={setExpanded}
-      openEdit={openEdit} deleteProtocol={deleteProtocol}
-      onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
-      t={t}
-    />
+    <ProtocolListCard key={p.id} p={p} vial={vialsByProtocol[p.id]} onOpen={(id) => setOpenId(id)} t={t} />
   );
+
+  // Which view the tab shows: the two heroes, the list, or one protocol's screen.
+  const openProtocol = showList && openId != null ? (protocols.find(p => p.id === openId) || null) : null;
+  const view = openProtocol ? 'detail' : showList ? 'list' : 'heroes';
+
+  // Add step 3: the live result sits under the fields it depends on and appears only
+  // once it can be computed (founder 2026-09-29).
+  const [liveW, setLiveW] = useState(0);
+  const overCap = drawUnits != null && Number(drawUnits) > syringeSize;
+  const showLiveDraw = type !== 'oral' && !unitMismatch && !!drawML && (drawValid || drawExceedsSyringe);
+  const wizServing = type === 'oral'
+    ? computeServings({
+        targetDose: dose, doseUnit, servingStrength, servingStrengthUnit, servingUnits,
+        form: notes, divisible: divisible == null ? undefined : divisible,
+      })
+    : null;
+
+  const addButton = (
+    <TouchableOpacity style={s.addBtn} onPress={openAdd} accessibilityRole="button">
+      <Text style={s.addBtnText}>{t('protocols_add')}</Text>
+    </TouchableOpacity>
+  );
+  const unitSeg = (units, value, setter, suffix = '') => (
+    <Seg s={s} items={units.map(u => ({ key: u, label: `${u}${suffix}`, on: value === u, onPress: () => setter(u) }))} />
+  );
+  const iosPicker = Platform.OS === 'ios';
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        {showList ? (
+        {view === 'detail' ? (
+          <>
+            <TouchableOpacity style={s.backBtn} onPress={() => setOpenId(null)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={s.backText}>‹ {t('today_protocols')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.addBtn} onPress={() => openEdit(openProtocol)} accessibilityRole="button">
+              <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
+            </TouchableOpacity>
+          </>
+        ) : view === 'list' ? (
           <TouchableOpacity style={s.backBtn} onPress={() => setShowList(false)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={s.backText}>‹ {t('protocols_title')}</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={s.headerTitle}>{t('protocols_title')}</Text>
+          <>
+            <Text style={s.headerTitle}>{t('protocols_title')}</Text>
+            {addButton}
+          </>
         )}
-        <TouchableOpacity style={s.addBtn} onPress={openAdd}>
-          <Text style={s.addBtnText}>{t('protocols_add')}</Text>
-        </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
-        {protocols.length > 0 && !showList && (() => {
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+        {view === 'heroes' && protocols.length > 0 && (() => {
           const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
           return (
             <View style={s.heroes}>
@@ -1609,61 +1766,77 @@ export default function ProtocolsScreen() {
             </View>
           );
         })()}
-        {protocols.length === 0 && !loading && (
-          <View style={s.emptyState}>
-            <View style={s.emptyIcon}><FeatureIcon name="type_vial" size={48} color={colors.textMuted} /></View>
+
+        {view === 'list' && (
+          <View style={s.hrow}>
+            <Text style={s.listTitle} accessibilityRole="header">{t('today_protocols')}</Text>
+            {addButton}
+          </View>
+        )}
+
+        {view !== 'detail' && protocols.length === 0 && !loading && (
+          <View style={s.emptyCard}>
+            <FeatureIcon name="type_vial" size={40} color={colors.ink2} />
             <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
             <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
-              <Text style={s.emptyBtnText}>{t('protocols_empty_btn')}</Text>
+            <TouchableOpacity style={[s.btnPrimary, s.emptyBtn]} onPress={openAdd} accessibilityRole="button">
+              <Text style={s.btnPrimaryText}>{t('protocols_empty_btn')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {protocols.length > 0 && showList && (
-          <View style={s.sortRow}>
+        {view === 'list' && protocols.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.sortScroll} contentContainerStyle={s.sortRow}>
             <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {SORT_OPTIONS.map(o => (
-                <TouchableOpacity
-                  key={o.key}
-                  style={[s.sortPill, sortBy === o.key && s.sortPillOn]}
-                  onPress={() => changeSort(o.key)}
-                >
-                  <Text style={[s.sortPillText, sortBy === o.key && s.sortPillTextOn]}>{t(o.label)}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+            {SORT_OPTIONS.map(o => (
+              <Pill key={o.key} s={s} label={t(o.label)} on={sortBy === o.key} onPress={() => changeSort(o.key)} />
+            ))}
+          </ScrollView>
         )}
 
-        {protocols.length > 0 && showList && sortBy === 'type' && (
+        {view === 'list' && protocols.length > 0 && sortBy === 'type' && (
           <>
-            {reconProtocols.length > 0 && (
-              <><Text style={s.sectionLabel}>{t('protocols_section_lyophilized')}</Text>{reconProtocols.map(renderCard)}</>
-            )}
-            {rtuProtocols.length > 0 && (
-              <><Text style={s.sectionLabel}>{t('protocols_section_rtu')}</Text>{rtuProtocols.map(renderCard)}</>
-            )}
-            {oralProtocols.length > 0 && (
-              <><Text style={s.sectionLabel}>{t('protocols_section_oral')}</Text>{oralProtocols.map(renderCard)}</>
-            )}
+            {[
+              ['protocols_section_lyophilized', reconProtocols],
+              ['protocols_section_rtu', rtuProtocols],
+              ['protocols_section_oral', oralProtocols],
+            ].filter(([, list]) => list.length > 0).map(([key, list]) => (
+              <View key={key} style={s.blk}>
+                <Text style={s.secth}>{t(key)}</Text>
+                {list.map(renderCard)}
+              </View>
+            ))}
           </>
         )}
 
-        {protocols.length > 0 && showList && sortBy !== 'type' && sortedProtocols().map(renderCard)}
+        {view === 'list' && protocols.length > 0 && sortBy !== 'type' && (
+          <View style={s.blk}>{sortedProtocols().map(renderCard)}</View>
+        )}
 
+        {view === 'detail' && (
+          <ProtocolDetail
+            key={openProtocol.id}
+            p={openProtocol} vial={vialsByProtocol[openProtocol.id]}
+            openEdit={openEdit} deleteProtocol={deleteProtocol}
+            onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
+            t={t}
+          />
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Delete / limit / log past doses: held back until the add sheet is gone. */}
+      <DTSheet config={wizardPresented ? null : screenSheet} onClose={() => setScreenSheet(null)} />
 
       <Modal
         visible={showModal}
         animationType="slide"
         presentationStyle="pageSheet"
+        onDismiss={() => setWizardPresented(false)}
         onRequestClose={() => {
           // Android system back (edge-swipe / nav-bar button): step back, or close
-          // from the first step — mirrors the header back arrow, so it's reachable
+          // from the first step — mirrors the footer Back, so it's reachable
           // without hitting the top of the screen.
           if (step > 1) setStep(step - 1);
           else { setShowModal(false); resetForm(); }
@@ -1671,137 +1844,137 @@ export default function ProtocolsScreen() {
       >
         <SafeAreaView style={s.modal}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={s.modalNav}>
-            {step > 1 ? (
-              <TouchableOpacity onPress={() => setStep(step - 1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Text style={s.modalCancel}>{`← ${t('back')}`}</Text>
+          {/* Cancel top-left, the title, Save top-right while editing (approved 2026-09-29). */}
+          <View style={s.wnav}>
+            <TouchableOpacity style={s.wnavSide} onPress={() => { setShowModal(false); resetForm(); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
+              <Text style={s.wnavCancel}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.wnavTitle} numberOfLines={1}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
+            {editingId ? (
+              <TouchableOpacity style={[s.wnavSide, s.wnavRight]} onPress={saveProtocol} disabled={saving} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
+                <Text style={s.wnavSave} numberOfLines={1}>{saving ? t('protocols_saving') : t('save')}</Text>
               </TouchableOpacity>
-            ) : <View style={s.modalNavSpacer} />}
-            <Text style={s.modalTitle}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
-            <View style={s.modalNavSpacer} />
+            ) : <View style={s.wnavSide} />}
           </View>
 
-          <View style={s.modalProgress}>
+          <View style={s.prog}>
             {Array.from({ length: totalSteps }).map((_, i) => (
-              <View key={i} style={[s.modalProgSeg, i < step && s.modalProgDone]} />
+              <View key={i} style={[s.progSeg, i < step && s.progSegOn]} />
             ))}
           </View>
 
-          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView style={s.modalBody} contentContainerStyle={s.wiz} showsVerticalScrollIndicator={false}>
 
             {step === 1 && (
-              <View>
-                <Text style={s.modalStepTitle}>
-                  {editingId ? t('protocols_edit_compound') : t('protocols_step_name')}
-                </Text>
-                <Text style={s.modalStepSub}>{t('protocols_step_name_sub')}</Text>
-
-                <Text style={s.fieldLabel}>{t('protocols_type')}</Text>
-                <View style={s.typeRow}>
-                  {[
-                    { val: 'recon', icon: 'type_vial', label: t('protocols_lyophilized'), sub: t('protocols_mix_with_water') },
-                    { val: 'rtu', icon: 'reconstitution', label: t('protocols_rtu'), sub: t('protocols_pre_mixed') },
-                    { val: 'oral', icon: 'type_capsule', label: t('protocols_oral'), sub: t('protocols_supplement') },
-                  ].map((typeOpt) => (
-                    <TouchableOpacity
-                      key={typeOpt.val}
-                      style={[s.typeBtn, type === typeOpt.val && s.typeBtnOn]}
-                      onPress={() => {
-                        setType(typeOpt.val);
-                        setName('');
-                        setCompoundId(null);
-                        setSearchQuery('');
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      <View style={s.typeEmoji}>
-                        <FeatureIcon name={typeOpt.icon} size={26} color={type === typeOpt.val ? colors.accent : colors.textMuted} />
-                      </View>
-                      <Text style={[s.typeBtnLabel, type === typeOpt.val && s.typeBtnLabelOn]}>
-                        {typeOpt.label}
-                      </Text>
-                      <Text style={s.typeBtnSub}>{typeOpt.sub}</Text>
-                    </TouchableOpacity>
-                  ))}
+              <>
+                <View style={s.wt}>
+                  <Text style={s.wtTitle}>{editingId ? t('protocols_edit_compound') : t('protocols_step_name')}</Text>
+                  <Text style={s.wtSub}>{t('protocols_step_name_sub')}</Text>
                 </View>
 
-                <Text style={s.fieldLabel}>{t('protocols_compound_name')}</Text>
-                {compoundId && BLEND_IDS.includes(compoundId) && (
-                  <Text style={s.noCurveNote}>{t('blend_curve_note')}</Text>
-                )}
-                {compoundId && compoundId.startsWith('rtu_insulin_') && (
-                  <Text style={s.noCurveNote}>{t('insulin_no_curve_note')}</Text>
-                )}
-                <TextInput
-                  style={s.input}
-                  placeholder={t('protocols_name_placeholder')}
-                  placeholderTextColor={colors.textFaint}
-                  value={searchQuery}
-                  onChangeText={(text) => {
-                    setSearchQuery(text);
-                    // Select-first: nothing is committed until the user taps a
-                    // suggestion or the "add" row.
-                    setName('');
-                    setCompoundId(null);
-                    setShowSuggestions(true);
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  autoCorrect={false}
-                />
-
-                {showSuggestions && (() => {
-                  // Blank until the user types — the app never surfaces a compound
-                  // unprompted. Matching here is spelling help, not a suggestion.
-                  if (searchQuery.trim().length < 2) return null;
-                  const sugg = getFilteredSuggestions();
-                  const showAdd = !!(searchQuery && searchQuery.trim()) && !queryMatchesExisting();
-                  if (sugg.length === 0 && !showAdd) return null;
-                  return (
-                    <View style={s.suggestionBox}>
-                      {sugg.slice(0, 8).map((item) => {
-                        const composition = blendComposition(item.key, t);
-                        return (
-                          <TouchableOpacity
-                            key={item.key}
-                            style={s.suggestionItem}
-                            onPressIn={() => selectCompound(item)}
-                          >
-                            <Text style={s.suggestionText}>{item.label}</Text>
-                            {composition && (
-                              <Text style={s.suggestionSub}>{composition} · {t('blend_varies_hint')}</Text>
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })}
-                      {sugg.length > 8 && (
-                        <Text style={s.suggestionMore}>
-                          +{sugg.length - 8} {t('protocols_more_results')}
-                        </Text>
-                      )}
-                      {showAdd && (
+                <Fld s={s} label={t('protocols_type')}>
+                  <View style={s.tiles}>
+                    {[
+                      { val: 'recon', icon: 'type_vial', label: t('protocols_lyophilized'), sub: t('protocols_mix_with_water') },
+                      { val: 'rtu', icon: 'syringe', label: t('protocols_rtu'), sub: t('protocols_pre_mixed') },
+                      { val: 'oral', icon: 'type_capsule', label: t('protocols_oral'), sub: t('protocols_supplement') },
+                    ].map((typeOpt) => {
+                      const on = type === typeOpt.val;
+                      return (
                         <TouchableOpacity
-                          style={s.suggestionItem}
-                          onPressIn={addCustomCompound}
+                          key={typeOpt.val}
+                          style={[s.tile, on && s.tileOn]}
+                          onPress={() => {
+                            setType(typeOpt.val);
+                            setName('');
+                            setCompoundId(null);
+                            setSearchQuery('');
+                            setShowSuggestions(false);
+                          }}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: on }}
                         >
-                          <Text style={[s.suggestionText, { color: colors.accent, fontWeight: '700' }]}>
-                            {t('protocols_add_custom').replace('{name}', searchQuery.trim())}
-                          </Text>
+                          <FeatureIcon name={typeOpt.icon} size={26} color={on ? colors.ink : colors.ink2} />
+                          <Text style={[s.tileLabel, on && s.tileLabelOn]}>{typeOpt.label}</Text>
+                          <Text style={s.tileSub}>{typeOpt.sub}</Text>
                         </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })()}
+                      );
+                    })}
+                  </View>
+                </Fld>
 
-                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, lineHeight: 15 }}>
-                  {t('protocols_spelling_note')}
-                </Text>
+                <Fld s={s} label={t('protocols_compound_name')}>
+                  {compoundId && BLEND_IDS.includes(compoundId) && (
+                    <Text style={s.footC2}>{t('blend_curve_note')}</Text>
+                  )}
+                  {compoundId && compoundId.startsWith('rtu_insulin_') && (
+                    <Text style={s.footC2}>{t('insulin_no_curve_note')}</Text>
+                  )}
+                  <WInput
+                    s={s} c={colors}
+                    placeholder={t('protocols_name_placeholder')}
+                    value={searchQuery}
+                    onChangeText={(text) => {
+                      setSearchQuery(text);
+                      // Select-first: nothing is committed until the user taps a
+                      // suggestion or the "add" row.
+                      setName('');
+                      setCompoundId(null);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    autoCorrect={false}
+                  />
+
+                  {showSuggestions && (() => {
+                    // Blank until the user types — the app never surfaces a compound
+                    // unprompted. Matching here is spelling help, not a suggestion.
+                    if (searchQuery.trim().length < 2) return null;
+                    const sugg = getFilteredSuggestions();
+                    const showAdd = !!(searchQuery && searchQuery.trim()) && !queryMatchesExisting();
+                    if (sugg.length === 0 && !showAdd) return null;
+                    return (
+                      <View style={s.sugg}>
+                        {sugg.slice(0, 8).map((item, i) => {
+                          const comp = blendComposition(item.key, t);
+                          return (
+                            <TouchableOpacity
+                              key={item.key}
+                              style={[s.suggRow, i > 0 && s.suggSep]}
+                              onPressIn={() => selectCompound(item)}
+                            >
+                              <Text style={s.suggText}>{item.label}</Text>
+                              {comp && (
+                                <Text style={s.suggSub}>{comp} · {t('blend_varies_hint')}</Text>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {sugg.length > 8 && (
+                          <View style={[s.suggRow, s.suggSep]}>
+                            <Text style={s.suggSub}>+{sugg.length - 8} {t('protocols_more_results')}</Text>
+                          </View>
+                        )}
+                        {showAdd && (
+                          <TouchableOpacity
+                            style={[s.suggRow, sugg.length > 0 && s.suggSep]}
+                            onPressIn={addCustomCompound}
+                          >
+                            <Text style={s.suggAdd}>
+                              {t('protocols_add_custom').replace('{name}', searchQuery.trim())}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })()}
+                </Fld>
 
                 {name && !compoundId ? (
-                  <Text style={{ fontSize: 12, color: colors.warningSoftText, marginTop: 6 }}>
-                    {t('protocols_custom_hint')}
-                  </Text>
+                  <Text style={s.footAttn}>{t('protocols_custom_hint')}</Text>
                 ) : null}
-              </View>
+                <Text style={s.footC3}>{t('protocols_spelling_note')}</Text>
+              </>
             )}
 
             {step === 2 && (() => {
@@ -1811,277 +1984,172 @@ export default function ProtocolsScreen() {
                 protocols.filter(p => p.id !== editingId && p.color).map(p => p.color)
               );
               return (
-              <View>
-                <Text style={s.modalStepTitle}>{t('protocols_step_color')}</Text>
-                <Text style={s.modalStepSub}>{t('protocols_step_color_sub')}</Text>
-                <View style={s.previewPill}>
-                  <View style={[s.previewDot, { backgroundColor: color }]} />
-                  <View>
-                    <Text style={s.previewName}>{name || t('protocols_your_compound')}</Text>
-                    <Text style={s.previewSub}>{t(COLOR_NAMES[color])}</Text>
+                <>
+                  <View style={s.wt}>
+                    <Text style={s.wtTitle}>{t('protocols_step_color')}</Text>
+                    <Text style={s.wtSub}>{t('protocols_step_color_sub')}</Text>
                   </View>
-                </View>
-                <Text style={s.colorTip}>{t('protocols_color_tip')}</Text>
-                <View style={s.colorGrid}>
-                  {COLORS.map((c) => {
-                    const inUse = usedColors.has(c);
-                    return (
-                    <TouchableOpacity
-                      key={c}
-                      style={[s.colorSwatch, { backgroundColor: c }, color === c && s.colorSwatchOn]}
-                      onPress={() => setColor(c)}
-                    >
-                      {color === c
-                        ? <CheckMark style={s.colorCheck} />
-                        : inUse ? <View style={s.colorInUseDot} /> : null}
-                    </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {usedColors.size > 0 && (
-                  <Text style={s.colorLegend}>{t('protocols_color_in_use_legend')}</Text>
-                )}
-                {usedColors.has(color) && (
-                  <Text style={s.colorDupWarn}>{t('protocols_color_dup_warning')}</Text>
-                )}
-              </View>
+                  <View style={s.prev}>
+                    <View style={[s.prevDot, { backgroundColor: color }]} />
+                    <Text style={s.prevName}>{name || t('protocols_your_compound')}</Text>
+                    <Text style={s.prevSub}>{t(COLOR_NAMES[color])}</Text>
+                  </View>
+                  <View style={s.swatches}>
+                    {COLORS.map((col) => {
+                      const on = color === col;
+                      return (
+                        <View key={col} style={s.swCell}>
+                          <TouchableOpacity
+                            style={[s.swRing, on && s.swRingOn]}
+                            onPress={() => setColor(col)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: on }}
+                            accessibilityLabel={t(COLOR_NAMES[col])}
+                          >
+                            <View style={[s.sw, { backgroundColor: col }]} />
+                            {usedColors.has(col) && <View style={s.usedMk} />}
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  {usedColors.size > 0 && (
+                    <View style={s.legendRow}>
+                      <View style={[s.usedMk, s.usedMkInline]} />
+                      <Text style={[s.footC2, { flex: 1 }]}>{t('protocols_color_in_use_legend').replace(/^●\s*/, '')}</Text>
+                    </View>
+                  )}
+                  {usedColors.has(color) && <WarnBox s={s} text={t('protocols_color_dup_warning')} />}
+                  <Text style={s.footC2}>{t('protocols_color_tip')}</Text>
+                </>
               );
             })()}
 
             {step === 3 && (
-              <View>
-                <Text style={s.modalStepTitle}>{t('protocols_step_dose')}</Text>
-                <Text style={s.modalStepSub}>{t('protocols_step_dose_sub')}</Text>
+              <>
+                <View style={s.wt}>
+                  <Text style={s.wtTitle}>{t('protocols_step_dose')}</Text>
+                  <Text style={s.wtSub}>{t('protocols_step_dose_sub')}</Text>
+                </View>
 
+                {type !== 'oral' && vialScanned && <WarnBox s={s} text={t('vial_scan_review')} />}
                 {type !== 'oral' && (
                   <TouchableOpacity
-                    style={s.vialScanBtn}
+                    style={s.obtn2}
                     onPress={handleVialScanPress}
                     disabled={vialScanning}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
                   >
                     {vialScanning ? (
-                      <ActivityIndicator size="small" color={colors.accent} />
+                      <ActivityIndicator size="small" color={colors.ink} />
                     ) : (
-                      <FeatureIcon name="type_vial" size={20} color={colors.accent} />
+                      <FeatureIcon name="scan" size={20} color={colors.ink} />
                     )}
-                    <Text style={s.vialScanBtnText}>
+                    <Text style={s.obtn2Text}>
                       {vialScanning ? t('vial_scan_scanning') : t('vial_scan_cta')}
                     </Text>
                   </TouchableOpacity>
                 )}
-                {type !== 'oral' && vialScanned && (
-                  <View style={s.vialScanBanner}>
-                    <Text style={s.vialScanBannerText}>{t('vial_scan_review')}</Text>
-                  </View>
-                )}
 
                 {type === 'oral' && (
                   <>
-                    <Text style={s.fieldLabel}>{t('protocols_dose_amount')}</Text>
-                    <View style={s.inputRow}>
-                      <TextInput
-                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder={`${t('protocols_eg')} 500`}
-                        placeholderTextColor={colors.textFaint}
-                        keyboardType="numeric"
-                        value={dose}
-                        onChangeText={setDose}
-                      />
-                      <View style={s.unitPicker}>
-                        {['mg', 'mcg', 'IU', 'g'].map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitBtn, doseUnit === u && s.unitBtnOn]}
-                            onPress={() => setDoseUnit(u)}
-                          >
-                            <Text style={[s.unitBtnText, doseUnit === u && s.unitBtnTextOn]}>{u}</Text>
-                          </TouchableOpacity>
+                    <Fld s={s} label={t('protocols_dose_amount')}>
+                      <View style={s.inrow}>
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 500`} keyboardType="numeric" value={dose} onChangeText={setDose} />
+                        {unitSeg(['mg', 'mcg', 'IU', 'g'], doseUnit, setDoseUnit)}
+                      </View>
+                    </Fld>
+                    <Fld s={s} label={t('protocols_form')}>
+                      <View style={s.pills}>
+                        {[
+                          { val: 'Capsule', key: 'protocols_capsule' },
+                          { val: 'Tablet', key: 'protocols_tablet' },
+                          { val: 'Powder', key: 'protocols_powder' },
+                          { val: 'Liquid', key: 'protocols_liquid' },
+                          { val: 'Gummy', key: 'protocols_gummy' },
+                          { val: 'Softgel', key: 'protocols_softgel' },
+                        ].map((formType) => (
+                          <Pill key={formType.val} s={s} label={t(formType.key)} on={notes === formType.val} onPress={() => setNotes(notes === formType.val ? '' : formType.val)} />
                         ))}
                       </View>
-                    </View>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_form')}</Text>
-                    <View style={s.freqGrid}>
-                      {[
-                        { val: 'Capsule', key: 'protocols_capsule' },
-                        { val: 'Tablet', key: 'protocols_tablet' },
-                        { val: 'Powder', key: 'protocols_powder' },
-                        { val: 'Liquid', key: 'protocols_liquid' },
-                        { val: 'Gummy', key: 'protocols_gummy' },
-                        { val: 'Softgel', key: 'protocols_softgel' },
-                      ].map((formType) => (
-                        <TouchableOpacity
-                          key={formType.val}
-                          style={[s.freqBtn, notes === formType.val && s.freqBtnOn]}
-                          onPress={() => setNotes(notes === formType.val ? '' : formType.val)}
-                        >
-                          <Text style={[s.freqBtnText, notes === formType.val && s.freqBtnTextOn]}>{t(formType.key)}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    </Fld>
                     {['Capsule', 'Tablet', 'Softgel', 'Gummy'].includes(notes) && (
-                      <>
-                        <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_divisible_q')}</Text>
-                        <View style={s.freqGrid}>
-                          <TouchableOpacity
-                            style={[s.freqBtn, divisible === true && s.freqBtnOn]}
-                            onPress={() => setDivisible(divisible === true ? null : true)}
-                          >
-                            <Text style={[s.freqBtnText, divisible === true && s.freqBtnTextOn]}>{t('protocols_divisible_yes')}</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[s.freqBtn, divisible === false && s.freqBtnOn]}
-                            onPress={() => setDivisible(divisible === false ? null : false)}
-                          >
-                            <Text style={[s.freqBtnText, divisible === false && s.freqBtnTextOn]}>{t('protocols_divisible_no')}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </>
+                      <Fld s={s} label={t('protocols_divisible_q')}>
+                        <Seg s={s} items={[
+                          { key: 'yes', label: t('protocols_divisible_yes'), on: divisible === true, onPress: () => setDivisible(divisible === true ? null : true) },
+                          { key: 'no', label: t('protocols_divisible_no'), on: divisible === false, onPress: () => setDivisible(divisible === false ? null : false) },
+                        ]} />
+                      </Fld>
                     )}
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_strength')}</Text>
-                    <Text style={s.fieldHint}>{t('protocols_serving_strength_hint')}</Text>
-                    <View style={s.inputRow}>
-                      <TextInput
-                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder={`${t('protocols_eg')} 1600`}
-                        placeholderTextColor={colors.textFaint}
-                        keyboardType="numeric"
-                        value={servingStrength}
-                        onChangeText={setServingStrength}
-                      />
-                      <View style={s.unitPicker}>
-                        {['mg', 'mcg', 'IU', 'g'].map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitBtn, servingStrengthUnit === u && s.unitBtnOn]}
-                            onPress={() => setServingStrengthUnit(u)}
-                          >
-                            <Text style={[s.unitBtnText, servingStrengthUnit === u && s.unitBtnTextOn]}>{u}</Text>
-                          </TouchableOpacity>
-                        ))}
+                    <Fld s={s} label={t('protocols_serving_strength')} hint={t('protocols_serving_strength_hint')}>
+                      <View style={s.inrow}>
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 1600`} keyboardType="numeric" value={servingStrength} onChangeText={setServingStrength} />
+                        {unitSeg(['mg', 'mcg', 'IU', 'g'], servingStrengthUnit, setServingStrengthUnit)}
                       </View>
-                    </View>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_serving_units')}</Text>
-                    <Text style={s.fieldHint}>{t('protocols_serving_units_hint')}</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder="1"
-                      placeholderTextColor={colors.textFaint}
-                      keyboardType="numeric"
-                      value={servingUnits}
-                      onChangeText={setServingUnits}
-                    />
-                    <Text style={s.fieldLabel}>{t('protocols_container_units')}</Text>
-                    <Text style={s.fieldHint}>{t('protocols_container_units_hint')}</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder={`${t('protocols_eg')} 60`}
-                      placeholderTextColor={colors.textFaint}
-                      keyboardType="numeric"
-                      value={containerUnits}
-                      onChangeText={setContainerUnits}
-                    />
+                    </Fld>
+                    <Fld s={s} label={t('protocols_serving_units')} hint={t('protocols_serving_units_hint')}>
+                      <WInput s={s} c={colors} placeholder="1" keyboardType="numeric" value={servingUnits} onChangeText={setServingUnits} />
+                    </Fld>
+                    <Fld s={s} label={t('protocols_container_units')} hint={t('protocols_container_units_hint')}>
+                      <WInput s={s} c={colors} placeholder={`${t('protocols_eg')} 60`} keyboardType="numeric" value={containerUnits} onChangeText={setContainerUnits} />
+                    </Fld>
                   </>
                 )}
 
                 {type === 'recon' && (
                   <>
-                    <Text style={s.fieldLabel}>{t('protocols_compound_amount')}</Text>
-                    <View style={s.inputRow}>
-                      <TextInput
-                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder={`${t('protocols_eg')} 5`}
-                        placeholderTextColor={colors.textFaint}
-                        keyboardType="numeric"
-                        value={amount}
-                        onChangeText={setAmount}
-                      />
-                      <View style={s.unitPicker}>
-                        {['mg', 'mcg', 'IU'].map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitBtn, unit === u && s.unitBtnOn]}
-                            onPress={() => setUnit(u)}
-                          >
-                            <Text style={[s.unitBtnText, unit === u && s.unitBtnTextOn]}>{u}</Text>
-                          </TouchableOpacity>
+                    <Fld s={s} label={t('protocols_compound_amount')}>
+                      <View style={s.inrow}>
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 5`} keyboardType="numeric" value={amount} onChangeText={setAmount} />
+                        {unitSeg(['mg', 'mcg', 'IU'], unit, setUnit)}
+                      </View>
+                    </Fld>
+                    <Fld s={s} label={t('protocols_diluent')}>
+                      <View style={s.pills}>
+                        {DILUENT_OPTIONS.map((opt) => (
+                          <Pill key={opt.val} s={s} label={t(opt.key)} on={diluentChoice === opt.val} onPress={() => setDiluentChoice(diluentChoice === opt.val ? '' : opt.val)} />
                         ))}
                       </View>
-                    </View>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_diluent')}</Text>
-                    <View style={s.freqGrid}>
-                      {DILUENT_OPTIONS.map((opt) => (
-                        <TouchableOpacity
-                          key={opt.val}
-                          style={[s.freqBtn, diluentChoice === opt.val && s.freqBtnOn]}
-                          onPress={() => setDiluentChoice(diluentChoice === opt.val ? '' : opt.val)}
-                        >
-                          <Text style={[s.freqBtnText, diluentChoice === opt.val && s.freqBtnTextOn]}>
-                            {t(opt.key)}
-                          </Text>
+                      {diluentChoice === 'other' && (
+                        <WInput s={s} c={colors} placeholder={t('protocols_diluent_other_placeholder')} value={diluentOther} onChangeText={setDiluentOther} />
+                      )}
+                    </Fld>
+                    <Fld s={s} label={t('protocols_diluent_amount')} hint={t('protocols_steps_05')}>
+                      <View style={s.stepper}>
+                        <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(-1)} accessibilityRole="button" accessibilityLabel="−0.5 ml">
+                          <Text style={s.stepperBtnText}>−</Text>
                         </TouchableOpacity>
-                      ))}
-                    </View>
-                    {diluentChoice === 'other' && (
-                      <TextInput
-                        style={[s.input, { marginTop: 8 }]}
-                        placeholder={t('protocols_diluent_other_placeholder')}
-                        placeholderTextColor={colors.textFaint}
-                        value={diluentOther}
-                        onChangeText={setDiluentOther}
-                      />
-                    )}
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_diluent_amount')}</Text>
-                    <View style={s.stepperRow}>
-                      <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(-1)}>
-                        <Text style={s.stepperBtnText}>−</Text>
-                      </TouchableOpacity>
-                      <View style={s.stepperVal}>
-                        <TextInput
-                          style={s.stepperValInput}
-                          value={String(water || '')}
-                          onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
-                          onBlur={() => { const n = parseDecimal(water); setWater(String(!(n > 0) ? 0.5 : Math.max(0.5, n))); }}
-                          keyboardType="decimal-pad"
-                          selectTextOnFocus
-                          placeholder="0.5"
-                          placeholderTextColor={colors.textFaint}
-                          textAlign="center"
-                        />
-                        <Text style={s.stepperValUnit}>ml</Text>
+                        <View style={s.stepperVal}>
+                          <TextInput
+                            style={s.stepperValInput}
+                            value={String(water || '')}
+                            onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
+                            onBlur={() => { const n = parseDecimal(water); setWater(String(!(n > 0) ? 0.5 : Math.max(0.5, n))); }}
+                            keyboardType="decimal-pad"
+                            selectTextOnFocus
+                            placeholder="0.5"
+                            placeholderTextColor={colors.ink3}
+                            textAlign="center"
+                          />
+                          <Text style={s.stepperValUnit}>ml</Text>
+                        </View>
+                        <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(1)} accessibilityRole="button" accessibilityLabel="+0.5 ml">
+                          <Text style={s.stepperBtnText}>+</Text>
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(1)}>
-                        <Text style={s.stepperBtnText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={s.stepperHint}>{t('protocols_steps_05')}</Text>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_desired_dose')}</Text>
-                    <View style={s.inputRow}>
-                      <TextInput
-                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder={`${t('protocols_eg')} 0.5`}
-                        placeholderTextColor={colors.textFaint}
-                        keyboardType="numeric"
-                        value={dose}
-                        onChangeText={setDose}
-                      />
-                      <View style={s.unitPicker}>
-                        {['mg', 'mcg', 'IU'].map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitBtn, doseUnit === u && s.unitBtnOn]}
-                            onPress={() => setDoseUnit(u)}
-                          >
-                            <Text style={[s.unitBtnText, doseUnit === u && s.unitBtnTextOn]}>{u}</Text>
-                          </TouchableOpacity>
-                        ))}
+                    </Fld>
+                    <Fld s={s} label={t('protocols_desired_dose')}>
+                      <View style={s.inrow}>
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 0.5`} keyboardType="numeric" value={dose} onChangeText={setDose} />
+                        {unitSeg(['mg', 'mcg', 'IU'], doseUnit, setDoseUnit)}
                       </View>
-                    </View>
+                    </Fld>
                     {/* IU → mass converter. A trainer's protocol often reads
                         "10 IU" (syringe units) while the peptide is measured in mg.
                         Given the concentration (amount ÷ diluent) this shows the
                         real mass and can fill the dose — pure conversion, stored as
-                        mass so all downstream math is unchanged. */}
+                        mass so all downstream math is unchanged. Folds (prototype .fold2). */}
                     {['mg', 'mcg'].includes(unit) && parseDecimal(amount) > 0 && parseDecimal(water) > 0 && (() => {
                       // Normalize the peptide amount to mg so the concentration is
                       // correct even when the vial is labeled in mcg.
@@ -2089,741 +2157,411 @@ export default function ProtocolsScreen() {
                       const iuMassMg = massFromUnits(iuInput, amountMg, water);
                       const parts = iuMassMg != null ? massParts(iuMassMg) : null;
                       return (
-                        <View style={s.iuConverter}>
-                          <Text style={s.iuConverterLabel}>{t('protocols_iu_label')}</Text>
-                          <Text style={s.iuConverterHint}>{t('protocols_iu_hint')}</Text>
-                          <View style={s.inputRow}>
-                            <TextInput
-                              style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                              placeholder={`${t('protocols_eg')} 10`}
-                              placeholderTextColor={colors.textFaint}
-                              keyboardType="numeric"
-                              value={iuInput}
-                              onChangeText={setIuInput}
-                            />
-                            <View style={s.iuUnitTag}><Text style={s.iuUnitTagText}>u</Text></View>
-                          </View>
-                          {parts && (
-                            <View style={s.iuEquivBox}>
-                              <Text style={s.iuEquivText}>{`${iuInput} u = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
-                              <TouchableOpacity
-                                style={s.iuUseBtn}
-                                onPress={() => {
-                                  if (iuMassMg < 1) { setDose(parts.mcg); setDoseUnit('mcg'); }
-                                  else { setDose(parts.mg); setDoseUnit('mg'); }
-                                }}
-                              >
-                                <Text style={s.iuUseBtnText}>{t('protocols_iu_use')}</Text>
-                              </TouchableOpacity>
-                            </View>
+                        <View style={s.fold2}>
+                          <TouchableOpacity style={s.foldHead} onPress={() => setIuOpen(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: iuOpen }}>
+                            <Text style={s.foldTitle}>{t('protocols_iu_label')}</Text>
+                            <Text style={s.foldChev}>{iuOpen ? '⌃' : '⌄'}</Text>
+                          </TouchableOpacity>
+                          {iuOpen && (
+                            <>
+                              <Text style={s.footC2}>{t('protocols_iu_hint')}</Text>
+                              <View style={s.inrow}>
+                                <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 10`} keyboardType="numeric" value={iuInput} onChangeText={setIuInput} />
+                                <Text style={s.bodyC2}>u</Text>
+                              </View>
+                              {parts && (
+                                <View style={s.inrow}>
+                                  <Text style={s.iuEquiv}>{`${iuInput} u = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
+                                  <Pill
+                                    s={s}
+                                    label={t('protocols_iu_use')}
+                                    onPress={() => {
+                                      if (iuMassMg < 1) { setDose(parts.mcg); setDoseUnit('mcg'); }
+                                      else { setDose(parts.mg); setDoseUnit('mg'); }
+                                    }}
+                                  />
+                                </View>
+                              )}
+                            </>
                           )}
                         </View>
                       );
                     })()}
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_syringe_size_label')}</Text>
-                    <View style={s.unitPicker}>
-                      {[
-                        { label: '1ml (100u)', val: 100 },
-                        { label: '0.5ml (50u)', val: 50 },
-                        { label: '0.3ml (30u)', val: 30 },
-                      ].map((sz) => (
-                        <TouchableOpacity
-                          key={sz.val}
-                          style={[s.unitBtn, syringeSize === sz.val && s.unitBtnOn]}
-                          onPress={() => setSyringeSize(sz.val)}
-                        >
-                          <Text style={[s.unitBtnText, syringeSize === sz.val && s.unitBtnTextOn]}>
-                            {sz.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    {unitMismatch && (
-                      <View style={[s.calcResult, { backgroundColor: colors.warningSoft }]}>
-                        <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
-                          {t('protocols_unit_mismatch')}
-                        </Text>
-                      </View>
-                    )}
-                    {drawExceedsSyringe && !unitMismatch && (
-                      <View style={[s.calcResult, { backgroundColor: colors.dangerSoft }]}>
-                        <Text style={[s.calcResultText, { color: colors.dangerSoftText, fontWeight: '700' }]}>
-                          {drawExceedsMsg}
-                        </Text>
-                      </View>
-                    )}
-                    {drawML && drawValid && !drawExceedsSyringe && !unitMismatch && (
-                      <View style={s.calcResult}>
-                        <Text style={s.calcResultText}>
-                          {`${t('protocols_draw')}: ${drawML} ml (${drawUnits} ${t('protocols_units')})`}
-                        </Text>
-                        <Text style={s.calcDisclaimer}>{t('protocols_calc_disclaimer')}</Text>
-                      </View>
-                    )}
+                    <Fld s={s} label={t('protocols_syringe_size_label')}>
+                      <Seg s={s} fill items={[
+                        { label: '1 ml · 100u', val: 100 },
+                        { label: '0.5 ml · 50u', val: 50 },
+                        { label: '0.3 ml · 30u', val: 30 },
+                      ].map(sz => ({ key: sz.val, label: sz.label, on: syringeSize === sz.val, onPress: () => setSyringeSize(sz.val) }))} />
+                    </Fld>
                   </>
                 )}
 
                 {type === 'rtu' && (
                   <>
-                    <Text style={s.fieldLabel}>{t('protocols_dose_per_injection')}</Text>
-                    <View style={s.inputRow}>
-                      <TextInput
-                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder={`${t('protocols_eg')} 100`}
-                        placeholderTextColor={colors.textFaint}
-                        keyboardType="numeric"
-                        value={dose}
-                        onChangeText={setDose}
-                      />
-                      <View style={s.unitPicker}>
-                        {['mg', 'mcg', 'IU'].map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitBtn, doseUnit === u && s.unitBtnOn]}
-                            onPress={() => setDoseUnit(u)}
-                          >
-                            <Text style={[s.unitBtnText, doseUnit === u && s.unitBtnTextOn]}>{u}</Text>
-                          </TouchableOpacity>
-                        ))}
+                    <Fld s={s} label={t('protocols_dose_per_injection')}>
+                      <View style={s.inrow}>
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 100`} keyboardType="numeric" value={dose} onChangeText={setDose} />
+                        {unitSeg(['mg', 'mcg', 'IU'], doseUnit, setDoseUnit)}
                       </View>
-                    </View>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_conc_optional')}</Text>
-                    <View style={s.inputRow}>
-                      <TextInput
-                        style={[s.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
-                        placeholder={`${t('protocols_eg')} 200`}
-                        placeholderTextColor={colors.textFaint}
-                        keyboardType="numeric"
-                        value={concentration}
-                        onChangeText={setConcentration}
-                      />
-                      <View style={s.unitPicker}>
-                        {['mg', 'mcg', 'IU'].map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitBtn, concentrationUnit === u && s.unitBtnOn]}
-                            onPress={() => setConcentrationUnit(u)}
-                          >
-                            <Text style={[s.unitBtnText, concentrationUnit === u && s.unitBtnTextOn]}>{u}/ml</Text>
-                          </TouchableOpacity>
-                        ))}
+                    </Fld>
+                    <Fld s={s} label={t('protocols_conc_optional')}>
+                      <View style={s.inrow}>
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 200`} keyboardType="numeric" value={concentration} onChangeText={setConcentration} />
+                        {unitSeg(['mg', 'mcg', 'IU'], concentrationUnit, setConcentrationUnit, '/ml')}
                       </View>
-                    </View>
-                    {unitMismatch && (
-                      <View style={[s.calcResult, { backgroundColor: colors.warningSoft, marginTop: 10 }]}>
-                        <Text style={[s.calcResultText, { color: colors.warningSoftText }]}>
-                          {t('protocols_unit_mismatch')}
-                        </Text>
-                      </View>
-                    )}
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_vial_size')}</Text>
-                    <Text style={s.fieldHint}>{t('protocols_vial_size_hint')}</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder={`${t('protocols_eg')} 10`}
-                      placeholderTextColor={colors.textFaint}
-                      keyboardType="numeric"
-                      value={vialMl}
-                      onChangeText={setVialMl}
-                    />
-                    <Text style={s.fieldLabel}>{t('protocols_vial_expiry')}</Text>
-                    <Text style={s.fieldHint}>{t('protocols_vial_expiry_hint')}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
-                      <View style={s.monthRow}>
+                    </Fld>
+                    <Fld s={s} label={t('protocols_vial_size')} hint={t('protocols_vial_size_hint')}>
+                      <WInput s={s} c={colors} placeholder={`${t('protocols_eg')} 10`} keyboardType="numeric" value={vialMl} onChangeText={setVialMl} />
+                    </Fld>
+                    <Fld s={s} label={t('protocols_vial_expiry')} hint={t('protocols_vial_expiry_hint')}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
                         {MONTH_KEYS.map((mk, idx) => (
-                          <TouchableOpacity
-                            key={mk}
-                            style={[s.monthPill, vialExpMonth === idx && s.monthPillOn]}
-                            onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)}
-                          >
-                            <Text style={[s.monthPillText, vialExpMonth === idx && s.monthPillTextOn]}>{t(mk)}</Text>
-                          </TouchableOpacity>
+                          <Pill key={mk} s={s} label={t(mk)} on={vialExpMonth === idx} onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)} />
                         ))}
-                      </View>
-                    </ScrollView>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                      <View style={s.monthRow}>
+                      </ScrollView>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
                         {[0, 1, 2, 3, 4, 5].map((o) => {
                           const y = new Date().getFullYear() + o;
-                          return (
-                            <TouchableOpacity
-                              key={y}
-                              style={[s.monthPill, vialExpYear === y && s.monthPillOn]}
-                              onPress={() => setVialExpYear(vialExpYear === y ? null : y)}
-                            >
-                              <Text style={[s.monthPillText, vialExpYear === y && s.monthPillTextOn]}>{y}</Text>
-                            </TouchableOpacity>
-                          );
+                          return <Pill key={y} s={s} label={String(y)} on={vialExpYear === y} onPress={() => setVialExpYear(vialExpYear === y ? null : y)} />;
                         })}
-                      </View>
-                    </ScrollView>
+                      </ScrollView>
+                    </Fld>
                   </>
                 )}
-              </View>
+
+                {/* The live result (prototype liveHero). */}
+                {type !== 'oral' && unitMismatch && <WarnBox s={s} text={t('protocols_unit_mismatch')} />}
+                {showLiveDraw && (
+                  <View style={s.live} onLayout={(e) => setLiveW(e.nativeEvent.layout.width)}>
+                    <View style={s.drawHead}>
+                      <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
+                      <Text style={[s.drawBig, drawExceedsSyringe && s.drawBigRisk]}>
+                        {drawUnits}<Text style={s.drawBigUnit}> {t('protocols_units')}</Text>
+                      </Text>
+                    </View>
+                    {!overCap && liveW > 0 && (
+                      <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
+                    )}
+                    <Text style={s.liveMl}>{drawML} ml</Text>
+                    {drawExceedsSyringe && <WarnBox s={s} risk text={drawExceedsMsg} />}
+                  </View>
+                )}
+                {wizServing && wizServing.unitMismatch && <WarnBox s={s} text={t('protocols_serving_unit_mismatch')} />}
+                {wizServing && wizServing.valid && (() => {
+                  const r = wizServing;
+                  const unitLabel = t(r.unitKey);
+                  const canShowAmount = !r.discrete || r.isAchievable;
+                  return (
+                    <View style={s.live}>
+                      {canShowAmount ? (
+                        <>
+                          <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
+                          <Text style={s.drawBig}>{fmtServing(r.unitsNeeded)}<Text style={s.drawBigUnit}> {unitLabel}</Text></Text>
+                        </>
+                      ) : (
+                        <WarnBox
+                          s={s}
+                          text={r.splittable
+                            ? t('protocols_serving_not_half')
+                            : t('protocols_serving_contains').replace('{strength}', r.perUnitDose).replace('{sunit}', doseUnit).replace('{ratio}', r.ratio)}
+                        />
+                      )}
+                      {r.nearest && (
+                        <Text style={s.nearest}>
+                          {fmtServing(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {doseUnit} · {fmtServing(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {doseUnit}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })()}
+                <Text style={s.footC3}>{t('protocols_calc_disclaimer')}</Text>
+              </>
             )}
 
             {step === 4 && (
-              <View>
-                <Text style={s.modalStepTitle}>{t('protocols_step_schedule')}</Text>
-                <Text style={s.modalStepSub}>{t('protocols_step_schedule_sub')}</Text>
+              <>
+                <View style={s.wt}>
+                  <Text style={s.wtTitle}>{t('protocols_step_schedule')}</Text>
+                  <Text style={s.wtSub}>{t('protocols_step_schedule_sub')}</Text>
+                </View>
 
                 {/* 1 — First dose: quick pick, then custom date below */}
-                <Text style={s.fieldLabel}>{t('protocols_first_dose')}</Text>
-                <View style={s.freqGrid}>
-                  {[
+                <Fld s={s} label={t('protocols_first_dose')}>
+                  <Seg s={s} fill items={[
                     { offset: 0, key: 'protocols_start_today' },
                     { offset: 1, key: 'protocols_start_tomorrow' },
-                  ].map((opt) => (
-                    <TouchableOpacity
-                      key={opt.key}
-                      style={[s.freqBtn, isStartOn(opt.offset) && s.freqBtnOn]}
-                      onPress={() => setStartOffset(opt.offset)}
-                    >
-                      <Text style={[s.freqBtnText, isStartOn(opt.offset) && s.freqBtnTextOn]}>
-                        {t(opt.key)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {isStartOn(0) && dosesPerDay > 1 && (
-                  <View style={[s.infoBox, { marginBottom: 12 }]}>
-                    <Text style={s.infoText}>{t('protocols_first_dose_hint')}</Text>
-                  </View>
-                )}
+                  ].map(opt => ({ key: opt.key, label: t(opt.key), on: isStartOn(opt.offset), onPress: () => setStartOffset(opt.offset) }))} />
+                </Fld>
+                {isStartOn(0) && dosesPerDay > 1 && <InfoBox s={s} text={t('protocols_first_dose_hint')} />}
 
-                <Text style={s.fieldLabel}>{t('protocols_start_date')}</Text>
-                <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setShowStartPicker(v => !v)}>
-                  <FeatureIcon name="calendar" size={15} color={colors.text} />
-                  <Text style={s.dateBtnText}>{formatStartDate(startDate)}</Text>
-                </TouchableOpacity>
-                {showStartPicker && (
-                  <DateTimePicker
-                    value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, d) => {
-                      setShowStartPicker(Platform.OS === 'ios');
-                      if (event.type === 'dismissed') { setShowStartPicker(false); return; }
-                      if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
-                    }}
-                  />
-                )}
-                {Platform.OS === 'ios' && showStartPicker && (
-                  <TouchableOpacity style={s.doneBtn} onPress={() => setShowStartPicker(false)}>
-                    <Text style={s.doneBtnText}>{t('done')}</Text>
+                <Fld s={s} label={t('protocols_start_date')}>
+                  <TouchableOpacity style={s.pickbtn} onPress={() => setShowStartPicker(v => !v)} accessibilityRole="button">
+                    <FeatureIcon name="calendar" size={18} color={colors.ink} />
+                    <Text style={s.pickText}>{formatStartDate(startDate)}</Text>
                   </TouchableOpacity>
-                )}
-
-                {/* 2 — Interval: every X days (presets + typed custom for long TRT intervals) */}
-                <Text style={s.fieldLabel}>{t('protocols_how_often')}</Text>
-                {/* Two choices: Every day, or Custom → type N days (any interval). */}
-                <View style={s.freqGrid}>
-                  {(() => {
-                    const on = !customIntervalOpen && intervalDays === 1;
-                    return (
-                      <TouchableOpacity
-                        style={[s.freqBtn, { flex: 1 }, on && s.freqBtnOn]}
-                        onPress={() => { setCustomIntervalOpen(false); handleIntervalChange(1); }}
-                      >
-                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_every_day')}</Text>
-                      </TouchableOpacity>
-                    );
-                  })()}
-                  {(() => {
-                    const on = customIntervalOpen || intervalDays !== 1;
-                    return (
-                      <TouchableOpacity
-                        style={[s.freqBtn, { flex: 1 }, on && s.freqBtnOn]}
-                        onPress={() => { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); }}
-                      >
-                        <Text style={[s.freqBtnText, on && s.freqBtnTextOn]}>{t('protocols_custom')}</Text>
-                      </TouchableOpacity>
-                    );
-                  })()}
-                </View>
-                {(customIntervalOpen || intervalDays !== 1) && (
-                  <View style={s.customIntervalRow}>
-                    <Text style={s.customIntervalEvery}>{t('protocols_every_word')}</Text>
-                    <TextInput
-                      style={s.customIntervalInput}
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      value={customIntervalText}
-                      placeholder="14"
-                      placeholderTextColor={colors.textFaint}
-                      onChangeText={(v) => {
-                        const digits = v.replace(/[^0-9]/g, '');
-                        setCustomIntervalText(digits);
-                        const n = parseInt(digits, 10);
-                        if (Number.isFinite(n) && n > 0) handleIntervalChange(n);
+                  {!iosPicker && showStartPicker && (
+                    <DateTimePicker
+                      value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, d) => {
+                        setShowStartPicker(false);
+                        if (event.type === 'dismissed') return;
+                        if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
                       }}
                     />
-                    <Text style={s.customIntervalEvery}>{t('protocols_days_word')}</Text>
-                  </View>
-                )}
+                  )}
+                </Fld>
+
+                {/* 2 — Interval: every day, or Custom → type N days (any interval). */}
+                <Fld s={s} label={t('protocols_how_often')}>
+                  <Seg s={s} fill items={[
+                    { key: 'day', label: t('protocols_every_day'), on: !customIntervalOpen && intervalDays === 1, onPress: () => { setCustomIntervalOpen(false); handleIntervalChange(1); } },
+                    { key: 'custom', label: t('protocols_custom'), on: customIntervalOpen || intervalDays !== 1, onPress: () => { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); } },
+                  ]} />
+                  {(customIntervalOpen || intervalDays !== 1) && (
+                    <View style={s.inrow}>
+                      <Text style={s.bodyInk}>{t('protocols_every_word')}</Text>
+                      <WInput
+                        s={s} c={colors}
+                        style={s.intervalInput}
+                        keyboardType="number-pad"
+                        maxLength={3}
+                        value={customIntervalText}
+                        placeholder="14"
+                        onChangeText={(v) => {
+                          const digits = v.replace(/[^0-9]/g, '');
+                          setCustomIntervalText(digits);
+                          const n = parseInt(digits, 10);
+                          if (Number.isFinite(n) && n > 0) handleIntervalChange(n);
+                        }}
+                      />
+                      <Text style={s.bodyInk}>{t('protocols_days_word')}</Text>
+                    </View>
+                  )}
+                </Fld>
 
                 {/* 3 — Doses per day (only for interval <= 2) */}
                 {intervalDays <= 2 && (
-                  <>
-                    <Text style={s.fieldLabel}>{t('protocols_doses_per_day')}</Text>
-                    <View style={s.freqGrid}>
-                      {[1, 2, 3].map((n) => (
-                        <TouchableOpacity
-                          key={n}
-                          style={[s.freqBtn, dosesPerDay === n && s.freqBtnOn]}
-                          onPress={() => handleDosesPerDayChange(n)}
-                        >
-                          <Text style={[s.freqBtnText, dosesPerDay === n && s.freqBtnTextOn]}>
-                            {n === 1 ? t('protocols_once') : n === 2 ? t('protocols_twice') : t('protocols_three_times')}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </>
+                  <Fld s={s} label={t('protocols_doses_per_day')}>
+                    <Seg s={s} fill items={[1, 2, 3].map(n => ({
+                      key: n,
+                      label: n === 1 ? t('protocols_once') : n === 2 ? t('protocols_twice') : t('protocols_three_times'),
+                      on: dosesPerDay === n,
+                      onPress: () => handleDosesPerDayChange(n),
+                    }))} />
+                  </Fld>
                 )}
 
                 {/* 4 — Time pickers */}
-                <Text style={s.fieldLabel}>{t('protocols_what_time')}</Text>
-                {reminderTimes.map((rt, idx) => (
-                  <View key={idx}>
-                    {reminderTimes.length > 1 && (
-                      <Text style={s.doseTimeLabel}>{t('protocols_dose_label')} {idx + 1}</Text>
-                    )}
-                    <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }}>
-                      <FeatureIcon name="clock" size={15} color={colors.text} />
-                      <Text style={s.dateBtnText}>{formatTimeAMPM(rt)}</Text>
-                    </TouchableOpacity>
+                <Fld s={s} label={t('protocols_what_time')}>
+                  <View style={s.pickCol}>
+                    {reminderTimes.map((rt, idx) => (
+                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }} accessibilityRole="button">
+                        <FeatureIcon name="clock" size={18} color={colors.ink} />
+                        {reminderTimes.length > 1 && (
+                          <Text style={s.pickTextC2}>{t('protocols_dose_label')} {idx + 1}</Text>
+                        )}
+                        <Text style={s.pickTime}>{formatTimeAMPM(rt)}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                ))}
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={(() => {
-                      const [h, m] = (reminderTimes[activeTimeIndex] || currentTimeRounded5()).split(':').map(Number);
-                      const d = new Date(); d.setHours(h, m, 0, 0);
-                      return d;
-                    })()}
-                    mode="time"
-                    is24Hour={false}
-                    minuteInterval={1}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
-                      setShowTimePicker(Platform.OS === 'ios');
-                      if (selectedDate) {
-                        const h = String(selectedDate.getHours()).padStart(2, '0');
-                        const m = String(selectedDate.getMinutes()).padStart(2, '0');
-                        setReminderTimes(prev => {
-                          // Clamp the index into range and never let the array grow
-                          // past doses-per-day. Writing next[activeTimeIndex] with a
-                          // stale/out-of-range index (e.g. after Twice→Once) used to
-                          // append a phantom extra dose while "Once" stayed selected.
-                          const idx = Math.min(Math.max(activeTimeIndex, 0), prev.length - 1);
-                          const next = [...prev];
-                          next[idx] = `${h}:${m}`;
-                          return next.slice(0, Math.max(1, dosesPerDay));
-                        });
-                      }
-                    }}
-                  />
-                )}
-                {Platform.OS === 'ios' && showTimePicker && (
-                  <TouchableOpacity style={s.doneBtn} onPress={() => setShowTimePicker(false)}>
-                    <Text style={s.doneBtnText}>{t('done')}</Text>
-                  </TouchableOpacity>
-                )}
+                  {!iosPicker && showTimePicker && (
+                    <DateTimePicker
+                      value={timePickerValue()}
+                      mode="time"
+                      is24Hour={false}
+                      minuteInterval={1}
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        setShowTimePicker(false);
+                        if (selectedDate) applyPickedTime(selectedDate);
+                      }}
+                    />
+                  )}
+                </Fld>
 
                 {/* Wellness goals */}
-                <Text style={s.fieldLabel}>{t('protocols_wellness_goal')}</Text>
-                <View style={s.freqGrid}>
-                  {getWellnessKeys().map((gKey) => (
-                    <TouchableOpacity
-                      key={gKey}
-                      style={[s.freqBtn, goals.includes(gKey) && s.freqBtnOn]}
-                      onPress={() => setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey])}
-                    >
-                      <Text style={[s.freqBtnText, goals.includes(gKey) && s.freqBtnTextOn]}>{t(gKey)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Fld s={s} label={t('protocols_wellness_goal')}>
+                  <View style={s.pills}>
+                    {getWellnessKeys().map((gKey) => (
+                      <Pill key={gKey} s={s} label={t(gKey)} on={goals.includes(gKey)} onPress={() => setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey])} />
+                    ))}
+                  </View>
+                </Fld>
 
                 {/* Blend composition — "what's in the vial". Blends only. A journal
                     label; it does NOT change the serum curve (which stays half-life only). */}
                 {compoundId && BLEND_IDS.includes(compoundId) && (
-                  <>
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_composition_label')}</Text>
-                    <TextInput
-                      style={s.input}
-                      placeholder={t('protocols_composition_placeholder')}
-                      placeholderTextColor={colors.textFaint}
-                      value={composition}
-                      onChangeText={setComposition}
-                    />
-                    <Text style={s.fieldHint}>{t('protocols_composition_hint')}</Text>
-                  </>
+                  <Fld s={s} label={t('protocols_composition_label')} hint={t('protocols_composition_hint')}>
+                    <WInput s={s} c={colors} placeholder={t('protocols_composition_placeholder')} value={composition} onChangeText={setComposition} />
+                  </Fld>
                 )}
 
                 {/* Free-text note — available on every protocol type */}
-                <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_notes_optional')}</Text>
-                <TextInput
-                  style={[s.input, { height: 80 }]}
-                  placeholder={type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
-                  placeholderTextColor={colors.textFaint}
-                  multiline
-                  value={note}
-                  onChangeText={setNote}
-                />
-              </View>
+                <Fld s={s} label={t('protocols_notes_optional')}>
+                  <WInput
+                    s={s} c={colors}
+                    style={s.winpMulti}
+                    placeholder={type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
+                    multiline
+                    value={note}
+                    onChangeText={setNote}
+                  />
+                </Fld>
+              </>
             )}
 
             {step === 5 && type === 'recon' && !editingId && (
-              <View>
-                <Text style={s.modalStepTitle}>{t('protocols_step_vial')}</Text>
-                <Text style={s.modalStepSub}>
-                  {t('protocols_step_vial_sub')}
-                </Text>
+              <>
+                <View style={s.wt}>
+                  <Text style={s.wtTitle}>{t('protocols_step_vial')}</Text>
+                  <Text style={s.wtSub}>{t('protocols_step_vial_sub')}</Text>
+                </View>
                 {!skipVial ? (
                   <>
-                    <Text style={s.fieldLabel}>{t('protocols_date_mixed')}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthScroll}>
-                      <View style={s.monthRow}>
+                    <Fld s={s} label={t('protocols_date_mixed')}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
                         {MONTH_KEYS.map((mk, idx) => (
-                          <TouchableOpacity
-                            key={mk}
-                            style={[s.monthPill, vialMonth === idx && s.monthPillOn]}
-                            onPress={() => setVialMonth(idx)}
-                          >
-                            <Text style={[s.monthPillText, vialMonth === idx && s.monthPillTextOn]}>
-                              {t(mk)}
-                            </Text>
-                          </TouchableOpacity>
+                          <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onPress={() => setVialMonth(idx)} />
                         ))}
-                      </View>
-                    </ScrollView>
-                    <TextInput
-                      style={[s.input, { width: 80, textAlign: 'center', marginTop: 8 }]}
-                      placeholder={t('protocols_day_dd')}
-                      placeholderTextColor={colors.textFaint}
-                      keyboardType="numeric"
-                      maxLength={2}
-                      value={vialDay}
-                      onChangeText={(val) => {
-                        const num = parseInt(val);
-                        if (val === '' || (num >= 1 && num <= 31)) setVialDay(val);
-                      }}
-                    />
-                    <Text style={[s.fieldLabel, { marginTop: 14 }]}>{t('protocols_vial_valid')}</Text>
-                    <TextInput
-                      style={[s.input, { width: 100, textAlign: 'center' }]}
-                      placeholder={String(DEFAULT_VALID_DAYS)}
-                      placeholderTextColor={colors.textFaint}
-                      keyboardType="numeric"
-                      maxLength={3}
-                      value={vialValidDays}
-                      onChangeText={(val) => { if (val === '' || /^\d+$/.test(val)) setVialValidDays(val); }}
-                    />
-                    <Text style={s.stepperHint}>{t('protocols_vial_valid_hint')}</Text>
-                    <View style={[s.infoBox, { marginTop: 8 }]}>
-                      <Text style={s.infoText}>
-                        {t('protocols_bac_info')}
-                      </Text>
-                    </View>
-                    <TouchableOpacity style={s.skipVialBtn} onPress={() => setSkipVial(true)}>
-                      <Text style={s.skipVialBtnText}>{t('protocols_skip_vial')}</Text>
+                      </ScrollView>
+                      <WInput
+                        s={s} c={colors}
+                        style={s.dayInput}
+                        placeholder={t('protocols_day_dd')}
+                        keyboardType="numeric"
+                        maxLength={2}
+                        value={vialDay}
+                        onChangeText={(val) => {
+                          const num = parseInt(val);
+                          if (val === '' || (num >= 1 && num <= 31)) setVialDay(val);
+                        }}
+                      />
+                    </Fld>
+                    <Fld s={s} label={t('protocols_vial_valid')} hint={t('protocols_vial_valid_hint')}>
+                      <WInput
+                        s={s} c={colors}
+                        style={s.validInput}
+                        placeholder={String(DEFAULT_VALID_DAYS)}
+                        keyboardType="numeric"
+                        maxLength={3}
+                        value={vialValidDays}
+                        onChangeText={(val) => { if (val === '' || /^\d+$/.test(val)) setVialValidDays(val); }}
+                      />
+                    </Fld>
+                    <InfoBox s={s} text={t('protocols_bac_info')} />
+                    <TouchableOpacity style={s.linkBtn} onPress={() => setSkipVial(true)} accessibilityRole="button">
+                      <Text style={s.linkText}>{t('protocols_skip_vial')}</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
-                  <View style={s.skippedBox}>
-                    <Text style={s.skippedText}>
-                      {t('protocols_skipped_msg')}
-                    </Text>
-                    <TouchableOpacity onPress={() => setSkipVial(false)}>
-                      <Text style={s.skipVialBtnText}>{t('protocols_add_date')}</Text>
+                  <>
+                    <InfoBox s={s} text={t('protocols_skipped_msg')} />
+                    <TouchableOpacity style={s.linkBtn} onPress={() => setSkipVial(false)} accessibilityRole="button">
+                      <Text style={s.linkText}>{t('protocols_add_date').replace(/^←\s*/, '')}</Text>
                     </TouchableOpacity>
-                  </View>
+                  </>
                 )}
-                <View style={s.reviewCard}>
-                  <Text style={s.reviewTitle}>{t('protocols_summary')}</Text>
-                  {[
-                    [t('protocols_compound_label'), name],
-                    [t('protocols_amount_label'), `${amount} ${unit}`],
-                    [t('protocols_water_label'), `${water} ml`],
-                    [t('protocols_dose_label'), `${dose} ${doseUnit}`],
-                    ...(drawML && drawValid ? [[t('protocols_draw_label'), `${drawML} ml (${drawUnits} ${t('protocols_units')})`]] : []),
-                    [t('protocols_frequency_label'), frequencyLabel(intervalDays)],
-                  ].map(([label, val], i, arr) => (
-                    <View key={label} style={[s.reviewRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
-                      <Text style={s.reviewLabel}>{label}</Text>
-                      <Text style={s.reviewVal}>{val}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
+                <RowsBlock
+                  s={s}
+                  title={sentenceCase(t('protocols_summary'))}
+                  rows={[
+                    { label: t('protocols_compound_label'), value: name },
+                    { label: t('protocols_amount_label'), value: `${amount} ${unit}`, mono: true },
+                    { label: t('protocols_water_label'), value: `${water} ml`, mono: true },
+                    { label: t('protocols_dose_label'), value: `${dose} ${doseUnit}`, mono: true },
+                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${drawML} ml (${drawUnits} ${t('protocols_units')})`, mono: true } : null,
+                    { label: t('protocols_frequency_label'), value: frequencyLabel(intervalDays) },
+                  ]}
+                />
+              </>
             )}
-
-            <View style={{ height: 40 }} />
           </ScrollView>
 
-          {/* Bottom action bar — always visible, thumb-reachable on every step.
-              Cancel closes instantly; Save commits from any step (during an edit
-              all fields are loaded, so one changed field = one tap to Save). */}
-          <View style={s.modalFooter}>
-            <TouchableOpacity
-              style={s.footerCancel}
-              onPress={() => { setShowModal(false); resetForm(); }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={s.footerCancelText}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <View style={s.footerRight}>
-              {step < totalSteps && (
-                <TouchableOpacity style={s.footerNext} onPress={goNext}>
-                  <Text style={[s.footerNextText, step === 3 && doseStepBlocked && s.footerDisabledText]}>
-                    {t('next')} →
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {(editingId || step === totalSteps) && (
-                <TouchableOpacity style={s.footerSave} onPress={saveProtocol} disabled={saving}>
-                  <Text style={s.footerSaveText}>{saving ? t('protocols_saving') : t('save')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+          {/* Footer (prototype .wfoot): Back as the secondary, Next / Save in ink. */}
+          <View style={s.wfoot}>
+            {step > 1 ? (
+              <TouchableOpacity style={[s.btn, s.btnSec, s.wfootSide]} onPress={() => setStep(step - 1)} accessibilityRole="button">
+                <Text style={s.btnSecText}>{t('back')}</Text>
+              </TouchableOpacity>
+            ) : <View style={s.wfootSide} />}
+            {step < totalSteps ? (
+              <TouchableOpacity
+                style={[s.btn, s.wfootMain, step === 3 && doseStepBlocked ? s.btnBlocked : s.btnPri]}
+                onPress={goNext}
+                accessibilityRole="button"
+              >
+                <Text style={step === 3 && doseStepBlocked ? s.btnBlockedText : s.btnPriText}>{t('next')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={[s.btn, s.wfootMain, s.btnPri]} onPress={saveProtocol} disabled={saving} accessibilityRole="button">
+                <Text style={s.btnPriText}>{saving ? t('protocols_saving') : t('save')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
           </KeyboardAvoidingView>
+
+          {/* Popups inside the add/edit sheet: notices, the photo choice, and the
+              iPhone wheels in a DoseTrace bottom sheet. */}
+          <DTSheet config={wizSheet} onClose={() => setWizSheet(null)} />
+          <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />
+          {iosPicker && (
+            <DTPickerSheet visible={showModal && showStartPicker} title={t('protocols_start_date')} doneLabel={t('done')} onDone={() => setShowStartPicker(false)}>
+              <DateTimePicker
+                value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
+                mode="date"
+                display="spinner"
+                themeVariant={colors.scheme}
+                textColor={colors.ink}
+                onChange={(event, d) => {
+                  if (event.type === 'dismissed') { setShowStartPicker(false); return; }
+                  if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
+                }}
+              />
+            </DTPickerSheet>
+          )}
+          {iosPicker && (
+            <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')} onDone={() => setShowTimePicker(false)}>
+              <DateTimePicker
+                value={timePickerValue()}
+                mode="time"
+                is24Hour={false}
+                minuteInterval={1}
+                display="spinner"
+                themeVariant={colors.scheme}
+                textColor={colors.ink}
+                onChange={(event, selectedDate) => {
+                  if (selectedDate) applyPickedTime(selectedDate);
+                }}
+              />
+            </DTPickerSheet>
+          )}
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (c) => StyleSheet.create({
-  ...protocolsLegacy(c),
-  ...protocolsGraduated(c),
-});
+const makeStyles = (c) => StyleSheet.create(protocolsGraduated(c));
 
-const protocolsLegacy = (c) => ({
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  container: { flex: 1, backgroundColor: c.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  addBtn: { backgroundColor: c.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
-  addBtnText: { color: c.accentText, fontSize: 13, fontWeight: '600' },
-  scroll: { flex: 1, padding: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
-  sortRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
-  sortLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted },
-  sortPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, marginRight: 8 },
-  sortPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  sortPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
-  sortPillTextOn: { color: c.accentText, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 24 },
-  emptyBtn: { backgroundColor: c.accent, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12 },
-  emptyBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  card: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, ...c.shadowSoft },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  cardDot: { width: 10, height: 10, borderRadius: 5 },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: '600', color: c.text },
-  cardMeta: { fontSize: 11, color: c.textMuted, marginTop: 2 },
-  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeText: { fontSize: 10, fontWeight: '500' },
-  badgeGoal: { backgroundColor: c.warningSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeGoalText: { fontSize: 10, color: c.warningSoftText, fontWeight: '500' },
-  badgeLow: { backgroundColor: c.dangerSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgeLowText: { fontSize: 10, color: c.dangerSoftText, fontWeight: '700' },
-  chevron: { fontSize: 11, color: c.textFaint },
-  cardBody: { borderTopWidth: 0.5, borderTopColor: c.border, padding: 14 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  detailLabel: { fontSize: 12, color: c.textMuted },
-  detailVal: { fontSize: 12, fontWeight: '500', color: c.text },
-  noteBlock: { paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  noteEditBox: { marginTop: 6, minHeight: 56, borderWidth: 1, borderColor: c.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: c.text, backgroundColor: c.card2, textAlignVertical: 'top' },
-  noteEditActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 16 },
-  noteCancelText: { fontSize: 13, color: c.textMuted, fontWeight: '500' },
-  noteSaveBtn: { backgroundColor: c.accent, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 12 },
-  noteSaveText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
-  cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionBtn: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
-  actionBtnText: { fontSize: 12, color: c.textMuted },
-  actionBtnDanger: { borderColor: c.danger },
-  actionBtnDangerText: { fontSize: 12, color: c.danger },
-  syringeWrap: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 4 },
-  syringeTitle: { fontSize: 12, fontWeight: '600', color: c.accentSoftText, marginBottom: 4 },
-  syringeSubtitle: { fontSize: 13, color: c.accent, marginBottom: 12 },
-  syringeNoData: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
-  syringeOuter: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
-  syringeBody: { flex: 1, position: 'relative' },
-  syringeNeedleWrap: { height: 22, flexDirection: 'row', alignItems: 'center' },
-  syringeHub: { width: 9, height: 12, borderRadius: 2, backgroundColor: c.textFaint },
-  syringeFlange: { width: 4, height: 32, borderRadius: 1.5, backgroundColor: c.textMuted, marginBottom: -5 },
-  syringeTagRow: { height: 18, position: 'relative' },
-  syringeTag: { position: 'absolute', top: 0, width: 40, height: 16, marginLeft: -20, borderRadius: 8, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  syringeTagText: { fontSize: 9.5, fontWeight: '700', color: c.accentText },
-  syringeRod: { position: 'absolute', top: 6, height: 8, right: 0, borderRadius: 2, backgroundColor: c.textFaint, opacity: 0.6 },
-  syringeStopper: { position: 'absolute', top: 2, bottom: 2, borderRadius: 2.5, backgroundColor: c.textMuted, opacity: 0.55 },
-  syringeFace: { position: 'absolute', top: 0, bottom: 0, width: 3, marginLeft: -1.5, borderRadius: 1.5, backgroundColor: c.accent },
-  syringePulse: { position: 'absolute', bottom: 3, width: 16, height: 16, marginLeft: -8, borderRadius: 8, borderWidth: 1.5, borderColor: c.accent },
-  syringeReadWrap: { alignSelf: 'flex-start', transformOrigin: 'left bottom' },
-  syringeTicks: { height: 22, marginBottom: 2, position: 'relative' },
-  // Fixed width + negative half-margin centers the tick/label exactly on `left`.
-  // (A width:0 box collapses Text labels, so give it real width.)
-  tickGroup: { position: 'absolute', bottom: 0, width: 28, marginLeft: -14, alignItems: 'center' },
-  tick: { width: 1, height: 6, backgroundColor: c.textFaint },
-  tickMajor: { height: 10, backgroundColor: c.textMuted, width: 1.5 },
-  tickLabel: { fontSize: 8, color: c.textMuted, marginBottom: 1 },
-  syringeTrack: { height: 22, backgroundColor: c.card2, borderRadius: 4, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: c.border },
-  syringeFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.35, borderRadius: 3 },
-  plungerLine: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: c.accent, borderRadius: 2 },
-  syringeNeedle: { width: 22, height: 2.5, backgroundColor: c.textFaint, borderRadius: 1.25 },
-  syringeInfo: { flexDirection: 'row', justifyContent: 'space-between' },
-  syringeInfoItem: { alignItems: 'center' },
-  syringeInfoLabel: { fontSize: 9, color: c.textMuted },
-  syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
-  syringeInfoAlt: { fontSize: 10, color: c.textMuted, marginTop: 1 },
-  syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },
-  syringeZoomHint: { fontSize: 10, color: c.accent, textAlign: 'center', marginTop: 2, marginBottom: 2 },
-  // Zoom modal
-  zoomBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
-  zoomCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, width: '100%', maxWidth: 560 },
-  zoomTitle: { fontSize: 16, fontWeight: '700', color: c.text, textAlign: 'center' },
-  zoomReadout: { fontSize: 15, color: c.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
-  zoomScroll: { flexGrow: 0 },
-  zoomTicks: { height: 48, position: 'relative', marginBottom: 0 },
-  zoomTickGroup: { position: 'absolute', bottom: 0, width: 36, marginLeft: -18, alignItems: 'center' },
-  zoomTick: { width: 1.5, height: 16, backgroundColor: c.textMuted },
-  zoomTickMajor: { width: 2, height: 30, backgroundColor: c.text },
-  zoomTickLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 3 },
-  zoomBarrel: { height: 34, backgroundColor: c.card2, borderWidth: 1, borderColor: c.border, borderRadius: 6, position: 'relative', overflow: 'visible' },
-  zoomFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: c.accent, opacity: 0.32, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
-  zoomPlunger: { position: 'absolute', top: -4, bottom: -4, width: 4, marginLeft: -2, backgroundColor: c.accent, borderRadius: 2 },
-  zoomClose: { marginTop: 18, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 32, backgroundColor: c.accent, borderRadius: 12 },
-  zoomCloseText: { color: c.accentText, fontWeight: '700', fontSize: 15 },
-  modal: { flex: 1, backgroundColor: c.card },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  modalCancel: { fontSize: 14, color: c.textMuted },
-  modalNavSpacer: { width: 64 },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  modalSave: { fontSize: 14, color: c.accent, fontWeight: '600' },
-  modalSaveDisabled: { color: c.danger },
-  modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 12 : 16, borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card },
-  footerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  footerCancel: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10 },
-  footerCancelText: { fontSize: 15, color: c.textMuted, fontWeight: '600' },
-  footerNext: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: c.accent },
-  footerNextText: { fontSize: 15, color: c.accent, fontWeight: '600' },
-  footerDisabledText: { color: c.danger },
-  footerSave: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: c.accent },
-  footerSaveText: { fontSize: 15, color: c.accentText, fontWeight: '700' },
-  modalProgress: { flexDirection: 'row', gap: 4, paddingHorizontal: 20, paddingVertical: 12 },
-  modalProgSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border },
-  modalProgDone: { backgroundColor: c.accent },
-  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
-  modalStepTitle: { fontSize: 20, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 8 },
-  modalStepSub: { fontSize: 13, color: c.textMuted, marginBottom: 20 },
-  fieldLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
-  servingNearest: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
-  newBottleBtn: { alignSelf: 'center', marginTop: 12, paddingVertical: 7, paddingHorizontal: 18, borderRadius: 8, borderWidth: 1, borderColor: c.accent },
-  newBottleText: { fontSize: 12, fontWeight: '600', color: c.accent },
-  fieldHint: { fontSize: 11, color: c.textFaint, marginTop: 4, marginBottom: 12 },
-  doseTimeLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 8, marginBottom: 2 },
-  input: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 13, color: c.text, backgroundColor: c.card2, marginBottom: 14 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  unitPicker: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  unitBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
-  unitBtnOn: { backgroundColor: c.accent, borderColor: c.accent },
-  unitBtnText: { fontSize: 12, color: c.textMuted },
-  unitBtnTextOn: { color: c.accentText, fontWeight: '600' },
-  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
-  stepperBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center', justifyContent: 'center' },
-  stepperBtnText: { fontSize: 24, color: c.accent, fontWeight: '400' },
-  stepperVal: { flex: 1, backgroundColor: c.accentSoft, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  stepperValInput: { fontSize: 20, fontWeight: '600', color: c.accentSoftText, minWidth: 60, padding: 0, textAlign: 'center' },
-  stepperValUnit: { fontSize: 20, fontWeight: '600', color: c.accentSoftText },
-  stepperHint: { fontSize: 10, color: c.textFaint, marginBottom: 8 },
-  calcResult: { backgroundColor: c.accentSoft, borderRadius: 8, padding: 12, marginTop: 12, marginBottom: 4 },
-  calcResultText: { fontSize: 13, color: c.accentSoftText, fontWeight: '500' },
-  vialScanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
-  vialScanBtnText: { fontSize: 14, fontWeight: '600', color: c.accent },
-  vialScanBanner: { marginTop: 10, padding: 11, borderRadius: 10, backgroundColor: c.warningSoft },
-  vialScanBannerText: { fontSize: 12, color: c.warningSoftText, lineHeight: 17 },
-  iuConverter: { marginTop: 14, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card2 },
-  iuConverterLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 2 },
-  iuConverterHint: { fontSize: 11, color: c.textMuted, marginBottom: 10 },
-  iuUnitTag: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: c.accentSoft },
-  iuUnitTagText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
-  iuEquivBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 },
-  iuEquivText: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
-  iuUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.accent },
-  iuUseBtnText: { fontSize: 13, fontWeight: '700', color: c.accentText },
-  calcDisclaimer: { fontSize: 10, color: c.textMuted, marginTop: 6, lineHeight: 14 },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2, alignItems: 'center' },
-  typeBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
-  typeEmoji: { height: 30, marginBottom: 4, alignItems: 'center', justifyContent: 'center' },
-  typeBtnLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
-  typeBtnLabelOn: { color: c.accentSoftText },
-  typeBtnSub: { fontSize: 9, color: c.textFaint, marginTop: 1 },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
-  colorSwatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  colorSwatchOn: { borderWidth: 3, borderColor: c.text },
-  colorCheck: { color: 'white', fontSize: 16, fontWeight: '700' },
-  colorInUseDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.28)' },
-  colorTip: { fontSize: 12.5, color: c.textMuted, lineHeight: 18, marginBottom: 14 },
-  colorLegend: { fontSize: 12, color: c.textFaint, marginBottom: 4 },
-  colorDupWarn: { fontSize: 12.5, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginTop: 6 },
-  previewPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card2, borderRadius: 10, padding: 12, marginBottom: 20 },
-  previewDot: { width: 14, height: 14, borderRadius: 7 },
-  previewName: { fontSize: 14, fontWeight: '600', color: c.text },
-  previewSub: { fontSize: 11, color: c.textMuted },
-  freqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  freqBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.card2 },
-  freqBtnOn: { borderWidth: 2, borderColor: c.accent, backgroundColor: c.accentSoft },
-  customIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4, marginBottom: 16 },
-  customIntervalEvery: { fontSize: 14, color: c.text },
-  customIntervalInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, fontWeight: '700', color: c.text, backgroundColor: c.card2, width: 72, textAlign: 'center' },
-  freqBtnText: { fontSize: 12, color: c.textMuted },
-  freqBtnTextOn: { color: c.accentSoftText, fontWeight: '600' },
-  dateBtn: { backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 14, marginBottom: 14 },
-  dateBtnText: { fontSize: 14, color: c.text },
-  monthScroll: { marginBottom: 4 },
-  monthRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
-  monthPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  monthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  monthPillText: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
-  monthPillTextOn: { color: c.accentText, fontWeight: '600' },
-  doneBtn: { backgroundColor: c.accent, padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 14 },
-  doneBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  skipVialBtn: { alignItems: 'center', paddingVertical: 12, marginBottom: 16 },
-  skipVialBtnText: { fontSize: 13, color: c.accent },
-  skippedBox: { backgroundColor: c.card2, borderRadius: 10, padding: 14, marginBottom: 16, alignItems: 'center' },
-  skippedText: { fontSize: 13, color: c.textMuted, textAlign: 'center', marginBottom: 10, lineHeight: 20 },
-  infoBox: { backgroundColor: c.accentSoft, borderRadius: 10, padding: 12, marginBottom: 16 },
-  infoText: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
-  reviewCard: { backgroundColor: c.card2, borderRadius: 12, padding: 14, marginTop: 8 },
-  reviewTitle: { fontSize: 11, fontWeight: '600', color: c.textFaint, letterSpacing: 0.5, marginBottom: 10 },
-  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  reviewLabel: { fontSize: 12, color: c.textMuted },
-  reviewVal: { fontSize: 12, fontWeight: '500', color: c.text },
-  suggestionBox: { backgroundColor: c.card, borderRadius: 10, ...c.shadowSoft, marginBottom: 14 },
-  suggestionItem: { padding: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  suggestionText: { fontSize: 13, color: c.text },
-  suggestionSub: { fontSize: 11, color: c.textMuted, marginTop: 2 },
-  noCurveNote: { fontSize: 12, color: c.textMuted, marginBottom: 8, lineHeight: 17 },
-  suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },
-});
-
-// Redesign (Graduated, approved 2026-09-29): large title, ink "+ Add" capsule, two heroes.
+// Graduated (DESIGN.md §2–§5, prototype.html My Protocols parts 1–3, approved
+// 2026-09-29): ground screen, raised cards (radius 20–26, no border / shadow / tint),
+// ink text in three steps, data blue only for the draw, outline tags, one ink action.
 const protocolsGraduated = (c) => ({
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.ground },
-  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, backgroundColor: c.ground, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, backgroundColor: c.ground, gap: 12, minHeight: 60 },
   headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
   backBtn: { minHeight: 44, justifyContent: 'center' },
   backText: { fontSize: 17, color: c.ink },
   addBtn: { minHeight: 40, borderRadius: 20, backgroundColor: c.act, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   addBtnText: { fontSize: 15, fontWeight: '700', color: c.onAct },
+  scroll: { flex: 1, padding: 16 },
+  chev: { fontSize: 22, color: c.tick },
+
+  // Heroes (approved, unchanged)
   heroes: { gap: 12, paddingTop: 2 },
   hero: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14 },
   heroHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -2842,4 +2580,201 @@ const protocolsGraduated = (c) => ({
   trioCell: { flex: 1, gap: 4 },
   trioNum: { fontSize: 34, fontWeight: '500', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
   trioLabel: { fontSize: 12, fontWeight: '500', color: c.ink2 },
+
+  // Empty state
+  emptyCard: { backgroundColor: c.raised, borderRadius: 24, padding: 24, alignItems: 'center', gap: 8, marginTop: 8 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.ink, textAlign: 'center', marginTop: 4 },
+  emptySub: { fontSize: 15, color: c.ink2, textAlign: 'center' },
+  emptyBtn: { alignSelf: 'stretch', marginTop: 12 },
+
+  // List (prototype list() / pcard())
+  hrow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingHorizontal: 4, marginBottom: 14 },
+  listTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
+  sortScroll: { marginHorizontal: -16, marginBottom: 16, flexGrow: 0 },
+  sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18 },
+  sortLabel: { fontSize: 13, color: c.ink2 },
+  blk: { gap: 10, marginBottom: 26 },
+  secth: { paddingHorizontal: 4, fontSize: 15, fontWeight: '600', color: c.ink2 },
+  pcard: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, gap: 10 },
+  pcardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  pdot: { width: 9, height: 9, borderRadius: 5, marginTop: 8 },
+  pcardInfo: { flex: 1, minWidth: 0, gap: 3 },
+  pname: { fontSize: 18, fontWeight: '700', color: c.ink, lineHeight: 23 },
+  pmeta: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  pchev: { fontSize: 22, color: c.tick, marginTop: 1 },
+  supply: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
+  supplyText: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'], flexShrink: 1 },
+  supplyStrong: { fontWeight: '600', color: c.ink },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  otag: { minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  otagText: { fontSize: 12, fontWeight: '600', color: c.ink2 },
+  otagAttn: { borderColor: c.attention },
+  otagTextAttn: { color: c.attention },
+  otagRisk: { borderColor: c.risk },
+  otagTextRisk: { color: c.risk },
+  pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5 },
+  pillText: { fontSize: 13, color: c.ink2 },
+  pillTextOn: { color: c.ink, fontWeight: '600' },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  // Protocol screen (prototype protocol())
+  detail: { gap: 20 },
+  ptitle: { gap: 6, paddingHorizontal: 4, paddingTop: 4 },
+  ptitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ptitleDot: { width: 12, height: 12, borderRadius: 6 },
+  ptitleMeta: { flex: 1, fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  ptitleName: { fontSize: 30, fontWeight: '700', color: c.ink, letterSpacing: -0.6 },
+  hobj: { backgroundColor: c.raised, borderRadius: 26, padding: 18, gap: 14 },
+  hobjTight: { gap: 10 },
+  hobjTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+  hobjSub: { fontSize: 15, color: c.ink2, lineHeight: 20 },
+  hobjFoot: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, gap: 12 },
+  hobjFootText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
+  drawWell: { backgroundColor: c.well, borderRadius: 16, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, gap: 6 },
+  drawHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
+  drawLabel: { fontSize: 15, color: c.ink2 },
+  drawBig: { fontSize: 56, fontWeight: '500', color: c.data, letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
+  drawBigRisk: { color: c.risk },
+  drawBigUnit: { fontSize: 13, fontFamily: MONO['400'], color: c.ink3, letterSpacing: 0 },
+  drawWarn: { fontSize: 15, fontWeight: '600', color: c.risk, lineHeight: 20 },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2 },
+  hintText: { fontSize: 13, color: c.ink2 },
+  reads: { flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  readCell: { flex: 1, minWidth: 0, gap: 3 },
+  readLabel: { fontSize: 12, fontWeight: '500', color: c.ink2 },
+  readVal: { fontSize: 17, fontFamily: MONO['500'], color: c.ink, letterSpacing: -0.3 },
+  readAlt: { fontSize: 12, fontWeight: '500', color: c.ink3, fontVariant: ['tabular-nums'] },
+  disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+  nearest: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
+  vialHead: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  vialSub: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  obtn2: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
+  obtn2Text: { fontSize: 17, fontWeight: '700', color: c.ink },
+  rows: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  rw: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, minHeight: 50, paddingVertical: 13 },
+  rwSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  rwKey: { fontSize: 17, color: c.ink2, flexShrink: 1 },
+  rwVal: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'right', flexShrink: 1 },
+  rwValMono: { fontFamily: MONO['500'], fontWeight: undefined, fontSize: 16 },
+  noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
+  noteWellOn: { borderColor: c.ink },
+  acts2: { flexDirection: 'row', gap: 10 },
+  dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
+  dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
+
+  // Buttons
+  btn: { minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  btnSm: { flex: 1, minHeight: 44, borderRadius: 26, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  btnPri: { backgroundColor: c.act },
+  btnPriText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+  btnSec: { backgroundColor: c.well },
+  btnSecText: { fontSize: 17, fontWeight: '700', color: c.ink },
+  btnBlocked: { backgroundColor: c.well },
+  btnBlockedText: { fontSize: 17, fontWeight: '700', color: c.risk },
+  btnPrimary: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  btnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+
+  // Tap to enlarge
+  zoomScrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 16 },
+  zoomSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  zoomTitle: { fontSize: 22, fontWeight: '700', color: c.ink },
+  zoomReadout: { fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
+  zoomReadoutVal: { fontWeight: '700', color: c.data },
+  ruler: { flexGrow: 0, borderRadius: 14, backgroundColor: c.well, paddingTop: 14, paddingBottom: 8 },
+
+  // Add / edit steps (prototype wizard() / wizStep())
+  modal: { flex: 1, backgroundColor: c.ground },
+  wnav: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 16, gap: 8 },
+  wnavSide: { width: 84, minHeight: 44, justifyContent: 'center' },
+  wnavRight: { alignItems: 'flex-end' },
+  wnavCancel: { fontSize: 17, color: c.ink },
+  wnavSave: { fontSize: 17, fontWeight: '600', color: c.ink },
+  wnavTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
+  prog: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 },
+  progSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.line },
+  progSegOn: { backgroundColor: c.ink },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  wiz: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: 20 },
+  wt: { gap: 4, paddingHorizontal: 4, paddingTop: 6 },
+  wtTitle: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
+  wtSub: { fontSize: 15, color: c.ink2, lineHeight: 20 },
+  fld: { gap: 10 },
+  fldLabel: { paddingHorizontal: 4, fontSize: 17, fontWeight: '600', color: c.ink },
+  fldHint: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink2 },
+  footC2: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink2 },
+  footC3: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink3 },
+  footAttn: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.attention },
+  bodyC2: { fontSize: 17, color: c.ink2 },
+  bodyInk: { fontSize: 17, color: c.ink },
+  tiles: { flexDirection: 'row', gap: 8 },
+  tile: { flex: 1, backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 14, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: c.line },
+  tileOn: { borderWidth: 2, borderColor: c.ink, paddingHorizontal: 9, paddingVertical: 13 },
+  tileLabel: { fontSize: 15, fontWeight: '600', color: c.ink2, textAlign: 'center' },
+  tileLabelOn: { color: c.ink },
+  tileSub: { fontSize: 13, color: c.ink2, textAlign: 'center' },
+  winp: { fontSize: 17, color: c.ink, backgroundColor: c.raised, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: c.line, fontVariant: ['tabular-nums'] },
+  winpOn: { borderWidth: 2, borderColor: c.ink, paddingHorizontal: 13, paddingVertical: 11 },
+  winpMulti: { minHeight: 88, textAlignVertical: 'top' },
+  inrow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  inrowInput: { flex: 1, minWidth: 0 },
+  intervalInput: { width: 96, textAlign: 'center' },
+  dayInput: { width: 96, textAlign: 'center' },
+  validInput: { width: 110, textAlign: 'center' },
+  segw: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well, flexShrink: 1 },
+  segwFill: { flexWrap: 'nowrap', alignSelf: 'stretch' },
+  segItem: { minHeight: 42, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.well },
+  segItemFill: { flex: 1, paddingHorizontal: 4 },
+  segItemOn: { backgroundColor: c.raised, borderColor: c.line },
+  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
+  segTextOn: { color: c.ink, fontWeight: '700' },
+  stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, minHeight: 56 },
+  stepperBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
+  stepperBtnText: { fontSize: 24, color: c.ink },
+  stepperVal: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 6 },
+  stepperValInput: { fontSize: 24, fontFamily: MONO['500'], color: c.ink, minWidth: 60, padding: 0, textAlign: 'center' },
+  stepperValUnit: { fontSize: 17, color: c.ink },
+  fold2: { backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 16, paddingBottom: 12, gap: 10 },
+  foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 54 },
+  foldTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
+  foldChev: { fontSize: 16, color: c.ink3, width: 16, textAlign: 'center' },
+  iuEquiv: { flex: 1, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
+  live: { backgroundColor: c.raised, borderRadius: 26, padding: 18, gap: 10 },
+  liveMl: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
+  warnbox: { borderWidth: 1, borderColor: c.attention, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  warnboxRisk: { borderColor: c.risk },
+  warnText: { fontSize: 15, lineHeight: 20, color: c.ink },
+  warnTextRisk: { color: c.risk, fontWeight: '600' },
+  infobox: { backgroundColor: c.well, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  infoText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  pickCol: { gap: 8 },
+  pickbtn: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 50, paddingHorizontal: 14, backgroundColor: c.raised, borderRadius: 14, borderWidth: 1, borderColor: c.line },
+  pickText: { flex: 1, fontSize: 17, color: c.ink },
+  pickTextC2: { fontSize: 17, color: c.ink2 },
+  pickTime: { marginLeft: 'auto', fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  prev: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 22, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', maxWidth: '100%' },
+  prevDot: { width: 12, height: 12, borderRadius: 6 },
+  prevName: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },
+  prevSub: { fontSize: 13, color: c.ink2 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, paddingHorizontal: 4 },
+  swCell: { width: '20%', alignItems: 'center' },
+  swRing: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  swRingOn: { borderWidth: 2.5, borderColor: c.ink },
+  sw: { width: 44, height: 44, borderRadius: 22 },
+  usedMk: { position: 'absolute', top: 5, right: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.ink },
+  usedMkInline: { position: 'relative', top: 0, right: 0 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  hscrollWrap: { marginHorizontal: -16, flexGrow: 0 },
+  hscroll: { flexDirection: 'row', gap: 8, paddingHorizontal: 18 },
+  linkBtn: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4 },
+  linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  sugg: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, marginTop: -2 },
+  suggRow: { minHeight: 50, paddingVertical: 10, justifyContent: 'center', gap: 1 },
+  suggSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  suggText: { fontSize: 17, color: c.ink },
+  suggSub: { fontSize: 13, color: c.ink2 },
+  suggAdd: { fontSize: 17, fontWeight: '600', color: c.ink },
+  wfoot: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 6 : 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, backgroundColor: c.ground },
+  wfootSide: { flex: 1 },
+  wfootMain: { flex: 2 },
 });
