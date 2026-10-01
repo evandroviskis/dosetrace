@@ -27,7 +27,7 @@ import { requestSync, addSyncListener } from '../lib/sync';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, getMissedWatermark } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake } from '../lib/markTaken';
-import { planSitePickerAction } from '../lib/sitePickerActions';
+import { planSitePickerAction, planTakeFollowups } from '../lib/sitePickerActions';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
@@ -147,6 +147,7 @@ export default function TodayScreen() {
   // their own picker, and a site is never saved onto the other dose.
   const siteQueueRef = useRef([]);
   const bodyMapOpenRef = useRef(false);
+  const siteAfterVialRef = useRef(null); // the take picker waiting for the vial prompt to close
   const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
   const takeNoticeT = useRef(null);
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
@@ -215,6 +216,7 @@ export default function TodayScreen() {
         }
         pendingFxRef.current.clear();
         siteQueueRef.current = [];
+        siteAfterVialRef.current = null;
       };
     }, [])
   );
@@ -639,14 +641,13 @@ export default function TodayScreen() {
       cancelTodaysDoseReminders(protocol.id, newTakenToday).catch(() => {});
 
       // Vial and oral supply already moved (once) inside recordDoseTaken.
-      let vialPromptShown = false;
-      if (res.vialFinished && protocol.type === 'recon') {
+      const follow = planTakeFollowups({ type: protocol.type, vialFinished: !!res.vialFinished });
+      if (follow.vialPrompt) {
         setContinuationProtocol(protocol);
         setNewVialDoses('');
         setNewVialMonth(new Date().getMonth());
         setNewVialDay(String(new Date().getDate()));
         setShowVialPrompt(true);
-        vialPromptShown = true;
       }
       const oralPrevUnitsTaken = res.oralPrevUnitsTaken;
       if (res.vialId || oralPrevUnitsTaken != null) fetchProtocols();
@@ -675,11 +676,14 @@ export default function TodayScreen() {
       // Injectables (lyophilized / ready-to-use): prompt for the injection
       // site right after logging, instead of leaving it as an optional step.
       // Oral supplements have no site, so they skip this.
-      if (protocol.type === 'recon' || protocol.type === 'rtu') {
+      if (follow.picker === 'now') {
         const openSite = () => openBodyMapForUndo(record, 'take');
-        // With the vial-finished prompt up, open together as before (no delayed
-        // second modal racing the first).
-        if (opts.siteDelay && !vialPromptShown) fx.siteT = setTimeout(openSite, opts.siteDelay); else openSite();
+        if (opts.siteDelay) fx.siteT = setTimeout(openSite, opts.siteDelay); else openSite();
+      } else if (follow.picker === 'after-vial-prompt') {
+        // One modal at a time (iOS): the picker opens when the vial prompt closes
+        // (closeVialPrompt). The Undo bar stays up meanwhile.
+        clearTimeout(timer);
+        siteAfterVialRef.current = record;
       }
 
       actionInProgressRef.current = false;
@@ -840,10 +844,7 @@ export default function TodayScreen() {
       }
       // The "start a new vial?" prompt of the undone dose must not stay up.
       if (plan.closeVialPrompt) {
-        if (continuationProtocol && continuationProtocol.id === record.protocolId) {
-          setShowVialPrompt(false);
-          setContinuationProtocol(null);
-        }
+        if (continuationProtocol && continuationProtocol.id === record.protocolId) closeVialPrompt();
       }
       setUndoData(prev => (prev && prev.logId === record.logId ? null : prev));
       fetchPendingYesterday();
@@ -884,6 +885,17 @@ export default function TodayScreen() {
     );
   }
 
+  // The ONE way the vial prompt closes ("Protocol finished", "Log new vial", or the undo
+  // of that dose). A take picker waiting behind it opens after the prompt has faded out
+  // (it skips itself if that dose was undone meanwhile).
+  function closeVialPrompt() {
+    setShowVialPrompt(false);
+    setContinuationProtocol(null);
+    const waiting = siteAfterVialRef.current;
+    siteAfterVialRef.current = null;
+    if (waiting) setTimeout(() => openBodyMapForUndo(waiting, 'take'), 450);
+  }
+
   async function createNewVial() {
     if (!continuationProtocol) return;
     try {
@@ -900,8 +912,7 @@ export default function TodayScreen() {
       const updatedProtocol = getProtocolById(continuationProtocol.id);
       if (updatedProtocol) scheduleDoseReminder(updatedProtocol).catch(() => {});
 
-      setShowVialPrompt(false);
-      setContinuationProtocol(null);
+      closeVialPrompt();
       fetchProtocols();
       syncVialAlerts().catch(() => {});
       requestSync();
@@ -1829,7 +1840,7 @@ export default function TodayScreen() {
             <View style={s.promptActions}>
               <TouchableOpacity
                 style={s.promptBtnSecondary}
-                onPress={() => { setShowVialPrompt(false); setContinuationProtocol(null); }}
+                onPress={closeVialPrompt}
               >
                 <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
               </TouchableOpacity>

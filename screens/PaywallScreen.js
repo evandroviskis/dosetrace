@@ -65,10 +65,10 @@ export default function PaywallScreen({ navigation, route }) {
     { label: t('paywall_free_feat_5'), included: true },   // Reminders
     { label: t('pw_free_labvax'), included: true },        // Lab & vaccine journals (manual)
     { label: t('pw_free_calc'), included: true },          // Energy & protein calculator
-    { label: t('pw_free_scan1'), included: true },         // 1 free lab scan
+    { label: t('pw_free_scan1'), included: true },         // 3 free scans a month (one pool: labs, vaccines, vials)
     { label: t('pw_free_sync'), included: true },          // Cloud backup & sync (free)
     { label: t('paywall_feat_4'), included: false },       // Unlimited protocols
-    { label: t('pw_prem_scan'), included: false },         // Unlimited lab & vaccine scanning
+    { label: t('pw_prem_scan'), included: false },         // Lab, vaccine & vial scans (Premium)
     { label: t('pw_prem_pdf'), included: false },          // PDF export
     { label: t('pw_prem_reality'), included: false },      // Reality check + progress
     { label: t('body_card_dosing_title'), included: false }, // Dose accumulation / serum curve

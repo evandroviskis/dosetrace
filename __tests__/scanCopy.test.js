@@ -67,3 +67,14 @@ test('S-24: no FAQ answer promises unlimited scans or uploads; "Is DoseTrace fre
 test('S-24: cloud backup / sync is never sold as Premium (it is free for everyone)', () => {
   for (const s of valuesOf('blood_upgrade_feat_2')) assert.doesNotMatch(s, /cloud|nube|nuvem|sync/i, s);
 });
+
+// Found 2026-10-01 (simulator review): the paywall's free row still said "1 free lab scan"
+// while the server gives 3 a month, one pool for labs, vaccine cards and vials (FX-20).
+// The row reuses the approved wording of blood_first_free (the part before the brackets).
+test('S-24: the paywall free row says 3 free scans a month, in the approved words (6 languages)', () => {
+  const row = valuesOf('pw_free_scan1');
+  const approved = valuesOf('blood_first_free').map((s) => s.split(' (')[0]);
+  assert.equal(row.length, 6, 'pw_free_scan1 exists in 6 languages');
+  assert.deepEqual(row, approved);
+  for (const s of row) assert.match(s, /^3 /);
+});
