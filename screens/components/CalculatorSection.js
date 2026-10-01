@@ -1,5 +1,11 @@
 /**
- * DoseTrace — Energy & protein calculator (inside the Body hub)
+ * DoseTrace — Energy & protein calculator (the Progress screen, behind Journey's tile)
+ *
+ * Graduated redesign (docs/design/prototype.html progressScreen): with a plan the order
+ * is hero (weight, daily burn, target) → daily plan → reality check (with the food
+ * log's intake + reminder) → weigh-ins → your numbers; before one it is intro → your
+ * numbers → status → reality check → target → weigh-ins. Then the disclaimer and
+ * Understand the numbers / Sources. Target and past weigh-in are bottom sheets.
  *
  * A one-shot general-wellness REALITY CHECK (BODY_TAB_SPEC): estimate BMR →
  * TDEE → a calorie target (as a % of TDEE) → a protein target, from the user's
@@ -15,7 +21,8 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasPremium } from '../../lib/entitlement';
@@ -24,6 +31,7 @@ import { profileBodyInputs } from '../../lib/bodyProfile';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
+import { MONO } from '../../lib/fonts';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
   targetProjection, seriesRatePerWeek, goalsForTdee, TARGET_MIN_WINDOW_DAYS,
@@ -89,8 +97,8 @@ export default function CalculatorSection({ header = null }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { width: windowWidth } = useWindowDimensions();
-  const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 64;
+  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 68; // screen gutter 16 + card padding 18, both sides
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
 
@@ -455,10 +463,10 @@ export default function CalculatorSection({ header = null }) {
     const weightPts = snapshots.filter(x => x.weightKg != null).map(x => ({ date: x.date, value: toW(x.weightKg) }));
     const waistPts = snapshots.filter(x => x.waistCm != null).map(x => ({ date: x.date, value: toL(x.waistCm) }));
     return [
-      { key: 'weight', label: t('cal_snap_weight'), color: colors.accent, unit: wUnit, points: weightPts },
-      { key: 'waist', label: t('cal_snap_waist'), color: colors.warning, unit: hUnit, points: waistPts },
+      { key: 'weight', label: t('cal_snap_weight'), color: colors.data, unit: wUnit, points: weightPts },
+      { key: 'waist', label: t('cal_snap_waist'), color: colors.ink2, unit: hUnit, points: waistPts },
     ].filter(sr => sr.points.length > 0);
-  }, [snapshots, unit]);
+  }, [snapshots, unit, colors]);
 
   const snapPointCount = chartSeries.reduce((n, sr) => Math.max(n, sr.points.length), 0);
 
@@ -716,32 +724,40 @@ export default function CalculatorSection({ header = null }) {
 
   const toDisplayW = kg => (unit === 'imperial' ? kgToLb(kg) : kg);
 
+  // "What this is" is the first entry of Understand the numbers (journey-dashboard #4).
   const EXPLAINERS = [
+    { key: 'intro', title: t('cal_intro_title'), body: t('cal_intro_body') },
     { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
     { key: 'deficit', title: t('cal_expl_deficit_title'), body: t('cal_expl_deficit_body') },
     { key: 'measure', title: t('cal_expl_measure_title'), body: t('cal_expl_measure_body') },
     { key: 'composition', title: t('cal_expl_comp_title'), body: t('cal_expl_comp_body') },
   ];
 
-  // A labelled section divider: a monoline glyph in a soft-accent tile + an
-  // uppercase micro-label, matching the onboarding's grouping. Optional right slot.
-  const SectionHeader = ({ icon, title, right, collapsible, open, onToggle }) => (
-    <View style={s.sh}>
-      <TouchableOpacity style={s.shLeft} activeOpacity={collapsible ? 0.7 : 1} onPress={collapsible ? onToggle : undefined} disabled={!collapsible}>
-        <View style={s.shIcon}><FeatureIcon name={icon} size={16} color={colors.accent} /></View>
-        <Text style={s.shTitle}>{title}</Text>
-        {collapsible ? <Text style={s.shChev}>{open ? '▾' : '▸'}</Text> : null}
-      </TouchableOpacity>
-      {right ? <View style={s.shRight}>{right}</View> : null}
-    </View>
-  );
+  // Display helpers (Graduated): weights to one decimal in the display unit.
+  const fmtW = kg => (kg == null ? null : (Math.round(toDisplayW(kg) * 10) / 10).toFixed(1));
+  const sortedSnaps = [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const lastSnap = sortedSnaps.length ? sortedSnaps[sortedSnaps.length - 1] : null;
+  const histRows = [...sortedSnaps].reverse().slice(0, 5); // newest five; the chart holds them all
+  const tgtValid = num(tgtWeight) != null || num(tgtBF) != null;
+  const tgtLow = (() => {
+    const tw = num(tgtWeight);
+    if (tw == null || !plan?.healthyRange) return false;
+    return (unit === 'imperial' ? lbToKg(tw) : tw) < plan.healthyRange.min;
+  })();
+  const closeTarget = () => { setTargetEditing(false); setTgtFormOpen(false); setShowTgtDatePicker(false); };
+  const closeBackfill = () => { setBfOpen(false); setShowBfDatePicker(false); };
+  const rcExpandable = rcAllowed || !!rcStart || realityLog.length > 0;
+  const atEarliest = (rcStartDate || todayISO()) <= earliestStart(todayISO());
+  const healthyText = key => t(key)
+    .replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min))))
+    .replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max))))
+    .replace('{unit}', wUnit);
 
-  // One metric row inside the target card: current → target, a progress bar, and
-  // a direction-aware status (ETA / reached / moving away / no rate yet). All
-  // display math; never advisory.
-  // One metric row. `showEta` (premium) gates the MEASURED timeline; free users
-  // still see the goal, the progress bar, and the "reached"/below-range facts, plus
-  // a locked teaser pointing at the paid measured pace.
+  // One metric row of the target: current → target, the graduated scale, and a
+  // direction-aware status (ETA / reached / moving away / no rate yet). All
+  // display math; never advisory. `showEta` (premium) gates the MEASURED timeline;
+  // free users still see the goal, the scale, and the "reached"/below-range facts,
+  // plus a locked teaser pointing at the paid measured pace.
   const renderTargetMetric = (kind, proj, curCanon, targetCanon, rateInfo, showEta) => {
     const isW = kind === 'weight';
     const unitLabel = isW ? wUnit : '%';
@@ -759,839 +775,917 @@ export default function CalculatorSection({ header = null }) {
     const eta = proj.state === 'eta' ? fmtEta(proj.etaWeeks) : null;
     return (
       <View style={s.tgtMetric} key={kind}>
-        <View style={s.tgtMetricHead}>
-          <Text style={s.tgtMetricLabel}>{isW ? t('cal_snap_weight') : t('cal_snap_bodyfat')}</Text>
-          <Text style={s.tgtMetricNums}>{cur ?? '—'} → {tgt ?? '—'} {unitLabel}</Text>
+        <View style={s.rowBetween}>
+          <Text style={s.sec2}>{isW ? t('cal_snap_weight') : t('cal_snap_bodyfat')}</Text>
+          <Text style={s.val15}>{cur ?? '—'} → {tgt ?? '—'} {unitLabel}</Text>
         </View>
         {frac != null ? (
-          <View style={s.tgtBar}><View style={[s.tgtBarFill, { width: `${Math.round(frac * 100)}%` }]} /></View>
+          <View>
+            <TargetScale frac={frac} colors={colors} />
+            <View style={s.rowBetween}>
+              <Text style={s.scaleLab}>{disp(startCanon)}</Text>
+              <Text style={[s.scaleLab, s.scaleLabEnd]}>{tgt}</Text>
+            </View>
+          </View>
         ) : null}
         {/* reached is a pure current-vs-target fact — free. */}
         {proj.state === 'reached' ? (
-          <Text style={s.tgtReached}>{t('cal_tgt_reached')}</Text>
+          <Text style={s.body}>{t('cal_tgt_reached')}</Text>
         ) : belowRange ? null /* status line suppressed; the range note below carries it */
         : showEta ? (
           proj.state === 'eta' && eta ? (
-            <Text style={s.tgtEta}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
+            <Text style={s.body}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
           ) : proj.state === 'away' ? (
-            <Text style={s.tgtAway}>{t('cal_tgt_away')}</Text>
+            <Text style={s.body}>{t('cal_tgt_away')}</Text>
           ) : (
-            <Text style={s.tgtNoRate}>{t('cal_tgt_no_rate')}</Text>
+            <Text style={s.sec2}>{t('cal_tgt_no_rate')}</Text>
           )
         ) : (
           // Free: no measured pace — teaser to Premium.
-          <TouchableOpacity onPress={() => navigation.navigate('Paywall')} activeOpacity={0.7}>
-            <Text style={s.tgtLockedEta}>{t('cal_tgt_locked_eta')}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Paywall')} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.linkU}>{t('cal_tgt_locked_eta')}</Text>
           </TouchableOpacity>
         )}
         {showEta && !belowRange && proj.state === 'eta' && rateInfo ? (
-          <Text style={s.tgtBasis}>{t('cal_tgt_basis').replace('{from}', fmtDate(rateInfo.firstDate)).replace('{to}', fmtDate(rateInfo.lastDate))}</Text>
+          <Text style={s.foot2}>{t('cal_tgt_basis').replace('{from}', fmtDate(rateInfo.firstDate)).replace('{to}', fmtDate(rateInfo.lastDate))}</Text>
         ) : null}
         {belowRange ? (
-          <Text style={s.tgtAway}>{t('cal_tgt_below_range').replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min)))).replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max)))).replace('{unit}', wUnit)}</Text>
+          <Text style={s.tnote}>{healthyText('cal_tgt_below_range')}</Text>
         ) : isW && plan?.healthyRange ? (
-          <Text style={s.tgtFact}>{t('cal_tgt_healthy').replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min)))).replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max)))).replace('{unit}', wUnit)}</Text>
+          <Text style={s.foot2}>{healthyText('cal_tgt_healthy')}</Text>
         ) : null}
       </View>
     );
   };
 
-  return (
-    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
-      {header}
-      {/* Intro — what this is. Before there are results it explains what to do,
-          so it leads; once the daily plan exists it lives INSIDE that card. */}
-      {!plan && (
-        <View style={s.introCard}>
-          <Text style={s.introTitle}>{t('cal_intro_title')}</Text>
-          <Text style={s.introBody}>{t('cal_intro_body')}</Text>
+  // Your target — a weight and/or body-fat goal. Setting a goal + the scale are
+  // FREE (matches the free-targets split); the MEASURED timeline is the Premium
+  // unlock. Never advisory. Inside the hero once there is a plan; its own card before.
+  const renderTargetBlock = (inHero) => {
+    if (!target && !inHero) {
+      return (
+        <>
+          <Text style={s.title}>{t('cal_tgt_title')}</Text>
+          <Text style={s.sec2}>{t('cal_tgt_sub')}</Text>
+          <TouchableOpacity style={s.btnO} onPress={beginEditTarget} activeOpacity={0.75} accessibilityRole="button">
+            <Text style={s.btnOText}>{t('hy_set_target')}</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+    return (
+      <View style={s.tgtBlock}>
+        <View style={s.rowC}>
+          <Text style={[inHero ? s.head : s.title, s.grow]}>{t('cal_tgt_title')}</Text>
+          <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7} style={s.linkHit} accessibilityRole="button">
+            <Text style={s.linkU}>{target ? t('cal_tgt_edit') : t('hy_set_target')}</Text>
+          </TouchableOpacity>
         </View>
-      )}
+        {target && weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, usableWeightRate, premium) : null}
+        {target && bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, usableBfRate, premium) : null}
+      </View>
+    );
+  };
 
-      {/* ── YOUR NUMBERS ────────────────────────────────────────────── */}
-      <SectionHeader
-        icon="calc_bars"
-        title={t('cal_your_numbers')}
-        right={(
-          <View style={s.unitToggle}>
-            {['metric', 'imperial'].map(u => (
-              <TouchableOpacity key={u} style={[s.unitPill, unit === u && s.unitPillOn]} onPress={() => changeUnit(u)}>
-                <Text style={[s.unitPillText, unit === u && s.unitPillTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
-              </TouchableOpacity>
-            ))}
+  // ── Sections (Graduated, docs/design/prototype.html progressScreen) ──
+  // Hero: weight + daily burn (Estimated / Measured), the since-line, and the target.
+  // Once a reality-check exists, the MEASURED maintenance is the real daily burn (the
+  // formula under/over-shoots); the generic estimate drops to the source line.
+  const heroEl = plan ? (
+    <View key="hero" style={s.card}>
+      <View style={s.heroPair}>
+        <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
+          <Text style={s.foot2}>{t('cal_weight')}</Text>
+          <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
+            {fmtW(currentWeightKg) ?? '—'}<Text style={s.unit}> {wUnit}</Text>
+          </Text>
+        </View>
+        <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
+          <Text style={s.foot2}>{t('cal_tdee')}</Text>
+          <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
+            {round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal)}<Text style={s.unit}> {t('cal_kcal')}</Text>
+          </Text>
+          <View style={[s.chip, scoreCheck && s.chipMeas]}>
+            <Text style={[s.chipText, scoreCheck && s.chipMeasText]}>{scoreCheck ? t('hy_rc_measured_chip') : t('hy_estimated')}</Text>
           </View>
+        </View>
+      </View>
+      {progressSummary ? (
+        <Text style={s.sec2}>
+          {t('cal_since')} {fmtDate(progressSummary.firstDate)}: {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}</Text>
+          {progressSummary.waistDelta != null ? <>{'  ·  '}{t('cal_snap_waist')} <Text style={s.mono}>{signed(progressSummary.waistDelta)} {hUnit}</Text></> : null}
+        </Text>
+      ) : null}
+      <Text style={s.foot2}>
+        {scoreCheck
+          ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${round10(plan.tdeeVal)}`
+          : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${round10(plan.bmr)}`}
+      </Text>
+      <View style={s.sep} />
+      {renderTargetBlock(true)}
+    </View>
+  ) : null;
+
+  // Your daily plan: all three goals side by side (tap to choose), protein, context.
+  // When a reality-check exists the goals are recomputed off the MEASURED maintenance
+  // through the floored engine (effectiveGoals), so the calorie floor still holds.
+  const planEl = plan ? (
+    <View key="plan" style={s.card}>
+      <View style={s.gap2}>
+        <Text style={s.title}>{t('hy_daily_plan')}</Text>
+        {/* Echo the inputs the math used — a wrong/stale input shows right here. */}
+        <Text style={s.foot2} numberOfLines={2}>{echoParts.join(' · ')}</Text>
+      </View>
+      <View style={s.goals}>
+        {['lose', 'maintain', 'gain'].map(g => {
+          const on = goal === g;
+          const gc = (effectiveGoals || plan.allGoals)[g];
+          return (
+            <TouchableOpacity key={g} style={[s.goal, on && s.goalOn]} onPress={() => setGoal(g)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
+              <Text style={[s.cap2, on && s.inkText]}>{t(`cal_goal_${g}`)}</Text>
+              <Text style={s.val}>{round10(gc.mid)}</Text>
+              <Text style={s.cap2}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {/* Re-emit the calorie-floor warning if the MEASURED-path lose target hit
+          the floor (the formula-path warning is already in plan.warnings). */}
+      {scoreCheck && effectiveGoals?.lose?.floorApplied ? (
+        <View style={s.warnbox}><Text style={s.warnText}>{warnText({ code: effectiveGoals.lose.floorSource === 'absolute' ? 'calorie_floor' : 'bmr_floor', values: { kcal: Math.round(effectiveGoals.lose.mid) } })}</Text></View>
+      ) : null}
+      <View style={s.cell}>
+        <Text style={s.cap2}>{t('cal_protein')}</Text>
+        <Text style={s.val}>{round5(plan.protein.rec)} {t('cal_g_day')}</Text>
+        <Text style={s.foot2}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
+      </View>
+      {/* Context chips — BMI + macros */}
+      <View style={s.chips}>
+        {plan.bmi != null && plan.healthyRange && (
+          <View style={s.chipBox}><Text style={s.cap2}>{t('cal_bmi')} {(Math.round(plan.bmi * 10) / 10).toFixed(1)} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
         )}
-        collapsible
-        open={numbersOpenEff}
-        onToggle={() => setNumbersOpen(!numbersOpenEff)}
-      />
-      {!numbersOpenEff && (
-        <TouchableOpacity style={s.youNow} activeOpacity={0.7} onPress={() => setNumbersOpen(true)} accessibilityRole="button">
-          <Text style={s.youNowText} numberOfLines={2}>{youNowSummary}</Text>
-          <Text style={s.youNowEdit}>{t('hy_edit')}</Text>
-        </TouchableOpacity>
-      )}
-      {numbersOpenEff && (
-      <View style={s.groupCard}>
-        {/* Weight + Height — both universal (BMI, waist-to-height, and the Mifflin
-            fallback all need height, so height shows regardless of the BF path). */}
-        <View style={s.row}>
-          <View style={s.rowCol}>
-            <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
-            <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-          </View>
-          <View style={s.rowCol}>
-            <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
-            <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-          </View>
-        </View>
+        {plan.macros && (
+          <View style={s.chipBox}><Text style={s.cap2}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
+        )}
+      </View>
+      {/* Safety notes from the engine */}
+      {plan.warnings.map(w => {
+        const txt = warnText(w);
+        return txt ? <View key={w.code} style={s.warnbox}><Text style={s.warnText}>{txt}</Text></View> : null;
+      })}
+      <TouchableOpacity
+        onPress={() => setIntroOpen(v => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: introOpen }}
+        style={s.foldRow}
+        activeOpacity={0.7}
+      >
+        <Text style={[s.sec, s.grow]}>{t('cal_intro_title')}</Text>
+        <Chev dir={introOpen ? 'up' : 'down'} color={colors.ink3} />
+      </TouchableOpacity>
+      {introOpen && <Text style={s.sec2}>{t('cal_intro_body')}</Text>}
+      <Text style={s.foot2}>{t('cal_estimate_note')}</Text>
+    </View>
+  ) : null;
 
-        {/* Body-fat source */}
-        <View>
-          <Text style={s.fieldLab}>{t('cal_bf_source')}</Text>
-          <View style={s.pillWrap}>
-            {BF_SOURCES.map(src => (
-              <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)}>
-                <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
+  // Before there are results the intro explains what to do, so it leads.
+  const introEl = !plan ? (
+    <View key="intro" style={s.card}>
+      <Text style={s.head}>{t('cal_intro_title')}</Text>
+      <Text style={s.sec2}>{t('cal_intro_body')}</Text>
+    </View>
+  ) : null;
+
+  // No plan yet: why (sex not set / an input out of range / not enough inputs).
+  const statusEl = !plan ? (
+    <View key="status" style={s.card}>
+      {result && result.sexGated ? (
+        <>
+          <Text style={s.head}>{t('cal_sex_gate_title')}</Text>
+          <Text style={s.sec2}>{t('cal_sex_gate_body')}</Text>
+          <TouchableOpacity style={s.btnP} onPress={promptProfileSex} accessibilityRole="button">
+            <Text style={s.btnPText}>{t('cal_sex_gate_btn')}</Text>
+          </TouchableOpacity>
+        </>
+      ) : result && result.invalid ? (
+        <View style={s.warnbox}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
+      ) : (
+        <Text style={s.sec2}>{t('cal_need_inputs')}</Text>
+      )}
+    </View>
+  ) : null;
+
+  const targetEl = !plan ? (
+    <View key="target" style={s.card}>
+      {renderTargetBlock(false)}
+    </View>
+  ) : null;
+
+  // Your numbers — auto-collapses once there is a plan (the user can still open it);
+  // collapsed, it shows a one-line summary of the inputs (activity included).
+  const numbersEl = (
+    <View key="numbers" style={s.card}>
+      <TouchableOpacity style={s.foldHead} activeOpacity={0.7} onPress={() => setNumbersOpen(!numbersOpenEff)} accessibilityRole="button" accessibilityState={{ expanded: numbersOpenEff }}>
+        <View style={[s.grow, s.gap2]}>
+          <Text style={s.title}>{t('cal_your_numbers')}</Text>
+          {!numbersOpenEff && youNowSummary ? <Text style={s.foot2} numberOfLines={2}>{youNowSummary}</Text> : null}
+        </View>
+        <Chev dir={numbersOpenEff ? 'up' : 'down'} color={colors.ink3} />
+      </TouchableOpacity>
+      {numbersOpenEff && (
+        <>
+          <View style={s.segw}>
+            {['metric', 'imperial'].map(u => (
+              <TouchableOpacity key={u} style={[s.segOpt, unit === u && s.segOptOn]} onPress={() => changeUnit(u)} accessibilityRole="button" accessibilityState={{ selected: unit === u }}>
+                <Text style={[s.segText, unit === u && s.segTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={s.hint}>{t(`cal_bf_${bfSource}_hint`)}</Text>
-        </View>
-
-        {/* Body fat % (+ optional waist)  OR  sex/age fallback */}
-        {!isUnknown ? (
-          <View style={s.row}>
-            <View style={s.rowCol}>
-              <Text style={s.fieldLab}>{t('cal_bodyfat')} (%)</Text>
-              <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+          {/* Weight + body fat (or age, on the height/age/sex path) */}
+          <View style={s.fieldRow}>
+            <View style={s.fldHalf}>
+              <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
+              <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
             </View>
-            <View style={s.rowCol}>
-              <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
-              <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-            </View>
+            {!isUnknown ? (
+              <View style={s.fldHalf}>
+                <Text style={s.fieldLab}>{t('cal_bodyfat')} (%)</Text>
+                <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+              </View>
+            ) : (
+              <View style={s.fldHalf}>
+                <Text style={s.fieldLab}>{t('cal_age')}</Text>
+                <TextInput style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+              </View>
+            )}
           </View>
-        ) : (
-          <>
-            <View>
+          {isUnknown ? (
+            <View style={s.fld}>
               <Text style={s.fieldLab}>{t('cal_sex')}</Text>
               {profileSex ? (
-                <View style={s.segment}>
+                <View style={s.segw}>
                   {['male', 'female'].map(sx => (
-                    <TouchableOpacity key={sx} style={[s.segBtn, sex === sx && s.segBtnOn]} onPress={() => saveProfileSex(sx)}>
+                    <TouchableOpacity key={sx} style={[s.segOpt, sex === sx && s.segOptOn]} onPress={() => saveProfileSex(sx)} accessibilityRole="button" accessibilityState={{ selected: sex === sx }}>
                       <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               ) : (
                 // Not set in the profile → prompt to complete it instead of defaulting.
-                <TouchableOpacity style={[s.segment, s.sexGatePrompt]} onPress={promptProfileSex}>
-                  <Text style={s.sexGatePromptText}>{t('cal_sex_gate_btn')}</Text>
+                <TouchableOpacity style={s.btnO} onPress={promptProfileSex} accessibilityRole="button">
+                  <Text style={s.btnOText}>{t('cal_sex_gate_btn')}</Text>
                 </TouchableOpacity>
               )}
             </View>
-            <View style={s.row}>
-              <View style={s.rowCol}>
-                <Text style={s.fieldLab}>{t('cal_age')}</Text>
-                <TextInput style={s.input} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-              </View>
-              <View style={s.rowCol}>
-                <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
-                <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-              </View>
-            </View>
-          </>
-        )}
-        <Text style={s.hint}>{t('cal_waist_hint')}</Text>
-      </View>
-      )}
-
-      {/* Activity is an input too — it collapses with "Your numbers". */}
-      {numbersOpenEff && (<>
-      {/* ── ACTIVITY ────────────────────────────────────────────────── */}
-      <SectionHeader icon="calc_bolt" title={t('cal_activity')} />
-      <View style={s.groupCard}>
-        <View style={s.actGrid}>
-          {ACTIVITY_LEVELS.map(a => {
-            const on = activity === a.value;
-            return (
-              <TouchableOpacity key={a.value} style={[s.actChip, on && s.actChipOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7}>
-                <View style={[s.actDot, on && s.actDotOn]} />
-                <Text style={[s.actChipText, on && s.actChipTextOn]}>{t(a.key)}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-      </>)}
-
-      {/* Your target sits right after "Your numbers": where you are → where you are going. */}
-      {/* Personal target — a weight and/or body-fat goal. Setting a goal + the
-          progress bar are FREE (matches the free-targets split); the MEASURED
-          timeline is the Premium unlock. Never advisory. */}
-      <View style={s.premCard}>
-        <View style={s.tgtHead}>
-          <Text style={s.premTitle}>{t('cal_tgt_title')}</Text>
-          {target && !targetEditing ? (
-            <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7}><Text style={s.tgtEdit}>{t('cal_tgt_edit')}</Text></TouchableOpacity>
           ) : null}
-        </View>
-        <Text style={s.premSub}>{t('cal_tgt_sub')}</Text>
-
-        {!target && !targetEditing && !tgtFormOpen ? (
-          <TouchableOpacity style={s.tgtSetBtn} onPress={() => setTgtFormOpen(true)} activeOpacity={0.7} accessibilityRole="button">
-            <Text style={s.tgtSetBtnText}>{t('hy_set_target')}</Text>
-          </TouchableOpacity>
-        ) : (targetEditing || !target) ? (
-          <View style={{ marginTop: 8 }}>
-            <Text style={s.inputLabelSm}>{t('cal_tgt_weight')} ({wUnit})</Text>
-            <TextInput style={s.input} value={tgtWeight} onChangeText={setTgtWeight} keyboardType="decimal-pad" placeholder={t('cal_tgt_optional')} placeholderTextColor={colors.textMuted} />
-            <Text style={s.inputLabelSm}>{t('cal_tgt_bodyfat')} (%)</Text>
-            <TextInput style={s.input} value={tgtBF} onChangeText={setTgtBF} keyboardType="decimal-pad" placeholder={t('cal_tgt_optional')} placeholderTextColor={colors.textMuted} />
-            <Text style={s.inputLabelSm}>{t('cal_tgt_date')}</Text>
-            <TouchableOpacity style={s.input} onPress={() => setShowTgtDatePicker(true)} activeOpacity={0.7}>
-              <Text style={{ color: tgtDate ? colors.text : colors.textMuted, fontSize: 16 }}>{tgtDate ? fmtDate(tgtDate) : t('cal_tgt_no_date')}</Text>
-            </TouchableOpacity>
-            {tgtDate ? (
-              <TouchableOpacity onPress={() => setTgtDate(null)} activeOpacity={0.7}><Text style={s.tgtClearDate}>{t('cal_tgt_remove_date')}</Text></TouchableOpacity>
-            ) : null}
-            {showTgtDatePicker ? (
-              <DateTimePicker
-                value={tgtDate ? new Date(tgtDate + 'T12:00:00') : new Date()}
-                mode="date"
-                minimumDate={new Date()}
-                onChange={(e, d) => { setShowTgtDatePicker(false); if (d) setTgtDate(localISO(d)); }}
-              />
-            ) : null}
-            <View style={s.tgtBtnRow}>
-              {/* Disable Save until at least one target field is valid (no silent no-op loop). */}
-              <TouchableOpacity style={[s.computeBtn, { flex: 1, marginTop: 0 }, !(num(tgtWeight) != null || num(tgtBF) != null) && s.computeBtnDisabled]} onPress={saveTarget} disabled={!(num(tgtWeight) != null || num(tgtBF) != null)}><Text style={s.computeBtnText}>{t('save')}</Text></TouchableOpacity>
-              <TouchableOpacity style={s.tgtBtnGhost} onPress={() => { setTargetEditing(false); setTgtFormOpen(false); }} activeOpacity={0.7}><Text style={s.tgtGhostText}>{t('cancel')}</Text></TouchableOpacity>
-            </View>
-            {target ? (
-              <TouchableOpacity onPress={clearTargetConfirm} activeOpacity={0.7}><Text style={s.tgtRemove}>{t('cal_tgt_remove')}</Text></TouchableOpacity>
-            ) : null}
+          <View style={s.fld}>
+            <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+            <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+            <Text style={s.foot2}>{t('cal_waist_hint')}</Text>
           </View>
-        ) : (
-          <View style={{ marginTop: 4 }}>
-            {weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, usableWeightRate, premium) : null}
-            {bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, usableBfRate, premium) : null}
+          <View style={s.sep} />
+          {/* Height is universal (BMI, waist-to-height, and the Mifflin fallback all need it). */}
+          <View style={s.fld}>
+            <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
+            <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
           </View>
-        )}
-      </View>
-
-      {/* ── YOUR DAILY PLAN ─────────────────────────────────────────── */}
-      {/* Overview — the user's current situation */}
-      {result && result.sexGated ? (
-        <View style={s.overview}>
-          <Text style={s.overviewTitle}>{t('cal_sex_gate_title')}</Text>
-          <Text style={s.resultsHint}>{t('cal_sex_gate_body')}</Text>
-          <TouchableOpacity style={[s.computeBtn, { marginTop: 12 }]} onPress={promptProfileSex}>
-            <Text style={s.computeBtnText}>{t('cal_sex_gate_btn')}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : result && result.invalid ? (
-        <View style={s.overview}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
-      ) : plan ? (
-        <View style={s.overview}>
-          <View style={s.overviewTop}>
-            <Text style={s.overviewTitle}>{t('hy_daily_plan')}</Text>
-            <View style={[s.echoChip, scoreCheck && s.echoChipMeasured]}><Text style={[s.echoChipText, scoreCheck && s.echoChipMeasuredText]}>{scoreCheck ? t('hy_rc_measured_chip') : t('hy_estimated')}</Text></View>
-          </View>
-          <Text style={s.planEcho} numberOfLines={1}>{echoParts.join(' · ')}</Text>
-          <TouchableOpacity
-            onPress={() => setIntroOpen(v => !v)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: introOpen }}
-            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-            style={s.introToggle}
-          >
-            <Text style={s.introToggleText}>{t('cal_intro_title')} {introOpen ? '▴' : '▾'}</Text>
-          </TouchableOpacity>
-          {introOpen && <Text style={s.introInline}>{t('cal_intro_body')}</Text>}
-
-          {/* Hero cards — daily burn + protein. Once a reality-check exists, the
-              MEASURED maintenance is the real daily burn (the formula under/over-
-              shoots); the generic estimate drops to a small sub-line. */}
-          <View style={s.heroRow}>
-            <View style={[s.heroCard, s.heroCardPrimary]}>
-              <Text style={s.heroLabelPrimary}>{t('cal_tdee')}</Text>
-              <Text style={[s.heroVal, s.heroValAccent]}>{round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal)} <Text style={s.heroUnitAccent}>{t('cal_kcal')}</Text></Text>
-              <Text style={s.heroSubPrimary}>
-                {scoreCheck
-                  ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${round10(plan.tdeeVal)}`
-                  : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${round10(plan.bmr)}`}
-              </Text>
-            </View>
-            <View style={s.heroCard}>
-              <Text style={s.heroLabel}>{t('cal_protein')}</Text>
-              <Text style={s.heroVal}>{round5(plan.protein.rec)} <Text style={s.heroUnit}>{t('cal_g_day')}</Text></Text>
-              <Text style={s.heroSub}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
-            </View>
-          </View>
-
-          {/* All three goals, side by side — tap to choose. When a reality-check
-              exists these are recomputed off the MEASURED maintenance through the
-              floored engine (effectiveGoals), so the calorie floor still holds. */}
-          <View style={s.goalRow}>
-            {['lose', 'maintain', 'gain'].map(g => {
-              const on = goal === g;
-              const gc = (effectiveGoals || plan.allGoals)[g];
-              return (
-                <TouchableOpacity key={g} style={[s.goalCard, on && s.goalCardOn]} onPress={() => setGoal(g)} activeOpacity={0.7}>
-                  <Text style={[s.goalLabel, on && s.goalLabelOn]}>{t(`cal_goal_${g}`)}</Text>
-                  <Text style={[s.goalVal, on && s.goalValOn]}>{round10(gc.mid)}</Text>
-                  <Text style={s.goalSub}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
+          <View style={s.fld}>
+            <Text style={s.fieldLab}>{t('cal_bf_source')}</Text>
+            <View style={s.pills}>
+              {BF_SOURCES.map(src => (
+                <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)} accessibilityRole="button" accessibilityState={{ selected: bfSource === src }}>
+                  <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
-          {/* Re-emit the calorie-floor warning if the MEASURED-path lose target hit
-              the floor (the formula-path warning is already in plan.warnings). */}
-          {scoreCheck && effectiveGoals?.lose?.floorApplied ? (
-            <View style={s.warnBox}><Text style={s.warnText}>{warnText({ code: effectiveGoals.lose.floorSource === 'absolute' ? 'calorie_floor' : 'bmr_floor', values: { kcal: Math.round(effectiveGoals.lose.mid) } })}</Text></View>
-          ) : null}
-
-          {/* Context chips — BMI + macros */}
-          <View style={s.chipRow}>
-            {plan.bmi != null && plan.healthyRange && (
-              <View style={s.chip}><Text style={s.chipText}>{t('cal_bmi')} {(Math.round(plan.bmi * 10) / 10).toFixed(1)} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
-            )}
-            {plan.macros && (
-              <View style={s.chip}><Text style={s.chipText}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
-            )}
-          </View>
-
-          {/* Safety notes from the engine */}
-          {plan.warnings.map(w => {
-            const txt = warnText(w);
-            return txt ? <View key={w.code} style={s.warnBox}><Text style={s.warnText}>{txt}</Text></View> : null;
-          })}
-
-          {progressSummary && (
-            <View style={s.deltaRow}>
-              <Text style={s.deltaText}>
-                {t('cal_since')} {fmtDate(progressSummary.firstDate)}:  {t('cal_snap_weight')} {progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}
-                {progressSummary.waistDelta != null ? `   ·   ${t('cal_snap_waist')} ${signed(progressSummary.waistDelta)} ${hUnit}` : ''}
-              </Text>
+              ))}
             </View>
-          )}
-
-          <Text style={s.estimateNote}>{t('cal_estimate_note')}</Text>
-        </View>
-      ) : (
-        <View style={s.overview}><Text style={s.resultsHint}>{t('cal_need_inputs')}</Text></View>
+            <Text style={s.foot2}>{t(`cal_bf_${bfSource}_hint`)}</Text>
+          </View>
+          {/* Activity is an input too — it collapses with "Your numbers". */}
+          <View style={s.fld}>
+            <View style={s.rowC}>
+              <FeatureIcon name="calc_bolt" size={18} color={colors.ink2} />
+              <Text style={s.head}>{t('cal_activity')}</Text>
+            </View>
+            <View style={s.actlist}>
+              {ACTIVITY_LEVELS.map((a, i) => {
+                const on = activity === a.value;
+                const prevOn = i > 0 && ACTIVITY_LEVELS[i - 1].value === activity;
+                const parts = String(t(a.key)).split(' — ');
+                return (
+                  <View key={a.value}>
+                    {i > 0 ? <View style={[s.actSep, (on || prevOn) && s.actSepHidden]} /> : null}
+                    <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                      <View style={[s.grow, s.gap2]}>
+                        <Text style={s.head}>{parts[0]}</Text>
+                        {parts.length > 1 ? <Text style={s.sec2}>{parts.slice(1).join(' — ')}</Text> : null}
+                      </View>
+                      {on ? <CheckMark size={22} color={colors.ink} /> : null}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </>
       )}
+    </View>
+  );
 
-      {/* The disclaimer sits with the plan it qualifies. */}
-      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
-
-      {/* ── TRACK YOUR PROGRESS ─────────────────────────────────────── */}
-      <SectionHeader icon="calc_trend" title={t('cal_track_title')} />
-
-      {/* Food log — feeds the reality check's intake, so it sits right before it. */}
-      <NutritionLogger />
-
-      {/* Reality check — tap to expand its panel right here (collapsible). */}
+  // Reality check (Premium, or a free user's 7 free days — FL-41): how the daily burn
+  // becomes Measured. Its food-log intake, totals, unlogged days and the food-log
+  // reminder live in this card too (journey-dashboard: NutritionLogger → Reality check).
+  const rcEl = (
+    <View key="rc" style={s.card}>
+      <View style={s.rowC}>
+        <FeatureIcon name="calc_bars" size={22} color={colors.ink2} />
+        <Text style={[s.title, s.grow]}>{t('cal_rc_title')}</Text>
+        {!rcAllowed ? <Text style={s.otag}>{t('paywall_premium')}</Text> : null}
+      </View>
+      {!rcStart && !scoreCheck ? <Text style={s.sec2}>{t('cal_rc_sub')}</Text> : null}
       <TouchableOpacity
-        style={s.sbReality}
+        style={s.foldRow}
         activeOpacity={0.7}
         // Locked users with an open check can still open the panel to STOP it (never behind the paywall).
-        onPress={() => (rcAllowed || rcStart || realityLog.length > 0 ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
+        onPress={() => (rcExpandable ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
+        accessibilityRole="button"
+        accessibilityState={rcExpandable ? { expanded: rcOpen } : undefined}
       >
-        <View style={s.sbRealityMain}>
-          <Text style={s.sbRealityLabel}>{t('cal_rc_title')}</Text>
+        <View style={s.grow}>
           {rcAllowed ? (
             scoreCheck ? (
-              <Text style={s.sbRealityVal}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+              <Text style={s.body}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text></Text>
             ) : rcStart ? (
-              <Text style={s.sbRealityMuted}>{t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}</Text>
+              <Text style={s.body}>{t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}</Text>
             ) : (
-              <Text style={s.sbRealityMuted}>{t('cal_rc_sb_run')}</Text>
+              <Text style={s.body}>{t('cal_rc_sb_run')}</Text>
             )
           ) : (
-            <Text style={s.sbRealityMuted}>{t('cal_rc_sb_locked')}</Text>
+            <Text style={s.body}>{t('cal_rc_sb_locked')}</Text>
           )}
         </View>
-        <View style={s.sbRealityRight}>
-          {rcAllowed && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
-            <Text style={s.sbRealityRate}>
-              {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
-            </Text>
-          ) : null}
-          <Text style={s.sbArrow}>{rcAllowed || rcStart || realityLog.length > 0 ? (rcOpen ? '▾' : '›') : '›'}</Text>
-        </View>
+        {rcAllowed && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
+          <Text style={[s.val15, s.ink2Text]}>
+            {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
+          </Text>
+        ) : null}
+        <Chev dir={rcExpandable ? (rcOpen ? 'up' : 'down') : 'right'} color={colors.ink3} />
       </TouchableOpacity>
-
-      {/* Collapsible reality-check panel — lives right under the goal/scoreboard. */}
       {rcOpen && (
-        <View style={s.premCard}>
-          <Text style={s.premSub}>{t('cal_rc_sub')}</Text>
+        <View style={s.panel}>
+          {rcStart || scoreCheck ? <Text style={s.sec2}>{t('cal_rc_sub')}</Text> : null}
           {rcAllowed ? (
             <>
               {!rcStart ? (
-                // ── Phase 1: log today's starting weight, arm the 3-week reminder ──
+                // ── Phase 1: log the starting weight, arm the 3-week reminder ──
                 <>
-                  <Text style={s.label}>{t('cal_rc_start_on')}</Text>
-                  <View style={s.rcDateRow}>
-                    <TouchableOpacity onPress={() => shiftRcStartDate(-1)} disabled={(rcStartDate || todayISO()) <= earliestStart(todayISO())} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
-                      <Text style={[s.rcDateArrow, (rcStartDate || todayISO()) <= earliestStart(todayISO()) && s.rcDateOff]}>‹</Text>
-                    </TouchableOpacity>
-                    <Text style={s.rcDateText}>{rcStartDate ? fmtDate(rcStartDate) : t('nutri_day_today')}</Text>
-                    <TouchableOpacity onPress={() => shiftRcStartDate(1)} disabled={!rcStartDate} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
-                      <Text style={[s.rcDateArrow, !rcStartDate && s.rcDateOff]}>›</Text>
-                    </TouchableOpacity>
+                  <View style={s.fld}>
+                    <Text style={s.fieldLab}>{t('cal_rc_start_on')}</Text>
+                    <View style={s.stepper}>
+                      <TouchableOpacity style={[s.stepBtn, atEarliest && s.stepOff]} onPress={() => shiftRcStartDate(-1)} disabled={atEarliest} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
+                        <Chev dir="left" color={colors.ink} size={20} />
+                      </TouchableOpacity>
+                      <Text style={s.stepVal}>{rcStartDate ? fmtDate(rcStartDate) : t('nutri_day_today')}</Text>
+                      <TouchableOpacity style={[s.stepBtn, !rcStartDate && s.stepOff]} onPress={() => shiftRcStartDate(1)} disabled={!rcStartDate} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
+                        <Chev dir="right" color={colors.ink} size={20} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={s.foot2}>{t('cal_rc_start_on_hint')}</Text>
                   </View>
-                  <Text style={s.rcNote}>{t('cal_rc_start_on_hint')}</Text>
-                  <Text style={s.label}>{t('cal_rc_start_weight')} ({wUnit})</Text>
-                  <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-                  <TouchableOpacity style={s.computeBtn} onPress={startRealityCheck}>
-                    <Text style={s.computeBtnText}>{t('cal_rc_start_btn')}</Text>
+                  <View style={s.fld}>
+                    <Text style={s.fieldLab}>{t('cal_rc_start_weight')} ({wUnit})</Text>
+                    <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+                  </View>
+                  <TouchableOpacity style={s.btnP} onPress={startRealityCheck} accessibilityRole="button">
+                    <Text style={s.btnPText}>{t('cal_rc_start_btn')}</Text>
                   </TouchableOpacity>
-                  <Text style={s.rcNote}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+                  <Text style={s.foot2}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
                 </>
               ) : (
                 // ── Phase 2: return, log current weight; days are auto-measured ──
                 <>
-                  <View style={s.rcTracking}>
-                    <Text style={s.rcTrackingLine}>
-                      ①  {Math.round((unit === 'imperial' ? kgToLb(rcStart.weightKg) : rcStart.weightKg) * 10) / 10} {wUnit}  ·  {fmtDate(rcStart.date)}
+                  <View style={s.gap4}>
+                    <Text style={s.sec2}>
+                      ①  <Text style={s.mono}>{Math.round((unit === 'imperial' ? kgToLb(rcStart.weightKg) : rcStart.weightKg) * 10) / 10} {wUnit}</Text>  ·  {fmtDate(rcStart.date)}
                     </Text>
-                    <Text style={s.rcTrackingSub}>
+                    <Text style={s.foot2}>
                       {t('cal_rc_remind_on').replace('{date}', fmtDate(rcRemindOn))}  ·  {t('cal_rc_elapsed').replace('{n}', String(rcElapsedDays))}
                     </Text>
                   </View>
-                  <Text style={s.label}>{t('cal_rc_current_weight')} ({wUnit})</Text>
-                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-                  <Text style={s.label}>{t('cal_rc_intake')}</Text>
-                  <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-                  {foodIntake ? (
-                    <>
-                      <TouchableOpacity style={s.rcUseLog} onPress={() => setRcIntake(String(foodIntake.avgKcal))} activeOpacity={0.7}>
-                        <Text style={s.rcUseLogText}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
-                      </TouchableOpacity>
-                      <Text style={s.rcUseLogNote}>{t('nutri_run_working').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{from}', fmtDate(foodIntake.fromISO)).replace('{to}', fmtDate(foodIntake.toISO))}</Text>
-                      <Text style={s.rcUseLogNote}>{t('cal_rc_from_log_note')}</Text>
-                    </>
-                  ) : foodRun ? (
-                    // No intake number until 7 days in a row are fully logged (FL-3).
-                    <Text style={s.rcUseLogNote}>{t('nutri_run_progress').replace('{n}', String(Math.min(foodRun.current, MIN_RUN_DAYS)))}</Text>
-                  ) : null}
-                  <TouchableOpacity style={s.computeBtn} onPress={computeReality}>
-                    <Text style={s.computeBtnText}>{t('cal_rc_compute')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.rcReset} onPress={resetRealityCheck}>
-                    <Text style={s.rcResetText}>{t('cal_rc_reset')}</Text>
+                  <View style={s.fld}>
+                    <Text style={s.fieldLab}>{t('cal_rc_current_weight')} ({wUnit})</Text>
+                    <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+                  </View>
+                  <View style={s.fld}>
+                    <Text style={s.fieldLab}>{t('cal_rc_intake')}</Text>
+                    <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+                    {foodIntake ? (
+                      <>
+                        <TouchableOpacity style={s.pill} onPress={() => setRcIntake(String(foodIntake.avgKcal))} activeOpacity={0.7} accessibilityRole="button">
+                          <Text style={[s.pillText, s.inkText]}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
+                        </TouchableOpacity>
+                        <Text style={s.foot2}>{t('nutri_run_working').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{from}', fmtDate(foodIntake.fromISO)).replace('{to}', fmtDate(foodIntake.toISO))}</Text>
+                        <Text style={s.foot2}>{t('cal_rc_from_log_note')}</Text>
+                      </>
+                    ) : foodRun ? (
+                      // No intake number until 7 days in a row are fully logged (FL-3).
+                      <Text style={s.foot2}>{t('nutri_run_progress').replace('{n}', String(Math.min(foodRun.current, MIN_RUN_DAYS)))}</Text>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity style={s.btnP} onPress={computeReality} accessibilityRole="button">
+                    <Text style={s.btnPText}>{t('cal_rc_compute')}</Text>
                   </TouchableOpacity>
 
                   {rc && rc.status === 'ok' && (
-                    <View style={s.rcResult}>
-                      <Text style={s.rcHeadline}>{t('cal_rc_result_prefix')} {round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text>
+                    <View style={s.result}>
+                      <Text style={s.body}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text></Text>
                       {rc.ratePerWeekKg != null && Math.abs(rc.ratePerWeekKg) >= 0.05 ? (
-                        <Text style={s.rcRate}>
-                          {t('cal_rc_rate_losing')} {rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')} {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
+                        <Text style={s.sec}>
+                          {t('cal_rc_rate_losing')} <Text style={s.mono}>{rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')}</Text> {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
                         </Text>
                       ) : null}
-                      {plan ? <Text style={s.rcVs}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
-                      <TouchableOpacity style={[s.computeBtn, { marginTop: 14 }]} onPress={saveRealityCheck}>
+                      {plan ? <Text style={s.sec2}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
+                      <TouchableOpacity style={s.btnP} onPress={saveRealityCheck} accessibilityRole="button">
                         {rcSavedMsg ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <CheckMark style={s.computeBtnText} />
-                          <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
-                        </View>
-                      ) : <Text style={s.computeBtnText}>{t('cal_rc_save')}</Text>}
+                          <View style={s.savedRow}>
+                            <CheckMark style={s.btnPText} />
+                            <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
+                          </View>
+                        ) : <Text style={s.btnPText}>{t('cal_rc_save')}</Text>}
                       </TouchableOpacity>
-                      <TouchableOpacity style={[s.rcReset, { marginTop: 10 }]} onPress={startNextRealityCheck}>
-                        <Text style={s.rcResetText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+                      <TouchableOpacity style={s.btnO} onPress={startNextRealityCheck} accessibilityRole="button">
+                        <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
                       </TouchableOpacity>
-                      <Text style={s.rcWhyTitle}>{t('cal_rc_why_title')}</Text>
-                      {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.rcWhy}>•  {t(`cal_rc_why_${i}`)}</Text>)}
-                      <Text style={s.rcNote}>{t('cal_rc_unreliable_note')}</Text>
+                      <Text style={[s.head, s.mt6]}>{t('cal_rc_why_title')}</Text>
+                      {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.sec2}>•  {t(`cal_rc_why_${i}`)}</Text>)}
+                      <Text style={s.foot2}>{t('cal_rc_unreliable_note')}</Text>
                     </View>
                   )}
                   {rc && rc.status !== 'ok' && (
-                    <View style={s.rcResult}><Text style={s.rcGuard}>{t(`cal_rc_${rc.status}`)}</Text></View>
+                    <View style={s.result}><Text style={s.sec2}>{t(`cal_rc_${rc.status}`)}</Text></View>
                   )}
                 </>
               )}
 
               {realityLog.length > 0 && (
-                <View style={s.rcLog}>
-                  <Text style={s.rcWhyTitle}>{t('cal_rc_log_title')}</Text>
+                <View style={s.gap6}>
+                  <Text style={s.cap2}>{t('cal_rc_log_title')}</Text>
                   {[...realityLog].reverse().map((c) => (
-                    <View key={c.date} style={s.rcLogRow}>
-                      <Text style={s.rcLogDate}>{fmtDate(c.date)}</Text>
-                      <Text style={s.rcLogRate}>
+                    <View key={c.date} style={s.logRow}>
+                      <Text style={[s.sec, s.grow]}>{fmtDate(c.date)}</Text>
+                      <Text style={[s.val15, s.ink2Text]}>
                         {c.ratePerWeekKg != null
                           ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
                           : '—'}
                       </Text>
-                      <Text style={s.rcLogTdee}>{round10(c.tdee)} {t('cal_kcal')}</Text>
+                      <Text style={s.val15}>{round10(c.tdee)} {t('cal_kcal')}</Text>
                     </View>
                   ))}
                 </View>
               )}
               {(rcStart || realityLog.length > 0) && (
-                <TouchableOpacity style={s.rcStop} onPress={stopRealityCheck} activeOpacity={0.7}>
-                  <Text style={s.rcStopText}>{t('cal_rc_stop')}</Text>
-                </TouchableOpacity>
+                <View style={s.linkRow}>
+                  {rcStart ? (
+                    <TouchableOpacity onPress={resetRealityCheck} style={s.linkHit} accessibilityRole="button">
+                      <Text style={s.linkU}>{t('cal_rc_reset')}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity onPress={stopRealityCheck} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+                    <Text style={s.linkRisk}>{t('cal_rc_stop')}</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </>
           ) : (
             <View style={s.rcLocked}>
               {/* FX-15: a check that is already running keeps its weigh-in — only the result is Premium. */}
               {rcAccess.canLogWeighIn ? (
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={s.label}>{t('cal_rc_current_weight')} ({wUnit})</Text>
-                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
-                  <TouchableOpacity style={[s.computeBtn, !num(rcNow) && s.computeBtnDisabled]} onPress={saveRcWeighIn} disabled={!num(rcNow)}>
+                <View style={s.fld}>
+                  <Text style={s.fieldLab}>{t('cal_rc_current_weight')} ({wUnit})</Text>
+                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+                  <TouchableOpacity style={[s.btnP, !num(rcNow) && s.btnOff]} onPress={saveRcWeighIn} disabled={!num(rcNow)} accessibilityRole="button">
                     {rcWeighMsg ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <CheckMark style={s.computeBtnText} />
-                        <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
+                      <View style={s.savedRow}>
+                        <CheckMark style={s.btnPText} />
+                        <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
                       </View>
-                    ) : <Text style={s.computeBtnText}>{t('cal_tgt_backfill_save')}</Text>}
+                    ) : <Text style={[s.btnPText, !num(rcNow) && s.btnOffText]}>{t('cal_tgt_backfill_save')}</Text>}
                   </TouchableOpacity>
                 </View>
               ) : null}
-              <Text style={s.rcLockedIntro}>{t('cal_rc_locked_intro')}</Text>
-              <Text style={s.rcLockedLead}>{t('cal_rc_locked_lead')}</Text>
-              <Text style={s.rcLockedItem}>1.  {t('cal_rc_start_weight')}</Text>
-              <Text style={s.rcLockedItem}>2.  {t('cal_rc_current_weight')}</Text>
-              <Text style={s.rcLockedItem}>3.  {t('cal_rc_intake')}</Text>
-              <Text style={s.rcLockedPayoff}>{t('cal_rc_locked_payoff')}</Text>
-              <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-                <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
+              <Text style={s.sec2}>{t('cal_rc_locked_intro')}</Text>
+              <Text style={s.head}>{t('cal_rc_locked_lead')}</Text>
+              <View style={s.gap2}>
+                <Text style={s.sec2}>1.  {t('cal_rc_start_weight')}</Text>
+                <Text style={s.sec2}>2.  {t('cal_rc_current_weight')}</Text>
+                <Text style={s.sec2}>3.  {t('cal_rc_intake')}</Text>
+              </View>
+              <Text style={s.sec}>{t('cal_rc_locked_payoff')}</Text>
+              <TouchableOpacity style={s.btnP} onPress={() => navigation.navigate('Paywall')} accessibilityRole="button">
+                <Text style={s.btnPText}>{t('cal_premium_cta')}</Text>
               </TouchableOpacity>
               {/* Stop stays reachable when locked (FL-41) — it only clears the check; logged meals are kept. */}
               {(rcStart || realityLog.length > 0) && (
-                <TouchableOpacity style={s.rcStop} onPress={stopRealityCheck} activeOpacity={0.7}>
-                  <Text style={s.rcStopText}>{t('cal_rc_stop')}</Text>
+                <TouchableOpacity style={s.linkHit} onPress={stopRealityCheck} activeOpacity={0.7} accessibilityRole="button">
+                  <Text style={s.linkRisk}>{t('cal_rc_stop')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
         </View>
       )}
+      {/* Food log — feeds the reality check's intake (totals, run, unlogged days, reminder). */}
+      <NutritionLogger />
+    </View>
+  );
 
+  const weighEl = (
+    <View key="weigh" style={s.card}>
       {/* Progress snapshots — weigh-ins are never paywalled (FX-15) */}
-      <View style={s.premCard}>
-        <Text style={s.premTitle}>{t('cal_snap_title')}</Text>
-        <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
-        <>
-            <TouchableOpacity style={[s.computeBtn, !plan && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!plan}>
-              {snapMsg ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <CheckMark style={s.computeBtnText} />
-                          <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
-                        </View>
-                      ) : <Text style={s.computeBtnText}>{t('cal_snap_save')}</Text>}
-            </TouchableOpacity>
-            {snapPointCount >= 2 ? (
-              <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
-            ) : (
-              <Text style={s.premSub}>{t('cal_snap_need_more')}</Text>
-            )}
-            {/* Backfill a past weigh-in — for someone who started before installing.
-                Writes a dated snapshot so the measured rate (and the target ETA)
-                can appear without waiting weeks. */}
-            <TouchableOpacity onPress={() => setBfOpen(o => !o)} activeOpacity={0.7}>
-              <Text style={s.tgtBackfillLink}>{bfOpen ? t('cal_tgt_backfill_hide') : t('cal_tgt_backfill_add')}</Text>
-            </TouchableOpacity>
-            {bfOpen ? (
-              <View style={s.bfForm}>
-                <Text style={s.premSub}>{t('cal_tgt_backfill_hint')}</Text>
-                <Text style={s.inputLabelSm}>{t('cal_tgt_backfill_date')}</Text>
-                <TouchableOpacity style={s.input} onPress={() => setShowBfDatePicker(true)} activeOpacity={0.7}>
-                  <Text style={{ color: colors.text, fontSize: 16 }}>{fmtDate(bfDate)}</Text>
-                </TouchableOpacity>
-                {showBfDatePicker ? (
-                  <DateTimePicker
-                    value={new Date(bfDate + 'T12:00:00')}
-                    mode="date"
-                    maximumDate={new Date()}
-                    onChange={(e, d) => { setShowBfDatePicker(false); if (d) setBfDate(localISO(d)); }}
-                  />
-                ) : null}
-                <Text style={s.inputLabelSm}>{t('cal_snap_weight')} ({wUnit})</Text>
-                <TextInput style={s.input} value={bfWeight} onChangeText={setBfWeight} keyboardType="decimal-pad" placeholderTextColor={colors.textMuted} />
-                <Text style={s.inputLabelSm}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
-                <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholderTextColor={colors.textMuted} />
-                <TouchableOpacity style={[s.computeBtn, !num(bfWeight) && s.computeBtnDisabled]} onPress={saveBackfillWeighIn} disabled={!num(bfWeight)}>
-                  {bfMsg ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <CheckMark style={s.computeBtnText} />
-                          <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
-                        </View>
-                      ) : <Text style={s.computeBtnText}>{t('cal_tgt_backfill_save')}</Text>}
-                </TouchableOpacity>
-              </View>
-            ) : null}
-        </>
+      <View style={s.gap2}>
+        <Text style={s.title}>{t('cal_snap_title')}</Text>
+        {lastSnap ? (
+          <Text style={s.foot2}>{sortedSnaps.length} · {fmtDate(lastSnap.date)}{lastSnap.weightKg != null ? <> · <Text style={s.mono}>{fmtW(lastSnap.weightKg)} {wUnit}</Text></> : null}</Text>
+        ) : null}
       </View>
+      <Text style={s.sec2}>{t('cal_snap_sub')}</Text>
+      <TouchableOpacity style={[s.btnP, !plan && s.btnOff]} onPress={saveSnapshot} disabled={!plan} accessibilityRole="button">
+        {snapMsg ? (
+          <View style={s.savedRow}>
+            <CheckMark style={s.btnPText} />
+            <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
+          </View>
+        ) : <Text style={[s.btnPText, !plan && s.btnOffText]}>{t('cal_snap_save')}</Text>}
+      </TouchableOpacity>
+      {snapPointCount >= 2 ? (
+        <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
+      ) : (
+        <Text style={s.sec2}>{t('cal_snap_need_more')}</Text>
+      )}
+      {/* The newest weigh-ins as rows (date · weight · body fat · waist); all of them are on the chart. */}
+      {histRows.length > 0 ? (
+        <View>
+          <View style={s.histHead}>
+            <Text style={[s.cap2, s.histDate]}>{t('cal_tgt_backfill_date')}</Text>
+            <Text style={[s.cap2, s.histCell]}>{t('cal_snap_weight')}</Text>
+            <Text style={[s.cap2, s.histCell]}>{t('cal_snap_bodyfat')}</Text>
+            <Text style={[s.cap2, s.histCell]}>{t('cal_snap_waist')}</Text>
+          </View>
+          {histRows.map(r => (
+            <View key={r.date} style={s.histRow}>
+              <Text style={[s.sec, s.histDate]}>{fmtDate(r.date)}</Text>
+              <Text style={[s.val15, s.histCell]}>{r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}</Text>
+              <Text style={[s.val15, s.histCell]}>{r.bodyFatPct != null ? `${Math.round(r.bodyFatPct * 10) / 10}%` : '—'}</Text>
+              <Text style={[s.val15, s.histCell]}>{r.waistCm != null ? `${Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10} ${hUnit}` : '—'}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {/* Backfill a past weigh-in — for someone who started before installing.
+          Writes a dated snapshot so the measured rate (and the target ETA)
+          can appear without waiting weeks. */}
+      <TouchableOpacity onPress={() => setBfOpen(true)} activeOpacity={0.7} style={s.linkHit} accessibilityRole="button">
+        <Text style={s.linkU}>{t('cal_tgt_backfill_add')}</Text>
+      </TouchableOpacity>
+      <SheetModal visible={bfOpen} onClose={closeBackfill} s={s}>
+        <View style={s.sheetHead}>
+          <TouchableOpacity onPress={closeBackfill} style={s.sheetSide} accessibilityRole="button">
+            <Text style={s.txtBtn}>{bfMsg ? t('done') : t('cancel')}</Text>
+          </TouchableOpacity>
+          <Text style={s.sheetTitle} numberOfLines={2}>{String(t('cal_tgt_backfill_add')).replace(/^\+\s*/, '')}</Text>
+          <View style={s.sheetSide} />
+        </View>
+        <Text style={s.sec2}>{t('cal_tgt_backfill_hint')}</Text>
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_tgt_backfill_date')}</Text>
+          <TouchableOpacity style={s.datebtn} onPress={() => setShowBfDatePicker(true)} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.body}>{fmtDate(bfDate)}</Text>
+            <FeatureIcon name="calendar" size={20} color={colors.ink2} />
+          </TouchableOpacity>
+          {showBfDatePicker ? (
+            <DateTimePicker
+              value={new Date(bfDate + 'T12:00:00')}
+              mode="date"
+              maximumDate={new Date()}
+              onChange={(e, d) => { setShowBfDatePicker(false); if (d) setBfDate(localISO(d)); }}
+            />
+          ) : null}
+        </View>
+        <View style={s.fieldRow}>
+          <View style={s.fldHalf}>
+            <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
+            <TextInput style={s.input} value={bfWeight} onChangeText={setBfWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+          </View>
+          <View style={s.fldHalf}>
+            <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
+            <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+          </View>
+        </View>
+        <TouchableOpacity style={[s.btnP, !num(bfWeight) && s.btnOff]} onPress={saveBackfillWeighIn} disabled={!num(bfWeight)} accessibilityRole="button">
+          {bfMsg ? (
+            <View style={s.savedRow}>
+              <CheckMark style={s.btnPText} />
+              <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
+            </View>
+          ) : <Text style={[s.btnPText, !num(bfWeight) && s.btnOffText]}>{t('cal_tgt_backfill_save')}</Text>}
+        </TouchableOpacity>
+      </SheetModal>
+    </View>
+  );
+
+  return (
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
+      {header}
+      {/* Order (prototype progressScreen): what the user needs every visit first. Keyed,
+          so a card that moves when the plan appears keeps its state (no remount). */}
+      {plan
+        ? [heroEl, planEl, rcEl, weighEl, numbersEl]
+        : [introEl, numbersEl, statusEl, rcEl, targetEl, weighEl]}
+
+      {/* The disclaimer qualifies every number on this screen. */}
+      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
       {/* Understand the numbers — collapsed by default */}
-      <TouchableOpacity style={s.rowLink} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7}>
-        <Text style={s.rowLinkText}>{t('cal_learn')}</Text>
-        <Text style={s.rowLinkChev}>{learnOpen ? '▾' : '▸'}</Text>
-      </TouchableOpacity>
-      {learnOpen && EXPLAINERS.map(e => (
-        <View key={e.key} style={s.explCard}>
-          <TouchableOpacity style={s.explHead} onPress={() => setExpl(expl === e.key ? null : e.key)}>
-            <Text style={s.explTitle}>{e.title}</Text>
-            <Text style={s.explChevron}>{expl === e.key ? '▲' : '▶'}</Text>
-          </TouchableOpacity>
-          {expl === e.key && <Text style={s.explBody}>{e.body}</Text>}
-        </View>
-      ))}
-
-      {/* Sources & references — collapsed by default (App Review 1.4.1) */}
-      <TouchableOpacity style={s.rowLink} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7}>
-        <Text style={s.rowLinkText}>{t('cal_sources_title')}</Text>
-        <Text style={s.rowLinkChev}>{sourcesOpen ? '▾' : '▸'}</Text>
-      </TouchableOpacity>
-      {sourcesOpen && (
-        <>
-          <Text style={[s.hint, { marginBottom: 8 }]}>{t('cal_sources_intro')}</Text>
-          {REFERENCES.map(r => (
-            <TouchableOpacity
-              key={r.key}
-              style={s.srcRow}
-              activeOpacity={0.6}
-              onPress={() => Linking.openURL(r.url).catch(() => {})}
-            >
-              <View style={s.srcText}>
-                <Text style={s.srcTopic}>{t(r.key)}</Text>
-                <Text style={s.srcCite}>{r.cite}</Text>
-              </View>
-              <Text style={s.srcArrow}>↗</Text>
+      <View style={s.list}>
+        <TouchableOpacity style={s.listHead} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: learnOpen }}>
+          <Text style={[s.head, s.grow]}>{t('cal_learn')}</Text>
+          <Chev dir={learnOpen ? 'up' : 'down'} color={colors.ink3} />
+        </TouchableOpacity>
+        {learnOpen && EXPLAINERS.map(e => (
+          <View key={e.key} style={s.listItem}>
+            <TouchableOpacity style={s.listRow} onPress={() => setExpl(expl === e.key ? null : e.key)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: expl === e.key }}>
+              <Text style={[s.body, s.grow]}>{e.title}</Text>
+              <Chev dir={expl === e.key ? 'up' : 'down'} color={colors.ink3} />
             </TouchableOpacity>
-          ))}
-        </>
-      )}
+            {expl === e.key && <Text style={[s.sec2, s.listBody]}>{e.body}</Text>}
+          </View>
+        ))}
+        {/* Sources & references — collapsed by default (App Review 1.4.1) */}
+        <View style={s.listItem}>
+          <TouchableOpacity style={s.listHead} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: sourcesOpen }}>
+            <Text style={[s.head, s.grow]}>{t('cal_sources_title')}</Text>
+            <Chev dir={sourcesOpen ? 'up' : 'down'} color={colors.ink3} />
+          </TouchableOpacity>
+          {sourcesOpen && (
+            <>
+              <Text style={[s.foot2, s.listBody]}>{t('cal_sources_intro')}</Text>
+              {REFERENCES.map(r => (
+                <TouchableOpacity
+                  key={r.key}
+                  style={s.srcRow}
+                  activeOpacity={0.6}
+                  onPress={() => Linking.openURL(r.url).catch(() => {})}
+                  accessibilityRole="link"
+                >
+                  <View style={[s.grow, s.gap2]}>
+                    <Text style={s.body}>{t(r.key)}</Text>
+                    <Text style={s.foot2}>{r.cite}</Text>
+                  </View>
+                  <ExternalIcon color={colors.ink2} />
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+        </View>
+      </View>
 
-      <View style={{ height: 60 }} />
+      {/* Your target — edit sheet (prototype tgtSheet). */}
+      <SheetModal visible={targetEditing} onClose={closeTarget} s={s}>
+        <View style={s.sheetHead}>
+          <TouchableOpacity onPress={closeTarget} style={s.sheetSide} accessibilityRole="button">
+            <Text style={s.txtBtn}>{t('cancel')}</Text>
+          </TouchableOpacity>
+          <Text style={s.sheetTitle} numberOfLines={2}>{t('cal_tgt_title')}</Text>
+          {/* Save stays off until at least one target field is valid (no silent no-op loop). */}
+          <TouchableOpacity onPress={saveTarget} disabled={!tgtValid} style={[s.sheetSide, s.sheetSideEnd]} accessibilityRole="button" accessibilityState={{ disabled: !tgtValid }}>
+            <Text style={[s.txtBtnStrong, !tgtValid && s.txtOff]}>{t('save')}</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={s.sec2}>{t('cal_tgt_sub')}</Text>
+        <View style={s.fieldRow}>
+          <View style={s.fldHalf}>
+            <Text style={s.fieldLab}>{t('cal_tgt_weight')} ({wUnit}) · {t('cal_tgt_optional')}</Text>
+            <TextInput style={s.input} value={tgtWeight} onChangeText={setTgtWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+          </View>
+          <View style={s.fldHalf}>
+            <Text style={s.fieldLab}>{t('cal_tgt_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
+            <TextInput style={s.input} value={tgtBF} onChangeText={setTgtBF} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+          </View>
+        </View>
+        {tgtLow ? <Text style={s.tnote}>{healthyText('cal_tgt_below_range')}</Text> : null}
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_tgt_date')}</Text>
+          <TouchableOpacity style={s.datebtn} onPress={() => setShowTgtDatePicker(true)} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={tgtDate ? s.body : s.bodyMuted}>{tgtDate ? fmtDate(tgtDate) : t('cal_tgt_no_date')}</Text>
+            <FeatureIcon name="calendar" size={20} color={colors.ink2} />
+          </TouchableOpacity>
+          {tgtDate ? (
+            <TouchableOpacity onPress={() => setTgtDate(null)} activeOpacity={0.7} style={s.linkHitSm} accessibilityRole="button">
+              <Text style={[s.linkU, s.linkSm]}>{t('cal_tgt_remove_date')}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {showTgtDatePicker ? (
+            <DateTimePicker
+              value={tgtDate ? new Date(tgtDate + 'T12:00:00') : new Date()}
+              mode="date"
+              minimumDate={new Date()}
+              onChange={(e, d) => { setShowTgtDatePicker(false); if (d) setTgtDate(localISO(d)); }}
+            />
+          ) : null}
+        </View>
+        {target ? (
+          <TouchableOpacity style={s.dangerBtn} onPress={clearTargetConfirm} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.dangerText}>{t('cal_tgt_remove')}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </SheetModal>
     </ScrollView>
   );
 }
 
+// A thin monoline chevron (prototype UP / DOWN / CHEV).
+const CHEV_PATHS = { down: 'M3 6l5 5 5-5', up: 'M3 10l5-5 5 5', left: 'M10 3l-5 5 5 5', right: 'M6 3l5 5-5 5' };
+function Chev({ dir = 'down', color, size = 16 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16">
+      <Path d={CHEV_PATHS[dir]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// Opens in the browser (prototype's external-link glyph, monoline).
+function ExternalIcon({ color }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24">
+      <Path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// The target as a graduated scale (DESIGN.md §5: no rounded progress bars): the
+// covered distance in data blue with onData ticks inside, the rest as tick marks,
+// and the "now" marker in ink.
+function TargetScale({ frac, colors }) {
+  const W = 320, x0 = 2, x1 = W - 2, N = 20;
+  const xf = x0 + Math.max(0, Math.min(1, frac)) * (x1 - x0);
+  const ticks = [];
+  for (let i = 0; i <= N; i++) {
+    const x = x0 + (i / N) * (x1 - x0);
+    const major = i % 5 === 0;
+    ticks.push(<Line key={i} x1={x} x2={x} y1={major ? 4 : 10} y2={24} stroke={x <= xf ? colors.onData : colors.tick} strokeWidth={major ? 1.4 : 0.9} />);
+  }
+  return (
+    <Svg width="100%" height={30} viewBox={`0 0 ${W} 30`} preserveAspectRatio="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Rect x={x0} y={8} width={Math.max(0, xf - x0)} height={12} rx={2} fill={colors.data} />
+      {ticks}
+      <Rect x={Math.min(x1 - 4, Math.max(x0, xf - 2))} y={1} width={4} height={26} rx={1.5} fill={colors.ink} />
+    </Svg>
+  );
+}
+
+// A bottom sheet (prototype .scrim.bot + .sheet). Forms close only through their
+// own Cancel / Save (never a stray tap on the scrim) so typed values are not lost.
+function SheetModal({ visible, onClose, s, children }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={s.scrim} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.sheet}>
+          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetBody}>
+            {children}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// Graduated (DESIGN.md §2–§5, prototype .card.pc / .goal / .cell / .segw / .pill /
+// .actlist / .winp / .btn / .list): plain raised cards, no border, shadow or tint;
+// one ink action per card; selection = ink outline; data blue only for data.
 const makeStyles = (c) => StyleSheet.create({
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  scroll: { flex: 1, padding: 16 },
-  // Section header: monoline glyph tile + uppercase micro-label, optional right slot.
-  sh: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 10, marginHorizontal: 2 },
-  shLeft: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 },
-  shIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  shTitle: { fontSize: 13, fontWeight: '700', color: c.textMuted },
-  shChev: { fontSize: 13, color: c.textFaint, marginLeft: 2 },
-  shRight: { marginLeft: 'auto' },
-  // Grouped input card — inputs sit inside with breathing room.
-  groupCard: { backgroundColor: c.card, borderRadius: 20, padding: 16, gap: 16, borderWidth: 0.5, borderColor: c.border },
-  fieldLab: { fontSize: 11, fontWeight: '700', color: c.textFaint, marginBottom: 7 },
-  // Activity — compact 2-col chips (was 5 full-width rows).
-  actGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actChip: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.card2, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border },
-  actChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  actDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: c.border },
-  actDotOn: { borderColor: c.accent, backgroundColor: c.accent },
-  actChipText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: c.textMuted },
-  actChipTextOn: { color: c.text },
-  // Collapsed learn/sources rows.
-  rowLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, marginTop: 10, borderWidth: 0.5, borderColor: c.border },
-  rowLinkText: { fontSize: 13, fontWeight: '600', color: c.text },
-  rowLinkChev: { fontSize: 13, color: c.textFaint },
-  disclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, marginBottom: 4 },
-  label: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 16 },
-  hint: { fontSize: 11, color: c.textFaint, lineHeight: 15, marginTop: 6 },
-  input: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 16, color: c.text, borderWidth: 0.5, borderColor: c.border },
-  row: { flexDirection: 'row', gap: 12 },
-  rowCol: { flex: 1 },
-  segment: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 10, padding: 3, gap: 3 },
-  segBtn: { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
-  segBtnOn: { backgroundColor: c.accent },
-  segText: { fontSize: 13, fontWeight: '600', color: c.textMuted },
-  segTextOn: { color: c.accentText },
-  sexGatePrompt: { justifyContent: 'center', paddingVertical: 11, borderWidth: 1, borderColor: c.accent, backgroundColor: c.accentSoft },
-  sexGatePromptText: { fontSize: 13, fontWeight: '700', color: c.accent, textAlign: 'center' },
-  // Calculator start: clear section title + a quiet, compact unit toggle
-  detailsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 4 },
-  detailsTitle: { fontSize: 17, fontWeight: '700', color: c.text, letterSpacing: -0.2 },
-  unitToggle: { flexDirection: 'row', backgroundColor: c.card2, borderRadius: 8, padding: 2 },
-  unitPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
-  unitPillOn: { backgroundColor: c.card },
-  unitPillText: { fontSize: 12, fontWeight: '600', color: c.textFaint },
-  unitPillTextOn: { color: c.accent, fontWeight: '700' },
-  pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { backgroundColor: c.card, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 0.5, borderColor: c.border },
-  pillOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  pillText: { fontSize: 12, fontWeight: '500', color: c.textMuted },
-  pillTextOn: { color: c.accent, fontWeight: '600' },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
-  checkboxOn: { backgroundColor: c.accent, borderColor: c.accent },
-  checkMark: { color: c.accentText, fontSize: 13, fontWeight: '700' },
-  checkLabel: { flex: 1, fontSize: 13, color: c.text },
-  actRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card, borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 0.5, borderColor: c.border },
-  actRowOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: c.border },
-  radioOn: { borderColor: c.accent, backgroundColor: c.accent },
-  actText: { flex: 1, fontSize: 13, color: c.textMuted },
-  actTextOn: { color: c.text, fontWeight: '500' },
-  introCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginBottom: 4 },
-  introTitle: { fontSize: 14, fontWeight: '700', color: c.accentSoftText, marginBottom: 4 },
-  introBody: { fontSize: 12, color: c.accentSoftText, lineHeight: 18 },
-  overview: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
-  overviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
-  overviewTitle: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.5 },
-  echoChip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexShrink: 1 },
-  echoChipText: { fontSize: 11, color: c.textMuted },
-  echoChipMeasured: { backgroundColor: c.successSoft },
-  echoChipMeasuredText: { color: c.successSoftText },
-  planEcho: { fontSize: 12.5, color: c.textMuted, marginBottom: 8 },
-  introToggle: { alignSelf: 'flex-start', marginBottom: 8 },
-  introToggleText: { fontSize: 13, fontWeight: '600', color: c.accent },
-  introInline: { fontSize: 13, lineHeight: 19, color: c.textMuted, marginBottom: 10 },
-  youNow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 4, ...c.shadowSoft },
-  youNowText: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text },
-  youNowEdit: { fontSize: 14, fontWeight: '600', color: c.accent },
-  tgtSetBtn: { marginTop: 12, height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  tgtSetBtnText: { fontSize: 15, fontWeight: '600', color: c.accent },
-  heroRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  heroCard: { flex: 1, backgroundColor: c.card2, borderRadius: 12, padding: 12 },
-  // Primary (daily-burn) card carries the accent so the key number has life.
-  heroCardPrimary: { backgroundColor: c.accentSoft },
-  heroLabel: { fontSize: 11, color: c.textMuted, marginBottom: 4 },
-  heroLabelPrimary: { fontSize: 11, color: c.accentSoftText, fontWeight: '600', marginBottom: 4 },
-  heroVal: { fontSize: 22, fontWeight: '700', color: c.text },
-  heroValAccent: { color: c.accent },
-  heroUnit: { fontSize: 12, fontWeight: '500', color: c.textMuted },
-  heroUnitAccent: { fontSize: 12, fontWeight: '600', color: c.accent },
-  heroSub: { fontSize: 10, color: c.textFaint, marginTop: 3 },
-  heroSubPrimary: { fontSize: 10, color: c.accentSoftText, opacity: 0.8, marginTop: 3 },
-  goalRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  goalCard: { flex: 1, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 10, alignItems: 'center' },
-  goalCardOn: { borderColor: c.accent, borderWidth: 2, backgroundColor: c.accentSoft },
-  goalLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted },
-  goalLabelOn: { color: c.accent },
-  goalVal: { fontSize: 17, fontWeight: '700', color: c.text, marginTop: 2 },
-  goalValOn: { color: c.accent },
-  goalSub: { fontSize: 9, color: c.textFaint, marginTop: 2 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  chip: { backgroundColor: c.card2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-  chipText: { fontSize: 11, color: c.textMuted },
-  warnBox: { backgroundColor: c.warningSoft, borderRadius: 10, padding: 10, marginTop: 8 },
-  warnText: { fontSize: 11, color: c.warningSoftText, lineHeight: 16 },
-  goalBadge: { backgroundColor: c.accent, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
-  goalBadgeText: { color: c.accentText, fontSize: 12, fontWeight: '700' },
-  overviewHeadline: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
-  overviewHeadlineLabel: { fontSize: 12, color: c.textMuted, marginBottom: 3 },
-  overviewHeadlineVal: { fontSize: 24, fontWeight: '700', color: c.accent },
-  overviewHeadlineSub: { fontSize: 11, color: c.textFaint, marginTop: 3 },
-  overviewStats: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
-  overviewStat: { flex: 1, alignItems: 'center' },
-  overviewStatVal: { fontSize: 17, fontWeight: '700', color: c.text },
-  overviewStatLabel: { fontSize: 11, color: c.textMuted, marginTop: 2, textAlign: 'center' },
-  overviewStatDiv: { width: 0.5, height: 34, backgroundColor: c.border },
-  deltaRow: { marginTop: 14, backgroundColor: c.card2, borderRadius: 10, padding: 10 },
-  deltaText: { fontSize: 12, color: c.text, fontWeight: '500' },
-  results: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 20, ...c.shadowSoft },
-  resultsTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.5, marginBottom: 12 },
-  resultsHint: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 8 },
-  resRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  resLabel: { fontSize: 13, color: c.textMuted },
-  resVal: { fontSize: 14, fontWeight: '600', color: c.text },
-  resHeadline: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
-  resHeadlineLabel: { fontSize: 12, color: c.textMuted, marginBottom: 3 },
-  resHeadlineVal: { fontSize: 22, fontWeight: '700', color: c.accent },
-  resHeadlineSub: { fontSize: 11, color: c.textFaint, marginTop: 3 },
-  estimateNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 14 },
-  premCard: { backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 16, ...c.shadowSoft },
-  premTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 4 },
-  premSub: { fontSize: 12, color: c.textMuted, lineHeight: 17, marginBottom: 4 },
-  computeBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
-  computeBtnDisabled: { opacity: 0.4 },
-  computeBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  rcResult: { marginTop: 16, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
-  rcHeadline: { fontSize: 16, fontWeight: '700', color: c.accent, lineHeight: 22 },
-  rcVs: { fontSize: 13, color: c.textMuted, marginTop: 4 },
-  rcWhyTitle: { fontSize: 12, fontWeight: '700', color: c.textFaint, letterSpacing: 0.4, marginTop: 16, marginBottom: 8 },
-  rcWhy: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 4 },
-  rcNote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 12 },
-  rcDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginTop: 4 },
-  rcDateArrow: { fontSize: 22, fontWeight: '600', color: c.accent, paddingHorizontal: 6 },
-  rcDateOff: { opacity: 0.3 },
-  rcDateText: { fontSize: 14, fontWeight: '700', color: c.text, minWidth: 130, textAlign: 'center' },
-  rcGuard: { fontSize: 13, color: c.textMuted, lineHeight: 19 },
-  // Phase-2 "tracking" banner + reset/next links
-  rcTracking: { backgroundColor: c.accentSoft, borderRadius: 12, padding: 12, marginTop: 8, marginBottom: 4 },
-  rcTrackingLine: { fontSize: 15, fontWeight: '700', color: c.accentSoftText },
-  rcTrackingSub: { fontSize: 12, color: c.accentSoftText, opacity: 0.85, marginTop: 3 },
-  rcUseLog: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
-  rcUseLogText: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
-  rcUseLogNote: { fontSize: 10.5, color: c.textFaint, marginTop: 5, lineHeight: 14 },
-  rcStop: { alignItems: 'center', paddingVertical: 12, marginTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
-  rcStopText: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },
-  rcReset: { alignItems: 'center', paddingVertical: 10, marginTop: 8 },
-  rcResetText: { fontSize: 13, color: c.textMuted, fontWeight: '600' },
-  locked: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
-  lockedText: { fontSize: 13, color: c.textMuted, marginBottom: 12 },
-  lockedBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
-  lockedBtnText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  // Target card (build 56)
-  inputLabelSm: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginTop: 12, marginBottom: 6 },
-  tgtHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tgtEdit: { fontSize: 13, fontWeight: '600', color: c.accent },
-  tgtBtnRow: { flexDirection: 'row', gap: 10, marginTop: 16, alignItems: 'center' },
-  tgtBtnGhost: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, borderWidth: 0.5, borderColor: c.border },
-  tgtGhostText: { color: c.textMuted, fontSize: 14, fontWeight: '600' },
-  tgtRemove: { color: c.danger || c.warning, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 14 },
-  tgtClearDate: { color: c.accent, fontSize: 12, fontWeight: '600', marginTop: 6 },
-  tgtMetric: { marginTop: 12, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
-  tgtMetricHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  tgtMetricLabel: { fontSize: 13, fontWeight: '700', color: c.text },
-  tgtMetricNums: { fontSize: 15, fontWeight: '700', color: c.accent, fontVariant: ['tabular-nums'] },
-  tgtBar: { height: 8, borderRadius: 4, backgroundColor: c.border, marginTop: 10, overflow: 'hidden' },
-  tgtBarFill: { height: 8, borderRadius: 4, backgroundColor: c.accent },
-  tgtEta: { fontSize: 14, fontWeight: '700', color: c.text, marginTop: 8 },
-  tgtReached: { fontSize: 14, fontWeight: '700', color: c.success || c.accent, marginTop: 8 },
-  tgtAway: { fontSize: 13, color: c.warning, marginTop: 8, lineHeight: 18 },
-  tgtNoRate: { fontSize: 13, color: c.textMuted, marginTop: 8, lineHeight: 18 },
-  tgtBasis: { fontSize: 11, color: c.textMuted, marginTop: 4 },
-  tgtFact: { fontSize: 11, color: c.textMuted, marginTop: 4, lineHeight: 15 },
-  tgtLockedEta: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 8, lineHeight: 18 },
-  tgtBackfillLink: { fontSize: 13, fontWeight: '600', color: c.accent, marginTop: 14 },
-  bfForm: { marginTop: 8, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: c.border },
-  srcRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 8, ...c.shadowSoft },
-  srcText: { flex: 1 },
-  srcTopic: { fontSize: 13, fontWeight: '600', color: c.text },
-  srcCite: { fontSize: 11, color: c.textMuted, marginTop: 2 },
-  srcArrow: { fontSize: 16, color: c.accent, marginLeft: 10 },
-  sbReality: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginTop: 12, ...c.shadowSoft },
-  sbRealityMain: { flex: 1 },
-  sbRealityLabel: { fontSize: 12, fontWeight: '600', color: c.textFaint, letterSpacing: 0.3, marginBottom: 4 },
-  sbRealityVal: { fontSize: 18, fontWeight: '700', color: c.accent },
-  sbRealityMuted: { fontSize: 14, fontWeight: '600', color: c.textFaint },
-  sbRealityRight: { alignItems: 'flex-end', marginLeft: 10 },
-  sbRealityRate: { fontSize: 13, fontWeight: '700', color: c.text, marginBottom: 2 },
-  sbArrow: { fontSize: 18, color: c.textFaint },
-  sbActions: { flexDirection: 'row', marginTop: 10 },
-  sbActionBtn: { flex: 1, backgroundColor: c.card, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 0.5, borderColor: c.border },
-  sbActionText: { fontSize: 13, fontWeight: '600', color: c.accent },
-  rcRate: { fontSize: 14, fontWeight: '600', color: c.text, marginTop: 6 },
-  rcLog: { marginTop: 18, paddingTop: 14, borderTopWidth: 0.5, borderTopColor: c.border },
-  rcLogRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  rcLogDate: { fontSize: 13, color: c.textMuted, flex: 1 },
-  rcLogRate: { fontSize: 13, fontWeight: '700', color: c.text, flex: 1, textAlign: 'center' },
-  rcLogTdee: { fontSize: 12, color: c.textFaint, flex: 1, textAlign: 'right' },
-  rcLocked: { marginTop: 8 },
-  rcLockedIntro: { fontSize: 13, color: c.textMuted, lineHeight: 20 },
-  rcLockedLead: { fontSize: 13, fontWeight: '600', color: c.text, marginTop: 12, marginBottom: 6 },
-  rcLockedItem: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
-  rcLockedPayoff: { fontSize: 13, color: c.text, lineHeight: 20, marginTop: 12, marginBottom: 16 },
-  learn: {},
-  explCard: { backgroundColor: c.card, borderRadius: 16, marginBottom: 8, overflow: 'hidden', ...c.shadowSoft },
-  explHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
-  explTitle: { flex: 1, fontSize: 13, fontWeight: '600', color: c.text, marginRight: 10 },
-  explChevron: { fontSize: 11, color: c.textFaint },
-  explBody: { fontSize: 13, color: c.textMuted, lineHeight: 20, paddingHorizontal: 14, paddingBottom: 14 },
+  scroll: { flex: 1 },
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 60, gap: 12 },
+  grow: { flex: 1, minWidth: 0 },
+  gap2: { gap: 2 },
+  gap4: { gap: 4 },
+  gap6: { gap: 6 },
+  mt6: { marginTop: 6 },
+  card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+  rowC: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+  sep: { height: 1, backgroundColor: c.line },
+  // type roles (DESIGN.md §3; Geist is applied automatically from 22 pt)
+  title: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: c.ink, letterSpacing: -0.2 },
+  head: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+  body: { fontSize: 17, lineHeight: 22, color: c.ink },
+  bodyMuted: { fontSize: 17, lineHeight: 22, color: c.ink3 },
+  sec: { fontSize: 15, lineHeight: 20, color: c.ink },
+  sec2: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  foot2: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  cap2: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
+  inkText: { color: c.ink },
+  ink2Text: { color: c.ink2 },
+  val: { fontFamily: MONO['500'], fontSize: 17, lineHeight: 22, color: c.ink, fontVariant: ['tabular-nums'] },
+  val15: { fontFamily: MONO['500'], fontSize: 15, lineHeight: 20, color: c.ink, fontVariant: ['tabular-nums'] },
+  mono: { fontFamily: MONO['500'], color: c.ink, fontVariant: ['tabular-nums'] },
+  tnote: { fontSize: 13, lineHeight: 18, color: c.attention },
+  // hero (prototype heroCard): two 56 pt numbers, units in mono
+  heroPair: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 18 },
+  heroCol: { flexGrow: 1, flexBasis: 140, minWidth: 0, gap: 6 },
+  heroColStack: { flexBasis: '100%' }, // side-by-side numbers stack from ~130% text size
+  display: { fontSize: 56, lineHeight: 62, fontWeight: '500', color: c.ink, letterSpacing: -1.6, fontVariant: ['tabular-nums'] },
+  unit: { fontFamily: MONO['400'], fontSize: 13, fontWeight: '400', color: c.ink3, letterSpacing: 0 },
+  chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, justifyContent: 'center' },
+  chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
+  chipMeas: { borderColor: c.data },
+  chipMeasText: { color: c.data },
+  // target
+  tgtBlock: { gap: 10 },
+  tgtMetric: { gap: 8 },
+  scaleLab: { fontFamily: MONO['400'], fontSize: 12, color: c.ink3, fontVariant: ['tabular-nums'] },
+  scaleLabEnd: { color: c.ink },
+  // daily plan
+  goals: { flexDirection: 'row', gap: 8 },
+  goal: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.line, borderRadius: 14, padding: 10, gap: 2 },
+  goalOn: { borderWidth: 1.5, borderColor: c.ink, padding: 9.5 },
+  cell: { backgroundColor: c.well, borderRadius: 14, padding: 12, gap: 3 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chipBox: { borderWidth: 1, borderColor: c.line, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 },
+  warnbox: { borderWidth: 1, borderColor: c.attention, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  warnText: { fontSize: 15, lineHeight: 20, color: c.ink },
+  foldRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 4 },
+  foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  // inputs
+  segw: { flexDirection: 'row', alignSelf: 'flex-start', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well },
+  segOpt: { minHeight: 42, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', borderWidth: 1, borderColor: c.well },
+  segOptOn: { backgroundColor: c.raised, borderColor: c.line },
+  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
+  segTextOn: { color: c.ink, fontWeight: '700' },
+  fieldRow: { flexDirection: 'row', gap: 12 },
+  fld: { gap: 6 },
+  fldHalf: { flex: 1, minWidth: 0, gap: 6 },
+  fieldLab: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink },
+  inputLocked: { backgroundColor: c.well, color: c.ink2 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: { alignSelf: 'flex-start', minHeight: 36, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5, paddingVertical: 6.5 },
+  pillText: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  pillTextOn: { color: c.ink, fontWeight: '600' },
+  actlist: { borderWidth: 1, borderColor: c.line, borderRadius: 16, overflow: 'hidden' },
+  actRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 2, borderColor: c.raised, borderRadius: 16 },
+  actRowOn: { borderColor: c.ink },
+  actSep: { height: 1, backgroundColor: c.line, marginHorizontal: 14 },
+  actSepHidden: { backgroundColor: c.raised },
+  // actions
+  btnP: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 10 },
+  btnPText: { color: c.onAct, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  btnO: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 10 },
+  btnOText: { color: c.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  // disabled = well, ink3, dashed line border (readable, clearly inactive)
+  btnOff: { backgroundColor: c.well, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line },
+  btnOffText: { color: c.ink3 },
+  savedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  linkU: { fontSize: 17, lineHeight: 22, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  linkSm: { fontSize: 13, lineHeight: 18 },
+  linkRisk: { fontSize: 17, lineHeight: 22, color: c.risk, textDecorationLine: 'underline', textDecorationColor: c.risk },
+  linkHit: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  linkHitSm: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },
+  linkRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 24 },
+  otag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 3, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
+  // reality check
+  panel: { gap: 12 },
+  stepper: { flexDirection: 'row', alignItems: 'center', minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised },
+  stepBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
+  stepOff: { opacity: 0.35 },
+  stepVal: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  result: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 14, gap: 10 },
+  logRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, paddingBottom: 2 },
+  rcLocked: { gap: 12 },
+  // weigh-ins history (prototype .hist)
+  histHead: { flexDirection: 'row', paddingBottom: 6 },
+  histRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: c.line },
+  histDate: { flex: 1.1, minWidth: 0 },
+  histCell: { flex: 1, minWidth: 0, textAlign: 'right' },
+  datebtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.well },
+  dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
+  dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
+  // footer
+  disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  listHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60 },
+  listItem: { borderTopWidth: 1, borderTopColor: c.line },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+  listBody: { paddingBottom: 14 },
+  srcRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
+  // sheets (prototype .scrim.bot / .sheet.bsheet)
+  scrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
+  sheet: { backgroundColor: c.raised, borderRadius: 26, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', maxHeight: '100%', overflow: 'hidden' },
+  sheetBody: { padding: 20, gap: 14 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  sheetSide: { minWidth: 64, minHeight: 44, justifyContent: 'center' },
+  sheetSideEnd: { alignItems: 'flex-end' },
+  sheetTitle: { flex: 1, textAlign: 'center', fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+  txtBtn: { fontSize: 17, color: c.ink },
+  txtBtnStrong: { fontSize: 17, fontWeight: '600', color: c.ink },
+  txtOff: { color: c.ink3 },
 });
