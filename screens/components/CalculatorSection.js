@@ -20,6 +20,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
 import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
+import { profileBodyInputs } from '../../lib/bodyProfile';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
@@ -103,6 +104,7 @@ export default function CalculatorSection({ header = null }) {
   // default — we gate on this and prompt the user to complete their profile.
   const [profileSex, setProfileSex] = useState(null);
   const [age, setAge] = useState('');
+  const [ageFromProfile, setAgeFromProfile] = useState(false); // S-04: age follows the profile birth year
   const [height, setHeight] = useState('');
   const [activity, setActivity] = useState(1.375);
   const [goal, setGoal] = useState('lose');
@@ -212,22 +214,23 @@ export default function CalculatorSection({ header = null }) {
       setTarget(getCalcTarget(uid));
     }
 
+    // S-04 / FX-10: the PROFILE is the only source for sex and age — applied on every
+    // focus so a change in Settings reaches the BMR; saved calculator values are used
+    // only while the profile has none.
+    {
+      const savedForBody = await getCalcInputs().catch(() => null);
+      const body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
+      setSex(body.sex);
+      setProfileSex(body.profileSex);
+      setAgeFromProfile(body.ageFromProfile);
+      if (body.ageFromProfile || !loadedRef.current) setAge(body.age);
+    }
     if (loadedRef.current) return;
     // ── one-time seeding (open weigh-in + profile defaults + saved calc inputs) ──
     // Cloud-backed (survives a wipe / re-auth); restores from user_metadata if the
     // local cache was cleared. See lib/realityCheck.js.
     const rcs = await getRealityStart();
     if (rcs) setRcStart(rcs);
-    // Seed physiological defaults from the profile so BMR is sensitive to the
-    // user's stored sex (assigned at birth) and age. Explicit calculator inputs
-    // saved below still win over these.
-    const meta = user?.user_metadata || {};
-    if (meta.gender === 'male' || meta.gender === 'female') { setSex(meta.gender); setProfileSex(meta.gender); }
-    if (meta.birth_year) {
-      const yrs = new Date().getFullYear() - Number(meta.birth_year);
-      if (yrs > 0 && yrs < 120) setAge(String(yrs));
-    }
-
     // Synced calc_inputs table (S-03); the old metadata only before migration.
     const saved = await getCalcInputs().catch(() => null);
     if (saved && typeof saved === 'object') {
@@ -235,8 +238,6 @@ export default function CalculatorSection({ header = null }) {
       if (saved.weight != null) setWeight(String(saved.weight));
       if (saved.bfSource) setBfSource(saved.bfSource);
       if (saved.bodyFat != null) setBodyFat(String(saved.bodyFat));
-      if (saved.sex) setSex(saved.sex);
-      if (saved.age != null) setAge(String(saved.age));
       if (saved.height != null) setHeight(String(saved.height));
       if (saved.activity != null) setActivity(saved.activity);
       if (saved.goal) setGoal(saved.goal);
@@ -892,7 +893,7 @@ export default function CalculatorSection({ header = null }) {
             <View style={s.row}>
               <View style={s.rowCol}>
                 <Text style={s.fieldLab}>{t('cal_age')}</Text>
-                <TextInput style={s.input} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                <TextInput style={s.input} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
               </View>
               <View style={s.rowCol}>
                 <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
