@@ -150,7 +150,6 @@ export default function TodayScreen() {
   const [rcStart, setRcStart] = useState(null); // open reality-check weigh-in → an alert
   const [latestLabDate, setLatestLabDate] = useState(null); // most recent bloodwork report_date
   const [alertSnooze, setAlertSnooze] = useState({}); // { alertId: untilTimestamp } — dismissed derived alerts
-  const [showShareCard, setShowShareCard] = useState(false);
   const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
   const pendingFxRef = useRef(new Set()); // deferred follow-ups of recent takes (see markTaken)
   // Site questions wait their turn (S-25): one picker at a time, and never together with
@@ -1880,29 +1879,6 @@ const legacyStyles = (c) => ({
   alertBody: { fontSize: 13, color: c.textMuted, marginTop: 1 },
   alertBodyDue: { color: c.warningSoftText, fontWeight: '600' },
   alertDelete: { paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' },
-  shareToggle: { alignSelf: 'center', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: c.accentSoft, borderRadius: 20 },
-  shareToggleText: { fontSize: 12, color: c.accent, fontWeight: '600' },
-  shareCard: { marginHorizontal: 16, marginBottom: 16 },
-  shareCardInner: { backgroundColor: '#0F172A', borderRadius: 20, padding: 24, alignItems: 'center' },
-  shareEmoji: { fontSize: 40, marginBottom: 8 },
-  shareTitle: { fontSize: 24, fontWeight: '700', color: '#fff', marginBottom: 4 },
-  shareSubtitle: { fontSize: 13, color: '#94A3B8', marginBottom: 20 },
-  shareStats: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 8, width: '100%', marginBottom: 20 },
-  shareStat: { flex: 1, alignItems: 'center' },
-  shareStatVal: { fontSize: 22, fontWeight: '700', color: '#fff' },
-  shareStatLbl: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
-  shareStatDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.12)' },
-  shareDots: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 20 },
-  shareDotCol: { alignItems: 'center', gap: 4 },
-  shareDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
-  shareDotComplete: { backgroundColor: '#22C55E' },
-  shareDotPartial: { backgroundColor: '#F59E0B' },
-  shareDotRest: { backgroundColor: 'rgba(255,255,255,0.18)' },
-  shareDotLabel: { fontSize: 9, color: '#64748B', fontWeight: '500' },
-  shareBrand: { alignItems: 'center', marginBottom: 8 },
-  shareBrandText: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
-  shareBrandSub: { fontSize: 10, color: '#64748B', marginTop: 2 },
-  shareDisclaimer: { fontSize: 8, color: '#475569', textAlign: 'center' },
   progressRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 18, marginBottom: 16 },
   ringCard: { flex: 1.1, backgroundColor: c.card, borderRadius: 20, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, ...c.shadowCard },
   ringText: { flexDirection: 'column' },
