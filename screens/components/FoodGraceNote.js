@@ -50,9 +50,11 @@ export default function FoodGraceNote({ rcStart, until, reason, freeFrom, rows, 
   );
 }
 
+// Graduated (prototype .grace): a plain raised card, the note in footnote ink2, and a
+// secondary (well) capsule — the screen's one ink action stays its own.
 const makeStyles = (c) => StyleSheet.create({
-  card: { backgroundColor: c.card, borderRadius: 14, padding: 13, borderWidth: 1, borderColor: c.border },
-  text: { fontSize: 13, color: c.text, lineHeight: 19 },
-  btn: { alignSelf: 'flex-start', backgroundColor: c.accent, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
-  btnText: { color: c.accentText, fontWeight: '700', fontSize: 13 },
+  card: { backgroundColor: c.raised, borderRadius: 22, padding: 16, gap: 10 },
+  text: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  btn: { alignSelf: 'flex-start', minHeight: 44, borderRadius: 22, backgroundColor: c.well, paddingHorizontal: 18, justifyContent: 'center' },
+  btnText: { color: c.ink, fontWeight: '700', fontSize: 15 },
 });

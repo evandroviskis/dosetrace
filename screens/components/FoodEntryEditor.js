@@ -9,10 +9,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
+import { MONO } from '../../lib/fonts';
 import { requestSync } from '../../lib/sync';
 import { updateFoodLog, deleteFoodLog } from '../../lib/database';
 import { CATEGORIES, itemLabel } from '../../lib/nutrition';
@@ -75,29 +77,43 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
 
   return (
     <Modal visible={!!row} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={s.wrap}>
-        <View style={s.card}>
-          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" style={{ maxHeight: 520 }}>
-            <Text style={s.title}>{t('nutri_edit_title')}</Text>
+      {/* A bottom sheet (prototype foodEditor / FC-edit): Cancel · title · Save, the day,
+          then each item with its numbers and category, and Remove entry. */}
+      <KeyboardAvoidingView style={s.scrim} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.sheet}>
+          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
+            <View style={s.head}>
+              <TouchableOpacity onPress={onClose} style={s.side} accessibilityRole="button">
+                <Text style={s.txtBtn}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <Text style={s.title} numberOfLines={2}>{t('nutri_edit_title')}</Text>
+              <TouchableOpacity onPress={save} style={[s.side, s.sideEnd]} accessibilityRole="button">
+                <Text style={s.txtBtnStrong}>{t('nutri_save')}</Text>
+              </TouchableOpacity>
+            </View>
             {date && (
-              <View style={s.dateRow}>
-                <TouchableOpacity onPress={() => shiftDate(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
-                  <Text style={s.dateArrow}>‹</Text>
+              <View style={s.stepper}>
+                <TouchableOpacity style={s.stepBtn} onPress={() => shiftDate(-1)} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
+                  <Chev dir="left" color={colors.ink} />
                 </TouchableOpacity>
-                <Text style={s.dateText}>{dayLabel(date)}</Text>
-                <TouchableOpacity onPress={() => shiftDate(1)} disabled={date >= today} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
-                  <Text style={[s.dateArrow, date >= today && { opacity: 0.3 }]}>›</Text>
+                <Text style={s.stepVal}>{dayLabel(date)}</Text>
+                <TouchableOpacity style={[s.stepBtn, date >= today && s.stepOff]} onPress={() => shiftDate(1)} disabled={date >= today} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
+                  <Chev dir="right" color={colors.ink} />
                 </TouchableOpacity>
               </View>
             )}
             {items.map((it, i) => (
               <View key={i} style={s.item}>
-                <Text style={s.food} numberOfLines={1}>{itemLabel(it)}</Text>
+                <View style={s.itemHead}>
+                  <Text style={s.food} numberOfLines={1}>{itemLabel(it)}</Text>
+                  <TouchableOpacity style={s.del} onPress={() => removeItem(i)} accessibilityRole="button" accessibilityLabel={t('nutri_delete')}>
+                    <CrossMark size={16} color={colors.ink2} />
+                  </TouchableOpacity>
+                </View>
                 <View style={s.fields}>
                   <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} />
                   <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} />
-                  <TouchableOpacity style={s.del} onPress={() => removeItem(i)} accessibilityRole="button" accessibilityLabel={t('nutri_delete')}><CrossMark style={s.delX} /></TouchableOpacity>
                 </View>
                 <View style={s.cats}>
                   {CATEGORIES.map((c) => {
@@ -111,14 +127,12 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
                 </View>
               </View>
             ))}
+            <TouchableOpacity style={s.danger} onPress={remove} accessibilityRole="button">
+              <Text style={s.dangerText}>{t('nutri_delete_entry')}</Text>
+            </TouchableOpacity>
           </ScrollView>
-          <TouchableOpacity style={s.save} onPress={save}><Text style={s.saveText}>{t('nutri_save')}</Text></TouchableOpacity>
-          <View style={s.foot}>
-            <TouchableOpacity onPress={onClose}><Text style={s.cancel}>{t('cancel')}</Text></TouchableOpacity>
-            <TouchableOpacity onPress={remove}><Text style={s.delete}>{t('nutri_delete_entry')}</Text></TouchableOpacity>
-          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -126,41 +140,57 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
 function EditNum({ s, colors, label, value, onChange }) {
   return (
     <View style={s.num}>
+      <Text style={s.numLabel}>{label}</Text>
       <TextInput
         style={s.input}
         value={value == null ? '' : String(Math.round(Number(value) || 0))}
         onChangeText={onChange}
         keyboardType="number-pad"
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.ink3}
+        accessibilityLabel={label}
       />
-      <Text style={s.numLabel}>{label}</Text>
     </View>
   );
 }
 
+const CHEV_PATHS = { left: 'M10 3l-5 5 5 5', right: 'M6 3l5 5-5 5' };
+function Chev({ dir, color }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 16 16">
+      <Path d={CHEV_PATHS[dir]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// Graduated (prototype .sheet.bsheet / .stepper / .feitem / .fe3 / .winp / .pill / .dangerbtn).
 const makeStyles = (c) => StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
-  card: { backgroundColor: c.card, borderRadius: 18, padding: 16, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  title: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 12 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 10 },
-  dateArrow: { fontSize: 22, fontWeight: '600', color: c.accent, paddingHorizontal: 6 },
-  dateText: { fontSize: 14, fontWeight: '700', color: c.text, minWidth: 120, textAlign: 'center' },
-  item: { marginBottom: 12 },
-  food: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },
-  fields: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  num: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
-  input: { flex: 1, backgroundColor: c.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border, textAlign: 'center' },
-  numLabel: { fontSize: 10, fontWeight: '700', color: c.textFaint },
-  del: { padding: 6 },
-  delX: { fontSize: 14, color: c.textFaint },
-  cats: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
-  cat: { borderRadius: 12, borderWidth: 0.5, borderColor: c.border, backgroundColor: c.bg, paddingHorizontal: 9, paddingVertical: 4 },
-  catOn: { backgroundColor: c.accent, borderColor: c.accent },
-  catText: { fontSize: 11.5, fontWeight: '600', color: c.textMuted },
-  catTextOn: { color: c.accentText },
-  save: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 6 },
-  saveText: { color: c.accentText, fontWeight: '700', fontSize: 14 },
-  foot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  cancel: { fontSize: 13, fontWeight: '600', color: c.textMuted },
-  delete: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },
+  scrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
+  sheet: { backgroundColor: c.raised, borderRadius: 26, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', maxHeight: '100%', overflow: 'hidden' },
+  body: { padding: 20, gap: 14 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  side: { minWidth: 64, minHeight: 44, justifyContent: 'center' },
+  sideEnd: { alignItems: 'flex-end' },
+  title: { flex: 1, textAlign: 'center', fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+  txtBtn: { fontSize: 17, color: c.ink },
+  txtBtnStrong: { fontSize: 17, fontWeight: '600', color: c.ink },
+  stepper: { flexDirection: 'row', alignItems: 'center', minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised },
+  stepBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
+  stepOff: { opacity: 0.35 },
+  stepVal: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
+  item: { gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line },
+  itemHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  food: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
+  del: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  fields: { flexDirection: 'row', gap: 8 },
+  num: { flex: 1, minWidth: 0, gap: 6 },
+  numLabel: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 12, paddingVertical: 12, fontSize: 17, color: c.ink, fontFamily: MONO['500'] },
+  cats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  cat: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  catOn: { borderWidth: 1.5, borderColor: c.ink, paddingHorizontal: 13.5 },
+  catText: { fontSize: 13, color: c.ink2 },
+  catTextOn: { color: c.ink, fontWeight: '600' },
+  danger: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
+  dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
 });
+

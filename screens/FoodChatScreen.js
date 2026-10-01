@@ -15,7 +15,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, FlatList,
-  KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform,
+  KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -25,6 +25,7 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import { MONO } from '../lib/fonts';
 import { requestSync, isOnlineNow } from '../lib/sync';
 import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
@@ -39,6 +40,7 @@ import { localISO, localDaysAgoISO } from '../lib/localDate';
 import { syncFoodLogReminder, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
+import { FoodDemo } from './components/NutritionLogger';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // Per-device conveniences (not user data): today's asked questions (+ the one on
@@ -75,6 +77,7 @@ export default function FoodChatScreen() {
   const [screenReader, setScreenReader] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [consentOpen, setConsentOpen] = useState(false);
+  const [showDemo, setShowDemo] = useState(false); // "See how it works" sheet
   const [loaded, setLoaded] = useState(false);
   const inputRef = useRef(null);
   const askedRef = useRef({ day: null, ids: [], current: null });
@@ -174,7 +177,7 @@ export default function FoodChatScreen() {
 
   // ── Clock, keyboard, screen reader, app state, auto-close (FL-32/36/40) ──
   const guardRef = useRef({});
-  guardRef.current = { text, sending: busy, followupBusy: fuBusy, modalOpen: !!editRow || consentOpen, alertOpen, screenReader, keyboardVisible };
+  guardRef.current = { text, sending: busy, followupBusy: fuBusy, modalOpen: !!editRow || consentOpen || showDemo, alertOpen, screenReader, keyboardVisible };
   useEffect(() => {
     const tick = setInterval(() => {
       setNow(Date.now()); // a midnight crossing re-dates the thread (divider)
@@ -420,12 +423,18 @@ export default function FoodChatScreen() {
   const inTrial = access && access.mode === 'trial';
   const freeLeft = inTrial && access.freeDaysLeft != null ? access.freeDaysLeft : 0;
 
-  // ── Bubbles ────────────────────────────────────────────────────
+  // ── Bubbles (Graduated, prototype chatScreen: .bub.app / .bub.user / .entry / .deflect) ──
   const AppBubble = ({ children, style }) => <View style={[s.app, style]}>{children}</View>;
-  const doneChip = (day) => (
-    <TouchableOpacity style={s.chip} onPress={() => closeDay(day)} accessibilityRole="button">
-      <Text style={s.chipText}>{t('nutri_day_done_btn')}</Text>
+  // A short answer chip (prototype .pill); `on` = the suggested one (ink outline).
+  const Pill = ({ label, onPress, on, disabled }) => (
+    <TouchableOpacity style={[s.pill, on && s.pillOn]} onPress={onPress} disabled={disabled} accessibilityRole="button">
+      <Text style={[s.pillText, on && s.pillTextOn]} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
+  );
+  const doneChip = (day) => (
+    <View style={s.chips}>
+      <Pill label={t('nutri_day_done_btn')} onPress={() => closeDay(day)} />
+    </View>
   );
 
   function renderItem({ item: x }) {
@@ -433,23 +442,32 @@ export default function FoodChatScreen() {
       case 'divider':
         return <View style={s.divider}><View style={s.divLine} /><Text style={s.divText}>{dayLabel(x.day)}</Text><View style={s.divLine} /></View>;
       case 'intro':
-        return <AppBubble><Text style={s.appText}>{t('nutri_intro')}</Text></AppBubble>;
+        return (
+          <View style={s.introWrap}>
+            <AppBubble><Text style={s.appText}>{t('nutri_intro')}</Text></AppBubble>
+            {/* "See how it works" sits under the first message (journey-dashboard #20). */}
+            <TouchableOpacity style={s.seeHow} onPress={() => { touch(); setShowDemo(true); }} accessibilityRole="button">
+              <FeatureIcon name="ai_spark" size={15} color={colors.ink} />
+              <Text style={s.seeHowText}>{t('nutri_how')}</Text>
+            </TouchableOpacity>
+          </View>
+        );
       case 'user':
         return (
           <TouchableOpacity activeOpacity={x.status === 'done' || x.status === 'too_old' ? 1 : 0.7} disabled={x.status === 'done' || x.status === 'too_old'} onPress={() => confirmRemove(x.rowId, x.status === 'pending')} style={s.userWrap}>
             <View style={s.user}><Text style={s.userText}>{x.text}</Text></View>
             {/* A row being read right now is not "saved offline" (FL-46). */}
             {x.status === 'pending' && x.rowId !== sendingId && <Text style={s.userNote}>{t(isOnlineNow() === false ? 'nutri_offline_saved' : 'nutri_retry_later')}</Text>}
-            {x.status === 'unparsed' && <Text style={s.userNote}>{t('nutri_unparsed')}</Text>}
+            {x.status === 'unparsed' && <Text style={[s.userNote, s.userNoteWarn]}>{t('nutri_unparsed')}</Text>}
           </TouchableOpacity>
         );
       case 'too_old':
         return (
           <AppBubble>
             <Text style={s.appText}>{t('nutri_too_old')}</Text>
-            <TouchableOpacity style={s.chip} onPress={() => removeRow(x.rowId)} accessibilityRole="button">
-              <Text style={s.chipText}>{t('nutri_delete_entry')}</Text>
-            </TouchableOpacity>
+            <View style={s.chips}>
+              <Pill label={t('nutri_delete_entry')} onPress={() => removeRow(x.rowId)} />
+            </View>
           </AppBubble>
         );
       case 'refused':
@@ -457,9 +475,9 @@ export default function FoodChatScreen() {
           <View style={s.deflect}>
             <Text style={s.deflectTitle}>{t('nutri_deflect_title')}</Text>
             <Text style={s.deflectBody}>{t('nutri_deflect_body')}</Text>
-            <TouchableOpacity style={s.deflectRemove} onPress={() => removeRow(x.rowId)} accessibilityRole="button">
-              <Text style={s.deflectRemoveText}>{t('nutri_delete_entry')}</Text>
-            </TouchableOpacity>
+            <View style={s.chips}>
+              <Pill label={t('nutri_delete_entry')} onPress={() => removeRow(x.rowId)} />
+            </View>
           </View>
         );
       case 'entry':
@@ -469,8 +487,8 @@ export default function FoodChatScreen() {
             {x.items.map((it, i) => (
               <View key={i} style={s.entryItem}>
                 <View style={s.entryRow}>
-                  <Text style={s.entryFood}>{itemLabel(it)} · ~{Math.round(it.kcal || 0)} {t('cal_kcal')}</Text>
-                  {CATEGORIES.includes(it.category) && <Text style={s.catChip}>{t(`nutri_cat_${it.category}`)}</Text>}
+                  <Text style={s.entryFood}>{itemLabel(it)} · <Text style={s.mono}>~{Math.round(it.kcal || 0)}</Text> {t('cal_kcal')}</Text>
+                  {CATEGORIES.includes(it.category) && <Text style={s.catTag}>{t(`nutri_cat_${it.category}`)}</Text>}
                 </View>
                 {needsEstimateFlag(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}
               </View>
@@ -513,9 +531,7 @@ export default function FoodChatScreen() {
               <View style={s.chips}>
                 {x.options.map((o, i) => (
                   // Parser-suggested short answers: plain one-line text, ≤ 40 chars (FL-16).
-                  <TouchableOpacity key={i} style={s.optChip} disabled={fuBusy} onPress={() => answerFollowup(x, String(o).slice(0, 40))}>
-                    <Text style={s.optChipText} numberOfLines={1}>{String(o).slice(0, 40)}</Text>
-                  </TouchableOpacity>
+                  <Pill key={i} label={String(o).slice(0, 40)} disabled={fuBusy} onPress={() => answerFollowup(x, String(o).slice(0, 40))} />
                 ))}
               </View>
             )}
@@ -525,21 +541,19 @@ export default function FoodChatScreen() {
                 value={fuText}
                 onChangeText={(v) => { setFuText(v); touch(); }}
                 placeholder={t('nutri_ask_placeholder')}
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.ink3}
                 editable={!fuBusy}
                 returnKeyType="send"
                 onSubmitEditing={() => answerFollowup(x, fuText)}
                 maxLength={200}
               />
-              <TouchableOpacity style={[s.fuSend, (!fuText.trim() || fuBusy) && s.off]} disabled={!fuText.trim() || fuBusy} onPress={() => answerFollowup(x, fuText)}>
-                <Text style={s.fuSendText}>{t('nutri_ask_send')}</Text>
-              </TouchableOpacity>
+              <Pill label={t('nutri_ask_send')} on={!!fuText.trim() && !fuBusy} disabled={!fuText.trim() || fuBusy} onPress={() => answerFollowup(x, fuText)} />
             </View>
             <View style={s.fuFoot}>
-              <TouchableOpacity onPress={() => skipFollowup(x)} disabled={fuBusy} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => skipFollowup(x)} disabled={fuBusy} style={s.linkHit} accessibilityRole="button">
                 <Text style={s.link}>{t('nutri_ask_skip')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => closeDay(x.entry_date)} disabled={fuBusy} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => closeDay(x.entry_date)} disabled={fuBusy} style={s.linkHit} accessibilityRole="button">
                 <Text style={s.link}>{t('nutri_day_done_btn')}</Text>
               </TouchableOpacity>
             </View>
@@ -559,17 +573,9 @@ export default function FoodChatScreen() {
           <AppBubble>
             <Text style={s.appText}>{q}</Text>
             <View style={s.chips}>
-              <TouchableOpacity style={s.primaryChip} onPress={() => { setEvening(null); setLogDay(w === 'today' ? null : x.day); setTimeout(() => inputRef.current?.focus?.(), 50); }}>
-                <Text style={s.primaryChipText}>{t('notif_food_action_log')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.chip} onPress={() => closeDay(x.day)}>
-                <Text style={s.chipText}>{w === 'today' ? t('notif_food_action_done') : t('nutri_evening_done_day')}</Text>
-              </TouchableOpacity>
-              {w === 'today' && (
-                <TouchableOpacity style={s.chip} onPress={() => setEvening(null)}>
-                  <Text style={s.chipText}>{t('nutri_evening_later')}</Text>
-                </TouchableOpacity>
-              )}
+              <Pill on label={t('notif_food_action_log')} onPress={() => { setEvening(null); setLogDay(w === 'today' ? null : x.day); setTimeout(() => inputRef.current?.focus?.(), 50); }} />
+              <Pill label={w === 'today' ? t('notif_food_action_done') : t('nutri_evening_done_day')} onPress={() => closeDay(x.day)} />
+              {w === 'today' && <Pill label={t('nutri_evening_later')} onPress={() => setEvening(null)} />}
             </View>
           </AppBubble>
         );
@@ -596,7 +602,8 @@ export default function FoodChatScreen() {
       case 'typing':
         return (
           <AppBubble style={s.typing}>
-            <ActivityIndicator size="small" color={colors.textMuted} accessibilityLabel={t('nutri_typing')} />
+            <Text style={s.typingText}>{t('nutri_typing')}</Text>
+            <ActivityIndicator size="small" color={colors.ink3} accessibilityLabel={t('nutri_typing')} />
           </AppBubble>
         );
       default:
@@ -604,28 +611,30 @@ export default function FoodChatScreen() {
     }
   }
 
+  const canSend = !busy && !!text.trim();
+
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={s.header}>
-        <View style={s.grabber} />
-        <View style={s.headRow}>
-          <View style={s.headTitleRow}>
-            <FeatureIcon name="ai_spark" size={16} color={colors.accent} />
-            <Text style={s.headTitle}>{t('nutri_ai_badge')}</Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.goBack()} disabled={busy || fuBusy} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
-            <Text style={[s.headDone, (busy || fuBusy) && s.off]}>{t('done')}</Text>
-          </TouchableOpacity>
+        <View style={s.headTitleRow}>
+          <FeatureIcon name="ai_spark" size={20} color={colors.ink} />
+          <Text style={s.headTitle}>{t('nutri_ai_badge')}</Text>
         </View>
+        <TouchableOpacity onPress={() => navigation.goBack()} disabled={busy || fuBusy} style={s.headDoneHit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+          <Text style={[s.headDone, (busy || fuBusy) && s.headDoneOff]}>{t('done')}</Text>
+        </TouchableOpacity>
       </View>
 
       {gated ? (
         <View style={s.locked}>
-          <Text style={s.lockedTitle}>{t('nutri_locked_title')}</Text>
-          <Text style={s.lockedSub}>{t('nutri_locked_sub')}</Text>
-          <TouchableOpacity style={s.cta} onPress={() => navigation.navigate('Paywall')}>
-            <Text style={s.ctaText}>{t('nutri_locked_cta')}</Text>
-          </TouchableOpacity>
+          <View style={s.lockedCard}>
+            <FeatureIcon name="ai_spark" size={28} color={colors.ink} />
+            <Text style={s.lockedTitle}>{t('nutri_locked_title')}</Text>
+            <Text style={s.lockedSub}>{t('nutri_locked_sub')}</Text>
+            <TouchableOpacity style={s.cta} onPress={() => navigation.navigate('Paywall')} accessibilityRole="button">
+              <Text style={s.ctaText}>{t('nutri_locked_cta')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <KeyboardAvoidingView style={s.flex} behavior="padding" keyboardVerticalOffset={0} onTouchStart={touch}>
@@ -658,12 +667,12 @@ export default function FoodChatScreen() {
                 value={text}
                 onChangeText={(v) => { setText(v); touch(); if (notice && notice.kind === 'earlier') setNotice(null); }}
                 placeholder={t('nutri_input_placeholder')}
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.ink3}
                 multiline
                 editable={!busy}
               />
-              <TouchableOpacity style={[s.send, (busy || !text.trim()) && s.off]} onPress={onSubmit} disabled={busy || !text.trim()} accessibilityRole="button" accessibilityLabel={t('nutri_send')}>
-                {busy ? <ActivityIndicator size="small" color={colors.accentText} /> : <FeatureIcon name="ai_spark" size={18} color={colors.accentText} />}
+              <TouchableOpacity style={[s.send, !canSend && s.sendOff]} onPress={onSubmit} disabled={!canSend} accessibilityRole="button" accessibilityLabel={t('nutri_send')} accessibilityState={{ disabled: !canSend }}>
+                {busy ? <ActivityIndicator size="small" color={colors.ink3} /> : <FeatureIcon name="ai_spark" size={20} color={canSend ? colors.onAct : colors.ink3} />}
               </TouchableOpacity>
             </View>
             <Text style={s.caveat}>{t('nutri_est_note')}{inTrial && freeLeft > 0 ? '  ·  ' + t('nutri_free_note').replace('{n}', String(freeLeft)) : ''}</Text>
@@ -672,71 +681,89 @@ export default function FoodChatScreen() {
       )}
 
       <FoodEntryEditor row={editRow} onClose={() => { setEditRow(null); touch(); }} onSaved={() => refresh(userId)} />
+
+      {/* See how it works (prototype FC-demo): the animated example on a sheet. */}
+      <Modal visible={showDemo} transparent animationType="fade" onRequestClose={() => { setShowDemo(false); touch(); }}>
+        <View style={s.demoScrim}>
+          <View style={s.demoSheet}>
+            <FoodDemo ctaLabel={t('nutri_how_cta')} onCta={() => { setShowDemo(false); touch(); }} />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
+// Graduated (prototype .chatsheet / .chathd / .chatbody / .bub / .entry / .erow / .etot /
+// .unote / .deflect / .typing / .composer2 / .send2 / .chatfoot): the chat sits on the
+// ground; app bubbles are raised, the user's are ink; one ink action (send).
 const makeStyles = (c) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bg },
+  container: { flex: 1, backgroundColor: c.ground },
   flex: { flex: 1 },
-  header: { backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border, paddingBottom: 10 },
-  grabber: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, backgroundColor: c.border, marginTop: 6, marginBottom: 6 },
-  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
-  headTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  headTitle: { fontSize: 16, fontWeight: '700', color: c.text },
-  headDone: { fontSize: 15, fontWeight: '700', color: c.accent },
-  list: { paddingHorizontal: 14, paddingVertical: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 10 },
-  divLine: { flex: 1, height: 0.5, backgroundColor: c.border },
-  divText: { fontSize: 11, fontWeight: '700', color: c.textFaint },
-  app: { alignSelf: 'flex-start', maxWidth: '88%', backgroundColor: c.card, borderRadius: 16, borderBottomLeftRadius: 4, paddingHorizontal: 13, paddingVertical: 10, marginVertical: 4, borderWidth: 0.5, borderColor: c.border },
-  appText: { fontSize: 14.5, color: c.text, lineHeight: 20 },
-  typing: { paddingVertical: 12, paddingHorizontal: 18 },
-  userWrap: { alignSelf: 'flex-end', maxWidth: '85%', marginVertical: 4, alignItems: 'flex-end' },
-  user: { backgroundColor: c.accent, borderRadius: 16, borderBottomRightRadius: 4, paddingHorizontal: 13, paddingVertical: 9 },
-  userText: { fontSize: 14.5, color: c.accentText, lineHeight: 20 },
-  userNote: { fontSize: 11, color: c.textMuted, marginTop: 3, textAlign: 'right' },
-  entry: { alignSelf: 'flex-start', width: '88%', backgroundColor: c.card2, borderRadius: 14, padding: 11, marginVertical: 4, borderWidth: 0.5, borderColor: c.border },
-  entryDay: { fontSize: 11, fontWeight: '700', color: c.textMuted, marginBottom: 4 },
-  entryItem: { paddingVertical: 2 },
-  entryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  entryFood: { fontSize: 13, color: c.text, flex: 1 },
-  catChip: { fontSize: 10, fontWeight: '700', color: c.accentSoftText, backgroundColor: c.accentSoft, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
-  estFlag: { fontSize: 11, fontWeight: '600', color: c.warningSoftText, backgroundColor: c.warningSoft, alignSelf: 'flex-start', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2, overflow: 'hidden' },
-  entryTot: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: c.border, marginTop: 6, paddingTop: 6 },
-  entryTotText: { fontSize: 13, fontWeight: '700', color: c.text },
-  entryMacro: { fontSize: 11.5, fontWeight: '700', color: c.accentSoftText },
-  deflect: { alignSelf: 'flex-start', maxWidth: '88%', backgroundColor: c.warningSoft, borderRadius: 14, padding: 13, marginVertical: 4 },
-  deflectTitle: { fontSize: 13, fontWeight: '700', color: c.warningSoftText, marginBottom: 4 },
-  deflectBody: { fontSize: 12.5, color: c.warningSoftText, lineHeight: 18 },
-  deflectRemove: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 10, borderWidth: 1, borderColor: c.warningSoftText, paddingHorizontal: 12, paddingVertical: 6 },
-  deflectRemoveText: { fontSize: 12.5, fontWeight: '700', color: c.warningSoftText },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  chip: { alignSelf: 'flex-start', backgroundColor: c.card2, borderRadius: 16, borderWidth: 0.5, borderColor: c.border, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
-  chipText: { fontSize: 12.5, fontWeight: '700', color: c.text },
-  primaryChip: { alignSelf: 'flex-start', backgroundColor: c.accent, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
-  primaryChipText: { fontSize: 12.5, fontWeight: '700', color: c.accentText },
-  optChip: { backgroundColor: c.accentSoft, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%' },
-  optChipText: { fontSize: 13, fontWeight: '700', color: c.accentSoftText },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.ground },
+  headTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+  headDoneHit: { minHeight: 44, justifyContent: 'center' },
+  headDone: { fontSize: 17, fontWeight: '600', color: c.ink },
+  headDoneOff: { color: c.ink3 },
+  list: { paddingHorizontal: 16, paddingVertical: 16, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  mono: { fontFamily: MONO['500'], color: c.ink, fontVariant: ['tabular-nums'] },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8 },
+  divLine: { flex: 1, height: 1, backgroundColor: c.line },
+  divText: { fontSize: 12, fontWeight: '500', color: c.ink3 },
+  app: { alignSelf: 'flex-start', maxWidth: '84%', backgroundColor: c.raised, borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 10 },
+  appText: { fontSize: 17, lineHeight: 22, color: c.ink },
+  introWrap: { alignSelf: 'stretch' },
+  seeHow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, marginLeft: 6, marginTop: -4 },
+  seeHowText: { fontSize: 15, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  typing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  typingText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  userWrap: { alignSelf: 'flex-end', maxWidth: '84%', marginVertical: 5, alignItems: 'flex-end' },
+  user: { backgroundColor: c.act, borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 12 },
+  userText: { fontSize: 17, lineHeight: 22, color: c.onAct },
+  userNote: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 4, textAlign: 'right' },
+  userNoteWarn: { color: c.attention },
+  entry: { alignSelf: 'flex-end', width: '88%', backgroundColor: c.raised, borderRadius: 20, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 6 },
+  entryDay: { fontSize: 12, fontWeight: '500', color: c.ink2 },
+  entryItem: { gap: 2 },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  entryFood: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
+  catTag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 2, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
+  estFlag: { fontSize: 13, lineHeight: 18, color: c.attention },
+  entryTot: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, marginTop: 2, gap: 2 },
+  entryTotText: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  entryMacro: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  // The fixed "no diet advice" card: an outline, never a tinted box.
+  deflect: { alignSelf: 'stretch', borderWidth: 1, borderColor: c.line, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 4 },
+  deflectTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+  deflectBody: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  pill: { minHeight: 36, maxWidth: '100%', borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5 },
+  pillText: { fontSize: 13, color: c.ink2 },
+  pillTextOn: { color: c.ink, fontWeight: '600' },
   fu: { width: '88%' },
-  fuField: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  fuInput: { flex: 1, backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border },
-  fuSend: { backgroundColor: c.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
-  fuSendText: { color: c.accentText, fontWeight: '700', fontSize: 13 },
-  fuFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  link: { fontSize: 12.5, fontWeight: '600', color: c.textMuted },
-  off: { opacity: 0.4 },
-  composer: { borderTopWidth: 0.5, borderTopColor: c.border, backgroundColor: c.card, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 },
-  logDayChip: { alignSelf: 'flex-start', backgroundColor: c.accentSoft, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6 },
-  logDayText: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
-  field: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  input: { flex: 1, minHeight: 42, maxHeight: 120, backgroundColor: c.bg, borderRadius: 20, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border },
-  send: { width: 42, height: 42, borderRadius: 21, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  caveat: { fontSize: 10.5, color: c.textFaint, textAlign: 'center', marginTop: 6 },
-  locked: { flex: 1, justifyContent: 'center', padding: 24 },
-  graceNote: { marginHorizontal: 14, marginTop: 10 },
-  lockedTitle: { fontSize: 17, fontWeight: '700', color: c.text, textAlign: 'center' },
-  lockedSub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 19, marginTop: 8, marginBottom: 16 },
-  cta: { backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, alignItems: 'center' },
-  ctaText: { color: c.accentText, fontWeight: '700', fontSize: 14 },
+  fuField: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fuInput: { flex: 1, minHeight: 44, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: c.ink },
+  fuFoot: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  linkHit: { minHeight: 36, justifyContent: 'center' },
+  link: { fontSize: 13, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  composer: { borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.ground, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 },
+  logDayChip: { alignSelf: 'flex-start', minHeight: 36, borderRadius: 18, borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5, justifyContent: 'center', marginBottom: 8 },
+  logDayText: { fontSize: 13, fontWeight: '600', color: c.ink },
+  field: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  input: { flex: 1, minHeight: 46, maxHeight: 120, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 23, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink },
+  send: { width: 46, height: 46, borderRadius: 23, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
+  // Disabled = well + ink3 (readable, clearly inactive), never a faded fill.
+  sendOff: { backgroundColor: c.well },
+  caveat: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2, textAlign: 'center', marginTop: 6, paddingBottom: 4 },
+  locked: { flex: 1, justifyContent: 'center', padding: 16 },
+  lockedCard: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  graceNote: { marginHorizontal: 16, marginTop: 10 },
+  lockedTitle: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: c.ink },
+  lockedSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  cta: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  ctaText: { color: c.onAct, fontWeight: '700', fontSize: 17 },
+  demoScrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 16 },
+  demoSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 });
