@@ -1,15 +1,15 @@
 import { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Line, Circle } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue,
   withTiming, Easing, useReducedMotion,
 } from 'react-native-reanimated';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { fontFamilyFor } from '../lib/fonts';
+import { MONO } from '../lib/fonts';
 import {
-  AnimatedNumber, clamp01, eOutQuad, eInOutSine, eInOutCubic, eOutBack,
+  AnimatedNumber, clamp01, eOutQuad, eInOutSine, eInOutCubic,
   invInOutSine, bumpScale, dropPath,
 } from './motion';
 
@@ -25,6 +25,10 @@ const ACircle = Animated.createAnimatedComponent(Circle);
  * "+5.0" floats up, the number bumps); at the end a dashed line links the rising
  * peaks — accumulation, shown without words. It is a real accumulation model,
  * labelled "Example", never the user's data.
+ *
+ * Graduated look (docs/design/prototype.html HERO, approved 2026-09-30): a plain
+ * raised card, the curve and its estimate fill in `data`, no gradient or glow; the
+ * rising-peaks line is a dashed `ink2` line; the "Example" tag is an outline tag.
  *
  * Everything is derived from ONE timeline clock on the UI thread (no React
  * re-render per frame). Reduce Motion → final state at once. `playKey` makes a
@@ -122,12 +126,8 @@ function curveD(G, c, area) {
   return d;
 }
 
-// Per-dose effects: base tick, lit tick, falling drop, landing pulse.
+// Per-dose effects: dose tick (once the dose has landed), falling drop, landing pulse.
 function DoseFx({ t, G, i, colors }) {
-  const baseTick = useAnimatedProps(() => {
-    const c = frame(G, t.value); const x = c.s * G.peaksX[i] + c.tx;
-    return { x1: x, x2: x, y1: c.s * G.baseY + c.ty, y2: c.s * (G.PT + 4) + c.ty };
-  }, [G, i]);
   const litTick = useAnimatedProps(() => {
     const c = frame(G, t.value); const x = c.s * G.peaksX[i] + c.tx;
     return { x1: x, x2: x, y1: c.s * G.baseY + c.ty, y2: c.s * (G.PT + 4) + c.ty, opacity: t.value >= G.hits[i] ? 0.5 : 0 };
@@ -140,17 +140,16 @@ function DoseFx({ t, G, i, colors }) {
     return { opacity: 1, d: dropPath(tx, -8 + (ty + 8) * k * k, 1) };
   }, [G, i]);
   const pulse = useAnimatedProps(() => {
-    const k = (t.value - G.hits[i]) / 600;
+    const k = (t.value - G.hits[i]) / 700;
     if (k < 0 || k >= 1) return { opacity: 0, r: 4 };
     const c = frame(G, t.value);
     return { opacity: 0.55 * (1 - k), r: (4 + 12 * eOutQuad(k)) * c.s, cx: c.s * G.peaksX[i] + c.tx, cy: c.s * G.peaksY[i] + c.ty };
   }, [G, i]);
   return (
     <>
-      <ALine animatedProps={baseTick} stroke={colors.border} strokeWidth={1} strokeDasharray="2,4" />
-      <ALine animatedProps={litTick} stroke={colors.accent} strokeWidth={1} strokeDasharray="2,4" />
-      <APath animatedProps={drop} fill={colors.accent} />
-      <ACircle animatedProps={pulse} fill="none" stroke={colors.accent} strokeWidth={1.5} />
+      <ALine animatedProps={litTick} stroke={colors.tick} strokeWidth={1} strokeDasharray="2,3" />
+      <APath animatedProps={drop} fill={colors.data} />
+      <ACircle animatedProps={pulse} fill="none" stroke={colors.data} strokeWidth={1.6} />
     </>
   );
 }
@@ -158,11 +157,11 @@ function DoseFx({ t, G, i, colors }) {
 // "+5.0" rising from each landing peak (RN text over the SVG, same coordinates).
 function DoseLabel({ t, G, i, style }) {
   const st = useAnimatedStyle(() => {
-    const k = (t.value - G.hits[i]) / 800;
+    const k = (t.value - G.hits[i]) / 900;
     if (k < 0 || k >= 1) return { opacity: 0 };
     const c = frame(G, t.value);
     return {
-      opacity: k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4,
+      opacity: 1 - k,
       transform: [
         { translateX: c.s * G.peaksX[i] + c.tx + 6 },
         { translateY: c.s * G.peaksY[i] + c.ty - 18 - 12 * eOutQuad(k) },
@@ -190,10 +189,9 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
 
   const cardStyle = useAnimatedStyle(() => {
     const k = clamp01(t.value / ENTER);
-    return { opacity: clamp01(k * 1.6), transform: [{ translateY: 8 * (1 - k) }, { scale: 0.94 + 0.06 * eOutBack(k) }] };
+    return { opacity: clamp01(k * 1.6), transform: [{ translateY: 8 * (1 - k) }] };
   });
   const lineProps = useAnimatedProps(() => ({ d: curveD(G, frame(G, t.value), false) }), [G]);
-  const glowProps = useAnimatedProps(() => ({ d: curveD(G, frame(G, t.value), false) }), [G]);
   const areaProps = useAnimatedProps(() => ({ d: curveD(G, frame(G, t.value), true) }), [G]);
   const baseProps = useAnimatedProps(() => {
     const c = frame(G, t.value);
@@ -203,21 +201,19 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
     const c = frame(G, t.value);
     return { cx: c.s * c.x + c.tx, cy: c.s * c.y + c.ty, opacity: c.el > 0 ? 1 : 0 };
   }, [G]);
+  // Two soft breaths of the pen dot once the curve is drawn (prototype: fin phase only).
   const haloProps = useAnimatedProps(() => {
     const c = frame(G, t.value);
     const pos = { cx: c.s * c.x + c.tx, cy: c.s * c.y + c.ty };
     const fin = (t.value - (PRE + DUR)) / FIN;
-    if (fin >= 0) {
-      if (fin >= 1) return { ...pos, r: 4, opacity: 0 };
-      const ph = (fin * 2) % 1;
-      return { ...pos, r: 4 + 9 * eOutQuad(ph), opacity: 0.3 * (1 - ph) };
-    }
-    return { ...pos, r: 9, opacity: c.el > 0 ? 0.22 : 0 };
+    if (fin < 0 || fin >= 1) return { ...pos, r: 4, opacity: 0 };
+    const ph = (fin * 2) % 1;
+    return { ...pos, r: 4 + 9 * eOutQuad(ph), opacity: 0.3 * (1 - ph) };
   }, [G]);
   const envProps = useAnimatedProps(() => {
     const fin = clamp01((t.value - (PRE + DUR)) / FIN);
     if (fin <= 0) return { opacity: 0, d: 'M 0 0' };
-    let remain = G.envLen * eOutQuad(clamp01(fin / 0.55));
+    let remain = G.envLen * eOutQuad(clamp01(fin / 0.6));
     let d = 'M ' + G.peaksX[0].toFixed(1) + ' ' + G.peaksY[0].toFixed(1);
     for (let k = 1; k < G.peaksX.length && remain > 0; k++) {
       const l = G.segLen[k - 1], f = Math.min(1, remain / l);
@@ -225,7 +221,7 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
         + ' ' + (G.peaksY[k - 1] + (G.peaksY[k] - G.peaksY[k - 1]) * f).toFixed(1);
       remain -= l;
     }
-    return { opacity: 0.55 * clamp01(fin * 4), d };
+    return { opacity: clamp01(fin * 4), d };
   }, [G]);
 
   const value = useDerivedValue(() => { const c = frame(G, t.value); return c.el < 0 ? 0 : c.v; }, [G]);
@@ -234,35 +230,26 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
 
   return (
     <Animated.View style={[s.card, cardStyle]}>
-      <View style={s.header}>
-        <View style={s.labelRow}>
-          <Text style={s.label}>{tr('curve_current_level')}</Text>
-          <View style={s.exampleTag}><Text style={s.exampleTagText}>{tr('ob_hero_tag')}</Text></View>
-        </View>
-        <View style={s.readout}>
-          <Animated.View style={[s.numWrap, numBump]}>
-            <AnimatedNumber value={value} format={fmt} style={s.num} width={64} align="right" />
-          </Animated.View>
-          <Text style={s.unit}> mg</Text>
-        </View>
+      <View style={s.labelRow}>
+        <Text style={s.label}>{tr('curve_current_level')}</Text>
+        <View style={s.exampleTag}><Text style={s.exampleTagText}>{tr('ob_hero_tag')}</Text></View>
+      </View>
+      <View style={s.readout}>
+        <Animated.View style={[s.numWrap, numBump]}>
+          <AnimatedNumber value={value} format={fmt} style={s.num} width={84} align="left" />
+        </Animated.View>
+        <Text style={s.unit}>mg</Text>
       </View>
 
       <View style={{ width, height, overflow: 'hidden' }}>
         <Svg width={width} height={height}>
-          <Defs>
-            <LinearGradient id="accHero" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={colors.accent} stopOpacity={0.22} />
-              <Stop offset="1" stopColor={colors.accent} stopOpacity={0} />
-            </LinearGradient>
-          </Defs>
           {G.peaksX.map((_, i) => <DoseFx key={`fx-${i}`} t={t} G={G} i={i} colors={colors} />)}
-          <ALine animatedProps={baseProps} stroke={colors.border} strokeWidth={1} />
-          <APath animatedProps={areaProps} fill="url(#accHero)" />
-          <APath animatedProps={envProps} fill="none" stroke={colors.accent} strokeWidth={1.5} strokeDasharray="3,4" />
-          <APath animatedProps={glowProps} fill="none" stroke={colors.accent} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" opacity={0.16} />
-          <APath animatedProps={lineProps} fill="none" stroke={colors.accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-          <ACircle animatedProps={haloProps} fill={colors.accent} />
-          <ACircle animatedProps={dotProps} r={4} fill={colors.accent} stroke={colors.card2} strokeWidth={2} />
+          <ALine animatedProps={baseProps} stroke={colors.line} strokeWidth={1} />
+          <APath animatedProps={areaProps} fill={colors.data} fillOpacity={0.12} />
+          <APath animatedProps={envProps} fill="none" stroke={colors.ink2} strokeWidth={1.4} strokeDasharray="4,4" />
+          <APath animatedProps={lineProps} fill="none" stroke={colors.data} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+          <ACircle animatedProps={haloProps} fill={colors.data} />
+          <ACircle animatedProps={dotProps} r={4.5} fill={colors.data} />
         </Svg>
         {G.peaksX.map((_, i) => <DoseLabel key={`lb-${i}`} t={t} G={G} i={i} style={s.floatLabel} />)}
       </View>
@@ -273,18 +260,17 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
 function makeStyles(colors) {
   return StyleSheet.create({
     card: {
-      backgroundColor: colors.card2, borderRadius: 16, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6,
-      borderWidth: 0.5, borderColor: colors.border, overflow: 'hidden',
+      backgroundColor: colors.raised, borderRadius: 24, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 8,
+      overflow: 'hidden', gap: 4,
     },
-    header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
-    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    label: { fontSize: 12.5, fontWeight: '700', color: colors.textMuted },
-    exampleTag: { backgroundColor: colors.card, borderWidth: 0.5, borderColor: colors.border, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
-    exampleTagText: { fontSize: 9.5, fontWeight: '700', color: colors.textFaint },
-    readout: { flexDirection: 'row', alignItems: 'baseline' },
-    numWrap: { transformOrigin: 'right bottom' },
-    num: { fontSize: 26, fontWeight: '700', color: colors.accent, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
-    unit: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
-    floatLabel: { position: 'absolute', left: 0, top: 0, fontSize: 10, fontWeight: '700', fontFamily: fontFamilyFor('800'), color: colors.accent },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2 },
+    label: { fontSize: 12, fontWeight: '500', color: colors.ink2 },
+    exampleTag: { minHeight: 24, borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 9, justifyContent: 'center' },
+    exampleTagText: { fontSize: 12, fontWeight: '600', color: colors.ink2 },
+    readout: { flexDirection: 'row', alignItems: 'baseline', gap: 4, paddingHorizontal: 2 },
+    numWrap: { transformOrigin: 'left bottom' },
+    num: { fontSize: 34, fontWeight: '300', color: colors.data, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+    unit: { fontSize: 13, fontFamily: MONO['400'], color: colors.ink3 },
+    floatLabel: { position: 'absolute', left: 0, top: 0, fontSize: 11, fontFamily: MONO['500'], color: colors.data },
   });
 }

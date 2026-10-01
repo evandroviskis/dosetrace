@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import { getEntitlement } from '../lib/entitlement';
 import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
 import LegalModal from '../components/LegalModal';
 import { Analytics } from '../lib/analytics';
-import CheckMark, { CrossMark } from '../components/CheckMark';
+import CheckMark from '../components/CheckMark';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PAYWALL_VIEWS_KEY = 'dosetrace_paywall_views';
@@ -40,7 +40,10 @@ export default function PaywallScreen({ navigation, route }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
-  const heroW = Math.min(360, winW - 72);
+  // The hero card is the content width (screen gutter 16) — its curve is 28 narrower.
+  const heroW = Math.min(CONTENT_MAX_WIDTH, winW) - 32 - 28;
+  const scrollRef = useRef(null);
+  const plansY = useRef(0);
   // Which entry point sent the user here (serum card, PDF wall, 2nd-upload wall,
   // settings, protocol limit, preview sheet, …) — for per-source conversion.
   const source = route?.params?.source || 'unknown';
@@ -56,6 +59,13 @@ export default function PaywallScreen({ navigation, route }) {
   function openPreview(key) {
     Analytics.previewSheetViewed(key);
     setPreviewKey(key);
+  }
+
+  // "Unlock with Premium" inside a preview: we are already on the paywall, so it
+  // closes the sheet and brings the plans into view (no purchase is started).
+  function unlockFromPreview() {
+    setPreviewKey(null);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, plansY.current - 12), animated: true }), 250);
   }
 
   const FREE_FEATURES = [
@@ -212,234 +222,227 @@ export default function PaywallScreen({ navigation, route }) {
     }
   }
 
+  // Graduated (docs/design/prototype.html paywallScreen, approved 2026-09-30):
+  // hero curve, the 8 feature previews, the plans (selected = ink outline + ink
+  // radio), Lifetime as a secondary action, ONE ink capsule to buy, the store's
+  // billing text, then Restore + Terms of Use (EULA) + Privacy, then the comparison.
+  const renderPlan = (plan, pkg) => {
+    const on = selected === plan;
+    const annual = plan === 'annual';
+    const save = annual ? annualSavingsLabel() : null;
+    return (
+      <TouchableOpacity
+        key={plan}
+        style={[s.plan, on && s.planOn]}
+        onPress={() => setSelected(plan)}
+        activeOpacity={0.8}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: on }}
+      >
+        {annual ? (
+          <View style={s.otag}><Text style={s.otagText}>{t('paywall_best_value')}</Text></View>
+        ) : (
+          <View style={s.otagSpace} />
+        )}
+        <View style={[s.radio, on && s.radioOn]} />
+        <Text style={s.planName}>{t(annual ? 'paywall_annual' : 'paywall_monthly')}</Text>
+        {/* The billed amount is the biggest price on the card; the length sits next to it. */}
+        <Text style={s.planPrice} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{pkg.product.priceString}</Text>
+        <Text style={s.planPer}>{t(annual ? 'paywall_per_year' : 'paywall_per_month')}</Text>
+        {annual ? (
+          <>
+            {save ? <Text style={s.planSave}>{save}</Text> : null}
+            {monthlyEquivalent(pkg) ? (
+              <Text style={s.planFoot}>{`${monthlyEquivalent(pkg)} ${t('paywall_per_month')}`}</Text>
+            ) : null}
+          </>
+        ) : (
+          <Text style={[s.planFoot, s.planFootEnd]}>{t('paywall_billed_monthly')}</Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={s.container}>
       <View style={s.nav}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={s.navBack}>{t('paywall_back')}</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.navSide} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={s.navBack} numberOfLines={1}>{t('paywall_back')}</Text>
         </TouchableOpacity>
-        <Text style={s.navTitle}>{t('paywall_title')}</Text>
-        <View style={{ width: 60 }} />
+        <Text style={s.navTitle} numberOfLines={1}>{t('paywall_title')}</Text>
+        <View style={s.navSide} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
 
         <View style={s.hero}>
           {/* Show the moat, don't describe it: the dose-accumulation curve draws
-              itself at the actual purchase moment. Illustrative Example data only —
-              the user's real curve is computed from their own log once Pro. */}
-          <View style={s.heroCurve}>
-            <AccumulationHero width={heroW} height={140} />
-            <Text style={s.heroExample}>{t('paywall_hero_example')}</Text>
-          </View>
+              itself at the purchase moment. Illustrative Example data only —
+              the user's real curve is computed from their own log once Premium. */}
+          <AccumulationHero width={heroW} height={140} />
           <Text style={s.heroTitle}>{t('paywall_hero_title')}</Text>
-          <Text style={s.heroSub}>
-            {t('paywall_hero_sub')}
-          </Text>
+          <Text style={s.heroSub}>{t('paywall_hero_sub')}</Text>
         </View>
 
-        {/* Tap any feature to SEE it (an Example simulation) before deciding. */}
-        <View style={s.previewSection}>
-          <Text style={s.previewHeading}>{t('pw_preview_heading')}</Text>
-          <Text style={s.previewHint}>{t('pw_preview_hint')}</Text>
-          {PREVIEW_FEATURES.map((f) => (
-            <TouchableOpacity key={f.key} style={s.previewRow} activeOpacity={0.7} onPress={() => openPreview(f.key)}>
-              <View style={s.previewRowIcon}><FeatureIcon name={f.icon} size={20} color={colors.accent} /></View>
-              <Text style={s.previewRowText}>{t(f.titleKey)}</Text>
-              <Text style={s.previewRowArrow}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {loading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator color={colors.accent} />
+        {/* Tap any feature to SEE it (an Example animation) before deciding. */}
+        <View style={s.section}>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionTitle}>{t('pw_preview_heading')}</Text>
+            <Text style={s.sectionSub}>{t('pw_preview_hint')}</Text>
           </View>
-        ) : !hasAnyPackage ? (
-          <View style={s.loadingBox}>
-            <Text style={s.unavailableText}>{t('paywall_unavailable')}</Text>
-          </View>
-        ) : (
-          <>
-            <View style={s.planRow}>
-              {annualPkg && (
-                <TouchableOpacity
-                  style={[s.planCard, selected === 'annual' && s.planCardSelected]}
-                  onPress={() => setSelected('annual')}
-                >
-                  <View style={s.bestValueBadge}>
-                    <Text style={s.bestValueText}>{t('paywall_best_value')}</Text>
-                  </View>
-                  <View style={s.planRadio}>
-                    <View style={[s.planRadioInner, selected === 'annual' && s.planRadioInnerOn]} />
-                  </View>
-                  <Text style={s.planName}>{t('paywall_annual')}</Text>
-                  <Text style={s.planPrice}>{annualPkg.product.priceString}</Text>
-                  <Text style={s.planPer}>{t('paywall_per_year')}</Text>
-                  {annualSavingsLabel() ? (
-                    <View style={s.saveBadge}>
-                      <Text style={s.saveBadgeText}>{annualSavingsLabel()}</Text>
-                    </View>
-                  ) : (
-                    <View style={{ height: 22 }} />
-                  )}
-                  {monthlyEquivalent(annualPkg) && (
-                    <Text style={s.planMonthly}>
-                      {`${monthlyEquivalent(annualPkg)} ${t('paywall_per_month')}`}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              )}
-
-              {monthlyPkg && (
-                <TouchableOpacity
-                  style={[s.planCard, selected === 'monthly' && s.planCardSelected]}
-                  onPress={() => setSelected('monthly')}
-                >
-                  <View style={s.planRadio}>
-                    <View style={[s.planRadioInner, selected === 'monthly' && s.planRadioInnerOn]} />
-                  </View>
-                  <Text style={s.planName}>{t('paywall_monthly')}</Text>
-                  <Text style={s.planPrice}>{monthlyPkg.product.priceString}</Text>
-                  <Text style={s.planPer}>{t('paywall_per_month')}</Text>
-                  <View style={{ height: 22 }} />
-                  <Text style={s.planMonthly}>{t('paywall_billed_monthly')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {lifetimePkg && (
-              <View style={s.lifetimeCard}>
-                <View style={s.lifetimeRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.lifetimeTitle}>{t('paywall_lifetime_title')}</Text>
-                    <Text style={s.lifetimeSub}>{t('paywall_lifetime_sub')}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[s.lifetimeBtn, purchasing && { opacity: 0.6 }]}
-                    onPress={handleLifetime}
-                    disabled={purchasing}
-                  >
-                    <Text style={s.lifetimeBtnText}>{lifetimePkg.product.priceString}</Text>
-                  </TouchableOpacity>
-                </View>
-                {/* Long note lives on its own full-width line — inside the button it
-                    forced the button wide (RN flexShrink defaults to 0) and starved
-                    the description column, mangling the wrap. */}
-                <Text style={s.lifetimeNote}>{t('paywall_lifetime_note')}</Text>
-              </View>
-            )}
-
-            {hasSubscription && (
+          <View style={s.list}>
+            {PREVIEW_FEATURES.map((f, i) => (
               <TouchableOpacity
-                style={[s.ctaBtn, purchasing && { opacity: 0.6 }]}
-                onPress={handlePurchase}
-                disabled={purchasing}
+                key={f.key}
+                style={[s.row, i > 0 && s.rowSep]}
+                activeOpacity={0.7}
+                onPress={() => openPreview(f.key)}
+                accessibilityRole="button"
               >
-                {purchasing ? (
-                  <ActivityIndicator color={colors.accentText} />
-                ) : (
-                  <>
-                    <Text style={s.ctaBtnText}>
-                      {trialEligible ? t('paywall_start_trial') : t('paywall_subscribe_now')}
-                    </Text>
-                    <Text style={s.ctaBtnSub}>{ctaSubText()}</Text>
-                  </>
-                )}
+                <FeatureIcon name={f.icon} size={26} color={colors.data} />
+                <Text style={s.rowText}>{t(f.titleKey)}</Text>
+                <Text style={s.chev}>›</Text>
               </TouchableOpacity>
-            )}
-
-            {hasSubscription && (
-              <Text style={s.legalNote}>
-                {(trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial'))
-                  .replace(/\{store\}/g, Platform.OS === 'ios' ? 'Apple ID' : 'Google Play')}
-              </Text>
-            )}
-          </>
-        )}
-
-        <View style={s.divider} />
-
-        <Text style={s.sectionTitle}>{t('paywall_free_vs_premium')}</Text>
-
-        <View style={s.compareCard}>
-          <View style={s.compareHeader}>
-            <Text style={[s.compareCol, { flex: 2, textAlign: 'left' }]}>{t('paywall_feature')}</Text>
-            <Text style={s.compareCol}>{t('paywall_free')}</Text>
-            <Text style={[s.compareCol, { color: colors.accent, fontWeight: '600' }]}>{t('paywall_premium')}</Text>
+            ))}
           </View>
-          {FREE_FEATURES.map((f, i) => (
-            <View key={i} style={[s.compareRow, i === FREE_FEATURES.length - 1 && { borderBottomWidth: 0 }]}>
-              <Text style={[s.compareLabel, { flex: 2 }]}>{f.label}</Text>
-              <View style={s.compareMark}>
-                {f.included ? <CheckMark size={14} color={colors.success} /> : <CrossMark size={14} color={colors.danger} />}
-              </View>
-              <View style={s.compareMark}><CheckMark size={14} color={colors.success} /></View>
-            </View>
-          ))}
         </View>
 
-        <View style={s.divider} />
-
-        <Text style={s.sectionTitle}>{t('paywall_whats_included_premium')}</Text>
-
-        <View style={s.featuresCard}>
-          {PREMIUM_FEATURES.map((f, i) => (
-            <View key={i} style={[s.featRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border }]}>
-              <CheckMark style={s.featCheck} />
-              <Text style={s.featText}>{f}</Text>
+        <View onLayout={(e) => { plansY.current = e.nativeEvent.layout.y; }}>
+          {loading ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator color={colors.ink2} />
             </View>
-          ))}
-        </View>
+          ) : !hasAnyPackage ? (
+            <View style={s.unavailable}>
+              <Text style={s.unavailableText}>{t('paywall_unavailable')}</Text>
+            </View>
+          ) : (
+            <View style={s.buy}>
+              {hasSubscription && (
+                <View style={s.plans} accessibilityRole="radiogroup">
+                  {annualPkg && renderPlan('annual', annualPkg)}
+                  {monthlyPkg && renderPlan('monthly', monthlyPkg)}
+                </View>
+              )}
 
-        {!loading && hasSubscription && (
-          <TouchableOpacity
-            style={[s.ctaBtn, { marginTop: 16 }, purchasing && { opacity: 0.6 }]}
-            onPress={handlePurchase}
-            disabled={purchasing}
-          >
-            {purchasing ? (
-              <ActivityIndicator color={colors.accentText} />
-            ) : (
-              <>
-                <Text style={s.ctaBtnText}>
-                  {trialEligible ? t('paywall_start_trial') : t('paywall_subscribe_now')}
+              {lifetimePkg && (
+                <View style={s.lifetime}>
+                  <View style={s.lifetimeRow}>
+                    <View style={s.lifetimeText}>
+                      <Text style={s.lifetimeTitle}>{t('paywall_lifetime_title')}</Text>
+                      <Text style={s.lifetimeSub}>{t('paywall_lifetime_sub')}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[s.lifetimeBtn, purchasing && s.busy]}
+                      onPress={handleLifetime}
+                      disabled={purchasing}
+                      accessibilityRole="button"
+                    >
+                      <Text style={s.lifetimeBtnText}>{lifetimePkg.product.priceString}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={s.lifetimeNote}>{t('paywall_lifetime_note')}</Text>
+                </View>
+              )}
+
+              {hasSubscription && (
+                <TouchableOpacity
+                  style={[s.cta, purchasing && s.busy]}
+                  onPress={handlePurchase}
+                  disabled={purchasing}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                >
+                  {purchasing ? (
+                    <ActivityIndicator color={colors.onAct} />
+                  ) : (
+                    <>
+                      <Text style={s.ctaText}>
+                        {trialEligible ? t('paywall_start_trial') : t('paywall_subscribe_now')}
+                      </Text>
+                      <Text style={s.ctaSub}>{ctaSubText()}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {hasSubscription && (
+                <Text style={s.legalNote}>
+                  {(trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial'))
+                    .replace(/\{store\}/g, Platform.OS === 'ios' ? 'Apple ID' : 'Google Play')}
                 </Text>
-                <Text style={s.ctaBtnSub}>{ctaSubText()}</Text>
-              </>
+              )}
+            </View>
+          )}
+        </View>
+
+        <View style={s.links}>
+          <TouchableOpacity
+            style={[s.linkBtn, restoring && s.busy]}
+            onPress={handleRestore}
+            disabled={restoring}
+            accessibilityRole="button"
+          >
+            {restoring ? (
+              <ActivityIndicator size="small" color={colors.ink2} />
+            ) : (
+              <Text style={s.restoreText}>{t('paywall_restore')}</Text>
             )}
           </TouchableOpacity>
-        )}
 
-        <TouchableOpacity
-          style={[s.restoreBtn, restoring && { opacity: 0.6 }]}
-          onPress={handleRestore}
-          disabled={restoring}
-        >
-          {restoring ? (
-            <ActivityIndicator size="small" color={colors.textMuted} />
-          ) : (
-            <Text style={s.restoreBtnText}>{t('paywall_restore')}</Text>
-          )}
-        </TouchableOpacity>
+          {/* App Store 3.1.2: Terms of Use (EULA) + Privacy Policy in the purchase flow. */}
+          <View style={s.legalRow}>
+            <TouchableOpacity
+              style={s.linkBtn}
+              onPress={() => (terms.kind === 'url' ? Linking.openURL(terms.url).catch(() => {}) : setShowTerms(true))}
+              accessibilityRole="link"
+            >
+              <Text style={s.legalLink}>{t(terms.labelKey)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.linkBtn} onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} accessibilityRole="link">
+              <Text style={s.legalLink}>{t('settings_privacy_policy')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        {/* App Store 3.1.2: Terms of Use (EULA) + Privacy Policy in the purchase flow. */}
-        <View style={s.legalRow}>
-          <TouchableOpacity
-            onPress={() => (terms.kind === 'url' ? Linking.openURL(terms.url).catch(() => {}) : setShowTerms(true))}
-            accessibilityRole="link"
-          >
-            <Text style={s.legalLink}>{t(terms.labelKey)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} accessibilityRole="link">
-            <Text style={s.legalLink}>{t('settings_privacy_policy')}</Text>
-          </TouchableOpacity>
+        <View style={s.section}>
+          <Text style={[s.sectionTitle, s.sectionHead]}>{t('paywall_free_vs_premium')}</Text>
+          <View style={s.list}>
+            <View style={s.cmpRow}>
+              <Text style={[s.cmpHead, s.cmpLabelCol]}>{t('paywall_feature')}</Text>
+              <Text style={[s.cmpHead, s.cmpCell]}>{t('paywall_free')}</Text>
+              <Text style={[s.cmpHead, s.cmpCell, s.cmpHeadPremium]}>{t('paywall_premium')}</Text>
+            </View>
+            {FREE_FEATURES.map((f, i) => (
+              <View key={i} style={[s.cmpRow, s.rowSep]}>
+                <Text style={[s.cmpLabel, s.cmpLabelCol]}>{f.label}</Text>
+                <View style={s.cmpCell}>
+                  {f.included
+                    ? <CheckMark size={18} color={colors.ink} />
+                    : <Text style={s.cmpNo}>—</Text>}
+                </View>
+                <View style={s.cmpCell}><CheckMark size={18} color={colors.ink} /></View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={s.section}>
+          <Text style={[s.sectionTitle, s.sectionHead]}>{t('paywall_whats_included_premium')}</Text>
+          <View style={s.names}>
+            {PREMIUM_FEATURES.map((f, i) => (
+              <View key={i} style={s.nameRow}>
+                <CheckMark size={20} color={colors.data} />
+                <Text style={s.nameText}>{f}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} />
+      <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} onUnlock={unlockFromPreview} />
       {terms.kind === 'inApp' && (
         <LegalModal
           visible={showTerms}
@@ -453,83 +456,82 @@ export default function PaywallScreen({ navigation, route }) {
   );
 }
 
+// Theme tokens only (lib/theme.js, both palettes). Type: Geist from 22 pt up
+// (lib/fonts.js), weights stop at 700, no uppercase letter-spaced labels.
 const makeStyles = (c) => StyleSheet.create({
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  container: { flex: 1, backgroundColor: c.bg },
-  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: c.card },
-  navBack: { fontSize: 14, color: c.accent, width: 60 },
-  navTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  hero: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 24, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  previewSection: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 4 },
-  previewHeading: { fontSize: 15, fontWeight: '700', color: c.text, letterSpacing: -0.2 },
-  previewHint: { fontSize: 12.5, color: c.textMuted, marginTop: 2, marginBottom: 10 },
-  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border, borderRadius: 12, marginBottom: 8 },
-  previewRowIcon: { width: 30, alignItems: 'center' },
-  previewRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: c.text },
-  previewRowArrow: { fontSize: 18, color: c.textFaint },
-  heroIcon: { marginBottom: 12, alignItems: 'center' },
-  heroCurve: { alignItems: 'center', marginBottom: 14, width: '100%' },
-  heroExample: { fontSize: 11, fontWeight: '700', color: c.textFaint, marginTop: 2 },
-  heroTitle: { fontSize: 26, lineHeight: 34, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
-  heroSub: { fontSize: 14, color: c.textMuted, textAlign: 'center', lineHeight: 22 },
-  loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },
-  unavailableText: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
-  planRow: { flexDirection: 'row', gap: 12, padding: 16 },
-  planCard: { flex: 1, backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', position: 'relative', overflow: 'visible', marginTop: 12 },
-  planCardSelected: { borderColor: c.accent, backgroundColor: c.accentSoft },
-  bestValueBadge: { position: 'absolute', top: -12, backgroundColor: c.accent, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  bestValueText: { fontSize: 10, fontWeight: '700', color: c.accentText, letterSpacing: 0.5 },
-  planRadio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center', marginBottom: 10, marginTop: 8 },
-  planRadioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'transparent' },
-  planRadioInnerOn: { backgroundColor: c.accent },
-  planName: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },
-  planPrice: { fontSize: 28, fontWeight: '700', color: c.text },
-  planPer: { fontSize: 11, color: c.textMuted, marginBottom: 8 },
-  saveBadge: { backgroundColor: c.successSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, marginBottom: 6 },
-  saveBadgeText: { fontSize: 11, fontWeight: '600', color: c.successSoftText },
-  planMonthly: { fontSize: 11, color: c.textMuted },
-  lifetimeCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.card, borderRadius: 18, padding: 16, ...c.shadowSoft },
-  lifetimeRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  lifetimeTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 2 },
-  lifetimeSub: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
-  lifetimeBtn: { flexShrink: 0, backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
-  lifetimeBtnText: { color: c.accentText, fontSize: 18, fontWeight: '700' },
-  lifetimeNote: { fontSize: 11.5, color: c.textFaint, lineHeight: 16, marginTop: 12 },
-  ctaBtn: { marginHorizontal: 16, backgroundColor: c.accent, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 12 },
-  ctaBtnText: { color: c.accentText, fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  ctaBtnSub: { color: c.accentText, opacity: 0.75, fontSize: 11 },
-  legalNote: { fontSize: 10, color: c.textFaint, textAlign: 'center', paddingHorizontal: 24, lineHeight: 16, marginBottom: 8 },
-  divider: { height: 8, backgroundColor: c.border, marginVertical: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginHorizontal: 16, marginTop: 16, marginBottom: 12 },
-  featuresCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, overflow: 'hidden' },
-  featRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 13, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  featCheck: { color: c.success, fontWeight: '700', fontSize: 14, width: 16 },
-  featText: { fontSize: 13, color: c.text, flex: 1, lineHeight: 20 },
-  compareCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, overflow: 'hidden' },
-  compareHeader: { flexDirection: 'row', padding: 12, backgroundColor: c.card2, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  compareCol: { flex: 1, fontSize: 11, fontWeight: '600', color: c.textMuted, textAlign: 'center' },
-  compareRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  compareLabel: { fontSize: 12, color: c.textMuted, lineHeight: 18 },
-  compareMark: { flex: 1, alignItems: 'center' },
-  compareVal: { flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '600' },
-  bloodworkCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 18, padding: 16 },
-  bloodworkTitle: { fontSize: 16, fontWeight: '600', color: c.text, marginBottom: 8 },
-  bloodworkSub: { fontSize: 13, color: c.textMuted, lineHeight: 20, marginBottom: 16 },
-  bloodworkOptions: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  bloodworkOption: { flex: 1, alignItems: 'flex-start' },
-  bloodworkOptionTitle: { fontSize: 11, color: c.textMuted, fontWeight: '500', marginBottom: 2 },
-  bloodworkOptionPrice: { fontSize: 24, fontWeight: '700', color: c.text },
-  bloodworkOptionPer: { fontSize: 11, color: c.textMuted },
-  bloodworkDivider: { width: 0.5, height: 50, backgroundColor: c.border, marginHorizontal: 16 },
-  bloodworkNote: { fontSize: 12, color: c.warningSoftText, backgroundColor: c.warningSoft, borderRadius: 8, padding: 10, lineHeight: 18 },
-  singleUploadCard: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 16, padding: 16, ...c.shadowSoft },
-  singleUploadTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 6 },
-  singleUploadSub: { fontSize: 12, color: c.textMuted, lineHeight: 18, marginBottom: 12 },
-  singleUploadBtn: { borderWidth: 1, borderColor: c.accent, borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },
-  singleUploadBtnText: { fontSize: 13, color: c.accent, fontWeight: '600' },
-  singleUploadNote: { fontSize: 11, color: c.warningSoftText, textAlign: 'center' },
-  restoreBtn: { alignItems: 'center', paddingVertical: 14 },
-  restoreBtnText: { fontSize: 13, color: c.textMuted },
-  legalRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 18, rowGap: 8, paddingBottom: 8 },
-  legalLink: { fontSize: 13, color: c.textMuted, textDecorationLine: 'underline', paddingVertical: 6 },
+  container: { flex: 1, backgroundColor: c.ground },
+  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 16, gap: 8 },
+  navSide: { width: 72, minHeight: 44, justifyContent: 'center' },
+  navBack: { fontSize: 17, color: c.ink },
+  navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
+  content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 24 },
+
+  hero: { gap: 10, alignItems: 'center' },
+  heroTitle: { fontSize: 30, lineHeight: 36, fontWeight: '700', color: c.ink, textAlign: 'center', letterSpacing: -0.5, marginTop: 6 },
+  heroSub: { fontSize: 17, lineHeight: 22, color: c.ink2, textAlign: 'center' },
+
+  section: { gap: 10 },
+  sectionHead: { gap: 2, paddingHorizontal: 4 },
+  sectionTitle: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: c.ink },
+  sectionSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  rowSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  rowText: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
+  chev: { fontSize: 22, color: c.ink3 },
+
+  loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
+  unavailable: { backgroundColor: c.raised, borderRadius: 20, padding: 20, alignItems: 'center' },
+  unavailableText: { fontSize: 15, lineHeight: 20, color: c.ink2, textAlign: 'center' },
+
+  buy: { gap: 12 },
+  plans: { flexDirection: 'row', gap: 10 },
+  // Unselected = 1.5 line outline; selected = 2.5 ink outline (padding keeps the size).
+  plan: { flex: 1, backgroundColor: c.raised, borderRadius: 20, padding: 15, gap: 4, borderWidth: 1.5, borderColor: c.line },
+  planOn: { padding: 14, borderWidth: 2.5, borderColor: c.ink },
+  otag: { alignSelf: 'flex-start', minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.line, justifyContent: 'center', marginRight: 28 },
+  otagText: { fontSize: 12, fontWeight: '600', color: c.ink2 },
+  otagSpace: { height: 24 },
+  radio: { position: 'absolute', top: 14, right: 12, width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: c.tick },
+  radioOn: { borderWidth: 7, borderColor: c.ink },
+  planName: { fontSize: 17, fontWeight: '600', color: c.ink, marginTop: 4 },
+  planPrice: { fontSize: 28, fontWeight: '300', color: c.ink, letterSpacing: -0.8, fontVariant: ['tabular-nums'] },
+  planPer: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  planSave: { fontSize: 13, lineHeight: 18, fontWeight: '700', color: c.data, fontVariant: ['tabular-nums'] },
+  planFoot: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  planFootEnd: { marginTop: 'auto' },
+
+  lifetime: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+  lifetimeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lifetimeText: { flex: 1, gap: 3 },
+  lifetimeTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+  lifetimeSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  // Secondary action: a well capsule (the one primary action is the ink capsule below).
+  lifetimeBtn: { flexShrink: 0, minHeight: 44, borderRadius: 22, backgroundColor: c.well, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  lifetimeBtnText: { fontSize: 15, fontWeight: '700', color: c.ink, fontVariant: ['tabular-nums'] },
+  lifetimeNote: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+
+  cta: { minHeight: 64, borderRadius: 32, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 10, gap: 2 },
+  ctaText: { fontSize: 17, fontWeight: '700', color: c.onAct, textAlign: 'center' },
+  ctaSub: { fontSize: 12, fontWeight: '500', color: c.onAct, opacity: 0.85, textAlign: 'center' },
+  busy: { opacity: 0.6 },
+  legalNote: { fontSize: 13, lineHeight: 18, color: c.ink2, textAlign: 'center', paddingHorizontal: 8 },
+
+  links: { alignItems: 'center', gap: 2, marginTop: -8 },
+  linkBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  restoreText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  legalRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 24 },
+  legalLink: { fontSize: 15, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+
+  cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 8 },
+  cmpLabelCol: { flex: 1 },
+  cmpCell: { width: 64, alignItems: 'center', textAlign: 'center' },
+  cmpHead: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
+  cmpHeadPremium: { color: c.data, fontWeight: '700' },
+  cmpLabel: { fontSize: 15, lineHeight: 20, color: c.ink },
+  cmpNo: { fontSize: 15, fontWeight: '600', color: c.ink3 },
+
+  names: { gap: 8, paddingHorizontal: 4 },
+  nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  nameText: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
 });
