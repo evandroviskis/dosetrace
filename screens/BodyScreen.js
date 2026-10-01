@@ -717,8 +717,8 @@ export default function BodyScreen({ navigation, route }) {
           </View>
           <View style={s.hubBody}>
             {[
-              { key: 'labs', Glyph: LabsGlyph, bg: colors.dangerSoft, fg: colors.dangerSoftText, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
-              { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.accentSoft, fg: colors.accentSoftText, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
+              { key: 'labs', Glyph: LabsGlyph, bg: colors.well, fg: colors.ink, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
+              { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.well, fg: colors.ink, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
             ].map(card => (
               <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
                 <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
@@ -741,14 +741,14 @@ export default function BodyScreen({ navigation, route }) {
               Analytics.previewSheetViewed('serum_curve');
               setShowSerumPreview(true);
             }}>
-              <View style={[s.hubBadge, { backgroundColor: colors.accentSoft }]}>
-                <AccumGlyph color={colors.accentSoftText} />
+              <View style={[s.hubBadge, { backgroundColor: colors.well }]}>
+                <AccumGlyph color={colors.ink} />
               </View>
               <View style={s.hubCardMain}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
                   {!premium && (
-                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>{t('paywall_premium')}</Text>
+                    <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: '500', color: colors.ink2, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 9, paddingVertical: 2, borderRadius: 13, overflow: 'hidden' }}>{t('paywall_premium')}</Text>
                   )}
                 </View>
                 <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
@@ -1332,6 +1332,11 @@ export default function BodyScreen({ navigation, route }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  ...bodyLegacy(c),
+  ...bodyGraduated(c),
+});
+
+const bodyLegacy = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
@@ -1501,4 +1506,28 @@ const makeStyles = (c) => StyleSheet.create({
   upgradePrimaryBtnSub: { color: c.accentText, opacity: 0.75, fontSize: 11, marginTop: 3 },
 trialBadge: { backgroundColor: c.successSoft, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', marginBottom: 20 },
 trialBadgeText: { fontSize: 13, color: c.successSoftText, fontWeight: '600' },
+});
+
+// Redesign (Graduated, My Body approved 2026-09-29): large title on the ground, white
+// cards with no border / shadow / tint, the one action in ink, secondary actions in well.
+const bodyGraduated = (c) => ({
+  container: { flex: 1, backgroundColor: c.ground },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, backgroundColor: c.ground, gap: 10 },
+  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  headerTitleSm: { flex: 1, fontSize: 22, fontWeight: '700', color: c.ink },
+  addBtn: { backgroundColor: c.act, paddingHorizontal: 16, minHeight: 40, borderRadius: 20, justifyContent: 'center' },
+  addBtnText: { color: c.onAct, fontSize: 15, fontWeight: '700' },
+  exportBtn: { backgroundColor: c.well, paddingHorizontal: 14, minHeight: 40, borderRadius: 20, justifyContent: 'center' },
+  exportBtnText: { color: c.ink, fontSize: 15, fontWeight: '600' },
+  hubHero: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, backgroundColor: c.ground },
+  hubGreeting: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  hubHeroSub: { fontSize: 15, color: c.ink2, marginTop: 4 },
+  hubBody: { paddingHorizontal: 16, paddingTop: 0 },
+  hubCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.raised, borderRadius: 24, padding: 18, marginBottom: 12 },
+  hubBadge: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  hubCardTitle: { fontSize: 20, fontWeight: '700', color: c.ink, marginBottom: 4 },
+  hubCardDesc: { fontSize: 15, color: c.ink2, lineHeight: 20 },
+  hubCardStat: { fontSize: 15, color: c.ink, fontWeight: '600', marginTop: 8 },
+  hubCardChevron: { fontSize: 22, color: c.tick, marginLeft: 8 },
+  hubFootnote: { fontSize: 13, color: c.ink3, lineHeight: 18, marginTop: 10, textAlign: 'center', paddingHorizontal: 8 },
 });
