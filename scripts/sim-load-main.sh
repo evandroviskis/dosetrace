@@ -11,7 +11,8 @@ cd "$(dirname "$0")/.."
 npx expo export:embed --platform ios --dev false --bytecode --entry-file index.js --bundle-output "$OUT/main.jsbundle" --assets-dest "$OUT/assets" >/dev/null
 APP=$(xcrun simctl get_app_container $DEV io.outcom.dosetrace app)
 cp "$OUT/main.jsbundle" "$APP/main.jsbundle"
-cp -R "$OUT/assets/" "$APP/assets/"
+# assets-dest mirrors the bundle root (assets/node_modules/...): copy into the app root
+cp -R "$OUT/assets/." "$APP/"
 xcrun simctl terminate $DEV io.outcom.dosetrace >/dev/null 2>&1 || true
 xcrun simctl launch $DEV io.outcom.dosetrace >/dev/null
 echo "loaded $(git log --oneline -1 | cut -c1-7)$(git diff --quiet || echo ' + uncommitted changes')"

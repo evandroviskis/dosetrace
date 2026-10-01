@@ -42,7 +42,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveProtocols, insertProtocol, updateProtocol,
   softDeleteProtocol, getProtocolById, getActiveVials,
-  insertVial, deactivateVialsByProtocol, updateVial,
+  insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
@@ -707,6 +707,10 @@ export default function ProtocolsScreen() {
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(1);
   const [expanded, setExpanded] = useState(null);
+  // Redesign (founder approved 2026-09-29, item 7): the tab opens on two heroes —
+  // Protocols (count, names, low supply → the list) and Dose log (counts → the log).
+  const [showList, setShowList] = useState(false);
+  const [logCounts, setLogCounts] = useState({ Taken: 0, Skipped: 0, Missed: 0 });
   const [editingId, setEditingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -851,6 +855,7 @@ export default function ProtocolsScreen() {
     const openId = route.params?.openProtocolId;
     if (openId != null) {
       setExpanded(openId);
+      setShowList(true);
       navigation.setParams({ openProtocolId: undefined });
     }
   }, [route.params?.openProtocolId]);
@@ -871,6 +876,11 @@ export default function ProtocolsScreen() {
     if (!user) { setLoading(false); return; }
     const data = getActiveProtocols(user.id);
     setProtocols(data || []);
+    try {
+      const counts = { Taken: 0, Skipped: 0, Missed: 0 };
+      for (const l of (getAllLogs(user.id) || [])) if (counts[l.outcome] != null) counts[l.outcome]++;
+      setLogCounts(counts);
+    } catch { /* keep the last counts */ }
     // Active vial per protocol (latest first from the query) for the vial-age sort.
     const vials = getActiveVials(user.id) || [];
     const byProtocol = {};
@@ -1536,13 +1546,69 @@ export default function ProtocolsScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>{t('protocols_title')}</Text>
+        {showList ? (
+          <TouchableOpacity style={s.backBtn} onPress={() => setShowList(false)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={s.backText}>‹ {t('protocols_title')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={s.headerTitle}>{t('protocols_title')}</Text>
+        )}
         <TouchableOpacity style={s.addBtn} onPress={openAdd}>
           <Text style={s.addBtnText}>{t('protocols_add')}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+        {protocols.length > 0 && !showList && (() => {
+          const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
+          return (
+            <View style={s.heroes}>
+              <TouchableOpacity style={s.hero} activeOpacity={0.75} onPress={() => setShowList(true)} accessibilityRole="button">
+                <View style={s.heroHead}>
+                  <FeatureIcon name="type_vial" size={22} color={colors.ink} />
+                  <Text style={s.heroTitle}>{t('today_protocols')}</Text>
+                  <Text style={s.heroChev}>›</Text>
+                </View>
+                <View style={s.heroBig}>
+                  <Text style={s.heroNum}>{protocols.length}</Text>
+                  <Text style={s.heroUnit}>{t('protocols_active')}</Text>
+                </View>
+                <View style={s.heroNames}>
+                  {protocols.map(p => (
+                    <View key={p.id} style={s.heroNameRow}>
+                      <View style={[s.heroDot, { backgroundColor: p.color || colors.data }]} />
+                      <Text style={s.heroName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
+                    </View>
+                  ))}
+                </View>
+                {low.length > 0 && (
+                  <View style={s.heroNameRow}>
+                    <View style={[s.heroDot, { backgroundColor: colors.attention }]} />
+                    <Text style={s.heroLow}>{t('today_alert_supply_list').replace('{names}', low.join(', '))}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={s.hero} activeOpacity={0.75} onPress={() => navigation.navigate('Log')} accessibilityRole="button">
+                <View style={s.heroHead}>
+                  <FeatureIcon name="journal" size={22} color={colors.ink} />
+                  <Text style={s.heroTitle}>{t('log_title')}</Text>
+                  <Text style={s.heroChev}>›</Text>
+                </View>
+                <View style={s.trio}>
+                  {[['Taken', 'log_taken', colors.ok], ['Skipped', 'log_skipped', colors.risk], ['Missed', 'log_missed', colors.attention]].map(([k, key, col]) => (
+                    <View key={k} style={s.trioCell}>
+                      <Text style={s.trioNum}>{logCounts[k]}</Text>
+                      <View style={s.heroNameRow}>
+                        <View style={[s.heroDotSm, { backgroundColor: col }]} />
+                        <Text style={s.trioLabel}>{t(key)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
         {protocols.length === 0 && !loading && (
           <View style={s.emptyState}>
             <View style={s.emptyIcon}><FeatureIcon name="type_vial" size={48} color={colors.textMuted} /></View>
@@ -1554,7 +1620,7 @@ export default function ProtocolsScreen() {
           </View>
         )}
 
-        {protocols.length > 0 && (
+        {protocols.length > 0 && showList && (
           <View style={s.sortRow}>
             <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1571,7 +1637,7 @@ export default function ProtocolsScreen() {
           </View>
         )}
 
-        {protocols.length > 0 && sortBy === 'type' && (
+        {protocols.length > 0 && showList && sortBy === 'type' && (
           <>
             {reconProtocols.length > 0 && (
               <><Text style={s.sectionLabel}>{t('protocols_section_lyophilized')}</Text>{reconProtocols.map(renderCard)}</>
@@ -1585,7 +1651,7 @@ export default function ProtocolsScreen() {
           </>
         )}
 
-        {protocols.length > 0 && sortBy !== 'type' && sortedProtocols().map(renderCard)}
+        {protocols.length > 0 && showList && sortBy !== 'type' && sortedProtocols().map(renderCard)}
 
 
         <View style={{ height: 40 }} />
@@ -2530,6 +2596,11 @@ export default function ProtocolsScreen() {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  ...protocolsLegacy(c),
+  ...protocolsGraduated(c),
+});
+
+const protocolsLegacy = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
@@ -2742,4 +2813,33 @@ const makeStyles = (c) => StyleSheet.create({
   suggestionSub: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   noCurveNote: { fontSize: 12, color: c.textMuted, marginBottom: 8, lineHeight: 17 },
   suggestionMore: { fontSize: 11, color: c.textFaint, padding: 10, textAlign: 'center' },
+});
+
+// Redesign (Graduated, approved 2026-09-29): large title, ink "+ Add" capsule, two heroes.
+const protocolsGraduated = (c) => ({
+  container: { flex: 1, backgroundColor: c.ground },
+  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, backgroundColor: c.ground, gap: 12 },
+  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
+  backBtn: { minHeight: 44, justifyContent: 'center' },
+  backText: { fontSize: 17, color: c.ink },
+  addBtn: { minHeight: 40, borderRadius: 20, backgroundColor: c.act, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  addBtnText: { fontSize: 15, fontWeight: '700', color: c.onAct },
+  heroes: { gap: 12, paddingTop: 2 },
+  hero: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14 },
+  heroHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: c.ink },
+  heroChev: { fontSize: 22, color: c.tick },
+  heroBig: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  heroNum: { fontSize: 56, fontWeight: '500', color: c.ink, letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
+  heroUnit: { fontSize: 17, color: c.ink2 },
+  heroNames: { gap: 8 },
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroDot: { width: 9, height: 9, borderRadius: 5 },
+  heroDotSm: { width: 7, height: 7, borderRadius: 4 },
+  heroName: { fontSize: 17, color: c.ink },
+  heroLow: { fontSize: 15, color: c.ink2, flex: 1 },
+  trio: { flexDirection: 'row', gap: 8 },
+  trioCell: { flex: 1, gap: 4 },
+  trioNum: { fontSize: 34, fontWeight: '500', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  trioLabel: { fontSize: 12, fontWeight: '500', color: c.ink2 },
 });
