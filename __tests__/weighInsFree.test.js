@@ -58,3 +58,15 @@ test('FX-15: the Progress text no longer says "Premium." (6 languages)', () => {
   assert.equal(v.length, 6);
   for (const s of v) assert.doesNotMatch(s, /^Premium\b/, s.slice(0, 40));
 });
+
+// Founder 2026-10-01: the FAQ must not sell progress tracking as Premium any more —
+// weigh-ins and their chart are free (S-16); the reality-check RESULT stays Premium.
+test('FX-15: the FAQ "What does Premium include?" lists reality-check results (not progress tracking) and says weigh-ins are free (6 languages)', () => {
+  const src = read('i18n', 'translations.js');
+  const lines = src.split('\n').filter((l) => /^\s+a: /.test(l) && /priority support|soporte prioritario|suporte prioritário|support prioritaire|bevorzugter Support|supporto prioritario/.test(l));
+  assert.equal(lines.length, 6);
+  for (const l of lines) {
+    assert.doesNotMatch(l, /progress tracking|comprobación real y seguimiento|verificação real e progresso|vérification réelle et suivi|Realitätscheck und Fortschritt|verifica reale e progressi/, l.trim().slice(0, 60));
+    assert.match(l, /weigh-ins|pesajes|pesagens|pesées|Wiegungen|pesate/, l.trim().slice(0, 60));
+  }
+});

@@ -655,7 +655,7 @@ export const translations = {
         questions: [
           {
             q: 'What does Premium include?',
-            a: "Unlimited protocols, lab, vaccine and vial scans (up to 20 a month in total — labs, vaccine cards and vials combined), the dose-accumulation curve, reality check & progress tracking, PDF export, and priority support. Cloud backup and sync are free for everyone."
+            a: "Unlimited protocols, lab, vaccine and vial scans (up to 20 a month in total — labs, vaccine cards and vials combined), the dose-accumulation curve, reality-check results, PDF export, and priority support. Your weigh-ins and their chart, cloud backup and sync are free for everyone."
           },
           {
             q: 'How much does Premium cost?',
@@ -2404,7 +2404,7 @@ export const translations = {
         questions: [
           {
             q: '¿Qué incluye Premium?',
-            a: "Protocolos ilimitados, escaneos de análisis, vacunas y viales (hasta 20 al mes en total, sumando análisis, tarjetas de vacunas y viales), la curva de acumulación de dosis, comprobación real y seguimiento, exportación a PDF y soporte prioritario. La copia de seguridad en la nube y la sincronización son gratis para todos."
+            a: "Protocolos ilimitados, escaneos de análisis, vacunas y viales (hasta 20 al mes en total, sumando análisis, tarjetas de vacunas y viales), la curva de acumulación de dosis, los resultados de la comprobación real, exportación a PDF y soporte prioritario. Tus pesajes y su gráfica, la copia de seguridad en la nube y la sincronización son gratis para todos."
           },
           {
             q: '¿Cuánto cuesta Premium?',
@@ -4153,7 +4153,7 @@ export const translations = {
         questions: [
           {
             q: 'O que Premium inclui?',
-            a: "Protocolos ilimitados, leituras de exames, vacinas e frascos (até 20 por mês no total, somando exames, cartões de vacina e frascos), a curva de acúmulo de dose, verificação real e progresso, exportação em PDF e suporte prioritário. O backup em nuvem e a sincronização são grátis para todos."
+            a: "Protocolos ilimitados, leituras de exames, vacinas e frascos (até 20 por mês no total, somando exames, cartões de vacina e frascos), a curva de acúmulo de dose, os resultados da verificação real, exportação em PDF e suporte prioritário. Suas pesagens e o gráfico delas, o backup em nuvem e a sincronização são grátis para todos."
           },
           {
             q: 'Quanto custa Premium?',
@@ -5901,7 +5901,7 @@ export const translations = {
         questions: [
           {
             q: 'Qu\'est-ce que Premium inclut?',
-            a: "Protocoles illimités, scans d’analyses, de vaccins et de flacons (jusqu’à 20 par mois au total, analyses, carnets de vaccination et flacons confondus), la courbe d’accumulation de dose, vérification réelle et suivi, exportation PDF et support prioritaire. La sauvegarde cloud et la synchronisation sont gratuites pour tous."
+            a: "Protocoles illimités, scans d’analyses, de vaccins et de flacons (jusqu’à 20 par mois au total, analyses, carnets de vaccination et flacons confondus), la courbe d’accumulation de dose, les résultats de la vérification réelle, exportation PDF et support prioritaire. Vos pesées et leur graphique, la sauvegarde cloud et la synchronisation sont gratuits pour tous."
           },
           {
             q: 'Combien coûte Premium?',
@@ -7649,7 +7649,7 @@ export const translations = {
         questions: [
           {
             q: 'Was ist in Premium enthalten?',
-            a: "Unbegrenzte Protokolle, Labor-, Impf- und Ampullen-Scans (insgesamt bis zu 20 pro Monat, Laborwerte, Impfpässe und Ampullen zusammen), die Dosis-Akkumulationskurve, Realitätscheck und Fortschritt, PDF-Export und bevorzugter Support. Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
+            a: "Unbegrenzte Protokolle, Labor-, Impf- und Ampullen-Scans (insgesamt bis zu 20 pro Monat, Laborwerte, Impfpässe und Ampullen zusammen), die Dosis-Akkumulationskurve, Realitätscheck-Ergebnisse, PDF-Export und bevorzugter Support. Deine Wiegungen und ihr Diagramm, Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
           },
           {
             q: 'Wie viel kostet Premium?',
@@ -9398,7 +9398,7 @@ export const translations = {
         questions: [
           {
             q: 'Cosa è incluso in Premium?',
-            a: "Protocolli illimitati, scansioni di analisi, vaccini e flaconi (fino a 20 al mese in totale, sommando analisi, tessere vaccinali e flaconi), la curva di accumulo della dose, verifica reale e progressi, esportazione PDF e supporto prioritario. Backup cloud e sincronizzazione sono gratuiti per tutti."
+            a: "Protocolli illimitati, scansioni di analisi, vaccini e flaconi (fino a 20 al mese in totale, sommando analisi, tessere vaccinali e flaconi), la curva di accumulo della dose, i risultati della verifica reale, esportazione PDF e supporto prioritario. Le tue pesate e il loro grafico, backup cloud e sincronizzazione sono gratuiti per tutti."
           },
           {
             q: 'Quanto costa Premium?',
