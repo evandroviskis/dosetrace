@@ -11,10 +11,33 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
 import { loadOnboarding } from '../lib/onboardingStore';
+import Svg, { Path } from 'react-native-svg';
 import FeatureIcon from '../components/FeatureIcon';
 import CheckMark from '../components/CheckMark';
 
 const PRIVACY_URL = 'https://dosetrace.io/privacy-policy';
+
+// Back arrow (Graduated): a drawn monoline chevron in ink, never a font glyph.
+function BackChevron({ color }) {
+  return (
+    <Svg width={11} height={18} viewBox="0 0 10 16">
+      <Path d="M8 2 L2 8 L8 14" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// Google's "G" mark. Brand marks keep their official colors on purpose (Google
+// sign-in branding guidelines) — the only fixed colors on this screen.
+function GoogleMark() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 48 48">
+      <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </Svg>
+  );
+}
 
 // Apple's native module doesn't exist on Android; resolve lazily and only on iOS.
 let _appleAuth;
@@ -30,9 +53,9 @@ function AppleSignInButton({ onPress, isDark, style }) {
   if (!AA?.AppleAuthenticationButton) return null;
   return (
     <AA.AppleAuthenticationButton
-      buttonType={AA.AppleAuthenticationButtonType.SIGN_IN}
+      buttonType={AA.AppleAuthenticationButtonType.CONTINUE}
       buttonStyle={isDark ? AA.AppleAuthenticationButtonStyle.WHITE : AA.AppleAuthenticationButtonStyle.BLACK}
-      cornerRadius={12}
+      cornerRadius={26}
       style={style}
       onPress={onPress}
     />
@@ -197,36 +220,53 @@ export default function AuthScreen({ onBack }) {
     const iv = setInterval(() => setResendCooldown((s) => { if (s <= 1) { clearInterval(iv); return 0; } return s - 1; }), 1000);
   }
 
-  // ---- Views ----
+  // ---- Views ---- (Graduated: docs/design/prototype.html authScreen())
+  const backRow = onBack ? (
+    <View style={s.navRow}>
+      <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('back')}>
+        <BackChevron color={colors.ink} />
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
   if (signupDone) {
+    // The email is set in ink inside the sentence; the words stay the key's own.
+    const confirmParts = t('onboarding_confirm_msg').split('{email}');
     return (
       <SafeAreaView style={s.container}>
         <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-          {onBack && (
-            <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Text style={s.backChevron}>‹</Text>
-            </TouchableOpacity>
-          )}
-          <View style={s.successBadge}><CheckMark style={s.successCheck} /></View>
-          <Text style={s.title}>{t('onboarding_confirm_title')}</Text>
-          <Text style={[s.sub, { marginBottom: 8 }]}>{t('onboarding_confirm_msg').replace('{email}', email.trim())}</Text>
-          <Text style={[s.sub, { fontSize: 13, color: colors.textFaint, marginBottom: 24 }]}>{t('onboarding_confirm_hint')}</Text>
+          {backRow}
+          <View style={s.confirmHead}>
+            <View style={s.okBadge}><CheckMark size={34} color={colors.onInk} strokeWidth={2.4} /></View>
+            <Text style={[s.title, s.titleCenter]}>{t('onboarding_confirm_title')}</Text>
+            <Text style={[s.sub, s.textCenter]}>
+              {confirmParts.map((part, i) => (
+                <Text key={i}>
+                  {part}
+                  {i < confirmParts.length - 1 && <Text style={s.subStrong}>{email.trim()}</Text>}
+                </Text>
+              ))}
+            </Text>
+            <Text style={[s.hint, s.textCenter]}>{t('onboarding_confirm_hint')}</Text>
+          </View>
           {/* Lead with the actual next step (open the email), then resend / fix a
               typo, and keep sign-in as the last step for when they come back. */}
-          <TouchableOpacity style={s.primaryBtn} onPress={openMailApp}>
-            <Text style={s.primaryBtnText}>{t('signup_open_email')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.secondaryBtn} onPress={handleResend} disabled={resendCooldown > 0}>
-            <Text style={[s.secondaryBtnText, resendCooldown > 0 && { color: colors.textFaint }]}>
-              {resendCooldown > 0 ? `${t('signup_resend')} (${resendCooldown})` : t('signup_resend')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.secondaryBtn} onPress={() => { setSignupDone(false); setIsSignIn(true); setPassword(''); }}>
-            <Text style={s.secondaryBtnText}>{t('onboarding_go_signin')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.tertiaryLink} onPress={() => { setSignupDone(false); setIsSignIn(false); setPassword(''); }}>
-            <Text style={s.tertiaryLinkText}>{t('signup_wrong_email')}</Text>
-          </TouchableOpacity>
+          <View style={s.confirmActs}>
+            <TouchableOpacity style={s.primaryBtn} onPress={openMailApp}>
+              <Text style={s.primaryBtnText}>{t('signup_open_email')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.secondaryBtn} onPress={handleResend} disabled={resendCooldown > 0}>
+              <Text style={[s.secondaryBtnText, resendCooldown > 0 && s.secondaryBtnTextDim]}>
+                {resendCooldown > 0 ? `${t('signup_resend')} (${resendCooldown})` : t('signup_resend')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.secondaryBtn} onPress={() => { setSignupDone(false); setIsSignIn(true); setPassword(''); }}>
+              <Text style={s.secondaryBtnText}>{t('onboarding_go_signin')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.linkBtnCenter} onPress={() => { setSignupDone(false); setIsSignIn(false); setPassword(''); }}>
+              <Text style={s.linkText}>{t('signup_wrong_email')}</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -235,46 +275,51 @@ export default function AuthScreen({ onBack }) {
   return (
     <SafeAreaView style={s.container}>
       <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {onBack && (
-          <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Text style={s.backChevron}>‹</Text>
-          </TouchableOpacity>
-        )}
+        {backRow}
         {!isSignIn ? (
-          <>
-            <View style={s.hero}><FeatureIcon name="curve" size={48} color={colors.accent} /></View>
+          <View style={s.head}>
+            <FeatureIcon name="curve" size={48} color={colors.data} />
             <Text style={s.title}>{t('onboarding_ready_title')}</Text>
             <Text style={s.sub}>{t('onboarding_getstarted_sub')}</Text>
-          </>
+          </View>
         ) : (
-          <>
+          <View style={s.head}>
             <Text style={s.title}>{t('onboarding_signin_title')}</Text>
             <Text style={s.sub}>{t('onboarding_signin')}</Text>
-          </>
+          </View>
         )}
 
-        <TouchableOpacity style={[s.googleBtn, loading && { opacity: 0.6 }]} onPress={handleGoogleSignIn} disabled={loading}>
-          <Text style={s.googleBtnIcon}>G</Text>
-          <Text style={s.googleBtnText}>{loading ? t('loading') : t('onboarding_google_signin')}</Text>
-        </TouchableOpacity>
-        <AppleSignInButton onPress={handleAppleSignIn} isDark={isDark} style={s.appleBtn} />
+        {/* Apple / Google keep their brand-guideline looks (fixed colors on purpose). */}
+        <View style={s.socials}>
+          <AppleSignInButton onPress={handleAppleSignIn} isDark={isDark} style={s.appleBtn} />
+          <TouchableOpacity style={[s.googleBtn, isDark ? s.googleBtnDark : s.googleBtnLight, loading && s.busy]} onPress={handleGoogleSignIn} disabled={loading}>
+            <GoogleMark />
+            <Text style={[s.googleBtnText, isDark ? s.googleBtnTextDark : s.googleBtnTextLight]}>{loading ? t('loading') : t('onboarding_google_signin')}</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={s.orDivider}><View style={s.orLine} /><Text style={s.orText}>{t('onboarding_or')}</Text><View style={s.orLine} /></View>
 
-        <TextInput style={s.input} placeholder={t('onboarding_email')} placeholderTextColor={colors.textFaint} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-        <TextInput style={s.input} placeholder={t('onboarding_password')} placeholderTextColor={colors.textFaint} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+        <View style={s.field}>
+          <Text style={s.fieldLabel}>{t('onboarding_email')}</Text>
+          <TextInput style={s.input} accessibilityLabel={t('onboarding_email')} placeholderTextColor={colors.ink3} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+        </View>
+        <View style={s.field}>
+          <Text style={s.fieldLabel}>{t('onboarding_password')}</Text>
+          <TextInput style={s.input} accessibilityLabel={t('onboarding_password')} placeholderTextColor={colors.ink3} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+        </View>
 
         {isSignIn && (
-          <TouchableOpacity onPress={handleForgotPassword}>
-            <Text style={s.forgotPassword}>{t('forgot_password')}</Text>
+          <TouchableOpacity style={s.forgotBtn} onPress={handleForgotPassword}>
+            <Text style={s.linkText}>{t('forgot_password')}</Text>
           </TouchableOpacity>
         )}
 
         {/* Consent only when the intro didn't already stash it (returning-user create). */}
         {!isSignIn && !hasStash && (
-          <TouchableOpacity style={s.consentRow} onPress={() => setConsentGiven((v) => !v)} activeOpacity={0.7}>
+          <TouchableOpacity style={s.consentRow} onPress={() => setConsentGiven((v) => !v)} activeOpacity={0.7} accessibilityRole="checkbox" accessibilityState={{ checked: consentGiven }}>
             <View style={[s.checkbox, consentGiven && s.checkboxOn]}>
-              {consentGiven && <CheckMark style={s.checkboxTick} />}
+              {consentGiven && <CheckMark size={16} color={colors.onInk} />}
             </View>
             <Text style={s.consentText}>
               {t('auth_agree_terms')}{' '}
@@ -285,56 +330,70 @@ export default function AuthScreen({ onBack }) {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={[s.primaryBtn, loading && { opacity: 0.6 }]} onPress={handleAuth} disabled={loading}>
+        <TouchableOpacity style={[s.primaryBtn, loading && s.busy]} onPress={handleAuth} disabled={loading}>
           <Text style={s.primaryBtnText}>
             {loading ? t('loading') : (isSignIn ? t('onboarding_signin') : t('onboarding_create_account'))}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.switchBtn} onPress={() => { setIsSignIn((v) => !v); setPassword(''); }}>
-          <Text style={s.switchBtnText}>
+        <TouchableOpacity style={s.linkBtnCenter} onPress={() => { setIsSignIn((v) => !v); setPassword(''); }}>
+          <Text style={s.linkText}>
             {isSignIn ? t('onboarding_create_account') : t('onboarding_already_have_account')}
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 48 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// Graduated (DESIGN.md §2–§5): ground screen, ink text in three steps, one ink
+// capsule action, well inputs (radius 16), underlined ink text links, no blue
+// except the data icon. Theme tokens only — the Google button's brand colors
+// are the one deliberate exception (Google sign-in branding guidelines).
 const makeStyles = (c) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bg, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 },
-  backBtn: { alignSelf: 'flex-start', marginBottom: 4, paddingVertical: 2, paddingRight: 12 },
-  backChevron: { fontSize: 30, lineHeight: 32, color: c.accent, fontWeight: '400' },
+  container: { flex: 1, backgroundColor: c.ground, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 },
   scroll: { flex: 1 },
-  body: { paddingHorizontal: 24, paddingTop: 32, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  hero: { marginBottom: 20 },
-  successBadge: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  successCheck: { fontSize: 34, fontWeight: '700', color: c.success },
-  title: { fontSize: 28, fontWeight: '700', color: c.text, marginBottom: 12, lineHeight: 34 },
-  sub: { fontSize: 15, color: c.textMuted, lineHeight: 24, marginBottom: 28 },
-  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card, marginBottom: 16, gap: 10 },
-  googleBtnIcon: { fontSize: 20, fontWeight: '700', color: '#4285F4' },
-  googleBtnText: { fontSize: 16, fontWeight: '600', color: c.text },
-  appleBtn: { height: 52, marginBottom: 16 },
-  orDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
-  orLine: { flex: 1, height: 1, backgroundColor: c.border },
-  orText: { fontSize: 13, color: c.textFaint, fontWeight: '500' },
-  input: { borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 14, fontSize: 15, color: c.text, marginBottom: 14, backgroundColor: c.card2 },
-  forgotPassword: { fontSize: 13, color: c.accent, textAlign: 'right', marginBottom: 16, marginTop: -6 },
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16, marginTop: 2 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  checkboxOn: { backgroundColor: c.accent, borderColor: c.accent },
-  checkboxTick: { color: c.accentText, fontSize: 14, fontWeight: '700' },
-  consentText: { flex: 1, fontSize: 13, color: c.textMuted, lineHeight: 19 },
-  consentLink: { color: c.accent, fontWeight: '600' },
-  primaryBtn: { backgroundColor: c.accent, padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
-  primaryBtnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
-  secondaryBtn: { padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border, marginBottom: 10 },
-  secondaryBtnText: { color: c.text, fontSize: 15, fontWeight: '600' },
-  tertiaryLink: { paddingVertical: 10, alignItems: 'center' },
-  tertiaryLinkText: { color: c.textMuted, fontSize: 14, fontWeight: '500' },
-  switchBtn: { padding: 12, alignItems: 'center' },
-  switchBtnText: { fontSize: 14, color: c.accent },
+  body: { paddingHorizontal: 16, paddingTop: 8, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  navRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center' },
+  backBtn: { minWidth: 44, minHeight: 44, justifyContent: 'center' },
+  head: { gap: 8, paddingTop: 4 },
+  title: { fontSize: 32, lineHeight: 38, fontWeight: '600', color: c.ink, letterSpacing: -0.64 },
+  titleCenter: { fontSize: 30, lineHeight: 36, letterSpacing: -0.6, textAlign: 'center' },
+  textCenter: { textAlign: 'center' },
+  sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
+  subStrong: { color: c.ink, fontWeight: '700' },
+  hint: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+  socials: { gap: 10, paddingTop: 6 },
+  appleBtn: { height: 52 },
+  googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 16 },
+  googleBtnLight: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
+  googleBtnDark: { backgroundColor: '#131314', borderColor: '#8E918F' },
+  googleBtnText: { fontSize: 17, fontWeight: '600' },
+  googleBtnTextLight: { color: '#1F1F1F' },
+  googleBtnTextDark: { color: '#E3E3E3' },
+  busy: { opacity: 0.6 },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  orLine: { flex: 1, height: 1, backgroundColor: c.line },
+  orText: { fontSize: 13, color: c.ink2 },
+  field: { gap: 10 },
+  fieldLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  input: { minHeight: 52, borderRadius: 16, backgroundColor: c.well, borderWidth: 1, borderColor: c.line, paddingHorizontal: 16, paddingVertical: 12, fontSize: 17, color: c.ink },
+  forgotBtn: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center' },
+  linkBtnCenter: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, textAlign: 'center' },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4, paddingHorizontal: 2 },
+  checkbox: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: c.tick, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: c.ink, borderColor: c.ink },
+  consentText: { flex: 1, fontSize: 15, lineHeight: 20, color: c.ink2 },
+  consentLink: { color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  primaryBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  primaryBtnText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+  secondaryBtn: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  secondaryBtnText: { fontSize: 17, fontWeight: '700', color: c.ink },
+  secondaryBtnTextDim: { color: c.ink3 },
+  confirmHead: { alignItems: 'center', gap: 14, paddingTop: 18, paddingHorizontal: 8 },
+  okBadge: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.ok, alignItems: 'center', justifyContent: 'center' },
+  confirmActs: { gap: 10, paddingTop: 10 },
 });

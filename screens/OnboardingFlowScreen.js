@@ -35,6 +35,19 @@ import { COUNTRIES, countryLabel } from '../lib/countries';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
 import CheckMark from '../components/CheckMark';
+import Svg, { Path } from 'react-native-svg';
+import { MONO } from '../lib/fonts';
+
+// Drawn monoline chevron (back / open / dropdown) — never a font glyph.
+const CHEVRON_PATHS = { left: 'M8 2 L2 8 L8 14', right: 'M2 2 L8 8 L2 14', down: 'M2 2 L8 8 L14 2' };
+function Chevron({ dir, color }) {
+  const down = dir === 'down';
+  return (
+    <Svg width={down ? 13 : 11} height={down ? 8 : 18} viewBox={down ? '0 0 16 10' : '0 0 10 16'}>
+      <Path d={CHEVRON_PATHS[dir]} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 /**
  * The single value-before-signup onboarding. Runs on first launch (no account
@@ -70,7 +83,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
-  const heroW = Math.min(420, winW - 48);
+  const heroW = Math.min(420, winW - 32); // 16 pt screen gutter each side
 
   // Signed-in mode: the user already has an account (an Apple/Google sign-in, or
   // a returning account missing required fields). We prefill from their profile,
@@ -297,14 +310,14 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     <SafeAreaView style={s.root}>
       {(step > 0 || signedIn) && (
         <View style={s.topBar}>
-          <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} disabled={step === 0} style={step === 0 ? { opacity: 0 } : null}>
-            <Text style={s.backChevron}>‹</Text>
+          <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} disabled={step === 0} style={[s.backBtn, step === 0 && s.hidden]} accessibilityRole="button" accessibilityLabel={t('back')}>
+            <Chevron dir="left" color={colors.ink} />
           </TouchableOpacity>
           <View style={s.progress}>
             {activeSteps.map((_, i) => (<ProgressDash key={i} on={i <= step} s={s} />))}
           </View>
           {signedIn ? (
-            <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn}>
               <Text style={s.signOutLink}>{t('settings_signout')}</Text>
             </TouchableOpacity>
           ) : (
@@ -318,25 +331,33 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {cur === 'splash' && (
             <View style={s.splashWrap}>
-              <TouchableOpacity style={s.langChip} onPress={() => setShowLang(true)}>
-                <Text style={s.langChipText}>{String(language).toUpperCase()} ▾</Text>
-              </TouchableOpacity>
-              <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" />
-              <Text style={s.brand}>DoseTrace</Text>
-              <Text style={s.phrase}>{t('ob_phrase')}</Text>
+              <View style={s.langRow}>
+                <TouchableOpacity style={s.langPill} onPress={() => setShowLang(true)} accessibilityRole="button" accessibilityLabel={t('settings_language')}>
+                  <Text style={s.langPillText}>{String(language).toUpperCase()}</Text>
+                  <Chevron dir="down" color={colors.ink2} />
+                </TouchableOpacity>
+              </View>
+              <View style={s.splashCenter}>
+                {/* The brand mark keeps its own artwork (fixed brand colors on purpose). */}
+                <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" />
+                <Text style={s.brand}>DoseTrace</Text>
+                <Text style={s.phrase}>{t('ob_phrase')}</Text>
+              </View>
             </View>
           )}
 
           {cur === 'features' && (
             <>
-              <Text style={s.title}>{t('ob_features_title')}</Text>
-              <Text style={s.sub}>{t('ob_features_sub')}</Text>
+              <View style={s.stepHead}>
+                <Text style={s.title}>{t('ob_features_title')}</Text>
+                <Text style={s.sub}>{t('ob_features_sub')}</Text>
+              </View>
               <AccumulationHero width={heroW} height={140} />
-              <View style={{ marginTop: 8 }}>
+              <View style={s.featList}>
                 {FEATURES.map((f, i) => (
                   <View key={i} style={s.featRow}>
-                    <View style={s.featIcon}><FeatureIcon name={f.icon} size={24} color={colors.accent} /></View>
-                    <View style={{ flex: 1 }}>
+                    <View style={s.featIcon}><FeatureIcon name={f.icon} size={30} color={colors.ink} /></View>
+                    <View style={s.featText}>
                       <Text style={s.featTitle}>{f.t}</Text>
                       <Text style={s.featDesc}>{f.d}</Text>
                     </View>
@@ -348,9 +369,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {cur === 'goal' && (
             <>
-              <Text style={s.title}>{t('ob_goal_title')}</Text>
-              <Text style={s.sub}>{t('ob_goal_sub')}</Text>
-              <Text style={s.multiHint}>{t('profile_goal_multi_hint')}</Text>
+              <View style={s.stepHead}>
+                <Text style={s.title}>{t('ob_goal_title')}</Text>
+                <Text style={s.sub}>{t('ob_goal_sub')}</Text>
+              </View>
+              <Text style={s.hint}>{t('profile_goal_multi_hint')}</Text>
               <View style={s.pillRow}>
                 {GOALS.map((g) => {
                   const on = goals.includes(g.key);
@@ -359,6 +382,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                       key={g.key}
                       style={[s.pill, on && s.pillOn]}
                       onPress={() => setGoals((prev) => (prev.includes(g.key) ? prev.filter((k) => k !== g.key) : [...prev, g.key]))}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
                     >
                       <Text style={[s.pillText, on && s.pillTextOn]}>{g.label}</Text>
                     </TouchableOpacity>
@@ -370,34 +395,38 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {cur === 'tracking' && (
             <>
-              <Text style={s.title}>{t('onboarding_compound_title')}</Text>
-              <Text style={s.sub}>{t('onboarding_compound_sub')}</Text>
+              <View style={s.stepHead}>
+                <Text style={s.title}>{t('onboarding_compound_title')}</Text>
+                <Text style={s.sub}>{t('onboarding_compound_sub')}</Text>
+              </View>
               <View style={s.pillRow}>
-                {COMPOUNDS.map((c) => (
-                  <TouchableOpacity key={c.key} style={[s.pill, { flexDirection: 'row', alignItems: 'center', gap: 8 }, tracking.includes(c.key) && s.pillOn]} onPress={() => toggleTracking(c.key)}>
-                    <FeatureIcon name={c.icon} size={18} color={tracking.includes(c.key) ? colors.accent : colors.textMuted} />
-                    <Text style={[s.pillText, tracking.includes(c.key) && s.pillTextOn]}>{c.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {COMPOUNDS.map((c) => {
+                  const on = tracking.includes(c.key);
+                  return (
+                    <TouchableOpacity key={c.key} style={[s.pill, s.pillIcon, on && s.pillOn]} onPress={() => toggleTracking(c.key)} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                      <FeatureIcon name={c.icon} size={20} color={on ? colors.ink : colors.ink2} />
+                      <Text style={[s.pillText, on && s.pillTextOn]}>{c.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </>
           )}
 
           {cur === 'about' && (
             <>
-              <Text style={s.title}>{t('profile_step_title')}</Text>
-              <Text style={s.sub}>{t('profile_step_sub_required')}</Text>
-              <Text style={s.legend}>{t('profile_required_legend')}</Text>
-
-              {/* ── About you ─────────────────────────────────────────── */}
-              <Text style={s.section}>{t('profile_sec_about')}</Text>
+              <View style={s.stepHead}>
+                <Text style={s.title}>{t('profile_step_title')}</Text>
+                <Text style={s.sub}>{t('profile_step_sub_required')}</Text>
+              </View>
+              <Text style={s.hint}>{t('profile_required_legend')}</Text>
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_name')}<Text style={s.req}> *</Text></Text>
                 <TextInput
                   style={s.input}
                   placeholder={t('profile_name_placeholder')}
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.ink3}
                   value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
                 />
               </View>
@@ -408,7 +437,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                     scrolling through ~70 years horizontally was the bad UX. */}
                 <View style={s.mGrid}>
                   {MONTH_KEYS.map((mk, idx) => (
-                    <TouchableOpacity key={mk} style={[s.mChip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)}>
+                    <TouchableOpacity key={mk} style={[s.pill, s.mChip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)} accessibilityRole="radio" accessibilityState={{ selected: birthMonth === idx }}>
                       <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
                     </TouchableOpacity>
                   ))}
@@ -420,7 +449,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 <TextInput
                   style={s.input}
                   placeholder={t('profile_birth_year_ph')}
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.ink3}
                   value={birthYearText}
                   onChangeText={(txt) => {
                     const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
@@ -436,22 +465,23 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_sex')}<Text style={s.req}> *</Text></Text>
-                <View style={s.mRow}>
+                <View style={s.seg}>
                   {SEXES.map((g) => (
-                    <TouchableOpacity key={g.key} style={[s.pill, gender === g.key && s.pillOn]} onPress={() => setGender(g.key)}>
-                      <Text style={[s.pillText, gender === g.key && s.pillTextOn]}>{g.label}</Text>
+                    <TouchableOpacity key={g.key} style={[s.segItem, gender === g.key && s.segItemOn]} onPress={() => setGender(g.key)} accessibilityRole="radio" accessibilityState={{ selected: gender === g.key }}>
+                      <Text style={[s.segText, gender === g.key && s.segTextOn]}>{g.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+                <Text style={s.help}>{t('profile_sex_help')}</Text>
               </View>
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_country')}<Text style={s.req}> *</Text></Text>
-                <TouchableOpacity style={[s.input, { justifyContent: 'center' }]} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
-                  <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                <TouchableOpacity style={s.selectBtn} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
+                  <Text style={[s.selectText, !country && s.selectTextEmpty]}>
                     {country ? countryLabel(country, language) : t('profile_country_placeholder')}
                   </Text>
+                  <Chevron dir="right" color={colors.ink3} />
                 </TouchableOpacity>
               </View>
             </>
@@ -459,23 +489,33 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {cur === 'routine' && (
             <>
-              <Text style={s.title}>{t('ob_routine_title')}</Text>
+              <View style={s.stepHead}>
+                <Text style={s.title}>{t('ob_routine_title')}</Text>
+              </View>
               <View style={s.field}>
-                <Text style={s.fieldLabel}>{t('profile_activity')}</Text>
-                <View style={s.mRow}>
-                  {ACTIVITY.map((a) => (
-                    <TouchableOpacity key={a.key} style={[s.pill, activity === a.key && s.pillOn]} onPress={() => setActivity(a.key)}>
-                      <Text style={[s.pillText, activity === a.key && s.pillTextOn]}>{a.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <Text style={s.fieldHead}>{t('profile_activity')}</Text>
+                <View style={s.actList}>
+                  {ACTIVITY.map((a, i) => {
+                    const on = activity === a.key;
+                    const prevOn = i > 0 && activity === ACTIVITY[i - 1].key;
+                    return (
+                      <View key={a.key}>
+                        {i > 0 && <View style={[s.actDiv, (on || prevOn) && s.actDivHidden]} />}
+                        <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivity(a.key)} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+                          <Text style={s.actText}>{a.label}</Text>
+                          {on && <CheckMark size={22} color={colors.ink} />}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
               <View style={s.field}>
-                <Text style={s.fieldLabel}>{t('profile_provider')}</Text>
-                <View style={s.mRow}>
+                <Text style={s.fieldHead}>{t('profile_provider')}</Text>
+                <View style={s.seg}>
                   {PROVIDERS.map((p) => (
-                    <TouchableOpacity key={p.key} style={[s.pill, provider === p.key && s.pillOn]} onPress={() => setProvider(p.key)}>
-                      <Text style={[s.pillText, provider === p.key && s.pillTextOn]}>{p.label}</Text>
+                    <TouchableOpacity key={p.key} style={[s.segItem, provider === p.key && s.segItemOn]} onPress={() => setProvider(p.key)} accessibilityRole="radio" accessibilityState={{ selected: provider === p.key }}>
+                      <Text style={[s.segText, provider === p.key && s.segTextOn]}>{p.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -485,45 +525,51 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {cur === 'consent' && (
             <>
-              <Text style={s.title}>{t('ob_terms_title')}</Text>
-              <Text style={s.sub}>{t('ob_terms_sub')}</Text>
-              {TERMS.map((x) => (
-                <TouchableOpacity
-                  key={x.key}
-                  style={[s.termRow, confirmed[x.key] && s.termRowOn]}
-                  onPress={() => setConfirmed((c) => ({ ...c, [x.key]: !c[x.key] }))}
-                  activeOpacity={0.8}
-                >
-                  <View style={[s.check, confirmed[x.key] && s.checkOn]}>
-                    {confirmed[x.key] && <CheckMark style={s.checkMark} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.termTitle}>{x.t}</Text>
-                    <Text style={s.termDesc}>{x.d}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              <View style={s.stepHead}>
+                <Text style={s.title}>{t('ob_terms_title')}</Text>
+                <Text style={s.sub}>{t('ob_terms_sub')}</Text>
+              </View>
+              <View style={s.termList}>
+                {TERMS.map((x, i) => (
+                  <TouchableOpacity
+                    key={x.key}
+                    style={[s.termRow, i > 0 && s.termRowDiv]}
+                    onPress={() => setConfirmed((c) => ({ ...c, [x.key]: !c[x.key] }))}
+                    activeOpacity={0.8}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: !!confirmed[x.key] }}
+                  >
+                    <View style={[s.check, confirmed[x.key] && s.checkOn]}>
+                      {confirmed[x.key] && <CheckMark size={16} color={colors.onInk} />}
+                    </View>
+                    <View style={s.termText}>
+                      <Text style={s.termTitle}>{x.t}</Text>
+                      <Text style={s.termDesc}>{x.d}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
               {/* Functional privacy-policy link at the point of data collection
                   (Apple 5.1.1(ii)). */}
-              <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} style={{ paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={s.privacyLink}>{t('settings_privacy_policy')}</Text>
+              <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} style={s.linkBtn}>
+                <Text style={s.linkText}>{t('settings_privacy_policy')}</Text>
               </TouchableOpacity>
             </>
           )}
 
           {cur === 'reminders' && (
             <View style={s.centerStep}>
-              <View style={{ marginBottom: 12 }}><FeatureIcon name="bell" size={52} color={colors.accent} /></View>
-              <Text style={s.title}>{t('ob_reminders_title')}</Text>
-              <Text style={s.sub}>{t('ob_reminders_sub')}</Text>
+              <FeatureIcon name="bell" size={76} color={colors.data} />
+              <Text style={[s.title, s.textCenter]}>{t('ob_reminders_title')}</Text>
+              <Text style={[s.sub, s.textCenter]}>{t('ob_reminders_sub')}</Text>
             </View>
           )}
 
           {cur === 'ready' && (
             <View style={s.centerStep}>
               <Image source={require('../assets/adaptive-icon.png')} style={s.logoSm} resizeMode="contain" />
-              <Text style={s.title}>{t('ob_ready_title')}</Text>
-              <Text style={s.sub}>{signedIn ? t('ob_finish_sub') : t('ob_ready_sub')}</Text>
+              <Text style={[s.title, s.textCenter]}>{t('ob_ready_title')}</Text>
+              <Text style={[s.sub, s.textCenter]}>{signedIn ? t('ob_finish_sub') : t('ob_ready_sub')}</Text>
             </View>
           )}
 
@@ -536,8 +582,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             <TouchableOpacity style={s.primaryBtn} onPress={next}>
               <Text style={s.primaryBtnText}>{t('ob_get_started')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.skip} onPress={() => onDone && onDone()}>
-              <Text style={s.skipText}>{t('onboarding_already_have_account')}</Text>
+            <TouchableOpacity style={s.linkBtn} onPress={() => onDone && onDone()}>
+              <Text style={s.linkText}>{t('onboarding_already_have_account')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -546,8 +592,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             <TouchableOpacity style={s.primaryBtn} onPress={enableNotifications}>
               <Text style={s.primaryBtnText}>{t('ob_enable_notifs')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.skip} onPress={() => setStep(step + 1)}>
-              <Text style={s.skipText}>{t('ob_not_now')}</Text>
+            <TouchableOpacity style={s.linkBtn} onPress={() => setStep(step + 1)}>
+              <Text style={s.linkText}>{t('ob_not_now')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -558,55 +604,72 @@ export default function OnboardingFlowScreen({ onDone, session }) {
         )}
         {!['splash', 'reminders', 'ready'].includes(cur) && (
           <TouchableOpacity
-            style={[s.primaryBtn, !canContinue() && { opacity: 0.4 }]}
+            style={[s.primaryBtn, !canContinue() && s.primaryBtnDim]}
             onPress={next}
             disabled={!canContinue()}
+            accessibilityState={{ disabled: !canContinue() }}
           >
             <Text style={s.primaryBtnText}>{t('ob_continue')}</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Language picker */}
+      {/* Language picker (Graduated bottom sheet, prototype.html langSheet()) */}
       <Modal visible={showLang} animationType="fade" transparent onRequestClose={() => setShowLang(false)}>
         <TouchableOpacity style={s.langBackdrop} activeOpacity={1} onPress={() => setShowLang(false)}>
           <View style={s.langSheet}>
-            {(LANGUAGES || []).map((l, i) => {
-              const on = language === l.code;
-              return (
-                <TouchableOpacity
-                  key={l.code}
-                  style={[s.langOpt, i > 0 && s.langDiv, on && s.langOptOn]}
-                  onPress={() => { setLanguage(l.code); setShowLang(false); }}
-                >
-                  {/* Use `native` (the localized language name) — the LANGUAGES
-                      objects have code/name/native/flag, NO `label`, so `l.label`
-                      rendered as blank rows (invisible picker). Color is an explicit
-                      theme token on both states so it can't go white-on-white either. */}
-                  <Text style={[s.langOptText, on && s.langOptTextOn]}>{l.native}</Text>
-                  {on && <CheckMark style={s.langCheck} />}
-                </TouchableOpacity>
-              );
-            })}
+            <View style={s.sheetHead}>
+              <Text style={s.sheetTitle}>{t('settings_language')}</Text>
+              <TouchableOpacity onPress={() => setShowLang(false)} style={s.sheetDone}>
+                <Text style={s.sheetDoneText}>{t('done')}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={s.sheetSub}>{t('settings_language_sub')}</Text>
+            <View>
+              {(LANGUAGES || []).map((l, i) => {
+                const on = language === l.code;
+                return (
+                  <TouchableOpacity
+                    key={l.code}
+                    style={[s.langOpt, i > 0 && s.langDiv]}
+                    onPress={() => { setLanguage(l.code); setShowLang(false); }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                  >
+                    {/* Use `native` (the localized language name) — the LANGUAGES
+                        objects have code/name/native/flag, NO `label`, so `l.label`
+                        rendered as blank rows (invisible picker). Every color is an
+                        explicit theme token so it can't go white-on-white either. */}
+                    <View style={s.langCode}><Text style={s.langCodeText}>{String(l.code).toUpperCase()}</Text></View>
+                    <View style={s.langNames}>
+                      <Text style={s.langOptText}>{l.native}</Text>
+                      <Text style={s.langOptSub}>{l.name}</Text>
+                    </View>
+                    {on && <CheckMark size={22} color={colors.ink} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
 
       {/* Country picker */}
       <Modal visible={showCountry} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCountry(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <SafeAreaView style={s.pickerRoot}>
           <View style={s.pickerHead}>
             <View style={{ minWidth: 60 }} />
             <Text style={s.pickerTitle}>{t('profile_country')}</Text>
-            <TouchableOpacity onPress={() => setShowCountry(false)} style={{ minWidth: 60, alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 14, color: colors.accent, fontWeight: '600' }}>{t('done')}</Text>
+            <TouchableOpacity onPress={() => setShowCountry(false)} style={s.pickerDone}>
+              <Text style={s.sheetDoneText}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+          <View style={s.searchWrap}>
+            <View style={s.searchIcon} pointerEvents="none"><FeatureIcon name="search" size={18} color={colors.ink3} /></View>
             <TextInput
-              style={s.input}
+              style={[s.input, s.searchInput]}
               placeholder={t('profile_country_search')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               value={countrySearch} onChangeText={setCountrySearch}
               autoCapitalize="none" autoCorrect={false} autoFocus
             />
@@ -614,15 +677,17 @@ export default function OnboardingFlowScreen({ onDone, session }) {
           <FlatList
             data={filteredCountries}
             keyExtractor={(item) => item}
-            style={{ flex: 1, paddingHorizontal: 20 }}
+            style={s.countryList}
             keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
               <TouchableOpacity
-                style={[s.countryRow, country === item && s.countryRowOn]}
+                style={[s.countryRow, index > 0 && s.countryRowDiv]}
                 onPress={() => { setCountry(item); setShowCountry(false); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: country === item }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, flex: 1 }}>{countryLabel(item, language)}</Text>
-                {country === item && <CheckMark size={18} color={colors.accent} />}
+                <Text style={s.countryText}>{countryLabel(item, language)}</Text>
+                {country === item && <CheckMark size={22} color={colors.ink} />}
               </TouchableOpacity>
             )}
           />
@@ -632,81 +697,134 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   );
 }
 
+// Graduated (docs/design/prototype.html onbScreen(), DESIGN.md §2–§5): ground
+// screen, left-aligned large titles, ink progress dashes, outline pills with an
+// ink outline when selected, well inputs (radius 16), one ink capsule action,
+// underlined ink text links. Theme tokens only; blue (data) only on the two
+// illustration icons.
 function makeStyles(colors) {
+  const c = colors;
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, gap: 12 },
-    backChevron: { fontSize: 30, color: colors.textFaint, lineHeight: 30, width: 24 },
-    signOutLink: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-    progress: { flex: 1, flexDirection: 'row', gap: 5 },
-    dash: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.card2, overflow: 'hidden' },
-    dashFill: { height: '100%', borderRadius: 2, backgroundColor: colors.accent },
-    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-    splashWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    langChip: { position: 'absolute', top: 4, right: 0, paddingVertical: 6, paddingHorizontal: 8 },
-    langChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
-    logo: { width: 128, height: 128, marginBottom: 18 },
-    logoSm: { width: 84, height: 84, marginBottom: 14 },
-    brand: { fontSize: 32, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
-    phrase: { fontSize: 16, color: colors.textFaint, marginTop: 8, textAlign: 'center' },
-    title: { fontSize: 25, fontWeight: '700', color: colors.text, letterSpacing: -0.3, textAlign: 'center' },
-    sub: { fontSize: 14.5, color: colors.textFaint, textAlign: 'center', marginTop: 8, marginBottom: 14, lineHeight: 20 },
-    multiHint: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -6, marginBottom: 14 },
-    reqLegend: { fontSize: 12.5, color: colors.textMuted, textAlign: 'center', marginTop: -8, marginBottom: 4 },
-    privacyLink: { fontSize: 13.5, fontWeight: '700', color: colors.accent, textDecorationLine: 'underline' },
-    legend: { fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 6, marginBottom: 4 },
-    req: { color: colors.danger, fontWeight: '700' },
-    // Section heading — bold, with a top hairline that reads as the divider.
-    section: { fontSize: 15, fontWeight: '700', color: colors.text, letterSpacing: -0.2, marginTop: 28, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: colors.border },
-    field: { marginTop: 16 },
-    // Quiet micro-label — lighter than the option chips so it never reads flush.
-    fieldLabel: { fontSize: 11, fontWeight: '700', color: colors.textFaint, marginBottom: 8 },
-    // Month picker: 4-across uniform grid of rounded-rect chips.
+    root: { flex: 1, backgroundColor: c.ground },
+    hidden: { opacity: 0 },
+    topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 4, gap: 12, minHeight: 44, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    backBtn: { minWidth: 24, minHeight: 44, justifyContent: 'center' },
+    signOutBtn: { minHeight: 44, justifyContent: 'center' },
+    signOutLink: { fontSize: 15, fontWeight: '600', color: c.ink },
+    progress: { flex: 1, flexDirection: 'row', gap: 4 },
+    dash: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' },
+    dashFill: { height: '100%', borderRadius: 2, backgroundColor: c.ink },
+    content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 14, flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+
+    // Splash
+    splashWrap: { flex: 1 },
+    langRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+    langPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    langPillText: { fontSize: 13, color: c.ink2 },
+    splashCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingBottom: 44 },
+    logo: { width: 112, height: 112 },
+    logoSm: { width: 84, height: 84 },
+    brand: { fontSize: 42, lineHeight: 48, fontWeight: '700', color: c.ink, letterSpacing: -0.84 },
+    phrase: { fontSize: 22, lineHeight: 28, fontWeight: '500', color: c.ink2, textAlign: 'center' },
+
+    // Step heads (obHead): large title + ink2 sentence, left-aligned
+    stepHead: { gap: 14, paddingTop: 4 },
+    title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: c.ink, letterSpacing: -0.6 },
+    sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
+    textCenter: { textAlign: 'center' },
+    hint: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+    help: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+
+    // Features
+    featList: { gap: 14 },
+    featRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+    featIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: c.raised, alignItems: 'center', justifyContent: 'center' },
+    featText: { flex: 1, gap: 2 },
+    featTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+    featDesc: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+
+    // Pills (selection = ink outline on raised)
+    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+    pillIcon: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
+    pillText: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+    pillTextOn: { color: c.ink, fontWeight: '600' },
     mGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    mChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
-    // Left-aligned option row (sex, etc.) — distinct from the centered pill clouds.
-    mRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    sexHelp: { fontSize: 12, color: colors.textFaint, marginTop: 8, lineHeight: 16 },
-    input: {
-      backgroundColor: colors.card2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
-      fontSize: 15, color: colors.text, borderWidth: 0.5, borderColor: colors.border, minHeight: 48,
-    },
-    hScroll: { maxHeight: 46, marginBottom: 2 },
-    hRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, justifyContent: 'flex-start' },
-    pill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
-    chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border },
-    pillOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent, borderWidth: 1.5 },
-    pillText: { fontSize: 14, fontWeight: '600', color: colors.text },
-    pillTextOn: { color: colors.accentSoftText },
-    featRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 11 },
-    featIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-    featTitle: { fontSize: 15.5, fontWeight: '700', color: colors.text },
-    featDesc: { fontSize: 13, color: colors.textFaint, marginTop: 2, lineHeight: 17 },
-    termRow: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 14, backgroundColor: colors.card2, borderWidth: 0.5, borderColor: colors.border, marginTop: 10 },
-    termRowOn: { borderColor: colors.accent, borderWidth: 1.5, backgroundColor: colors.accentSoft },
-    check: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-    checkOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-    checkMark: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
-    termTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-    termDesc: { fontSize: 12.5, color: colors.textFaint, marginTop: 2, lineHeight: 17 },
-    centerStep: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    footer: { paddingHorizontal: 24, paddingBottom: 12, paddingTop: 6, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-    primaryBtn: { backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', minHeight: 54 },
-    primaryBtnText: { fontSize: 16, fontWeight: '700', color: colors.accentText },
-    skip: { alignItems: 'center', paddingVertical: 14, marginTop: 2 },
-    skipText: { fontSize: 14, fontWeight: '600', color: colors.textFaint },
-    langBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 40 },
-    langSheet: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 6, borderWidth: 0.5, borderColor: colors.border },
-    langOpt: { paddingVertical: 13, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    langDiv: { borderTopWidth: 0.5, borderTopColor: colors.border },
-    langOptOn: { backgroundColor: colors.accentSoft },
-    langOptText: { fontSize: 15, fontWeight: '600', color: colors.text },
-    langOptTextOn: { color: colors.accent, fontWeight: '700' },
-    langCheck: { fontSize: 16, fontWeight: '700', color: colors.accent },
-    pickerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: colors.border },
-    pickerTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
-    countryRow: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: colors.border },
-    countryRowOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent, borderWidth: 1.5 },
+    mChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingHorizontal: 4 },
+
+    // Fields
+    field: { gap: 10 },
+    fieldLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+    fieldHead: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, paddingHorizontal: 4 },
+    req: { color: c.ink2 },
+    input: { minHeight: 52, borderRadius: 16, backgroundColor: c.well, borderWidth: 1, borderColor: c.line, paddingHorizontal: 16, paddingVertical: 12, fontSize: 17, color: c.ink },
+    selectBtn: { minHeight: 52, borderRadius: 16, backgroundColor: c.well, borderWidth: 1, borderColor: c.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    selectText: { flex: 1, fontSize: 17, color: c.ink },
+    selectTextEmpty: { color: c.ink3 },
+
+    // Segmented control (segw fill)
+    seg: { flexDirection: 'row', padding: 3, gap: 2, borderRadius: 14, backgroundColor: c.well },
+    segItem: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: c.well },
+    segItemOn: { backgroundColor: c.raised, borderColor: c.line },
+    segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
+    segTextOn: { color: c.ink, fontWeight: '700' },
+
+    // Activity list (actlist)
+    actList: { backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, overflow: 'hidden' },
+    actRow: { minHeight: 60, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 2, borderColor: c.raised },
+    actRowOn: { borderColor: c.ink },
+    actDiv: { height: 1, backgroundColor: c.line },
+    actDivHidden: { backgroundColor: c.raised },
+    actText: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+
+    // Consent list
+    termList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+    termRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 14 },
+    termRowDiv: { borderTopWidth: 1, borderTopColor: c.line },
+    check: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: c.tick, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+    checkOn: { backgroundColor: c.ink, borderColor: c.ink },
+    termText: { flex: 1, gap: 3 },
+    termTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+    termDesc: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+
+    centerStep: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 8 },
+
+    // Footer (obfoot): one ink capsule, then an underlined text button
+    footer: { gap: 6, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, backgroundColor: c.ground, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    primaryBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+    primaryBtnDim: { opacity: 0.35 },
+    primaryBtnText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+    linkBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+    linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, textAlign: 'center' },
+
+    // Language sheet
+    langBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingBottom: 30 },
+    langSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    sheetTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+    sheetDone: { minHeight: 44, justifyContent: 'center' },
+    sheetDoneText: { fontSize: 17, fontWeight: '600', color: c.ink },
+    sheetSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    langOpt: { minHeight: 56, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    langDiv: { borderTopWidth: 1, borderTopColor: c.line },
+    langCode: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
+    langCodeText: { fontSize: 13, fontFamily: MONO['500'], color: c.ink },
+    langNames: { flex: 1, gap: 2 },
+    langOptText: { fontSize: 17, fontWeight: '600', color: c.ink },
+    langOptSub: { fontSize: 13, color: c.ink2 },
+
+    // Country picker
+    pickerRoot: { flex: 1, backgroundColor: c.ground },
+    pickerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, minHeight: 56, borderBottomWidth: 1, borderBottomColor: c.line },
+    pickerTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+    pickerDone: { minWidth: 60, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+    searchWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, justifyContent: 'center' },
+    searchIcon: { position: 'absolute', left: 30, top: 12, bottom: 8, justifyContent: 'center', zIndex: 1 },
+    searchInput: { paddingLeft: 42 },
+    countryList: { flex: 1, paddingHorizontal: 16 },
+    countryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+    countryRowDiv: { borderTopWidth: 1, borderTopColor: c.line },
+    countryText: { flex: 1, fontSize: 17, color: c.ink },
   });
 }
