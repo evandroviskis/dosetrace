@@ -22,7 +22,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { requestAIConsent } from '../../lib/aiConsent';
-import { isPremium } from '../../lib/purchases';
+import { hasPremium } from '../../lib/entitlement';
 import { quotaLimitFrom, fillQuotaMessage } from '../../lib/scanQuotaMessage';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
@@ -91,7 +91,7 @@ export default function VaccinesSection() {
   useFocusEffect(useCallback(() => { fetchList(); }, []));
 
   async function fetchList() {
-    setPremium(await isPremium());
+    setPremium(await hasPremium());
     const user = await getCachedUser();
     if (!user) return;
     setList(getVaccines(user.id) || []);
@@ -99,7 +99,7 @@ export default function VaccinesSection() {
 
   // ── Scan / upload a card or doctor's sheet ───────────────────────
   async function handleScanPress() {
-    if (!(await isPremium())) {
+    if (!(await hasPremium())) {
       Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
         { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
         { text: t('cancel'), style: 'cancel' },
@@ -161,7 +161,7 @@ export default function VaccinesSection() {
   async function extractVaccines(source) {
     // Robust gate: vaccine scanning is Premium-only. Re-check at the action
     // point (fresh isPremium) so the paid extraction never runs for a free user.
-    if (!(await isPremium())) {
+    if (!(await hasPremium())) {
       setUploading(false);
       Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
         { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },

@@ -17,7 +17,6 @@ import {
   getOfferings,
   purchasePackage,
   restorePurchases,
-  isPremium,
   checkTrialEligibility,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
@@ -26,6 +25,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import AccumulationHero from '../components/AccumulationHero';
 import { FeaturePreviewSheet, PREVIEW_FEATURES } from '../components/FeaturePreviews';
 import { friendlyError } from '../lib/friendlyError';
+import { getEntitlement } from '../lib/entitlement';
 import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
 import LegalModal from '../components/LegalModal';
 import { Analytics } from '../lib/analytics';
@@ -169,8 +169,9 @@ export default function PaywallScreen({ navigation, route }) {
     setPurchasing(false);
 
     if (result.success) {
-      // Re-check entitlement before unlocking
-      const premium = result.premium || (await isPremium());
+      // Refresh the ONE entitlement helper (it also writes the offline cache at once).
+      const ent = await getEntitlement();
+      const premium = result.premium || ent.premium;
       if (premium) Analytics.purchaseCompleted({ plan, source });
       if (premium && onSuccess) onSuccess();
       navigation.goBack();
@@ -197,7 +198,8 @@ export default function PaywallScreen({ navigation, route }) {
     setRestoring(false);
 
     if (result.success) {
-      const premium = result.premium || (await isPremium());
+      const ent = await getEntitlement();
+      const premium = result.premium || ent.premium;
       if (premium) {
         Alert.alert(t('paywall_restored'), t('paywall_restored_msg'));
         if (onSuccess) onSuccess();

@@ -39,7 +39,7 @@ function offenders() {
   return hits;
 }
 
-test('FX-16 guard: only lib/entitlement.js decides Premium (no isPremium / direct RevenueCat reads elsewhere)', { todo: 'S-06 (one entitlement helper)' }, () => {
+test('FX-16 guard: only lib/entitlement.js decides Premium (no isPremium / direct RevenueCat reads elsewhere)', () => {
   const hits = offenders();
   assert.deepEqual(hits, [], `Premium decided outside the helper:\n${hits.join('\n')}`);
 });

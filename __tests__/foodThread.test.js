@@ -155,18 +155,10 @@ test('todayFoodHeroPolicy: ONLY while a check is open; day X of 21, then "time t
 });
 
 // ── FL-41: which access ended; the free-days grace flag; RevenueCat unreachable ──
-const { resolveEntitlement, FREE_DAYS, sendFailureNotice } = require('../lib/foodThread');
+const { FREE_DAYS, sendFailureNotice } = require('../lib/foodThread');
 
-test('resolveEntitlement: store unreachable → last known end date; none known → lenient, never locked on a hiccup', () => {
-  assert.deepEqual(resolveEntitlement({ reachable: true, premium: true }), { premium: true, premiumEndedOn: null, entitlementUnknown: false, remember: null });
-  assert.deepEqual(resolveEntitlement({ reachable: true, premium: false, endedOn: '2026-09-10' }), { premium: false, premiumEndedOn: '2026-09-10', entitlementUnknown: false, remember: '2026-09-10' });
-  assert.deepEqual(resolveEntitlement({ reachable: false, lastKnownEndedOn: '2026-09-10' }), { premium: false, premiumEndedOn: '2026-09-10', entitlementUnknown: false, remember: undefined });
-  const unknown = resolveEntitlement({ reachable: false, lastKnownEndedOn: null });
-  assert.equal(unknown.entitlementUnknown, true);
-  const acc = foodLogAccess({ premium: false, firstUse: '2026-08-01', rcStart: null, todayISO: '2026-09-12', entitlementUnknown: true });
-  assert.equal(acc.canLog, true, 'lenient: grace, not locked');
-  assert.equal(acc.reason, 'unknown');
-});
+// resolveEntitlement (the food log's own offline guess) was REPLACED by the one entitlement
+// helper (S-06 / FX-16): see __tests__/entitlement.test.js.
 
 test('sendFailureNotice: the offline notice only when the device is actually offline (FL-46)', () => {
   assert.equal(sendFailureNotice({ ok: true }, true), null);

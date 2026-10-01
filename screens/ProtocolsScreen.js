@@ -29,7 +29,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser, supabase } from '../lib/supabase';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import { requestAIConsent } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
@@ -1334,7 +1334,7 @@ export default function ProtocolsScreen() {
       // DB count, so the extra protocol is never created — the block happens
       // before insert, not after.
       const activeCount = (getActiveProtocols(user.id) || []).length;
-      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await isPremium())) {
+      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await hasPremium())) {
         setSaving(false);
         setShowModal(false);
         resetForm();
@@ -1485,7 +1485,7 @@ export default function ProtocolsScreen() {
   async function isOverFreeLimit() {
     const user = await getCachedUser();
     const count = user ? (getActiveProtocols(user.id) || []).length : protocols.length;
-    return count >= FREE_PROTOCOL_LIMIT && !(await isPremium());
+    return count >= FREE_PROTOCOL_LIMIT && !(await hasPremium());
   }
 
   async function openAdd() {

@@ -17,7 +17,7 @@ import { scanMissedDoses } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
 import { hour12Pref } from '../lib/timeFormat';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
 import { useTheme } from '../lib/theme';
@@ -224,7 +224,7 @@ export default function LogScreen() {
         <Text style={s.headerTitle}>{t('log_title')}</Text>
         <TouchableOpacity
           style={s.curveBtn}
-          onPress={async () => { Analytics.viewed('serum_curve'); const pro = await isPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
+          onPress={async () => { Analytics.viewed('serum_curve'); const pro = await hasPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
           accessibilityRole="button"
           accessibilityLabel={t('curve_btn')}
         >

@@ -34,7 +34,7 @@ import {
   updateVial, getProtocolById, permanentlyDeleteProtocol,
 } from '../lib/database';
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
@@ -129,7 +129,7 @@ export default function SettingsScreen({ navigation }) {
     const user = await getCachedUser();
     setUser(user);
     // Real subscription status (non-throwing; defaults to false on failure)
-    isPremium().then(setPremium).catch(() => setPremium(false));
+    hasPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
       setDoseReminders(user.user_metadata?.dose_reminders !== false);

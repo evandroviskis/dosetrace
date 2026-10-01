@@ -61,7 +61,7 @@ test('FX-2: mark taken plans ONE Taken row, flips an auto-Missed row instead of 
 });
 
 // ── FX-4: one entitlement answer everywhere, store unreachable (L-24 + L-34) → S-06
-test('FX-4: store unreachable → the cached entitlement decides, with its expiration date', { todo: 'S-06 (one entitlement helper)' }, () => {
+test('FX-4: store unreachable → the cached entitlement decides, with its expiration date', () => {
   const { entitlementFrom } = load('../lib/entitlement');
   const now = Date.parse('2026-09-27T12:00:00Z');
   const paying = entitlementFrom({ live: null, cache: { premium: true, expiresAt: '2026-10-27T00:00:00Z' }, now });

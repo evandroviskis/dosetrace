@@ -18,7 +18,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
-import { isPremium } from '../../lib/purchases';
+import { hasPremium } from '../../lib/entitlement';
 import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
 import { profileBodyInputs } from '../../lib/bodyProfile';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -155,7 +155,7 @@ export default function CalculatorSection({ header = null }) {
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
-    setPremium(await isPremium());
+    setPremium(await hasPremium());
     const user = await getCachedUser();
     const uid = user?.id || null;
     // Free users get the reality check (and food log) for 7 days too (FL-41).
