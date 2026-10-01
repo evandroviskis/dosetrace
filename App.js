@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { QUESTIONS_KEY } from './lib/siteQuestion';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -542,6 +543,7 @@ export default function App() {
           AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
           clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
           clearSeenOnboarding().catch(() => {});
+          AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
         }, 0);
       }
 
