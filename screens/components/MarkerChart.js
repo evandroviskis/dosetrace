@@ -1,27 +1,29 @@
 /**
- * DoseTrace — marker evolution chart
+ * DoseTrace — marker evolution chart (Graduated, prototype markerChart())
  *
- * Plots one marker's values across the user's own tests, oldest → newest.
- * Drawn with React Native primitives only — no react-native-svg — matching
- * the house pattern used by BodyMapModal. Line segments are thin Views
- * centered on each pair's midpoint and rotated to the segment angle.
+ * Plots one marker's values across the user's own tests, oldest → newest:
+ * three dotted guide lines, the readings joined by a line in the data color,
+ * each reading as a point with its value above it and its test date below.
  *
  * IMPORTANT — regulatory framing:
  *   This is a neutral plot of the user's OWN entered values. NO reference
  *   ranges, NO shaded "normal" band, NO good/bad coloring, NO trend verdict.
  *   It shows the numbers the user uploaded and nothing more. The user draws
- *   their own conclusions; the app never interprets.
+ *   their own conclusions; the app never interprets. (DESIGN.md §7, §9)
  */
 
-import { View, Text, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useMemo } from 'react';
+import Svg, { Line, Polyline, Circle, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
+import { MONO } from '../../lib/fonts';
 
-const CHART_H = 130;   // plot area height
-const PAD_TOP = 10;    // headroom so the top dot isn't clipped
-const PAD_BOTTOM = 10;
-const DOT = 7;
-const LINE_THICKNESS = 2;
+const H = 170;        // drawing height (prototype 326 × 170)
+const SIDE = 12;      // left/right inset of the guide lines
+const INSET = 16;     // extra inset of the first/last point from the guide ends
+const TOP = 26;       // room above the highest point for its value
+const BOTTOM = H - 30; // room below the lowest point for the dates
+const MIN_LABEL_GAP = 56; // px between labelled points before labels are thinned
 
 // Format a YYYY-MM-DD date compactly for the x-axis (locale month + day).
 function shortDate(dateStr, locale) {
@@ -30,113 +32,62 @@ function shortDate(dateStr, locale) {
   return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-// Trim trailing zeros from a numeric label (12.30 → 12.3, 12.00 → 12).
-function fmt(n) {
-  if (!Number.isFinite(n)) return String(n);
-  return String(Number(n.toFixed(2)));
-}
-
 export default function MarkerChart({ points, unit, locale = 'en-US', width }) {
   const { colors } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
+  const W = Math.max(width || 300, 120);
 
-  // Plot area width, reserving a right gutter for the y-axis value labels so
-  // the newest data point doesn't sit underneath them.
-  const Y_GUTTER = 36;
-  const plotW = Math.max((width || 300) - Y_GUTTER, 40);
-
-  const { segments, dots, minV, maxV } = useMemo(() => {
+  const { xy, guides, labelled } = useMemo(() => {
     const vals = points.map(p => p.value);
     let lo = Math.min(...vals);
     let hi = Math.max(...vals);
-    if (lo === hi) { lo -= 1; hi += 1; } // flat series → give it a band so the line sits mid-height
-    const span = hi - lo;
-    const usableH = CHART_H - PAD_TOP - PAD_BOTTOM;
+    // Headroom above and below so points and their labels never touch the edges;
+    // a flat series sits in the middle.
+    const pad = (hi - lo) * 0.25 || Math.abs(hi) * 0.1 || 1;
+    lo -= pad; hi += pad;
     const n = points.length;
+    const L = SIDE + INSET, R = W - SIDE - INSET;
+    const X = (i) => (n === 1 ? W / 2 : L + (i / (n - 1)) * (R - L));
+    const Y = (v) => BOTTOM - ((v - lo) / (hi - lo)) * (BOTTOM - TOP);
+    const pts = points.map((p, i) => ({ x: X(i), y: Y(p.value), value: p.value, date: p.date }));
+    // Many readings: label every k-th point (always the newest) so labels never collide.
+    const step = n <= 1 ? 1 : Math.max(1, Math.ceil(MIN_LABEL_GAP / ((R - L) / (n - 1))));
+    const show = new Set();
+    for (let i = n - 1; i >= 0; i -= step) show.add(i);
+    return { xy: pts, guides: [TOP, (TOP + BOTTOM) / 2, BOTTOM], labelled: show };
+  }, [points, W]);
 
-    const xy = points.map((p, i) => {
-      const x = n === 1 ? plotW / 2 : (plotW * i) / (n - 1);
-      const y = PAD_TOP + usableH * (1 - (p.value - lo) / span);
-      return { x, y, value: p.value };
-    });
-
-    const segs = [];
-    for (let i = 0; i < xy.length - 1; i++) {
-      const a = xy[i], b = xy[i + 1];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx); // radians
-      segs.push({
-        left: (a.x + b.x) / 2 - len / 2,
-        top: (a.y + b.y) / 2 - LINE_THICKNESS / 2,
-        width: len,
-        angle,
-      });
-    }
-    return { segments: segs, dots: xy, minV: lo, maxV: hi };
-  }, [points, plotW]);
+  const a11y = points.map(p => `${shortDate(p.date, locale)}: ${p.value}${unit ? ' ' + unit : ''}`).join(', ');
 
   return (
-    <View style={s.wrap}>
-      {/* y-axis extents */}
-      <View style={s.yLabels}>
-        <Text style={s.yLabel}>{fmt(maxV)}</Text>
-        <Text style={s.yLabel}>{fmt(minV)}</Text>
-      </View>
-
-      <View style={[s.plot, { height: CHART_H }]}>
-        {segments.map((seg, i) => (
-          <View
-            key={`seg${i}`}
-            style={{
-              position: 'absolute',
-              left: seg.left,
-              top: seg.top,
-              width: seg.width,
-              height: LINE_THICKNESS,
-              borderRadius: LINE_THICKNESS,
-              backgroundColor: colors.accent,
-              transform: [{ rotate: `${seg.angle}rad` }],
-            }}
-          />
+    <View accessible accessibilityRole="image" accessibilityLabel={a11y}>
+      <Svg width={W} height={H}>
+        {guides.map((y, i) => (
+          <Line key={`g${i}`} x1={SIDE} x2={W - SIDE} y1={y} y2={y} stroke={colors.line} strokeWidth={1} strokeDasharray="2 3" />
         ))}
-        {dots.map((d, i) => (
-          <View
-            key={`dot${i}`}
-            style={{
-              position: 'absolute',
-              left: d.x - DOT / 2,
-              top: d.y - DOT / 2,
-              width: DOT,
-              height: DOT,
-              borderRadius: DOT / 2,
-              backgroundColor: colors.accent,
-              borderWidth: 1.5,
-              borderColor: colors.card,
-            }}
+        {xy.length > 1 && (
+          <Polyline
+            points={xy.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke={colors.data}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
           />
-        ))}
-      </View>
-
-      {/* x-axis: first + last test dates */}
-      <View style={s.xLabels}>
-        <Text style={s.xLabel}>{shortDate(points[0].date, locale)}</Text>
-        {points.length > 1 && (
-          <Text style={s.xLabel}>{shortDate(points[points.length - 1].date, locale)}</Text>
         )}
-      </View>
-
-      {unit ? <Text style={s.unitLabel}>{unit}</Text> : null}
+        {xy.map((p, i) => (
+          <Circle key={`p${i}`} cx={p.x} cy={p.y} r={4.5} fill={colors.data} />
+        ))}
+        {xy.map((p, i) => (labelled.has(i) ? (
+          <SvgText key={`v${i}`} x={p.x} y={p.y - 10} textAnchor="middle" fontFamily={MONO['500']} fontSize={11} fill={colors.ink}>
+            {String(p.value)}
+          </SvgText>
+        ) : null))}
+        {xy.map((p, i) => (labelled.has(i) ? (
+          <SvgText key={`d${i}`} x={p.x} y={H - 8} textAnchor="middle" fontSize={11} fill={colors.ink3}>
+            {shortDate(p.date, locale)}
+          </SvgText>
+        ) : null))}
+      </Svg>
     </View>
   );
 }
-
-const makeStyles = (c) => StyleSheet.create({
-  wrap: { paddingTop: 4 },
-  yLabels: { position: 'absolute', right: 0, top: 0, width: 32, height: CHART_H, justifyContent: 'space-between', alignItems: 'flex-end' },
-  yLabel: { fontSize: 10, color: c.textFaint },
-  plot: { position: 'relative' },
-  xLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginRight: 36 },
-  xLabel: { fontSize: 10, color: c.textFaint },
-  unitLabel: { fontSize: 10, color: c.textFaint, textAlign: 'center', marginTop: 2 },
-});
