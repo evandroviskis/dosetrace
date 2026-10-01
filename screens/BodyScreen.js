@@ -747,7 +747,8 @@ export default function BodyScreen({ navigation, route }) {
     return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
   }
 
-  const testCount = new Set(rows.map(r => r.report_date)).size;
+  // One per upload, the same key as the journal's date cards (A-74).
+  const testCount = new Set(rows.map(r => r.report_date + '|' + (r.created_at || ''))).size;
   const labStat = testCount > 0
     ? `${testCount} ${testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}`
     : t('body_stat_none');

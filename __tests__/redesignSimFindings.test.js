@@ -88,3 +88,12 @@ test('A-73: the curve "now" marker is sentence case in every language', () => {
   assert.equal(vals.length, 6);
   for (const v of vals) assert.notEqual(v, v.toUpperCase(), `${v} is all caps`);
 });
+
+// A-74: My Body said "1 test" while the Lab test journal listed 4 tests on the same date.
+//   The journal shows one card per upload (report_date + created_at, so a duplicate upload
+//   can be deleted on its own); the hub counted distinct dates. Both count uploads now.
+test('A-74: the My Body lab count uses the same key as the journal cards', () => {
+  const src = read('screens/BodyScreen.js');
+  assert.doesNotMatch(src, /new Set\(rows\.map\(r => r\.report_date\)\)\.size/);
+  assert.match(src, /const testCount = new Set\(rows\.map\(r => r\.report_date \+ '\|' \+ \(r\.created_at \|\| ''\)\)\)\.size/);
+});

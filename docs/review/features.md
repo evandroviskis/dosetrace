@@ -210,6 +210,7 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 | A-71 | **Settings: long row subtitles ran under the switch** (e.g. Persistent reminders). The label block had no flex. | redesign sim check | **FIXED 2026-10-01** — 9 row label blocks take the remaining width and wrap. __tests__/redesignSimFindings.test.js RED → GREEN; seen on the simulator. |
 | A-72 | **Dose accumulation screen: title indented 36 pt (others 20) and "0.0" far from "mg".** | redesign sim check | **FIXED 2026-10-01** — lib/numberWidth.js measures the number box per character; title padding 4 inside the 16 pt scroll. __tests__/redesignSimFindings.test.js RED → GREEN; seen on the simulator (light + dark). |
 | A-73 | **Curve "NOW" marker still all caps** after the sentence-case sweep. | redesign sim check | **FIXED 2026-10-01** — Now / Ahora / Agora / Maintenant / Jetzt / Ora (same words). __tests__/redesignSimFindings.test.js RED → GREEN. |
+| A-74 | **My Body said "1 test" while the Lab test journal listed 4** (same date, separate uploads). The journal shows one card per upload; the hub counted distinct dates. | redesign sim check | **FIXED 2026-10-01** — the hub counts uploads with the same key. __tests__/redesignSimFindings.test.js RED → GREEN. |
 
 ---
 
