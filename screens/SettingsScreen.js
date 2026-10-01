@@ -591,6 +591,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={doseReminders}
+              thumbColor={(doseReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('dose_reminders', v, setDoseReminders)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -605,6 +606,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={checkinReminders}
+              thumbColor={(checkinReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -619,6 +621,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={foodReminders}
+              thumbColor={(foodReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -633,6 +636,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={notifNames}
+              thumbColor={(notifNames) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('notif_show_names', v, setNotifNames)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -647,6 +651,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={vialAlerts}
+              thumbColor={(vialAlerts) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('vial_alerts', v, setVialAlerts)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -661,6 +666,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={silentMode}
+              thumbColor={(silentMode) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('silent_mode', v, setSilentMode)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -675,6 +681,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={persistentReminders}
+              thumbColor={(persistentReminders) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
               trackColor={{ true: colors.switchTrack }}
             />
@@ -737,6 +744,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Switch
               value={analyticsEnabled}
+              thumbColor={(analyticsEnabled) ? colors.onInk : undefined} // Graduated: dark knob on the light ink track in dark theme
               onValueChange={toggleAnalytics}
               trackColor={{ true: colors.switchTrack }}
             />

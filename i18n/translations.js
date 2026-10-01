@@ -601,7 +601,7 @@ export const translations = {
     curve_done: 'Done',
     faq_categories: [
       {
-        category: 'GETTING STARTED',
+        category: 'Getting started',
         questions: [
           {
             q: 'What is DoseTrace?',
@@ -618,7 +618,7 @@ export const translations = {
         ]
       },
       {
-        category: 'RECONSTITUTION & DOSING',
+        category: 'Reconstitution & dosing',
         questions: [
           {
             q: 'How does the reconstitution calculator work?',
@@ -635,7 +635,7 @@ export const translations = {
         ]
       },
       {
-        category: 'VIALS & TRACKING',
+        category: 'Vials & tracking',
         questions: [
           {
             q: 'How do I log a vial mix?',
@@ -648,7 +648,7 @@ export const translations = {
         ]
       },
       {
-        category: 'BLOODWORK',
+        category: 'Bloodwork',
         questions: [
           {
             q: 'How does bloodwork upload work?',
@@ -661,7 +661,7 @@ export const translations = {
         ]
       },
       {
-        category: 'PREMIUM',
+        category: 'Premium',
         questions: [
           {
             q: 'What does Premium include?',
@@ -2359,7 +2359,7 @@ export const translations = {
     curve_done: 'Listo',
     faq_categories: [
       {
-        category: 'PRIMEROS PASOS',
+        category: 'Primeros pasos',
         questions: [
           {
             q: '¿Qué es DoseTrace?',
@@ -2376,7 +2376,7 @@ export const translations = {
         ]
       },
       {
-        category: 'RECONSTITUCIÓN Y DOSIFICACIÓN',
+        category: 'Reconstitución y dosificación',
         questions: [
           {
             q: '¿Cómo funciona la calculadora de reconstitución?',
@@ -2393,7 +2393,7 @@ export const translations = {
         ]
       },
       {
-        category: 'VIALES Y RASTREO',
+        category: 'Viales y rastreo',
         questions: [
           {
             q: '¿Cómo registro una mezcla de vial?',
@@ -2406,7 +2406,7 @@ export const translations = {
         ]
       },
       {
-        category: 'ANÁLISIS DE SANGRE',
+        category: 'Análisis de sangre',
         questions: [
           {
             q: '¿Cómo funciona la carga de análisis de sangre?',
@@ -2419,7 +2419,7 @@ export const translations = {
         ]
       },
       {
-        category: 'PREMIUM',
+        category: 'Premium',
         questions: [
           {
             q: '¿Qué incluye Premium?',
@@ -4117,7 +4117,7 @@ export const translations = {
     curve_done: 'Concluir',
     faq_categories: [
       {
-        category: 'COMEÇANDO',
+        category: 'Começando',
         questions: [
           {
             q: 'O que é DoseTrace?',
@@ -4134,7 +4134,7 @@ export const translations = {
         ]
       },
       {
-        category: 'RECONSTITUIÇÃO E DOSAGEM',
+        category: 'Reconstituição e dosagem',
         questions: [
           {
             q: 'Como funciona a calculadora de reconstituição?',
@@ -4151,7 +4151,7 @@ export const translations = {
         ]
       },
       {
-        category: 'FRASCOS E RASTREAMENTO',
+        category: 'Frascos e rastreamento',
         questions: [
           {
             q: 'Como faço para registrar uma mistura de frasco?',
@@ -4164,7 +4164,7 @@ export const translations = {
         ]
       },
       {
-        category: 'EXAME DE SANGUE',
+        category: 'Exame de sangue',
         questions: [
           {
             q: 'Como funciona o envio de exame de sangue?',
@@ -4177,7 +4177,7 @@ export const translations = {
         ]
       },
       {
-        category: 'PREMIUM',
+        category: 'Premium',
         questions: [
           {
             q: 'O que Premium inclui?',
@@ -5874,7 +5874,7 @@ export const translations = {
     curve_done: 'Terminé',
     faq_categories: [
       {
-        category: 'COMMENCER',
+        category: 'Commencer',
         questions: [
           {
             q: 'Qu\'est-ce que DoseTrace?',
@@ -5891,7 +5891,7 @@ export const translations = {
         ]
       },
       {
-        category: 'RECONSTITUTION ET DOSAGE',
+        category: 'Reconstitution et dosage',
         questions: [
           {
             q: 'Comment fonctionne la calculatrice de reconstitution?',
@@ -5908,7 +5908,7 @@ export const translations = {
         ]
       },
       {
-        category: 'FIOLES ET SUIVI',
+        category: 'Fioles et suivi',
         questions: [
           {
             q: 'Comment enregistrer un mélange de fiole?',
@@ -5921,7 +5921,7 @@ export const translations = {
         ]
       },
       {
-        category: 'EXAMEN SANGUIN',
+        category: 'Examen sanguin',
         questions: [
           {
             q: 'Comment fonctionne le téléchargement d\'examen sanguin?',
@@ -5934,7 +5934,7 @@ export const translations = {
         ]
       },
       {
-        category: 'PREMIUM',
+        category: 'Premium',
         questions: [
           {
             q: 'Qu\'est-ce que Premium inclut?',
@@ -7631,7 +7631,7 @@ export const translations = {
     curve_done: 'Fertig',
     faq_categories: [
       {
-        category: 'ERSTE SCHRITTE',
+        category: 'Erste Schritte',
         questions: [
           {
             q: 'Was ist DoseTrace?',
@@ -7648,7 +7648,7 @@ export const translations = {
         ]
       },
       {
-        category: 'REKONSTITUTION & DOSIERUNG',
+        category: 'Rekonstitution & Dosierung',
         questions: [
           {
             q: 'Wie funktioniert der Rekonstitutions-Rechner?',
@@ -7665,7 +7665,7 @@ export const translations = {
         ]
       },
       {
-        category: 'FLÄSCHCHEN & VERFOLGUNG',
+        category: 'Fläschchen & Verfolgung',
         questions: [
           {
             q: 'Wie protokolliere ich ein Fläschchen-Mischen?',
@@ -7678,7 +7678,7 @@ export const translations = {
         ]
       },
       {
-        category: 'BLUTUNTERSUCHUNG',
+        category: 'Blutuntersuchung',
         questions: [
           {
             q: 'Wie funktioniert der Blutuntersuchungs-Upload?',
@@ -7691,7 +7691,7 @@ export const translations = {
         ]
       },
       {
-        category: 'PREMIUM',
+        category: 'Premium',
         questions: [
           {
             q: 'Was ist in Premium enthalten?',
@@ -9389,7 +9389,7 @@ export const translations = {
     curve_done: 'Fine',
     faq_categories: [
       {
-        category: 'INIZIARE',
+        category: 'Iniziare',
         questions: [
           {
             q: 'Che cos\'è DoseTrace?',
@@ -9406,7 +9406,7 @@ export const translations = {
         ]
       },
       {
-        category: 'RICOSTITUIZIONE E DOSAGGIO',
+        category: 'Ricostituzione e dosaggio',
         questions: [
           {
             q: 'Come funziona il calcolatore di ricostituizione?',
@@ -9423,7 +9423,7 @@ export const translations = {
         ]
       },
       {
-        category: 'FLACONI E TRACCIAMENTO',
+        category: 'Flaconi e tracciamento',
         questions: [
           {
             q: 'Come registro una miscelazione di flacone?',
@@ -9436,7 +9436,7 @@ export const translations = {
         ]
       },
       {
-        category: 'ANALISI',
+        category: 'Analisi',
         questions: [
           {
             q: 'Come funziona il caricamento delle analisi?',
@@ -9449,7 +9449,7 @@ export const translations = {
         ]
       },
       {
-        category: 'PREMIUM',
+        category: 'Premium',
         questions: [
           {
             q: 'Cosa è incluso in Premium?',
