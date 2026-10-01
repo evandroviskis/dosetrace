@@ -339,7 +339,9 @@ function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
   const units = Number(draw.drawUnits);
   const over = units > syringeMax;
   const alt = altMass(p.dose, p.dose_unit);
-  const zoomWidth = Math.max(windowWidth - 72, syringeMax * 16);
+  // The sheet is at most 560 wide (520 inside its padding), not the window (A-76).
+  const zoomView = Math.min(windowWidth - 72, 520);
+  const zoomWidth = Math.max(zoomView, syringeMax * 16);
 
   return (
     <View style={s.hobj}>
@@ -395,7 +397,7 @@ function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator
-              contentOffset={{ x: Math.max(0, (Math.min(units, syringeMax) / syringeMax) * zoomWidth - (windowWidth - 72) / 2), y: 0 }}
+              contentOffset={{ x: Math.max(0, (Math.min(units, syringeMax) / syringeMax) * zoomWidth - zoomView / 2), y: 0 }}
               style={s.ruler}
             >
               <SyringeRuler units={units} size={syringeMax} width={zoomWidth} />

@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import CalculatorSection from './components/CalculatorSection';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 export default function ProgressScreen() {
   const { t } = useLanguage();
@@ -17,12 +18,14 @@ export default function ProgressScreen() {
   const s = makeStyles(colors);
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
+      <View style={s.column}>
       <View style={s.nav}>
         <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={s.back}>‹ {t('tab_journey')}</Text>
         </TouchableOpacity>
       </View>
       <Text style={s.title}>{t('today_section_progress')}</Text>
+      </View>
       <CalculatorSection />
     </SafeAreaView>
   );
@@ -30,6 +33,8 @@ export default function ProgressScreen() {
 
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
+  // Same capped column as the cards below (A-75: wide screens, unfolded foldables).
+  column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   nav: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
   back: { fontSize: 17, color: c.ink },
   title: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, paddingHorizontal: 20, paddingBottom: 8 },

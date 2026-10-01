@@ -97,3 +97,22 @@ test('A-74: the My Body lab count uses the same key as the journal cards', () =>
   assert.doesNotMatch(src, /new Set\(rows\.map\(r => r\.report_date\)\)\.size/);
   assert.match(src, /const testCount = new Set\(rows\.map\(r => r\.report_date \+ '\|' \+ \(r\.created_at \|\| ''\)\)\)\.size/);
 });
+
+// A-75: wide screens (unfolded Z Fold, landscape). Your progress capped its cards at
+//   CONTENT_MAX_WIDTH but not its back row and title, so on a wide screen the title sat at
+//   the far left and the cards in the centre.
+test('A-75: the Progress back row and title sit in the same capped column as the cards', () => {
+  const src = read('screens/ProgressScreen.js');
+  assert.match(src, /CONTENT_MAX_WIDTH/);
+  assert.match(src, /<View style=\{s\.column\}>\s*\n\s*<View style=\{s\.nav\}>/);
+  assert.match(src, /column: \{[^}]*maxWidth: CONTENT_MAX_WIDTH[^}]*alignSelf: 'center'/);
+});
+
+// A-76: the enlarged syringe sheet is at most 560 wide, but the ruler was sized and
+//   centred on the whole window, so on a wide screen the draw mark opened off-centre.
+test('A-76: the enlarged syringe ruler is sized and centred on the visible sheet width', () => {
+  const src = read('screens/ProtocolsScreen.js');
+  assert.match(src, /const zoomView = Math\.min\(windowWidth - 72, 520\);/);
+  assert.match(src, /const zoomWidth = Math\.max\(zoomView, syringeMax \* 16\);/);
+  assert.match(src, /\* zoomWidth - zoomView \/ 2\)/);
+});
