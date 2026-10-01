@@ -99,6 +99,7 @@ export default function LogScreen() {
     setBodyMapTarget({
       logId: log.id,
       protocolName: log.protocols?.name || null,
+      protocolId: log.protocol_id ?? null,
       initialStored: mode === 'ask' ? null : (log.injection_site || null),
       recentLogs: recent,
       mode,
@@ -377,6 +378,7 @@ export default function LogScreen() {
         onSave={handleSiteSave}
         initialStored={bodyMapTarget?.initialStored || null}
         protocolName={bodyMapTarget?.protocolName || null}
+        protocolId={bodyMapTarget?.protocolId ?? null}
         recentLogs={bodyMapTarget?.recentLogs || []}
       />
     </SafeAreaView>
