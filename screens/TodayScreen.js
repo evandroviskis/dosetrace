@@ -1689,6 +1689,7 @@ export default function TodayScreen() {
         onSave={handleBodyMapSave}
         initialStored={bodyMapTarget?.initialStored || null}
         protocolName={protocols.find(p => p.id === bodyMapTarget?.protocolId)?.name || null}
+        protocolId={bodyMapTarget?.protocolId ?? null}
         recentLogs={bodyMapTarget?.recentLogs || []}
       />
 
