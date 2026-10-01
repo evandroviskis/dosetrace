@@ -19,6 +19,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linkin
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { isPremium } from '../../lib/purchases';
+import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
@@ -112,6 +113,7 @@ export default function CalculatorSection({ header = null }) {
   const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
   const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
+  const [rcWeighMsg, setRcWeighMsg] = useState(false);
   const [rcFree, setRcFree] = useState(false); // free 7 days of food log + reality check (FL-41)
   const [snapshots, setSnapshots] = useState([]);
   const [rcStartDate, setRcStartDate] = useState(null); // null = today; else a past weigh-in day (≤ 7 days back)
@@ -412,17 +414,28 @@ export default function CalculatorSection({ header = null }) {
     // Merge against a FRESH DB read, not React state — a stale/empty in-memory
     // snapshots array would null out an existing same-date snapshot's other fields.
     const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === bfDate) || null;
-    upsertCalcSnapshot(uid, {
-      entry_date: bfDate,
-      weight_kg: weightKg,
-      waist_cm: existing?.waist_cm ?? null,
-      body_fat_pct: bfv != null ? bfv : (existing?.body_fat_pct ?? null),
-      lbm: existing?.lbm ?? null, bmr: existing?.bmr ?? null, tdee: existing?.tdee ?? null,
-    });
+    upsertCalcSnapshot(uid, mergeWeighIn(existing, { date: bfDate, weightKg, bodyFatPct: bfv }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
     setBfWeight(''); setBfBodyFat(''); setBfDate(todayISO());
     setBfMsg(true); setTimeout(() => setBfMsg(false), 2500);
+  }
+
+  // The weigh-in of a reality check that is already running, for a user whose free
+  // days ended (FX-15: weigh-ins are never paywalled; only the result is). Saved as
+  // today's snapshot, merged so nothing logged earlier that day is lost.
+  function saveRcWeighIn() {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const w = num(rcNow);
+    if (w == null) return;
+    const weightKg = unit === 'imperial' ? lbToKg(w) : w;
+    const date = todayISO();
+    const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
+    upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg }));
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    setRcWeighMsg(true); setTimeout(() => setRcWeighMsg(false), 2500);
   }
 
   // ETA weeks → { weeks, when } where `when` is the projected finish month.
@@ -510,6 +523,7 @@ export default function CalculatorSection({ header = null }) {
 
   // ── Reality check (Premium, or a free user's 7 free days — FL-41) ──
   const rcAllowed = premium || rcFree;
+  const rcAccess = realityCheckAccess({ premium, rcFree, hasOpenCheck: !!rcStart });
   // Auto days-between the two weigh-ins; null until phase 2.
   const rcElapsedDays = rcStart ? daysBetween(rcStart.date, todayISO()) : null;
   // Intake across THIS check (founder: the check window matters, not day by day):
@@ -1224,6 +1238,21 @@ export default function CalculatorSection({ header = null }) {
             </>
           ) : (
             <View style={s.rcLocked}>
+              {/* FX-15: a check that is already running keeps its weigh-in — only the result is Premium. */}
+              {rcAccess.canLogWeighIn ? (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={s.label}>{t('cal_rc_current_weight')} ({wUnit})</Text>
+                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                  <TouchableOpacity style={[s.computeBtn, !num(rcNow) && s.computeBtnDisabled]} onPress={saveRcWeighIn} disabled={!num(rcNow)}>
+                    {rcWeighMsg ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <CheckMark style={s.computeBtnText} />
+                        <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
+                      </View>
+                    ) : <Text style={s.computeBtnText}>{t('cal_tgt_backfill_save')}</Text>}
+                  </TouchableOpacity>
+                </View>
+              ) : null}
               <Text style={s.rcLockedIntro}>{t('cal_rc_locked_intro')}</Text>
               <Text style={s.rcLockedLead}>{t('cal_rc_locked_lead')}</Text>
               <Text style={s.rcLockedItem}>1.  {t('cal_rc_start_weight')}</Text>
@@ -1244,12 +1273,11 @@ export default function CalculatorSection({ header = null }) {
         </View>
       )}
 
-      {/* Progress snapshots (premium) — part of tracking progress */}
+      {/* Progress snapshots — weigh-ins are never paywalled (FX-15) */}
       <View style={s.premCard}>
         <Text style={s.premTitle}>{t('cal_snap_title')}</Text>
         <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
-        {premium ? (
-          <>
+        <>
             <TouchableOpacity style={[s.computeBtn, !plan && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!plan}>
               {snapMsg ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -1298,15 +1326,7 @@ export default function CalculatorSection({ header = null }) {
                 </TouchableOpacity>
               </View>
             ) : null}
-          </>
-        ) : (
-          <View style={s.locked}>
-            <Text style={s.lockedText}>{t('cal_premium_locked')}</Text>
-            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        </>
       </View>
 
       {/* Understand the numbers — collapsed by default */}
