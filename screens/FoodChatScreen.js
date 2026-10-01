@@ -29,10 +29,10 @@ import { requestSync, isOnlineNow } from '../lib/sync';
 import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
-  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse,
+  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse, isMarker,
 } from '../lib/nutrition';
 import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice } from '../lib/foodThread';
-import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart } from '../lib/foodLogActions';
+import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { requestAIConsent } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
@@ -235,11 +235,23 @@ export default function FoodChatScreen() {
   }
 
   // ── Close a day (FL-29 / FL-18) ────────────────────────────────
-  async function closeDay(dayKey) {
+  async function closeDay(dayKey, opts = {}) {
     const uid = userId || (await getCachedUser())?.id || null;
     if (!uid) return;
+    // FL-47: closing a day with NO food logged — ask first. Only a confirmed
+    // "I ate nothing" makes it a 0-kcal day that counts toward the 7 days in a row.
+    const hasFood = (rows || []).some((r) => r && r.entry_date === dayKey && !isMarker(r));
+    if (!hasFood && !opts.confirmed) {
+      Alert.alert(t('nutri_close_empty_title'), t('nutri_close_empty_msg'), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('nutri_close_just_close'), onPress: () => closeDay(dayKey, { confirmed: true }) },
+        { text: t('nutri_close_ate_nothing'), onPress: () => closeDay(dayKey, { confirmed: true, ateNothing: true }) },
+      ]);
+      return;
+    }
     const ok = await closeFoodDay(dayKey, uid);
     if (!ok) { alert(t('error'), t('error_save_failed')); return; }
+    if (opts.ateNothing) markAteNothing(uid, dayKey); // marker: durable + synced ('ate_nothing')
     const open = openFollowup(rows);
     if (open) updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); // stays an estimate
     requestSync?.();
