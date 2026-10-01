@@ -23,7 +23,16 @@
         "NSCameraUsageDescription": "DoseTrace needs camera access so you can snap a photo of a lab report.",
         "UIFileSharingEnabled": false,
         "LSSupportsOpeningDocumentsInPlace": false,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": [
+          "en",
+          "es",
+          "pt",
+          "fr",
+          "de",
+          "it"
+        ]
       }
     },
     "android": {
