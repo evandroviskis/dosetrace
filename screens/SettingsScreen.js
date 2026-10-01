@@ -39,6 +39,7 @@ import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
+import { MONO } from '../lib/fonts';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -813,26 +814,27 @@ export default function SettingsScreen({ navigation }) {
                 return (
                   <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
                     <View style={s.rowLeft}>
-                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color || colors.textFaint }} />
+                      {/* The user's protocol color, only as a 9 pt dot (DESIGN.md §2.4). */}
+                      <View style={[s.deletedDot, { backgroundColor: p.color || colors.ink3 }]} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowLabel}>{p.name}</Text>
                         <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={s.deletedActions}>
                       <TouchableOpacity
                         onPress={() => restoreProtocol(p.id)}
-                        style={{ backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 }}
+                        style={s.restoreBtn}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('protocols_restore')}</Text>
+                        <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => confirmPermanentDelete(p)}
                         accessibilityLabel={t('settings_delete_forever')}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                        style={s.deleteForeverBtn}
                       >
-                        <FeatureIcon name="trash" size={17} color={colors.danger} />
+                        <FeatureIcon name="trash" size={20} color={colors.risk} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -945,19 +947,26 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 20 }}>
+            <Text style={s.sheetIntro}>
               {t('settings_language_sub')}
             </Text>
-            {LANGUAGES.map((lang) => (
+            {/* A language CODE tile (EN, ES…) instead of the flag emoji: no emoji in
+                the UI (founder-approved, prototype .lcode). The selected language
+                carries the ink check. */}
+            {LANGUAGES.map((lang, idx) => (
               <TouchableOpacity
                 key={lang.code}
-                style={[s.langRow, language === lang.code && s.langRowSelected]}
+                style={[s.langRow, idx > 0 && s.sheetDivider]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: language === lang.code }}
                 onPress={() => {
                   setLanguage(lang.code);
                   setShowLanguagePicker(false);
                 }}
               >
-                <Text style={s.langFlag}>{lang.flag}</Text>
+                <View style={s.langCode}>
+                  <Text style={s.langCodeText}>{lang.code.toUpperCase()}</Text>
+                </View>
                 <View style={s.langInfo}>
                   <Text style={s.langNative}>{lang.native}</Text>
                   <Text style={s.langName}>{lang.name}</Text>
@@ -1000,23 +1009,23 @@ export default function SettingsScreen({ navigation }) {
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
             <TouchableOpacity onPress={() => { setShowEditProfile(false); fetchUser(); }} style={{ minWidth: 60 }}>
-              <Text style={s.modalClose}>{t('cancel')}</Text>
+              <Text style={s.modalCancel}>{t('cancel')}</Text>
             </TouchableOpacity>
             <Text style={s.modalTitle}>{t('profile_edit_title')}</Text>
             <TouchableOpacity onPress={saveProfile} style={{ minWidth: 60, alignItems: 'flex-end' }}>
-              <Text style={[s.modalClose, { fontWeight: '700' }]}>{t('save')}</Text>
+              <Text style={s.modalClose}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
             {/* ── About you ─────────────────────────────────────────── */}
-            <Text style={s.editSection}>{t('profile_sec_about')}</Text>
+            <Text style={[s.editSection, s.editSectionFirst]}>{t('profile_sec_about')}</Text>
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_name')}</Text>
               <TextInput
                 style={s.editInput}
                 placeholder={t('profile_name_placeholder')}
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.ink3}
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoCapitalize="words"
@@ -1045,7 +1054,7 @@ export default function SettingsScreen({ navigation }) {
               <TextInput
                 style={s.editInput}
                 placeholder={t('profile_birth_year_ph')}
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={colors.ink3}
                 value={birthYearText}
                 onChangeText={(txt) => {
                   const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
@@ -1061,17 +1070,20 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_sex')}</Text>
-              <View style={s.editRow}>
+              {/* Two options → a segmented well (prototype profSheet), same values. */}
+              <View style={s.seg}>
                 {[
                   { key: 'male', label: t('profile_gender_male') },
                   { key: 'female', label: t('profile_gender_female') },
                 ].map(g => (
                   <TouchableOpacity
                     key={g.key}
-                    style={[s.editPill, gender === g.key && s.editPillOn]}
+                    style={[s.segItem, gender === g.key && s.segItemOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: gender === g.key }}
                     onPress={() => setGender(g.key)}
                   >
-                    <Text style={[s.editPillText, gender === g.key && s.editPillTextOn]}>{g.label}</Text>
+                    <Text style={[s.segText, gender === g.key && s.segTextOn]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1081,12 +1093,14 @@ export default function SettingsScreen({ navigation }) {
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_country')}</Text>
               <TouchableOpacity
-                style={[s.editInput, { justifyContent: 'center' }]}
+                style={s.editPick}
+                accessibilityRole="button"
                 onPress={() => { setCountrySearch(''); setShowCountryPicker(true); }}
               >
-                <Text style={{ fontSize: 15, color: country ? colors.text : colors.textFaint }}>
+                <Text style={[s.editPickText, !country && s.editPickPlaceholder]} numberOfLines={1}>
                   {country ? countryLabel(country, language) : t('profile_country_placeholder')}
                 </Text>
+                <Text style={s.rowArrow}>›</Text>
               </TouchableOpacity>
             </View>
 
@@ -1152,17 +1166,19 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_provider')}</Text>
-              <View style={s.editRow}>
+              <View style={s.seg}>
                 {[
                   { key: 'yes', label: t('profile_provider_yes') },
                   { key: 'no', label: t('profile_provider_no') },
                 ].map(p => (
                   <TouchableOpacity
                     key={p.key}
-                    style={[s.editPill, hasProvider === p.key && s.editPillOn]}
+                    style={[s.segItem, hasProvider === p.key && s.segItemOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: hasProvider === p.key }}
                     onPress={() => setHasProvider(p.key)}
                   >
-                    <Text style={[s.editPillText, hasProvider === p.key && s.editPillTextOn]}>{p.label}</Text>
+                    <Text style={[s.segText, hasProvider === p.key && s.segTextOn]}>{p.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1187,17 +1203,20 @@ export default function SettingsScreen({ navigation }) {
               <Text style={s.modalClose}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
-            <TextInput
-              style={[s.editInput, { marginBottom: 0 }]}
-              placeholder={t('profile_country_search')}
-              placeholderTextColor={colors.textFaint}
-              value={countrySearch}
-              onChangeText={setCountrySearch}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-            />
+          <View style={[s.centered, s.searchWrapOuter]}>
+            <View style={s.searchWrap}>
+              <FeatureIcon name="search" size={18} color={colors.ink3} />
+              <TextInput
+                style={s.searchInput}
+                placeholder={t('profile_country_search')}
+                placeholderTextColor={colors.ink3}
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+              />
+            </View>
           </View>
           <FlatList
             data={COUNTRIES.filter(c => {
@@ -1208,15 +1227,18 @@ export default function SettingsScreen({ navigation }) {
             style={{ flex: 1 }}
             contentContainerStyle={[s.centered, { paddingHorizontal: 20 }]}
             keyboardShouldPersistTaps="handled"
+            ItemSeparatorComponent={() => <View style={s.sheetDivider} />}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[s.langRow, country === item && s.langRowSelected]}
+                style={s.countryRow}
+                accessibilityRole="button"
+                accessibilityState={{ selected: country === item }}
                 onPress={() => {
                   setCountry(item);
                   setShowCountryPicker(false);
                 }}
               >
-                <Text style={[s.langNative, { flex: 1 }]}>{countryLabel(item, language)}</Text>
+                <Text style={s.countryName}>{countryLabel(item, language)}</Text>
                 {country === item && <CheckMark style={s.langCheck} />}
               </TouchableOpacity>
             )}
@@ -1264,19 +1286,6 @@ const settingsLegacy = (c) => ({
   rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
   rowArrow: { fontSize: 18, color: c.textFaint },
   version: { textAlign: 'center', fontSize: 11, color: c.textFaint, marginTop: 24, lineHeight: 18 },
-  modal: { flex: 1, backgroundColor: c.card },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  modalClose: { fontSize: 14, color: c.accent, fontWeight: '600' },
-  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20 },
-  legalText: { fontSize: 13, color: c.textMuted, lineHeight: 22 },
-  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, backgroundColor: c.card2, borderRadius: 12, marginBottom: 8, borderWidth: 0.5, borderColor: c.border },
-  langRowSelected: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
-  langFlag: { fontSize: 28 },
-  langInfo: { flex: 1 },
-  langNative: { fontSize: 15, fontWeight: '600', color: c.text },
-  langName: { fontSize: 12, color: c.textMuted, marginTop: 1 },
-  langCheck: { fontSize: 18, color: c.accent, fontWeight: '600' },
   // Theme toggle
   themePillRow: { flexDirection: 'row', gap: 8 },
   themePill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
@@ -1288,21 +1297,6 @@ const settingsLegacy = (c) => ({
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   goalBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
-  // Edit profile modal — same layout language as onboarding.
-  editSection: { fontSize: 15, fontWeight: '700', color: c.text, letterSpacing: -0.2, marginTop: 24, marginBottom: 2, paddingTop: 16, borderTopWidth: 0.5, borderTopColor: c.border },
-  editField: { marginTop: 16 },
-  editLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, marginBottom: 8 },
-  editHint: { fontSize: 12.5, color: c.textMuted, marginTop: -4, marginBottom: 8 },
-  sexHelp: { fontSize: 12, color: c.textFaint, marginTop: 8, lineHeight: 16 },
-  editInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: c.text, backgroundColor: c.card2, minHeight: 48 },
-  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  editMGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  editMChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  editPill: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  editPillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
-  editPillText: { fontSize: 14, color: c.text, fontWeight: '600' },
-  editPillTextOn: { color: c.accentSoftText, fontWeight: '600' },
-  editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
 });
 
 // Redesign (Graduated, Settings approved 2026-09-29): large title on the ground; the
@@ -1335,4 +1329,81 @@ const settingsGraduated = (c) => ({
   rowSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
   rowArrow: { fontSize: 20, color: c.tick },
   version: { textAlign: 'center', fontSize: 13, color: c.ink3, marginTop: 24, lineHeight: 18 },
+  // Main-list leftovers that still drew the old tells: a selected theme / time pill
+  // was a blue outline on a tint, the goal badge a tinted chip. Selection = 1.5 pt ink
+  // outline on raised; tags = outline, like the plan badge.
+  themePill: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 18, backgroundColor: 'transparent', borderWidth: 1, borderColor: c.line },
+  themePillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
+  themePillText: { fontSize: 13, color: c.ink2, fontWeight: '500' }, // 13 keeps the three pills beside the label at 390 pt (as main)
+  themePillTextOn: { color: c.ink, fontWeight: '600' },
+  profileName: { fontSize: 22, fontWeight: '600', color: c.ink, marginBottom: 2 },
+  goalBadge: { borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 13, flexShrink: 1 },
+  goalBadgeText: { fontSize: 12, color: c.ink2, fontWeight: '500' },
+
+  // Recently deleted protocols (inside the group card): the protocol color only as a
+  // 9 pt dot; Restore is a secondary outline capsule in ink (no blue tint); delete
+  // forever stays the risk-colored trash.
+  deletedDot: { width: 9, height: 9, borderRadius: 4.5 },
+  deletedActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
+  restoreBtnText: { fontSize: 15, fontWeight: '600', color: c.ink },
+  deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+
+  // ── Sheets (Settings part 2: language, edit profile, country) ──────────────
+  // A sheet is one raised surface: plain text buttons in ink (Cancel regular, Save /
+  // Done semibold), a 17 pt headline title, no hairline under the bar, no blue.
+  modal: { flex: 1, backgroundColor: c.raised },
+  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingHorizontal: 20, minHeight: 56, paddingVertical: 6 },
+  modalTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
+  modalClose: { fontSize: 17, fontWeight: '600', color: c.ink },
+  modalCancel: { fontSize: 17, fontWeight: '400', color: c.ink },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
+  sheetIntro: { fontSize: 15, lineHeight: 20, color: c.ink2, marginBottom: 8 },
+  sheetDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+
+  // Language picker (prototype langSheet): plain rows with a hairline between, the
+  // language CODE in a well tile (.lcode), native name as the headline, English name
+  // under it, ink check on the current one.
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 64, paddingVertical: 10 },
+  langCode: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
+  langCodeText: { fontFamily: MONO['500'], fontSize: 13, color: c.ink },
+  langInfo: { flex: 1, gap: 2 },
+  langNative: { fontSize: 17, fontWeight: '600', color: c.ink },
+  langName: { fontSize: 13, color: c.ink2 },
+  langCheck: { fontSize: 22, color: c.ink },
+
+  // Country picker (prototype countrySheet): a search field with the search glyph,
+  // plain rows, ink check.
+  searchWrapOuter: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line },
+  searchInput: { flex: 1, fontSize: 17, color: c.ink, paddingVertical: 10 },
+  countryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  countryName: { flex: 1, fontSize: 17, color: c.ink },
+
+  // Edit profile (prototype profSheet): Geist section titles, footnote field labels in
+  // ink2 (sentence case), outlined inputs, outline pills (selected = 1.5 pt ink on
+  // raised), the two-option questions as a segmented well, country as a well picker.
+  editSection: { fontSize: 22, fontWeight: '600', color: c.ink, letterSpacing: -0.2, marginTop: 28 },
+  editSectionFirst: { marginTop: 4 },
+  editField: { marginTop: 18 },
+  editLabel: { fontSize: 13, lineHeight: 18, fontWeight: '400', color: c.ink2, marginBottom: 10, paddingHorizontal: 4 },
+  editHint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: -6, marginBottom: 10, paddingHorizontal: 4 },
+  sexHelp: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 10, paddingHorizontal: 4 },
+  editInput: { minHeight: 50, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line },
+  editPick: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 48, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.well },
+  editPickText: { flex: 1, fontSize: 17, color: c.ink },
+  editPickPlaceholder: { color: c.ink3 },
+  editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  editMGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  editMChip: { width: '22%', flexGrow: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 1, borderColor: c.line },
+  editPill: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: c.line },
+  editPillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
+  editPillText: { fontSize: 15, color: c.ink2, fontWeight: '400' },
+  editPillTextOn: { color: c.ink, fontWeight: '600' },
+  seg: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well },
+  segItem: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent' },
+  segItemOn: { backgroundColor: c.raised, borderColor: c.line },
+  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
+  segTextOn: { color: c.ink, fontWeight: '700' },
+  editDisclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3, marginTop: 24, paddingHorizontal: 4 },
 });
