@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   SectionList,
   TouchableOpacity,
   StyleSheet,
@@ -187,22 +186,11 @@ export default function LogScreen() {
     return [];
   }
 
+  // Status = a dot + a word (DESIGN.md §5); schedule colors, never good/bad on the body.
   function outcomeColor(outcome) {
-    if (outcome === 'Taken') return colors.success;
-    if (outcome === 'Skipped') return colors.danger;
-    return colors.warning;
-  }
-
-  function outcomeBg(outcome) {
-    if (outcome === 'Taken') return colors.successSoft;
-    if (outcome === 'Skipped') return colors.dangerSoft;
-    return colors.warningSoft;
-  }
-
-  function outcomeTextColor(outcome) {
-    if (outcome === 'Taken') return colors.successSoftText;
-    if (outcome === 'Skipped') return colors.dangerSoftText;
-    return colors.warningSoftText;
+    if (outcome === 'Taken') return colors.ok;
+    if (outcome === 'Skipped') return colors.risk;
+    return colors.attention;
   }
 
   function outcomeLabel(outcome) {
@@ -230,63 +218,74 @@ export default function LogScreen() {
     { key: 'Skipped', label: t('log_skipped') },
     { key: 'Missed', label: t('log_missed') },
   ];
+  const counts = [
+    { key: 'Taken', n: takenCount },
+    { key: 'Skipped', n: skippedCount },
+    { key: 'Missed', n: missedCount },
+  ];
+
+  // Everything above the day sections scrolls with them (one list, no fixed bars).
+  const header = (
+    <View style={s.top}>
+      <Text style={s.title}>{t('log_title')}</Text>
+      {/* Why the log matters — moved here from Today (today-build-handoff.md item 15) */}
+      <View style={s.expl}>
+        <Text style={s.explText}>{t('today_streak_explainer')}</Text>
+      </View>
+      {/* Plain counts with a status dot — no tinted boxes (founder approved) */}
+      <View style={s.trio}>
+        {counts.map(c => (
+          <View key={c.key} style={s.trioCol} accessible accessibilityLabel={`${c.n} ${outcomeLabel(c.key)}`}>
+            <Text style={s.trioNum}>{c.n}</Text>
+            <View style={s.trioCapRow}>
+              <View style={[s.statusDot, { backgroundColor: outcomeColor(c.key) }]} />
+              <Text style={s.trioCap}>{outcomeLabel(c.key)}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      {/* Filter pills: a wrapping row (A-63: the old horizontal ScrollView grew to fill
+          the screen and stretched each chip into a tall column) */}
+      <View style={s.pills}>
+        {filters.map(f => {
+          const on = filter === f.key;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              style={[s.pill, on && s.pillOn]}
+              onPress={() => setFilter(f.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[s.pillText, on && s.pillTextOn]}>{f.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
+      <View style={s.nav}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="button"
           accessibilityLabel={t('common_back')}
         >
-          <Text style={s.headerBack}>‹</Text>
+          <Text style={s.back}>‹ {backLabelFor(navigation, t)}</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('log_title')}</Text>
         <TouchableOpacity
           style={s.curveBtn}
           onPress={async () => { Analytics.viewed('serum_curve'); const pro = await hasPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
           accessibilityRole="button"
           accessibilityLabel={t('curve_btn')}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <FeatureIcon name="curve" size={14} color={colors.accentText} />
-            <Text style={s.curveBtnText}>{t('curve_btn')}</Text>
-          </View>
+          <FeatureIcon name="curve" size={15} color={colors.ink} />
+          <Text style={s.curveBtnText}>{t('curve_btn')}</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={s.statsRow}>
-        <View style={[s.statCard, { backgroundColor: colors.successSoft }]}>
-          <Text style={[s.statVal, { color: colors.successSoftText }]}>{takenCount}</Text>
-          <Text style={[s.statLbl, { color: colors.successSoftText }]}>{t('log_taken')}</Text>
-        </View>
-        <View style={[s.statCard, { backgroundColor: colors.dangerSoft }]}>
-          <Text style={[s.statVal, { color: colors.dangerSoftText }]}>{skippedCount}</Text>
-          <Text style={[s.statLbl, { color: colors.dangerSoftText }]}>{t('log_skipped')}</Text>
-        </View>
-        <View style={[s.statCard, { backgroundColor: colors.warningSoft }]}>
-          <Text style={[s.statVal, { color: colors.warningSoftText }]}>{missedCount}</Text>
-          <Text style={[s.statLbl, { color: colors.warningSoftText }]}>{t('log_missed')}</Text>
-        </View>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.filterBar}
-        contentContainerStyle={{ paddingRight: 16 }}
-      >
-        {filters.map(f => (
-          <TouchableOpacity
-            key={f.key}
-            style={[s.filterBtn, filter === f.key && s.filterBtnOn]}
-            onPress={() => setFilter(f.key)}
-          >
-            <Text style={[s.filterBtnText, filter === f.key && s.filterBtnTextOn]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       <SectionList
         sections={sections}
@@ -295,9 +294,10 @@ export default function LogScreen() {
         style={s.scroll}
         contentContainerStyle={s.centered}
         stickySectionHeadersEnabled={false}
+        ListHeaderComponent={header}
         ListEmptyComponent={
           <View style={s.emptyState}>
-            <View style={s.emptyIcon}><FeatureIcon name="journal" size={48} color={colors.textMuted} /></View>
+            <View style={s.emptyIcon}><FeatureIcon name="journal" size={44} color={colors.ink3} /></View>
             <Text style={s.emptyTitle}>
               {filter === 'All'
                 ? t('log_empty_title')
@@ -314,54 +314,59 @@ export default function LogScreen() {
             </Text>
           </View>
         )}
-        renderSectionFooter={() => <View style={{ height: 20 }} />}
-        renderItem={({ item: log }) => {
+        renderSectionFooter={() => <View style={{ height: 16 }} />}
+        renderItem={({ item: log, index, section }) => {
           const tags = parseTags(log.pre_tags);
+          const first = index === 0;
+          const last = index === section.data.length - 1;
+          const injectable = ['recon', 'rtu'].includes(log.protocols?.type);
+          const tappable = log.outcome === 'Missed' || injectable;
           return (
             <TouchableOpacity
-              style={s.logEntry}
+              style={[s.row, first && s.rowFirst, last && s.rowLast]}
               onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openSiteEditor(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={log.outcome === 'Missed' ? t('log_missed_edit_title') : t('bodymap_title')}
             >
-              <View style={[s.logDot, { backgroundColor: outcomeColor(log.outcome) }]} />
-              <View style={s.logInfo}>
-                <View style={s.logNameRow}>
-                  <FeatureIcon name={typeIcon(log.protocols?.type)} size={13} color={colors.text} />
-                  <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
+              <View style={[s.rowInner, !first && s.rowSep]}>
+                <View style={s.logInfo}>
+                  <View style={s.logNameRow}>
+                    <FeatureIcon name={typeIcon(log.protocols?.type)} size={15} color={colors.ink2} />
+                    <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
+                  </View>
+                  {log.injection_site ? (
+                    <View style={s.detailRow}>
+                      <FeatureIcon name="pin" size={13} color={colors.ink3} />
+                      <Text style={s.logDetail}>{summarizeStored(log.injection_site, t) || log.injection_site}</Text>
+                    </View>
+                  ) : null}
+                  {log.notes ? (
+                    <View style={s.detailRow}>
+                      <FeatureIcon name="journal" size={13} color={colors.ink3} />
+                      <Text style={s.logDetail}>{log.notes}</Text>
+                    </View>
+                  ) : null}
+                  {tags.length > 0 && (
+                    <View style={s.tagRow}>
+                      {tags.map(tag => (
+                        <View key={String(tag)} style={s.tag}>
+                          <Text style={s.tagText}>{String(tag)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
-                {log.injection_site ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <FeatureIcon name="pin" size={11} color={colors.textMuted} />
-                    <Text style={[s.logDetail, { marginTop: 0 }]}>{summarizeStored(log.injection_site, t) || log.injection_site}</Text>
-                  </View>
-                ) : null}
-                {log.notes ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <FeatureIcon name="journal" size={11} color={colors.textMuted} />
-                    <Text style={[s.logDetail, { marginTop: 0 }]}>{log.notes}</Text>
-                  </View>
-                ) : null}
-                {tags.length > 0 && (
-                  <View style={s.tagRow}>
-                    {tags.map(tag => (
-                      <View key={String(tag)} style={s.tag}>
-                        <Text style={s.tagText}>{String(tag)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-              <View style={s.logRight}>
-                <Text style={s.logTime}>
-                  {new Date(log.logged_at).toLocaleTimeString(locale, timeOpts)}
-                </Text>
-                <View style={[s.logBadge, { backgroundColor: outcomeBg(log.outcome) }]}>
-                  <Text style={[s.logBadgeText, { color: outcomeTextColor(log.outcome) }]}>
-                    {outcomeLabel(log.outcome)}
+                <View style={s.logRight}>
+                  <Text style={s.logTime}>
+                    {new Date(log.logged_at).toLocaleTimeString(locale, timeOpts)}
                   </Text>
+                  <View style={s.outcomeRow}>
+                    <View style={[s.statusDot, { backgroundColor: outcomeColor(log.outcome) }]} />
+                    <Text style={[s.outcomeWord, { color: outcomeColor(log.outcome) }]}>{outcomeLabel(log.outcome)}</Text>
+                  </View>
                 </View>
+                {tappable ? <Text style={s.chev}>›</Text> : <View style={s.chevSpace} />}
               </View>
             </TouchableOpacity>
           );
@@ -383,49 +388,70 @@ export default function LogScreen() {
   );
 }
 
+// The back row names the screen it returns to (prototype navrow), else "Back".
+const TAB_LABEL = { Today: 'tab_today', Protocols: 'tab_protocols', Journey: 'tab_journey', Body: 'tab_body', Settings: 'tab_settings' };
+function backLabelFor(navigation, t) {
+  try {
+    const st = navigation.getState();
+    const prev = st && st.routes[st.index - 1];
+    if (prev && prev.name === 'MainTabs' && prev.state && prev.state.routes) {
+      const tab = prev.state.routes[prev.state.index || 0];
+      if (tab && TAB_LABEL[tab.name]) return t(TAB_LABEL[tab.name]);
+    }
+  } catch { /* fall through */ }
+  return t('back');
+}
+
+// Graduated (docs/design/prototype.html doseLog(); DESIGN.md §3–§5).
 const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  container: { flex: 1, backgroundColor: c.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: c.card },
-  headerBack: { fontSize: 34, lineHeight: 34, color: c.accent, fontWeight: '400', width: 34 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: c.text },
-  headerSpacer: { width: 34 },
-  curveBtn: {
-    backgroundColor: c.accent,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  curveBtnText: { color: c.accentText, fontSize: 13, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', gap: 8, padding: 16, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  statCard: { flex: 1, borderRadius: 14, padding: 10, alignItems: 'center' },
-  statVal: { fontSize: 20, fontWeight: '600' },
-  statLbl: { fontSize: 10, marginTop: 2 },
-  filterBar: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: c.card, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 12, borderWidth: 0.5, borderColor: c.border, marginRight: 8, backgroundColor: c.card2 },
-  filterBtnOn: { backgroundColor: c.accent, borderColor: c.accent },
-  filterBtnText: { fontSize: 12, color: c.textMuted },
-  filterBtnTextOn: { color: c.accentText, fontWeight: '600' },
-  scroll: { flex: 1, padding: 16 },
-  emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
+  container: { flex: 1, backgroundColor: c.ground },
+  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 16 },
+  back: { fontSize: 17, color: c.ink },
+  // secondary action: an outline pill (the curve is one tap down, not the screen's action)
+  curveBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line },
+  curveBtnText: { fontSize: 13, color: c.ink },
+  scroll: { flex: 1, paddingHorizontal: 16 },
+  top: { gap: 12, paddingBottom: 16 },
+  title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 4, paddingTop: 4 },
+  expl: { backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16 },
+  explText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  trio: { flexDirection: 'row', gap: 8, paddingHorizontal: 4 },
+  trioCol: { flex: 1, minWidth: 0, gap: 4 },
+  trioNum: { fontSize: 34, fontWeight: '300', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  trioCapRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  trioCap: { fontSize: 12, fontWeight: '500', color: c.ink2, flexShrink: 1 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
+  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
+  pillText: { fontSize: 15, color: c.ink2 },
+  pillTextOn: { color: c.ink, fontWeight: '600' },
+  emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 20 },
   emptyIcon: { marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8, textAlign: 'center' },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
-  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  groupDate: { fontSize: 12, fontWeight: '600', color: c.textMuted },
-  groupCount: { fontSize: 12, color: c.textFaint },
-  logEntry: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: c.card, borderRadius: 18, marginBottom: 6, ...c.shadowSoft },
-  logDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, flexShrink: 0 },
-  logInfo: { flex: 1 },
-  logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  logTypeIcon: { fontSize: 12 },
-  logName: { fontSize: 13, fontWeight: '600', color: c.text },
-  logDetail: { fontSize: 11, color: c.textMuted, marginTop: 2 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-  tag: { backgroundColor: c.card2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  tagText: { fontSize: 10, color: c.textMuted },
+  emptyTitle: { fontSize: 22, fontWeight: '600', color: c.ink, marginBottom: 8, textAlign: 'center' },
+  emptySub: { fontSize: 15, color: c.ink2, textAlign: 'center', lineHeight: 20 },
+  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, paddingHorizontal: 4, marginBottom: 8 },
+  groupDate: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },
+  groupCount: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
+  // one raised list per day: each row carries the list's fill; first/last round it
+  row: { backgroundColor: c.raised, paddingHorizontal: 16 },
+  rowFirst: { borderTopLeftRadius: 22, borderTopRightRadius: 22 },
+  rowLast: { borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  rowInner: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  rowSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  logInfo: { flex: 1, minWidth: 0, gap: 3 },
+  logNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logName: { fontSize: 17, color: c.ink, flexShrink: 1 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  logDetail: { fontSize: 15, color: c.ink2, flexShrink: 1 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  tag: { minHeight: 24, borderRadius: 12, borderWidth: 1, borderColor: c.line, paddingHorizontal: 9, justifyContent: 'center' },
+  tagText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   logRight: { alignItems: 'flex-end', gap: 4 },
-  logTime: { fontSize: 11, color: c.textMuted },
-  logBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  logBadgeText: { fontSize: 10, fontWeight: '500' },
+  logTime: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  outcomeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  outcomeWord: { fontSize: 13, fontWeight: '600' },
+  chev: { fontSize: 20, color: c.tick, width: 10 },
+  chevSpace: { width: 10 },
 });
