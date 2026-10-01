@@ -352,7 +352,7 @@ export default function NutritionLogger() {
 const makeStyles = (c) => StyleSheet.create({
   wrap: { marginTop: 22 },
   secHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginHorizontal: 2 },
-  section: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textMuted },
+  section: { fontSize: 13, fontWeight: '700', color: c.textMuted },
   secChev: { fontSize: 14, color: c.textFaint },
   // composer
   remindRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 4, borderTopWidth: 0.5, borderTopColor: c.border, marginBottom: 6 },
@@ -368,8 +368,8 @@ const makeStyles = (c) => StyleSheet.create({
   collapsedShow: { fontSize: 12.5, fontWeight: '700', color: c.accent, marginLeft: 8 },
   // average card
   avgCard: { backgroundColor: c.accentSoft, borderRadius: 14, padding: 14, marginTop: 10 },
-  avgLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: c.accentSoftText },
-  avgBig: { fontSize: 26, fontWeight: '800', color: c.accent, marginTop: 4 },
+  avgLabel: { fontSize: 10.5, fontWeight: '700', color: c.accentSoftText },
+  avgBig: { fontSize: 26, fontWeight: '700', color: c.accent, marginTop: 4 },
   avgUnit: { fontSize: 13, fontWeight: '700', color: c.textMuted },
   runProgress: { fontSize: 13.5, fontWeight: '700', color: c.text, marginTop: 6, lineHeight: 19 },
   runBar: { height: 6, borderRadius: 3, backgroundColor: c.card, marginTop: 8, overflow: 'hidden' },
@@ -383,7 +383,7 @@ const makeStyles = (c) => StyleSheet.create({
   entryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 3, gap: 10 },
   entryFood: { fontSize: 13, color: c.text, flex: 1 },
   entryTot: { borderTopWidth: 0.5, borderTopColor: c.border, marginTop: 6, paddingTop: 8 },
-  entryTotFood: { fontSize: 13, fontWeight: '800', color: c.text },
+  entryTotFood: { fontSize: 13, fontWeight: '700', color: c.text },
   entryTotMacro: { fontSize: 12, fontWeight: '700', color: c.accentSoftText },
   pendingText: { fontSize: 12.5, color: c.textMuted, lineHeight: 18 },
   entryItem: { paddingVertical: 1 },
@@ -397,7 +397,7 @@ const makeStyles = (c) => StyleSheet.create({
   // offline-refused entry (kept, with Remove)
   // "not recorded" days
   unlogHead: { padding: 13, paddingBottom: 6 },
-  unlogTitle: { fontSize: 13, fontWeight: '800', color: c.text },
+  unlogTitle: { fontSize: 13, fontWeight: '700', color: c.text },
   unlogHint: { fontSize: 11.5, color: c.textMuted, lineHeight: 16, marginTop: 3 },
   unlogRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, paddingVertical: 9, borderTopWidth: 0.5, borderTopColor: c.border },
   unlogDate: { fontSize: 13, fontWeight: '700', color: c.text },
@@ -417,9 +417,9 @@ const makeStyles = (c) => StyleSheet.create({
   demoUser: { alignSelf: 'flex-end', backgroundColor: c.accentSoft, borderRadius: 14, borderBottomRightRadius: 4, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 10, maxWidth: '85%' },
   demoUserText: { fontSize: 13, color: c.accentSoftText },
   demoBreak: { backgroundColor: c.card2, borderRadius: 12, padding: 11, marginBottom: 14 },
-  lockedTitle: { fontSize: 15, fontWeight: '800', color: c.text, textAlign: 'center' },
+  lockedTitle: { fontSize: 15, fontWeight: '700', color: c.text, textAlign: 'center' },
   lockedSub: { fontSize: 12.5, color: c.textMuted, textAlign: 'center', lineHeight: 18, marginTop: 6, marginBottom: 14 },
   cta: { backgroundColor: c.accent, borderRadius: 13, paddingVertical: 13, alignItems: 'center' },
-  ctaText: { color: c.accentText, fontWeight: '800', fontSize: 14 },
+  ctaText: { color: c.accentText, fontWeight: '700', fontSize: 14 },
   // fix-entry modal
 });

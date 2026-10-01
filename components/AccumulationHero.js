@@ -278,13 +278,13 @@ function makeStyles(colors) {
     },
     header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
     labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    label: { fontSize: 12.5, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.2, textTransform: 'uppercase' },
+    label: { fontSize: 12.5, fontWeight: '700', color: colors.textMuted },
     exampleTag: { backgroundColor: colors.card, borderWidth: 0.5, borderColor: colors.border, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
-    exampleTagText: { fontSize: 9.5, fontWeight: '800', color: colors.textFaint, letterSpacing: 0.5, textTransform: 'uppercase' },
+    exampleTagText: { fontSize: 9.5, fontWeight: '700', color: colors.textFaint },
     readout: { flexDirection: 'row', alignItems: 'baseline' },
     numWrap: { transformOrigin: 'right bottom' },
-    num: { fontSize: 26, fontWeight: '800', color: colors.accent, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+    num: { fontSize: 26, fontWeight: '700', color: colors.accent, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
     unit: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
-    floatLabel: { position: 'absolute', left: 0, top: 0, fontSize: 10, fontWeight: '800', fontFamily: fontFamilyFor('800'), color: colors.accent },
+    floatLabel: { position: 'absolute', left: 0, top: 0, fontSize: 10, fontWeight: '700', fontFamily: fontFamilyFor('800'), color: colors.accent },
   });
 }

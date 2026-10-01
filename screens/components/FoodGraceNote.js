@@ -54,5 +54,5 @@ const makeStyles = (c) => StyleSheet.create({
   card: { backgroundColor: c.card, borderRadius: 14, padding: 13, borderWidth: 1, borderColor: c.border },
   text: { fontSize: 13, color: c.text, lineHeight: 19 },
   btn: { alignSelf: 'flex-start', backgroundColor: c.accent, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 8, marginTop: 10 },
-  btnText: { color: c.accentText, fontWeight: '800', fontSize: 13 },
+  btnText: { color: c.accentText, fontWeight: '700', fontSize: 13 },
 });

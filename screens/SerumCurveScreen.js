@@ -888,10 +888,10 @@ export default function SerumCurveScreen() {
               {showCombined && model && model.combined.map(c => (
                 <View key={c.id} style={s.legendRow}>
                   <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
-                  <Text style={[s.legendName, { fontWeight: '800' }]} numberOfLines={1}>
+                  <Text style={[s.legendName, { fontWeight: '700' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '800' }]}>{mgLabel(c.nowLevel)} {unitLbl}</Text>
+                  <Text style={[s.legendLevel, { fontWeight: '700' }]}>{mgLabel(c.nowLevel)} {unitLbl}</Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
@@ -970,10 +970,10 @@ export default function SerumCurveScreen() {
             {showCombined && model && model.combined.map(c => (
               <View key={`ro-${c.id}`} style={s.readoutRow}>
                 <View style={[s.combinedSwatch, { backgroundColor: colors.text }]} />
-                <Text style={[s.readoutName, { fontWeight: '800' }]} numberOfLines={1}>
+                <Text style={[s.readoutName, { fontWeight: '700' }]} numberOfLines={1}>
                   {t('curve_combined')} · {t(`substance_${c.substance}`)}
                 </Text>
-                <Text style={[s.readoutVal, { fontWeight: '800' }]}>
+                <Text style={[s.readoutVal, { fontWeight: '700' }]}>
                   {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))} {unitLbl}
                 </Text>
               </View>
@@ -1023,7 +1023,7 @@ function makeStyles(colors) {
     container: { flex: 1, backgroundColor: colors.bg },
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
     headerBack: { fontSize: 32, color: colors.accent, marginRight: 10, marginTop: -4 },
-    headerTitle: { flex: 1, fontSize: 22, fontWeight: '800', color: colors.text },
+    headerTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: colors.text },
     headerSpacer: { width: 32 },
     scroll: { paddingHorizontal: 16, paddingBottom: 32, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
@@ -1053,7 +1053,7 @@ function makeStyles(colors) {
 
     statsRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
     statCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, alignItems: 'center', ...colors.shadowSoft },
-    statVal: { fontSize: 18, fontWeight: '800', color: colors.text },
+    statVal: { fontSize: 18, fontWeight: '700', color: colors.text },
     statLbl: { fontSize: 11, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
 
     legend: { backgroundColor: colors.card, borderRadius: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, ...colors.shadowSoft },
@@ -1065,7 +1065,7 @@ function makeStyles(colors) {
     notCharted: { fontSize: 12, color: colors.textMuted, lineHeight: 16, marginTop: -4, marginBottom: 10, paddingHorizontal: 4 },
     sourceLine: { fontSize: 11, color: colors.textMuted, marginTop: -2, marginBottom: 10, lineHeight: 15 },
     fastNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8, lineHeight: 16 },
-    legendLevel: { fontSize: 14, fontWeight: '800', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
+    legendLevel: { fontSize: 14, fontWeight: '700', color: colors.text, width: 72, textAlign: 'right', fontVariant: ['tabular-nums'] },
     legendHalf: { fontSize: 12, color: colors.textMuted, width: 74, textAlign: 'right' },
     combinedSwatch: { width: 16, height: 4, borderRadius: 2, marginRight: 6 },
     toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, backgroundColor: colors.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, ...colors.shadowSoft },
@@ -1073,7 +1073,7 @@ function makeStyles(colors) {
     toggleHint: { fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
 
     readoutCard: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginTop: 12, ...colors.shadowSoft },
-    readoutTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 10 },
+    readoutTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 10 },
     readoutDateBtn: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
     readoutDateText: { fontSize: 14, color: colors.text, fontWeight: '600' },
     readoutLabHint: { fontSize: 12, color: colors.textMuted, marginTop: 12, marginBottom: 6 },
@@ -1082,7 +1082,7 @@ function makeStyles(colors) {
     labChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
     readoutRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
     readoutName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
-    readoutVal: { fontSize: 14, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] },
+    readoutVal: { fontSize: 14, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
     disclaimerBox: { backgroundColor: colors.warningSoft, borderRadius: 12, padding: 12, marginTop: 12 },
     disclaimerText: { fontSize: 12, lineHeight: 17, color: colors.warningSoftText },
 
@@ -1094,7 +1094,7 @@ function makeStyles(colors) {
     modalScrim: { flex: 1, backgroundColor: colors.overlay || 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, maxHeight: '80%', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
     sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 },
-    sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+    sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
     sheetHint: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: 8 },
     sheetList: { flexGrow: 0 },
     optionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
@@ -1102,7 +1102,7 @@ function makeStyles(colors) {
     optionName: { fontSize: 15, fontWeight: '600', color: colors.text },
     optionSub: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
     check: { width: 24, height: 24, borderRadius: 6, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-    checkMark: { color: colors.accentText, fontSize: 14, fontWeight: '800' },
+    checkMark: { color: colors.accentText, fontSize: 14, fontWeight: '700' },
     sheetDone: { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
     sheetDoneText: { color: colors.accentText, fontSize: 16, fontWeight: '700' },
   });

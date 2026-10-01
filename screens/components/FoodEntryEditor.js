@@ -141,7 +141,7 @@ function EditNum({ s, colors, label, value, onChange }) {
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 22 },
   card: { backgroundColor: c.card, borderRadius: 18, padding: 16, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  title: { fontSize: 15, fontWeight: '800', color: c.text, marginBottom: 12 },
+  title: { fontSize: 15, fontWeight: '700', color: c.text, marginBottom: 12 },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 10 },
   dateArrow: { fontSize: 22, fontWeight: '600', color: c.accent, paddingHorizontal: 6 },
   dateText: { fontSize: 14, fontWeight: '700', color: c.text, minWidth: 120, textAlign: 'center' },
@@ -159,7 +159,7 @@ const makeStyles = (c) => StyleSheet.create({
   catText: { fontSize: 11.5, fontWeight: '600', color: c.textMuted },
   catTextOn: { color: c.accentText },
   save: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 6 },
-  saveText: { color: c.accentText, fontWeight: '800', fontSize: 14 },
+  saveText: { color: c.accentText, fontWeight: '700', fontSize: 14 },
   foot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
   cancel: { fontSize: 13, fontWeight: '600', color: c.textMuted },
   delete: { fontSize: 13, fontWeight: '700', color: c.danger || c.warningSoftText },

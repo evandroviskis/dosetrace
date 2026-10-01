@@ -1351,7 +1351,7 @@ const bodyLegacy = (c) => ({
   headerTitleSm: { flex: 1, fontSize: 18, fontWeight: '700', color: c.text },
   // Hub landing — warm hero + colored cards
   hubHero: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, backgroundColor: c.card },
-  hubGreeting: { fontSize: 26, fontWeight: '800', color: c.text, letterSpacing: -0.3 },
+  hubGreeting: { fontSize: 26, fontWeight: '700', color: c.text, letterSpacing: -0.3 },
   hubHeroSub: { fontSize: 14, color: c.textMuted, marginTop: 8, lineHeight: 20 },
   hubBody: { padding: 16, paddingTop: 18 },
   hubCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 16, marginBottom: 12, ...c.shadowCard },
@@ -1365,7 +1365,7 @@ const bodyLegacy = (c) => ({
   hubCardSoon: { borderStyle: 'dashed', borderWidth: 1, borderColor: c.accent, opacity: 0.9 },
   soonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' },
   soonPill: { backgroundColor: c.accentSoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
-  soonPillText: { fontSize: 10, fontWeight: '700', color: c.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
+  soonPillText: { fontSize: 10, fontWeight: '700', color: c.accent },
   hubFootnote: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginTop: 10, textAlign: 'center', paddingHorizontal: 8 },
   uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 20, paddingVertical: 10 },
   uploadingText: { fontSize: 13, color: c.accent },
@@ -1486,7 +1486,7 @@ const bodyLegacy = (c) => ({
   upgradePrimaryBtn: { backgroundColor: c.accent, padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
   upgradePrimaryBtnText: { color: c.accentText, fontSize: 15, fontWeight: '600' },
   // Serum-curve preview sheet
-  serumExample: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: c.textFaint, marginTop: 4 },
+  serumExample: { fontSize: 11, fontWeight: '700', color: c.textFaint, marginTop: 4 },
   serumPreviewBody: { fontSize: 14.5, color: c.textMuted, textAlign: 'center', lineHeight: 22, marginTop: 18, paddingHorizontal: 6 },
   serumUnlockBtn: { backgroundColor: c.accent, paddingVertical: 15, paddingHorizontal: 28, borderRadius: 14, alignItems: 'center', marginTop: 24, alignSelf: 'stretch' },
   serumUnlockBtnText: { color: c.accentText, fontSize: 16, fontWeight: '700' },

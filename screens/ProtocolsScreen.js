@@ -349,7 +349,7 @@ function ProtocolSyringeGuide({ p, t }) {
           <TouchableOpacity style={s.zoomCard} activeOpacity={1} onPress={() => {}}>
             <Text style={s.zoomTitle}>{p.name}</Text>
             <Text style={s.zoomReadout}>
-              {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '800', color: colors.accent }}>{pDrawUnits}u</Text> · {pDrawML} ml
+              {t('protocols_syringe_draw_to')} <Text style={{ fontWeight: '700', color: colors.accent }}>{pDrawUnits}u</Text> · {pDrawML} ml
             </Text>
             <ScrollView
               horizontal
@@ -2661,7 +2661,7 @@ const protocolsLegacy = (c) => ({
   syringeFlange: { width: 4, height: 32, borderRadius: 1.5, backgroundColor: c.textMuted, marginBottom: -5 },
   syringeTagRow: { height: 18, position: 'relative' },
   syringeTag: { position: 'absolute', top: 0, width: 40, height: 16, marginLeft: -20, borderRadius: 8, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  syringeTagText: { fontSize: 9.5, fontWeight: '800', color: c.accentText },
+  syringeTagText: { fontSize: 9.5, fontWeight: '700', color: c.accentText },
   syringeRod: { position: 'absolute', top: 6, height: 8, right: 0, borderRadius: 2, backgroundColor: c.textFaint, opacity: 0.6 },
   syringeStopper: { position: 'absolute', top: 2, bottom: 2, borderRadius: 2.5, backgroundColor: c.textMuted, opacity: 0.55 },
   syringeFace: { position: 'absolute', top: 0, bottom: 0, width: 3, marginLeft: -1.5, borderRadius: 1.5, backgroundColor: c.accent },
@@ -2680,7 +2680,7 @@ const protocolsLegacy = (c) => ({
   syringeNeedle: { width: 22, height: 2.5, backgroundColor: c.textFaint, borderRadius: 1.25 },
   syringeInfo: { flexDirection: 'row', justifyContent: 'space-between' },
   syringeInfoItem: { alignItems: 'center' },
-  syringeInfoLabel: { fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  syringeInfoLabel: { fontSize: 9, color: c.textMuted },
   syringeInfoVal: { fontSize: 13, fontWeight: '600', color: c.accentSoftText, marginTop: 2 },
   syringeInfoAlt: { fontSize: 10, color: c.textMuted, marginTop: 1 },
   syringeDisclaimer: { fontSize: 9, color: c.textFaint, marginTop: 10, textAlign: 'center', lineHeight: 13 },

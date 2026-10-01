@@ -602,7 +602,7 @@ const makeStyles = (c) => StyleSheet.create({
   modalClose: { fontSize: 14, color: c.textMuted },
   modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18 },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 14 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 24, marginBottom: 2 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, marginTop: 24, marginBottom: 2 },
   fieldRow: { flexDirection: 'row', gap: 12 },
   fieldCol: { flex: 1 },
   fieldColNarrow: { width: 96 },
