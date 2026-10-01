@@ -6,7 +6,7 @@
 - devices:
   - Galaxy Z Fold (open ≈ 830 × 750 pt) gets it in 1.3.0.
   - The iPhone Duo gets it only in the first build made with the iOS 27.1 SDK (Xcode 27.1). Until then iOS shows the app letterboxed at phone size, so there is nothing to build for it now (grok/154).
-- checklist-signed: (pending, founder)
+- checklist-signed: 2026-10-01 by the founder ("checklist assinado, pode começar")
 - evidence plan:
   - logic as pure-function tests in lib/bookLayout.js;
   - the look on the founder's Z Fold 7 with an internal Android build. The iOS simulator cannot show a wide window: iPhone landscape is 956 × 440, below the height rule, and supportsTablet is false.
