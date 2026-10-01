@@ -14,7 +14,7 @@
 // pushes, exactly what the client would have scheduled — (1) dose reminders whose
 // slot falls in this run's window (and isn't already logged Taken today), (2) the
 // 7am morning summary, and (3) the 8pm "what did you eat today?" nudge while a
-// reality-check is active (from user_metadata.calc_reality_open). Idempotent via
+// reality-check is open (the reality_check_open table). Idempotent via
 // notification_sends (a slot fires at most once). Dose + morning honor the
 // dose_reminders preference; the food nudge has its own food_reminders switch and
 // follows the app's foodNudgeDays rule (window, same-day skip, backoff). Prunes dead tokens.
@@ -53,7 +53,6 @@ function formatList(names: string[]): string {
 const RUN_WINDOW_MIN = 15;       // must be >= the cron interval so no slot is skipped
 const MORNING_HOUR = 7;
 const FOOD_HOUR = 20;            // "what did you eat today?" nudge, while a reality-check is active
-const REALITY_CHECK_DAYS = 21;  // reality-check window length (mirror of lib/notifications.js)
 const SUMMARY_WINDOW_DAYS = 7;
 const SUMMARY_HORIZON_DAYS = 45;
 const DOSE_HORIZON_DAYS = 10;
@@ -135,9 +134,8 @@ Deno.serve(async (req) => {
       .eq('outcome', 'Taken')
       .gte('logged_at', since);
 
-    // 4. Preferences per user: dose_reminders (defaults on), language, and the open
-    //    reality-check start (calc_reality_open = { date, weightKg }) — the server's
-    //    only signal that a reality-check is active, so it can send the food nudge.
+    // 4. Preferences per user: dose_reminders (defaults on), language and the food
+    //    switch. The open reality check comes from reality_check_open (below).
     const prefByUser = new Map<string, { enabled: boolean; lang: string; rcDate: string | null; foodOn: boolean }>();
     for (const uid of userIds) {
       let enabled = true; let lang = 'en'; let rcDate: string | null = null; let foodOn = true;
@@ -146,23 +144,31 @@ Deno.serve(async (req) => {
         const meta = u?.user?.user_metadata || {};
         if (meta.dose_reminders === false) enabled = false;
         if (typeof meta.language === 'string') lang = meta.language;
-        const rc = meta.calc_reality_open;
-        if (rc && typeof rc.date === 'string' && typeof rc.weightKg === 'number') rcDate = rc.date;
         if (meta.food_reminders === false) foodOn = false; // the user's Settings off-switch
       } catch { /* default on/en */ }
       prefByUser.set(uid, { enabled, lang, rcDate, foodOn });
     }
 
-    // Recent food-log days per user (same-day skip + backoff for the food nudge).
-    // entry_date is the user's LOCAL day; 5 days back covers backoff + any tz.
-    const foodDays = new Map<string, Set<string>>();
+    // The open reality check per user — the synced reality_check_open table (S-03),
+    // not the old user_metadata copy.
     {
-      const since = new Date(now.getTime() - 5 * 86400000).toISOString().slice(0, 10);
-      const { data: fl } = await admin.from('food_logs').select('user_id, entry_date').in('user_id', userIds).gte('entry_date', since); // deletes remove rows (no deleted_at column)
+      const { data: open } = await admin.from('reality_check_open').select('user_id, start_date').in('user_id', userIds).is('stopped_at', null);
+      for (const r of (open || [])) {
+        const pref = prefByUser.get(r.user_id);
+        if (pref && typeof r.start_date === 'string') pref.rcDate = r.start_date;
+      }
+    }
+
+    // Days the user closed ("Nothing else today") — the food question skips them (FL-18).
+    // entry_date is the user's LOCAL day; 2 days back covers any time zone.
+    const closedDays = new Map<string, Set<string>>();
+    {
+      const since = new Date(now.getTime() - 2 * 86400000).toISOString().slice(0, 10);
+      const { data: fl } = await admin.from('food_logs').select('user_id, entry_date').in('user_id', userIds).eq('source', 'day_closed').gte('entry_date', since);
       for (const r of (fl || [])) {
         if (!r.entry_date) continue;
-        if (!foodDays.has(r.user_id)) foodDays.set(r.user_id, new Set());
-        foodDays.get(r.user_id)!.add(String(r.entry_date).slice(0, 10));
+        if (!closedDays.has(r.user_id)) closedDays.set(r.user_id, new Set());
+        closedDays.get(r.user_id)!.add(String(r.entry_date).slice(0, 10));
       }
     }
 
@@ -184,10 +190,12 @@ Deno.serve(async (req) => {
       if (pref.rcDate && pref.foodOn) {
         const foodMin = mod(FOOD_HOUR, 0);
         if (foodMin <= nowMin && foodMin > nowMin - RUN_WINDOW_MIN) {
-          // Same rule as the app (lib/notificationPlan.js foodNudgeDays): inside the
-          // check window, not on a logged day, every other day after 3 ignored days.
-          const logged = foodDays.get(tok.user_id) || new Set<string>();
-          const due = foodNudgeDays(String(pref.rcDate).slice(0, 10), lp.key, logged, 1, REALITY_CHECK_DAYS);
+          // Same rule as the app (lib/notificationPlan.js foodNudgeDays): daily while the
+          // check is open, skipped for a closed day. NOT YET: the food-log access rule
+          // (remindersForAccess — none for locked users) needs the user's access on the
+          // server; this sender stays undeployed until then (registry A-62).
+          const closed = closedDays.get(tok.user_id) || new Set<string>();
+          const due = foodNudgeDays(String(pref.rcDate).slice(0, 10), lp.key, closed, 1);
           if (due.includes(lp.key)) {
             messages.push({
               to: tok.expo_token,
