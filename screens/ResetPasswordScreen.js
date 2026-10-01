@@ -69,29 +69,33 @@ export default function ResetPasswordScreen({ onDone }) {
           <Text style={s.title}>{t('reset_pw_title')}</Text>
           <Text style={s.sub}>{t('reset_pw_sub')}</Text>
 
-          <Text style={s.label}>{t('reset_pw_new')}</Text>
-          <TextInput
-            style={s.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            placeholderTextColor={colors.textFaint}
-          />
+          <View style={s.field}>
+            <Text style={s.label}>{t('reset_pw_new')}</Text>
+            <TextInput
+              style={s.input}
+              accessibilityLabel={t('reset_pw_new')}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="new-password"
+              placeholderTextColor={colors.ink3}
+            />
+          </View>
 
-          <Text style={s.label}>{t('reset_pw_confirm')}</Text>
-          <TextInput
-            style={s.input}
-            value={confirm}
-            onChangeText={setConfirm}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            placeholderTextColor={colors.textFaint}
-          />
+          <View style={s.field}>
+            <Text style={s.label}>{t('reset_pw_confirm')}</Text>
+            <TextInput
+              style={s.input}
+              accessibilityLabel={t('reset_pw_confirm')}
+              value={confirm}
+              onChangeText={setConfirm}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="new-password"
+              placeholderTextColor={colors.ink3}
+            />
+          </View>
 
           <TouchableOpacity
             style={[s.btn, loading && s.btnDisabled]}
@@ -99,7 +103,7 @@ export default function ResetPasswordScreen({ onDone }) {
             disabled={loading}
           >
             {loading
-              ? <ActivityIndicator color={colors.accentText} />
+              ? <ActivityIndicator color={colors.onAct} />
               : <Text style={s.btnText}>{t('reset_pw_save')}</Text>}
           </TouchableOpacity>
         </ScrollView>
@@ -108,31 +112,35 @@ export default function ResetPasswordScreen({ onDone }) {
   );
 }
 
+// Graduated (prototype.html authScreen() 'reset'): large title, ink2 sentence,
+// labelled well inputs (radius 16), one ink capsule action. Theme tokens only.
 const makeStyles = (c) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bg },
+  container: { flex: 1, backgroundColor: c.ground },
   flex: { flex: 1 },
-  body: { flexGrow: 1, padding: 24, justifyContent: 'center', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  title: { fontSize: 24, fontWeight: '700', color: c.text, marginBottom: 6 },
-  sub: { fontSize: 14, color: c.textMuted, lineHeight: 20, marginBottom: 28 },
-  label: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 6 },
+  body: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 24, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: c.ink, letterSpacing: -0.6 },
+  sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
+  field: { gap: 10 },
+  label: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
   input: {
-    backgroundColor: c.card,
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: c.border,
-    paddingHorizontal: 14,
+    minHeight: 52,
+    borderRadius: 16,
+    backgroundColor: c.well,
+    borderWidth: 1,
+    borderColor: c.line,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    color: c.text,
-    marginBottom: 18,
+    fontSize: 17,
+    color: c.ink,
   },
   btn: {
-    backgroundColor: c.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: c.act,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: c.accentText, fontSize: 16, fontWeight: '600' },
+  btnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
 });
