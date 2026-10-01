@@ -32,6 +32,7 @@ import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import { newVialRecords } from '../lib/newVial';
+import { supplyState } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
@@ -110,7 +111,6 @@ const MONTH_KEYS = [
 
 // ── Today alerts config ────────────────────────────────────────
 const BLOODWORK_INTERVAL_DAYS = 182; // ~6 months
-const SUPPLY_LOW_DOSES = 3;          // flag a vial with this many doses left or fewer
 const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many days
 const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
 // How long "delete" hides a DERIVED alert (reality-check delete cancels instead).
@@ -1146,12 +1146,8 @@ export default function TodayScreen() {
       for (const p of protocols) {
         const v = vials[p.id];
         if (!v) continue;
-        const cap = (v.total_doses && v.total_doses > 0)
-          ? v.total_doses
-          : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-        if (!cap) continue;
-        const rem = Math.max(0, cap - (v.doses_taken || 0));
-        if (rem > 0 && rem <= SUPPLY_LOW_DOSES) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem });
+        const { remaining: rem, low: isLow } = supplyState(v, p); // the ONE rule (S-05)
+        if (isLow) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem });
       }
       if (low.length) {
         low.sort((a, b) => a.rem - b.rem);
