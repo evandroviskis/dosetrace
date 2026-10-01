@@ -32,6 +32,7 @@ import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../
 import { requestSync } from '../../lib/sync';
 import { hasNativeModule } from '../../lib/nativeModule';
 import { CrossMark } from '../../components/CheckMark';
+import Svg, { Path } from 'react-native-svg';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -64,7 +65,7 @@ function todayISO() {
 
 export default function VaccinesSection() {
   const { t, language } = useLanguage();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
@@ -243,7 +244,7 @@ export default function VaccinesSection() {
     if (!iso) return '';
     const d = new Date(iso + 'T12:00:00');
     if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
+    return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
   }
 
   function openAdd() {
@@ -308,92 +309,103 @@ export default function VaccinesSection() {
 
   return (
     <View style={s.wrap}>
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
-        <Text style={s.hubDisclaimer}>{t('vax_disclaimer')}</Text>
+      {/* VACCINE JOURNAL (prototype vaxScreen) */}
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+        <View style={s.titleBlock}>
+          <Text style={s.screenTitle}>{t('body_card_vax_title')}</Text>
+        </View>
+        <Text style={[s.foot, s.padX]}>{t('vax_disclaimer')}</Text>
 
         <View style={s.actionRow}>
-          <TouchableOpacity style={[s.actionBtn, s.actionPrimary]} onPress={openAdd}>
-            <Text style={s.actionPrimaryText}>＋ {t('vax_add')}</Text>
+          <TouchableOpacity style={[s.btn, s.btnP]} onPress={openAdd}>
+            <Text style={s.btnPText}>+ {t('vax_add')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.actionBtn, s.actionSecondary]} onPress={handleScanPress} disabled={uploading}>
+          <TouchableOpacity style={[s.btn, s.btnO]} onPress={handleScanPress} disabled={uploading}>
             {uploading ? (
-              <Text style={s.actionSecondaryText}>…</Text>
+              <ActivityIndicator size="small" color={colors.ink} />
             ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <FeatureIcon name="scan" size={15} color={colors.accent} />
-                <Text style={s.actionSecondaryText}>{t('vax_scan')}</Text>
-              </View>
+              <>
+                <FeatureIcon name="scan" size={18} color={colors.ink} />
+                <Text style={s.btnOText}>{t('vax_scan')}</Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
 
         {uploading && (
-          <View style={s.uploadingBanner}>
-            <ActivityIndicator size="small" color={colors.accent} />
-            <Text style={s.uploadingText}>{t('vax_scanning')}</Text>
+          <View style={[s.card, s.rowCard]}>
+            <ActivityIndicator size="small" color={colors.ink} />
+            <Text style={[s.body, s.grow]}>{t('vax_scanning')}</Text>
+          </View>
+        )}
+
+        {list.length === 0 && (
+          <View style={[s.card, s.emptyCard]}>
+            <FeatureIcon name="syringe" size={44} color={colors.ink3} />
+            <Text style={[s.title, s.center]}>{t('vax_empty_title')}</Text>
+            <Text style={[s.sec, s.center]}>{t('vax_empty_sub')}</Text>
           </View>
         )}
 
         {list.length > 0 && (
-          <TextInput
-            style={s.searchInput}
-            placeholder={t('vax_search_ph')}
-            placeholderTextColor={colors.textFaint}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        )}
-
-        {list.length === 0 && (
-          <View style={s.empty}>
-            <View style={s.emptyIcon}><FeatureIcon name="syringe" size={44} color={colors.textMuted} /></View>
-            <Text style={s.emptyTitle}>{t('vax_empty_title')}</Text>
-            <Text style={s.emptySub}>{t('vax_empty_sub')}</Text>
+          <View style={s.searchWrap}>
+            <View style={s.searchIcon} pointerEvents="none">
+              <FeatureIcon name="search" size={18} color={colors.ink3} />
+            </View>
+            <TextInput
+              style={[s.input, s.searchInput]}
+              placeholder={t('vax_search_ph')}
+              placeholderTextColor={colors.ink3}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           </View>
         )}
 
         {list.length > 0 && filtered.length === 0 && (
-          <Text style={s.noResults}>{t('vax_no_results')}</Text>
+          <Text style={[s.sec, s.padX]}>{t('vax_no_results')}</Text>
         )}
 
-        {filtered.map(v => (
-          <TouchableOpacity key={v.id} style={s.card} onPress={() => openEdit(v)}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={s.cardName}>{v.name}</Text>
-              <Text style={s.cardDate}>{formatDate(v.date_given)}</Text>
-              {(v.dose_number != null || v.manufacturer || v.batch_lot) ? (
-                <Text style={s.cardMeta}>
-                  {[
-                    v.dose_number != null ? `${t('vax_dose_short')} ${v.dose_number}` : null,
-                    v.manufacturer || null,
-                    v.batch_lot ? `${t('vax_lot_short')} ${v.batch_lot}` : null,
-                  ].filter(Boolean).join('  ·  ')}
-                </Text>
-              ) : null}
-              {v.next_due ? (
-                <Text style={s.cardDue}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text>
-              ) : null}
-              {v.notes ? <Text style={s.cardNotes}>{v.notes}</Text> : null}
-            </View>
-            <Text style={s.cardChevron}>›</Text>
-          </TouchableOpacity>
-        ))}
-
-        <View style={{ height: 40 }} />
+        {filtered.map(v => {
+          const meta = [
+            v.dose_number != null ? `${t('vax_dose_short')} ${v.dose_number}` : null,
+            v.manufacturer || null,
+            v.batch_lot ? `${t('vax_lot_short')} ${v.batch_lot}` : null,
+          ].filter(Boolean).join(' · ');
+          return (
+            <TouchableOpacity key={v.id} style={s.card} activeOpacity={0.7} onPress={() => openEdit(v)}>
+              <View style={s.cardRow}>
+                <View style={[s.grow, s.col5]}>
+                  <Text style={s.title}>{v.name}</Text>
+                  <Text style={[s.sec, s.tnum]}>{formatDate(v.date_given)}</Text>
+                  {meta ? <Text style={[s.foot, s.tnum]}>{meta}</Text> : null}
+                  {v.next_due ? (
+                    <View style={s.dueRow}>
+                      <FeatureIcon name="calendar" size={16} color={colors.ink2} />
+                      <Text style={[s.secInk, s.tnum, s.grow]}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text>
+                    </View>
+                  ) : null}
+                  {v.notes ? <Text style={s.foot}>{v.notes}</Text> : null}
+                </View>
+                <Chevron color={colors.tick} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
-      {/* ADD / EDIT MODAL */}
-      <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet">
+      {/* ADD / EDIT (prototype vaxForm) */}
+      <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
         <SafeAreaView style={s.modal}>
-          <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => setModalOpen(false)} style={{ width: 70 }}>
-              <Text style={s.modalClose}>{t('cancel')}</Text>
+          <View style={s.sheetHead}>
+            <TouchableOpacity onPress={() => setModalOpen(false)} style={s.sheetSide}>
+              <Text style={s.sheetCancel}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <Text style={s.modalTitle}>{editingId ? t('vax_edit_title') : t('vax_add_title')}</Text>
-            <TouchableOpacity onPress={save} style={{ width: 70, alignItems: 'flex-end' }}>
-              <Text style={[s.modalClose, { color: colors.accent, fontWeight: '600' }]}>{t('save')}</Text>
+            <Text style={s.sheetTitle} numberOfLines={1}>{editingId ? t('vax_edit_title') : t('vax_add_title')}</Text>
+            <TouchableOpacity onPress={save} style={[s.sheetSide, s.sheetSideEnd]}>
+              <Text style={s.sheetSave}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -402,21 +414,22 @@ export default function VaccinesSection() {
             <TextInput
               style={s.input}
               placeholder={t('vax_name_ph')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               value={name}
               onChangeText={setName}
             />
 
             <Text style={s.fieldLabel}>{t('vax_date_given')}</Text>
-            <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setPickerFor(pickerFor === 'given' ? null : 'given')}>
-              <FeatureIcon name="calendar" size={15} color={colors.text} />
-              <Text style={s.dateBtnText}>{formatDate(dateGiven)}</Text>
+            <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor(pickerFor === 'given' ? null : 'given')}>
+              <Text style={[s.body, s.tnum]}>{formatDate(dateGiven)}</Text>
+              <FeatureIcon name="calendar" size={20} color={colors.ink2} />
             </TouchableOpacity>
             {pickerFor === 'given' && (
               <DateTimePicker
                 value={new Date((dateGiven || todayISO()) + 'T12:00:00')}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                themeVariant={isDark ? 'dark' : 'light'}
                 maximumDate={new Date()}
                 onChange={(event, d) => {
                   setPickerFor(Platform.OS === 'ios' ? 'given' : null);
@@ -427,24 +440,25 @@ export default function VaccinesSection() {
             )}
 
             <View style={s.dueHeader}>
-              <Text style={s.fieldLabel}>{t('vax_next_due_opt')}</Text>
+              <Text style={[s.fieldLabel, s.grow]}>{t('vax_next_due_opt')}</Text>
               {nextDue ? (
-                <TouchableOpacity onPress={() => setNextDue('')}>
+                <TouchableOpacity onPress={() => setNextDue('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <Text style={s.clearLink}>{t('vax_clear')}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
-            <TouchableOpacity style={[s.dateBtn, { flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => setPickerFor(pickerFor === 'due' ? null : 'due')}>
-              {nextDue ? <FeatureIcon name="calendar" size={15} color={colors.text} /> : null}
-              <Text style={s.dateBtnText}>
+            <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor(pickerFor === 'due' ? null : 'due')}>
+              <Text style={[nextDue ? s.body : s.bodyMuted, s.tnum]}>
                 {nextDue ? formatDate(nextDue) : t('vax_next_due_none')}
               </Text>
+              <FeatureIcon name="calendar" size={20} color={colors.ink2} />
             </TouchableOpacity>
             {pickerFor === 'due' && (
               <DateTimePicker
                 value={new Date((nextDue || todayISO()) + 'T12:00:00')}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                themeVariant={isDark ? 'dark' : 'light'}
                 onChange={(event, d) => {
                   setPickerFor(Platform.OS === 'ios' ? 'due' : null);
                   if (event.type === 'dismissed') { setPickerFor(null); return; }
@@ -461,7 +475,7 @@ export default function VaccinesSection() {
                 <TextInput
                   style={s.input}
                   placeholder={t('vax_manufacturer_ph')}
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.ink3}
                   value={manufacturer}
                   onChangeText={setManufacturer}
                 />
@@ -471,7 +485,7 @@ export default function VaccinesSection() {
                 <TextInput
                   style={s.input}
                   placeholder="1"
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={colors.ink3}
                   value={doseNumber}
                   onChangeText={(v) => setDoseNumber(v.replace(/[^0-9]/g, ''))}
                   keyboardType="number-pad"
@@ -484,7 +498,7 @@ export default function VaccinesSection() {
             <TextInput
               style={s.input}
               placeholder={t('vax_batch_lot_ph')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               value={batchLot}
               onChangeText={setBatchLot}
               autoCapitalize="characters"
@@ -494,7 +508,7 @@ export default function VaccinesSection() {
             <TextInput
               style={s.input}
               placeholder={t('vax_provider_ph')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               value={provider}
               onChangeText={setProvider}
             />
@@ -503,7 +517,7 @@ export default function VaccinesSection() {
             <TextInput
               style={s.input}
               placeholder={t('vax_location_ph')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               value={location}
               onChangeText={setLocation}
             />
@@ -512,15 +526,15 @@ export default function VaccinesSection() {
             <TextInput
               style={[s.input, s.notesInput]}
               placeholder={t('vax_notes_ph')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               value={notes}
               onChangeText={setNotes}
               multiline
             />
 
             {editingId ? (
-              <TouchableOpacity style={s.deleteBtn} onPress={removeVaccine}>
-                <Text style={s.deleteBtnText}>{t('vax_delete')}</Text>
+              <TouchableOpacity style={s.dangerBtn} onPress={removeVaccine}>
+                <Text style={s.dangerText}>{t('vax_delete')}</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -529,35 +543,35 @@ export default function VaccinesSection() {
         </SafeAreaView>
       </Modal>
 
-      {/* REVIEW EXTRACTED VACCINES */}
+      {/* REVIEW EXTRACTED VACCINES (retained, unreachable while scans auto-save) */}
       <Modal visible={reviewOpen} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={s.modal}>
-          <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => { setReviewOpen(false); setExtracted([]); }} style={{ width: 70 }}>
-              <Text style={s.modalClose}>{t('cancel')}</Text>
+          <View style={s.sheetHead}>
+            <TouchableOpacity onPress={() => { setReviewOpen(false); setExtracted([]); }} style={s.sheetSide}>
+              <Text style={s.sheetCancel}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <Text style={s.modalTitle}>{t('vax_review_title')}</Text>
-            <TouchableOpacity onPress={saveExtracted} style={{ width: 70, alignItems: 'flex-end' }}>
-              <Text style={[s.modalClose, { color: colors.accent, fontWeight: '600' }]}>{t('vax_save_all')}</Text>
+            <Text style={s.sheetTitle} numberOfLines={1}>{t('vax_review_title')}</Text>
+            <TouchableOpacity onPress={saveExtracted} style={[s.sheetSide, s.sheetSideEnd]}>
+              <Text style={s.sheetSave}>{t('vax_save_all')}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={s.reviewNote}>{t('vax_review_note').replace('{n}', String(extracted.length))}</Text>
+          <ScrollView style={s.modalBody} contentContainerStyle={s.reviewList} showsVerticalScrollIndicator={false}>
+            <Text style={s.head}>{t('vax_review_note').replace('{n}', String(extracted.length))}</Text>
             {extracted.map((v, i) => (
-              <View key={i} style={s.reviewCard}>
-                <View style={{ flex: 1, marginRight: 10 }}>
-                  <Text style={s.cardName}>{v.name}</Text>
-                  <Text style={s.cardDate}>{formatDate(v.date_given)}</Text>
-                  {v.next_due ? <Text style={s.cardDue}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text> : null}
-                  {v.notes ? <Text style={s.cardNotes}>{v.notes}</Text> : null}
+              <View key={i} style={[s.reviewCard, s.cardRow]}>
+                <View style={[s.grow, s.col5]}>
+                  <Text style={s.head}>{v.name}</Text>
+                  <Text style={[s.sec, s.tnum]}>{formatDate(v.date_given)}</Text>
+                  {v.next_due ? <Text style={[s.secInk, s.tnum]}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text> : null}
+                  {v.notes ? <Text style={s.foot}>{v.notes}</Text> : null}
                 </View>
                 <TouchableOpacity onPress={() => setExtracted(prev => prev.filter((_, idx) => idx !== i))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <View style={{ paddingHorizontal: 4 }}><CrossMark style={s.reviewRemove} /></View>
+                  <CrossMark size={16} color={colors.risk} />
                 </TouchableOpacity>
               </View>
             ))}
-            {extracted.length === 0 && <Text style={s.reviewHint}>{t('vax_review_empty')}</Text>}
-            <Text style={s.reviewHint}>{t('vax_review_hint')}</Text>
+            {extracted.length === 0 && <Text style={s.foot}>{t('vax_review_empty')}</Text>}
+            <Text style={s.foot}>{t('vax_review_hint')}</Text>
             <View style={{ height: 40 }} />
           </ScrollView>
         </SafeAreaView>
@@ -566,52 +580,84 @@ export default function VaccinesSection() {
   );
 }
 
+// Graduated chevron (prototype CHEV), drawn so it follows the theme.
+function Chevron({ color }) {
+  return (
+    <Svg width={9} height={15} viewBox="0 0 10 16" fill="none">
+      <Path d="M2 2l6 6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// Redesign (Graduated, My Body part 2 approved): large title, the disclaimer as a
+// footnote, "+ Add vaccine" as the one ink action beside a well "Scan / upload", plain
+// raised cards, and the add/edit sheet with outlined fields and well date buttons.
+// Theme tokens only; both palettes.
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1 },
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  scroll: { flex: 1, padding: 16 },
-  hubDisclaimer: { fontSize: 11, color: c.textFaint, lineHeight: 16, marginBottom: 12 },
-  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  actionBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  actionPrimary: { backgroundColor: c.accent },
-  actionPrimaryText: { color: c.accentText, fontSize: 14, fontWeight: '600' },
-  actionSecondary: { backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border },
-  actionSecondaryText: { color: c.accent, fontSize: 14, fontWeight: '600' },
-  uploadingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.accentSoft, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginBottom: 12 },
-  uploadingText: { fontSize: 13, color: c.accent },
-  reviewNote: { fontSize: 13, color: c.text, fontWeight: '600', marginBottom: 12 },
-  reviewCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card2, borderRadius: 12, padding: 14, marginBottom: 10 },
-  reviewRemove: { fontSize: 16, color: c.danger, paddingHorizontal: 4 },
-  reviewHint: { fontSize: 12, color: c.textFaint, lineHeight: 17, marginTop: 6 },
-  searchInput: { backgroundColor: c.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: c.text, borderWidth: 0.5, borderColor: c.border, marginBottom: 12 },
-  empty: { alignItems: 'center', paddingTop: 30 },
-  emptyIcon: { fontSize: 44, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 6 },
-  emptySub: { fontSize: 13, color: c.textMuted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 16 },
-  noResults: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.card, borderRadius: 18, padding: 14, marginBottom: 10 },
-  cardName: { fontSize: 15, fontWeight: '600', color: c.text },
-  cardDate: { fontSize: 12, color: c.textMuted, marginTop: 3 },
-  cardMeta: { fontSize: 12, color: c.text, marginTop: 3, fontWeight: '500' },
-  cardDue: { fontSize: 12, color: c.accent, marginTop: 3 },
-  cardNotes: { fontSize: 12, color: c.textMuted, marginTop: 4, lineHeight: 17 },
-  cardChevron: { fontSize: 22, color: c.textFaint },
-  modal: { flex: 1, backgroundColor: c.card },
-  modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
-  modalTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  modalClose: { fontSize: 14, color: c.textMuted },
-  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: c.textMuted, marginBottom: 8, marginTop: 14 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint, marginTop: 24, marginBottom: 2 },
+  scroll: { flex: 1 },
+  scrollPad: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
+  titleBlock: { paddingHorizontal: 4, paddingBottom: 2 },
+  screenTitle: { fontSize: 30, fontWeight: '700', color: c.ink, letterSpacing: -0.75, lineHeight: 36 },
+
+  // type roles (DESIGN.md §3)
+  title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28, letterSpacing: -0.2 },
+  head: { fontSize: 17, fontWeight: '600', color: c.ink, lineHeight: 22 },
+  body: { fontSize: 17, color: c.ink, lineHeight: 22 },
+  bodyMuted: { fontSize: 17, color: c.ink2, lineHeight: 22 },
+  sec: { fontSize: 15, color: c.ink2, lineHeight: 20 },
+  secInk: { fontSize: 15, color: c.ink, lineHeight: 20 },
+  foot: { fontSize: 13, color: c.ink2, lineHeight: 18 },
+  tnum: { fontVariant: ['tabular-nums'] },
+  center: { textAlign: 'center' },
+  padX: { paddingHorizontal: 4 },
+  grow: { flex: 1, minWidth: 0 },
+  col5: { gap: 5 },
+
+  // actions
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  btn: { flexGrow: 1, flexBasis: 140, minHeight: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
+  btnP: { backgroundColor: c.act },
+  btnPText: { color: c.onAct, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  btnO: { backgroundColor: c.well },
+  btnOText: { color: c.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+
+  // cards
+  card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+  rowCard: { flexDirection: 'row', alignItems: 'center' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyCard: { alignItems: 'center', paddingTop: 28 },
+  dueRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+
+  // search
+  searchWrap: { justifyContent: 'center' },
+  searchIcon: { position: 'absolute', left: 14, zIndex: 1 },
+  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 10, fontSize: 17, color: c.ink },
+  searchInput: { minHeight: 46, paddingLeft: 42 },
+
+  // add / edit sheet
+  modal: { flex: 1, backgroundColor: c.raised },
+  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 4 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 20, gap: 8 },
+  sheetSide: { width: 80, minHeight: 44, justifyContent: 'center' },
+  sheetSideEnd: { alignItems: 'flex-end' },
+  sheetCancel: { fontSize: 17, color: c.ink },
+  sheetSave: { fontSize: 17, fontWeight: '600', color: c.ink },
+  sheetTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
+  fieldLabel: { fontSize: 13, color: c.ink2, marginBottom: 6, marginTop: 14 },
+  sectionLabel: { fontSize: 17, fontWeight: '600', color: c.ink, marginTop: 24, marginBottom: 2 },
   fieldRow: { flexDirection: 'row', gap: 12 },
   fieldCol: { flex: 1 },
   fieldColNarrow: { width: 96 },
-  input: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: c.text, borderWidth: 0.5, borderColor: c.border },
-  notesInput: { minHeight: 70, textAlignVertical: 'top' },
-  dateBtn: { backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 0.5, borderColor: c.border },
-  dateBtnText: { fontSize: 15, color: c.text },
-  dueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  clearLink: { fontSize: 12, color: c.accent, fontWeight: '600', marginBottom: 8 },
-  deleteBtn: { marginTop: 28, borderRadius: 10, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: c.danger },
-  deleteBtnText: { color: c.danger, fontSize: 14, fontWeight: '600' },
+  notesInput: { minHeight: 88, paddingTop: 12, textAlignVertical: 'top' },
+  dateBtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.well },
+  dueHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  clearLink: { fontSize: 13, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, marginBottom: 6 },
+  dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  dangerText: { fontSize: 17, fontWeight: '600', color: c.risk, textAlign: 'center' },
+
+  // retained review sheet
+  reviewList: { gap: 10 },
+  reviewCard: { backgroundColor: c.well, borderRadius: 16, padding: 14 },
 });
