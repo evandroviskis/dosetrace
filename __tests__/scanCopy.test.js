@@ -52,7 +52,7 @@ test('S-24: the cap is written once — the FAQ "What does Premium include?" say
   for (const l of premium) {
     assert.match(l, /\b20\b/, l.trim().slice(0, 60));
     assert.match(l, /in total|en total|no total|au total|insgesamt|in totale/, l.trim().slice(0, 60));
-    assert.match(l, /free for everyone|gratis para todos|grátis para todos|gratuites pour tous|für alle kostenlos|gratuiti per tutti/, l.trim().slice(0, 60));
+    assert.match(l, /free for everyone|gratis para todos|grátis para todos|gratuite?s pour tous|für alle kostenlos|gratuiti per tutti/, l.trim().slice(0, 60));
   }
 });
 
