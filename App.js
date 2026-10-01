@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform, AppState } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform, AppState, StyleSheet } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
@@ -154,7 +154,7 @@ function SettingsGlyph({ color, focused }) {
 
 function TabIcon({ Glyph, focused }) {
   const { colors } = useTheme();
-  return <Glyph color={focused ? colors.accent : colors.tabInactive} focused={focused} />;
+  return <Glyph color={focused ? colors.ink : colors.ink3} focused={focused} />; // Graduated: active = ink, never blue
 }
 
 function MainTabs() {
@@ -173,26 +173,23 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.tabInactive,
+        // Graduated tab bar (DESIGN.md §5): flat on the ground, hairline on top,
+        // active = ink + 600, inactive = ink3. Never blue.
+        tabBarActiveTintColor: colors.ink,
+        tabBarInactiveTintColor: colors.ink3,
         tabBarStyle: {
-          borderTopWidth: 0,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: colors.line,
           elevation: 0,
-          shadowColor: '#12233B',
-          shadowOpacity: 0.10,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: -6 },
-          backgroundColor: colors.card,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          shadowOpacity: 0,
+          backgroundColor: colors.ground,
           paddingBottom: 22,
-          paddingTop: 10,
-          height: 86,
+          paddingTop: 8,
+          height: 84,
         },
         tabBarLabelStyle: {
-          fontSize: 10.5,
-          fontWeight: '700',
-          letterSpacing: 0.2,
+          fontSize: 11,
+          fontWeight: '600',
           marginTop: 2,
         },
       }}
