@@ -17,6 +17,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
 import { getCalcInputs } from '../lib/realityCheck';
+import { getCachedUser } from '../lib/supabase';
+import { getActiveProtocols } from '../lib/database';
+import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
+import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -28,10 +32,27 @@ export default function JourneyScreen() {
   const s = makeStyles(colors);
   const [premium, setPremium] = useState(false);
   const [inputs, setInputs] = useState(null);
+  // Dose accumulation tile: the compound the Curve opens on and its Est. level now —
+  // the same lib function the Curve screen uses (lib/serumModel), Premium only.
+  const [level, setLevel] = useState(null);
   useFocusEffect(useCallback(() => {
-    hasPremium().then(setPremium);
+    let alive = true;
+    hasPremium().then(async (pro) => {
+      if (!alive) return;
+      setPremium(pro);
+      if (!pro) { setLevel(null); return; }
+      const user = await getCachedUser();
+      if (!alive || !user) return;
+      try { setLevel(defaultCurveLevel(getActiveProtocols(user.id), Date.now())); } catch { setLevel(null); }
+    }).catch(() => {});
     getCalcInputs().then(setInputs).catch(() => {});
+    return () => { alive = false; };
   }, []));
+  // Named as the Curve screen names its line (a blend component: "Blend · Component (est.)").
+  const lp = level ? level.protocol : null;
+  const levelName = !lp ? null
+    : lp.__blend ? `${t(lp.__blend)} · ${t(lp.compound_id)} ${t('blend_est_marker')}`
+      : (lp.compound_id ? t(lp.compound_id) : lp.name);
 
   const weight = inputs && inputs.weight != null && inputs.weight !== '' ? String(inputs.weight) : null;
   const unit = inputs && inputs.unit === 'imperial' ? 'lb' : 'kg';
@@ -73,10 +94,21 @@ export default function JourneyScreen() {
               {!premium ? <Text style={s.tag}>{t('paywall_premium')}</Text> : <Text style={s.chev}>›</Text>}
             </View>
             <Text style={s.tileTitle}>{t('body_card_dosing_title')}</Text>
-            <View style={s.num}>
-              <Text style={s.cap}>{t('curve_current_level')}</Text>
+            {premium && level ? (
+              <>
+                <View style={s.nameRow}>
+                  <View style={[s.dot, { backgroundColor: level.protocol.color || colors.data }]} />
+                  <Text style={s.name}>{levelName}</Text>
+                </View>
+                <View style={s.num}>
+                  <Text style={s.cap}>{t('curve_current_level')}</Text>
+                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value)}<Text style={s.unit}> {level.unit}</Text></Text>
+                  <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
+                </View>
+              </>
+            ) : (
               <Text style={s.desc}>{t('body_card_dosing_desc')}</Text>
-            </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -103,7 +135,12 @@ const makeStyles = (c) => StyleSheet.create({
   num: { gap: 4, paddingTop: 10, marginTop: 'auto' },
   cap: { fontSize: 12, fontWeight: '500', color: c.ink3 },
   big: { fontSize: 34, fontWeight: '500', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
-  unit: { fontSize: 13, fontWeight: '400', color: c.ink3 },
+  unit: { fontSize: 13, fontWeight: '400', color: c.ink3, fontFamily: MONO['400'], letterSpacing: 0 },
   desc: { fontSize: 13, color: c.ink2 },
+  nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
+  name: { flex: 1, fontSize: 15, color: c.ink },
+  chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, justifyContent: 'center', marginTop: 2 },
+  chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   foot: { fontSize: 13, color: c.ink2 },
 });
