@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { goalOptions } from '../lib/profileGoals';
+import LegalModal from '../components/LegalModal';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -33,7 +34,7 @@ import {
   updateVial, getProtocolById, permanentlyDeleteProtocol,
 } from '../lib/database';
 import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
@@ -51,28 +52,6 @@ const MONTH_KEYS = [
 const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
-
-function LegalModal({ visible, onClose, title, content, doneLabel }) {
-  const { colors } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={s.modal}>
-        <View style={s.modalNav}>
-          <View style={{ width: 60 }} />
-          <Text style={s.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={{ width: 60, alignItems: 'flex-end' }}>
-            <Text style={s.modalClose}>{doneLabel}</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
-          <Text style={s.legalText}>{content}</Text>
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
 
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
@@ -150,7 +129,7 @@ export default function SettingsScreen({ navigation }) {
     const user = await getCachedUser();
     setUser(user);
     // Real subscription status (non-throwing; defaults to false on failure)
-    isPremium().then(setPremium).catch(() => setPremium(false));
+    hasPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
       setDoseReminders(user.user_metadata?.dose_reminders !== false);

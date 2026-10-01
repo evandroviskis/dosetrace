@@ -29,9 +29,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser, supabase } from '../lib/supabase';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import { requestAIConsent } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
+import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
@@ -45,6 +46,7 @@ import {
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
+import { supplyState } from '../lib/supplyLow';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
@@ -519,19 +521,16 @@ function ProtocolCard({ p, vial, expanded, setExpanded, openEdit, deleteProtocol
   const isInjectable = p.type === 'recon' || p.type === 'rtu';
   // Low-supply flag — must match the Today "Supply low" alert. Capacity uses the
   // stored count, else derived from vial size ÷ dose (older vials have no count).
-  const supplyCapacity = vial
-    ? ((vial.total_doses && vial.total_doses > 0)
-        ? vial.total_doses
-        : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }))
-    : null;
-  const dosesRemaining = (vial && supplyCapacity) ? Math.max(0, supplyCapacity - (vial.doses_taken || 0)) : null;
+  const supply = supplyState(vial, p); // the ONE supply-low rule (S-05)
+  const supplyCapacity = supply.capacity;
+  const dosesRemaining = supply.remaining;
   // Doses a full vial yields, shown for every injectable (lyophilized or RTU) even
   // before a vial is opened: the stored/derived vial capacity, else — with no vial —
   // derived from the vial's total compound ÷ dose (both types store that in `amount`).
   const vialDoseCapacity = supplyCapacity != null
     ? supplyCapacity
     : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-  const lowSupply = dosesRemaining != null && dosesRemaining > 0 && dosesRemaining <= 3;
+  const lowSupply = supply.low;
 
   return (
     <TouchableOpacity
@@ -1191,9 +1190,10 @@ export default function ProtocolsScreen() {
       if (error) {
         const status = error.context?.status;
         let code = null;
-        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        let errBody = null;
+        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
           return;
         }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
@@ -1334,7 +1334,7 @@ export default function ProtocolsScreen() {
       // DB count, so the extra protocol is never created — the block happens
       // before insert, not after.
       const activeCount = (getActiveProtocols(user.id) || []).length;
-      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await isPremium())) {
+      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await hasPremium())) {
         setSaving(false);
         setShowModal(false);
         resetForm();
@@ -1485,7 +1485,7 @@ export default function ProtocolsScreen() {
   async function isOverFreeLimit() {
     const user = await getCachedUser();
     const count = user ? (getActiveProtocols(user.id) || []).length : protocols.length;
-    return count >= FREE_PROTOCOL_LIMIT && !(await isPremium());
+    return count >= FREE_PROTOCOL_LIMIT && !(await hasPremium());
   }
 
   async function openAdd() {

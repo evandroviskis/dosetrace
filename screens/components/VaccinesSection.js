@@ -22,7 +22,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { requestAIConsent } from '../../lib/aiConsent';
-import { isPremium } from '../../lib/purchases';
+import { hasPremium } from '../../lib/entitlement';
+import { quotaLimitFrom, fillQuotaMessage } from '../../lib/scanQuotaMessage';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -90,7 +91,7 @@ export default function VaccinesSection() {
   useFocusEffect(useCallback(() => { fetchList(); }, []));
 
   async function fetchList() {
-    setPremium(await isPremium());
+    setPremium(await hasPremium());
     const user = await getCachedUser();
     if (!user) return;
     setList(getVaccines(user.id) || []);
@@ -98,7 +99,7 @@ export default function VaccinesSection() {
 
   // ── Scan / upload a card or doctor's sheet ───────────────────────
   async function handleScanPress() {
-    if (!(await isPremium())) {
+    if (!(await hasPremium())) {
       Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
         { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
         { text: t('cancel'), style: 'cancel' },
@@ -160,7 +161,7 @@ export default function VaccinesSection() {
   async function extractVaccines(source) {
     // Robust gate: vaccine scanning is Premium-only. Re-check at the action
     // point (fresh isPremium) so the paid extraction never runs for a free user.
-    if (!(await isPremium())) {
+    if (!(await hasPremium())) {
       setUploading(false);
       Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
         { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
@@ -177,11 +178,12 @@ export default function VaccinesSection() {
         // Same distinction as lab scanning: a service outage is not the user's card.
         const status = error.context?.status;
         let code = null;
-        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        let errBody = null;
+        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
         } else if (serviceDown) {
           Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
         } else {

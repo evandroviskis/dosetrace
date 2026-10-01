@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +17,6 @@ import {
   getOfferings,
   purchasePackage,
   restorePurchases,
-  isPremium,
   checkTrialEligibility,
 } from '../lib/purchases';
 import { useTheme } from '../lib/theme';
@@ -25,6 +25,9 @@ import FeatureIcon from '../components/FeatureIcon';
 import AccumulationHero from '../components/AccumulationHero';
 import { FeaturePreviewSheet, PREVIEW_FEATURES } from '../components/FeaturePreviews';
 import { friendlyError } from '../lib/friendlyError';
+import { getEntitlement } from '../lib/entitlement';
+import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
+import LegalModal from '../components/LegalModal';
 import { Analytics } from '../lib/analytics';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,10 +65,10 @@ export default function PaywallScreen({ navigation, route }) {
     { label: t('paywall_free_feat_5'), included: true },   // Reminders
     { label: t('pw_free_labvax'), included: true },        // Lab & vaccine journals (manual)
     { label: t('pw_free_calc'), included: true },          // Energy & protein calculator
-    { label: t('pw_free_scan1'), included: true },         // 1 free lab scan
+    { label: t('pw_free_scan1'), included: true },         // 3 free scans a month (one pool: labs, vaccines, vials)
     { label: t('pw_free_sync'), included: true },          // Cloud backup & sync (free)
     { label: t('paywall_feat_4'), included: false },       // Unlimited protocols
-    { label: t('pw_prem_scan'), included: false },         // Unlimited lab & vaccine scanning
+    { label: t('pw_prem_scan'), included: false },         // Lab, vaccine & vial scans (Premium)
     { label: t('pw_prem_pdf'), included: false },          // PDF export
     { label: t('pw_prem_reality'), included: false },      // Reality check + progress
     { label: t('body_card_dosing_title'), included: false }, // Dose accumulation / serum curve
@@ -166,8 +169,9 @@ export default function PaywallScreen({ navigation, route }) {
     setPurchasing(false);
 
     if (result.success) {
-      // Re-check entitlement before unlocking
-      const premium = result.premium || (await isPremium());
+      // Refresh the ONE entitlement helper (it also writes the offline cache at once).
+      const ent = await getEntitlement();
+      const premium = result.premium || ent.premium;
       if (premium) Analytics.purchaseCompleted({ plan, source });
       if (premium && onSuccess) onSuccess();
       navigation.goBack();
@@ -184,13 +188,18 @@ export default function PaywallScreen({ navigation, route }) {
     doPurchase(lifetimePkg, 'lifetime');
   }
 
+  // Terms link: Apple's Standard EULA on iOS, DoseTrace's own terms (in-app) on Android.
+  const terms = termsTarget(Platform.OS);
+  const [showTerms, setShowTerms] = useState(false);
+
   async function handleRestore() {
     setRestoring(true);
     const result = await restorePurchases();
     setRestoring(false);
 
     if (result.success) {
-      const premium = result.premium || (await isPremium());
+      const ent = await getEntitlement();
+      const premium = result.premium || ent.premium;
       if (premium) {
         Alert.alert(t('paywall_restored'), t('paywall_restored_msg'));
         if (onSuccess) onSuccess();
@@ -414,10 +423,32 @@ export default function PaywallScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
 
+        {/* App Store 3.1.2: Terms of Use (EULA) + Privacy Policy in the purchase flow. */}
+        <View style={s.legalRow}>
+          <TouchableOpacity
+            onPress={() => (terms.kind === 'url' ? Linking.openURL(terms.url).catch(() => {}) : setShowTerms(true))}
+            accessibilityRole="link"
+          >
+            <Text style={s.legalLink}>{t(terms.labelKey)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} accessibilityRole="link">
+            <Text style={s.legalLink}>{t('settings_privacy_policy')}</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
       <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} />
+      {terms.kind === 'inApp' && (
+        <LegalModal
+          visible={showTerms}
+          onClose={() => setShowTerms(false)}
+          title={t(terms.titleKey)}
+          content={t(terms.bodyKey)}
+          doneLabel={t('done')}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -499,4 +530,6 @@ const makeStyles = (c) => StyleSheet.create({
   singleUploadNote: { fontSize: 11, color: c.warningSoftText, textAlign: 'center' },
   restoreBtn: { alignItems: 'center', paddingVertical: 14 },
   restoreBtnText: { fontSize: 13, color: c.textMuted },
+  legalRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 18, rowGap: 8, paddingBottom: 8 },
+  legalLink: { fontSize: 13, color: c.textMuted, textDecorationLine: 'underline', paddingVertical: 6 },
 });

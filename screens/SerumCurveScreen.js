@@ -31,7 +31,7 @@ import { BLEND_IDS, blendComponents } from '../lib/compounds';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import CheckMark from '../components/CheckMark';
 
 const APath = Animated.createAnimatedComponent(Path);
@@ -226,7 +226,7 @@ export default function SerumCurveScreen() {
       (async () => {
         // Dose accumulation / serum curve is a Premium feature. Guard here so no
         // entry path (deep link, back-stack) can reach it without an entitlement.
-        if (!(await isPremium())) {
+        if (!(await hasPremium())) {
           if (isMounted) navigation.replace('Paywall', { source: 'serum_direct' });
           return;
         }

@@ -18,7 +18,9 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
-import { isPremium } from '../../lib/purchases';
+import { hasPremium } from '../../lib/entitlement';
+import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
+import { profileBodyInputs } from '../../lib/bodyProfile';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
@@ -102,6 +104,7 @@ export default function CalculatorSection({ header = null }) {
   // default — we gate on this and prompt the user to complete their profile.
   const [profileSex, setProfileSex] = useState(null);
   const [age, setAge] = useState('');
+  const [ageFromProfile, setAgeFromProfile] = useState(false); // S-04: age follows the profile birth year
   const [height, setHeight] = useState('');
   const [activity, setActivity] = useState(1.375);
   const [goal, setGoal] = useState('lose');
@@ -112,6 +115,7 @@ export default function CalculatorSection({ header = null }) {
   const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
   const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
+  const [rcWeighMsg, setRcWeighMsg] = useState(false);
   const [rcFree, setRcFree] = useState(false); // free 7 days of food log + reality check (FL-41)
   const [snapshots, setSnapshots] = useState([]);
   const [rcStartDate, setRcStartDate] = useState(null); // null = today; else a past weigh-in day (≤ 7 days back)
@@ -151,7 +155,7 @@ export default function CalculatorSection({ header = null }) {
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
-    setPremium(await isPremium());
+    setPremium(await hasPremium());
     const user = await getCachedUser();
     const uid = user?.id || null;
     // Free users get the reality check (and food log) for 7 days too (FL-41).
@@ -210,22 +214,23 @@ export default function CalculatorSection({ header = null }) {
       setTarget(getCalcTarget(uid));
     }
 
+    // S-04 / FX-10: the PROFILE is the only source for sex and age — applied on every
+    // focus so a change in Settings reaches the BMR; saved calculator values are used
+    // only while the profile has none.
+    {
+      const savedForBody = await getCalcInputs().catch(() => null);
+      const body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
+      setSex(body.sex);
+      setProfileSex(body.profileSex);
+      setAgeFromProfile(body.ageFromProfile);
+      if (body.ageFromProfile || !loadedRef.current) setAge(body.age);
+    }
     if (loadedRef.current) return;
     // ── one-time seeding (open weigh-in + profile defaults + saved calc inputs) ──
     // Cloud-backed (survives a wipe / re-auth); restores from user_metadata if the
     // local cache was cleared. See lib/realityCheck.js.
     const rcs = await getRealityStart();
     if (rcs) setRcStart(rcs);
-    // Seed physiological defaults from the profile so BMR is sensitive to the
-    // user's stored sex (assigned at birth) and age. Explicit calculator inputs
-    // saved below still win over these.
-    const meta = user?.user_metadata || {};
-    if (meta.gender === 'male' || meta.gender === 'female') { setSex(meta.gender); setProfileSex(meta.gender); }
-    if (meta.birth_year) {
-      const yrs = new Date().getFullYear() - Number(meta.birth_year);
-      if (yrs > 0 && yrs < 120) setAge(String(yrs));
-    }
-
     // Synced calc_inputs table (S-03); the old metadata only before migration.
     const saved = await getCalcInputs().catch(() => null);
     if (saved && typeof saved === 'object') {
@@ -233,8 +238,6 @@ export default function CalculatorSection({ header = null }) {
       if (saved.weight != null) setWeight(String(saved.weight));
       if (saved.bfSource) setBfSource(saved.bfSource);
       if (saved.bodyFat != null) setBodyFat(String(saved.bodyFat));
-      if (saved.sex) setSex(saved.sex);
-      if (saved.age != null) setAge(String(saved.age));
       if (saved.height != null) setHeight(String(saved.height));
       if (saved.activity != null) setActivity(saved.activity);
       if (saved.goal) setGoal(saved.goal);
@@ -412,17 +415,28 @@ export default function CalculatorSection({ header = null }) {
     // Merge against a FRESH DB read, not React state — a stale/empty in-memory
     // snapshots array would null out an existing same-date snapshot's other fields.
     const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === bfDate) || null;
-    upsertCalcSnapshot(uid, {
-      entry_date: bfDate,
-      weight_kg: weightKg,
-      waist_cm: existing?.waist_cm ?? null,
-      body_fat_pct: bfv != null ? bfv : (existing?.body_fat_pct ?? null),
-      lbm: existing?.lbm ?? null, bmr: existing?.bmr ?? null, tdee: existing?.tdee ?? null,
-    });
+    upsertCalcSnapshot(uid, mergeWeighIn(existing, { date: bfDate, weightKg, bodyFatPct: bfv }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
     setBfWeight(''); setBfBodyFat(''); setBfDate(todayISO());
     setBfMsg(true); setTimeout(() => setBfMsg(false), 2500);
+  }
+
+  // The weigh-in of a reality check that is already running, for a user whose free
+  // days ended (FX-15: weigh-ins are never paywalled; only the result is). Saved as
+  // today's snapshot, merged so nothing logged earlier that day is lost.
+  function saveRcWeighIn() {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const w = num(rcNow);
+    if (w == null) return;
+    const weightKg = unit === 'imperial' ? lbToKg(w) : w;
+    const date = todayISO();
+    const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
+    upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg }));
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    setRcWeighMsg(true); setTimeout(() => setRcWeighMsg(false), 2500);
   }
 
   // ETA weeks → { weeks, when } where `when` is the projected finish month.
@@ -510,6 +524,7 @@ export default function CalculatorSection({ header = null }) {
 
   // ── Reality check (Premium, or a free user's 7 free days — FL-41) ──
   const rcAllowed = premium || rcFree;
+  const rcAccess = realityCheckAccess({ premium, rcFree, hasOpenCheck: !!rcStart });
   // Auto days-between the two weigh-ins; null until phase 2.
   const rcElapsedDays = rcStart ? daysBetween(rcStart.date, todayISO()) : null;
   // Intake across THIS check (founder: the check window matters, not day by day):
@@ -878,7 +893,7 @@ export default function CalculatorSection({ header = null }) {
             <View style={s.row}>
               <View style={s.rowCol}>
                 <Text style={s.fieldLab}>{t('cal_age')}</Text>
-                <TextInput style={s.input} value={age} onChangeText={setAge} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                <TextInput style={s.input} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
               </View>
               <View style={s.rowCol}>
                 <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
@@ -1224,6 +1239,21 @@ export default function CalculatorSection({ header = null }) {
             </>
           ) : (
             <View style={s.rcLocked}>
+              {/* FX-15: a check that is already running keeps its weigh-in — only the result is Premium. */}
+              {rcAccess.canLogWeighIn ? (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={s.label}>{t('cal_rc_current_weight')} ({wUnit})</Text>
+                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.textFaint} />
+                  <TouchableOpacity style={[s.computeBtn, !num(rcNow) && s.computeBtnDisabled]} onPress={saveRcWeighIn} disabled={!num(rcNow)}>
+                    {rcWeighMsg ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <CheckMark style={s.computeBtnText} />
+                        <Text style={s.computeBtnText}>{t('cal_snap_saved')}</Text>
+                      </View>
+                    ) : <Text style={s.computeBtnText}>{t('cal_tgt_backfill_save')}</Text>}
+                  </TouchableOpacity>
+                </View>
+              ) : null}
               <Text style={s.rcLockedIntro}>{t('cal_rc_locked_intro')}</Text>
               <Text style={s.rcLockedLead}>{t('cal_rc_locked_lead')}</Text>
               <Text style={s.rcLockedItem}>1.  {t('cal_rc_start_weight')}</Text>
@@ -1244,12 +1274,11 @@ export default function CalculatorSection({ header = null }) {
         </View>
       )}
 
-      {/* Progress snapshots (premium) — part of tracking progress */}
+      {/* Progress snapshots — weigh-ins are never paywalled (FX-15) */}
       <View style={s.premCard}>
         <Text style={s.premTitle}>{t('cal_snap_title')}</Text>
         <Text style={s.premSub}>{t('cal_snap_sub')}</Text>
-        {premium ? (
-          <>
+        <>
             <TouchableOpacity style={[s.computeBtn, !plan && s.computeBtnDisabled]} onPress={saveSnapshot} disabled={!plan}>
               {snapMsg ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -1298,15 +1327,7 @@ export default function CalculatorSection({ header = null }) {
                 </TouchableOpacity>
               </View>
             ) : null}
-          </>
-        ) : (
-          <View style={s.locked}>
-            <Text style={s.lockedText}>{t('cal_premium_locked')}</Text>
-            <TouchableOpacity style={s.lockedBtn} onPress={() => navigation.navigate('Paywall')}>
-              <Text style={s.lockedBtnText}>{t('cal_premium_cta')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        </>
       </View>
 
       {/* Understand the numbers — collapsed by default */}

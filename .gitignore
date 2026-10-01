@@ -65,3 +65,6 @@ screenshots_v2/*.png
 # Google Play service-account key (secret — never commit)
 google-play-service-account.json
 grok/
+
+# Claude Code local permissions (founder-approved, this Mac only)
+.claude/settings.local.json

@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import CalculatorSection from './components/CalculatorSection';
 import FeatureIcon from '../components/FeatureIcon';
 
@@ -25,7 +25,7 @@ export default function JourneyScreen() {
   const navigation = useNavigation();
   const s = makeStyles(colors);
   const [premium, setPremium] = useState(false);
-  useFocusEffect(useCallback(() => { isPremium().then(setPremium); }, []));
+  useFocusEffect(useCallback(() => { hasPremium().then(setPremium); }, []));
 
   // Leads the tab: the dose-accumulation curve (the moat). Premium-gated like the
   // Body-hub entry it replaces. Rendered at the very top of the scroll.
@@ -39,7 +39,7 @@ export default function JourneyScreen() {
       <View style={{ flex: 1 }}>
         <View style={s.curveTitleRow}>
           <Text style={s.curveTitle}>{t('body_card_dosing_title')}</Text>
-          {!premium && <Text style={s.pro}>PRO</Text>}
+          {!premium && <Text style={s.pro}>{t('paywall_premium')}</Text>}
         </View>
         <Text style={s.curveDesc}>{t('body_card_dosing_desc')}</Text>
       </View>

@@ -21,7 +21,7 @@ export default function FoodGraceNote({ rcStart, until, reason, freeFrom, rows, 
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = makeStyles(colors);
-  // Nothing to explain when the store just couldn't be reached (lenient, reason 'unknown').
+  // Only a payer whose Premium ended or free days that are ending need a note.
   if (!until || (reason !== 'premium_ended' && reason !== 'free_days_ending')) return null;
   const locale = LOCALE_MAP[language] || 'en-US';
   const fmt = (iso) => { const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? iso : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' }); };

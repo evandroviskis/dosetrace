@@ -18,18 +18,22 @@ import { Analytics } from '../lib/analytics';
 import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
 import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
 import {
-  getActiveProtocols, getActiveVials, getTodayLogs, getTakenLogsSince, getLogsSince,
+  getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
   getBiomarkers,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
-import { scanMissedDoses, recordDoseTaken, recordSkipPending } from '../lib/doseActions';
-import { pendingFromYesterday } from '../lib/pendingYesterday';
+import { scanMissedDoses, recordDoseTaken, recordSkipPending, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
+import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
+import { planUndoTake } from '../lib/markTaken';
+import { planSitePickerAction } from '../lib/sitePickerActions';
+import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
 import BodyMapModal from './components/BodyMapModal';
 import { summarizeStored } from '../lib/injectionSites';
 import { dosesPerVial } from '../lib/doseMath';
 import { newVialRecords } from '../lib/newVial';
+import { supplyState } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
@@ -57,7 +61,7 @@ const measureWin = (ref) => new Promise((res) => {
 // "Mark taken" — presses, turns into a check, and hands its on-screen position
 // to the parent so a drop can travel from here into the progress ring. Keyed by
 // the taken count, so a multi-dose protocol gets a fresh button per dose.
-function TakeButton({ label, takenLabel, onTake, s, colors }) {
+function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
   const ref = useRef(null);
   const [ok, setOk] = useState(false);
   const press = useSharedValue(1);
@@ -67,6 +71,9 @@ function TakeButton({ label, takenLabel, onTake, s, colors }) {
   const onPress = () => {
     if (ok) return;
     lightHaptic();
+    // S-25: an injectable is asked where it was injected first — the button stays
+    // "Mark taken" until the answer writes the dose (Cancel leaves it as it was).
+    if (askFirst) { onTake(null); return; }
     press.value = withSequence(withTiming(0.96, { duration: 90 }), withTiming(1, { duration: 150 }));
     chk.value = withDelay(90, withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
     setOk(true);
@@ -97,6 +104,9 @@ import {
 } from '../lib/schedule';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 
+const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
+const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 
@@ -108,7 +118,6 @@ const MONTH_KEYS = [
 
 // ── Today alerts config ────────────────────────────────────────
 const BLOODWORK_INTERVAL_DAYS = 182; // ~6 months
-const SUPPLY_LOW_DOSES = 3;          // flag a vial with this many doses left or fewer
 const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many days
 const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
 // How long "delete" hides a DERIVED alert (reality-check delete cancels instead).
@@ -141,10 +150,18 @@ export default function TodayScreen() {
   const [showShareCard, setShowShareCard] = useState(false);
   const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
   const pendingFxRef = useRef(new Set()); // deferred follow-ups of recent takes (see markTaken)
-  // Site prompts wait their turn: two injectables taken back to back each get
-  // their own picker, and a site is never saved onto the other dose.
+  // Site questions wait their turn (S-25): one picker at a time, and never together with
+  // another modal (vial prompt, "still going?") — iOS shows one modal at a time.
   const siteQueueRef = useRef([]);
   const bodyMapOpenRef = useRef(false);
+  const openQuestionRef = useRef(null); // key of the site question on screen (S-25)
+  const vialPromptOpenRef = useRef(false); // one modal at a time: questions wait for the vial prompt
+  const vialPromptPendingRef = useRef(false); // set synchronously by markTaken when the vial prompt will show
+  const vialTimerRef = useRef(null); // the delayed open of the vial prompt (cancelled when it closes)
+  const inactivePromptOpenRef = useRef(false); // the "still going?" prompt is up
+  const focusedRef = useRef(false); // questions open only on Today, never over another tab
+  const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
+  const takeNoticeT = useRef(null);
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
   const resetTake = (protocolId) => setTakeReset(prev => ({ ...prev, [protocolId]: (prev[protocolId] || 0) + 1 }));
   const [undoData, setUndoData] = useState(null);
@@ -165,7 +182,8 @@ export default function TodayScreen() {
 
   // Body map (injection site picker) state
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
-  const [bodyMapTarget, setBodyMapTarget] = useState(null); // { logId, protocolId, recentLogs, initialStored }
+  const [bodyMapTarget, setBodyMapTarget] = useState(null); // { q, protocolId, recentLogs, initialStored, mode: 'ask' }
+  const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
 
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
   // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
@@ -197,22 +215,26 @@ export default function TodayScreen() {
       fetchProtocolStreaks();
       fetchLastSites();
       fetchAlerts();
+      focusedRef.current = true;
       checkTreatmentStillActive();
+      askKeptQuestions();
       playRingIntro(); // the ring fills from zero each time Today opens
       return () => {
-        // Leaving Today mid-animation: land the count now, and drop a pending
-        // site picker rather than pop it over another tab (the site can still
-        // be added from the log).
+        // Leaving Today mid-animation: land the count now. Queued site questions stay
+        // kept on the device and are asked again when Today opens (never over another tab).
+        focusedRef.current = false;
         for (const fx of pendingFxRef.current) {
           if (fx.undone) continue;
           if (!fx.applied) { clearTimeout(fx.applyT); fx.flush(); }
-          clearTimeout(fx.siteT); fx.siteT = null;
         }
         pendingFxRef.current.clear();
         siteQueueRef.current = [];
       };
     }, [])
   );
+
+  // A question saved by the notification Taken button while the app is open (S-25).
+  useEffect(() => onQuestionsChanged(() => { if (focusedRef.current) askKeptQuestions(); }), []);
 
   // Refresh when a cloud import/sync finishes — after logging in on a new device
   // the import runs in the background, so the first focus-fetch can hit an empty
@@ -323,6 +345,9 @@ export default function TodayScreen() {
         // Skip if snoozed within the last threshold window.
         const snoozedAt = await AsyncStorage.getItem(`dosetrace_tx_check_${p.id}`);
         if (snoozedAt && (now - new Date(snoozedAt).getTime()) / 86400000 < thresholdDays) continue;
+        // One modal at a time: a site question goes first; this prompt comes on a later open.
+        if (bodyMapOpenRef.current || siteQueueRef.current.length) return;
+        inactivePromptOpenRef.current = true;
         setInactiveProtocol(p);
         setShowInactivePrompt(true);
         return; // one at a time
@@ -339,8 +364,10 @@ export default function TodayScreen() {
     AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
     setShowInactivePrompt(false);
     setInactiveProtocol(null);
+    inactivePromptOpenRef.current = false;
     fetchProtocols();
     requestSync();
+    setTimeout(openNextQuestion, 450);
   }
 
   async function snoozeInactiveProtocol() {
@@ -348,6 +375,8 @@ export default function TodayScreen() {
     if (p) AsyncStorage.setItem(`dosetrace_tx_check_${p.id}`, new Date().toISOString()).catch(() => {});
     setShowInactivePrompt(false);
     setInactiveProtocol(null);
+    inactivePromptOpenRef.current = false;
+    setTimeout(openNextQuestion, 450);
   }
 
   // Build last-site recall map: most recent log with an injection_site, per protocol.
@@ -454,7 +483,10 @@ export default function TodayScreen() {
       since.setDate(since.getDate() - 1);
       since.setHours(since.getHours() - 3);
       const logs = getLogsSince(user.id, since.toISOString()) || [];
-      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now() }));
+      // A-49 guard: never offer a slot from before the last time-zone change.
+      let tzSinceMs = null;
+      try { tzSinceMs = (await getMissedWatermark()).tzSinceMs; } catch { /* guard is best-effort */ }
+      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs }));
     } catch { setPendingYest([]); }
   }
 
@@ -468,15 +500,30 @@ export default function TodayScreen() {
   }
 
   // Taken for a pending slot: logged AT yesterday's slot time through the shared
-  // mark-taken path. Never touches today's count or today's reminders.
+  // mark-taken path. Never touches today's count or today's reminders. An injectable
+  // is asked where it was injected first (S-25); the answer writes it.
   function takePending(item) {
-    const res = recordDoseTaken(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
+    const p = protocols.find(x => x.id === item.protocolId) || getProtocolById(item.protocolId);
+    if (p && needsSiteQuestion(p.type)) {
+      askSite(newQuestion({ protocolId: item.protocolId, tapMs: Date.now(), dayKey: item.dayKey, slotMs: item.slotMs, source: 'pending' }));
+      return;
+    }
+    writePending(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
+  }
+
+  // extraDeleteIds: yesterday's Skipped row written with this dose ("today, skip yesterday"
+  // answered after midnight) — Undo removes both.
+  function writePending(protocolId, write, extraDeleteIds = []) {
+    const res = recordDoseTaken(protocolId, write);
     if (res && res.logId) {
       const timer = setTimeout(() => setUndoData(null), 5000);
       setUndoData({
-        logId: res.logId, flipped: res.flipped, protocolId: item.protocolId, pending: true,
-        vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
+        logId: res.logId, flipped: res.flipped, protocolId, pending: true, extraDeleteIds,
+        vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
+        oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
       });
+      const p = getProtocolById(protocolId);
+      if (res.vialFinished && p && p.type === 'recon') showVialPromptFor(p, write.vialPromptDelay);
     }
     afterPendingWrite();
   }
@@ -585,9 +632,9 @@ export default function TodayScreen() {
     setWeekDots(dots);
   }
 
-  // opts.deferUi / opts.siteDelay (ms): let the "taken" confirmation play before the
-  // card re-sorts and before the injection-site picker covers the screen. The dose
-  // is WRITTEN immediately regardless — only the visual follow-up waits.
+  // opts.deferUi (ms): let the "taken" confirmation play before the card re-sorts; the
+  // dose is WRITTEN immediately regardless. opts.write: recordDoseTaken options (tap
+  // time, site). opts.cancelUpTo: reminders to cancel for a banner's answer (ti + 1).
   async function markTaken(protocol, opts = {}) {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
@@ -596,7 +643,7 @@ export default function TodayScreen() {
       // The ONE mark-taken path shared with the notification action (S-02):
       // never a second row for a dose already logged (e.g. from the banner), an
       // auto-Missed row is flipped, and vial/oral counts move once.
-      const res = recordDoseTaken(protocol.id);
+      const res = recordDoseTaken(protocol.id, opts.write || {});
       if (!res || !res.logId) {
         // Paused/deleted, or already logged elsewhere: show the real state.
         actionInProgressRef.current = false;
@@ -614,7 +661,7 @@ export default function TodayScreen() {
       // Deferred follow-ups are tracked so an Undo inside the delay cancels them:
       // otherwise the count bump lands after the undo, or the site picker opens
       // for (and re-syncs) the deleted log.
-      const fx = { undone: false, applied: false, applyT: null, siteT: null };
+      const fx = { undone: false, applied: false, applyT: null };
       const applyTaken = () => {
         if (fx.undone) return;
         fx.applied = true;
@@ -628,18 +675,11 @@ export default function TodayScreen() {
       fetchProtocolStreaks();
       Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Taken' });
       // Cancel today's reminder(s) for the slots now taken, so no "dose pending" fires later.
-      cancelTodaysDoseReminders(protocol.id, newTakenToday).catch(() => {});
+      cancelTodaysDoseReminders(protocol.id, Math.max(newTakenToday, opts.cancelUpTo || 0)).catch(() => {});
 
       // Vial and oral supply already moved (once) inside recordDoseTaken.
-      let vialPromptShown = false;
-      if (res.vialFinished && protocol.type === 'recon') {
-        setContinuationProtocol(protocol);
-        setNewVialDoses('');
-        setNewVialMonth(new Date().getMonth());
-        setNewVialDay(String(new Date().getDate()));
-        setShowVialPrompt(true);
-        vialPromptShown = true;
-      }
+      // The vial prompt FOLLOWS the write (S-25), after the site picker has closed.
+      if (res.vialFinished && protocol.type === 'recon') showVialPromptFor(protocol, opts.vialPromptDelay);
       const oralPrevUnitsTaken = res.oralPrevUnitsTaken;
       if (res.vialId || oralPrevUnitsTaken != null) fetchProtocols();
       syncVialAlerts().catch(() => {});
@@ -647,27 +687,21 @@ export default function TodayScreen() {
 
       // Setup undo (5 second window) — previous timer is cleared by the undoData effect
       const timer = setTimeout(() => setUndoData(null), 5000);
-      setUndoData({
+      // The full undo record of THIS take (the Undo bar).
+      const record = {
         logId,
         flipped: res.flipped,
         extraDeleteIds: opts.extraDeleteIds || [],
         protocolId: protocol.id,
         vialId: res.vialId,
         prevDosesTaken: res.prevVialDosesTaken,
+        vialFinished: !!res.vialFinished,
         oralPrevUnitsTaken,
+        oralUnitsAdded: res.oralUnitsAdded,
         timer,
         fx,
-      });
-
-      // Injectables (lyophilized / ready-to-use): prompt for the injection
-      // site right after logging, instead of leaving it as an optional step.
-      // Oral supplements have no site, so they skip this.
-      if (protocol.type === 'recon' || protocol.type === 'rtu') {
-        const openSite = () => openBodyMapForUndo({ logId, protocolId: protocol.id, timer, fx });
-        // With the vial-finished prompt up, open together as before (no delayed
-        // second modal racing the first).
-        if (opts.siteDelay && !vialPromptShown) fx.siteT = setTimeout(openSite, opts.siteDelay); else openSite();
-      }
+      };
+      setUndoData(record);
 
       actionInProgressRef.current = false;
     } catch (err) {
@@ -683,105 +717,177 @@ export default function TodayScreen() {
     }
   }
 
-  // Open the body map for the just-logged dose. Cancels the undo timer
-  // so the toast stays on screen while the modal is open.
-  async function openBodyMapForUndo(undo) {
-    if (!undo || !undo.logId) return;
-    if (undo.fx) {
-      if (undo.fx.undone) return;
-      clearTimeout(undo.fx.siteT);
-      undo.fx.siteT = null;
-    }
-    if (undo.timer) clearTimeout(undo.timer);
-    if (bodyMapOpenRef.current) {
-      if (!siteQueueRef.current.some(u => u.logId === undo.logId)) siteQueueRef.current.push(undo);
+  // S-25 (founder 2026-10-01): an injectable is written only AFTER the app asks where
+  // it was injected. Each question is kept on the device first (lib/siteQuestion.js),
+  // so an app closed with it open asks it again instead of losing the dose; its tap
+  // time is the dose's time. One modal at a time: questions wait for the vial prompt.
+  async function askSite(q) {
+    await saveQuestion(AsyncStorage, q);
+    enqueueQuestion(q);
+  }
+
+  async function askKeptQuestions() {
+    const list = await loadQuestions(AsyncStorage);
+    for (const q of list) enqueueQuestion(q);
+  }
+
+  function enqueueQuestion(q) {
+    if (openQuestionRef.current === q.key) return;
+    if (siteQueueRef.current.some(x => x.protocolId === q.protocolId && x.dayKey === q.dayKey)) return;
+    siteQueueRef.current.push(q);
+    setTimeout(openNextQuestion, 300); // after a press / an Alert has finished
+  }
+
+  async function openNextQuestion() {
+    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current) return;
+    const q = siteQueueRef.current.shift();
+    if (!q) return;
+    // Paused / deleted, or already logged (another device, a banner): nothing to ask.
+    if (isDoseAlreadyLogged(q.protocolId, commitOpts(q))) {
+      dropQuestion(AsyncStorage, q.key);
+      resetTake(q.protocolId);
+      openNextQuestion();
       return;
     }
     bodyMapOpenRef.current = true;
+    openQuestionRef.current = q.key;
     try {
       const user = await getCachedUser();
-      if (!user) { bodyMapOpenRef.current = false; return; }
       const since = new Date();
       since.setDate(since.getDate() - 30);
-      const recent = getLogsSince(user.id, since.toISOString()) || [];
-      setBodyMapTarget({
-        logId: undo.logId,
-        protocolId: undo.protocolId,
-        recentLogs: recent,
-        initialStored: null,
-      });
+      const recent = user ? (getLogsSince(user.id, since.toISOString()) || []) : [];
+      setBodyMapTarget({ q, protocolId: q.protocolId, recentLogs: recent, initialStored: null, mode: 'ask' });
       setBodyMapVisible(true);
-    } catch { bodyMapOpenRef.current = false; }
+    } catch { bodyMapOpenRef.current = false; openQuestionRef.current = null; }
   }
 
-  // After a picker closes, open the next queued one (skipping undone doses).
-  function openNextSite() {
-    bodyMapOpenRef.current = false;
-    let next;
-    do { next = siteQueueRef.current.shift(); } while (next && next.fx && next.fx.undone);
-    if (next) setTimeout(() => openBodyMapForUndo(next), 350);
-  }
-
-  function handleBodyMapClose() {
-    const closedLogId = bodyMapTarget?.logId;
-    setBodyMapVisible(false);
-    setBodyMapTarget(null);
-    // Toast was kept open while modal was up — clear it now (only if it belongs
-    // to this log: a queued take keeps its own Undo until its picker closes)
-    setUndoData(prev => (prev && prev.logId === closedLogId ? null : prev));
-    openNextSite();
-  }
-
-  function handleBodyMapSave({ stored }) {
-    if (bodyMapTarget?.logId) {
-      try {
-        updateDoseLog(bodyMapTarget.logId, { injection_site: stored });
-        requestSync();
-      } catch { /* ignore */ }
+  // The answer writes the dose: at the tap time, with the site (Save) or without
+  // (Skip). "Today's dose — skip yesterday" writes yesterday's Skipped row here, in
+  // the same step. Returns true when the vial prompt will follow.
+  function commitQuestion(q, site) {
+    const protocol = protocols.find(p => p.id === q.protocolId) || getProtocolById(q.protocolId);
+    const o = commitOpts(q);
+    // Gone, or this dose already logged meanwhile (another device, a banner): nothing to
+    // write — and no Skipped row for yesterday either.
+    if (!protocol || isDoseAlreadyLogged(q.protocolId, o)) {
+      dropQuestion(AsyncStorage, q.key);
+      fetchTodayLogs();
+      return false;
     }
-    const closedLogId = bodyMapTarget?.logId;
-    setBodyMapVisible(false);
-    setBodyMapTarget(null);
-    setUndoData(prev => (prev && prev.logId === closedLogId ? null : prev));
-    openNextSite();
+    const write = { tapMs: o.tapMs, dayKey: o.dayKey, slotMs: o.slotMs, atNow: o.atNow, injectionSite: site || null, vialPromptDelay: 450 };
+    let extraDeleteIds = [];
+    if (o.skipYesterday) {
+      const skipped = recordSkipPending(protocol.id, { dayKey: o.skipYesterday.dayKey, slotMs: o.skipYesterday.slotMs });
+      if (skipped && skipped.logId) extraDeleteIds = [skipped.logId];
+      fetchPendingYesterday();
+    }
+    vialPromptPendingRef.current = false;
+    if (q.source === 'pending' || o.dayKey !== localDayKey(Date.now())) writePending(protocol.id, write, extraDeleteIds);
+    else markTaken(protocol, { write, extraDeleteIds, vialPromptDelay: 450, cancelUpTo: reminderCancelCount(q, 0) });
+    // Forgotten only after the write (markTaken is synchronous: no await before its write).
+    dropQuestion(AsyncStorage, q.key);
+    return vialPromptPendingRef.current;
   }
 
-  async function undoTake() {
-    if (!undoData) return;
+  // Every way out of the site picker goes through ONE plan (lib/sitePickerActions.js,
+  // __tests__/siteBeforeTaken.test.js): Save / Skip write the dose; Cancel / X and a
+  // CONFIRMED Android back write nothing and say so.
+  function pickerAction(action, stored) {
+    const tgt = bodyMapTarget;
+    if (!tgt) return;
+    const plan = planSitePickerAction({ mode: tgt.mode, action });
+    if (!plan.close) return; // a bare Android back is handled by handleBodyMapBack
+    setBodyMapVisible(false);
+    setBodyMapTarget(null);
+    bodyMapOpenRef.current = false;
+    openQuestionRef.current = null;
+    let vialNext = false;
+    if (tgt.q) {
+      if (plan.commit) vialNext = commitQuestion(tgt.q, plan.writeSite ? stored : null);
+      else {
+        dropQuestion(AsyncStorage, tgt.q.key);
+        resetTake(tgt.q.protocolId);
+      }
+    }
+    if (plan.notice) {
+      clearTimeout(takeNoticeT.current);
+      setTakeNotice(true);
+      takeNoticeT.current = setTimeout(() => setTakeNotice(false), 6000);
+    }
+    if (!vialNext) setTimeout(openNextQuestion, 450); // the next question, once this picker has faded out
+  }
+
+  function handleBodyMapClose() { pickerAction('cancel'); }
+  // Android back (button or gesture) never decides by itself (founder 2026-09-30):
+  // ask — stay in the picker, or leave (= Cancel = nothing written).
+  function handleBodyMapBack() {
+    const tgt = bodyMapTarget;
+    if (!tgt) return;
+    if (!planSitePickerAction({ mode: tgt.mode, action: 'back' }).confirm) { pickerAction('back'); return; }
+    Alert.alert(
+      t('today_site_back_title'),
+      t('today_site_back_msg'),
+      [
+        { text: t('today_site_back_stay'), style: 'cancel' },
+        { text: t('today_site_back_leave'), style: 'destructive', onPress: () => pickerAction('leave') },
+      ],
+      { cancelable: true },
+    );
+  }
+  function handleBodyMapSkip() { pickerAction('skip'); }
+  function handleBodyMapSave({ stored }) { pickerAction('save', stored); }
+
+  function undoTake() { applyUndo(undoData); }
+
+  // Undo ONE take, from its own record. Never twice for the same log.
+  function applyUndo(record) {
+    if (!record || record.logId == null || undoneIdsRef.current.has(record.logId)) return;
+    undoneIdsRef.current.add(record.logId);
     try {
-      if (undoData.timer) clearTimeout(undoData.timer);
-      const fx = undoData.fx;
+      if (record.timer) clearTimeout(record.timer);
+      const fx = record.fx;
       if (fx) {
         fx.undone = true;
         clearTimeout(fx.applyT);
-        clearTimeout(fx.siteT);
       }
-      if (undoData.flipped) updateDoseLog(undoData.logId, { outcome: 'Missed', injection_site: null });
-      else deleteDoseLog(undoData.logId);
-      // "Today's dose — skip yesterday" wrote two rows: undo removes both (A-40).
-      for (const id of undoData.extraDeleteIds || []) deleteDoseLog(id);
+      // The ONE undo plan (lib/markTaken.js planUndoTake, __tests__/pendingFlow.test.js):
+      // a flipped Missed row goes back to Missed; "today's dose — skip yesterday"
+      // wrote two rows and undo removes both (A-40). Supply goes back by one dose
+      // from what it is NOW, read fresh (another dose may have moved it since).
+      const proto = getProtocolById(record.protocolId);
+      const vialNow = record.vialId ? getVialById(record.vialId) : null;
+      const otherActiveVial = !!(record.vialId && proto
+        && (getActiveVials(proto.user_id) || []).some(v => v.protocol_id === record.protocolId && v.id !== record.vialId));
+      const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null });
+      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: 'Missed', injection_site: null });
+      for (const id of plan.deleteIds) deleteDoseLog(id);
       // Only take back a count bump that actually landed (a pending-from-yesterday
       // row never changed today's count).
-      if (undoData.pending) {
+      if (plan.todayCount === 'none') {
         // nothing to take back on today's cards
-      } else if (!fx || fx.applied) {
+      } else if (plan.todayCount === 'decrement') {
         setTakenCounts(prev => {
           const updated = { ...prev };
-          updated[undoData.protocolId] = Math.max((updated[undoData.protocolId] || 1) - 1, 0);
+          updated[record.protocolId] = Math.max((updated[record.protocolId] || 1) - 1, 0);
           return updated;
         });
       } else {
-        resetTake(undoData.protocolId); // the pressed button is still showing "Taken"
+        resetTake(record.protocolId); // the pressed button is still showing "Taken"
       }
-      if (undoData.vialId && undoData.prevDosesTaken !== null) {
-        updateVial(undoData.vialId, { doses_taken: undoData.prevDosesTaken, active: 1 });
+      if (plan.vialRestore) {
+        const { id, ...fields } = plan.vialRestore;
+        updateVial(id, fields);
         fetchProtocols();
       }
-      if (undoData.oralPrevUnitsTaken != null) {
-        updateProtocol(undoData.protocolId, { units_taken: undoData.oralPrevUnitsTaken });
+      if (plan.oralRestore) {
+        updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
         fetchProtocols();
       }
-      setUndoData(null);
+      // The "start a new vial?" prompt of the undone dose must not stay up.
+      if (plan.closeVialPrompt) {
+        if (continuationProtocol && continuationProtocol.id === record.protocolId) closeVialPrompt();
+      }
+      setUndoData(prev => (prev && prev.logId === record.logId ? null : prev));
       fetchPendingYesterday();
       fetchStreakData();
       fetchProtocolStreaks();
@@ -820,6 +926,28 @@ export default function TodayScreen() {
     );
   }
 
+  // The ONE way the vial prompt closes ("Protocol finished", "Log new vial", or the undo
+  // of that dose). A site question waiting behind it opens after the prompt has faded out.
+  function closeVialPrompt() {
+    clearTimeout(vialTimerRef.current);
+    setShowVialPrompt(false);
+    setContinuationProtocol(null);
+    vialPromptOpenRef.current = false;
+    setTimeout(openNextQuestion, 450); // a site question waiting behind the prompt
+  }
+
+  // delayMs: after a site picker, wait for it to fade out (iOS shows one modal at a time).
+  function showVialPromptFor(protocol, delayMs) {
+    vialPromptOpenRef.current = true;
+    vialPromptPendingRef.current = true;
+    setContinuationProtocol(protocol);
+    setNewVialDoses('');
+    setNewVialMonth(new Date().getMonth());
+    setNewVialDay(String(new Date().getDate()));
+    clearTimeout(vialTimerRef.current);
+    if (delayMs) vialTimerRef.current = setTimeout(() => setShowVialPrompt(true), delayMs); else setShowVialPrompt(true);
+  }
+
   async function createNewVial() {
     if (!continuationProtocol) return;
     try {
@@ -836,8 +964,7 @@ export default function TodayScreen() {
       const updatedProtocol = getProtocolById(continuationProtocol.id);
       if (updatedProtocol) scheduleDoseReminder(updatedProtocol).catch(() => {});
 
-      setShowVialPrompt(false);
-      setContinuationProtocol(null);
+      closeVialPrompt();
       fetchProtocols();
       syncVialAlerts().catch(() => {});
       requestSync();
@@ -941,10 +1068,11 @@ export default function TodayScreen() {
   }, [ringTarget, doneDoses]);
 
   function handleTake(p, btnRect, attempt = 0, opts = {}) {
+    const tapMs = opts.tapMs || Date.now(); // S-25: the dose's time is the tap
     // Another card's write is mid-flight: retry shortly rather than let the
     // button show "Taken" for a dose that was never logged.
     if (actionInProgressRef.current) {
-      if (attempt < 12) setTimeout(() => handleTake(p, btnRect, attempt + 1, opts), 250);
+      if (attempt < 12) setTimeout(() => handleTake(p, btnRect, attempt + 1, { ...opts, tapMs }), 250);
       else {
         resetTake(p.id);
         Alert.alert(t('error'), t('error_save_failed'));
@@ -953,7 +1081,7 @@ export default function TodayScreen() {
     }
     // A-40: yesterday's dose for this protocol is still pending — ask which day this
     // dose is for before writing anything (earliest pending slot).
-    const pend = !opts.pendingResolved && pendingYest.find((x) => x.protocolId === p.id);
+    const pend = pendingPromptFor(pendingYest, p.id, { pendingResolved: !!opts.pendingResolved });
     if (pend) {
       const vars = (str) => str.replace('{name}', p.compound_id ? t(p.compound_id) : p.name).replace('{time}', formatTimeAMPM(new Date(pend.slotMs).toTimeString().slice(0, 5)));
       Alert.alert(
@@ -961,10 +1089,9 @@ export default function TodayScreen() {
         vars(t('today_pending_prompt_msg')),
         [
           { text: t('today_pending_prompt_yesterday'), onPress: () => { resetTake(p.id); takePending(pend); } },
+          // Nothing is written here: yesterday's Skipped row goes in with this dose (S-25).
           { text: t('today_pending_prompt_today'), onPress: () => {
-            const skipped = recordSkipPending(p.id, { dayKey: pend.dayKey, slotMs: pend.slotMs });
-            handleTake(p, btnRect, 0, { pendingResolved: true, extraDeleteIds: skipped && skipped.logId ? [skipped.logId] : [] });
-            fetchPendingYesterday();
+            handleTake(p, btnRect, 0, { pendingResolved: true, tapMs, skipYesterday: { dayKey: pend.dayKey, slotMs: pend.slotMs } });
           } },
           { text: t('cancel'), style: 'cancel', onPress: () => resetTake(p.id) },
         ],
@@ -972,11 +1099,18 @@ export default function TodayScreen() {
       );
       return;
     }
-    if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds: opts.extraDeleteIds }); return; }
+    // An injectable: ask where it was injected; the answer writes it (S-25).
+    if (needsSiteQuestion(p.type)) {
+      askSite(newQuestion({ protocolId: p.id, tapMs, skipYesterday: opts.skipYesterday || null, source: 'today' }));
+      return;
+    }
+    // An oral dose is written now ("today, skip yesterday" writes both rows together).
+    const extraDeleteIds = opts.skipYesterday ? skipYesterdayRow(p.id, opts.skipYesterday) : [];
+    if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds }); return; }
     const LIFT = 110, FLIGHT = 500;
     landingAtRef.current = Date.now() + LIFT + FLIGHT;
-    // Write now; let the card re-sort and the site picker open after the drop lands.
-    markTaken(p, { deferUi: 380, siteDelay: 900, extraDeleteIds: opts.extraDeleteIds });
+    // Write now; let the card re-sort after the drop lands.
+    markTaken(p, { deferUi: 380, extraDeleteIds });
     setTimeout(() => { if (landingAtRef.current && Date.now() > landingAtRef.current + 400) landingAtRef.current = 0; }, 1500);
     Promise.all([measureWin(rootRef), measureWin(ringRef)]).then(([root, ring]) => {
       if (!root || !ring) return;
@@ -990,6 +1124,12 @@ export default function TodayScreen() {
       flyK.value = 0;
       flyK.value = withDelay(LIFT, withTiming(1, { duration: FLIGHT }));
     });
+  }
+
+  function skipYesterdayRow(protocolId, skip) {
+    const skipped = recordSkipPending(protocolId, { dayKey: skip.dayKey, slotMs: skip.slotMs });
+    fetchPendingYesterday();
+    return skipped && skipped.logId ? [skipped.logId] : [];
   }
 
   const ringArcProps = useAnimatedProps(() => ({ strokeDashoffset: RING_CIRC * (1 - ringFrac.value) }));
@@ -1082,12 +1222,8 @@ export default function TodayScreen() {
       for (const p of protocols) {
         const v = vials[p.id];
         if (!v) continue;
-        const cap = (v.total_doses && v.total_doses > 0)
-          ? v.total_doses
-          : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-        if (!cap) continue;
-        const rem = Math.max(0, cap - (v.doses_taken || 0));
-        if (rem > 0 && rem <= SUPPLY_LOW_DOSES) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem });
+        const { remaining: rem, low: isLow } = supplyState(v, p); // the ONE rule (S-05)
+        if (isLow) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem });
       }
       if (low.length) {
         low.sort((a, b) => a.rem - b.rem);
@@ -1308,11 +1444,7 @@ export default function TodayScreen() {
           <TouchableOpacity
             style={s.vialStatus}
             onPress={() => {
-              setContinuationProtocol(p);
-              setNewVialDoses('');
-              setNewVialMonth(new Date().getMonth());
-              setNewVialDay(String(new Date().getDate()));
-              setShowVialPrompt(true);
+              showVialPromptFor(p);
             }}
           >
             <Text style={[s.vialStatusText, { color: colors.accent }]}>{t('today_add_vial')}</Text>
@@ -1328,6 +1460,7 @@ export default function TodayScreen() {
               label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
               takenLabel={takenLabel}
               onTake={(rect) => handleTake(p, rect)}
+              askFirst={needsSiteQuestion(p.type)}
               s={s}
               colors={colors}
             />
@@ -1660,15 +1793,17 @@ export default function TodayScreen() {
         <View style={s.undoBar}>
           <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
           <View style={s.undoBarActions}>
-            {['recon', 'rtu'].includes(protocols.find(p => p.id === undoData.protocolId)?.type) && (
-              <TouchableOpacity onPress={() => openBodyMapForUndo(undoData)}>
-                <Text style={s.undoBarAction}>{t('today_undo_add_site')}</Text>
-              </TouchableOpacity>
-            )}
             <TouchableOpacity onPress={undoTake}>
               <Text style={s.undoBarAction}>{t('today_undo')}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {/* S-20: the dose was undone from the site picker (Cancel / back) — say so. */}
+      {takeNotice && !undoData && (
+        <View style={s.takeNoticeBar} accessibilityLiveRegion="polite">
+          <Text style={s.takeNoticeText}>{t('today_take_undone')}</Text>
         </View>
       )}
 
@@ -1677,6 +1812,8 @@ export default function TodayScreen() {
       <BodyMapModal
         visible={bodyMapVisible}
         onClose={handleBodyMapClose}
+        onBack={handleBodyMapBack}
+        onSkip={bodyMapTarget?.mode === 'ask' ? handleBodyMapSkip : null}
         onSave={handleBodyMapSave}
         initialStored={bodyMapTarget?.initialStored || null}
         protocolName={protocols.find(p => p.id === bodyMapTarget?.protocolId)?.name || null}
@@ -1760,7 +1897,7 @@ export default function TodayScreen() {
             <View style={s.promptActions}>
               <TouchableOpacity
                 style={s.promptBtnSecondary}
-                onPress={() => { setShowVialPrompt(false); setContinuationProtocol(null); }}
+                onPress={closeVialPrompt}
               >
                 <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
               </TouchableOpacity>
@@ -1977,6 +2114,9 @@ const makeStyles = (c) => StyleSheet.create({
   promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
   // Undo bar
   undoBar: { position: 'absolute', left: 16, right: 16, bottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  // S-20 notice (same pinned surface as the Undo bar, text only)
+  takeNoticeBar: { position: 'absolute', left: 16, right: 16, bottom: 12, backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  takeNoticeText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
   undoBarText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
   undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
   undoBarAction: { fontSize: 13, color: c.toastText, fontWeight: '700', textDecorationLine: 'underline' },

@@ -17,9 +17,11 @@ import { scanMissedDoses } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored } from '../lib/injectionSites';
 import { hour12Pref } from '../lib/timeFormat';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
 import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
+import { needsSiteQuestion } from '../lib/siteQuestion';
+import { planSitePickerAction } from '../lib/sitePickerActions';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -60,53 +62,72 @@ export default function LogScreen() {
       t('log_missed_edit_title'),
       t('log_missed_edit_msg'),
       [
-        { text: t('log_mark_taken'), onPress: () => setMissedOutcome(log.id, 'Taken') },
-        { text: t('log_mark_skipped'), onPress: () => setMissedOutcome(log.id, 'Skipped') },
+        { text: t('log_mark_taken'), onPress: () => setMissedOutcome(log, 'Taken') },
+        { text: t('log_mark_skipped'), onPress: () => setMissedOutcome(log, 'Skipped') },
         { text: t('cancel'), style: 'cancel' },
       ],
     );
   }
 
-  function setMissedOutcome(logId, outcome) {
+  // S-25 (founder 2026-10-01): a Missed injectable changed to Taken is asked where it
+  // was injected first (Skip allowed); Cancel leaves it Missed.
+  function setMissedOutcome(log, outcome) {
+    if (outcome === 'Taken' && needsSiteQuestion(log.protocols?.type)) {
+      setTimeout(() => openSiteEditor(log, 'ask'), 350); // after the Alert has closed
+      return;
+    }
+    writeOutcome(log.id, { outcome });
+  }
+
+  function writeOutcome(logId, fields) {
     try {
-      updateDoseLog(logId, { outcome });
+      updateDoseLog(logId, fields);
       requestSync();
       fetchLogs();
     } catch { /* ignore */ }
   }
 
-  async function openSiteEditor(log) {
+  // mode 'edit': a saved dose's site. mode 'ask': a Missed dose about to become Taken.
+  async function openSiteEditor(log, mode = 'edit') {
     // Oral supplements have no injection site — nothing to edit here.
     if (!['recon', 'rtu'].includes(log.protocols?.type)) return;
     const user = await getCachedUser();
-    if (!user) return;
+    if (!user && mode !== 'ask') return;
     const since = new Date();
     since.setDate(since.getDate() - 30);
-    const recent = getLogsSince(user.id, since.toISOString()) || [];
+    const recent = user ? (getLogsSince(user.id, since.toISOString()) || []) : [];
     setBodyMapTarget({
       logId: log.id,
       protocolName: log.protocols?.name || null,
-      initialStored: log.injection_site || null,
+      initialStored: mode === 'ask' ? null : (log.injection_site || null),
       recentLogs: recent,
+      mode,
     });
     setBodyMapVisible(true);
   }
 
-  function handleSiteSave({ stored }) {
-    if (bodyMapTarget?.logId) {
-      try {
-        updateDoseLog(bodyMapTarget.logId, { injection_site: stored });
-        requestSync();
-        fetchLogs();
-      } catch { /* ignore */ }
-    }
+  // Every way out of the picker goes through ONE plan (lib/sitePickerActions.js).
+  function siteAction(action, stored) {
+    const tgt = bodyMapTarget;
+    if (!tgt) return;
+    const plan = planSitePickerAction({ mode: tgt.mode, action });
+    if (!plan.close) return;
     setBodyMapVisible(false);
     setBodyMapTarget(null);
+    if (!tgt.logId) return;
+    if (plan.commit) writeOutcome(tgt.logId, plan.writeSite ? { outcome: 'Taken', injection_site: stored } : { outcome: 'Taken' });
+    else if (plan.writeSite) writeOutcome(tgt.logId, { injection_site: stored });
   }
-
-  function handleSiteClose() {
-    setBodyMapVisible(false);
-    setBodyMapTarget(null);
+  function handleSiteSave({ stored }) { siteAction('save', stored); }
+  function handleSiteSkip() { siteAction('skip'); }
+  function handleSiteClose() { siteAction('cancel'); }
+  function handleSiteBack() {
+    const tgt = bodyMapTarget;
+    if (!tgt || !planSitePickerAction({ mode: tgt.mode, action: 'back' }).confirm) { siteAction('back'); return; }
+    Alert.alert(t('today_site_back_title'), t('today_site_back_msg'), [
+      { text: t('today_site_back_stay'), style: 'cancel' },
+      { text: t('today_site_back_leave'), style: 'destructive', onPress: () => siteAction('leave') },
+    ], { cancelable: true });
   }
 
   async function fetchLogs() {
@@ -224,7 +245,7 @@ export default function LogScreen() {
         <Text style={s.headerTitle}>{t('log_title')}</Text>
         <TouchableOpacity
           style={s.curveBtn}
-          onPress={async () => { Analytics.viewed('serum_curve'); const pro = await isPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
+          onPress={async () => { Analytics.viewed('serum_curve'); const pro = await hasPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
           accessibilityRole="button"
           accessibilityLabel={t('curve_btn')}
         >
@@ -351,6 +372,8 @@ export default function LogScreen() {
       <BodyMapModal
         visible={bodyMapVisible}
         onClose={handleSiteClose}
+        onBack={handleSiteBack}
+        onSkip={bodyMapTarget?.mode === 'ask' ? handleSiteSkip : null}
         onSave={handleSiteSave}
         initialStored={bodyMapTarget?.initialStored || null}
         protocolName={bodyMapTarget?.protocolName || null}

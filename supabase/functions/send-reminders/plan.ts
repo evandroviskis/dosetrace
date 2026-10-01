@@ -87,30 +87,30 @@ export function reminderSlots(protocol: Protocol): { hour: number; minute: numbe
   });
 }
 
-// Port of lib/notificationPlan.js foodNudgeDays — keep the two identical.
-// Days to send the 20:00 food nudge: inside startKey…startKey+rcDays−1, never on
-// a logged day, and after 3 un-logged days strictly after the start, only on days
-// an EVEN distance from the start (anchored, never drifts).
+// Port of lib/notificationPlan.js foodNudgeDays — keep the two identical (parity test
+// __tests__/serverPlanParity.test.js). FL-18/42: while the reality check is OPEN, once a
+// day at 20:00, unless the user closed that local day. No day-21 cut-off, no backoff.
 export function foodNudgeDays(
-  startKey: string, todayKey: string, logged: Set<string>, windowDays: number, rcDays: number,
+  startKey: string, todayKey: string, closedKeys: Set<string> | string[] | null, windowDays: number,
 ): string[] {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startKey) || !/^\d{4}-\d{2}-\d{2}$/.test(todayKey)) return [];
-  const lastKey = ymd(addDays(parseYmd(startKey), rcDays - 1));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(startKey)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(todayKey))) return [];
+  const closed = closedKeys instanceof Set ? closedKeys : new Set(closedKeys || []);
   const firstKey = todayKey < startKey ? startKey : todayKey;
   const out: string[] = [];
   for (let i = 0; i < windowDays; i++) {
     const d = ymd(addDays(parseYmd(firstKey), i));
-    if (d > lastKey) break;
-    if (logged.has(d)) continue;
-    const since = dayDiff(startKey, d);
-    let backoff = since >= 4;
-    for (let k = 1; backoff && k <= 3; k++) {
-      if (logged.has(ymd(addDays(parseYmd(d), -k)))) backoff = false;
-    }
-    if (backoff && since % 2 !== 0) continue;
+    if (closed.has(d)) continue;
     out.push(d);
   }
   return out;
+}
+
+// Port of lib/notificationPlan.js remindersForAccess (FL-41): none for a locked user,
+// and not past the last day logging stays open (end of free days / grace week).
+export function remindersForAccess(days: string[], access: { canLog?: boolean; until?: string | null; mode?: string } | null): string[] {
+  if (!access || !access.canLog) return [];
+  if (!access.until || access.mode === 'premium') return days;
+  return (days || []).filter((d) => d <= (access.until as string));
 }
 
 export type MorningPlan =

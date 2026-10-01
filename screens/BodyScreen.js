@@ -18,7 +18,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
-import { isPremium } from '../lib/purchases';
+import { hasPremium } from '../lib/entitlement';
+import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
@@ -262,7 +263,7 @@ export default function BodyScreen({ navigation, route }) {
   );
 
   async function fetchReports() {
-    setPremium(await isPremium());
+    setPremium(await hasPremium());
     setUploadCount(await getUploadCount());
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
@@ -318,7 +319,7 @@ export default function BodyScreen({ navigation, route }) {
   async function handleUploadPress() {
     // Premium: unlimited. Everyone else gets ONE free analysis to try it, then
     // it's Premium-only (upsell → paywall + 7-day trial). No per-upload charge.
-    if (await isPremium()) {
+    if (await hasPremium()) {
       chooseSource();
       return;
     }
@@ -431,7 +432,7 @@ export default function BodyScreen({ navigation, route }) {
       // Robust gate: free tier gets ONE extraction. Re-check at the action
       // point (fresh premium + upload count) so the paid extraction never runs
       // for an over-limit free user, regardless of how this was reached.
-      if (!(await isPremium()) && (await getUploadCount()) >= 1) {
+      if (!(await hasPremium()) && (await getUploadCount()) >= 1) {
         setUploading(false);
         setShowUpgradeModal(true);
         return;
@@ -453,11 +454,12 @@ export default function BodyScreen({ navigation, route }) {
         // service-side failure (Anthropic down, key/credit) from an actual
         // unreadable file, so we never blame the user's PDF for our outage.
         let code = null;
-        try { code = (await error.context?.clone?.().json())?.code; } catch { /* body unavailable */ }
+        let errBody = null;
+        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
         if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), t('vial_scan_quota_sub'));
+          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
         } else if (status === 401) {
           Alert.alert(t('error'), t('blood_error_not_signed_in'));
         } else if (status === 413) {
@@ -629,9 +631,9 @@ export default function BodyScreen({ navigation, route }) {
 
   async function doExport(kind) {
     // Robust gate: PDF is Premium-only, enforced at the action point with a
-    // fresh isPremium() check — the file is never generated for a free user,
+    // fresh hasPremium() check — the file is never generated for a free user,
     // even if this is reached by dismissing a dialog. CSV stays free.
-    if (kind === 'pdf' && !(await isPremium())) {
+    if (kind === 'pdf' && !(await hasPremium())) {
       Alert.alert(t('export_premium_title'), t('export_premium_sub'), [
         { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall', { source: 'export_pdf' }) },
         { text: t('cancel'), style: 'cancel' },
@@ -746,7 +748,7 @@ export default function BodyScreen({ navigation, route }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
                   {!premium && (
-                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>PRO</Text>
+                    <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>{t('paywall_premium')}</Text>
                   )}
                 </View>
                 <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>

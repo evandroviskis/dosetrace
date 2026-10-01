@@ -5,7 +5,7 @@
 // log cover a slot only from slot − 3 h (EARLY_MS) to slot + 12 h (LATE_MS). A dose
 // logged earlier than 3 h before its slot on the same day covers nothing, so the
 // next scan writes a Missed row next to the real Taken row.
-// Tests are todo (red now) until the item is picked up; the guards pass today and must stay green.
+// S-18 (2026-09-30): the five F-MISS-2 tests were todo (red) and are now live; the guards must stay green.
 // Pinned to a US zone so the DST test is meaningful on any machine (each test file runs in its own process).
 process.env.TZ = 'America/New_York';
 const test = require('node:test');
@@ -17,7 +17,7 @@ const local = (y, m, d, h = 0, min = 0) => new Date(y, m - 1, d, h, min, 0, 0).g
 const iso = (ms) => new Date(ms).toISOString();
 const created = iso(local(2026, 9, 1, 7, 0));
 
-test('F-MISS-2: once-daily 20:00 dose logged at 10:00 the same day → 0 Missed after the next-day scan', { todo: 'A-43 / F-MISS-2 — 1.2.5 S-18' }, () => {
+test('F-MISS-2: once-daily 20:00 dose logged at 10:00 the same day → 0 Missed after the next-day scan', () => {
   const p = { id: 1, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: created };
   const logs = [{ protocol_id: 1, outcome: 'Taken', logged_at: iso(local(2026, 9, 26, 10, 0)) }];
   // Only the 26th matters: scan from the 26th's start.
@@ -25,7 +25,7 @@ test('F-MISS-2: once-daily 20:00 dose logged at 10:00 the same day → 0 Missed 
   assert.deepEqual(missed, [], `${missed.length} false Missed row(s) next to a same-day Taken`);
 });
 
-test('F-MISS-2: twice-daily 08:00/20:00, second dose logged early at 12:00 → 0 Missed', { todo: 'A-43 / F-MISS-2 — 1.2.5 S-18' }, () => {
+test('F-MISS-2: twice-daily 08:00/20:00, second dose logged early at 12:00 → 0 Missed', () => {
   const p = { id: 2, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 2, reminder_time: '08:00,20:00', created_at: created };
   const logs = [
     { protocol_id: 2, outcome: 'Taken', logged_at: iso(local(2026, 9, 26, 8, 5)) },
@@ -46,7 +46,7 @@ test('F-MISS-2 (guard, passes today): a dose logged within 3 h before its slot c
 
 // Review #016 item 2: Today's Skip writes logged_at = tap time (TodayScreen.js:745),
 // so skipping an evening dose in the morning leaves Skipped + a Missed.
-test('F-MISS-2: once-daily 20:00 dose Skipped at 09:00 the same day → 0 Missed', { todo: 'A-43 / F-MISS-2 — 1.2.5 S-18' }, () => {
+test('F-MISS-2: once-daily 20:00 dose Skipped at 09:00 the same day → 0 Missed', () => {
   const p = { id: 4, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: created };
   const logs = [{ protocol_id: 4, outcome: 'Skipped', logged_at: iso(local(2026, 9, 26, 9, 0)) }];
   const missed = computeMissedDoses([p], logs, local(2026, 9, 27, 21, 0), local(2026, 9, 26, 0, 0), { lookbackDays: 1 });
@@ -56,7 +56,7 @@ test('F-MISS-2: once-daily 20:00 dose Skipped at 09:00 the same day → 0 Missed
 // Review #016 item 3 / #017 item 1: the rows the A-40 "ignore yesterday" choice leaves
 // (Skipped AT yesterday's slot time) plus today's dose taken at 07:00. Fed straight into
 // the scan, so it turns green with A-43's window alone (S-18).
-test('F-MISS-2 scenario: Skipped at yesterday\'s slot time, today Taken at 07:00 → 0 Missed after the next scan', { todo: 'A-43 / F-MISS-2 — 1.2.5 S-18' }, () => {
+test('F-MISS-2 scenario: Skipped at yesterday\'s slot time, today Taken at 07:00 → 0 Missed after the next scan', () => {
   const p = { id: 5, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: created };
   const logs = [
     { protocol_id: 5, outcome: 'Skipped', logged_at: iso(local(2026, 9, 25, 20, 0)) },
@@ -69,7 +69,7 @@ test('F-MISS-2 scenario: Skipped at yesterday\'s slot time, today Taken at 07:00
 // Review #017 item 2a: US DST ends 2026-11-01 (a 25-hour day). A once-daily 20:00 slot
 // on Nov 1 with a log at 00:30 Nov 1 is covered only if the window starts at the slot's
 // LOCAL midnight computed with setHours(0,0,0,0) — "slot minus 20 h" lands at 01:00.
-test('F-MISS-2 DST: Nov 1 (25 h day) 20:00 slot, log at 00:30 Nov 1 → covered (window starts at local midnight)', { todo: 'A-43 / F-MISS-2 — 1.2.5 S-18' }, () => {
+test('F-MISS-2 DST: Nov 1 (25 h day) 20:00 slot, log at 00:30 Nov 1 → covered (window starts at local midnight)', () => {
   const p = { id: 6, user_id: 'u1', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: created };
   const logs = [
     { protocol_id: 6, outcome: 'Taken', logged_at: iso(local(2026, 10, 31, 20, 5)) }, // Oct 31's own slot
@@ -97,16 +97,66 @@ test('A-35(b) guard: 00:30 covering last night\'s 20:00 does not also cover toda
 // matched, and 7 false Missed rows were written (Test03). A traveller hits the same.
 // Registry A-49. This test runs a NY-logged history through the scan as if the
 // device were now in Tokyo.
-test('A-49: a time-zone change does not turn past doses logged on time into false Missed rows', { todo: 'A-49 — 1.2.5 S-19 (after S-18)' }, () => {
+// S-19 (founder 2026-09-30): the pure scan cannot know the zone changed, so the guard
+// is a planner (missedScanWatermark) that scanMissedDoses applies: when the device's
+// zone NAME differs from the last one seen, the scan starts from now.
+const { missedScanWatermark } = require('../lib/missedDoses');
+const NY = 'America/New_York';
+const TOKYO = 'Asia/Tokyo';
+
+test('A-49: a time-zone change does not turn past doses logged on time into false Missed rows', () => {
+  assert.equal(typeof missedScanWatermark, 'function', 'missedScanWatermark not built yet');
   // Doses logged daily at 20:00 New York (= 00:00Z next day) for Sep 20–26.
   const logs = [];
   for (let d = 21; d <= 27; d++) logs.push({ protocol_id: 9, outcome: 'Taken', logged_at: `2026-09-${d}T00:00:00.000Z` });
   const p = { id: 9, user_id: 'u1', start_date: '2026-09-20', interval_days: 1, doses_per_day: 1, reminder_time: '20:00', created_at: '2026-09-19T12:00:00.000Z' };
   const nowTokyo = Date.parse('2026-09-28T12:00:00.000Z');
+  const storedSinceMs = Date.parse('2026-09-21T00:00:00.000Z');
+  const w = missedScanWatermark({ storedSinceMs, storedTz: NY, storedTzSinceMs: null, currentTz: TOKYO, nowMs: nowTokyo });
+  assert.equal(w.tzChanged, true);
+  assert.equal(w.tz, TOKYO);
+  assert.equal(w.tzSinceMs, nowTokyo);
+  assert.equal(w.sinceMs, nowTokyo, 'the scan starts from the zone change');
   const prevTz = process.env.TZ;
-  process.env.TZ = 'Asia/Tokyo'; // the device is now in Tokyo
+  process.env.TZ = TOKYO; // the device is now in Tokyo
   let missed;
-  try { missed = computeMissedDoses([p], logs, nowTokyo, Date.parse('2026-09-21T00:00:00.000Z'), { lookbackDays: 6 }); }
-  finally { process.env.TZ = prevTz; }
+  let later;
+  try {
+    missed = computeMissedDoses([p], logs, nowTokyo, w.sinceMs, { lookbackDays: 6 });
+    // The guard does not switch the scan off: a dose really missed AFTER the change is still recorded.
+    const twoDaysOn = nowTokyo + 2 * 86400000;
+    later = computeMissedDoses([p], logs, twoDaysOn, w.sinceMs, { lookbackDays: 6 });
+  } finally { process.env.TZ = prevTz; }
   assert.deepEqual(missed, [], `${missed.length} false Missed row(s) after a time-zone change`);
+  assert.ok(later.length >= 1, 'a real miss after the change is still written');
+  assert.ok(later.every((m) => m.scheduledAtMs >= nowTokyo), 'and only for slots after the change');
+});
+
+test('S-19: same zone, first run after the update, a DST switch inside one zone, or no zone name → the watermark does not move', () => {
+  const since = Date.parse('2026-09-21T00:00:00.000Z');
+  const now = Date.parse('2026-11-02T15:00:00.000Z'); // the day after the US clock change
+  const same = missedScanWatermark({ storedSinceMs: since, storedTz: NY, storedTzSinceMs: null, currentTz: NY, nowMs: now });
+  assert.deepEqual(same, { sinceMs: since, tz: NY, tzSinceMs: null, tzChanged: false }, 'same zone name (DST included): unchanged');
+  const first = missedScanWatermark({ storedSinceMs: since, storedTz: null, storedTzSinceMs: null, currentTz: NY, nowMs: now });
+  assert.deepEqual(first, { sinceMs: since, tz: NY, tzSinceMs: null, tzChanged: false }, 'first run: the zone is only remembered');
+  const unknown = missedScanWatermark({ storedSinceMs: since, storedTz: NY, storedTzSinceMs: null, currentTz: null, nowMs: now });
+  assert.deepEqual(unknown, { sinceMs: since, tz: NY, tzSinceMs: null, tzChanged: false }, 'no zone name available: guard skipped, stored zone kept');
+  const fresh = missedScanWatermark({ storedSinceMs: null, storedTz: null, storedTzSinceMs: null, currentTz: NY, nowMs: now });
+  assert.equal(fresh.sinceMs, now, 'very first scan ever: from now on (unchanged behaviour)');
+  const kept = missedScanWatermark({ storedSinceMs: since, storedTz: TOKYO, storedTzSinceMs: now - 5000, currentTz: TOKYO, nowMs: now });
+  assert.equal(kept.sinceMs, now - 5000, 'an earlier zone change keeps protecting the days before it');
+});
+
+test('S-19: scanMissedDoses and the Pending block both go through the watermark', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const act = fs.readFileSync(path.join(__dirname, '..', 'lib', 'doseActions.js'), 'utf8');
+  assert.match(act, /missedScanWatermark\(/);
+  assert.match(act, /export async function getMissedWatermark\(/);
+  const s = act.indexOf('export async function scanMissedDoses(');
+  assert.match(act.slice(s, s + 1200), /getMissedWatermark\(/, 'the scan reads its start through the guard');
+  const today = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
+  const f = today.indexOf('async function fetchPendingYesterday(');
+  assert.match(today.slice(f, f + 900), /getMissedWatermark\(/, 'Today reads the watermark');
+  assert.match(today.slice(f, f + 900), /tzSinceMs/, 'and passes the zone-change moment to the Pending block');
 });

@@ -404,14 +404,31 @@ test('intakeRun: a gap or a "not recorded" day breaks the run — no intake unti
   assert.equal(intakeRun(caughtUp, D(1), D(9)).days, 8, 'food logged later for that day: the day is complete again');
 });
 
-test('intakeRun: a day closed with "That\'s all for today" counts as complete; today counts once closed', () => {
+// FL-47 (founder 2026-09-27, recommended option): a day closed with NO food logged
+// breaks the run unless the user confirmed "I ate nothing" — only then it is a 0-kcal day.
+const AN = (d) => ({ entry_date: d, source: 'ate_nothing', kcal: 0, parse_status: 'done' });
+test('intakeRun: a day with food counts once closed; a day closed with NO food breaks the run unless "I ate nothing" was confirmed (FL-47)', () => {
   const e = [F(D(1), 1800), CL(D(2)), F(D(3), 2100), F(D(4), 2000), F(D(5), 1900), F(D(6), 2000), F(D(7), 2200), CL(D(7))];
-  const notYet = intakeRun(e.filter((x) => !(x.source === 'day_closed' && x.entry_date === D(7))), D(1), D(7));
-  assert.deepEqual(notYet, { ok: false, current: 6, needed: 7 }, 'today (day 7) not closed yet → not counted');
-  const r = intakeRun(e, D(1), D(7));
-  assert.equal(r.ok, true, 'today closed → 7 in a row');
+  assert.deepEqual(intakeRun(e, D(1), D(7)), { ok: false, current: 5, needed: 7 }, 'day 2 closed but empty → the run restarts on day 3');
+  const confirmed = [...e, AN(D(2))];
+  const r = intakeRun(confirmed, D(1), D(7));
+  assert.equal(r.ok, true, '"I ate nothing" confirmed → a 0-kcal day that counts');
   assert.equal(r.days, 7);
   assert.equal(r.totalKcal, 1800 + 0 + 2100 + 2000 + 1900 + 2000 + 2200);
+  const notYet = intakeRun(confirmed.filter((x) => !(x.source === 'day_closed' && x.entry_date === D(7))), D(1), D(7));
+  assert.deepEqual(notYet, { ok: false, current: 6, needed: 7 }, 'today (day 7) not closed yet → not counted');
+});
+
+test('FL-47: "ate_nothing" is a marker (never food), and the chat asks before closing an empty day', () => {
+  const { isMarker } = require('../lib/nutrition');
+  assert.equal(isMarker(AN(D(2))), true);
+  const fs = require('fs'); const path = require('path');
+  const db = fs.readFileSync(path.join(__dirname, '..', 'lib', 'database.js'), 'utf8');
+  assert.match(db, /['not_recorded', 'day_closed', 'free_start', 'ate_nothing']/);
+  const chat = fs.readFileSync(path.join(__dirname, '..', 'screens', 'FoodChatScreen.js'), 'utf8');
+  const i = chat.indexOf('async function closeDay(');
+  for (const k of ['nutri_close_empty_title', 'nutri_close_ate_nothing', 'nutri_close_just_close']) assert.ok(chat.slice(i, i + 1600).includes(k), k);
+  assert.match(chat.slice(i, i + 1600), /ate_nothing/);
 });
 
 test('intakeRun: the MOST RECENT run of 7+ is used; days before the check start never count', () => {
