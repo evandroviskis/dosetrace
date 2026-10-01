@@ -112,7 +112,7 @@ export default function SettingsScreen({ navigation }) {
         activeOpacity={0.6}
         onPress={() => toggleSection(sectionKey)}
       >
-        <Text style={s.sectionLabel}>{t(labelKey).toUpperCase()}</Text>
+        <Text style={s.sectionLabel}>{t(labelKey)}</Text>
         <Text style={s.sectionChevron}>{collapsed[sectionKey] ? '▸' : '▾'}</Text>
       </TouchableOpacity>
     );
@@ -1228,6 +1228,11 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
+  ...settingsLegacy(c),
+  ...settingsGraduated(c),
+});
+
+const settingsLegacy = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
@@ -1298,4 +1303,36 @@ const makeStyles = (c) => StyleSheet.create({
   editPillText: { fontSize: 14, color: c.text, fontWeight: '600' },
   editPillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   editDisclaimer: { fontSize: 11, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 16 },
+});
+
+// Redesign (Graduated, Settings approved 2026-09-29): large title on the ground; the
+// profile and every group are plain raised cards (no shadow); group titles in sentence
+// case (no uppercase letter-spaced labels); the Premium card is a plain card with the
+// one action in ink (no blue block, no hardcoded white).
+const settingsGraduated = (c) => ({
+  container: { flex: 1, backgroundColor: c.ground },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6, backgroundColor: c.ground },
+  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 16, backgroundColor: c.raised, borderRadius: 22 },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: c.onInk, fontSize: 19, fontWeight: '700' },
+  profileEmail: { fontSize: 15, fontWeight: '400', color: c.ink2, marginBottom: 6 },
+  planBadge: { borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 13, alignSelf: 'flex-start' },
+  planBadgeText: { fontSize: 12, color: c.ink2, fontWeight: '500' },
+  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 18, backgroundColor: c.raised, borderRadius: 22 },
+  premiumTitle: { fontSize: 20, fontWeight: '700', color: c.ink, marginBottom: 6 },
+  premiumSub: { fontSize: 15, color: c.ink2, marginBottom: 14, lineHeight: 20 },
+  premiumCheck: { color: c.data, fontWeight: '600', fontSize: 15 },
+  premiumFeatText: { fontSize: 15, color: c.ink, flex: 1 },
+  premiumBtn: { backgroundColor: c.act, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  premiumBtnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
+  sectionLabel: { fontSize: 17, fontWeight: '600', color: c.ink, letterSpacing: 0, textTransform: 'none' },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 20, marginRight: 20, marginTop: 22, marginBottom: 10, minHeight: 32 },
+  sectionChevron: { fontSize: 14, color: c.ink3 },
+  group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 60, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+  rowLabel: { fontSize: 17, color: c.ink },
+  rowSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
+  rowArrow: { fontSize: 20, color: c.tick },
+  version: { textAlign: 'center', fontSize: 13, color: c.ink3, marginTop: 24, lineHeight: 18 },
 });
