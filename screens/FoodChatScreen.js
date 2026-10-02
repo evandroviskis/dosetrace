@@ -42,6 +42,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
+const EDITOR_OPEN_KEY = 'foodChat:editorOpen';
 import { FoodDemo } from './components/NutritionLogger';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -84,7 +85,13 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const [question, setQuestion] = useState(null); // { id, tense } — the one open question about today
   const [evening, setEvening] = useState(null);   // day the 8 PM question is about
   const [logDay, setLogDay] = useState(null);     // "Log it" for an earlier day: entries land on that day (FL-40)
-  const [editRow, setEditRow] = useState(null);
+  const [editRow, setEditRowState] = useState(null);
+  // BK-14: remember which entry editor is open, so it reopens after a fold/unfold remount.
+  const setEditRow = (r) => { if (r) setDraft(EDITOR_OPEN_KEY, r.id != null ? r.id : r.local_id); else clearDraft(EDITOR_OPEN_KEY); setEditRowState(r); };
+  useEffect(() => {
+    const openId = getDraft(EDITOR_OPEN_KEY);
+    if (openId != null) { try { const r = getFoodLogById(openId); if (r) setEditRowState(r); else clearDraft(EDITOR_OPEN_KEY); } catch { /* keep the draft */ } }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [now, setNow] = useState(Date.now());
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [screenReader, setScreenReader] = useState(false);

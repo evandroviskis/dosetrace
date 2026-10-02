@@ -8,7 +8,11 @@
  * any open or offline-pending follow-up on it is dropped (FL-28).
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { getDraft, setDraft, clearDraft } from '../../lib/draftStore';
+
+// BK-14 / A-77: typed changes are kept per entry until Save or Cancel (app lifetime only).
+export const editorDraftKey = (row) => (row ? 'foodChat:editor:' + (row.id != null ? row.id : row.local_id) : null);
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -32,11 +36,22 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const locale = LOCALE_MAP[language] || 'en-US';
   const [items, setItems] = useState([]);
   const [date, setDate] = useState(null);
+  const key = editorDraftKey(row);
+  const loadedKey = useRef(null);
 
   useEffect(() => {
-    setItems(row ? safeItems(row.parsed_items).map((it) => ({ ...it })) : []);
-    setDate(row ? row.entry_date : null);
-  }, [row]);
+    const kept = key ? getDraft(key) : null;
+    setItems(kept ? kept.items : (row ? safeItems(row.parsed_items).map((it) => ({ ...it })) : []));
+    setDate(kept ? kept.date : (row ? row.entry_date : null));
+    loadedKey.current = key;
+  }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Every change is kept, so a fold/unfold or a stray close never loses it.
+  useEffect(() => {
+    if (!key || loadedKey.current !== key) return;
+    setDraft(key, { items, date });
+  }, [items, date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cancel = () => { if (key) clearDraft(key); onClose && onClose(); };
 
   const today = localISO();
   function dayLabel(dateISO) {
@@ -51,7 +66,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   }
   const setField = (i, field, val) => setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [field]: val } : it)));
   const removeItem = (i) => setItems((p) => p.filter((_, idx) => idx !== i));
-  const done = () => { requestSync?.(); onSaved && onSaved(); onClose && onClose(); };
+  const done = () => { if (key) clearDraft(key); requestSync?.(); onSaved && onSaved(); onClose && onClose(); };
 
   function save() {
     if (!row) return;
@@ -83,7 +98,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
         <View style={s.sheet}>
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
             <View style={s.head}>
-              <TouchableOpacity onPress={onClose} style={s.side} accessibilityRole="button">
+              <TouchableOpacity onPress={cancel} style={s.side} accessibilityRole="button">
                 <Text style={s.txtBtn}>{t('cancel')}</Text>
               </TouchableOpacity>
               <Text style={s.title} numberOfLines={2}>{t('nutri_edit_title')}</Text>

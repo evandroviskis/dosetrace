@@ -296,3 +296,18 @@ test('BK-12: Journey and Progress use theme tokens only, no emoji', () => {
     assert.doesNotMatch(src, /\p{Extended_Pictographic}/u, `${f}: no emoji`);
   }
 });
+
+// BK-14 / A-77 (main session, 2026-10-01): the food entry editor kept its typed values only
+// in its own state, so a fold/unfold (the chat remounts) or closing by mistake lost them.
+test('BK-14: the food entry editor keeps typed values per entry and reopens after a remount', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const ed = fs.readFileSync(path.join(__dirname, '..', 'screens', 'components', 'FoodEntryEditor.js'), 'utf8');
+  assert.match(ed, /editorDraftKey\(/, 'a per-entry draft key');
+  assert.match(ed, /getDraft\(key\)/, 'opens from the kept draft');
+  assert.match(ed, /setDraft\(key, \{ items, date \}\)/, 'writes every change');
+  assert.match(ed, /clearDraft\(key\)/, 'Save and Cancel clear it');
+  const chat = fs.readFileSync(path.join(__dirname, '..', 'screens', 'FoodChatScreen.js'), 'utf8');
+  assert.match(chat, /EDITOR_OPEN_KEY/, 'the chat remembers which entry editor was open');
+  assert.match(chat, /getDraft\(EDITOR_OPEN_KEY\)/);
+});
