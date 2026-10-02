@@ -254,7 +254,13 @@ test('BK-19: CalculatorSection announces every saved calculator change (notifyDa
   assert.match(src, /import \{[^}]*\bnotifyDataChanged\b[^}]*\} from '\.\.\/\.\.\/lib\/sync'/);
   assert.match(src, /function calcChanged\(\) \{ notifyDataChanged\('calc'\); \}/);
   assert.match(src, /createDebouncedSave\(\(payload\) => saveCalcInputs\(payload\)\.then\(calcChanged\), 900\)/, 'after the inputs are written');
-  for (const name of ['saveSnapshot', 'saveTarget', 'saveBackfillWeighIn', 'saveRcWeighIn', 'saveRealityCheck', 'startRealityCheck', 'resetRealityCheck', 'startNextRealityCheck']) {
+  // Journey redesign 2026-10-02: Save a snapshot became Log today's weight (saveTodayWeighIn,
+  // Q10), and the typed phase-2 form (saveRcWeighIn / saveRealityCheck / startNextRealityCheck)
+  // became the automatic finish from the day-21 weigh-in + food log (completeRealityCheck).
+  const done = src.match(/async function completeRealityCheck\(res\) \{[\s\S]*?\n  \}\n/);
+  assert.ok(done, 'completeRealityCheck');
+  assert.match(done[0], /calcChanged\(\);/, 'a finished check announces the change');
+  for (const name of ['saveTodayWeighIn', 'saveTarget', 'saveBackfillWeighIn', 'startRealityCheck', 'resetRealityCheck']) {
     const m = src.match(new RegExp(`(async )?function ${name}\\(\\) \\{[\\s\\S]*?\\n  \\}\\n`));
     assert.ok(m, name);
     assert.match(m[0], /calcChanged\(\);/, `${name} announces the change`);

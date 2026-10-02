@@ -29,27 +29,36 @@ test('FX-15: a weigh-in merges into that day\'s snapshot — it never wipes wais
   assert.deepEqual(mergeWeighIn(null, { date: '2026-10-02', weightKg: 79 }), { entry_date: '2026-10-02', weight_kg: 79, waist_cm: null, body_fat_pct: null, lbm: null, bmr: null, tdee: null });
 });
 
-test('FX-15: the Progress card (save, past weigh-in, chart) is not behind Premium', () => {
+// Journey redesign (founder 2026-10-02, Q10 = A): "Save a snapshot" became "Log today's weight"
+// in the hero (its own sheet), the card is called Weigh-ins, and the typed phase-2 form of the
+// reality check is gone (the check finishes from the day-21 weigh-in). The FX-15 rule stays:
+// every weigh-in path is free, and a locked user with a check running can still weigh in.
+test('FX-15: the Weigh-ins card (past weigh-in, chart) and Log today\'s weight are not behind Premium', () => {
   const src = read('screens', 'components', 'CalculatorSection.js');
-  const a = src.indexOf('{/* Progress snapshots');
-  const b = src.indexOf('{/* Understand the numbers');
-  assert.ok(a > 0 && b > a, 'Progress card found');
+  const a = src.indexOf('const weighEl = (');
+  const b = src.indexOf('  return (', a);
+  assert.ok(a > 0 && b > a, 'Weigh-ins card found');
   const card = src.slice(a, b);
-  assert.doesNotMatch(card, /\bpremium \?/, 'no premium gate inside the Progress card');
-  assert.doesNotMatch(card, /cal_premium_locked/, 'no locked teaser inside the Progress card');
-  assert.match(card, /onPress=\{saveSnapshot\}/);
-  assert.match(card, /onPress=\{saveBackfillWeighIn\}/);
+  assert.doesNotMatch(card, /\bpremium \?/, 'no premium gate inside the Weigh-ins card');
+  assert.doesNotMatch(card, /cal_premium_locked/, 'no locked teaser inside the Weigh-ins card');
+  assert.match(src, /onPress=\{saveBackfillWeighIn\}/);
+  assert.match(src, /onPress=\{saveTodayWeighIn\}/);
+  const hero = src.match(/const heroEl = plan \? \(([\s\S]*?)\n  \) : null;/)[1];
+  assert.doesNotMatch(hero, /\bpremium\b|rcAllowed/, 'Log today\'s weight is never gated');
+  const fn = src.match(/function saveTodayWeighIn\(\) \{[\s\S]*?\n  \}\n/)[0];
+  assert.doesNotMatch(fn, /premium|rcAllowed|canLog/, 'saving a weigh-in never checks the plan');
 });
 
-test('FX-15: the locked reality-check panel offers the weigh-in of a running check (Weight now + Save weigh-in)', () => {
+test('FX-15: the locked reality-check card offers the weigh-in of a running check (Log today\'s weight)', () => {
   const src = read('screens', 'components', 'CalculatorSection.js');
-  const i = src.indexOf('<View style={s.rcLocked}>');
-  const lockedPanel = src.slice(i, src.indexOf('</View>\n          )}', i) + 30);
+  const i = src.indexOf('{!rcAllowed ? (');
+  const j = src.indexOf(') : rcStart && !checkSaved ? (', i);
+  assert.ok(i > 0 && j > i, 'the locked branch');
+  const lockedPanel = src.slice(i, j);
   assert.match(lockedPanel, /rcAccess\.canLogWeighIn/);
-  assert.match(lockedPanel, /cal_rc_current_weight/);
-  assert.match(lockedPanel, /onPress=\{saveRcWeighIn\}/);
-  assert.match(lockedPanel, /cal_tgt_backfill_save/);
-  assert.match(src, /function saveRcWeighIn\(/);
+  assert.match(lockedPanel, /onPress=\{openWeighIn\}/);
+  assert.match(lockedPanel, /cal_log_today_weight/);
+  assert.match(lockedPanel, /stopLink/, 'Stop stays reachable when locked');
   assert.match(src, /mergeWeighIn\(/);
 });
 

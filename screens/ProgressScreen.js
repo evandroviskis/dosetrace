@@ -15,6 +15,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import CalculatorSection from './components/CalculatorSection';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import RowChevron from '../components/RowChevron';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
@@ -47,11 +48,14 @@ export default function ProgressScreen({ embedded = false }) {
       <View style={s.nav}>
         {embedded ? null : (
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={s.back}>‹ {t('tab_journey')}</Text>
+            <View style={s.backRow}>
+              <View style={s.backChev}><RowChevron color={colors.ink} /></View>
+              <Text style={s.back}>{t('tab_journey')}</Text>
+            </View>
           </TouchableOpacity>
         )}
       </View>
-      <Text style={s.title}>{t('today_section_progress')}</Text>
+      <Text style={s.title}>{t('cal_snap_title')}</Text>
       </View>
       <CalculatorSection flushRef={flushRef} paneWidth={embedded ? paneWidths(width).right : null} />
       <FeatureExplainerGate candidates={energyExplainers} />
@@ -67,5 +71,8 @@ const makeStyles = (c, embedded) => StyleSheet.create({
   // dashboard title on the left page.
   nav: embedded ? { height: 8 } : { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
   back: { fontSize: 17, color: c.ink },
+  // prototype .back: the drawn chevron (mirrored), gap 6
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backChev: { transform: [{ scaleX: -1 }] },
   title: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, paddingHorizontal: 20, paddingBottom: 8 },
 });
