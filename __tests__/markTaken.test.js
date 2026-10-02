@@ -163,3 +163,43 @@ test('A-40: notificationActions.markTaken routes through notificationTakeTarget'
   const i = src.indexOf('async function markTaken(');
   assert.match(src.slice(i, src.indexOf('\nasync function ', i + 10)), /notificationTakeTarget\(/);
 });
+
+// A-78 (registry, 2026-10-01): twice-daily, Skip then "you can still log it" inserted a
+// second row (Taken) next to the Skipped one, so one slot held Skipped + Taken. Logging a
+// skipped dose now turns that Skipped row into Taken, like an auto-Missed row; its Undo
+// puts it back to Skipped.
+const { planUndoTake } = require('../lib/markTaken');
+test('A-78: logging a skipped dose flips the Skipped row to Taken instead of adding a row', () => {
+  const skipped = { id: 20, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 8, 5)).toISOString() };
+  const p = planMarkTaken({ protocol: recon, todayLogs: [skipped], nowMs: NOW });
+  assert.equal(p.insert, null, 'no second row');
+  assert.deepEqual(p.update && { id: p.update.id, outcome: p.update.outcome }, { id: 20, outcome: 'Taken' });
+  assert.equal(p.flipped, true);
+  assert.equal(p.flippedFrom, 'Skipped');
+  assert.equal(p.takenAfter, 1);
+});
+
+test('A-78: with a slot, only the Skipped row at that slot flips; another slot keeps its Skipped row', () => {
+  const at8 = local(2026, 9, 27, 8, 0);
+  const at20 = local(2026, 9, 27, 20, 0);
+  const skipped8 = { id: 21, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(at8).toISOString() };
+  const p20 = planMarkTaken({ protocol: recon, todayLogs: [skipped8], dayKey: '2026-09-27', slotMs: at20, nowMs: NOW });
+  assert.equal(p20.update, null, '08:00 stays Skipped when 20:00 is logged');
+  assert.ok(p20.insert);
+  const p8 = planMarkTaken({ protocol: recon, todayLogs: [skipped8], dayKey: '2026-09-27', slotMs: at8, nowMs: NOW });
+  assert.equal(p8.update && p8.update.id, 21);
+});
+
+test('A-78: Undo of a flipped Skipped row puts it back to Skipped; a flipped Missed row back to Missed', () => {
+  assert.equal(planUndoTake({ logId: 20, flipped: true, flippedFrom: 'Skipped' }).restoreOutcome, 'Skipped');
+  assert.equal(planUndoTake({ logId: 20, flipped: true, flippedFrom: 'Skipped' }).restoreMissedId, 20);
+  assert.equal(planUndoTake({ logId: 30, flipped: true }).restoreOutcome, 'Missed', 'older records default to Missed');
+  assert.deepEqual(planUndoTake({ logId: 20, flipped: true, flippedFrom: 'Skipped' }).deleteIds, []);
+});
+
+test('A-78: Today restores the outcome the undo plan gives, and carries flippedFrom into its undo record', () => {
+  const today = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
+  assert.match(today, /updateDoseLog\(plan\.restoreMissedId, \{ outcome: plan\.restoreOutcome/);
+  const actions = fs.readFileSync(path.join(__dirname, '..', 'lib', 'doseActions.js'), 'utf8');
+  assert.match(actions, /flippedFrom: plan\.flippedFrom/);
+});

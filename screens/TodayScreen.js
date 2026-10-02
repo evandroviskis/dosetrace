@@ -596,7 +596,7 @@ export default function TodayScreen() {
     if (res && res.logId) {
       const timer = setTimeout(() => setUndoData(null), 5000);
       const record = {
-        logId: res.logId, flipped: res.flipped, protocolId, pending: true, extraDeleteIds,
+        logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
         oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
       };
@@ -787,6 +787,7 @@ export default function TodayScreen() {
       const record = {
         logId,
         flipped: res.flipped,
+        flippedFrom: res.flippedFrom,
         extraDeleteIds: opts.extraDeleteIds || [],
         protocolId: protocol.id,
         vialId: res.vialId,
@@ -964,7 +965,7 @@ export default function TodayScreen() {
       const otherActiveVial = !!(record.vialId && proto
         && (getActiveVials(proto.user_id) || []).some(v => v.protocol_id === record.protocolId && v.id !== record.vialId));
       const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null });
-      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: 'Missed', injection_site: null });
+      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: plan.restoreOutcome, injection_site: null });
       for (const id of plan.deleteIds) deleteDoseLog(id);
       // Only take back a count bump that actually landed (a pending-from-yesterday
       // row never changed today's count).
