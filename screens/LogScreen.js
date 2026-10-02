@@ -234,8 +234,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // Status = a dot + a word (DESIGN.md §5); schedule colors, never good/bad on the body.
   function outcomeColor(outcome) {
     if (outcome === 'Taken') return colors.ok;
-    if (outcome === 'Skipped') return colors.risk;
-    return colors.attention;
+    // Skipped is a neutral fact; red is only for a missed dose (DESIGN.md §2.1, founder 2026-10-01).
+    if (outcome === 'Skipped') return colors.ink2;
+    return colors.risk;
   }
 
   function outcomeLabel(outcome) {

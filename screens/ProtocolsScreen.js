@@ -1989,7 +1989,7 @@ export default function ProtocolsScreen() {
                   <Text style={s.heroChev}>›</Text>
                 </View>
                 <View style={s.trio}>
-                  {[['Taken', 'log_taken', colors.ok], ['Skipped', 'log_skipped', colors.risk], ['Missed', 'log_missed', colors.attention]].map(([k, key, col]) => (
+                  {[['Taken', 'log_taken', colors.ok], ['Skipped', 'log_skipped', colors.ink2], ['Missed', 'log_missed', colors.risk]].map(([k, key, col]) => (
                     <View key={k} style={s.trioCell}>
                       <Text style={s.trioNum}>{logCounts[k]}</Text>
                       <View style={s.heroNameRow}>

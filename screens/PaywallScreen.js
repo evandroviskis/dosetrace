@@ -90,6 +90,7 @@ export default function PaywallScreen({ navigation, route }) {
     t('pw_prem_scan_full'),     // Unlimited lab & vaccine scanning — photo/PDF, any language
     t('pw_prem_pdf'),           // PDF export for your doctor
     t('pw_prem_reality'),       // Reality check & progress tracking
+    t('settings_premium_feat_3'), // AI food log, every day (same promise as the Settings card)
     t('body_card_dosing_title'), // Dose accumulation / serum curve
   ];
 

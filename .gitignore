@@ -68,3 +68,7 @@ grok/
 
 # Claude Code local permissions (founder-approved, this Mac only)
 .claude/settings.local.json
+
+# Local, never in the repo or an EAS upload
+CLAUDE.md.bak-*
+Claude outputs/
