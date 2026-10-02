@@ -387,6 +387,13 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     return t('log_missed');
   }
 
+  // One dose's status, in the singular (founder 2026-10-02); the counts keep outcomeLabel.
+  function statusWord(outcome) {
+    if (outcome === 'Taken') return t('log_status_taken');
+    if (outcome === 'Skipped') return t('log_status_skipped');
+    return t('log_status_missed');
+  }
+
   function typeIcon(type) {
     if (type === 'recon') return 'type_vial';
     if (type === 'rtu') return 'syringe';
@@ -526,7 +533,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
               onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openDoseSheet(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`${log.protocols?.name || t('log_protocol_deleted')}, ${outcomeLabel(log.outcome)}`}
+              accessibilityLabel={`${log.protocols?.name || t('log_protocol_deleted')}, ${statusWord(log.outcome)}`}
               accessibilityHint={log.outcome === 'Missed' ? t('log_missed_edit_title') : undefined}
             >
               <View style={[s.rowInner, !first && s.rowSep]}>
@@ -563,7 +570,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   </Text>
                   <View style={s.outcomeRow}>
                     <View style={[s.statusDot, { backgroundColor: outcomeColor(log.outcome) }]} />
-                    <Text style={[s.outcomeWord, { color: outcomeColor(log.outcome) }]}>{outcomeLabel(log.outcome)}</Text>
+                    <Text style={[s.outcomeWord, { color: outcomeColor(log.outcome) }]}>{statusWord(log.outcome)}</Text>
                   </View>
                 </View>
                 <RowChevron color={colors.tick} />
@@ -599,7 +606,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
               <View>
                 <View style={s.kvRow}>
                   <Text style={s.kvKey}>{t('log_sheet_status')}</Text>
-                  <Text style={s.kvVal}>{outcomeLabel(shownSheet.outcome)}</Text>
+                  <Text style={s.kvVal}>{statusWord(shownSheet.outcome)}</Text>
                 </View>
                 <View style={[s.kvRow, !sheetSite && s.kvRowEnd]}>
                   <Text style={s.kvKey}>{t('log_sheet_when')}</Text>
