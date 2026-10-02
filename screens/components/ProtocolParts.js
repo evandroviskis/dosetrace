@@ -2,8 +2,8 @@
 // the DoseTrace sheet that replaces the system alerts, the bottom action sheet (photo
 // choice), the bottom picker sheet that holds the iPhone wheel, the vial cells (one cell
 // per dose, remaining in data) and the enlarged syringe ruler. Theme tokens only.
-import { useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform, ScrollView } from 'react-native';
 import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
@@ -138,6 +138,74 @@ export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
   );
 }
 
+// The prototype wheel (My Protocols part 18, .wheel / .wcol / .wv): up to three columns, five
+// 40-pt rows each, the chosen row in the middle on a well band (radius 10), 19 pt ink3 rows
+// and the chosen one 21 / 600 ink. Each column scrolls and snaps row by row, a tap on a row
+// picks it, and VoiceOver adjusts it (swipe up / down). columns: [{ values: [label], index }];
+// onChange(columnIndex, rowIndex). Values come from lib/wheelPick.js.
+const ROW = 40;
+const SHOWN = 5;
+function WheelColumn({ values, index, onPick, s }) {
+  const ref = useRef(null);
+  const [live, setLive] = useState(index);
+  const lastSent = useRef(index);
+  // A value changed from outside (the day clamped to a shorter month): follow it.
+  useEffect(() => {
+    lastSent.current = index;
+    setLive(index);
+    if (ref.current) ref.current.scrollTo({ y: index * ROW, animated: false });
+  }, [index, values.length]);
+  const settle = (y) => {
+    const i = Math.max(0, Math.min(values.length - 1, Math.round(y / ROW)));
+    setLive(i);
+    if (i !== lastSent.current) { lastSent.current = i; onPick(i); }
+  };
+  return (
+    <View
+      style={s.wheelCol}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityValue={{ text: values[live] }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(e) => {
+        const i = live + (e.nativeEvent.actionName === 'increment' ? 1 : -1);
+        if (i >= 0 && i < values.length) { setLive(i); lastSent.current = i; onPick(i); }
+      }}
+    >
+      <ScrollView
+        ref={ref}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ROW}
+        decelerationRate="fast"
+        contentOffset={{ x: 0, y: index * ROW }}
+        contentContainerStyle={s.wheelPad}
+        scrollEventThrottle={16}
+        onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.y / ROW); if (i !== live && i >= 0 && i < values.length) setLive(i); }}
+        onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.y)}
+        onScrollEndDrag={(e) => { if (!e.nativeEvent.velocity || Math.abs(e.nativeEvent.velocity.y) < 0.05) settle(e.nativeEvent.contentOffset.y); }}
+      >
+        {values.map((v, i) => (
+          <Pressable key={i} style={s.wheelRow} onPress={() => { if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
+            <Text style={[s.wheelText, i === live && s.wheelTextOn]} numberOfLines={1}>{v}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+export function DTWheel({ columns, onChange }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => sheetStyles(c), [c]);
+  return (
+    <View style={s.wheel}>
+      <View style={s.wheelBand} pointerEvents="none" />
+      {columns.map((col, ci) => (
+        <WheelColumn key={ci} values={col.values} index={col.index} onPick={(i) => onChange(ci, i)} s={s} />
+      ))}
+    </View>
+  );
+}
+
 // The diluent stepper's − / + (My Protocols part 16): the prototype's drawn icons, 20 pt,
 // stroke 1.8 on the 24 grid, round caps — never a text glyph. Colour is a theme token.
 export function StepGlyph({ plus, color }) {
@@ -235,4 +303,12 @@ const sheetStyles = (c) => StyleSheet.create({
   pickHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
   pickTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   pickDone: { fontSize: 17, fontWeight: '600', color: c.ink },
+  // the wheel (prototype .wheel: 3 columns, gap 4, padding 4 0; the band 40 high, radius 10)
+  wheel: { flexDirection: 'row', gap: 4, paddingVertical: 4, height: 40 * 5 + 8 },
+  wheelBand: { position: 'absolute', left: 0, right: 0, top: 4 + 80, height: 40, borderRadius: 10, backgroundColor: c.well },
+  wheelCol: { flex: 1, minWidth: 0 },
+  wheelPad: { paddingVertical: 80 },
+  wheelRow: { height: 40, alignItems: 'center', justifyContent: 'center' },
+  wheelText: { fontSize: 19, color: c.ink3, fontVariant: ['tabular-nums'] },
+  wheelTextOn: { fontSize: 21, fontWeight: '600', color: c.ink },
 });

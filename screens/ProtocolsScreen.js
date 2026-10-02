@@ -51,7 +51,8 @@ import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
-import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler, StepGlyph, RULER, rulerX } from './components/ProtocolParts';
+import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX } from './components/ProtocolParts';
+import { dateColumns, dateAfter, timeColumns, timeAfter } from '../lib/wheelPick';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import CheckMark from '../components/CheckMark';
@@ -1935,6 +1936,13 @@ export default function ProtocolsScreen() {
     <SegmentedBar style={s.unitBar} items={units.map(u => ({ key: u, label: `${u}${suffix}` }))} value={value} onChange={setter} />
   );
   const iosPicker = Platform.OS === 'ios';
+  // The time wheel follows the user's clock (Settings 12h / 24h, else the language), and its
+  // AM / PM words are the locale's own (lib/timeFormat).
+  const wheel12h = !/13/.test(formatTime('13:00', language, timeFormat));
+  const dayParts = [
+    formatTime('09:00', language, '12h').replace(/\d{1,2}[:.]\d{2}/, '').trim() || 'AM',
+    formatTime('21:00', language, '12h').replace(/\d{1,2}[:.]\d{2}/, '').trim() || 'PM',
+  ];
 
   return (
     <SafeAreaView style={s.container}>
@@ -2805,31 +2813,22 @@ export default function ProtocolsScreen() {
           <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />
           {iosPicker && (
             <DTPickerSheet visible={showModal && showStartPicker} title={t('protocols_start_date')} doneLabel={t('done')} onDone={() => setShowStartPicker(false)}>
-              <DateTimePicker
-                value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
-                mode="date"
-                display="spinner"
-                themeVariant={colors.scheme}
-                textColor={colors.ink}
-                onChange={(event, d) => {
-                  if (event.type === 'dismissed') { setShowStartPicker(false); return; }
-                  if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
-                }}
+              {/* Part 18: the prototype wheel (short months, the chosen row bold on a band). */}
+              <DTWheel
+                columns={dateColumns(startDate, new Date(), MONTH_KEYS.map(k => t(k)))}
+                onChange={(col, i) => setStartDate(dateAfter(startDate, new Date(), col, i))}
               />
             </DTPickerSheet>
           )}
           {iosPicker && (
             <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')} onDone={() => setShowTimePicker(false)}>
-              <DateTimePicker
-                value={timePickerValue()}
-                mode="time"
-                is24Hour={false}
-                minuteInterval={1}
-                display="spinner"
-                themeVariant={colors.scheme}
-                textColor={colors.ink}
-                onChange={(event, selectedDate) => {
-                  if (selectedDate) applyPickedTime(selectedDate);
+              <DTWheel
+                columns={timeColumns(reminderTimes[activeTimeIndex] || currentTimeRounded5(), wheel12h, dayParts)}
+                onChange={(col, i) => {
+                  const hm = timeAfter(reminderTimes[activeTimeIndex] || currentTimeRounded5(), wheel12h, col, i);
+                  const [h, m] = hm.split(':').map(Number);
+                  const d = new Date(); d.setHours(h, m, 0, 0);
+                  applyPickedTime(d);
                 }}
               />
             </DTPickerSheet>
