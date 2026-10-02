@@ -1,12 +1,17 @@
-// Book layout (S-26 BK-3, docs/specs/book-layout.md): the dose the user tapped on Today, shown
-// on the right page of an unfolded foldable. Name, due time, dose, and for an injectable the
-// SAME SyringeScale as the Today card (the protocol's syringe size, the draw-to fill), then
-// Skip and Mark taken.
+// Book layout (S-26 BK-3 / BK-16, docs/specs/book-layout.md): ONE dose slot the user tapped on
+// Today, shown on the right page of an unfolded foldable. Name, time, dose, and for an
+// injectable the SAME SyringeScale as the Today card (the protocol's syringe size, the draw-to
+// fill). What the page offers comes from lib/dosePageState.js (planDosePage), computed by Today:
+//  - due / pending: Skip and Mark taken (only when the planner allows: canSkip / canTake);
+//  - upcoming: the dose's info only;
+//  - taken / skipped: the state and Undo (when Today can undo that row), else a Dose log link —
+//    never a second Mark taken;
+//  - missed: the state and a Dose log link.
 //
-// This page never writes anything itself. Mark taken and Skip call the handlers Today's own
-// dose card uses (passed in as props), so the S-25 order holds: an injectable is asked where
-// it was injected BEFORE any write, and Cancel writes nothing. Everything shown here is
-// computed by Today with the same calls as its card (computeDraw, the time label, the counts).
+// This page never writes anything itself. Mark taken, Skip and Undo call the handlers Today
+// passes in (its own handleTake / skipDose, takePending / skipPending, applyUndo), so the
+// S-25 order holds: an injectable is asked where it was injected BEFORE any write, and Cancel
+// writes nothing.
 import { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../../lib/theme';
@@ -46,32 +51,44 @@ export default function DosePage({
   t,
   name,
   color,
-  time,
+  time, // the slot's time, with its day when it is not today ("Yesterday 20:00")
   due,
   doseLine,
   draw,
   syringeSize,
-  state, // 'open' | 'skipped' | 'taken'
-  partial, // { taken, needed } for a multi-dose protocol, else null
+  kind, // lib/dosePageState.js: 'due' | 'pending' | 'upcoming' | 'taken' | 'skipped' | 'missed'
+  canTake,
+  canSkip,
+  canUndo,
+  sub, // a line under the title card (Pending from yesterday, 1/2 taken)
+  stateLabel, // Taken / Skipped / Missed
   takeLabel,
   takenLabel,
+  skipLabel,
   askFirst,
   resetKey,
   onTake,
   onSkip,
+  onUndo,
+  onOpenLog,
   onOpenProtocol,
 }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [scaleW, setScaleW] = useState(290);
   const showDraw = !!(draw && draw.drawUnits && !draw.unitMismatch);
+  const logged = kind === 'taken' || kind === 'skipped' || kind === 'missed';
+  const stateColor = kind === 'taken' ? colors.ok : kind === 'skipped' ? colors.risk : colors.attention;
+  // BK-21: the title is the first thing a screen reader reads on this page (time and Due
+  // are read with it, not before it).
+  const titleA11y = [name, time, due ? t('today_due') : null].filter(Boolean).join(', ');
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.page}>
       <View style={s.head}>
-        <View style={s.when}>
+        <View style={s.when} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {time ? <Text style={s.time}>{time}</Text> : null}
-          {due && state === 'open' && (
+          {due && (
             <View style={s.dueTag}>
               <View style={s.dueDot} />
               <Text style={s.dueText}>{t('today_due')}</Text>
@@ -80,16 +97,13 @@ export default function DosePage({
         </View>
         <View style={s.titleRow}>
           <View style={[s.dot, { backgroundColor: color || colors.data }]} />
-          <Text style={s.title}>{name}</Text>
+          <Text style={s.title} accessible accessibilityRole="header" accessibilityLabel={titleA11y}>{name}</Text>
         </View>
         <Text style={s.amt}>{doseLine}</Text>
       </View>
 
       <View style={s.card}>
-        {partial && partial.taken > 0 && partial.needed > 1 && (
-          <Text style={s.sub}>{partial.taken}/{partial.needed} {t('today_taken_partial')}</Text>
-        )}
-        {state === 'skipped' && <Text style={s.sub}>{t('today_skipped_today')}</Text>}
+        {sub ? <Text style={s.sub}>{sub}</Text> : null}
 
         {showDraw && (
           <View style={s.draw} onLayout={(e) => setScaleW(Math.max(160, Math.floor(e.nativeEvent.layout.width) - 28))}>
@@ -105,29 +119,44 @@ export default function DosePage({
           </View>
         )}
 
-        {state === 'taken' ? (
-          <View style={s.takenRow} accessible accessibilityLabel={takenLabel}>
-            <CheckMark size={17} color={colors.ok} />
-            <Text style={s.takenText}>{takenLabel}</Text>
+        {logged ? (
+          <View style={s.loggedRow}>
+            <View style={s.stateRow} accessible accessibilityLabel={stateLabel}>
+              {kind === 'taken'
+                ? <CheckMark size={17} color={colors.ok} />
+                : <View style={[s.stateDot, { backgroundColor: stateColor }]} />}
+              <Text style={[s.stateText, { color: stateColor }]}>{stateLabel}</Text>
+            </View>
+            {canUndo && onUndo ? (
+              <TouchableOpacity style={s.btnSkip} onPress={onUndo} accessibilityRole="button">
+                <Text style={s.btnSkipText}>{t('today_undo')}</Text>
+              </TouchableOpacity>
+            ) : onOpenLog ? (
+              <TouchableOpacity style={s.btnSkip} onPress={onOpenLog} accessibilityRole="button">
+                <Text style={s.btnSkipText}>{t('log_title')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
-        ) : (
+        ) : (canTake || canSkip) ? (
           <View style={s.acts}>
-            {state === 'open' && (
+            {canSkip && (
               <TouchableOpacity style={s.btnSkip} onPress={onSkip} accessibilityRole="button">
-                <Text style={s.btnSkipText}>{t('today_skip')}</Text>
+                <Text style={s.btnSkipText}>{skipLabel}</Text>
               </TouchableOpacity>
             )}
-            <TakeAction
-              key={`take-${resetKey}`}
-              label={takeLabel}
-              takenLabel={takenLabel}
-              askFirst={askFirst}
-              onTake={onTake}
-              s={s}
-              colors={colors}
-            />
+            {canTake && (
+              <TakeAction
+                key={`take-${resetKey}`}
+                label={takeLabel}
+                takenLabel={takenLabel}
+                askFirst={askFirst}
+                onTake={onTake}
+                s={s}
+                colors={colors}
+              />
+            )}
           </View>
-        )}
+        ) : null}
       </View>
 
       {onOpenProtocol && (
@@ -170,8 +199,10 @@ const makeStyles = (c) => StyleSheet.create({
   btnOk: { backgroundColor: c.well },
   btnOkText: { color: c.successSoftText },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  takenRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52 },
-  takenText: { fontSize: 17, fontWeight: '600', color: c.ok },
+  loggedRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stateRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52 },
+  stateDot: { width: 8, height: 8, borderRadius: 4 },
+  stateText: { fontSize: 17, fontWeight: '600' },
   link: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4, marginTop: 8 },
   linkText: { fontSize: 15, color: c.ink, textDecorationLine: 'underline' },
 });
