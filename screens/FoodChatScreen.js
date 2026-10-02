@@ -40,6 +40,7 @@ import { localISO, localDaysAgoISO } from '../lib/localDate';
 import { syncFoodLogReminder, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
+import { useUnfoldToPage } from '../components/BookPanes';
 import { FoodDemo } from './components/NutritionLogger';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -49,11 +50,16 @@ const ASKED_KEY = 'dosetrace_food_asked';
 const draftKey = (uid) => `dosetrace_food_draft:${uid}`;
 const THREAD_DAYS = 7; // typed days shown in the thread
 
-export default function FoodChatScreen() {
+// S-26 book layout: `embedded` = shown on the Journey tab's right page (BK-5). No "Done"
+// (nothing to close), no top safe-area edge, no auto-close (a tab page is not a sheet), and
+// the 8 PM / "Log it" params come from the `params` prop instead of the route. As a pushed
+// screen it moves onto the right page when the window unfolds, saving the draft first (BK-10).
+export default function FoodChatScreen({ embedded = false, params: paramsProp = null }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
+  const routeParams = embedded ? (paramsProp || null) : ((route && route.params) || null);
   const s = makeStyles(colors);
   const locale = LOCALE_MAP[language] || 'en-US';
 
@@ -149,9 +155,9 @@ export default function FoodChatScreen() {
   }, [language]);
 
   // Route params: the 8 PM question (FL-18/40) or "Log it".
-  const eveningParam = route?.params?.eveningDay;
-  const eveningNonce = route?.params?.nonce;
-  const logItNonce = route?.params?.logIt;
+  const eveningParam = routeParams?.eveningDay;
+  const eveningNonce = routeParams?.nonce;
+  const logItNonce = routeParams?.logIt;
   useEffect(() => {
     if (eveningNonce == null && eveningParam == null) return;
     setEvening(/^\d{4}-\d{2}-\d{2}$/.test(String(eveningParam || '')) ? eveningParam : localISO());
@@ -181,7 +187,7 @@ export default function FoodChatScreen() {
   useEffect(() => {
     const tick = setInterval(() => {
       setNow(Date.now()); // a midnight crossing re-dates the thread (divider)
-      if (shouldAutoClose({ ...guardRef.current, idleMs: Date.now() - lastTouch.current }, 'idle') && navigation.canGoBack()) navigation.goBack();
+      if (!embedded && shouldAutoClose({ ...guardRef.current, idleMs: Date.now() - lastTouch.current }, 'idle') && navigation.canGoBack()) navigation.goBack();
     }, 5000);
     const kShow = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => { setKeyboardVisible(true); touch(); });
     const kHide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => { setKeyboardVisible(false); touch(); });
@@ -190,13 +196,17 @@ export default function FoodChatScreen() {
     const app = AppState.addEventListener('change', (st) => {
       if (st === 'active') { touch(); return; }
       saveDraftNow(guardRef.current.text);
-      if (st === 'background' && shouldAutoClose(guardRef.current, 'background') && navigation.canGoBack()) navigation.goBack();
+      if (!embedded && st === 'background' && shouldAutoClose(guardRef.current, 'background') && navigation.canGoBack()) navigation.goBack();
     });
     return () => { clearInterval(tick); kShow.remove(); kHide.remove(); sr?.remove?.(); app.remove(); };
-  }, [navigation]);
-  // Swipe-down is the user's choice — but never while a message is being sent.
-  useEffect(() => { navigation.setOptions({ gestureEnabled: !busy && !fuBusy }); }, [busy, fuBusy, navigation]);
+  }, [navigation, embedded]);
+  // Swipe-down is the user's choice — but never while a message is being sent. (A tab page
+  // has no swipe-down: the options would land on the Journey tab.)
+  useEffect(() => { if (!embedded) navigation.setOptions({ gestureEnabled: !busy && !fuBusy }); }, [busy, fuBusy, navigation, embedded]);
   useEffect(() => () => { saveDraftNow(guardRef.current.text); }, [userId]);
+  // BK-10: unfolding moves this pushed chat onto the Journey right page; the draft is written
+  // first so the page's chat reads it back (never lose what was typed).
+  useUnfoldToPage('FoodChat', { embedded, params: routeParams, beforeLeave: () => saveDraftNow(guardRef.current.text) });
 
   // An alert holds the chat open until it is answered.
   function alert(title, msg, buttons) {
@@ -613,17 +623,21 @@ export default function FoodChatScreen() {
 
   const canSend = !busy && !!text.trim();
 
-  // iOS shows this as a sheet that already starts below the status bar (A-68).
+  // iOS shows this as a sheet that already starts below the status bar (A-68). On a book
+  // page the Journey tab screen already holds the top edge.
+  const edges = embedded ? ['left', 'right'] : (Platform.OS === 'ios' ? ['left', 'right', 'bottom'] : ['top', 'left', 'right', 'bottom']);
   return (
-    <SafeAreaView style={s.container} edges={Platform.OS === 'ios' ? ['left', 'right', 'bottom'] : ['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={s.container} edges={edges}>
       <View style={s.header}>
         <View style={s.headTitleRow}>
           <FeatureIcon name="ai_spark" size={20} color={colors.ink} />
           <Text style={s.headTitle}>{t('nutri_ai_badge')}</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.goBack()} disabled={busy || fuBusy} style={s.headDoneHit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
-          <Text style={[s.headDone, (busy || fuBusy) && s.headDoneOff]}>{t('done')}</Text>
-        </TouchableOpacity>
+        {embedded ? null : (
+          <TouchableOpacity onPress={() => navigation.goBack()} disabled={busy || fuBusy} style={s.headDoneHit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+            <Text style={[s.headDone, (busy || fuBusy) && s.headDoneOff]}>{t('done')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {gated ? (
