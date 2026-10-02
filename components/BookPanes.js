@@ -23,14 +23,35 @@ export function useBookSelection(tab, fallback) {
   return { sel, explicit: !!(cur && cur.explicit), params: cur ? cur.params : null, select };
 }
 
+// The route on top of the main stack (MainTabs, or a pushed screen like Paywall).
+function topRouteName(navigation) {
+  try {
+    const stack = navigation.getParent ? navigation.getParent() : null;
+    const st = stack && stack.getState ? stack.getState() : null;
+    return st && st.routes && st.routes[st.index] ? st.routes[st.index].name : null;
+  } catch { return null; }
+}
+
+// The tab showing under the stack (read from a pushed stack screen's navigation).
+function tabUnderStack(navigation) {
+  try {
+    const st = navigation.getState();
+    const tabs = st && st.routes ? st.routes.find((r) => r.name === 'MainTabs') : null;
+    const ts = tabs && tabs.state;
+    return ts && ts.routes && ts.routes[ts.index || 0] ? ts.routes[ts.index || 0].name : 'Today';
+  } catch { return null; }
+}
+
 // BK-10, folding (tab screens): an item the user opened on the right page that lives on a
-// pushed stack screen is pushed when the window becomes one column.
+// pushed stack screen is pushed when the window becomes one column. Only the tab the user
+// is looking at pushes, and never over another stack screen (Paywall, chat) (F1). Other
+// tabs keep their item and show it when the user returns.
 export function useFoldPush(tab) {
   const book = useBook();
   const navigation = useNavigation();
   const was = useRef(book);
   useEffect(() => {
-    if (was.current && !book) {
+    if (was.current && !book && navigation.isFocused() && topRouteName(navigation) === 'MainTabs') {
       const cur = getSelection(tab);
       const plan = cur && foldPlan({ tab, sel: cur.sel, explicit: cur.explicit });
       if (plan) navigation.navigate(plan.route, cur.params || undefined);
@@ -42,16 +63,18 @@ export function useFoldPush(tab) {
 // BK-10, unfolding (pushed stack screens, when not embedded): the screen moves onto its tab's
 // right page. Call it from Log, Progress, SerumCurve and FoodChat with their route name.
 // `beforeLeave` lets a screen flush anything typed before it unmounts (never lose data).
+// Only the screen on top moves (F3: Log → Curve moves once), back to the SAME tab it was
+// opened from, and by popping to the tabs, never by pushing a second copy of them (F2).
 export function useUnfoldToPage(routeName, { embedded, params, beforeLeave } = {}) {
   const book = useBook();
   const navigation = useNavigation();
   useEffect(() => {
-    if (embedded || !book) return;
-    const plan = unfoldPlan(routeName);
+    if (embedded || !book || !navigation.isFocused()) return;
+    const plan = unfoldPlan(routeName, tabUnderStack(navigation));
     if (!plan) return;
     try { if (beforeLeave) beforeLeave(); } catch { /* the flush never blocks the move */ }
     setSelection(plan.tab, plan.sel, { explicit: true, params: params || null });
-    navigation.navigate('MainTabs', { screen: plan.tab });
+    navigation.popTo('MainTabs', { screen: plan.tab });
   }, [book, embedded, routeName]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 

@@ -46,12 +46,12 @@ test('BK-10: folding pushes only an item the user opened that lives on a stack s
 });
 
 test('BK-10: unfolding moves a pushed screen onto its tab page', () => {
-  assert.deepEqual(unfoldPlan('Log'), { tab: 'Today', sel: 'log' });
-  assert.deepEqual(unfoldPlan('Progress'), { tab: 'Journey', sel: 'progress' });
-  assert.deepEqual(unfoldPlan('SerumCurve'), { tab: 'Journey', sel: 'curve' });
-  assert.deepEqual(unfoldPlan('FoodChat'), { tab: 'Journey', sel: 'food' });
-  assert.equal(unfoldPlan('Paywall'), null, 'BK-11: the paywall stays a full screen');
-  assert.equal(unfoldPlan('FAQ'), null);
+  assert.deepEqual(unfoldPlan('Log', 'Today'), { tab: 'Today', sel: 'log' });
+  assert.deepEqual(unfoldPlan('Progress', 'Journey'), { tab: 'Journey', sel: 'progress' });
+  assert.deepEqual(unfoldPlan('SerumCurve', 'Journey'), { tab: 'Journey', sel: 'curve' });
+  assert.deepEqual(unfoldPlan('FoodChat', 'Journey'), { tab: 'Journey', sel: 'food' });
+  assert.equal(unfoldPlan('Paywall', 'Today'), null, 'BK-11: the paywall stays a full screen');
+  assert.equal(unfoldPlan('FAQ', 'Settings'), null);
 });
 
 test('BK-8: each tab keeps its own open item; listeners hear changes', () => {
@@ -68,4 +68,43 @@ test('BK-8: each tab keeps its own open item; listeners hear changes', () => {
   sel.setSelection('Protocols', 'p3');
   assert.deepEqual(heard, [['Protocols', 'p2'], ['Journey', 'curve']]);
   sel.resetAllSelections();
+});
+
+// Journey review 2026-10-01 (F1, F2, F3, F10): defects in the shared foundation, red first.
+const fs = require('fs');
+const path = require('path');
+const readSrc = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+
+test('BK-10 (F3): unfolding moves a pushed screen only onto the page of the tab it was opened from', () => {
+  assert.deepEqual(unfoldPlan('Log', 'Today'), { tab: 'Today', sel: 'log' });
+  assert.equal(unfoldPlan('Log', 'Protocols'), null, 'Log opened from My Protocols stays where it is');
+  assert.deepEqual(unfoldPlan('SerumCurve', 'Body'), { tab: 'Body', sel: 'curve' }, 'the Curve from My Body goes back to My Body');
+  assert.deepEqual(unfoldPlan('SerumCurve', 'Journey'), { tab: 'Journey', sel: 'curve' });
+  assert.equal(unfoldPlan('SerumCurve', 'Today'), null, 'Curve opened from the Dose log on Today stays');
+  assert.equal(unfoldPlan('FoodChat', 'Today'), null, 'the chat opened from Today stays');
+  assert.deepEqual(unfoldPlan('FoodChat', 'Journey'), { tab: 'Journey', sel: 'food' });
+});
+
+test('BK-10 (F3): folding with the Curve open on the My Body page pushes the Curve', () => {
+  assert.deepEqual(foldPlan({ tab: 'Body', sel: 'curve', explicit: true }), { route: 'SerumCurve' });
+});
+
+test('BK-10 (F1): only the focused tab pushes on fold, and never over another stack screen', () => {
+  const src = readSrc('components/BookPanes.js');
+  const fold = src.slice(src.indexOf('export function useFoldPush'), src.indexOf('export function useUnfoldToPage'));
+  assert.match(fold, /navigation\.isFocused\(\)/, 'focus check');
+  assert.match(fold, /topRouteName\(/, 'checks that MainTabs is the top of the stack');
+});
+
+test('BK-10 (F2): unfolding pops back to the tabs instead of pushing a second copy of them', () => {
+  const src = readSrc('components/BookPanes.js');
+  const unfold = src.slice(src.indexOf('export function useUnfoldToPage'));
+  assert.match(unfold, /navigation\.popTo\('MainTabs'/);
+  assert.doesNotMatch(unfold, /navigation\.navigate\('MainTabs'/);
+  assert.match(unfold, /navigation\.isFocused\(\)/, 'only the screen on top moves');
+});
+
+test('F10: a real sign-out clears every open right-page item', () => {
+  const app = readSrc('App.js');
+  assert.match(app, /resetAllSelections\(\)/);
 });
