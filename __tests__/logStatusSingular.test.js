@@ -39,3 +39,12 @@ test('no "Taken" wording left in the counts, the filter and Today (6 languages)'
     assert.equal(translations[l].today_taken, today[l], l);
   }
 });
+
+test('Today counts say complete, not taken (6 languages)', () => {
+  const doses = { en: '{x} of {y} complete', es: '{x} de {y} completadas', pt: '{x} de {y} concluídas', fr: '{x} sur {y} effectuées', de: '{x} von {y} erledigt', it: '{x} di {y} completate' };
+  const partial = { en: 'complete today', es: 'completadas hoy', pt: 'concluídas hoje', fr: "effectuées aujourd'hui", de: 'heute erledigt', it: 'completate oggi' };
+  for (const l of Object.keys(doses)) {
+    assert.equal(translations[l].today_doses_taken, doses[l], l);
+    assert.equal(translations[l].today_taken_partial, partial[l], l);
+  }
+});

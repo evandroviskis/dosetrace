@@ -1,7 +1,7 @@
 'use strict';
 // Today redesign (founder 2026-10-02: "A, dias coloridos, confirmo os ícones") — the words:
 // part 2  snooze strip "Tomorrow / In 3 days" only ("Later today", "Remove" and the X go);
-// part 5  "4 of 5 taken";
+// part 5  "4 of 5 complete" (founder 2026-10-02: no more "taken");
 // part 7  the full site name "Last: Abdomen, lower left · 1d ago" (stored data unchanged);
 // part 8  "1 dose remaining" / "N doses remaining" + one vial cell per dose (prototype cells());
 // part 12 "1 dose" in the Tomorrow / Next 5 days folds;
@@ -23,7 +23,7 @@ test('the new Today strings exist in all 6 languages', () => {
   for (const k of ['today_doses_taken', 'today_dose_one', 'today_vial_remaining_one', 'today_reminder_tag', 'today_site_saved', 'today_sites_n']) {
     for (const l of LANGS) assert.ok(translations[l][k], `${l}: ${k}`);
   }
-  assert.equal(translations.en.today_doses_taken, '{x} of {y} taken');
+  assert.equal(translations.en.today_doses_taken, '{x} of {y} complete');
   assert.equal(translations.en.today_site_saved, 'Site saved · {site}');
   assert.equal(translations.en.today_reminder_tag, 'reminder');
 });
@@ -36,8 +36,8 @@ test('part 16: the site sheet title is "Injection site" (was "Pick site(s)")', (
 test('part 5 / 8 / 12: counts read as words, singular handled', () => {
   assert.ok(exists('lib', 'todayFormat.js'), 'lib/todayFormat.js not built yet');
   const f = require('../lib/todayFormat');
-  assert.equal(f.dosesTakenLabel(4, 5, t), '4 of 5 taken');
-  assert.equal(f.dosesTakenLabel(0, 1, tOf('de')), '0 von 1 genommen');
+  assert.equal(f.dosesTakenLabel(4, 5, t), '4 of 5 complete');
+  assert.equal(f.dosesTakenLabel(0, 1, tOf('de')), '0 von 1 erledigt');
   assert.equal(f.doseCountLabel(1, t), '1 dose');
   assert.equal(f.doseCountLabel(5, t), '5 doses');
   assert.equal(f.doseCountLabel(1, tOf('de')), '1 Dosis');
