@@ -55,6 +55,7 @@ import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
+import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -90,23 +91,6 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 // Free tier: max active protocols before Premium is required. If you change
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
 const FREE_PROTOCOL_LIMIT = 3;
-
-// The user's own protocol palette (DESIGN.md §2.4): a deliberately fixed set, shown
-// only as a dot or a swatch, never as a surface.
-const COLORS = [
-  '#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780',
-  '#E24B4A','#2C2C2A','#0E8C8C','#6A3FB5','#C13A9E','#8A5A2B','#4C6E8F','#E0A500','#17B0B8','#A82E55',
-];
-
-const COLOR_NAMES = {
-  '#185FA5':'color_ocean','#1D9E75':'color_forest','#D85A30':'color_coral',
-  '#7F77DD':'color_lavender','#BA7517':'color_amber','#D4537E':'color_rose',
-  '#5DCAA5':'color_mint','#378ADD':'color_sky','#639922':'color_olive',
-  '#888780':'color_stone','#E24B4A':'color_red','#2C2C2A':'color_charcoal',
-  '#0E8C8C':'color_teal','#6A3FB5':'color_grape','#C13A9E':'color_magenta',
-  '#8A5A2B':'color_bronze','#4C6E8F':'color_slate','#E0A500':'color_gold',
-  '#17B0B8':'color_turquoise','#A82E55':'color_wine',
-};
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr',
@@ -607,7 +591,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
       accessibilityState={book ? { selected } : undefined}
     >
       <View style={s.pcardTop}>
-        <View style={[s.pdot, { backgroundColor: p.color || c.data }]} />
+        <View style={[s.pdot, { backgroundColor: displayColor(p.color) || c.data }]} />
         <View style={s.pcardInfo}>
           <Text style={s.pname}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.pmeta}>
@@ -731,7 +715,7 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
     <View style={s.detail}>
       <View style={s.ptitle}>
         <View style={s.ptitleRow}>
-          <View style={[s.ptitleDot, { backgroundColor: p.color || c.data }]} />
+          <View style={[s.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }]} />
           <Text style={s.ptitleMeta}>
             {sz ? `${sz} · ` : ''}{p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
           </Text>
@@ -861,7 +845,7 @@ export default function ProtocolsScreen() {
   // compoundId, so re-picking the SAME blend must not clear the recipe.
   const compositionForRef = useRef(null);
   const [type, setType] = useState('recon');
-  const [color, setColor] = useState('#185FA5');
+  const [color, setColor] = useState(DEFAULT_PROTOCOL_COLOR);
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('mg');
   const [water, setWater] = useState('2');
@@ -1186,7 +1170,7 @@ export default function ProtocolsScreen() {
   }
 
   function resetForm() {
-    setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor('#185FA5');
+    setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor(DEFAULT_PROTOCOL_COLOR);
     setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
     setIuInput(''); setIuOpen(false);
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
@@ -1256,7 +1240,7 @@ export default function ProtocolsScreen() {
     setEditingId(p.id);
     setName(p.name || ''); setCompoundId(p.compound_id || null);
     setSearchQuery(p.compound_id ? t(p.compound_id) : (p.name || ''));
-    setType(p.type || 'recon'); setColor(p.color || '#185FA5');
+    setType(p.type || 'recon'); setColor(displayColor(p.color) || DEFAULT_PROTOCOL_COLOR);
     setAmount(p.amount ? String(p.amount) : ''); setUnit(p.unit || 'mg');
     setWater(p.water ? String(p.water) : '2');
     if (p.diluent && DILUENT_TOKENS.includes(p.diluent) && p.diluent !== 'other') {
@@ -1905,7 +1889,7 @@ export default function ProtocolsScreen() {
       <View style={s.delList}>
         {deletedProtocols.map((p, idx) => (
           <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
-            <View style={[s.delDot, { backgroundColor: p.color || colors.ink3 }]} />
+            <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
             <View style={s.delText}>
               <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
               <Text style={s.delAgo}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
@@ -2029,7 +2013,7 @@ export default function ProtocolsScreen() {
                 <View style={s.heroNames}>
                   {protocols.map(p => (
                     <View key={p.id} style={s.heroNameRow}>
-                      <View style={[s.heroDot, { backgroundColor: p.color || colors.data }]} />
+                      <View style={[s.heroDot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                       <Text style={s.heroName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
                     </View>
                   ))}
@@ -2245,7 +2229,7 @@ export default function ProtocolsScreen() {
               // Colors already taken by *other* active protocols (exclude the one
               // being edited so its own color isn't flagged against itself).
               const usedColors = new Set(
-                protocols.filter(p => p.id !== editingId && p.color).map(p => p.color)
+                protocols.filter(p => p.id !== editingId && p.color).map(p => displayColor(p.color))
               );
               return (
                 <>
@@ -2256,11 +2240,11 @@ export default function ProtocolsScreen() {
                   <View style={s.prev}>
                     <View style={[s.prevDot, { backgroundColor: color }]} />
                     <Text style={s.prevName}>{name || t('protocols_your_compound')}</Text>
-                    <Text style={s.prevSub}>{t(COLOR_NAMES[color])}</Text>
+                    {colorNameKey(color) ? <Text style={s.prevSub}>{t(colorNameKey(color))}</Text> : null}
                   </View>
                   <View style={s.swatches}>
-                    {COLORS.map((col) => {
-                      const on = color === col;
+                    {PALETTE.map(({ hex: col }) => {
+                      const on = sameColor(color, col);
                       return (
                         <View key={col} style={s.swCell}>
                           <TouchableOpacity
@@ -2268,7 +2252,7 @@ export default function ProtocolsScreen() {
                             onPress={() => setColor(col)}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: on }}
-                            accessibilityLabel={t(COLOR_NAMES[col])}
+                            accessibilityLabel={t(colorNameKey(col))}
                           >
                             <View style={[s.sw, { backgroundColor: col }]} />
                             {usedColors.has(col) && <View style={s.usedMk} />}

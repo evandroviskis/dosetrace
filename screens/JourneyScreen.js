@@ -33,6 +33,7 @@ import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols } from '../lib/database';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
 import { MONO } from '../lib/fonts';
+import { displayColor } from '../lib/protocolColors';
 import FoodLogHero from './components/FoodLogHero';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -169,7 +170,7 @@ export default function JourneyScreen() {
             {premium && level ? (
               <>
                 <View style={s.nameRow}>
-                  <View style={[s.dot, { backgroundColor: level.protocol.color || colors.data }]} />
+                  <View style={[s.dot, { backgroundColor: displayColor(level.protocol.color) || colors.data }]} />
                   <Text style={s.name}>{levelName}</Text>
                 </View>
                 <View style={s.num}>

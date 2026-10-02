@@ -35,6 +35,7 @@ import { MONO } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { hasPremium } from '../lib/entitlement';
+import { displayColor } from '../lib/protocolColors';
 import CheckMark from '../components/CheckMark';
 import SegmentedBar from '../components/SegmentedBar';
 import { useUnfoldToPage } from '../components/BookPanes';
@@ -390,7 +391,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       return {
         id: p.id,
         name: p.__label || (p.compound_id ? t(p.compound_id) : p.name),
-        color: p.color || colors.data,
+        color: displayColor(p.color) || colors.data,
         fromBlend: !!p.__blend,
         entry,
         points,
@@ -1005,7 +1006,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: on }}
                   >
-                    <View style={[s.dot, { backgroundColor: p.color || colors.data }]} />
+                    <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
                       <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
                       <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>

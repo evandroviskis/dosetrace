@@ -50,6 +50,7 @@ import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components
 import { paneWidths } from '../lib/bookLayout';
 import DosePage from './components/DosePage';
 import { planDosePage, cardSlot, dosePageKey } from '../lib/dosePageState';
+import { displayColor } from '../lib/protocolColors';
 import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -1552,7 +1553,7 @@ export default function TodayScreen() {
       <DosePage
         t={t}
         name={p.compound_id ? t(p.compound_id) : p.name}
-        color={p.color}
+        color={displayColor(p.color)}
         time={slotTimeLabel(plan.dayKey, plan.slotMs)}
         due={plan.kind === 'due' && Number.isFinite(plan.slotMs)}
         doseLine={`${p.dose} ${p.dose_unit} · ${frequencyLabelFor(p.interval_days, t)}`}
@@ -1620,7 +1621,7 @@ export default function TodayScreen() {
           accessibilityRole="button"
           accessibilityState={book ? { selected: picked } : undefined}
         >
-          <View style={[s.ddot, { backgroundColor: p.color || colors.data }]} />
+          <View style={[s.ddot, { backgroundColor: displayColor(p.color) || colors.data }]} />
           <View style={s.dinfo}>
             <Text style={s.dname}>{name}</Text>
             <Text style={s.damt}>{p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}</Text>
@@ -1740,7 +1741,7 @@ export default function TodayScreen() {
               accessibilityState={book ? { selected: pickedUp } : undefined}
             >
               <Text style={s.upTime}>{key === 'n5' ? `${t(WEEKDAY_KEYS[d.getDay()])} ` : ''}{formatTimeAMPM(hhmm)}</Text>
-              <View style={[s.ddot, { backgroundColor: p.color || colors.data }]} />
+              <View style={[s.ddot, { backgroundColor: displayColor(p.color) || colors.data }]} />
               <View style={s.upMain}>
                 <Text style={s.upName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
                 <Text style={s.upAmt}>{p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}</Text>

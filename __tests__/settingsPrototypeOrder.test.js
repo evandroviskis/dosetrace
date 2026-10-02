@@ -171,7 +171,7 @@ test('Protocols list: a "Recently deleted" section at the bottom, only when some
   inOrder(sec, [
     "{t('protocols_recently_deleted')}",
     'deletedProtocols.map(',
-    'backgroundColor: p.color || colors.ink3',
+    'backgroundColor: displayColor(p.color) || colors.ink3',
     'protocolName(p)',
     "t('protocols_deleted_ago')",
     'onPress={() => restoreProtocol(p.id)}',
