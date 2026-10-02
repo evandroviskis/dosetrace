@@ -10,6 +10,10 @@
  *
  * A value the user fixes is theirs: the item stops being an estimate (FL-9), and
  * any open or offline-pending follow-up on it is dropped (FL-28).
+ *
+ * Journey redesign part 23 (founder 2026-10-02, prototype foodEditor): the sheet slides up
+ * from the bottom, a tap outside it cancels (as Cancel does), and each item's NAME is an
+ * editable field above its kcal / carbs / protein (lib/nutrition editedItems).
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -17,15 +21,15 @@ import { getDraft, setDraft, clearDraft } from '../../lib/draftStore';
 
 // BK-14 / A-77: typed changes are kept per entry until Save or Cancel (app lifetime only).
 export const editorDraftKey = (row) => (row ? 'foodChat:editor:' + (row.id != null ? row.id : row.local_id) : null);
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import Animated, { SlideInDown } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
-import { MONO } from '../../lib/fonts';
 import { requestSync } from '../../lib/sync';
 import { updateFoodLog, deleteFoodLog } from '../../lib/database';
-import { itemLabel } from '../../lib/nutrition';
+import { editedItems } from '../../lib/nutrition';
 import { safeItems } from '../../lib/foodThread';
 import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { dayChoice, pickDay, stepEarlier, earlierBounds } from '../../lib/foodEntryDay';
@@ -33,7 +37,6 @@ import { CrossMark } from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
-const numOr = (v, d = 0) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : d; };
 
 export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const { t, language } = useLanguage();
@@ -47,7 +50,9 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
 
   useEffect(() => {
     const kept = key ? getDraft(key) : null;
-    setItems(kept ? kept.items : (row ? safeItems(row.parsed_items).map((it) => ({ ...it })) : []));
+    // Each copy remembers its place in the stored items, so a renamed item still compares
+    // against its own original on Save.
+    setItems(kept ? kept.items : (row ? safeItems(row.parsed_items).map((it, i) => ({ ...it, __orig: i })) : []));
     setDate(kept ? kept.date : (row ? row.entry_date : null));
     loadedKey.current = key;
   }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -78,18 +83,8 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   function save() {
     if (!row) return;
     const orig = safeItems(row.parsed_items);
-    const cleaned = items.map((it) => {
-      const next = { ...it, kcal: numOr(it.kcal), carb_g: numOr(it.carb_g), protein_g: numOr(it.protein_g) };
-      const o = orig.find((x) => x && x.food === it.food) || {};
-      const changed = numOr(o.kcal) !== next.kcal || numOr(o.carb_g) !== next.carb_g || numOr(o.protein_g) !== next.protein_g || (o.category || null) !== (next.category || null);
-      if (changed) {
-        next.confidence = 'user';
-        // A fixed item needs no follow-up: close an open one, drop an offline answer.
-        if (next.ask && !next.ask_done) next.ask_skipped = true;
-        delete next.ask_pending;
-      }
-      return next;
-    });
+    // A fixed item (name or numbers) is the user's and needs no follow-up (lib/nutrition).
+    const cleaned = editedItems(orig, items);
     if (!cleaned.length) { deleteFoodLog(row.id); done(); return; }
     const sum = (k) => Math.round(cleaned.reduce((a, it) => a + (Number(it[k]) || 0), 0));
     updateFoodLog(row.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g'), fat_g: sum('fat_g'), entry_date: date || row.entry_date });
@@ -98,11 +93,13 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   function remove() { if (row) { deleteFoodLog(row.id); done(); } }
 
   return (
-    <Modal visible={!!row} transparent animationType="fade" onRequestClose={onClose}>
-      {/* A bottom sheet (prototype foodEditor / FC-edit): Cancel · title · Save, the day bar,
-          then each item with its numbers, and Remove entry. */}
+    <Modal visible={!!row} transparent animationType="fade" onRequestClose={cancel}>
+      {/* A bottom sheet (prototype foodEditor / FC-edit) that slides up: Cancel · title · Save,
+          the day bar, then each item (its name, then its numbers), and Remove entry. A tap
+          outside the sheet cancels, as Cancel does. */}
       <KeyboardAvoidingView style={s.scrim} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.sheet}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={cancel} accessibilityRole="button" accessibilityLabel={t('cancel')} />
+        <Animated.View entering={SlideInDown.duration(280)} style={s.sheet}>
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
             <View style={s.head}>
               <TouchableOpacity onPress={cancel} style={s.side} accessibilityRole="button">
@@ -138,7 +135,14 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
             {items.map((it, i) => (
               <View key={i} style={s.item}>
                 <View style={s.itemHead}>
-                  <Text style={s.food} numberOfLines={1}>{itemLabel(it)}</Text>
+                  <TextInput
+                    style={[s.input, s.nameInput]}
+                    value={it.food == null ? '' : String(it.food)}
+                    onChangeText={(v) => setField(i, 'food', v)}
+                    placeholderTextColor={colors.ink3}
+                    accessibilityLabel={t('nutri_edit_title')}
+                    returnKeyType="done"
+                  />
                   <TouchableOpacity style={s.del} onPress={() => removeItem(i)} accessibilityRole="button" accessibilityLabel={t('nutri_delete')}>
                     <CrossMark size={16} color={colors.ink2} />
                   </TouchableOpacity>
@@ -154,7 +158,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
               <Text style={s.dangerText}>{t('nutri_delete_entry')}</Text>
             </TouchableOpacity>
           </ScrollView>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -190,8 +194,8 @@ const makeStyles = (c) => StyleSheet.create({
   scrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
   sheet: { backgroundColor: c.raised, borderRadius: 26, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', maxHeight: '100%', overflow: 'hidden' },
   body: { padding: 20, gap: 14 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
-  side: { minWidth: 64, minHeight: 44, justifyContent: 'center' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  side: { minWidth: 52, minHeight: 44, justifyContent: 'center' },
   sideEnd: { alignItems: 'flex-end' },
   title: { flex: 1, textAlign: 'center', fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
   txtBtn: { fontSize: 17, color: c.ink },
@@ -202,12 +206,13 @@ const makeStyles = (c) => StyleSheet.create({
   stepVal: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
   item: { gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  food: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
   del: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   fields: { flexDirection: 'row', gap: 8 },
-  num: { flex: 1, minWidth: 0, gap: 6 },
-  numLabel: { fontSize: 13, lineHeight: 18, color: c.ink2 },
-  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 12, paddingVertical: 12, fontSize: 17, color: c.ink, fontFamily: MONO['500'] },
+  num: { flex: 1, minWidth: 0, gap: 10 },
+  numLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  // prototype .winp: system 17/400, tabular figures
+  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
+  nameInput: { flex: 1, minWidth: 0 },
   danger: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
 });

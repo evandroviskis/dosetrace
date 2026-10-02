@@ -31,6 +31,7 @@ export function FoodDemo({ ctaLabel, onCta }) {
   const { colors } = useTheme();
   const s = makeDemoStyles(colors);
   const [typed, setTyped] = useState('');
+  const [caretOn, setCaretOn] = useState(true);
   const timers = useRef([]);
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +39,9 @@ export function FoodDemo({ ctaLabel, onCta }) {
     AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
       if (cancelled) return;
       if (reduced) { setTyped(full); return; }
+      // The caret blinks once a second (prototype caretb); a still caret with Reduce Motion.
+      const blink = setInterval(() => setCaretOn((v) => !v), 500);
+      timers.current.push({ blink });
       const loop = () => {
         setTyped('');
         let i = 0;
@@ -51,11 +55,15 @@ export function FoodDemo({ ctaLabel, onCta }) {
       };
       loop();
     });
-    return () => { cancelled = true; timers.current.forEach(clearTimeout); timers.current = []; };
+    return () => {
+      cancelled = true;
+      timers.current.forEach((x) => (x && x.blink ? clearInterval(x.blink) : clearTimeout(x)));
+      timers.current = [];
+    };
   }, [t]);
   return (
     <View style={s.body}>
-      <View style={s.appBub}><Text style={s.appText}>{typed}<Text style={s.caret}>▎</Text></Text></View>
+      <View style={s.appBub}><Text style={s.appText}>{typed}<Text style={caretOn ? s.caret : s.caretOff}>▎</Text></Text></View>
       <View style={s.userBub}><Text style={s.userText}>{t('nutri_demo_meal')}</Text></View>
       <View style={s.tot}>
         <Text style={s.totK}>≈ 480 {t('cal_kcal')}</Text>
@@ -124,17 +132,18 @@ const makeStyles = (c) => StyleSheet.create({
 // The demo (prototype FC-demo sheet): the app's line typing in a well bubble, the
 // user's meal in an ink bubble, the totals, then the pitch and one ink action.
 const makeDemoStyles = (c) => StyleSheet.create({
-  body: { gap: 12 },
-  appBub: { alignSelf: 'stretch', minHeight: 48, backgroundColor: c.well, borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: 14, paddingVertical: 12 },
+  body: { gap: 14 },
+  appBub: { alignSelf: 'flex-start', maxWidth: '100%', minHeight: 48, backgroundColor: c.well, borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: 14, paddingVertical: 12 },
   appText: { fontSize: 17, lineHeight: 22, color: c.ink },
   caret: { color: c.ink3 },
+  caretOff: { color: c.well }, // the caret's blink-off frame: the bubble colour
   userBub: { alignSelf: 'flex-end', maxWidth: '84%', backgroundColor: c.act, borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 12 },
   userText: { fontSize: 17, lineHeight: 22, color: c.onAct },
-  tot: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, gap: 2 },
+  tot: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, marginTop: 2, gap: 2 },
   totK: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   totM: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
   title: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: c.ink },
   sub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
-  cta: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  cta: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   ctaText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
 });
