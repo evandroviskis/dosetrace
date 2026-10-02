@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -44,6 +45,10 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodLogHero from './components/FoodLogHero';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
+import { paneWidths } from '../lib/bookLayout';
+import DosePage from './components/DosePage';
+import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useReducedMotion,
@@ -138,6 +143,13 @@ export default function TodayScreen() {
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  // S-26 book layout (docs/specs/book-layout.md): on an unfolded foldable Today is the left
+  // page and the Dose log, or the dose the user tapped, the right page (BK-3). One column
+  // (book false) renders exactly as before (BK-2).
+  const book = useBook();
+  const { sel: bookSel, params: bookParams, select: bookSelect } = useBookSelection('Today', 'log');
+  useFoldPush('Today'); // BK-10: an opened Dose log becomes the pushed Log screen on fold
+  const { width: winW } = useWindowDimensions();
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
   const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only
@@ -1346,11 +1358,94 @@ export default function TodayScreen() {
     return { current: capped, total: p.schedule_total };
   }
 
+  // ── Book layout: the dose page (S-26 BK-3) ─────────────────────
+  // A tapped dose is 'dose:<protocolId>', plus ':<slot>' when the protocol has several doses
+  // a day, so the 08:00 and the 20:00 dose are different items. The slot is the dose the
+  // card offers (the next one not yet taken), the same index getNextTimeLabel uses.
+  const pickedDoseId = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams
+    ? bookParams.protocolId : null;
+
+  function doseSlot(p) {
+    const dpd = p.doses_per_day || 1;
+    if (dpd <= 1) return null;
+    const expected = expectedDosesOn(p, new Date());
+    const idx = (dpd - expected) + (takenCounts[p.id] || 0);
+    return Math.max(0, Math.min(dpd - 1, idx));
+  }
+
+  function openDoseOnPage(p) {
+    const slot = doseSlot(p);
+    bookSelect(slot == null ? `dose:${p.id}` : `dose:${p.id}:${slot}`, { protocolId: p.id, slot });
+  }
+
+  // What the dose page shows for its slot, from the same counts as the card: taken, skipped
+  // ("you can still log it", as on the card), or still open.
+  function doseSlotState(p, slot) {
+    const dpd = p.doses_per_day || 1;
+    const expected = expectedDosesOn(p, new Date());
+    const taken = takenCounts[p.id] || 0;
+    const skipped = skippedCounts[p.id] || 0;
+    const k = slot == null ? 0 : slot - (dpd - expected);
+    if (k < taken) return 'taken';
+    if (k < taken + skipped) return 'skipped';
+    return 'open';
+  }
+
+  // The right page: the tapped dose, else the Dose log (the default, BK-3).
+  function renderRightPage() {
+    const p = pickedDoseId != null ? protocols.find(x => String(x.id) === String(pickedDoseId)) : null;
+    if (!p) {
+      // Today's counts: a dose written on the left page refreshes the embedded log.
+      const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length]);
+      return <LogScreen embedded refreshKey={logRev} />;
+    }
+    const slot = bookParams && bookParams.slot != null ? bookParams.slot : null;
+    const state = doseSlotState(p, slot);
+    const dpd = p.doses_per_day || 1;
+    const times = p.reminder_time ? sortedDoseTimes(p).slice(0, dpd) : [];
+    const slotTime = times[slot == null ? 0 : slot] || null;
+    const nextTime = getNextTimeLabel(p);
+    const { draw, syr } = doseDraw(p);
+    return (
+      <DosePage
+        t={t}
+        name={p.compound_id ? t(p.compound_id) : p.name}
+        color={p.color}
+        time={slotTime ? formatTimeAMPM(slotTime) : null}
+        due={state === 'open' && slot === doseSlot(p) && isDoseDue(p)}
+        doseLine={`${p.dose} ${p.dose_unit} · ${frequencyLabelFor(p.interval_days, t)}`}
+        draw={draw}
+        syringeSize={syr}
+        state={state}
+        partial={dpd > 1 ? { taken: takenCounts[p.id] || 0, needed: expectedDosesOn(p, new Date()) } : null}
+        takeLabel={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
+        takenLabel={takenLabel}
+        askFirst={needsSiteQuestion(p.type)}
+        resetKey={`${p.id}-${takenCounts[p.id] || 0}-${takeReset[p.id] || 0}`}
+        onTake={(rect) => handleTake(p, rect)}
+        onSkip={() => skipDose(p)}
+        onOpenProtocol={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
+      />
+    );
+  }
+
+  // Draw to {n} units for a reconstituted dose with a mixed vial — the ONE computation the
+  // Today card and the book layout's dose page (BK-3) both draw from.
+  function doseDraw(p) {
+    const vial = vials[p.id];
+    const draw = p.type === 'recon' && vial ? computeDraw({
+      type: p.type, amount: p.amount, water: p.water, dose: p.dose, doseUnit: p.dose_unit, unit: p.unit,
+      concentration: p.concentration, concentrationUnit: p.concentration_unit, syringe_size: p.syringe_size,
+    }) : null;
+    return { draw, syr: p.syringe_size || 100 };
+  }
+
   // Today v2.1 dose card (founder 2026-09-29): the whole card opens the protocol; Skip and
   // Mark taken on the card; an outline "Due" tag; Draw to {n} units + the syringe to scale
   // for a reconstituted dose with a mixed vial (the same computeDraw as Protocols, with its
   // over-capacity warning); every item main showed stays (dose, frequency, time, skipped /
   // partial lines, Day X of Y, last site, protocol streak, vial line or + Add vial).
+  // In the book layout (S-26) a tap on the card opens the dose on the right page instead.
   // Rendered as a plain function so React doesn't remount the subtree on every render.
   function renderDoseCard(p) {
     const dosesTakenToday = takenCounts[p.id] || 0;
@@ -1363,14 +1458,18 @@ export default function TodayScreen() {
     const due = isDoseDue(p);
     const lastSite = lastSiteByProtocol[p.id];
     const name = p.compound_id ? t(p.compound_id) : p.name;
-    const draw = p.type === 'recon' && vial ? computeDraw({
-      type: p.type, amount: p.amount, water: p.water, dose: p.dose, doseUnit: p.dose_unit, unit: p.unit,
-      concentration: p.concentration, concentrationUnit: p.concentration_unit, syringe_size: p.syringe_size,
-    }) : null;
-    const syr = p.syringe_size || 100;
+    const { draw, syr } = doseDraw(p);
+    // BK-8: the dose open on the right page has an ink outline (book layout only).
+    const picked = book && pickedDoseId != null && String(pickedDoseId) === String(p.id);
     return (
-      <View key={p.id} style={s.dose}>
-        <TouchableOpacity style={s.dtop} activeOpacity={0.7} onPress={() => navigation.navigate('Protocols', { openProtocolId: p.id })} accessibilityRole="button">
+      <View key={p.id} style={[s.dose, picked && s.dosePicked]}>
+        <TouchableOpacity
+          style={s.dtop}
+          activeOpacity={0.7}
+          onPress={() => (book ? openDoseOnPage(p) : navigation.navigate('Protocols', { openProtocolId: p.id }))}
+          accessibilityRole="button"
+          accessibilityState={book ? { selected: picked } : undefined}
+        >
           <View style={[s.ddot, { backgroundColor: p.color || colors.data }]} />
           <View style={s.dinfo}>
             <Text style={s.dname}>{name}</Text>
@@ -1500,8 +1599,14 @@ export default function TodayScreen() {
     return pr ? (pr.compound_id ? t(pr.compound_id) : pr.name) : null;
   }).filter(Boolean);
 
-  return (
-    <SafeAreaView style={s.container} ref={rootRef} collapsable={false}>
+  // BK-9: in the book layout the toasts sit on the left page, never across the fold.
+  // One column: exactly the old styles (toast === s).
+  const toastOnLeftPage = book ? { right: undefined, width: paneWidths(winW).left - 24 } : null;
+  const toast = book
+    ? { undoBar: [s.undoBar, toastOnLeftPage], takeNoticeBar: [s.takeNoticeBar, toastOnLeftPage] }
+    : s;
+
+  const leftPage = (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
             from yesterday → tracker → AI food log → Doses → Taken → Tomorrow / Next 5 days. */}
@@ -1597,7 +1702,7 @@ export default function TodayScreen() {
         )}
 
         {protocols.length > 0 && (
-          <TodayTracker rings={rings} weekDots={weekDots} streak={streak} onHistory={() => navigation.navigate('Log')} t={t} ringRef={ringRef} />
+          <TodayTracker rings={rings} weekDots={weekDots} streak={streak} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} />
         )}
 
         {/* AI food log while a reality check runs (FL-33) — lib/foodThread todayFoodHeroPolicy. */}
@@ -1658,11 +1763,16 @@ export default function TodayScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+  );
+
+  return (
+    <SafeAreaView style={s.container} ref={rootRef} collapsable={false}>
+      {book ? <BookPanes left={leftPage} right={renderRightPage()} rightKey={bookSel} /> : leftPage}
 
       {/* Undo toast — pinned above the tab bar, outside the ScrollView, so it is
         visible wherever the list is scrolled (S-02). */}
       {undoData && (
-        <View style={s.undoBar}>
+        <View style={toast.undoBar}>
           <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
           <View style={s.undoBarActions}>
             <TouchableOpacity onPress={undoTake}>
@@ -1674,7 +1784,7 @@ export default function TodayScreen() {
 
       {/* S-20: the dose was undone from the site picker (Cancel / back) — say so. */}
       {takeNotice && !undoData && (
-        <View style={s.takeNoticeBar} accessibilityLiveRegion="polite">
+        <View style={toast.takeNoticeBar} accessibilityLiveRegion="polite">
           <Text style={s.takeNoticeText}>{t('today_take_undone')}</Text>
         </View>
       )}
@@ -2013,6 +2123,9 @@ const todayV21Styles = (c) => ({
   pendText: { flex: 1, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
   acts2: { flexDirection: 'row', gap: 10 },
   dose: { backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16, gap: 14 },
+  // BK-8: the selected dose in the book layout — a 2 pt ink outline; the padding gives the
+  // border's 2 pt back so the card does not move.
+  dosePicked: { borderWidth: 2, borderColor: c.ink, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14 },
   dtop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   ddot: { width: 9, height: 9, borderRadius: 5, marginTop: 8 },
   dinfo: { flex: 1, minWidth: 0, gap: 3 },

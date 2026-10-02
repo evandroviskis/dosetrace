@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,10 +24,15 @@ import { planSitePickerAction } from '../lib/sitePickerActions';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import { useUnfoldToPage } from '../components/BookPanes';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
-export default function LogScreen() {
+// embedded (S-26 BK-3): the Dose log drawn on Today's right page of an unfolded foldable.
+// No back row (nothing to go back to) and no top safe-area edge (Today's safe area holds
+// it); everything else is the same screen. refreshKey: Today's dose counts, so a dose
+// taken or skipped on the left page shows here at once.
+export default function LogScreen({ embedded = false, refreshKey } = {}) {
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -41,6 +46,17 @@ export default function LogScreen() {
   // Body-map editor state (tap a row to edit its injection site)
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
   const [bodyMapTarget, setBodyMapTarget] = useState(null);
+
+  // BK-10: a Dose log pushed while folded moves onto Today's right page on unfold.
+  useUnfoldToPage('Log', { embedded });
+
+  // Embedded: refetch when a dose is written on Today's left page (not on the first
+  // render; the focus effect below loads the list).
+  const firstRefresh = useRef(true);
+  useEffect(() => {
+    if (firstRefresh.current) { firstRefresh.current = false; return; }
+    if (embedded) fetchLogs();
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFocusEffect(
     useCallback(() => {
@@ -267,16 +283,18 @@ export default function LogScreen() {
   );
 
   return (
-    <SafeAreaView style={s.container}>
-      <View style={s.nav}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('common_back')}
-        >
-          <Text style={s.back}>‹ {backLabelFor(navigation, t)}</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right', 'bottom'] : undefined}>
+      <View style={[s.nav, embedded && s.navEmbedded]}>
+        {!embedded && (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common_back')}
+          >
+            <Text style={s.back}>‹ {backLabelFor(navigation, t)}</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={s.curveBtn}
           onPress={async () => { Analytics.viewed('serum_curve'); const pro = await hasPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
@@ -409,6 +427,7 @@ const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.ground },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 16 },
+  navEmbedded: { justifyContent: 'flex-end' },
   back: { fontSize: 17, color: c.ink },
   // secondary action: an outline pill (the curve is one tap down, not the screen's action)
   curveBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line },
