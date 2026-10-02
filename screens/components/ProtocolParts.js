@@ -39,7 +39,8 @@ function useLast(config) {
 }
 
 // Centered DoseTrace sheet: optional icon in a well circle, title 22/700, body 17 ink2,
-// buttons per the Graduated rules. config = { icon, title, body, note, buttons:
+// buttons per the Graduated rules. config = { icon, title, body, link: { label, onPress },
+// note, buttons:
 // [{ label, kind: 'primary' | 'secondary' | 'danger', onPress }] }.
 export function DTSheet({ config, onClose }) {
   const { colors: c } = useTheme();
@@ -61,6 +62,11 @@ export function DTSheet({ config, onClose }) {
           ) : null}
           <Text style={s.title} accessibilityRole="header">{shown.title}</Text>
           {shown.body ? <Text style={s.body}>{shown.body}</Text> : null}
+          {shown.link ? (
+            <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; onClose(); if (fn) fn(); }} accessibilityRole="link">
+              <Text style={s.linkText}>{shown.link.label}</Text>
+            </TouchableOpacity>
+          ) : null}
           <View style={stack ? s.btnStack : s.btnRow}>
             {ordered.map((b, i) => (
               <TouchableOpacity
@@ -187,6 +193,9 @@ const sheetStyles = (c) => StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
   body: { fontSize: 17, lineHeight: 22, color: c.ink2 },
   note: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+  // prototype .btnlink r-body (min-height 36 in the sheet): 17 ink, underlined in tick
+  link: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },
+  linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
   btnRow: { flexDirection: 'row', gap: 10 },
   btnStack: { gap: 8 },
   btn: { minHeight: 44, borderRadius: 26, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },

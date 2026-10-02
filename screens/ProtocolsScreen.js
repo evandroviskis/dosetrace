@@ -8,9 +8,9 @@ import {
   StyleSheet,
   Modal,
   TextInput,
-  Alert,
   Platform,
   Keyboard,
+  Linking,
   KeyboardAvoidingView,
   ActivityIndicator,
   useWindowDimensions,
@@ -21,7 +21,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser, supabase } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
-import { requestAIConsent } from '../lib/aiConsent';
+import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -1129,6 +1129,7 @@ export default function ProtocolsScreen() {
   // Irreversible, so it always goes through a confirm (main's "Delete permanently?").
   function confirmPermanentDelete(p) {
     setScreenSheet({
+      icon: 'warning',
       title: t('settings_delete_protocol_title'),
       body: t('settings_delete_protocol_msg').replace('{name}', protocolName(p)),
       buttons: [
@@ -1393,17 +1394,40 @@ export default function ProtocolsScreen() {
   // A notice inside the add/edit sheet (DoseTrace sheet, one button). Shown a beat
   // later when it follows the camera / photo library, which is still closing.
   function wizNotice(title, body, delayed) {
-    const cfg = { icon: 'warning', title, body, buttons: [{ label: t('done'), kind: 'primary' }] };
+    const cfg = { icon: 'warning', title, body, buttons: [{ label: t('ok'), kind: 'primary' }] };
     if (delayed) setTimeout(() => setWizSheet(cfg), 450);
     else setWizSheet(cfg);
+  }
+  // Not signed in / Couldn't save (part 21): the DoseTrace sheet with the app's warning
+  // triangle (Q15), never the grey iOS alert.
+  function wizError(body) {
+    setWizSheet({ icon: 'warning', title: t('error'), body, buttons: [{ label: t('ok'), kind: 'primary' }] });
   }
 
   async function handleVialScanPress() {
     // Consent gate: the label photo goes to a third-party AI processor —
-    // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending.
-    if (!(await requestAIConsent(t))) return;
-    // Photo choice as a bottom sheet (approved 2026-09-29); the camera / library
-    // opens only after the sheet is gone.
+    // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending. Asked in the
+    // DoseTrace sheet (part 21); the same shared consent key as every AI feature. The policy
+    // link opens the page and keeps the flow cancelled (as before): the user taps Scan again.
+    if (!(await hasAIConsent())) {
+      setWizSheet({
+        icon: 'ai_spark',
+        title: t('ai_consent_title'),
+        body: t('ai_consent_body'),
+        link: { label: t('ai_consent_privacy'), onPress: () => Linking.openURL(AI_PRIVACY_URL).catch(() => {}) },
+        buttons: [
+          { label: t('cancel'), kind: 'secondary' },
+          { label: t('ai_consent_agree'), kind: 'primary', onPress: async () => { await grantAIConsent(); openScanChoice(); } },
+        ],
+      });
+      return;
+    }
+    openScanChoice();
+  }
+
+  // Photo choice as a bottom sheet (approved 2026-09-29); the camera / library
+  // opens only after the sheet is gone.
+  function openScanChoice() {
     setScanChoice({
       title: t('vial_scan_choose_sub'),
       options: [
@@ -1496,7 +1520,7 @@ export default function ProtocolsScreen() {
     : null;
 
   function showMissingName() {
-    setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('done'), kind: 'primary' }] });
+    setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] });
   }
 
   async function saveProtocol() {
@@ -1516,7 +1540,7 @@ export default function ProtocolsScreen() {
     const safeStart = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : todayISO();
     try {
     const user = await getCachedUser();
-    if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
+    if (!user) { setSaving(false); wizError(t('protocols_not_signed_in')); return; }
 
     if (editingId) {
       // Only what the user changed is written (founder decision 2, 2026-10-02): the form
@@ -1617,7 +1641,7 @@ export default function ProtocolsScreen() {
     fetchProtocols();
     } catch (err) {
       setSaving(false);
-      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+      wizError(friendlyError(err, t, 'error_save_failed'));
     }
   }
 
@@ -1625,11 +1649,11 @@ export default function ProtocolsScreen() {
   // old top-right "Next" used). Save has its own guard inside saveProtocol, so the
   // footer's Save can be tapped from any step.
   function showCheckValues() {
+    // Part 21: no icon, the button reads OK (prototype sheetHTML).
     setWizSheet({
-      icon: 'warning',
       title: t('protocols_check_values_title'),
       body: unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
-      buttons: [{ label: t('done'), kind: 'primary' }],
+      buttons: [{ label: t('ok'), kind: 'primary' }],
     });
   }
 
