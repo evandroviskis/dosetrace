@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   useWindowDimensions,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -48,6 +49,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import DosePage from './components/DosePage';
+import { planDosePage, cardSlot, dosePageKey } from '../lib/dosePageState';
 import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -205,6 +207,19 @@ export default function TodayScreen() {
   const [bodyMapTarget, setBodyMapTarget] = useState(null); // { q, protocolId, recentLogs, initialStored, mode: 'ask' }
   const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
 
+  // S-26 book layout (BK-16, BK-19, BK-20): the rows the dose page reads (yesterday + today),
+  // a revision the embedded Dose log refreshes on, the undo record of every dose Today wrote
+  // this session (Undo on the dose page reuses applyUndo with it), and the embedded Log's
+  // site editor in Today's one-popup-at-a-time queue. All idle in one column (BK-2).
+  const bookRef = useRef(book); bookRef.current = book;
+  const [pageLogs, setPageLogs] = useState([]);
+  const [dataRev, setDataRev] = useState(0);
+  const [, setPageTick] = useState(0);
+  const undoRecordsRef = useRef(new Map()); // logId → the undo record of a dose written here
+  const logPopupOpenRef = useRef(false); // the embedded Dose log's site editor is open
+  const logPopupWaiterRef = useRef(null); // the embedded Log's editor, waiting for Today's popup
+  const vialDeferredRef = useRef(false); // the vial prompt waits for the embedded Log's editor
+
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
   // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
   const [lastSiteByProtocol, setLastSiteByProtocol] = useState({});
@@ -249,6 +264,7 @@ export default function TodayScreen() {
         }
         pendingFxRef.current.clear();
         siteQueueRef.current = [];
+        logPopupWaiterRef.current = null; // the embedded Log is gone with Today
       };
     }, [])
   );
@@ -275,6 +291,46 @@ export default function TodayScreen() {
     });
     return unsub;
   }, []);
+
+  // BK-16 / BK-19 (book layout only): the dose page reads yesterday's and today's rows. Load
+  // them when the window becomes two pages, and again when the app returns to the
+  // foreground (a notification action or another device may have logged a dose meanwhile).
+  useEffect(() => { if (book) fetchPageLogs(); }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active' || !bookRef.current || !focusedRef.current) return;
+      fetchProtocols();
+      fetchTodayLogs();
+      fetchPendingYesterday();
+    });
+    return () => sub.remove();
+  }, []);
+  // An open dose page follows the clock: 20:00 turns from upcoming to due while it is shown.
+  const dosePageOpen = book && typeof bookSel === 'string' && bookSel.startsWith('dose:');
+  useEffect(() => {
+    if (!dosePageOpen) return undefined;
+    const id = setInterval(() => setPageTick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, [dosePageOpen]);
+
+  // Yesterday's and today's rows of every protocol, for the dose page (book layout only).
+  async function fetchPageLogs() {
+    if (!bookRef.current) return;
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const since = new Date();
+      since.setHours(0, 0, 0, 0);
+      since.setDate(since.getDate() - 1);
+      setPageLogs(getLogsSince(user.id, since.toISOString()) || []);
+      setDataRev((n) => n + 1);
+    } catch { /* keep the last rows */ }
+  }
+
+  // The undo record of a dose Today just wrote, kept for the dose page's Undo (BK-16).
+  function keepUndo(record) {
+    if (record && record.logId != null) undoRecordsRef.current.set(record.logId, record);
+  }
 
   // Load the open reality-check weigh-in (if any) — surfaced as a Today alert.
   async function fetchAlerts() {
@@ -366,7 +422,8 @@ export default function TodayScreen() {
         const snoozedAt = await AsyncStorage.getItem(`dosetrace_tx_check_${p.id}`);
         if (snoozedAt && (now - new Date(snoozedAt).getTime()) / 86400000 < thresholdDays) continue;
         // One modal at a time: a site question goes first; this prompt comes on a later open.
-        if (bodyMapOpenRef.current || siteQueueRef.current.length) return;
+        // BK-20: nor over the embedded Dose log's site editor.
+        if (bodyMapOpenRef.current || siteQueueRef.current.length || logPopupOpenRef.current) return;
         inactivePromptOpenRef.current = true;
         setInactiveProtocol(p);
         setShowInactivePrompt(true);
@@ -508,6 +565,7 @@ export default function TodayScreen() {
       try { tzSinceMs = (await getMissedWatermark()).tzSinceMs; } catch { /* guard is best-effort */ }
       setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs }));
     } catch { setPendingYest([]); }
+    fetchPageLogs(); // BK-19: the dose page follows every write and undo (book layout only)
   }
 
   function afterPendingWrite() {
@@ -537,11 +595,13 @@ export default function TodayScreen() {
     const res = recordDoseTaken(protocolId, write);
     if (res && res.logId) {
       const timer = setTimeout(() => setUndoData(null), 5000);
-      setUndoData({
+      const record = {
         logId: res.logId, flipped: res.flipped, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
         oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
-      });
+      };
+      setUndoData(record);
+      keepUndo(record);
       const p = getProtocolById(protocolId);
       if (res.vialFinished && p && p.type === 'recon') showVialPromptFor(p, write.vialPromptDelay);
     }
@@ -553,7 +613,9 @@ export default function TodayScreen() {
     const res = recordSkipPending(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
     if (res && res.logId) {
       const timer = setTimeout(() => setUndoData(null), 5000);
-      setUndoData({ logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null });
+      const record = { logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null };
+      setUndoData(record);
+      keepUndo(record);
     }
     afterPendingWrite();
   }
@@ -574,6 +636,7 @@ export default function TodayScreen() {
       setTodayTaken(data.filter(d => d.outcome === 'Taken').sort((a, b) => (a.logged_at < b.logged_at ? -1 : 1)));
     }
     fetchRings(user.id);
+    fetchPageLogs(); // BK-19 (book layout only)
   }
 
   // Today v2.1 rings: doses taken ÷ doses scheduled (today / 7 days / 30 days).
@@ -735,6 +798,8 @@ export default function TodayScreen() {
         fx,
       };
       setUndoData(record);
+      keepUndo(record); // BK-16: the dose page's Undo of this slot
+      fetchPageLogs(); // BK-16 / BK-19: the dose page shows the written slot (book layout only)
 
       actionInProgressRef.current = false;
     } catch (err) {
@@ -771,10 +836,17 @@ export default function TodayScreen() {
     setTimeout(openNextQuestion, 300); // after a press / an Alert has finished
   }
 
+  // A popup of Today's own is open (or the vial prompt is about to open).
+  function todayPopupBusy() {
+    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current;
+  }
+
   async function openNextQuestion() {
-    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current) return;
+    // BK-20: one popup at a time across both pages — also not over the embedded Dose log's
+    // site editor; the question waits and opens when that editor closes.
+    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current) return;
     const q = siteQueueRef.current.shift();
-    if (!q) return;
+    if (!q) { runLogPopupWaiter(); return; }
     // Paused / deleted, or already logged (another device, a banner): nothing to ask.
     if (isDoseAlreadyLogged(q.protocolId, commitOpts(q))) {
       dropQuestion(AsyncStorage, q.key);
@@ -941,12 +1013,17 @@ export default function TodayScreen() {
             try {
               const user = await getCachedUser();
               if (!user) return;
-              insertDoseLog({
+              const logId = insertDoseLog({
                 user_id: user.id,
                 protocol_id: protocol.id,
                 protocol_remote_id: protocol.remote_id || null,
                 outcome: 'Skipped',
               });
+              // BK-16: the dose page's Undo of this Skip goes through applyUndo too. A skip
+              // never changes today's Taken count or the supply (todayCount 'none', as the
+              // Pending block's skip); the Undo bar is unchanged (no record shown here).
+              keepUndo({ logId, flipped: false, protocolId: protocol.id, pending: true, extraDeleteIds: [], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null });
+              fetchPageLogs();
               setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
               Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
               requestSync();
@@ -959,10 +1036,35 @@ export default function TodayScreen() {
     );
   }
 
+  // BK-20: the embedded Dose log (Today's right page) asks before opening its site editor.
+  // While a popup of Today's is open the editor waits and opens once Today's queue is empty;
+  // while the editor is open Today's questions and prompts wait for it to close.
+  function runLogPopupWaiter() {
+    const open = logPopupWaiterRef.current;
+    if (!open || todayPopupBusy() || logPopupOpenRef.current) return;
+    logPopupWaiterRef.current = null;
+    open();
+  }
+  const logPopupGate = {
+    busy: () => todayPopupBusy() || siteQueueRef.current.length > 0,
+    wait: (open) => { logPopupWaiterRef.current = open; },
+    opened: () => { logPopupOpenRef.current = true; },
+    closed: () => {
+      logPopupOpenRef.current = false;
+      if (vialDeferredRef.current) {
+        vialDeferredRef.current = false;
+        vialTimerRef.current = setTimeout(() => setShowVialPrompt(true), 450);
+        return;
+      }
+      setTimeout(openNextQuestion, 450); // a question that waited for the editor
+    },
+  };
+
   // The ONE way the vial prompt closes ("Protocol finished", "Log new vial", or the undo
   // of that dose). A site question waiting behind it opens after the prompt has faded out.
   function closeVialPrompt() {
     clearTimeout(vialTimerRef.current);
+    vialDeferredRef.current = false;
     setShowVialPrompt(false);
     setContinuationProtocol(null);
     vialPromptOpenRef.current = false;
@@ -978,6 +1080,9 @@ export default function TodayScreen() {
     setNewVialMonth(new Date().getMonth());
     setNewVialDay(String(new Date().getDate()));
     clearTimeout(vialTimerRef.current);
+    vialDeferredRef.current = false;
+    // BK-20: the embedded Dose log's site editor is open — the prompt opens after it closes.
+    if (logPopupOpenRef.current) { vialDeferredRef.current = true; return; }
     if (delayMs) vialTimerRef.current = setTimeout(() => setShowVialPrompt(true), delayMs); else setShowVialPrompt(true);
   }
 
@@ -1358,72 +1463,113 @@ export default function TodayScreen() {
     return { current: capped, total: p.schedule_total };
   }
 
-  // ── Book layout: the dose page (S-26 BK-3) ─────────────────────
-  // A tapped dose is 'dose:<protocolId>', plus ':<slot>' when the protocol has several doses
-  // a day, so the 08:00 and the 20:00 dose are different items. The slot is the dose the
-  // card offers (the next one not yet taken), the same index getNextTimeLabel uses.
-  const pickedDoseId = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams
-    ? bookParams.protocolId : null;
+  // ── Book layout: the dose page (S-26 BK-3, BK-16) ─────────────
+  // A tapped dose is ONE slot: its protocol, its day and its scheduled time (dosePageKey), so
+  // a twice-daily protocol's 08:00 and 20:00, and yesterday's pending 20:00, are different
+  // items. What the page offers comes from lib/dosePageState.js planDosePage: due and pending
+  // doses get Skip / Mark taken through Today's own paths, upcoming doses their info only, a
+  // logged dose its state and Undo (never a second Mark taken).
+  const pickedDose = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams && bookParams.protocolId != null
+    ? bookParams : null;
+  const todayKey = localDayKey(Date.now());
+  const isPickedDose = (protocolId, dayKey, slotMs) => !!pickedDose
+    && String(pickedDose.protocolId) === String(protocolId) && pickedDose.dayKey === dayKey
+    && (slotMs === undefined || pickedDose.slotMs === slotMs);
 
-  function doseSlot(p) {
-    const dpd = p.doses_per_day || 1;
-    if (dpd <= 1) return null;
-    const expected = expectedDosesOn(p, new Date());
-    const idx = (dpd - expected) + (takenCounts[p.id] || 0);
-    return Math.max(0, Math.min(dpd - 1, idx));
+  function openDoseSlot(protocolId, dayKey, slotMs, ti = null) {
+    bookSelect(dosePageKey(protocolId, dayKey, slotMs, ti), { protocolId, dayKey, slotMs, ti });
   }
 
+  // The card opens the slot it offers: today's earliest open slot, else the last one (shown
+  // with its logged state).
   function openDoseOnPage(p) {
-    const slot = doseSlot(p);
-    bookSelect(slot == null ? `dose:${p.id}` : `dose:${p.id}:${slot}`, { protocolId: p.id, slot });
+    const slot = cardSlot({ protocol: p, logs: pageLogs, nowMs: Date.now() });
+    if (!slot) { bookSelect('log'); return; }
+    openDoseSlot(p.id, slot.dayKey, slot.slotMs, slot.ti);
   }
 
-  // What the dose page shows for its slot, from the same counts as the card: taken, skipped
-  // ("you can still log it", as on the card), or still open.
-  function doseSlotState(p, slot) {
-    const dpd = p.doses_per_day || 1;
-    const expected = expectedDosesOn(p, new Date());
-    const taken = takenCounts[p.id] || 0;
-    const skipped = skippedCounts[p.id] || 0;
-    const k = slot == null ? 0 : slot - (dpd - expected);
-    if (k < taken) return 'taken';
-    if (k < taken + skipped) return 'skipped';
-    return 'open';
+  // A Tomorrow / Next 5 days row opens that upcoming dose (info only).
+  function openUpcomingOnPage(p, atMs) {
+    const timed = sortedDoseTimes(p).length > 0;
+    openDoseSlot(p.id, localDayKey(atMs), timed ? atMs : null, timed ? null : 0);
+  }
+
+  // BK-16 Undo: the app's own undo (applyUndo, the Undo bar's) with the record of THAT row.
+  function undoFromPage(record) {
+    applyUndo(record);
+    fetchTodayLogs(); // the Skipped / Taken counts, the rings and the page, read back
+  }
+
+  // BK-19: the embedded Dose log changed a row (Missed → Taken / Skipped, a site): Today's
+  // cards, rings, Pending block and the dose page follow without switching tabs.
+  function afterLogChange() {
+    fetchTodayLogs();
+    fetchPendingYesterday();
+    fetchStreakData();
+    fetchProtocolStreaks();
+    fetchLastSites();
+  }
+
+  // "Yesterday 20:00", "Tomorrow 08:00", "Fri 08:00", or just "20:00" today.
+  function slotTimeLabel(dayKey, slotMs) {
+    const time = Number.isFinite(slotMs) ? formatTimeAMPM(new Date(slotMs).toTimeString().slice(0, 5)) : null;
+    if (dayKey === todayKey) return time;
+    const [y, m, d] = dayKey.split('-').map(Number);
+    const day = new Date(y, m - 1, d);
+    const diff = Math.round((day - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);
+    const prefix = diff === -1 ? t('today_yesterday') : diff === 1 ? t('today_section_tomorrow') : t(WEEKDAY_KEYS[day.getDay()]);
+    return time ? `${prefix} ${time}` : prefix;
   }
 
   // The right page: the tapped dose, else the Dose log (the default, BK-3).
   function renderRightPage() {
-    const p = pickedDoseId != null ? protocols.find(x => String(x.id) === String(pickedDoseId)) : null;
-    if (!p) {
-      // Today's counts: a dose written on the left page refreshes the embedded log.
-      const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length]);
-      return <LogScreen embedded refreshKey={logRev} />;
+    const p = pickedDose ? protocols.find(x => String(x.id) === String(pickedDose.protocolId)) : null;
+    const plan = p ? planDosePage({
+      protocol: p, logs: pageLogs, dayKey: pickedDose.dayKey, slotMs: pickedDose.slotMs, ti: pickedDose.ti,
+      nowMs: Date.now(), pending: pendingYest,
+    }) : null;
+    if (!p || plan.kind === 'none') {
+      // A dose written, skipped or undone on the left page refreshes the embedded log (BK-19).
+      const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length, dataRev]);
+      return <LogScreen embedded refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} />;
     }
-    const slot = bookParams && bookParams.slot != null ? bookParams.slot : null;
-    const state = doseSlotState(p, slot);
+    const pending = plan.kind === 'pending';
+    const item = { protocolId: p.id, dayKey: plan.dayKey, slotMs: plan.slotMs };
+    // Undo only with the record of that row (a dose written here this session); a row logged
+    // elsewhere (notification, other device, an earlier session) links to the Dose log.
+    const record = plan.logId != null ? undoRecordsRef.current.get(plan.logId) : null;
+    const canUndo = plan.canUndo && !!record && !undoneIdsRef.current.has(plan.logId);
     const dpd = p.doses_per_day || 1;
-    const times = p.reminder_time ? sortedDoseTimes(p).slice(0, dpd) : [];
-    const slotTime = times[slot == null ? 0 : slot] || null;
-    const nextTime = getNextTimeLabel(p);
+    const time = plan.dayKey === todayKey && Number.isFinite(plan.slotMs) ? formatTimeAMPM(new Date(plan.slotMs).toTimeString().slice(0, 5)) : null;
+    const partial = plan.dayKey === todayKey && dpd > 1 && (takenCounts[p.id] || 0) > 0
+      ? `${takenCounts[p.id] || 0}/${expectedDosesOn(p, new Date())} ${t('today_taken_partial')}` : null;
+    const stateLabel = plan.kind === 'taken' ? takenLabel : plan.kind === 'skipped' ? t('today_pending_skip') : t('log_missed');
     const { draw, syr } = doseDraw(p);
     return (
       <DosePage
         t={t}
         name={p.compound_id ? t(p.compound_id) : p.name}
         color={p.color}
-        time={slotTime ? formatTimeAMPM(slotTime) : null}
-        due={state === 'open' && slot === doseSlot(p) && isDoseDue(p)}
+        time={slotTimeLabel(plan.dayKey, plan.slotMs)}
+        due={plan.kind === 'due' && Number.isFinite(plan.slotMs)}
         doseLine={`${p.dose} ${p.dose_unit} · ${frequencyLabelFor(p.interval_days, t)}`}
         draw={draw}
         syringeSize={syr}
-        state={state}
-        partial={dpd > 1 ? { taken: takenCounts[p.id] || 0, needed: expectedDosesOn(p, new Date()) } : null}
-        takeLabel={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
+        kind={plan.kind}
+        canTake={plan.canTake}
+        canSkip={plan.canSkip}
+        canUndo={canUndo}
+        sub={pending ? t('today_pending_title') : partial}
+        stateLabel={stateLabel}
+        takeLabel={pending ? t('today_pending_take') : (dpd > 1 && time ? t('today_take_time').replace('{time}', time) : t('today_mark_taken'))}
         takenLabel={takenLabel}
+        skipLabel={pending ? t('today_pending_skip') : t('today_skip')}
         askFirst={needsSiteQuestion(p.type)}
-        resetKey={`${p.id}-${takenCounts[p.id] || 0}-${takeReset[p.id] || 0}`}
-        onTake={(rect) => handleTake(p, rect)}
-        onSkip={() => skipDose(p)}
+        resetKey={`${p.id}-${takenCounts[p.id] || 0}-${takeReset[p.id] || 0}-${plan.kind}`}
+        onTake={pending ? () => takePending(item) : (rect) => handleTake(p, rect)}
+        onSkip={pending ? () => skipPending(item) : () => skipDose(p)}
+        onUndo={() => undoFromPage(record)}
+        onOpenLog={() => bookSelect('log')}
         onOpenProtocol={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
       />
     );
@@ -1459,8 +1605,9 @@ export default function TodayScreen() {
     const lastSite = lastSiteByProtocol[p.id];
     const name = p.compound_id ? t(p.compound_id) : p.name;
     const { draw, syr } = doseDraw(p);
-    // BK-8: the dose open on the right page has an ink outline (book layout only).
-    const picked = book && pickedDoseId != null && String(pickedDoseId) === String(p.id);
+    // BK-8: the dose open on the right page has an ink outline (book layout only). The card is
+    // today's dose of this protocol; yesterday's pending slot is selected on its own row.
+    const picked = book && isPickedDose(p.id, todayKey);
     return (
       <View key={p.id} style={[s.dose, picked && s.dosePicked]}>
         <TouchableOpacity
@@ -1579,8 +1726,16 @@ export default function TodayScreen() {
           const at = nextDoseAt(p, takenCounts[p.id] || 0, new Date());
           const d = new Date(at);
           const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          // BK-16: in the book layout an upcoming dose opens on the right page, info only.
+          const pickedUp = book && isPickedDose(p.id, localDayKey(at));
           return (
-            <TouchableOpacity key={p.id} style={s.upRow} onPress={() => navigation.navigate('Protocols', { openProtocolId: p.id })} accessibilityRole="button">
+            <TouchableOpacity
+              key={p.id}
+              style={[s.upRow, pickedUp && s.upRowPicked]}
+              onPress={() => (book ? openUpcomingOnPage(p, at) : navigation.navigate('Protocols', { openProtocolId: p.id }))}
+              accessibilityRole="button"
+              accessibilityState={book ? { selected: pickedUp } : undefined}
+            >
               <Text style={s.upTime}>{key === 'n5' ? `${t(WEEKDAY_KEYS[d.getDay()])} ` : ''}{formatTimeAMPM(hhmm)}</Text>
               <View style={[s.ddot, { backgroundColor: p.color || colors.data }]} />
               <View style={s.upMain}>
@@ -1681,12 +1836,27 @@ export default function TodayScreen() {
               const when = t('today_pending_row')
                 .replace('{name}', name)
                 .replace('{time}', formatTimeAMPM(new Date(item.slotMs).toTimeString().slice(0, 5)));
+              // BK-16: in the book layout the row opens yesterday's dose on the right page.
+              const pickedPend = book && isPickedDose(item.protocolId, item.dayKey, item.slotMs);
               return (
-                <View key={`${item.protocolId}-${item.slotMs}`} style={s.pend}>
-                  <View style={s.pendRow}>
-                    <View style={s.adot} />
-                    <Text style={s.pendText}>{when}</Text>
-                  </View>
+                <View key={`${item.protocolId}-${item.slotMs}`} style={[s.pend, pickedPend && s.pendPicked]}>
+                  {book ? (
+                    <TouchableOpacity
+                      style={s.pendRow}
+                      activeOpacity={0.7}
+                      onPress={() => openDoseSlot(item.protocolId, item.dayKey, item.slotMs)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: pickedPend }}
+                    >
+                      <View style={s.adot} />
+                      <Text style={s.pendText}>{when}</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={s.pendRow}>
+                      <View style={s.adot} />
+                      <Text style={s.pendText}>{when}</Text>
+                    </View>
+                  )}
                   <View style={s.acts2}>
                     <TouchableOpacity style={s.btnSkip} onPress={() => skipPending(item)} accessibilityRole="button">
                       <Text style={s.btnSkipText}>{t('today_pending_skip')}</Text>
@@ -2126,6 +2296,9 @@ const todayV21Styles = (c) => ({
   // BK-8: the selected dose in the book layout — a 2 pt ink outline; the padding gives the
   // border's 2 pt back so the card does not move.
   dosePicked: { borderWidth: 2, borderColor: c.ink, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14 },
+  // BK-8 / BK-16: the same 2 pt ink outline on yesterday's pending row and an upcoming row.
+  pendPicked: { borderWidth: 2, borderColor: c.ink, padding: 14 },
+  upRowPicked: { borderWidth: 2, borderColor: c.ink, borderRadius: 14, paddingHorizontal: 10 },
   dtop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   ddot: { width: 9, height: 9, borderRadius: 5, marginTop: 8 },
   dinfo: { flex: 1, minWidth: 0, gap: 3 },

@@ -32,7 +32,11 @@ const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE
 // No back row (nothing to go back to) and no top safe-area edge (Today's safe area holds
 // it); everything else is the same screen. refreshKey: Today's dose counts, so a dose
 // taken or skipped on the left page shows here at once.
-export default function LogScreen({ embedded = false, refreshKey } = {}) {
+// onChanged (embedded, BK-19): this page changed a row (Missed → Taken / Skipped, a site), so
+// Today's cards, rings and Pending block refresh without switching tabs.
+// popupGate (embedded, BK-20): one popup at a time across both pages — the site editor waits
+// while a popup of Today's is open, and tells Today when it opens and closes.
+export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate } = {}) {
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -99,15 +103,38 @@ export default function LogScreen({ embedded = false, refreshKey } = {}) {
       updateDoseLog(logId, fields);
       requestSync();
       fetchLogs();
+      if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
     } catch { /* ignore */ }
   }
+
+  const gate = embedded && popupGate ? popupGate : null;
+  const gateRef = useRef(gate);
+  gateRef.current = gate;
+  const editorOpenRef = useRef(false);
+  function releasePopup() {
+    if (!editorOpenRef.current) return;
+    editorOpenRef.current = false;
+    if (gateRef.current) gateRef.current.closed();
+  }
+  // Leaving the right page with the editor open (another item picked, folded) frees Today's queue.
+  useEffect(() => () => {
+    if (gateRef.current) gateRef.current.wait(null); // a waiting editor of this page is dropped
+    releasePopup();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // mode 'edit': a saved dose's site. mode 'ask': a Missed dose about to become Taken.
   async function openSiteEditor(log, mode = 'edit') {
     // Oral supplements have no injection site — nothing to edit here.
     if (!['recon', 'rtu'].includes(log.protocols?.type)) return;
+    // BK-20: Today's site question / vial prompt / "still going?" is open or queued — the
+    // editor opens when it has closed. Claimed before the first await, so nothing slips in.
+    if (gate) {
+      if (gate.busy()) { gate.wait(() => openSiteEditor(log, mode)); return; }
+      gate.opened();
+      editorOpenRef.current = true;
+    }
     const user = await getCachedUser();
-    if (!user && mode !== 'ask') return;
+    if (!user && mode !== 'ask') { releasePopup(); return; }
     const since = new Date();
     since.setDate(since.getDate() - 30);
     const recent = user ? (getLogsSince(user.id, since.toISOString()) || []) : [];
@@ -130,6 +157,7 @@ export default function LogScreen({ embedded = false, refreshKey } = {}) {
     if (!plan.close) return;
     setBodyMapVisible(false);
     setBodyMapTarget(null);
+    releasePopup(); // BK-20: a question of Today's that waited may open now
     if (!tgt.logId) return;
     if (plan.commit) writeOutcome(tgt.logId, plan.writeSite ? { outcome: 'Taken', injection_site: stored } : { outcome: 'Taken' });
     else if (plan.writeSite) writeOutcome(tgt.logId, { injection_site: stored });
