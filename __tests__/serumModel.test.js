@@ -26,7 +26,8 @@ function oldMatchName(protocol) {
 }
 // fetchData: blend expansion + the charted list; the screen opens on active[0].
 function oldActive(rawAll, t) {
-  const BLEND_COLORS = ['#7F77DD', '#D85A30', '#0E8C8C', '#BA7517'];
+  // Palette B (2026-10-02): Lavender, Coral, Teal, Amber at their both-theme hexes.
+  const BLEND_COLORS = ['#756CD1', '#CE5025', '#098787', '#AC6900'];
   const raw = (rawAll || []).filter(p => ['recon', 'rtu'].includes(p.type));
   const expanded = [];
   for (const p of raw) {

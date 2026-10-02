@@ -16,6 +16,7 @@
 import { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../../lib/theme';
+import { displayColor } from '../../lib/protocolColors';
 import SyringeScale from './SyringeScale';
 import CheckMark from '../../components/CheckMark';
 import { lightHaptic } from '../../components/motion';
@@ -97,7 +98,7 @@ export default function DosePage({
           )}
         </View>
         <View style={s.titleRow}>
-          <View style={[s.dot, { backgroundColor: color || colors.data }]} />
+          <View style={[s.dot, { backgroundColor: displayColor(color) || colors.data }]} />
           <Text style={s.title} accessible accessibilityRole="header" accessibilityLabel={titleA11y}>{name}</Text>
         </View>
         <Text style={s.amt}>{doseLine}</Text>

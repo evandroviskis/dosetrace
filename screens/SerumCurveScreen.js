@@ -35,7 +35,9 @@ import { MONO } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { hasPremium } from '../lib/entitlement';
+import { displayColor } from '../lib/protocolColors';
 import CheckMark from '../components/CheckMark';
+import SegmentedBar from '../components/SegmentedBar';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 
@@ -389,7 +391,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       return {
         id: p.id,
         name: p.__label || (p.compound_id ? t(p.compound_id) : p.name),
-        color: p.color || colors.data,
+        color: displayColor(p.color) || colors.data,
         fromBlend: !!p.__blend,
         entry,
         points,
@@ -790,25 +792,15 @@ export default function SerumCurveScreen({ embedded = false }) {
               )}
             </Animated.View>
 
-            {/* Projection horizon (.segw.fill) */}
+            {/* Projection horizon: the shared bar */}
             <View style={s.fld}>
               <Text style={s.fldLabel}>{t('curve_project_ahead')}</Text>
-              <View style={s.segw}>
-                {FUTURE_PRESETS.map(d => {
-                  const on = futureDays === d;
-                  return (
-                    <TouchableOpacity
-                      key={d}
-                      style={[s.seg, on && s.segOn]}
-                      onPress={() => setFutureDays(d)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: on }}
-                    >
-                      <Text style={[s.segText, on && s.segTextOn]}>+{d}d</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <SegmentedBar
+                accessibilityLabel={t('curve_project_ahead')}
+                items={FUTURE_PRESETS.map(d => ({ key: d, label: `+${d}d` }))}
+                value={futureDays}
+                onChange={setFutureDays}
+              />
             </View>
           </View>
 
@@ -1014,7 +1006,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: on }}
                   >
-                    <View style={[s.dot, { backgroundColor: p.color || colors.data }]} />
+                    <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
                       <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
                       <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
@@ -1058,11 +1050,6 @@ function makeStyles(c) {
 
     fld: { gap: 8, marginTop: 6 },
     fldLabel: { fontSize: 13, color: c.ink2 },
-    segw: { flexDirection: 'row', padding: 3, gap: 2, borderRadius: 14, backgroundColor: c.well },
-    seg: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-    segOn: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line },
-    segText: { fontSize: 15, fontWeight: '500', color: c.ink2, fontVariant: ['tabular-nums'] },
-    segTextOn: { color: c.ink, fontWeight: '700' },
 
     curvestats: { flexDirection: 'row', gap: 8, backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16 },
     statCol: { flex: 1, minWidth: 0, gap: 4 },

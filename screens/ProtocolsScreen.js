@@ -34,6 +34,8 @@ import {
   getActiveProtocols, insertProtocol, updateProtocol,
   softDeleteProtocol, getProtocolById, getActiveVials,
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
+  getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
+  permanentlyDeleteProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
@@ -46,12 +48,14 @@ import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
+import SegmentedBar from '../components/SegmentedBar';
 import SyringeScale from './components/SyringeScale';
 import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from './components/ProtocolParts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
+import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -87,23 +91,6 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 // Free tier: max active protocols before Premium is required. If you change
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
 const FREE_PROTOCOL_LIMIT = 3;
-
-// The user's own protocol palette (DESIGN.md §2.4): a deliberately fixed set, shown
-// only as a dot or a swatch, never as a surface.
-const COLORS = [
-  '#185FA5','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#5DCAA5','#378ADD','#639922','#888780',
-  '#E24B4A','#2C2C2A','#0E8C8C','#6A3FB5','#C13A9E','#8A5A2B','#4C6E8F','#E0A500','#17B0B8','#A82E55',
-];
-
-const COLOR_NAMES = {
-  '#185FA5':'color_ocean','#1D9E75':'color_forest','#D85A30':'color_coral',
-  '#7F77DD':'color_lavender','#BA7517':'color_amber','#D4537E':'color_rose',
-  '#5DCAA5':'color_mint','#378ADD':'color_sky','#639922':'color_olive',
-  '#888780':'color_stone','#E24B4A':'color_red','#2C2C2A':'color_charcoal',
-  '#0E8C8C':'color_teal','#6A3FB5':'color_grape','#C13A9E':'color_magenta',
-  '#8A5A2B':'color_bronze','#4C6E8F':'color_slate','#E0A500':'color_gold',
-  '#17B0B8':'color_turquoise','#A82E55':'color_wine',
-};
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr',
@@ -228,25 +215,6 @@ function WInput({ s, c, style, onFocus, onBlur, ...props }) {
       onFocus={(e) => { setFocus(true); if (onFocus) onFocus(e); }}
       onBlur={(e) => { setFocus(false); if (onBlur) onBlur(e); }}
     />
-  );
-}
-
-// Segmented control on a well track; the chosen segment is raised with ink text.
-function Seg({ s, items, fill }) {
-  return (
-    <View style={[s.segw, fill && s.segwFill]} accessibilityRole="radiogroup">
-      {items.map(it => (
-        <TouchableOpacity
-          key={String(it.key)}
-          style={[s.segItem, fill && s.segItemFill, it.on && s.segItemOn]}
-          onPress={it.onPress}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: !!it.on }}
-        >
-          <Text style={[s.segText, it.on && s.segTextOn]} numberOfLines={1}>{it.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
   );
 }
 
@@ -623,7 +591,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
       accessibilityState={book ? { selected } : undefined}
     >
       <View style={s.pcardTop}>
-        <View style={[s.pdot, { backgroundColor: p.color || c.data }]} />
+        <View style={[s.pdot, { backgroundColor: displayColor(p.color) || c.data }]} />
         <View style={s.pcardInfo}>
           <Text style={s.pname}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.pmeta}>
@@ -747,7 +715,7 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
     <View style={s.detail}>
       <View style={s.ptitle}>
         <View style={s.ptitleRow}>
-          <View style={[s.ptitleDot, { backgroundColor: p.color || c.data }]} />
+          <View style={[s.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }]} />
           <Text style={s.ptitleMeta}>
             {sz ? `${sz} · ` : ''}{p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
           </Text>
@@ -843,6 +811,9 @@ export default function ProtocolsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const [protocols, setProtocols] = useState([]);
+  // Soft-deleted protocols still restorable (7 days): "Recently deleted" at the bottom of
+  // the list (prototype list(); moved here from Settings).
+  const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
   const [vialsByProtocol, setVialsByProtocol] = useState({});
@@ -874,7 +845,7 @@ export default function ProtocolsScreen() {
   // compoundId, so re-picking the SAME blend must not clear the recipe.
   const compositionForRef = useRef(null);
   const [type, setType] = useState('recon');
-  const [color, setColor] = useState('#185FA5');
+  const [color, setColor] = useState(DEFAULT_PROTOCOL_COLOR);
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('mg');
   const [water, setWater] = useState('2');
@@ -1126,7 +1097,46 @@ export default function ProtocolsScreen() {
     const byProtocol = {};
     for (const v of vials) if (!byProtocol[v.protocol_id]) byProtocol[v.protocol_id] = v;
     setVialsByProtocol(byProtocol);
+    fetchDeletedProtocols();
     setLoading(false);
+  }
+
+  // Recently deleted (moved from Settings with the founder-approved prototype, 2026-10-01).
+  async function fetchDeletedProtocols() {
+    const u = await getCachedUser();
+    if (!u) return;
+    setDeletedProtocols(getDeletedProtocols(u.id) || []);
+  }
+
+  function restoreProtocol(id) {
+    restoreProtocolDB(id);
+    const newestVial = getNewestVialForProtocol(id);
+    if (newestVial) updateVial(newestVial.id, { active: 1 });
+    const restored = getProtocolById(id);
+    if (restored) scheduleDoseReminder(restored).catch(() => {});
+    fetchProtocols();
+    notifyDataChanged('protocol'); // Today shows it again at once
+    requestSync();
+  }
+
+  // Permanently remove a soft-deleted protocol before the 7-day auto-purge.
+  // Irreversible, so it always goes through a confirm (main's "Delete permanently?").
+  function confirmPermanentDelete(p) {
+    setScreenSheet({
+      title: t('settings_delete_protocol_title'),
+      body: t('settings_delete_protocol_msg').replace('{name}', protocolName(p)),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        {
+          label: t('settings_delete_forever'), kind: 'danger',
+          onPress: () => {
+            permanentlyDeleteProtocol(p.id);
+            fetchProtocols();
+            requestSync();
+          },
+        },
+      ],
+    });
   }
 
   // Display name follows the user's language via the canonical compound key.
@@ -1160,7 +1170,7 @@ export default function ProtocolsScreen() {
   }
 
   function resetForm() {
-    setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor('#185FA5');
+    setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor(DEFAULT_PROTOCOL_COLOR);
     setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
     setIuInput(''); setIuOpen(false);
     setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
@@ -1230,7 +1240,7 @@ export default function ProtocolsScreen() {
     setEditingId(p.id);
     setName(p.name || ''); setCompoundId(p.compound_id || null);
     setSearchQuery(p.compound_id ? t(p.compound_id) : (p.name || ''));
-    setType(p.type || 'recon'); setColor(p.color || '#185FA5');
+    setType(p.type || 'recon'); setColor(displayColor(p.color) || DEFAULT_PROTOCOL_COLOR);
     setAmount(p.amount ? String(p.amount) : ''); setUnit(p.unit || 'mg');
     setWater(p.water ? String(p.water) : '2');
     if (p.diluent && DILUENT_TOKENS.includes(p.diluent) && p.diluent !== 'other') {
@@ -1870,6 +1880,37 @@ export default function ProtocolsScreen() {
       </TouchableOpacity>
     </View>
   );
+  // Prototype list(): "Recently deleted" at the bottom of the list, only when something was
+  // deleted. Each row: the protocol color as a 9 pt dot, the name, "Deleted Nd ago", a
+  // Restore pill and the risk-colored delete-forever trash (with its confirm).
+  const deletedSection = deletedProtocols.length > 0 ? (
+    <View style={s.blk}>
+      <Text style={s.secth}>{t('protocols_recently_deleted')}</Text>
+      <View style={s.delList}>
+        {deletedProtocols.map((p, idx) => (
+          <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
+            <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+            <View style={s.delText}>
+              <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
+              <Text style={s.delAgo}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
+            </View>
+            <TouchableOpacity onPress={() => restoreProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button">
+              <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => confirmPermanentDelete(p)}
+              accessibilityRole="button"
+              accessibilityLabel={t('settings_delete_forever')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={s.deleteForeverBtn}
+            >
+              <FeatureIcon name="trash" size={22} color={colors.risk} />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    </View>
+  ) : null;
 
   // Add step 3: the live result sits under the fields it depends on and appears only
   // once it can be computed (founder 2026-09-29).
@@ -1888,8 +1929,9 @@ export default function ProtocolsScreen() {
       <Text style={s.addBtnText}>{t('protocols_add')}</Text>
     </TouchableOpacity>
   );
+  // A unit choice sits beside its number field: the shared bar fills the other half of the row.
   const unitSeg = (units, value, setter, suffix = '') => (
-    <Seg s={s} items={units.map(u => ({ key: u, label: `${u}${suffix}`, on: value === u, onPress: () => setter(u) }))} />
+    <SegmentedBar style={s.unitBar} items={units.map(u => ({ key: u, label: `${u}${suffix}` }))} value={value} onChange={setter} />
   );
   const iosPicker = Platform.OS === 'ios';
 
@@ -1910,6 +1952,7 @@ export default function ProtocolsScreen() {
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
+                {deletedSection}
                 <View style={{ height: 40 }} />
               </ScrollView>
             </>
@@ -1970,7 +2013,7 @@ export default function ProtocolsScreen() {
                 <View style={s.heroNames}>
                   {protocols.map(p => (
                     <View key={p.id} style={s.heroNameRow}>
-                      <View style={[s.heroDot, { backgroundColor: p.color || colors.data }]} />
+                      <View style={[s.heroDot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                       <Text style={s.heroName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
                     </View>
                   ))}
@@ -2016,6 +2059,10 @@ export default function ProtocolsScreen() {
         {view === 'list' && protocols.length > 0 && sortPills}
 
         {view === 'list' && protocols.length > 0 && listCards}
+
+        {/* At the bottom of the list; with no protocol left it sits under the empty state,
+            so the last deleted protocol can still be restored. */}
+        {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && deletedSection}
 
         {view === 'detail' && renderDetail(openProtocol, false)}
 
@@ -2182,7 +2229,7 @@ export default function ProtocolsScreen() {
               // Colors already taken by *other* active protocols (exclude the one
               // being edited so its own color isn't flagged against itself).
               const usedColors = new Set(
-                protocols.filter(p => p.id !== editingId && p.color).map(p => p.color)
+                protocols.filter(p => p.id !== editingId && p.color).map(p => displayColor(p.color))
               );
               return (
                 <>
@@ -2193,11 +2240,11 @@ export default function ProtocolsScreen() {
                   <View style={s.prev}>
                     <View style={[s.prevDot, { backgroundColor: color }]} />
                     <Text style={s.prevName}>{name || t('protocols_your_compound')}</Text>
-                    <Text style={s.prevSub}>{t(COLOR_NAMES[color])}</Text>
+                    {colorNameKey(color) ? <Text style={s.prevSub}>{t(colorNameKey(color))}</Text> : null}
                   </View>
                   <View style={s.swatches}>
-                    {COLORS.map((col) => {
-                      const on = color === col;
+                    {PALETTE.map(({ hex: col }) => {
+                      const on = sameColor(color, col);
                       return (
                         <View key={col} style={s.swCell}>
                           <TouchableOpacity
@@ -2205,7 +2252,7 @@ export default function ProtocolsScreen() {
                             onPress={() => setColor(col)}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: on }}
-                            accessibilityLabel={t(COLOR_NAMES[col])}
+                            accessibilityLabel={t(colorNameKey(col))}
                           >
                             <View style={[s.sw, { backgroundColor: col }]} />
                             {usedColors.has(col) && <View style={s.usedMk} />}
@@ -2277,10 +2324,16 @@ export default function ProtocolsScreen() {
                     </Fld>
                     {['Capsule', 'Tablet', 'Softgel', 'Gummy'].includes(notes) && (
                       <Fld s={s} label={t('protocols_divisible_q')}>
-                        <Seg s={s} items={[
-                          { key: 'yes', label: t('protocols_divisible_yes'), on: divisible === true, onPress: () => setDivisible(divisible === true ? null : true) },
-                          { key: 'no', label: t('protocols_divisible_no'), on: divisible === false, onPress: () => setDivisible(divisible === false ? null : false) },
-                        ]} />
+                        {/* Optional: tapping the chosen answer clears it (as before). */}
+                        <SegmentedBar
+                          allowDeselect
+                          items={[
+                            { key: 'yes', label: t('protocols_divisible_yes') },
+                            { key: 'no', label: t('protocols_divisible_no') },
+                          ]}
+                          value={divisible === true ? 'yes' : divisible === false ? 'no' : null}
+                          onChange={(k) => setDivisible(k === 'yes' ? true : k === 'no' ? false : null)}
+                        />
                       </Fld>
                     )}
                     <Fld s={s} label={t('protocols_serving_strength')} hint={t('protocols_serving_strength_hint')}>
@@ -2389,11 +2442,15 @@ export default function ProtocolsScreen() {
                       );
                     })()}
                     <Fld s={s} label={t('protocols_syringe_size_label')}>
-                      <Seg s={s} fill items={[
-                        { label: '1 ml · 100u', val: 100 },
-                        { label: '0.5 ml · 50u', val: 50 },
-                        { label: '0.3 ml · 30u', val: 30 },
-                      ].map(sz => ({ key: sz.val, label: sz.label, on: syringeSize === sz.val, onPress: () => setSyringeSize(sz.val) }))} />
+                      <SegmentedBar
+                        items={[
+                          { key: 100, label: '1 ml · 100u' },
+                          { key: 50, label: '0.5 ml · 50u' },
+                          { key: 30, label: '0.3 ml · 30u' },
+                        ]}
+                        value={syringeSize}
+                        onChange={setSyringeSize}
+                      />
                     </Fld>
                   </>
                 )}
@@ -2489,10 +2546,14 @@ export default function ProtocolsScreen() {
 
                 {/* 1 — First dose: quick pick, then custom date below */}
                 <Fld s={s} label={t('protocols_first_dose')}>
-                  <Seg s={s} fill items={[
-                    { offset: 0, key: 'protocols_start_today' },
-                    { offset: 1, key: 'protocols_start_tomorrow' },
-                  ].map(opt => ({ key: opt.key, label: t(opt.key), on: isStartOn(opt.offset), onPress: () => setStartOffset(opt.offset) }))} />
+                  <SegmentedBar
+                    items={[
+                      { key: 0, label: t('protocols_start_today') },
+                      { key: 1, label: t('protocols_start_tomorrow') },
+                    ]}
+                    value={isStartOn(0) ? 0 : isStartOn(1) ? 1 : null}
+                    onChange={setStartOffset}
+                  />
                 </Fld>
                 {isStartOn(0) && dosesPerDay > 1 && <InfoBox s={s} text={t('protocols_first_dose_hint')} />}
 
@@ -2517,10 +2578,17 @@ export default function ProtocolsScreen() {
 
                 {/* 2 — Interval: every day, or Custom → type N days (any interval). */}
                 <Fld s={s} label={t('protocols_how_often')}>
-                  <Seg s={s} fill items={[
-                    { key: 'day', label: t('protocols_every_day'), on: !customIntervalOpen && intervalDays === 1, onPress: () => { setCustomIntervalOpen(false); handleIntervalChange(1); } },
-                    { key: 'custom', label: t('protocols_custom'), on: customIntervalOpen || intervalDays !== 1, onPress: () => { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); } },
-                  ]} />
+                  <SegmentedBar
+                    items={[
+                      { key: 'day', label: t('protocols_every_day') },
+                      { key: 'custom', label: t('protocols_custom') },
+                    ]}
+                    value={customIntervalOpen || intervalDays !== 1 ? 'custom' : 'day'}
+                    onChange={(k) => {
+                      if (k === 'day') { setCustomIntervalOpen(false); handleIntervalChange(1); }
+                      else { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); }
+                    }}
+                  />
                   {(customIntervalOpen || intervalDays !== 1) && (
                     <View style={s.inrow}>
                       <Text style={s.bodyInk}>{t('protocols_every_word')}</Text>
@@ -2546,12 +2614,14 @@ export default function ProtocolsScreen() {
                 {/* 3 — Doses per day (only for interval <= 2) */}
                 {intervalDays <= 2 && (
                   <Fld s={s} label={t('protocols_doses_per_day')}>
-                    <Seg s={s} fill items={[1, 2, 3].map(n => ({
-                      key: n,
-                      label: n === 1 ? t('protocols_once') : n === 2 ? t('protocols_twice') : t('protocols_three_times'),
-                      on: dosesPerDay === n,
-                      onPress: () => handleDosesPerDayChange(n),
-                    }))} />
+                    <SegmentedBar
+                      items={[1, 2, 3].map(n => ({
+                        key: n,
+                        label: n === 1 ? t('protocols_once') : n === 2 ? t('protocols_twice') : t('protocols_three_times'),
+                      }))}
+                      value={dosesPerDay}
+                      onChange={handleDosesPerDayChange}
+                    />
                   </Fld>
                 )}
 
@@ -2797,6 +2867,18 @@ const protocolsGraduated = (c) => ({
   sortLabel: { fontSize: 13, color: c.ink2 },
   blk: { gap: 10, marginBottom: 26 },
   secth: { paddingHorizontal: 4, fontSize: 15, fontWeight: '600', color: c.ink2 },
+  // Recently deleted (prototype .list / .li): one raised list, rows split by a hairline, the
+  // protocol color only as a 9 pt dot, Restore an outline pill, delete forever the risk trash.
+  delList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  delRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  delRowLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  delDot: { width: 9, height: 9, borderRadius: 5 },
+  delText: { flex: 1, gap: 2 },
+  delName: { fontSize: 17, color: c.ink },
+  delAgo: { fontSize: 13, color: c.ink2 },
+  restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
+  restoreBtnText: { fontSize: 13, fontWeight: '500', color: c.ink2 },
+  deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   pcard: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, gap: 10 },
   // Book layout (S-26 BK-8): every card keeps room for the outline; the open one is ink.
   pcardBook: { borderWidth: 2, borderColor: 'transparent' },
@@ -2926,13 +3008,7 @@ const protocolsGraduated = (c) => ({
   intervalInput: { width: 96, textAlign: 'center' },
   dayInput: { width: 96, textAlign: 'center' },
   validInput: { width: 110, textAlign: 'center' },
-  segw: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well, flexShrink: 1 },
-  segwFill: { flexWrap: 'nowrap', alignSelf: 'stretch' },
-  segItem: { minHeight: 42, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.well },
-  segItemFill: { flex: 1, paddingHorizontal: 4 },
-  segItemOn: { backgroundColor: c.raised, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
+  unitBar: { flex: 1, minWidth: 0, alignSelf: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, minHeight: 56 },
   stepperBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   stepperBtnText: { fontSize: 24, color: c.ink },

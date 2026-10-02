@@ -3,9 +3,10 @@
 // rendered stretched into tall columns. Cause: they sat in a horizontal ScrollView
 // between the fixed header and the SectionList; a ScrollView grows (flexGrow 1) and
 // shares the free height with the list, and its row children stretch to that height.
-// Guard: the pills are a plain wrapping row (prototype .pills), never inside a
-// horizontal ScrollView, and the row cannot grow. Also: the streak explanation sits at
-// the top of the Dose log (today-build-handoff.md item 15).
+// Guard: the filter is never inside a horizontal ScrollView, and it cannot grow. Since
+// founder 2026-10-02 (Q2 = B) the filter is the shared SegmentedBar (items={filters}).
+// Also: the streak explanation sits at the top of the Dose log (today-build-handoff.md
+// item 15).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -16,7 +17,8 @@ const FILE = process.env.DOSE_LOG_FILE || path.join(__dirname, '..', 'screens', 
 const src = fs.readFileSync(FILE, 'utf8');
 const ast = parser.parse(src, { sourceType: 'module', plugins: ['jsx'] });
 
-// Every JSX element that maps over `filters`, with the chain of its JSX ancestors.
+// Every JSX element that renders `filters` (a filters.map or items={filters}), with the
+// chain of its JSX ancestors.
 function filterMaps() {
   const hits = [];
   (function walk(node, ancestors) {
@@ -24,6 +26,9 @@ function filterMaps() {
     if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression'
       && node.callee.object.type === 'Identifier' && node.callee.object.name === 'filters'
       && node.callee.property.name === 'map') hits.push(ancestors.slice());
+    if (node.type === 'JSXAttribute' && node.name.name === 'items' && node.value
+      && node.value.type === 'JSXExpressionContainer' && node.value.expression.type === 'Identifier'
+      && node.value.expression.name === 'filters') hits.push(ancestors.slice());
     if (node.type === 'JSXElement') ancestors = ancestors.concat([node.openingElement]);
     for (const k of Object.keys(node)) {
       if (k === 'loc' || k === 'start' || k === 'end') continue;
@@ -35,15 +40,9 @@ function filterMaps() {
   return hits;
 }
 
-function styleBody(name) {
-  const m = src.match(new RegExp(`\\n\\s*${name}: \\{([^}]*)\\}`));
-  assert.ok(m, `style ${name} not found`);
-  return m[1];
-}
-
-test('A-63: the Dose log filter pills are not inside a horizontal ScrollView', () => {
+test('A-63: the Dose log filter is not inside a horizontal ScrollView', () => {
   const maps = filterMaps();
-  assert.ok(maps.length >= 1, 'the filter pills render from filters.map');
+  assert.ok(maps.length >= 1, 'the filter renders from filters');
   for (const chain of maps) {
     for (const el of chain) {
       const name = el.name.name;
@@ -53,12 +52,14 @@ test('A-63: the Dose log filter pills are not inside a horizontal ScrollView', (
   }
 });
 
-test('A-63: the pills row wraps and cannot grow into the list\'s height', () => {
-  const body = styleBody('pills');
-  assert.match(body, /flexDirection: 'row'/);
-  assert.match(body, /flexWrap: 'wrap'/);
-  assert.doesNotMatch(body, /flex(Grow)?: [1-9]/);
-  assert.doesNotMatch(styleBody('pill'), /flex(Grow)?: [1-9]|height: '100%'/);
+test('A-63: the filter bar cannot grow into the list\'s height', () => {
+  assert.match(src, /<SegmentedBar\b[^>]*items=\{filters\}/);
+  const bar = fs.readFileSync(path.join(__dirname, '..', 'components', 'SegmentedBar.js'), 'utf8');
+  const track = bar.match(/\n\s*track: \{([^}]*)\}/);
+  assert.ok(track, 'SegmentedBar track style');
+  assert.match(track[1], /flexDirection: 'row'/);
+  assert.doesNotMatch(track[1], /flex(Grow)?: [1-9]|height: '100%'/);
+  assert.doesNotMatch(bar, /<ScrollView/);
 });
 
 test('item 15: the streak explanation is shown on the Dose log', () => {

@@ -31,6 +31,7 @@ import { requestAIConsent } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import AccumulationHero from '../components/AccumulationHero';
+import SegmentedBar from '../components/SegmentedBar';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { MONO } from '../lib/fonts';
 import { friendlyError } from '../lib/friendlyError';
@@ -1091,19 +1092,11 @@ export default function BodyScreen({ navigation, route }) {
           <>
             <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
 
-            <View style={s.seg}>
-              {[['date', t('blood_view_by_date')], ['marker', t('blood_view_by_marker')]].map(([mode, label]) => (
-                <TouchableOpacity
-                  key={mode}
-                  style={[s.segBtn, viewMode === mode && s.segBtnOn]}
-                  onPress={() => setViewMode(mode)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: viewMode === mode }}
-                >
-                  <Text style={[s.segText, viewMode === mode && s.segTextOn]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SegmentedBar
+              items={[{ key: 'date', label: t('blood_view_by_date') }, { key: 'marker', label: t('blood_view_by_marker') }]}
+              value={viewMode}
+              onChange={setViewMode}
+            />
 
             <View style={s.controlsRow}>
               <View style={s.searchWrap}>
@@ -1787,11 +1780,6 @@ const labsGraduated = (c) => ({
   starBtn: { width: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -6, marginRight: -4 },
 
   // controls on the ground: segmented, search, pills
-  seg: { flexDirection: 'row', padding: 3, borderRadius: 14, backgroundColor: c.well, gap: 2 },
-  segBtn: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent' },
-  segBtnOn: { backgroundColor: c.raised, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   searchWrap: { flex: 1, justifyContent: 'center' },
   searchIcon: { position: 'absolute', left: 14, zIndex: 1 },

@@ -17,6 +17,7 @@ import FeatureIcon from './FeatureIcon';
 import CheckMark, { CrossMark } from './CheckMark';
 import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
+import { paletteHex } from '../lib/protocolColors';
 import {
   FX_W, eBack, kf, groupNum, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed,
   OkMark, Corners, ScanBeam, fmtDate,
@@ -289,9 +290,9 @@ function VaxFx({ c, t: tr, width, label, language }) {
 }
 
 /* ---- Protocols: the free plan's 3 slots, then as many as you run ---- */
-// Dots in the user protocol-colour palette (ProtocolsScreen COLORS) — deliberately
+// Dots in the user protocol-colour palette (lib/protocolColors) — deliberately
 // fixed, the same in both themes, shown only as dots (DESIGN.md §2.4).
-const PROTOCOL_DOTS = ['#1D9E75', '#D85A30', '#7F77DD', '#378ADD', '#BA7517', '#D4537E'];
+const PROTOCOL_DOTS = ['forest', 'coral', 'lavender', 'sky', 'amber', 'rose'].map(paletteHex);
 const SAMPLE_PROTOCOLS = ['BPC-157', 'TB-500', 'Testosterone Cypionate', 'Magnesium Bisglycinate', 'Vitamin D3', 'Semaglutide'];
 function ProtosFx({ c, t: tr, width, label }) {
   const H = 250, DUR = 5600;

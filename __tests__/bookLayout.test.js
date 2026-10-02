@@ -32,7 +32,8 @@ test('BK-3…BK-7: the default right page per tab', () => {
   assert.equal(defaultSelection('Protocols', { protocolIds: ['a', 'b'], openProtocolId: 'b' }), 'b', 'a deep link wins');
   assert.equal(defaultSelection('Journey'), 'progress');
   assert.equal(defaultSelection('Body', { newestReportKey: '2026-09-28|t1' }), '2026-09-28|t1');
-  assert.equal(defaultSelection('Settings'), 'notifications');
+  // Preferences ('account'), the first Settings group in the approved prototype (2026-10-01).
+  assert.equal(defaultSelection('Settings'), 'account');
 });
 
 test('BK-10: folding pushes only an item the user opened that lives on a stack screen', () => {

@@ -1,4 +1,4 @@
-import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { goalOptions } from '../lib/profileGoals';
 import LegalModal from '../components/LegalModal';
 import Constants from 'expo-constants';
@@ -17,6 +17,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -25,15 +26,15 @@ import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import RowChevron from '../components/RowChevron';
+import SegmentedBar from '../components/SegmentedBar';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
-  clearLocalDatabase, getDeletedProtocols as getLocalDeletedProtocols,
-  restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
-  updateVial, getProtocolById, permanentlyDeleteProtocol,
+  clearLocalDatabase,
 } from '../lib/database';
-import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
+import { stopSyncEngine, forceSync } from '../lib/sync';
 import { hasPremium } from '../lib/entitlement';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
@@ -55,34 +56,40 @@ const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
 
-// The Settings groups in screen order: the phone's collapsible sections and, on a wide
-// window (S-26 BK-7), the left page's list. Titles are the existing group-title strings.
+// The Settings groups in screen order (founder-approved Graduated prototype, settingsScreen():
+// Preferences, Notifications, Data & privacy, Support): the phone's group cards and, on a wide
+// window (S-26 BK-7), the left page's list. Each card shows its name and a one-line summary of
+// what is inside. Sign out / Delete account are not a group: they sit in their own card below.
+// Recently deleted protocols live at the bottom of the Protocols list, not here.
 const SETTINGS_GROUPS = [
-  { key: 'notifications', labelKey: 'settings_notifications' },
-  { key: 'privacy', labelKey: 'settings_data_privacy' },
-  { key: 'support', labelKey: 'settings_support' },
-  { key: 'deleted', labelKey: 'settings_recently_deleted' },
-  { key: 'account', labelKey: 'settings_account_prefs' },
+  { key: 'account', labelKey: 'settings_preferences', sumKey: 'settings_sum_prefs' },
+  { key: 'notifications', labelKey: 'settings_notifications', sumKey: 'settings_sum_notif' },
+  { key: 'privacy', labelKey: 'settings_data_privacy', sumKey: 'settings_sum_privacy' },
+  { key: 'support', labelKey: 'settings_support', sumKey: 'settings_sum_support' },
 ];
 
-// Recently deleted protocols only shows while there is something to restore.
-function groupVisible(key, deletedCount) {
-  return key !== 'deleted' || deletedCount > 0;
-}
-
-// The group on the right page: the chosen one, or Notifications (the default, BK-7) when
-// the choice is unknown or no longer shown (the last deleted protocol was restored).
-function bookGroup(sel, deletedCount) {
-  return SETTINGS_GROUPS.some((g) => g.key === sel) && groupVisible(sel, deletedCount) ? sel : 'notifications';
+// The group on the right page: the chosen one, or Preferences (the first group, the default,
+// BK-7) when the choice is unknown.
+function bookGroup(sel) {
+  return SETTINGS_GROUPS.some((g) => g.key === sel) ? sel : 'account';
 }
 
 // BK-10, folding: the group the user opened on the right page opens in the one-column
 // list. Only that key changes; every other remembered open/closed state is kept. A
 // default nobody chose changes nothing.
-function foldCollapsed(collapsed, { sel, explicit, deletedCount }) {
-  if (!explicit || !SETTINGS_GROUPS.some((g) => g.key === sel) || !groupVisible(sel, deletedCount)) return collapsed;
+function foldCollapsed(collapsed, { sel, explicit }) {
+  if (!explicit || !SETTINGS_GROUPS.some((g) => g.key === sel)) return collapsed;
   if (collapsed[sel] === false) return collapsed;
   return { ...collapsed, [sel]: false };
+}
+
+// The group card's arrow (prototype DOWN / UP), drawn in the theme's ink.
+function GroupChevron({ dir, color }) {
+  return (
+    <Svg width={16} height={10} viewBox="0 0 16 10">
+      <Path d={dir === 'up' ? 'M2 8l6-6 6 6' : 'M2 2l6 6 6-6'} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
 export default function SettingsScreen({ navigation }) {
@@ -115,12 +122,11 @@ export default function SettingsScreen({ navigation }) {
   const [primaryGoals, setPrimaryGoals] = useState([]);
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
-  const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   // Collapsible Settings sections (remembered). All start collapsed — the user
   // opens only what they need, so the screen stays clean.
-  const ALL_COLLAPSED = { notifications: true, privacy: true, support: true, deleted: true, account: true };
+  const ALL_COLLAPSED = { account: true, notifications: true, privacy: true, support: true };
   const [collapsed, setCollapsed] = useState(ALL_COLLAPSED);
 
   useEffect(() => {
@@ -138,9 +144,10 @@ export default function SettingsScreen({ navigation }) {
   }
 
   // S-26 book layout: two pages on a wide window (BK-1), today's one column otherwise (BK-2).
-  // The open group is kept per tab while the app is open (BK-8); Notifications by default.
+  // The open group is kept per tab while the app is open (BK-8); Preferences (the first
+  // group) by default.
   const book = useBook();
-  const { sel, explicit, select } = useBookSelection('Settings', 'notifications');
+  const { sel, explicit, select } = useBookSelection('Settings', 'account');
   const wasBook = useRef(book);
   const phoneScrollRef = useRef(null);
   const headerY = useRef({});
@@ -152,7 +159,7 @@ export default function SettingsScreen({ navigation }) {
     if (wasBook.current && !book) {
       const target = sel;
       setCollapsed(prev => {
-        const next = foldCollapsed(prev, { sel: target, explicit, deletedCount: deletedProtocols.length });
+        const next = foldCollapsed(prev, { sel: target, explicit });
         if (next !== prev) AsyncStorage.setItem('dosetrace_settings_collapsed', JSON.stringify(next)).catch(() => {});
         return next;
       });
@@ -179,24 +186,9 @@ export default function SettingsScreen({ navigation }) {
     if (foldTarget.current === key) scrollToSection(key);
   }
 
-  function renderSectionHeader(labelKey, sectionKey) {
-    return (
-      <TouchableOpacity
-        style={s.sectionHeaderRow}
-        activeOpacity={0.6}
-        onPress={() => toggleSection(sectionKey)}
-        onLayout={(e) => onSectionHeaderLayout(sectionKey, e)}
-      >
-        <Text style={s.sectionLabel}>{t(labelKey)}</Text>
-        <Text style={s.sectionChevron}>{collapsed[sectionKey] ? '▸' : '▾'}</Text>
-      </TouchableOpacity>
-    );
-  }
-
   useFocusEffect(
     useCallback(() => {
       fetchUser();
-      fetchDeletedProtocols();
     }, [])
   );
 
@@ -530,45 +522,6 @@ export default function SettingsScreen({ navigation }) {
     catch { await supabase.auth.signOut().catch(() => {}); }
   }
 
-  async function fetchDeletedProtocols() {
-    const u = await getCachedUser();
-    if (!u) return;
-    setDeletedProtocols(getLocalDeletedProtocols(u.id) || []);
-  }
-
-  function restoreProtocol(id) {
-    restoreProtocolDB(id);
-    const newestVial = getNewestVialForProtocol(id);
-    if (newestVial) updateVial(newestVial.id, { active: 1 });
-    const restored = getProtocolById(id);
-    if (restored) {
-      import('../lib/notifications').then(n => n.scheduleDoseReminder(restored)).catch(() => {});
-    }
-    fetchDeletedProtocols();
-    requestSync();
-  }
-
-  // Permanently remove a soft-deleted protocol before the 7-day auto-purge.
-  // Irreversible, so it always goes through a confirm dialog.
-  function confirmPermanentDelete(p) {
-    Alert.alert(
-      t('settings_delete_protocol_title'),
-      t('settings_delete_protocol_msg').replace('{name}', p.name),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('settings_delete_forever'),
-          style: 'destructive',
-          onPress: () => {
-            permanentlyDeleteProtocol(p.id);
-            fetchDeletedProtocols();
-            requestSync();
-          },
-        },
-      ]
-    );
-  }
-
   function handleContactSupport() {
     Linking.openURL('mailto:hello@dosetrace.io?subject=DoseTrace Support');
   }
@@ -617,7 +570,7 @@ export default function SettingsScreen({ navigation }) {
             ) : null}
           </View>
         </View>
-        <Text style={s.rowArrow}>›</Text>
+        <RowChevron color={colors.tick} />
       </TouchableOpacity>
     );
   }
@@ -662,10 +615,10 @@ export default function SettingsScreen({ navigation }) {
 
   function renderNotificationsBody() {
     return (
-      <View style={s.group}>
+      <>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
+            <FeatureIcon name="bell" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
               <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
@@ -678,7 +631,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
+            <FeatureIcon name="chat" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
               <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
@@ -691,7 +644,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="food" size={20} color={colors.text} /></View>
+            <FeatureIcon name="food" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
               <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
@@ -704,7 +657,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+            <FeatureIcon name="lock" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_notif_names')}</Text>
               <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
@@ -717,7 +670,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
+            <FeatureIcon name="type_vial" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
               <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
@@ -730,7 +683,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
+            <FeatureIcon name="mute" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_silent')}</Text>
               <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
@@ -743,7 +696,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={[s.row, { borderBottomWidth: 0 }]}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
+            <FeatureIcon name="repeat" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
               <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
@@ -765,46 +718,46 @@ export default function SettingsScreen({ navigation }) {
             }}
           >
             <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.accent} /></View>
+              <FeatureIcon name="help" size={28} color={colors.ink} />
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
               </View>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <RowChevron color={colors.tick} />
           </TouchableOpacity>
         )}
-      </View>
+      </>
     );
   }
 
   function renderPrivacyBody() {
     return (
-      <View style={s.group}>
+      <>
         <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+            <FeatureIcon name="lock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
+            <FeatureIcon name="clipboard" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_terms')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
+            <FeatureIcon name="shield" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
+            <FeatureIcon name="calc_bars" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
               <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
@@ -821,13 +774,13 @@ export default function SettingsScreen({ navigation }) {
           disabled={exporting}
         >
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
+            <FeatureIcon name="calc_trend" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
               <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
             </View>
           </View>
-          <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+          {exporting ? <Text style={s.rowArrow}>...</Text> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
@@ -835,176 +788,164 @@ export default function SettingsScreen({ navigation }) {
           disabled={exporting}
         >
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
+            <FeatureIcon name="download" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
               <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
             </View>
           </View>
-          <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+          {exporting ? <Text style={s.rowArrow}>...</Text> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
-      </View>
+      </>
     );
   }
 
   function renderSupportBody() {
     return (
-      <View style={s.group}>
+      <>
         <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
+            <FeatureIcon name="help" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_faq')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={handleContactSupport}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
+            <FeatureIcon name="mail" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_contact')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
           onPress={handleRateApp}
         >
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
+            <FeatureIcon name="star" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_rate')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
-      </View>
+      </>
     );
   }
 
-  function renderDeletedBody() {
-    return (
-      <View style={s.group}>
-        {deletedProtocols.map((p, idx) => {
-          const isLast = idx === deletedProtocols.length - 1;
-          return (
-            <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
-              <View style={s.rowLeft}>
-                {/* The user's protocol color, only as a 9 pt dot (DESIGN.md §2.4). */}
-                <View style={[s.deletedDot, { backgroundColor: p.color || colors.ink3 }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rowLabel}>{p.name}</Text>
-                  <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
-                </View>
-              </View>
-              <View style={s.deletedActions}>
-                <TouchableOpacity
-                  onPress={() => restoreProtocol(p.id)}
-                  style={s.restoreBtn}
-                >
-                  <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => confirmPermanentDelete(p)}
-                  accessibilityLabel={t('settings_delete_forever')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={s.deleteForeverBtn}
-                >
-                  <FeatureIcon name="trash" size={20} color={colors.risk} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    );
-  }
-
+  // Preferences (prototype: Appearance, Time format, Language). Sign out and Delete account
+  // are not here any more: they have their own card under the groups.
   function renderAccountBody() {
     return (
-      <View style={s.group}>
-        <View style={s.row}>
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
+      <>
+        <View style={s.setStack}>
+          <View style={s.setStackHead}>
+            <FeatureIcon name="palette" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
           </View>
-          <View style={s.themePillRow}>
-            {[
+          <SegmentedBar
+            accessibilityLabel={t('settings_appearance')}
+            items={[
               { key: 'light', label: t('settings_theme_light') },
               { key: 'dark', label: t('settings_theme_dark') },
               { key: 'system', label: t('settings_theme_system') },
-            ].map(o => (
-              <TouchableOpacity
-                key={o.key}
-                style={[s.themePill, mode === o.key && s.themePillOn]}
-                onPress={() => setMode(o.key)}
-              >
-                <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
         </View>
-        <View style={s.row}>
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
+        <View style={s.setStack}>
+          <View style={s.setStackHead}>
+            <FeatureIcon name="clock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
           </View>
-          <View style={s.themePillRow}>
-            {[
+          <SegmentedBar
+            accessibilityLabel={t('settings_time_format')}
+            items={[
               { key: 'auto', label: t('settings_time_auto') },
               { key: '12h', label: t('settings_time_12h') },
               { key: '24h', label: t('settings_time_24h') },
-            ].map(o => (
-              <TouchableOpacity
-                key={o.key}
-                style={[s.themePill, timeFormat === o.key && s.themePillOn]}
-                onPress={() => setTimeFormat(o.key)}
-              >
-                <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            ]}
+            value={timeFormat}
+            onChange={setTimeFormat}
+          />
         </View>
-        <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={() => setShowLanguagePicker(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
+            <FeatureIcon name="globe" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_language')}</Text>
               <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
             </View>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.row} onPress={handleSignOut}>
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
-            <Text style={s.rowLabel}>{t('settings_signout')}</Text>
-          </View>
-          <Text style={s.rowArrow}>›</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.row, { borderBottomWidth: 0 }]}
-          onPress={handleDeleteAccount}
-        >
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
-            <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
-          </View>
-          <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
-        </TouchableOpacity>
-      </View>
+      </>
     );
   }
 
   const GROUP_BODIES = {
+    account: renderAccountBody,
     notifications: renderNotificationsBody,
     privacy: renderPrivacyBody,
     support: renderSupportBody,
-    deleted: renderDeletedBody,
-    account: renderAccountBody,
   };
   function renderGroupBody(key) {
     const fn = GROUP_BODIES[key];
     return fn ? fn() : null;
   }
 
-  // BK-2: one column = exactly today's Settings (collapsible, remembered sections).
+  // Prototype setSection(): one card per group. The header carries the group name, a one-line
+  // summary of what is inside and a round arrow; the rows open inside the same card. Open /
+  // closed is remembered (all closed at first).
+  function renderGroupCard(g) {
+    const open = !collapsed[g.key];
+    return (
+      <View key={g.key} style={s.setCard}>
+        <TouchableOpacity
+          style={[s.setHead, open && s.setHeadOpen]}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          onPress={() => toggleSection(g.key)}
+          onLayout={(e) => onSectionHeaderLayout(g.key, e)}
+        >
+          <View style={s.setHeadText}>
+            <Text style={s.setTitle}>{t(g.labelKey)}</Text>
+            <Text style={s.setSum}>{t(g.sumKey)}</Text>
+          </View>
+          <View style={s.setChev}>
+            <GroupChevron dir={open ? 'up' : 'down'} color={colors.ink} />
+          </View>
+        </TouchableOpacity>
+        {open && renderGroupBody(g.key)}
+      </View>
+    );
+  }
+
+  // Prototype: Sign out, then Delete account (risk color), alone in their own card under the
+  // groups, on both layouts.
+  function renderAccountActions() {
+    return (
+      <View style={s.actionsCard}>
+        <TouchableOpacity style={s.row} onPress={handleSignOut} accessibilityRole="button">
+          <View style={s.rowLeft}>
+            <FeatureIcon name="door" size={28} color={colors.ink} />
+            <Text style={s.rowLabel}>{t('settings_signout')}</Text>
+          </View>
+          <RowChevron color={colors.tick} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount} accessibilityRole="button">
+          <View style={s.rowLeft}>
+            <FeatureIcon name="trash" size={28} color={colors.risk} />
+            <Text style={[s.rowLabel, { color: colors.risk }]}>{t('settings_delete')}</Text>
+          </View>
+          <RowChevron color={colors.risk} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // BK-2: one column = the approved Settings (prototype settingsScreen()): title, profile,
+  // Premium (free users), the four group cards, the Sign out / Delete account card, version.
   function renderPhone() {
     return (
       <>
@@ -1016,12 +957,11 @@ export default function SettingsScreen({ navigation }) {
           {renderProfileCard()}
           {renderPremiumCard()}
 
-          {SETTINGS_GROUPS.filter(g => groupVisible(g.key, deletedProtocols.length)).map(g => (
-            <Fragment key={g.key}>
-              {renderSectionHeader(g.labelKey, g.key)}
-              {!collapsed[g.key] && renderGroupBody(g.key)}
-            </Fragment>
-          ))}
+          <View style={s.setCards}>
+            {SETTINGS_GROUPS.map(g => renderGroupCard(g))}
+          </View>
+
+          {renderAccountActions()}
 
           {renderVersionFooter()}
 
@@ -1031,10 +971,11 @@ export default function SettingsScreen({ navigation }) {
     );
   }
 
-  // BK-7: left page = title, profile, Premium (free users), the group list with the open
-  // group outlined in ink (BK-8), and the version; right page = that group, always open.
+  // BK-7: left page = title, profile, Premium (free users), the group list in the same order
+  // with the open group outlined in ink (BK-8), the Sign out / Delete account card and the
+  // version; right page = that group, always open.
   function renderBook() {
-    const open = bookGroup(sel, deletedProtocols.length);
+    const open = bookGroup(sel);
     const openGroup = SETTINGS_GROUPS.find(g => g.key === open);
     const left = (
       <>
@@ -1045,7 +986,7 @@ export default function SettingsScreen({ navigation }) {
           {renderProfileCard()}
           {renderPremiumCard()}
           <View style={s.bookNav}>
-            {SETTINGS_GROUPS.filter(g => groupVisible(g.key, deletedProtocols.length)).map(g => {
+            {SETTINGS_GROUPS.map(g => {
               const on = g.key === open;
               return (
                 <TouchableOpacity
@@ -1056,12 +997,16 @@ export default function SettingsScreen({ navigation }) {
                   accessibilityState={{ selected: on }}
                   onPress={() => select(g.key)}
                 >
-                  <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
-                  <Text style={s.rowArrow}>›</Text>
+                  <View style={s.setHeadText}>
+                    <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
+                    <Text style={s.setSum} numberOfLines={2}>{t(g.sumKey)}</Text>
+                  </View>
+                  <RowChevron color={colors.tick} />
                 </TouchableOpacity>
               );
             })}
           </View>
+          {renderAccountActions()}
           {renderVersionFooter()}
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1073,7 +1018,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
-          {renderGroupBody(open)}
+          <View style={s.group}>{renderGroupBody(open)}</View>
           <View style={{ height: 40 }} />
         </ScrollView>
       </>
@@ -1229,22 +1174,15 @@ export default function SettingsScreen({ navigation }) {
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_sex')}</Text>
               {/* Two options → a segmented well (prototype profSheet), same values. */}
-              <View style={s.seg}>
-                {[
+              <SegmentedBar
+                accessibilityLabel={t('profile_sex')}
+                items={[
                   { key: 'male', label: t('profile_gender_male') },
                   { key: 'female', label: t('profile_gender_female') },
-                ].map(g => (
-                  <TouchableOpacity
-                    key={g.key}
-                    style={[s.segItem, gender === g.key && s.segItemOn]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: gender === g.key }}
-                    onPress={() => setGender(g.key)}
-                  >
-                    <Text style={[s.segText, gender === g.key && s.segTextOn]}>{g.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                ]}
+                value={gender}
+                onChange={setGender}
+              />
               <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
             </View>
 
@@ -1258,7 +1196,7 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={[s.editPickText, !country && s.editPickPlaceholder]} numberOfLines={1}>
                   {country ? countryLabel(country, language) : t('profile_country_placeholder')}
                 </Text>
-                <Text style={s.rowArrow}>›</Text>
+                <RowChevron color={colors.tick} />
               </TouchableOpacity>
             </View>
 
@@ -1324,22 +1262,15 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_provider')}</Text>
-              <View style={s.seg}>
-                {[
+              <SegmentedBar
+                accessibilityLabel={t('profile_provider')}
+                items={[
                   { key: 'yes', label: t('profile_provider_yes') },
                   { key: 'no', label: t('profile_provider_no') },
-                ].map(p => (
-                  <TouchableOpacity
-                    key={p.key}
-                    style={[s.segItem, hasProvider === p.key && s.segItemOn]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: hasProvider === p.key }}
-                    onPress={() => setHasProvider(p.key)}
-                  >
-                    <Text style={[s.segText, hasProvider === p.key && s.segTextOn]}>{p.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                ]}
+                value={hasProvider}
+                onChange={setHasProvider}
+              />
             </View>
 
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
@@ -1432,24 +1363,14 @@ const settingsLegacy = (c) => ({
   premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
   premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
-  sectionChevron: { fontSize: 12, color: c.textFaint },
   group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
-  rowIconBox: { width: 28, alignItems: 'center' },
   rowLabel: { fontSize: 14, color: c.text },
   rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
   rowArrow: { fontSize: 18, color: c.textFaint },
   version: { textAlign: 'center', fontSize: 11, color: c.textFaint, marginTop: 24, lineHeight: 18 },
   // Theme toggle
-  themePillRow: { flexDirection: 'row', gap: 8 },
-  themePill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  themePillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
-  themePillText: { fontSize: 13, color: c.text, fontWeight: '600' },
-  themePillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
@@ -1478,34 +1399,33 @@ const settingsGraduated = (c) => ({
   premiumFeatText: { fontSize: 15, color: c.ink, flex: 1 },
   premiumBtn: { backgroundColor: c.act, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   premiumBtnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
-  sectionLabel: { fontSize: 17, fontWeight: '600', color: c.ink, letterSpacing: 0, textTransform: 'none' },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 20, marginRight: 20, marginTop: 22, marginBottom: 10, minHeight: 32 },
-  sectionChevron: { fontSize: 14, color: c.ink3 },
   group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 60, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+  // Prototype .list (padding 0 16) + .li: rows and their 1 pt dividers sit inside the card margin.
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginHorizontal: 16, paddingHorizontal: 0, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.line },
   rowLabel: { fontSize: 17, color: c.ink },
   rowSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
   rowArrow: { fontSize: 20, color: c.tick },
   version: { textAlign: 'center', fontSize: 13, color: c.ink3, marginTop: 24, lineHeight: 18 },
-  // Main-list leftovers that still drew the old tells: a selected theme / time pill
-  // was a blue outline on a tint, the goal badge a tinted chip. Selection = 1.5 pt ink
-  // outline on raised; tags = outline, like the plan badge.
-  themePill: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 18, backgroundColor: 'transparent', borderWidth: 1, borderColor: c.line },
-  themePillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
-  themePillText: { fontSize: 13, color: c.ink2, fontWeight: '500' }, // 13 keeps the three pills beside the label at 390 pt (as main)
-  themePillTextOn: { color: c.ink, fontWeight: '600' },
   profileName: { fontSize: 22, fontWeight: '600', color: c.ink, marginBottom: 2 },
   goalBadge: { borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 13, flexShrink: 1 },
   goalBadgeText: { fontSize: 12, color: c.ink2, fontWeight: '500' },
 
-  // Recently deleted protocols (inside the group card): the protocol color only as a
-  // 9 pt dot; Restore is a secondary outline capsule in ink (no blue tint); delete
-  // forever stays the risk-colored trash.
-  deletedDot: { width: 9, height: 9, borderRadius: 4.5 },
-  deletedActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
-  restoreBtnText: { fontSize: 15, fontWeight: '600', color: c.ink },
-  deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  // Group cards (prototype .setcard / .setsec / .setchev): one raised card per group; the
+  // header holds the name (headline), a one-line summary (footnote, ink2) and the arrow in a
+  // 36 pt round well; when open a hairline separates the header from the rows inside.
+  setCards: { marginHorizontal: 16, marginTop: 14, gap: 10 },
+  setCard: { backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
+  setHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, marginHorizontal: 16, paddingHorizontal: 0, paddingVertical: 6 },
+  // Prototype .setstack: the label row (52 pt, no divider) and under it the full-width bar.
+  setStack: { marginHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: c.line },
+  setStackHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+  setHeadOpen: { borderBottomWidth: 1, borderBottomColor: c.line },
+  setHeadText: { flex: 1, gap: 3 },
+  setTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+  setSum: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  setChev: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
+  // Sign out / Delete account: their own card under the groups (prototype S-out).
+  actionsCard: { marginHorizontal: 16, marginTop: 18, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
 
   // Book layout (S-26 BK-7/BK-8): the left page lists the groups as raised rows; the open
   // one carries the 1.5 pt ink outline (selection, DESIGN.md) and a semibold label. The
@@ -1514,7 +1434,7 @@ const settingsGraduated = (c) => ({
   bookNav: { marginHorizontal: 16, marginTop: 14, gap: 8 },
   bookNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 60, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18, backgroundColor: c.raised, borderWidth: 1.5, borderColor: 'transparent' },
   bookNavRowOn: { borderColor: c.ink },
-  bookNavLabel: { flex: 1, fontSize: 17, fontWeight: '400', color: c.ink },
+  bookNavLabel: { fontSize: 17, fontWeight: '400', color: c.ink },
   bookNavLabelOn: { fontWeight: '600' },
   bookPageTitle: { fontSize: 28, lineHeight: 41, fontWeight: '700', color: c.ink, letterSpacing: -0.4 },
   bookRightBody: { paddingTop: 12 },
@@ -1570,10 +1490,5 @@ const settingsGraduated = (c) => ({
   editPillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
   editPillText: { fontSize: 15, color: c.ink2, fontWeight: '400' },
   editPillTextOn: { color: c.ink, fontWeight: '600' },
-  seg: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well },
-  segItem: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent' },
-  segItemOn: { backgroundColor: c.raised, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
   editDisclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3, marginTop: 24, paddingHorizontal: 4 },
 });

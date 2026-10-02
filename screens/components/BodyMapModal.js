@@ -4,10 +4,13 @@
  *
  * Bottom sheet on the founder's body images: Subcutaneous shows Front / Back, Intramuscular
  * shows Right side / Left side; the figure follows the profile's "Sex at birth" (male when
- * unknown). Under the image, a named list: one row per area with Left / Right buttons, and
- * "Somewhere else" for a site in the user's own words (stored as plain text, the existing
- * free-text format). Several sites can be picked. "Longest unused in your log" recalls the
- * user's own log (hidden until a site is logged); it is not advice.
+ * unknown). Under the image, a named list: one row per area with the shared bar
+ * Right | Left | Both (founder 2026-10-02, Q1 = C; tapping the chosen side clears the area),
+ * and "Somewhere else" for a site in the user's own words (stored as plain text, the existing
+ * free-text format). Several areas can be picked; a dose still stores a list of site ids
+ * (Both = the area's two side ids), and the figure's dots and the bars show the same list.
+ * "Longest unused in your log" recalls the user's own log (hidden until a site is logged);
+ * it is not advice.
  *
  * Points per sex and view, the list, the recall and the opening route are pure:
  * lib/bodySites.js. Stored site ids (lib/injectionSites.js) never change.
@@ -59,6 +62,8 @@ import {
   imageKey,
   siteOn,
   toggleSite,
+  areaSide,
+  setAreaSide,
   figurePoints,
   listRows,
   siteLongest,
@@ -66,6 +71,7 @@ import {
   storedType,
 } from '../../lib/bodySites';
 import CheckMark, { CrossMark } from '../../components/CheckMark';
+import SegmentedBar from '../../components/SegmentedBar';
 
 // The founder's images (assets/body, @2x 600 x 750 and @3x 768 x 960).
 const BODY_IMAGES = {
@@ -83,35 +89,6 @@ const BODY_IMAGES = {
 // (prototype --figInk / --figDot / --figSel / --figOnSel). Everything else is themed.
 const FIG = { ink: '#111315', dot: '#FFFFFF', sel: '#2350D8', onSel: '#FFFFFF' };
 
-// New copy proposed for item 27 (not in i18n/translations.js yet). Each one is read through
-// t() first, so it switches to the translation as soon as its key exists; until then the
-// English placeholder shows. Guarded in this one place.
-const PROPOSED_COPY = {
-  bodymap_right_side: 'Right side',
-  bodymap_left_side: 'Left side',
-  bodymap_your_right: 'Your right',
-  bodymap_your_left: 'Your left',
-  bodymap_side_right: 'Right',
-  bodymap_side_left: 'Left',
-  bodymap_area_abdomen_upper: 'Abdomen, upper',
-  bodymap_area_abdomen_lower: 'Abdomen, lower',
-  bodymap_area_thigh_front: 'Thigh, front',
-  bodymap_area_arm_back: 'Back of upper arm',
-  bodymap_area_glute_dimple: 'Upper buttock',
-  bodymap_area_thigh_back: 'Thigh, back',
-  bodymap_area_vastus: 'Vastus lateralis',
-  bodymap_somewhere_else: 'Somewhere else',
-  bodymap_type_it_in: 'Type it in',
-  bodymap_where_label: 'Where? (your words)',
-  bodymap_where_placeholder: 'e.g. right calf',
-  bodymap_saved_text: 'Saved earlier as text:',
-  bodymap_saved_text_kept: 'Kept as it is unless you pick a spot or tap Remove site.',
-  bodymap_longest_in_log: 'Longest unused in your log:',
-  bodymap_not_in_log: 'not in your log yet',
-  bodymap_used_today: 'last used today',
-  bodymap_used_1_day: 'last used 1 day ago',
-  bodymap_used_n_days: 'last used {days} days ago',
-};
 // Areas whose name already exists in 6 languages (group_*).
 const AREA_EXISTING = { flank: 'group_flank', deltoid: 'group_deltoid', ventroglute: 'group_ventroglute', dorsoglute: 'group_dorsoglute' };
 
@@ -139,7 +116,6 @@ export default function BodyMapModal({
   // user sees what is stored; it is kept unless they pick a spot (A-55).
   const freeText = parseStored(initialStored).freeText;
   const hasSavedSite = siteIsSaved(initialStored);
-  const tx = (key) => { const v = t(key); return v === key ? (PROPOSED_COPY[key] || key) : v; };
 
   const [type, setType] = useState('subq');
   const [view, setView] = useState('front');
@@ -192,6 +168,14 @@ export default function BodyMapModal({
     setView(defaultView(next));
   }
 
+  // A side chosen in an area's bar (Right | Left | Both, or null = cleared). Intramuscular:
+  // show the picked side, like a tap on the figure does.
+  function pickSides(next, side) {
+    setSelected(next);
+    setOther(null);
+    if (type === 'im' && (side === 'right' || side === 'left')) setView(side);
+  }
+
   function tapSite(id) {
     const adding = !siteOn(selected, id);
     setSelected(toggleSite(selected, id));
@@ -226,20 +210,20 @@ export default function BodyMapModal({
   }
 
   const views = viewsFor(type);
-  const viewLabel = (v) => ({ front: t('bodymap_front'), back: t('bodymap_back'), right: tx('bodymap_right_side'), left: tx('bodymap_left_side') }[v]);
-  const capLeft = { front: tx('bodymap_your_right'), back: tx('bodymap_your_left'), right: t('bodymap_back'), left: t('bodymap_front') }[view];
-  const capRight = { front: tx('bodymap_your_left'), back: tx('bodymap_your_right'), right: t('bodymap_front'), left: t('bodymap_back') }[view];
-  const areaLabel = (area) => (AREA_EXISTING[area] ? t(AREA_EXISTING[area]) : tx('bodymap_area_' + area));
-  const sideLabel = (site) => (site.side === 'left' ? tx('bodymap_side_left') : tx('bodymap_side_right'));
+  const viewLabel = (v) => ({ front: t('bodymap_front'), back: t('bodymap_back'), right: t('bodymap_right_side'), left: t('bodymap_left_side') }[v]);
+  const capLeft = { front: t('bodymap_your_right'), back: t('bodymap_your_left'), right: t('bodymap_back'), left: t('bodymap_front') }[view];
+  const capRight = { front: t('bodymap_your_left'), back: t('bodymap_your_right'), right: t('bodymap_front'), left: t('bodymap_back') }[view];
+  const areaLabel = (area) => (AREA_EXISTING[area] ? t(AREA_EXISTING[area]) : t('bodymap_area_' + area));
+  const sideLabel = (site) => (site.side === 'left' ? t('bodymap_side_left') : t('bodymap_side_right'));
   const selectedNames = selected.map((id) => { const x = getSiteById(id); return x ? t(x.labelKey) : null; }).filter(Boolean);
 
   let longestText = null;
   if (longest) {
     const d = longest.days;
-    const when = d == null ? tx('bodymap_not_in_log')
-      : d === 0 ? tx('bodymap_used_today')
-      : d === 1 ? tx('bodymap_used_1_day')
-      : tx('bodymap_used_n_days').replace('{days}', String(d));
+    const when = d == null ? t('bodymap_not_in_log')
+      : d === 0 ? t('bodymap_used_today')
+      : d === 1 ? t('bodymap_used_1_day')
+      : t('bodymap_used_n_days').replace('{days}', String(d));
     longestText = { label: t(longest.site.labelKey), when };
   }
 
@@ -274,21 +258,12 @@ export default function BodyMapModal({
           </View>
 
           {/* Route */}
-          <View style={s.segFill} accessibilityRole="radiogroup">
-            {['subq', 'im'].map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={[s.segFillBtn, type === r && s.segOn]}
-                onPress={() => pickRoute(r)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: type === r }}
-              >
-                <Text style={[s.segText, type === r && s.segTextOn]}>
-                  {r === 'subq' ? t('bodymap_subq') : t('bodymap_im')}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <SegmentedBar
+            style={s.routeBar}
+            items={[{ key: 'subq', label: t('bodymap_subq') }, { key: 'im', label: t('bodymap_im') }]}
+            value={type}
+            onChange={pickRoute}
+          />
 
           <ScrollView
             style={s.scroll}
@@ -297,20 +272,12 @@ export default function BodyMapModal({
             keyboardShouldPersistTaps="handled"
           >
             <View style={s.figWrap}>
-              {/* View: Front / Back, or Right side / Left side */}
-              <View style={s.seg}>
-                {views.map((v) => (
-                  <TouchableOpacity
-                    key={v}
-                    style={[s.segBtn, view === v && s.segOn]}
-                    onPress={() => setView(v)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: view === v }}
-                  >
-                    <Text style={[s.segText, view === v && s.segTextOn]}>{viewLabel(v)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {/* View: Front / Back, or Right side / Left side (full width, Q4 = B) */}
+              <SegmentedBar
+                items={views.map((v) => ({ key: v, label: viewLabel(v) }))}
+                value={view}
+                onChange={setView}
+              />
 
               {/* The body image with its marks */}
               <View style={{ width: figW, height: figH }}>
@@ -351,32 +318,32 @@ export default function BodyMapModal({
               </View>
             </View>
 
-            {/* The named list: one row per area, Left / Right in the image's order */}
+            {/* The named list: one row per area, the bar Right | Left | Both with the sides in
+                the image's order (front and intramuscular: your right first; back: your left
+                first). The longest-unused side is dashed. */}
             <View style={s.list}>
-              {rows.map((row, i) => (
-                <View key={row.area} style={[s.row, i > 0 && s.rowLine]}>
-                  <Text style={s.rowText}>{areaLabel(row.area)}</Text>
-                  {row.sites.map((site) => {
-                    const on = siteOn(selected, site.id);
-                    const sug = isSug(site.id);
-                    return (
-                      <TouchableOpacity
-                        key={site.id}
-                        style={[s.sideBtn, on && s.sideBtnOn, sug && s.sideBtnSug]}
-                        onPress={() => tapSite(site.id)}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: on }}
-                        accessibilityLabel={t(site.labelKey)}
-                      >
-                        {on ? <CheckMark size={14} color={colors.onInk} /> : null}
-                        <Text style={[s.sideBtnText, on && s.sideBtnTextOn]}>{sideLabel(site)}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ))}
+              {rows.map((row, i) => {
+                const ids = row.sites.map((site) => site.id);
+                const items = row.sites.map((site) => ({ key: site.side, label: sideLabel(site), hint: isSug(site.id), accessibilityLabel: t(site.labelKey) }));
+                items.push({ key: 'both', label: t('bodymap_side_both'), accessibilityLabel: areaLabel(row.area) + ', ' + t('bodymap_side_both') });
+                return (
+                  <View key={row.area} style={[s.row, i > 0 && s.rowLine]}>
+                    <Text style={s.rowText}>{areaLabel(row.area)}</Text>
+                    <SegmentedBar
+                      onWell
+                      compact
+                      allowDeselect
+                      style={s.sideBar}
+                      accessibilityLabel={areaLabel(row.area)}
+                      items={items}
+                      value={areaSide(selected, ids)}
+                      onChange={(side) => pickSides(setAreaSide(selected, ids, side), side)}
+                    />
+                  </View>
+                );
+              })}
               <View style={[s.row, s.rowLine]}>
-                <Text style={s.rowText}>{tx('bodymap_somewhere_else')}</Text>
+                <Text style={s.rowText}>{t('bodymap_somewhere_else')}</Text>
                 <TouchableOpacity
                   style={[s.sideBtn, s.sideBtnWide, other != null && s.sideBtnOn]}
                   onPress={tapOther}
@@ -384,20 +351,20 @@ export default function BodyMapModal({
                   accessibilityState={{ checked: other != null }}
                 >
                   {other != null ? <CheckMark size={14} color={colors.onInk} /> : null}
-                  <Text style={[s.sideBtnText, other != null && s.sideBtnTextOn]}>{tx('bodymap_type_it_in')}</Text>
+                  <Text style={[s.sideBtnText, other != null && s.sideBtnTextOn]}>{t('bodymap_type_it_in')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {other != null ? (
               <View style={{ gap: 6 }}>
-                <Text style={s.sec}>{tx('bodymap_where_label')}</Text>
+                <Text style={s.sec}>{t('bodymap_where_label')}</Text>
                 <TextInput
                   style={s.input}
                   value={other}
                   onChangeText={setOther}
                   maxLength={FREE_TEXT_MAX}
-                  placeholder={tx('bodymap_where_placeholder')}
+                  placeholder={t('bodymap_where_placeholder')}
                   placeholderTextColor={colors.ink3}
                   autoFocus
                   returnKeyType="done"
@@ -409,9 +376,9 @@ export default function BodyMapModal({
             {freeText && selected.length === 0 && other == null ? (
               <View style={s.freeBox}>
                 <Text style={s.sec}>
-                  {tx('bodymap_saved_text')} <Text style={{ fontWeight: '600' }}>{'“' + freeText + '”'}</Text>
+                  {t('bodymap_saved_text')} <Text style={{ fontWeight: '600' }}>{'“' + freeText + '”'}</Text>
                 </Text>
-                <Text style={s.foot}>{tx('bodymap_saved_text_kept')}</Text>
+                <Text style={s.foot}>{t('bodymap_saved_text_kept')}</Text>
               </View>
             ) : null}
 
@@ -419,7 +386,7 @@ export default function BodyMapModal({
               <View style={s.sugLine}>
                 <View style={s.sugKey} />
                 <Text style={[s.foot, { flex: 1 }]}>
-                  {tx('bodymap_longest_in_log')} <Text style={{ color: colors.ink, fontWeight: '600' }}>{longestText.label}</Text> · {longestText.when}
+                  {t('bodymap_longest_in_log')} <Text style={{ color: colors.ink, fontWeight: '600' }}>{longestText.label}</Text> · {longestText.when}
                 </Text>
               </View>
             ) : null}
@@ -477,13 +444,7 @@ const makeStyles = (c) => StyleSheet.create({
   title: { fontSize: 22, lineHeight: 28, fontWeight: '600', color: c.ink },
   subtitle: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   round: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
-  segFill: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well, marginBottom: 12 },
-  segFillBtn: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  seg: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well, alignSelf: 'center' },
-  segBtn: { minHeight: 34, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  segOn: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
+  routeBar: { marginBottom: 12 },
   scroll: { flexShrink: 1 },
   scrollBody: { gap: 12, paddingBottom: 4 },
   figWrap: { alignItems: 'center', gap: 6 },
@@ -493,6 +454,8 @@ const makeStyles = (c) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 54 },
   rowLine: { borderTopWidth: 1, borderTopColor: c.line },
   rowText: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
+  // The approved Q1 = C mockup: a 196 pt bar at the end of the row (38 pt, 14 pt text).
+  sideBar: { width: 196, alignSelf: 'center' },
   sideBtn: {
     minWidth: 72,
     minHeight: 40,
@@ -508,7 +471,6 @@ const makeStyles = (c) => StyleSheet.create({
   },
   sideBtnWide: { minWidth: 152 },
   sideBtnOn: { backgroundColor: c.ink, borderColor: c.ink },
-  sideBtnSug: { borderStyle: 'dashed', borderColor: c.ink2 },
   sideBtnText: { fontSize: 14, fontWeight: '600', color: c.ink },
   sideBtnTextOn: { color: c.onInk },
   sec: { fontSize: 15, lineHeight: 20, color: c.ink2 },

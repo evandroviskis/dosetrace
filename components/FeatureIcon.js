@@ -10,5 +10,7 @@ import { FEATURE_ICON_XML } from './featureIconsData';
 export default function FeatureIcon({ name, size = 24, color = '#000000' }) {
   const xml = FEATURE_ICON_XML[name];
   if (!xml) return null;
-  return <SvgXml xml={xml.replace(/__C__/g, color)} width={size} height={size} />;
+  // Drawn at the approved prototype weight, stroke 72 of 1024 (fic(); founder Q14 = A,
+  // 2026-10-02). The source SVGs keep 54; the weight is set here, in one place.
+  return <SvgXml xml={xml.replace(/__C__/g, color).replace(/stroke-width="54"/g, 'stroke-width="72"')} width={size} height={size} />;
 }

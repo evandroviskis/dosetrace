@@ -1,8 +1,11 @@
 'use strict';
 // S-26 book layout (docs/specs/book-layout.md, founder-signed 2026-10-01): the Settings tab.
-// BK-7: left page = profile + the group list, right page = the chosen group (Notifications
-// by default). Phone and folded keep today's collapsible list (BK-2). Source tests over
-// screens/SettingsScreen.js plus direct tests of its pure group rules.
+// BK-7: left page = profile + the group list, right page = the chosen group (Preferences,
+// the first group of the founder-approved prototype, by default — 2026-10-01; it was
+// Notifications while Notifications was first). Phone and folded keep the collapsible list
+// (BK-2), now as the prototype's group cards. Source tests over screens/SettingsScreen.js
+// plus direct tests of its pure group rules. The prototype order itself is pinned in
+// __tests__/settingsPrototypeOrder.test.js.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -28,7 +31,7 @@ const rules = (() => {
   const b = SRC.indexOf('\n}\n', fold) + 3;
   assert.ok(a >= 0 && fold > a && b > fold, 'the pure group rules are one block');
   // eslint-disable-next-line no-new-func
-  return new Function(`${SRC.slice(a, b)}\nreturn { SETTINGS_GROUPS, groupVisible, bookGroup, foldCollapsed };`)();
+  return new Function(`${SRC.slice(a, b)}\nreturn { SETTINGS_GROUPS, bookGroup, foldCollapsed };`)();
 })();
 
 const PHONE = region('function renderPhone()', 'function renderBook()');
@@ -45,59 +48,66 @@ test('BK-1/BK-2: BookPanes renders only under `book`; one column renders the pho
   assert.doesNotMatch(PHONE, /BookPanes|select\(|bookGroup|bookNav/, 'the phone path knows nothing of the book');
 });
 
-test('BK-2: the phone path keeps today\'s collapsible, remembered groups in today\'s order', () => {
-  assert.deepEqual(rules.SETTINGS_GROUPS.map((g) => g.key), ['notifications', 'privacy', 'support', 'deleted', 'account']);
+test('BK-2: the phone path keeps the collapsible, remembered groups, in the prototype\'s order', () => {
+  // Order changed 2026-10-01 to the founder-approved prototype (Preferences first; Recently
+  // deleted moved to the Protocols list; Sign out / Delete account in their own card).
+  assert.deepEqual(rules.SETTINGS_GROUPS.map((g) => g.key), ['account', 'notifications', 'privacy', 'support']);
   assert.deepEqual(rules.SETTINGS_GROUPS.map((g) => g.labelKey),
-    ['settings_notifications', 'settings_data_privacy', 'settings_support', 'settings_recently_deleted', 'settings_account_prefs']);
-  // Title outside the scroll, profile, Premium, each group = header + body when open, version.
+    ['settings_preferences', 'settings_notifications', 'settings_data_privacy', 'settings_support']);
+  // Title outside the scroll, profile, Premium, each group = one card (header + body when open),
+  // the Sign out / Delete account card, version.
   assert.match(PHONE, /<Text style=\{s\.headerTitle\}>\{t\('settings_title'\)\}<\/Text>[\s\S]*<ScrollView ref=\{phoneScrollRef\}/);
-  const order = ['renderProfileCard()', 'renderPremiumCard()', 'renderSectionHeader(g.labelKey, g.key)', '!collapsed[g.key] && renderGroupBody(g.key)', 'renderVersionFooter()'];
+  const order = ['renderProfileCard()', 'renderPremiumCard()', 'SETTINGS_GROUPS.map(g => renderGroupCard(g))', 'renderAccountActions()', 'renderVersionFooter()'];
   let at = -1;
   for (const piece of order) {
     const i = PHONE.indexOf(piece);
     assert.ok(i > at, `${piece} in order`);
     at = i;
   }
-  assert.match(PHONE, /SETTINGS_GROUPS\.filter\(g => groupVisible\(g\.key, deletedProtocols\.length\)\)/);
+  assert.match(region('function renderGroupCard(g)', 'function renderAccountActions()'), /\{open && renderGroupBody\(g\.key\)\}/);
   // The open/closed state is still remembered under the same key, toggled by the header.
-  assert.match(SRC, /const ALL_COLLAPSED = \{ notifications: true, privacy: true, support: true, deleted: true, account: true \};/);
-  assert.match(region('function toggleSection(key)', 'function renderSectionHeader'), /AsyncStorage\.setItem\('dosetrace_settings_collapsed', JSON\.stringify\(next\)\)/);
-  assert.match(region('function renderSectionHeader(', 'useFocusEffect('), /onPress=\{\(\) => toggleSection\(sectionKey\)\}/);
-  // Recently deleted only while something can be restored (as before).
-  assert.equal(rules.groupVisible('deleted', 0), false);
-  assert.equal(rules.groupVisible('deleted', 1), true);
-  assert.equal(rules.groupVisible('account', 0), true);
+  assert.match(SRC, /const ALL_COLLAPSED = \{ account: true, notifications: true, privacy: true, support: true \};/);
+  assert.match(region('function toggleSection(key)', 'function scrollToSection'), /AsyncStorage\.setItem\('dosetrace_settings_collapsed', JSON\.stringify\(next\)\)/);
+  assert.match(region('function renderGroupCard(g)', 'function renderAccountActions()'), /onPress=\{\(\) => toggleSection\(g\.key\)\}/);
 });
 
-test('BK-7: Notifications is the default right page; an unknown or hidden choice falls back to it', () => {
-  assert.match(SRC, /useBookSelection\('Settings', 'notifications'\)/);
-  assert.equal(defaultSelection('Settings'), 'notifications', 'same default as the shared rules');
-  assert.equal(rules.bookGroup(undefined, 0), 'notifications');
-  assert.equal(rules.bookGroup('nope', 3), 'notifications');
-  assert.equal(rules.bookGroup('account', 0), 'account');
-  assert.equal(rules.bookGroup('privacy', 0), 'privacy');
-  assert.equal(rules.bookGroup('deleted', 2), 'deleted');
-  assert.equal(rules.bookGroup('deleted', 0), 'notifications', 'the last deleted protocol was restored');
-  assert.match(BOOK, /const open = bookGroup\(sel, deletedProtocols\.length\);/);
+test('BK-7: Preferences is the default right page; an unknown choice falls back to it', () => {
+  assert.match(SRC, /useBookSelection\('Settings', 'account'\)/);
+  assert.equal(defaultSelection('Settings'), 'account', 'same default as the shared rules');
+  assert.equal(rules.bookGroup(undefined), 'account');
+  assert.equal(rules.bookGroup('nope'), 'account');
+  assert.equal(rules.bookGroup('notifications'), 'notifications');
+  assert.equal(rules.bookGroup('privacy'), 'privacy');
+  assert.equal(rules.bookGroup('deleted'), 'account', 'Recently deleted is no longer a Settings group');
+  assert.match(BOOK, /const open = bookGroup\(sel\);/);
 });
 
 test('BK-7: every group body, the profile, Premium and the version come from ONE render each, used by both layouts', () => {
-  const bodies = { notifications: 'renderNotificationsBody', privacy: 'renderPrivacyBody', support: 'renderSupportBody', deleted: 'renderDeletedBody', account: 'renderAccountBody' };
+  const bodies = { account: 'renderAccountBody', notifications: 'renderNotificationsBody', privacy: 'renderPrivacyBody', support: 'renderSupportBody' };
   const map = region('const GROUP_BODIES = {', '};');
   for (const [key, fn] of Object.entries(bodies)) {
     assert.equal(count(SRC, new RegExp(`function ${fn}\\(\\)`, 'g')), 1, `${fn} defined once`);
     assert.match(map, new RegExp(`${key}: ${fn},`), `${key} → ${fn}`);
   }
-  for (const shared of ['renderGroupBody(', 'renderProfileCard()', 'renderPremiumCard()', 'renderVersionFooter()']) {
+  for (const shared of ['renderProfileCard()', 'renderPremiumCard()', 'renderAccountActions()', 'renderVersionFooter()']) {
     assert.ok(PHONE.includes(shared), `phone uses ${shared}`);
     assert.ok(BOOK.includes(shared), `book uses ${shared}`);
   }
-  // No group JSX is duplicated in either layout.
+  // The group rows: the phone through its group card, the book's right page directly.
+  assert.ok(PHONE.includes('renderGroupCard(g)'));
+  assert.match(region('function renderGroupCard(g)', 'function renderAccountActions()'), /renderGroupBody\(g\.key\)/);
+  assert.ok(BOOK.includes('renderGroupBody(open)'));
+  // No group JSX is duplicated in either layout. The bodies are rows only; the phone puts
+  // them in the group card (renderGroupCard), the book's right page in one plain group card.
   for (const [name, src] of [['phone', PHONE], ['book', BOOK]]) {
-    assert.doesNotMatch(src, /<View style=\{s\.group\}>|toggleNotificationPref|handleSignOut|handleDeleteAccount|s\.profileCard|s\.premiumCard/, `${name} draws no group of its own`);
+    assert.doesNotMatch(src, /toggleNotificationPref|handleSignOut|handleDeleteAccount|s\.profileCard|s\.premiumCard/, `${name} draws no group of its own`);
+    assert.ok(src.includes('renderAccountActions()'), `${name} uses the one Sign out / Delete account card`);
   }
-  // Each action is wired exactly once in the whole screen.
-  for (const action of ["toggleNotificationPref('dose_reminders'", 'onPress={handleSignOut}', 'onPress={handleDeleteAccount}', 'onPress={handleExportData}', 'restoreProtocol(p.id)', 'setShowLanguagePicker(true)', 'setShowEditProfile(true)']) {
+  assert.doesNotMatch(PHONE, /<View style=\{s\.group\}>/);
+  assert.equal(count(BOOK, /<View style=\{s\.group\}>/g), 1);
+  assert.match(BOOK, /<View style=\{s\.group\}>\{renderGroupBody\(open\)\}<\/View>/);
+  // Each action is wired exactly once in the whole screen (Restore moved to the Protocols list).
+  for (const action of ["toggleNotificationPref('dose_reminders'", 'onPress={handleSignOut}', 'onPress={handleDeleteAccount}', 'onPress={handleExportData}', 'setShowLanguagePicker(true)', 'setShowEditProfile(true)']) {
     assert.equal(SRC.split(action).length - 1, 1, `${action} wired once`);
   }
   // Premium stays for free users only.
@@ -105,12 +115,13 @@ test('BK-7: every group body, the profile, Premium and the version come from ONE
 });
 
 test('BK-7/BK-8: the left page lists the groups, the open one outlined in ink; the right page is that group, open, under its title', () => {
-  assert.match(BOOK, /SETTINGS_GROUPS\.filter\(g => groupVisible\(g\.key, deletedProtocols\.length\)\)\.map/);
+  assert.match(BOOK, /SETTINGS_GROUPS\.map\(g => \{/);
+  assert.match(BOOK, /\{t\(g\.sumKey\)\}/, 'each group shows its summary on the left page too');
   assert.match(BOOK, /style=\{\[s\.bookNavRow, on && s\.bookNavRowOn\]\}/);
   assert.match(BOOK, /accessibilityState=\{\{ selected: on \}\}/);
   assert.match(BOOK, /onPress=\{\(\) => select\(g\.key\)\}/);
   assert.match(BOOK, /\{t\(g\.labelKey\)\}/);
-  assert.match(BOOK, /<Text style=\{s\.rowArrow\}>›<\/Text>/, 'chevron');
+  assert.match(BOOK, /<RowChevron color=\{colors\.tick\} \/>/, 'chevron (drawn prototype arrow, 2026-10-02)');
   // Right page: always open (no collapsed check), heading = the group title.
   const right = BOOK.slice(BOOK.indexOf('const right = ('));
   assert.match(right, /<Text style=\{s\.bookPageTitle\}[^>]*>\{t\(openGroup\.labelKey\)\}<\/Text>/);
@@ -123,24 +134,24 @@ test('BK-7/BK-8: the left page lists the groups, the open one outlined in ink; t
 });
 
 test('BK-10: folding opens the group the user chose without touching the other remembered sections', () => {
-  const remembered = { notifications: true, privacy: false, support: true, deleted: true, account: true };
-  const next = rules.foldCollapsed(remembered, { sel: 'account', explicit: true, deletedCount: 0 });
-  assert.deepEqual(next, { notifications: true, privacy: false, support: true, deleted: true, account: false });
+  const remembered = { account: true, notifications: true, privacy: false, support: true };
+  const next = rules.foldCollapsed(remembered, { sel: 'account', explicit: true });
+  assert.deepEqual(next, { account: false, notifications: true, privacy: false, support: true });
   assert.notEqual(next, remembered, 'a new object (state update)');
   assert.deepEqual(remembered.account, true, 'the input is not mutated');
-  // A default nobody chose, an unknown key, a hidden group or an already-open group: unchanged.
-  assert.equal(rules.foldCollapsed(remembered, { sel: 'notifications', explicit: false, deletedCount: 0 }), remembered);
-  assert.equal(rules.foldCollapsed(remembered, { sel: 'nope', explicit: true, deletedCount: 0 }), remembered);
-  assert.equal(rules.foldCollapsed(remembered, { sel: 'deleted', explicit: true, deletedCount: 0 }), remembered);
-  assert.equal(rules.foldCollapsed(remembered, { sel: 'privacy', explicit: true, deletedCount: 0 }), remembered);
-  assert.deepEqual(rules.foldCollapsed(remembered, { sel: 'deleted', explicit: true, deletedCount: 2 }).deleted, false);
+  // A default nobody chose, an unknown key (incl. the old "deleted" group) or an already-open
+  // group: unchanged.
+  assert.equal(rules.foldCollapsed(remembered, { sel: 'notifications', explicit: false }), remembered);
+  assert.equal(rules.foldCollapsed(remembered, { sel: 'nope', explicit: true }), remembered);
+  assert.equal(rules.foldCollapsed(remembered, { sel: 'deleted', explicit: true }), remembered);
+  assert.equal(rules.foldCollapsed(remembered, { sel: 'privacy', explicit: true }), remembered);
   // Wiring: on the book → one-column edge, a functional merge persisted under the same key.
   const eff = region('// BK-10, folding: the group the user had open', 'function scrollToSection(');
   assert.match(eff, /if \(wasBook\.current && !book\)/);
-  assert.match(eff, /setCollapsed\(prev => \{\s*const next = foldCollapsed\(prev, \{ sel: target, explicit, deletedCount: deletedProtocols\.length \}\);/);
+  assert.match(eff, /setCollapsed\(prev => \{\s*const next = foldCollapsed\(prev, \{ sel: target, explicit \}\);/);
   assert.match(eff, /AsyncStorage\.setItem\('dosetrace_settings_collapsed', JSON\.stringify\(next\)\)/);
   assert.match(eff, /scrollToSection\(target\)/, 'the list scrolls to the opened group');
-  assert.match(region('function renderSectionHeader(', 'useFocusEffect('), /onLayout=\{\(e\) => onSectionHeaderLayout\(sectionKey, e\)\}/);
+  assert.match(region('function renderGroupCard(g)', 'function renderAccountActions()'), /onLayout=\{\(e\) => onSectionHeaderLayout\(g\.key, e\)\}/);
   // Unfolding keeps the selection: nothing clears it.
   assert.doesNotMatch(SRC, /clearSelection|resetAllSelections/);
 });
@@ -162,15 +173,16 @@ test('BK-10/BK-11: sheets live outside both layouts, so a fold or unfold keeps t
 
 test('Gate B source guard: no sign-out, delete or sync code in the new book logic', () => {
   const rulesSrc = SRC.slice(SRC.indexOf('const SETTINGS_GROUPS = ['), SRC.indexOf('export default function SettingsScreen'));
-  const newLogic = [rulesSrc, region('// S-26 book layout: two pages', 'function renderSectionHeader('), PHONE, BOOK];
+  const newLogic = [rulesSrc, region('// S-26 book layout: two pages', 'useFocusEffect('), PHONE, BOOK];
   for (const src of newLogic) {
     assert.doesNotMatch(src, /signOut|markIntentionalSignOut|clearLocalDatabase|executeAccountDeletion|finishAccountDeletion|delete-user|supabase|forceSync|stopSyncEngine|removePushToken|permanentlyDeleteProtocol/);
   }
-  // The handlers are defined once and reached only from their Account rows.
+  // The handlers are defined once and reached only from their own card (prototype: Sign out /
+  // Delete account under the groups, no longer inside the Preferences group).
   for (const fn of ['async function handleSignOut()', 'function handleDeleteAccount()', 'async function executeAccountDeletion()', 'async function finishAccountDeletion()']) {
     assert.equal(SRC.split(fn).length - 1, 1, `${fn} once`);
   }
-  const account = region('function renderAccountBody()', 'const GROUP_BODIES');
+  const account = region('function renderAccountActions()', '// BK-2: one column');
   assert.match(account, /onPress=\{handleSignOut\}/);
   assert.match(account, /onPress=\{handleDeleteAccount\}/);
 });

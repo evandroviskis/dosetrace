@@ -35,6 +35,7 @@ import { COUNTRIES, countryLabel } from '../lib/countries';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
 import CheckMark from '../components/CheckMark';
+import SegmentedBar from '../components/SegmentedBar';
 import Svg, { Path } from 'react-native-svg';
 import { MONO } from '../lib/fonts';
 
@@ -465,13 +466,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_sex')}<Text style={s.req}> *</Text></Text>
-                <View style={s.seg}>
-                  {SEXES.map((g) => (
-                    <TouchableOpacity key={g.key} style={[s.segItem, gender === g.key && s.segItemOn]} onPress={() => setGender(g.key)} accessibilityRole="radio" accessibilityState={{ selected: gender === g.key }}>
-                      <Text style={[s.segText, gender === g.key && s.segTextOn]}>{g.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <SegmentedBar accessibilityLabel={t('profile_sex')} items={SEXES} value={gender} onChange={setGender} />
                 <Text style={s.help}>{t('profile_sex_help')}</Text>
               </View>
 
@@ -512,13 +507,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               </View>
               <View style={s.field}>
                 <Text style={s.fieldHead}>{t('profile_provider')}</Text>
-                <View style={s.seg}>
-                  {PROVIDERS.map((p) => (
-                    <TouchableOpacity key={p.key} style={[s.segItem, provider === p.key && s.segItemOn]} onPress={() => setProvider(p.key)} accessibilityRole="radio" accessibilityState={{ selected: provider === p.key }}>
-                      <Text style={[s.segText, provider === p.key && s.segTextOn]}>{p.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <SegmentedBar accessibilityLabel={t('profile_provider')} items={PROVIDERS} value={provider} onChange={setProvider} />
               </View>
             </>
           )}
@@ -764,11 +753,6 @@ function makeStyles(colors) {
     selectTextEmpty: { color: c.ink3 },
 
     // Segmented control (segw fill)
-    seg: { flexDirection: 'row', padding: 3, gap: 2, borderRadius: 14, backgroundColor: c.well },
-    segItem: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: c.well },
-    segItemOn: { backgroundColor: c.raised, borderColor: c.line },
-    segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-    segTextOn: { color: c.ink, fontWeight: '700' },
 
     // Activity list (actlist)
     actList: { backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, overflow: 'hidden' },
