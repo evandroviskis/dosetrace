@@ -83,3 +83,15 @@ test('part 2: snooze "Tomorrow" = 09:00 tomorrow, "In 3 days" = 09:00 in three d
   assert.equal(f.snoozeUntil('in3', now), new Date(2026, 9, 5, 9, 0).getTime());
   assert.deepEqual(f.SNOOZE_KINDS, ['tomorrow', 'in3']);
 });
+
+// Sim check 2026-10-02: a site used today read "Last: Abdomen, lower right · 0d ago".
+test('last site used today reads "today", never "0d ago" (6 languages)', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const assert = require('node:assert/strict');
+  const { translations } = require('../i18n/translations.js');
+  const want = { en: 'Last: {site} · today', es: 'Último: {site} · hoy', pt: 'Último: {site} · hoje', fr: "Dernier: {site} · aujourd'hui", de: 'Letzte: {site} · heute', it: 'Ultimo: {site} · oggi' };
+  for (const [l, v] of Object.entries(want)) assert.equal(translations[l].today_last_site_today, v, l);
+  const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
+  assert.match(src, /lastSite\.daysAgo === 0 \? t\('today_last_site_today'\)/);
+});

@@ -1668,7 +1668,7 @@ export default function TodayScreen() {
             )}
             {lastSite && (
               <Text style={s.dmetaText}>
-                {t('today_last_site').replace('{site}', lastSite.summary).replace('{days}', String(lastSite.daysAgo))}
+                {(lastSite.daysAgo === 0 ? t('today_last_site_today') : t('today_last_site')).replace('{site}', lastSite.summary).replace('{days}', String(lastSite.daysAgo))}
               </Text>
             )}
             {pStreak > 0 && (
