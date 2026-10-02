@@ -49,6 +49,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
+import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
 import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from './components/ProtocolParts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
@@ -329,11 +330,10 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
             {draw.drawUnits}<Text style={s.drawBigUnit}> {t('protocols_syringe_units')}</Text>
           </Text>
         </View>
-        {over ? (
+        {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
+        {over && (
           <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeMax))}</Text>
-        ) : drawW > 0 ? (
-          <SyringeScale units={units} size={syringeMax} width={drawW - 28} />
-        ) : null}
+        )}
         <View style={s.hintRow}>
           <FeatureIcon name="search" size={14} color={c.ink2} />
           <Text style={s.hintText}>{t('protocols_syringe_zoom_hint')}</Text>
@@ -802,6 +802,19 @@ function protocolsFoldView({ sel, explicit, openId, showList }) {
 // right page as it is).
 function protocolsUnfoldSelection({ openId, showList }) {
   return showList && openId != null ? openId : null;
+}
+
+// Free-feature explainers this screen offers (Today redesign part 18): the reconstitution
+// calculator, the vial tracker and reminders, each until the user has used it — read from the
+// user's own synced protocols and vials.
+function protocolExplainers(userId) {
+  const ps = getActiveProtocols(userId) || [];
+  const vials = getActiveVials(userId) || [];
+  return [
+    { key: 'recon', used: ps.some((p) => p.type === 'recon') },
+    { key: 'vial', used: vials.length > 0 },
+    { key: 'remind', used: ps.some((p) => !!p.reminder_time) },
+  ];
 }
 
 export default function ProtocolsScreen() {
@@ -1915,7 +1928,6 @@ export default function ProtocolsScreen() {
   // Add step 3: the live result sits under the fields it depends on and appears only
   // once it can be computed (founder 2026-09-29).
   const [liveW, setLiveW] = useState(0);
-  const overCap = drawUnits != null && Number(drawUnits) > syringeSize;
   const showLiveDraw = type !== 'oral' && !unitMismatch && !!drawML && (drawValid || drawExceedsSyringe);
   const wizServing = type === 'oral'
     ? computeServings({
@@ -2073,6 +2085,9 @@ export default function ProtocolsScreen() {
 
       {/* Delete / limit / log past doses: held back until the add sheet is gone. */}
       <DTSheet config={wizardPresented ? null : screenSheet} onClose={() => setScreenSheet(null)} />
+
+      {/* Part 18: a free-feature explainer on the first visit (never over the add / edit sheet). */}
+      {!showModal && !wizardPresented && <FeatureExplainerGate candidates={protocolExplainers} />}
 
       {/* The enlarged syringe, held here so a fold or unfold never closes it (BK-10). */}
       <SyringeZoomSheet p={zoomProtocol} visible={zoom.open} onClose={() => setZoom(z => ({ ...z, open: false }))} t={t} />
@@ -2498,7 +2513,7 @@ export default function ProtocolsScreen() {
                         {drawUnits}<Text style={s.drawBigUnit}> {t('protocols_units')}</Text>
                       </Text>
                     </View>
-                    {!overCap && liveW > 0 && (
+                    {liveW > 0 && (
                       <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
                     )}
                     <Text style={s.liveMl}>{drawML} ml</Text>

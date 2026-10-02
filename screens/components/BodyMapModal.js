@@ -105,6 +105,7 @@ export default function BodyMapModal({
   onBack = null,
   initialStored = null,
   protocolName = null,
+  whenLabel = null, // the dose's time, shown after the name (Today redesign part 16)
   protocolId = null,
   recentLogs = [],
 }) {
@@ -209,6 +210,10 @@ export default function BodyMapModal({
     onSave({ stored: null, siteIds: [], type });
   }
 
+  // Save is dimmed until a spot is picked or a site is typed (prototype obdim); an older
+  // typed-in site kept on the row can be saved as it is.
+  const canSave = selected.length > 0 || (other != null && other.trim().length > 0) || !!freeText;
+
   const views = viewsFor(type);
   const viewLabel = (v) => ({ front: t('bodymap_front'), back: t('bodymap_back'), right: t('bodymap_right_side'), left: t('bodymap_left_side') }[v]);
   const capLeft = { front: t('bodymap_your_right'), back: t('bodymap_your_left'), right: t('bodymap_back'), left: t('bodymap_front') }[view];
@@ -236,13 +241,12 @@ export default function BodyMapModal({
     >
       <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.sheet}>
-          <View style={s.handle} />
           <View style={s.header}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.title}>{t('bodymap_title')}</Text>
               {protocolName ? (
                 <Text style={s.subtitle} numberOfLines={1}>
-                  {protocolName} · {type === 'subq' ? t('bodymap_subq') : t('bodymap_im')}
+                  {protocolName}{whenLabel ? ` · ${whenLabel}` : ''}
                 </Text>
               ) : null}
             </View>
@@ -406,7 +410,7 @@ export default function BodyMapModal({
             <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={onClose} accessibilityRole="button">
               <Text style={s.btnSecondaryText}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={handleSave} accessibilityRole="button">
+            <TouchableOpacity style={[s.btn, s.btnPrimary, !canSave && s.btnDim]} onPress={handleSave} disabled={!canSave} accessibilityRole="button" accessibilityState={{ disabled: !canSave }}>
               <Text style={s.btnPrimaryText}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
@@ -432,6 +436,7 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.raised,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
+    paddingTop: 20,
     paddingHorizontal: 16,
     paddingBottom: 24,
     maxHeight: '94%',
@@ -439,9 +444,8 @@ const makeStyles = (c) => StyleSheet.create({
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
   },
-  handle: { width: 36, height: 4, backgroundColor: c.line, borderRadius: 2, alignSelf: 'center', marginTop: 8, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-  title: { fontSize: 22, lineHeight: 28, fontWeight: '600', color: c.ink },
+  title: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: c.ink },
   subtitle: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   round: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   routeBar: { marginBottom: 12 },
@@ -497,6 +501,7 @@ const makeStyles = (c) => StyleSheet.create({
   btnSecondaryText: { fontSize: 17, fontWeight: '700', color: c.ink },
   btnPrimary: { flex: 1.4, backgroundColor: c.act },
   btnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+  btnDim: { opacity: 0.35 },
   btnLink: { alignSelf: 'center', minHeight: 40, justifyContent: 'center', paddingHorizontal: 16, marginTop: 4 },
   btnRemoveText: { fontSize: 17, color: c.risk, textDecorationLine: 'underline' },
   btnSkipText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline' },

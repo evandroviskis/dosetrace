@@ -80,7 +80,8 @@ export default function DosePage({
   const [scaleW, setScaleW] = useState(290);
   const showDraw = !!(draw && draw.drawUnits && !draw.unitMismatch);
   const logged = kind === 'taken' || kind === 'skipped' || kind === 'missed';
-  const stateColor = kind === 'taken' ? colors.ok : kind === 'skipped' ? colors.risk : colors.attention;
+  // Skipped is neutral (ink2), Missed is red (risk) — founder 2026-10-01, Today redesign part 11.
+  const stateColor = kind === 'taken' ? colors.ok : kind === 'skipped' ? colors.ink2 : colors.risk;
   // BK-21: the title is the first thing a screen reader reads on this page (time and Due
   // are read with it, not before it).
   const titleA11y = [name, time, due ? t('today_due') : null].filter(Boolean).join(', ');
@@ -113,10 +114,9 @@ export default function DosePage({
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
               <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
             </View>
-            {draw.exceedsSyringe ? (
+            <SyringeScale units={Number(draw.drawUnits)} size={syringeSize} width={scaleW} />
+            {draw.exceedsSyringe && (
               <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeSize))}</Text>
-            ) : (
-              <SyringeScale units={Number(draw.drawUnits)} size={syringeSize} width={scaleW} />
             )}
           </View>
         )}

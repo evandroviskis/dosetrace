@@ -32,6 +32,7 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import AccumulationHero from '../components/AccumulationHero';
 import SegmentedBar from '../components/SegmentedBar';
+import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { MONO } from '../lib/fonts';
 import { friendlyError } from '../lib/friendlyError';
@@ -246,6 +247,12 @@ function staleVaccineSel(sel, list) {
   if (typeof sel !== 'string' || sel.indexOf('vax:') !== 0) return false;
   const id = sel.slice('vax:'.length);
   return !(list || []).some(v => String(v.id) === id);
+}
+
+// Free-feature explainer of the lab journal (Today redesign part 18), until the user has a
+// lab value of their own (synced biomarkers).
+function labExplainers(userId) {
+  return [{ key: 'labsman', used: (getBiomarkers(userId) || []).length > 0 }];
 }
 
 export default function BodyScreen({ navigation, route }) {
@@ -1686,6 +1693,9 @@ export default function BodyScreen({ navigation, route }) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Part 18: the lab-journal explainer when the user first opens Lab results. */}
+      {section === 'labs' && <FeatureExplainerGate candidates={labExplainers} />}
     </SafeAreaView>
   );
 }

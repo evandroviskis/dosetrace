@@ -158,8 +158,12 @@ test('BK-10: unfolding with a protocol screen open puts it on the right page', (
 });
 
 test('BK-10, BK-11: every sheet sits outside the book switch, so a fold or unfold never closes it', () => {
-  const after = rootKids.slice(rootKids.indexOf(bookSwitch) + 1).map((c) => (c.type === 'JSXElement' ? jsxName(c) : null));
-  assert.deepEqual(after, ['DTSheet', 'SyringeZoomSheet', 'Modal'], 'delete/limit sheet, enlarged syringe, add/edit wizard');
+  // A conditional sheet ({cond && <X />}) counts by the element it renders.
+  const kidName = (c) => (c.type === 'JSXElement' ? jsxName(c)
+    : c.type === 'JSXExpressionContainer' && c.expression.type === 'LogicalExpression' && c.expression.right.type === 'JSXElement' ? jsxName(c.expression.right) : null);
+  const after = rootKids.slice(rootKids.indexOf(bookSwitch) + 1).map(kidName).filter(Boolean);
+  // + the free-feature explainer (Today redesign part 18), a sheet like the others.
+  assert.deepEqual(after, ['DTSheet', 'FeatureExplainerGate', 'SyringeZoomSheet', 'Modal'], 'delete/limit sheet, explainer, enlarged syringe, add/edit wizard');
   assert.equal(rootKids.indexOf(bookSwitch), 0, 'the switch is the first child, so the sheets keep their place');
   for (const branch of [bookBranch, phoneBranch]) {
     assert.doesNotMatch(branch, /<Modal\b|<DTSheet\b|<DTPickerSheet\b|<DTActionSheet\b|<SyringeZoomSheet\b/);

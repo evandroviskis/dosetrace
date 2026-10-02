@@ -289,7 +289,8 @@ test('BK-19: the dose page reloads when the app returns to the foreground and fo
 
 test('BK-20: Today\'s site question, vial prompt and "still going?" wait while the embedded Log\'s site editor is open', () => {
   const open = TODAY.slice(TODAY.indexOf('async function openNextQuestion('), TODAY.indexOf('function commitQuestion('));
-  assert.match(open, /if \(!focusedRef\.current \|\| bodyMapOpenRef\.current \|\| vialPromptOpenRef\.current \|\| inactivePromptOpenRef\.current \|\| logPopupOpenRef\.current\) return;/);
+  // + the Skip sheet (Today redesign part 14): one popup at a time.
+  assert.match(open, /if \(!focusedRef\.current \|\| bodyMapOpenRef\.current \|\| vialPromptOpenRef\.current \|\| inactivePromptOpenRef\.current \|\| logPopupOpenRef\.current \|\| skipSheetOpenRef\.current\) return;/);
   assert.match(open, /if \(!q\) \{ runLogPopupWaiter\(\); return; \}/, 'with no question left, a waiting Log editor opens');
   assert.match(TODAY, /if \(bodyMapOpenRef\.current \|\| siteQueueRef\.current\.length \|\| logPopupOpenRef\.current\) return;/, '"still going?" never over the editor');
   const vp = code(TODAY, fnDecl(todayAst, 'showVialPromptFor'));
@@ -396,9 +397,10 @@ test('BK-3: DosePage draws the same SyringeScale as the Today card', () => {
   const [{ n }] = jsx(doseAst, 'SyringeScale');
   assert.equal(code(DOSE, attr(n, 'units').value.expression), 'Number(draw.drawUnits)');
   assert.equal(code(DOSE, attr(n, 'size').value.expression), 'syringeSize');
-  // Same guards as the card: only with a draw, no unit mismatch, warning when over capacity.
+  // Same guards as the card: only with a draw, no unit mismatch; over capacity the syringe
+  // stays drawn (in risk, Today redesign part 6) and the warning follows it.
   assert.match(DOSE, /draw && draw\.drawUnits && !draw\.unitMismatch/);
-  assert.match(DOSE, /draw\.exceedsSyringe \?/);
+  assert.match(DOSE, /\{draw\.exceedsSyringe && \(/);
   assert.match(DOSE, /t\('protocols_syringe_draw_to'\)/);
 });
 
