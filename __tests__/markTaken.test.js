@@ -226,3 +226,54 @@ test('A-78: twice-daily, 08:00 skipped and 20:00 taken, then "log the 08:00 dose
   assert.equal(p.update && p.update.id, 41);
   assert.equal(p.takenAfter, 2);
 });
+
+// A-78 complete (founder 2026-10-01): slot identity instead of guessing.
+test('A-78: a flipped Skipped row takes the TAP time (S-25) and remembers its old time and site; a flipped Missed row keeps its slot time', () => {
+  const daily = { ...recon, doses_per_day: 1 };
+  const skipped = { id: 50, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 8, 0)).toISOString(), injection_site: 'abdomen-L' };
+  const p = planMarkTaken({ protocol: daily, todayLogs: [skipped], dayKey: '2026-09-27', slotMs: local(2026, 9, 27, 8, 0), nowMs: NOW });
+  assert.equal(p.update.id, 50);
+  assert.equal(p.update.logged_at, new Date(NOW).toISOString());
+  assert.equal(p.prevLoggedAt, skipped.logged_at);
+  assert.equal(p.prevInjectionSite, 'abdomen-L');
+  const missed = { id: 51, protocol_id: 1, outcome: 'Missed', logged_at: new Date(local(2026, 9, 26, 8, 0)).toISOString() };
+  const m = planMarkTaken({ protocol: daily, todayLogs: [missed], dayKey: '2026-09-26', slotMs: local(2026, 9, 26, 8, 0), nowMs: NOW });
+  assert.equal(m.update.id, 51);
+  assert.equal(m.update.logged_at, undefined, 'a Missed row keeps its scheduled time');
+});
+
+test('A-78: flipRowId flips exactly that Skipped row, even when another slot has a Skipped row too', () => {
+  const s8 = { id: 52, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 8, 0)).toISOString() };
+  const s20 = { id: 53, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 20, 0)).toISOString() };
+  const p = planMarkTaken({ protocol: recon, todayLogs: [s8, s20], flipRowId: 53, nowMs: NOW + 3600000 });
+  assert.equal(p.update.id, 53);
+  assert.equal(p.insert, null);
+  const q = planMarkTaken({ protocol: recon, todayLogs: [s8, s20], dayKey: '2026-09-27', slotMs: local(2026, 9, 27, 20, 0), flipRowId: 52, nowMs: NOW + 3600000 });
+  assert.equal(q.update.id, 52, 'the named row wins over the slot match');
+});
+
+test('A-78: Undo of a flipped Skipped row restores its original time and site', () => {
+  const u = planUndoTake({ logId: 50, flipped: true, flippedFrom: 'Skipped', prevLoggedAt: '2026-09-27T12:00:00.000Z', prevInjectionSite: 'abdomen-L' });
+  assert.equal(u.restoreMissedId, 50);
+  assert.equal(u.restoreOutcome, 'Skipped');
+  assert.equal(u.restoreLoggedAt, '2026-09-27T12:00:00.000Z');
+  assert.equal(u.restoreSite, 'abdomen-L');
+  const old = planUndoTake({ logId: 30, flipped: true });
+  assert.equal(old.restoreLoggedAt, null, 'older records leave the time alone');
+  assert.equal(old.restoreSite, null);
+});
+
+test('A-78: Today passes slot identity — Skip stamps the slot through recordSkipToday, Mark taken carries slotMs / flipRowId, Undo restores time and site', () => {
+  const today = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
+  assert.doesNotMatch(today, /insertDoseLog\(/, 'Today no longer writes a Skipped row at the tap time itself');
+  assert.match(today, /recordSkipToday\(protocol\.id, \{ slotMs: slot \? slot\.slotMs : null \}\)/);
+  assert.match(today, /cardPlan\(\{ protocol: p, logs: todayRows, nowMs: Date\.now\(\) \}\)/);
+  assert.match(today, /newQuestion\(\{ protocolId: p\.id, tapMs, skipYesterday: opts\.skipYesterday \|\| null, source: 'today', slotMs: slot\.slotMs, flipRowId: slot\.flipRowId, ti: slot\.ti \}\)/);
+  assert.match(today, /const write = \{ tapMs, slotMs: slot\.slotMs, flipRowId: slot\.flipRowId \};/);
+  assert.match(today, /flipRowId: o\.flipRowId/, 'the site answer writes the same slot');
+  assert.match(today, /updateDoseLog\(plan\.restoreMissedId, \{ outcome: plan\.restoreOutcome, injection_site: plan\.restoreSite, \.\.\.\(plan\.restoreLoggedAt \? \{ logged_at: plan\.restoreLoggedAt \} : \{\}\) \}\)/);
+  assert.match(today, /prevLoggedAt: res\.prevLoggedAt/);
+  const actions = fs.readFileSync(path.join(__dirname, '..', 'lib', 'doseActions.js'), 'utf8');
+  assert.match(actions, /flipRowId: opts\.flipRowId/);
+  assert.match(actions, /planSkipToday\(/);
+});

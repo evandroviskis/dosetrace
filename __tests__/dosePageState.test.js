@@ -54,7 +54,8 @@ test('BK-16: at 10:00 the 08:00 dose is due (Mark taken, Skip) and the 20:00 dos
   assert.equal(a.canTake, true);
   assert.equal(a.canSkip, true);
   assert.equal(a.canUndo, false);
-  assert.deepEqual(a.write, { path: 'today', dayKey: TODAY, slotMs: S08 });
+  // A-78: the write names its slot (time and index), so Today's write lands on it.
+  assert.deepEqual(a.write, { path: 'today', dayKey: TODAY, slotMs: S08, flipRowId: null, ti: 0 });
   const b = planDosePage({ protocol: twice(), logs: [], dayKey: TODAY, slotMs: S20, nowMs: now });
   assert.equal(b.kind, 'upcoming');
   assert.equal(b.canTake, false, 'no Mark taken on an upcoming dose');
@@ -166,17 +167,21 @@ test('BK-16: the pending list Today shows decides "pending" (time-zone guard inc
   assert.equal(planDosePage({ protocol: p, logs, dayKey: YEST, slotMs: Y20, nowMs: now, pending: [{ protocolId: 7, dayKey: YEST, slotMs: Y20 }] }).kind, 'pending');
 });
 
-test('BK-16: a dose logged anywhere else (notification, other device) shows its state, never Mark taken', () => {
+// A-78 amends BK-16 (founder 2026-10-01): a Taken slot never offers a second Mark taken; a
+// slot skipped today shows its state AND Mark taken, which logs that very Skipped row.
+test('BK-16: a dose logged anywhere else (notification, other device) shows its state; Taken never offers Mark taken, Skipped today logs that row', () => {
   const now = local(2026, 10, 1, 10, 0);
   const p = twice();
   for (const [outcome, kind] of [['Taken', 'taken'], ['Skipped', 'skipped']]) {
     const logs = [row(outcome, local(2026, 10, 1, 8, 2))];
     const a = planDosePage({ protocol: p, logs, dayKey: TODAY, slotMs: S08, nowMs: now });
     assert.equal(a.kind, kind);
-    assert.equal(a.canTake, false);
+    assert.equal(a.canTake, kind === 'skipped');
     assert.equal(a.canSkip, false);
     assert.equal(a.canUndo, true);
     assert.equal(a.outcome, outcome);
+    if (kind === 'skipped') assert.deepEqual(a.write, { path: 'today', dayKey: TODAY, slotMs: S08, flipRowId: logs[0].id, ti: 0 });
+    else assert.equal(a.write, null);
   }
 });
 
@@ -241,4 +246,44 @@ test('BK-16: once a day without a reminder time — due all day, identified by i
   assert.equal(a.canTake, true);
   const b = planDosePage({ protocol: p, logs: [row('Taken', local(2026, 10, 1, 7, 0))], dayKey: TODAY, slotMs: null, ti: 0, nowMs: local(2026, 10, 1, 8, 0) });
   assert.equal(b.kind, 'taken');
+});
+
+// A-78 complete (founder 2026-10-01): the Today card counts Skipped as filled.
+const { cardPlan } = require('../lib/dosePageState');
+
+test('A-78: cardPlan — after the 08:00 skip the card offers 20:00 (label, Due, main buttons) and a line for the skipped 08:00', () => {
+  const p = twice();
+  const skip = row('Skipped', S08);
+  const c = cardPlan({ protocol: p, logs: [skip], nowMs: local(2026, 10, 1, 8, 10) });
+  assert.deepEqual(c.next, { dayKey: TODAY, slotMs: S20, ti: 1, flipRowId: null });
+  assert.equal(c.due, false);
+  assert.deepEqual(c.skipped, [{ dayKey: TODAY, slotMs: S08, ti: 0, flipRowId: skip.id, canTake: true }]);
+  assert.equal(cardPlan({ protocol: p, logs: [skip], nowMs: local(2026, 10, 1, 19, 55) }).due, true);
+});
+
+test('A-78: cardPlan — every slot Taken or Skipped → no main Mark taken / Skip; the skipped line stays loggable', () => {
+  const p = twice();
+  const logs = [row('Taken', local(2026, 10, 1, 8, 3)), row('Skipped', S20)];
+  const c = cardPlan({ protocol: p, logs, nowMs: local(2026, 10, 1, 20, 10) });
+  assert.equal(c.next, null);
+  assert.equal(c.allFilled, true);
+  assert.equal(c.taken, 1);
+  assert.equal(c.skipped.length, 1);
+  assert.equal(c.skipped[0].slotMs, S20);
+  assert.equal(c.skipped[0].canTake, true);
+});
+
+test('A-78: cardPlan — a day already holding its Taken doses never offers to log a stray Skipped row', () => {
+  const p = twice({ doses_per_day: 1, reminder_time: '08:00' });
+  const logs = [row('Skipped', local(2026, 10, 1, 8, 0)), row('Taken', local(2026, 10, 1, 8, 30))];
+  const c = cardPlan({ protocol: p, logs, nowMs: local(2026, 10, 1, 9, 0) });
+  assert.equal(c.skipped.every((s) => s.canTake === false), true);
+});
+
+test('A-78: dose page — yesterday\'s Skipped slot keeps no Mark taken (the skipped line is a today action)', () => {
+  const now = local(2026, 10, 1, 6, 0);
+  const s = row('Skipped', Y20);
+  const a = planDosePage({ protocol: twice(), logs: [s], dayKey: YEST, slotMs: Y20, nowMs: now });
+  assert.equal(a.kind, 'skipped');
+  assert.equal(a.canTake, false);
 });
