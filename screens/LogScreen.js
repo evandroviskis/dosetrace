@@ -23,6 +23,7 @@ import { needsSiteQuestion } from '../lib/siteQuestion';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import SegmentedBar from '../components/SegmentedBar';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 
@@ -290,24 +291,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           </View>
         ))}
       </View>
-      {/* Filter pills: a wrapping row (A-63: the old horizontal ScrollView grew to fill
-          the screen and stretched each chip into a tall column) */}
-      <View style={s.pills}>
-        {filters.map(f => {
-          const on = filter === f.key;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[s.pill, on && s.pillOn]}
-              onPress={() => setFilter(f.key)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[s.pillText, on && s.pillTextOn]}>{f.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* Filter: the shared bar (founder 2026-10-02, Q2 = B). Never in a horizontal
+          ScrollView (A-63: that grew to fill the screen and stretched each chip). */}
+      <SegmentedBar items={filters} value={filter} onChange={setFilter} />
     </View>
   );
 
@@ -472,11 +458,6 @@ const makeStyles = (c) => StyleSheet.create({
   trioCapRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trioCap: { fontSize: 12, fontWeight: '500', color: c.ink2, flexShrink: 1 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
-  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
-  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
-  pillText: { fontSize: 15, color: c.ink2 },
-  pillTextOn: { color: c.ink, fontWeight: '600' },
   emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 20 },
   emptyIcon: { marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '600', color: c.ink, marginBottom: 8, textAlign: 'center' },

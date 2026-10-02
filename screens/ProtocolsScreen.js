@@ -48,6 +48,7 @@ import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
+import SegmentedBar from '../components/SegmentedBar';
 import SyringeScale from './components/SyringeScale';
 import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from './components/ProtocolParts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
@@ -230,25 +231,6 @@ function WInput({ s, c, style, onFocus, onBlur, ...props }) {
       onFocus={(e) => { setFocus(true); if (onFocus) onFocus(e); }}
       onBlur={(e) => { setFocus(false); if (onBlur) onBlur(e); }}
     />
-  );
-}
-
-// Segmented control on a well track; the chosen segment is raised with ink text.
-function Seg({ s, items, fill }) {
-  return (
-    <View style={[s.segw, fill && s.segwFill]} accessibilityRole="radiogroup">
-      {items.map(it => (
-        <TouchableOpacity
-          key={String(it.key)}
-          style={[s.segItem, fill && s.segItemFill, it.on && s.segItemOn]}
-          onPress={it.onPress}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: !!it.on }}
-        >
-          <Text style={[s.segText, it.on && s.segTextOn]} numberOfLines={1}>{it.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
   );
 }
 
@@ -1963,8 +1945,9 @@ export default function ProtocolsScreen() {
       <Text style={s.addBtnText}>{t('protocols_add')}</Text>
     </TouchableOpacity>
   );
+  // A unit choice sits beside its number field: the shared bar fills the other half of the row.
   const unitSeg = (units, value, setter, suffix = '') => (
-    <Seg s={s} items={units.map(u => ({ key: u, label: `${u}${suffix}`, on: value === u, onPress: () => setter(u) }))} />
+    <SegmentedBar style={s.unitBar} items={units.map(u => ({ key: u, label: `${u}${suffix}` }))} value={value} onChange={setter} />
   );
   const iosPicker = Platform.OS === 'ios';
 
@@ -2357,10 +2340,16 @@ export default function ProtocolsScreen() {
                     </Fld>
                     {['Capsule', 'Tablet', 'Softgel', 'Gummy'].includes(notes) && (
                       <Fld s={s} label={t('protocols_divisible_q')}>
-                        <Seg s={s} items={[
-                          { key: 'yes', label: t('protocols_divisible_yes'), on: divisible === true, onPress: () => setDivisible(divisible === true ? null : true) },
-                          { key: 'no', label: t('protocols_divisible_no'), on: divisible === false, onPress: () => setDivisible(divisible === false ? null : false) },
-                        ]} />
+                        {/* Optional: tapping the chosen answer clears it (as before). */}
+                        <SegmentedBar
+                          allowDeselect
+                          items={[
+                            { key: 'yes', label: t('protocols_divisible_yes') },
+                            { key: 'no', label: t('protocols_divisible_no') },
+                          ]}
+                          value={divisible === true ? 'yes' : divisible === false ? 'no' : null}
+                          onChange={(k) => setDivisible(k === 'yes' ? true : k === 'no' ? false : null)}
+                        />
                       </Fld>
                     )}
                     <Fld s={s} label={t('protocols_serving_strength')} hint={t('protocols_serving_strength_hint')}>
@@ -2469,11 +2458,15 @@ export default function ProtocolsScreen() {
                       );
                     })()}
                     <Fld s={s} label={t('protocols_syringe_size_label')}>
-                      <Seg s={s} fill items={[
-                        { label: '1 ml · 100u', val: 100 },
-                        { label: '0.5 ml · 50u', val: 50 },
-                        { label: '0.3 ml · 30u', val: 30 },
-                      ].map(sz => ({ key: sz.val, label: sz.label, on: syringeSize === sz.val, onPress: () => setSyringeSize(sz.val) }))} />
+                      <SegmentedBar
+                        items={[
+                          { key: 100, label: '1 ml · 100u' },
+                          { key: 50, label: '0.5 ml · 50u' },
+                          { key: 30, label: '0.3 ml · 30u' },
+                        ]}
+                        value={syringeSize}
+                        onChange={setSyringeSize}
+                      />
                     </Fld>
                   </>
                 )}
@@ -2569,10 +2562,14 @@ export default function ProtocolsScreen() {
 
                 {/* 1 — First dose: quick pick, then custom date below */}
                 <Fld s={s} label={t('protocols_first_dose')}>
-                  <Seg s={s} fill items={[
-                    { offset: 0, key: 'protocols_start_today' },
-                    { offset: 1, key: 'protocols_start_tomorrow' },
-                  ].map(opt => ({ key: opt.key, label: t(opt.key), on: isStartOn(opt.offset), onPress: () => setStartOffset(opt.offset) }))} />
+                  <SegmentedBar
+                    items={[
+                      { key: 0, label: t('protocols_start_today') },
+                      { key: 1, label: t('protocols_start_tomorrow') },
+                    ]}
+                    value={isStartOn(0) ? 0 : isStartOn(1) ? 1 : null}
+                    onChange={setStartOffset}
+                  />
                 </Fld>
                 {isStartOn(0) && dosesPerDay > 1 && <InfoBox s={s} text={t('protocols_first_dose_hint')} />}
 
@@ -2597,10 +2594,17 @@ export default function ProtocolsScreen() {
 
                 {/* 2 — Interval: every day, or Custom → type N days (any interval). */}
                 <Fld s={s} label={t('protocols_how_often')}>
-                  <Seg s={s} fill items={[
-                    { key: 'day', label: t('protocols_every_day'), on: !customIntervalOpen && intervalDays === 1, onPress: () => { setCustomIntervalOpen(false); handleIntervalChange(1); } },
-                    { key: 'custom', label: t('protocols_custom'), on: customIntervalOpen || intervalDays !== 1, onPress: () => { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); } },
-                  ]} />
+                  <SegmentedBar
+                    items={[
+                      { key: 'day', label: t('protocols_every_day') },
+                      { key: 'custom', label: t('protocols_custom') },
+                    ]}
+                    value={customIntervalOpen || intervalDays !== 1 ? 'custom' : 'day'}
+                    onChange={(k) => {
+                      if (k === 'day') { setCustomIntervalOpen(false); handleIntervalChange(1); }
+                      else { setCustomIntervalText(intervalDays !== 1 ? String(intervalDays) : ''); setCustomIntervalOpen(true); }
+                    }}
+                  />
                   {(customIntervalOpen || intervalDays !== 1) && (
                     <View style={s.inrow}>
                       <Text style={s.bodyInk}>{t('protocols_every_word')}</Text>
@@ -2626,12 +2630,14 @@ export default function ProtocolsScreen() {
                 {/* 3 — Doses per day (only for interval <= 2) */}
                 {intervalDays <= 2 && (
                   <Fld s={s} label={t('protocols_doses_per_day')}>
-                    <Seg s={s} fill items={[1, 2, 3].map(n => ({
-                      key: n,
-                      label: n === 1 ? t('protocols_once') : n === 2 ? t('protocols_twice') : t('protocols_three_times'),
-                      on: dosesPerDay === n,
-                      onPress: () => handleDosesPerDayChange(n),
-                    }))} />
+                    <SegmentedBar
+                      items={[1, 2, 3].map(n => ({
+                        key: n,
+                        label: n === 1 ? t('protocols_once') : n === 2 ? t('protocols_twice') : t('protocols_three_times'),
+                      }))}
+                      value={dosesPerDay}
+                      onChange={handleDosesPerDayChange}
+                    />
                   </Fld>
                 )}
 
@@ -3018,13 +3024,7 @@ const protocolsGraduated = (c) => ({
   intervalInput: { width: 96, textAlign: 'center' },
   dayInput: { width: 96, textAlign: 'center' },
   validInput: { width: 110, textAlign: 'center' },
-  segw: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well, flexShrink: 1 },
-  segwFill: { flexWrap: 'nowrap', alignSelf: 'stretch' },
-  segItem: { minHeight: 42, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.well },
-  segItemFill: { flex: 1, paddingHorizontal: 4 },
-  segItemOn: { backgroundColor: c.raised, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
+  unitBar: { flex: 1, minWidth: 0, alignSelf: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, minHeight: 56 },
   stepperBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   stepperBtnText: { fontSize: 24, color: c.ink },

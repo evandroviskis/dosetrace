@@ -65,6 +65,7 @@ import NutritionLogger from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
+import SegmentedBar from '../../components/SegmentedBar';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
@@ -1045,13 +1046,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       </TouchableOpacity>
       {numbersOpenEff && (
         <>
-          <View style={s.segw}>
-            {['metric', 'imperial'].map(u => (
-              <TouchableOpacity key={u} style={[s.segOpt, unit === u && s.segOptOn]} onPress={() => changeUnit(u)} accessibilityRole="button" accessibilityState={{ selected: unit === u }}>
-                <Text style={[s.segText, unit === u && s.segTextOn]}>{u === 'metric' ? t('cal_metric') : t('cal_imperial')}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <SegmentedBar
+            items={[{ key: 'metric', label: t('cal_metric') }, { key: 'imperial', label: t('cal_imperial') }]}
+            value={unit}
+            onChange={changeUnit}
+          />
           {/* Weight + body fat (or age, on the height/age/sex path) */}
           <View style={s.fieldRow}>
             <View style={s.fldHalf}>
@@ -1074,13 +1073,12 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             <View style={s.fld}>
               <Text style={s.fieldLab}>{t('cal_sex')}</Text>
               {profileSex ? (
-                <View style={s.segw}>
-                  {['male', 'female'].map(sx => (
-                    <TouchableOpacity key={sx} style={[s.segOpt, sex === sx && s.segOptOn]} onPress={() => saveProfileSex(sx)} accessibilityRole="button" accessibilityState={{ selected: sex === sx }}>
-                      <Text style={[s.segText, sex === sx && s.segTextOn]}>{t(`cal_sex_${sx}`)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <SegmentedBar
+                  accessibilityLabel={t('cal_sex')}
+                  items={['male', 'female'].map(sx => ({ key: sx, label: t(`cal_sex_${sx}`) }))}
+                  value={sex}
+                  onChange={saveProfileSex}
+                />
               ) : (
                 // Not set in the profile → prompt to complete it instead of defaulting.
                 <TouchableOpacity style={s.btnO} onPress={promptProfileSex} accessibilityRole="button">
@@ -1609,7 +1607,7 @@ function SheetModal({ visible, onClose, s, children }) {
   );
 }
 
-// Graduated (DESIGN.md §2–§5, prototype .card.pc / .goal / .cell / .segw / .pill /
+// Graduated (DESIGN.md §2–§5, prototype .card.pc / .goal / .cell / .pill /
 // .actlist / .winp / .btn / .list): plain raised cards, no border, shadow or tint;
 // one ink action per card; selection = ink outline; data blue only for data.
 const makeStyles = (c) => StyleSheet.create({
@@ -1666,11 +1664,6 @@ const makeStyles = (c) => StyleSheet.create({
   foldRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 4 },
   foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
   // inputs
-  segw: { flexDirection: 'row', alignSelf: 'flex-start', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well },
-  segOpt: { minHeight: 42, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', borderWidth: 1, borderColor: c.well },
-  segOptOn: { backgroundColor: c.raised, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
   fieldRow: { flexDirection: 'row', gap: 12 },
   fld: { gap: 6 },
   fldHalf: { flex: 1, minWidth: 0, gap: 6 },

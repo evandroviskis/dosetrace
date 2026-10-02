@@ -27,6 +27,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import RowChevron from '../components/RowChevron';
+import SegmentedBar from '../components/SegmentedBar';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
@@ -840,46 +841,32 @@ export default function SettingsScreen({ navigation }) {
             <FeatureIcon name="palette" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
           </View>
-          <View style={s.seg} accessibilityRole="radiogroup">
-            {[
+          <SegmentedBar
+            accessibilityLabel={t('settings_appearance')}
+            items={[
               { key: 'light', label: t('settings_theme_light') },
               { key: 'dark', label: t('settings_theme_dark') },
               { key: 'system', label: t('settings_theme_system') },
-            ].map(o => (
-              <TouchableOpacity
-                key={o.key}
-                style={[s.segItem, mode === o.key && s.segItemOn]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: mode === o.key }}
-                onPress={() => setMode(o.key)}
-              >
-                <Text style={[s.segText, mode === o.key && s.segTextOn]}>{o.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
         </View>
         <View style={s.setStack}>
           <View style={s.setStackHead}>
             <FeatureIcon name="clock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
           </View>
-          <View style={s.seg} accessibilityRole="radiogroup">
-            {[
+          <SegmentedBar
+            accessibilityLabel={t('settings_time_format')}
+            items={[
               { key: 'auto', label: t('settings_time_auto') },
               { key: '12h', label: t('settings_time_12h') },
               { key: '24h', label: t('settings_time_24h') },
-            ].map(o => (
-              <TouchableOpacity
-                key={o.key}
-                style={[s.segItem, timeFormat === o.key && s.segItemOn]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: timeFormat === o.key }}
-                onPress={() => setTimeFormat(o.key)}
-              >
-                <Text style={[s.segText, timeFormat === o.key && s.segTextOn]}>{o.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            ]}
+            value={timeFormat}
+            onChange={setTimeFormat}
+          />
         </View>
         <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={() => setShowLanguagePicker(true)}>
           <View style={s.rowLeft}>
@@ -1187,22 +1174,15 @@ export default function SettingsScreen({ navigation }) {
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_sex')}</Text>
               {/* Two options → a segmented well (prototype profSheet), same values. */}
-              <View style={s.seg}>
-                {[
+              <SegmentedBar
+                accessibilityLabel={t('profile_sex')}
+                items={[
                   { key: 'male', label: t('profile_gender_male') },
                   { key: 'female', label: t('profile_gender_female') },
-                ].map(g => (
-                  <TouchableOpacity
-                    key={g.key}
-                    style={[s.segItem, gender === g.key && s.segItemOn]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: gender === g.key }}
-                    onPress={() => setGender(g.key)}
-                  >
-                    <Text style={[s.segText, gender === g.key && s.segTextOn]}>{g.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                ]}
+                value={gender}
+                onChange={setGender}
+              />
               <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
             </View>
 
@@ -1282,22 +1262,15 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_provider')}</Text>
-              <View style={s.seg}>
-                {[
+              <SegmentedBar
+                accessibilityLabel={t('profile_provider')}
+                items={[
                   { key: 'yes', label: t('profile_provider_yes') },
                   { key: 'no', label: t('profile_provider_no') },
-                ].map(p => (
-                  <TouchableOpacity
-                    key={p.key}
-                    style={[s.segItem, hasProvider === p.key && s.segItemOn]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: hasProvider === p.key }}
-                    onPress={() => setHasProvider(p.key)}
-                  >
-                    <Text style={[s.segText, hasProvider === p.key && s.segTextOn]}>{p.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                ]}
+                value={hasProvider}
+                onChange={setHasProvider}
+              />
             </View>
 
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
@@ -1517,10 +1490,5 @@ const settingsGraduated = (c) => ({
   editPillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
   editPillText: { fontSize: 15, color: c.ink2, fontWeight: '400' },
   editPillTextOn: { color: c.ink, fontWeight: '600' },
-  seg: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well },
-  segItem: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: 'transparent' },
-  segItemOn: { backgroundColor: c.raised, borderColor: c.line },
-  segText: { fontSize: 15, fontWeight: '500', color: c.ink2 },
-  segTextOn: { color: c.ink, fontWeight: '700' },
   editDisclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3, marginTop: 24, paddingHorizontal: 4 },
 });

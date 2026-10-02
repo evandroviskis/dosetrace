@@ -49,9 +49,11 @@ test('rows and dividers are inset inside the card (prototype .list padding 0 16)
 test('Appearance and Time format are one segmented bar under their label', () => {
   assert.ok(!SET.includes('themePill'), 'the old pills are still there');
   const body = SET.slice(SET.indexOf('function renderAccountBody'), SET.indexOf('const GROUP_BODIES'));
-  assert.equal((body.match(/style=\{s\.seg\}/g) || []).length, 2);
-  assert.match(SET, /segItemOn: \{ backgroundColor: c\.raised/);
-  assert.match(SET, /segTextOn: \{ color: c\.ink, fontWeight: '700' \}/);
+  // Since founder 2026-10-02 (Q4 = B) the bar is the one shared SegmentedBar, drawn the same.
+  assert.equal((body.match(/<SegmentedBar\b/g) || []).length, 2);
+  const BAR = read('components', 'SegmentedBar.js');
+  assert.match(BAR, /itemOn: \{ backgroundColor: c\.raised/);
+  assert.match(BAR, /textOn: \{ color: c\.ink, fontWeight: '700' \}/);
 });
 
 test('feature icons draw at the prototype stroke 72/1024 (Q14 = A)', () => {
