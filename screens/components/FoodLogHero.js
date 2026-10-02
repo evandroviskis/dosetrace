@@ -19,6 +19,8 @@ import { catchUpFood, loadFoodAccess } from '../../lib/foodLogActions';
 import FoodGraceNote from './FoodGraceNote';
 import { localISO } from '../../lib/localDate';
 import FeatureIcon from '../../components/FeatureIcon';
+import RowChevron from '../../components/RowChevron';
+import { fontFamilyFor } from '../../lib/fonts';
 
 const CHECK_DAYS = 21;
 
@@ -81,9 +83,9 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
       {/* Redesign (Graduated, approved 2026-09-29): the whole card opens the food chat;
           the day's line is the headline, the reality check under it; no tinted box. */}
       <View style={s.head}>
-        <FeatureIcon name="ai_spark" size={20} color={colors.ink} />
+        <FeatureIcon name="ai_spark" size={22} color={colors.ink2} />
         <Text style={s.title}>{t('nutri_ai_badge')}</Text>
-        <Text style={s.chev}>›</Text>
+        <RowChevron color={colors.tick} />
       </View>
       <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
       {checkLine && <Text style={s.check}>{checkLine}</Text>}
@@ -95,14 +97,14 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
-  card: { backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 16, gap: 6 },
+  card: { backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 16, gap: 8 },
   cardToday: { marginHorizontal: 16, marginBottom: 26 },
   grace: { marginTop: 8 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
-  chev: { fontSize: 20, color: c.tick },
-  line: { fontSize: 20, fontWeight: '700', color: c.ink },
-  check: { fontSize: 15, color: c.ink2 },
+  // prototype r-title at 19: Geist 700 (set here: the app maps Geist from 22 pt up)
+  line: { fontSize: 19, fontFamily: fontFamilyFor('700'), lineHeight: 24, letterSpacing: -0.19, color: c.ink, fontVariant: ['tabular-nums'] },
+  check: { fontSize: 15, lineHeight: 20, color: c.ink2, fontVariant: ['tabular-nums'] },
   cta: { alignSelf: 'flex-start', backgroundColor: c.act, borderRadius: 22, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
   ctaText: { color: c.onAct, fontWeight: '700', fontSize: 15 },
 });

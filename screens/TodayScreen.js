@@ -17,8 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
-import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
+import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
@@ -32,7 +32,8 @@ import { planUndoTake } from '../lib/markTaken';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
 import BodyMapModal from './components/BodyMapModal';
-import { summarizeStored } from '../lib/injectionSites';
+import { describeStored } from '../lib/injectionSites';
+import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, vialCells, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
 import { dosesPerVial, computeDraw } from '../lib/doseMath';
 import { adherenceRings } from '../lib/adherenceRings';
 import TodayTracker from './components/TodayTracker';
@@ -44,6 +45,9 @@ import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import RowChevron from '../components/RowChevron';
+import FoldChevron from '../components/FoldChevron';
+import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
@@ -52,7 +56,7 @@ import DosePage from './components/DosePage';
 import { planDosePage, cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { displayColor } from '../lib/protocolColors';
 import LogScreen from './LogScreen';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useReducedMotion,
   withTiming, withDelay, withSequence, Easing,
@@ -113,7 +117,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
-import CheckMark, { CrossMark } from '../components/CheckMark';
+import CheckMark from '../components/CheckMark';
 
 const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
 const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
@@ -131,12 +135,8 @@ const MONTH_KEYS = [
 const BLOODWORK_INTERVAL_DAYS = 182; // ~6 months
 const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many days
 const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
-// How long "delete" hides a DERIVED alert (reality-check delete cancels instead).
-const ALERT_SNOOZE_MS = {
-  bloodwork_due: 14 * 86400000,
-  supply_low: 3 * 86400000,
-  vial_expiry: 2 * 86400000,
-};
+// The Undo / notice toast stays 4 s (prototype toast(), Today redesign part 15).
+const TOAST_MS = 4000;
 
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
@@ -358,44 +358,14 @@ export default function TodayScreen() {
     } catch { setAlertSnooze({}); }
   }
 
-  // Snooze a DERIVED alert (bloodwork / supply / expiry). kind: 'later' (3h, or
-  // tomorrow 09:00 if that runs past 21:00), 'tomorrow' (09:00 tomorrow), or
-  // 'days' (the alert's own longer window, the old dismiss).
-  async function snoozeAlert(id, kind = 'days') {
-    const now = new Date();
-    const tomorrow9 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0).getTime();
-    let until;
-    if (kind === 'later') {
-      const later = now.getTime() + 3 * 3600000;
-      until = new Date(later).getHours() >= 21 || new Date(later).getDate() !== now.getDate() ? tomorrow9 : later;
-    } else if (kind === 'tomorrow') until = tomorrow9;
-    else until = Date.now() + (ALERT_SNOOZE_MS[id] || 7 * 86400000);
+  // Snooze an alert (Today redesign part 2, prototype strip): "Tomorrow" or "In 3 days",
+  // both until 09:00 that day (lib/todayFormat.js snoozeUntil).
+  async function snoozeAlert(id, kind) {
+    const until = snoozeUntil(kind, Date.now());
     setSnoozeOpen(null);
     const next = { ...alertSnooze, [id]: until };
     setAlertSnooze(next);
     try { await AsyncStorage.setItem(ALERT_SNOOZE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-  }
-
-  // Cancel the open reality-check reminder from the Today alert (with confirm).
-  function dismissRealityCheckAlert() {
-    Alert.alert(
-      t('today_alert_rc_remove_title'),
-      t('today_alert_rc_remove_msg'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('today_alert_remove'), style: 'destructive',
-          onPress: async () => {
-            setRcStart(null);
-            await clearRealityStart();
-            syncRealityCheckReminder().catch(() => {});
-            // Also cancel the 8pm food-log nudges — stopping the reality-check must
-            // stop ALL its reminders, not just the weigh-in (journey-review F1).
-            syncFoodLogReminder().catch(() => {});
-          },
-        },
-      ]
-    );
   }
 
   // Inactivity nudge: if an active protocol hasn't had a dose logged for a while
@@ -483,7 +453,7 @@ export default function TodayScreen() {
       const out = {};
       Object.keys(newest).forEach(pid => {
         const l = newest[pid];
-        const summary = summarizeStored(l.injection_site, t);
+        const summary = describeStored(l.injection_site, t);
         if (!summary) return;
         const ms = Date.now() - new Date(l.logged_at).getTime();
         const daysAgo = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
@@ -599,14 +569,15 @@ export default function TodayScreen() {
 
   // extraDeleteIds: yesterday's Skipped row written with this dose ("today, skip yesterday"
   // answered after midnight) — Undo removes both.
-  function writePending(protocolId, write, extraDeleteIds = []) {
+  function writePending(protocolId, writeOpts, extraDeleteIds = []) {
+    const { toastText, ...write } = writeOpts; // the toast line is not part of the write
     const res = recordDoseTaken(protocolId, write);
     if (res && res.logId) {
-      const timer = setTimeout(() => setUndoData(null), 5000);
+      const timer = setTimeout(() => setUndoData(null), TOAST_MS);
       const record = {
         logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
-        oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
+        oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null, text: toastText || null,
       };
       setUndoData(record);
       keepUndo(record);
@@ -620,7 +591,7 @@ export default function TodayScreen() {
   function skipPending(item) {
     const res = recordSkipPending(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
     if (res && res.logId) {
-      const timer = setTimeout(() => setUndoData(null), 5000);
+      const timer = setTimeout(() => setUndoData(null), TOAST_MS);
       const record = { logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null };
       setUndoData(record);
       keepUndo(record);
@@ -792,7 +763,7 @@ export default function TodayScreen() {
       requestSync();
 
       // Setup undo (5 second window) — previous timer is cleared by the undoData effect
-      const timer = setTimeout(() => setUndoData(null), 5000);
+      const timer = setTimeout(() => setUndoData(null), TOAST_MS);
       // The full undo record of THIS take (the Undo bar).
       const record = {
         logId,
@@ -809,6 +780,7 @@ export default function TodayScreen() {
         oralUnitsAdded: res.oralUnitsAdded,
         timer,
         fx,
+        text: opts.toastText || null, // Q22 = A: "Site saved · {site}" after a saved site
       };
       setUndoData(record);
       keepUndo(record); // BK-16: the dose page's Undo of this slot
@@ -893,6 +865,9 @@ export default function TodayScreen() {
       return false;
     }
     const write = { tapMs: o.tapMs, dayKey: o.dayKey, slotMs: o.slotMs, flipRowId: o.flipRowId, atNow: o.atNow, injectionSite: site || null, vialPromptDelay: 450 };
+    // Q22 = A (founder 2026-10-02): a dose written with its site says so in the toast.
+    const siteName = site ? describeStored(site, t) : null;
+    const toastText = siteName ? t('today_site_saved').replace('{site}', siteName) : null;
     let extraDeleteIds = [];
     if (o.skipYesterday) {
       const skipped = recordSkipPending(protocol.id, { dayKey: o.skipYesterday.dayKey, slotMs: o.skipYesterday.slotMs });
@@ -900,8 +875,8 @@ export default function TodayScreen() {
       fetchPendingYesterday();
     }
     vialPromptPendingRef.current = false;
-    if (q.source === 'pending' || o.dayKey !== localDayKey(Date.now())) writePending(protocol.id, write, extraDeleteIds);
-    else markTaken(protocol, { write, extraDeleteIds, vialPromptDelay: 450, cancelUpTo: reminderCancelCount(q, 0) });
+    if (q.source === 'pending' || o.dayKey !== localDayKey(Date.now())) writePending(protocol.id, { ...write, toastText }, extraDeleteIds);
+    else markTaken(protocol, { write, extraDeleteIds, vialPromptDelay: 450, cancelUpTo: reminderCancelCount(q, 0), toastText });
     // Forgotten only after the write (markTaken is synchronous: no await before its write).
     dropQuestion(AsyncStorage, q.key);
     return vialPromptPendingRef.current;
@@ -1360,7 +1335,6 @@ export default function TodayScreen() {
         body: due ? t('today_alert_rc_due')
           : t('today_alert_rc_when').replace('{date}', `${t(MONTH_KEYS[remind.getMonth()])} ${remind.getDate()}`),
         onPress: () => navigation.navigate('Journey'),
-        onRemove: dismissRealityCheckAlert,
         snoozeId: 'reality_check',
       });
     }
@@ -1611,6 +1585,9 @@ export default function TodayScreen() {
     const picked = book && isPickedDose(p.id, todayKey);
     return (
       <View key={p.id} style={[s.dose, picked && s.dosePicked]}>
+        {/* Today redesign part 5 (prototype card()): dot, name, the amount in Geist Mono with
+            " · Daily" in ink2; the time with the drawn arrow; "Due" once due, a grey
+            "reminder" tag before it (when a reminder time is set). */}
         <TouchableOpacity
           style={s.dtop}
           activeOpacity={0.7}
@@ -1621,81 +1598,32 @@ export default function TodayScreen() {
           <View style={[s.ddot, { backgroundColor: displayColor(p.color) || colors.data }]} />
           <View style={s.dinfo}>
             <Text style={s.dname}>{name}</Text>
-            <Text style={s.damt}>{p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}</Text>
-            {progress && (
-              <Text style={s.dsub}>{t('today_day_of').replace('{current}', progress.current).replace('{total}', progress.total)}</Text>
-            )}
-            {dosesTakenToday > 0 && dosesNeeded > 1 && <Text style={s.dsub}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>}
+            <Text style={s.dfreq}><Text style={s.damt}>{p.dose} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
           </View>
           <View style={s.dright}>
-            {p.reminder_time ? (
-              <Text style={s.dtime}>{p.reminder_time.split(',').filter(Boolean).map(t24 => formatTimeAMPM(t24)).join(' · ')}</Text>
-            ) : null}
-            {due && (
+            <View style={s.dtimeRow}>
+              {p.reminder_time ? (
+                <Text style={s.dtime}>{p.reminder_time.split(',').filter(Boolean).map(t24 => formatTimeAMPM(t24)).join(' · ')}</Text>
+              ) : null}
+              <RowChevron color={colors.tick} />
+            </View>
+            {due ? (
               <View style={s.dueTag}>
                 <View style={s.dueDot} />
                 <Text style={s.dueText}>{t('today_due')}</Text>
               </View>
-            )}
+            ) : cp.next && p.reminder_time ? (
+              <View style={s.tagLater}>
+                <Text style={s.tagLaterText}>{t('today_reminder_tag')}</Text>
+              </View>
+            ) : null}
           </View>
         </TouchableOpacity>
-        {draw && draw.drawUnits && !draw.unitMismatch && (
-          <View style={s.draw}>
-            <View style={s.drawHead}>
-              <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
-            </View>
-            <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
-            {draw.exceedsSyringe && (
-              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syr))}</Text>
-            )}
-          </View>
-        )}
-        {(lastSite || pStreak > 0) && (
-          <View style={s.dmeta}>
-            {lastSite && (
-              <Text style={s.dmetaText}>
-                {t('today_last_site').replace('{site}', lastSite.summary).replace('{days}', String(lastSite.daysAgo))}
-              </Text>
-            )}
-            {pStreak > 0 && (
-              <View style={s.dmetaRow}>
-                <FeatureIcon name="flame" size={12} color={colors.attention} />
-                <Text style={s.dmetaText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
-              </View>
-            )}
-          </View>
-        )}
-        {p.type === 'recon' && vial && (() => {
-          const capacity = (vial.total_doses && vial.total_doses > 0)
-            ? vial.total_doses
-            : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-          const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
-          const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
-          return (
-            <View style={s.vialRow}>
-              <Text style={s.vialText}>
-                {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
-                {remaining != null ? ` · ${remaining} ${t('today_vial_remaining')}` : ''}
-                {daysLeft != null ? ' · ' : ''}
-                {daysLeft != null && (
-                  <Text style={{ color: daysLeft <= 3 ? colors.risk : daysLeft <= 7 ? colors.attention : colors.ok, fontWeight: '600' }}>
-                    {daysLeft <= 0 ? t('protocols_vial_past') : t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
-                  </Text>
-                )}
-              </Text>
-            </View>
-          );
-        })()}
-        {p.type === 'recon' && !vial && (
-          <TouchableOpacity style={s.vialRow} onPress={() => showVialPromptFor(p)} accessibilityRole="button">
-            <Text style={[s.vialText, { color: colors.ink, textDecorationLine: 'underline' }]}>{t('today_add_vial')}</Text>
-          </TouchableOpacity>
-        )}
         {cp.skipped.map((sk) => {
-          // A-78: "Skipped — you can still log it" per skipped slot; its Mark taken logs THAT
-          // dose (the Skipped row turns Taken at the tap time; the site question first for an
-          // injectable). A twice-daily card names the slot by its time.
+          // A-78: "Skipped — you can still log it" per skipped slot (prototype: right under the
+          // card's top, ink2); its Mark taken logs THAT dose (the Skipped row turns Taken at the
+          // tap time; the site question first for an injectable). A twice-daily card names the
+          // slot by its time.
           const skTime = (p.doses_per_day || 1) > 1 && Number.isFinite(sk.slotMs)
             ? formatTimeAMPM(new Date(sk.slotMs).toTimeString().slice(0, 5)) : null;
           return (
@@ -1714,6 +1642,75 @@ export default function TodayScreen() {
             </View>
           );
         })}
+        {dosesTakenToday > 0 && dosesNeeded > 1 && <Text style={s.dsub}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>}
+        {draw && draw.drawUnits && !draw.unitMismatch && (
+          <View style={s.draw}>
+            <View style={s.drawHead}>
+              <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
+              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
+            </View>
+            <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
+            {draw.exceedsSyringe && (
+              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syr))}</Text>
+            )}
+          </View>
+        )}
+        {/* Part 7: Day X of Y, the last site (full name) and the streak on one line that
+            wraps when there is no room (prototype .meta r-foot). */}
+        {(progress || lastSite || pStreak > 0) && (
+          <View style={s.dmeta}>
+            {progress && (
+              <Text style={s.dmetaText}>{t('today_day_of').replace('{current}', progress.current).replace('{total}', progress.total)}</Text>
+            )}
+            {lastSite && (
+              <Text style={s.dmetaText}>
+                {t('today_last_site').replace('{site}', lastSite.summary).replace('{days}', String(lastSite.daysAgo))}
+              </Text>
+            )}
+            {pStreak > 0 && (
+              <View style={s.dmetaRow}>
+                <FeatureIcon name="flame" size={14} color={colors.attention} />
+                <Text style={s.dmetaText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
+              </View>
+            )}
+          </View>
+        )}
+        {p.type === 'recon' && vial && (() => {
+          const capacity = (vial.total_doses && vial.total_doses > 0)
+            ? vial.total_doses
+            : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+          const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
+          const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+          // Part 8: one cell per dose (prototype cells()), the remaining ones in data.
+          const vc = remaining != null ? vialCells(capacity, remaining) : null;
+          return (
+            <View style={s.vialRow}>
+              {vc && (
+                <Svg width={vc.width} height={10} viewBox={`0 0 ${vc.width} 10`} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  {vc.cells.map((cell, i) => (
+                    <Rect key={i} x={cell.x} y={0.5} width={cell.w} height={9} rx={2} fill={cell.filled ? colors.data : 'none'} stroke={cell.filled ? colors.data : colors.tick} strokeWidth={1} />
+                  ))}
+                </Svg>
+              )}
+              <Text style={s.vialText}>
+                {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
+                {remaining != null ? ` · ${vialRemainingLabel(remaining, t)}` : ''}
+                {daysLeft != null ? ' · ' : ''}
+                {daysLeft != null && (
+                  // Q9 = B (founder, re-confirmed 2026-10-02 "dias coloridos"): coloured by deadline.
+                  <Text style={{ color: daysLeft <= 3 ? colors.risk : daysLeft <= 7 ? colors.attention : colors.ok, fontWeight: '600' }}>
+                    {daysLeft <= 0 ? t('protocols_vial_past') : t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
+                  </Text>
+                )}
+              </Text>
+            </View>
+          );
+        })()}
+        {p.type === 'recon' && !vial && (
+          <TouchableOpacity style={s.vialRow} onPress={() => showVialPromptFor(p)} accessibilityRole="button">
+            <Text style={s.addVialText}>{t('today_add_vial')}</Text>
+          </TouchableOpacity>
+        )}
         {cp.next && (
           <View style={s.acts}>
             <TouchableOpacity style={s.btnSkip} onPress={() => skipDose(p, cp.next)} accessibilityRole="button">
@@ -1734,16 +1731,19 @@ export default function TodayScreen() {
     );
   }
 
-  // Tomorrow / Next 5 days: one list, each part folded with its count; open → rows.
-  function foldRow(key, title, items) {
+  // Tomorrow / Next 5 days: one list, each part folded with its count; open → rows (Today
+  // redesign part 12, prototype foldRow() / uprow()): the drawn fold arrow, "1 dose", the day
+  // and time stacked on the left, the amount in Geist Mono, the row arrow; "N more scheduled
+  // later" is the last row of the list.
+  function foldRow(key, title, items, extraRow = null) {
     if (!items.length) return null;
     const open = fold[key];
     return (
-      <View key={key} style={s.foldBlock}>
+      <View key={key} style={key === 'n5' && tomorrowCards.length > 0 ? s.foldSep : null}>
         <TouchableOpacity style={s.foldHead} onPress={() => setFold(prev => ({ ...prev, [key]: !prev[key] }))} accessibilityRole="button" accessibilityState={{ expanded: open }}>
           <Text style={s.foldTitle}>{title}</Text>
-          <Text style={s.foldCount}>{items.length} {t('today_doses')}</Text>
-          <Text style={s.foldChev}>{open ? '⌃' : '⌄'}</Text>
+          <Text style={s.foldCount}>{doseCountLabel(items.length, t)}</Text>
+          <FoldChevron open={open} color={colors.ink3} />
         </TouchableOpacity>
         {open && items.map(p => {
           const at = nextDoseAt(p, takenCounts[p.id] || 0, new Date());
@@ -1759,15 +1759,20 @@ export default function TodayScreen() {
               accessibilityRole="button"
               accessibilityState={book ? { selected: pickedUp } : undefined}
             >
-              <Text style={s.upTime}>{key === 'n5' ? `${t(WEEKDAY_KEYS[d.getDay()])} ` : ''}{formatTimeAMPM(hhmm)}</Text>
-              <View style={[s.ddot, { backgroundColor: displayColor(p.color) || colors.data }]} />
+              <View style={s.upTimeCol}>
+                {key === 'n5' && <Text style={s.upDay} numberOfLines={1}>{`${t(WEEKDAY_KEYS[d.getDay()])}, ${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`}</Text>}
+                <Text style={s.upTime}>{formatTimeAMPM(hhmm)}</Text>
+              </View>
+              <View style={[s.updot, { backgroundColor: displayColor(p.color) || colors.data }]} />
               <View style={s.upMain}>
                 <Text style={s.upName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-                <Text style={s.upAmt}>{p.dose} {p.dose_unit} · {frequencyLabelFor(p.interval_days, t)}</Text>
+                <Text style={s.upAmt}><Text style={s.upAmtVal}>{p.dose} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
               </View>
+              <RowChevron color={colors.tick} />
             </TouchableOpacity>
           );
         })}
+        {open && extraRow}
       </View>
     );
   }
@@ -1804,7 +1809,7 @@ export default function TodayScreen() {
                 <View key={a.id} style={[s.aitem, i > 0 && s.aitemSep]}>
                   <View style={s.arow}>
                     <TouchableOpacity style={s.amain} activeOpacity={0.7} onPress={a.onPress}>
-                      <FeatureIcon name={a.iconName} size={20} color={colors.ink2} />
+                      <FeatureIcon name={a.iconName} size={22} color={colors.ink2} />
                       <View style={s.atext}>
                         <View style={s.atitleRow}>
                           <Text style={s.atitle}>{a.title}</Text>
@@ -1813,32 +1818,23 @@ export default function TodayScreen() {
                         <Text style={s.abody}>{a.body}</Text>
                       </View>
                     </TouchableOpacity>
-                    {a.snoozeId ? (
-                      <TouchableOpacity
-                        style={[s.round, snoozeOpen === a.id && s.roundOn]}
-                        onPress={() => setSnoozeOpen(snoozeOpen === a.id ? null : a.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('alert_snooze')}
-                      >
-                        <FeatureIcon name="snooze" size={18} color={snoozeOpen === a.id ? colors.onInk : colors.ink2} />
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity style={s.round} onPress={a.onRemove} accessibilityRole="button" accessibilityLabel={t('today_alert_remove')}>
-                        <CrossMark size={14} color={colors.ink2} />
-                      </TouchableOpacity>
-                    )}
+                    {/* Prototype: every alert has the snooze round; it opens "Tomorrow / In 3
+                        days" under the alert (Q15: the current snooze drawing). */}
+                    <TouchableOpacity
+                      style={[s.round, snoozeOpen === a.id && s.roundOn]}
+                      onPress={() => setSnoozeOpen(snoozeOpen === a.id ? null : a.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('alert_snooze')}
+                      accessibilityState={{ expanded: snoozeOpen === a.id }}
+                    >
+                      <FeatureIcon name="snooze" size={20} color={snoozeOpen === a.id ? colors.onInk : colors.ink2} />
+                    </TouchableOpacity>
                   </View>
-                  {a.snoozeId && snoozeOpen === a.id && (
+                  {snoozeOpen === a.id && (
                     <View style={s.snz}>
-                      {[
-                        ...(new Date().getHours() < 18 ? [['later', t('alert_snooze_later')]] : []),
-                        ['tomorrow', t('alert_snooze_tomorrow')],
-                        a.onRemove
-                          ? ['remove', t('today_alert_remove')]
-                          : ['days', t('alert_snooze_days').replace('{n}', String(Math.round((ALERT_SNOOZE_MS[a.snoozeId] || 7 * 86400000) / 86400000)))],
-                      ].map(([kind, label]) => (
-                        <TouchableOpacity key={kind} style={s.pill} onPress={() => (kind === 'remove' ? (setSnoozeOpen(null), a.onRemove()) : snoozeAlert(a.snoozeId, kind))} accessibilityRole="button">
-                          <Text style={[s.pillText, kind === 'remove' && { color: colors.risk }]}>{label}</Text>
+                      {SNOOZE_KINDS.map((kind) => (
+                        <TouchableOpacity key={kind} style={s.pill} onPress={() => snoozeAlert(a.snoozeId, kind)} accessibilityRole="button">
+                          <Text style={s.pillText}>{kind === 'in3' ? t('alert_snooze_days').replace('{n}', '3') : t('alert_snooze_tomorrow')}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -1916,29 +1912,52 @@ export default function TodayScreen() {
           <View style={s.block}>
             <View style={s.lab}>
               <Text style={s.sectionTitle}>{t('today_doses').charAt(0).toUpperCase() + t('today_doses').slice(1)}</Text>
-              {totalDoses > 0 && <Text style={s.labCount}>{t('vials_count_of').replace('{x}', String(doneDoses)).replace('{y}', String(totalDoses))}</Text>}
+              {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t)}</Text>}
             </View>
             {todayCards.map(p => renderDoseCard(p))}
             {todayCards.length === 0 && allDoneToday && (
-              <View style={s.doneCard}><Text style={s.doneText}>{t('today_all_done')}</Text></View>
+              // Part 13 (prototype caught()): the ok check beside the line.
+              <View style={s.doneCard}>
+                <CheckMark size={22} color={colors.ok} />
+                <Text style={s.doneText}>{t('today_all_done')}</Text>
+              </View>
             )}
-            {takenNames.length > 0 && (
-              <TouchableOpacity style={s.takenLine} onPress={() => setTakenOpen(!takenOpen)} accessibilityRole="button" accessibilityState={{ expanded: takenOpen }}>
-                <CheckMark style={s.takenCheck} />
+            {takenNames.length > 0 && (takenOpen ? (
+              // Part 10, opened (prototype takenBlock(open)): a raised list — the check and
+              // "Taken" with the up arrow, then one row per dose: dot, name, "time · site".
+              <View style={s.takenList}>
+                <TouchableOpacity style={s.takenHead} onPress={() => setTakenOpen(false)} accessibilityRole="button" accessibilityState={{ expanded: true }}>
+                  <CheckMark size={20} color={colors.ok} />
+                  <Text style={[s.takenTitle, s.takenGrow]}>{takenLabel}</Text>
+                  <FoldChevron open={takenOpen} color={colors.ink3} />
+                </TouchableOpacity>
+                {todayTaken.map(l => {
+                  const pr = protocols.find(x => x.id === l.protocol_id);
+                  if (!pr) return null;
+                  const d = new Date(l.logged_at);
+                  const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                  const site = l.injection_site ? describeStored(l.injection_site, t) : null;
+                  return (
+                    <View key={l.id} style={s.takenRow}>
+                      <View style={[s.takenDot, { backgroundColor: displayColor(pr.color) || colors.data }]} />
+                      <Text style={s.takenName} numberOfLines={1}>{pr.compound_id ? t(pr.compound_id) : pr.name}</Text>
+                      <Text style={s.takenWhen} numberOfLines={1}>{site ? `${formatTimeAMPM(hhmm)} · ${site}` : formatTimeAMPM(hhmm)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              // Part 10, closed: the ok check (it had no colour, so it never showed), "Taken" in
+              // ink, the names, the down arrow.
+              <TouchableOpacity style={s.takenLine} onPress={() => setTakenOpen(true)} accessibilityRole="button" accessibilityState={{ expanded: false }}>
+                <View style={s.takenMark}><CheckMark size={20} color={colors.ok} /></View>
                 <View style={s.takenMain}>
                   <Text style={s.takenTitle}>{takenLabel}</Text>
-                  {takenOpen
-                    ? todayTaken.map(l => {
-                        const pr = protocols.find(x => x.id === l.protocol_id);
-                        if (!pr) return null;
-                        const d = new Date(l.logged_at);
-                        const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                        return <Text key={l.id} style={s.takenItem}>{formatTimeAMPM(hhmm)} · {pr.compound_id ? t(pr.compound_id) : pr.name}</Text>;
-                      })
-                    : <Text style={s.takenItem} numberOfLines={2}>{takenNames.join(', ')}</Text>}
+                  <Text style={s.takenItem} numberOfLines={2}>{takenNames.join(', ')}</Text>
                 </View>
+                <View style={s.takenFold}><FoldChevron open={takenOpen} color={colors.ink3} /></View>
               </TouchableOpacity>
-            )}
+            ))}
           </View>
         )}
 
@@ -1946,15 +1965,24 @@ export default function TodayScreen() {
           <View style={s.block}>
             <View style={s.foldList}>
               {foldRow('tom', t('today_section_tomorrow'), tomorrowCards)}
-              {foldRow('n5', t('today_section_next5'), next5Cards)}
+              {foldRow('n5', t('today_section_next5'), next5Cards, laterCount > 0 ? (
+                <View style={s.laterRow}>
+                  <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>
+                </View>
+              ) : null)}
+              {/* Nothing in the next 5 days: the "later" line stays visible under Tomorrow. */}
+              {next5Cards.length === 0 && laterCount > 0 && (
+                <View style={s.laterRow}>
+                  <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>
+                </View>
+              )}
             </View>
-            {laterCount > 0 && <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>}
           </View>
         )}
 
         {protocols.length > 0 && <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 24 }} />
       </ScrollView>
   );
 
@@ -1966,7 +1994,7 @@ export default function TodayScreen() {
         visible wherever the list is scrolled (S-02). */}
       {undoData && (
         <View style={toast.undoBar}>
-          <Text style={s.undoBarText}>{t('today_dose_logged')}</Text>
+          <Text style={s.undoBarText} numberOfLines={2}>{undoData.text || t('today_dose_logged')}</Text>
           <View style={s.undoBarActions}>
             <TouchableOpacity onPress={undoTake}>
               <Text style={s.undoBarAction}>{t('today_undo')}</Text>
@@ -2195,7 +2223,6 @@ const legacyStyles = (c) => ({
   section: { paddingHorizontal: 18 },
   categorySection: { marginBottom: 8 },
   categoryLabel: { fontSize: 13, fontWeight: '700', color: c.text, letterSpacing: 0.6, marginBottom: 12, marginTop: 8 },
-  laterHint: { fontSize: 12, color: c.textFaint, textAlign: 'center', paddingVertical: 12 },
   allDoneCard: { backgroundColor: c.successSoft, borderRadius: 16, padding: 18, alignItems: 'center' },
   allDoneText: { fontSize: 14, fontWeight: '700', color: c.successSoftText },
   doseCard: { backgroundColor: c.card, borderRadius: 18, marginBottom: 12, overflow: 'hidden', ...c.shadowSoft },
@@ -2239,7 +2266,6 @@ const legacyStyles = (c) => ({
   subFill: { alignSelf: 'stretch' },
   flyDrop: { position: 'absolute', left: 0, top: 0, width: 10, height: 13, zIndex: 50, elevation: 50 },
   doseBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '700' },
-  disclaimer: { fontSize: 10, color: c.textFaint, textAlign: 'center', marginTop: 16, marginHorizontal: 32, lineHeight: 15 },
   emptyState: { padding: 20, alignItems: 'center' },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: c.text, marginBottom: 8 },
@@ -2270,14 +2296,6 @@ const legacyStyles = (c) => ({
   promptBtnSecondaryText: { fontSize: 14, color: c.textMuted },
   promptBtnPrimary: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center' },
   promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
-  // Undo bar
-  undoBar: { position: 'absolute', left: 16, right: 16, bottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  // S-20 notice (same pinned surface as the Undo bar, text only)
-  takeNoticeBar: { position: 'absolute', left: 16, right: 16, bottom: 12, backgroundColor: c.toast, ...c.shadowCard, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  takeNoticeText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
-  undoBarText: { fontSize: 13, color: c.toastText, fontWeight: '500' },
-  undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
-  undoBarAction: { fontSize: 13, color: c.toastText, fontWeight: '700', textDecorationLine: 'underline' },
   // Yesterday / Today shortcut pills
   yesterdayRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   yesterdayPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: c.accentSoft, borderWidth: 0.5, borderColor: c.border },
@@ -2298,17 +2316,17 @@ const todayV21Styles = (c) => ({
   sectionTitle: { fontSize: 22, fontWeight: '700', color: c.ink },
   alist: { backgroundColor: c.raised, borderRadius: 22, paddingLeft: 16, paddingRight: 8 },
   aitem: {},
-  aitemSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  aitemSep: { borderTopWidth: 1, borderTopColor: c.line },
   arow: { flexDirection: 'row', alignItems: 'center', minHeight: 64, gap: 12 },
   amain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   atext: { flex: 1, minWidth: 0, gap: 2 },
-  atitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  atitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   atitle: { fontSize: 17, fontWeight: '600', color: c.ink },
   adot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.attention },
-  abody: { fontSize: 15, color: c.ink2 },
+  abody: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   round: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   roundOn: { backgroundColor: c.ink },
-  snz: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 32, paddingBottom: 14 },
+  snz: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 34, paddingBottom: 14 },
   pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
   pillText: { fontSize: 15, color: c.ink2 },
   pend: { backgroundColor: c.raised, borderRadius: 22, padding: 16, gap: 12 },
@@ -2323,27 +2341,33 @@ const todayV21Styles = (c) => ({
   pendPicked: { borderWidth: 2, borderColor: c.ink, padding: 14 },
   upRowPicked: { borderWidth: 2, borderColor: c.ink, borderRadius: 14, paddingHorizontal: 10 },
   dtop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  ddot: { width: 9, height: 9, borderRadius: 5, marginTop: 8 },
-  dinfo: { flex: 1, minWidth: 0, gap: 3 },
+  ddot: { width: 10, height: 10, borderRadius: 5, marginTop: 8 },
+  dinfo: { flex: 1, minWidth: 0, gap: 4 },
   dname: { fontSize: 20, fontWeight: '700', color: c.ink, letterSpacing: -0.2 },
-  damt: { fontSize: 16, fontWeight: '500', color: c.ink, fontVariant: ['tabular-nums'] },
-  dsub: { fontSize: 15, color: c.ink2 },
-  dright: { alignItems: 'flex-end', gap: 8 },
+  damt: { fontFamily: MONO['500'], fontSize: 16, color: c.ink, letterSpacing: -0.32, fontVariant: ['tabular-nums'] },
+  dfreq: { fontSize: 15, color: c.ink2 },
+  dsub: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  dright: { alignItems: 'flex-end', gap: 6 },
+  dtimeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dtime: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   dueTag: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.attention },
   dueDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.attention },
   dueText: { fontSize: 12, fontWeight: '700', color: c.attention },
+  tagLater: { flexDirection: 'row', alignItems: 'center', minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.line },
+  tagLaterText: { fontSize: 12, color: c.ink3, fontWeight: '500' },
   draw: { backgroundColor: c.well, borderRadius: 16, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10, gap: 6 },
   drawHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
-  drawLabel: { fontSize: 15, fontWeight: '600', color: c.ink2 },
+  drawLabel: { fontSize: 15, color: c.ink2 },
   drawVal: { fontSize: 22, fontWeight: '500', color: c.ink, fontVariant: ['tabular-nums'] },
   drawUnit: { fontSize: 13, fontWeight: '400', color: c.ink3 },
   drawWarn: { fontSize: 15, fontWeight: '600', color: c.risk },
-  dmeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, columnGap: 14 },
+  dmeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 4, columnGap: 14 },
   dmetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dmetaText: { fontSize: 13, color: c.ink2 },
-  vialRow: { paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
-  vialText: { fontSize: 13, color: c.ink2 },
+  dmetaText: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  vialRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.line },
+  vialText: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  // prototype btnlink r-body: 17 ink, underline in tick, 32 pt row
+  addVialText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, minHeight: 32, textAlignVertical: 'center' },
   acts: { flexDirection: 'row', gap: 10 },
   // A-78: a skipped slot's "you can still log it" line and its Mark taken.
   skipLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -2362,29 +2386,46 @@ const todayV21Styles = (c) => ({
   doseBtnFill: { alignSelf: 'stretch' },
   doseBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   doseBtnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
-  doneCard: { backgroundColor: c.raised, borderRadius: 22, padding: 18 },
-  doneText: { fontSize: 17, color: c.ink },
+  doneCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16 },
+  doneText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   takenLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 6, paddingVertical: 4 },
-  takenCheck: { marginTop: 3 },
+  takenMark: { marginTop: 1 },
+  takenFold: { marginTop: 4 },
   takenMain: { flex: 1, gap: 2 },
-  takenTitle: { fontSize: 17, fontWeight: '600', color: c.ok },
+  takenTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
   takenItem: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  // Part 10 opened (prototype .list + .li): raised list, 48 pt head, 44 pt rows with 1 pt lines
+  takenList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  takenHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingVertical: 10 },
+  takenGrow: { flex: 1 },
+  takenRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
+  takenDot: { width: 9, height: 9, borderRadius: 5, marginLeft: 6 },
+  takenName: { flex: 1, fontSize: 17, color: c.ink },
+  takenWhen: { flexShrink: 1, fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   foldList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
-  foldBlock: {},
+  foldSep: { borderTopWidth: 1, borderTopColor: c.line },
   foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60 },
   foldTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   foldCount: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
-  foldChev: { fontSize: 16, color: c.ink3, width: 16, textAlign: 'center' },
-  upRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
-  upTime: { width: 88, fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
-  upMain: { flex: 1, minWidth: 0, gap: 2 },
-  upName: { fontSize: 17, fontWeight: '600', color: c.ink },
-  upAmt: { fontSize: 15, color: c.ink2 },
-  laterHint: { fontSize: 13, color: c.ink3, paddingHorizontal: 4 },
+  upRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
+  upTimeCol: { width: 88, gap: 1 },
+  upDay: { fontSize: 15, color: c.ink, fontVariant: ['tabular-nums'] },
+  updot: { width: 9, height: 9, borderRadius: 5 },
+  upTime: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  upMain: { flex: 1, minWidth: 0, gap: 1 },
+  upName: { fontSize: 17, color: c.ink },
+  upAmt: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  upAmtVal: { fontFamily: MONO['500'], color: c.ink },
+  laterHint: { fontSize: 15, color: c.ink3, fontVariant: ['tabular-nums'] },
+  laterRow: { minHeight: 44, justifyContent: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
   empty: { marginHorizontal: 16, marginBottom: 26, backgroundColor: c.raised, borderRadius: 24, padding: 24, alignItems: 'center', gap: 8 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: c.ink, textAlign: 'center' },
   emptySub: { fontSize: 15, color: c.ink2, textAlign: 'center' },
-  disclaimer: { fontSize: 13, color: c.ink3, textAlign: 'center', paddingHorizontal: 24, marginBottom: 8 },
-  undoBar: { position: 'absolute', left: 12, right: 12, bottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.toast, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 14 },
-  takeNoticeBar: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: c.toast, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 14 },
+  disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3, textAlign: 'left', marginHorizontal: 20, marginTop: -4 },
+  undoBar: { position: 'absolute', left: 12, right: 12, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 18, backgroundColor: c.toast, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 14 },
+  takeNoticeBar: { position: 'absolute', left: 12, right: 12, bottom: 18, backgroundColor: c.toast, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 14 },
+  undoBarText: { flex: 1, fontSize: 17, color: c.toastText, fontWeight: '400' },
+  undoBarActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
+  undoBarAction: { fontSize: 17, color: c.toastText, fontWeight: '700', textDecorationLine: 'underline' },
+  takeNoticeText: { fontSize: 17, color: c.toastText, fontWeight: '400' },
 });
