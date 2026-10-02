@@ -14,7 +14,7 @@ import {
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, G, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue, useReducedMotion,
@@ -36,6 +36,8 @@ import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { hasPremium } from '../lib/entitlement';
 import CheckMark from '../components/CheckMark';
+import { useUnfoldToPage } from '../components/BookPanes';
+import { paneWidths } from '../lib/bookLayout';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -227,11 +229,17 @@ function backLabelFor(navigation, t) {
   return t('back');
 }
 
-export default function SerumCurveScreen() {
+// S-26 book layout: `embedded` = shown on a tab's right page (Journey BK-5, My Body BK-6):
+// no back row, no top safe-area edge (the tab screen has it), the chart sized to the page.
+// As a pushed screen it moves onto the Journey right page when the window unfolds (BK-10).
+export default function SerumCurveScreen({ embedded = false }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { width: windowWidth } = useWindowDimensions();
+  const route = useRoute();
+  const { width: rawWindowWidth } = useWindowDimensions();
+  const windowWidth = embedded ? paneWidths(rawWindowWidth).right : rawWindowWidth;
+  useUnfoldToPage('SerumCurve', { embedded, params: embedded ? null : (route && route.params) || null });
   const s = useMemo(() => makeStyles(colors), [colors]);
 
   const [protocols, setProtocols] = useState([]);
@@ -252,14 +260,19 @@ export default function SerumCurveScreen() {
       (async () => {
         // Dose accumulation / serum curve is a Premium feature. Guard here so no
         // entry path (deep link, back-stack) can reach it without an entitlement.
+        // Embedded on a tab page there is no stack screen to replace: the Paywall opens as
+        // a full screen over the tab (BK-11); the tabs only embed it for Premium anyway.
         if (!(await hasPremium())) {
-          if (isMounted) navigation.replace('Paywall', { source: 'serum_direct' });
+          if (isMounted) {
+            if (embedded) navigation.navigate('Paywall', { source: 'serum_direct' });
+            else navigation.replace('Paywall', { source: 'serum_direct' });
+          }
           return;
         }
         if (isMounted) fetchData();
       })();
       return () => { isMounted = false; };
-    }, [navigation])
+    }, [navigation, embedded])
   );
 
   async function fetchData() {
@@ -600,7 +613,7 @@ export default function SerumCurveScreen() {
     studied: { fg: colors.ink2, border: colors.line, label: t('curve_tier_studied') },
     estimated: { fg: colors.attention, border: colors.attention, label: t('curve_tier_estimated') },
   };
-  const backLabel = backLabelFor(navigation, t);
+  const backLabel = embedded ? null : backLabelFor(navigation, t);
   // AnimatedNumber is a fixed-width field: size it to the settled value so it never clips.
   const fontScale = PixelRatio.getFontScale();
   const numW = (str) => numberWidth(str, 34, fontScale);
@@ -624,17 +637,19 @@ export default function SerumCurveScreen() {
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 
   return (
-    <SafeAreaView style={s.container}>
-      <View style={s.nav}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('common_back')}
-        >
-          <Text style={s.back}>‹ {backLabel}</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right', 'bottom'] : undefined}>
+      {embedded ? <View style={s.navEmbedded} /> : (
+        <View style={s.nav}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common_back')}
+          >
+            <Text style={s.back}>‹ {backLabel}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {protocols.length === 0 ? (
         <View style={{ flex: 1 }}>
@@ -1022,6 +1037,7 @@ function makeStyles(c) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.ground },
     nav: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+    navEmbedded: { height: 8 }, // on a book page: the title lines up with the left page's title
     back: { fontSize: 17, color: c.ink },
     title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 4, paddingTop: 4, paddingBottom: 12 },
     scroll: { paddingHorizontal: 16, paddingBottom: 40, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },

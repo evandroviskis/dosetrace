@@ -44,6 +44,7 @@ import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync } from '../../lib/sync';
 import { localISO } from '../../lib/localDate';
+import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
   getFoodLogsSince,
   getRealityChecks, upsertRealityCheck, clearRealityChecks,
@@ -93,12 +94,15 @@ const REFERENCES = [
   { key: 'cal_src_energy', cite: 'Hall — Int J Obes, 2008', url: 'https://www.nature.com/articles/0803720' },
 ];
 
-export default function CalculatorSection({ header = null }) {
+// flushRef (optional): the screen gets a function that writes any pending input now, for its
+// beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
+// page it sits on, so the chart fits the page instead of the whole unfolded window.
+export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { width: windowWidth, fontScale } = useWindowDimensions();
-  const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 68; // screen gutter 16 + card padding 18, both sides
+  const CHART_WIDTH = Math.min(paneWidth || windowWidth, CONTENT_MAX_WIDTH) - 68; // screen gutter 16 + card padding 18, both sides
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
 
@@ -284,15 +288,17 @@ export default function CalculatorSection({ header = null }) {
   }, [metric, age, sex, bodyFat, bfSource, activity, goal, profileSex]);
   const plan = result && !result.invalid && !result.sexGated ? result : null;
 
-  // Persist inputs (debounced, fire-and-forget) once initial load is done.
+  // Persist inputs (debounced, fire-and-forget) once initial load is done. A value typed
+  // less than 0.9 s before the screen goes away (back, or a fold / unfold moving it) is
+  // flushed on unmount and in the screen's beforeLeave, never dropped (S-26 BK-10).
+  const inputsSave = useRef(null);
+  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => saveCalcInputs(payload), 900); // synced table + user_metadata mirror
   useEffect(() => {
     if (!loadedRef.current) return;
-    const timer = setTimeout(() => {
-      const payload = { unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist };
-      saveCalcInputs(payload).catch(() => {}); // synced table + user_metadata mirror
-    }, 900);
-    return () => clearTimeout(timer);
+    inputsSave.current.schedule({ unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist });
   }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist]);
+  useEffect(() => () => inputsSave.current.flush(), []);
+  if (flushRef) flushRef.current = () => inputsSave.current.flush();
 
   const wUnit = unit === 'imperial' ? t('cal_unit_lb') : t('cal_unit_kg');
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');

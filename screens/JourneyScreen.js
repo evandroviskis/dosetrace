@@ -7,12 +7,23 @@
  * full calculator: numbers → target → daily plan → reality check → progress) and Dose
  * accumulation (→ the curve; Premium). Rebuild = replace: the long scroll moved behind
  * the Progress tile unchanged, nothing removed.
+ *
+ * S-26 book layout (docs/specs/book-layout.md BK-5): on an unfolded foldable the dashboard
+ * is the left page and the right page shows Your progress by default; the food log card
+ * opens the AI food log chat there, the Dose accumulation tile the Curve (Premium; free
+ * users get the Paywall full screen as today, BK-11). The chosen card has an ink outline
+ * (BK-8). On a phone, or folded, nothing changes (BK-2).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, NavigationContext } from '@react-navigation/native';
+import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
+import { setSelection, clearSelection } from '../lib/bookSelection';
+import ProgressScreen from './ProgressScreen';
+import SerumCurveScreen from './SerumCurveScreen';
+import FoodChatScreen from './FoodChatScreen';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
@@ -30,7 +41,28 @@ export default function JourneyScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = makeStyles(colors);
-  const [premium, setPremium] = useState(false);
+  // null = not known yet (reads as free on the dashboard, exactly as before).
+  const [premium, setPremium] = useState(null);
+  const book = useBook();
+  const { sel, params: selParams } = useBookSelection('Journey', 'progress');
+  useFoldPush('Journey');
+  // The Curve is Premium: if Premium ended while it was the open page, fall back to the default.
+  useEffect(() => { if (premium === false && sel === 'curve') clearSelection('Journey'); }, [premium, sel]);
+  const open = (value, params = null) => setSelection('Journey', value, { explicit: true, params });
+  // The food log card (FoodLogHero) opens the chat with navigation.navigate('FoodChat'). On a
+  // book page the chat opens on the right page instead; every other route (the Paywall when
+  // the log is locked) goes through unchanged. Stable per navigation, so the card's focus
+  // effect does not re-run on every render.
+  const heroNav = useMemo(() => {
+    if (!book) return null;
+    const nav = Object.create(navigation);
+    nav.navigate = (...args) => {
+      if (args[0] === 'FoodChat') { setSelection('Journey', 'food', { explicit: true, params: args[1] || null }); return undefined; }
+      return navigation.navigate(...args);
+    };
+    return nav;
+  }, [book, navigation]);
+  const [heroH, setHeroH] = useState(0);
   const [inputs, setInputs] = useState(null);
   // Dose accumulation tile: the compound the Curve opens on and its Est. level now —
   // the same lib function the Curve screen uses (lib/serumModel), Premium only.
@@ -57,8 +89,12 @@ export default function JourneyScreen() {
   const weight = inputs && inputs.weight != null && inputs.weight !== '' ? String(inputs.weight) : null;
   const unit = inputs && inputs.unit === 'imperial' ? 'lb' : 'kg';
 
-  return (
-    <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
+  // The right page actually shown (BK-5): the Curve only for Premium; while Premium is not
+  // known yet the page waits instead of flashing Progress.
+  const page = sel === 'curve' && premium !== true ? (premium === null ? 'wait' : 'progress') : sel;
+  const outline = <View pointerEvents="none" style={[StyleSheet.absoluteFill, s.selected]} />;
+
+  const dashboard = (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         <View style={s.header}>
           <Text style={s.title}>{t('tab_journey')}</Text>
@@ -66,11 +102,27 @@ export default function JourneyScreen() {
         </View>
 
         <View style={s.block}>
-          <FoodLogHero variant="journey" />
+          {book ? (
+            <View onLayout={(e) => setHeroH(e.nativeEvent.layout.height)}>
+              <NavigationContext.Provider value={heroNav}>
+                <FoodLogHero variant="journey" />
+              </NavigationContext.Provider>
+              {page === 'food' && heroH > 0 ? outline : null}
+            </View>
+          ) : (
+            <FoodLogHero variant="journey" />
+          )}
         </View>
 
         <View style={s.duo}>
-          <TouchableOpacity style={s.tile} activeOpacity={0.75} onPress={() => navigation.navigate('Progress')} accessibilityRole="button">
+          <TouchableOpacity
+            style={s.tile}
+            activeOpacity={0.75}
+            onPress={() => (book ? open('progress') : navigation.navigate('Progress'))}
+            accessibilityRole="button"
+            accessibilityState={book ? { selected: page === 'progress' } : undefined}
+          >
+            {book && page === 'progress' ? outline : null}
             <View style={s.tileTop}>
               <FeatureIcon name="calc_trend" size={22} color={colors.ink} />
               <Text style={s.chev}>›</Text>
@@ -86,9 +138,15 @@ export default function JourneyScreen() {
           <TouchableOpacity
             style={s.tile}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate(premium ? 'SerumCurve' : 'Paywall', premium ? undefined : { source: 'journey_serum' })}
+            onPress={() => {
+              // Free users: the Paywall full screen, exactly as today, also on a book (BK-11).
+              if (!premium) { navigation.navigate('Paywall', { source: 'journey_serum' }); return; }
+              if (book) open('curve'); else navigation.navigate('SerumCurve');
+            }}
             accessibilityRole="button"
+            accessibilityState={book ? { selected: page === 'curve' } : undefined}
           >
+            {book && page === 'curve' ? outline : null}
             <View style={s.tileTop}>
               <FeatureIcon name="curve" size={22} color={colors.ink} />
               {!premium ? <Text style={s.tag}>{t('paywall_premium')}</Text> : <Text style={s.chev}>›</Text>}
@@ -114,6 +172,24 @@ export default function JourneyScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+  );
+
+  if (!book) {
+    return (
+      <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
+        {dashboard}
+      </SafeAreaView>
+    );
+  }
+
+  const right = page === 'food' ? <FoodChatScreen embedded params={selParams} />
+    : page === 'curve' ? <SerumCurveScreen embedded />
+      : page === 'wait' ? <View style={s.container} />
+        : <ProgressScreen embedded />;
+
+  return (
+    <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
+      <BookPanes left={dashboard} right={right} rightKey={page} />
     </SafeAreaView>
   );
 }
@@ -143,4 +219,6 @@ const makeStyles = (c) => StyleSheet.create({
   chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, justifyContent: 'center', marginTop: 2 },
   chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   foot: { fontSize: 13, color: c.ink2 },
+  // BK-8: the card open on the right page has an ink outline (same radius as the cards).
+  selected: { borderWidth: 2, borderColor: c.ink, borderRadius: 24 },
 });
