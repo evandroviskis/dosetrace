@@ -1738,6 +1738,29 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
+  // New vial / New bottle ask first (part 10, approved P5): Cancel changes nothing, Start new
+  // runs the reset below. Doses already logged stay in the history either way.
+  function askRefillVial(id) {
+    setScreenSheet({
+      title: t('protocols_new_vial'),
+      body: t('protocols_new_vial_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('protocols_start_new'), kind: 'primary', onPress: () => refillVial(id) },
+      ],
+    });
+  }
+  function askRefillBottle(id) {
+    setScreenSheet({
+      title: t('protocols_serving_new_bottle'),
+      body: t('protocols_new_bottle_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('protocols_start_new'), kind: 'primary', onPress: () => refillOralBottle(id) },
+      ],
+    });
+  }
+
   // Reset an oral protocol's supply counter — "opened a new bottle".
   function refillOralBottle(id) {
     updateProtocol(id, { units_taken: 0 });
@@ -1775,7 +1798,7 @@ export default function ProtocolsScreen() {
       p={p} vial={vialsByProtocol[p.id]}
       openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
       deleteProtocol={deleteProtocol}
-      onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
+      onSaveNote={saveProtocolNote} onRefill={askRefillBottle} onRefillVial={askRefillVial}
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
       draft={getDraft(noteDraftKey(p.id))}
       onDraft={(id, text) => { if (inBook && text != null) claimBookProtocol(id); onNoteDraft(id, text); }}
