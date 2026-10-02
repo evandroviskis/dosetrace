@@ -10,7 +10,7 @@
  *   recommendations, no interpretation. It's a record, not medical advice.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Modal, Platform,
   Alert, ActivityIndicator,
@@ -63,33 +63,52 @@ function todayISO() {
   return new Date().toISOString().split('T')[0];
 }
 
-export default function VaccinesSection() {
+// S-26 book layout (docs/specs/book-layout.md):
+//   inline: the list renders without its own ScrollView, inside the My Body left page (BK-6).
+//   draftRef: a ref owned by BodyScreen that holds the open add/edit sheet's values. When a
+//     fold or unfold re-lays My Body out, the next VaccinesSection reopens the sheet with
+//     them (BK-10: never lose anything typed).
+//   onSheetChange: tells BodyScreen whether the add/edit sheet is open.
+export default function VaccinesSection({ inline = false, draftRef = null, onSheetChange = null } = {}) {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const locale = LOCALE_MAP[language] || 'en-US';
 
+  // An open sheet carried over a fold/unfold (see the draft effect below).
+  const [carried] = useState(() => (draftRef && draftRef.current) || null);
   const [list, setList] = useState([]);
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [name, setName] = useState('');
-  const [dateGiven, setDateGiven] = useState(todayISO());
-  const [nextDue, setNextDue] = useState('');   // '' = none
-  const [notes, setNotes] = useState('');
-  const [manufacturer, setManufacturer] = useState('');
-  const [doseNumber, setDoseNumber] = useState('');   // string in the input; parsed to int on save
-  const [batchLot, setBatchLot] = useState('');
-  const [provider, setProvider] = useState('');
-  const [location, setLocation] = useState('');
-  const [pickerFor, setPickerFor] = useState(null); // 'given' | 'due' | null
+  const [modalOpen, setModalOpen] = useState(!!carried);
+  const [editingId, setEditingId] = useState(carried ? carried.editingId : null);
+  const [name, setName] = useState(carried ? carried.name : '');
+  const [dateGiven, setDateGiven] = useState(carried ? carried.dateGiven : todayISO());
+  const [nextDue, setNextDue] = useState(carried ? carried.nextDue : '');   // '' = none
+  const [notes, setNotes] = useState(carried ? carried.notes : '');
+  const [manufacturer, setManufacturer] = useState(carried ? carried.manufacturer : '');
+  const [doseNumber, setDoseNumber] = useState(carried ? carried.doseNumber : '');   // string in the input; parsed to int on save
+  const [batchLot, setBatchLot] = useState(carried ? carried.batchLot : '');
+  const [provider, setProvider] = useState(carried ? carried.provider : '');
+  const [location, setLocation] = useState(carried ? carried.location : '');
+  const [pickerFor, setPickerFor] = useState(carried ? carried.pickerFor : null); // 'given' | 'due' | null
   const [premium, setPremium] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [extracted, setExtracted] = useState([]);   // reviewed before saving
   const [reviewOpen, setReviewOpen] = useState(false);
 
   useFocusEffect(useCallback(() => { fetchList(); }, []));
+
+  // BK-10: while the add/edit sheet is open its values are kept current in draftRef, so the
+  // VaccinesSection mounted by a fold/unfold (rendered before this one's unmount cleanup
+  // would run) reopens the sheet with everything typed. Closed sheet = no draft.
+  useEffect(() => {
+    if (!draftRef) return;
+    draftRef.current = modalOpen
+      ? { modalOpen, editingId, name, dateGiven, nextDue, notes, manufacturer, doseNumber, batchLot, provider, location, pickerFor }
+      : null;
+  });
+  useEffect(() => { if (onSheetChange) onSheetChange(modalOpen); }, [modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchList() {
     setPremium(await hasPremium());
@@ -308,9 +327,10 @@ export default function VaccinesSection() {
   const filtered = q ? list.filter(v => (v.name || '').toLowerCase().includes(q)) : list;
 
   return (
-    <View style={s.wrap}>
-      {/* VACCINE JOURNAL (prototype vaxScreen) */}
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+    <View style={inline ? s.inlineWrap : s.wrap}>
+      {/* VACCINE JOURNAL (prototype vaxScreen). In the book layout it sits inside the My
+          Body left page, which brings the scroll (BK-6). */}
+      <JournalScroll inline={inline} s={s}>
         <View style={s.titleBlock}>
           <Text style={s.screenTitle}>{t('body_card_vax_title')}</Text>
         </View>
@@ -394,7 +414,7 @@ export default function VaccinesSection() {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </JournalScroll>
 
       {/* ADD / EDIT (prototype vaxForm) */}
       <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
@@ -580,6 +600,16 @@ export default function VaccinesSection() {
   );
 }
 
+// The journal's own scroll on a phone; a plain column inside the book's left page.
+function JournalScroll({ inline, s, children }) {
+  if (inline) return <View style={s.inlineList}>{children}</View>;
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+      {children}
+    </ScrollView>
+  );
+}
+
 // Graduated chevron (prototype CHEV), drawn so it follows the theme.
 function Chevron({ color }) {
   return (
@@ -595,6 +625,8 @@ function Chevron({ color }) {
 // Theme tokens only; both palettes.
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1 },
+  inlineWrap: {},
+  inlineList: { gap: 12 },
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scroll: { flex: 1 },
   scrollPad: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
