@@ -8,9 +8,11 @@ const path = require('path');
 const { translations } = require('../i18n/translations.js');
 
 test('singular status words for one dose, in 6 languages', () => {
+  // Founder 2026-10-02: "Dose complete, Dose skipped and Dose missed" instead of "Taken / Tomada".
   const want = {
-    en: ['Taken', 'Skipped', 'Missed'], es: ['Tomada', 'Omitida', 'Perdida'], pt: ['Tomada', 'Pulada', 'Perdida'],
-    fr: ['Prise', 'Passée', 'Manquée'], de: ['Eingenommen', 'Übersprungen', 'Verpasst'], it: ['Assunta', 'Saltata', 'Mancata'],
+    en: ['Dose complete', 'Dose skipped', 'Dose missed'], es: ['Dosis completada', 'Dosis omitida', 'Dosis perdida'],
+    pt: ['Dose concluída', 'Dose pulada', 'Dose perdida'], fr: ['Dose effectuée', 'Dose sautée', 'Dose manquée'],
+    de: ['Dosis erledigt', 'Dosis übersprungen', 'Dosis verpasst'], it: ['Dose completata', 'Dose saltata', 'Dose mancata'],
   };
   for (const [l, [a, b, c]] of Object.entries(want)) {
     assert.equal(translations[l].log_status_taken, a, l);
