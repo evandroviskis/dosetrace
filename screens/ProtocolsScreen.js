@@ -34,6 +34,8 @@ import {
   getActiveProtocols, insertProtocol, updateProtocol,
   softDeleteProtocol, getProtocolById, getActiveVials,
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
+  getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
+  permanentlyDeleteProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
@@ -843,6 +845,9 @@ export default function ProtocolsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const [protocols, setProtocols] = useState([]);
+  // Soft-deleted protocols still restorable (7 days): "Recently deleted" at the bottom of
+  // the list (prototype list(); moved here from Settings).
+  const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
   const [vialsByProtocol, setVialsByProtocol] = useState({});
@@ -1126,7 +1131,46 @@ export default function ProtocolsScreen() {
     const byProtocol = {};
     for (const v of vials) if (!byProtocol[v.protocol_id]) byProtocol[v.protocol_id] = v;
     setVialsByProtocol(byProtocol);
+    fetchDeletedProtocols();
     setLoading(false);
+  }
+
+  // Recently deleted (moved from Settings with the founder-approved prototype, 2026-10-01).
+  async function fetchDeletedProtocols() {
+    const u = await getCachedUser();
+    if (!u) return;
+    setDeletedProtocols(getDeletedProtocols(u.id) || []);
+  }
+
+  function restoreProtocol(id) {
+    restoreProtocolDB(id);
+    const newestVial = getNewestVialForProtocol(id);
+    if (newestVial) updateVial(newestVial.id, { active: 1 });
+    const restored = getProtocolById(id);
+    if (restored) scheduleDoseReminder(restored).catch(() => {});
+    fetchProtocols();
+    notifyDataChanged('protocol'); // Today shows it again at once
+    requestSync();
+  }
+
+  // Permanently remove a soft-deleted protocol before the 7-day auto-purge.
+  // Irreversible, so it always goes through a confirm (main's "Delete permanently?").
+  function confirmPermanentDelete(p) {
+    setScreenSheet({
+      title: t('settings_delete_protocol_title'),
+      body: t('settings_delete_protocol_msg').replace('{name}', protocolName(p)),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        {
+          label: t('settings_delete_forever'), kind: 'danger',
+          onPress: () => {
+            permanentlyDeleteProtocol(p.id);
+            fetchProtocols();
+            requestSync();
+          },
+        },
+      ],
+    });
   }
 
   // Display name follows the user's language via the canonical compound key.
@@ -1870,6 +1914,37 @@ export default function ProtocolsScreen() {
       </TouchableOpacity>
     </View>
   );
+  // Prototype list(): "Recently deleted" at the bottom of the list, only when something was
+  // deleted. Each row: the protocol color as a 9 pt dot, the name, "Deleted Nd ago", a
+  // Restore pill and the risk-colored delete-forever trash (with its confirm).
+  const deletedSection = deletedProtocols.length > 0 ? (
+    <View style={s.blk}>
+      <Text style={s.secth}>{t('protocols_recently_deleted')}</Text>
+      <View style={s.delList}>
+        {deletedProtocols.map((p, idx) => (
+          <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
+            <View style={[s.delDot, { backgroundColor: p.color || colors.ink3 }]} />
+            <View style={s.delText}>
+              <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
+              <Text style={s.delAgo}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
+            </View>
+            <TouchableOpacity onPress={() => restoreProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button">
+              <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => confirmPermanentDelete(p)}
+              accessibilityRole="button"
+              accessibilityLabel={t('settings_delete_forever')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={s.deleteForeverBtn}
+            >
+              <FeatureIcon name="trash" size={22} color={colors.risk} />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    </View>
+  ) : null;
 
   // Add step 3: the live result sits under the fields it depends on and appears only
   // once it can be computed (founder 2026-09-29).
@@ -1910,6 +1985,7 @@ export default function ProtocolsScreen() {
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
+                {deletedSection}
                 <View style={{ height: 40 }} />
               </ScrollView>
             </>
@@ -2016,6 +2092,10 @@ export default function ProtocolsScreen() {
         {view === 'list' && protocols.length > 0 && sortPills}
 
         {view === 'list' && protocols.length > 0 && listCards}
+
+        {/* At the bottom of the list; with no protocol left it sits under the empty state,
+            so the last deleted protocol can still be restored. */}
+        {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && deletedSection}
 
         {view === 'detail' && renderDetail(openProtocol, false)}
 
@@ -2797,6 +2877,18 @@ const protocolsGraduated = (c) => ({
   sortLabel: { fontSize: 13, color: c.ink2 },
   blk: { gap: 10, marginBottom: 26 },
   secth: { paddingHorizontal: 4, fontSize: 15, fontWeight: '600', color: c.ink2 },
+  // Recently deleted (prototype .list / .li): one raised list, rows split by a hairline, the
+  // protocol color only as a 9 pt dot, Restore an outline pill, delete forever the risk trash.
+  delList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  delRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  delRowLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  delDot: { width: 9, height: 9, borderRadius: 5 },
+  delText: { flex: 1, gap: 2 },
+  delName: { fontSize: 17, color: c.ink },
+  delAgo: { fontSize: 13, color: c.ink2 },
+  restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
+  restoreBtnText: { fontSize: 13, fontWeight: '500', color: c.ink2 },
+  deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   pcard: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, gap: 10 },
   // Book layout (S-26 BK-8): every card keeps room for the outline; the open one is ink.
   pcardBook: { borderWidth: 2, borderColor: 'transparent' },

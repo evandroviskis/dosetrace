@@ -1,4 +1,4 @@
-import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { goalOptions } from '../lib/profileGoals';
 import LegalModal from '../components/LegalModal';
 import Constants from 'expo-constants';
@@ -17,6 +17,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -29,11 +30,9 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
-  clearLocalDatabase, getDeletedProtocols as getLocalDeletedProtocols,
-  restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
-  updateVial, getProtocolById, permanentlyDeleteProtocol,
+  clearLocalDatabase,
 } from '../lib/database';
-import { stopSyncEngine, requestSync, forceSync } from '../lib/sync';
+import { stopSyncEngine, forceSync } from '../lib/sync';
 import { hasPremium } from '../lib/entitlement';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
@@ -55,34 +54,40 @@ const BIRTH_YEARS = [];
 const _thisYear = new Date().getFullYear();
 for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
 
-// The Settings groups in screen order: the phone's collapsible sections and, on a wide
-// window (S-26 BK-7), the left page's list. Titles are the existing group-title strings.
+// The Settings groups in screen order (founder-approved Graduated prototype, settingsScreen():
+// Preferences, Notifications, Data & privacy, Support): the phone's group cards and, on a wide
+// window (S-26 BK-7), the left page's list. Each card shows its name and a one-line summary of
+// what is inside. Sign out / Delete account are not a group: they sit in their own card below.
+// Recently deleted protocols live at the bottom of the Protocols list, not here.
 const SETTINGS_GROUPS = [
-  { key: 'notifications', labelKey: 'settings_notifications' },
-  { key: 'privacy', labelKey: 'settings_data_privacy' },
-  { key: 'support', labelKey: 'settings_support' },
-  { key: 'deleted', labelKey: 'settings_recently_deleted' },
-  { key: 'account', labelKey: 'settings_account_prefs' },
+  { key: 'account', labelKey: 'settings_preferences', sumKey: 'settings_sum_prefs' },
+  { key: 'notifications', labelKey: 'settings_notifications', sumKey: 'settings_sum_notif' },
+  { key: 'privacy', labelKey: 'settings_data_privacy', sumKey: 'settings_sum_privacy' },
+  { key: 'support', labelKey: 'settings_support', sumKey: 'settings_sum_support' },
 ];
 
-// Recently deleted protocols only shows while there is something to restore.
-function groupVisible(key, deletedCount) {
-  return key !== 'deleted' || deletedCount > 0;
-}
-
-// The group on the right page: the chosen one, or Notifications (the default, BK-7) when
-// the choice is unknown or no longer shown (the last deleted protocol was restored).
-function bookGroup(sel, deletedCount) {
-  return SETTINGS_GROUPS.some((g) => g.key === sel) && groupVisible(sel, deletedCount) ? sel : 'notifications';
+// The group on the right page: the chosen one, or Preferences (the first group, the default,
+// BK-7) when the choice is unknown.
+function bookGroup(sel) {
+  return SETTINGS_GROUPS.some((g) => g.key === sel) ? sel : 'account';
 }
 
 // BK-10, folding: the group the user opened on the right page opens in the one-column
 // list. Only that key changes; every other remembered open/closed state is kept. A
 // default nobody chose changes nothing.
-function foldCollapsed(collapsed, { sel, explicit, deletedCount }) {
-  if (!explicit || !SETTINGS_GROUPS.some((g) => g.key === sel) || !groupVisible(sel, deletedCount)) return collapsed;
+function foldCollapsed(collapsed, { sel, explicit }) {
+  if (!explicit || !SETTINGS_GROUPS.some((g) => g.key === sel)) return collapsed;
   if (collapsed[sel] === false) return collapsed;
   return { ...collapsed, [sel]: false };
+}
+
+// The group card's arrow (prototype DOWN / UP), drawn in the theme's ink.
+function GroupChevron({ dir, color }) {
+  return (
+    <Svg width={15} height={9} viewBox="0 0 16 10">
+      <Path d={dir === 'up' ? 'M2 8l6-6 6 6' : 'M2 2l6 6 6-6'} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
 export default function SettingsScreen({ navigation }) {
@@ -115,12 +120,11 @@ export default function SettingsScreen({ navigation }) {
   const [primaryGoals, setPrimaryGoals] = useState([]);
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
-  const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   // Collapsible Settings sections (remembered). All start collapsed — the user
   // opens only what they need, so the screen stays clean.
-  const ALL_COLLAPSED = { notifications: true, privacy: true, support: true, deleted: true, account: true };
+  const ALL_COLLAPSED = { account: true, notifications: true, privacy: true, support: true };
   const [collapsed, setCollapsed] = useState(ALL_COLLAPSED);
 
   useEffect(() => {
@@ -138,9 +142,10 @@ export default function SettingsScreen({ navigation }) {
   }
 
   // S-26 book layout: two pages on a wide window (BK-1), today's one column otherwise (BK-2).
-  // The open group is kept per tab while the app is open (BK-8); Notifications by default.
+  // The open group is kept per tab while the app is open (BK-8); Preferences (the first
+  // group) by default.
   const book = useBook();
-  const { sel, explicit, select } = useBookSelection('Settings', 'notifications');
+  const { sel, explicit, select } = useBookSelection('Settings', 'account');
   const wasBook = useRef(book);
   const phoneScrollRef = useRef(null);
   const headerY = useRef({});
@@ -152,7 +157,7 @@ export default function SettingsScreen({ navigation }) {
     if (wasBook.current && !book) {
       const target = sel;
       setCollapsed(prev => {
-        const next = foldCollapsed(prev, { sel: target, explicit, deletedCount: deletedProtocols.length });
+        const next = foldCollapsed(prev, { sel: target, explicit });
         if (next !== prev) AsyncStorage.setItem('dosetrace_settings_collapsed', JSON.stringify(next)).catch(() => {});
         return next;
       });
@@ -179,24 +184,9 @@ export default function SettingsScreen({ navigation }) {
     if (foldTarget.current === key) scrollToSection(key);
   }
 
-  function renderSectionHeader(labelKey, sectionKey) {
-    return (
-      <TouchableOpacity
-        style={s.sectionHeaderRow}
-        activeOpacity={0.6}
-        onPress={() => toggleSection(sectionKey)}
-        onLayout={(e) => onSectionHeaderLayout(sectionKey, e)}
-      >
-        <Text style={s.sectionLabel}>{t(labelKey)}</Text>
-        <Text style={s.sectionChevron}>{collapsed[sectionKey] ? '▸' : '▾'}</Text>
-      </TouchableOpacity>
-    );
-  }
-
   useFocusEffect(
     useCallback(() => {
       fetchUser();
-      fetchDeletedProtocols();
     }, [])
   );
 
@@ -530,45 +520,6 @@ export default function SettingsScreen({ navigation }) {
     catch { await supabase.auth.signOut().catch(() => {}); }
   }
 
-  async function fetchDeletedProtocols() {
-    const u = await getCachedUser();
-    if (!u) return;
-    setDeletedProtocols(getLocalDeletedProtocols(u.id) || []);
-  }
-
-  function restoreProtocol(id) {
-    restoreProtocolDB(id);
-    const newestVial = getNewestVialForProtocol(id);
-    if (newestVial) updateVial(newestVial.id, { active: 1 });
-    const restored = getProtocolById(id);
-    if (restored) {
-      import('../lib/notifications').then(n => n.scheduleDoseReminder(restored)).catch(() => {});
-    }
-    fetchDeletedProtocols();
-    requestSync();
-  }
-
-  // Permanently remove a soft-deleted protocol before the 7-day auto-purge.
-  // Irreversible, so it always goes through a confirm dialog.
-  function confirmPermanentDelete(p) {
-    Alert.alert(
-      t('settings_delete_protocol_title'),
-      t('settings_delete_protocol_msg').replace('{name}', p.name),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('settings_delete_forever'),
-          style: 'destructive',
-          onPress: () => {
-            permanentlyDeleteProtocol(p.id);
-            fetchDeletedProtocols();
-            requestSync();
-          },
-        },
-      ]
-    );
-  }
-
   function handleContactSupport() {
     Linking.openURL('mailto:hello@dosetrace.io?subject=DoseTrace Support');
   }
@@ -662,7 +613,7 @@ export default function SettingsScreen({ navigation }) {
 
   function renderNotificationsBody() {
     return (
-      <View style={s.group}>
+      <>
         <View style={s.row}>
           <View style={s.rowLeft}>
             <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
@@ -774,13 +725,13 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.rowArrow}>›</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </>
     );
   }
 
   function renderPrivacyBody() {
     return (
-      <View style={s.group}>
+      <>
         <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
           <View style={s.rowLeft}>
             <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
@@ -843,13 +794,13 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
         </TouchableOpacity>
-      </View>
+      </>
     );
   }
 
   function renderSupportBody() {
     return (
-      <View style={s.group}>
+      <>
         <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
           <View style={s.rowLeft}>
             <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
@@ -874,51 +825,15 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <Text style={s.rowArrow}>›</Text>
         </TouchableOpacity>
-      </View>
+      </>
     );
   }
 
-  function renderDeletedBody() {
-    return (
-      <View style={s.group}>
-        {deletedProtocols.map((p, idx) => {
-          const isLast = idx === deletedProtocols.length - 1;
-          return (
-            <View key={p.id} style={[s.row, isLast && { borderBottomWidth: 0 }]}>
-              <View style={s.rowLeft}>
-                {/* The user's protocol color, only as a 9 pt dot (DESIGN.md §2.4). */}
-                <View style={[s.deletedDot, { backgroundColor: p.color || colors.ink3 }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rowLabel}>{p.name}</Text>
-                  <Text style={s.rowSub}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
-                </View>
-              </View>
-              <View style={s.deletedActions}>
-                <TouchableOpacity
-                  onPress={() => restoreProtocol(p.id)}
-                  style={s.restoreBtn}
-                >
-                  <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => confirmPermanentDelete(p)}
-                  accessibilityLabel={t('settings_delete_forever')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={s.deleteForeverBtn}
-                >
-                  <FeatureIcon name="trash" size={20} color={colors.risk} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    );
-  }
-
+  // Preferences (prototype: Appearance, Time format, Language). Sign out and Delete account
+  // are not here any more: they have their own card under the groups.
   function renderAccountBody() {
     return (
-      <View style={s.group}>
+      <>
         <View style={s.row}>
           <View style={s.rowLeft}>
             <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
@@ -961,7 +876,7 @@ export default function SettingsScreen({ navigation }) {
             ))}
           </View>
         </View>
-        <TouchableOpacity style={s.row} onPress={() => setShowLanguagePicker(true)}>
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={() => setShowLanguagePicker(true)}>
           <View style={s.rowLeft}>
             <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -971,40 +886,74 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <Text style={s.rowArrow}>›</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.row} onPress={handleSignOut}>
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.text} /></View>
-            <Text style={s.rowLabel}>{t('settings_signout')}</Text>
-          </View>
-          <Text style={s.rowArrow}>›</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.row, { borderBottomWidth: 0 }]}
-          onPress={handleDeleteAccount}
-        >
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.danger} /></View>
-            <Text style={[s.rowLabel, { color: colors.danger }]}>{t('settings_delete')}</Text>
-          </View>
-          <Text style={[s.rowArrow, { color: colors.danger }]}>›</Text>
-        </TouchableOpacity>
-      </View>
+      </>
     );
   }
 
   const GROUP_BODIES = {
+    account: renderAccountBody,
     notifications: renderNotificationsBody,
     privacy: renderPrivacyBody,
     support: renderSupportBody,
-    deleted: renderDeletedBody,
-    account: renderAccountBody,
   };
   function renderGroupBody(key) {
     const fn = GROUP_BODIES[key];
     return fn ? fn() : null;
   }
 
-  // BK-2: one column = exactly today's Settings (collapsible, remembered sections).
+  // Prototype setSection(): one card per group. The header carries the group name, a one-line
+  // summary of what is inside and a round arrow; the rows open inside the same card. Open /
+  // closed is remembered (all closed at first).
+  function renderGroupCard(g) {
+    const open = !collapsed[g.key];
+    return (
+      <View key={g.key} style={s.setCard}>
+        <TouchableOpacity
+          style={[s.setHead, open && s.setHeadOpen]}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          onPress={() => toggleSection(g.key)}
+          onLayout={(e) => onSectionHeaderLayout(g.key, e)}
+        >
+          <View style={s.setHeadText}>
+            <Text style={s.setTitle}>{t(g.labelKey)}</Text>
+            <Text style={s.setSum}>{t(g.sumKey)}</Text>
+          </View>
+          <View style={s.setChev}>
+            <GroupChevron dir={open ? 'up' : 'down'} color={colors.ink} />
+          </View>
+        </TouchableOpacity>
+        {open && renderGroupBody(g.key)}
+      </View>
+    );
+  }
+
+  // Prototype: Sign out, then Delete account (risk color), alone in their own card under the
+  // groups, on both layouts.
+  function renderAccountActions() {
+    return (
+      <View style={s.actionsCard}>
+        <TouchableOpacity style={s.row} onPress={handleSignOut} accessibilityRole="button">
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.ink} /></View>
+            <Text style={s.rowLabel}>{t('settings_signout')}</Text>
+          </View>
+          <Text style={s.rowArrow}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount} accessibilityRole="button">
+          <View style={s.rowLeft}>
+            <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.risk} /></View>
+            <Text style={[s.rowLabel, { color: colors.risk }]}>{t('settings_delete')}</Text>
+          </View>
+          <Text style={[s.rowArrow, { color: colors.risk }]}>›</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // BK-2: one column = the approved Settings (prototype settingsScreen()): title, profile,
+  // Premium (free users), the four group cards, the Sign out / Delete account card, version.
   function renderPhone() {
     return (
       <>
@@ -1016,12 +965,11 @@ export default function SettingsScreen({ navigation }) {
           {renderProfileCard()}
           {renderPremiumCard()}
 
-          {SETTINGS_GROUPS.filter(g => groupVisible(g.key, deletedProtocols.length)).map(g => (
-            <Fragment key={g.key}>
-              {renderSectionHeader(g.labelKey, g.key)}
-              {!collapsed[g.key] && renderGroupBody(g.key)}
-            </Fragment>
-          ))}
+          <View style={s.setCards}>
+            {SETTINGS_GROUPS.map(g => renderGroupCard(g))}
+          </View>
+
+          {renderAccountActions()}
 
           {renderVersionFooter()}
 
@@ -1031,10 +979,11 @@ export default function SettingsScreen({ navigation }) {
     );
   }
 
-  // BK-7: left page = title, profile, Premium (free users), the group list with the open
-  // group outlined in ink (BK-8), and the version; right page = that group, always open.
+  // BK-7: left page = title, profile, Premium (free users), the group list in the same order
+  // with the open group outlined in ink (BK-8), the Sign out / Delete account card and the
+  // version; right page = that group, always open.
   function renderBook() {
-    const open = bookGroup(sel, deletedProtocols.length);
+    const open = bookGroup(sel);
     const openGroup = SETTINGS_GROUPS.find(g => g.key === open);
     const left = (
       <>
@@ -1045,7 +994,7 @@ export default function SettingsScreen({ navigation }) {
           {renderProfileCard()}
           {renderPremiumCard()}
           <View style={s.bookNav}>
-            {SETTINGS_GROUPS.filter(g => groupVisible(g.key, deletedProtocols.length)).map(g => {
+            {SETTINGS_GROUPS.map(g => {
               const on = g.key === open;
               return (
                 <TouchableOpacity
@@ -1056,12 +1005,16 @@ export default function SettingsScreen({ navigation }) {
                   accessibilityState={{ selected: on }}
                   onPress={() => select(g.key)}
                 >
-                  <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
+                  <View style={s.setHeadText}>
+                    <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
+                    <Text style={s.setSum} numberOfLines={2}>{t(g.sumKey)}</Text>
+                  </View>
                   <Text style={s.rowArrow}>›</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
+          {renderAccountActions()}
           {renderVersionFooter()}
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1073,7 +1026,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
-          {renderGroupBody(open)}
+          <View style={s.group}>{renderGroupBody(open)}</View>
           <View style={{ height: 40 }} />
         </ScrollView>
       </>
@@ -1432,9 +1385,6 @@ const settingsLegacy = (c) => ({
   premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
   premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.textFaint },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 16, marginRight: 16, marginTop: 20, marginBottom: 8 },
-  sectionChevron: { fontSize: 12, color: c.textFaint },
   group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
@@ -1478,9 +1428,6 @@ const settingsGraduated = (c) => ({
   premiumFeatText: { fontSize: 15, color: c.ink, flex: 1 },
   premiumBtn: { backgroundColor: c.act, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   premiumBtnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
-  sectionLabel: { fontSize: 17, fontWeight: '600', color: c.ink, letterSpacing: 0, textTransform: 'none' },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 20, marginRight: 20, marginTop: 22, marginBottom: 10, minHeight: 32 },
-  sectionChevron: { fontSize: 14, color: c.ink3 },
   group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 60, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
   rowLabel: { fontSize: 17, color: c.ink },
@@ -1498,14 +1445,19 @@ const settingsGraduated = (c) => ({
   goalBadge: { borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 13, flexShrink: 1 },
   goalBadgeText: { fontSize: 12, color: c.ink2, fontWeight: '500' },
 
-  // Recently deleted protocols (inside the group card): the protocol color only as a
-  // 9 pt dot; Restore is a secondary outline capsule in ink (no blue tint); delete
-  // forever stays the risk-colored trash.
-  deletedDot: { width: 9, height: 9, borderRadius: 4.5 },
-  deletedActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
-  restoreBtnText: { fontSize: 15, fontWeight: '600', color: c.ink },
-  deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  // Group cards (prototype .setcard / .setsec / .setchev): one raised card per group; the
+  // header holds the name (headline), a one-line summary (footnote, ink2) and the arrow in a
+  // 36 pt round well; when open a hairline separates the header from the rows inside.
+  setCards: { marginHorizontal: 16, marginTop: 14, gap: 10 },
+  setCard: { backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
+  setHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingHorizontal: 16, paddingVertical: 6 },
+  setHeadOpen: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+  setHeadText: { flex: 1, gap: 3 },
+  setTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
+  setSum: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  setChev: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
+  // Sign out / Delete account: their own card under the groups (prototype S-out).
+  actionsCard: { marginHorizontal: 16, marginTop: 18, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
 
   // Book layout (S-26 BK-7/BK-8): the left page lists the groups as raised rows; the open
   // one carries the 1.5 pt ink outline (selection, DESIGN.md) and a semibold label. The
@@ -1514,7 +1466,7 @@ const settingsGraduated = (c) => ({
   bookNav: { marginHorizontal: 16, marginTop: 14, gap: 8 },
   bookNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 60, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18, backgroundColor: c.raised, borderWidth: 1.5, borderColor: 'transparent' },
   bookNavRowOn: { borderColor: c.ink },
-  bookNavLabel: { flex: 1, fontSize: 17, fontWeight: '400', color: c.ink },
+  bookNavLabel: { fontSize: 17, fontWeight: '400', color: c.ink },
   bookNavLabelOn: { fontWeight: '600' },
   bookPageTitle: { fontSize: 28, lineHeight: 41, fontWeight: '700', color: c.ink, letterSpacing: -0.4 },
   bookRightBody: { paddingTop: 12 },
