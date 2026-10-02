@@ -51,7 +51,11 @@ import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
-import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from './components/ProtocolParts';
+import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler, StepGlyph, RULER, rulerX } from './components/ProtocolParts';
+import RowChevron from '../components/RowChevron';
+import FoldChevron from '../components/FoldChevron';
+import CheckMark from '../components/CheckMark';
+import { lastCompleteLog, lastLogWhen } from '../lib/protocolsHero';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
@@ -219,9 +223,9 @@ function WInput({ s, c, style, onFocus, onBlur, ...props }) {
 }
 
 // Selection pill: 1 px line outline; chosen = 1.5 px ink outline on raised.
-function Pill({ s, label, on, onPress }) {
+function Pill({ s, label, on, onPress, short }) {
   return (
-    <TouchableOpacity style={[s.pill, on && s.pillOn]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!on }}>
+    <TouchableOpacity style={[s.pill, short && s.pillShort, on && s.pillOn]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!on }}>
       <Text style={[s.pillText, on && s.pillTextOn]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -254,11 +258,11 @@ function InfoBox({ s, text }) {
 }
 
 // Rows block (prototype .rows/.rw): section title, then label left / value right.
-function RowsBlock({ s, title, rows }) {
+function RowsBlock({ s, title, rows, style }) {
   const shown = rows.filter(Boolean);
   if (!shown.length) return null;
   return (
-    <View style={s.blk}>
+    <View style={style || s.blk}>
       {title ? <Text style={s.secth}>{title}</Text> : null}
       <View style={s.rows}>
         {shown.map((r, i) => (
@@ -302,7 +306,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
         </Text>
         <TouchableOpacity style={s.hobjFoot} onPress={onDoseDetails} accessibilityRole="button">
           <Text style={s.hobjFootText}>{t('protocols_step_dose')}</Text>
-          <Text style={s.chev}>›</Text>
+          <RowChevron color={c.tick} />
         </TouchableOpacity>
       </View>
     );
@@ -325,9 +329,10 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       >
         <View style={s.drawHead}>
           <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-          <Text style={[s.drawBig, over && s.drawBigRisk]}>
-            {draw.drawUnits}<Text style={s.drawBigUnit}> {t('protocols_syringe_units')}</Text>
-          </Text>
+          <View style={s.bigRow}>
+            <Text style={[s.drawBig, over && s.drawBigRisk]}>{draw.drawUnits}</Text>
+            <Text style={s.drawBigUnit}>{t('protocols_syringe_units')}</Text>
+          </View>
         </View>
         {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
         {over && (
@@ -375,9 +380,9 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
   const ok = !!(draw && draw.drawML && draw.valid);
   const syringeMax = (p && p.syringe_size) || 100;
   const units = ok ? Number(draw.drawUnits) : 0;
-  // The sheet is at most 560 wide (520 inside its padding), not the window (A-76).
+  // The sheet is at most 560 wide (520 inside its padding), not the window (A-76). The
+  // ruler is the prototype overlay (part 7): 1640 wide, opened with the dose centred.
   const zoomView = Math.min(windowWidth - 72, 520);
-  const zoomWidth = Math.max(zoomView, syringeMax * 16);
   const name = p ? (p.compound_id ? t(p.compound_id) : p.name) : '';
 
   return (
@@ -391,11 +396,11 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
             </Text>
             <ScrollView
               horizontal
-              showsHorizontalScrollIndicator
-              contentOffset={{ x: Math.max(0, (Math.min(units, syringeMax) / syringeMax) * zoomWidth - zoomView / 2), y: 0 }}
+              showsHorizontalScrollIndicator={false}
+              contentOffset={{ x: Math.max(0, Math.min(RULER.W - zoomView, rulerX(units, syringeMax) - zoomView / 2)), y: 0 }}
               style={s.ruler}
             >
-              <SyringeRuler units={units} size={syringeMax} width={zoomWidth} />
+              <SyringeRuler units={units} size={syringeMax} />
             </ScrollView>
             <TouchableOpacity style={s.btnPrimary} onPress={onClose} accessibilityRole="button">
               <Text style={s.btnPrimaryText}>{t('done')}</Text>
@@ -460,11 +465,12 @@ function ProtocolServingHero({ p, t, onRefill }) {
     <View style={s.hobj}>
       <Text style={s.hobjTitle}>{t('protocols_serving_title')}</Text>
       {canShowAmount ? (
-        <View style={s.drawWell}>
+        <View style={[s.drawWell, s.drawWellServing]}>
           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
-          <Text style={s.drawBig} accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded)} ${unitLabel}`}>
-            {fmtServing(r.unitsNeeded)}<Text style={s.drawBigUnit}> {unitLabel}</Text>
-          </Text>
+          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded)} ${unitLabel}`}>
+            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded)}</Text>
+            <Text style={s.drawBigUnit}>{unitLabel}</Text>
+          </View>
         </View>
       ) : (
         <WarnBox s={s} text={r.splittable ? t('protocols_serving_not_half') : containsMsg} />
@@ -512,6 +518,8 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
       : null;
   const past = daysLeft != null && daysLeft <= 0;
   return (
+    <View style={s.blkD}>
+    <Text style={s.secth}>{t('protocols_vial_title')}</Text>
     <View style={[s.hobj, s.hobjTight]}>
       {remaining != null && capacity != null ? <VialCells total={capacity} left={remaining} /> : null}
       {capacity != null && (
@@ -552,6 +560,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
           <Text style={s.obtn2Text}>{t('protocols_new_vial')}</Text>
         </TouchableOpacity>
       )}
+    </View>
     </View>
   );
 }
@@ -598,7 +607,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
             {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
           </Text>
         </View>
-        <Text style={s.pchev}>›</Text>
+        <View style={s.pchev}><RowChevron color={c.tick} /></View>
       </View>
       {(showCap || showDays) && (
         <View style={s.supply}>
@@ -675,6 +684,10 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
   };
 
   const goals = p.goal ? p.goal.split(',').filter(Boolean) : [];
+  // The vial block draws only when there is something to count (ProtocolVialBlock's rule).
+  const vialShown = isInjectable && (supplyState(vial, p).capacity != null
+    || dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }) != null
+    || vialDaysLeftFor(p, vial) != null);
   const scheduleRows = [
     { label: t('protocols_frequency'), value: p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—') },
     { label: t('protocols_reminder'), value: (p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  '), mono: true },
@@ -729,17 +742,17 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
       </View>
 
       {isInjectable && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} />}
-      {isInjectable && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} />}
+      {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} />}
       <ProtocolServingHero p={p} t={t} onRefill={onRefill} />
 
-      <RowsBlock s={s} title={t('protocols_step_schedule')} rows={scheduleRows} />
+      <RowsBlock s={s} title={t('protocols_step_schedule')} rows={scheduleRows} style={vialShown ? [s.blkD, s.blkNext] : s.blkD} />
       <TouchableOpacity style={s.obtn2} onPress={() => openEdit(p, 4)} accessibilityRole="button">
         <Text style={s.obtn2Text}>{t('protocols_add_reminder')}</Text>
       </TouchableOpacity>
 
-      <RowsBlock s={s} title={t('protocols_step_dose')} rows={doseRows} />
+      <RowsBlock s={s} title={t('protocols_step_dose')} rows={doseRows} style={s.blkD} />
 
-      <View style={s.blk}>
+      <View style={[s.blkD, s.blkNext]}>
         <Text style={s.secth}>{t('protocols_notes')}</Text>
         <TextInput
           style={[s.noteWell, noteFocus && s.noteWellOn]}
@@ -754,10 +767,10 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
         {noteDirty && (
           <View style={s.acts2}>
             <TouchableOpacity style={[s.btnSm, s.btnSec]} onPress={() => onDraft(p.id, null)} accessibilityRole="button">
-              <Text style={s.btnSecText}>{t('cancel')}</Text>
+              <Text style={[s.btnSecText, s.btnSmText]}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.btnSm, s.btnPri]} onPress={saveNote} accessibilityRole="button">
-              <Text style={s.btnPriText}>{t('save')}</Text>
+              <Text style={[s.btnPriText, s.btnSmText]}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -845,6 +858,7 @@ export default function ProtocolsScreen() {
   const [wizardPresented, setWizardPresented] = useState(false);
   const scrollRef = useRef(null);
   const [logCounts, setLogCounts] = useState({ Taken: 0, Skipped: 0, Missed: 0 });
+  const [lastLog, setLastLog] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -1095,8 +1109,10 @@ export default function ProtocolsScreen() {
     setProtocols(data || []);
     try {
       const counts = { Taken: 0, Skipped: 0, Missed: 0 };
-      for (const l of (getAllLogs(user.id) || [])) if (counts[l.outcome] != null) counts[l.outcome]++;
+      const logs = getAllLogs(user.id) || [];
+      for (const l of logs) if (counts[l.outcome] != null) counts[l.outcome]++;
       setLogCounts(counts);
+      setLastLog(lastCompleteLog(logs));
     } catch { /* keep the last counts */ }
     // Active vial per protocol (latest first from the query) for the vial-age sort.
     const vials = getActiveVials(user.id) || [];
@@ -1243,7 +1259,7 @@ export default function ProtocolsScreen() {
     compositionForRef.current = key;
     setCompoundId(key);
     setSearchQuery(label);
-    setShowSuggestions(false);
+    // The list stays open with the chosen one checked (prototype suggestions(), part 14).
     Analytics.compoundSearched(label, type);
   }
 
@@ -1271,6 +1287,7 @@ export default function ProtocolsScreen() {
     editStartRef.current = f;
     setEditingId(p.id);
     setSearchQuery(p.compound_id ? t(p.compound_id) : (p.name || ''));
+    setShowSuggestions(true); // Edit shows the list with the saved compound checked (part 14)
     setIuInput(''); setIuOpen(false);
     compositionForRef.current = p.compound_id || null;
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
@@ -1835,7 +1852,7 @@ export default function ProtocolsScreen() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.sortScroll} contentContainerStyle={s.sortRow}>
       <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
       {SORT_OPTIONS.map(o => (
-        <Pill key={o.key} s={s} label={t(o.label)} on={sortBy === o.key} onPress={() => changeSort(o.key)} />
+        <Pill key={o.key} s={s} label={t(o.label)} on={sortBy === o.key} onPress={() => changeSort(o.key)} short />
       ))}
     </ScrollView>
   );
@@ -1937,7 +1954,7 @@ export default function ProtocolsScreen() {
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
                 {deletedSection}
-                <View style={{ height: 40 }} />
+                <View style={s.bottomPad} />
               </ScrollView>
             </>
           }
@@ -1950,18 +1967,19 @@ export default function ProtocolsScreen() {
               </View>
               <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {renderDetail(bookProtocol, true)}
-                <View style={{ height: 40 }} />
+                <View style={s.bottomPad} />
               </ScrollView>
             </>
           ) : null}
         />
       ) : (
       <>
-      <View style={s.header}>
+      <View style={view === 'heroes' ? s.header : s.navrow}>
         {view === 'detail' ? (
           <>
             <TouchableOpacity style={s.backBtn} onPress={closeProtocol} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={s.backText}>‹ {t('today_protocols')}</Text>
+              <View style={s.backChev}><RowChevron color={colors.ink} /></View>
+              <Text style={s.backText}>{t('today_protocols')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.addBtn} onPress={() => openEdit(openProtocol)} accessibilityRole="button">
               <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
@@ -1969,7 +1987,8 @@ export default function ProtocolsScreen() {
           </>
         ) : view === 'list' ? (
           <TouchableOpacity style={s.backBtn} onPress={() => setShowList(false)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={s.backText}>‹ {t('protocols_title')}</Text>
+            <View style={s.backChev}><RowChevron color={colors.ink} /></View>
+            <Text style={s.backText}>{t('protocols_title')}</Text>
           </TouchableOpacity>
         ) : (
           <>
@@ -1982,13 +2001,19 @@ export default function ProtocolsScreen() {
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {view === 'heroes' && protocols.length > 0 && (() => {
           const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
+          // Part 1: the last completed dose under the counts (prototype "Last: TB-500 · Mon 7:42 PM").
+          const lastP = lastLog ? protocols.find(p => p.id === lastLog.protocol_id) : null;
+          const lastName = lastP ? protocolName(lastP) : (lastLog && lastLog.protocol_name) || '';
+          const lastLine = lastLog && lastName
+            ? t('protocols_log_last').replace('{name}', lastName).replace('{when}', lastLogWhen(lastLog.logged_at, new Date(), LOCALE_MAP[language] || 'en-US', (hm) => formatTime(hm, language, timeFormat)))
+            : null;
           return (
             <View style={s.heroes}>
               <TouchableOpacity style={s.hero} activeOpacity={0.75} onPress={() => setShowList(true)} accessibilityRole="button">
                 <View style={s.heroHead}>
-                  <FeatureIcon name="type_vial" size={22} color={colors.ink} />
+                  <FeatureIcon name="type_vial" size={22} color={colors.ink2} />
                   <Text style={s.heroTitle}>{t('today_protocols')}</Text>
-                  <Text style={s.heroChev}>›</Text>
+                  <RowChevron color={colors.tick} />
                 </View>
                 <View style={s.heroBig}>
                   <Text style={s.heroNum}>{protocols.length}</Text>
@@ -2003,7 +2028,7 @@ export default function ProtocolsScreen() {
                   ))}
                 </View>
                 {low.length > 0 && (
-                  <View style={s.heroNameRow}>
+                  <View style={s.heroLowRow}>
                     <View style={[s.heroDot, { backgroundColor: colors.attention }]} />
                     <Text style={s.heroLow}>{t('today_alert_supply_list').replace('{names}', low.join(', '))}</Text>
                   </View>
@@ -2011,21 +2036,22 @@ export default function ProtocolsScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={s.hero} activeOpacity={0.75} onPress={() => navigation.navigate('Log')} accessibilityRole="button">
                 <View style={s.heroHead}>
-                  <FeatureIcon name="journal" size={22} color={colors.ink} />
+                  <FeatureIcon name="journal" size={22} color={colors.ink2} />
                   <Text style={s.heroTitle}>{t('log_title')}</Text>
-                  <Text style={s.heroChev}>›</Text>
+                  <RowChevron color={colors.tick} />
                 </View>
                 <View style={s.trio}>
                   {[['Taken', 'log_taken', colors.ok], ['Skipped', 'log_skipped', colors.ink2], ['Missed', 'log_missed', colors.risk]].map(([k, key, col]) => (
                     <View key={k} style={s.trioCell}>
                       <Text style={s.trioNum}>{logCounts[k]}</Text>
-                      <View style={s.heroNameRow}>
+                      <View style={s.trioLabelRow}>
                         <View style={[s.heroDotSm, { backgroundColor: col }]} />
                         <Text style={s.trioLabel}>{t(key)}</Text>
                       </View>
                     </View>
                   ))}
                 </View>
+                {lastLine ? <Text style={s.heroLast}>{lastLine}</Text> : null}
               </TouchableOpacity>
             </View>
           );
@@ -2050,7 +2076,7 @@ export default function ProtocolsScreen() {
 
         {view === 'detail' && renderDetail(openProtocol, false)}
 
-        <View style={{ height: 40 }} />
+        <View style={s.bottomPad} />
       </ScrollView>
       </>
       )}
@@ -2178,10 +2204,13 @@ export default function ProtocolsScreen() {
                               style={[s.suggRow, i > 0 && s.suggSep]}
                               onPressIn={() => selectCompound(item)}
                             >
-                              <Text style={s.suggText}>{item.label}</Text>
-                              {comp && (
-                                <Text style={s.suggSub}>{comp} · {t('blend_varies_hint')}</Text>
-                              )}
+                              <View style={s.suggMain}>
+                                <Text style={s.suggText}>{item.label}</Text>
+                                {comp && (
+                                  <Text style={s.suggSub}>{comp} · {t('blend_varies_hint')}</Text>
+                                )}
+                              </View>
+                              {compoundId === item.key ? <CheckMark size={18} color={colors.ink} /> : null}
                             </TouchableOpacity>
                           );
                         })}
@@ -2206,9 +2235,9 @@ export default function ProtocolsScreen() {
                 </Fld>
 
                 {name && !compoundId ? (
-                  <Text style={s.footAttn}>{t('protocols_custom_hint')}</Text>
+                  <Text style={[s.footAttn, s.flush]}>{t('protocols_custom_hint')}</Text>
                 ) : null}
-                <Text style={s.footC3}>{t('protocols_spelling_note')}</Text>
+                <Text style={[s.footC3, s.flush]}>{t('protocols_spelling_note')}</Text>
               </>
             )}
 
@@ -2235,12 +2264,14 @@ export default function ProtocolsScreen() {
                       return (
                         <View key={col} style={s.swCell}>
                           <TouchableOpacity
-                            style={[s.swRing, on && s.swRingOn]}
+                            style={s.swHit}
                             onPress={() => setColor(col)}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: on }}
                             accessibilityLabel={t(colorNameKey(col))}
                           >
+                            {on && <View style={s.swRingOn} />}
                             <View style={[s.sw, { backgroundColor: col }]} />
                             {usedColors.has(col) && <View style={s.usedMk} />}
                           </TouchableOpacity>
@@ -2251,11 +2282,11 @@ export default function ProtocolsScreen() {
                   {usedColors.size > 0 && (
                     <View style={s.legendRow}>
                       <View style={[s.usedMk, s.usedMkInline]} />
-                      <Text style={[s.footC2, { flex: 1 }]}>{t('protocols_color_in_use_legend').replace(/^●\s*/, '')}</Text>
+                      <Text style={[s.footC2, s.flush, { flex: 1 }]}>{t('protocols_color_in_use_legend').replace(/^●\s*/, '')}</Text>
                     </View>
                   )}
                   {usedColors.has(color) && <WarnBox s={s} text={t('protocols_color_dup_warning')} />}
-                  <Text style={s.footC2}>{t('protocols_color_tip')}</Text>
+                  <Text style={[s.footC2, s.flush]}>{t('protocols_color_tip')}</Text>
                 </>
               );
             })()}
@@ -2359,7 +2390,7 @@ export default function ProtocolsScreen() {
                     <Fld s={s} label={t('protocols_diluent_amount')} hint={t('protocols_steps_05')}>
                       <View style={s.stepper}>
                         <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(-1)} accessibilityRole="button" accessibilityLabel="−0.5 ml">
-                          <Text style={s.stepperBtnText}>−</Text>
+                          <StepGlyph color={colors.ink} />
                         </TouchableOpacity>
                         <View style={s.stepperVal}>
                           <TextInput
@@ -2376,7 +2407,7 @@ export default function ProtocolsScreen() {
                           <Text style={s.stepperValUnit}>ml</Text>
                         </View>
                         <TouchableOpacity style={s.stepperBtn} onPress={() => adjustWater(1)} accessibilityRole="button" accessibilityLabel="+0.5 ml">
-                          <Text style={s.stepperBtnText}>+</Text>
+                          <StepGlyph plus color={colors.ink} />
                         </TouchableOpacity>
                       </View>
                     </Fld>
@@ -2401,11 +2432,11 @@ export default function ProtocolsScreen() {
                         <View style={s.fold2}>
                           <TouchableOpacity style={s.foldHead} onPress={() => setIuOpen(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: iuOpen }}>
                             <Text style={s.foldTitle}>{t('protocols_iu_label')}</Text>
-                            <Text style={s.foldChev}>{iuOpen ? '⌃' : '⌄'}</Text>
+                            <FoldChevron open={iuOpen} color={colors.ink3} />
                           </TouchableOpacity>
                           {iuOpen && (
                             <>
-                              <Text style={s.footC2}>{t('protocols_iu_hint')}</Text>
+                              <Text style={[s.footC2, s.flush]}>{t('protocols_iu_hint')}</Text>
                               <View style={s.inrow}>
                                 <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 10`} keyboardType="numeric" value={iuInput} onChangeText={setIuInput} />
                                 <Text style={s.bodyC2}>u</Text>
@@ -2476,14 +2507,15 @@ export default function ProtocolsScreen() {
                 )}
 
                 {/* The live result (prototype liveHero). */}
-                {type !== 'oral' && unitMismatch && <WarnBox s={s} text={t('protocols_unit_mismatch')} />}
+                {type !== 'oral' && unitMismatch && <View style={s.live}><WarnBox s={s} text={t('protocols_unit_mismatch')} /></View>}
                 {showLiveDraw && (
                   <View style={s.live} onLayout={(e) => setLiveW(e.nativeEvent.layout.width)}>
                     <View style={s.drawHead}>
                       <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-                      <Text style={[s.drawBig, drawExceedsSyringe && s.drawBigRisk]}>
-                        {drawUnits}<Text style={s.drawBigUnit}> {t('protocols_units')}</Text>
-                      </Text>
+                      <View style={s.bigRow}>
+                        <Text style={[s.drawBig, drawExceedsSyringe && s.drawBigRisk]}>{drawUnits}</Text>
+                        <Text style={s.drawBigUnit}>{t('protocols_units')}</Text>
+                      </View>
                     </View>
                     {liveW > 0 && (
                       <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
@@ -2492,7 +2524,7 @@ export default function ProtocolsScreen() {
                     {drawExceedsSyringe && <WarnBox s={s} risk text={drawExceedsMsg} />}
                   </View>
                 )}
-                {wizServing && wizServing.unitMismatch && <WarnBox s={s} text={t('protocols_serving_unit_mismatch')} />}
+                {wizServing && wizServing.unitMismatch && <View style={s.live}><WarnBox s={s} text={t('protocols_serving_unit_mismatch')} /></View>}
                 {wizServing && wizServing.valid && (() => {
                   const r = wizServing;
                   const unitLabel = t(r.unitKey);
@@ -2502,7 +2534,10 @@ export default function ProtocolsScreen() {
                       {canShowAmount ? (
                         <>
                           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
-                          <Text style={s.drawBig}>{fmtServing(r.unitsNeeded)}<Text style={s.drawBigUnit}> {unitLabel}</Text></Text>
+                          <View style={s.bigRow}>
+                            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded)}</Text>
+                            <Text style={s.drawBigUnit}>{unitLabel}</Text>
+                          </View>
                         </>
                       ) : (
                         <WarnBox
@@ -2520,7 +2555,7 @@ export default function ProtocolsScreen() {
                     </View>
                   );
                 })()}
-                <Text style={s.footC3}>{t('protocols_calc_disclaimer')}</Text>
+                <Text style={[s.footC3, s.flush]}>{t('protocols_calc_disclaimer')}</Text>
               </>
             )}
 
@@ -2685,6 +2720,8 @@ export default function ProtocolsScreen() {
                           <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onPress={() => setVialMonth(idx)} />
                         ))}
                       </ScrollView>
+                      <View style={s.inrow}>
+                      <Text style={s.bodyC2}>{t('protocols_mix_day')}</Text>
                       <WInput
                         s={s} c={colors}
                         style={s.dayInput}
@@ -2697,11 +2734,11 @@ export default function ProtocolsScreen() {
                           if (val === '' || (num >= 1 && num <= 31)) setVialDay(val);
                         }}
                       />
+                      </View>
                     </Fld>
                     <Fld s={s} label={t('protocols_vial_valid')} hint={t('protocols_vial_valid_hint')}>
                       <WInput
                         s={s} c={colors}
-                        style={s.validInput}
                         placeholder={String(DEFAULT_VALID_DAYS)}
                         keyboardType="numeric"
                         maxLength={3}
@@ -2724,13 +2761,14 @@ export default function ProtocolsScreen() {
                 )}
                 <RowsBlock
                   s={s}
+                  style={s.blkD}
                   title={sentenceCase(t('protocols_summary'))}
                   rows={[
-                    { label: t('protocols_compound_label'), value: name },
-                    { label: t('protocols_amount_label'), value: `${amount} ${unit}`, mono: true },
-                    { label: t('protocols_water_label'), value: `${water} ml`, mono: true },
-                    { label: t('protocols_dose_label'), value: `${dose} ${doseUnit}`, mono: true },
-                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${drawML} ml (${drawUnits} ${t('protocols_units')})`, mono: true } : null,
+                    { label: t('protocols_compound_label'), value: name || '—' },
+                    { label: t('protocols_amount_label'), value: amount ? `${amount} ${unit}` : '—' },
+                    { label: t('protocols_water_label'), value: water ? `${water} ml` : '—' },
+                    { label: t('protocols_dose_label'), value: dose ? `${dose} ${doseUnit}` : '—' },
+                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${drawML} ml (${drawUnits} ${t('protocols_units')})` } : null,
                     { label: t('protocols_frequency_label'), value: frequencyLabel(intervalDays) },
                   ]}
                 />
@@ -2810,22 +2848,25 @@ const makeStyles = (c) => StyleSheet.create(protocolsGraduated(c));
 const protocolsGraduated = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.ground },
-  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, backgroundColor: c.ground, gap: 12, minHeight: 60 },
+  // My Protocols title row (prototype .scr top 6 + .hrow top 8; 14 to the first card)
+  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: c.ground, gap: 12 },
+  // back row on the list and the protocol screen (prototype .navrow: 44 high, centred; 14 below)
+  navrow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 18, paddingTop: 6, marginBottom: 14, backgroundColor: c.ground, gap: 12 },
   headerEnd: { justifyContent: 'flex-end' }, // book right page: Edit only, no back (BK-4)
   headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
-  backBtn: { minHeight: 44, justifyContent: 'center' },
+  backBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backChev: { transform: [{ scaleX: -1 }] }, // the row arrow mirrored (prototype .back svg)
   backText: { fontSize: 17, color: c.ink },
   addBtn: { minHeight: 40, borderRadius: 20, backgroundColor: c.act, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   addBtnText: { fontSize: 15, fontWeight: '700', color: c.onAct },
-  scroll: { flex: 1, padding: 16 },
-  chev: { fontSize: 22, color: c.tick },
+  scroll: { flex: 1, paddingHorizontal: 16 },
+  bottomPad: { height: 24 }, // prototype .scr bottom 24
 
   // Heroes (approved, unchanged)
-  heroes: { gap: 12, paddingTop: 2 },
+  heroes: { gap: 14 },
   hero: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14 },
   heroHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  heroTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: c.ink },
-  heroChev: { fontSize: 22, color: c.tick },
+  heroTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: c.ink, letterSpacing: -0.22 },
   heroBig: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
   heroNum: { fontSize: 56, fontWeight: '500', color: c.ink, letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
   heroUnit: { fontSize: 17, color: c.ink2 },
@@ -2834,10 +2875,13 @@ const protocolsGraduated = (c) => ({
   heroDot: { width: 9, height: 9, borderRadius: 5 },
   heroDotSm: { width: 7, height: 7, borderRadius: 4 },
   heroName: { fontSize: 17, color: c.ink },
-  heroLow: { fontSize: 15, color: c.ink2, flex: 1 },
+  heroLowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroLow: { fontSize: 15, color: c.ink, flex: 1 },
+  heroLast: { fontSize: 15, lineHeight: 20, color: c.ink2, fontVariant: ['tabular-nums'] },
   trio: { flexDirection: 'row', gap: 8 },
   trioCell: { flex: 1, gap: 4 },
   trioNum: { fontSize: 34, fontWeight: '500', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  trioLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trioLabel: { fontSize: 12, fontWeight: '500', color: c.ink2 },
 
   // Empty state
@@ -2849,17 +2893,20 @@ const protocolsGraduated = (c) => ({
   // List (prototype list() / pcard())
   hrow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingHorizontal: 4, marginBottom: 14 },
   listTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
-  sortScroll: { marginHorizontal: -16, marginBottom: 16, flexGrow: 0 },
+  sortScroll: { marginHorizontal: -16, marginBottom: 14, flexGrow: 0 },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18 },
   sortLabel: { fontSize: 13, color: c.ink2 },
   blk: { gap: 10, marginBottom: 26 },
+  // a block on the protocol screen / wizard: the screen gap is 14, a block after a block 26
+  blkD: { gap: 10 },
+  blkNext: { marginTop: 12 },
   secth: { paddingHorizontal: 4, fontSize: 15, fontWeight: '600', color: c.ink2 },
   // Recently deleted (prototype .list / .li): one raised list, rows split by a hairline, the
   // protocol color only as a 9 pt dot, Restore an outline pill, delete forever the risk trash.
   delList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   delRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
-  delRowLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
-  delDot: { width: 9, height: 9, borderRadius: 5 },
+  delRowLine: { borderTopWidth: 1, borderTopColor: c.line },
+  delDot: { width: 10, height: 10, borderRadius: 5 },
   delText: { flex: 1, gap: 2 },
   delName: { fontSize: 17, color: c.ink },
   delAgo: { fontSize: 13, color: c.ink2 },
@@ -2871,11 +2918,11 @@ const protocolsGraduated = (c) => ({
   pcardBook: { borderWidth: 2, borderColor: 'transparent' },
   pcardSel: { borderColor: c.ink },
   pcardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  pdot: { width: 9, height: 9, borderRadius: 5, marginTop: 8 },
+  pdot: { width: 10, height: 10, borderRadius: 5, marginTop: 7 },
   pcardInfo: { flex: 1, minWidth: 0, gap: 3 },
   pname: { fontSize: 18, fontWeight: '700', color: c.ink, lineHeight: 23 },
   pmeta: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
-  pchev: { fontSize: 22, color: c.tick, marginTop: 1 },
+  pchev: { marginTop: 5 },
   supply: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   supplyText: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'], flexShrink: 1 },
   supplyStrong: { fontWeight: '600', color: c.ink },
@@ -2887,13 +2934,14 @@ const protocolsGraduated = (c) => ({
   otagRisk: { borderColor: c.risk },
   otagTextRisk: { color: c.risk },
   pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  pillShort: { minHeight: 34 }, // the sort row (prototype .sortrow .pill)
   pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5 },
   pillText: { fontSize: 13, color: c.ink2 },
   pillTextOn: { color: c.ink, fontWeight: '600' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
   // Protocol screen (prototype protocol())
-  detail: { gap: 20 },
+  detail: { gap: 14 },
   ptitle: { gap: 6, paddingHorizontal: 4, paddingTop: 4 },
   ptitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   ptitleDot: { width: 12, height: 12, borderRadius: 6 },
@@ -2903,18 +2951,20 @@ const protocolsGraduated = (c) => ({
   hobjTight: { gap: 10 },
   hobjTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
   hobjSub: { fontSize: 15, color: c.ink2, lineHeight: 20 },
-  hobjFoot: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, gap: 12 },
+  hobjFoot: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderTopWidth: 1, borderTopColor: c.line, gap: 12 },
   hobjFootText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   drawWell: { backgroundColor: c.well, borderRadius: 16, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, gap: 6 },
   drawHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
   drawLabel: { fontSize: 15, color: c.ink2 },
   drawBig: { fontSize: 56, fontWeight: '500', color: c.data, letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
   drawBigRisk: { color: c.risk },
-  drawBigUnit: { fontSize: 13, fontFamily: MONO['400'], color: c.ink3, letterSpacing: 0 },
+  bigRow: { flexDirection: 'row', alignItems: 'baseline' },
+  drawBigUnit: { fontSize: 13, fontFamily: MONO['400'], color: c.ink3, letterSpacing: 0, marginLeft: 3 }, // prototype .unit
+  drawWellServing: { paddingBottom: 14 },
   drawWarn: { fontSize: 15, fontWeight: '600', color: c.risk, lineHeight: 20 },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2 },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   hintText: { fontSize: 13, color: c.ink2 },
-  reads: { flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  reads: { flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.line },
   readCell: { flex: 1, minWidth: 0, gap: 3 },
   readLabel: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   readVal: { fontSize: 17, fontFamily: MONO['500'], color: c.ink, letterSpacing: -0.3 },
@@ -2923,14 +2973,14 @@ const protocolsGraduated = (c) => ({
   nearest: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
   vialHead: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   vialSub: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
-  obtn2: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
+  obtn2: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   obtn2Text: { fontSize: 17, fontWeight: '700', color: c.ink },
   rows: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   rw: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, minHeight: 50, paddingVertical: 13 },
-  rwSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  rwSep: { borderTopWidth: 1, borderTopColor: c.line },
   rwKey: { fontSize: 17, color: c.ink2, flexShrink: 1 },
   rwVal: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'right', flexShrink: 1 },
-  rwValMono: { fontFamily: MONO['500'], fontWeight: undefined, fontSize: 16 },
+  rwValMono: { fontFamily: MONO['500'], fontWeight: undefined, fontSize: 17 },
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
   noteWellOn: { borderColor: c.ink },
   acts2: { flexDirection: 'row', gap: 10 },
@@ -2940,27 +2990,28 @@ const protocolsGraduated = (c) => ({
   // Buttons
   btn: { minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnSm: { flex: 1, minHeight: 44, borderRadius: 26, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  btnSmText: { fontSize: 15 }, // prototype .btn.sm
   btnPri: { backgroundColor: c.act },
   btnPriText: { fontSize: 17, fontWeight: '700', color: c.onAct },
   btnSec: { backgroundColor: c.well },
   btnSecText: { fontSize: 17, fontWeight: '700', color: c.ink },
   btnBlocked: { backgroundColor: c.well },
   btnBlockedText: { fontSize: 17, fontWeight: '700', color: c.risk },
-  btnPrimary: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  btnPrimary: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
 
   // Tap to enlarge
-  zoomScrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 16 },
+  zoomScrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'center', padding: 16 },
   zoomSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  zoomTitle: { fontSize: 22, fontWeight: '700', color: c.ink },
+  zoomTitle: { fontSize: 22, fontWeight: '700', color: c.ink, letterSpacing: -0.22 },
   zoomReadout: { fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
   zoomReadoutVal: { fontWeight: '700', color: c.data },
   ruler: { flexGrow: 0, borderRadius: 14, backgroundColor: c.well, paddingTop: 14, paddingBottom: 8 },
 
   // Add / edit steps (prototype wizard() / wizStep())
   modal: { flex: 1, backgroundColor: c.ground },
-  wnav: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 16, gap: 8 },
-  wnavSide: { width: 84, minHeight: 44, justifyContent: 'center' },
+  wnav: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 16 },
+  wnavSide: { width: 70, minHeight: 44, justifyContent: 'center' },
   wnavRight: { alignItems: 'flex-end' },
   wnavCancel: { fontSize: 17, color: c.ink },
   wnavSave: { fontSize: 17, fontWeight: '600', color: c.ink },
@@ -2969,7 +3020,7 @@ const protocolsGraduated = (c) => ({
   progSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.line },
   progSegOn: { backgroundColor: c.ink },
   modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  wiz: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: 20 },
+  wiz: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32, gap: 20 },
   wt: { gap: 4, paddingHorizontal: 4, paddingTop: 6 },
   wtTitle: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
   wtSub: { fontSize: 15, color: c.ink2, lineHeight: 20 },
@@ -2977,6 +3028,7 @@ const protocolsGraduated = (c) => ({
   fldLabel: { paddingHorizontal: 4, fontSize: 17, fontWeight: '600', color: c.ink },
   fldHint: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink2 },
   footC2: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink2 },
+  flush: { paddingHorizontal: 0 }, // a foot line straight in the step, not in a field (prototype)
   footC3: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink3 },
   footAttn: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.attention },
   bodyC2: { fontSize: 17, color: c.ink2 },
@@ -2992,20 +3044,17 @@ const protocolsGraduated = (c) => ({
   winpMulti: { minHeight: 88, textAlignVertical: 'top' },
   inrow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   inrowInput: { flex: 1, minWidth: 0 },
-  intervalInput: { width: 96, textAlign: 'center' },
-  dayInput: { width: 96, textAlign: 'center' },
-  validInput: { width: 110, textAlign: 'center' },
+  intervalInput: { width: 96 }, // left-aligned like every field (part 17)
+  dayInput: { flex: 1, minWidth: 0 }, // fills the row after "Day" (part 19)
   unitBar: { flex: 1, minWidth: 0, alignSelf: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, minHeight: 56 },
   stepperBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
-  stepperBtnText: { fontSize: 24, color: c.ink },
-  stepperVal: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 6 },
+  stepperVal: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 4 },
   stepperValInput: { fontSize: 24, fontFamily: MONO['500'], color: c.ink, minWidth: 60, padding: 0, textAlign: 'center' },
   stepperValUnit: { fontSize: 17, color: c.ink },
   fold2: { backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 16, paddingBottom: 12, gap: 10 },
   foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 54 },
   foldTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
-  foldChev: { fontSize: 16, color: c.ink3, width: 16, textAlign: 'center' },
   iuEquiv: { flex: 1, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
   live: { backgroundColor: c.raised, borderRadius: 26, padding: 18, gap: 10 },
   liveMl: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
@@ -3019,30 +3068,33 @@ const protocolsGraduated = (c) => ({
   pickbtn: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 50, paddingHorizontal: 14, backgroundColor: c.raised, borderRadius: 14, borderWidth: 1, borderColor: c.line },
   pickText: { flex: 1, fontSize: 17, color: c.ink },
   pickTextC2: { fontSize: 17, color: c.ink2 },
-  pickTime: { marginLeft: 'auto', fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  pickTime: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] }, // with the clock, on the left (part 17)
   prev: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 22, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', maxWidth: '100%' },
-  prevDot: { width: 12, height: 12, borderRadius: 6 },
+  prevDot: { width: 12, height: 12, borderRadius: 5 },
   prevName: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },
   prevSub: { fontSize: 13, color: c.ink2 },
-  swatches: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, paddingHorizontal: 4 },
+  // prototype .swatches: 5 columns, 14 between rows, the ring drawn outside the 44 swatch
+  // (3 ground + 2.5 ink), so it takes no room; the used mark 13 (10 + a 1.5 ink ring).
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 14, paddingHorizontal: 8, paddingVertical: 4 },
   swCell: { width: '20%', alignItems: 'center' },
-  swRing: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  swRingOn: { borderWidth: 2.5, borderColor: c.ink },
+  swHit: { width: 44, height: 44 },
+  swRingOn: { position: 'absolute', top: -5.5, left: -5.5, width: 55, height: 55, borderRadius: 27.5, borderWidth: 2.5, borderColor: c.ink },
   sw: { width: 44, height: 44, borderRadius: 22 },
-  usedMk: { position: 'absolute', top: 5, right: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.ink },
+  usedMk: { position: 'absolute', top: -2.5, right: -2.5, width: 13, height: 13, borderRadius: 6.5, backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.ink },
   usedMkInline: { position: 'relative', top: 0, right: 0 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hscrollWrap: { marginHorizontal: -16, flexGrow: 0 },
   hscroll: { flexDirection: 'row', gap: 8, paddingHorizontal: 18 },
-  linkBtn: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4 },
+  linkBtn: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
   sugg: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, marginTop: -2 },
-  suggRow: { minHeight: 50, paddingVertical: 10, justifyContent: 'center', gap: 1 },
-  suggSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  suggRow: { minHeight: 50, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  suggMain: { flex: 1, minWidth: 0, gap: 1 },
+  suggSep: { borderTopWidth: 1, borderTopColor: c.line },
   suggText: { fontSize: 17, color: c.ink },
   suggSub: { fontSize: 13, color: c.ink2 },
   suggAdd: { fontSize: 17, fontWeight: '600', color: c.ink },
-  wfoot: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 6 : 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, backgroundColor: c.ground },
+  wfoot: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.ground },
   wfootSide: { flex: 1 },
   wfootMain: { flex: 2 },
 });

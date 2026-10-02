@@ -76,8 +76,9 @@ test('BK-2: one column is today\'s tab: heroes, the list with "‹ My Protocols"
   assert.match(phoneBranch, /view === 'heroes' && protocols\.length > 0/, 'heroes still render when !book');
   assert.match(phoneBranch, /onPress=\{\(\) => setShowList\(true\)\}/, 'the Protocols hero opens the list');
   assert.match(phoneBranch, /navigation\.navigate\('Log'\)/, 'the Dose log hero still pushes Log');
-  assert.match(phoneBranch, /‹ \{t\('today_protocols'\)\}/, 'protocol screen back button');
-  assert.match(phoneBranch, /‹ \{t\('protocols_title'\)\}/, 'list back button');
+  // The back arrow is drawn (My Protocols parts 2 and 5, founder 2026-10-02), not a ‹ glyph.
+  assert.match(phoneBranch, /<RowChevron color=\{colors\.ink\} \/><\/View>\s*<Text style=\{s\.backText\}>\{t\('today_protocols'\)\}/, 'protocol screen back button');
+  assert.match(phoneBranch, /<RowChevron color=\{colors\.ink\} \/><\/View>\s*<Text style=\{s\.backText\}>\{t\('protocols_title'\)\}/, 'list back button');
   assert.match(phoneBranch, /view === 'detail' && renderDetail\(openProtocol, false\)/);
   assert.match(phoneBranch, /view === 'list' && protocols\.length > 0 && sortPills/);
   assert.match(phoneBranch, /view === 'list' && protocols\.length > 0 && listCards/);

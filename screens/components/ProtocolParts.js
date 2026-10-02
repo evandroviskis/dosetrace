@@ -4,7 +4,7 @@
 // per dose, remaining in data) and the enlarged syringe ruler. Theme tokens only.
 import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform } from 'react-native';
-import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
+import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -138,6 +138,16 @@ export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
   );
 }
 
+// The diluent stepper's − / + (My Protocols part 16): the prototype's drawn icons, 20 pt,
+// stroke 1.8 on the 24 grid, round caps — never a text glyph. Colour is a theme token.
+export function StepGlyph({ plus, color }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path d={plus ? 'M12 6v12M6 12h12' : 'M6 12h12'} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 // Doses left as cells: one cell per dose, the remaining ones filled in data (prototype
 // cells(); geometry in lib/todayFormat.js vialCells, shared by Protocols and Today).
 export function VialCells({ total, left }) {
@@ -157,12 +167,19 @@ export function VialCells({ total, left }) {
 }
 
 // The enlarged syringe (Tap to enlarge): the same drawing at reading size, a number
-// every 10 units, scrolled horizontally inside a well.
-export function SyringeRuler({ units, size = 100, width }) {
+// every 10 units, scrolled horizontally inside a well. Geometry of the prototype overlay
+// (My Protocols part 7): 1640 wide, the barrel from x 40 to W - 40, the fill up to the dose.
+export const RULER = { W: 1640, x0: 40 };
+export function rulerX(units, size) {
+  const max = size || 100;
+  const u = Math.max(0, Math.min(max, Number(units) || 0));
+  return RULER.x0 + u * ((RULER.W - 2 * RULER.x0) / max);
+}
+export function SyringeRuler({ units, size = 100 }) {
   const { colors: c } = useTheme();
   const max = size || 100;
   const u = Math.max(0, Math.min(max, Number(units) || 0));
-  const W = width, x0 = 24, per = (W - 48) / max;
+  const W = RULER.W, x0 = RULER.x0, per = (W - 2 * x0) / max;
   const X = (v) => x0 + v * per;
   const ticks = [];
   for (let k = 1; k < max; k++) {
@@ -176,8 +193,8 @@ export function SyringeRuler({ units, size = 100, width }) {
   }
   return (
     <Svg width={W} height={96}>
-      <Rect x={x0} y={20} width={W - 48} height={40} rx={8} fill={c.raised} stroke={c.tick} strokeWidth={1} />
-      {u > 0 && <Rect x={x0 + 1} y={21} width={Math.max(0, X(u) - x0 - 1)} height={38} rx={7} fill={c.data} />}
+      <Rect x={x0} y={20} width={W - 2 * x0} height={40} rx={8} fill={c.raised} stroke={c.tick} strokeWidth={1} />
+      {u > 0 && <Rect x={x0 + 1} y={21} width={Math.max(0, X(u) - x0)} height={38} rx={7} fill={c.data} />}
       {ticks}
       {labels}
       <Rect x={X(u) - 3} y={14} width={8} height={52} rx={3} fill={c.ink} />
@@ -186,7 +203,7 @@ export function SyringeRuler({ units, size = 100, width }) {
 }
 
 const sheetStyles = (c) => StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', padding: 16 },
+  scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'center', padding: 16 },
   scrimBottom: { justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 30 },
   sheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
   icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
@@ -209,12 +226,12 @@ const sheetStyles = (c) => StyleSheet.create({
   btnText_danger: { color: c.onInk },
   actWrap: { width: '100%', maxWidth: 520, alignSelf: 'center', gap: 8 },
   actGroup: { backgroundColor: c.raised, borderRadius: 18, overflow: 'hidden' },
-  actTitle: { fontSize: 13, lineHeight: 18, color: c.ink2, textAlign: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  actOpt: { minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  actSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  actTitle: { fontSize: 13, lineHeight: 18, color: c.ink2, textAlign: 'center', paddingHorizontal: 18, paddingVertical: 14 },
+  actOpt: { minHeight: 56, alignItems: 'center', justifyContent: 'center' },
+  actSep: { borderTopWidth: 1, borderTopColor: c.line },
   actOptText: { fontSize: 19, color: c.ink },
   actCancelText: { fontWeight: '700' },
-  pickSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 8, width: '100%', maxWidth: 520, alignSelf: 'center' },
+  pickSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
   pickHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
   pickTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   pickDone: { fontSize: 17, fontWeight: '600', color: c.ink },

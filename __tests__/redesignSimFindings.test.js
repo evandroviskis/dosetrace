@@ -113,6 +113,7 @@ test('A-75: the Progress back row and title sit in the same capped column as the
 test('A-76: the enlarged syringe ruler is sized and centred on the visible sheet width', () => {
   const src = read('screens/ProtocolsScreen.js');
   assert.match(src, /const zoomView = Math\.min\(windowWidth - 72, 520\);/);
-  assert.match(src, /const zoomWidth = Math\.max\(zoomView, syringeMax \* 16\);/);
-  assert.match(src, /\* zoomWidth - zoomView \/ 2\)/);
+  // My Protocols part 7 (founder 2026-10-02): the ruler is the prototype's 1640-wide drawing;
+  // it still opens with the dose centred on the visible sheet width.
+  assert.match(src, /rulerX\(units, syringeMax\) - zoomView \/ 2\)/);
 });
