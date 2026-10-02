@@ -96,12 +96,15 @@ test('picker: a protocol stored with a legacy hex shows its colour selected', ()
   // The wizard: edit loads the stored colour through displayColor, the swatch test uses
   // sameColor, the in-use marks compare displayed colours, and the default is new Ocean.
   const pro = read('screens/ProtocolsScreen.js');
-  assert.match(pro, /setColor\(displayColor\(p\.color\) \|\| DEFAULT_PROTOCOL_COLOR\)/);
+  // The form mapping lives in lib/protocolForm.js (My Protocols redesign, decision 2).
+  const form = read('lib/protocolForm.js');
+  assert.match(form, /f\.color = displayColor\(p\.color\) \|\| DEFAULT_PROTOCOL_COLOR;/);
   assert.match(pro, /const on = sameColor\(color, col\)/);
   assert.match(pro, /PALETTE\.map\(\(\{ hex: col \}\)/);
   assert.match(pro, /\.map\(p => displayColor\(p\.color\)\)/);
   assert.match(pro, /useState\(DEFAULT_PROTOCOL_COLOR\)/);
-  assert.match(pro, /setColor\(DEFAULT_PROTOCOL_COLOR\)/);
+  assert.match(form, /color: DEFAULT_PROTOCOL_COLOR,/);
+  assert.match(pro, /applyForm\(newProtocolForm\(new Date\(\)\)\)/);
   assert.doesNotMatch(pro, /#185FA5/i, 'no hardcoded legacy Ocean left in the Protocols screen');
   assert.match(read('lib/database.js'), /data\.color \|\| DEFAULT_PROTOCOL_COLOR/);
 });

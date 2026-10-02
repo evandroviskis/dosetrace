@@ -57,6 +57,10 @@ import { defaultSelection } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
+import {
+  isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol,
+  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
+} from '../lib/protocolForm';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -76,11 +80,7 @@ const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh
 const RTU_KEYS = ['rtu_boldenone_undecylenate','rtu_cyanocobalamin','rtu_drostanolone_enanthate','rtu_drostanolone_propionate','rtu_dulaglutide','rtu_estradiol_cypionate','rtu_estradiol_valerate','rtu_hydroxocobalamin','rtu_insulin_aspart','rtu_insulin_degludec','rtu_insulin_glargine','rtu_insulin_lispro','rtu_l_carnitine','rtu_lipo_c','rtu_liraglutide','rtu_methenolone_enanthate','rtu_methylcobalamin','rtu_mic_blend','rtu_nandrolone_decanoate','rtu_nandrolone_phenylpropionate','rtu_progesterone','rtu_pyridoxine','rtu_semaglutide','rtu_stanozolol','rtu_sustanon_250','rtu_testosterone_cypionate','rtu_testosterone_enanthate','rtu_testosterone_propionate','rtu_testosterone_suspension','rtu_testosterone_undecanoate','rtu_tirzepatide','rtu_trenbolone_acetate','rtu_trenbolone_enanthate','rtu_trenbolone_hexahydrobenzylcarbonate'];
 
 function currentTimeRounded5() {
-  const now = new Date();
-  const mins = Math.round(now.getMinutes() / 5) * 5;
-  const h = mins === 60 ? now.getHours() + 1 : now.getHours();
-  const m = mins === 60 ? 0 : mins;
-  return `${String(h % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return timeRounded5(new Date());
 }
 
 const ORAL_KEYS = ['oral_alpha_gpc','oral_ala','oral_ashwagandha','oral_astragalus','oral_bacopa','oral_berberine','oral_beta_alanine','oral_citrulline','oral_coq10','oral_creatine','oral_curcumin','oral_gaba','oral_grape_seed','oral_krill_oil','oral_carnitine','oral_glutamine','oral_theanine','oral_tyrosine','oral_lions_mane','oral_maca','oral_mag_bisglycinate','oral_mag_threonate','oral_melatonin','oral_milk_thistle','oral_nac','oral_nmn','oral_nr','oral_omega3','oral_probiotics','oral_red_yeast','oral_resveratrol','oral_rhodiola','oral_saw_palmetto','oral_taurine','oral_tudca','oral_vit_b','oral_vit_c','oral_vit_d3','oral_vit_k2','oral_zinc'];
@@ -107,7 +107,6 @@ const DILUENT_OPTIONS = [
   { val: 'sodium_chloride_09', key: 'protocols_diluent_nacl' },
   { val: 'other', key: 'protocols_diluent_other' },
 ];
-const DILUENT_TOKENS = DILUENT_OPTIONS.map(o => o.val);
 
 // Resolve a stored diluent value to a display label: known token → translated,
 // otherwise the user's own free text as entered.
@@ -857,6 +856,8 @@ export default function ProtocolsScreen() {
   // The blend the typed composition belongs to. Typing in the name field nulls
   // compoundId, so re-picking the SAME blend must not clear the recipe.
   const compositionForRef = useRef(null);
+  // The edit form as it was opened (lib/protocolForm formFromProtocol): Save diffs against it.
+  const editStartRef = useRef(null);
   const [type, setType] = useState('recon');
   const [color, setColor] = useState(DEFAULT_PROTOCOL_COLOR);
   const [amount, setAmount] = useState('');
@@ -883,10 +884,7 @@ export default function ProtocolsScreen() {
   const [dosesPerDay, setDosesPerDay] = useState(1);
   // First-dose / start date as a full ISO date (YYYY-MM-DD). Defaults to today;
   // any past or future date is allowed so a protocol can be scheduled ahead.
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setHours(12, 0, 0, 0);
-    return d.toISOString().split('T')[0];
-  });
+  const [startDate, setStartDate] = useState(() => isoDay(new Date(), 0));
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
   const [goals, setGoals] = useState([]);
@@ -909,24 +907,19 @@ export default function ProtocolsScreen() {
     return new Date(toSupabaseDateFromMD(monthIdx, dayStr) + 'T00:00:00');
   }
 
+  // The user's local calendar day (lib/protocolForm isoDay), never a UTC date.
   function todayISO() {
-    const d = new Date(); d.setHours(12, 0, 0, 0);
-    return d.toISOString().split('T')[0];
-  }
-  function isoWithOffset(offset) {
-    const d = new Date(); d.setHours(12, 0, 0, 0);
-    d.setDate(d.getDate() + offset);
-    return d.toISOString().split('T')[0];
+    return isoDay(new Date(), 0);
   }
   // First-dose quick pick: is the current start date today (+offset days)?
   function isStartOn(offset) {
-    return startDate === isoWithOffset(offset);
+    return firstDoseChoice(startDate, new Date()) === offset;
   }
   function setStartOffset(offset) {
-    setStartDate(isoWithOffset(offset));
+    setStartDate(isoDay(new Date(), offset));
   }
   function formatStartDate(iso) {
-    if (!iso) return '';
+    if (!iso) return '—'; // an old protocol saved without a start date: nothing preselected
     const d = new Date(iso + 'T12:00:00');
     return d.toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   }
@@ -1182,19 +1175,38 @@ export default function ProtocolsScreen() {
     return arr;
   }
 
+  // The whole add / edit form as plain data (lib/protocolForm): what the steps hold now.
+  function currentForm() {
+    return {
+      name, compoundId, type, color, amount, unit, water, diluentChoice, diluentOther,
+      dose, doseUnit, syringeSize, concentration, concentrationUnit,
+      intervalDays, customIntervalOpen, customIntervalText, dosesPerDay, startDate, reminderTimes,
+      goals, notes, note, composition,
+      servingStrength, servingStrengthUnit, servingUnits, containerUnits, divisible,
+      vialValidDays, vialMl, vialExpMonth, vialExpYear,
+    };
+  }
+  function applyForm(f) {
+    setName(f.name); setCompoundId(f.compoundId); setType(f.type); setColor(f.color);
+    setAmount(f.amount); setUnit(f.unit); setWater(f.water); setDiluentChoice(f.diluentChoice); setDiluentOther(f.diluentOther);
+    setDose(f.dose); setDoseUnit(f.doseUnit); setSyringeSize(f.syringeSize);
+    setConcentration(f.concentration); setConcentrationUnit(f.concentrationUnit);
+    setIntervalDays(f.intervalDays); setCustomIntervalOpen(f.customIntervalOpen); setCustomIntervalText(f.customIntervalText);
+    setDosesPerDay(f.dosesPerDay); setStartDate(f.startDate); setReminderTimes(f.reminderTimes);
+    setGoals(f.goals); setNotes(f.notes); setNote(f.note); setComposition(f.composition);
+    setServingStrength(f.servingStrength); setServingStrengthUnit(f.servingStrengthUnit); setServingUnits(f.servingUnits);
+    setContainerUnits(f.containerUnits); setDivisible(f.divisible);
+    setVialValidDays(f.vialValidDays); setVialMl(f.vialMl); setVialExpMonth(f.vialExpMonth); setVialExpYear(f.vialExpYear);
+  }
+
+  // A new protocol: the first dose is Today (founder decision 2, 2026-10-02).
   function resetForm() {
-    setStep(1); setName(''); setCompoundId(null); setType('recon'); setColor(DEFAULT_PROTOCOL_COLOR);
-    setAmount(''); setUnit('mg'); setWater('2'); setDiluentChoice(''); setDiluentOther(''); setDose('');
-    setIuInput(''); setIuOpen(false);
-    setDoseUnit('mg'); setSyringeSize(100); setConcentration(''); setConcentrationUnit('mg');
-    setIntervalDays(1); setDosesPerDay(1);
-    setCustomIntervalOpen(false); setCustomIntervalText('');
-    setStartDate(todayISO()); setShowStartPicker(false);
-    setReminderTimes([currentTimeRounded5()]); setGoals([]); setNotes(''); setNote(''); setComposition(''); compositionForRef.current = null;
-    setServingStrength(''); setServingStrengthUnit('mg'); setServingUnits('1'); setContainerUnits(''); setDivisible(null);
+    applyForm(newProtocolForm(new Date()));
+    editStartRef.current = null;
+    setStep(1); setIuInput(''); setIuOpen(false); setShowStartPicker(false);
+    compositionForRef.current = null;
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
-    setTotalDoses(''); setSkipVial(false); setVialValidDays(String(DEFAULT_VALID_DAYS));
-    setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
+    setTotalDoses(''); setSkipVial(false);
     setVialScanning(false); setVialScanned(false);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
   }
@@ -1236,8 +1248,8 @@ export default function ProtocolsScreen() {
 
   // Escape hatch: record the user's own typed name as a custom (unverified)
   // compound so a missing entry never blocks creating a protocol.
-  function addCustomCompound() {
-    const custom = (searchQuery || '').trim();
+  function addCustomCompound(typed) {
+    const custom = (typeof typed === 'string' ? typed : (searchQuery || '')).trim();
     if (!custom) return;
     setName(custom);
     setCompoundId(null);
@@ -1249,65 +1261,17 @@ export default function ProtocolsScreen() {
     return type === 'oral' ? WELLNESS_KEYS_ORAL : WELLNESS_KEYS_INJECTABLE;
   }
 
+  // Edit: the form starts as the stored row (lib/protocolForm formFromProtocol, the same
+  // mapping as before) and Save writes only what the user changes (founder decision 2,
+  // 2026-10-02): no preselected first dose, no rewritten field, no vial nobody touched.
   function openEdit(p, goToStep) {
+    const f = formFromProtocol(p, vialsByProtocol[p.id], new Date());
+    applyForm(f);
+    editStartRef.current = f;
     setEditingId(p.id);
-    setName(p.name || ''); setCompoundId(p.compound_id || null);
     setSearchQuery(p.compound_id ? t(p.compound_id) : (p.name || ''));
-    setType(p.type || 'recon'); setColor(displayColor(p.color) || DEFAULT_PROTOCOL_COLOR);
-    setAmount(p.amount ? String(p.amount) : ''); setUnit(p.unit || 'mg');
-    setWater(p.water ? String(p.water) : '2');
-    if (p.diluent && DILUENT_TOKENS.includes(p.diluent) && p.diluent !== 'other') {
-      setDiluentChoice(p.diluent); setDiluentOther('');
-    } else if (p.diluent) {
-      setDiluentChoice('other'); setDiluentOther(p.diluent);
-    } else {
-      setDiluentChoice(''); setDiluentOther('');
-    }
-    setDose(p.dose ? String(p.dose) : ''); setIuInput('');
-    setDoseUnit(p.dose_unit || 'mg'); setSyringeSize(p.syringe_size || 100);
-    setConcentration(p.concentration ? String(p.concentration) : '');
-    setConcentrationUnit(p.concentration_unit || 'mg');
-    // RTU vial (size + box expiry) for editing
-    const editVial = vialsByProtocol[p.id];
-    if (p.type === 'rtu') {
-      // Prefer the active vial's volume; else rebuild it from the stored vial total
-      // (amount ÷ concentration) so re-saving keeps the size.
-      const ml = editVial && editVial.water_ml != null ? editVial.water_ml
-        : (p.amount && p.concentration ? trimNum(parseDecimal(p.amount) / parseDecimal(p.concentration)) : null);
-      setVialMl(ml != null ? String(ml) : '');
-      if (editVial && editVial.expires_on) {
-        const ed = new Date(editVial.expires_on + 'T00:00:00');
-        setVialExpMonth(ed.getMonth()); setVialExpYear(ed.getFullYear());
-      } else { setVialExpMonth(null); setVialExpYear(null); }
-    } else {
-      setVialMl(''); setVialExpMonth(null); setVialExpYear(null);
-    }
-    const loadedInterval = p.interval_days || 1;
-    setIntervalDays(loadedInterval);
-    // Open the custom field when the saved interval isn't one of the presets.
-    if (![1, 2, 3, 4, 5, 6, 7, 10, 14].includes(loadedInterval)) {
-      setCustomIntervalOpen(true); setCustomIntervalText(String(loadedInterval));
-    } else {
-      setCustomIntervalOpen(false); setCustomIntervalText('');
-    }
-    const loadedDPD = p.doses_per_day || 1;
-    setDosesPerDay(loadedDPD);
-    // Normalize to a bare YYYY-MM-DD — a full timestamp (or junk) would make the
-    // picker's `new Date(startDate + 'T12:00:00')` an Invalid Date, which the iOS
-    // spinner renders as the epoch (Dec 31 1969) and traps the user there.
-    const sd = typeof p.start_date === 'string' ? p.start_date.slice(0, 10) : '';
-    setStartDate(/^\d{4}-\d{2}-\d{2}$/.test(sd) ? sd : todayISO());
-    const times = (p.reminder_time || currentTimeRounded5()).split(',').filter(Boolean);
-    const defaults = [currentTimeRounded5(), '14:00', '21:00'];
-    while (times.length < loadedDPD) times.push(defaults[times.length] || '12:00');
-    setReminderTimes(times.slice(0, loadedDPD));
-    setGoals(p.goal ? p.goal.split(',').filter(Boolean) : []); setNotes(p.notes || ''); setNote(p.note || ''); setComposition(p.composition || ''); compositionForRef.current = p.compound_id || null;
-    setServingStrength(p.serving_strength != null ? String(p.serving_strength) : '');
-    setServingStrengthUnit(p.serving_strength_unit || 'mg');
-    setServingUnits(p.serving_units != null ? String(p.serving_units) : '1');
-    setContainerUnits(p.container_units != null ? String(p.container_units) : '');
-    setDivisible(p.divisible == null ? null : p.divisible === 1);
-    setVialValidDays(String(p.vial_valid_days || DEFAULT_VALID_DAYS));
+    setIuInput(''); setIuOpen(false);
+    compositionForRef.current = p.compound_id || null;
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
   }
 
@@ -1531,9 +1495,13 @@ export default function ProtocolsScreen() {
     ? (diluentChoice === 'other' ? (diluentOther.trim() || null) : (diluentChoice || null))
     : null;
 
+  function showMissingName() {
+    setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('done'), kind: 'primary' }] });
+  }
+
   async function saveProtocol() {
     if (!name) {
-      setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('done'), kind: 'primary' }] });
+      showMissingName();
       return;
     }
     // Guard: never persist a protocol whose dose can't be drawn correctly.
@@ -1550,61 +1518,22 @@ export default function ProtocolsScreen() {
     const user = await getCachedUser();
     if (!user) { setSaving(false); Alert.alert(t('error'), t('protocols_not_signed_in')); return; }
 
-    // RTU has no dilution: the vial's total compound is concentration × bottle volume.
-    // Store it in `amount` (like recon's vial amount) so the card shows "X mg vial".
-    const rtuVialMg = (type === 'rtu' && parseDecimal(concentration) > 0 && parseDecimal(vialMl) > 0)
-      ? parseDecimal(concentration) * parseDecimal(vialMl) : null;
-
     if (editingId) {
-      const freqStr = frequencyLabel(intervalDays);
+      // Only what the user changed is written (founder decision 2, 2026-10-02): the form
+      // as opened and the form now go through the same builder; equal fields are left alone.
+      const patch = editStartRef.current ? editPatch(editStartRef.current, currentForm(), frequencyLabel) : {};
       // Did the timing actually move? Only then should we clear already-delivered
       // banners (a rename or color change must NOT drop a still-pending reminder).
-      const prev = protocols.find(p => p.id === editingId);
-      const scheduleChanged = !prev
-        || prev.reminder_time !== reminderTimes.join(',')
-        || (prev.doses_per_day || 1) !== dosesPerDay
-        || (prev.interval_days || 1) !== intervalDays
-        || (prev.start_date || null) !== startDate;
-      updateProtocol(editingId, {
-        name, compound_id: compoundId, type, color,
-        amount: type === 'rtu' ? rtuVialMg : (parseDecimal(amount) || null),
-        unit: type === 'rtu' ? concentrationUnit : unit,
-        water: parseDecimal(water) || null,
-        diluent: resolvedDiluent,
-        dose: parseDecimal(dose) || null, dose_unit: doseUnit,
-        syringe_size: syringeSize,
-        concentration: parseDecimal(concentration) || null,
-        concentration_unit: concentrationUnit,
-        frequency: freqStr, reminder_time: reminderTimes.join(','),
-        interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: safeStart,
-        schedule_total: null,
-        vial_valid_days: parseInt(vialValidDays) || null,
-        goal: goals.join(','), notes, note,
-        // Blend composition label — only stored for blends; cleared otherwise so a
-        // compound change can't leave a stale recipe. NEVER feeds the curve/math.
-        composition: (compoundId && BLEND_IDS.includes(compoundId)) ? (composition.trim() || null) : null,
-        serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
-        serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
-        serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
-        container_units: type === 'oral' ? (parseDecimal(containerUnits) || null) : null,
-        divisible: type === 'oral' ? divisible : null,
-      });
+      const scheduleChanged = ['reminder_time', 'doses_per_day', 'interval_days', 'start_date'].some(k => k in patch);
+      if (Object.keys(patch).length) updateProtocol(editingId, patch);
 
-      // RTU vial: create or update from the edited size / box expiry.
-      if (type === 'rtu' && parseDecimal(vialMl) > 0 && parseDecimal(concentration) > 0 && parseDecimal(dose) > 0) {
-        let expiresOn = null;
-        if (vialExpMonth != null && vialExpYear != null) {
-          const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
-          expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-        }
-        const total = dosesPerVial({ amount: parseDecimal(concentration) * parseDecimal(vialMl), unit: concentrationUnit, dose, doseUnit }) || 0;
+      // RTU vial: only the vial fields the edit changed; a vial is created only when the
+      // user's change describes one and there is none yet.
+      const vialPatch = editStartRef.current ? rtuVialPatch(editStartRef.current, currentForm()) : null;
+      if (vialPatch) {
         const existing = vialsByProtocol[editingId];
-        if (existing) {
-          updateVial(existing.id, { water_ml: parseDecimal(vialMl), total_doses: total, expires_on: expiresOn, active: 1 });
-        } else {
-          insertVial({ user_id: user.id, protocol_id: editingId, water_ml: parseDecimal(vialMl), total_doses: total, doses_taken: 0, expires_on: expiresOn });
-        }
+        if (existing) updateVial(existing.id, vialPatch);
+        else insertVial({ user_id: user.id, protocol_id: editingId, doses_taken: 0, ...rtuVialFields(currentForm()) });
       }
       setSaving(false);
       // Reschedule from the freshly-persisted row (real user_id/created_at) so
@@ -1629,32 +1558,9 @@ export default function ProtocolsScreen() {
         promptUpgrade();
         return;
       }
-      const freqStr = frequencyLabel(intervalDays);
-      const newId = insertProtocol({
-        user_id: user.id, name, compound_id: compoundId, type, color,
-        amount: type === 'rtu' ? rtuVialMg : (parseDecimal(amount) || null),
-        unit: type === 'rtu' ? concentrationUnit : unit,
-        water: parseDecimal(water) || null,
-        diluent: resolvedDiluent,
-        dose: parseDecimal(dose) || null, dose_unit: doseUnit,
-        syringe_size: syringeSize,
-        concentration: parseDecimal(concentration) || null,
-        concentration_unit: concentrationUnit,
-        frequency: freqStr, reminder_time: reminderTimes.join(','),
-        interval_days: intervalDays, doses_per_day: dosesPerDay,
-        start_date: safeStart,
-        schedule_total: null,
-        vial_valid_days: parseInt(vialValidDays) || null,
-        goal: goals.join(','), notes, note,
-        // Blend composition label — only stored for blends; cleared otherwise so a
-        // compound change can't leave a stale recipe. NEVER feeds the curve/math.
-        composition: (compoundId && BLEND_IDS.includes(compoundId)) ? (composition.trim() || null) : null,
-        serving_strength: type === 'oral' ? (parseDecimal(servingStrength) || null) : null,
-        serving_strength_unit: type === 'oral' ? servingStrengthUnit : null,
-        serving_units: type === 'oral' ? (parseDecimal(servingUnits) || null) : null,
-        container_units: type === 'oral' ? (parseDecimal(containerUnits) || null) : null,
-        divisible: type === 'oral' ? divisible : null,
-      });
+      // RTU has no dilution: the vial's total compound (concentration × bottle volume) is
+      // stored in `amount` (lib/protocolForm protocolPayload) so the card shows "X mg vial".
+      const newId = insertProtocol({ user_id: user.id, ...protocolPayload(currentForm(), frequencyLabel), start_date: safeStart });
 
       if (type === 'recon' && !skipVial) {
         insertVial({
@@ -1669,20 +1575,8 @@ export default function ProtocolsScreen() {
 
       // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
       // expiry from the box (month/year → last day of that month).
-      if (type === 'rtu' && parseDecimal(vialMl) > 0 && parseDecimal(concentration) > 0 && parseDecimal(dose) > 0) {
-        let expiresOn = null;
-        if (vialExpMonth != null && vialExpYear != null) {
-          const lastDay = new Date(vialExpYear, vialExpMonth + 1, 0).getDate();
-          expiresOn = `${vialExpYear}-${String(vialExpMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-        }
-        insertVial({
-          user_id: user.id, protocol_id: newId,
-          water_ml: parseDecimal(vialMl),
-          total_doses: dosesPerVial({ amount: parseDecimal(concentration) * parseDecimal(vialMl), unit: concentrationUnit, dose, doseUnit }),
-          doses_taken: 0,
-          expires_on: expiresOn,
-        });
-      }
+      const rtuVial = rtuVialFields(currentForm());
+      if (rtuVial) insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
       setSaving(false);
       const protocolData = getProtocolById(newId);
       if (protocolData) scheduleDoseReminder(protocolData).catch(() => {});
@@ -1740,11 +1634,42 @@ export default function ProtocolsScreen() {
   }
 
   function goNext() {
+    // Step 1 needs a name (founder decision 3, prototype wnext): the typed text is taken —
+    // the listed compound when it matches one, else the user's own label; an empty field
+    // shows "Missing name". A protocol is never saved as "Your compound".
+    if (step === 1) {
+      const r = nameOnNext(searchQuery, compoundId, name, getCompoundKeys().map(key => ({ key, label: t(key) })));
+      if (r.action === 'missing') { showMissingName(); return; }
+      if (r.action === 'select') selectCompound({ key: r.key, label: r.label });
+      if (r.action === 'custom') { setSearchQuery(r.name); addCustomCompound(r.name); }
+    }
     if (step === 3 && doseStepBlocked) {
       showCheckValues();
       return;
     }
     if (step < totalSteps) setStep(step + 1);
+  }
+
+  function closeWizard() {
+    setShowModal(false);
+    resetForm();
+  }
+
+  // Cancel (part 20, approved P6): a new protocol with something typed asks before what
+  // was entered is lost (Cancel keeps editing, Discard in risk closes); otherwise it closes.
+  function cancelWizard() {
+    if (!editingId && hasNewProtocolInput(currentForm(), searchQuery)) {
+      setWizSheet({
+        title: t('protocols_discard_title'),
+        body: t('protocols_discard_body'),
+        buttons: [
+          { label: t('cancel'), kind: 'secondary' },
+          { label: t('protocols_discard'), kind: 'danger', onPress: closeWizard },
+        ],
+      });
+      return;
+    }
+    closeWizard();
   }
 
   async function deleteProtocol(id) {
@@ -2102,14 +2027,14 @@ export default function ProtocolsScreen() {
           // from the first step — mirrors the footer Back, so it's reachable
           // without hitting the top of the screen.
           if (step > 1) setStep(step - 1);
-          else { setShowModal(false); resetForm(); }
+          else cancelWizard();
         }}
       >
         <SafeAreaView style={s.modal}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* Cancel top-left, the title, Save top-right while editing (approved 2026-09-29). */}
           <View style={s.wnav}>
-            <TouchableOpacity style={s.wnavSide} onPress={() => { setShowModal(false); resetForm(); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
+            <TouchableOpacity style={s.wnavSide} onPress={cancelWizard} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
               <Text style={s.wnavCancel}>{t('cancel')}</Text>
             </TouchableOpacity>
             <Text style={s.wnavTitle} numberOfLines={1}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
