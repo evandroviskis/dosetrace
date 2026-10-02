@@ -23,7 +23,7 @@ import {
   nutriesdrasReference,
   selectEquation,
   type Sex,
-} from '../src/energy.ts';
+} from './energy.ts';
 
 // ---------------------------------------------------------------------------
 // mini harness
