@@ -513,7 +513,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
   const daysLeft = vialDaysLeftFor(p, vial);
   if (capacity == null && daysLeft == null) return null;
   const dateText = vial && p.type === 'recon' && vial.mixed_on
-    ? (() => { const d = new Date(String(vial.mixed_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('vials_mix_date')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`; })()
+    ? (() => { const d = new Date(String(vial.mixed_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('today_vial_mixed')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`; })()
     : vial && p.type === 'rtu' && vial.expires_on
       ? (() => { const d = new Date(String(vial.expires_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('vials_expires')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getFullYear()}`; })()
       : null;
@@ -857,6 +857,9 @@ export default function ProtocolsScreen() {
   const [wizSheet, setWizSheet] = useState(null);
   const [scanChoice, setScanChoice] = useState(null);
   const [wizardPresented, setWizardPresented] = useState(false);
+  // Set when the add/edit sheet closes: the form resets only once the sheet is fully gone,
+  // so it never flashes "New protocol" while sliding away (sim finding 2026-10-02).
+  const resetOnHiddenRef = useRef(false);
   const scrollRef = useRef(null);
   const [logCounts, setLogCounts] = useState({ Taken: 0, Skipped: 0, Missed: 0 });
   const [lastLog, setLastLog] = useState(null);
@@ -1086,6 +1089,14 @@ export default function ProtocolsScreen() {
     const id = setTimeout(() => setWizardPresented(false), 900);
     return () => clearTimeout(id);
   }, [showModal]);
+
+  // The closed sheet is reset to a new protocol only after it has left the screen.
+  useEffect(() => {
+    if (!showModal && !wizardPresented && resetOnHiddenRef.current) {
+      resetOnHiddenRef.current = false;
+      resetForm();
+    }
+  }, [showModal, wizardPresented]);
 
   // Each view (heroes, list, protocol screen) opens at its top.
   useEffect(() => {
@@ -1595,8 +1606,7 @@ export default function ProtocolsScreen() {
       const activeCount = (getActiveProtocols(user.id) || []).length;
       if (activeCount >= FREE_PROTOCOL_LIMIT && !(await hasPremium())) {
         setSaving(false);
-        setShowModal(false);
-        resetForm();
+        closeWizard();
         promptUpgrade();
         return;
       }
@@ -1654,8 +1664,7 @@ export default function ProtocolsScreen() {
     // Refresh every mounted screen right away (Today, etc.) — don't wait for the
     // network sync to complete, which never fires when offline.
     notifyDataChanged('protocol');
-    setShowModal(false);
-    resetForm();
+    closeWizard();
     fetchProtocols();
     } catch (err) {
       setSaving(false);
@@ -1692,9 +1701,11 @@ export default function ProtocolsScreen() {
     if (step < totalSteps) setStep(step + 1);
   }
 
+  // The sheet keeps showing what it held (an edited protocol stays "Edit protocol") while
+  // it slides away; the form resets once it is hidden (the effect on wizardPresented).
   function closeWizard() {
+    resetOnHiddenRef.current = true;
     setShowModal(false);
-    resetForm();
   }
 
   // Cancel (part 20, approved P6): a new protocol with something typed asks before what
