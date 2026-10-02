@@ -135,3 +135,10 @@ for (const [file, prop] of [['screens/LogScreen.js', 'embedded'], ['screens/Prog
     });
   });
 }
+
+test('BK-14: a real sign-out also clears every kept draft (the next account never sees them)', () => {
+  const app = readSrc('App.js');
+  const i = app.indexOf('resetAllSelections();');
+  assert.ok(i > 0);
+  assert.match(app.slice(i - 400, i + 200), /clearAllDrafts\(\)/);
+});

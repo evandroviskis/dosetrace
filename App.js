@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { QUESTIONS_KEY } from './lib/siteQuestion';
 import { resetAllSelections } from './lib/bookSelection';
+import { clearAllDrafts } from './lib/draftStore';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -545,6 +546,7 @@ export default function App() {
           clearSeenOnboarding().catch(() => {});
           AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
           resetAllSelections(); // S-26: the next account starts with no open right-page items
+          clearAllDrafts(); // S-26 BK-14: typed-but-unsaved drafts stay with their account
         }, 0);
       }
 
