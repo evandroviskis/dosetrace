@@ -6,15 +6,21 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Modal,
+  Pressable,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getAllLogs, getLogsSince, updateDoseLog } from '../lib/database';
+import { getAllLogs, getLogsSince, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
 import { scanMissedDoses } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
-import { summarizeStored } from '../lib/injectionSites';
+import { summarizeStored, describeStored } from '../lib/injectionSites';
+import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
+import { syncVialAlerts } from '../lib/notifications';
+import { friendlyError } from '../lib/friendlyError';
 import { hour12Pref } from '../lib/timeFormat';
 import { hasPremium } from '../lib/entitlement';
 import { Analytics } from '../lib/analytics';
@@ -25,10 +31,14 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
+import RowChevron from '../components/RowChevron';
+import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 
 const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+const WEEKDAY_KEYS = ['today_sun', 'today_mon', 'today_tue', 'today_wed', 'today_thu', 'today_fri', 'today_sat'];
+const INJECTABLE = ['recon', 'rtu'];
 
 // embedded (S-26 BK-3): the Dose log drawn on Today's right page of an unfolded foldable.
 // No back row (nothing to go back to) and no top safe-area edge (Today's safe area holds
@@ -63,6 +73,12 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // Body-map editor state (tap a row to edit its injection site)
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
   const [bodyMapTarget, setBodyMapTarget] = useState(null);
+
+  // The dose sheet (founder 2026-10-02, option A): a tapped Taken / Skipped row. deleteAsk:
+  // the "Delete this dose?" confirm (DTSheet config inputs) for that row.
+  const [doseSheet, setDoseSheet] = useState(null);
+  const [deleteAsk, setDeleteAsk] = useState(null);
+  const insets = useSafeAreaInsets();
 
   // BK-10: a Dose log pushed while folded moves onto Today's right page on unfold.
   useUnfoldToPage('Log', { embedded });
@@ -141,7 +157,8 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     if (!['recon', 'rtu'].includes(log.protocols?.type)) return;
     // BK-20: Today's site question / vial prompt / "still going?" is open or queued — the
     // editor opens when it has closed. Claimed before the first await, so nothing slips in.
-    if (gate) {
+    // Opened from the dose sheet, the gate the sheet holds is kept (never asked twice).
+    if (gate && !editorOpenRef.current) {
       if (gate.busy()) { gate.wait(() => openSiteEditor(log, mode)); return; }
       gate.opened();
       editorOpenRef.current = true;
@@ -185,6 +202,118 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       { text: t('today_site_back_stay'), style: 'cancel' },
       { text: t('today_site_back_leave'), style: 'destructive', onPress: () => siteAction('leave') },
     ], { cancelable: true });
+  }
+
+  // ── The dose sheet (founder 2026-10-02, option A) ──────────────────────────────────
+  // Tap a Taken / Skipped row: its sheet (Status / When / Site, Change site for an
+  // injectable, Delete this dose). BK-20: it is a popup like the site editor — it waits
+  // for Today's, holds the gate through Change site / the confirm, and frees it at the end.
+  function openDoseSheet(log) {
+    if (gate && !editorOpenRef.current) {
+      if (gate.busy()) { gate.wait(() => openDoseSheet(log)); return; }
+      gate.opened();
+      editorOpenRef.current = true;
+    }
+    setDoseSheet(log);
+  }
+  // Done, a tap outside, or the back gesture.
+  function closeDoseSheet() {
+    afterSheetRef.current = null;
+    setDoseSheet(null);
+    releasePopup();
+  }
+  // The next popup opens once the sheet has gone (iOS cannot present a Modal while another
+  // one is still animating out): Modal onDismiss on iOS, a short timer as the fallback.
+  const afterSheetRef = useRef(null);
+  const afterTimerRef = useRef(null);
+  function runAfterSheet() {
+    if (afterTimerRef.current) { clearTimeout(afterTimerRef.current); afterTimerRef.current = null; }
+    const fn = afterSheetRef.current;
+    afterSheetRef.current = null;
+    if (fn) fn();
+  }
+  function leaveSheetThen(fn) {
+    afterSheetRef.current = fn;
+    setDoseSheet(null);
+    afterTimerRef.current = setTimeout(runAfterSheet, Platform.OS === 'ios' ? 700 : 50);
+  }
+  useEffect(() => () => { if (afterTimerRef.current) clearTimeout(afterTimerRef.current); }, []);
+
+  // Change site: the existing site editor, exactly as the row tap opened it before.
+  function changeSiteFromSheet(log) {
+    leaveSheetThen(() => openSiteEditor(log));
+  }
+
+  // "Delete this dose" → the Graduated confirm. The body says what really happens to the
+  // supply (the same plan the write uses).
+  function askDelete(log) {
+    leaveSheetThen(async () => {
+      let supply = 'none';
+      try {
+        const user = await getCachedUser();
+        if (user) supply = planDeleteDose(log, deleteContext(log, user.id)).supply;
+      } catch { /* the plain body */ }
+      setDeleteAsk({ log, supply });
+    });
+  }
+  function closeDeleteAsk() {
+    setDeleteAsk(null);
+    releasePopup();
+  }
+
+  // What the plan reads, fresh: the protocol, its vials, the user's dose rows.
+  function deleteContext(log, userId) {
+    const protocol = log.protocol_id != null ? getProtocolById(log.protocol_id) : null;
+    const vials = protocol ? (getVialsForProtocol(protocol.id) || []) : [];
+    return { protocol, vials, takenLogs: getAllLogs(userId) || [] };
+  }
+
+  // The delete: exactly what Today's Undo does for this row (lib/deleteDose.js
+  // planDeleteDose → lib/markTaken.js planUndoTake): the sync tombstone, one dose back to
+  // the vial it used (or one serving to the bottle), then sync, the list and Today.
+  async function applyDelete(log) {
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const plan = planDeleteDose(log, deleteContext(log, user.id));
+      if (!plan.deleteIds.length) return;
+      for (const id of plan.deleteIds) {
+        deleteDoseLog(id);
+        rememberDeleted(id); // Today's Undo of this row must never run after it
+      }
+      // Supply is best-effort: the delete itself is already saved.
+      try {
+        if (plan.vialRestore) {
+          const { id, ...fields } = plan.vialRestore;
+          updateVial(id, fields);
+        }
+        if (plan.oralRestore) updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
+        if (plan.vialRestore || plan.oralRestore) syncVialAlerts().catch(() => {});
+      } catch { /* supply update is best-effort */ }
+      requestSync();
+      fetchLogs();
+      if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
+    } catch (err) {
+      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+    }
+  }
+
+  // "Today, 11:51 AM" / "Yesterday, …" / "Fri, …" / "Sep 3, …" (the row's own time format).
+  function doseWhen(log) {
+    const d = new Date(log.logged_at);
+    const time = d.toLocaleTimeString(locale, timeOpts);
+    const kind = doseDayKind(log.logged_at);
+    let day;
+    if (kind === 'today') day = t('today_today_pill');
+    else if (kind === 'yesterday') day = t('today_yesterday');
+    else if (kind === 'weekday') day = t(WEEKDAY_KEYS[d.getDay()]);
+    else {
+      day = d.toLocaleDateString(locale, {
+        month: 'short', day: 'numeric',
+        ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+      });
+    }
+    return `${day}, ${time}`;
   }
 
   async function fetchLogs() {
@@ -283,6 +412,30 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     { key: 'Missed', n: missedCount },
   ];
 
+  // The dose sheet keeps its last row on screen while it fades out.
+  const lastSheetRef = useRef(null);
+  if (doseSheet) lastSheetRef.current = doseSheet;
+  const shownSheet = doseSheet || lastSheetRef.current;
+  const sheetInjectable = !!shownSheet && INJECTABLE.includes(shownSheet.protocols?.type);
+  const sheetSite = sheetInjectable && shownSheet.injection_site
+    ? (describeStored(shownSheet.injection_site, t) || summarizeStored(shownSheet.injection_site, t))
+    : null;
+
+  // "Delete this dose?" (DTSheet, the Graduated confirm Today's "Skip dose?" uses). The body
+  // says what the delete really does to the supply: a dose back to the vial, a serving
+  // back to the bottle, or (a skipped dose, a vial that cannot be told) the row only.
+  const DELETE_BODY = { vial: 'log_delete_body', bottle: 'log_delete_body_oral', none: 'log_delete_body_plain' };
+  const deleteSheet = deleteAsk ? {
+    title: t('log_delete_title'),
+    body: t(DELETE_BODY[deleteAsk.supply] || DELETE_BODY.none)
+      .replace('{name}', deleteAsk.log.protocols?.name || t('log_protocol_deleted'))
+      .replace('{when}', doseWhen(deleteAsk.log)),
+    buttons: [
+      { label: t('cancel'), kind: 'secondary' },
+      { label: t('log_delete'), kind: 'danger', onPress: () => applyDelete(deleteAsk.log) },
+    ],
+  } : null;
+
   // Everything above the day sections scrolls with them (one list, no fixed bars).
   const header = (
     <View style={s.top}>
@@ -365,15 +518,16 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           const tags = parseTags(log.pre_tags);
           const first = index === 0;
           const last = index === section.data.length - 1;
-          const injectable = ['recon', 'rtu'].includes(log.protocols?.type);
-          const tappable = log.outcome === 'Missed' || injectable;
+          // Every row opens: a Missed row its Mark taken / Mark skipped editor, a Taken or
+          // Skipped row its dose sheet (founder 2026-10-02, option A).
           return (
             <TouchableOpacity
               style={[s.row, first && s.rowFirst, last && s.rowLast]}
-              onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openSiteEditor(log)}
+              onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openDoseSheet(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={log.outcome === 'Missed' ? t('log_missed_edit_title') : t('bodymap_title')}
+              accessibilityLabel={`${log.protocols?.name || t('log_protocol_deleted')}, ${outcomeLabel(log.outcome)}`}
+              accessibilityHint={log.outcome === 'Missed' ? t('log_missed_edit_title') : undefined}
             >
               <View style={[s.rowInner, !first && s.rowSep]}>
                 <View style={s.logInfo}>
@@ -412,7 +566,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                     <Text style={[s.outcomeWord, { color: outcomeColor(log.outcome) }]}>{outcomeLabel(log.outcome)}</Text>
                   </View>
                 </View>
-                {tappable ? <Text style={s.chev}>›</Text> : <View style={s.chevSpace} />}
+                <RowChevron color={colors.tick} />
               </View>
             </TouchableOpacity>
           );
@@ -422,6 +576,57 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
 
       {/* Part 18: on the Dose log screen only — never on Today's right page (the dose-logging path). */}
       {!embedded && <FeatureExplainerGate candidates={logExplainers} />}
+
+      {/* The dose sheet (founder 2026-10-02, option A; Graduated sheet look). */}
+      <Modal
+        visible={!!doseSheet}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDoseSheet}
+        onDismiss={runAfterSheet}
+      >
+        <Pressable style={s.sheetScrim} onPress={closeDoseSheet} accessibilityRole="button" accessibilityLabel={t('done')}>
+          {shownSheet ? (
+            <Pressable style={[s.doseSheet, { paddingBottom: 22 + insets.bottom }]} onPress={() => {}} accessibilityViewIsModal>
+              <View style={s.sheetHead}>
+                <Text style={s.sheetTitle} accessibilityRole="header" numberOfLines={2}>
+                  {shownSheet.protocols?.name || t('log_protocol_deleted')}
+                </Text>
+                <TouchableOpacity onPress={closeDoseSheet} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+                  <Text style={s.sheetDone}>{t('done')}</Text>
+                </TouchableOpacity>
+              </View>
+              <View>
+                <View style={s.kvRow}>
+                  <Text style={s.kvKey}>{t('log_sheet_status')}</Text>
+                  <Text style={s.kvVal}>{outcomeLabel(shownSheet.outcome)}</Text>
+                </View>
+                <View style={[s.kvRow, !sheetSite && s.kvRowEnd]}>
+                  <Text style={s.kvKey}>{t('log_sheet_when')}</Text>
+                  <Text style={s.kvVal}>{doseWhen(shownSheet)}</Text>
+                </View>
+                {sheetSite ? (
+                  <View style={[s.kvRow, s.kvRowEnd]}>
+                    <Text style={s.kvKey}>{t('log_sheet_site')}</Text>
+                    <Text style={s.kvVal}>{sheetSite}</Text>
+                  </View>
+                ) : null}
+              </View>
+              {sheetInjectable && (
+                <TouchableOpacity style={s.changeSite} onPress={() => changeSiteFromSheet(shownSheet)} accessibilityRole="button">
+                  <Text style={s.changeSiteText}>{t('log_change_site')}</Text>
+                  <RowChevron color={colors.ink3} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={s.dangerBtn} onPress={() => askDelete(shownSheet)} accessibilityRole="button">
+                <Text style={s.dangerBtnText}>{t('log_delete_dose')}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          ) : null}
+        </Pressable>
+      </Modal>
+
+      <DTSheet config={deleteSheet} onClose={closeDeleteAsk} />
 
       <BodyMapModal
         visible={bodyMapVisible}
@@ -498,6 +703,18 @@ const makeStyles = (c) => StyleSheet.create({
   logTime: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   outcomeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   outcomeWord: { fontSize: 13, fontWeight: '600' },
-  chev: { fontSize: 20, color: c.tick, width: 10 },
-  chevSpace: { width: 10 },
+  // The dose sheet (prototype sheet + .kv rows + .dangerbtn; approved render 2026-10-02).
+  sheetScrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
+  doseSheet: { backgroundColor: c.raised, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 18, paddingHorizontal: 18, gap: 12, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
+  sheetTitle: { fontSize: 22, fontWeight: '700', color: c.ink, flex: 1, letterSpacing: -0.3 },
+  sheetDone: { fontSize: 17, fontWeight: '600', color: c.ink },
+  kvRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44, borderBottomWidth: 1, borderBottomColor: c.line },
+  kvRowEnd: { borderBottomWidth: 0 },
+  kvKey: { fontSize: 15, color: c.ink2 },
+  kvVal: { fontSize: 15, fontWeight: '500', color: c.ink, flexShrink: 1, textAlign: 'right' },
+  changeSite: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, borderRadius: 14, backgroundColor: c.well, paddingHorizontal: 14 },
+  changeSiteText: { fontSize: 16, color: c.ink },
+  dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
+  dangerBtnText: { fontSize: 17, fontWeight: '600', color: c.risk },
 });

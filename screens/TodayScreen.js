@@ -29,6 +29,7 @@ import { requestSync, addSyncListener } from '../lib/sync';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake } from '../lib/markTaken';
+import { wasDeleted } from '../lib/deleteDose';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
 import BodyMapModal from './components/BodyMapModal';
@@ -943,7 +944,9 @@ export default function TodayScreen() {
 
   // Undo ONE take, from its own record. Never twice for the same log.
   function applyUndo(record) {
-    if (!record || record.logId == null || undoneIdsRef.current.has(record.logId)) return;
+    // A row deleted from the Dose log is gone: its Undo would give the dose back a second
+    // time, or write the deleted row back (founder 2026-10-02, delete a dose).
+    if (!record || record.logId == null || undoneIdsRef.current.has(record.logId) || wasDeleted(record.logId)) return;
     undoneIdsRef.current.add(record.logId);
     try {
       if (record.timer) clearTimeout(record.timer);
@@ -1485,6 +1488,8 @@ export default function TodayScreen() {
   // BK-19: the embedded Dose log changed a row (Missed → Taken / Skipped, a site): Today's
   // cards, rings, Pending block and the dose page follow without switching tabs.
   function afterLogChange() {
+    setUndoData(prev => (prev && wasDeleted(prev.logId) ? null : prev)); // a dose deleted there: no Undo bar for it
+    fetchProtocols(); // a delete gave a dose back to the vial / bottle
     fetchTodayLogs();
     fetchPendingYesterday();
     fetchStreakData();
