@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,9 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import SyringeScale from './components/SyringeScale';
 import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from './components/ProtocolParts';
+import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
+import { defaultSelection } from '../lib/bookLayout';
+import { getSelection, clearSelection } from '../lib/bookSelection';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -302,13 +305,13 @@ function RowsBlock({ s, title, rows }) {
 
 // ── Protocol screen: the syringe calculator (hero object) ──
 // Draw to + the protocol's own syringe drawn to scale (shared SyringeScale), the
-// volume / dose / syringe reads, and the arithmetic disclaimer. Tap to enlarge.
-function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
+// volume / dose / syringe reads, and the arithmetic disclaimer. Tap to enlarge: the
+// enlarged syringe is SyringeZoomSheet, held by the screen so it stays open when a
+// foldable folds or unfolds (S-26 BK-10).
+function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
-  const [zoom, setZoom] = useState(false);
   const [drawW, setDrawW] = useState(0);
-  const { width: windowWidth } = useWindowDimensions();
 
   const draw = computeDraw({
     type: p.type,
@@ -339,9 +342,6 @@ function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
   const units = Number(draw.drawUnits);
   const over = units > syringeMax;
   const alt = altMass(p.dose, p.dose_unit);
-  // The sheet is at most 560 wide (520 inside its padding), not the window (A-76).
-  const zoomView = Math.min(windowWidth - 72, 520);
-  const zoomWidth = Math.max(zoomView, syringeMax * 16);
 
   return (
     <View style={s.hobj}>
@@ -349,7 +349,7 @@ function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
       <TouchableOpacity
         activeOpacity={0.8}
         style={s.drawWell}
-        onPress={() => setZoom(true)}
+        onPress={onZoom}
         onLayout={(e) => setDrawW(e.nativeEvent.layout.width)}
         accessibilityRole="button"
         accessibilityHint={t('protocols_syringe_zoom_hint')}
@@ -386,9 +386,36 @@ function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
         </View>
       </View>
       <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
+    </View>
+  );
+}
 
-      <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
-        <Pressable style={s.zoomScrim} onPress={() => setZoom(false)}>
+// The enlarged syringe (tap the drawn syringe). Rendered once by the screen, outside the
+// list / protocol views and the book pages, so a fold or unfold never closes it (BK-10).
+// `p` stays set while the sheet fades out; `visible` opens and closes it.
+function SyringeZoomSheet({ p, visible, onClose, t }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const { width: windowWidth } = useWindowDimensions();
+  const draw = p ? computeDraw({
+    type: p.type,
+    amount: p.amount, water: p.water,
+    dose: p.dose, doseUnit: p.dose_unit, unit: p.unit,
+    concentration: p.concentration, concentrationUnit: p.concentration_unit,
+    syringeSize: p.syringe_size,
+  }) : null;
+  const ok = !!(draw && draw.drawML && draw.valid);
+  const syringeMax = (p && p.syringe_size) || 100;
+  const units = ok ? Number(draw.drawUnits) : 0;
+  // The sheet is at most 560 wide (520 inside its padding), not the window (A-76).
+  const zoomView = Math.min(windowWidth - 72, 520);
+  const zoomWidth = Math.max(zoomView, syringeMax * 16);
+  const name = p ? (p.compound_id ? t(p.compound_id) : p.name) : '';
+
+  return (
+    <Modal visible={visible && ok} transparent animationType="fade" onRequestClose={onClose}>
+      {ok ? (
+        <Pressable style={s.zoomScrim} onPress={onClose}>
           <Pressable style={s.zoomSheet} onPress={() => {}} accessibilityViewIsModal>
             <Text style={s.zoomTitle}>{name}</Text>
             <Text style={s.zoomReadout}>
@@ -402,13 +429,13 @@ function ProtocolDrawHero({ p, name, t, onDoseDetails }) {
             >
               <SyringeRuler units={units} size={syringeMax} width={zoomWidth} />
             </ScrollView>
-            <TouchableOpacity style={s.btnPrimary} onPress={() => setZoom(false)} accessibilityRole="button">
+            <TouchableOpacity style={s.btnPrimary} onPress={onClose} accessibilityRole="button">
               <Text style={s.btnPrimaryText}>{t('done')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
-      </Modal>
-    </View>
+      ) : null}
+    </Modal>
   );
 }
 
@@ -563,7 +590,9 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
 
 // One protocol in the list (prototype pcard): name, size · dose · frequency, the supply
 // line with vial cells, and outline tags. The whole card opens the protocol screen.
-function ProtocolListCard({ p, vial, onOpen, t }) {
+// Book layout (S-26 BK-8): `book` reserves a 2 pt outline on every card so selecting one
+// does not shift it; the card open on the right page draws that outline in ink.
+function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const isInjectable = p.type === 'recon' || p.type === 'rtu';
@@ -585,7 +614,13 @@ function ProtocolListCard({ p, vial, onOpen, t }) {
   const sz = sizeLabel(p, vial, t);
 
   return (
-    <TouchableOpacity style={s.pcard} activeOpacity={0.75} onPress={() => onOpen(p.id)} accessibilityRole="button">
+    <TouchableOpacity
+      style={book ? [s.pcard, s.pcardBook, selected && s.pcardSel] : s.pcard}
+      activeOpacity={0.75}
+      onPress={() => onOpen(p.id)}
+      accessibilityRole="button"
+      accessibilityState={book ? { selected } : undefined}
+    >
       <View style={s.pcardTop}>
         <View style={[s.pdot, { backgroundColor: p.color || c.data }]} />
         <View style={s.pcardInfo}>
@@ -639,7 +674,9 @@ function ProtocolListCard({ p, vial, onOpen, t }) {
 
 // The protocol screen (prototype protocol()): title block, the calculator, the vial,
 // schedule rows + "+ Reminder", dose details, the note, and Delete at the bottom.
-function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, t }) {
+// The typed note lives in the screen (`draft` / `onDraft`), not here, so it survives
+// this view moving between the phone column and the book's right page (S-26 BK-10).
+function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -648,9 +685,15 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
   const sz = sizeLabel(p, vial, t);
 
   // Inline, editable note — saved straight from the protocol screen, no need to open Edit.
-  const [noteDraft, setNoteDraft] = useState(p.note || '');
+  const noteDraft = draft != null ? draft : (p.note || '');
+  const setNoteDraft = (text) => onDraft(p.id, text);
   const [noteFocus, setNoteFocus] = useState(false);
-  useEffect(() => { setNoteDraft(p.note || ''); }, [p.note]);
+  // A saved or synced note replaces the draft (as before). Only a real change of the
+  // stored note does: remounting after a fold or unfold keeps what was typed.
+  const lastNote = useRef(p.note);
+  useEffect(() => {
+    if (lastNote.current !== p.note) { lastNote.current = p.note; onDraft(p.id, null); }
+  }, [p.note]); // eslint-disable-line react-hooks/exhaustive-deps
   const noteDirty = noteDraft !== (p.note || '');
   const saveNote = () => {
     Keyboard.dismiss();
@@ -711,7 +754,7 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
         </View>
       </View>
 
-      {isInjectable && <ProtocolDrawHero key={`syr-${p.type}`} p={p} name={name} t={t} onDoseDetails={() => openEdit(p, 3)} />}
+      {isInjectable && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} />}
       {isInjectable && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} />}
       <ProtocolServingHero p={p} t={t} onRefill={onRefill} />
 
@@ -736,7 +779,7 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
         />
         {noteDirty && (
           <View style={s.acts2}>
-            <TouchableOpacity style={[s.btnSm, s.btnSec]} onPress={() => setNoteDraft(p.note || '')} accessibilityRole="button">
+            <TouchableOpacity style={[s.btnSm, s.btnSec]} onPress={() => onDraft(p.id, null)} accessibilityRole="button">
               <Text style={s.btnSecText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.btnSm, s.btnPri]} onPress={saveNote} accessibilityRole="button">
@@ -751,6 +794,39 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
       </TouchableOpacity>
     </View>
   );
+}
+
+// ── Book layout on foldables (S-26, docs/specs/book-layout.md) ──
+// Pure rules for this tab, tested in __tests__/bookProtocols.test.js. One column keeps
+// today's views: heroes (showList false), the list (showList, no openId) or one
+// protocol's screen (showList + openId). Two pages: the list on the left, the selected
+// protocol's screen on the right.
+
+// The cards in the order the list shows them (the 'type' sort shows three sections).
+function protocolListOrder(sortBy, sorted) {
+  if (sortBy !== 'type') return sorted;
+  return ['recon', 'rtu', 'oral'].flatMap(ty => sorted.filter(p => p.type === ty));
+}
+
+// BK-4: the protocol on the right page. The chosen one while it still exists, else the
+// default (opened from Today / a notification, else the first card), else nothing.
+function bookProtocolId(sel, fallback, ids) {
+  if (sel != null && ids.includes(sel)) return sel;
+  if (fallback != null && ids.includes(fallback)) return fallback;
+  return ids.length ? ids[0] : null;
+}
+
+// BK-10, folding: a protocol the user chose on the right page becomes the protocol
+// screen with "‹ Protocols". A default nobody chose keeps the one-column place the user had.
+function protocolsFoldView({ sel, explicit, openId, showList }) {
+  if (explicit && sel != null) return { openId: sel, showList: true };
+  return { openId, showList };
+}
+
+// BK-10, unfolding: an open protocol screen moves onto the right page (null = keep the
+// right page as it is).
+function protocolsUnfoldSelection({ openId, showList }) {
+  return showList && openId != null ? openId : null;
 }
 
 export default function ProtocolsScreen() {
@@ -929,16 +1005,74 @@ export default function ProtocolsScreen() {
   const [vialExpMonth, setVialExpMonth] = useState(null); // 0-11 or null
   const [vialExpYear, setVialExpYear] = useState(null);   // full year or null
 
+  // The typed protocol note ({ id, text }) and the enlarged syringe ({ id, open }) live
+  // here, outside the views, so a fold or unfold never drops them (S-26 BK-10).
+  const [noteDraft, setNoteDraft] = useState(null);
+  const [zoom, setZoom] = useState({ id: null, open: false });
+  function onNoteDraft(id, text) {
+    setNoteDraft(text == null ? null : { id, text });
+  }
+
+  // Book layout (S-26 BK-4): the list on the left page, the selected protocol on the right.
+  const book = useBook();
+  const listOrderIds = book ? protocolListOrder(sortBy, sortedProtocols()).map(p => p.id) : [];
+  const bookSel = useBookSelection('Protocols', defaultSelection('Protocols', {
+    protocolIds: listOrderIds,
+    openProtocolId: route.params?.openProtocolId,
+  }));
+  const bookOpenId = bookProtocolId(bookSel.sel, defaultSelection('Protocols', { protocolIds: listOrderIds }), listOrderIds);
+
+  // Open a protocol: the phone pushes its screen, the book shows it on the right page.
+  // Both are kept in step so folding or unfolding lands on the same protocol (BK-10).
+  function openProtocolById(id) {
+    if (noteDraft && noteDraft.id !== id) setNoteDraft(null);
+    bookSel.select(id);
+    setOpenId(id);
+    setShowList(true);
+  }
+  // Back to the list ("‹ Protocols"): the protocol is closed in both layouts.
+  function closeProtocol() {
+    setOpenId(null);
+    setNoteDraft(null);
+    clearSelection('Protocols');
+  }
+  // Working on the right page's default protocol (typing a note, Edit, enlarge) makes it
+  // the user's choice, so a fold keeps it open.
+  function claimBookProtocol(id) {
+    if (book && (!bookSel.explicit || bookSel.sel !== id)) {
+      bookSel.select(id);
+      setOpenId(id);
+      setShowList(true);
+    }
+  }
+
+  // BK-10: fold and unfold move the open protocol between the right page and the pushed
+  // protocol screen. A layout effect, so the first one-column frame is already right.
+  const wasBook = useRef(book);
+  useLayoutEffect(() => {
+    if (wasBook.current === book) return;
+    wasBook.current = book;
+    if (book) {
+      const id = protocolsUnfoldSelection({ openId, showList });
+      if (id != null) bookSel.select(id);
+    } else {
+      const cur = getSelection('Protocols');
+      const v = protocolsFoldView({ sel: cur ? cur.sel : null, explicit: !!(cur && cur.explicit), openId, showList });
+      setOpenId(v.openId);
+      setShowList(v.showList);
+    }
+  }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
 
   // Deep-link from the Today screen: open (expand) a specific protocol, then
   // clear the param so it doesn't re-fire. A plain effect on the param reacts
-  // to the change directly, independent of focus timing.
+  // to the change directly, independent of focus timing. In the book it opens on the
+  // right page (BK-4).
   useEffect(() => {
     const openId = route.params?.openProtocolId;
     if (openId != null) {
-      setOpenId(openId);
-      setShowList(true);
+      openProtocolById(openId);
       navigation.setParams({ openProtocolId: undefined });
     }
   }, [route.params?.openProtocolId]);
@@ -1597,7 +1731,7 @@ export default function ProtocolsScreen() {
             cancelDoseReminder(id).catch(() => {});
             dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
             if (target) Analytics.protocolDeactivated(target);
-            setOpenId(null); // back to the list
+            closeProtocol(); // back to the list (and off the book's right page)
             fetchProtocols();
             notifyDataChanged('protocol'); // refresh Today immediately
             requestSync();
@@ -1643,6 +1777,7 @@ export default function ProtocolsScreen() {
   function saveProtocolNote(id, note) {
     const trimmed = (note || '').trim();
     updateProtocol(id, { note: trimmed ? trimmed : null });
+    setNoteDraft(null);
     fetchProtocols();
     requestSync();
   }
@@ -1664,12 +1799,69 @@ export default function ProtocolsScreen() {
   }
 
   const renderCard = (p) => (
-    <ProtocolListCard key={p.id} p={p} vial={vialsByProtocol[p.id]} onOpen={(id) => setOpenId(id)} t={t} />
+    <ProtocolListCard
+      key={p.id} p={p} vial={vialsByProtocol[p.id]} onOpen={openProtocolById} t={t}
+      book={book} selected={book && p.id === bookOpenId}
+    />
   );
 
   // Which view the tab shows: the two heroes, the list, or one protocol's screen.
   const openProtocol = showList && openId != null ? (protocols.find(p => p.id === openId) || null) : null;
   const view = openProtocol ? 'detail' : showList ? 'list' : 'heroes';
+  // Book: the protocol on the right page (BK-4).
+  const bookProtocol = book && bookOpenId != null ? (protocols.find(p => p.id === bookOpenId) || null) : null;
+  const zoomProtocol = zoom.id != null ? (protocols.find(p => p.id === zoom.id) || null) : null;
+
+  // The protocol screen, shared by the phone column and the book's right page.
+  const renderDetail = (p, inBook) => (
+    <ProtocolDetail
+      key={p.id}
+      p={p} vial={vialsByProtocol[p.id]}
+      openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
+      deleteProtocol={deleteProtocol}
+      onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
+      onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
+      draft={noteDraft && noteDraft.id === p.id ? noteDraft.text : undefined}
+      onDraft={(id, text) => { if (inBook && text != null) claimBookProtocol(id); onNoteDraft(id, text); }}
+      t={t}
+    />
+  );
+
+  // The list's sort pills and cards, shared by the phone list and the book's left page.
+  const sortPills = (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.sortScroll} contentContainerStyle={s.sortRow}>
+      <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
+      {SORT_OPTIONS.map(o => (
+        <Pill key={o.key} s={s} label={t(o.label)} on={sortBy === o.key} onPress={() => changeSort(o.key)} />
+      ))}
+    </ScrollView>
+  );
+  const listCards = sortBy === 'type' ? (
+    <>
+      {[
+        ['protocols_section_lyophilized', reconProtocols],
+        ['protocols_section_rtu', rtuProtocols],
+        ['protocols_section_oral', oralProtocols],
+      ].filter(([, list]) => list.length > 0).map(([key, list]) => (
+        <View key={key} style={s.blk}>
+          <Text style={s.secth}>{t(key)}</Text>
+          {list.map(renderCard)}
+        </View>
+      ))}
+    </>
+  ) : (
+    <View style={s.blk}>{sortedProtocols().map(renderCard)}</View>
+  );
+  const emptyState = (
+    <View style={s.emptyCard}>
+      <FeatureIcon name="type_vial" size={40} color={colors.ink2} />
+      <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
+      <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
+      <TouchableOpacity style={[s.btnPrimary, s.emptyBtn]} onPress={openAdd} accessibilityRole="button">
+        <Text style={s.btnPrimaryText}>{t('protocols_empty_btn')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   // Add step 3: the live result sits under the fields it depends on and appears only
   // once it can be computed (founder 2026-09-29).
@@ -1695,10 +1887,45 @@ export default function ProtocolsScreen() {
 
   return (
     <SafeAreaView style={s.container}>
+      {/* S-26 book layout: two pages when the window is wide (BK-4). The sheets below sit
+          outside this switch, so a fold or unfold never closes them (BK-10, BK-11). */}
+      {book ? (
+        <BookPanes
+          rightKey={bookProtocol ? String(bookProtocol.id) : 'none'}
+          left={
+            <>
+              <View style={s.header}>
+                <Text style={s.headerTitle} accessibilityRole="header">{t('protocols_title')}</Text>
+                {addButton}
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+                {protocols.length === 0 && !loading && emptyState}
+                {protocols.length > 0 && sortPills}
+                {protocols.length > 0 && listCards}
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </>
+          }
+          right={bookProtocol ? (
+            <>
+              <View style={[s.header, s.headerEnd]}>
+                <TouchableOpacity style={s.addBtn} onPress={() => { claimBookProtocol(bookProtocol.id); openEdit(bookProtocol); }} accessibilityRole="button">
+                  <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+                {renderDetail(bookProtocol, true)}
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </>
+          ) : null}
+        />
+      ) : (
+      <>
       <View style={s.header}>
         {view === 'detail' ? (
           <>
-            <TouchableOpacity style={s.backBtn} onPress={() => setOpenId(null)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity style={s.backBtn} onPress={closeProtocol} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={s.backText}>‹ {t('today_protocols')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.addBtn} onPress={() => openEdit(openProtocol)} accessibilityRole="button">
@@ -1776,60 +2003,24 @@ export default function ProtocolsScreen() {
           </View>
         )}
 
-        {view !== 'detail' && protocols.length === 0 && !loading && (
-          <View style={s.emptyCard}>
-            <FeatureIcon name="type_vial" size={40} color={colors.ink2} />
-            <Text style={s.emptyTitle}>{t('protocols_empty_title')}</Text>
-            <Text style={s.emptySub}>{t('protocols_empty_sub')}</Text>
-            <TouchableOpacity style={[s.btnPrimary, s.emptyBtn]} onPress={openAdd} accessibilityRole="button">
-              <Text style={s.btnPrimaryText}>{t('protocols_empty_btn')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {view !== 'detail' && protocols.length === 0 && !loading && emptyState}
 
-        {view === 'list' && protocols.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.sortScroll} contentContainerStyle={s.sortRow}>
-            <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
-            {SORT_OPTIONS.map(o => (
-              <Pill key={o.key} s={s} label={t(o.label)} on={sortBy === o.key} onPress={() => changeSort(o.key)} />
-            ))}
-          </ScrollView>
-        )}
+        {view === 'list' && protocols.length > 0 && sortPills}
 
-        {view === 'list' && protocols.length > 0 && sortBy === 'type' && (
-          <>
-            {[
-              ['protocols_section_lyophilized', reconProtocols],
-              ['protocols_section_rtu', rtuProtocols],
-              ['protocols_section_oral', oralProtocols],
-            ].filter(([, list]) => list.length > 0).map(([key, list]) => (
-              <View key={key} style={s.blk}>
-                <Text style={s.secth}>{t(key)}</Text>
-                {list.map(renderCard)}
-              </View>
-            ))}
-          </>
-        )}
+        {view === 'list' && protocols.length > 0 && listCards}
 
-        {view === 'list' && protocols.length > 0 && sortBy !== 'type' && (
-          <View style={s.blk}>{sortedProtocols().map(renderCard)}</View>
-        )}
-
-        {view === 'detail' && (
-          <ProtocolDetail
-            key={openProtocol.id}
-            p={openProtocol} vial={vialsByProtocol[openProtocol.id]}
-            openEdit={openEdit} deleteProtocol={deleteProtocol}
-            onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
-            t={t}
-          />
-        )}
+        {view === 'detail' && renderDetail(openProtocol, false)}
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </>
+      )}
 
       {/* Delete / limit / log past doses: held back until the add sheet is gone. */}
       <DTSheet config={wizardPresented ? null : screenSheet} onClose={() => setScreenSheet(null)} />
+
+      {/* The enlarged syringe, held here so a fold or unfold never closes it (BK-10). */}
+      <SyringeZoomSheet p={zoomProtocol} visible={zoom.open} onClose={() => setZoom(z => ({ ...z, open: false }))} t={t} />
 
       <Modal
         visible={showModal}
@@ -2555,6 +2746,7 @@ const protocolsGraduated = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   container: { flex: 1, backgroundColor: c.ground },
   header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, backgroundColor: c.ground, gap: 12, minHeight: 60 },
+  headerEnd: { justifyContent: 'flex-end' }, // book right page: Edit only, no back (BK-4)
   headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
   backBtn: { minHeight: 44, justifyContent: 'center' },
   backText: { fontSize: 17, color: c.ink },
@@ -2598,6 +2790,9 @@ const protocolsGraduated = (c) => ({
   blk: { gap: 10, marginBottom: 26 },
   secth: { paddingHorizontal: 4, fontSize: 15, fontWeight: '600', color: c.ink2 },
   pcard: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, gap: 10 },
+  // Book layout (S-26 BK-8): every card keeps room for the outline; the open one is ink.
+  pcardBook: { borderWidth: 2, borderColor: 'transparent' },
+  pcardSel: { borderColor: c.ink },
   pcardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   pdot: { width: 9, height: 9, borderRadius: 5, marginTop: 8 },
   pcardInfo: { flex: 1, minWidth: 0, gap: 3 },
