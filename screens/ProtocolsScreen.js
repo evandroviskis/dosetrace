@@ -51,6 +51,7 @@ import { DTSheet, DTActionSheet, DTPickerSheet, VialCells, SyringeRuler } from '
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
+import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
@@ -674,8 +675,14 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
 
 // The protocol screen (prototype protocol()): title block, the calculator, the vial,
 // schedule rows + "+ Reminder", dose details, the note, and Delete at the bottom.
-// The typed note lives in the screen (`draft` / `onDraft`), not here, so it survives
-// this view moving between the phone column and the book's right page (S-26 BK-10).
+// The draft store key of a protocol's unsaved note (BK-14, A-77).
+function noteDraftKey(id) {
+  return 'protocolNote:' + id;
+}
+
+// The typed note lives outside this view (`draft` / `onDraft`, kept per protocol in
+// lib/draftStore), so it survives this view moving between the phone column and the book's
+// right page (S-26 BK-10), opening another protocol and leaving the tab (BK-14, A-77).
 function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
@@ -1005,12 +1012,15 @@ export default function ProtocolsScreen() {
   const [vialExpMonth, setVialExpMonth] = useState(null); // 0-11 or null
   const [vialExpYear, setVialExpYear] = useState(null);   // full year or null
 
-  // The typed protocol note ({ id, text }) and the enlarged syringe ({ id, open }) live
-  // here, outside the views, so a fold or unfold never drops them (S-26 BK-10).
-  const [noteDraft, setNoteDraft] = useState(null);
+  // The enlarged syringe ({ id, open }) lives here, outside the views, so a fold or unfold
+  // never drops it (S-26 BK-10). The typed protocol note is kept per protocol in
+  // lib/draftStore until Save or Cancel (BK-14, A-77): opening another protocol, going back
+  // to the list, a fold or unfold and leaving the tab all keep it. setDraftTick re-renders.
   const [zoom, setZoom] = useState({ id: null, open: false });
+  const [, setDraftTick] = useState(0);
   function onNoteDraft(id, text) {
-    setNoteDraft(text == null ? null : { id, text });
+    if (text == null) clearDraft(noteDraftKey(id)); else setDraft(noteDraftKey(id), text);
+    setDraftTick((n) => n + 1);
   }
 
   // Book layout (S-26 BK-4): the list on the left page, the selected protocol on the right.
@@ -1025,7 +1035,6 @@ export default function ProtocolsScreen() {
   // Open a protocol: the phone pushes its screen, the book shows it on the right page.
   // Both are kept in step so folding or unfolding lands on the same protocol (BK-10).
   function openProtocolById(id) {
-    if (noteDraft && noteDraft.id !== id) setNoteDraft(null);
     bookSel.select(id);
     setOpenId(id);
     setShowList(true);
@@ -1033,7 +1042,6 @@ export default function ProtocolsScreen() {
   // Back to the list ("‹ Protocols"): the protocol is closed in both layouts.
   function closeProtocol() {
     setOpenId(null);
-    setNoteDraft(null);
     clearSelection('Protocols');
   }
   // Working on the right page's default protocol (typing a note, Edit, enlarge) makes it
@@ -1777,7 +1785,7 @@ export default function ProtocolsScreen() {
   function saveProtocolNote(id, note) {
     const trimmed = (note || '').trim();
     updateProtocol(id, { note: trimmed ? trimmed : null });
-    setNoteDraft(null);
+    onNoteDraft(id, null);
     fetchProtocols();
     requestSync();
   }
@@ -1821,7 +1829,7 @@ export default function ProtocolsScreen() {
       deleteProtocol={deleteProtocol}
       onSaveNote={saveProtocolNote} onRefill={refillOralBottle} onRefillVial={refillVial}
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
-      draft={noteDraft && noteDraft.id === p.id ? noteDraft.text : undefined}
+      draft={getDraft(noteDraftKey(p.id))}
       onDraft={(id, text) => { if (inBook && text != null) claimBookProtocol(id); onNoteDraft(id, text); }}
       t={t}
     />

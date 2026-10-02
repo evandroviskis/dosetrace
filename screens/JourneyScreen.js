@@ -28,6 +28,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
 import { getCalcInputs } from '../lib/realityCheck';
+import { addSyncListener } from '../lib/sync';
 import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols } from '../lib/database';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
@@ -35,6 +36,15 @@ import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+
+// S-26 BK-19: the events that change what the Progress tile shows. A calculator change saved
+// on the Progress page (the right page beside the tiles, which never lose focus) or a sync
+// that may have pulled one from another device.
+function tilesNeedRefresh(e) {
+  if (!e) return false;
+  if (e.type === 'sync_complete' || e.type === 'import_complete') return true;
+  return e.type === 'data_changed' && e.what === 'calc';
+}
 
 export default function JourneyScreen() {
   const { t } = useLanguage();
@@ -80,6 +90,10 @@ export default function JourneyScreen() {
     getCalcInputs().then(setInputs).catch(() => {});
     return () => { alive = false; };
   }, []));
+  // BK-19: refresh the tiles the moment the Progress page saves, without switching tabs.
+  useEffect(() => addSyncListener((e) => {
+    if (tilesNeedRefresh(e)) getCalcInputs().then(setInputs).catch(() => {});
+  }), []);
   // Named as the Curve screen names its line (a blend component: "Blend · Component (est.)").
   const lp = level ? level.protocol : null;
   const levelName = !lp ? null

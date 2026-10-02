@@ -42,7 +42,8 @@ import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } fro
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight } from '../../lib/realityCheckRules';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { requestSync } from '../../lib/sync';
+import { requestSync, notifyDataChanged } from '../../lib/sync';
+import { getDraft, setDraft, clearDraft, keepDraft } from '../../lib/draftStore';
 import { localISO } from '../../lib/localDate';
 import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
@@ -130,13 +131,20 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [rcWeighMsg, setRcWeighMsg] = useState(false);
   const [rcFree, setRcFree] = useState(false); // free 7 days of food log + reality check (FL-41)
   const [snapshots, setSnapshots] = useState([]);
-  const [rcStartDate, setRcStartDate] = useState(null); // null = today; else a past weigh-in day (≤ 7 days back)
-  const rcThenAuto = useRef(null); // the start weight the date picker last filled in (never overwrite a typed one)
+  // Text typed in the forms below and not saved yet comes back from lib/draftStore when this
+  // screen remounts (a fold or unfold, another Journey item, leaving and coming back), and is
+  // kept until it is saved or the app closes (S-26 BK-14, A-77). Read once, on mount.
+  const [rcDraft] = useState(() => getDraft('progress:rcWeigh'));
+  const [tgtDraft] = useState(() => getDraft('progress:target'));
+  const [bfDraft] = useState(() => getDraft('progress:pastWeighIn'));
+  // null = today; else a past weigh-in day (≤ 7 days back; a kept day that is now too old is dropped)
+  const [rcStartDate, setRcStartDate] = useState(() => (rcDraft && rcDraft.startDate && validStartDate(rcDraft.startDate, todayISO()) ? rcDraft.startDate : null));
+  const rcThenAuto = useRef(rcDraft && rcDraft.thenAuto != null ? rcDraft.thenAuto : null); // the start weight the date picker last filled in (never overwrite a typed one)
   const [snapMsg, setSnapMsg] = useState(false);
   // Reality-check inputs (display units).
-  const [rcThen, setRcThen] = useState('');         // phase-1 starting weight
-  const [rcNow, setRcNow] = useState('');           // phase-2 current weight
-  const [rcIntake, setRcIntake] = useState('');
+  const [rcThen, setRcThen] = useState(() => (rcDraft && rcDraft.then) || '');         // phase-1 starting weight
+  const [rcNow, setRcNow] = useState(() => (rcDraft && rcDraft.now) || '');           // phase-2 current weight
+  const [rcIntake, setRcIntake] = useState(() => getDraft('progress:rcIntake') || '');
   const [rc, setRc] = useState(null);               // { status, tdee, ratePerWeekKg }
   const [rcStart, setRcStart] = useState(null);     // { date, weightKg } — open check-in
   const [rcOpen, setRcOpen] = useState(false);      // collapsible panel under the goal
@@ -146,17 +154,17 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
 
   // ── Personal target (build 56) ──────────────────────────────────
   const [target, setTarget] = useState(null);        // the saved calc_targets row
-  const [targetEditing, setTargetEditing] = useState(false);
+  const [targetEditing, setTargetEditing] = useState(() => !!tgtDraft); // a kept target draft reopens its sheet
   const [tgtFormOpen, setTgtFormOpen] = useState(false); // empty target stays a compact card until tapped
-  const [tgtWeight, setTgtWeight] = useState('');     // display units
-  const [tgtBF, setTgtBF] = useState('');             // %
-  const [tgtDate, setTgtDate] = useState(null);       // ISO 'YYYY-MM-DD' | null
+  const [tgtWeight, setTgtWeight] = useState(() => (tgtDraft && tgtDraft.weight) || '');     // display units
+  const [tgtBF, setTgtBF] = useState(() => (tgtDraft && tgtDraft.bf) || '');             // %
+  const [tgtDate, setTgtDate] = useState(() => (tgtDraft && tgtDraft.date) || null);       // ISO 'YYYY-MM-DD' | null
   const [showTgtDatePicker, setShowTgtDatePicker] = useState(false);
   // Backfill a past weigh-in (seeds the measured rate sooner).
-  const [bfOpen, setBfOpen] = useState(false);
-  const [bfDate, setBfDate] = useState(todayISO());
-  const [bfWeight, setBfWeight] = useState('');
-  const [bfBodyFat, setBfBodyFat] = useState('');
+  const [bfOpen, setBfOpen] = useState(() => !!(bfDraft && bfDraft.open));
+  const [bfDate, setBfDate] = useState(() => (bfDraft && bfDraft.date) || todayISO());
+  const [bfWeight, setBfWeight] = useState(() => (bfDraft && bfDraft.weight) || '');
+  const [bfBodyFat, setBfBodyFat] = useState(() => (bfDraft && bfDraft.bf) || '');
   const [showBfDatePicker, setShowBfDatePicker] = useState(false);
   const [bfMsg, setBfMsg] = useState(false);
 
@@ -292,13 +300,39 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // less than 0.9 s before the screen goes away (back, or a fold / unfold moving it) is
   // flushed on unmount and in the screen's beforeLeave, never dropped (S-26 BK-10).
   const inputsSave = useRef(null);
-  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => saveCalcInputs(payload), 900); // synced table + user_metadata mirror
+  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => saveCalcInputs(payload).then(calcChanged), 900); // synced table + user_metadata mirror
   useEffect(() => {
     if (!loadedRef.current) return;
     inputsSave.current.schedule({ unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist });
   }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist]);
   useEffect(() => () => inputsSave.current.flush(), []);
   if (flushRef) flushRef.current = () => inputsSave.current.flush();
+
+  // S-26 BK-19: every saved calculator change is announced, so a screen showing these numbers
+  // next to this one (the Journey tiles beside the Progress page, Today's alerts) refreshes
+  // right away instead of on its next focus.
+  function calcChanged() { notifyDataChanged('calc'); }
+
+  // BK-14 / A-77: the unsaved form text follows every keystroke into lib/draftStore (memory
+  // only). A save or a discard empties the fields or ends the sheet, which clears the draft.
+  useEffect(() => {
+    keepDraft('progress:rcWeigh', { then: rcThen, now: rcNow, startDate: rcStartDate, thenAuto: rcThenAuto.current });
+  }, [rcThen, rcNow, rcStartDate]);
+  useEffect(() => {
+    keepDraft('progress:rcIntake', rcIntake);
+  }, [rcIntake]);
+  useEffect(() => {
+    // The target sheet discards on Cancel today (it reseeds from the saved target), so its
+    // draft lives only while the sheet is open.
+    if (targetEditing) setDraft('progress:target', { weight: tgtWeight, bf: tgtBF, date: tgtDate });
+    else clearDraft('progress:target');
+  }, [targetEditing, tgtWeight, tgtBF, tgtDate]);
+  useEffect(() => {
+    // The past weigh-in sheet keeps its fields when closed (as today); a day other than today
+    // counts as typed, today does not.
+    const typed = bfWeight || bfBodyFat || bfDate !== todayISO();
+    keepDraft('progress:pastWeighIn', typed ? { date: bfDate, weight: bfWeight, bf: bfBodyFat, open: bfOpen } : null);
+  }, [bfOpen, bfDate, bfWeight, bfBodyFat]);
 
   const wUnit = unit === 'imperial' ? t('cal_unit_lb') : t('cal_unit_kg');
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');
@@ -361,6 +395,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertCalcSnapshot(uid, { entry_date: snap.date, weight_kg: snap.weightKg ?? null, waist_cm: snap.waistCm ?? null, body_fat_pct: snap.bodyFatPct ?? null, lbm: snap.lbm ?? null, bmr: snap.bmr ?? null, tdee: snap.tdee ?? null });
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    calcChanged();
     setSnapMsg(true);
     setTimeout(() => setSnapMsg(false), 2500);
   }
@@ -401,6 +436,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     });
     requestSync?.();
     setTarget(getCalcTarget(uid));
+    calcChanged();
     setTargetEditing(false);
     setTgtFormOpen(false);
   }
@@ -410,7 +446,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       { text: t('cancel'), style: 'cancel' },
       { text: t('cal_tgt_clear_confirm'), style: 'destructive', onPress: () => {
         const uid = userIdRef.current; if (!uid) return;
-        clearCalcTarget(uid); requestSync?.();
+        clearCalcTarget(uid); requestSync?.(); calcChanged();
         setTarget(null); setTargetEditing(false); setTgtFormOpen(false);
       } },
     ]);
@@ -432,6 +468,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date: bfDate, weightKg, bodyFatPct: bfv }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    calcChanged();
     setBfWeight(''); setBfBodyFat(''); setBfDate(todayISO());
     setBfMsg(true); setTimeout(() => setBfMsg(false), 2500);
   }
@@ -450,6 +487,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    clearDraft('progress:rcWeigh');
+    calcChanged();
     setRcWeighMsg(true); setTimeout(() => setRcWeighMsg(false), 2500);
   }
 
@@ -585,6 +624,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     rcThenAuto.current = null;
     setRc(null);
     await setRealityStart(start);
+    calcChanged();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
@@ -595,6 +635,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setRcNow('');
     setRc(null);
     await clearRealityStart();
+    calcChanged();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
@@ -610,6 +651,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           setRcStart(null); setRcNow(''); setRc(null); setRealityLog([]);
           await clearRealityStart();
           if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
+          calcChanged();
           syncRealityCheckReminder().catch(() => {});
           syncFoodLogReminder().catch(() => {});
         },
@@ -643,6 +685,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertRealityCheck(uid, { entry_date: entry.date, tdee: entry.tdee ?? null, rate_per_week_kg: entry.ratePerWeekKg ?? null });
     requestSync?.();
     setRealityLog(getRealityChecks(uid).map(rcRowToUI));
+    clearDraft('progress:rcWeigh'); clearDraft('progress:rcIntake');
+    calcChanged();
     setRcSavedMsg(true);
     setTimeout(() => setRcSavedMsg(false), 2500);
   }
@@ -657,6 +701,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const start = { date: todayISO(), weightKg: kg };
     setRcStart(start);
     await setRealityStart(start);
+    calcChanged();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
