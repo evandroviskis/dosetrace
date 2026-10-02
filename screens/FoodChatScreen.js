@@ -41,6 +41,7 @@ import { syncFoodLogReminder, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
 import { useUnfoldToPage } from '../components/BookPanes';
+import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { FoodDemo } from './components/NutritionLogger';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
@@ -49,6 +50,12 @@ const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de
 const ASKED_KEY = 'dosetrace_food_asked';
 const draftKey = (uid) => `dosetrace_food_draft:${uid}`;
 const THREAD_DAYS = 7; // typed days shown in the thread
+// The follow-up answer typed and not sent is kept per question (one item of one entry) in
+// lib/draftStore while the app is open (S-26 BK-14, A-77), so leaving the chat, another
+// Journey item, a fold or an unfold never throws it away.
+function fuDraftKey(open) {
+  return open ? `foodChat:answer:${open.rowId}:${open.index}` : null;
+}
 
 // S-26 book layout: `embedded` = shown on the Journey tab's right page (BK-5). No "Done"
 // (nothing to close), no top safe-area edge, no auto-close (a tab page is not a sheet), and
@@ -266,7 +273,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!ok) { alert(t('error'), t('error_save_failed')); return; }
     if (opts.ateNothing) markAteNothing(uid, dayKey); // marker: durable + synced ('ate_nothing')
     const open = openFollowup(rows);
-    if (open) updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); // stays an estimate
+    if (open) { updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); clearDraft(fuDraftKey(open)); } // stays an estimate
     requestSync?.();
     refresh(uid);
     setQuestion(null); rememberAsked(null); setEvening(null); setNotice(null); setFuText('');
@@ -389,6 +396,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     }
     requestSync?.();
     setFuText('');
+    clearDraft(fuDraftKey(open));
     const r = refresh(userId);
     if (open.entry_date === localISO() || outcome === 'applied') askNext(r);
   }
@@ -398,6 +406,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); // stays an estimate (FL-27)
     requestSync?.();
     setFuText('');
+    clearDraft(fuDraftKey(open));
     askNext(refresh(userId));
   }
 
@@ -428,6 +437,17 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     return th;
   }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
   const data = useMemo(() => thread.slice().reverse(), [thread]); // inverted list opens at the latest (FL-39)
+
+  // BK-14 / A-77: the open follow-up's answer field shows that question's kept draft, and
+  // each keystroke updates it. Send, Skip and Day done clear it (they end the question).
+  const fuOpen = thread.find((x) => x.type === 'followup') || null;
+  const fuKey = fuDraftKey(fuOpen);
+  useEffect(() => { setFuText(fuKey ? (getDraft(fuKey) || '') : ''); }, [fuKey]);
+  function typeFollowup(v) {
+    setFuText(v);
+    if (fuKey) { if (v) setDraft(fuKey, v); else clearDraft(fuKey); }
+    touch();
+  }
 
   const gated = !!access && !access.canLog;
   const inTrial = access && access.mode === 'trial';
@@ -549,7 +569,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
               <TextInput
                 style={s.fuInput}
                 value={fuText}
-                onChangeText={(v) => { setFuText(v); touch(); }}
+                onChangeText={typeFollowup}
                 placeholder={t('nutri_ask_placeholder')}
                 placeholderTextColor={colors.ink3}
                 editable={!fuBusy}

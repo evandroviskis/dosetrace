@@ -184,8 +184,63 @@ test('BK-10: a typed protocol note survives the protocol screen moving between t
   assert.doesNotMatch(detail, /useState\(p\.note/, 'the draft is not local to the protocol screen');
   assert.match(detail, /const noteDraft = draft != null \? draft : \(p\.note \|\| ''\);/);
   assert.match(detail, /if \(lastNote\.current !== p\.note\)/, 'a remount does not reset it, a changed stored note does');
-  assert.match(src, /const \[noteDraft, setNoteDraft\] = useState\(null\);/);
-  assert.match(src, /draft=\{noteDraft && noteDraft\.id === p\.id \? noteDraft\.text : undefined\}/);
+  // BK-14 / A-77: the draft now lives per protocol in lib/draftStore (see below).
+  assert.match(src, /draft=\{getDraft\(noteDraftKey\(p\.id\)\)\}/);
+});
+
+// ── BK-14 / A-77: the unsaved protocol note is kept per protocol until Save or Cancel ──
+// Bug (A-77): opening another protocol or going back to the list set the screen's single
+// note draft to null, so a note typed and not yet saved was lost. The screen's own handlers
+// are lifted from the source and run against the real lib/draftStore.
+function innerFn(name) {
+  let f = null;
+  walk(screen, (n) => { if (!f && n.type === 'FunctionDeclaration' && n.id && n.id.name === name) f = n; });
+  assert.ok(f, `${name} exists`);
+  return slice(f);
+}
+
+test('A-77 / BK-14: a typed note survives opening another protocol, going back to the list and a remount; Save and Cancel clear it', () => {
+  const store = require('../lib/draftStore');
+  store.clearAllDrafts();
+  const keyFn = topFn('noteDraftKey');
+  assert.ok(keyFn, 'noteDraftKey is a top-level function');
+  const NAMES = ['onNoteDraft', 'openProtocolById', 'closeProtocol', 'saveProtocolNote'];
+  const updates = [];
+  const sels = [];
+  const make = new Function(
+    'getDraft', 'setDraft', 'clearDraft', 'setDraftTick', 'bookSel', 'setOpenId', 'setShowList',
+    'clearSelection', 'updateProtocol', 'fetchProtocols', 'requestSync',
+    `${slice(keyFn)}\n${NAMES.map(innerFn).join('\n')}\nreturn { ${NAMES.join(', ')}, noteDraftKey };`,
+  );
+  const f = make(
+    store.getDraft, store.setDraft, store.clearDraft, () => {}, { select: (id) => sels.push(id) }, () => {}, () => {},
+    () => {}, (id, patch) => updates.push([id, patch]), () => {}, () => {},
+  );
+  assert.equal(f.noteDraftKey(1), 'protocolNote:1');
+  f.onNoteDraft(1, 'take with food');                 // typing on protocol 1
+  f.openProtocolById(2);                              // tap another protocol (left page / list)
+  assert.equal(store.getDraft('protocolNote:1'), 'take with food', 'kept when another protocol opens');
+  f.onNoteDraft(2, 'evening');
+  f.closeProtocol();                                  // "‹ Protocols" / leaving the protocol
+  assert.equal(store.getDraft('protocolNote:1'), 'take with food', 'kept when going back to the list');
+  assert.equal(store.getDraft('protocolNote:2'), 'evening', 'each protocol keeps its own draft');
+  f.saveProtocolNote(1, 'take with food');            // Save
+  assert.deepEqual(updates, [[1, { note: 'take with food' }]], 'the save itself is unchanged');
+  assert.equal(store.getDraft('protocolNote:1'), undefined, 'Save clears that draft');
+  assert.equal(store.getDraft('protocolNote:2'), 'evening', 'and only that one');
+  f.onNoteDraft(2, null);                             // Cancel
+  assert.equal(store.getDraft('protocolNote:2'), undefined, 'Cancel clears the draft (discard on purpose)');
+  store.clearAllDrafts();
+});
+
+test('A-77 / BK-14: the protocol screen reads the draft from the store, so a remount (fold, unfold, coming back) shows it', () => {
+  assert.match(src, /import \{[^}]*\bgetDraft\b[^}]*\} from '\.\.\/lib\/draftStore'/);
+  assert.match(src, /draft=\{getDraft\(noteDraftKey\(p\.id\)\)\}/);
+  assert.doesNotMatch(src, /useState\(null\);\s*const \[zoom/, 'no single screen-state note draft left');
+  assert.doesNotMatch(src, /setNoteDraft\(null\)/, 'nothing throws a draft away except Save / Cancel');
+  const detail = slice(topFn('ProtocolDetail'));
+  assert.match(detail, /const noteDraft = draft != null \? draft : \(p\.note \|\| ''\);/);
+  assert.match(detail, /onPress=\{\(\) => onDraft\(p\.id, null\)\}/, 'Cancel discards on purpose, as today');
 });
 
 test('BK-12: theme tokens only, no emoji, no new strings in the book code', () => {

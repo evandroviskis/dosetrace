@@ -208,6 +208,74 @@ test('BK-10: the food chat writes its draft before it moves, and on unmount', ()
   assert.match(src, /setText\(\(cur\) => cur \|\| d\)/, 'the chat reads the draft back when it opens');
 });
 
+// ── BK-17: the food chat on the right page stays until the user picks another item ──
+
+test('BK-17: the embedded food chat has no Done: the only Done button is rendered when not embedded', () => {
+  const src = read('screens/FoodChatScreen.js');
+  const dones = [...src.matchAll(/t\('done'\)/g)];
+  assert.equal(dones.length, 1, 'one Done label');
+  const before = src.slice(0, dones[0].index);
+  const guard = before.lastIndexOf('{embedded ? null : (');
+  assert.ok(guard >= 0 && before.length - guard < 600, 'the Done button sits inside {embedded ? null : ( ... )}');
+});
+
+test('BK-17: the embedded food chat never closes itself (every goBack is the Done button or guarded by !embedded)', () => {
+  const src = read('screens/FoodChatScreen.js');
+  const lines = src.split('\n');
+  const backs = lines.map((l, i) => [l, i]).filter(([l]) => /navigation\.goBack\(\)/.test(l));
+  assert.ok(backs.length >= 3, 'idle, background and Done');
+  for (const [l, i] of backs) {
+    const doneButton = lines.slice(Math.max(0, i - 2), i).some((p) => p.includes('{embedded ? null : ('));
+    assert.ok(/!embedded &&/.test(l) || doneButton, `line ${i + 1} closes the chat on a page: ${l.trim()}`);
+  }
+  assert.doesNotMatch(src, /navigation\.(pop|popTo|replace|dispatch)\(/, 'no other way to leave from the page');
+});
+
+test('BK-17: Journey keeps the chat on the right page until another item is picked (no timer, no automatic change)', () => {
+  const src = journey();
+  assert.doesNotMatch(src, /setTimeout|setInterval/, 'nothing on a timer changes the page');
+  const clears = src.match(/clearSelection\('Journey'\)/g) || [];
+  assert.equal(clears.length, 1, 'the only automatic change is the lapsed-Premium Curve fallback');
+  assert.match(src, /if \(premium === false && sel === 'curve'\) clearSelection\('Journey'\)/);
+  const expr = src.match(/const page = ([^;]+);/)[1];
+  const page = new Function('sel', 'premium', `return ${expr};`);
+  for (const premium of [null, false, true]) assert.equal(page('food', premium), 'food', `food stays (premium ${premium})`);
+  // The food chat's own params never move the selection either (it reads them as a prop).
+  assert.doesNotMatch(read('screens/FoodChatScreen.js'), /setSelection|clearSelection/);
+});
+
+// ── BK-19: a change saved on the Progress page updates the Journey tiles right away ──
+// Bug: the Journey weight tile read the calculator inputs only on focus. On a book the
+// Progress page sits next to the tiles, so nothing refocused and the tile kept the old
+// weight until the user switched tabs.
+
+test('BK-19: CalculatorSection announces every saved calculator change (notifyDataChanged calc)', () => {
+  const src = read('screens/components/CalculatorSection.js');
+  assert.match(src, /import \{[^}]*\bnotifyDataChanged\b[^}]*\} from '\.\.\/\.\.\/lib\/sync'/);
+  assert.match(src, /function calcChanged\(\) \{ notifyDataChanged\('calc'\); \}/);
+  assert.match(src, /createDebouncedSave\(\(payload\) => saveCalcInputs\(payload\)\.then\(calcChanged\), 900\)/, 'after the inputs are written');
+  for (const name of ['saveSnapshot', 'saveTarget', 'saveBackfillWeighIn', 'saveRcWeighIn', 'saveRealityCheck', 'startRealityCheck', 'resetRealityCheck', 'startNextRealityCheck']) {
+    const m = src.match(new RegExp(`(async )?function ${name}\\(\\) \\{[\\s\\S]*?\\n  \\}\\n`));
+    assert.ok(m, name);
+    assert.match(m[0], /calcChanged\(\);/, `${name} announces the change`);
+  }
+});
+
+test('BK-19: Journey refreshes the tiles on a calculator change or a finished sync, while mounted', () => {
+  const src = journey();
+  assert.match(src, /import \{ addSyncListener \} from '\.\.\/lib\/sync';/);
+  assert.match(src, /useEffect\(\(\) => addSyncListener\(\(e\) => \{\s*if \(tilesNeedRefresh\(e\)\) getCalcInputs\(\)\.then\(setInputs\)\.catch\(\(\) => \{\}\);\s*\}\), \[\]\);/, 'subscribes once, unsubscribes on unmount (addSyncListener returns the unsubscribe)');
+  const m = src.match(/function tilesNeedRefresh\(e\) \{[\s\S]*?\n\}/);
+  assert.ok(m, 'tilesNeedRefresh');
+  const tilesNeedRefresh = new Function(`${m[0]}; return tilesNeedRefresh;`)();
+  assert.equal(tilesNeedRefresh({ type: 'data_changed', what: 'calc' }), true, 'a weigh-in or calculator save on the Progress page');
+  assert.equal(tilesNeedRefresh({ type: 'sync_complete' }), true, 'a weigh-in pulled from another device');
+  assert.equal(tilesNeedRefresh({ type: 'import_complete' }), true);
+  assert.equal(tilesNeedRefresh({ type: 'data_changed', what: 'protocol' }), false, 'other data does not reload the tiles');
+  assert.equal(tilesNeedRefresh({ type: 'sync_start' }), false);
+  assert.equal(tilesNeedRefresh(null), false);
+});
+
 // ── BK-12 and hygiene ──
 
 const CHANGED = ['screens/JourneyScreen.js', 'screens/ProgressScreen.js', 'screens/SerumCurveScreen.js', 'screens/FoodChatScreen.js', 'screens/components/CalculatorSection.js', 'lib/debouncedSave.js'];
