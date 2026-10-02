@@ -38,7 +38,7 @@ import {
   permanentlyDeleteProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
-import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal } from '../lib/doseMath';
+import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
 import { supplyState } from '../lib/supplyLow';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
@@ -144,7 +144,7 @@ function sizeLabel(p, vial, t) {
     const total = ml ? trimNum(parseDecimal(p.concentration) * ml)
       : (p.amount != null && p.amount !== '' ? trimNum(parseDecimal(p.amount)) : null);
     if (total) return `${total} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
-    return `${p.concentration} ${p.concentration_unit || 'mg'}/ml`;
+    return `${trimZeros(p.concentration)} ${p.concentration_unit || 'mg'}/ml`;
   }
   if (p.type === 'oral') {
     if (p.serving_strength == null || p.serving_strength === '') return null;
@@ -347,7 +347,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       <View style={s.reads}>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
-          <Text style={s.readVal}>{draw.drawML} ml</Text>
+          <Text style={s.readVal}>{trimZeros(draw.drawML)} ml</Text>
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
@@ -393,7 +393,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
           <Pressable style={s.zoomSheet} onPress={() => {}} accessibilityViewIsModal>
             <Text style={s.zoomTitle}>{name}</Text>
             <Text style={s.zoomReadout}>
-              {t('protocols_syringe_draw_to')} <Text style={s.zoomReadoutVal}>{draw.drawUnits}u</Text> · {draw.drawML} ml
+              {t('protocols_syringe_draw_to')} <Text style={s.zoomReadoutVal}>{draw.drawUnits}u</Text> · {trimZeros(draw.drawML)} ml
             </Text>
             <ScrollView
               horizontal
@@ -700,10 +700,10 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
     doseRows = [
       { label: t('protocols_compound_amount'), value: `${p.amount} ${p.unit}`, mono: true },
       p.diluent ? { label: t('protocols_diluent'), value: diluentLabel(p.diluent, t) } : null,
-      { label: t('protocols_diluent_amount'), value: `${p.water} ml`, mono: true },
+      { label: t('protocols_diluent_amount'), value: `${trimZeros(p.water)} ml`, mono: true },
       {
         label: t('protocols_concentration'),
-        value: `${p.amount && p.water ? (parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2) : '—'} ${p.unit}/ml`,
+        value: `${p.amount && p.water ? trimZeros((parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)) : '—'} ${p.unit}/ml`,
         mono: true,
       },
       { label: t('protocols_desired_dose'), value: `${p.dose} ${p.dose_unit}`, mono: true },
@@ -711,8 +711,8 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
   } else if (p.type === 'rtu') {
     doseRows = [
       { label: t('protocols_dose_per_injection'), value: `${p.dose} ${p.dose_unit}`, mono: true },
-      p.concentration ? { label: t('protocols_concentration'), value: `${p.concentration} ${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
-      vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${vial.water_ml} ml`, mono: true } : null,
+      p.concentration ? { label: t('protocols_concentration'), value: `${trimZeros(p.concentration)} ${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
+      vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${trimZeros(vial.water_ml)} ml`, mono: true } : null,
     ];
   } else if (p.type === 'oral') {
     doseRows = [
@@ -2539,7 +2539,7 @@ export default function ProtocolsScreen() {
                     {liveW > 0 && (
                       <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
                     )}
-                    <Text style={s.liveMl}>{drawML} ml</Text>
+                    <Text style={s.liveMl}>{trimZeros(drawML)} ml</Text>
                     {drawExceedsSyringe && <WarnBox s={s} risk text={drawExceedsMsg} />}
                   </View>
                 )}
@@ -2785,9 +2785,9 @@ export default function ProtocolsScreen() {
                   rows={[
                     { label: t('protocols_compound_label'), value: name || '—' },
                     { label: t('protocols_amount_label'), value: amount ? `${amount} ${unit}` : '—' },
-                    { label: t('protocols_water_label'), value: water ? `${water} ml` : '—' },
+                    { label: t('protocols_water_label'), value: water ? `${trimZeros(water)} ml` : '—' },
                     { label: t('protocols_dose_label'), value: dose ? `${dose} ${doseUnit}` : '—' },
-                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${drawML} ml (${drawUnits} ${t('protocols_units')})` } : null,
+                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${trimZeros(drawML)} ml (${drawUnits} ${t('protocols_units')})` } : null,
                     { label: t('protocols_frequency_label'), value: frequencyLabel(intervalDays) },
                   ]}
                 />
