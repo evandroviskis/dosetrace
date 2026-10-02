@@ -17,6 +17,16 @@ import CalculatorSection from './components/CalculatorSection';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
+import FeatureExplainerGate from '../components/FeatureExplainerGate';
+import { getCalcInputsRow, getCalcSnapshots } from '../lib/database';
+
+// Free-feature explainer of the energy + protein calculator (Today redesign part 18), until
+// the user has entered their own numbers (synced calculator inputs or snapshots).
+function energyExplainers(userId) {
+  let used = false;
+  try { used = !!getCalcInputsRow(userId) || (getCalcSnapshots(userId) || []).length > 0; } catch { used = false; }
+  return [{ key: 'energy', used }];
+}
 
 export default function ProgressScreen({ embedded = false }) {
   const { t } = useLanguage();
@@ -44,6 +54,7 @@ export default function ProgressScreen({ embedded = false }) {
       <Text style={s.title}>{t('today_section_progress')}</Text>
       </View>
       <CalculatorSection flushRef={flushRef} paneWidth={embedded ? paneWidths(width).right : null} />
+      <FeatureExplainerGate candidates={energyExplainers} />
     </SafeAreaView>
   );
 }

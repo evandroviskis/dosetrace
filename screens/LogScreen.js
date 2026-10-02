@@ -24,6 +24,7 @@ import { planSitePickerAction } from '../lib/sitePickerActions';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
+import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 
@@ -37,6 +38,17 @@ const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE
 // Today's cards, rings and Pending block refresh without switching tabs.
 // popupGate (embedded, BK-20): one popup at a time across both pages — the site editor waits
 // while a popup of Today's is open, and tells Today when it opens and closes.
+// Free-feature explainers this screen offers (Today redesign part 18): the dose log + streak
+// and site rotation, each until used — read from the user's own synced dose log. (Dose notes:
+// the per-dose note is not in the app yet, so its explainer is not offered.)
+function logExplainers(userId) {
+  const logs = getAllLogs(userId) || [];
+  return [
+    { key: 'log', used: logs.some((l) => l.outcome === 'Taken') },
+    { key: 'sites', used: logs.some((l) => !!l.injection_site) },
+  ];
+}
+
 export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate } = {}) {
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
@@ -407,6 +419,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         }}
         ListFooterComponent={<View style={{ height: 40 }} />}
       />
+
+      {/* Part 18: on the Dose log screen only — never on Today's right page (the dose-logging path). */}
+      {!embedded && <FeatureExplainerGate candidates={logExplainers} />}
 
       <BodyMapModal
         visible={bodyMapVisible}

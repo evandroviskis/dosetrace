@@ -137,7 +137,7 @@ export function T({ x, y, size = 12, weight = '400', color, mono = false, anchor
 
 // UI-thread text: `format` is a worklet (v) => string over the derived value `v`.
 const ATextInput = Animated.createAnimatedComponent(TextInput);
-function LiveText({ value, format, style }) {
+export function LiveText({ value, format, style }) {
   const flat = StyleSheet.flatten(style) || {};
   const props = useAnimatedProps(() => { const s = format(value.value); return { text: s, defaultValue: s }; });
   return (
