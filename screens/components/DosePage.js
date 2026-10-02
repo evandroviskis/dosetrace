@@ -18,6 +18,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { useTheme } from '../../lib/theme';
 import { displayColor } from '../../lib/protocolColors';
 import SyringeScale from './SyringeScale';
+import { trimZeros } from '../../lib/doseMath';
 import CheckMark from '../../components/CheckMark';
 import { lightHaptic } from '../../components/motion';
 
@@ -112,7 +113,7 @@ export default function DosePage({
           <View style={s.draw} onLayout={(e) => setScaleW(Math.max(160, Math.floor(e.nativeEvent.layout.width) - 28))}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
+              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {trimZeros(draw.drawML)} ml</Text></Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syringeSize} width={scaleW} />
             {draw.exceedsSyringe && (

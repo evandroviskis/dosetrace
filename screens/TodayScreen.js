@@ -35,7 +35,7 @@ import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion
 import BodyMapModal from './components/BodyMapModal';
 import { describeStored } from '../lib/injectionSites';
 import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
-import { dosesPerVial, computeDraw } from '../lib/doseMath';
+import { dosesPerVial, computeDraw, trimZeros } from '../lib/doseMath';
 import { adherenceRings } from '../lib/adherenceRings';
 import TodayTracker from './components/TodayTracker';
 import SyringeScale from './components/SyringeScale';
@@ -1662,7 +1662,7 @@ export default function TodayScreen() {
           <View style={s.draw}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
+              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {trimZeros(draw.drawML)} ml</Text></Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             {draw.exceedsSyringe && (
