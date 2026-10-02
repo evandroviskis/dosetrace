@@ -119,7 +119,7 @@ test('BK-21: BookPanes moves screen-reader focus to the right page when another 
   const src = readSrc('components/BookPanes.js');
   assert.match(src, /AccessibilityInfo\.setAccessibilityFocus/);
   assert.match(src, /\[rightKey\]/);
-  assert.match(src, /isBook\(width, height, Platform\.OS\)/, 'BK-13 uses the platform rule');
+  assert.match(src, /isBook\(width, height, Platform\.OS/, 'BK-13 uses the platform rule');
 });
 
 // BK-22: a screen shown on a right page never navigates back or replaces the screen under it.
@@ -141,4 +141,21 @@ test('BK-14: a real sign-out also clears every kept draft (the next account neve
   const i = app.indexOf('resetAllSelections();');
   assert.ok(i > 0);
   assert.match(app.slice(i - 400, i + 200), /clearAllDrafts\(\)/);
+});
+
+// Council UX 2026-10-01: the Fold 7 inner screen is only ~10% taller than wide; with the
+// One UI taskbar and the status bar the WINDOW can become wider than tall while the phone
+// is held normally, so a window-based rule would never show two pages. The posture comes
+// from the physical SCREEN (bars included).
+test('BK-13: the Android posture comes from the physical screen, not the window', () => {
+  const screenNormal = { width: 750, height: 832 };
+  const screenTurned = { width: 832, height: 750 };
+  assert.equal(isBook(750, 700, 'android', screenNormal), true, 'held normally, window shortened by the taskbar');
+  assert.equal(isBook(832, 690, 'android', screenTurned), false, 'turned on its side');
+  assert.equal(isBook(750, 790, 'android'), true, 'no screen info: falls back to the window');
+});
+
+test('BK-13: useBook reads the screen dimensions for the posture', () => {
+  const src = readSrc('components/BookPanes.js');
+  assert.match(src, /Dimensions\.get\('screen'\)/);
 });

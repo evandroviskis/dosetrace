@@ -483,6 +483,9 @@ export default function App() {
             AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
             await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
             cancelAllNotifications().catch(() => {}); // symmetry with SIGNED_IN — don't let the prior user's dose reminders fire
+            clearAllDrafts(); // S-26 BK-14: typed-but-unsaved text stays with its account
+            resetAllSelections(); // S-26: no open right-page item from the other account
+            AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
           }
         } catch { /* ignore */ }
 
@@ -577,6 +580,9 @@ export default function App() {
               AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
               await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
               cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
+              clearAllDrafts(); // S-26 BK-14: typed-but-unsaved text stays with its account
+              resetAllSelections(); // S-26: no open right-page item from the other account
+              AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
             }
           } catch { /* ignore */ }
 

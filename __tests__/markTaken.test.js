@@ -169,14 +169,16 @@ test('A-40: notificationActions.markTaken routes through notificationTakeTarget'
 // skipped dose now turns that Skipped row into Taken, like an auto-Missed row; its Undo
 // puts it back to Skipped.
 const { planUndoTake } = require('../lib/markTaken');
-test('A-78: logging a skipped dose flips the Skipped row to Taken instead of adding a row', () => {
+// Council backend 2026-10-01 (verified): without slot identity, flipping "the day's
+// earliest Skipped row" turned a morning skip into Taken@08:05 when the user logged the
+// EVENING dose at 20:00 — erasing a skip the user entered and moving the dose by 12 h.
+// Without a slot, a Skipped row is never touched; only a slot-matched Skipped row flips.
+test('A-78: without a slot, a Skipped row is never overwritten (the 20:00 dose is a new row)', () => {
   const skipped = { id: 20, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 8, 5)).toISOString() };
   const p = planMarkTaken({ protocol: recon, todayLogs: [skipped], nowMs: NOW });
-  assert.equal(p.insert, null, 'no second row');
-  assert.deepEqual(p.update && { id: p.update.id, outcome: p.update.outcome }, { id: 20, outcome: 'Taken' });
-  assert.equal(p.flipped, true);
-  assert.equal(p.flippedFrom, 'Skipped');
-  assert.equal(p.takenAfter, 1);
+  assert.equal(p.update, null, 'the morning skip stays Skipped');
+  assert.ok(p.insert, 'the evening dose is its own Taken row');
+  assert.equal(p.flipped, false);
 });
 
 test('A-78: with a slot, only the Skipped row at that slot flips; another slot keeps its Skipped row', () => {
@@ -202,4 +204,25 @@ test('A-78: Today restores the outcome the undo plan gives, and carries flippedF
   assert.match(today, /updateDoseLog\(plan\.restoreMissedId, \{ outcome: plan\.restoreOutcome/);
   const actions = fs.readFileSync(path.join(__dirname, '..', 'lib', 'doseActions.js'), 'utf8');
   assert.match(actions, /flippedFrom: plan\.flippedFrom/);
+});
+
+// A-78, council senior engineer 2026-10-01: without a slot, a Skipped row may flip only
+// when every slot of the day is already filled (taken + skipped >= doses_per_day) — then
+// the dose being logged can only be the skipped one.
+test('A-78: once-daily, skip then log: the Skipped row becomes Taken (no second row)', () => {
+  const daily = { ...recon, doses_per_day: 1 };
+  const skipped = { id: 40, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 8, 5)).toISOString() };
+  const p = planMarkTaken({ protocol: daily, todayLogs: [skipped], nowMs: NOW });
+  assert.equal(p.insert, null);
+  assert.equal(p.update && p.update.id, 40);
+  assert.equal(p.flippedFrom, 'Skipped');
+});
+
+test('A-78: twice-daily, 08:00 skipped and 20:00 taken, then "log the 08:00 dose": the Skipped row flips', () => {
+  const skipped = { id: 41, protocol_id: 1, outcome: 'Skipped', logged_at: new Date(local(2026, 9, 27, 8, 5)).toISOString() };
+  const taken20 = { id: 42, protocol_id: 1, outcome: 'Taken', logged_at: new Date(local(2026, 9, 27, 20, 1)).toISOString() };
+  const p = planMarkTaken({ protocol: recon, todayLogs: [skipped, taken20], nowMs: NOW + 3600000 });
+  assert.equal(p.insert, null, 'never a third row');
+  assert.equal(p.update && p.update.id, 41);
+  assert.equal(p.takenAfter, 2);
 });

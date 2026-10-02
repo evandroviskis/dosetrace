@@ -84,7 +84,8 @@
       ],
       "expo-font",
       "./plugins/withAndroidBackupDisabled",
-      "./plugins/withoutIosBackgroundFetch"
+      "./plugins/withoutIosBackgroundFetch",
+      "./plugins/withFoldConfigChanges"
     ],
     "extra": {
       "eas": {
