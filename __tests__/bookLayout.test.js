@@ -108,3 +108,30 @@ test('F10: a real sign-out clears every open right-page item', () => {
   const app = readSrc('App.js');
   assert.match(app, /resetAllSelections\(\)/);
 });
+
+test('BK-13: on Android the two pages need the Fold held normally (hinge vertical); turned, one column', () => {
+  assert.equal(isBook(750, 790, 'android'), true, 'Z Fold 7 open, held normally (taller than wide)');
+  assert.equal(isBook(832, 720, 'android'), false, 'Z Fold 7 open, turned on its side: the fold would cross both pages');
+  assert.equal(isBook(904, 640, 'ios'), true, 'iPhone Duo rule unchanged until the 27.1 SDK build');
+});
+
+test('BK-21: BookPanes moves screen-reader focus to the right page when another item opens', () => {
+  const src = readSrc('components/BookPanes.js');
+  assert.match(src, /AccessibilityInfo\.setAccessibilityFocus/);
+  assert.match(src, /\[rightKey\]/);
+  assert.match(src, /isBook\(width, height, Platform\.OS\)/, 'BK-13 uses the platform rule');
+});
+
+// BK-22: a screen shown on a right page never navigates back or replaces the screen under it.
+for (const [file, prop] of [['screens/LogScreen.js', 'embedded'], ['screens/ProgressScreen.js', 'embedded'], ['screens/SerumCurveScreen.js', 'embedded'], ['screens/FoodChatScreen.js', 'embedded']]) {
+  test(`BK-22: ${file} guards goBack and replace when ${prop}`, () => {
+    const src = readSrc(file);
+    const lines = src.split('\n');
+    lines.forEach((line, i) => {
+      if (/navigation\.(goBack|replace)\(/.test(line)) {
+        const ctx = lines.slice(Math.max(0, i - 6), i + 1).join('\n');
+        assert.match(ctx, /embedded/, `${file}:${i + 1} calls ${line.trim()} without an embedded guard nearby`);
+      }
+    });
+  });
+}

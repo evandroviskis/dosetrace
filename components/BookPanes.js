@@ -1,7 +1,7 @@
 // Book layout (S-26, docs/specs/book-layout.md): the two pages and the hooks the screens use.
 // Rules live in lib/bookLayout.js (tested); the open item per tab in lib/bookSelection.js.
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Platform, AccessibilityInfo, findNodeHandle } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../lib/theme';
 import { isBook, GUTTER, foldPlan, unfoldPlan } from '../lib/bookLayout';
@@ -10,7 +10,7 @@ import { getSelection, setSelection, onSelectionChange } from '../lib/bookSelect
 // BK-1: true when the window is wide and tall enough for two pages.
 export function useBook() {
   const { width, height } = useWindowDimensions();
-  return isBook(width, height);
+  return isBook(width, height, Platform.OS);
 }
 
 // The open item of a tab's right page (BK-8). `fallback` is the default when the user has
@@ -83,13 +83,22 @@ export function useUnfoldToPage(routeName, { embedded, params, beforeLeave } = {
 // so it spans the full width (BK-8).
 export default function BookPanes({ left, right, rightKey }) {
   const { colors } = useTheme();
+  // BK-21: when the user opens another item, the screen reader moves to the right page.
+  const rightRef = useRef(null);
+  const firstKey = useRef(rightKey);
+  useEffect(() => {
+    if (rightKey === firstKey.current) return;
+    firstKey.current = rightKey;
+    const node = rightRef.current ? findNodeHandle(rightRef.current) : null;
+    if (node) setTimeout(() => { try { AccessibilityInfo.setAccessibilityFocus(node); } catch { /* not available */ } }, 250);
+  }, [rightKey]);
   return (
     <View style={s.row}>
       <View style={s.pane}>{left}</View>
       <View style={s.gutter} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View style={[s.hair, { backgroundColor: colors.line }]} />
       </View>
-      <View style={s.pane} key={rightKey}>{right}</View>
+      <View style={s.pane} key={rightKey} ref={rightRef} accessible={false}>{right}</View>
     </View>
   );
 }
