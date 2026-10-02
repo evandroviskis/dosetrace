@@ -37,6 +37,7 @@ import { friendlyError } from '../lib/friendlyError';
 import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
+import VaccinePage from './components/VaccinePage';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection, paneWidths } from '../lib/bookLayout';
@@ -177,7 +178,7 @@ function validateExtraction(data) {
 // S-26 book layout, My Body (docs/specs/book-layout.md BK-6, BK-10). Pure and self-contained
 // so __tests__/bookBody.test.js can run them. Right-page ids: a lab test = its upload key
 // (report_date + '|' + created_at, the same key as the journal cards), a marker =
-// 'marker:' + its canonical key, Dose accumulation = 'curve'.
+// 'marker:' + its canonical key, a vaccine = 'vax:' + its id (BK-18), Dose accumulation = 'curve'.
 
 // The newest test = the first card of the By date list, newest first (the default page).
 function newestReportKey(rows) {
@@ -196,15 +197,19 @@ function buildReport(rows, key) {
   return { key, date: markers[0].report_date, createdAt: markers[0].created_at || '', markers };
 }
 
-// What the right page shows. A chosen test or marker that no longer exists (deleted,
-// renamed) falls back to the newest test; Dose accumulation only for Premium.
-function bodyRightPage({ sel, reportKeys, markerKeys, premium, newestKey }) {
+// What the right page shows. A chosen test, marker or vaccine that no longer exists
+// (deleted, renamed) falls back to the newest test; Dose accumulation only for Premium.
+// `vaxKeys`: the ids of the user's vaccines, as strings (BK-18).
+function bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium, newestKey }) {
   const has = (keys, k) => (keys && typeof keys.has === 'function' ? keys.has(k) : Array.isArray(keys) && keys.includes(k));
   if (sel === 'curve') {
     if (premium) return { type: 'curve', id: 'curve' };
   } else if (typeof sel === 'string' && sel.indexOf('marker:') === 0) {
     const key = sel.slice('marker:'.length);
     if (has(markerKeys, key)) return { type: 'marker', key, id: sel };
+  } else if (typeof sel === 'string' && sel.indexOf('vax:') === 0) {
+    const key = sel.slice('vax:'.length);
+    if (has(vaxKeys, key)) return { type: 'vaccine', key, id: sel };
   } else if (sel && has(reportKeys, sel)) {
     return { type: 'report', key: sel, id: sel };
   }
@@ -215,11 +220,13 @@ function bodyRightPage({ sel, reportKeys, markerKeys, premium, newestKey }) {
 // BK-10, folding: what the one-column My Body shows. An open add/edit vaccine sheet wins
 // (its typed values are carried over); then the item the user chose on the right page:
 // a test or marker opens its detail with "‹ back", Dose accumulation is pushed as today.
-// A default nobody chose changes nothing.
+// A default nobody chose changes nothing. A vaccine opens the vaccine journal with "‹ back"
+// (the phone has no read page; a tap there opens the sheet, as today).
 function bodyFoldPlan({ sel, explicit, vaxSheetOpen }) {
   if (vaxSheetOpen) return { section: 'vaccines', detail: null };
   if (!explicit || !sel) return null;
   if (sel === 'curve') return { section: null, detail: null, push: 'SerumCurve' };
+  if (sel.indexOf('vax:') === 0) return { section: 'vaccines', detail: null };
   if (sel.indexOf('marker:') === 0) return { section: 'labs', detail: { type: 'marker', key: sel.slice('marker:'.length) } };
   return { section: 'labs', detail: { type: 'report', key: sel } };
 }
@@ -230,6 +237,14 @@ function bodyUnfoldSel({ section, detail }) {
   if (detail.type === 'report') return detail.key;
   if (detail.type === 'marker') return 'marker:' + detail.key;
   return null;
+}
+
+// BK-18: the chosen vaccine is gone from a fresh list (deleted from its sheet, or by sync), so
+// the choice is dropped and the right page goes back to the default (the newest test).
+function staleVaccineSel(sel, list) {
+  if (typeof sel !== 'string' || sel.indexOf('vax:') !== 0) return false;
+  const id = sel.slice('vax:'.length);
+  return !(list || []).some(v => String(v.id) === id);
 }
 
 export default function BodyScreen({ navigation, route }) {
@@ -367,11 +382,26 @@ export default function BodyScreen({ navigation, route }) {
   const { sel, explicit, select } = useBookSelection('Body', defaultSelection('Body', { newestReportKey: newestKey }));
   const reportKeys = useMemo(() => new Set(rows.map(r => r.report_date + '|' + (r.created_at || ''))), [rows]);
   const markerKeys = useMemo(() => new Set(allMarkerSeries.map(x => x.key)), [allMarkerSeries]);
-  const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, premium, newestKey }) : null;
+  const vaxKeys = useMemo(() => new Set(vaccineList.map(v => String(v.id))), [vaccineList]);
+  const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium, newestKey }) : null;
   const bookReport = rightPage?.type === 'report' ? buildReport(rows, rightPage.key) : null;
   const bookMarker = rightPage?.type === 'marker' ? allMarkerSeries.find(x => x.key === rightPage.key) || null : null;
+  const bookVaccine = rightPage?.type === 'vaccine' ? vaccineList.find(v => String(v.id) === rightPage.key) || null : null;
   function selectReport(key) { if (key !== rightPage?.id) setTagDraft(''); select(key); }
   function selectMarker(key) { select('marker:' + key); }
+  // BK-18: a vaccine tapped on the left page opens its read page on the right.
+  function selectVaccine(v) { select('vax:' + v.id); }
+  // The left page's VaccinesSection hands over every fresh list (after an add, edit, delete or
+  // sync), so the right page shows the saved values and a deleted vaccine falls back.
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  const onVaxList = useCallback((list) => {
+    setVaccineList(list);
+    if (staleVaccineSel(selRef.current, list)) clearSelection('Body');
+  }, []);
+  // The right page's Edit opens today's add/edit sheet, in the left page's VaccinesSection.
+  const vaxControl = useRef(null);
+  function editVaccine(v) { if (vaxControl.current) vaxControl.current.openEdit(v); }
 
   // BK-10: an open add/edit vaccine sheet is carried over a fold/unfold (VaccinesSection
   // keeps its typed values in this ref while it is re-mounted on the other layout).
@@ -901,13 +931,15 @@ export default function BodyScreen({ navigation, route }) {
     );
   }
 
-  function renderReportDetail(reportDetail) {
+  // `inBook`: on the right page the date title is a header, the first thing the screen
+  // reader reaches there (BK-21). The phone screen is unchanged.
+  function renderReportDetail(reportDetail, inBook) {
     return (
       /* ONE TEST (prototype reportScreen): date as the title, its labels, every value
          (tap to edit), and deleting the whole upload. */
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
-          <Text style={s.screenTitle}>{formatDate(reportDetail.date)}</Text>
+          <Text style={s.screenTitle} accessibilityRole={inBook ? 'header' : undefined}>{formatDate(reportDetail.date)}</Text>
           <Text style={[s.sec, s.tnum]}>{reportDetail.markers.length} {t('blood_markers')}</Text>
         </View>
 
@@ -967,7 +999,7 @@ export default function BodyScreen({ navigation, route }) {
           {withStar ? (
             /* Book right page: no nav row, so the favorite star sits beside the title. */
             <View style={s.titleRow}>
-              <Text style={[s.screenTitle, s.grow]}>{markerDetail.marker}</Text>
+              <Text style={[s.screenTitle, s.grow]} accessibilityRole="header">{markerDetail.marker}</Text>
               <TouchableOpacity
                 style={s.starBtnLg}
                 onPress={() => toggleFavorite(markerDetail.marker)}
@@ -1223,7 +1255,15 @@ export default function BodyScreen({ navigation, route }) {
         {renderJournalBody(true)}
 
         <View style={s.bookSection}>
-          <VaccinesSection inline draftRef={vaxDraft} onSheetChange={setVaxSheetOpen} />
+          <VaccinesSection
+            inline
+            draftRef={vaxDraft}
+            onSheetChange={setVaxSheetOpen}
+            onSelect={selectVaccine}
+            selectedId={rightPage?.type === 'vaccine' ? rightPage.key : null}
+            onListChange={onVaxList}
+            controlRef={vaxControl}
+          />
         </View>
 
         <View style={s.bookSection}>
@@ -1236,7 +1276,8 @@ export default function BodyScreen({ navigation, route }) {
 
   function renderBookRight() {
     if (rightPage?.type === 'curve') return <SerumCurveScreen embedded />;
-    if (bookReport) return renderReportDetail(bookReport);
+    if (bookVaccine) return <VaccinePage vaccine={bookVaccine} onEdit={() => editVaccine(bookVaccine)} />;
+    if (bookReport) return renderReportDetail(bookReport, true);
     if (bookMarker) return renderMarkerDetail(bookMarker, bookChartWidth, true);
     if (loading || rows.length > 0) return null;
     // No test yet: the right page shows what the upload reads (the left page has the upload).

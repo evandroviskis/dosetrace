@@ -11,6 +11,7 @@ const { parse } = require('@babel/parser');
 const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
 const BODY = read('screens', 'BodyScreen.js');
 const VAX = read('screens', 'components', 'VaccinesSection.js');
+const VPAGE = read('screens', 'components', 'VaccinePage.js');
 const ast = (src) => parse(src, { sourceType: 'module', plugins: ['jsx'] });
 
 function walk(node, ancestors, visit) {
@@ -43,9 +44,11 @@ const isIdent = (n, name) => n && n.type === 'Identifier' && n.name === name;
 
 // The pure rules, run as written in BodyScreen.js.
 const pure = new Function(
-  ['newestReportKey', 'buildReport', 'bodyRightPage', 'bodyFoldPlan', 'bodyUnfoldSel'].map((f) => findFn(BODY, f).code).join('\n')
-  + '\nreturn { newestReportKey, buildReport, bodyRightPage, bodyFoldPlan, bodyUnfoldSel };',
+  ['newestReportKey', 'buildReport', 'bodyRightPage', 'bodyFoldPlan', 'bodyUnfoldSel', 'staleVaccineSel'].map((f) => findFn(BODY, f).code).join('\n')
+  + '\nreturn { newestReportKey, buildReport, bodyRightPage, bodyFoldPlan, bodyUnfoldSel, staleVaccineSel };',
 )();
+// The vaccine read page's row rule, run as written in VaccinePage.js.
+const vaccineRows = new Function(`${findFn(VPAGE, 'vaccineRows').code}\nreturn vaccineRows;`)();
 
 const ROWS = [
   { id: 1, report_date: '2026-07-01', created_at: '2026-07-02T10:00:00Z', marker: 'Testosterone', value: 600, unit: 'ng/dL' },
@@ -134,7 +137,7 @@ function runDose({ premium, book }) {
 test('BK-6: Dose accumulation stays reachable from the left page and opens the Curve on the right (Premium)', () => {
   const left = findFn(BODY, 'renderBookLeft').code;
   assert.match(left, /\{renderDoseCard\(rightPage\?\.type === 'curve'\)\}/, 'the Dose accumulation row is on the left page');
-  assert.match(left, /<VaccinesSection inline draftRef=\{vaxDraft\} onSheetChange=\{setVaxSheetOpen\} \/>/, 'the vaccines are on the left page');
+  assert.match(left, /<VaccinesSection\s+inline\s+draftRef=\{vaxDraft\}\s+onSheetChange=\{setVaxSheetOpen\}\s+onSelect=\{selectVaccine\}\s+selectedId=\{rightPage\?\.type === 'vaccine' \? rightPage\.key : null\}\s+onListChange=\{onVaxList\}\s+controlRef=\{vaxControl\}\s+\/>/, 'the vaccines are on the left page');
   assert.match(left, /onPress=\{handleUploadPress\}/, '+ Upload on the left page');
   assert.match(left, /onPress=\{handleExport\}/, 'Export on the left page');
   assert.match(left, /\{renderJournalBody\(true\)\}/, 'the By date / By marker journal with search and sort');
@@ -217,17 +220,18 @@ test('BK-10: sheets keep their typed values across a fold/unfold', () => {
 });
 
 test('BK-2: on a phone the vaccine journal keeps its own scroll; inline only inside the book page', () => {
-  assert.match(VAX, /export default function VaccinesSection\(\{ inline = false, draftRef = null, onSheetChange = null \} = \{\}\)/);
+  assert.match(VAX, /export default function VaccinesSection\(\{ inline = false, draftRef = null, onSheetChange = null, onSelect = null, selectedId = null, onListChange = null, controlRef = null \} = \{\}\)/);
   const js = findFn(VAX, 'JournalScroll').code;
   assert.match(js, /if \(inline\) return <View style=\{s\.inlineList\}>\{children\}<\/View>;/);
   assert.match(js, /<ScrollView showsVerticalScrollIndicator=\{false\} style=\{s\.scroll\} contentContainerStyle=\{\[s\.centered, s\.scrollPad\]\} keyboardShouldPersistTaps="handled">/);
-  // A tapped vaccine opens its sheet, on a phone and in the book (no read-only vaccine view exists).
-  assert.match(VAX, /onPress=\{\(\) => openEdit\(v\)\}/);
+  // A tapped vaccine opens its sheet on a phone (no onSelect); in the book it opens the read
+  // page on the right (BK-18, below).
+  assert.match(VAX, /onPress=\{\(\) => \(onSelect \? onSelect\(v\) : openEdit\(v\)\)\}/);
 });
 
 test('BK-12: theme tokens only, no emoji, no new strings', () => {
   const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-  for (const [name, src] of [['BodyScreen', BODY], ['VaccinesSection', VAX]]) {
+  for (const [name, src] of [['BodyScreen', BODY], ['VaccinesSection', VAX], ['VaccinePage', VPAGE]]) {
     const code = strip(src);
     assert.doesNotMatch(code, /#[0-9a-fA-F]{3,8}\b|'white'|'black'|rgba?\(/, `${name}: theme tokens only`);
     assert.doesNotMatch(code, /\p{Extended_Pictographic}/u, `${name}: no emoji`);
@@ -240,5 +244,156 @@ test('BK-12: theme tokens only, no emoji, no new strings', () => {
   for (const k of keys) {
     const n = (tr.match(new RegExp(`\\n\\s+${k}: `, 'g')) || []).length;
     assert.ok(n >= 6, `${k} exists in all 6 languages (found ${n})`);
+  }
+});
+
+// ── BK-18 (founder decision 6): a tapped vaccine opens a read page on the right ──────────────
+
+const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
+const TR = read('i18n', 'translations.js');
+// Every `key:` line of i18n/translations.js (one per language block).
+const keyCount = (k) => (TR.match(new RegExp(`\\n\\s+${k}: `, 'g')) || []).length;
+
+test('BK-18: the read page shows only the filled rows, in the sheet order, with the sheet\'s labels', () => {
+  const full = {
+    id: 7, name: 'Hepatitis B', date_given: '2026-03-02', next_due: '2026-09-02', manufacturer: 'GSK',
+    dose_number: 2, batch_lot: 'FF1234', provider: 'City Clinic', location: 'left arm', notes: 'sore arm for a day',
+  };
+  assert.deepEqual(vaccineRows(full).map((r) => r.label), [
+    'vax_date_given', 'vax_next_due', 'vax_manufacturer', 'vax_dose_number', 'vax_batch_lot', 'vax_provider', 'vax_location', 'vax_notes',
+  ]);
+  assert.deepEqual(vaccineRows(full).find((r) => r.label === 'vax_dose_number'), { label: 'vax_dose_number', value: '2', date: false, long: false });
+  assert.equal(vaccineRows(full).find((r) => r.label === 'vax_date_given').date, true, 'dates are formatted by the page');
+  assert.equal(vaccineRows(full).find((r) => r.label === 'vax_notes').long, true, 'notes stack under their label');
+
+  // A hand-added vaccine with only a name and date: one row, nothing empty shown.
+  const bare = { id: 8, name: 'Tetanus', date_given: '2026-01-10', next_due: null, manufacturer: '', dose_number: null, batch_lot: '  ', provider: undefined, location: null, notes: '' };
+  assert.deepEqual(vaccineRows(bare), [{ label: 'vax_date_given', value: '2026-01-10', date: true, long: false }]);
+  assert.deepEqual(vaccineRows({ id: 9, name: 'X' }), [], 'name only: no rows (the name is the title)');
+  assert.deepEqual(vaccineRows(null), []);
+  assert.equal(vaccineRows({ name: 'Y', dose_number: 0 }).length, 1, 'a dose number of 0 is a value');
+
+  // Every label is an existing key the vaccine section already shows, in all 6 languages.
+  const labels = [...findFn(VPAGE, 'vaccineRows').code.matchAll(/label: '([a-z_]+)'/g)].map((m) => m[1]);
+  assert.equal(labels.length, 8);
+  for (const k of labels) {
+    assert.match(VAX, new RegExp(`t\\('${k}'\\)`), `${k} is a label the vaccine section already shows`);
+    assert.equal(keyCount(k), LANGS.length, `${k} in all 6 languages`);
+  }
+  const pageKeys = [...VPAGE.matchAll(/\bt\('([a-z0-9_]+)'\)/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(pageKeys)].sort(), ['protocols_edit', 'vax_disclaimer']);
+  for (const k of pageKeys) assert.equal(keyCount(k), LANGS.length, `${k} in all 6 languages`);
+  assert.match(VPAGE, /<Text style=\{s\.editBtnText\}>\{t\('protocols_edit'\)\}<\/Text>/, 'the Edit capsule uses the protocol screen\'s Edit key');
+  assert.match(VPAGE, /\{rows\.length > 0 && \(/, 'no empty list card when nothing is filled');
+});
+
+test('BK-18: the vaccine is the right page; its key is the vaccine id; a deleted vaccine falls back to the newest test', () => {
+  const reportKeys = new Set(ROWS.map(keyOf));
+  const newestKey = pure.newestReportKey(ROWS);
+  const vaxKeys = new Set(['7', '8']);
+  const page = (sel, keys = vaxKeys) => pure.bodyRightPage({ sel, reportKeys, markerKeys: new Set(), vaxKeys: keys, premium: true, newestKey });
+  assert.deepEqual(page('vax:7'), { type: 'vaccine', key: '7', id: 'vax:7' });
+  assert.deepEqual(page('vax:99'), { type: 'report', key: newestKey, id: newestKey }, 'unknown: the default (newest test)');
+  assert.deepEqual(page('vax:7', new Set(['8'])), { type: 'report', key: newestKey, id: newestKey }, 'deleted from the sheet: fallback');
+  assert.deepEqual(pure.bodyRightPage({ sel: 'vax:7', reportKeys: new Set(), markerKeys: new Set(), vaxKeys, premium: false, newestKey: null }),
+    { type: 'vaccine', key: '7', id: 'vax:7' }, 'a vaccine opens even before any lab test exists');
+
+  // The chosen vaccine is dropped when a fresh list no longer has it.
+  assert.equal(pure.staleVaccineSel('vax:7', [{ id: 7 }, { id: 8 }]), false);
+  assert.equal(pure.staleVaccineSel('vax:7', [{ id: 8 }]), true);
+  assert.equal(pure.staleVaccineSel('vax:7', []), true);
+  assert.equal(pure.staleVaccineSel('2026-09-20|t', []), false, 'a test choice is never touched');
+  assert.equal(pure.staleVaccineSel(null, []), false);
+
+  // Wiring: ids as strings, the read page from the same list, the fallback clears the choice.
+  assert.match(BODY, /const vaxKeys = useMemo\(\(\) => new Set\(vaccineList\.map\(v => String\(v\.id\)\)\), \[vaccineList\]\);/);
+  assert.match(BODY, /bodyRightPage\(\{ sel, reportKeys, markerKeys, vaxKeys, premium, newestKey \}\)/);
+  assert.match(BODY, /const bookVaccine = rightPage\?\.type === 'vaccine' \? vaccineList\.find\(v => String\(v\.id\) === rightPage\.key\) \|\| null : null;/);
+  assert.match(BODY, /function selectVaccine\(v\) \{ select\('vax:' \+ v\.id\); \}/);
+  assert.match(BODY, /if \(staleVaccineSel\(selRef\.current, list\)\) clearSelection\('Body'\);/);
+  const right = findFn(BODY, 'renderBookRight').code;
+  assert.match(right, /if \(bookVaccine\) return <VaccinePage vaccine=\{bookVaccine\} onEdit=\{\(\) => editVaccine\(bookVaccine\)\} \/>;/);
+  assert.match(BODY, /import VaccinePage from '\.\/components\/VaccinePage';/);
+  // The section hands over every fresh list (after add, edit, delete, scan or focus).
+  const fetchList = findFn(VAX, 'fetchList').code;
+  assert.match(fetchList, /const next = getVaccines\(user\.id\) \|\| \[\];\s*\n\s*setList\(next\);\s*\n\s*if \(onListChange\) onListChange\(next\);/);
+  for (const f of ['save', 'removeVaccine', 'persistVaccines']) assert.match(findFn(VAX, f).code, /fetchList\(\);/, `${f} refreshes the list`);
+});
+
+test('BK-18: Edit on the read page opens today\'s add/edit sheet for that vaccine', () => {
+  // VaccinePage: the capsule calls onEdit.
+  assert.match(VPAGE, /<TouchableOpacity style=\{s\.editBtn\} onPress=\{onEdit\} accessibilityRole="button">/);
+  // BodyScreen: onEdit goes to the left page's VaccinesSection, run as written.
+  const code = findFn(BODY, 'editVaccine').code;
+  const opened = [];
+  const vaxControl = { current: { openEdit: (v) => opened.push(v) } };
+  new Function('vaxControl', `${code}\nreturn editVaccine;`)(vaxControl)({ id: 7, name: 'Hepatitis B' });
+  assert.deepEqual(opened, [{ id: 7, name: 'Hepatitis B' }]);
+  assert.doesNotThrow(() => new Function('vaxControl', `${code}\nreturn editVaccine;`)({ current: null })({ id: 7 }), 'no sheet mounted: nothing happens');
+  // VaccinesSection exposes its own openEdit, the one the phone tap uses: it fills the fields
+  // from the vaccine and opens the same add/edit Modal (titled Edit vaccine).
+  assert.match(VAX, /controlRef\.current = \{ openEdit \};\s*\n\s*return \(\) => \{ controlRef\.current = null; \};/);
+  const openEdit = findFn(VAX, 'openEdit').code;
+  assert.match(openEdit, /setEditingId\(v\.id\);/);
+  assert.match(openEdit, /setModalOpen\(true\);/);
+  assert.match(VAX, /<Modal visible=\{modalOpen\} animationType="slide" presentationStyle="pageSheet"/);
+  assert.match(VAX, /\{editingId \? t\('vax_edit_title'\) : t\('vax_add_title'\)\}/);
+  // Only the book instance gets the control; the right page only exists in the book.
+  assert.equal((BODY.match(/controlRef=\{vaxControl\}/g) || []).length, 1);
+});
+
+test('BK-18/BK-2: the phone keeps today\'s tap-to-edit; no read page or selection on the phone path', () => {
+  const panes = jsxByName(BODY, 'BookPanes');
+  const cond = [...panes[0].anc].reverse().find((a) => a.type === 'ConditionalExpression');
+  const phone = BODY.slice(cond.alternate.start, cond.alternate.end);
+  assert.match(phone, /<VaccinesSection draftRef=\{vaxDraft\} onSheetChange=\{setVaxSheetOpen\} \/>/, 'phone instance: no onSelect, no selection, no control');
+  assert.doesNotMatch(phone, /VaccinePage|onSelect|selectedId|selectVaccine|controlRef/);
+  // Without onSelect a tap opens the sheet and no selected state is reported.
+  assert.match(VAX, /onPress=\{\(\) => \(onSelect \? onSelect\(v\) : openEdit\(v\)\)\}/);
+  assert.match(VAX, /const selected = !!onSelect && selectedId != null && String\(v\.id\) === String\(selectedId\);/);
+  assert.match(VAX, /accessibilityState=\{onSelect \? \{ selected \} : undefined\}/);
+  // Folding with a vaccine open shows the vaccine journal with "‹ back" (no read page on a
+  // phone); unfolding from there keeps the right page's choice.
+  assert.deepEqual(pure.bodyFoldPlan({ sel: 'vax:7', explicit: true }), { section: 'vaccines', detail: null });
+  assert.equal(pure.bodyFoldPlan({ sel: 'vax:7', explicit: false }), null);
+  assert.equal(pure.bodyUnfoldSel({ section: 'vaccines', detail: null }), null);
+});
+
+test('BK-8/BK-21: every selectable left item outlines and reports itself as selected', () => {
+  // Vaccines: the 2 pt ink outline (theme token) on the open one.
+  const selCard = VAX.match(/selCard: \{([^}]*)\}/);
+  assert.ok(selCard);
+  assert.match(selCard[1], /borderWidth: 2/);
+  assert.match(selCard[1], /borderColor: c\.ink\b/);
+  assert.match(VAX, /style=\{\[s\.card, selected && s\.selCard\]\}/);
+  // Test cards, marker rows and the Dose accumulation row report `selected` in the book.
+  const journal = findFn(BODY, 'renderJournalBody').code;
+  assert.match(journal, /accessibilityState=\{inBook \? \{ selected: rightPage\?\.type === 'report' && rightPage\.key === key \} : undefined\}/);
+  assert.match(journal, /accessibilityState=\{inBook \? \{ selected: rightPage\?\.type === 'marker' && rightPage\.key === mk\.key \} : undefined\}/);
+  assert.match(findFn(BODY, 'renderDoseCard').code, /accessibilityState=\{book \? \{ selected: !!selected \} : undefined\}/);
+});
+
+// The first JSX element child of a JSX element (whitespace text skipped).
+const elKids = (el) => el.children.filter((c) => c.type === 'JSXElement');
+const attr = (el, name) => el.openingElement.attributes.find((a) => a.name && a.name.name === name);
+
+test('BK-21: the right page\'s title is the first focusable element (a header)', () => {
+  // Vaccine read page: ScrollView, then the title row, then the name, before the Edit capsule.
+  const sv = jsxByName(VPAGE, 'ScrollView')[0].n;
+  const row = elKids(sv)[0];
+  assert.equal(VPAGE.slice(attr(row, 'style').value.start, attr(row, 'style').value.end), '{s.titleRow}');
+  const [title, edit] = elKids(row);
+  assert.equal(title.openingElement.name.name, 'Text');
+  assert.equal(attr(title, 'accessibilityRole').value.value, 'header');
+  assert.match(VPAGE.slice(title.start, title.end), /\{vaccine\.name\}/);
+  assert.equal(edit.openingElement.name.name, 'TouchableOpacity', 'Edit comes after the title');
+  // Lab test and marker on the right page: the title is a header there (the phone is unchanged).
+  assert.match(findFn(BODY, 'renderReportDetail').code, /<Text style=\{s\.screenTitle\} accessibilityRole=\{inBook \? 'header' : undefined\}>\{formatDate\(reportDetail\.date\)\}<\/Text>/);
+  assert.match(findFn(BODY, 'renderBookRight').code, /renderReportDetail\(bookReport, true\)/);
+  assert.match(findFn(BODY, 'renderMarkerDetail').code, /<Text style=\{\[s\.screenTitle, s\.grow\]\} accessibilityRole="header">\{markerDetail\.marker\}<\/Text>/);
+  // Each detail's title block comes before anything tappable.
+  for (const f of ['renderReportDetail', 'renderMarkerDetail']) {
+    const code = findFn(BODY, f).code;
+    assert.ok(code.indexOf('<View style={s.titleBlock}>') < code.indexOf('<TouchableOpacity'), `${f}: nothing focusable before the title`);
   }
 });

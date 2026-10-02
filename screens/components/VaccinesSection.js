@@ -69,7 +69,12 @@ function todayISO() {
 //     fold or unfold re-lays My Body out, the next VaccinesSection reopens the sheet with
 //     them (BK-10: never lose anything typed).
 //   onSheetChange: tells BodyScreen whether the add/edit sheet is open.
-export default function VaccinesSection({ inline = false, draftRef = null, onSheetChange = null } = {}) {
+//   Book only (BK-18, founder decision 6): onSelect(v) replaces the tap-to-edit, so a tapped
+//     vaccine opens its read page on the right; selectedId gets the 2 pt ink outline (BK-8) and
+//     reports itself as selected (BK-21); onListChange(list) hands every fresh list to
+//     BodyScreen (the right page reads it, and a deleted vaccine falls back); controlRef lets
+//     the right page's Edit open this instance's add/edit sheet. On a phone none is passed.
+export default function VaccinesSection({ inline = false, draftRef = null, onSheetChange = null, onSelect = null, selectedId = null, onListChange = null, controlRef = null } = {}) {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
@@ -109,12 +114,20 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
       : null;
   });
   useEffect(() => { if (onSheetChange) onSheetChange(modalOpen); }, [modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // BK-18: the right page's Edit opens this sheet for its vaccine.
+  useEffect(() => {
+    if (!controlRef) return undefined;
+    controlRef.current = { openEdit };
+    return () => { controlRef.current = null; };
+  });
 
   async function fetchList() {
     setPremium(await hasPremium());
     const user = await getCachedUser();
     if (!user) return;
-    setList(getVaccines(user.id) || []);
+    const next = getVaccines(user.id) || [];
+    setList(next);
+    if (onListChange) onListChange(next);
   }
 
   // ── Scan / upload a card or doctor's sheet ───────────────────────
@@ -394,8 +407,15 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
             v.manufacturer || null,
             v.batch_lot ? `${t('vax_lot_short')} ${v.batch_lot}` : null,
           ].filter(Boolean).join(' · ');
+          const selected = !!onSelect && selectedId != null && String(v.id) === String(selectedId);
           return (
-            <TouchableOpacity key={v.id} style={s.card} activeOpacity={0.7} onPress={() => openEdit(v)}>
+            <TouchableOpacity
+              key={v.id}
+              style={[s.card, selected && s.selCard]}
+              activeOpacity={0.7}
+              onPress={() => (onSelect ? onSelect(v) : openEdit(v))}
+              accessibilityState={onSelect ? { selected } : undefined}
+            >
               <View style={s.cardRow}>
                 <View style={[s.grow, s.col5]}>
                   <Text style={s.title}>{v.name}</Text>
@@ -657,6 +677,8 @@ const makeStyles = (c) => StyleSheet.create({
 
   // cards
   card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+  // book: the vaccine open on the right page, 2 pt ink (BK-8); padding drops by the border.
+  selCard: { borderWidth: 2, borderColor: c.ink, padding: 16 },
   rowCard: { flexDirection: 'row', alignItems: 'center' },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyCard: { alignItems: 'center', paddingTop: 28 },
