@@ -28,3 +28,14 @@ test('rows and the dose sheet use the singular words; the counts keep the plural
   assert.match(src, /\{statusWord\(shownSheet\.outcome\)\}/);
   assert.match(src, /<Text style=\{s\.trioCap\}>\{outcomeLabel\(c\.key\)\}<\/Text>/);
 });
+
+// Founder 2026-10-02 ("troca os outros também"): the counts and the filter bar of the Dose log
+// and Today's Taken fold / take button / dose-page state also stop saying "Taken".
+test('no "Taken" wording left in the counts, the filter and Today (6 languages)', () => {
+  const counts = { en: 'Complete', es: 'Completadas', pt: 'Concluídas', fr: 'Effectuées', de: 'Erledigt', it: 'Completate' };
+  const today = { en: 'Complete', es: 'Completado', pt: 'Concluído', fr: 'Effectué', de: 'Erledigt', it: 'Completato' };
+  for (const l of Object.keys(counts)) {
+    assert.equal(translations[l].log_taken, counts[l], l);
+    assert.equal(translations[l].today_taken, today[l], l);
+  }
+});
