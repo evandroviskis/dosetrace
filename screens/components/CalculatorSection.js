@@ -42,7 +42,8 @@ import {
 } from '../../lib/energyCalc';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
-import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome } from '../../lib/realityCheckRules';
+import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource } from '../../lib/realityCheckRules';
+import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync, notifyDataChanged } from '../../lib/sync';
 import { getDraft, setDraft, clearDraft, keepDraft } from '../../lib/draftStore';
@@ -149,6 +150,12 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [soFarOpen, setSoFarOpen] = useState(false);     // "Your reality check so far" (part 8)
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
   const [foodRows, setFoodRows] = useState([]); // food_logs rows, for the check's run and day list
+  // Calories typed by hand (founder 2026-10-02) and the sources of finished results, from
+  // the synced calc_inputs payload ({ rcTypedKcal, rcResultSources }); re-read each focus.
+  const [rcInputs, setRcInputs] = useState(null);
+  const [kcalDraft] = useState(() => getDraft('progress:rcKcal'));
+  const [kcalOpen, setKcalOpen] = useState(() => !!(kcalDraft && kcalDraft.open));
+  const [kcalText, setKcalText] = useState(() => (kcalDraft && kcalDraft.text) || '');
   const [confirm, setConfirm] = useState(null); // DoseTrace confirm sheet (Start over? / Stop / Remove target / sex)
   // Log today's weight (parts 5-6); its typed values survive a remount like the other forms.
   const [wiDraft] = useState(() => getDraft('progress:todayWeigh'));
@@ -246,6 +253,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // only while the profile has none.
     {
       const savedForBody = await getCalcInputs().catch(() => null);
+      setRcInputs(savedForBody ? { rcTypedKcal: savedForBody.rcTypedKcal ?? null, rcResultSources: savedForBody.rcResultSources ?? null } : null);
       const body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
       setSex(body.sex);
       setProfileSex(body.profileSex);
@@ -325,6 +333,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   useEffect(() => {
     keepDraft('progress:rcWeigh', { then: rcThen, startDate: rcStartDate, thenAuto: rcThenAuto.current });
   }, [rcThen, rcStartDate]);
+  useEffect(() => {
+    keepDraft('progress:rcKcal', kcalText ? { text: kcalText, open: kcalOpen } : null);
+  }, [kcalText, kcalOpen]);
   useEffect(() => {
     const typed = wiWeight || wiBf || wiWaist;
     keepDraft('progress:todayWeigh', typed ? { weight: wiWeight, bf: wiBf, waist: wiWaist, open: wiOpen } : null);
@@ -617,16 +628,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }, [rcStart]);
   const rcDayN = rcStart ? Math.min(daysBetween(rcStart.date, todayISO()) + 1, REALITY_CHECK_DAYS) : null;
 
+  // The average per day the user typed for THIS check (founder 2026-10-02), or null.
+  const typedKcal = rcStart ? typedIntakeFor(rcInputs, String(rcStart.date).slice(0, 10)) : null;
   // Where the open check stands (parts 8 / 10): it finishes from the first weigh-in on or
-  // after day 21 and the food log's 7-day run (lib/realityCheckRules checkOutcome).
+  // after day 21 and the intake — the food log's 7-day run, else the typed average; both
+  // present: the food run, and the typed value is kept (lib/realityCheckRules checkOutcome).
   const outcome = useMemo(
-    () => checkOutcome({ start: rcStart, snapshots, run: foodRun, todayISO: todayISO(), days: REALITY_CHECK_DAYS }),
-    [rcStart, snapshots, foodRun],
+    () => checkOutcome({ start: rcStart, snapshots, run: foodRun, typedKcal, todayISO: todayISO(), days: REALITY_CHECK_DAYS }),
+    [rcStart, snapshots, foodRun, typedKcal],
   );
   const outcomeResult = useMemo(() => {
     if (outcome.state !== 'ready') return null;
     const res = realityCheckTDEE({ avgDailyCalories: outcome.avgDailyCalories, weightChangeKg: outcome.weightChangeKg, days: outcome.days });
-    return { ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg: outcome.weightChangeKg, days: outcome.days }), weighIn: outcome.weighIn };
+    return { ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg: outcome.weightChangeKg, days: outcome.days }), weighIn: outcome.weighIn, source: outcome.source };
   }, [outcome]);
   // A finished check is saved once and closed — only for someone who may see the result
   // (FL-41: a free user after the free days keeps the check open until Premium or Stop).
@@ -749,11 +763,36 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     requestSync?.();
     setRealityLog(getRealityChecks(uid).map(rcRowToUI));
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    // Which intake this result used (food log or the typed average), kept next to it in the
+    // synced calc_inputs payload; a typed value is never removed by finishing.
+    const srcPatch = resultSourcePatch(res.weighIn.date, res.source);
+    setRcInputs(prev => mergeCalcInputs(prev, srcPatch));
+    await saveCalcInputs(srcPatch).catch(() => {});
     setRcStart(null);
     await clearRealityStart();
     calcChanged();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
+  }
+
+  // Calories typed by hand (founder 2026-10-02): one average per day for the open check,
+  // changeable or clearable until the check finishes (a saved result is never rewritten).
+  function openTypedKcal() {
+    if (!rcStart || checkSaved) return;
+    if (!kcalText && typedKcal != null) setKcalText(String(typedKcal));
+    setKcalOpen(true);
+  }
+  function closeTypedKcal() { setKcalOpen(false); }
+  const kcalParsed = parseTypedKcal(kcalText);
+  async function saveTypedKcal(kcal) {
+    if (!rcStart || checkSaved) { setKcalOpen(false); return; } // the check closed meanwhile: nothing to attach it to
+    const patch = typedIntakePatch(String(rcStart.date).slice(0, 10), kcal);
+    setRcInputs(prev => mergeCalcInputs(prev, patch));
+    setKcalText('');
+    setKcalOpen(false);
+    clearDraft('progress:rcKcal');
+    await saveCalcInputs(patch).catch(() => {});
+    calcChanged();
   }
 
   // Weekly rate → display units, absolute value (sign drives the label).
@@ -1191,13 +1230,20 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {outcomeResult && outcomeResult.status !== 'ok' ? (
         <Text style={s.sec2}>{t(`cal_rc_${outcomeResult.status}`)}</Text>
       ) : foodRun && foodRun.ok ? (
-        <Text style={[s.sec2, s.tnum]}>{t('nutri_run_summary').replace('{avg}', fmtInt(foodRun.avgKcal)).replace('{d}', String(foodRun.days))}</Text>
+        <>
+          <Text style={[s.sec2, s.tnum]}>{t('nutri_run_summary').replace('{avg}', fmtInt(foodRun.avgKcal)).replace('{d}', String(foodRun.days))}</Text>
+          {typedKcal != null ? <Text style={[s.foot2, s.tnum]}>{t('cal_rc_kcal_both').replace('{kcal}', fmtInt(typedKcal))}</Text> : null}
+        </>
+      ) : typedKcal != null ? (
+        <Text style={[s.sec2, s.tnum]}>{t('cal_rc_kcal_typed').replace('{kcal}', fmtInt(typedKcal))}</Text>
       ) : (
         <Text style={[s.sec2, s.tnum]}>{t('nutri_run_progress').replace('{n}', String(Math.min(foodRun ? foodRun.current : 0, MIN_RUN_DAYS)))}</Text>
       )}
     </>
   ) : null;
   const soFarEmpty = !!soFar && soFar.rows.every(r => r.state !== 'food');
+  // The intake the newest result used; none for a result saved before sources were kept.
+  const latestSource = realityLog.length ? resultSource(rcInputs, realityLog[realityLog.length - 1].date) : null;
   const rcEl = (
     <View key="rc" style={s.card}>
       {rcHead}
@@ -1218,6 +1264,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         // Part 8: in progress — no fold to open; Start over / Stop always in view.
         <>
           {rcStatusLines}
+          <TouchableOpacity onPress={openTypedKcal} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.linkU}>{typedKcal != null ? t('cal_rc_kcal_change') : t('cal_rc_kcal_link')}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.foldRow} activeOpacity={0.7} onPress={() => setSoFarOpen(o => !o)} accessibilityRole="button" accessibilityState={{ expanded: soFarOpen }}>
             <Text style={[s.body, s.grow]}>{t('nutri_check_label')}</Text>
             <FoldChevron open={soFarOpen} color={colors.ink3} />
@@ -1255,6 +1304,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         // Part 10: the result as a sentence, the checks over time, and the next check.
         <>
           <Text style={[s.body, s.tnum]}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{fmtInt(round10(scoreCheck.tdee))} {t('cal_kcal')}/{t('cal_day')}</Text>.</Text>
+          {latestSource ? (
+            <Text style={s.foot2}>{t(latestSource === 'typed' ? 'cal_rc_src_typed' : 'cal_rc_src_food')}</Text>
+          ) : null}
           <View style={s.gap6}>
             <Text style={s.cap2}>{t('cal_rc_log_title')}</Text>
             {[...realityLog].reverse().map((c) => (
@@ -1418,6 +1470,30 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <Text style={s.btnPText}>{t('cal_rc_start_btn')}</Text>
         </TouchableOpacity>
         <Text style={s.foot2}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+      </SheetModal>
+
+      {/* Reality check typed calories (founder 2026-10-02: keep typing the calories by hand). */}
+      <SheetModal visible={kcalOpen} onClose={closeTypedKcal} s={s}>
+        <View style={s.sheetHead}>
+          <TouchableOpacity onPress={closeTypedKcal} style={s.sheetSide} accessibilityRole="button">
+            <Text style={s.txtBtn}>{t('cancel')}</Text>
+          </TouchableOpacity>
+          <Text style={s.sheetTitle} numberOfLines={2}>{t('cal_rc_kcal_title')}</Text>
+          <View style={s.sheetSide} />
+        </View>
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_rc_kcal_field')} ({t('cal_kcal')})</Text>
+          <TextInput style={s.input} value={kcalText} onChangeText={setKcalText} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+        </View>
+        <Text style={s.foot2}>{t('cal_rc_kcal_hint')}</Text>
+        <TouchableOpacity style={[s.btnP, kcalParsed == null && s.btnDim]} onPress={() => saveTypedKcal(kcalParsed)} disabled={kcalParsed == null} accessibilityRole="button" accessibilityState={{ disabled: kcalParsed == null }}>
+          <Text style={s.btnPText}>{t('save')}</Text>
+        </TouchableOpacity>
+        {typedKcal != null ? (
+          <TouchableOpacity onPress={() => saveTypedKcal(null)} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.linkU}>{t('cal_rc_kcal_clear')}</Text>
+          </TouchableOpacity>
+        ) : null}
       </SheetModal>
 
       {/* Add a past weigh-in (part 13, prototype pastSheet). */}
