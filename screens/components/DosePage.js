@@ -113,10 +113,9 @@ export default function DosePage({
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
               <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
             </View>
-            {draw.exceedsSyringe ? (
+            <SyringeScale units={Number(draw.drawUnits)} size={syringeSize} width={scaleW} />
+            {draw.exceedsSyringe && (
               <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeSize))}</Text>
-            ) : (
-              <SyringeScale units={Number(draw.drawUnits)} size={syringeSize} width={scaleW} />
             )}
           </View>
         )}

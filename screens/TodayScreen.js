@@ -1645,10 +1645,9 @@ export default function TodayScreen() {
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
               <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {draw.drawML} ml</Text></Text>
             </View>
-            {draw.exceedsSyringe ? (
+            <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
+            {draw.exceedsSyringe && (
               <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syr))}</Text>
-            ) : (
-              <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             )}
           </View>
         )}

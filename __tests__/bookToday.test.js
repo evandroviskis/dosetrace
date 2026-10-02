@@ -396,9 +396,10 @@ test('BK-3: DosePage draws the same SyringeScale as the Today card', () => {
   const [{ n }] = jsx(doseAst, 'SyringeScale');
   assert.equal(code(DOSE, attr(n, 'units').value.expression), 'Number(draw.drawUnits)');
   assert.equal(code(DOSE, attr(n, 'size').value.expression), 'syringeSize');
-  // Same guards as the card: only with a draw, no unit mismatch, warning when over capacity.
+  // Same guards as the card: only with a draw, no unit mismatch; over capacity the syringe
+  // stays drawn (in risk, Today redesign part 6) and the warning follows it.
   assert.match(DOSE, /draw && draw\.drawUnits && !draw\.unitMismatch/);
-  assert.match(DOSE, /draw\.exceedsSyringe \?/);
+  assert.match(DOSE, /\{draw\.exceedsSyringe && \(/);
   assert.match(DOSE, /t\('protocols_syringe_draw_to'\)/);
 });
 

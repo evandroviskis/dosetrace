@@ -329,11 +329,10 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
             {draw.drawUnits}<Text style={s.drawBigUnit}> {t('protocols_syringe_units')}</Text>
           </Text>
         </View>
-        {over ? (
+        {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
+        {over && (
           <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeMax))}</Text>
-        ) : drawW > 0 ? (
-          <SyringeScale units={units} size={syringeMax} width={drawW - 28} />
-        ) : null}
+        )}
         <View style={s.hintRow}>
           <FeatureIcon name="search" size={14} color={c.ink2} />
           <Text style={s.hintText}>{t('protocols_syringe_zoom_hint')}</Text>
@@ -1915,7 +1914,6 @@ export default function ProtocolsScreen() {
   // Add step 3: the live result sits under the fields it depends on and appears only
   // once it can be computed (founder 2026-09-29).
   const [liveW, setLiveW] = useState(0);
-  const overCap = drawUnits != null && Number(drawUnits) > syringeSize;
   const showLiveDraw = type !== 'oral' && !unitMismatch && !!drawML && (drawValid || drawExceedsSyringe);
   const wizServing = type === 'oral'
     ? computeServings({
@@ -2498,7 +2496,7 @@ export default function ProtocolsScreen() {
                         {drawUnits}<Text style={s.drawBigUnit}> {t('protocols_units')}</Text>
                       </Text>
                     </View>
-                    {!overCap && liveW > 0 && (
+                    {liveW > 0 && (
                       <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
                     )}
                     <Text style={s.liveMl}>{drawML} ml</Text>
