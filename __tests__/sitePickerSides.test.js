@@ -122,3 +122,16 @@ test('bug: the site picker copy is translated (no hard-coded English PROPOSED_CO
     assert.match(translations[l].bodymap_used_n_days, /\{days\}/, l);
   }
 });
+
+// Sim check 2026-10-02 (dark): the area rows sit on the well-coloured list, so a well track
+// vanished and the three parts read as loose words. On a well surface the bar's track is the
+// ground colour, so the bar shows as one bar in both themes.
+test('area-row bar shows its track on the well-coloured list (onWell → ground track)', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const bar = fs.readFileSync(path.join(__dirname, '..', 'components', 'SegmentedBar.js'), 'utf8');
+  const map = fs.readFileSync(path.join(__dirname, '..', 'screens', 'components', 'BodyMapModal.js'), 'utf8');
+  require('node:assert/strict').match(bar, /trackOnWell: \{ backgroundColor: c\.ground \}/);
+  const rowBar = map.slice(map.indexOf('<SegmentedBar', map.indexOf('<SegmentedBar', map.indexOf('<SegmentedBar') + 1) + 1));
+  require('node:assert/strict').match(rowBar.slice(0, 600), /onWell/);
+});

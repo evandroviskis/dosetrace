@@ -330,6 +330,7 @@ export default function BodyMapModal({
                   <View key={row.area} style={[s.row, i > 0 && s.rowLine]}>
                     <Text style={s.rowText}>{areaLabel(row.area)}</Text>
                     <SegmentedBar
+                      onWell
                       compact
                       allowDeselect
                       style={s.sideBar}

@@ -10,6 +10,8 @@
 //   onChange:       (key | null) => void — called on every tap (the tap rule: lib/segmented.js)
 //   allowDeselect:  tapping the chosen segment clears it (onChange(null))
 //   compact:        38 pt / 14 pt, for a bar inside a list row (site picker areas)
+//   onWell:         the bar sits on a well-coloured surface: the track takes the ground colour
+//                   so it still reads as one bar (site picker list, both themes)
 //   accessibilityLabel, style: for the track
 // A segment with hint: true (e.g. "longest unused in your log") gets a dashed outline.
 import { useMemo } from 'react';
@@ -17,17 +19,17 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../lib/theme';
 import { segmentNext } from '../lib/segmented';
 
-export default function SegmentedBar({ items, value, onChange, allowDeselect = false, compact = false, accessibilityLabel, style }) {
+export default function SegmentedBar({ items, value, onChange, allowDeselect = false, compact = false, onWell = false, accessibilityLabel, style }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View style={[s.track, style]} accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel}>
+    <View style={[s.track, onWell && s.trackOnWell, style]} accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel}>
       {(items || []).map((it) => {
         const on = value != null && value === it.key;
         return (
           <TouchableOpacity
             key={String(it.key)}
-            style={[s.item, compact && s.itemCompact, it.hint && !on && s.itemHint, on && s.itemOn]}
+            style={[s.item, onWell && s.itemOnWell, compact && s.itemCompact, it.hint && !on && s.itemHint, on && s.itemOn]}
             onPress={() => onChange && onChange(segmentNext(value, it.key, allowDeselect))}
             accessibilityRole="radio"
             accessibilityState={{ selected: on, checked: on }}
@@ -53,6 +55,8 @@ const makeStyles = (c) => StyleSheet.create({
   // Every segment carries the 1 pt ring (in the track colour when not chosen) so choosing
   // one never shifts the labels.
   item: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: c.well },
+  trackOnWell: { backgroundColor: c.ground },
+  itemOnWell: { borderColor: c.ground },
   itemCompact: { minHeight: 38 },
   itemHint: { borderStyle: 'dashed', borderColor: c.ink2 },
   itemOn: { backgroundColor: c.raised, borderColor: c.line },
