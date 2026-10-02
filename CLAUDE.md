@@ -71,6 +71,20 @@ in-progress reality-check on hello@dosetrace.io).
   update-over-old-version and re-auth on device and confirm previously-entered data is
   still there. This is part of ship-check Gate A/B now.
 
+## Standing rule: SHOW the layout before building it (2026-10-02, founder directive)
+
+The founder decides visual things with his eyes, not from text. Before ANY visual change
+(layout, component, colour, icon, spacing, copy placement), show it as a picture —
+a side-by-side HTML (approved prototype | proposal | app today), both themes — and get
+his pick BEFORE writing code. Never take the shortest path (restyling the old screen)
+when the approved design says rebuild. A text description, a token table, or a
+contrast number is not a visual. If there are options, render each option, not a list.
+Store-owned controls follow the store's own rules 100%: the Apple sign-in button per
+Apple's HIG, the Google button per Google's branding guidelines.
+(Exists because the Graduated redesign shipped as a restyle of the old screens — about
+1,800 differences from the approved prototype — because the layout was never shown
+before building.)
+
 ## Standing rule: "done" = the approved checklist, with evidence (2026-09-27, founder directive)
 
 Every founder-approved feature has a numbered acceptance checklist in `docs/specs/`

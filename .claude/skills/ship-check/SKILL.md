@@ -26,9 +26,12 @@ any of them — the owner has explicitly accepted the cost.
 3. **Always ASK the owner to test** — in the iOS Simulator and/or on their physical
    phone(s) — BEFORE any build is uploaded. Especially Apple. Do not upload on your
    own judgment.
-4. **No more direct "make it live" App Store submissions.** TestFlight ONLY (and the
-   Android internal-testing track) until the owner confirms NO flaws remain. A build
-   is promoted to App Store review only after the owner has tested it and said so.
+4. **Release path (founder directive 2026-10-02, supersedes the old TestFlight-only rule):**
+   until the founder says DoseTrace has its first real customer, every approved build goes
+   straight to App Store review + Play production at full rollout, with no TestFlight /
+   internal-track round first. Do NOT try to detect customers (downloads don't tell);
+   only the founder declares it. Every other gate (dt-council, ship-check, the founder's
+   go, the both-theme pass) is unchanged.
 
 ---
 
@@ -97,15 +100,10 @@ These are hard-won. Violating one silently breaks multiple flows at once.
 
 ## GATE C — Release path (before ANY App Store / Play submission)
 
-**TestFlight / internal-testing ONLY (Hard rule #4).** No direct "submit to App
-Store review" / "make it live" until the owner has installed the build, tested it,
-and confirmed NO flaws remain. Order every release this way:
-
-> build → Claude verifies in the Simulator (screenshots to owner) → **TestFlight**
-> (iOS) / **internal track** (Android) → **owner tests on their real phone** →
-> owner says "clean" → ONLY THEN promote to store review.
-
-Never skip a rung. If the owner hasn't confirmed, the build does not go to review.
+**Straight to the stores (Hard rule #4, founder 2026-10-02).** Until the founder
+declares the first real customer: build → Claude verifies in the Simulator in both
+themes (screenshots to owner) → founder says go → submit to App Store review + Play
+production at full rollout. No TestFlight / internal round as a default.
 
 **Store-requirement parity** — check BOTH platforms together, they must stay symmetric.
 
