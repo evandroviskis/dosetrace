@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,10 @@ import Svg, { Path, Rect, Circle, Line, Polyline, G } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
 import VaccinesSection from './components/VaccinesSection';
 import CheckMark, { CrossMark } from '../components/CheckMark';
+import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
+import { defaultSelection, paneWidths } from '../lib/bookLayout';
+import { clearSelection } from '../lib/bookSelection';
+import SerumCurveScreen from './SerumCurveScreen';
 
 // Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
 // language as the tab-bar icons in App.js, replacing the old mismatched emoji.
@@ -170,12 +174,72 @@ function validateExtraction(data) {
   return { markers, reportDate, droppedCount, dateFallback };
 }
 
+// S-26 book layout, My Body (docs/specs/book-layout.md BK-6, BK-10). Pure and self-contained
+// so __tests__/bookBody.test.js can run them. Right-page ids: a lab test = its upload key
+// (report_date + '|' + created_at, the same key as the journal cards), a marker =
+// 'marker:' + its canonical key, Dose accumulation = 'curve'.
+
+// The newest test = the first card of the By date list, newest first (the default page).
+function newestReportKey(rows) {
+  let best = null;
+  for (const r of rows || []) {
+    const c = r.created_at || '';
+    if (!best || r.report_date > best.d || (r.report_date === best.d && c > best.c)) best = { d: r.report_date, c };
+  }
+  return best ? best.d + '|' + best.c : null;
+}
+
+// Every value of one upload, from ALL rows (not the search-filtered list).
+function buildReport(rows, key) {
+  const markers = (rows || []).filter(r => r.report_date + '|' + (r.created_at || '') === key);
+  if (!markers.length) return null;
+  return { key, date: markers[0].report_date, createdAt: markers[0].created_at || '', markers };
+}
+
+// What the right page shows. A chosen test or marker that no longer exists (deleted,
+// renamed) falls back to the newest test; Dose accumulation only for Premium.
+function bodyRightPage({ sel, reportKeys, markerKeys, premium, newestKey }) {
+  const has = (keys, k) => (keys && typeof keys.has === 'function' ? keys.has(k) : Array.isArray(keys) && keys.includes(k));
+  if (sel === 'curve') {
+    if (premium) return { type: 'curve', id: 'curve' };
+  } else if (typeof sel === 'string' && sel.indexOf('marker:') === 0) {
+    const key = sel.slice('marker:'.length);
+    if (has(markerKeys, key)) return { type: 'marker', key, id: sel };
+  } else if (sel && has(reportKeys, sel)) {
+    return { type: 'report', key: sel, id: sel };
+  }
+  if (newestKey && has(reportKeys, newestKey)) return { type: 'report', key: newestKey, id: newestKey };
+  return null;
+}
+
+// BK-10, folding: what the one-column My Body shows. An open add/edit vaccine sheet wins
+// (its typed values are carried over); then the item the user chose on the right page:
+// a test or marker opens its detail with "‹ back", Dose accumulation is pushed as today.
+// A default nobody chose changes nothing.
+function bodyFoldPlan({ sel, explicit, vaxSheetOpen }) {
+  if (vaxSheetOpen) return { section: 'vaccines', detail: null };
+  if (!explicit || !sel) return null;
+  if (sel === 'curve') return { section: null, detail: null, push: 'SerumCurve' };
+  if (sel.indexOf('marker:') === 0) return { section: 'labs', detail: { type: 'marker', key: sel.slice('marker:'.length) } };
+  return { section: 'labs', detail: { type: 'report', key: sel } };
+}
+
+// BK-10, unfolding: a test or marker open in the one-column journal moves onto the right page.
+function bodyUnfoldSel({ section, detail }) {
+  if (section !== 'labs' || !detail) return null;
+  if (detail.type === 'report') return detail.key;
+  if (detail.type === 'marker') return 'marker:' + detail.key;
+  return null;
+}
+
 export default function BodyScreen({ navigation, route }) {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   // Chart width: screen minus the scroll gutter (16×2) and the card padding (18×2).
   const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 36;
+  // Book layout: the marker chart sized on the right page (BK-9: two equal pages).
+  const bookChartWidth = Math.min(paneWidths(windowWidth).right, CONTENT_MAX_WIDTH) - 32 - 36;
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -279,12 +343,10 @@ export default function BodyScreen({ navigation, route }) {
 
   // The test or marker the user opened. Built from ALL rows (not the search-filtered
   // list), so a test shows every value it holds.
-  const reportDetail = useMemo(() => {
-    if (detail?.type !== 'report') return null;
-    const markers = rows.filter(r => r.report_date + '|' + (r.created_at || '') === detail.key);
-    if (!markers.length) return null;
-    return { key: detail.key, date: markers[0].report_date, createdAt: markers[0].created_at || '', markers };
-  }, [detail, rows]);
+  const reportDetail = useMemo(
+    () => (detail?.type === 'report' ? buildReport(rows, detail.key) : null),
+    [detail, rows],
+  );
   const markerDetail = useMemo(
     () => (detail?.type === 'marker' ? allMarkerSeries.find(x => x.key === detail.key) || null : null),
     [detail, allMarkerSeries],
@@ -296,6 +358,44 @@ export default function BodyScreen({ navigation, route }) {
   }, [loading, detail, reportDetail, markerDetail]);
   function openReport(key) { setTagDraft(''); setDetail({ type: 'report', key }); }
   function openMarker(key) { setDetail({ type: 'marker', key }); }
+
+  // S-26 book layout (BK-6): on an unfolded foldable the journal is the left page and the
+  // tapped test, marker or Dose accumulation opens on the right page. One column (phone,
+  // folded) is exactly the hub → journal → detail flow above (BK-2).
+  const book = useBook();
+  const newestKey = useMemo(() => newestReportKey(rows), [rows]);
+  const { sel, explicit, select } = useBookSelection('Body', defaultSelection('Body', { newestReportKey: newestKey }));
+  const reportKeys = useMemo(() => new Set(rows.map(r => r.report_date + '|' + (r.created_at || ''))), [rows]);
+  const markerKeys = useMemo(() => new Set(allMarkerSeries.map(x => x.key)), [allMarkerSeries]);
+  const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, premium, newestKey }) : null;
+  const bookReport = rightPage?.type === 'report' ? buildReport(rows, rightPage.key) : null;
+  const bookMarker = rightPage?.type === 'marker' ? allMarkerSeries.find(x => x.key === rightPage.key) || null : null;
+  function selectReport(key) { if (key !== rightPage?.id) setTagDraft(''); select(key); }
+  function selectMarker(key) { select('marker:' + key); }
+
+  // BK-10: an open add/edit vaccine sheet is carried over a fold/unfold (VaccinesSection
+  // keeps its typed values in this ref while it is re-mounted on the other layout).
+  const vaxDraft = useRef(null);
+  const [vaxSheetOpen, setVaxSheetOpen] = useState(false);
+
+  // BK-10: folding shows the item the user chose as the phone's detail ("‹ back"); unfolding
+  // with a detail open selects it on the right page. Nothing typed is lost: every sheet of
+  // this screen lives in BodyScreen's own state, outside the layout branch.
+  const wasBook = useRef(book);
+  useEffect(() => {
+    if (wasBook.current === book) return;
+    wasBook.current = book;
+    if (!book) {
+      const plan = bodyFoldPlan({ sel, explicit, vaxSheetOpen });
+      if (!plan) return;
+      setSection(plan.section);
+      setDetail(plan.detail);
+      if (plan.push) navigation.navigate(plan.push);
+    } else {
+      const next = bodyUnfoldSel({ section, detail });
+      if (next) select(next);
+    }
+  }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const UPGRADE_FEATURES = [
     t('blood_upgrade_feat_1'),
@@ -661,6 +761,8 @@ export default function BodyScreen({ navigation, route }) {
             }
             requestSync();
             setDetail(null);
+            // Book layout: the right page goes back to the newest test.
+            if (sel === date + '|' + createdAt) clearSelection('Body');
             fetchReports();
           },
         },
@@ -756,207 +858,166 @@ export default function BodyScreen({ navigation, route }) {
     ? `${vaxCount} ${vaxCount === 1 ? t('body_stat_vaccine') : t('body_stat_vaccines')}`
     : t('body_stat_none');
 
-  return (
-    <SafeAreaView style={s.container}>
-      {section === null ? (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
-          <View style={s.hubHero}>
-            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
-            <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
-          </View>
-          <View style={s.hubBody}>
-            {[
-              { key: 'labs', Glyph: LabsGlyph, bg: colors.well, fg: colors.ink, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
-              { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.well, fg: colors.ink, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
-            ].map(card => (
-              <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
-                <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
-                  <card.Glyph color={card.fg} />
-                </View>
-                <View style={s.hubCardMain}>
-                  <Text style={s.hubCardTitle}>{card.title}</Text>
-                  <Text style={s.hubCardDesc}>{card.desc}</Text>
-                  <Text style={s.hubCardStat}>{card.stat}</Text>
-                </View>
-                <Text style={s.hubCardChevron}>›</Text>
-              </TouchableOpacity>
-            ))}
-
-            {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
-            <TouchableOpacity style={s.hubCard} activeOpacity={0.7} onPress={() => {
-              Analytics.viewed('serum_curve');
-              if (premium) { navigation.navigate('SerumCurve'); return; }
-              // Free: show the value first (an Example curve) before the paywall.
-              Analytics.previewSheetViewed('serum_curve');
-              setShowSerumPreview(true);
-            }}>
-              <View style={[s.hubBadge, { backgroundColor: colors.well }]}>
-                <AccumGlyph color={colors.ink} />
-              </View>
-              <View style={s.hubCardMain}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
-                  {!premium && (
-                    <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: '500', color: colors.ink2, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 9, paddingVertical: 2, borderRadius: 13, overflow: 'hidden' }}>{t('paywall_premium')}</Text>
-                  )}
-                </View>
-                <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
-                <Text style={s.hubCardStat}>{t('curve_title')}</Text>
-              </View>
-              {premium
-                ? <Text style={s.hubCardChevron}>›</Text>
-                : <View style={{ marginLeft: 8 }}><FeatureIcon name="lock" size={18} color={colors.textFaint} /></View>}
-            </TouchableOpacity>
-
-            <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
-            <View style={{ height: 30 }} />
-          </View>
-        </ScrollView>
-      ) : (
-      <>
-      {/* Graduated nav row (prototype labsScreen / reportScreen / markerScreen): back
-          link on the left; Export (text) + the one action, "+ Upload", on the right.
-          The screen title is a large title in the scroll below. */}
-      <View style={s.navRow}>
-        <TouchableOpacity
-          onPress={() => { if (detail) { setDetail(null); return; } setSection(null); fetchReports(); }}
-          hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
-          style={s.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel={t('back')}
-        >
-          <Chevron color={colors.ink} flip />
-          <Text style={s.backText} numberOfLines={1}>{detail ? t('body_card_labs_title') : t('tab_body')}</Text>
-        </TouchableOpacity>
-        <View style={s.headerActions}>
-          {!detail && (section === 'labs' || section === 'vaccines') && (
-            <TouchableOpacity style={s.txtBtn} onPress={handleExport} disabled={exporting} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              {exporting ? (
-                <ActivityIndicator size="small" color={colors.ink} />
-              ) : (
-                <>
-                  <FeatureIcon name="arrow_up" size={16} color={colors.ink} />
-                  <Text style={s.txtBtnText}>{t('export_records')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-          {!detail && section === 'labs' && (
-            <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
-              <Text style={s.addBtnText}>{t('blood_upload')}</Text>
-            </TouchableOpacity>
-          )}
-          {detail?.type === 'marker' && markerDetail && (
-            <TouchableOpacity
-              style={s.starBtnLg}
-              onPress={() => toggleFavorite(markerDetail.marker)}
-              accessibilityRole="button"
-              accessibilityLabel={t('blood_favorites')}
-              accessibilityState={{ selected: markerDetail.isFav }}
-            >
-              <StarGlyph color={markerDetail.isFav ? colors.ink : colors.ink2} filled={markerDetail.isFav} size={24} />
-            </TouchableOpacity>
-          )}
+  // Dose accumulation (educational estimate, Premium-only). Phone: the Curve is pushed, as
+  // today. Book: the Curve opens on the right page (BK-6). Free users keep today's preview
+  // sheet, then the full-screen Paywall (BK-11).
+  function openDoseAccumulation() {
+    Analytics.viewed('serum_curve');
+    if (premium) {
+      if (book) { select('curve'); return; }
+      navigation.navigate('SerumCurve');
+      return;
+    }
+    // Free: show the value first (an Example curve) before the paywall.
+    Analytics.previewSheetViewed('serum_curve');
+    setShowSerumPreview(true);
+  }
+  // `selected`: the book's left page outlines the open item in ink (BK-8).
+  function renderDoseCard(selected) {
+    return (
+      <TouchableOpacity
+        style={[s.hubCard, selected && s.selCard]}
+        activeOpacity={0.7}
+        onPress={openDoseAccumulation}
+        accessibilityState={book ? { selected: !!selected } : undefined}
+      >
+        <View style={[s.hubBadge, { backgroundColor: colors.well }]}>
+          <AccumGlyph color={colors.ink} />
         </View>
-      </View>
-
-      {section === 'vaccines' ? (
-        <VaccinesSection />
-      ) : detail?.type === 'report' && reportDetail ? (
-        /* ONE TEST (prototype reportScreen): date as the title, its labels, every value
-           (tap to edit), and deleting the whole upload. */
-        <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
-          <View style={s.titleBlock}>
-            <Text style={s.screenTitle}>{formatDate(reportDetail.date)}</Text>
-            <Text style={[s.sec, s.tnum]}>{reportDetail.markers.length} {t('blood_markers')}</Text>
-          </View>
-
-          <View style={s.card}>
-            <Text style={s.head}>{t('blood_tags_title')}</Text>
-            {(reportTags[reportDetail.date] || []).length > 0 && (
-              <View style={s.chips}>
-                {(reportTags[reportDetail.date] || []).map((tg, k) => (
-                  <TouchableOpacity key={k} style={s.tagPill} onPress={() => removeReportTag(reportDetail.date, tg)} accessibilityRole="button">
-                    <Text style={s.tagPillText}>{tg}</Text>
-                    <CrossMark size={14} color={colors.ink} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            <View style={s.tagInputRow}>
-              <TextInput
-                style={[s.input, s.grow]}
-                placeholder={t('blood_tag_ph')}
-                placeholderTextColor={colors.ink3}
-                value={tagDraft}
-                onChangeText={setTagDraft}
-                onSubmitEditing={() => addReportTag(reportDetail.date)}
-                returnKeyType="done"
-                autoCapitalize="none"
-              />
-              <TouchableOpacity style={[s.btnO, s.btnSm]} onPress={() => addReportTag(reportDetail.date)}>
-                <Text style={[s.btnOText, s.btnSmText]}>{t('blood_tag_add')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={s.list}>
-            {reportDetail.markers.map((m, j) => (
-              <TouchableOpacity key={m.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(m)}>
-                <Text style={[s.body, s.grow]}>{m.marker}</Text>
-                <Text style={s.value}>{m.value} {m.unit}</Text>
-                <PenGlyph color={colors.ink3} />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity style={s.dangerBtn} onPress={() => deleteReport(reportDetail.date, reportDetail.createdAt)}>
-            <Text style={s.dangerText}>{t('blood_report_delete')}</Text>
-          </TouchableOpacity>
-          <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
-        </ScrollView>
-      ) : detail?.type === 'marker' && markerDetail ? (
-        /* ONE MARKER (prototype markerScreen): the latest value as the number, the
-           user's readings charted (no ranges, no good/bad colors), every reading. */
-        <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
-          <View style={s.titleBlock}>
-            <Text style={s.screenTitle}>{markerDetail.marker}</Text>
-          </View>
-
-          <View style={s.card}>
-            <Text style={[s.foot, s.tnum]}>{formatDate(markerDetail.latest.date)}</Text>
-            <Text style={s.display} accessibilityLabel={`${markerDetail.latest.value} ${markerDetail.unit}`}>
-              {markerDetail.latest.value}
-              {markerDetail.unit ? <Text style={s.unit}> {markerDetail.unit}</Text> : null}
-            </Text>
-            <Text style={[s.foot, s.tnum]}>
-              {markerDetail.points.length} {markerDetail.points.length === 1 ? t('blood_reading') : t('blood_readings')}
-            </Text>
-            {markerDetail.points.length >= 2 ? (
-              <MarkerChart points={markerDetail.points} unit={markerDetail.unit} locale={locale} width={CHART_WIDTH} />
-            ) : (
-              <Text style={s.sec}>{t('blood_need_more')}</Text>
+        <View style={s.hubCardMain}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={s.hubCardTitle}>{t('body_card_dosing_title')}</Text>
+            {!premium && (
+              <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: '500', color: colors.ink2, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 9, paddingVertical: 2, borderRadius: 13, overflow: 'hidden' }}>{t('paywall_premium')}</Text>
             )}
           </View>
+          <Text style={s.hubCardDesc}>{t('body_card_dosing_desc')}</Text>
+          <Text style={s.hubCardStat}>{t('curve_title')}</Text>
+        </View>
+        {premium
+          ? <Text style={s.hubCardChevron}>›</Text>
+          : <View style={{ marginLeft: 8 }}><FeatureIcon name="lock" size={18} color={colors.textFaint} /></View>}
+      </TouchableOpacity>
+    );
+  }
 
-          <View style={s.list}>
-            {markerDetail.points.slice().reverse().map((p, j) => (
-              <TouchableOpacity key={p.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(p)}>
-                <Text style={[s.body, s.grow, s.tnum]}>{formatDate(p.date)}</Text>
-                <Text style={s.value}>{p.value} {p.unit}</Text>
-                <PenGlyph color={colors.ink3} />
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
-        </ScrollView>
-      ) : (
-      /* LAB TEST JOURNAL (prototype labsScreen) */
+  function renderReportDetail(reportDetail) {
+    return (
+      /* ONE TEST (prototype reportScreen): date as the title, its labels, every value
+         (tap to edit), and deleting the whole upload. */
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
-          <Text style={s.screenTitle}>{t('body_card_labs_title')}</Text>
+          <Text style={s.screenTitle}>{formatDate(reportDetail.date)}</Text>
+          <Text style={[s.sec, s.tnum]}>{reportDetail.markers.length} {t('blood_markers')}</Text>
         </View>
 
+        <View style={s.card}>
+          <Text style={s.head}>{t('blood_tags_title')}</Text>
+          {(reportTags[reportDetail.date] || []).length > 0 && (
+            <View style={s.chips}>
+              {(reportTags[reportDetail.date] || []).map((tg, k) => (
+                <TouchableOpacity key={k} style={s.tagPill} onPress={() => removeReportTag(reportDetail.date, tg)} accessibilityRole="button">
+                  <Text style={s.tagPillText}>{tg}</Text>
+                  <CrossMark size={14} color={colors.ink} strokeWidth={1.8} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          <View style={s.tagInputRow}>
+            <TextInput
+              style={[s.input, s.grow]}
+              placeholder={t('blood_tag_ph')}
+              placeholderTextColor={colors.ink3}
+              value={tagDraft}
+              onChangeText={setTagDraft}
+              onSubmitEditing={() => addReportTag(reportDetail.date)}
+              returnKeyType="done"
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={[s.btnO, s.btnSm]} onPress={() => addReportTag(reportDetail.date)}>
+              <Text style={[s.btnOText, s.btnSmText]}>{t('blood_tag_add')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={s.list}>
+          {reportDetail.markers.map((m, j) => (
+            <TouchableOpacity key={m.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(m)}>
+              <Text style={[s.body, s.grow]}>{m.marker}</Text>
+              <Text style={s.value}>{m.value} {m.unit}</Text>
+              <PenGlyph color={colors.ink3} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity style={s.dangerBtn} onPress={() => deleteReport(reportDetail.date, reportDetail.createdAt)}>
+          <Text style={s.dangerText}>{t('blood_report_delete')}</Text>
+        </TouchableOpacity>
+        <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
+      </ScrollView>
+    );
+  }
+
+  function renderMarkerDetail(markerDetail, chartWidth, withStar) {
+    return (
+      /* ONE MARKER (prototype markerScreen): the latest value as the number, the
+         user's readings charted (no ranges, no good/bad colors), every reading. */
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+        <View style={s.titleBlock}>
+          {withStar ? (
+            /* Book right page: no nav row, so the favorite star sits beside the title. */
+            <View style={s.titleRow}>
+              <Text style={[s.screenTitle, s.grow]}>{markerDetail.marker}</Text>
+              <TouchableOpacity
+                style={s.starBtnLg}
+                onPress={() => toggleFavorite(markerDetail.marker)}
+                accessibilityRole="button"
+                accessibilityLabel={t('blood_favorites')}
+                accessibilityState={{ selected: markerDetail.isFav }}
+              >
+                <StarGlyph color={markerDetail.isFav ? colors.ink : colors.ink2} filled={markerDetail.isFav} size={24} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={s.screenTitle}>{markerDetail.marker}</Text>
+          )}
+        </View>
+
+        <View style={s.card}>
+          <Text style={[s.foot, s.tnum]}>{formatDate(markerDetail.latest.date)}</Text>
+          <Text style={s.display} accessibilityLabel={`${markerDetail.latest.value} ${markerDetail.unit}`}>
+            {markerDetail.latest.value}
+            {markerDetail.unit ? <Text style={s.unit}> {markerDetail.unit}</Text> : null}
+          </Text>
+          <Text style={[s.foot, s.tnum]}>
+            {markerDetail.points.length} {markerDetail.points.length === 1 ? t('blood_reading') : t('blood_readings')}
+          </Text>
+          {markerDetail.points.length >= 2 ? (
+            <MarkerChart points={markerDetail.points} unit={markerDetail.unit} locale={locale} width={chartWidth} />
+          ) : (
+            <Text style={s.sec}>{t('blood_need_more')}</Text>
+          )}
+        </View>
+
+        <View style={s.list}>
+          {markerDetail.points.slice().reverse().map((p, j) => (
+            <TouchableOpacity key={p.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(p)}>
+              <Text style={[s.body, s.grow, s.tnum]}>{formatDate(p.date)}</Text>
+              <Text style={s.value}>{p.value} {p.unit}</Text>
+              <PenGlyph color={colors.ink3} />
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
+      </ScrollView>
+    );
+  }
+
+  // The Lab test journal under its title: on the phone's journal screen, and on the book's
+  // left page (`inBook`: a tap opens the right page and the open item has an ink outline).
+  function renderJournalBody(inBook) {
+    return (
+      <>
         {uploading && (
           <View style={[s.card, s.rowCard]}>
             <ActivityIndicator size="small" color={colors.ink} />
@@ -990,17 +1051,7 @@ export default function BodyScreen({ navigation, route }) {
                 <Text style={s.btnPText}>{t('blood_upload_report')}</Text>
               </TouchableOpacity>
             </View>
-            <View style={s.card}>
-              <Text style={s.head}>{t('blood_what_we_read')}</Text>
-              <View style={s.names}>
-                {[t('blood_tip_1'), t('blood_tip_2'), t('blood_tip_3'), t('blood_tip_4'), t('blood_tip_5')].map((tip, i) => (
-                  <View key={i} style={s.tipRow}>
-                    <View style={s.tipDot} />
-                    <Text style={[s.sec, s.grow]}>{tip}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+            {!inBook && renderTips()}
           </>
         )}
 
@@ -1063,7 +1114,13 @@ export default function BodyScreen({ navigation, route }) {
             )}
 
             {viewMode === 'date' && reports.map(({ key, date, markers }) => (
-              <TouchableOpacity key={key} style={s.card} activeOpacity={0.7} onPress={() => openReport(key)}>
+              <TouchableOpacity
+                key={key}
+                style={[s.card, inBook && rightPage?.type === 'report' && rightPage.key === key && s.selCard]}
+                activeOpacity={0.7}
+                onPress={() => (inBook ? selectReport(key) : openReport(key))}
+                accessibilityState={inBook ? { selected: rightPage?.type === 'report' && rightPage.key === key } : undefined}
+              >
                 <View style={s.cardRow}>
                   <View style={[s.grow, s.col6]}>
                     <Text style={s.title}>{formatDate(date)}</Text>
@@ -1084,7 +1141,12 @@ export default function BodyScreen({ navigation, route }) {
             {viewMode === 'marker' && markerSeries.length > 0 && (
               <View style={s.list}>
                 {markerSeries.map((mk, i) => (
-                  <TouchableOpacity key={mk.key} style={[s.li, i > 0 && s.liLine]} onPress={() => openMarker(mk.key)}>
+                  <TouchableOpacity
+                    key={mk.key}
+                    style={[s.li, i > 0 && s.liLine, inBook && rightPage?.type === 'marker' && rightPage.key === mk.key && s.selLi]}
+                    onPress={() => (inBook ? selectMarker(mk.key) : openMarker(mk.key))}
+                    accessibilityState={inBook ? { selected: rightPage?.type === 'marker' && rightPage.key === mk.key } : undefined}
+                  >
                     <TouchableOpacity
                       style={s.starBtn}
                       onPress={() => toggleFavorite(mk.marker)}
@@ -1109,6 +1171,179 @@ export default function BodyScreen({ navigation, route }) {
             )}
           </>
         )}
+      </>
+    );
+  }
+
+  function renderTips() {
+    return (
+      <View style={s.card}>
+        <Text style={s.head}>{t('blood_what_we_read')}</Text>
+        <View style={s.names}>
+          {[t('blood_tip_1'), t('blood_tip_2'), t('blood_tip_3'), t('blood_tip_4'), t('blood_tip_5')].map((tip, i) => (
+            <View key={i} style={s.tipRow}>
+              <View style={s.tipDot} />
+              <Text style={[s.sec, s.grow]}>{tip}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  // BOOK (S-26 BK-6): left page = the hub's title, the Lab test journal (+ Upload, Export,
+  // By date / By marker, search, sort), the Vaccine journal and the Dose accumulation row;
+  // right page = the open test, marker or the Curve. Each page scrolls on its own.
+  function renderBookLeft() {
+    return (
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+        <View style={s.bookHero}>
+          <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+          <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+        </View>
+
+        <View style={s.titleBlock}>
+          <Text style={s.screenTitle}>{t('body_card_labs_title')}</Text>
+        </View>
+        <View style={s.bookActions}>
+          <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
+            <Text style={s.addBtnText}>{t('blood_upload')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.txtBtn} onPress={handleExport} disabled={exporting} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            {exporting ? (
+              <ActivityIndicator size="small" color={colors.ink} />
+            ) : (
+              <>
+                <FeatureIcon name="arrow_up" size={16} color={colors.ink} />
+                <Text style={s.txtBtnText}>{t('export_records')}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+        {renderJournalBody(true)}
+
+        <View style={s.bookSection}>
+          <VaccinesSection inline draftRef={vaxDraft} onSheetChange={setVaxSheetOpen} />
+        </View>
+
+        <View style={s.bookSection}>
+          {renderDoseCard(rightPage?.type === 'curve')}
+          <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  function renderBookRight() {
+    if (rightPage?.type === 'curve') return <SerumCurveScreen embedded />;
+    if (bookReport) return renderReportDetail(bookReport);
+    if (bookMarker) return renderMarkerDetail(bookMarker, bookChartWidth, true);
+    if (loading || rows.length > 0) return null;
+    // No test yet: the right page shows what the upload reads (the left page has the upload).
+    return (
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+        {renderTips()}
+      </ScrollView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={s.container}>
+      {book ? (
+        <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage ? rightPage.id : 'none'} />
+      ) : section === null ? (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+          <View style={s.hubHero}>
+            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+            <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+          </View>
+          <View style={s.hubBody}>
+            {[
+              { key: 'labs', Glyph: LabsGlyph, bg: colors.well, fg: colors.ink, title: t('body_card_labs_title'), desc: t('body_card_labs_desc'), stat: labStat },
+              { key: 'vaccines', Glyph: VaccinesGlyph, bg: colors.well, fg: colors.ink, title: t('body_card_vax_title'), desc: t('body_card_vax_desc'), stat: vaxStat },
+            ].map(card => (
+              <TouchableOpacity key={card.key} style={s.hubCard} activeOpacity={0.7} onPress={() => { Analytics.viewed({ labs: 'labs', vaccines: 'vaccines', calc: 'calculator' }[card.key] || card.key); setSection(card.key); }}>
+                <View style={[s.hubBadge, { backgroundColor: card.bg }]}>
+                  <card.Glyph color={card.fg} />
+                </View>
+                <View style={s.hubCardMain}>
+                  <Text style={s.hubCardTitle}>{card.title}</Text>
+                  <Text style={s.hubCardDesc}>{card.desc}</Text>
+                  <Text style={s.hubCardStat}>{card.stat}</Text>
+                </View>
+                <Text style={s.hubCardChevron}>›</Text>
+              </TouchableOpacity>
+            ))}
+
+            {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
+            {renderDoseCard(false)}
+
+            <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
+            <View style={{ height: 30 }} />
+          </View>
+        </ScrollView>
+      ) : (
+      <>
+      {/* Graduated nav row (prototype labsScreen / reportScreen / markerScreen): back
+          link on the left; Export (text) + the one action, "+ Upload", on the right.
+          The screen title is a large title in the scroll below. */}
+      <View style={s.navRow}>
+        <TouchableOpacity
+          onPress={() => { if (detail) { setDetail(null); return; } setSection(null); fetchReports(); }}
+          hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+          style={s.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t('back')}
+        >
+          <Chevron color={colors.ink} flip />
+          <Text style={s.backText} numberOfLines={1}>{detail ? t('body_card_labs_title') : t('tab_body')}</Text>
+        </TouchableOpacity>
+        <View style={s.headerActions}>
+          {!detail && (section === 'labs' || section === 'vaccines') && (
+            <TouchableOpacity style={s.txtBtn} onPress={handleExport} disabled={exporting} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              {exporting ? (
+                <ActivityIndicator size="small" color={colors.ink} />
+              ) : (
+                <>
+                  <FeatureIcon name="arrow_up" size={16} color={colors.ink} />
+                  <Text style={s.txtBtnText}>{t('export_records')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          {!detail && section === 'labs' && (
+            <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
+              <Text style={s.addBtnText}>{t('blood_upload')}</Text>
+            </TouchableOpacity>
+          )}
+          {detail?.type === 'marker' && markerDetail && (
+            <TouchableOpacity
+              style={s.starBtnLg}
+              onPress={() => toggleFavorite(markerDetail.marker)}
+              accessibilityRole="button"
+              accessibilityLabel={t('blood_favorites')}
+              accessibilityState={{ selected: markerDetail.isFav }}
+            >
+              <StarGlyph color={markerDetail.isFav ? colors.ink : colors.ink2} filled={markerDetail.isFav} size={24} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {section === 'vaccines' ? (
+        <VaccinesSection draftRef={vaxDraft} onSheetChange={setVaxSheetOpen} />
+      ) : detail?.type === 'report' && reportDetail ? (
+        renderReportDetail(reportDetail)
+      ) : detail?.type === 'marker' && markerDetail ? (
+        renderMarkerDetail(markerDetail, CHART_WIDTH, false)
+      ) : (
+      /* LAB TEST JOURNAL (prototype labsScreen) */
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+        <View style={s.titleBlock}>
+          <Text style={s.screenTitle}>{t('body_card_labs_title')}</Text>
+        </View>
+
+        {renderJournalBody(false)}
       </ScrollView>
       )}
       </>
@@ -1461,6 +1696,14 @@ const labsGraduated = (c) => ({
   addBtn: { backgroundColor: c.act, paddingHorizontal: 16, minHeight: 40, borderRadius: 20, justifyContent: 'center' },
   addBtnText: { color: c.onAct, fontSize: 15, fontWeight: '700' },
   starBtnLg: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // book layout (S-26): the left page's hero, actions and sections; the open item outlined
+  // in ink, 2 pt (BK-8). Padding drops by the border so nothing shifts.
+  bookHero: { paddingHorizontal: 4, paddingTop: 8, paddingBottom: 6 },
+  bookActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
+  bookSection: { marginTop: 18 },
+  selCard: { borderWidth: 2, borderColor: c.ink, padding: 16 },
+  selLi: { borderWidth: 2, borderColor: c.ink, borderTopWidth: 2, borderTopColor: c.ink, borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 8 },
   scroll: { flex: 1 },
   scrollPad: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
   titleBlock: { paddingHorizontal: 4, paddingBottom: 2, gap: 4 },
