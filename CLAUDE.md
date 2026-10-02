@@ -153,7 +153,7 @@ Emoji in any user-facing screen is a bug. Use `components/FeatureIcon.js` (the f
 
 ## Definition of DONE (per change)
 
-- `npm test` green (the one known failure is `docs/research/bmr-calculator/reference/energy.test.ts` — pre-existing, ignore ONLY that one).
+- `npm test` fully green — no known failures (the research energy test was fixed 2026-10-02).
 - `npx expo export --platform ios` completes (the authoritative bundle check for anything non-trivial).
 - i18n edits keep all 6 languages in parity (the parity test must pass).
 - **Auth / session / sync / delete changes** → ship-check GATE B + a code-review pass over the diff + the founder tests on device before any upload. `onAuthStateChange` stays synchronous (no `await`/`supabase.*` inline — it deadlocks the session).
