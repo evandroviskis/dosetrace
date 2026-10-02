@@ -264,7 +264,7 @@ test('BK-19: CalculatorSection announces every saved calculator change (notifyDa
 test('BK-19: Journey refreshes the tiles on a calculator change or a finished sync, while mounted', () => {
   const src = journey();
   assert.match(src, /import \{ addSyncListener \} from '\.\.\/lib\/sync';/);
-  assert.match(src, /useEffect\(\(\) => addSyncListener\(\(e\) => \{\s*if \(tilesNeedRefresh\(e\)\) getCalcInputs\(\)\.then\(setInputs\)\.catch\(\(\) => \{\}\);\s*\}\), \[\]\);/, 'subscribes once, unsubscribes on unmount (addSyncListener returns the unsubscribe)');
+  assert.match(src, /useEffect\(\(\) => addSyncListener\(\(e\) => \{\s*if \(tilesNeedRefresh\(e\)\) loadTile\(\)\.catch\(\(\) => \{\}\);\s*\}\), \[\]\);/, 'subscribes once, unsubscribes on unmount (addSyncListener returns the unsubscribe)');
   const m = src.match(/function tilesNeedRefresh\(e\) \{[\s\S]*?\n\}/);
   assert.ok(m, 'tilesNeedRefresh');
   const tilesNeedRefresh = new Function(`${m[0]}; return tilesNeedRefresh;`)();

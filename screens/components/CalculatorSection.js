@@ -21,7 +21,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
@@ -66,6 +66,7 @@ import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
+import LearnBlock from './LearnBlock';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
@@ -84,17 +85,6 @@ const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
 const round10 = n => Math.round(n / 10) * 10;
 const round5 = n => Math.round(n / 5) * 5;
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
-
-// Published sources for every figure this calculator shows (App Review 1.4.1:
-// health information must cite its sources). Citation text stays in English —
-// the convention for references; the topic label (t(key)) is localized.
-const REFERENCES = [
-  { key: 'cal_src_bmr_mifflin', cite: 'Mifflin & St Jeor et al. — Am J Clin Nutr, 1990', url: 'https://doi.org/10.1093/ajcn/51.2.241' },
-  { key: 'cal_src_bmr_lbm', cite: 'Cunningham — Am J Clin Nutr, 1991', url: 'https://pubmed.ncbi.nlm.nih.gov/1957828/' },
-  { key: 'cal_src_protein', cite: 'Jäger et al. — ISSN Position Stand, 2017', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5477153/' },
-  { key: 'cal_src_glycogen', cite: 'Muscle glycogen & body water — Nutrients, 2023', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9823884/' },
-  { key: 'cal_src_energy', cite: 'Hall — Int J Obes, 2008', url: 'https://www.nature.com/articles/0803720' },
-];
 
 // flushRef (optional): the screen gets a function that writes any pending input now, for its
 // beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
@@ -123,11 +113,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [activity, setActivity] = useState(1.375);
   const [goal, setGoal] = useState('lose');
   const [waist, setWaist] = useState('');
-  const [expl, setExpl] = useState(null);           // which explainer is open
   const [numbersOpen, setNumbersOpen] = useState(null); // "Your numbers" collapse: null = auto (open until there is a plan)
   const [introOpen, setIntroOpen] = useState(false);    // "What this is" inside the daily plan
-  const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
-  const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
   const [rcWeighMsg, setRcWeighMsg] = useState(false);
   const [rcFree, setRcFree] = useState(false); // free 7 days of food log + reality check (FL-41)
@@ -775,15 +762,6 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }, [echoParts, activity, language]);
 
   const toDisplayW = kg => (unit === 'imperial' ? kgToLb(kg) : kg);
-
-  // "What this is" is the first entry of Understand the numbers (journey-dashboard #4).
-  const EXPLAINERS = [
-    { key: 'intro', title: t('cal_intro_title'), body: t('cal_intro_body') },
-    { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
-    { key: 'deficit', title: t('cal_expl_deficit_title'), body: t('cal_expl_deficit_body') },
-    { key: 'measure', title: t('cal_expl_measure_title'), body: t('cal_expl_measure_body') },
-    { key: 'composition', title: t('cal_expl_comp_title'), body: t('cal_expl_comp_body') },
-  ];
 
   // Display helpers (Graduated): weights to one decimal in the display unit.
   const fmtW = kg => (kg == null ? null : (Math.round(toDisplayW(kg) * 10) / 10).toFixed(1));
@@ -1453,49 +1431,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {/* The disclaimer qualifies every number on this screen. */}
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
 
-      {/* Understand the numbers — collapsed by default */}
-      <View style={s.list}>
-        <TouchableOpacity style={s.listHead} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: learnOpen }}>
-          <Text style={[s.head, s.grow]}>{t('cal_learn')}</Text>
-          <Chev dir={learnOpen ? 'up' : 'down'} color={colors.ink3} />
-        </TouchableOpacity>
-        {learnOpen && EXPLAINERS.map(e => (
-          <View key={e.key} style={s.listItem}>
-            <TouchableOpacity style={s.listRow} onPress={() => setExpl(expl === e.key ? null : e.key)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: expl === e.key }}>
-              <Text style={[s.body, s.grow]}>{e.title}</Text>
-              <Chev dir={expl === e.key ? 'up' : 'down'} color={colors.ink3} />
-            </TouchableOpacity>
-            {expl === e.key && <Text style={[s.sec2, s.listBody]}>{e.body}</Text>}
-          </View>
-        ))}
-        {/* Sources & references — collapsed by default (App Review 1.4.1) */}
-        <View style={s.listItem}>
-          <TouchableOpacity style={s.listHead} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: sourcesOpen }}>
-            <Text style={[s.head, s.grow]}>{t('cal_sources_title')}</Text>
-            <Chev dir={sourcesOpen ? 'up' : 'down'} color={colors.ink3} />
-          </TouchableOpacity>
-          {sourcesOpen && (
-            <>
-              <Text style={[s.foot2, s.listBody]}>{t('cal_sources_intro')}</Text>
-              {REFERENCES.map(r => (
-                <TouchableOpacity
-                  key={r.key}
-                  style={s.srcRow}
-                  activeOpacity={0.6}
-                  onPress={() => Linking.openURL(r.url).catch(() => {})}
-                  accessibilityRole="link"
-                >
-                  <View style={[s.grow, s.gap2]}>
-                    <Text style={s.body}>{t(r.key)}</Text>
-                    <Text style={s.foot2}>{r.cite}</Text>
-                  </View>
-                  <ExternalIcon color={colors.ink2} />
-                </TouchableOpacity>
-              ))}
-            </>
-          )}
-        </View>
-      </View>
+      {/* Understand the numbers + Sources & references (shared with the Journey dashboard). */}
+      <LearnBlock />
 
       {/* Your target — edit sheet (prototype tgtSheet). */}
       <SheetModal visible={targetEditing} onClose={closeTarget} s={s}>
@@ -1557,15 +1494,6 @@ function Chev({ dir = 'down', color, size = 16 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path d={CHEV_PATHS[dir]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-// Opens in the browser (prototype's external-link glyph, monoline).
-function ExternalIcon({ color }) {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
-      <Path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }

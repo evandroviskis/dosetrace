@@ -63,7 +63,9 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
   // The 7-days-in-a-row progress the check's intake needs (FL-3).
   const run = state.rcStart ? intakeRun(state.rows, String(state.rcStart.date).slice(0, 10), state.today) : null;
   const runShort = run ? (run.ok ? t('nutri_hero_run_ready').replace('{d}', String(run.days)) : t('nutri_hero_run').replace('{n}', String(Math.min(run.current, MIN_RUN_DAYS)))) : null;
-  const checkLine = policy.show
+  // Journey (redesign part 1, founder 2026-10-02): only the 7-day run; the day of the check
+  // lives on the Progress screen. Today keeps the day of the check + the run.
+  const checkLine = variant === 'journey' ? runShort : policy.show
     ? [policy.weighInDue ? t('nutri_hero_weigh') : t('nutri_hero_day').replace('{n}', String(policy.day)).replace('{total}', String(policy.of)), runShort].filter(Boolean).join(' · ')
     : null;
   const { items, kcal, closed } = state.sum;
@@ -87,7 +89,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
         <Text style={s.title}>{t('nutri_ai_badge')}</Text>
         <RowChevron color={colors.tick} />
       </View>
-      <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
+      <Text style={[s.line, variant === 'journey' && s.lineJourney]}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
       {checkLine && <Text style={s.check}>{checkLine}</Text>}
       {locked && <View style={s.cta}><Text style={s.ctaText}>{t('nutri_locked_cta')}</Text></View>}
     </TouchableOpacity>
@@ -104,6 +106,8 @@ const makeStyles = (c) => StyleSheet.create({
   title: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   // prototype r-title at 19: Geist 700 (set here: the app maps Geist from 22 pt up)
   line: { fontSize: 19, fontFamily: fontFamilyFor('700'), lineHeight: 24, letterSpacing: -0.19, color: c.ink, fontVariant: ['tabular-nums'] },
+  // Journey card (redesign part 1): r-title at 19 in the v4 weight, Geist 600.
+  lineJourney: { fontFamily: fontFamilyFor('600'), letterSpacing: -0.19 },
   check: { fontSize: 15, lineHeight: 20, color: c.ink2, fontVariant: ['tabular-nums'] },
   cta: { alignSelf: 'flex-start', backgroundColor: c.act, borderRadius: 22, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
   ctaText: { color: c.onAct, fontWeight: '700', fontSize: 15 },
