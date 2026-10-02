@@ -8,6 +8,7 @@ import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
+import { vialCells } from '../../lib/todayFormat';
 
 // A button's action runs only after the sheet is gone: presenting the camera, the
 // photo library or another sheet while this one is still animating out fails on iOS.
@@ -131,19 +132,18 @@ export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
   );
 }
 
-// Doses left as cells: one cell per dose, the remaining ones filled in data.
+// Doses left as cells: one cell per dose, the remaining ones filled in data (prototype
+// cells(); geometry in lib/todayFormat.js vialCells, shared by Protocols and Today).
 export function VialCells({ total, left }) {
   const { colors: c } = useTheme();
-  const n = Math.max(0, Math.round(Number(total) || 0));
-  const w = n > 0 ? Math.min(12, Math.floor(150 / n)) : 0;
-  if (!n || w < 5) return null; // too many doses to draw one cell each: the text carries it
-  const l = Math.max(0, Math.min(n, Number(left) || 0));
+  const v = vialCells(total, left);
+  if (!v) return null; // too many doses to draw one cell each: the text carries it
   return (
-    <Svg width={n * w} height={10}>
-      {Array.from({ length: n }).map((_, k) => (
+    <Svg width={v.width} height={10} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {v.cells.map((cell, k) => (
         <Rect
-          key={k} x={k * w + 0.5} y={0.5} width={w - 3} height={9} rx={2}
-          fill={k < l ? c.data : 'none'} stroke={k < l ? c.data : c.tick} strokeWidth={1}
+          key={k} x={cell.x} y={0.5} width={cell.w} height={9} rx={2}
+          fill={cell.filled ? c.data : 'none'} stroke={cell.filled ? c.data : c.tick} strokeWidth={1}
         />
       ))}
     </Svg>

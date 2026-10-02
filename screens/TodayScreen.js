@@ -33,7 +33,7 @@ import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
 import BodyMapModal from './components/BodyMapModal';
 import { describeStored } from '../lib/injectionSites';
-import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, vialCells, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
+import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
 import { dosesPerVial, computeDraw } from '../lib/doseMath';
 import { adherenceRings } from '../lib/adherenceRings';
 import TodayTracker from './components/TodayTracker';
@@ -53,10 +53,11 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import DosePage from './components/DosePage';
+import { DTSheet, VialCells } from './components/ProtocolParts';
 import { planDosePage, cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { displayColor } from '../lib/protocolColors';
 import LogScreen from './LogScreen';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useReducedMotion,
   withTiming, withDelay, withSequence, Easing,
@@ -208,6 +209,8 @@ export default function TodayScreen() {
   // Body map (injection site picker) state
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
   const [bodyMapTarget, setBodyMapTarget] = useState(null); // { q, protocolId, recentLogs, initialStored, mode: 'ask' }
+  const [skipAsk, setSkipAsk] = useState(null); // the "Skip dose?" sheet: { name, onSkip } (part 14)
+  const skipSheetOpenRef = useRef(false);
   const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
 
   // S-26 book layout (BK-16, BK-19, BK-20): the rows the dose page reads (yesterday + today),
@@ -823,13 +826,13 @@ export default function TodayScreen() {
 
   // A popup of Today's own is open (or the vial prompt is about to open).
   function todayPopupBusy() {
-    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current;
+    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current;
   }
 
   async function openNextQuestion() {
     // BK-20: one popup at a time across both pages — also not over the embedded Dose log's
     // site editor; the question waits and opens when that editor closes.
-    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current) return;
+    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current) return;
     const q = siteQueueRef.current.shift();
     if (!q) { runLogPopupWaiter(); return; }
     // Paused / deleted, or already logged (another device, a banner): nothing to ask.
@@ -994,35 +997,36 @@ export default function TodayScreen() {
   // A-78 (founder 2026-10-01): Skip writes the Skipped row of ONE slot — the card's earliest
   // open slot (or the dose page's slot) — stamped at that slot's scheduled time, never the tap
   // time, so a later Mark taken names it (lib/markTaken.js planSkipToday). Never moves supply.
+  // Part 14 (founder 2026-10-02): "Skip dose?" is the DoseTrace sheet (DTSheet), never the
+  // iOS alert; Skip in ink. The write runs once the sheet has closed.
   function skipDose(protocol, slot) {
-    Alert.alert(
-      t('today_skip_title'),
-      t('today_skip_confirm').replace('{name}', protocol.name),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('today_skip'), style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = recordSkipToday(protocol.id, { slotMs: slot ? slot.slotMs : null });
-              if (!res || !res.logId) { fetchTodayLogs(); return; } // that slot already has a row
-              const logId = res.logId;
-              // BK-16: the dose page's Undo of this Skip goes through applyUndo too. A skip
-              // never changes today's Taken count or the supply (todayCount 'none', as the
-              // Pending block's skip); the Undo bar is unchanged (no record shown here).
-              keepUndo({ logId, flipped: false, protocolId: protocol.id, pending: true, extraDeleteIds: [], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null });
-              fetchPageLogs();
-              setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
-              fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
-              Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
-              requestSync();
-            } catch (err) {
-              Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
-            }
-          },
-        },
-      ]
-    );
+    const write = () => {
+      try {
+        const res = recordSkipToday(protocol.id, { slotMs: slot ? slot.slotMs : null });
+        if (!res || !res.logId) { fetchTodayLogs(); return; } // that slot already has a row
+        const logId = res.logId;
+        // BK-16: the dose page's Undo of this Skip goes through applyUndo too. A skip
+        // never changes today's Taken count or the supply (todayCount 'none', as the
+        // Pending block's skip); the Undo bar is unchanged (no record shown here).
+        keepUndo({ logId, flipped: false, protocolId: protocol.id, pending: true, extraDeleteIds: [], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null });
+        fetchPageLogs();
+        setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
+        fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
+        Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
+        requestSync();
+      } catch (err) {
+        Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+      }
+    };
+    skipSheetOpenRef.current = true;
+    setSkipAsk({ name: protocol.name, onSkip: write });
+  }
+
+  // The Skip sheet closed (Cancel, Skip or a tap outside): a site question that waited opens.
+  function closeSkipAsk() {
+    setSkipAsk(null);
+    skipSheetOpenRef.current = false;
+    setTimeout(openNextQuestion, 450);
   }
 
   // BK-20: the embedded Dose log (Today's right page) asks before opening its site editor.
@@ -1681,17 +1685,10 @@ export default function TodayScreen() {
             : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
           const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
           const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
-          // Part 8: one cell per dose (prototype cells()), the remaining ones in data.
-          const vc = remaining != null ? vialCells(capacity, remaining) : null;
           return (
             <View style={s.vialRow}>
-              {vc && (
-                <Svg width={vc.width} height={10} viewBox={`0 0 ${vc.width} 10`} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                  {vc.cells.map((cell, i) => (
-                    <Rect key={i} x={cell.x} y={0.5} width={cell.w} height={9} rx={2} fill={cell.filled ? colors.data : 'none'} stroke={cell.filled ? colors.data : colors.tick} strokeWidth={1} />
-                  ))}
-                </Svg>
-              )}
+              {/* Part 8: one cell per dose (prototype cells()), the remaining ones in data. */}
+              {remaining != null && <VialCells total={capacity} left={remaining} />}
               <Text style={s.vialText}>
                 {t('today_vial_mixed')} {formatVialDate(vial.mixed_on)}
                 {remaining != null ? ` · ${vialRemainingLabel(remaining, t)}` : ''}
@@ -1776,6 +1773,18 @@ export default function TodayScreen() {
       </View>
     );
   }
+
+  // Part 16: the site sheet names the dose's time under its name — the time the dose is
+  // written at (a pending dose: its slot; otherwise the tap, S-25).
+  const siteQ = bodyMapTarget && bodyMapTarget.q;
+  const siteMs = siteQ ? (siteQ.source === 'pending' && Number.isFinite(siteQ.slotMs) ? siteQ.slotMs : siteQ.tapMs) : null;
+  const siteWhen = Number.isFinite(siteMs) ? formatTimeAMPM(new Date(siteMs).toTimeString().slice(0, 5)) : null;
+
+  const skipSheet = skipAsk ? {
+    title: t('today_skip_title'),
+    body: t('today_skip_confirm').replace('{name}', skipAsk.name),
+    buttons: [{ label: t('cancel'), kind: 'secondary' }, { label: t('today_skip'), kind: 'primary', onPress: skipAsk.onSkip }],
+  } : null;
 
   const takenNames = todayTaken.map(l => {
     const pr = protocols.find(x => x.id === l.protocol_id);
@@ -2020,6 +2029,7 @@ export default function TodayScreen() {
         onSave={handleBodyMapSave}
         initialStored={bodyMapTarget?.initialStored || null}
         protocolName={protocols.find(p => p.id === bodyMapTarget?.protocolId)?.name || null}
+        whenLabel={siteWhen}
         protocolId={bodyMapTarget?.protocolId ?? null}
         recentLogs={bodyMapTarget?.recentLogs || []}
       />
@@ -2058,7 +2068,7 @@ export default function TodayScreen() {
                 <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.promptMonthScroll}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={s.promptMonthRow}>
                 {MONTH_KEYS.map((mk, idx) => (
                   <TouchableOpacity
@@ -2076,7 +2086,7 @@ export default function TodayScreen() {
             <TextInput
               style={s.promptDayInput}
               placeholder={t('protocols_day_dd')}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={colors.ink3}
               keyboardType="numeric"
               maxLength={2}
               value={newVialDay}
@@ -2092,7 +2102,7 @@ export default function TodayScreen() {
                 dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
               });
               return cap ? (
-                <Text style={[s.promptLabel, { marginTop: 12 }]}>
+                <Text style={s.promptLabel}>
                   {t('today_vial_new_capacity').replace('{n}', String(cap))}
                 </Text>
               ) : null;
@@ -2138,6 +2148,9 @@ export default function TodayScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Part 14: "Skip dose?" — the DoseTrace sheet. */}
+      <DTSheet config={skipSheet} onClose={closeSkipAsk} />
 
       {/* The dose drop that travels from a "Mark taken" button into the ring. */}
       <Animated.View pointerEvents="none" style={[s.flyDrop, flyStyle]}>
@@ -2276,30 +2289,30 @@ const legacyStyles = (c) => ({
   tipNum: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   tipNumText: { fontSize: 10, color: c.accentText, fontWeight: '600' },
   tipText: { fontSize: 12, color: c.textMuted, flex: 1, lineHeight: 18 },
-  // Vial continuation modal
-  promptOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  promptCard: { backgroundColor: c.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 },
-  promptTitle: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 4 },
-  promptProtocolName: { fontSize: 14, fontWeight: '600', color: c.accent, marginBottom: 6 },
-  promptSub: { fontSize: 13, color: c.textMuted, marginBottom: 20, lineHeight: 19 },
-  promptLabel: { fontSize: 11, color: c.textMuted, marginBottom: 6 },
-  promptMonthScroll: { marginBottom: 8 },
-  promptMonthRow: { flexDirection: 'row', gap: 6 },
-  promptMonthPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  promptMonthPillOn: { backgroundColor: c.accent, borderColor: c.accent },
-  promptMonthText: { fontSize: 11, color: c.textMuted, fontWeight: '500' },
-  promptMonthTextOn: { color: c.accentText, fontWeight: '600' },
-  promptDayInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 10, fontSize: 14, color: c.text, backgroundColor: c.card2, width: 70, textAlign: 'center' },
-  promptDosesInput: { borderWidth: 0.5, borderColor: c.border, borderRadius: 10, padding: 12, fontSize: 14, color: c.text, backgroundColor: c.card2 },
-  promptActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  promptBtnSecondary: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 0.5, borderColor: c.border, alignItems: 'center' },
-  promptBtnSecondaryText: { fontSize: 14, color: c.textMuted },
-  promptBtnPrimary: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.accent, alignItems: 'center' },
-  promptBtnPrimaryText: { fontSize: 14, color: c.accentText, fontWeight: '600' },
+  // Vial continuation + "still going?" pop-ups (Today redesign part 17): the prototype .scrim /
+  // .sheet on Graduated tokens — raised sheet, 22/700 title, 17 ink2 body, 36 pt outline pills,
+  // a raised 50 pt day field, capsule buttons (well secondary, act primary). Same words.
+  promptOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
+  promptCard: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 520 },
+  promptTitle: { fontSize: 22, fontWeight: '700', lineHeight: 28, color: c.ink },
+  promptProtocolName: { fontSize: 17, fontWeight: '600', color: c.ink },
+  promptSub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
+  promptLabel: { fontSize: 17, fontWeight: '600', color: c.ink },
+  promptMonthRow: { flexDirection: 'row', gap: 8 },
+  promptMonthPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: c.line },
+  promptMonthPillOn: { backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.ink },
+  promptMonthText: { fontSize: 15, color: c.ink2 },
+  promptMonthTextOn: { color: c.ink, fontWeight: '600' },
+  promptDayInput: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingVertical: 12, paddingHorizontal: 14, fontSize: 17, color: c.ink, width: 90, textAlign: 'center' },
+  promptActions: { flexDirection: 'row', gap: 10 },
+  promptBtnSecondary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  promptBtnSecondaryText: { fontSize: 15, fontWeight: '700', color: c.ink, textAlign: 'center' },
+  promptBtnPrimary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  promptBtnPrimaryText: { fontSize: 15, fontWeight: '700', color: c.onAct, textAlign: 'center' },
   // Yesterday / Today shortcut pills
-  yesterdayRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  yesterdayPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: c.accentSoft, borderWidth: 0.5, borderColor: c.border },
-  yesterdayPillText: { fontSize: 11, color: c.accent, fontWeight: '600' },
+  yesterdayRow: { flexDirection: 'row', gap: 8 },
+  yesterdayPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: c.line },
+  yesterdayPillText: { fontSize: 15, color: c.ink2 },
 });
 
 // Today v2.1 (DESIGN.md §2–§5 + the approved prototype): titles 700, big numbers 500;

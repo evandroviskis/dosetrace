@@ -112,7 +112,8 @@ test('part 7: Day X of Y, last site and streak on one wrapping meta line; flame 
 });
 
 test('part 8: vial cells, singular/plural, days coloured by deadline (Q9 = B)', () => {
-  assert.match(TODAY, /vialCells\(capacity, remaining\)/);
+  assert.match(TODAY, /<VialCells total=\{capacity\} left=\{remaining\} \/>/);
+  assert.match(read('screens', 'components', 'ProtocolParts.js'), /const v = vialCells\(total, left\);/, 'one cells geometry for Protocols and Today');
   assert.match(TODAY, /vialRemainingLabel\(remaining, t\)/);
   assert.match(TODAY, /daysLeft <= 3 \? colors\.risk : daysLeft <= 7 \? colors\.attention : colors\.ok/);
   assert.match(style(TODAY, 'vialRow'), /borderTopWidth: 1\b/);
