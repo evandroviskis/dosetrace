@@ -56,6 +56,7 @@ import DosePage from './components/DosePage';
 import { DTSheet, VialCells } from './components/ProtocolParts';
 import { planDosePage, cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { displayColor } from '../lib/protocolColors';
+import { undoBarRuns } from '../lib/undoBar';
 import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -230,10 +231,15 @@ export default function TodayScreen() {
   // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
   const [lastSiteByProtocol, setLastSiteByProtocol] = useState({});
 
-  // Clear the previous undo timer whenever it's replaced, and on unmount
+  // The Undo bar's time runs only while nothing covers it: a pop-up in front (vial finished,
+  // site picker, still-going, Skip dose?) pauses it, and closing the pop-up gives the bar its
+  // full time again. A new take replaces the bar and restarts the time.
+  const popupOpen = showVialPrompt || bodyMapVisible || showInactivePrompt || !!skipAsk;
   useEffect(() => {
-    return () => { if (undoData?.timer) clearTimeout(undoData.timer); };
-  }, [undoData]);
+    if (!undoBarRuns({ hasUndo: !!undoData, popupOpen })) return undefined;
+    const t = setTimeout(() => setUndoData(null), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [undoData, popupOpen]);
 
   useFocusEffect(
     useCallback(() => {
@@ -576,7 +582,7 @@ export default function TodayScreen() {
     const { toastText, ...write } = writeOpts; // the toast line is not part of the write
     const res = recordDoseTaken(protocolId, write);
     if (res && res.logId) {
-      const timer = setTimeout(() => setUndoData(null), TOAST_MS);
+      const timer = null; // armed by the Undo bar effect (lib/undoBar.js)
       const record = {
         logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
@@ -594,7 +600,7 @@ export default function TodayScreen() {
   function skipPending(item) {
     const res = recordSkipPending(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
     if (res && res.logId) {
-      const timer = setTimeout(() => setUndoData(null), TOAST_MS);
+      const timer = null; // armed by the Undo bar effect (lib/undoBar.js)
       const record = { logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null };
       setUndoData(record);
       keepUndo(record);
@@ -765,8 +771,8 @@ export default function TodayScreen() {
       syncVialAlerts().catch(() => {});
       requestSync();
 
-      // Setup undo (5 second window) — previous timer is cleared by the undoData effect
-      const timer = setTimeout(() => setUndoData(null), TOAST_MS);
+      // The Undo bar time is armed by the effect that pauses behind pop-ups (lib/undoBar.js).
+      const timer = null;
       // The full undo record of THIS take (the Undo bar).
       const record = {
         logId,
