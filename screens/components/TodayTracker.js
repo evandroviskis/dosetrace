@@ -108,7 +108,8 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
             ) : (
               <>
                 <Text style={s.bigNum}>{todayPct}<Text style={s.bigNumSign}>%</Text></Text>
-                <Text style={s.bigCap}>{ofText(rings.today)} {t('today_section_today').toLowerCase()}</Text>
+                <Text style={s.bigCap} numberOfLines={1}>{ofText(rings.today)}</Text>
+                <Text style={s.bigCapDay} numberOfLines={1}>{t('today_section_today').toLowerCase()}</Text>
               </>
             )}
           </View>
@@ -149,6 +150,8 @@ const makeStyles = (c, slab) => StyleSheet.create({
   bigNumSign: { fontSize: 19, color: c.ink2 },
   bigNothing: { fontSize: 15, fontWeight: '600', color: c.ink, textAlign: 'center' },
   bigCap: { fontSize: 12, fontWeight: '600', color: c.ink2 },
+  // A-79: the count and 'today' on two lines, so the caption fits the 76 pt ring opening.
+  bigCapDay: { fontSize: 12, fontWeight: '500', color: c.ink2, marginTop: -1 },
   side: { flex: 1, gap: 14, minWidth: 0 },
   sideRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sideText: { flex: 1, minWidth: 0, gap: 2 },

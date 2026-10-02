@@ -1246,10 +1246,12 @@ export default function TodayScreen() {
     // An oral dose is written now ("today, skip yesterday" writes both rows together).
     const extraDeleteIds = opts.skipYesterday ? skipYesterdayRow(p.id, opts.skipYesterday) : [];
     if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds }); return; }
-    const LIFT = 110, FLIGHT = 500;
+    // A-80 (founder: the take animation felt slow): the drop lands in 360 ms and the
+    // card / tracker update exactly when it lands, never before.
+    const LIFT = 60, FLIGHT = 300;
     landingAtRef.current = Date.now() + LIFT + FLIGHT;
     // Write now; let the card re-sort after the drop lands.
-    markTaken(p, { deferUi: 380, extraDeleteIds });
+    markTaken(p, { deferUi: LIFT + FLIGHT, extraDeleteIds });
     setTimeout(() => { if (landingAtRef.current && Date.now() > landingAtRef.current + 400) landingAtRef.current = 0; }, 1500);
     Promise.all([measureWin(rootRef), measureWin(ringRef)]).then(([root, ring]) => {
       if (!root || !ring) return;
