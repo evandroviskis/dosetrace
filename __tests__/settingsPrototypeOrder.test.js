@@ -106,7 +106,7 @@ test('a group card = name + summary + a round arrow in one card; the rows open i
 test('Sign out and Delete account sit in their own card, outside every group (Sign out first, Delete in the danger color)', () => {
   const actions = region(SET, 'function renderAccountActions()', '\n  }\n');
   inOrder(actions, ['onPress={handleSignOut}', "t('settings_signout')", 'onPress={handleDeleteAccount}', "t('settings_delete')"], 'actions card');
-  assert.match(actions, /<FeatureIcon name="trash" size=\{20\} color=\{colors\.risk\} \/>/);
+  assert.match(actions, /<FeatureIcon name="trash" size=\{28\} color=\{colors\.risk\} \/>/);
   assert.match(actions, /color: colors\.risk/);
   const bodies = region(SET, 'function renderAccountBody()', 'const GROUP_BODIES');
   const allBodies = region(SET, 'function renderNotificationsBody()', 'const GROUP_BODIES');

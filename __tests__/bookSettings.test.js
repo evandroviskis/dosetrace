@@ -121,7 +121,7 @@ test('BK-7/BK-8: the left page lists the groups, the open one outlined in ink; t
   assert.match(BOOK, /accessibilityState=\{\{ selected: on \}\}/);
   assert.match(BOOK, /onPress=\{\(\) => select\(g\.key\)\}/);
   assert.match(BOOK, /\{t\(g\.labelKey\)\}/);
-  assert.match(BOOK, /<Text style=\{s\.rowArrow\}>›<\/Text>/, 'chevron');
+  assert.match(BOOK, /<RowChevron color=\{colors\.tick\} \/>/, 'chevron (drawn prototype arrow, 2026-10-02)');
   // Right page: always open (no collapsed check), heading = the group title.
   const right = BOOK.slice(BOOK.indexOf('const right = ('));
   assert.match(right, /<Text style=\{s\.bookPageTitle\}[^>]*>\{t\(openGroup\.labelKey\)\}<\/Text>/);

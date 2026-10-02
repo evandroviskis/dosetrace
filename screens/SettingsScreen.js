@@ -26,6 +26,7 @@ import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import RowChevron from '../components/RowChevron';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getAllDataForExport, getActiveProtocols as getLocalProtocols,
@@ -84,7 +85,7 @@ function foldCollapsed(collapsed, { sel, explicit }) {
 // The group card's arrow (prototype DOWN / UP), drawn in the theme's ink.
 function GroupChevron({ dir, color }) {
   return (
-    <Svg width={15} height={9} viewBox="0 0 16 10">
+    <Svg width={16} height={10} viewBox="0 0 16 10">
       <Path d={dir === 'up' ? 'M2 8l6-6 6 6' : 'M2 2l6 6 6-6'} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
@@ -568,7 +569,7 @@ export default function SettingsScreen({ navigation }) {
             ) : null}
           </View>
         </View>
-        <Text style={s.rowArrow}>›</Text>
+        <RowChevron color={colors.tick} />
       </TouchableOpacity>
     );
   }
@@ -616,7 +617,7 @@ export default function SettingsScreen({ navigation }) {
       <>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="bell" size={20} color={colors.text} /></View>
+            <FeatureIcon name="bell" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_dose_reminders')}</Text>
               <Text style={s.rowSub}>{t('settings_dose_reminders_sub')}</Text>
@@ -629,7 +630,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="chat" size={20} color={colors.text} /></View>
+            <FeatureIcon name="chat" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_checkin')}</Text>
               <Text style={s.rowSub}>{t('settings_checkin_sub')}</Text>
@@ -642,7 +643,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="food" size={20} color={colors.text} /></View>
+            <FeatureIcon name="food" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
               <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
@@ -655,7 +656,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+            <FeatureIcon name="lock" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_notif_names')}</Text>
               <Text style={s.rowSub}>{t('settings_notif_names_sub')}</Text>
@@ -668,7 +669,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="type_vial" size={20} color={colors.text} /></View>
+            <FeatureIcon name="type_vial" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_vial_alerts')}</Text>
               <Text style={s.rowSub}>{t('settings_vial_alerts_sub')}</Text>
@@ -681,7 +682,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="mute" size={20} color={colors.text} /></View>
+            <FeatureIcon name="mute" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_silent')}</Text>
               <Text style={s.rowSub}>{t('settings_silent_sub')}</Text>
@@ -694,7 +695,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={[s.row, { borderBottomWidth: 0 }]}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="repeat" size={20} color={colors.text} /></View>
+            <FeatureIcon name="repeat" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_persistent')}</Text>
               <Text style={s.rowSub}>{t('settings_persistent_sub')}</Text>
@@ -716,13 +717,13 @@ export default function SettingsScreen({ navigation }) {
             }}
           >
             <View style={s.rowLeft}>
-              <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.accent} /></View>
+              <FeatureIcon name="help" size={28} color={colors.ink} />
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
                 <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
               </View>
             </View>
-            <Text style={s.rowArrow}>›</Text>
+            <RowChevron color={colors.tick} />
           </TouchableOpacity>
         )}
       </>
@@ -734,28 +735,28 @@ export default function SettingsScreen({ navigation }) {
       <>
         <TouchableOpacity style={s.row} onPress={() => setShowPrivacy(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="lock" size={20} color={colors.text} /></View>
+            <FeatureIcon name="lock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_privacy_policy')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={() => setShowTerms(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="clipboard" size={20} color={colors.text} /></View>
+            <FeatureIcon name="clipboard" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_terms')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={() => setShowDisclaimer(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="shield" size={20} color={colors.text} /></View>
+            <FeatureIcon name="shield" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_disclaimer')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <View style={s.row}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="calc_bars" size={20} color={colors.text} /></View>
+            <FeatureIcon name="calc_bars" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_analytics')}</Text>
               <Text style={s.rowSub}>{t('settings_analytics_sub')}</Text>
@@ -772,13 +773,13 @@ export default function SettingsScreen({ navigation }) {
           disabled={exporting}
         >
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="calc_trend" size={20} color={colors.text} /></View>
+            <FeatureIcon name="calc_trend" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_report_title')}</Text>
               <Text style={s.rowSub}>{t('settings_report_sub')}</Text>
             </View>
           </View>
-          <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+          {exporting ? <Text style={s.rowArrow}>...</Text> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
@@ -786,13 +787,13 @@ export default function SettingsScreen({ navigation }) {
           disabled={exporting}
         >
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="download" size={20} color={colors.text} /></View>
+            <FeatureIcon name="download" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_export_title')}</Text>
               <Text style={s.rowSub}>{t('settings_export_sub')}</Text>
             </View>
           </View>
-          <Text style={s.rowArrow}>{exporting ? '...' : '›'}</Text>
+          {exporting ? <Text style={s.rowArrow}>...</Text> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
       </>
     );
@@ -803,27 +804,27 @@ export default function SettingsScreen({ navigation }) {
       <>
         <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="help" size={20} color={colors.text} /></View>
+            <FeatureIcon name="help" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_faq')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={handleContactSupport}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="mail" size={20} color={colors.text} /></View>
+            <FeatureIcon name="mail" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_contact')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
           onPress={handleRateApp}
         >
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="star" size={20} color={colors.text} /></View>
+            <FeatureIcon name="star" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_rate')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
       </>
     );
@@ -834,12 +835,12 @@ export default function SettingsScreen({ navigation }) {
   function renderAccountBody() {
     return (
       <>
-        <View style={s.row}>
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="palette" size={20} color={colors.text} /></View>
+        <View style={s.setStack}>
+          <View style={s.setStackHead}>
+            <FeatureIcon name="palette" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
           </View>
-          <View style={s.themePillRow}>
+          <View style={s.seg} accessibilityRole="radiogroup">
             {[
               { key: 'light', label: t('settings_theme_light') },
               { key: 'dark', label: t('settings_theme_dark') },
@@ -847,20 +848,22 @@ export default function SettingsScreen({ navigation }) {
             ].map(o => (
               <TouchableOpacity
                 key={o.key}
-                style={[s.themePill, mode === o.key && s.themePillOn]}
+                style={[s.segItem, mode === o.key && s.segItemOn]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: mode === o.key }}
                 onPress={() => setMode(o.key)}
               >
-                <Text style={[s.themePillText, mode === o.key && s.themePillTextOn]}>{o.label}</Text>
+                <Text style={[s.segText, mode === o.key && s.segTextOn]}>{o.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
-        <View style={s.row}>
-          <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="clock" size={20} color={colors.text} /></View>
+        <View style={s.setStack}>
+          <View style={s.setStackHead}>
+            <FeatureIcon name="clock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
           </View>
-          <View style={s.themePillRow}>
+          <View style={s.seg} accessibilityRole="radiogroup">
             {[
               { key: 'auto', label: t('settings_time_auto') },
               { key: '12h', label: t('settings_time_12h') },
@@ -868,23 +871,25 @@ export default function SettingsScreen({ navigation }) {
             ].map(o => (
               <TouchableOpacity
                 key={o.key}
-                style={[s.themePill, timeFormat === o.key && s.themePillOn]}
+                style={[s.segItem, timeFormat === o.key && s.segItemOn]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: timeFormat === o.key }}
                 onPress={() => setTimeFormat(o.key)}
               >
-                <Text style={[s.themePillText, timeFormat === o.key && s.themePillTextOn]}>{o.label}</Text>
+                <Text style={[s.segText, timeFormat === o.key && s.segTextOn]}>{o.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
         <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={() => setShowLanguagePicker(true)}>
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="globe" size={20} color={colors.text} /></View>
+            <FeatureIcon name="globe" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_language')}</Text>
               <Text style={s.rowSub}>{currentLanguage?.native || 'English'}</Text>
             </View>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
       </>
     );
@@ -936,17 +941,17 @@ export default function SettingsScreen({ navigation }) {
       <View style={s.actionsCard}>
         <TouchableOpacity style={s.row} onPress={handleSignOut} accessibilityRole="button">
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="door" size={20} color={colors.ink} /></View>
+            <FeatureIcon name="door" size={28} color={colors.ink} />
             <Text style={s.rowLabel}>{t('settings_signout')}</Text>
           </View>
-          <Text style={s.rowArrow}>›</Text>
+          <RowChevron color={colors.tick} />
         </TouchableOpacity>
         <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount} accessibilityRole="button">
           <View style={s.rowLeft}>
-            <View style={s.rowIconBox}><FeatureIcon name="trash" size={20} color={colors.risk} /></View>
+            <FeatureIcon name="trash" size={28} color={colors.risk} />
             <Text style={[s.rowLabel, { color: colors.risk }]}>{t('settings_delete')}</Text>
           </View>
-          <Text style={[s.rowArrow, { color: colors.risk }]}>›</Text>
+          <RowChevron color={colors.risk} />
         </TouchableOpacity>
       </View>
     );
@@ -1009,7 +1014,7 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
                     <Text style={s.setSum} numberOfLines={2}>{t(g.sumKey)}</Text>
                   </View>
-                  <Text style={s.rowArrow}>›</Text>
+                  <RowChevron color={colors.tick} />
                 </TouchableOpacity>
               );
             })}
@@ -1211,7 +1216,7 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={[s.editPickText, !country && s.editPickPlaceholder]} numberOfLines={1}>
                   {country ? countryLabel(country, language) : t('profile_country_placeholder')}
                 </Text>
-                <Text style={s.rowArrow}>›</Text>
+                <RowChevron color={colors.tick} />
               </TouchableOpacity>
             </View>
 
@@ -1386,20 +1391,13 @@ const settingsLegacy = (c) => ({
   premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
   group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderBottomWidth: 0.5, borderBottomColor: c.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
-  rowIconBox: { width: 28, alignItems: 'center' },
   rowLabel: { fontSize: 14, color: c.text },
   rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
   rowArrow: { fontSize: 18, color: c.textFaint },
   version: { textAlign: 'center', fontSize: 11, color: c.textFaint, marginTop: 24, lineHeight: 18 },
   // Theme toggle
-  themePillRow: { flexDirection: 'row', gap: 8 },
-  themePill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card2, borderWidth: 0.5, borderColor: c.border },
-  themePillOn: { backgroundColor: c.accentSoft, borderColor: c.accent, borderWidth: 1.5 },
-  themePillText: { fontSize: 13, color: c.text, fontWeight: '600' },
-  themePillTextOn: { color: c.accentSoftText, fontWeight: '600' },
   // Profile enhancements
   profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
@@ -1429,18 +1427,12 @@ const settingsGraduated = (c) => ({
   premiumBtn: { backgroundColor: c.act, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   premiumBtnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
   group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 60, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+  // Prototype .list (padding 0 16) + .li: rows and their 1 pt dividers sit inside the card margin.
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginHorizontal: 16, paddingHorizontal: 0, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.line },
   rowLabel: { fontSize: 17, color: c.ink },
   rowSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
   rowArrow: { fontSize: 20, color: c.tick },
   version: { textAlign: 'center', fontSize: 13, color: c.ink3, marginTop: 24, lineHeight: 18 },
-  // Main-list leftovers that still drew the old tells: a selected theme / time pill
-  // was a blue outline on a tint, the goal badge a tinted chip. Selection = 1.5 pt ink
-  // outline on raised; tags = outline, like the plan badge.
-  themePill: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 18, backgroundColor: 'transparent', borderWidth: 1, borderColor: c.line },
-  themePillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
-  themePillText: { fontSize: 13, color: c.ink2, fontWeight: '500' }, // 13 keeps the three pills beside the label at 390 pt (as main)
-  themePillTextOn: { color: c.ink, fontWeight: '600' },
   profileName: { fontSize: 22, fontWeight: '600', color: c.ink, marginBottom: 2 },
   goalBadge: { borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 13, flexShrink: 1 },
   goalBadgeText: { fontSize: 12, color: c.ink2, fontWeight: '500' },
@@ -1450,8 +1442,11 @@ const settingsGraduated = (c) => ({
   // 36 pt round well; when open a hairline separates the header from the rows inside.
   setCards: { marginHorizontal: 16, marginTop: 14, gap: 10 },
   setCard: { backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
-  setHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingHorizontal: 16, paddingVertical: 6 },
-  setHeadOpen: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+  setHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, marginHorizontal: 16, paddingHorizontal: 0, paddingVertical: 6 },
+  // Prototype .setstack: the label row (52 pt, no divider) and under it the full-width bar.
+  setStack: { marginHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: c.line },
+  setStackHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+  setHeadOpen: { borderBottomWidth: 1, borderBottomColor: c.line },
   setHeadText: { flex: 1, gap: 3 },
   setTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
   setSum: { fontSize: 13, lineHeight: 18, color: c.ink2 },
