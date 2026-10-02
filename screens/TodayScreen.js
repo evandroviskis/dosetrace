@@ -21,12 +21,12 @@ import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancel
 import { getRealityStart, clearRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
-  insertDoseLog, deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
+  deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
   getBiomarkers,
 } from '../lib/database';
 import { requestSync, addSyncListener } from '../lib/sync';
-import { scanMissedDoses, recordDoseTaken, recordSkipPending, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake } from '../lib/markTaken';
 import { planSitePickerAction } from '../lib/sitePickerActions';
@@ -49,7 +49,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import DosePage from './components/DosePage';
-import { planDosePage, cardSlot, dosePageKey } from '../lib/dosePageState';
+import { planDosePage, cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -156,6 +156,8 @@ export default function TodayScreen() {
   const [vials, setVials] = useState({}); // keyed by protocol_id
   const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only
   const [skippedCounts, setSkippedCounts] = useState({}); // { protocol_id: count } — outcome 'Skipped' only
+  // A-78: today's rows (any outcome) — the dose card names its slots from them (cardPlan).
+  const [todayRows, setTodayRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [streak, setStreak] = useState(0);
@@ -329,7 +331,12 @@ export default function TodayScreen() {
 
   // The undo record of a dose Today just wrote, kept for the dose page's Undo (BK-16).
   function keepUndo(record) {
-    if (record && record.logId != null) undoRecordsRef.current.set(record.logId, record);
+    if (record && record.logId != null) {
+      undoRecordsRef.current.set(record.logId, record);
+      // A-78: a skipped row logged, undone and logged again is the same row id — its new
+      // write gets its own Undo (the old record was replaced above).
+      undoneIdsRef.current.delete(record.logId);
+    }
   }
 
   // Load the open reality-check weigh-in (if any) — surfaced as a Today alert.
@@ -596,7 +603,7 @@ export default function TodayScreen() {
     if (res && res.logId) {
       const timer = setTimeout(() => setUndoData(null), 5000);
       const record = {
-        logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, protocolId, pending: true, extraDeleteIds,
+        logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
         oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null,
       };
@@ -633,6 +640,7 @@ export default function TodayScreen() {
       });
       setTakenCounts(taken);
       setSkippedCounts(skipped);
+      setTodayRows(data);
       setTodayTaken(data.filter(d => d.outcome === 'Taken').sort((a, b) => (a.logged_at < b.logged_at ? -1 : 1)));
     }
     fetchRings(user.id);
@@ -762,6 +770,7 @@ export default function TodayScreen() {
         if (fx.undone) return;
         fx.applied = true;
         setTakenCounts(prev => ({ ...prev, [protocol.id]: newTakenToday }));
+        fetchTodayLogs(); // A-78: the card's slots (a logged skip leaves its line) follow the write
       };
       fx.flush = applyTaken;
       pendingFxRef.current.add(fx);
@@ -788,6 +797,8 @@ export default function TodayScreen() {
         logId,
         flipped: res.flipped,
         flippedFrom: res.flippedFrom,
+        prevLoggedAt: res.prevLoggedAt, // A-78: Undo puts a logged skip back at its own time
+        prevInjectionSite: res.prevInjectionSite,
         extraDeleteIds: opts.extraDeleteIds || [],
         protocolId: protocol.id,
         vialId: res.vialId,
@@ -880,7 +891,7 @@ export default function TodayScreen() {
       fetchTodayLogs();
       return false;
     }
-    const write = { tapMs: o.tapMs, dayKey: o.dayKey, slotMs: o.slotMs, atNow: o.atNow, injectionSite: site || null, vialPromptDelay: 450 };
+    const write = { tapMs: o.tapMs, dayKey: o.dayKey, slotMs: o.slotMs, flipRowId: o.flipRowId, atNow: o.atNow, injectionSite: site || null, vialPromptDelay: 450 };
     let extraDeleteIds = [];
     if (o.skipYesterday) {
       const skipped = recordSkipPending(protocol.id, { dayKey: o.skipYesterday.dayKey, slotMs: o.skipYesterday.slotMs });
@@ -965,7 +976,8 @@ export default function TodayScreen() {
       const otherActiveVial = !!(record.vialId && proto
         && (getActiveVials(proto.user_id) || []).some(v => v.protocol_id === record.protocolId && v.id !== record.vialId));
       const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null });
-      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: plan.restoreOutcome, injection_site: null });
+      // A-78: a logged skip goes back to Skipped at its own time, with its own site.
+      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: plan.restoreOutcome, injection_site: plan.restoreSite, ...(plan.restoreLoggedAt ? { logged_at: plan.restoreLoggedAt } : {}) });
       for (const id of plan.deleteIds) deleteDoseLog(id);
       // Only take back a count bump that actually landed (a pending-from-yesterday
       // row never changed today's count).
@@ -994,6 +1006,7 @@ export default function TodayScreen() {
         if (continuationProtocol && continuationProtocol.id === record.protocolId) closeVialPrompt();
       }
       setUndoData(prev => (prev && prev.logId === record.logId ? null : prev));
+      fetchTodayLogs(); // A-78: the card's slots / skipped lines read back after the undo
       fetchPendingYesterday();
       fetchStreakData();
       fetchProtocolStreaks();
@@ -1002,7 +1015,10 @@ export default function TodayScreen() {
     } catch { /* ignore */ }
   }
 
-  function skipDose(protocol) {
+  // A-78 (founder 2026-10-01): Skip writes the Skipped row of ONE slot — the card's earliest
+  // open slot (or the dose page's slot) — stamped at that slot's scheduled time, never the tap
+  // time, so a later Mark taken names it (lib/markTaken.js planSkipToday). Never moves supply.
+  function skipDose(protocol, slot) {
     Alert.alert(
       t('today_skip_title'),
       t('today_skip_confirm').replace('{name}', protocol.name),
@@ -1012,20 +1028,16 @@ export default function TodayScreen() {
           text: t('today_skip'), style: 'destructive',
           onPress: async () => {
             try {
-              const user = await getCachedUser();
-              if (!user) return;
-              const logId = insertDoseLog({
-                user_id: user.id,
-                protocol_id: protocol.id,
-                protocol_remote_id: protocol.remote_id || null,
-                outcome: 'Skipped',
-              });
+              const res = recordSkipToday(protocol.id, { slotMs: slot ? slot.slotMs : null });
+              if (!res || !res.logId) { fetchTodayLogs(); return; } // that slot already has a row
+              const logId = res.logId;
               // BK-16: the dose page's Undo of this Skip goes through applyUndo too. A skip
               // never changes today's Taken count or the supply (todayCount 'none', as the
               // Pending block's skip); the Undo bar is unchanged (no record shown here).
               keepUndo({ logId, flipped: false, protocolId: protocol.id, pending: true, extraDeleteIds: [], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null });
               fetchPageLogs();
               setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
+              fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
               Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
               requestSync();
             } catch (err) {
@@ -1206,8 +1218,12 @@ export default function TodayScreen() {
     }
   }, [ringTarget, doneDoses]);
 
+  // opts.slot (A-78): the slot this tap logs — { slotMs, ti } of the card's next open slot or
+  // the dose page's slot, plus flipRowId for a skipped slot's "Mark taken" (that row turns
+  // Taken). Without it the shared plan falls back to its own rules (older callers).
   function handleTake(p, btnRect, attempt = 0, opts = {}) {
     const tapMs = opts.tapMs || Date.now(); // S-25: the dose's time is the tap
+    const slot = opts.slot || { slotMs: null, flipRowId: null, ti: null };
     // Another card's write is mid-flight: retry shortly rather than let the
     // button show "Taken" for a dose that was never logged.
     if (actionInProgressRef.current) {
@@ -1220,7 +1236,8 @@ export default function TodayScreen() {
     }
     // A-40: yesterday's dose for this protocol is still pending — ask which day this
     // dose is for before writing anything (earliest pending slot).
-    const pend = pendingPromptFor(pendingYest, p.id, { pendingResolved: !!opts.pendingResolved });
+    // A skipped slot of TODAY named by its line is today's dose by definition: no day prompt.
+    const pend = slot.flipRowId != null ? null : pendingPromptFor(pendingYest, p.id, { pendingResolved: !!opts.pendingResolved });
     if (pend) {
       const vars = (str) => str.replace('{name}', p.compound_id ? t(p.compound_id) : p.name).replace('{time}', formatTimeAMPM(new Date(pend.slotMs).toTimeString().slice(0, 5)));
       Alert.alert(
@@ -1230,7 +1247,7 @@ export default function TodayScreen() {
           { text: t('today_pending_prompt_yesterday'), onPress: () => { resetTake(p.id); takePending(pend); } },
           // Nothing is written here: yesterday's Skipped row goes in with this dose (S-25).
           { text: t('today_pending_prompt_today'), onPress: () => {
-            handleTake(p, btnRect, 0, { pendingResolved: true, tapMs, skipYesterday: { dayKey: pend.dayKey, slotMs: pend.slotMs } });
+            handleTake(p, btnRect, 0, { ...opts, pendingResolved: true, tapMs, skipYesterday: { dayKey: pend.dayKey, slotMs: pend.slotMs } });
           } },
           { text: t('cancel'), style: 'cancel', onPress: () => resetTake(p.id) },
         ],
@@ -1240,18 +1257,20 @@ export default function TodayScreen() {
     }
     // An injectable: ask where it was injected; the answer writes it (S-25).
     if (needsSiteQuestion(p.type)) {
-      askSite(newQuestion({ protocolId: p.id, tapMs, skipYesterday: opts.skipYesterday || null, source: 'today' }));
+      askSite(newQuestion({ protocolId: p.id, tapMs, skipYesterday: opts.skipYesterday || null, source: 'today', slotMs: slot.slotMs, flipRowId: slot.flipRowId, ti: slot.ti }));
       return;
     }
     // An oral dose is written now ("today, skip yesterday" writes both rows together).
     const extraDeleteIds = opts.skipYesterday ? skipYesterdayRow(p.id, opts.skipYesterday) : [];
-    if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds }); return; }
+    const write = { tapMs, slotMs: slot.slotMs, flipRowId: slot.flipRowId };
+    const cancelUpTo = Number.isFinite(slot.ti) ? slot.ti + 1 : 0; // that slot's reminders and earlier
+    if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds, write, cancelUpTo }); return; }
     // A-80 (founder: the take animation felt slow): the drop lands in 360 ms and the
     // card / tracker update exactly when it lands, never before.
     const LIFT = 60, FLIGHT = 300;
     landingAtRef.current = Date.now() + LIFT + FLIGHT;
     // Write now; let the card re-sort after the drop lands.
-    markTaken(p, { deferUi: LIFT + FLIGHT, extraDeleteIds });
+    markTaken(p, { deferUi: LIFT + FLIGHT, extraDeleteIds, write, cancelUpTo });
     setTimeout(() => { if (landingAtRef.current && Date.now() > landingAtRef.current + 400) landingAtRef.current = 0; }, 1500);
     Promise.all([measureWin(rootRef), measureWin(ringRef)]).then(([root, ring]) => {
       if (!root || !ring) return;
@@ -1420,37 +1439,12 @@ export default function TodayScreen() {
     return formatTime(time24, language, timeFormat);
   }
 
-  // Determine next time slot label for multi-dose protocols.
-  // On the creation day earlier slots don't count, so the label starts from
-  // the first slot that's actually expected.
-  function getNextTimeLabel(p) {
-    const dpd = p.doses_per_day || 1;
-    if (!p.reminder_time || dpd <= 1) return null;
-    const times = sortedDoseTimes(p).slice(0, dpd);
-    const expected = expectedDosesOn(p, new Date());
-    const taken = takenCounts[p.id] || 0;
-    if (expected === 0 || taken >= expected) return null;
-    const idx = (dpd - expected) + taken;
-    return times[idx] ? formatTimeAMPM(times[idx]) : null;
-  }
-
-  // Check if the next dose is due (≤5 min away or overdue)
-  function isDoseDue(p) {
-    if (!p.reminder_time) return false;
-    const dpd = p.doses_per_day || 1;
-    const dosesTakenToday = takenCounts[p.id] || 0;
-    const dosesNeeded = expectedDosesOn(p, new Date());
-    if (dosesNeeded === 0 || dosesTakenToday >= dosesNeeded) return false;
-    const times = sortedDoseTimes(p).slice(0, dpd);
-    const nextTimeStr = times[(dpd - dosesNeeded) + dosesTakenToday] || times[0];
-    if (!nextTimeStr) return false;
-    const [h, m] = nextTimeStr.split(':').map(Number);
-    const now = new Date();
-    const doseTime = new Date();
-    doseTime.setHours(h, m, 0, 0);
-    const diffMs = doseTime - now;
-    // Due if ≤5 min from now OR already past
-    return diffMs <= 5 * 60 * 1000;
+  // A-78: a multi-dose slot's time on the card ("Take 20:00 dose"); null for a once-a-day
+  // protocol or a slot without a reminder time. The slot itself comes from cardPlan (the
+  // next OPEN slot — a skipped slot counts as filled), as do the card's Due tag and buttons.
+  function slotTakeLabel(p, slot) {
+    if (!slot || (p.doses_per_day || 1) <= 1 || !Number.isFinite(slot.slotMs)) return null;
+    return formatTimeAMPM(new Date(slot.slotMs).toTimeString().slice(0, 5));
   }
 
   // Calculate progress "Day X of Y"
@@ -1569,8 +1563,8 @@ export default function TodayScreen() {
         skipLabel={pending ? t('today_pending_skip') : t('today_skip')}
         askFirst={needsSiteQuestion(p.type)}
         resetKey={`${p.id}-${takenCounts[p.id] || 0}-${takeReset[p.id] || 0}-${plan.kind}`}
-        onTake={pending ? () => takePending(item) : (rect) => handleTake(p, rect)}
-        onSkip={pending ? () => skipPending(item) : () => skipDose(p)}
+        onTake={pending ? () => takePending(item) : (rect) => handleTake(p, rect, 0, { slot: plan.write })}
+        onSkip={pending ? () => skipPending(item) : () => skipDose(p, plan.write)}
         onUndo={() => undoFromPage(record)}
         onOpenLog={() => bookSelect('log')}
         onOpenProtocol={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
@@ -1599,12 +1593,15 @@ export default function TodayScreen() {
   function renderDoseCard(p) {
     const dosesTakenToday = takenCounts[p.id] || 0;
     const dosesNeeded = expectedDosesOn(p, new Date());
-    const skippedToday = skippedCounts[p.id] || 0;
     const vial = vials[p.id];
-    const nextTime = getNextTimeLabel(p);
+    // A-78 (founder 2026-10-01): the card's slots from today's rows. A skipped slot counts as
+    // filled: the time label, Due and the main Mark taken / Skip are for the next OPEN slot
+    // (none when every slot is Taken or Skipped); each skipped slot has its own line.
+    const cp = cardPlan({ protocol: p, logs: todayRows, nowMs: Date.now() });
+    const nextTime = slotTakeLabel(p, cp.next);
     const progress = getProgress(p);
     const pStreak = protocolStreaks[p.id] || 0;
-    const due = isDoseDue(p);
+    const due = cp.due;
     const lastSite = lastSiteByProtocol[p.id];
     const name = p.compound_id ? t(p.compound_id) : p.name;
     const { draw, syr } = doseDraw(p);
@@ -1627,7 +1624,6 @@ export default function TodayScreen() {
             {progress && (
               <Text style={s.dsub}>{t('today_day_of').replace('{current}', progress.current).replace('{total}', progress.total)}</Text>
             )}
-            {skippedToday > 0 && <Text style={s.dsub}>{t('today_skipped_today')}</Text>}
             {dosesTakenToday > 0 && dosesNeeded > 1 && <Text style={s.dsub}>{dosesTakenToday}/{dosesNeeded} {t('today_taken_partial')}</Text>}
           </View>
           <View style={s.dright}>
@@ -1696,20 +1692,44 @@ export default function TodayScreen() {
             <Text style={[s.vialText, { color: colors.ink, textDecorationLine: 'underline' }]}>{t('today_add_vial')}</Text>
           </TouchableOpacity>
         )}
-        <View style={s.acts}>
-          <TouchableOpacity style={s.btnSkip} onPress={() => skipDose(p)} accessibilityRole="button">
-            <Text style={s.btnSkipText}>{t('today_skip')}</Text>
-          </TouchableOpacity>
-          <TakeButton
-            key={`take-${p.id}-${dosesTakenToday}-${takeReset[p.id] || 0}`}
-            label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
-            takenLabel={takenLabel}
-            onTake={(rect) => handleTake(p, rect)}
-            askFirst={needsSiteQuestion(p.type)}
-            s={s}
-            colors={colors}
-          />
-        </View>
+        {cp.skipped.map((sk) => {
+          // A-78: "Skipped — you can still log it" per skipped slot; its Mark taken logs THAT
+          // dose (the Skipped row turns Taken at the tap time; the site question first for an
+          // injectable). A twice-daily card names the slot by its time.
+          const skTime = (p.doses_per_day || 1) > 1 && Number.isFinite(sk.slotMs)
+            ? formatTimeAMPM(new Date(sk.slotMs).toTimeString().slice(0, 5)) : null;
+          return (
+            <View key={`sk-${sk.flipRowId}`} style={s.skipLine}>
+              <Text style={s.skipLineText}>{skTime ? `${skTime} · ` : ''}{t('today_skipped_today')}</Text>
+              {sk.canTake && (
+                <TouchableOpacity
+                  style={s.skipLineBtn}
+                  onPress={() => { lightHaptic(); handleTake(p, null, 0, { slot: sk }); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={skTime ? `${t('today_mark_taken')}, ${skTime}` : t('today_mark_taken')}
+                >
+                  <Text style={s.skipLineBtnText}>{t('today_mark_taken')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
+        {cp.next && (
+          <View style={s.acts}>
+            <TouchableOpacity style={s.btnSkip} onPress={() => skipDose(p, cp.next)} accessibilityRole="button">
+              <Text style={s.btnSkipText}>{t('today_skip')}</Text>
+            </TouchableOpacity>
+            <TakeButton
+              key={`take-${p.id}-${dosesTakenToday}-${takeReset[p.id] || 0}-${cp.next.slotMs != null ? cp.next.slotMs : `i${cp.next.ti}`}`}
+              label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
+              takenLabel={takenLabel}
+              onTake={(rect) => handleTake(p, rect, 0, { slot: cp.next })}
+              askFirst={needsSiteQuestion(p.type)}
+              s={s}
+              colors={colors}
+            />
+          </View>
+        )}
       </View>
     );
   }
@@ -2325,6 +2345,11 @@ const todayV21Styles = (c) => ({
   vialRow: { paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
   vialText: { fontSize: 13, color: c.ink2 },
   acts: { flexDirection: 'row', gap: 10 },
+  // A-78: a skipped slot's "you can still log it" line and its Mark taken.
+  skipLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  skipLineText: { flex: 1, fontSize: 15, color: c.ink2 },
+  skipLineBtn: { minHeight: 44, borderRadius: 22, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  skipLineBtnText: { fontSize: 15, fontWeight: '700', color: c.ink },
   btnSkip: { flex: 1, minHeight: 52, borderRadius: 26, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnSkipText: { fontSize: 17, fontWeight: '700', color: c.ink },
   btnAct: { flex: 1, minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },

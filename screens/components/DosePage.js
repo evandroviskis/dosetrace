@@ -4,8 +4,9 @@
 // fill). What the page offers comes from lib/dosePageState.js (planDosePage), computed by Today:
 //  - due / pending: Skip and Mark taken (only when the planner allows: canSkip / canTake);
 //  - upcoming: the dose's info only;
-//  - taken / skipped: the state and Undo (when Today can undo that row), else a Dose log link —
-//    never a second Mark taken;
+//  - taken / skipped: the state and Undo (when Today can undo that row), else a Dose log link;
+//    a Taken slot never offers a second Mark taken. A slot skipped today also offers Mark
+//    taken (canTake), which logs that very Skipped row (A-78, amends BK-16);
 //  - missed: the state and a Dose log link.
 //
 // This page never writes anything itself. Mark taken, Skip and Undo call the handlers Today
@@ -137,7 +138,25 @@ export default function DosePage({
               </TouchableOpacity>
             ) : null}
           </View>
-        ) : (canTake || canSkip) ? (
+        ) : null}
+
+        {/* A-78 (amends BK-16, founder 2026-10-01): a slot skipped today can still be logged —
+            Mark taken turns that Skipped row into Taken. A Taken slot never gets this. */}
+        {kind === 'skipped' && canTake && (
+          <View style={s.acts}>
+            <TakeAction
+              key={`take-${resetKey}`}
+              label={takeLabel}
+              takenLabel={takenLabel}
+              askFirst={askFirst}
+              onTake={onTake}
+              s={s}
+              colors={colors}
+            />
+          </View>
+        )}
+
+        {logged ? null : (canTake || canSkip) ? (
           <View style={s.acts}>
             {canSkip && (
               <TouchableOpacity style={s.btnSkip} onPress={onSkip} accessibilityRole="button">

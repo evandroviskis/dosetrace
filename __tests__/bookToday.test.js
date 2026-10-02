@@ -131,9 +131,11 @@ test('BK-3: the right page is the Dose log by default and the tapped dose otherw
 test('BK-3 / BK-16 / S-25: the dose page uses Today\'s own write paths — today: handleTake / skipDose; yesterday\'s pending: takePending / skipPending (writePending); site question first', () => {
   const [{ n }] = jsx(todayAst, 'DosePage');
   const val = (name) => code(TODAY, attr(n, name).value.expression);
-  assert.equal(val('onTake'), 'pending ? () => takePending(item) : (rect) => handleTake(p, rect)',
+  // A-78: today's write carries the page's slot (plan.write: slotMs, ti, and flipRowId for a
+  // skipped slot), so it lands on THAT slot.
+  assert.equal(val('onTake'), 'pending ? () => takePending(item) : (rect) => handleTake(p, rect, 0, { slot: plan.write })',
     'today\'s due dose = the Today card\'s TakeButton call; yesterday\'s pending dose = the Pending block\'s Taken');
-  assert.equal(val('onSkip'), 'pending ? () => skipPending(item) : () => skipDose(p)',
+  assert.equal(val('onSkip'), 'pending ? () => skipPending(item) : () => skipDose(p, plan.write)',
     'today\'s due dose = the Today card\'s Skip; yesterday\'s pending dose = the Pending block\'s Skipped');
   assert.equal(val('askFirst'), 'needsSiteQuestion(p.type)', 'the same site-first rule as the Today card');
   // The pending item carries yesterday's day and slot from the planner, never today's.
@@ -149,8 +151,8 @@ test('BK-3 / BK-16 / S-25: the dose page uses Today\'s own write paths — today
     assert.ok(!rsrc.includes(id), `renderRightPage mentions ${id}`);
   }
   // The Today card uses exactly these calls too (one path, two places).
-  assert.match(TODAY, /onTake=\{\(rect\) => handleTake\(p, rect\)\}\s*\n\s*askFirst=\{needsSiteQuestion\(p\.type\)\}/);
-  assert.match(TODAY, /onPress=\{\(\) => skipDose\(p\)\}/);
+  assert.match(TODAY, /onTake=\{\(rect\) => handleTake\(p, rect, 0, \{ slot: cp\.next \}\)\}\s*\n\s*askFirst=\{needsSiteQuestion\(p\.type\)\}/);
+  assert.match(TODAY, /onPress=\{\(\) => skipDose\(p, cp\.next\)\}/);
   // handleTake still asks the site BEFORE any write for an injectable (S-25 unchanged).
   const ht = code(TODAY, fnDecl(todayAst, 'handleTake'));
   const ask = ht.indexOf('askSite(newQuestion(');
@@ -227,7 +229,9 @@ test('BK-16: Undo on the dose page is the app\'s own undo (applyUndo → planUnd
   assert.match(code(TODAY, fnDecl(todayAst, 'skipPending')), /setUndoData\(record\);\s*\n\s*keepUndo\(record\);/);
   // The card's Skip: a Skipped row's undo deletes that row only — no Taken count, no supply.
   const sk = code(TODAY, fnDecl(todayAst, 'skipDose'));
-  assert.match(sk, /const logId = insertDoseLog\(\{/);
+  // A-78: the Skipped row is written for the card's slot, at that slot's time.
+  assert.match(sk, /const res = recordSkipToday\(protocol\.id, \{ slotMs: slot \? slot\.slotMs : null \}\);/);
+  assert.match(sk, /const logId = res\.logId;/);
   assert.match(sk, /keepUndo\(\{ logId, flipped: false, protocolId: protocol\.id, pending: true, extraDeleteIds: \[\], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null \}\);/);
   assert.doesNotMatch(sk, /setUndoData\(/, 'the phone Undo bar is unchanged for a Skip (BK-2)');
   const { planUndoTake } = require('../lib/markTaken');
@@ -363,20 +367,26 @@ test('BK-3: DosePage Mark taken and Skip call the passed-in handlers; an injecta
   // (the answer writes the dose; Cancel leaves it as it was).
   const ta = code(DOSE, fnDecl(doseAst, 'TakeAction'));
   assert.match(ta, /if \(!askFirst\) setOk\(true\);\s*\n\s*onTake\(null\);/);
-  // BK-16: a Taken / Skipped / Missed dose offers no Mark taken and no Skip — its state and
-  // Undo (when Today can undo that row), else a Dose log link.
+  // BK-16: a Taken / Skipped / Missed dose offers no Skip — its state and Undo (when Today can
+  // undo that row), else a Dose log link. A-78 (amends BK-16, founder 2026-10-01): only a
+  // Skipped slot the planner allows (today) adds Mark taken; a Taken slot never does.
   assert.match(DOSE, /const logged = kind === 'taken' \|\| kind === 'skipped' \|\| kind === 'missed';/);
   const start = DOSE.indexOf('{logged ? (');
   assert.ok(start > 0);
-  const loggedBranch = DOSE.slice(start, DOSE.indexOf(') : (canTake || canSkip) ? (', start));
-  assert.ok(!loggedBranch.includes('TakeAction') && !loggedBranch.includes('onSkip') && !loggedBranch.includes('onTake'), 'the logged state has no Mark taken / Skip');
+  const loggedBranch = DOSE.slice(start, DOSE.indexOf(') : null}', start));
+  assert.ok(!loggedBranch.includes('TakeAction') && !loggedBranch.includes('onSkip') && !loggedBranch.includes('onTake'), 'the logged state row has no Mark taken / Skip');
   assert.match(loggedBranch, /\{canUndo && onUndo \? \(/);
   assert.match(loggedBranch, /onPress=\{onUndo\}/);
   assert.match(loggedBranch, /t\('today_undo'\)/);
   assert.match(loggedBranch, /onPress=\{onOpenLog\}/);
   assert.match(loggedBranch, /t\('log_title'\)/);
+  const skipTake = DOSE.slice(DOSE.indexOf("{kind === 'skipped' && canTake && ("), DOSE.indexOf('{logged ? null : (canTake || canSkip) ? ('));
+  assert.ok(skipTake.length > 0 && skipTake.includes('<TakeAction') && skipTake.includes('onTake={onTake}'), 'a skipped slot today: Mark taken');
+  assert.ok(!skipTake.includes('onSkip'), 'a skipped slot has no second Skip');
   // Upcoming (canTake / canSkip false): no actions at all; each button only when allowed.
-  const acts = DOSE.slice(DOSE.indexOf(') : (canTake || canSkip) ? ('), DOSE.indexOf(') : null}', DOSE.indexOf(') : (canTake || canSkip) ? (')));
+  const actsAt = DOSE.indexOf('{logged ? null : (canTake || canSkip) ? (');
+  assert.ok(actsAt > 0);
+  const acts = DOSE.slice(actsAt, DOSE.indexOf(') : null}', actsAt));
   assert.match(acts, /\{canSkip && \(/);
   assert.match(acts, /\{canTake && \(/);
 });
