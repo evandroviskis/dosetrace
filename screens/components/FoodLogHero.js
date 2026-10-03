@@ -62,7 +62,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
 
   // The 7-days-in-a-row progress the check's intake needs (FL-3).
   const run = state.rcStart ? intakeRun(state.rows, String(state.rcStart.date).slice(0, 10), state.today) : null;
-  const runShort = run ? (run.ok ? t('nutri_hero_run_ready').replace('{d}', String(run.days)) : t('nutri_hero_run').replace('{n}', String(Math.min(run.current, MIN_RUN_DAYS)))) : null;
+  const runShort = run ? (run.ok ? t('nutri_hero_run_ready').replace('{d}', String(run.days)) : t(variant === 'today' ? 'nutri_hero_run_today' : 'nutri_hero_run').replace('{n}', String(Math.min(run.current, MIN_RUN_DAYS)))) : null;
   // Journey (redesign part 1, founder 2026-10-02): only the 7-day run; the day of the check
   // lives on the Progress screen. Today keeps the day of the check + the run.
   const checkLine = variant === 'journey' ? runShort : policy.show

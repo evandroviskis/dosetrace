@@ -113,6 +113,7 @@ export const translations = {
     nutri_run_rule: "A day counts when it has food logged or you closed it with \"That's all for today\". A day with nothing logged starts the count again.",
     nutri_run_summary: 'Reality check intake: ≈ {avg}/day from {d} days in a row',
     nutri_hero_run: '{n} of 7 days in a row',
+    nutri_hero_run_today: '{n} of 7 days in a row', // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: 'intake ready ({d} days in a row)',
     nutri_hero_locked_premium: 'Your Premium has ended — Premium keeps the log going.',
     nutri_free_ending_note: 'Your 7 free days end on {until}. Your reality check is on day {day}, with food logged on {logged} days. Your weigh-in on {weighin} turns 7 days in a row of full logs into your measured daily burn — Premium keeps the log open after {until}.',
@@ -2027,6 +2028,7 @@ export const translations = {
     nutri_run_rule: 'Un día cuenta si tiene comida registrada o si lo cerraste con «Eso es todo por hoy». Un día sin nada registrado reinicia la cuenta.',
     nutri_run_summary: 'Lo que comiste: ≈ {avg}/día en {d} días seguidos',
     nutri_hero_run: '{n} de 7 días seguidos',
+    nutri_hero_run_today: '{n} de 7 seguidos', // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: 'ingesta lista ({d} días seguidos)',
     nutri_hero_locked_premium: 'Tu Premium ha terminado: Premium mantiene el registro.',
     nutri_free_ending_note: 'Tus 7 días gratis terminan el {until}. La medición de tus cifras reales va por el día {day}, con comida registrada en {logged} días. Con tu pesaje del {weighin}, 7 días seguidos de registros completos se convierten en tu gasto diario medido; con Premium, el registro sigue abierto después del {until}.',
@@ -3941,6 +3943,7 @@ export const translations = {
     nutri_run_rule: 'Um dia conta quando tem comida registrada ou quando você o fechou com "Por hoje é só". Um dia sem nada registrado recomeça a contagem.',
     nutri_run_summary: 'O que você comeu: ≈ {avg}/dia em {d} dias seguidos',
     nutri_hero_run: '{n} de 7 dias seguidos',
+    nutri_hero_run_today: '{n} de 7 seguidos', // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: 'ingestão pronta ({d} dias seguidos)',
     nutri_hero_locked_premium: 'Seu Premium terminou — o Premium mantém o registro.',
     nutri_free_ending_note: 'Seus 7 dias grátis terminam em {until}. A medição dos seus números reais está no dia {day}, com comida registrada em {logged} dias. Com a pesagem de {weighin}, 7 dias seguidos de registros completos viram o seu gasto diário medido — com o Premium, o registro continua aberto depois de {until}.',
@@ -5854,6 +5857,7 @@ export const translations = {
     nutri_run_rule: "Un jour compte s'il contient des repas notés ou si vous l'avez clôturé avec « C'est tout pour aujourd'hui ». Un jour sans rien de noté relance le compte.",
     nutri_run_summary: "Ce que vous avez mangé : ≈ {avg}/jour sur {d} jours d'affilée",
     nutri_hero_run: "{n} jours d'affilée sur 7",
+    nutri_hero_run_today: "{n} sur 7 d'affilée", // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: "apport prêt ({d} jours d'affilée)",
     nutri_hero_locked_premium: 'Votre Premium est terminé — Premium garde le journal actif.',
     nutri_free_ending_note: "Vos 7 jours gratuits se terminent le {until}. La mesure de vos vrais chiffres en est au jour {day}, avec des repas notés sur {logged} jours. Avec votre pesée du {weighin}, 7 jours d'affilée de repas notés en entier deviennent votre dépense quotidienne mesurée — avec Premium, le journal reste accessible après le {until}.",
@@ -7767,6 +7771,7 @@ export const translations = {
     nutri_run_rule: 'Ein Tag zählt, wenn Essen eingetragen ist oder du ihn mit „Das war alles für heute“ abgeschlossen hast. Ein Tag ohne Eintrag startet die Zählung neu.',
     nutri_run_summary: 'Gegessen: ≈ {avg}/Tag an {d} Tagen am Stück',
     nutri_hero_run: '{n} von 7 Tagen am Stück',
+    nutri_hero_run_today: '{n}/7 in Folge', // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: 'Aufnahme bereit ({d} Tage am Stück)',
     nutri_hero_locked_premium: 'Dein Premium ist abgelaufen – mit Premium geht das Protokoll weiter.',
     nutri_free_ending_note: 'Deine 7 Gratistage enden am {until}. Die Messung deiner echten Zahlen ist bei Tag {day}, mit Essen an {logged} Tagen eingetragen. Mit deiner Wägung am {weighin} werden 7 Tage am Stück mit vollständigen Einträgen zu deinem gemessenen Tagesverbrauch – mit Premium bleibt das Protokoll nach dem {until} offen.',
@@ -9681,6 +9686,7 @@ export const translations = {
     nutri_run_rule: "Un giorno conta se ha cibo registrato o se l'hai chiuso con «È tutto per oggi». Un giorno senza niente registrato fa ripartire il conteggio.",
     nutri_run_summary: 'Quello che hai mangiato: ≈ {avg}/giorno in {d} giorni di fila',
     nutri_hero_run: '{n} di 7 giorni di fila',
+    nutri_hero_run_today: '{n} di 7 di fila', // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: 'apporto pronto ({d} giorni di fila)',
     nutri_hero_locked_premium: 'Il tuo Premium è terminato — con Premium il diario continua.',
     nutri_free_ending_note: 'I tuoi 7 giorni gratuiti finiscono il {until}. La misurazione dei tuoi numeri reali è al giorno {day}, con cibo registrato in {logged} giorni. Con la pesata del {weighin}, 7 giorni di fila di registrazioni complete diventano il tuo consumo giornaliero misurato: con Premium il diario resta aperto dopo il {until}.',
