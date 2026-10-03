@@ -477,3 +477,4 @@ Source: the coordinator of the Premium/Auth build, applying the ledger and produ
 - **Reset password gets a way out ("Not now")** — a pending reset must never lock anyone out; a dead link session ends the reset by itself (Gate B re-review, 2026-10-03).
 - **Play free trial "new customers only"** checked read-only 2026-10-03: free-trial-7d on monthly (p1m) and yearly (annual), ACTIVE, 7 days free, targeting anySubscriptionInApp. Nothing changed in Play.
 - **Still the founder's questions:** (a) old accounts whose birth year makes them under 18; (b) accounts created with Apple used on Android.
+- **Dose-split options read as multiplication: "2 × 120 mg", "3 × 80 mg" (× sign, localized decimals), never "2 · 120 mg each"** — founder 2026-10-03 (a dot after the count reads like option numbers).
