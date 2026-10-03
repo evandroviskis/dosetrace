@@ -20,7 +20,7 @@ const calc = () => read('screens/components/CalculatorSection.js');
 test('Part 4 → PO-1: the screen renders the one card, then the daily plan and the reality check, from progressLayout', () => {
   const src = calc();
   assert.match(src, /const screenParts = \{ card: cardEl, plan: planEl, rc: rcEl \};/);
-  assert.match(src, /\{layout\.screen\.map\(k => screenParts\[k\]\)\}/);
+  assert.match(src, /\{loaded \? layout\.screen\.map\(k => screenParts\[k\]\) : null\}/, 'drawn once the saved numbers are read (no first-use flash)');
   assert.match(src, /\{layout\.card\.map\(k => cardParts\[k\]\)\}/);
 });
 

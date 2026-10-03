@@ -1496,8 +1496,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
       {header}
       {/* The one card, then the daily plan (with a daily burn) and the reality check (PO-1 / PO-9).
-          Keyed, so a part that moves when the daily burn appears keeps its state (no remount). */}
-      {layout.screen.map(k => screenParts[k])}
+          Keyed, so a part that moves when the daily burn appears keeps its state (no remount).
+          Drawn once the saved numbers are read, so a filled card never flashes as first use. */}
+      {loaded ? layout.screen.map(k => screenParts[k]) : null}
 
       {/* The disclaimer qualifies every number on this screen. */}
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
