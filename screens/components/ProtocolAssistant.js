@@ -22,6 +22,7 @@ import * as A from '../../lib/protocolAssistant';
 import { renderText, renderParam } from '../../lib/assistantText';
 import { assistantErrorNotice } from '../../lib/assistantErrors';
 import { startAssistant, understandAnswer } from '../../lib/assistantClient';
+import { createSession } from '../../lib/assistantSession';
 
 // door: build | finish | dose | fit. form: the wizard form now. ctx: { touched, visitedStep,
 // mixedOn, editing }. catalog: { recon, rtu, oral: [{ key, label }] }.
@@ -48,22 +49,24 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
 
   // Start: one use of the weekly limit, counted on the server (AP-18). A failure says why
   // and leaves only "Continue in the form" (AP-16).
+  // Opening the window spends nothing (AP-18, decided 2026-10-03 by logic): the conversation
+  // starts here on the phone; the weekly use is counted by the server at the first answer
+  // that goes to the AI, or when the label-photo path starts (lib/assistantSession).
+  const session = useRef(null);
   useEffect(() => {
-    let alive = true;
     convId.current = Crypto.randomUUID();
-    (async () => {
-      const r = await startAssistant(convId.current, door);
-      if (!alive) return;
-      if (r.error) {
-        setBlocked(assistantErrorNotice(r.error, formatDay));
-        setPhase('blocked');
-        return;
-      }
-      setConv(A.startConversation(door, form, { ...ctx, language, now: now(), catalog }));
-      setPhase('ready');
-    })();
-    return () => { alive = false; };
+    session.current = createSession({ conversationId: convId.current, door, start: startAssistant, understand: understandAnswer });
+    setConv(A.startConversation(door, form, { ...ctx, language, now: now(), catalog }));
+    setPhase('ready');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A refused or failed start: the weekly limit stops the conversation (only the way back to
+  // the form stays); any other failure is a notice and the next answer tries again.
+  function startFailed(err) {
+    const n = assistantErrorNotice(err, formatDay);
+    if (n.key === 'ap_err_quota' || n.key === 'ap_err_quota_nodate') { setBlocked(n); setPhase('blocked'); return; }
+    setConv((cur) => A.notice(cur, n.key, n.params));
+  }
 
   // The conversation ended (Done / Fill the form / Continue in the form).
   useEffect(() => {
@@ -105,7 +108,9 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
     const local = A.localUnderstand(step, typed, language);
     if (local) { setText(''); setConv(A.answerText(conv, typed, local)); return; }
     setBusy(true);
-    const r = await understandAnswer(convId.current, step, typed.slice(0, 300), language, now());
+    const started = await session.current.ensureStarted();
+    if (started.error) { setBusy(false); startFailed(started.error); return; }
+    const r = await session.current.understand(step, typed.slice(0, 300), language, now());
     setBusy(false);
     if (r.error) {
       // Nothing is lost: the typed text stays in the box, the answers stay in the form.
@@ -120,6 +125,8 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
   async function photo(fromCamera) {
     if (!scanLabel || !conv) return;
     setBusy(true);
+    const started = await session.current.ensureStarted(); // the label path is a use too
+    if (started.error) { setBusy(false); startFailed(started.error); return; }
     const r = await scanLabel(fromCamera);
     setBusy(false);
     if (!r) return;
@@ -127,7 +134,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
     setConv((cur) => A.notice(cur, r.quota ? 'ap_label_quota' : 'ap_label_none'));
   }
 
-  const opts = conv && !conv.ended ? A.options(conv) : [];
+  const opts = conv && !conv.ended && phase !== 'blocked' ? A.options(conv) : [];
   const input = conv && !conv.ended ? A.inputFor(conv) : { text: false, photo: false };
   const lastApp = conv ? (() => { for (let i = conv.messages.length - 1; i >= 0; i--) if (conv.messages[i].from === 'app') return conv.messages[i].id; return null; })() : null;
 
@@ -186,6 +193,15 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
           {phase === 'starting' && (
             <View style={s.app}><View style={s.row}><ActivityIndicator size="small" color={c.ink2} /><Text style={s.appText}>{t('ap_starting')}</Text></View></View>
           )}
+          {conv && conv.messages.map((m) => (
+            <View key={m.id}>
+              {renderMsg(m)}
+              {m.id === lastApp && opts.length > 0 && (
+                <View style={s.chips}>{opts.map((o) => <Chip key={o.id} o={o} />)}</View>
+              )}
+            </View>
+          ))}
+          {conv && opts.length > 0 && !lastApp && <View style={s.chips}>{opts.map((o) => <Chip key={o.id} o={o} />)}</View>}
           {phase === 'blocked' && blocked && (
             <>
               <View style={s.deflect}><Text style={s.deflectText}>{tr(blocked.key, blocked.params)}</Text></View>
@@ -196,15 +212,6 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
               </View>
             </>
           )}
-          {conv && conv.messages.map((m) => (
-            <View key={m.id}>
-              {renderMsg(m)}
-              {m.id === lastApp && opts.length > 0 && (
-                <View style={s.chips}>{opts.map((o) => <Chip key={o.id} o={o} />)}</View>
-              )}
-            </View>
-          ))}
-          {conv && opts.length > 0 && !lastApp && <View style={s.chips}>{opts.map((o) => <Chip key={o.id} o={o} />)}</View>}
           {busy && (
             <View style={s.app}><View style={s.row}><ActivityIndicator size="small" color={c.ink2} /><Text style={s.appTextMuted}>{t('ap_reading')}</Text></View></View>
           )}
