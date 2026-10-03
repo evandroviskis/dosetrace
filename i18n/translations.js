@@ -1041,7 +1041,7 @@ export const translations = {
     blood_upload: '+ Upload',
     blood_uploading: 'Reading your lab report...',
     blood_premium_badge: 'Bloodwork scan — Premium feature',
-    blood_premium_only: "Bloodwork analysis is a Premium feature.",
+    blood_premium_only: "Reading lab reports is a Premium feature.",
     blood_premium_markers: "You've scanned {n} markers. Premium charts every one over time and keeps reading your labs — any language, photo or PDF.",
     paywall_hero_example: "Example",
     xp_try: "Try it",

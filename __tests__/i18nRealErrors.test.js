@@ -77,3 +77,9 @@ test('the lab scan reads and extracts values, it never analyses them (AI hard li
   const scan = ['blood_uploading', 'blood_what_we_read', 'blood_error_extract', 'blood_premium_only', 'blood_error_service'];
   for (const l of LANGS) for (const k of scan) assert.doesNotMatch(tr[l][k], /Analizando|analizar|análise de sangue|analisar|analysiert|analysieren|Analyse fehlgeschlagen|Blutbild-Analyse|Analyse de votre|Analyse impossible|analyse sanguine|nous analysons|Service d'analyse|analizzare|Analisi del tuo|Analisi non riuscita|analisi del sangue è|El análisis de sangre es/i, `${l}.${k}`);
 });
+
+test('English lab-scan Premium line says reading, never analysis (founder 2026-10-02, AI hard line)', () => {
+  assert.equal(tr.en.blood_premium_only, 'Reading lab reports is a Premium feature.');
+  const scan = ['blood_uploading', 'blood_what_we_read', 'blood_error_extract', 'blood_premium_only', 'blood_error_service'];
+  for (const k of scan) assert.doesNotMatch(tr.en[k], /analy[sz]|interpret/i, `en.${k}`);
+});
