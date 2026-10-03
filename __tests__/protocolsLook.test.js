@@ -172,7 +172,8 @@ test('part 19: Day before the day, full-width fields, plain bold summary with �
   assert.match(SCREEN, /<Text style=\{s\.bodyC2\}>\{t\('protocols_mix_day'\)\}<\/Text>/);
   assert.match(style(SCREEN, 'dayInput'), /flex: 1/);
   assert.doesNotMatch(SCREEN, /validInput/);
-  assert.match(SCREEN, /\{ label: t\('protocols_amount_label'\), value: amount \? `\$\{amount\} \$\{unit\}` : '—' \}/);
+  // (second review: the value as read, __tests__/wizardReviewValues.test.js)
+  assert.match(SCREEN, /\{ label: t\('protocols_amount_label'\), value: amount \? `\$\{decimalText\(parseDecimal\(amount, language\), language\)\} \$\{unit\}` : '—' \}/);
   assert.doesNotMatch(SCREEN, /protocols_water_label'\), value: [^\n]*mono: true/);
   assert.equal(TR.en.protocols_skipped_msg, 'No problem — you can log your vial mix anytime from Today (+ Add vial).');
   assert.match(SCREEN, /t\('protocols_add_date'\)\.replace\(\/\^←\\s\*\/, ''\)/);

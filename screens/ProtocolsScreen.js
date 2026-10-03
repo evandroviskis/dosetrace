@@ -2790,9 +2790,9 @@ export default function ProtocolsScreen() {
                   title={sentenceCase(t('protocols_summary'))}
                   rows={[
                     { label: t('protocols_compound_label'), value: name || '—' },
-                    { label: t('protocols_amount_label'), value: amount ? `${amount} ${unit}` : '—' },
+                    { label: t('protocols_amount_label'), value: amount ? `${decimalText(parseDecimal(amount, language), language)} ${unit}` : '—' }, // as read and saved
                     { label: t('protocols_water_label'), value: water ? `${decimalText(trimZeros(water), language)} ml` : '—' },
-                    { label: t('protocols_dose_label'), value: dose ? `${dose} ${doseUnit}` : '—' },
+                    { label: t('protocols_dose_label'), value: dose ? `${decimalText(parseDecimal(dose, language), language)} ${doseUnit}` : '—' },
                     drawML && drawValid ? { label: t('protocols_draw_label'), value: `${decimalText(trimZeros(drawML), language)} ml (${decimalText(drawUnits, language)} ${t('protocols_units')})` } : null,
                     { label: t('protocols_frequency_label'), value: frequencyLabel(intervalDays) },
                   ]}
