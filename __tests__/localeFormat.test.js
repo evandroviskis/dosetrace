@@ -155,3 +155,16 @@ test('inputNumber: "1,250" would read as one thousand, so it becomes "1,2500"', 
   assert.equal(parseDecimal(inputNumber(1.25, 'pt', 3)), 1.25);
   assert.equal(inputNumber(0.125, 'pt'), '0,125'); // a leading zero is never thousands
 });
+
+// Review 2026-10-02 (LOW): a value stored as TEXT that is not a plain number comes back
+// exactly as stored — "5,000" (five thousand IU typed in English) never becomes "5,0000",
+// which would read back as 5.
+test('inputNumber returns a stored text that is not a plain number unchanged', () => {
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    assert.equal(inputNumber('5,000', l), '5,000', l);
+    assert.equal(inputNumber('1,250', l), '1,250', l);
+    assert.equal(inputNumber('0,5', l), '0,5', l);
+    assert.equal(inputNumber('abc', l), 'abc', l);
+  }
+  assert.equal(parseDecimal(inputNumber('5,000', 'pt')), 5000);
+});
