@@ -57,7 +57,7 @@ function validateVaccine(v) {
   };
 }
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+import { formatDate as localeDate } from '../../lib/localeFormat';
 
 function todayISO() {
   return new Date().toISOString().split('T')[0];
@@ -79,7 +79,6 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const locale = LOCALE_MAP[language] || 'en-US';
 
   // An open sheet carried over a fold/unfold (see the draft effect below).
   const [carried] = useState(() => (draftRef && draftRef.current) || null);
@@ -274,9 +273,7 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
 
   function formatDate(iso) {
     if (!iso) return '';
-    const d = new Date(iso + 'T12:00:00');
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
+    return localeDate(String(iso).slice(0, 10), language, 'long') || iso;
   }
 
   function openAdd() {

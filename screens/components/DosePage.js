@@ -19,6 +19,7 @@ import { useTheme } from '../../lib/theme';
 import { displayColor } from '../../lib/protocolColors';
 import SyringeScale from './SyringeScale';
 import { trimZeros } from '../../lib/doseMath';
+import { decimalText } from '../../lib/localeFormat';
 import CheckMark from '../../components/CheckMark';
 import { lightHaptic } from '../../components/motion';
 
@@ -52,6 +53,7 @@ function TakeAction({ label, takenLabel, askFirst, onTake, s, colors }) {
 
 export default function DosePage({
   t,
+  language = 'en', // the app language: the draw numbers use its decimal ("50,0 u" in pt)
   name,
   color,
   time, // the slot's time, with its day when it is not today ("Yesterday 20:00")
@@ -113,11 +115,11 @@ export default function DosePage({
           <View style={s.draw} onLayout={(e) => setScaleW(Math.max(160, Math.floor(e.nativeEvent.layout.width) - 28))}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {trimZeros(draw.drawML)} ml</Text></Text>
+              <Text style={s.drawVal}>{decimalText(draw.drawUnits, language)}<Text style={s.drawUnit}> u · {decimalText(trimZeros(draw.drawML), language)} ml</Text></Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syringeSize} width={scaleW} />
             {draw.exceedsSyringe && (
-              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeSize))}</Text>
+              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', decimalText(draw.drawUnits, language)).replace('{size}', String(syringeSize))}</Text>
             )}
           </View>
         )}

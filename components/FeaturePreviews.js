@@ -19,7 +19,7 @@ import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
 import { paletteHex } from '../lib/protocolColors';
 import {
-  FX_W, eBack, kf, groupNum, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed,
+  FX_W, eBack, kf, groupNum, numGroup, demoDec, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed,
   OkMark, Corners, ScanBeam, fmtDate,
 } from './previewFx';
 
@@ -28,6 +28,8 @@ const ACircle = Animated.createAnimatedComponent(Circle);
 
 /* ---- Reality check: two weigh-ins + the food log → measured vs the formula ---- */
 function RealityFx({ c, t: tr, width, label }) {
+  const { language } = useLanguage();
+  const { sep, min } = numGroup(language);
   const H = 250, DUR = 5600;
   const t = useFxClock(DUR);
   const day = (n) => tr('today_day_of').replace('{current}', String(n)).replace('{total}', '21');
@@ -41,17 +43,17 @@ function RealityFx({ c, t: tr, width, label }) {
     </>
   );
   const connector = (tv) => { 'worklet'; return { width: 42 * eOutQuad(kf(tv, 950, 450)) }; };
-  const kcal2320 = (v) => { 'worklet'; return '~' + groupNum(v) + ' ' + perDay; };
-  const kcal = (v) => { 'worklet'; return groupNum(v); };
+  const kcal2320 = (v) => { 'worklet'; return '~' + groupNum(v, sep, min) + ' ' + perDay; };
+  const kcal = (v) => { 'worklet'; return groupNum(v, sep, min); };
   const lineW = (tv) => { 'worklet'; return { width: 318 * eOutQuad(clamp01(eBack(kf(tv, 4100, 450)))) }; };
   return (
     <FxCanvas width={width} h={H} label={label}>
-      <Box t={t} at={0} dur={500} dy={10}>{card(4, 1, '85.3')}</Box>
-      <Box t={t} at={500} dur={500} dy={10}>{card(184, 21, '84.7')}</Box>
+      <Box t={t} at={0} dur={500} dy={10}>{card(4, 1, demoDec('85.3', language))}</Box>
+      <Box t={t} at={500} dur={500} dy={10}>{card(184, 21, demoDec('84.7', language))}</Box>
       <Anim t={t} fx={connector} style={{ left: 142, top: 34, height: 2, overflow: 'hidden' }}>
         <Svg width={42} height={2}><Line x1={0} x2={42} y1={1} y2={1} stroke={c.ink3} strokeDasharray="3,3" strokeWidth={1} /></Svg>
       </Anim>
-      <Box t={t} at={950} dur={450} ease="out"><T x={163} y={80} size={11} color={c.ink2} mono anchor="middle" width={80}>−0.6 kg</T></Box>
+      <Box t={t} at={950} dur={450} ease="out"><T x={163} y={80} size={11} color={c.ink2} mono anchor="middle" width={80}>{demoDec('−0.6 kg', language)}</T></Box>
 
       <Box t={t} at={1400} dur={300} ease="lin">
         <T x={4} y={106} size={11} color={c.ink2} width={170}>{tr('nutri_ai_badge')}</T>
@@ -89,6 +91,8 @@ function splitMeal(s) {
   return parts.length === 3 ? parts : null;
 }
 function FoodFx({ c, t: tr, width, label }) {
+  const { language } = useLanguage();
+  const { sep, min } = numGroup(language);
   const H = 250, DUR = 6000;
   const t = useFxClock(DUR);
   const full = tr('nutri_demo_meal');
@@ -101,7 +105,7 @@ function FoodFx({ c, t: tr, width, label }) {
   const bubble = (tv) => { 'worklet'; return { opacity: tv > 1700 ? 1 : 0, transform: [{ translateY: 200 - 186 * eOutQuad(kf(tv, 1700, 350)) }] }; };
   const typing = (tv) => { 'worklet'; return { opacity: tv > 2050 && tv < 2700 ? 1 : 0 }; };
   const dot = (i) => (tv) => { 'worklet'; return { opacity: Math.floor((tv - 2050) / 200) % 3 === i ? 1 : 0.35 }; };
-  const total = (v) => { 'worklet'; return '≈ ' + groupNum(v) + ' ' + kcalWord; };
+  const total = (v) => { 'worklet'; return '≈ ' + groupNum(v, sep, min) + ' ' + kcalWord; };
   const macros = (v) => { 'worklet'; return Math.round(55 * v) + ' g ' + carbsWord + ' · ' + Math.round(26 * v) + ' g ' + protWord; };
   return (
     <FxCanvas width={width} h={H} label={label}>
@@ -157,6 +161,7 @@ function FoodFx({ c, t: tr, width, label }) {
 /* ---- Lab scan: one photo → every value read ---- */
 const SCAN_MARKERS = [['Total Testosterone', '986 ng/dL'], ['Free Testosterone', '21.4 ng/dL'], ['Estradiol', '41 pg/mL'], ['SHBG', '31 nmol/L'], ['Hematocrit', '47.6 %'], ['HbA1c', '5.2 %'], ['LDL', '121 mg/dL']];
 function ScanFx({ c, t: tr, width, label }) {
+  const { language } = useLanguage();
   const H = 250, DUR = 5600;
   const t = useFxClock(DUR);
   const px = 8, py = 14, pw = 120, ph = 168;
@@ -185,7 +190,7 @@ function ScanFx({ c, t: tr, width, label }) {
         return (
           <Box key={m[0]} t={t} at={900 + i * 300} dur={420} dx={-26}>
             <T x={146} y={y + 10} size={11.5} color={c.ink} width={104}>{m[0]}</T>
-            <T x={322} y={y + 10} size={11.5} weight="500" color={c.ink} mono anchor="end" width={76}>{m[1]}</T>
+            <T x={322} y={y + 10} size={11.5} weight="500" color={c.ink} mono anchor="end" width={76}>{demoDec(m[1], language)}</T>
           </Box>
         );
       })}

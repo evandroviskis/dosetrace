@@ -13,6 +13,7 @@ import Animated, { SlideInDown, useAnimatedProps, useDerivedValue } from 'react-
 import Svg, { Line, Circle, Path, Ellipse } from 'react-native-svg';
 import { LIGHT, useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatDate } from '../lib/localeFormat';
 import { getCachedUser } from '../lib/supabase';
 import { formatTime } from '../lib/timeFormat';
 import { paletteHex } from '../lib/protocolColors';
@@ -23,7 +24,7 @@ import { CrossMark } from './CheckMark';
 import { clamp01, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
 import {
-  FX_W, eBack, kf, groupNum, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed, OkMark, LiveText, fmtDate, LOCALE_MAP,
+  FX_W, eBack, kf, groupNum, numGroup, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed, OkMark, LiveText, fmtDate,
 } from './previewFx';
 
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -56,6 +57,8 @@ const fade = (at, dur) => (tv) => { 'worklet'; return { opacity: clamp01((tv - a
 /* ---- Reconstitution calculator: vial + water + dose in, the draw on the syringe out ---- */
 // 5 mg in 2 ml = 2.5 mg/ml; 500 mcg = 0.2 ml = 20 units.
 function ReconFx({ c, t: tr, width, label }) {
+  const { language } = useLanguage();
+  const dec = language === 'en' ? '.' : ','; // the app language's decimal, for the UI-thread number
   const DUR = 6000;
   const t = useFxClock(DUR);
   const F = [[tr('xp_recon_vial'), '5 mg', 200], [tr('xp_recon_water'), '2 ml', 800], [tr('protocols_dose_label'), '500 mcg', 1400]];
@@ -63,7 +66,7 @@ function ReconFx({ c, t: tr, width, label }) {
   const ticks = [];
   for (let u = 2; u < 100; u += 2) ticks.push(u);
   const units = (v) => { 'worklet'; return String(Math.round(v)); };
-  const ml = (v) => { 'worklet'; return (v / 100).toFixed(2) + ' ml'; };
+  const ml = (v) => { 'worklet'; return (v / 100).toFixed(2).replace('.', dec) + ' ml'; };
   const stopper = (tv) => { 'worklet'; return { transform: [{ translateX: 58 * eInOutCubic(kf(tv, 2300, 1300)) }] }; };
   const inFill = (u) => (tv) => { 'worklet'; return { opacity: 20 * eInOutCubic(kf(tv, 2300, 1300)) > u ? 1 : 0 }; };
   return (
@@ -166,7 +169,7 @@ function RemindFx({ c, t: tr, width, label, language, timeFormat }) {
   const DUR = 6000;
   const t = useFxClock(DUR);
   let dateLine = '';
-  try { dateLine = new Date(2026, 8, 28).toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'long', month: 'long', day: 'numeric' }); } catch { dateLine = ''; }
+  dateLine = formatDate(new Date(2026, 8, 28, 12), language, 'weekdayLong');
   const time = formatTime('19:20', language, timeFormat);
   const note = (tv) => {
     'worklet';
@@ -326,6 +329,8 @@ function LogFx({ c, t: tr, width, label }) {
 /* ---- Energy & protein: your numbers in, standard-formula estimates out ---- */
 // Mifflin-St Jeor: 84 kg, 180 cm, 38 y, male = 1,780; x1.55 = ~2,760; 1.6–2.0 g/kg = 134–168 g.
 function EnergyFx({ c, t: tr, width, label }) {
+  const { language } = useLanguage();
+  const { sep, min } = numGroup(language);
   const DUR = 6000;
   const t = useFxClock(DUR);
   const IN = ['84 kg', '180 cm', tr('xp_energy_years').replace('{n}', '38'), tr('xp_energy_active')];
@@ -345,8 +350,8 @@ function EnergyFx({ c, t: tr, width, label }) {
       {R.map((r, i) => {
         const at = 1500 + i * 700, y = 80 + i * 50;
         const fmt = i === 2
-          ? (v) => { 'worklet'; return groupNum(134 * v) + '–' + groupNum(168 * v) + ' ' + perDay; }
-          : (v) => { 'worklet'; return groupNum(v) + ' ' + kcal; };
+          ? (v) => { 'worklet'; return groupNum(134 * v, sep, min) + '–' + groupNum(168 * v, sep, min) + ' ' + perDay; }
+          : (v) => { 'worklet'; return groupNum(v, sep, min) + ' ' + kcal; };
         return (
           <Anim key={i} t={t} fx={fade(at - 150, 300)} style={{ left: 0, top: 0, width: FX_W, height: H }}>
             <T x={4} y={y + 12} size={12} color={c.ink2} width={180}>{r[0]}</T>
@@ -415,7 +420,7 @@ function NotesFx({ c, t: tr, width, label, language, timeFormat }) {
   const t742 = formatTime('19:42', language, timeFormat), t720 = formatTime('19:20', language, timeFormat);
   const scene1 = (tv) => { 'worklet'; const mv = eInOutCubic(kf(tv, 2900, 500)); return { opacity: 1 - mv, transform: [{ translateY: -20 * mv }] }; };
   const day = (d) => {
-    try { return new Date(2026, 8, d).toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric' }); } catch { return ''; }
+    return formatDate(new Date(2026, 8, d, 12), language, 'weekdayDayMonth');
   };
   return (
     <FxCanvas width={width} h={H} label={label}>

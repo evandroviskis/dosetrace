@@ -115,7 +115,7 @@ test('part 5 / 11 / 12: the protocol screen rhythm (14 between, 26 block after b
 test('part 6: the unit 3 pt after the number, the decimal kept, 1 pt line over the reads', () => {
   assert.match(style(SCREEN, 'drawBigUnit'), /marginLeft: 3/);
   assert.match(style(SCREEN, 'bigRow'), /flexDirection: 'row', alignItems: 'baseline'/);
-  assert.match(SCREEN, /<Text style=\{\[s\.drawBig, over && s\.drawBigRisk\]\}>\{draw\.drawUnits\}<\/Text>/, 'drawUnits as computed ("100.0")');
+  assert.match(SCREEN, /<Text style=\{\[s\.drawBig, over && s\.drawBigRisk\]\}>\{decimalText\(draw\.drawUnits, language\)\}<\/Text>/, 'drawUnits as computed ("100.0", "100,0" in pt)');
   assert.match(style(SCREEN, 'reads'), /borderTopWidth: 1,/);
   assert.match(style(SCREEN, 'hintRow'), /gap: 6 \}/);
 });

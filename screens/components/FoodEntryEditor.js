@@ -36,13 +36,12 @@ import { dayChoice, pickDay, stepEarlier, earlierBounds } from '../../lib/foodEn
 import { CrossMark } from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+import { formatDate } from '../../lib/localeFormat';
 
 export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = makeStyles(colors);
-  const locale = LOCALE_MAP[language] || 'en-US';
   const [items, setItems] = useState([]);
   const [date, setDate] = useState(null);
   const key = editorDraftKey(row);
@@ -68,8 +67,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   function dayLabel(dateISO) {
     if (dateISO === today) return t('nutri_day_today');
     if (dateISO === localDaysAgoISO(1)) return t('nutri_day_yesterday');
-    const d = new Date(dateISO + 'T12:00:00');
-    return isNaN(d) ? dateISO : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+    return formatDate(dateISO, language, 'weekdayDayMonth') || dateISO;
   }
   // Move an entry to the day it was really eaten: Today, Yesterday, or Earlier day (2…7 days
   // ago, one step at a time). Never into the future; a date is only moved by the user.

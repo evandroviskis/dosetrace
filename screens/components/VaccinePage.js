@@ -16,7 +16,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+import { formatDate as localeDate } from '../../lib/localeFormat';
 
 // The read rows, in the add/edit sheet's order: only the fields with a value. `label` is the
 // sheet's own i18n key; dates are formatted by the caller. Pure (tested in bookBody.test.js).
@@ -42,12 +42,9 @@ export default function VaccinePage({ vaccine, onEdit }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const locale = LOCALE_MAP[language] || 'en-US';
 
   function formatDate(iso) {
-    const d = new Date(iso + 'T12:00:00');
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
+    return localeDate(String(iso).slice(0, 10), language, 'long') || iso;
   }
 
   const rows = vaccineRows(vaccine);

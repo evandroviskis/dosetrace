@@ -19,6 +19,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
+import { formatDate as localeDate, decimalText, inputNumber } from '../lib/localeFormat';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
@@ -117,7 +118,6 @@ const UPLOADS_KEY = 'dosetrace_bloodwork_uploads';
 // Client-side pre-check: reject files over 10MB before reading into memory.
 // The edge function enforces its own ~15MB base64 cap server-side.
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 async function getUploadCount() {
   try {
@@ -314,7 +314,6 @@ export default function BodyScreen({ navigation, route }) {
   const [mDatePicker, setMDatePicker] = useState(false);
   const [confirmDatePicker, setConfirmDatePicker] = useState(false);
 
-  const locale = LOCALE_MAP[language] || 'en-US';
   const q = search.trim().toLowerCase();
 
   // Date view: reports grouped by UPLOAD INSTANCE (report_date + created_at), so a
@@ -746,7 +745,7 @@ export default function BodyScreen({ navigation, route }) {
   function openMarkerEdit(obj) {
     setMEdit(obj);
     setMName(obj.marker || '');
-    setMValue(obj.value != null ? String(obj.value) : '');
+    setMValue(obj.value != null ? inputNumber(obj.value, language) : ''); // "5,2" in pt; saved back through the comma-aware parse
     setMUnit(obj.unit || '');
     setMDate(obj.date || obj.report_date || '');
     setMDatePicker(false);
@@ -845,8 +844,7 @@ export default function BodyScreen({ navigation, route }) {
         colNextDue: t('vax_next_due'), colNotes: t('vax_notes'),
         noLabs: t('export_no_labs'), noVaccines: t('export_no_vaccines'),
       };
-      const locale = LOCALE_MAP[language] || 'en-US';
-      const dateStr = new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+      const dateStr = localeDate(new Date(), language, 'long');
       const Sharing = require('expo-sharing');
       let uri, mime;
 
@@ -881,10 +879,9 @@ export default function BodyScreen({ navigation, route }) {
     setExporting(false);
   }
 
+  // "October 19, 2026" / "19 de outubro de 2026": the app language (lib/localeFormat).
   function formatDate(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00');
-    const locale = LOCALE_MAP[language] || 'en-US';
-    return d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
+    return localeDate(String(dateStr).slice(0, 10), language, 'long') || String(dateStr);
   }
 
   // One per upload, the same key as the journal's date cards (A-74).
@@ -984,7 +981,7 @@ export default function BodyScreen({ navigation, route }) {
           {reportDetail.markers.map((m, j) => (
             <TouchableOpacity key={m.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(m)}>
               <Text style={[s.body, s.grow]}>{m.marker}</Text>
-              <Text style={s.value}>{m.value} {m.unit}</Text>
+              <Text style={s.value}>{decimalText(m.value, language)} {m.unit}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
           ))}
@@ -1025,15 +1022,15 @@ export default function BodyScreen({ navigation, route }) {
 
         <View style={s.card}>
           <Text style={[s.foot, s.tnum]}>{formatDate(markerDetail.latest.date)}</Text>
-          <Text style={s.display} accessibilityLabel={`${markerDetail.latest.value} ${markerDetail.unit}`}>
-            {markerDetail.latest.value}
+          <Text style={s.display} accessibilityLabel={`${decimalText(markerDetail.latest.value, language)} ${markerDetail.unit}`}>
+            {decimalText(markerDetail.latest.value, language)}
             {markerDetail.unit ? <Text style={s.unit}> {markerDetail.unit}</Text> : null}
           </Text>
           <Text style={[s.foot, s.tnum]}>
             {markerDetail.points.length} {markerDetail.points.length === 1 ? t('blood_reading') : t('blood_readings')}
           </Text>
           {markerDetail.points.length >= 2 ? (
-            <MarkerChart points={markerDetail.points} unit={markerDetail.unit} locale={locale} width={chartWidth} />
+            <MarkerChart points={markerDetail.points} unit={markerDetail.unit} language={language} width={chartWidth} />
           ) : (
             <Text style={s.sec}>{t('blood_need_more')}</Text>
           )}
@@ -1043,7 +1040,7 @@ export default function BodyScreen({ navigation, route }) {
           {markerDetail.points.slice().reverse().map((p, j) => (
             <TouchableOpacity key={p.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(p)}>
               <Text style={[s.body, s.grow, s.tnum]}>{formatDate(p.date)}</Text>
-              <Text style={s.value}>{p.value} {p.unit}</Text>
+              <Text style={s.value}>{decimalText(p.value, language)} {p.unit}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
           ))}
@@ -1195,7 +1192,7 @@ export default function BodyScreen({ navigation, route }) {
                         {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
                       </Text>
                     </View>
-                    <Text style={s.value}>{mk.latest.value} {mk.unit}</Text>
+                    <Text style={s.value}>{decimalText(mk.latest.value, language)} {mk.unit}</Text>
                     <Chevron color={colors.tick} />
                   </TouchableOpacity>
                 ))}
@@ -1523,7 +1520,7 @@ export default function BodyScreen({ navigation, route }) {
                 />
                 <TextInput
                   style={[s.input, s.exVal]}
-                  value={String(m.value ?? '')}
+                  value={typeof m.value === 'number' ? inputNumber(m.value, language) : String(m.value ?? '')}
                   onChangeText={v => updateExtractedMarker(i, 'value', v)}
                   keyboardType="decimal-pad"
                   placeholderTextColor={colors.ink3}

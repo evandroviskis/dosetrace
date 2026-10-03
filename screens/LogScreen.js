@@ -21,7 +21,8 @@ import { summarizeStored, describeStored } from '../lib/injectionSites';
 import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
 import { syncVialAlerts } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
-import { hour12Pref } from '../lib/timeFormat';
+import { formatTime } from '../lib/timeFormat';
+import { formatDate } from '../lib/localeFormat';
 import { hasPremium } from '../lib/entitlement';
 import { Analytics } from '../lib/analytics';
 import BodyMapModal from './components/BodyMapModal';
@@ -36,7 +37,6 @@ import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 
-const LOCALES = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun', 'today_mon', 'today_tue', 'today_wed', 'today_thu', 'today_fri', 'today_sat'];
 const INJECTABLE = ['recon', 'rtu'];
 
@@ -64,9 +64,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const locale = LOCALES[language] || 'en-US';
-  const timeOpts = { hour: 'numeric', minute: '2-digit' };
-  { const _h12 = hour12Pref(timeFormat); if (_h12 !== undefined) timeOpts.hour12 = _h12; }
+  // Times and dates in the app language and the user's 12/24 h choice (lib/timeFormat,
+  // lib/localeFormat): "7:20 PM" / "19:20", "Sep 3" / "3 de set.".
+  const timeOf = (iso) => { const d = new Date(iso); return formatTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, language, timeFormat); };
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('All');
 
@@ -301,17 +301,14 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // "Today, 11:51 AM" / "Yesterday, …" / "Fri, …" / "Sep 3, …" (the row's own time format).
   function doseWhen(log) {
     const d = new Date(log.logged_at);
-    const time = d.toLocaleTimeString(locale, timeOpts);
+    const time = timeOf(log.logged_at);
     const kind = doseDayKind(log.logged_at);
     let day;
     if (kind === 'today') day = t('today_today_pill');
     else if (kind === 'yesterday') day = t('today_yesterday');
     else if (kind === 'weekday') day = t(WEEKDAY_KEYS[d.getDay()]);
     else {
-      day = d.toLocaleDateString(locale, {
-        month: 'short', day: 'numeric',
-        ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
-      });
+      day = formatDate(d, language, 'dayMonthAuto');
     }
     return `${day}, ${time}`;
   }
@@ -337,7 +334,6 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // and Jul 3 2026 stay separate); returns SectionList-shaped sections.
   function buildSections(logs) {
     const groups = {};
-    const currentYear = new Date().getFullYear();
     const order = [];
     logs.forEach(log => {
       const d = new Date(log.logged_at);
@@ -345,10 +341,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       if (!groups[key]) {
         groups[key] = {
           key,
-          title: d.toLocaleDateString(locale, {
-            weekday: 'long', month: 'short', day: 'numeric',
-            ...(d.getFullYear() !== currentYear ? { year: 'numeric' } : {}),
-          }),
+          title: formatDate(d, language, 'weekdayLongDayMonthAuto'),
           data: [],
         };
         order.push(key);
@@ -566,7 +559,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                 </View>
                 <View style={s.logRight}>
                   <Text style={s.logTime}>
-                    {new Date(log.logged_at).toLocaleTimeString(locale, timeOpts)}
+                    {timeOf(log.logged_at)}
                   </Text>
                   <View style={s.outcomeRow}>
                     <View style={[s.statusDot, { backgroundColor: outcomeColor(log.outcome) }]} />

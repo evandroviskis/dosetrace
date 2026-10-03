@@ -24,6 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
 import { markIntentionalSignOut } from '../lib/authIntent';
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatDate, decimalText } from '../lib/localeFormat';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import RowChevron from '../components/RowChevron';
@@ -347,7 +348,7 @@ export default function SettingsScreen({ navigation }) {
 
         return {
           name: p.name,
-          dose: `${p.dose || '—'} ${p.dose_unit || ''}`,
+          dose: `${p.dose ? decimalText(p.dose, language) : '—'} ${p.dose_unit || ''}`,
           frequency: p.frequency || '—',
           taken,
           skipped,
@@ -364,7 +365,8 @@ export default function SettingsScreen({ navigation }) {
 
       // Build report text
       const userName = user.user_metadata?.display_name || user.email;
-      const dateRange = `${thirtyDaysAgo.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      // In the app language, never the device locale (founder 2026-10-02).
+      const dateRange = `${formatDate(thirtyDaysAgo, language, 'dayMonth')} – ${formatDate(now, language, 'dayMonthYear')}`;
 
       let report = `${t('report_header')}\n`;
       report += `${'─'.repeat(40)}\n`;
@@ -387,7 +389,7 @@ export default function SettingsScreen({ navigation }) {
       });
 
       report += `${'─'.repeat(40)}\n`;
-      report += `${t('report_generated').replace('{date}', now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }))}\n`;
+      report += `${t('report_generated').replace('{date}', formatDate(now, language, 'long'))}\n`;
       report += `${t('report_footer_1')}\n`;
       report += `${t('report_footer_2')}\n`;
 

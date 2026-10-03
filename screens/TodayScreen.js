@@ -43,6 +43,8 @@ import { newVialRecords } from '../lib/newVial';
 import { supplyState } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
+import { formatDate, decimalText } from '../lib/localeFormat';
+import useColumnWidth from '../components/useColumnWidth';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
@@ -125,7 +127,6 @@ import CheckMark from '../components/CheckMark';
 const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
 const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 
 const MONTH_KEYS = [
@@ -148,6 +149,8 @@ export default function TodayScreen() {
   const { t, language, timeFormat } = useLanguage();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
+  // Next 5 days: the day + time column is as wide as its widest date in this language.
+  const [upColW, onUpColLayout] = useColumnWidth(88, language);
   const s = useMemo(() => makeStyles(colors), [colors]);
   // S-26 book layout (docs/specs/book-layout.md): on an unfolded foldable Today is the left
   // page and the Dose log, or the dose the user tapped, the right page (BK-3). One column
@@ -1115,26 +1118,14 @@ export default function TodayScreen() {
 
   function formatVialDate(dateStr) {
     if (!dateStr) return '—';
-    const d = new Date(dateStr + 'T00:00:00');
-    return `${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`;
+    return formatDate(String(dateStr).slice(0, 10), language, 'dayMonth') || '—';
   }
 
   // Computed in render (not cached in state) so both follow the app language.
   const _hour = new Date().getHours();
   const greeting = t(_hour < 12 ? 'today_greeting_morning' : _hour < 18 ? 'today_greeting_afternoon' : 'today_greeting_evening');
-  // Localized date. toLocaleDateString with an explicit locale can throw on
-  // some Hermes builds, which would blank the whole header — so guard it and
-  // fall back to the app's own localized month/weekday keys (always works).
-  let today;
-  try {
-    today = new Date().toLocaleDateString(LOCALE_MAP[language] || 'en-US', {
-      weekday: 'long', month: 'long', day: 'numeric',
-    });
-  } catch { today = ''; }
-  if (!today) {
-    const _d = new Date();
-    today = `${t(WEEKDAY_KEYS[_d.getDay()])}, ${t(MONTH_KEYS[_d.getMonth()])} ${_d.getDate()}`;
-  }
+  // Localized date in the app language (lib/localeFormat: fixed tables, never throws).
+  const today = formatDate(new Date(), language, 'weekdayLong');
 
   const todayDate = new Date();
   const dueProtocols = protocols.filter(p => expectedDosesOn(p, todayDate) > 0);
@@ -1346,7 +1337,7 @@ export default function TodayScreen() {
         id: 'reality_check', iconName: 'type_glp1', due,
         title: t('today_alert_rc_title'),
         body: due ? t('today_alert_rc_due')
-          : t('today_alert_rc_when').replace('{date}', `${t(MONTH_KEYS[remind.getMonth()])} ${remind.getDate()}`),
+          : t('today_alert_rc_when').replace('{date}', formatDate(remind, language, 'dayMonth')),
         onPress: () => navigation.navigate('Journey'),
         snoozeId: 'reality_check',
       });
@@ -1534,12 +1525,13 @@ export default function TodayScreen() {
     const { draw, syr } = doseDraw(p);
     return (
       <DosePage
+        language={language}
         t={t}
         name={p.compound_id ? t(p.compound_id) : p.name}
         color={displayColor(p.color)}
         time={slotTimeLabel(plan.dayKey, plan.slotMs)}
         due={plan.kind === 'due' && Number.isFinite(plan.slotMs)}
-        doseLine={`${p.dose} ${p.dose_unit} · ${frequencyLabelFor(p.interval_days, t)}`}
+        doseLine={`${decimalText(p.dose, language)} ${p.dose_unit} · ${frequencyLabelFor(p.interval_days, t)}`}
         draw={draw}
         syringeSize={syr}
         kind={plan.kind}
@@ -1613,7 +1605,7 @@ export default function TodayScreen() {
           <View style={[s.ddot, { backgroundColor: displayColor(p.color) || colors.data }]} />
           <View style={s.dinfo}>
             <Text style={s.dname}>{name}</Text>
-            <Text style={s.dfreq}><Text style={s.damt}>{p.dose} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
+            <Text style={s.dfreq}><Text style={s.damt}>{decimalText(p.dose, language)} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
           </View>
           <View style={s.dright}>
             <View style={s.dtimeRow}>
@@ -1662,11 +1654,11 @@ export default function TodayScreen() {
           <View style={s.draw}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{draw.drawUnits}<Text style={s.drawUnit}> u · {trimZeros(draw.drawML)} ml</Text></Text>
+              <Text style={s.drawVal}>{decimalText(draw.drawUnits, language)}<Text style={s.drawUnit}> u · {decimalText(trimZeros(draw.drawML), language)} ml</Text></Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             {draw.exceedsSyringe && (
-              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syr))}</Text>
+              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', decimalText(draw.drawUnits, language)).replace('{size}', String(syr))}</Text>
             )}
           </View>
         )}
@@ -1767,14 +1759,14 @@ export default function TodayScreen() {
               accessibilityRole="button"
               accessibilityState={book ? { selected: pickedUp } : undefined}
             >
-              <View style={s.upTimeCol}>
-                {key === 'n5' && <Text style={s.upDay} numberOfLines={1}>{`${t(WEEKDAY_KEYS[d.getDay()])}, ${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`}</Text>}
+              <View style={[s.upTimeCol, { minWidth: upColW }]} onLayout={key === 'n5' ? onUpColLayout : undefined}>
+                {key === 'n5' && <Text style={s.upDay} numberOfLines={1}>{formatDate(d, language, 'weekdayDayMonth')}</Text>}
                 <Text style={s.upTime}>{formatTimeAMPM(hhmm)}</Text>
               </View>
               <View style={[s.updot, { backgroundColor: displayColor(p.color) || colors.data }]} />
               <View style={s.upMain}>
                 <Text style={s.upName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-                <Text style={s.upAmt}><Text style={s.upAmtVal}>{p.dose} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
+                <Text style={s.upAmt}><Text style={s.upAmtVal}>{decimalText(p.dose, language)} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
               </View>
               <RowChevron color={colors.tick} />
             </TouchableOpacity>
@@ -2432,7 +2424,7 @@ const todayV21Styles = (c) => ({
   foldTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   foldCount: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   upRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
-  upTimeCol: { width: 88, gap: 1 },
+  upTimeCol: { gap: 1 }, // width: useColumnWidth (88 pt at least, the widest date of the language)
   upDay: { fontSize: 15, color: c.ink, fontVariant: ['tabular-nums'] },
   updot: { width: 9, height: 9, borderRadius: 5 },
   upTime: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },

@@ -46,7 +46,7 @@ import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 const EDITOR_OPEN_KEY = 'foodChat:editorOpen';
 import { FoodDemo } from './components/NutritionLogger';
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+import { formatDate } from '../lib/localeFormat';
 // Per-device conveniences (not user data): today's asked questions (+ the one on
 // screen) and the unsent draft (FL-36, per user).
 const ASKED_KEY = 'dosetrace_food_asked';
@@ -70,7 +70,6 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const route = useRoute();
   const routeParams = embedded ? (paramsProp || null) : ((route && route.params) || null);
   const s = makeStyles(colors);
-  const locale = LOCALE_MAP[language] || 'en-US';
 
   const [userId, setUserId] = useState(null);
   const userIdRef = useRef(null);
@@ -252,7 +251,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   function echoFor(items) {
     const { shown, more } = echoParts(items, 3);
     if (!shown.length) return null;
-    const list = shown.map((it) => `${itemLabel(it)} · ~${Math.round(Number(it.kcal) || 0)} ${t('cal_kcal')}`).join(', ');
+    const list = shown.map((it) => `${itemLabel(it, language)} · ~${Math.round(Number(it.kcal) || 0)} ${t('cal_kcal')}`).join(', ');
     return more ? `${list} ${t('nutri_echo_more').replace('{n}', String(more))}` : list;
   }
 
@@ -261,8 +260,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const w = dayWord(dateISO, today);
     if (w === 'today') return t('nutri_day_today');
     if (w === 'yesterday') return t('nutri_day_yesterday');
-    const d = new Date(dateISO + 'T12:00:00');
-    return isNaN(d) ? dateISO : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+    return formatDate(dateISO, language, 'weekdayDayMonth') || dateISO;
   }
 
   // ── Close a day (FL-29 / FL-18) ────────────────────────────────
@@ -528,7 +526,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             {x.items.map((it, i) => (
               <View key={i} style={s.entryItem}>
                 <View style={s.entryRow}>
-                  <Text style={s.entryFood}>{itemLabel(it)} · <Text style={s.mono}>~{Math.round(it.kcal || 0)}</Text> {t('cal_kcal')}</Text>
+                  <Text style={s.entryFood}>{itemLabel(it, language)} · <Text style={s.mono}>~{Math.round(it.kcal || 0)}</Text> {t('cal_kcal')}</Text>
                   {CATEGORIES.includes(it.category) && <Text style={s.catTag}>{t(`nutri_cat_${it.category}`)}</Text>}
                 </View>
                 {needsEstimateFlag(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}

@@ -14,6 +14,7 @@ import Animated, {
 import Svg, { Path } from 'react-native-svg';
 import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
+import { formatDate } from '../lib/localeFormat';
 import CheckMark from './CheckMark';
 
 export const FX_W = 326;
@@ -30,15 +31,32 @@ function ease(name, raw) {
 }
 
 // Thousands grouping for example numbers (worklet-safe, no Intl on the UI thread).
-export function groupNum(n) {
+// sep / min: the language's thousands separator and the smallest number it groups
+// (numGroup(language) — "2,320" in English, "2.320" in Portuguese, "2320" in Spanish).
+export function groupNum(n, sep = ',', min = 1000) {
   'worklet';
   const s = String(Math.round(Math.abs(n)));
   let out = '';
+  const grouped = Math.abs(Math.round(n)) >= min;
   for (let i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 === 0) out += ',';
+    if (grouped && i > 0 && (s.length - i) % 3 === 0) out += sep;
     out += s[i];
   }
   return (n < 0 ? '−' : '') + out;
+}
+
+// The grouping of the app language for groupNum (lib/localeFormat's rule), as primitives a
+// worklet can capture.
+export function numGroup(language) {
+  if (language === 'en') return { sep: ',', min: 1000 };
+  if (language === 'fr') return { sep: '\u00A0', min: 1000 };
+  if (language === 'es') return { sep: '.', min: 10000 };
+  return { sep: '.', min: 1000 };
+}
+
+// A demo value ("21.4 ng/dL", "−0.6 kg") with the app language's decimal separator.
+export function demoDec(str, language) {
+  return language === 'en' || !language ? String(str) : String(str).replace(/(\d)\.(\d)/g, '$1,$2');
 }
 
 // The clock: 0 → dur once, linear. Reduce Motion → dur at once (the last frame).
@@ -224,9 +242,7 @@ export function ScanBeam({ t, at, dur, until, x, y, w, h, c }) {
   );
 }
 
-// Language → locale for example dates (the same map the screens use).
-export const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+// Example dates in the app language (lib/localeFormat, the same as the screens).
 export function fmtDate(language, y, m, d, withYear = true) {
-  const opts = withYear ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' };
-  try { return new Date(y, m, d).toLocaleDateString(LOCALE_MAP[language] || 'en-US', opts); } catch { return `${y}-${m + 1}-${d}`; }
+  return formatDate(new Date(y, m, d, 12), language, withYear ? 'dayMonthYear' : 'dayMonth');
 }

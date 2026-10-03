@@ -17,6 +17,7 @@ import { useMemo } from 'react';
 import Svg, { Line, Polyline, Circle, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
+import { formatDate, decimalText } from '../../lib/localeFormat';
 
 const H = 170;        // drawing height (prototype 326 × 170)
 const SIDE = 12;      // left/right inset of the guide lines
@@ -25,14 +26,10 @@ const TOP = 26;       // room above the highest point for its value
 const BOTTOM = H - 30; // room below the lowest point for the dates
 const MIN_LABEL_GAP = 56; // px between labelled points before labels are thinned
 
-// Format a YYYY-MM-DD date compactly for the x-axis (locale month + day).
-function shortDate(dateStr, locale) {
-  const d = new Date(dateStr + 'T12:00:00');
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-}
+// Format a YYYY-MM-DD date compactly for the x-axis, in the app language ("19 de out.").
+const shortDate = (dateStr, language) => formatDate(dateStr, language, 'dayMonth') || dateStr;
 
-export default function MarkerChart({ points, unit, locale = 'en-US', width }) {
+export default function MarkerChart({ points, unit, language = 'en', width }) {
   const { colors } = useTheme();
   const W = Math.max(width || 300, 120);
 
@@ -56,7 +53,7 @@ export default function MarkerChart({ points, unit, locale = 'en-US', width }) {
     return { xy: pts, guides: [TOP, (TOP + BOTTOM) / 2, BOTTOM], labelled: show };
   }, [points, W]);
 
-  const a11y = points.map(p => `${shortDate(p.date, locale)}: ${p.value}${unit ? ' ' + unit : ''}`).join(', ');
+  const a11y = points.map(p => `${shortDate(p.date, language)}: ${decimalText(p.value, language)}${unit ? ' ' + unit : ''}`).join(', ');
 
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={a11y}>
@@ -79,12 +76,12 @@ export default function MarkerChart({ points, unit, locale = 'en-US', width }) {
         ))}
         {xy.map((p, i) => (labelled.has(i) ? (
           <SvgText key={`v${i}`} x={p.x} y={p.y - 10} textAnchor="middle" fontFamily={MONO['500']} fontSize={11} fill={colors.ink}>
-            {String(p.value)}
+            {decimalText(p.value, language)}
           </SvgText>
         ) : null))}
         {xy.map((p, i) => (labelled.has(i) ? (
           <SvgText key={`d${i}`} x={p.x} y={H - 8} textAnchor="middle" fontSize={11} fill={colors.ink3}>
-            {shortDate(p.date, locale)}
+            {shortDate(p.date, language)}
           </SvgText>
         ) : null))}
       </Svg>

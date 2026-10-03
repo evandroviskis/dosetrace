@@ -32,6 +32,7 @@ import { addSyncListener } from '../lib/sync';
 import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
+import { formatDate, formatNumber, formatInt } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
 import RowChevron from '../components/RowChevron';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
@@ -45,7 +46,6 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 // S-26 BK-19: the events that change what the Progress tile shows. A calculator change saved
 // on the Progress page (the right page beside the tiles, which never lose focus) or a sync
 // that may have pulled one from another device.
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 function tilesNeedRefresh(e) {
   if (!e) return false;
@@ -56,15 +56,11 @@ function tilesNeedRefresh(e) {
 export default function JourneyScreen() {
   const { t, language } = useLanguage();
   const { fontScale } = useWindowDimensions();
-  const locale = LOCALE_MAP[language] || 'en-US';
-  // Tile text helpers: "Aug 31" (the year only when it is not this year), "−3.4", "2,810".
-  const shortDate = (iso) => {
-    const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', ...(d.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }) });
-  };
-  const signedDelta = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
-  const fmtInt = (n) => Math.round(n).toLocaleString(locale);
+  // Tile text helpers in the app language (lib/localeFormat): "Aug 31" / "31 de ago." (the
+  // year only when it is not this year), "−3.4" / "−3,4", "2,810" / "2.810".
+  const shortDate = (iso) => formatDate(String(iso).slice(0, 10), language, 'dayMonthAuto') || iso;
+  const signedDelta = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + formatNumber(Math.abs(v), language, { digits: 1 });
+  const fmtInt = (n) => formatInt(n, language);
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = makeStyles(colors);
@@ -182,7 +178,7 @@ export default function JourneyScreen() {
               <>
                 <View style={s.num}>
                   <Text style={s.cap}>{t('cal_weight')}</Text>
-                  <Text style={s.big}>{tile.weight}<Text style={s.unit}> {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text></Text>
+                  <Text style={s.big}>{formatNumber(tile.weight, language)}<Text style={s.unit}> {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text></Text>
                   {tile.since ? (
                     <Text style={s.foot}>
                       {t('cal_since')} {shortDate(tile.since.date)}: <Text style={s.vin}>{signedDelta(tile.since.delta)} {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text>
@@ -227,7 +223,7 @@ export default function JourneyScreen() {
                 </View>
                 <View style={[s.num, s.numEnd]}>
                   <Text style={s.cap}>{t('curve_current_level')}</Text>
-                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value)}<Text style={s.unit}> {level.unit}</Text></Text>
+                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value, language)}<Text style={s.unit}> {level.unit}</Text></Text>
                   <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
                 </View>
               </>

@@ -14,7 +14,7 @@ import { periodTotals } from '../../lib/nutrition';
 import { weighInDay } from '../../lib/foodThread';
 import { localISO } from '../../lib/localDate';
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
+import { formatDate } from '../../lib/localeFormat';
 
 export default function FoodGraceNote({ rcStart, until, reason, freeFrom, rows, style }) {
   const { t, language } = useLanguage();
@@ -23,8 +23,7 @@ export default function FoodGraceNote({ rcStart, until, reason, freeFrom, rows, 
   const s = makeStyles(colors);
   // Only a payer whose Premium ended or free days that are ending need a note.
   if (!until || (reason !== 'premium_ended' && reason !== 'free_days_ending')) return null;
-  const locale = LOCALE_MAP[language] || 'en-US';
-  const fmt = (iso) => { const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? iso : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' }); };
+  const fmt = (iso) => formatDate(iso, language, 'weekdayDayMonth') || iso;
   const today = localISO();
   const hasCheck = !!(rcStart && rcStart.date);
   const start = hasCheck ? String(rcStart.date).slice(0, 10) : (freeFrom || today);

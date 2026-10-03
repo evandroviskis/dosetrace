@@ -52,7 +52,9 @@ test('2: a time never has a narrow space before AM/PM ("7:20 PM")', () => {
 
 test('3: the protocol page vial line says "Mixed Sep 27", the same words as Today', () => {
   const block = fnBody(SCREEN, 'ProtocolVialBlock');
-  assert.match(block, /`\$\{t\('today_vial_mixed'\)\} \$\{t\(MONTH_KEYS\[d\.getMonth\(\)\]\)\} \$\{d\.getDate\(\)\}`/);
+  // The date in the app language, the same formatter as Today (founder 2026-10-02: "Mixed Sep 27",
+  // "Misturado 27 de set.").
+  assert.match(block, /`\$\{t\('today_vial_mixed'\)\} \$\{formatDate\(d, language, 'dayMonth'\)\}`/);
   assert.doesNotMatch(block, /vials_mix_date/);
   const src = fs.readFileSync(path.join(ROOT, 'i18n', 'translations.js'), 'utf8')
     .replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };';

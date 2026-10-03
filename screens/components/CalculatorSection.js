@@ -72,6 +72,7 @@ import { FoodReminderRow } from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
 import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
+import { formatDate, formatNumber, formatInt, decimalText, inputNumber } from '../../lib/localeFormat';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
@@ -83,7 +84,6 @@ import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 import LearnBlock from './LearnBlock';
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
 const todayISO = () => localISO();
 // Whole days between two YYYY-MM-DD dates (noon-anchored to dodge DST).
@@ -117,7 +117,6 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const { width: windowWidth, fontScale } = useWindowDimensions();
   const CHART_WIDTH = Math.min(paneWidth || windowWidth, CONTENT_MAX_WIDTH) - 68; // screen gutter 16 + card padding 18, both sides
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const locale = LOCALE_MAP[language] || 'en-US';
 
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
   const [weight, setWeight] = useState('');         // the weight the math uses (saved)
@@ -285,19 +284,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // Synced calc_inputs table (S-03); the old metadata only before migration.
     const saved = await getCalcInputs().catch(() => null);
     // A weight typed in Your numbers and not decided yet (PO-14) comes back from the draft.
-    const savedW = saved && typeof saved === 'object' && saved.weight != null ? String(saved.weight) : '';
+    const savedW = saved && typeof saved === 'object' && saved.weight != null ? (typeof saved.weight === 'number' ? inputNumber(saved.weight, language) : String(saved.weight)) : '';
     setWeightField(wDraft && wDraft.text != null ? wDraft.text : savedW);
     // PO-13: decided once from what was saved before this version, then kept in the payload.
     setLegacyBurn(legacyBurnFromSaved({ saved, sexKnown: !!(body && body.profileSex), age: body ? body.age : null }));
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
-      if (saved.weight != null) setWeight(String(saved.weight));
+      if (saved.weight != null) setWeight(typeof saved.weight === 'number' ? inputNumber(saved.weight, language) : String(saved.weight));
       if (saved.bfSource) setBfSource(saved.bfSource);
-      if (saved.bodyFat != null) setBodyFat(String(saved.bodyFat));
-      if (saved.height != null) setHeight(String(saved.height));
+      if (saved.bodyFat != null) setBodyFat(typeof saved.bodyFat === 'number' ? inputNumber(saved.bodyFat, language) : String(saved.bodyFat));
+      if (saved.height != null) setHeight(typeof saved.height === 'number' ? inputNumber(saved.height, language) : String(saved.height));
       if (saved.activity != null) setActivity(saved.activity);
       if (saved.goal) setGoal(saved.goal);
-      if (saved.waist != null) setWaist(String(saved.waist));
+      if (saved.waist != null) setWaist(typeof saved.waist === 'number' ? inputNumber(saved.waist, language) : String(saved.waist));
     }
     loadedRef.current = true;
     setLoaded(true);
@@ -494,7 +493,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   function changeUnit(next) {
     if (next === unit) return;
     const toImp = next === 'imperial';
-    const fmt = v => (v == null ? '' : String(Math.round(v * 10) / 10));
+    const fmt = v => (v == null ? '' : inputNumber(Math.round(v * 10) / 10, language));
     const cw = str => { const n = num(str); return n == null ? str : fmt(toImp ? kgToLb(n) : lbToKg(n)); };
     const ch = str => { const n = num(str); return n == null ? str : fmt(toImp ? cmToIn(n) : inToCm(n)); };
     setWeight(cw(weight));
@@ -534,11 +533,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg, bodyFatPct: bfv, waistCm: waistCmNew }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
-    setWeight(String(w));
-    setWeightField(String(w));
+    setWeight(inputNumber(w, language));
+    setWeightField(inputNumber(w, language));
     clearDraft('progress:numbersWeight');
-    if (bfv != null && !isUnknown) setBodyFat(String(bfv));
-    if (wc != null) setWaist(String(wc));
+    if (bfv != null && !isUnknown) setBodyFat(inputNumber(bfv, language));
+    if (wc != null) setWaist(inputNumber(wc, language));
     setWiWeight(''); setWiBf(''); setWiWaist('');
     clearDraft('progress:todayWeigh');
     calcChanged();
@@ -549,8 +548,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // Seed the edit form from the saved target (in display units) or blank.
   function beginEditTarget() {
     if (target) {
-      setTgtWeight(target.target_weight_kg != null ? String(Math.round(toDisplayW(target.target_weight_kg) * 10) / 10) : '');
-      setTgtBF(target.target_body_fat_pct != null ? String(target.target_body_fat_pct) : '');
+      setTgtWeight(target.target_weight_kg != null ? inputNumber(Math.round(toDisplayW(target.target_weight_kg) * 10) / 10, language) : '');
+      setTgtBF(target.target_body_fat_pct != null ? inputNumber(target.target_body_fat_pct, language) : '');
       setTgtDate(target.target_date || null);
     } else {
       setTgtWeight(''); setTgtBF(''); setTgtDate(null);
@@ -637,13 +636,13 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const row = getCalcSnapshots(uid).find(sn => sn.entry_date === date);
     if (!row) return;
     setWeBad(false);
-    setWeEdit({ date, original: row, ...weighInFormValues(row, unit) });
+    setWeEdit({ date, original: row, ...weighInFormValues(row, unit, language) });
   }
   function closeWeighInEdit() { setWeEdit(null); setWeBad(false); }
   function saveWeighInEdit() {
     const uid = userIdRef.current;
     if (!uid || !weEdit) return;
-    const read = readWeighInForm({ weight: weEdit.weight, bodyFat: weEdit.bodyFat, waist: weEdit.waist, unit, original: weEdit.original });
+    const read = readWeighInForm({ weight: weEdit.weight, bodyFat: weEdit.bodyFat, waist: weEdit.waist, unit, original: weEdit.original, language });
     if (!read.ok) { setWeBad(true); return; }
     correctCalcSnapshot(uid, weEdit.date, read);
     const startFix = checkStartPatch(rcStart, weEdit.date, read.weightKg);
@@ -681,8 +680,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (weeks == null || !Number.isFinite(weeks)) return null;
     const w = Math.max(1, Math.round(weeks));
     const done = new Date(); done.setDate(done.getDate() + w * 7);
-    const sameYear = done.getFullYear() === new Date().getFullYear();
-    const when = done.toLocaleDateString(locale, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+    const when = formatDate(done, language, 'dayMonthAuto');
     return { weeks: w, when };
   }
 
@@ -753,23 +751,14 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     return { firstDate: first.date, wDelta, waistDelta };
   }, [snapshots, unit]);
 
-  const signed = d => (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d).toFixed(1);
-  const fmtDate = iso => {
-    const d = new Date(iso + 'T12:00:00');
-    return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const signed = d => (d > 0 ? '+' : d < 0 ? '−' : '') + formatNumber(Math.abs(d), language, { digits: 1 });
+  // Dates and numbers in the app language (lib/localeFormat, founder 2026-10-02).
+  const fmtDate = iso => formatDate(String(iso).slice(0, 10), language, 'dayMonthYear') || iso;
   // "Aug 31" (the year only when it is not this year).
-  const fmtShort = iso => {
-    const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', ...(d.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }) });
-  };
-  const fmtInt = n => Math.round(n).toLocaleString(locale);
+  const fmtShort = iso => formatDate(String(iso).slice(0, 10), language, 'dayMonthAuto') || iso;
+  const fmtInt = n => formatInt(n, language);
   // "Tue, Sep 22, 2026" (the sheets' date buttons, prototype wdl()).
-  const fmtLong = iso => {
-    const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
-    return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const fmtLong = iso => formatDate(String(iso).slice(0, 10), language, 'weekdayDayMonthYear') || iso;
   // A target date is never in the past.
   const clampFuture = iso => (iso < todayISO() ? todayISO() : iso);
 
@@ -827,7 +816,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   function openRcStart() {
     setRcStartDate(null);
     const w = weighInOn(snapshots, todayISO());
-    const snap = w == null ? null : Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10;
+    const snap = w == null ? null : inputNumber(Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10, language);
     const v = prefillStartWeight(rcThen, rcThenAuto.current, snap);
     if (v != null) { setRcThen(v); rcThenAuto.current = v || null; }
     setRcStartOpen(true);
@@ -838,7 +827,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // A weigh-in saved on that day fills the start weight — only an empty field or
     // our own earlier prefill; a weight the user typed is never overwritten.
     const w = weighInOn(snapshots, next);
-    const snap = w == null ? null : Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10;
+    const snap = w == null ? null : inputNumber(Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10, language);
     const v = prefillStartWeight(rcThen, rcThenAuto.current, snap);
     if (v != null) { setRcThen(v); rcThenAuto.current = v || null; }
   }
@@ -1015,15 +1004,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       sexLabel: profileSex ? t(`cal_sex_${profileSex}`) : null,
       bodyFat: isUnknown ? null : bodyFat, bfShort: t('cal_bf_short'),
       activityLabel: act ? activityParts(t(act.key))[0] : null,
+      language,
     });
   }, [weight, bodyFat, isUnknown, profileSex, age, height, activity, unit, language]);
-  const ex = exampleValues(unit);
+  const ex = exampleValues(unit, language);
   const eg = v => t('cal_eg').replace('{v}', v);
 
   const toDisplayW = kg => (unit === 'imperial' ? kgToLb(kg) : kg);
 
   // Display helpers (Graduated): weights to one decimal in the display unit.
-  const fmtW = kg => (kg == null ? null : (Math.round(toDisplayW(kg) * 10) / 10).toFixed(1));
+  const fmtW = kg => (kg == null ? null : formatNumber(Math.round(toDisplayW(kg) * 10) / 10, language, { digits: 1 }));
   const sortedSnaps = [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1));
   const lastSnap = sortedSnaps.length ? sortedSnaps[sortedSnaps.length - 1] : null;
   const histAll = [...sortedSnaps].reverse();
@@ -1064,7 +1054,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // ETA toward a below-range weight (App Store 1.4 / eating-disorder exposure).
     const belowRange = isW && plan?.healthyRange && targetCanon != null && targetCanon < plan.healthyRange.min;
     const eta = proj.state === 'eta' ? fmtEta(proj.etaWeeks) : null;
-    const one = v => (v == null ? '—' : isW ? Number(v).toFixed(1) : String(v));
+    const one = v => (v == null ? '—' : isW ? formatNumber(Number(v), language, { digits: 1 }) : decimalText(v, language));
     return (
       <View style={s.tgtMetric} key={kind}>
         <View style={s.rowCenter}>
@@ -1107,7 +1097,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // Weigh-ins (PO-6): "5 · last Sep 28 · 84.6 kg · 21% BF", or "None yet".
   const weighSummary = weighInsLine({
     rows: snapshots, template: t('cal_weighins_summary'), none: t('cal_weighins_none'),
-    fmtDate: fmtShort, fmtWeight: kg => `${fmtW(kg)} ${wUnit}`, bfShort: t('cal_bf_short'),
+    fmtDate: fmtShort, fmtWeight: kg => `${fmtW(kg)} ${wUnit}`, bfShort: t('cal_bf_short'), language,
   });
 
   // ── The one card (PO-1..PO-11, founder 2026-10-02; docs/specs/progress-one-card.md) ──
@@ -1230,7 +1220,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {/* Context chips — BMI + macros */}
       <View style={s.chips}>
         {plan.bmi != null && plan.healthyRange && (
-          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_bmi')} {(Math.round(plan.bmi * 10) / 10).toFixed(1)} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
+          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_bmi')} {formatNumber(Math.round(plan.bmi * 10) / 10, language, { digits: 1 })} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
         )}
         {plan.macros && (
           <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
@@ -1471,7 +1461,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
                 <Text style={[s.sec, s.tnum, s.grow]}>{fmtShort(c.date)}</Text>
                 <Text style={[s.val15, s.ink2Text]}>
                   {c.ratePerWeekKg != null
-                    ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
+                    ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${decimalText(rateDisplay(c.ratePerWeekKg), language)} ${wUnit}/${t('cal_week')}`
                     : '—'}
                 </Text>
                 <Text style={s.val15}>{fmtInt(round10(c.tdee))} {t('cal_kcal')}</Text>
@@ -1505,7 +1495,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {weighOpen ? (
         <View style={s.foldBlock}>
           {snapPointCount >= 2 ? (
-            <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
+            <ProgressChart series={chartSeries} language={language} width={CHART_WIDTH} />
           ) : (
             <Text style={s.sec2}>{t('cal_weighins_need_more')}</Text>
           )}
@@ -1524,8 +1514,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
                 <TouchableOpacity key={r.date} style={s.histRow} onPress={() => openWeighInEdit(r.date)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${fmtShort(r.date)} · ${r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}`}>
                   <Text style={[s.sec, s.tnum, s.histDate]}>{fmtShort(r.date)}</Text>
                   <Text style={[s.val15, s.histW]}>{r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}</Text>
-                  <Text style={[s.val15, s.histB]}>{r.bodyFatPct != null ? `${Math.round(r.bodyFatPct * 10) / 10}%` : '—'}</Text>
-                  <Text style={[s.val15, s.histC]}>{r.waistCm != null ? `${Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10} ${hUnit}` : '—'}</Text>
+                  <Text style={[s.val15, s.histB]}>{r.bodyFatPct != null ? `${decimalText(Math.round(r.bodyFatPct * 10) / 10, language)}%` : '—'}</Text>
+                  <Text style={[s.val15, s.histC]}>{r.waistCm != null ? `${decimalText(Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10, language)} ${hUnit}` : '—'}</Text>
                   <View style={s.histCv}><RowChevron color={colors.ink3} /></View>
                 </TouchableOpacity>
               ))}
@@ -1595,7 +1585,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           </View>
           <View style={s.fldHalf}>
             <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
-            <TextInput style={s.input} value={wiBf} onChangeText={setWiBf} keyboardType="decimal-pad" placeholder={currentBF != null ? String(Math.round(currentBF * 10) / 10) : '—'} placeholderTextColor={colors.ink3} />
+            <TextInput style={s.input} value={wiBf} onChangeText={setWiBf} keyboardType="decimal-pad" placeholder={currentBF != null ? decimalText(Math.round(currentBF * 10) / 10, language) : '—'} placeholderTextColor={colors.ink3} />
           </View>
         </View>
         <View style={s.fld}>

@@ -29,6 +29,7 @@ import {
   STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
+import { formatDate, formatNumber } from '../lib/localeFormat';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
@@ -189,14 +190,12 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 
 // Estimated level (mg or IU) from the summed dose model — not "amount in the body"
 // not a serum concentration — the disclaimer says so.
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 function todayISO() {
   const d = new Date(); d.setHours(12, 0, 0, 0);
   return d.toISOString().split('T')[0];
 }
 
-const mgLabel = levelLabel;
 
 // Peak time and its published range, in hours below 3 days, else days.
 function tmaxLabels(entry) {
@@ -207,21 +206,21 @@ function tmaxLabels(entry) {
   return { peak: f(entry.tmaxHours) + u, range: f(lo) + '–' + f(hi) + u };
 }
 
-function halfLifeLabel(hours) {
+function halfLifeLabel(hours, language = 'en') {
   if (hours == null) return '—';
   if (hours >= 48) {
     const days = hours / 24;
-    return `${Number.isInteger(days) ? days : days.toFixed(1)}d`;
+    return `${Number.isInteger(days) ? days : formatNumber(days, language, { digits: 1 })}d`;
   }
   return `${hours}h`;
 }
 
 // The same label split into a number and its unit, for the 34 pt stat.
-function halfLifeParts(hours) {
+function halfLifeParts(hours, language = 'en') {
   if (hours == null) return { num: '—', unit: '' };
   if (hours >= 48) {
     const days = hours / 24;
-    return { num: String(Number.isInteger(days) ? days : days.toFixed(1)), unit: 'd' };
+    return { num: String(Number.isInteger(days) ? days : formatNumber(days, language, { digits: 1 })), unit: 'd' };
   }
   return { num: String(hours), unit: 'h' };
 }
@@ -246,6 +245,9 @@ function backLabelFor(navigation, t) {
 // As a pushed screen it moves onto the Journey right page when the window unfolds (BK-10).
 export default function SerumCurveScreen({ embedded = false }) {
   const { t, language } = useLanguage();
+  // Levels and dates in the app language ("3,5 mg", "19 de out."; lib/localeFormat).
+  const mgLabel = (v) => levelLabel(v, language);
+  const decSep = language === 'en' ? '.' : ','; // for the UI-thread number below
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
@@ -502,7 +504,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     () => upcomingDoseDays(protocols.filter(p => selectedIds.includes(p.id)), Date.now(), 3),
     [protocols, selectedIds],
   );
-  const chipDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const chipDay = (iso) => formatDate(iso, language, 'weekdayDayMonth');
   const customDate = !!readoutDate && !upcoming.includes(readoutDate) && !labDates.includes(readoutDate);
   const pickDate = (iso) => setReadoutDate(prev => (prev === iso ? null : iso));
   const seriesById = {};
@@ -511,7 +513,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const readoutInWindow = readoutT >= winStart && readoutT <= winEnd;
   const readoutX = model ? xForIndex((readoutT - winStart) / stepMs) : plotLeft;
   const isToday = readoutISO === todayISO();
-  const readoutShort = new Date(readoutISO + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' });
+  const readoutShort = formatDate(readoutISO, language, 'dayMonth');
 
   // ── Motion ─────────────────────────────────────────────────────
   const reduceMotion = useReducedMotion();
@@ -632,7 +634,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
   const unitLbl = model ? model.unit : 'mg';
-  const numFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1) : String(Math.round(v)); };
+  const numFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1).replace('.', decSep) : String(Math.round(v)); };
   const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
   // Dropdown button label: the single compound's name, or "N compounds".
@@ -655,7 +657,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   // Part 18: the Est. level field is as wide as the number actually drawn (measured from a
   // hidden copy), so its unit sits right next to the digits as in the prototype ("0.4 mg").
   const [levelW, setLevelW] = useState(null);
-  const hl = single ? halfLifeParts(single.entry.hours) : null;
+  const hl = single ? halfLifeParts(single.entry.hours, language) : null;
   // One plain-language note per compound on how this model draws it.
   const noteFor = (ser) => {
     if (ser.entry.tmaxHours) {
@@ -670,7 +672,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     if (ser.entry.hours < STEP_HOURS) return t('curve_fast_note').replace('{names}', ser.name);
     return null;
   };
-  const dateLong = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const dateLong = (iso) => formatDate(iso, language, 'weekdayDayMonthYear');
 
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 
@@ -766,7 +768,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.line} strokeWidth={1} strokeDasharray="2,3" />
                   <SvgText x={plotLeft - 4} y={yForLevel(v) + 3} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="end">
-                    {axisLabel(v)}
+                    {axisLabel(v, language)}
                   </SvgText>
                 </React.Fragment>
               ))}
@@ -916,7 +918,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                     </Text>
                   </View>
                   <Text style={s.legendLevel}>{mgLabel(ser.nowLevel)}<Text style={s.unitInline}> {unitLbl}</Text></Text>
-                  <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours)}</Text>
+                  <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours, language)}</Text>
                 </View>
               ))}
               {showCombined && model && model.combined.map(c => (
@@ -979,7 +981,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                         accessibilityState={{ selected: on }}
                       >
                         <Text style={[s.pillText, on && s.pillTextOn]}>
-                          {t('curve_bloodwork_chip').replace('{date}', new Date(d + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' }))}
+                          {t('curve_bloodwork_chip').replace('{date}', formatDate(d, language, 'dayMonth'))}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -1089,7 +1091,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                     <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
                       <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-                      <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
+                      <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours, language)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
                     </View>
                     {on ? <CheckMark size={22} color={colors.ink} /> : <View style={{ width: 22 }} />}
                   </TouchableOpacity>

@@ -15,16 +15,14 @@ import { useMemo } from 'react';
 import Svg, { Line, Polyline, Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
+import { formatDate, decimalText } from '../../lib/localeFormat';
 
 const W = 320, H = 150, L = 26, R = W - 26, TOP = 14, BOT = 114;
 
-function shortDate(dateStr, locale) {
-  const d = new Date(dateStr + 'T12:00:00');
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-}
+// Dates and axis numbers in the app language (lib/localeFormat, founder 2026-10-02).
+const shortDate = (dateStr, language) => formatDate(dateStr, language, 'dayMonth') || dateStr;
 // Axis value: whole numbers when the range allows, else one decimal.
-const axis = (v, span) => (span >= 2 ? String(Math.round(v)) : String(Math.round(v * 10) / 10));
+const axis = (v, span, language) => (span >= 2 ? String(Math.round(v)) : decimalText(Math.round(v * 10) / 10, language));
 
 // A series' own range, padded so the marks never sit on the plot edge.
 function rangeOf(points) {
@@ -35,7 +33,7 @@ function rangeOf(points) {
   return { lo, hi };
 }
 
-export default function ProgressChart({ series, locale = 'en-US', width }) {
+export default function ProgressChart({ series, language = 'en', width }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const active = series.filter(sr => sr.points.length > 0);
@@ -65,20 +63,20 @@ export default function ProgressChart({ series, locale = 'en-US', width }) {
           <>
             <Polyline fill="none" stroke={colors.ink2} strokeWidth={1.3} points={c.pts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />
             {c.pts.map((p, i) => <Rect key={`c${i}`} x={p.x - 3} y={p.y - 3} width={6} height={6} fill={colors.raised} stroke={colors.ink2} strokeWidth={1.3} />)}
-            <SvgText x={R + 4} y={18} fontFamily={MONO['400']} fontSize={11} fill={colors.ink2}>{axis(c.hi, c.hi - c.lo)}</SvgText>
-            <SvgText x={R + 4} y={118} fontFamily={MONO['400']} fontSize={11} fill={colors.ink2}>{axis(c.lo, c.hi - c.lo)}</SvgText>
+            <SvgText x={R + 4} y={18} fontFamily={MONO['400']} fontSize={11} fill={colors.ink2}>{axis(c.hi, c.hi - c.lo, language)}</SvgText>
+            <SvgText x={R + 4} y={118} fontFamily={MONO['400']} fontSize={11} fill={colors.ink2}>{axis(c.lo, c.hi - c.lo, language)}</SvgText>
           </>
         ) : null}
         {w ? (
           <>
             <Polyline fill="none" stroke={colors.data} strokeWidth={2} points={w.pts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />
             {w.pts.map((p, i) => <Circle key={`w${i}`} cx={p.x} cy={p.y} r={4} fill={colors.data} />)}
-            <SvgText x={L - 4} y={18} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.data}>{axis(w.hi, w.hi - w.lo)}</SvgText>
-            <SvgText x={L - 4} y={118} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.data}>{axis(w.lo, w.hi - w.lo)}</SvgText>
+            <SvgText x={L - 4} y={18} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.data}>{axis(w.hi, w.hi - w.lo, language)}</SvgText>
+            <SvgText x={L - 4} y={118} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.data}>{axis(w.lo, w.hi - w.lo, language)}</SvgText>
           </>
         ) : null}
         {labels.map((d, i) => (
-          <SvgText key={d} x={X(d)} y={H - 6} textAnchor={labels.length === 1 ? 'middle' : i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'} fontSize={11} fill={colors.ink3}>{shortDate(d, locale)}</SvgText>
+          <SvgText key={d} x={X(d)} y={H - 6} textAnchor={labels.length === 1 ? 'middle' : i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'} fontSize={11} fill={colors.ink3}>{shortDate(d, language)}</SvgText>
         ))}
       </Svg>
       <View style={s.legend}>

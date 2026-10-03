@@ -28,6 +28,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
+import { formatDate, decimalText, inputNumber } from '../lib/localeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -67,7 +68,6 @@ import {
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
 } from '../lib/protocolForm';
 
-const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 
 // Protocols list sort options. 'type' keeps the compound-type sections; the
 // rest render a single flat list.
@@ -126,6 +126,7 @@ function trimNum(n) {
   if (!isFinite(n)) return null;
   return Number.isInteger(n) ? n : Number(n.toFixed(2));
 }
+// Shown numbers use the app language's decimal ("0,5 mg" in Portuguese, founder 2026-10-02).
 
 // Collapsed-card "size" descriptor: the total compound in the container, so every
 // injectable reads the same way ("10 mg vial"). recon and rtu both store that total
@@ -133,22 +134,22 @@ function trimNum(n) {
 // computed at save). Before an RTU vial exists we recompute from the active vial's
 // volume if present, else fall back to concentration ("10 mg/ml"). oral → the
 // per-unit strength ("500 mg"). Returns null when nothing is entered yet.
-function sizeLabel(p, vial, t) {
+function sizeLabel(p, vial, t, language = 'en') {
   if (p.type === 'recon') {
     if (p.amount == null || p.amount === '') return null;
-    return `${p.amount} ${p.unit || 'mg'} ${t('protocols_vial_noun')}`;
+    return `${decimalText(p.amount, language)} ${p.unit || 'mg'} ${t('protocols_vial_noun')}`;
   }
   if (p.type === 'rtu') {
     if (p.concentration == null || p.concentration === '') return null;
     const ml = vial && vial.water_ml != null ? parseDecimal(vial.water_ml) : null;
     const total = ml ? trimNum(parseDecimal(p.concentration) * ml)
       : (p.amount != null && p.amount !== '' ? trimNum(parseDecimal(p.amount)) : null);
-    if (total) return `${total} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
-    return `${trimZeros(p.concentration)} ${p.concentration_unit || 'mg'}/ml`;
+    if (total) return `${decimalText(total, language)} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
+    return `${decimalText(trimZeros(p.concentration), language)} ${p.concentration_unit || 'mg'}/ml`;
   }
   if (p.type === 'oral') {
     if (p.serving_strength == null || p.serving_strength === '') return null;
-    return `${p.serving_strength} ${p.serving_strength_unit || 'mg'}`;
+    return `${decimalText(p.serving_strength, language)} ${p.serving_strength_unit || 'mg'}`;
   }
   return null;
 }
@@ -192,8 +193,8 @@ function sentenceCase(str) {
 }
 
 // Halves read as "½" / "1½"; anything else stays decimal.
-function fmtServing(v) {
-  if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return String(Math.round(v * 100) / 100);
+function fmtServing(v, language = 'en') {
+  if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return decimalText(Math.round(v * 100) / 100, language);
   const whole = Math.floor(v + 1e-9);
   const isHalf = Math.abs(v - whole - 0.5) < 1e-9;
   if (!isHalf) return String(whole);
@@ -201,9 +202,9 @@ function fmtServing(v) {
 }
 
 // The dose in the other mass unit, so the mcg↔mg equivalence is read beside the draw.
-function altMass(dose, unit) {
-  if (unit === 'mcg') { const pp = massParts(parseDecimal(dose) / 1000); return pp ? `${pp.mg} mg` : null; }
-  if (unit === 'mg') { const pp = massParts(parseDecimal(dose)); return pp ? `${pp.mcg} mcg` : null; }
+function altMass(dose, unit, language = 'en') {
+  if (unit === 'mcg') { const pp = massParts(parseDecimal(dose) / 1000); return pp ? `${decimalText(pp.mg, language)} mg` : null; }
+  if (unit === 'mg') { const pp = massParts(parseDecimal(dose)); return pp ? `${decimalText(pp.mcg, language)} mcg` : null; }
   return null;
 }
 
@@ -284,6 +285,7 @@ function RowsBlock({ s, title, rows, style }) {
 // foldable folds or unfolds (S-26 BK-10).
 function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const { colors: c } = useTheme();
+  const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
   const [drawW, setDrawW] = useState(0);
 
@@ -315,7 +317,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
 
   const units = Number(draw.drawUnits);
   const over = units > syringeMax;
-  const alt = altMass(p.dose, p.dose_unit);
+  const alt = altMass(p.dose, p.dose_unit, language);
 
   return (
     <View style={s.hobj}>
@@ -331,13 +333,13 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
         <View style={s.drawHead}>
           <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
           <View style={s.bigRow}>
-            <Text style={[s.drawBig, over && s.drawBigRisk]}>{draw.drawUnits}</Text>
+            <Text style={[s.drawBig, over && s.drawBigRisk]}>{decimalText(draw.drawUnits, language)}</Text>
             <Text style={s.drawBigUnit}>{t('protocols_syringe_units')}</Text>
           </View>
         </View>
         {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
         {over && (
-          <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', draw.drawUnits).replace('{size}', String(syringeMax))}</Text>
+          <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', decimalText(draw.drawUnits, language)).replace('{size}', String(syringeMax))}</Text>
         )}
         <View style={s.hintRow}>
           <FeatureIcon name="search" size={14} color={c.ink2} />
@@ -347,11 +349,11 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       <View style={s.reads}>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
-          <Text style={s.readVal}>{trimZeros(draw.drawML)} ml</Text>
+          <Text style={s.readVal}>{decimalText(trimZeros(draw.drawML), language)} ml</Text>
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
-          <Text style={s.readVal}>{p.dose} {p.dose_unit}</Text>
+          <Text style={s.readVal}>{decimalText(p.dose, language)} {p.dose_unit}</Text>
           {alt ? <Text style={s.readAlt}>= {alt}</Text> : null}
         </View>
         <View style={s.readCell}>
@@ -369,6 +371,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
 // `p` stays set while the sheet fades out; `visible` opens and closes it.
 function SyringeZoomSheet({ p, visible, onClose, t }) {
   const { colors: c } = useTheme();
+  const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
   const { width: windowWidth } = useWindowDimensions();
   const draw = p ? computeDraw({
@@ -393,7 +396,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
           <Pressable style={s.zoomSheet} onPress={() => {}} accessibilityViewIsModal>
             <Text style={s.zoomTitle}>{name}</Text>
             <Text style={s.zoomReadout}>
-              {t('protocols_syringe_draw_to')} <Text style={s.zoomReadoutVal}>{draw.drawUnits}u</Text> · {trimZeros(draw.drawML)} ml
+              {t('protocols_syringe_draw_to')} <Text style={s.zoomReadoutVal}>{decimalText(draw.drawUnits, language)}u</Text> · {decimalText(trimZeros(draw.drawML), language)} ml
             </Text>
             <ScrollView
               horizontal
@@ -418,6 +421,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
 // arithmetic on the user's own numbers — no recommendation.
 function ProtocolServingHero({ p, t, onRefill }) {
   const { colors: c } = useTheme();
+  const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
   if (p.type !== 'oral') return null;
 
@@ -448,16 +452,16 @@ function ProtocolServingHero({ p, t, onRefill }) {
   // a scored unit). Otherwise the unit can't hit the target, so explain instead.
   const canShowAmount = !r.discrete || r.isAchievable;
   const containsMsg = t('protocols_serving_contains')
-    .replace('{strength}', r.perUnitDose)
+    .replace('{strength}', decimalText(r.perUnitDose, language))
     .replace('{sunit}', p.dose_unit)
-    .replace('{ratio}', r.ratio);
+    .replace('{ratio}', decimalText(r.ratio, language));
   const containerUnits = parseDecimal(p.container_units);
   const unitsTaken = parseDecimal(p.units_taken) || 0;
   const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
   const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
   const reads = [
-    { label: t('protocols_serving_dose'), value: `${p.dose} ${p.dose_unit}` },
-    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${unitsLeft} ${unitLabel}` } : null,
+    { label: t('protocols_serving_dose'), value: `${decimalText(p.dose, language)} ${p.dose_unit}` },
+    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)} ${unitLabel}` } : null,
     daysLeft != null ? { label: t('protocols_serving_days_left'), value: String(daysLeft) } : null,
   ].filter(Boolean);
   while (reads.length < 3) reads.push(null);
@@ -468,8 +472,8 @@ function ProtocolServingHero({ p, t, onRefill }) {
       {canShowAmount ? (
         <View style={[s.drawWell, s.drawWellServing]}>
           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
-          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded)} ${unitLabel}`}>
-            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded)}</Text>
+          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded, language)} ${unitLabel}`}>
+            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
             <Text style={s.drawBigUnit}>{unitLabel}</Text>
           </View>
         </View>
@@ -478,7 +482,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
       )}
       {r.nearest && (
         <Text style={s.nearest}>
-          {fmtServing(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {p.dose_unit} · {fmtServing(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {p.dose_unit}
+          {fmtServing(r.nearest.lowUnits, language)} {unitLabel} = {decimalText(r.nearest.lowDose, language)} {p.dose_unit} · {fmtServing(r.nearest.highUnits, language)} {unitLabel} = {decimalText(r.nearest.highDose, language)} {p.dose_unit}
         </Text>
       )}
       <View style={s.reads}>
@@ -504,6 +508,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
 // the mix / box date with days left, the supply tags, and New vial for a used RTU vial.
 function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
   const { colors: c } = useTheme();
+  const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
   const supply = supplyState(vial, p); // the ONE supply-low rule (S-05)
   const capacity = supply.capacity != null
@@ -513,9 +518,9 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
   const daysLeft = vialDaysLeftFor(p, vial);
   if (capacity == null && daysLeft == null) return null;
   const dateText = vial && p.type === 'recon' && vial.mixed_on
-    ? (() => { const d = new Date(String(vial.mixed_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('today_vial_mixed')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getDate()}`; })()
+    ? (() => { const d = new Date(String(vial.mixed_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('today_vial_mixed')} ${formatDate(d, language, 'dayMonth')}`; })()
     : vial && p.type === 'rtu' && vial.expires_on
-      ? (() => { const d = new Date(String(vial.expires_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('vials_expires')} ${t(MONTH_KEYS[d.getMonth()])} ${d.getFullYear()}`; })()
+      ? (() => { const d = new Date(String(vial.expires_on).slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? null : `${t('vials_expires')} ${formatDate(d, language, 'monthYear')}`; })()
       : null;
   const past = daysLeft != null && daysLeft <= 0;
   return (
@@ -572,6 +577,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
 // does not shift it; the card open on the right page draws that outline in ink.
 function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }) {
   const { colors: c } = useTheme();
+  const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
   const isInjectable = p.type === 'recon' || p.type === 'rtu';
   const vialDaysLeft = vialDaysLeftFor(p, vial);
@@ -589,7 +595,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
   const past = vialDaysLeft != null && vialDaysLeft <= 0;
   const showCap = isInjectable && vialDoseCapacity != null;
   const showDays = vialDaysLeft != null && !past;
-  const sz = sizeLabel(p, vial, t);
+  const sz = sizeLabel(p, vial, t, language);
 
   return (
     <TouchableOpacity
@@ -605,7 +611,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
           <Text style={s.pname}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.pmeta}>
             {sz ? `${sz} · ` : ''}
-            {p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+            {decimalText(p.dose, language)} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
           </Text>
         </View>
         <View style={s.pchev}><RowChevron color={c.tick} /></View>
@@ -666,7 +672,7 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
   const s = useMemo(() => makeStyles(c), [c]);
   const name = p.compound_id ? t(p.compound_id) : p.name;
   const isInjectable = p.type === 'recon' || p.type === 'rtu';
-  const sz = sizeLabel(p, vial, t);
+  const sz = sizeLabel(p, vial, t, language);
 
   // Inline, editable note — saved straight from the protocol screen, no need to open Edit.
   const noteDraft = draft != null ? draft : (p.note || '');
@@ -698,27 +704,27 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
   let doseRows = [];
   if (p.type === 'recon') {
     doseRows = [
-      { label: t('protocols_compound_amount'), value: `${p.amount} ${p.unit}`, mono: true },
+      { label: t('protocols_compound_amount'), value: `${decimalText(p.amount, language)} ${p.unit}`, mono: true },
       p.diluent ? { label: t('protocols_diluent'), value: diluentLabel(p.diluent, t) } : null,
-      { label: t('protocols_diluent_amount'), value: `${trimZeros(p.water)} ml`, mono: true },
+      { label: t('protocols_diluent_amount'), value: `${decimalText(trimZeros(p.water), language)} ml`, mono: true },
       {
         label: t('protocols_concentration'),
-        value: `${p.amount && p.water ? trimZeros((parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)) : '—'} ${p.unit}/ml`,
+        value: `${p.amount && p.water ? decimalText(trimZeros((parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)), language) : '—'} ${p.unit}/ml`,
         mono: true,
       },
-      { label: t('protocols_desired_dose'), value: `${p.dose} ${p.dose_unit}`, mono: true },
+      { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)} ${p.dose_unit}`, mono: true },
     ];
   } else if (p.type === 'rtu') {
     doseRows = [
-      { label: t('protocols_dose_per_injection'), value: `${p.dose} ${p.dose_unit}`, mono: true },
-      p.concentration ? { label: t('protocols_concentration'), value: `${trimZeros(p.concentration)} ${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
-      vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${trimZeros(vial.water_ml)} ml`, mono: true } : null,
+      { label: t('protocols_dose_per_injection'), value: `${decimalText(p.dose, language)} ${p.dose_unit}`, mono: true },
+      p.concentration ? { label: t('protocols_concentration'), value: `${decimalText(trimZeros(p.concentration), language)} ${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
+      vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${decimalText(trimZeros(vial.water_ml), language)} ml`, mono: true } : null,
     ];
   } else if (p.type === 'oral') {
     doseRows = [
-      { label: t('protocols_dose_amount'), value: `${p.dose} ${p.dose_unit}`, mono: true },
+      { label: t('protocols_dose_amount'), value: `${decimalText(p.dose, language)} ${p.dose_unit}`, mono: true },
       p.notes ? { label: t('protocols_form'), value: oralFormLabel(p.notes, t) } : null,
-      p.serving_strength != null ? { label: t('protocols_serving_strength'), value: `${p.serving_strength} ${p.serving_strength_unit || 'mg'}`, mono: true } : null,
+      p.serving_strength != null ? { label: t('protocols_serving_strength'), value: `${decimalText(p.serving_strength, language)} ${p.serving_strength_unit || 'mg'}`, mono: true } : null,
       p.serving_units != null ? { label: t('protocols_serving_units'), value: String(p.serving_units), mono: true } : null,
       p.container_units != null ? { label: t('protocols_container_units'), value: String(p.container_units), mono: true } : null,
     ];
@@ -730,7 +736,7 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
         <View style={s.ptitleRow}>
           <View style={[s.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }]} />
           <Text style={s.ptitleMeta}>
-            {sz ? `${sz} · ` : ''}{p.dose} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
+            {sz ? `${sz} · ` : ''}{decimalText(p.dose, language)} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
           </Text>
         </View>
         <Text style={s.ptitleName} accessibilityRole="header">{name}</Text>
@@ -938,8 +944,7 @@ export default function ProtocolsScreen() {
   }
   function formatStartDate(iso) {
     if (!iso) return '—'; // an old protocol saved without a start date: nothing preselected
-    const d = new Date(iso + 'T12:00:00');
-    return d.toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return formatDate(iso, language, 'weekdayDayMonthYear') || '—';
   }
 
   // The time wheel opens on the chosen dose time.
@@ -1294,7 +1299,7 @@ export default function ProtocolsScreen() {
   // mapping as before) and Save writes only what the user changes (founder decision 2,
   // 2026-10-02): no preselected first dose, no rewritten field, no vial nobody touched.
   function openEdit(p, goToStep) {
-    const f = formFromProtocol(p, vialsByProtocol[p.id], new Date());
+    const f = formFromProtocol(p, vialsByProtocol[p.id], new Date(), language);
     applyForm(f);
     editStartRef.current = f;
     setEditingId(p.id);
@@ -1334,7 +1339,7 @@ export default function ProtocolsScreen() {
   function adjustWater(dir) {
     const current = parseDecimal(water) || 0;
     const next = Math.max(0.5, Math.round((current + dir * 0.5) * 10) / 10);
-    setWater(String(next));
+    setWater(inputNumber(next, language));
   }
 
   // ── Vial-label scan → prefill the calculator (AI, review-before-save) ──
@@ -1408,12 +1413,12 @@ export default function ProtocolsScreen() {
       // wrong-but-plausible concentration that would drive every draw).
       const cu = mapConcUnit(v.concentration_unit);
       if (v.concentration != null && cu) {
-        setConcentration(String(v.concentration));
+        setConcentration(inputNumber(v.concentration, language));
         setConcentrationUnit(cu);
       }
-      if (v.volume_ml != null) setVialMl(String(v.volume_ml));
+      if (v.volume_ml != null) setVialMl(inputNumber(v.volume_ml, language));
     } else if (v.amount != null) {
-      setAmount(String(v.amount));
+      setAmount(inputNumber(v.amount, language));
       const au = mapAmountUnit(v.amount_unit);
       if (au) setUnit(au);
     }
@@ -1539,7 +1544,7 @@ export default function ProtocolsScreen() {
   // The dose step can't be left until the entered values produce a drawable dose.
   const doseStepBlocked = unitMismatch || drawExceedsSyringe;
   const drawExceedsMsg = t('protocols_draw_exceeds_warning')
-    .replace('{units}', drawUnits || '?')
+    .replace('{units}', drawUnits ? decimalText(drawUnits, language) : '?')
     .replace('{size}', String(syringeSize));
 
   // Resolve the diluent selection to a stored value: token for a preset choice,
@@ -2024,7 +2029,7 @@ export default function ProtocolsScreen() {
           const lastP = lastLog ? protocols.find(p => p.id === lastLog.protocol_id) : null;
           const lastName = lastP ? protocolName(lastP) : (lastLog && lastLog.protocol_name) || '';
           const lastLine = lastLog && lastName
-            ? t('protocols_log_last').replace('{name}', lastName).replace('{when}', lastLogWhen(lastLog.logged_at, new Date(), LOCALE_MAP[language] || 'en-US', (hm) => formatTime(hm, language, timeFormat)))
+            ? t('protocols_log_last').replace('{name}', lastName).replace('{when}', lastLogWhen(lastLog.logged_at, new Date(), language, (hm) => formatTime(hm, language, timeFormat)))
             : null;
           return (
             <View style={s.heroes}>
@@ -2416,10 +2421,10 @@ export default function ProtocolsScreen() {
                             style={s.stepperValInput}
                             value={String(water || '')}
                             onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
-                            onBlur={() => { const n = parseDecimal(water); setWater(String(!(n > 0) ? 0.5 : Math.max(0.5, n))); }}
+                            onBlur={() => { const n = parseDecimal(water); setWater(inputNumber(!(n > 0) ? 0.5 : Math.max(0.5, n), language)); }}
                             keyboardType="decimal-pad"
                             selectTextOnFocus
-                            placeholder="0.5"
+                            placeholder={decimalText('0.5', language)}
                             placeholderTextColor={colors.ink3}
                             textAlign="center"
                           />
@@ -2432,7 +2437,7 @@ export default function ProtocolsScreen() {
                     </Fld>
                     <Fld s={s} label={t('protocols_desired_dose')}>
                       <View style={s.inrow}>
-                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 0.5`} keyboardType="numeric" value={dose} onChangeText={setDose} />
+                        <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} ${decimalText('0.5', language)}`} keyboardType="numeric" value={dose} onChangeText={setDose} />
                         {unitSeg(['mg', 'mcg', 'IU'], doseUnit, setDoseUnit)}
                       </View>
                     </Fld>
@@ -2532,14 +2537,14 @@ export default function ProtocolsScreen() {
                     <View style={s.drawHead}>
                       <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
                       <View style={s.bigRow}>
-                        <Text style={[s.drawBig, drawExceedsSyringe && s.drawBigRisk]}>{drawUnits}</Text>
+                        <Text style={[s.drawBig, drawExceedsSyringe && s.drawBigRisk]}>{decimalText(drawUnits, language)}</Text>
                         <Text style={s.drawBigUnit}>{t('protocols_units')}</Text>
                       </View>
                     </View>
                     {liveW > 0 && (
                       <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
                     )}
-                    <Text style={s.liveMl}>{trimZeros(drawML)} ml</Text>
+                    <Text style={s.liveMl}>{decimalText(trimZeros(drawML), language)} ml</Text>
                     {drawExceedsSyringe && <WarnBox s={s} risk text={drawExceedsMsg} />}
                   </View>
                 )}
@@ -2554,7 +2559,7 @@ export default function ProtocolsScreen() {
                         <>
                           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
                           <View style={s.bigRow}>
-                            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded)}</Text>
+                            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
                             <Text style={s.drawBigUnit}>{unitLabel}</Text>
                           </View>
                         </>
@@ -2563,12 +2568,12 @@ export default function ProtocolsScreen() {
                           s={s}
                           text={r.splittable
                             ? t('protocols_serving_not_half')
-                            : t('protocols_serving_contains').replace('{strength}', r.perUnitDose).replace('{sunit}', doseUnit).replace('{ratio}', r.ratio)}
+                            : t('protocols_serving_contains').replace('{strength}', decimalText(r.perUnitDose, language)).replace('{sunit}', doseUnit).replace('{ratio}', decimalText(r.ratio, language))}
                         />
                       )}
                       {r.nearest && (
                         <Text style={s.nearest}>
-                          {fmtServing(r.nearest.lowUnits)} {unitLabel} = {r.nearest.lowDose} {doseUnit} · {fmtServing(r.nearest.highUnits)} {unitLabel} = {r.nearest.highDose} {doseUnit}
+                          {fmtServing(r.nearest.lowUnits, language)} {unitLabel} = {decimalText(r.nearest.lowDose, language)} {doseUnit} · {fmtServing(r.nearest.highUnits, language)} {unitLabel} = {decimalText(r.nearest.highDose, language)} {doseUnit}
                         </Text>
                       )}
                     </View>
@@ -2785,9 +2790,9 @@ export default function ProtocolsScreen() {
                   rows={[
                     { label: t('protocols_compound_label'), value: name || '—' },
                     { label: t('protocols_amount_label'), value: amount ? `${amount} ${unit}` : '—' },
-                    { label: t('protocols_water_label'), value: water ? `${trimZeros(water)} ml` : '—' },
+                    { label: t('protocols_water_label'), value: water ? `${decimalText(trimZeros(water), language)} ml` : '—' },
                     { label: t('protocols_dose_label'), value: dose ? `${dose} ${doseUnit}` : '—' },
-                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${trimZeros(drawML)} ml (${drawUnits} ${t('protocols_units')})` } : null,
+                    drawML && drawValid ? { label: t('protocols_draw_label'), value: `${decimalText(trimZeros(drawML), language)} ml (${decimalText(drawUnits, language)} ${t('protocols_units')})` } : null,
                     { label: t('protocols_frequency_label'), value: frequencyLabel(intervalDays) },
                   ]}
                 />

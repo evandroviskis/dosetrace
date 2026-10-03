@@ -155,7 +155,7 @@ function DoseFx({ t, G, i, colors }) {
 }
 
 // "+5.0" rising from each landing peak (RN text over the SVG, same coordinates).
-function DoseLabel({ t, G, i, style }) {
+function DoseLabel({ t, G, i, style, dec = '.' }) {
   const st = useAnimatedStyle(() => {
     const k = (t.value - G.hits[i]) / 900;
     if (k < 0 || k >= 1) return { opacity: 0 };
@@ -168,12 +168,13 @@ function DoseLabel({ t, G, i, style }) {
       ],
     };
   }, [G, i]);
-  return <Animated.Text style={[style, st]}>+{DOSE.toFixed(1)}</Animated.Text>;
+  return <Animated.Text style={[style, st]}>+{DOSE.toFixed(1).replace('.', dec)}</Animated.Text>;
 }
 
 export default function AccumulationHero({ width = 300, height = 140, playKey }) {
   const { colors } = useTheme();
-  const { t: tr } = useLanguage();
+  const { t: tr, language } = useLanguage();
+  const dec = language === 'en' ? '.' : ','; // the app language's decimal ("3,5" in pt), UI thread
   const s = useMemo(() => makeStyles(colors), [colors]);
   const reduce = useReducedMotion();
   const G = useMemo(() => buildModel(width, height), [width, height]);
@@ -226,7 +227,7 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
 
   const value = useDerivedValue(() => { const c = frame(G, t.value); return c.el < 0 ? 0 : c.v; }, [G]);
   const numBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(t.value, G.hits, 500, 0.16) }] }), [G]);
-  const fmt = (v) => { 'worklet'; return v.toFixed(1); };
+  const fmt = (v) => { 'worklet'; return v.toFixed(1).replace('.', dec); };
 
   return (
     <Animated.View style={[s.card, cardStyle]}>
@@ -251,7 +252,7 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
           <ACircle animatedProps={haloProps} fill={colors.data} />
           <ACircle animatedProps={dotProps} r={4.5} fill={colors.data} />
         </Svg>
-        {G.peaksX.map((_, i) => <DoseLabel key={`lb-${i}`} t={t} G={G} i={i} style={s.floatLabel} />)}
+        {G.peaksX.map((_, i) => <DoseLabel key={`lb-${i}`} t={t} G={G} i={i} style={s.floatLabel} dec={dec} />)}
       </View>
     </Animated.View>
   );
