@@ -415,12 +415,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     try { await supabase.auth.updateUser({ data: { gender: val } }); } catch (e) { /* non-fatal */ }
   }
 
-  // ── Weight in Your numbers (PO-14 / PO-15, founder 2026-10-02) ──────
-  // Before any weigh-in the field is the weight (saved as typed, as before). Once weigh-ins
-  // exist a changed weight works like a weigh-in: when the field is left the user is asked
-  // (DoseTrace sheet) to update the latest weigh-in or save it as today's; Cancel (or a tap
-  // outside) puts the saved weight back. One weigh-in write per answer, merged by day.
+  // ── Weight in Your numbers (PO-14 / PO-15 / PO-17, founder 2026-10-02) ──
+  // Before any weigh-in the field is the weight (saved as typed), and a weight the user
+  // changed becomes the first weigh-in when the field is left (founder "A"; never on open,
+  // load or migration). Once weigh-ins exist a changed weight works like a weigh-in: when
+  // the field is left the user is asked (DoseTrace sheet) to update the latest weigh-in or
+  // save it as today's; Cancel (or a tap outside) puts the saved weight back. One weigh-in
+  // write per save, merged by day.
   const hasWeighIns = snapshots.some(x => x.weightKg != null);
+  const weightFocusRef = useRef(null); // the field's text when it was entered
   function onWeightChange(v) {
     setWeightField(v);
     if (!hasWeighIns) setWeight(v);
@@ -435,15 +438,29 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (c && c.onDismiss) c.onDismiss();
   }
   function commitWeightField() {
-    if (weightField === weight) return;
+    const entered = weightFocusRef.current;
+    weightFocusRef.current = null;
     const uid = userIdRef.current;
+    if (!uid) return;
     const typed = num(weightField);
-    if (typed == null || !uid) { revertWeightField(); return; }
     const toKg = v => (unit === 'imperial' ? lbToKg(v) : v);
     const old = num(weight);
-    const kg = toKg(typed);
+    const kg = typed == null ? null : toKg(typed);
     const text = weightField;
     const d = weightEditAsk({ rows: getCalcSnapshots(uid), oldWeightKg: old == null ? null : toKg(old), newWeightKg: kg, todayISO: todayISO() });
+    if (d.kind === 'first') {
+      // PO-17: no weigh-in yet — a weight the user changed here becomes the first one.
+      if (kg == null || (entered != null && entered === text)) return;
+      setWeight(text);
+      const wc = num(waist);
+      applyWeightEdit('first', kg, text, {
+        bodyFatPct: isUnknown ? null : num(bodyFat),
+        waistCm: wc == null ? null : (unit === 'imperial' ? inToCm(wc) : wc),
+      });
+      return;
+    }
+    if (weightField === weight) return;
+    if (kg == null) { revertWeightField(); return; }
     if (d.kind !== 'ask') { setWeight(text); return; }
     setConfirm({
       title: t('cal_wedit_title'),
@@ -456,10 +473,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       ],
     });
   }
-  function applyWeightEdit(choice, kg, text) {
+  function applyWeightEdit(choice, kg, text, extra = {}) {
     const uid = userIdRef.current;
     if (!uid) return;
-    const row = weightEditWrite({ choice, rows: getCalcSnapshots(uid), newWeightKg: kg, todayISO: todayISO() });
+    const row = weightEditWrite({ choice, rows: getCalcSnapshots(uid), newWeightKg: kg, todayISO: todayISO(), ...extra });
     if (!row) return;
     upsertCalcSnapshot(uid, row);
     requestSync?.();
@@ -1204,7 +1221,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
-          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
+          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} onFocus={() => { weightFocusRef.current = weightField; }} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>

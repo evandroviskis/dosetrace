@@ -122,10 +122,49 @@ const rows = [
   { entry_date: '2026-09-21', weight_kg: 85.3, body_fat_pct: 21.3, waist_cm: 93, lbm: null, bmr: null, tdee: null },
 ];
 
-test('PO-14: no weigh-ins yet: the weight just saves, no question', () => {
+test('PO-14: no weigh-ins yet: no question — the saved weight becomes the first weigh-in (PO-17)', () => {
   const { weightEditAsk } = P();
-  assert.deepEqual(weightEditAsk({ rows: [], oldWeightKg: 84.6, newWeightKg: 84.0, todayISO: today }), { kind: 'save' });
-  assert.deepEqual(weightEditAsk({ rows: [{ entry_date: '2026-09-28', weight_kg: null, waist_cm: 90 }], oldWeightKg: null, newWeightKg: 84, todayISO: today }), { kind: 'save' }, 'a waist-only day is not a weigh-in');
+  assert.deepEqual(weightEditAsk({ rows: [], oldWeightKg: 84.6, newWeightKg: 84.0, todayISO: today }), { kind: 'first' });
+  assert.deepEqual(weightEditAsk({ rows: [{ entry_date: '2026-09-28', weight_kg: null, waist_cm: 90 }], oldWeightKg: null, newWeightKg: 84, todayISO: today }), { kind: 'first' }, 'a waist-only day is not a weigh-in');
+});
+
+// ── PO-17 (founder "A" 2026-10-02): with no weigh-ins, a weight saved in Your numbers becomes the first weigh-in ──
+
+test('PO-17: the first weigh-in is one row for today with the weight, and body fat / waist from the form when present', () => {
+  const { weightEditWrite } = P();
+  assert.deepEqual(
+    weightEditWrite({ choice: 'first', rows: [], newWeightKg: 86, bodyFatPct: 23, waistCm: 92, todayISO: today }),
+    { entry_date: today, weight_kg: 86, waist_cm: 92, body_fat_pct: 23, lbm: null, bmr: null, tdee: null },
+  );
+  assert.deepEqual(
+    weightEditWrite({ choice: 'first', rows: [], newWeightKg: 86, todayISO: today }),
+    { entry_date: today, weight_kg: 86, waist_cm: null, body_fat_pct: null, lbm: null, bmr: null, tdee: null },
+    'body fat and waist are optional',
+  );
+  // A waist-only row today is merged into, never a second row for the day.
+  const waistOnly = [{ entry_date: today, weight_kg: null, waist_cm: 91, body_fat_pct: null, lbm: null, bmr: null, tdee: null }];
+  assert.deepEqual(
+    weightEditWrite({ choice: 'first', rows: waistOnly, newWeightKg: 86, todayISO: today }),
+    { entry_date: today, weight_kg: 86, waist_cm: 91, body_fat_pct: null, lbm: null, bmr: null, tdee: null },
+  );
+});
+
+test('PO-17: once a weigh-in exists the first-weigh-in write never happens (the ask rule applies)', () => {
+  const { weightEditWrite } = P();
+  assert.equal(weightEditWrite({ choice: 'first', rows, newWeightKg: 86, todayISO: today }), null);
+  assert.equal(weightEditWrite({ choice: 'first', rows: [], newWeightKg: null, todayISO: today }), null);
+});
+
+test('PO-17: only a weight the user changed and left creates it — never on open, load or migration', () => {
+  const src = read('screens/components/CalculatorSection.js');
+  const fn = src.match(/function commitWeightField\(\) \{[\s\S]*?\n  \}\n/);
+  assert.ok(fn);
+  assert.match(fn[0], /d\.kind === 'first'/);
+  assert.match(fn[0], /weightFocusRef\.current/, 'compared with the value the field had when it was entered');
+  assert.match(fn[0], /applyWeightEdit\('first', /);
+  assert.match(src, /onFocus=\{\(\) => \{ weightFocusRef\.current = weightField; \}\}/);
+  const load = src.match(/async function load\(\) \{[\s\S]*?\n  \}\n/)[0];
+  assert.doesNotMatch(load, /applyWeightEdit|weightEditWrite/, 'load never writes a weigh-in');
 });
 
 test('PO-14: with weigh-ins a changed weight asks first (Update the <date> weigh-in / Save as today\'s / Cancel); unchanged never asks', () => {
@@ -220,6 +259,18 @@ test('PO-14: the question is the DoseTrace sheet (as Start over? / Stop reality 
   assert.match(fn[0], /setConfirm\(\{/);
   for (const k of ["t('cal_wedit_title')", "t('cal_wedit_body')", "t('cal_wedit_update')", "t('cal_wedit_today')", "t('cancel')"]) assert.ok(fn[0].includes(k), k);
   assert.match(fn[0], /onDismiss: revertWeightField/);
+});
+
+test('PO-18: cal_yr is the full word (founder 2026-10-02) and the tile prompt names weight, height, age and sex', () => {
+  const src = read('i18n/translations.js').replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };';
+  const mod = { exports: {} };
+  new Function('module', 'exports', src)(mod, mod.exports);
+  const { translations: tr } = mod.exports;
+  assert.deepEqual(['en', 'es', 'pt', 'fr', 'de', 'it'].map(l => tr[l].cal_yr), ['yr', 'años', 'anos', 'ans', 'J.', 'anni']);
+  const { numbersLine } = P();
+  assert.equal(numbersLine({ weight: '86', wUnit: 'kg', height: '177', hUnit: 'cm', age: '41', yr: tr.pt.cal_yr, sexLabel: 'Homem', bodyFat: '23', bfShort: tr.pt.cal_bf_short, activityLabel: 'Leve' }), '86 kg · 177 cm · 41 anos · Homem · 23% GC · Leve');
+  assert.equal(tr.en.cal_need_inputs, 'Enter your weight, height, age and sex to see your daily burn.');
+  for (const l of ['es', 'pt', 'fr', 'de', 'it']) assert.doesNotMatch(tr[l].cal_need_inputs, /\(/, `${l}: no "(or …)" body-fat path any more`);
 });
 
 test('PO-16: every new string exists in all 6 languages', () => {
