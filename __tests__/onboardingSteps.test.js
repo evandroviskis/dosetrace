@@ -47,7 +47,7 @@ test('PA-31…PA-37: Continue stays dim until each step is answered', () => {
   assert.equal(O.canContinue('routine', { ...full, activity: 'active' }), true, 'a legacy level still counts');
   assert.equal(O.canContinue('routine', { ...full, provider: '' }), false);
   assert.equal(O.canContinue('consent', { ...full, terms: { med: 1, est: 1, ai: 1 } }), false, 'all four confirmations');
-  assert.equal(O.canContinue('consent', { ...full, terms: {}, consentAccepted: true }), true, 'already recorded on the account');
+  assert.equal(O.canContinue('consent', { ...full, terms: {}, consentAccepted: true }), false, 'a stored consent never passes the step (Gate B); the signed-in flow skips the step instead');
   assert.equal(O.canContinue(undefined, full), false, 'an out-of-range step never advances');
 });
 
@@ -86,7 +86,7 @@ test('PA-38: the stash patch writes only what is filled (no undefined clobbers a
   const p = O.stashPatch({ goals: ['sleep'], tracking: [], name: ' ', terms: {} }, '2026-10-03T00:00:00Z');
   assert.deepEqual(p, { primary_goal: 'sleep' });
   const all = O.stashPatch({ goals: ['a', 'b'], tracking: ['oral'], name: 'Bo', gender: 'male', country: 'Peru', birthMonth: 11, birthYear: 1970, activity: 'light', provider: 'no', terms: { med: 1, est: 1, ai: 1, priv: 1 } }, 'NOW');
-  assert.deepEqual(all, { display_name: 'Bo', primary_goal: 'a,b', tracking_types: ['oral'], gender: 'male', country: 'Peru', birth_year: 1970, birth_month: 12, activity_level: 'light', has_provider: 'no', consent_accepted: true, consent_date: 'NOW' });
+  assert.deepEqual(all, { display_name: 'Bo', primary_goal: 'a,b', tracking_types: ['oral'], gender: 'male', country: 'Peru', birth_year: 1970, birth_month: 12, activity_level: 'light', has_provider: 'no', consent_accepted: true, consent_date: 'NOW', activity_scale: 5 });
 });
 
 test('PA-62: formFrom restores everything the user typed (stash or account) and rejects junk', () => {
@@ -105,7 +105,8 @@ test('PA-62: formFrom restores everything the user typed (stash or account) and 
 
 test('PA-62: entry step — a finished intro reopens on "Never miss a dose"; anything less on the welcome screen', () => {
   const stash = { display_name: 'Sam', primary_goal: 'fitness', tracking_types: ['peptides'], gender: 'male', country: 'Brazil', birth_year: 1990, birth_month: 4, activity_level: 'moderate', has_provider: 'no', consent_accepted: true };
-  assert.equal(O.STEPS[O.entryStep(stash)], 'reminders');
+  assert.equal(O.STEPS[O.entryStep(stash, { consentPassed: true })], 'reminders', 'Back from Create account in the same run');
+  assert.equal(O.STEPS[O.entryStep(stash)], 'consent', 'after a restart: confirm again');
   assert.equal(O.entryStep({ ...stash, consent_accepted: false }), 0);
   assert.equal(O.entryStep({}), 0);
   assert.equal(O.entryStep(null), 0);
@@ -125,7 +126,7 @@ test('PA-41: Finish setup writes ONLY the fields of the steps it showed — neve
   assert.equal(out2.birth_month, 12);
   assert.ok(!('primary_goal' in out2) && !('tracking_types' in out2) && !('activity_level' in out2), 'hidden steps untouched');
   const routineOnly = O.accountPatch({ ...O.formFrom(meta), activity: 'light' }, meta, 'NOW', ['routine', 'finish']);
-  assert.deepEqual(Object.keys(routineOnly).sort(), ['activity_level', 'has_provider', 'onboarded_at']);
+  assert.deepEqual(Object.keys(routineOnly).sort(), ['activity_level', 'activity_scale', 'has_provider', 'onboarded_at']);
 });
 
 test('PA-41: the form follows the account when its profile lands mid-flow, keeping what the user touched', () => {

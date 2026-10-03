@@ -11,7 +11,10 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, App
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
-import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding } from './lib/onboardingStore';
+import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow } from './lib/onboardingStore';
+import { clearAuthDraft } from './lib/authDraft';
+import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery } from './lib/recoveryLink';
+import { recoveryDecision, linkKey } from './lib/recoveryFlow';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
@@ -235,7 +238,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry }) {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
@@ -243,12 +246,27 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecovery
   // know it worked, so say so; an emailed link that could not be used (expired, used, or
   // opened on another phone) says so too instead of doing nothing (journey review
   // 2026-10-03). Both are DoseTrace sheets (PA-66).
-  const linkSheet = justConfirmed
-    ? { icon: 'check', title: t('confirm_email_done_title'), body: t('confirm_email_done_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
-    : linkFailed
-      ? { icon: 'alert', title: t('auth_link_failed_title'), body: t('auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
-      : null;
-  const closeLinkSheet = () => { if (justConfirmed) onConfirmedShown && onConfirmedShown(); else onLinkFailedShown && onLinkFailedShown(); };
+  // A reset link for ANOTHER account than the one signed in asks first, naming both (PA-75).
+  // A confirm link that cannot be exchanged says the address may already be confirmed (the
+  // server confirms it before redirecting — Gate B).
+  const linkSheet = switchAsk
+    ? {
+      icon: 'alert',
+      title: t('reset_switch_title'),
+      body: t('reset_switch_msg').replace('{link}', switchAsk.pending.email || '').split('{current}').join(switchAsk.current || ''),
+      buttons: [{ label: t('cancel'), kind: 'secondary', onPress: onSwitchCancel }, { label: t('reset_switch_continue'), kind: 'primary', onPress: onSwitchContinue }],
+    }
+    : justConfirmed
+      ? { icon: 'check', title: t('confirm_email_done_title'), body: t('confirm_email_done_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+      : linkFailed
+        ? { icon: 'alert', title: t('auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+        : null;
+  // Closing a sheet only hides it; the buttons carry the actions (DTSheet runs them after).
+  const closeLinkSheet = () => {
+    if (switchAsk) onSwitchClose && onSwitchClose();
+    else if (justConfirmed) onConfirmedShown && onConfirmedShown();
+    else onLinkFailedShown && onLinkFailedShown();
+  };
 
   const base = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
@@ -266,12 +284,12 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecovery
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={onNavReady}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {recovering ? (
+        {recovery ? (
           // Opened from a password-reset email: force the set-new-password step
           // even though the code exchange already created a session, so the user
           // can't be silently dropped into the app with the old password.
           <Stack.Screen name="ResetPassword">
-            {() => <ResetPasswordScreen onDone={onRecoveryDone} />}
+            {() => <ResetPasswordScreen recovery={recovery} onDone={onRecoveryDone} />}
           </Stack.Screen>
         ) : !session ? (
           seenOnboarding ? (
@@ -280,7 +298,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecovery
             // intro below is the single onboarding, and AuthScreen the single
             // auth surface.
             <Stack.Screen name="Auth">
-              {() => <AuthScreen onBack={onBackToOnboarding} initialMode={authEntry.mode} consentFromOnboarding={authEntry.consent} />}
+              {() => <AuthScreen onBack={onBackToOnboarding} initialMode={authEntry.mode} />}
             </Stack.Screen>
           ) : (
             // First launch: the value-first intro flow collects the profile
@@ -322,9 +340,12 @@ function ThemedLoading() {
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [recovering, setRecovering] = useState(false);
+  // A password-reset link opened in an isolated client (lib/recoveryLink): the pending
+  // recovery while the user sets the new password; it survives an app kill for an hour.
+  const [recovery, setRecovery] = useState(null);
+  const [switchAsk, setSwitchAsk] = useState(null); // { pending, current } — a link for another account
   const [justConfirmed, setJustConfirmed] = useState(false);
-  const [linkFailed, setLinkFailed] = useState(false);
+  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm'
   // How the auth screen opens: Create account (from the last onboarding step, with the
   // consent box ticked by the four confirmations just made) or Sign in (from the welcome
   // screen). undefined = a returning signed-out user (AuthScreen decides from the stash).
@@ -378,18 +399,56 @@ export default function App() {
   // user dead-ends on the marketing site.
   useEffect(() => {
     let cancelled = false;
+    const currentSession = () => supabase.auth.getSession().then(({ data }) => (data && data.session) || null).catch(() => null);
+    // The link's account vs the one signed in: same / nobody → the reset screen; another
+    // account → ask first (PA-75).
+    const routeRecovery = async (pending) => {
+      const cur = await currentSession();
+      if (cancelled) return;
+      const decision = recoveryDecision({ currentUserId: cur?.user?.id || null, linkUserId: pending.userId });
+      if (decision === 'ask') setSwitchAsk({ pending, current: cur?.user?.email || '' });
+      else setRecovery(pending);
+    };
     const handleUrl = async (url) => {
       if (!url) return;
       const u = String(url);
       const isReset = u.includes('reset-password');
       const isConfirm = u.includes('confirm-email');
       if (!isReset && !isConfirm) return;
-      const { ok } = await exchangeAuthCodeFromUrl(u);
+      // Each emailed link is handled once: Android re-delivers the launch intent after the
+      // process dies, and a used code must not then look like a broken link (Gate B).
+      const key = linkKey(u);
+      let handled = [];
+      try { const raw = await AsyncStorage.getItem('dosetrace_links_handled'); handled = raw ? JSON.parse(raw) : []; } catch { handled = []; }
+      if (!Array.isArray(handled)) handled = [];
+      if (handled.includes(key)) return;
+      try { await AsyncStorage.setItem('dosetrace_links_handled', JSON.stringify([...handled, key].slice(-20))); } catch { /* best effort */ }
+      const cur = await currentSession();
+      const hasSession = !!cur?.user;
       if (cancelled) return;
-      if (!ok) { setLinkFailed(true); return; }
-      if (isReset) setRecovering(true);
-      else setJustConfirmed(true);
+      if (isReset) {
+        const r = await openRecoveryLink(u);
+        if (cancelled) return;
+        if (r.error) {
+          // The reset screen may already be up from an earlier open of this link.
+          if (!(await loadPendingRecovery())) setLinkFailed('reset');
+          return;
+        }
+        routeRecovery(r.pending);
+        return;
+      }
+      if (isConfirm) {
+        // Signed in already: the server confirmed the address before redirecting; the app
+        // has nothing to change (and never switches accounts on a confirm link).
+        if (hasSession) return;
+        const { ok } = await exchangeAuthCodeFromUrl(u);
+        if (cancelled) return;
+        if (!ok) { setLinkFailed('confirm'); return; }
+        setJustConfirmed(true);
+      }
     };
+    // A reset left half-way (the app was killed on Reset password) comes back first.
+    loadPendingRecovery().then((p) => { if (p && !cancelled) routeRecovery(p); }).catch(() => {});
     Linking.getInitialURL().then(handleUrl).catch(() => {});
     const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
     return () => { cancelled = true; sub.remove(); };
@@ -545,7 +604,7 @@ export default function App() {
         const intentional = consumeIntentionalSignOut();
         // Intentional → route to the splash (and wipe). Spurious → leave
         // seenOnboarding as-is so the returning user lands on Auth to re-sign-in.
-        if (intentional) setSeenOnboarding(false);
+        if (intentional) { discardStashNow(); clearAuthDraft(); setSeenOnboarding(false); }
         setTimeout(() => {
           // Stop sync FIRST so no final sync runs.
           stopSyncEngine();
@@ -570,6 +629,9 @@ export default function App() {
         // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
         // run inline in this callback.
         setTimeout(async () => {
+          // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
+          setAuthEntry({ mode: undefined, consent: false });
+          clearAuthDraft();
           // Discard any stale intentional-sign-out flag so it can NEVER survive a
           // login boundary (a set-but-never-consumed flag would wrongly wipe on the
           // next spurious sign-out — the exact bug this guard exists to prevent).
@@ -654,7 +716,7 @@ export default function App() {
   // so the consent box starts ticked), 'signin' from the welcome screen.
   const finishOnboarding = (mode) => {
     markSeenOnboarding().catch(() => {});
-    setAuthEntry({ mode: mode === 'signin' ? 'signin' : 'create', consent: mode !== 'signin' });
+    setAuthEntry({ mode: mode === 'signin' ? 'signin' : 'create', consent: false });
     setSeenOnboarding(true);
   };
   // Back from the auth screen: the onboarding reopens from the stash at the step the user
@@ -687,8 +749,18 @@ export default function App() {
               session={session}
               navigationRef={navigationRef}
               onNavReady={flushPendingNav}
-              recovering={recovering}
-              onRecoveryDone={() => setRecovering(false)}
+              recovery={recovery}
+              onRecoveryDone={() => setRecovery(null)}
+              switchAsk={switchAsk}
+              onSwitchClose={() => setSwitchAsk(null)}
+              onSwitchCancel={() => { discardPendingRecovery(); }}
+              onSwitchContinue={() => {
+                const p = switchAsk && switchAsk.pending;
+                if (!p) return;
+                // Sign out of the current account the deliberate way (push, then wipe), then
+                // set the new password for the link's account.
+                signOutCurrentForRecovery().finally(() => setRecovery(p));
+              }}
               justConfirmed={justConfirmed}
               onConfirmedShown={() => setJustConfirmed(false)}
               seenOnboarding={seenOnboarding}

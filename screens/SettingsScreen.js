@@ -272,6 +272,7 @@ export default function SettingsScreen({ navigation }) {
           country: country.trim() || null,
           primary_goal: primaryGoals.length > 0 ? primaryGoals.join(',') : null,
           activity_level: activityLevel || null,
+          activity_scale: 5, // the 5-level scale (Gate B)
           // An old 4-level value rewritten as its new level is kept (never lose user data).
           ...legacyActivity(user?.user_metadata?.activity_level, activityLevel),
           has_provider: hasProvider || null,

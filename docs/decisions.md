@@ -465,3 +465,14 @@ These are NOT settled. Each lists both sides with their sources. The ledger abov
 - **Free plan keeps 3 active protocols** — "3 mantém".
 - **Brazil prices equal in both stores, matching Apple (R$19,90/month, R$199,90/year)** — "4 iguala à Apple".
 - **My Body (MB-1..31) and Progress one card (PO-1..26) checklists signed** — "5 assino".
+
+## Premium + Onboarding/Auth build — resolved 2026-10-03 by the ledger + product logic (no question to the founder)
+Source: the coordinator of the Premium/Auth build, applying the ledger and product logic; docs/specs/premium-and-auth.md (PA-4, PA-6, PA-16, PA-37, PA-39, PA-55, PA-56, PA-71…PA-77).
+- **The seven build deviations are accepted as built:** the vaccine preview says "next-due dates" (the app has no vaccine reminders); "Try again" under "Plans are currently unavailable"; the "You already have Premium" sheet (no buy button for a paying user); old activity levels mapped by name (sedentary → Desk job, moderate → Moderate, active → High, very_active → Very high, the old value kept as activity_level_legacy); Terms of service linked on the consent step as well as Privacy policy; the Google button text at 17 pt in a 52 pt button; "If an account exists for {email}, we sent it a password reset link…".
+- **Shared device: onboarding answers belong only to the person who passed "Before we begin" in this run of the app.** They are cleared from the device as soon as they are written to an account and on any real sign-out, and never carry into a different person's sign-up (email, Apple or Google).
+- **Onboarding answers may fill ONLY the missing fields of an account, new or existing — never overwrite a stored value** (build-49 "I need the data"). Replaces the 1-hour "freshly created account" window.
+- **Lifetime bought while a subscription is active:** after the purchase a DoseTrace sheet says the subscription keeps renewing until the user cancels it in the store's subscription settings; the app cannot cancel it.
+- **RevenueCat restore/transfer: keep the RevenueCat project's current setting** (it lives only in the RevenueCat dashboard; not recorded in the repo).
+- **A reset link opened while signed in as another account:** a sheet names the link's account and the current one and asks to continue (sign out of the current one first) or cancel. **Killing the app on Reset password:** the reset screen comes back (pending recovery, one hour); nothing is half-written — the password and the app's session change together when the new password is saved.
+- **Play free trial "new customers only"** checked read-only 2026-10-03: free-trial-7d on monthly (p1m) and yearly (annual), ACTIVE, 7 days free, targeting anySubscriptionInApp. Nothing changed in Play.
+- **Still the founder's questions:** (a) old accounts whose birth year makes them under 18; (b) accounts created with Apple used on Android.

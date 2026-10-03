@@ -9,9 +9,12 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { Analytics } from '../lib/analytics';
-import { loadOnboarding, saveOnboarding } from '../lib/onboardingStore';
+import { loadOnboarding, saveOnboarding, clearOnboarding, isStashFresh } from '../lib/onboardingStore';
+import { signupMetadata } from '../lib/pendingProfile';
 import { PRIVACY_URL } from '../lib/legalLinks';
 import { GOOGLE_SANS_MEDIUM } from '../lib/fonts';
+import { useFonts } from 'expo-font';
+import { getAuthDraft, setAuthDraft } from '../lib/authDraft';
 import { normalizeActivityLevel } from '../lib/activityLevels';
 import {
   validateCredentials, signupNext, authErrorMessage, isNotConfirmed, consentParts,
@@ -24,9 +27,6 @@ import AuthField from '../components/AuthField';
 import LegalModal from '../components/LegalModal';
 import { DTSheet } from './components/ProtocolParts';
 
-// The address typed on this screen survives a trip back to onboarding and forward again
-// (PA-62): kept in memory for this run only — never written to storage, never the password.
-let draftEmail = '';
 
 // Back arrow (Graduated): a drawn monoline chevron in ink, never a font glyph.
 function BackChevron({ color }) {
@@ -85,10 +85,11 @@ function AppleSignInButton({ onPress, isDark, style }) {
  *
  * initialMode: 'create' (from the last onboarding step) | 'signin' (from the welcome
  * screen) | undefined (a returning signed-out user: Create when the intro just finished).
- * consentFromOnboarding: the four confirmations were made in this run → the consent box
- * starts ticked (prototype obcreate). Every message is a DoseTrace sheet.
+ * The consent box starts ticked only for the person who ticked the four onboarding
+ * confirmations in this run (lib/onboardingStore isStashFresh; prototype obcreate). Every
+ * message is a DoseTrace sheet.
  */
-export default function AuthScreen({ onBack, initialMode, consentFromOnboarding = false }) {
+export default function AuthScreen({ onBack, initialMode }) {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -109,8 +110,12 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
     return () => sub.remove();
   }, [onBack, signupDone]);
 
-  const [email, setEmailState] = useState(draftEmail);
-  const setEmail = (v) => { draftEmail = v; setEmailState(v); };
+  const [email, setEmailState] = useState(getAuthDraft);
+  const setEmail = (v) => { setAuthDraft(v); setEmailState(v); };
+  // Google's typeface is loaded here only, where its button is (not in the startup gate);
+  // until it is ready the button text uses the system font for a moment.
+  const [googleFont] = useFonts({ [GOOGLE_SANS_MEDIUM]: require('../assets/fonts/GoogleSans_500Medium.ttf') });
+  const busyRef = useRef(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0); // seconds until resend allowed again
@@ -132,7 +137,7 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
       setMode((m) => m || initialAuthMode(initialMode, st));
       // The box is ticked only for the person who just confirmed the four onboarding
       // confirmations in this run; anyone else ticks it themselves (journey review).
-      setConsentGiven(consentFromOnboarding && initialConsent(st));
+      setConsentGiven(isStashFresh() && initialConsent(st));
     }).catch(() => { if (active) setMode((m) => m || 'signin'); });
     return () => { active = false; };
   }, []);
@@ -143,7 +148,11 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
   // Apple / Google: from Create account the consent box decides what a NEW account records
   // (PA-59). If the sign-in is cancelled or fails, the stash goes back to how it was.
   async function social(fn) {
-    if (loading) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
+    // Gate B: from Create account the box must be ticked for Apple / Google too — an account
+    // is never created without the consent record (stopped before anything is written).
+    if (mode === 'create' && !consentGiven) { busyRef.current = false; errorSheet(t('consent_required')); return; }
     const now = new Date().toISOString();
     const patch = socialConsentPatch({ mode, consent: consentGiven, stash, nowISO: now });
     const prior = stash ? { consent_accepted: !!stash.consent_accepted, consent_date: stash.consent_date || null } : { consent_accepted: false, consent_date: null };
@@ -158,6 +167,7 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
       if (patch) await saveOnboarding(prior);
       errorSheet(authErrorMessage(e, t, 'signin'));
     } finally {
+      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -210,26 +220,15 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
       }
       return; // success: App.js routes on the new session
     }
-    const d = stash || {};
+    // The onboarding answers go into the new account only when they are this person's
+    // (answered in this run — lib/pendingProfile); then they leave the device (PA-71).
+    const fresh = isStashFresh();
     result = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
       options: {
         emailRedirectTo: emailConfirmRedirectUrl(),
-        data: {
-          tracking_types: Array.isArray(d.tracking_types) ? d.tracking_types : [],
-          onboarded_at: new Date().toISOString(),
-          consent_accepted: true, // the box is ticked (validateCredentials)
-          consent_date: (consentFromOnboarding && d.consent_date) || new Date().toISOString(),
-          display_name: d.display_name || null,
-          gender: d.gender || null,
-          birth_month: d.birth_month != null ? d.birth_month : null, // stash is 1-based (matches fieldPresent)
-          birth_year: d.birth_year != null ? d.birth_year : null,
-          country: d.country || null,
-          primary_goal: d.primary_goal || null,
-          activity_level: normalizeActivityLevel(d.activity_level) || null,
-          has_provider: d.has_provider || null,
-        },
+        data: signupMetadata(stash, { fresh, nowISO: new Date().toISOString(), normalizeActivity: normalizeActivityLevel }),
       },
     });
     setLoading(false);
@@ -241,6 +240,9 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
       setPassword('');
       return;
     }
+    // Written into the account: clear the answers from the device (kept on this screen for a
+    // corrected address via Wrong address? Go back).
+    if (fresh) clearOnboarding().catch(() => {});
     Analytics.onboardingCompleted({
       trackingTypes: Array.isArray(stash?.tracking_types) ? stash.tracking_types : [],
       language,
@@ -350,7 +352,7 @@ export default function AuthScreen({ onBack, initialMode, consentFromOnboarding 
             accessibilityLabel={t('onboarding_google_signin')}
           >
             <GoogleMark />
-            <Text style={[s.googleBtnText, isDark ? s.googleBtnTextDark : s.googleBtnTextLight]}>{t('onboarding_google_signin')}</Text>
+            <Text style={[s.googleBtnText, googleFont && s.googleBtnFont, isDark ? s.googleBtnTextDark : s.googleBtnTextLight]}>{t('onboarding_google_signin')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -445,7 +447,8 @@ const makeStyles = (c) => StyleSheet.create({
   googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingLeft: 16, paddingRight: 16 },
   googleBtnLight: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
   googleBtnDark: { backgroundColor: '#131314', borderColor: '#8E918F' },
-  googleBtnText: { fontSize: 17, fontFamily: GOOGLE_SANS_MEDIUM },
+  googleBtnText: { fontSize: 17 },
+  googleBtnFont: { fontFamily: GOOGLE_SANS_MEDIUM },
   googleBtnTextLight: { color: '#1F1F1F' },
   googleBtnTextDark: { color: '#E3E3E3' },
   busy: { opacity: 0.6 },

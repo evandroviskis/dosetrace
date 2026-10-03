@@ -24,12 +24,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { supabase } from '../lib/supabase';
-import { validateNewPassword, authErrorMessage } from '../lib/authFlow';
+import { validateNewPassword, newPasswordValue, authErrorMessage } from '../lib/authFlow';
+import { saveRecoveryPassword } from '../lib/recoveryLink';
 import AuthField from '../components/AuthField';
 import { DTSheet } from './components/ProtocolParts';
 
-export default function ResetPasswordScreen({ onDone }) {
+// recovery: the link's pending session (lib/recoveryLink). The account the app may be signed
+// in to is untouched until the new password is saved (PA-76).
+export default function ResetPasswordScreen({ recovery, onDone }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -45,18 +47,18 @@ export default function ResetPasswordScreen({ onDone }) {
     const bad = validateNewPassword(password, confirm);
     if (bad) { errorSheet(t(bad.key)); return; }
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const res = await saveRecoveryPassword(recovery, newPasswordValue(password));
     setLoading(false);
-    if (error) {
-      errorSheet(authErrorMessage(error, t, 'reset'));
+    if (res.error) {
+      errorSheet(authErrorMessage(res.error, t, 'reset'));
       return;
     }
-    // The reset link's session is the user's: they are signed in with the new password.
-    // Done (or closing the sheet) takes them into the app.
+    // The password is saved and the app is signed in with it (or, if that last step
+    // failed, the user signs in with it). Done (or closing the sheet) goes on.
     setSheet({
       icon: 'check',
       title: t('reset_pw_done_title'),
-      body: t('reset_pw_done_msg'),
+      body: t(res.signedIn === false ? 'reset_pw_done_signin' : 'reset_pw_done_msg'),
       done: true,
       buttons: [{ label: t('done'), kind: 'primary' }], // closing it (Done or the scrim) goes on — closeSheet
     });

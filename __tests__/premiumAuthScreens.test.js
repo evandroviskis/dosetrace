@@ -46,7 +46,7 @@ test('PA-12 / PA-13 / PA-16: purchase, restore and already-Premium speak through
   assert.match(PAY, /<DTSheet config=\{sheet\}/);
   assert.match(PAY, /showOutcome\('premium_already'\)/);
   assert.match(PAY, /showOutcome\(outcome === 'failed' \? 'restore_failed' : outcome\)/);
-  assert.match(PAY, /if \(outcome === 'premium'\) \{[\s\S]{0,160}leave\(\)/);
+  assert.match(PAY, /if \(outcome === 'premium'\) \{[\s\S]{0,400}leave\(\)/);
   assert.doesNotMatch(PAY, /Alert/);
   const purchases = read('lib', 'purchases.js');
   assert.match(purchases, /PAYMENT_PENDING_ERROR/, 'Ask to Buy is recognised');
@@ -91,10 +91,10 @@ test('PA-54: the Apple button is the system AppleAuthenticationButton, CONTINUE,
 test('PA-55: the Google button follows Google\'s branding (Google Sans Medium, current G, 12 pt gap, light/dark)', () => {
   const { GOOGLE_SANS_MEDIUM } = { GOOGLE_SANS_MEDIUM: 'GoogleSans_500Medium' };
   assert.match(read('lib', 'fonts.js'), new RegExp(`GOOGLE_SANS_MEDIUM = '${GOOGLE_SANS_MEDIUM}'`));
-  assert.match(read('lib', 'fonts.js'), /\[GOOGLE_SANS_MEDIUM\]: require\('\.\.\/assets\/fonts\/GoogleSans_500Medium\.ttf'\)/);
+  assert.match(AUTH, /\[GOOGLE_SANS_MEDIUM\]: require\('\.\.\/assets\/fonts\/GoogleSans_500Medium\.ttf'\)/);
   assert.ok(fs.statSync(path.join(__dirname, '..', 'assets', 'fonts', 'GoogleSans_500Medium.ttf')).size > 100000);
   assert.match(read('assets', 'fonts', 'GoogleSans-OFL.txt'), /SIL Open Font License, Version 1\.1/, 'the OFL travels with the font');
-  assert.match(AUTH, /googleBtnText: \{ fontSize: 17, fontFamily: GOOGLE_SANS_MEDIUM \}/);
+  assert.match(AUTH, /googleBtnText: \{ fontSize: 17 \},\n\s+googleBtnFont: \{ fontFamily: GOOGLE_SANS_MEDIUM \}/);
   assert.match(AUTH, /blue: '#4285F4', green: '#34A853', yellow: '#FBBC04', red: '#E94235'/);
   assert.doesNotMatch(AUTH, /#EA4335|#FBBC05/, 'the old G colours are gone');
   assert.match(AUTH, /googleBtn: \{ minHeight: 52, borderRadius: 26, borderWidth: 1,[^}]*gap: 12, paddingLeft: 16, paddingRight: 16 \}/);
@@ -125,13 +125,13 @@ test('PA-53 / PA-58: email exists stays on Create with the address; not-confirme
   assert.doesNotMatch(exists, /setMode|switchMode|setIsSignIn/, 'no jump to Sign in');
   assert.match(AUTH, /isNotConfirmed\(result\.error\)[\s\S]{0,400}signup_resend[\s\S]{0,60}onPress: handleResend/);
   for (const s of valuesOf('signup_email_exists_msg')) assert.match(s, /Apple/);
-  assert.match(AUTH, /let draftEmail = ''/);
+  assert.match(read('lib', 'authDraft.js'), /let draftEmail = '';/);
 });
 
 test('PA-59: Apple / Google sign-in from Create account honour the consent box (and undo on cancel)', () => {
   assert.match(AUTH, /socialConsentPatch\(\{ mode, consent: consentGiven, stash, nowISO: now \}\)/);
   assert.match(AUTH, /if \(canceled \|\| error\) \{ if \(patch\) await saveOnboarding\(prior\); \}/);
-  assert.match(AUTH, /setConsentGiven\(consentFromOnboarding && initialConsent\(st\)\)/);
+  assert.match(AUTH, /setConsentGiven\(isStashFresh\(\) && initialConsent\(st\)\)/);
 });
 
 test('PA-56: Forgot password is honest — "If an account exists" (6 languages)', () => {
@@ -143,14 +143,14 @@ test('PA-56: Forgot password is honest — "If an account exists" (6 languages)'
 test('PA-65: Reset password — two fields with the eye, sheets for every message, success signs in', () => {
   assert.equal((RESET.match(/<AuthField/g) || []).length, 2);
   assert.match(RESET, /validateNewPassword\(password, confirm\)/);
-  assert.match(RESET, /title: t\('reset_pw_done_title'\),\n\s+body: t\('reset_pw_done_msg'\)/);
+  assert.match(RESET, /title: t\('reset_pw_done_title'\),\n\s+body: t\(res\.signedIn === false \? 'reset_pw_done_signin' : 'reset_pw_done_msg'\)/);
   assert.match(RESET, /if \(wasDone && onDone\)/);
   assert.equal(valuesOf('reset_pw_done_msg')[0], "You\\'re signed in with your new password.");
   assert.equal(valuesOf('reset_pw_sub')[0], 'Choose a new password for your account.');
 });
 
 test('PA-66: email links: confirmed and failed both show a DoseTrace sheet', () => {
-  assert.match(APP, /if \(!ok\) \{ setLinkFailed\(true\); return; \}/);
+  assert.match(APP, /if \(!ok\) \{ setLinkFailed\('confirm'\); return; \}/);
   assert.match(APP, /<DTSheet config=\{linkSheet\} onClose=\{closeLinkSheet\} \/>/);
   assert.doesNotMatch(APP, /Alert\./);
   for (const k of ['auth_link_failed_title', 'auth_link_failed_msg']) assert.equal(valuesOf(k).length, 6, k);
@@ -162,8 +162,8 @@ test('PA-30 / PA-40: the 8 steps; both buttons of "Never miss a dose" go to Crea
   assert.match(ONB, /onPress=\{\(\) => toAuth\('create'\)\}[\s\S]{0,120}ob_not_now/);
   assert.match(ONB, /onPress=\{\(\) => toAuth\('signin'\)\}[\s\S]{0,120}onboarding_already_have_account/);
   assert.doesNotMatch(ONB, /'ready'|ob_ready_sub|ob_create_account/, 'the "You\'re all set" step is gone');
-  assert.match(APP, /setAuthEntry\(\{ mode: mode === 'signin' \? 'signin' : 'create', consent: mode !== 'signin' \}\)/);
-  assert.match(APP, /initialMode=\{authEntry\.mode\} consentFromOnboarding=\{authEntry\.consent\}/);
+  assert.match(APP, /setAuthEntry\(\{ mode: mode === 'signin' \? 'signin' : 'create', consent: false \}\)/);
+  assert.match(APP, /initialMode=\{authEntry\.mode\} \/>/);
 });
 
 test('PA-31: the welcome screen shows the droplet app icon near the top (prototype position), not the blue square', () => {

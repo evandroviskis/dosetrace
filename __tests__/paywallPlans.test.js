@@ -161,3 +161,19 @@ test('PA-11: the billing text names the right store', () => {
   assert.equal(P.storeName('ios'), 'Apple ID');
   assert.equal(P.storeName('android'), 'Google Play');
 });
+
+test('PA-74: Lifetime bought while a subscription still renews → a sheet says to cancel it in the store', () => {
+  assert.equal(P.lifetimeCancelNeeded('lifetime', { success: true, premium: true, activeSubscriptions: ['yearly'] }), true);
+  assert.equal(P.lifetimeCancelNeeded('lifetime', { success: true, premium: true, activeSubscriptions: [] }), false);
+  assert.equal(P.lifetimeCancelNeeded('lifetime', { success: true, premium: true }), false);
+  assert.equal(P.lifetimeCancelNeeded('annual', { success: true, activeSubscriptions: ['monthly'] }), false, 'only Lifetime');
+  assert.equal(P.lifetimeCancelNeeded('lifetime', { success: false, activeSubscriptions: ['yearly'] }), false);
+  const tt = (k) => ({ paywall_cancel_sub_title: 'Cancel your subscription', paywall_cancel_sub_msg: 'Cancel it in your {store} subscription settings — {store}.' }[k] || k);
+  assert.deepEqual(P.outcomeSheet('lifetime_cancel_sub', tt, 'ios'), { icon: 'alert', title: 'Cancel your subscription', body: 'Cancel it in your Apple ID subscription settings — Apple ID.', done: true });
+  assert.match(P.outcomeSheet('lifetime_cancel_sub', tt, 'android').body, /Google Play subscription settings/);
+  const fs = require('fs'); const path = require('path');
+  const pay = fs.readFileSync(path.join(__dirname, '..', 'screens', 'PaywallScreen.js'), 'utf8');
+  assert.match(pay, /if \(lifetimeCancelNeeded\(plan, result\)\) \{ showOutcome\('lifetime_cancel_sub'\); return; \}/);
+  const purchases = fs.readFileSync(path.join(__dirname, '..', 'lib', 'purchases.js'), 'utf8');
+  assert.match(purchases, /return \{ success: true, premium, activeSubscriptions \};/);
+});

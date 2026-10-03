@@ -17,7 +17,7 @@ test('PA-60 bug: Reset password never shows a hard-coded English "OK"', () => {
 test('PA-61 bug: Reset password never shows the raw server error', () => {
   const src = read('screens', 'ResetPasswordScreen.js');
   assert.doesNotMatch(src, /error\.message/, 'the server text (English, technical) never reaches the user');
-  assert.match(src, /authErrorMessage\(error, t, 'reset'\)/, 'mapped to a friendly sentence in the user\'s language');
+  assert.match(src, /authErrorMessage\(res\.error, t, 'reset'\)/, 'mapped to a friendly sentence in the user\'s language');
 });
 
 test('PA-62 bug: Back from Create account reopens the last onboarding step with the entered values', () => {
@@ -30,7 +30,7 @@ test('PA-62 bug: Back from Create account reopens the last onboarding step with 
   // the rule itself
   const { entryStep, formFrom, STEPS } = require('../lib/onboardingSteps');
   const stash = { display_name: 'Sam', primary_goal: 'fitness', tracking_types: ['peptides'], gender: 'male', country: 'Brazil', birth_year: 1990, birth_month: 4, activity_level: 'moderate', has_provider: 'no', consent_accepted: true };
-  assert.equal(STEPS[entryStep(stash)], 'reminders');
+  assert.equal(STEPS[entryStep(stash, { consentPassed: true })], 'reminders');
   const f = formFrom(stash);
   assert.equal(f.name, 'Sam');
   assert.equal(f.birthMonth, 3, '1-based in storage, 0-based in the form');

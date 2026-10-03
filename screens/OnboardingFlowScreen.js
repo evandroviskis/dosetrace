@@ -11,7 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { saveOnboarding, loadOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
+import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
 import { supabase, signOutGoogleNative, missingProfileFields } from '../lib/supabase';
 import { markIntentionalSignOut } from '../lib/authIntent';
 import { goalOptions } from '../lib/profileGoals';
@@ -81,7 +81,6 @@ const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
   'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
-const FRESH_ACCOUNT_WINDOW_MS = 60 * 60 * 1000; // same window as applyPendingProfile
 
 export default function OnboardingFlowScreen({ onDone, session }) {
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
@@ -110,20 +109,22 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     let active = true;
     loadOnboarding().then((stash) => {
       if (!active) return;
-      setD(formFrom(stash));
-      setStep(entryStep(stash));
+      // A stash read back may be someone else's: the consent boxes start empty unless they
+      // were ticked in this run (Gate B).
+      setD(formFrom(stash, { trustConsent: isStashFresh() }));
+      setStep(entryStep(stash, { consentPassed: isStashFresh() }));
       setReady(true);
     }).catch(() => { if (active) setReady(true); });
     return () => { active = false; };
   }, []);
 
-  // Signed-in: a fresh account (an Apple/Google sign-up minutes ago) may still be waiting
-  // for the deferred write of its onboarding answers — show them now (same 1 h window and
-  // leak guard as applyPendingProfile). Later profile changes fill untouched fields.
+  // Signed-in: the person who just answered the onboarding in this run (an Apple/Google
+  // sign-up seconds ago) may still be waiting for the deferred write of those answers —
+  // show them now, only into fields the account is missing (refreshForm never overwrites).
+  // Someone else's answers (not fresh) are never shown here (lib/pendingProfile).
+  // Later profile changes fill untouched fields.
   useEffect(() => {
-    if (!signedIn) return;
-    const created = Date.parse(session.user.created_at || '');
-    if (!(isFinite(created) && Date.now() - created < FRESH_ACCOUNT_WINDOW_MS)) return;
+    if (!signedIn || !isStashFresh()) return;
     let active = true;
     loadOnboarding().then((stash) => {
       if (active && stash && Object.keys(stash).length) setD((cur) => refreshForm(cur, { ...stash, ...metaForms(meta) }, touched.current));
@@ -226,6 +227,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   async function next() {
     if (!canContinue()) return;
+    // Passing "Before we begin" is what makes these answers this person's for this run
+    // (lib/pendingProfile): from here on they may go into the account they create.
+    if (cur === 'consent') markStashFresh();
     await persist();
     if (step < steps.length - 1) setStep(step + 1);
     else finish();
@@ -251,6 +255,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       setSheet({ icon: 'alert', title: t('error'), body: friendlyError(error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
+    clearOnboarding().catch(() => {}); // written into the account: gone from the device
     await markSeenOnboarding();
   }
 

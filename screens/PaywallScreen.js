@@ -30,7 +30,7 @@ import { getEntitlement } from '../lib/entitlement';
 import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
 import {
   pickPackages, paywallView, savingsPct, perMonthString, ctaModel, defaultPlan,
-  purchaseOutcome, restoreOutcome, outcomeSheet, comparisonRows, includedLines, storeName,
+  purchaseOutcome, lifetimeCancelNeeded, restoreOutcome, outcomeSheet, comparisonRows, includedLines, storeName,
 } from '../lib/paywallPlans';
 import { FREE_DAYS } from '../lib/foodThread';
 import LegalModal from '../components/LegalModal';
@@ -65,6 +65,7 @@ export default function PaywallScreen({ navigation, route }) {
   const scrollRef = useRef(null);
   const plansY = useRef(0);
   const mounted = useRef(true);
+  const busyRef = useRef(false); // one store action at a time (two taps in one frame start one)
   useEffect(() => () => { mounted.current = false; }, []);
   // Which entry point sent the user here (serum card, PDF wall, settings, protocol limit,
   // preview sheet, …) — for per-source conversion.
@@ -89,7 +90,7 @@ export default function PaywallScreen({ navigation, route }) {
   // A message sheet for one outcome (lib/paywallPlans outcomeSheet). Done on a success
   // sheet leaves the paywall; every other sheet just closes (OK).
   const showOutcome = useCallback((kind) => {
-    const cfg = outcomeSheet(kind, t);
+    const cfg = outcomeSheet(kind, t, Platform.OS);
     if (!cfg) return;
     setSheet({
       icon: cfg.icon,
@@ -155,20 +156,28 @@ export default function PaywallScreen({ navigation, route }) {
   const perMonth = perMonthString(annualPkg, language);
 
   async function doPurchase(pkg, plan) {
-    if (purchasing) return;
-    if (!pkg) { showOutcome('unavailable'); return; }
+    if (busyRef.current) return;
+    busyRef.current = true;
+    if (!pkg) { busyRef.current = false; showOutcome('unavailable'); return; }
     Analytics.paywallCtaTapped({ plan, source });
     setPurchasing(true);
     const result = await purchasePackage(pkg);
     let premiumNow = false;
     // Refresh the ONE entitlement helper (it also writes the offline cache at once).
     if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
-    if (!mounted.current) return;
-    setPurchasing(false);
+    busyRef.current = false;
     const outcome = purchaseOutcome(result, premiumNow);
+    // A real purchase is counted and reported back even if the screen has closed meanwhile.
     if (outcome === 'premium') {
       Analytics.purchaseCompleted({ plan, source });
       if (onSuccess) onSuccess();
+    }
+    if (!mounted.current) return;
+    setPurchasing(false);
+    if (outcome === 'premium') {
+      // Lifetime on top of a running subscription: say the store keeps billing it until the
+      // user cancels it there (Done leaves the paywall).
+      if (lifetimeCancelNeeded(plan, result)) { showOutcome('lifetime_cancel_sub'); return; }
       leave();
       return;
     }
@@ -176,15 +185,17 @@ export default function PaywallScreen({ navigation, route }) {
   }
 
   async function handleRestore() {
-    if (restoring) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setRestoring(true);
     const result = await restorePurchases();
     let premiumNow = false;
     if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
-    if (!mounted.current) return;
-    setRestoring(false);
+    busyRef.current = false;
     const outcome = restoreOutcome(result, premiumNow);
     if (outcome === 'restored' && onSuccess) onSuccess();
+    if (!mounted.current) return;
+    setRestoring(false);
     showOutcome(outcome === 'failed' ? 'restore_failed' : outcome);
   }
 
@@ -231,7 +242,7 @@ export default function PaywallScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.nav}>
-        <TouchableOpacity onPress={leave} style={[s.navSide, s.navBack]} accessibilityRole="button" accessibilityLabel={t('back')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={leave} disabled={purchasing || restoring} style={[s.navSide, s.navBack, (purchasing || restoring) && s.busy]} accessibilityRole="button" accessibilityLabel={t('back')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <BackChevron color={colors.ink} />
           <Text style={s.navBackText} numberOfLines={1}>{t('back')}</Text>
         </TouchableOpacity>
@@ -303,7 +314,7 @@ export default function PaywallScreen({ navigation, route }) {
                     <TouchableOpacity
                       style={[s.lifetimeBtn, purchasing && s.busy]}
                       onPress={() => doPurchase(lifetimePkg, 'lifetime')}
-                      disabled={purchasing}
+                      disabled={purchasing || restoring}
                       accessibilityRole="button"
                     >
                       <Text style={s.lifetimeBtnText}>{lifetimePkg.product.priceString}</Text>
@@ -317,7 +328,7 @@ export default function PaywallScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[s.cta, purchasing && s.busy]}
                   onPress={() => doPurchase(cta.pkg, selected)}
-                  disabled={purchasing}
+                  disabled={purchasing || restoring}
                   activeOpacity={0.85}
                   accessibilityRole="button"
                 >
@@ -345,7 +356,7 @@ export default function PaywallScreen({ navigation, route }) {
           <TouchableOpacity
             style={[s.linkBtn, restoring && s.busy]}
             onPress={handleRestore}
-            disabled={restoring}
+            disabled={restoring || purchasing}
             accessibilityRole="button"
           >
             {restoring ? (
