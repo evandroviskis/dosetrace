@@ -91,6 +91,8 @@ import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import AgeConfirmScreen from './screens/AgeConfirmScreen';
+import { needsAdultConfirmation } from './lib/adultGate';
 import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
@@ -319,6 +321,13 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           // refreshes `session` and this gate clears. (Replaces CompleteProfileScreen.)
           <Stack.Screen name="CompleteProfile">
             {() => <OnboardingFlowScreen session={session} />}
+          </Stack.Screen>
+        ) : needsAdultConfirmation(session.user?.user_metadata) ? (
+          // An old account whose stored birth year makes it under 18 confirms once that the
+          // user is 18 or older (founder 2026-10-03). Until then the app stays behind this
+          // sheet — export, delete and sign out are offered; nothing is deleted automatically.
+          <Stack.Screen name="AgeConfirm">
+            {() => <AgeConfirmScreen session={session} />}
           </Stack.Screen>
         ) : (
           <Stack.Screen name="Main" component={MainStack} />

@@ -15,6 +15,7 @@ import { PRIVACY_URL } from '../lib/legalLinks';
 import { GOOGLE_SANS_MEDIUM } from '../lib/fonts';
 import { useFonts } from 'expo-font';
 import { getAuthDraft, setAuthDraft } from '../lib/authDraft';
+import { appleWebAvailable } from '../lib/appleWeb';
 import { normalizeActivityLevel } from '../lib/activityLevels';
 import {
   validateCredentials, signupNext, authErrorMessage, isNotConfirmed, consentParts,
@@ -61,8 +62,29 @@ function getAppleAuth() {
   }
   return _appleAuth;
 }
-// The system Sign in with Apple button (Apple HIG): black on light, white on dark, "Continue".
-function AppleSignInButton({ onPress, isDark, style }) {
+// Apple's logo for the Android button (Apple's own glyph; black or white only).
+function AppleLogo({ color }) {
+  return (
+    <Svg width={17} height={20} viewBox="0 0 17 20" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path fill={color} d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.5 4.8 1.9 5.8 1 7.4c-1.9 3.2-.5 8 1.3 10.6.9 1.3 1.9 2.7 3.3 2.6 1.3-.1 1.8-.8 3.4-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.9-1.1-2.9-4.4zM11.5 3c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.2 1.1.1 2.3-.6 3-1.5z" />
+    </Svg>
+  );
+}
+
+// The Sign in with Apple button. iOS: the system button (Apple HIG): black on light, white on
+// dark, "Continue". Android: drawn to the same rules (black on light / white on dark, Apple's
+// logo, "Continue with Apple", 52 pt, first) and ONLY when the web flow is configured on the
+// server (lib/appleWeb appleWebAvailable) — never a dead button.
+function AppleSignInButton({ onPress, isDark, style, appleWeb, label, s }) {
+  if (Platform.OS === 'android') {
+    if (!appleWeb) return null;
+    return (
+      <TouchableOpacity style={[s.appleWebBtn, isDark ? s.appleWebDark : s.appleWebLight]} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} activeOpacity={0.85}>
+        <AppleLogo color={isDark ? '#000000' : '#FFFFFF'} />
+        <Text style={[s.appleWebText, isDark ? s.appleWebTextDark : s.appleWebTextLight]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  }
   const AA = getAppleAuth();
   if (!AA?.AppleAuthenticationButton) return null;
   return (
@@ -116,6 +138,14 @@ export default function AuthScreen({ onBack, initialMode }) {
   // until it is ready the button text uses the system font for a moment.
   const [googleFont] = useFonts({ [GOOGLE_SANS_MEDIUM]: require('../assets/fonts/GoogleSans_500Medium.ttf') });
   const busyRef = useRef(false);
+  // Android: the Apple button appears only once the server side answers as configured.
+  const [appleWeb, setAppleWeb] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    let on = true;
+    appleWebAvailable().then((ok) => { if (on) setAppleWeb(!!ok); }).catch(() => {});
+    return () => { on = false; };
+  }, []);
   // These answers were this person's when the first sign-up sent them; a corrected address
   // ("Wrong address? Go back") sends them again even though the device copy is gone.
   const usedFreshRef = useRef(false);
@@ -354,7 +384,7 @@ export default function AuthScreen({ onBack, initialMode }) {
 
         {/* Store-owned buttons follow the stores' rules (Apple HIG, Google branding). Apple first. */}
         <View style={s.socials}>
-          <AppleSignInButton onPress={() => social(signInWithApple)} isDark={isDark} style={s.appleBtn} />
+          <AppleSignInButton onPress={() => social(signInWithApple)} isDark={isDark} style={s.appleBtn} appleWeb={appleWeb} label={t('auth_continue_apple')} s={s} />
           <TouchableOpacity
             style={[s.googleBtn, isDark ? s.googleBtnDark : s.googleBtnLight, loading && s.busy]}
             onPress={() => social(signInWithGoogle)}
@@ -455,6 +485,13 @@ const makeStyles = (c) => StyleSheet.create({
   hint: { fontSize: 13, lineHeight: 18, color: c.ink3 },
   socials: { gap: 10, paddingTop: 6 },
   appleBtn: { height: 52 },
+  // Android's Apple button (Apple's rules: black / white only, same size as on iOS).
+  appleWebBtn: { height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
+  appleWebLight: { backgroundColor: '#000000' },
+  appleWebDark: { backgroundColor: '#FFFFFF' },
+  appleWebText: { fontSize: 19, fontWeight: '500' },
+  appleWebTextLight: { color: '#FFFFFF' },
+  appleWebTextDark: { color: '#000000' },
   googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingLeft: 16, paddingRight: 16 },
   googleBtnLight: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
   googleBtnDark: { backgroundColor: '#131314', borderColor: '#8E918F' },

@@ -10,6 +10,11 @@ export const LANGUAGES = [
 export const translations = {
   'en': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    age_gate_title: 'Please confirm your age',
+    age_gate_body: 'DoseTrace is for adults. The birth year on your account ({year}) would make you under 18. If you\'re 18 or older, confirm it to keep using DoseTrace.',
+    age_gate_confirm: 'I\'m 18 or older',
+    age_gate_note: 'Nothing is deleted unless you choose to. You can also download your data, or delete your account.',
+    auth_continue_apple: 'Continue with Apple',
     reset_switch_offline: 'Some changes on this phone aren\'t backed up yet, so DoseTrace didn\'t sign you out. Connect to the internet and open the link again.',
     paywall_start_trial_months: 'Start {n}-month free trial',
     paywall_cancel_sub_title: 'Cancel your subscription',
@@ -2162,6 +2167,11 @@ export const translations = {
 
   'es': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    age_gate_title: 'Confirma tu edad',
+    age_gate_body: 'DoseTrace es para adultos. Según el año de nacimiento de tu cuenta ({year}), tendrías menos de 18 años. Si tienes 18 años o más, confírmalo para seguir usando DoseTrace.',
+    age_gate_confirm: 'Tengo 18 años o más',
+    age_gate_note: 'No se elimina nada a menos que tú lo decidas. También puedes descargar tus datos o eliminar tu cuenta.',
+    auth_continue_apple: 'Continuar con Apple',
     reset_switch_offline: 'Algunos cambios de este teléfono aún no tienen copia de seguridad, así que DoseTrace no ha cerrado tu sesión. Conéctate a internet y vuelve a abrir el enlace.',
     paywall_start_trial_months: 'Empieza tu prueba gratis de {n} mes(es)',
     paywall_cancel_sub_title: 'Cancela tu suscripción',
@@ -4314,6 +4324,11 @@ export const translations = {
 
   'pt': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    age_gate_title: 'Confirme sua idade',
+    age_gate_body: 'O DoseTrace é para adultos. Pelo ano de nascimento da sua conta ({year}), você teria menos de 18 anos. Se você tem 18 anos ou mais, confirme para continuar usando o DoseTrace.',
+    age_gate_confirm: 'Tenho 18 anos ou mais',
+    age_gate_note: 'Nada é excluído sem a sua escolha. Você também pode baixar seus dados ou excluir sua conta.',
+    auth_continue_apple: 'Continuar com a Apple',
     reset_switch_offline: 'Algumas alterações neste celular ainda não têm backup, por isso o DoseTrace não saiu da sua conta. Conecte-se à internet e abra o link de novo.',
     paywall_start_trial_months: 'Começar teste grátis de {n} mês(es)',
     paywall_cancel_sub_title: 'Cancele sua assinatura',
@@ -6465,6 +6480,11 @@ export const translations = {
   },
   'fr': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    age_gate_title: 'Confirmez votre âge',
+    age_gate_body: 'DoseTrace est réservé aux adultes. D’après l’année de naissance de votre compte ({year}), vous auriez moins de 18 ans. Si vous avez 18 ans ou plus, confirmez-le pour continuer à utiliser DoseTrace.',
+    age_gate_confirm: 'J’ai 18 ans ou plus',
+    age_gate_note: 'Rien n’est supprimé sans votre choix. Vous pouvez aussi télécharger vos données ou supprimer votre compte.',
+    auth_continue_apple: 'Continuer avec Apple',
     reset_switch_offline: 'Certaines modifications sur ce téléphone ne sont pas encore sauvegardées, DoseTrace ne vous a donc pas déconnecté. Connectez-vous à internet et rouvrez le lien.',
     paywall_start_trial_months: 'Commencer l’essai gratuit de {n} mois',
     paywall_cancel_sub_title: 'Résiliez votre abonnement',
@@ -8616,6 +8636,11 @@ export const translations = {
   },
   'de': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    age_gate_title: 'Bitte bestätige dein Alter',
+    age_gate_body: 'DoseTrace ist für Erwachsene. Laut dem Geburtsjahr in deinem Konto ({year}) wärst du unter 18. Wenn du 18 oder älter bist, bestätige das, um DoseTrace weiter zu nutzen.',
+    age_gate_confirm: 'Ich bin 18 oder älter',
+    age_gate_note: 'Nichts wird gelöscht, außer du entscheidest es. Du kannst auch deine Daten herunterladen oder dein Konto löschen.',
+    auth_continue_apple: 'Weiter mit Apple',
     reset_switch_offline: 'Einige Änderungen auf diesem Handy sind noch nicht gesichert, deshalb hat DoseTrace dich nicht abgemeldet. Verbinde dich mit dem Internet und öffne den Link erneut.',
     paywall_start_trial_months: '{n} Monat(e) kostenlos testen',
     paywall_cancel_sub_title: 'Kündige dein Abo',
@@ -10768,6 +10793,11 @@ export const translations = {
 
   'it': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    age_gate_title: 'Conferma la tua età',
+    age_gate_body: 'DoseTrace è per adulti. In base all’anno di nascita del tuo account ({year}) avresti meno di 18 anni. Se hai 18 anni o più, confermalo per continuare a usare DoseTrace.',
+    age_gate_confirm: 'Ho 18 anni o più',
+    age_gate_note: 'Non viene eliminato nulla se non lo scegli tu. Puoi anche scaricare i tuoi dati o eliminare il tuo account.',
+    auth_continue_apple: 'Continua con Apple',
     reset_switch_offline: 'Alcune modifiche su questo telefono non hanno ancora un backup, quindi DoseTrace non ti ha disconnesso. Connettiti a internet e riapri il link.',
     paywall_start_trial_months: 'Inizia la prova gratuita di {n} mese/i',
     paywall_cancel_sub_title: 'Disdici il tuo abbonamento',

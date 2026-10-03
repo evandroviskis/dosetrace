@@ -31,11 +31,10 @@ import RowChevron from '../components/RowChevron';
 import SegmentedBar from '../components/SegmentedBar';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
-  getAllDataForExport, getActiveProtocols as getLocalProtocols,
+  getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
-  clearLocalDatabase,
 } from '../lib/database';
-import { stopSyncEngine, forceSync } from '../lib/sync';
+import { forceSync } from '../lib/sync';
 import { hasPremium } from '../lib/entitlement';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
@@ -46,6 +45,7 @@ import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { pluralKey } from '../lib/plural';
 import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity } from '../lib/activityLevels';
 import { activityParts } from '../lib/progressFormat';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount } from '../lib/accountActions';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -289,22 +289,9 @@ export default function SettingsScreen({ navigation }) {
     if (!user) return;
     setExporting(true);
     try {
-      const allData = getAllDataForExport(user.id);
-      const exportData = {
-        exported_at: new Date().toISOString(),
-        user_email: user.email,
-        ...allData,
-      };
-      const json = JSON.stringify(exportData, null, 2);
-      const FileSystem = require('expo-file-system');
-      const path = FileSystem.documentDirectory + 'dosetrace_export.json';
-      await FileSystem.writeAsStringAsync(path, json);
-      const Sharing = require('expo-sharing');
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: t('settings_export_title') });
-      } else {
-        Alert.alert(t('settings_export_title'), t('settings_export_done'));
-      }
+      // The one export (lib/accountActions), shared with the 18+ confirmation sheet.
+      const r = await exportMyData(user, t('settings_export_title'));
+      if (r.saved) Alert.alert(t('settings_export_title'), t('settings_export_done'));
     } catch (e) {
       Alert.alert(t('error'), t('settings_export_error'));
     }
@@ -469,32 +456,11 @@ export default function SettingsScreen({ navigation }) {
 
   async function executeAccountDeletion() {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { Alert.alert(t('error'), t('error_no_session')); return; }
-
-      // Call the delete-user Edge Function: it deletes ALL of the user's data
-      // rows first, then the auth account (see supabase/functions/delete-user),
-      // matching the privacy policy's "account and all associated data" promise.
-      // fetch() rejects only on a network-level failure (offline / unreachable),
-      // so a caught error here means no connection — deletion needs the server.
-      let res;
-      try {
-        res = await fetch(
-          `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-      } catch {
-        Alert.alert(t('error'), t('settings_delete_offline'));
-        return;
-      }
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || t('error_deletion_failed'));
+      // The one delete (lib/accountActions → delete-user: ALL of the user's data rows first,
+      // then the auth account), shared with the 18+ confirmation sheet.
+      const result = await requestAccountDeletion();
+      if (result.noSession) { Alert.alert(t('error'), t('error_no_session')); return; }
+      if (result.offline) { Alert.alert(t('error'), t('settings_delete_offline')); return; }
 
       // The account + data are deleted. If the user signed in with Apple but we
       // had no stored token to auto-revoke (a pre-feature account, or a transient
@@ -522,12 +488,7 @@ export default function SettingsScreen({ navigation }) {
   // chooser + consent, making a new account a conscious choice. (Apple sign-in is
   // revoked server-side in delete-user, or via the guidance note above.)
   async function finishAccountDeletion() {
-    stopSyncEngine();
-    clearLocalDatabase();
-    markIntentionalSignOut(); // deliberate account deletion — full wipe
-    await signOutGoogleNative({ revoke: true });
-    try { await supabase.auth.signOut({ scope: 'local' }); }
-    catch { await supabase.auth.signOut().catch(() => {}); }
+    await teardownDeletedAccount(); // lib/accountActions: wipe, intended sign-out, Google revoke
   }
 
   function handleContactSupport() {
