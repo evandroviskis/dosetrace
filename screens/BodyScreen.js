@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { formatDate as localeDate, decimalText, inputNumber, MONTHS_SHORT } from '../lib/localeFormat';
@@ -81,35 +80,11 @@ function PenGlyph({ color, size = 18 }) {
 }
 
 
-// One free bloodwork analysis, then Premium required. Counts successful saves
-// (not distinct report dates) so re-uploading the same date can't reopen the
-// free slot.
-const UPLOADS_KEY = 'dosetrace_bloodwork_uploads';
 // Client-side pre-check: reject files over 10MB before reading into memory.
 // The edge function enforces its own ~15MB base64 cap server-side.
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 // The Test date wheel (MB-17): a lab test is never in the future.
 const TEST_DATE_RANGE = { back: 30, ahead: 0 };
-
-async function getUploadCount() {
-  try {
-    const raw = await AsyncStorage.getItem(UPLOADS_KEY);
-    const n = parseInt(raw, 10);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  } catch {
-    return 0;
-  }
-}
-
-async function incrementUploadCount() {
-  const count = (await getUploadCount()) + 1;
-  try {
-    await AsyncStorage.setItem(UPLOADS_KEY, String(count));
-  } catch {
-    // best effort — never block a save on the counter
-  }
-  return count;
-}
 
 // S-26 book layout, My Body (docs/specs/book-layout.md BK-6, BK-10). Pure and self-contained
 // so __tests__/bookBody.test.js can run them. Right-page ids: a lab test = its upload key
@@ -204,7 +179,6 @@ export default function BodyScreen({ navigation, route }) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showSerumPreview, setShowSerumPreview] = useState(false);
   const [premium, setPremium] = useState(false);
-  const [uploadCount, setUploadCount] = useState(0);
   // Dose accumulation card (MB-4): the compound the Curve opens on and its Est. level now.
   const [level, setLevel] = useState(null);
   // DoseTrace sheets (MB-12, MB-13, MB-15, MB-25): `sheet` over the screen; `sourceChoice` the
@@ -389,7 +363,6 @@ export default function BodyScreen({ navigation, route }) {
   async function fetchReports() {
     const pro = await hasPremium();
     setPremium(pro);
-    setUploadCount(await getUploadCount());
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
     const favs = user.user_metadata?.favorite_markers;
@@ -454,19 +427,13 @@ export default function BodyScreen({ navigation, route }) {
     else setSheet(withOk);
   }
 
+  // Founder decision A (2026-10-03): every account — free or Premium — uploads into the ONE
+  // monthly scan budget the server keeps (labs, vaccine cards and vials combined: 3 free,
+  // 20 Premium; supabase/functions/extract-bloodwork). The app adds no gate of its own; a
+  // refused scan shows the server's limit (A-60). (Until then a free user was stopped after
+  // one upload per device, with 2 of the 3 monthly scans unused.)
   async function handleUploadPress() {
-    // Premium: the monthly scan budget the server keeps. Everyone else gets ONE free
-    // analysis to try it, then it's Premium-only (upsell → paywall + 7-day trial).
-    if (await hasPremium()) {
-      chooseSource();
-      return;
-    }
-    const count = await getUploadCount();
-    if (count < 1) {
-      chooseSource();
-      return;
-    }
-    setShowUpgradeModal(true);
+    chooseSource();
   }
 
   // Let the user snap a photo, pick an image, or choose a PDF. Any lab, any
@@ -584,15 +551,6 @@ export default function BodyScreen({ navigation, route }) {
         return;
       }
 
-      // Robust gate: free tier gets ONE extraction. Re-check at the action
-      // point (fresh premium + upload count) so the paid extraction never runs
-      // for an over-limit free user, regardless of how this was reached.
-      if (!(await hasPremium()) && (await getUploadCount()) >= 1) {
-        setUploading(false);
-        setShowUpgradeModal(true);
-        return;
-      }
-
       // The Anthropic API key lives only in the extract-bloodwork edge
       // function; the app never talks to api.anthropic.com directly.
       const reqBody = opts?.image
@@ -663,8 +621,6 @@ export default function BodyScreen({ navigation, route }) {
     if (rows.length === 0) return 0;
 
     insertBiomarkers(rows);
-    const newCount = await incrementUploadCount();
-    setUploadCount(newCount);
     Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
     fetchReports();
     requestSync();
@@ -1122,11 +1078,10 @@ export default function BodyScreen({ navigation, route }) {
           <View style={s.card}>
             <Text style={s.head}>{t('blood_premium_badge')}</Text>
             <Text style={s.sec}>
-              {uploadCount === 0
-                ? t('blood_first_free')
-                : (markerSeries.length > 0
-                    ? t(pluralKey('blood_premium_markers', markerSeries.length, language)).replace('{n}', String(markerSeries.length))
-                    : t('blood_premium_only'))}
+              {/* Decision A: free users scan 3 times a month; the line says so until there are markers to chart. */}
+              {markerSeries.length > 0
+                ? t(pluralKey('blood_premium_markers', markerSeries.length, language)).replace('{n}', String(markerSeries.length))
+                : t('blood_first_free')}
             </Text>
             <TouchableOpacity style={[s.btnP, s.btnSm, s.selfStart]} onPress={() => setShowUpgradeModal(true)}>
               <Text style={[s.btnPText, s.btnSmText]}>{t('blood_upgrade')}</Text>

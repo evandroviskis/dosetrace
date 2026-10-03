@@ -319,10 +319,11 @@ test('MB-21: Save without a name shows the toast "Enter the vaccine name first."
   assert.match(SHEETS, /toast: \{[^}]*backgroundColor: c\.toast/);
 });
 
-test('MB-24: vaccine scan on the free plan — "A Premium feature" with Cancel on the left, Go Premium on the right', () => {
-  const code = fnCode(VAX, 'premiumSheet');
-  assert.match(code, /title: t\('vax_scan_premium_title'\),\s*body: t\('vax_scan_premium_sub'\),\s*buttons: \[\s*\{ label: t\('cancel'\), kind: 'secondary' \},\s*\{ label: t\('vax_premium_cta'\), kind: 'primary', onPress: \(\) => navigation\.navigate\('Paywall'\) \}/);
-  assert.equal(EN.vax_scan_premium_sub, "Scanning a vaccine card or doctor's sheet is part of Premium. You can always add vaccines by hand for free.");
+test('MB-24 (founder decision A, 2026-10-03): a free vaccine-card scan uses the shared monthly budget — no "A Premium feature" sheet', () => {
+  // Part 20's Premium sheet was approved on 2026-10-03 and replaced the same day by decision A:
+  // free users get 3 scans a month for labs, vaccine cards and vials combined (freeScans.test.js).
+  assert.doesNotMatch(VAX, /premiumSheet|vax_scan_premium_title|hasPremium/);
+  assert.match(fnCode(VAX, 'handleScanPress'), /if \(!\(await hasAIConsent\(\)\)\)/);
 });
 
 // ── Rebuild = replace, data, strings, colours ─────────────────────────────────────────────

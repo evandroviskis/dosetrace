@@ -44,7 +44,9 @@ test('S-06: the food log has no private offline guess any more — it uses the h
 
 test('S-06: every screen asks the one helper (hasPremium / getEntitlement)', () => {
   const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
-  for (const f of [['screens', 'BodyScreen.js'], ['screens', 'JourneyScreen.js'], ['screens', 'LogScreen.js'], ['screens', 'PaywallScreen.js'], ['screens', 'ProtocolsScreen.js'], ['screens', 'SerumCurveScreen.js'], ['screens', 'SettingsScreen.js'], ['screens', 'components', 'CalculatorSection.js'], ['screens', 'components', 'VaccinesSection.js']]) {
+  for (const f of [['screens', 'BodyScreen.js'], ['screens', 'JourneyScreen.js'], ['screens', 'LogScreen.js'], ['screens', 'PaywallScreen.js'], ['screens', 'ProtocolsScreen.js'], ['screens', 'SerumCurveScreen.js'], ['screens', 'SettingsScreen.js'], ['screens', 'components', 'CalculatorSection.js']]) {
+    // (VaccinesSection no longer asks: since decision A, 2026-10-03, a vaccine-card scan uses the
+    // server's shared monthly budget for every account — freeScans.test.js.)
     assert.match(read(...f), /from '(\.\.\/)+lib\/entitlement'/, f.join('/'));
   }
 });

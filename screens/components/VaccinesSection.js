@@ -12,7 +12,8 @@
  * Graduated redesign (docs/specs/my-body.md MB-20…MB-24, founder 2026-10-03): the add/edit
  * form is a bottom sheet that hugs its content, the dates open the date-wheel sheet, Save
  * without a name shows a toast, Delete asks first, and every popup of the scan is a DoseTrace
- * sheet (never a native alert).
+ * sheet (never a native alert). Scanning a card uses the shared monthly scan budget the server
+ * keeps for every account (founder decision A, 2026-10-03).
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -24,7 +25,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../../lib/aiConsent';
-import { hasPremium } from '../../lib/entitlement';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -125,21 +125,11 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
     if (afterPicker) setTimeout(() => setScanSheet(withOk), 450);
     else setScanSheet(withOk);
   }
-  function premiumSheet() {
-    // Part 20: Cancel on the left, Go Premium on the right (prototype vaxPremium).
-    setScanSheet({
-      title: t('vax_scan_premium_title'),
-      body: t('vax_scan_premium_sub'),
-      buttons: [
-        { label: t('cancel'), kind: 'secondary' },
-        { label: t('vax_premium_cta'), kind: 'primary', onPress: () => navigation.navigate('Paywall') },
-      ],
-    });
-  }
-
   // ── Scan / upload a card or doctor's sheet ───────────────────────
   async function handleScanPress() {
-    if (!(await hasPremium())) { premiumSheet(); return; }
+    // Founder decision A (2026-10-03): vaccine cards scan into the ONE monthly budget the
+    // server keeps for every account (labs, vaccine cards and vials combined: 3 free, 20
+    // Premium). No client gate; a refused scan shows the server's limit (A-60).
     // Consent gate: the card photo/PDF goes to a third-party AI service — Apple
     // 5.1.1(i)/5.1.2(i) requires explicit permission before sending. Asked in the DoseTrace
     // sheet with the one shared consent key; the policy link opens the page and keeps the
@@ -214,13 +204,6 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   }
 
   async function extractVaccines(source) {
-    // Robust gate: vaccine scanning is Premium-only. Re-check at the action
-    // point (fresh isPremium) so the paid extraction never runs for a free user.
-    if (!(await hasPremium())) {
-      setUploading(false);
-      premiumSheet();
-      return;
-    }
     try {
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
         body: { kind: 'vaccines', lang: language, ...source },
