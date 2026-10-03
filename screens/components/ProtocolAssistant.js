@@ -27,7 +27,7 @@ import { startAssistant, understandAnswer } from '../../lib/assistantClient';
 // mixedOn, editing }. catalog: { recon, rtu, oral: [{ key, label }] }.
 // onFinish(kind, result): kind = save | fill | handback; result = { form, mixedOn, notMixed }.
 // scanLabel(fromCamera) → Promise<{ vial } | { error: { title, body } } | null> (the vial-scan path).
-export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel }) {
+export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel, registerClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const tr = (key, params) => renderText(t, key, params);
@@ -76,6 +76,9 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
     const id = setTimeout(() => scrollRef.current && scrollRef.current.scrollToEnd({ animated: true }), 60);
     return () => clearTimeout(id);
   }, [conv, busy, phase]);
+
+  // The sheet's back / swipe-down reaches the same close (with the answers kept).
+  useEffect(() => { if (registerClose) registerClose(close); return () => { if (registerClose) registerClose(null); }; });
 
   function close() {
     if (finished.current) return;
@@ -136,7 +139,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
 
   function renderMsg(m) {
     if (m.from === 'user') {
-      const label = m.text != null && m.text !== 'null' ? m.text : tr(m.key, m.params);
+      const label = m.text != null ? m.text : tr(m.key, m.params);
       return (
         <View key={m.id} style={s.userWrap}>
           <View style={s.user}><Text style={s.userText}>{label}</Text></View>

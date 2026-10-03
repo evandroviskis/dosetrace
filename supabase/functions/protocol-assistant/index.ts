@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SYSTEM, userMessage } from './prompt.ts';
 import { validateUnderstanding, OUTPUT_SCHEMA, STEPS, MAX_TEXT } from './schema.ts';
-import { startConversation, turnAllowed, isUuid, WINDOW_MS } from './budget.ts';
+import { startConversation, turnAllowed, isUuid, isMissingTable, WINDOW_MS } from './budget.ts';
 
 // DoseTrace — AI protocol assistant (docs/specs/ai-protocol-assistant.md, signed 2026-10-02).
 //
@@ -56,16 +56,20 @@ Deno.serve(async (req) => {
     if (action === 'start') {
       const door = typeof body.door === 'string' && DOORS.has(body.door) ? body.door : 'build';
       if (!admin) return json({ ok: true, remaining: null }, 200); // fail open (counter unavailable)
+      // Storage limitation: only 7 days are ever counted; rows older than 30 days go.
+      await admin.from('ai_assistant_usage').delete().eq('user_id', user.id).lt('created_at', new Date(nowMs - 30 * 86400000).toISOString()).then(() => {}, () => {});
       // A retried start for the same conversation never counts twice.
       const { data: existing, error: exErr } = await admin.from('ai_assistant_usage').select('id')
         .eq('user_id', user.id).eq('conversation_id', conversationId).eq('kind', 'start').limit(1);
+      if (isMissingTable(exErr)) return json({ error: 'Usage table missing', code: 'not_configured' }, 500);
       if (!exErr && existing && existing.length) return json({ ok: true, remaining: null }, 200);
+      let missing = false;
       const outcome = await startConversation({
         async startsSince(sinceIso) {
           const { data, error } = await admin.from('ai_assistant_usage').select('id, created_at')
             .eq('user_id', user.id).eq('kind', 'start').gte('created_at', sinceIso)
             .order('created_at', { ascending: true }).order('id', { ascending: true });
-          if (error) { console.error('[protocol-assistant] count failed:', error.code); return null; }
+          if (error) { if (isMissingTable(error)) missing = true; console.error('[protocol-assistant] count failed:', error.code); return null; }
           return data || [];
         },
         async reserveStart() {
@@ -76,6 +80,7 @@ Deno.serve(async (req) => {
         },
         async release(id) { await admin.from('ai_assistant_usage').delete().eq('id', id); },
       }, nowMs);
+      if (missing) return json({ error: 'Usage table missing', code: 'not_configured' }, 500);
       if (outcome.status === 'refused') {
         return json({ error: 'Weekly limit reached', code: 'quota_exceeded', limit: outcome.limit, resets_at: outcome.resetsAt }, 429);
       }
@@ -93,6 +98,14 @@ Deno.serve(async (req) => {
     const weekday = typeof body.weekday === 'string' && /^[A-Za-z]{3,9}$/.test(body.weekday) ? body.weekday : null;
 
     if (admin) {
+      // The turn is written FIRST and then counted (with itself), so calls fired together
+      // cannot all pass on one stale count (senior review 2026-10-03, MED 4).
+      let turnId: string | null = null;
+      const ins = await admin.from('ai_assistant_usage').insert({ user_id: user.id, conversation_id: conversationId, kind: 'turn' }).select('id').single();
+      if (ins.error) {
+        if (isMissingTable(ins.error)) return json({ error: 'Usage table missing', code: 'not_configured' }, 500);
+        console.error('[protocol-assistant] turn insert failed:', ins.error.code);
+      } else turnId = ins.data?.id ?? null;
       const daySince = new Date(nowMs - 24 * 3600 * 1000).toISOString();
       const [startRes, turnsRes, dayRes] = await Promise.all([
         admin.from('ai_assistant_usage').select('created_at').eq('user_id', user.id).eq('conversation_id', conversationId).eq('kind', 'start')
@@ -102,13 +115,14 @@ Deno.serve(async (req) => {
       ]);
       const verdict = turnAllowed({
         started: startRes.error ? undefined : (startRes.data && startRes.data[0] ? startRes.data[0].created_at : null),
-        turns: turnsRes.error ? undefined : (turnsRes.count ?? undefined),
-        turnsDay: dayRes.error ? undefined : (dayRes.count ?? undefined),
+        turns: turnsRes.error ? undefined : Math.max(0, (turnsRes.count ?? 1) - 1),
+        turnsDay: dayRes.error ? undefined : Math.max(0, (dayRes.count ?? 1) - 1),
       }, nowMs);
       if (startRes.error || turnsRes.error || dayRes.error) console.error('[protocol-assistant] turn count failed');
-      if (!verdict.ok) return json({ error: 'Conversation not available', code: verdict.code }, verdict.code === 'turn_limit' ? 429 : 403);
-      const { error: insErr } = await admin.from('ai_assistant_usage').insert({ user_id: user.id, conversation_id: conversationId, kind: 'turn' });
-      if (insErr) console.error('[protocol-assistant] turn insert failed:', insErr.code);
+      if (!verdict.ok) {
+        if (turnId != null) await admin.from('ai_assistant_usage').delete().eq('id', turnId).then(() => {}, () => {});
+        return json({ error: 'Conversation not available', code: verdict.code }, verdict.code === 'turn_limit' ? 429 : 403);
+      }
     }
 
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');

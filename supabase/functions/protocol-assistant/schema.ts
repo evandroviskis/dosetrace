@@ -1,6 +1,6 @@
 // AI protocol assistant: the strict schema for the model's answer, on the SERVER
 // (docs/specs/ai-protocol-assistant.md AP-2, AP-3, AP-6, AP-14). Pure — no Deno imports — so
-// it also runs under plain node --test (__tests__/assistantSchemaParity.test.js checks it
+// it also runs under plain node --test (__tests__/assistantSchema.test.js checks it
 // against the app's own copy, lib/assistantSchema.js, which validates again on the phone).
 //
 // The model returns DATA only, never a sentence for the screen. Every quantity must be the
@@ -54,12 +54,24 @@ export function tokenInText(token: unknown, text: string): boolean {
     if (i < 0) return false;
     const before = i > 0 ? text[i - 1] : '';
     const after = text[i + t.length] || '';
-    const beforeOk = !/[0-9]/.test(before) && !(/[.,]/.test(before) && /[0-9]/.test(text[i - 2] || ''));
+    // ".5" and ",5" are one number: a dot or comma right before the token belongs to it (LOW 8).
+    const beforeOk = !/[0-9.,]/.test(before);
     const afterOk = !/[0-9]/.test(after) && !(/[.,]/.test(after) && /[0-9]/.test(text[i + t.length + 1] || ''));
     if (beforeOk && afterOk) return true;
     from = i + 1;
   }
 }
+
+// The unit must be written by the user too (regulatory review 2026-10-03, B4): "250" alone is
+// never "250 mg". Each unit's spellings in the 6 languages; letters may not touch the short
+// forms ("g" inside "mg" is not grams).
+const UNIT_WORDS: Record<string, RegExp> = {
+  mg: /(?<![a-zµ])mg(?![a-z])|mill?igram/i,
+  mcg: /(?<![a-z])(mcg|µg|ug)(?![a-z])|micro-?gram|mikrogramm/i,
+  IU: /(?<![a-z])(iu|ui|ie)(?![a-z])|international unit|unidades? internaciona|unités? internationale|internationale einheit|unità internazional/i,
+  g: /(?<![a-zµ])(g|gr|grams?|gramas?|gramos?|grammes?|gramm|grammi)(?![a-z])/i,
+};
+const unitInText = (unit: string, text: string) => !!(UNIT_WORDS[unit] && UNIT_WORDS[unit].test(text));
 
 function quantity(v: any, text: string, units: string[] | null) {
   if (!v || typeof v !== 'object') return null;
@@ -69,7 +81,7 @@ function quantity(v: any, text: string, units: string[] | null) {
     const raw = String(v.unit == null ? '' : v.unit).trim().toLowerCase();
     const spelled = UNIT_ALIASES[raw] || raw;
     const u = units.find((x) => x.toLowerCase() === spelled.toLowerCase());
-    if (!u) return null;
+    if (!u || !unitInText(u, text)) return null;
     return { text: tok, unit: u };
   }
   return { text: tok };
@@ -84,7 +96,21 @@ export function compoundName(v: unknown, text: string): string | null {
   if (s.length < 2 || s.length > 60) return null;
   const n = normText(s);
   if (n.length < 2) return null;
-  return normText(text).includes(n) ? s : null;
+  return spanOf(n, text); // the user's own characters, never the model's string
+}
+
+function spanOf(n: string, text: string): string | null {
+  const src = String(text || '');
+  const chars: string[] = [], map: number[] = [];
+  for (let i = 0; i < src.length; i++) {
+    const base = src[i].toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    for (const ch of base) if (/[a-z0-9]/.test(ch)) { chars.push(ch); map.push(i); }
+  }
+  const k = chars.join('').indexOf(n);
+  if (k < 0) return null;
+  let end = map[k + n.length - 1] + 1;
+  while (src[end] === '+') end++;
+  return src.slice(map[k], end).trim();
 }
 
 export const EMPTY = Object.freeze({

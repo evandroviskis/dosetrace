@@ -30,7 +30,7 @@ test('a quantity must be the user\'s own number token, found whole in their text
 });
 
 test('the compound must be the user\'s own words (AP-6): never a name they did not write', () => {
-  assert.equal(V('compound', { intent: 'answer', compound: 'BPC-157' }, 'bpc157 please').compound, 'BPC-157');
+  assert.equal(V('compound', { intent: 'answer', compound: 'BPC-157' }, 'bpc157 please').compound, 'bpc157', 'cut from the user\'s own text');
   assert.equal(V('compound', { intent: 'answer', compound: 'Semaglutide' }, 'the one my coach gave me').compound, null);
   assert.equal(V('compound', { intent: 'answer', compound: 'x' }, 'x').compound, null, 'too short');
   assert.equal(V('compound', { intent: 'answer', compound: 'a'.repeat(61) }, 'a'.repeat(61)).compound, null, 'too long');
@@ -123,4 +123,19 @@ test('the model\'s output schema has no free-text field for the screen: only the
   assert.deepEqual(free.sort(), ['.amount.text', '.amount.unit', '.compound', '.conc.text', '.conc.unit', '.dose.text', '.dose.unit', '.strength.text', '.strength.unit', '.vial_ml.text', '.water.text'].sort());
   assert.equal(SV.OUTPUT_SCHEMA.additionalProperties, false);
   assert.deepEqual(SV.OUTPUT_SCHEMA.required.sort(), Object.keys(SV.OUTPUT_SCHEMA.properties).sort());
+});
+
+// Regulatory review 2026-10-03 (B4): the unit must be the user's too — "250" alone must
+// never come back as "250 mg" (a mg / mcg mix-up is a 1000x error).
+test('B4: a unit the user did not type is dropped (server and phone)', () => {
+  for (const validate of [(s, r, t) => C.validateUnderstanding(s, r, t, 'en'), (s, r, t) => SV.validateUnderstanding(s, r, t)]) {
+    assert.equal(validate('dose', { intent: 'answer', dose: { text: '250', unit: 'mg' } }, '250').dose, null, 'no unit typed');
+    assert.equal(validate('dose', { intent: 'answer', dose: { text: '250', unit: 'mcg' } }, '250 mg').dose, null, 'a different unit');
+    assert.notEqual(validate('dose', { intent: 'answer', dose: { text: '250', unit: 'mcg' } }, '250mcg twice a week').dose, null);
+    assert.notEqual(validate('amount', { intent: 'answer', amount: { text: '5000', unit: 'IU' } }, '5000 UI').amount, null, 'UI is IU');
+    assert.notEqual(validate('amount', { intent: 'answer', amount: { text: '5000', unit: 'IU' } }, '5000 international units').amount, null);
+    assert.notEqual(validate('strength', { intent: 'answer', strength: { text: '5', unit: 'g' } }, '5 g').strength, null);
+    assert.equal(validate('strength', { intent: 'answer', strength: { text: '5', unit: 'g' } }, '5 mg').strength, null, '"g" inside "mg" is not grams');
+    assert.notEqual(validate('dose', { intent: 'answer', dose: { text: '2,5', unit: 'mg' } }, '2,5 miligramas', 'pt').dose, null, 'the unit spelled out');
+  }
 });

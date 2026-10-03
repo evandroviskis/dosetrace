@@ -42,7 +42,8 @@ import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
 import { drawReading, smallDraw, isMlSyringe, sizeLabel as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
 import { explainerModel } from '../lib/fitExplainer';
-import { stepForHandback } from '../lib/protocolAssistant';
+import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
+import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
 import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
@@ -292,11 +293,6 @@ function RowsBlock({ s, title, rows, style }) {
 // volume / dose / syringe reads, and the arithmetic disclaimer. Tap to enlarge: the
 // enlarged syringe is SyringeZoomSheet, held by the screen so it stays open when a
 // foldable folds or unfolds (S-26 BK-10).
-// The "doesn't fit" line for a draw: units on an insulin syringe, ml on a larger one (AP-21).
-function exceedsText(t, draw, size, language) {
-  return exceedsMessage(t, draw, size, language);
-}
-
 function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
@@ -354,7 +350,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
         </View>
         {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
         {over && (
-          <Text style={s.drawWarn}>{exceedsText(t, draw, syringeMax, language)}</Text>
+          <Text style={s.drawWarn}>{exceedsMessage(t, draw, syringeMax, language)}</Text>
         )}
         {!over && smallDraw(draw.drawUnits, syringeMax) && (
           <Text style={s.smallDraw}>{t('protocols_small_draw').replace('{u}', decimalText(draw.drawUnits, language))}</Text>
@@ -951,6 +947,7 @@ export default function ProtocolsScreen() {
   const [explainerOpen, setExplainerOpen] = useState(false);
   const [syrPickerOpen, setSyrPickerOpen] = useState(false);
   const touchedRef = useRef(new Set());
+  const assistantCloseRef = useRef(null); // the assistant's own close (back / swipe-down)
   const [visitedStep, setVisitedStep] = useState(1);
   const touch = (k) => touchedRef.current.add(k);
 
@@ -1591,6 +1588,20 @@ export default function ProtocolsScreen() {
     setAssistant({ door });
   }
 
+  // A split in the explainer (AP-12): the dose becomes the user's weekly number divided by the
+  // count they tapped, and the spacing is asked right away with the AP-26 options — a split
+  // never leaves the schedule as it was (regulatory review 2026-10-03 B3).
+  function chooseSplit(each, n) {
+    setDose(inputNumber(each, language));
+    setExplainerOpen(false);
+    touch('schedule');
+    if (7 % n === 0) { const k = 7 / n; handleIntervalChange(k); setCustomIntervalOpen(k !== 1); setCustomIntervalText(k !== 1 ? String(k) : ''); return; }
+    const pick = (k) => { handleIntervalChange(k); setCustomIntervalOpen(k !== 1); setCustomIntervalText(k !== 1 ? String(k) : ''); };
+    const buttons = spacingOptions({ period: 'week', count: n }).map((o) => ({ label: renderText(t, o.key, o.params), kind: 'secondary', onPress: () => pick(o.interval) }));
+    buttons.push({ label: t('ap_opt_other_spacing'), kind: 'secondary', onPress: () => setStep(4) });
+    setTimeout(() => setWizSheet({ title: t('ap_q_spacing_week').replace('{n}', String(n)), buttons }), 450);
+  }
+
   // The compound lists the assistant matches a name against (AP-6).
   function assistantCatalog() {
     const list = (keys) => keys.map((key) => ({ key, label: t(key) }));
@@ -1613,8 +1624,9 @@ export default function ProtocolsScreen() {
     setSearchQuery(f.name || '');
     setShowSuggestions(false);
     compositionForRef.current = f.compoundId || null;
-    if (f.water !== currentForm().water) touch('water');
-    touch('schedule'); touch('start');
+    // Only what the user answered in the assistant now counts as set by hand (AP-10).
+    for (const k of Object.keys(result.set || {})) if (result.set[k]) touch(k);
+    if (result.notMixed) setSkipVial(true);
     if (result.mixedOn) {
       const d = new Date(result.mixedOn + 'T12:00:00');
       if (!isNaN(d.getTime())) { setVialMonth(d.getMonth()); setVialDay(String(d.getDate())); setSkipVial(false); touch('mixed'); }
@@ -1653,7 +1665,7 @@ export default function ProtocolsScreen() {
   const drawOver = type !== 'oral' && wizardDraw.exceedsSyringe;
   // The dose step can't be left until the entered values produce a drawable dose.
   const doseStepBlocked = unitMismatch || drawExceedsSyringe;
-  const drawExceedsMsg = drawUnits ? exceedsText(t, wizardDraw, syringeSize, language)
+  const drawExceedsMsg = drawUnits ? exceedsMessage(t, wizardDraw, syringeSize, language)
     : t('protocols_draw_exceeds_warning').replace('{units}', '?').replace('{size}', String(syringeSize));
   const drawLive = drawReading(wizardDraw, syringeSize); // ml on a 2 / 3 / 5 ml syringe (AP-21)
   const fitModel = drawOver ? explainerModel(currentForm(), language) : null;
@@ -2254,6 +2266,9 @@ export default function ProtocolsScreen() {
         presentationStyle="pageSheet"
         onDismiss={() => setWizardPresented(false)}
         onRequestClose={() => {
+          // The assistant open: back / swipe-down returns to the form with every answer kept
+          // (AP-16; senior review 2026-10-03, MED 6).
+          if (assistant) { if (assistantCloseRef.current) assistantCloseRef.current(); return; }
           // Android system back (edge-swipe / nav-bar button): step back, or close
           // from the first step — mirrors the footer Back, so it's reachable
           // without hitting the top of the screen.
@@ -2267,7 +2282,8 @@ export default function ProtocolsScreen() {
               key={assistant.door}
               door={assistant.door}
               form={currentForm()}
-              ctx={{ touched: Array.from(touchedRef.current), visitedStep, mixedOn: formMixedOn(), editing: !!editingId }}
+              ctx={{ touched: Array.from(touchedRef.current), visitedStep, mixedOn: skipVial ? null : formMixedOn(), skipVial, editing: !!editingId }}
+              registerClose={(fn) => { assistantCloseRef.current = fn; }}
               catalog={assistantCatalog()}
               t={t}
               language={language}
@@ -3003,7 +3019,7 @@ export default function ProtocolsScreen() {
             model={fitModel}
             t={t}
             onClose={() => setExplainerOpen(false)}
-            onSplit={(each) => { setDose(inputNumber(each, language)); setExplainerOpen(false); }}
+            onSplit={chooseSplit}
             onAskAI={() => { setExplainerOpen(false); setTimeout(() => openAssistant('fit'), 450); }}
           />
           <SyringePickerSheet

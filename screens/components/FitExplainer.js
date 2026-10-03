@@ -35,7 +35,7 @@ function useClimb(target, run, reduced) {
 function Vial({ pct, c, amountLabel, waterLabel }) {
   const h = 64 * Math.max(0, Math.min(1, pct));
   return (
-    <Svg width={200} height={122} viewBox="0 0 200 122">
+    <Svg width={waterLabel ? 200 : 124} height={122} viewBox={waterLabel ? "0 0 200 122" : "0 0 124 122"}>
       <Rect x={40} y={30} width={44} height={76} rx={10} fill="none" stroke={c.ink} strokeWidth={2.5} />
       <Rect x={48} y={18} width={28} height={12} rx={3} fill={c.ink} />
       {h > 0 && <Rect x={43} y={103 - h} width={38} height={h} rx={7} fill={c.data} />}
@@ -93,9 +93,11 @@ export default function FitExplainer({ visible, model, t, onClose, onSplit, onAs
         <Text style={[s.big, s.bigLeft]}>{tr('fx_s4_title')}</Text>
         <View style={s.splits}>
           {model.splits.map((sp) => (
-            <TouchableOpacity key={sp.n} style={s.split} onPress={() => onSplit(sp.each)} accessibilityRole="button">
+            <TouchableOpacity key={sp.n} style={s.split} onPress={() => onSplit(sp.each, sp.n)} accessibilityRole="button">
               <Text style={s.splitText}>{tr('fx_split', { n: String(sp.n), each: sp.eachText })}</Text>
-              <Text style={sp.fits ? s.fits : s.noFit}>{t(sp.fits ? 'fx_fits' : 'fx_no_fit')}</Text>
+              {sp.drawValue ? (
+                <Text style={s.splitDraw}>{(sp.drawMl ? t('ap_draw_ml').replace('{ml}', sp.drawValue) : t('ap_draw_units').replace('{units}', sp.drawValue)) + (sp.fits ? '' : ` · ${t('fx_no_fit')}`)}</Text>
+              ) : null}
             </TouchableOpacity>
           ))}
           <TouchableOpacity style={[s.split, s.splitNo]} onPress={() => setOneShot(true)} accessibilityRole="button">
@@ -169,8 +171,7 @@ const makeStyles = (c) => StyleSheet.create({
   splits: { alignSelf: 'stretch', gap: 8 },
   split: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: c.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, backgroundColor: c.raised, gap: 10 },
   splitText: { fontSize: 16, fontWeight: '600', color: c.ink, flexShrink: 1 },
-  fits: { fontSize: 14, fontWeight: '500', color: c.ok },
-  noFit: { fontSize: 14, fontWeight: '500', color: c.risk },
+  splitDraw: { fontSize: 14, fontWeight: '500', color: c.ink2, fontFamily: MONO['500'] },
   splitNo: { borderStyle: 'dashed', justifyContent: 'center' },
   splitNoText: { fontSize: 16, fontWeight: '600', color: c.ink2, textAlign: 'center' },
   btns: { flexDirection: 'row', gap: 10 },

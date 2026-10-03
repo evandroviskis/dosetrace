@@ -193,8 +193,9 @@ test('AP-21 / AP-22: ready to use that really is one injection can pick a 2 / 3 
   assert.match(c.texts().join('\n'), /every 1 ml of your vial has 250 mg\. 420 mg needs 1\.68 ml, and your syringe holds 1 ml/);
   c.tap('basis:each').step('fit_facts');
   assert.ok(c.texts().includes(TR.en.ap_fit_fact_ready));
-  assert.deepEqual(c.options(), ['I use a 2 ml syringe', 'I use a 3 ml syringe', 'I use a 5 ml syringe', 'Enter different numbers', 'Continue in the form']);
-  c.tap('syr:200').step('start').tap('start:0');
+  // the user says which syringe they use, from the whole list (regulatory review 2026-10-03 B2)
+  assert.deepEqual(c.options(), ['Choose my syringe', 'Enter different numbers', 'Continue in the form']);
+  c.tap('redo:syringe').tap('syr:200').step('start').tap('start:0');
   assert.ok(c.texts().includes('Each dose: draw to 1.68 ml.'), 'an ml syringe reads in ml');
   assert.equal(c.form().form.syringeSize, 200);
   assert.equal(c.form().form.vialMl, '10');

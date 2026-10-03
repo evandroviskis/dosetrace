@@ -73,8 +73,8 @@ test('AP-12: the "?" on the dose field, the red warning and the red syringe open
   assert.match(SCREEN, /<Pressable disabled=\{!drawOver\} onPress=\{\(\) => setExplainerOpen\(true\)\}/);
   assert.match(FX, /t\('fx_key_medicine'\)\.replace\('\{unit\}', model\.keyUnit\)/, 'the key is always shown');
   assert.match(FX, /t\('fx_key_liquid'\)/);
-  assert.match(FX, /onPress=\{\(\) => onSplit\(sp\.each\)\}/);
-  assert.match(SCREEN, /onSplit=\{\(each\) => \{ setDose\(inputNumber\(each, language\)\); setExplainerOpen\(false\); \}\}/, 'a split fills the user\'s own number divided');
+  assert.match(FX, /onPress=\{\(\) => onSplit\(sp\.each, sp\.n\)\}/);
+  assert.match(SCREEN, /function chooseSplit\(each, n\) \{\s*setDose\(inputNumber\(each, language\)\);/, 'a split fills the user\'s own number divided (and asks the spacing)');
   assert.match(FX, /useReducedMotion\(\)/, 'Reduce Motion shows the last frame');
 });
 
@@ -117,5 +117,5 @@ test('AP-21: Ready to use gets the option-B row and grouped list; a powder keeps
 
 test('AP-10: fields the user set by hand are tracked (the form\'s defaults are not answers)', () => {
   for (const k of ['water', 'syringe', 'schedule', 'start', 'type', 'mixed']) assert.match(SCREEN, new RegExp(`touch\\('${k}'\\)`), k);
-  assert.match(SCREEN, /ctx=\{\{ touched: Array\.from\(touchedRef\.current\), visitedStep, mixedOn: formMixedOn\(\), editing: !!editingId \}\}/);
+  assert.match(SCREEN, /ctx=\{\{ touched: Array\.from\(touchedRef\.current\), visitedStep, mixedOn: skipVial \? null : formMixedOn\(\), skipVial, editing: !!editingId \}\}/);
 });

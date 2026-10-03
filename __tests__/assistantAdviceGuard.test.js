@@ -32,7 +32,13 @@ const scanned = (k) => /^(ap_|fx_)/.test(k) || ['protocols_small_draw', 'protoco
 //    the founder signed ("quem recomendou o produto"); the app recommends nothing.
 //  - ap_caveat: "It never SUGGESTS a compound or a dose" / "ne propose jamais" — a negation
 //    of advice (the approved picture's line).
-const ALLOW = { ap_fit_fact_who: /recommend|recomend|recomiend|recommand|empfohl|raccomand/i, ap_caveat: /suggest|sugere|sugiere|propose|nennt|propone/i };
+//  - ap_deflect: "I can't advise on … whether something is SAFE or right for you" — the
+//    refusal itself (regulatory review 2026-10-03 S4).
+const ALLOW = {
+  ap_fit_fact_who: /recommend|recomend|recomiend|recommand|empfohl|raccomand/i,
+  ap_caveat: /suggest|sugere|sugiere|propose|schlägt|vor\b|propone/gi,
+  ap_deflect: /safe|segur[oa]|sûr|sicher|sicur[oa]|consigliarti|conseil/gi,
+};
 
 test('AP-3: no assistant, explainer or syringe-fact string suggests or judges anything, in all 6 languages', () => {
   const hits = [];
@@ -48,7 +54,7 @@ test('AP-3: no assistant, explainer or syringe-fact string suggests or judges an
   assert.deepEqual(hits, []);
 });
 
-test('the scanned set really covers the assistant (≥ 180 keys a language) and the allowed lines are only those two', () => {
+test('the scanned set really covers the assistant (≥ 180 keys a language) and the allowed lines are only those three', () => {
   for (const lang of Object.keys(ADVICE)) assert.ok(Object.keys(TR[lang]).filter(scanned).length >= 180, lang);
   assert.match(TR.en.ap_fit_fact_who, /whoever recommended the product, or your healthcare provider/);
   assert.match(TR.en.ap_caveat, /never suggests a compound or a dose/);

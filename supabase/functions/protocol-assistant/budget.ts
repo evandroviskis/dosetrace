@@ -3,7 +3,7 @@
 // here on the server, separate from the AI scan pool. A use = one conversation started from
 // any of the four ways in (the "start" call); the answers inside it are turns, capped per
 // conversation so one start can't be stretched into unlimited calls.
-// Pure — no Deno imports — so __tests__/assistantBudget.test.js runs it under node --test.
+// Pure — no Deno imports — so __tests__/assistantServer.test.js runs it under node --test.
 
 export const WEEKLY_LIMIT = 10;
 export const WINDOW_MS = 7 * 24 * 3600 * 1000;
@@ -73,6 +73,14 @@ export function turnAllowed(known: { started?: string | null; turns?: number; tu
   if (typeof known.turns === 'number' && known.turns >= TURNS_PER_CONVERSATION) return { ok: false, code: 'turn_limit' };
   if (typeof known.turnsDay === 'number' && known.turnsDay >= TURNS_PER_DAY) return { ok: false, code: 'turn_limit' };
   return { ok: true };
+}
+
+// The usage table is missing (the function was deployed before the migration): fail CLOSED
+// with "not configured" — never a limit-free assistant (senior review 2026-10-03, MED 5).
+export function isMissingTable(err: any): boolean {
+  if (!err) return false;
+  const code = String(err.code || '');
+  return code === '42P01' || code === 'PGRST205' || /does not exist|could not find the table/i.test(String(err.message || ''));
 }
 
 export const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
