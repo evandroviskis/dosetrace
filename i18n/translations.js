@@ -1805,7 +1805,7 @@ export const translations = {
     report_active_protocols: 'Active protocols: {count}',
     report_total_logged: 'Total doses logged: {count}',
     report_dose_line: 'Dose: {dose} · {frequency}',
-    report_outcome_line: 'Complete: {taken} · Skipped: {skipped} · Adherence: {percent}%',
+    report_outcome_line: "Complete: {taken} · Skipped: {skipped} · Missed: {missed} · Adherence: {percent}%",
     report_streak_line: 'Current streak: {days} days',
     report_streak_line_one: 'Current streak: {days} day', // singular (lib/plural.js)
     report_vial_line: 'Vial: {count} doses remaining',
@@ -3965,7 +3965,7 @@ export const translations = {
     report_active_protocols: 'Protocolos activos: {count}',
     report_total_logged: 'Dosis registradas en total: {count}',
     report_dose_line: 'Dosis: {dose} · {frequency}',
-    report_outcome_line: 'Completadas: {taken} · Omitidas: {skipped} · Adherencia: {percent}%',
+    report_outcome_line: "Completadas: {taken} · Omitidas: {skipped} · Perdidas: {missed} · Adherencia: {percent}%",
     report_streak_line: 'Racha actual: {days} días',
     report_streak_line_one: 'Racha actual: {days} día', // singular (lib/plural.js)
     report_vial_line: 'Vial: {count} dosis restantes',
@@ -6125,7 +6125,7 @@ export const translations = {
     report_active_protocols: 'Protocolos ativos: {count}',
     report_total_logged: 'Total de doses registradas: {count}',
     report_dose_line: 'Dose: {dose} · {frequency}',
-    report_outcome_line: 'Concluídas: {taken} · Puladas: {skipped} · Adesão: {percent}%',
+    report_outcome_line: "Concluídas: {taken} · Puladas: {skipped} · Perdidas: {missed} · Adesão: {percent}%",
     report_streak_line: 'Sequência atual: {days} dias',
     report_streak_line_one: 'Sequência atual: {days} dia', // singular (lib/plural.js)
     report_vial_line: 'Frasco: {count} doses restantes',
@@ -8284,7 +8284,7 @@ export const translations = {
     report_active_protocols: 'Protocoles actifs : {count}',
     report_total_logged: 'Nombre total de doses enregistrées : {count}',
     report_dose_line: 'Dose : {dose} · {frequency}',
-    report_outcome_line: 'Effectuées : {taken} · Sautées : {skipped} · Observance : {percent} %',
+    report_outcome_line: "Effectuées : {taken} · Sautées : {skipped} · Manquées : {missed} · Observance : {percent} %",
     report_streak_line: 'Série actuelle : {days} jours',
     report_streak_line_one: 'Série actuelle : {days} jour', // singular (lib/plural.js)
     report_vial_line: 'Flacon : {count} doses restantes',
@@ -10443,7 +10443,7 @@ export const translations = {
     report_active_protocols: 'Aktive Protokolle: {count}',
     report_total_logged: 'Eingetragene Dosen insgesamt: {count}',
     report_dose_line: 'Dosis: {dose} · {frequency}',
-    report_outcome_line: 'Erledigt: {taken} · Übersprungen: {skipped} · Einhaltung: {percent} %',
+    report_outcome_line: "Erledigt: {taken} · Übersprungen: {skipped} · Verpasst: {missed} · Einhaltung: {percent} %",
     report_streak_line: 'Aktuelle Serie: {days} Tage',
     report_streak_line_one: 'Aktuelle Serie: {days} Tag', // singular (lib/plural.js)
     report_vial_line: 'Fläschchen: {count} Dosen übrig',
@@ -12603,7 +12603,7 @@ export const translations = {
     report_active_protocols: 'Protocolli attivi: {count}',
     report_total_logged: 'Dosi totali registrate: {count}',
     report_dose_line: 'Dose: {dose} · {frequency}',
-    report_outcome_line: 'Completate: {taken} · Saltate: {skipped} · Aderenza: {percent}%',
+    report_outcome_line: "Completate: {taken} · Saltate: {skipped} · Mancate: {missed} · Aderenza: {percent}%",
     report_streak_line: 'Serie attuale: {days} giorni',
     report_streak_line_one: 'Serie attuale: {days} giorno', // singular (lib/plural.js)
     report_vial_line: 'Flacone: {count} dosi rimanenti',

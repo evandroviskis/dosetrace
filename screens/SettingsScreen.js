@@ -45,6 +45,8 @@ import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { pluralKey } from '../lib/plural';
 import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity } from '../lib/activityLevels';
 import { activityParts } from '../lib/progressFormat';
+import { adherenceStats, fillPercent } from '../lib/adherenceReport';
+import { scanMissedDoses } from '../lib/doseActions';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount } from '../lib/accountActions';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
@@ -307,8 +309,14 @@ export default function SettingsScreen({ navigation }) {
       const thirtyDaysAgo = new Date(now);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+      // Missed rows first (the same scan Today and the Dose log run), so the report counts
+      // every scheduled dose of the period. Best-effort: the rows already written still count.
+      try { await scanMissedDoses(); } catch (e) { /* best effort */ }
       const protocols = getLocalProtocols(user.id) || [];
       const logs = getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [];
+      // One definition for every protocol and the overall figure (lib/adherenceReport, M2):
+      // complete ÷ (complete + skipped + missed).
+      const stats = adherenceStats({ protocols, logs, sinceMs: thirtyDaysAgo.getTime(), nowMs: now.getTime() });
       const vials = getLocalVials(user.id) || [];
 
       if (protocols.length === 0) {
@@ -320,10 +328,7 @@ export default function SettingsScreen({ navigation }) {
       // Build per-protocol stats
       const protocolStats = protocols.map(p => {
         const pLogs = logs.filter(l => l.protocol_id === p.id);
-        const taken = pLogs.filter(l => l.outcome === 'Taken').length;
-        const skipped = pLogs.filter(l => l.outcome === 'Skipped').length;
-        const total = taken + skipped;
-        const adherence = total > 0 ? Math.round((taken / total) * 100) : 0;
+        const { taken, skipped, missed, adherence } = stats.perProtocol.find(r => r.id === p.id);
 
         // Calculate streak
         const takenDays = new Set();
@@ -346,6 +351,7 @@ export default function SettingsScreen({ navigation }) {
           frequency: p.frequency || '—',
           taken,
           skipped,
+          missed,
           adherence,
           streak,
           vialRemaining: vial ? (vial.total_doses || 0) - (vial.doses_taken || 0) : null,
@@ -353,9 +359,7 @@ export default function SettingsScreen({ navigation }) {
       });
 
       // Overall adherence
-      const totalTaken = logs.filter(l => l.outcome === 'Taken').length;
-      const totalAll = logs.length;
-      const overallAdherence = totalAll > 0 ? Math.round((totalTaken / totalAll) * 100) : 0;
+      const totalAll = stats.overall.total;
 
       // Build report text
       const userName = user.user_metadata?.display_name || user.email;
@@ -366,7 +370,7 @@ export default function SettingsScreen({ navigation }) {
       report += `${'─'.repeat(40)}\n`;
       report += `${t('report_user').replace('{name}', userName)}\n`;
       report += `${t('report_period').replace('{range}', dateRange)}\n`;
-      report += `${t('report_overall').replace('{percent}', overallAdherence)}\n`;
+      report += `${fillPercent(t('report_overall'), stats.overall.adherence)}\n`;
       report += `${t('report_active_protocols').replace('{count}', protocols.length)}\n`;
       report += `${t('report_total_logged').replace('{count}', totalAll)}\n`;
       report += `${'─'.repeat(40)}\n\n`;
@@ -374,7 +378,7 @@ export default function SettingsScreen({ navigation }) {
       protocolStats.forEach(ps => {
         report += `${ps.name}\n`;
         report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
-        report += `  ${t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{percent}', ps.adherence)}\n`;
+        report += `  ${fillPercent(t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{missed}', ps.missed), ps.adherence)}\n`;
         report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{days}', ps.streak)}\n`;
         if (ps.vialRemaining !== null) {
           report += `  ${t(pluralKey('report_vial_line', ps.vialRemaining, language)).replace('{count}', ps.vialRemaining)}\n`;
