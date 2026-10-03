@@ -30,7 +30,7 @@ import {
   STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
-import { formatDate, formatNumber, decimalText, MONTHS_SHORT } from '../lib/localeFormat';
+import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols } from '../lib/localeFormat';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
@@ -243,7 +243,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const { t, language } = useLanguage();
   // Levels and dates in the app language ("3,5 mg", "19 de out."; lib/localeFormat).
   const mgLabel = (v) => levelLabel(v, language);
-  const decSep = language === 'en' ? '.' : ','; // for the UI-thread number below
+  const decSep = numberSymbols(language).decimal; // for the UI-thread number below
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();

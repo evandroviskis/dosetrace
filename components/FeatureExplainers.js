@@ -13,7 +13,7 @@ import Animated, { SlideInDown, useAnimatedProps, useDerivedValue } from 'react-
 import Svg, { Line, Circle, Path, Ellipse } from 'react-native-svg';
 import { LIGHT, useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { formatDate } from '../lib/localeFormat';
+import { formatDate, numberSymbols } from '../lib/localeFormat';
 import { getCachedUser } from '../lib/supabase';
 import { formatTime } from '../lib/timeFormat';
 import { paletteHex } from '../lib/protocolColors';
@@ -58,7 +58,7 @@ const fade = (at, dur) => (tv) => { 'worklet'; return { opacity: clamp01((tv - a
 // 5 mg in 2 ml = 2.5 mg/ml; 500 mcg = 0.2 ml = 20 units.
 function ReconFx({ c, t: tr, width, label }) {
   const { language } = useLanguage();
-  const dec = language === 'en' ? '.' : ','; // the app language's decimal, for the UI-thread number
+  const dec = numberSymbols(language).decimal; // the app language's decimal, for the UI-thread number
   const DUR = 6000;
   const t = useFxClock(DUR);
   const F = [[tr('xp_recon_vial'), '5 mg', 200], [tr('xp_recon_water'), '2 ml', 800], [tr('protocols_dose_label'), '500 mcg', 1400]];

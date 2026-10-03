@@ -14,7 +14,7 @@ import Animated, {
 import Svg, { Path } from 'react-native-svg';
 import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
-import { formatDate } from '../lib/localeFormat';
+import { formatDate, numberSymbols } from '../lib/localeFormat';
 import CheckMark from './CheckMark';
 
 export const FX_W = 326;
@@ -48,15 +48,14 @@ export function groupNum(n, sep = ',', min = 1000) {
 // The grouping of the app language for groupNum (lib/localeFormat's rule), as primitives a
 // worklet can capture.
 export function numGroup(language) {
-  if (language === 'en') return { sep: ',', min: 1000 };
-  if (language === 'fr') return { sep: '\u00A0', min: 1000 };
-  if (language === 'es') return { sep: '.', min: 10000 };
-  return { sep: '.', min: 1000 };
+  const { group, minGrouped } = numberSymbols(language); // lib/localeFormat, the one source
+  return { sep: group, min: minGrouped };
 }
 
 // A demo value ("21.4 ng/dL", "−0.6 kg") with the app language's decimal separator.
 export function demoDec(str, language) {
-  return language === 'en' || !language ? String(str) : String(str).replace(/(\d)\.(\d)/g, '$1,$2');
+  const { decimal } = numberSymbols(language);
+  return decimal === '.' ? String(str) : String(str).replace(/(\d)\.(\d)/g, '$1' + decimal + '$2');
 }
 
 // The clock: 0 → dur once, linear. Reduce Motion → dur at once (the last frame).

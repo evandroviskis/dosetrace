@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
+import { numberSymbols } from '../lib/localeFormat';
 import { MONO } from '../lib/fonts';
 import {
   AnimatedNumber, clamp01, eOutQuad, eInOutSine, eInOutCubic,
@@ -174,7 +175,7 @@ function DoseLabel({ t, G, i, style, dec = '.' }) {
 export default function AccumulationHero({ width = 300, height = 140, playKey }) {
   const { colors } = useTheme();
   const { t: tr, language } = useLanguage();
-  const dec = language === 'en' ? '.' : ','; // the app language's decimal ("3,5" in pt), UI thread
+  const dec = numberSymbols(language).decimal; // the app language's decimal ("3,5" in pt), UI thread
   const s = useMemo(() => makeStyles(colors), [colors]);
   const reduce = useReducedMotion();
   const G = useMemo(() => buildModel(width, height), [width, height]);
