@@ -4090,7 +4090,7 @@ export const translations = {
     today_reminder: 'lembrete',
     today_skip: 'Pular',
     today_mark_taken: 'Marcar como concluída',
-    today_take_time: 'Tomar dose das {time}',
+    today_take_time: 'Tomar dose de {time}',
     today_day_of: 'Dia {current} de {total}',
     today_dose_logged: 'Dose registrada',
     today_undo: 'Desfazer',
