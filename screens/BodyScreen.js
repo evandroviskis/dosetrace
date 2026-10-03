@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { formatDate as localeDate, decimalText, inputNumber } from '../lib/localeFormat';
-import { parseDecimal } from '../lib/doseMath';
+import { parseMeasure } from '../lib/doseMath';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
@@ -714,7 +714,7 @@ export default function BodyScreen({ navigation, route }) {
         user_id: user.id,
         report_date: date,
         marker: String(m.marker || '').trim(),
-        value: parseDecimal(m.value, language),
+        value: parseMeasure(m.value, language),
         unit: String(m.unit || '').trim(),
       }))
       .filter(r => r.marker && Number.isFinite(r.value));
@@ -754,7 +754,7 @@ export default function BodyScreen({ navigation, route }) {
   }
   function saveMarkerEdit() {
     if (!mEdit) return;
-    const value = parseDecimal(mValue, language);
+    const value = parseMeasure(mValue, language); // lab values: in English a comma stays the decimal ("1,025")
     if (!mName.trim() || !Number.isFinite(value)) {
       Alert.alert(t('error'), t('blood_edit_invalid'));
       return;

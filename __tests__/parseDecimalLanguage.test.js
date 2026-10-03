@@ -98,15 +98,16 @@ test('every user-typed numeric field is parsed with the app language', () => {
   assert.match(protocols, /editPatch\(editStartRef\.current, currentForm\(\), frequencyLabel, language\)/, 'protocol edit save');
   assert.match(protocols, /const wizardDraw = computeDraw\(\{[^}]*\blanguage,/, 'wizard live draw');
   const calc = read('screens', 'components', 'CalculatorSection.js');
-  assert.match(calc, /parseDecimal\(v, language\)/, 'Your numbers, weigh-in, target, reality check fields');
+  // (second review: body and lab numbers use parseMeasure — same rule in pt/es/fr/de/it, comma = decimal in English)
+  assert.match(calc, /parseMeasure\(v, language\)/, 'Your numbers, weigh-in, target, reality check fields');
   assert.match(calc, /readWeighInForm\(\{[^}]*language[^}]*\}\)/);
   const body = read('screens', 'BodyScreen.js');
-  assert.match(body, /parseDecimal\(mValue, language\)/, 'lab value edit');
-  assert.match(body, /value: parseDecimal\(m\.value, language\)/, 'lab scan review values the user may have edited');
+  assert.match(body, /parseMeasure\(mValue, language\)/, 'lab value edit');
+  assert.match(body, /value: parseMeasure\(m\.value, language\)/, 'lab scan review values the user may have edited');
   const form = read('lib', 'protocolForm.js');
   assert.match(form, /function protocolPayload\(f, frequencyLabel, language\)/);
   const weigh = read('lib', 'weighInEdit.js');
-  assert.match(weigh, /parseDecimal\(s, language\)/);
+  assert.match(weigh, /parseMeasure\(s, language\)/);
 });
 
 test('CLAUDE.md states the language rule in the Numbers gotcha', () => {

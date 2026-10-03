@@ -44,8 +44,9 @@ test('protocol form prefill: "0,25" in Portuguese, and an untouched Edit saves t
 
 test('lab value edit and Your numbers: a prefilled number saves back the same value through their parsers', () => {
   const { parseDecimal } = require('../lib/doseMath');
-  const labParse = (v, l) => parseDecimal(v, l);   // BodyScreen saveMarkerEdit (review 2026-10-02: language-aware)
-  const calcNum = (v, l) => parseDecimal(v, l);    // CalculatorSection num
+  const { parseMeasure } = require('../lib/doseMath');
+  const labParse = (v, l) => parseMeasure(v, l);   // BodyScreen saveMarkerEdit (second review: body/lab rule)
+  const calcNum = (v, l) => parseMeasure(v, l);    // CalculatorSection num
   for (const l of LANGS) {
     for (const v of [5.2, 0.85, 12.345, 1250.5, 986, 1.125, 84.6, 181, 21.5]) {
       assert.equal(labParse(inputNumber(v, l), l), v, `${l} lab ${v}`);

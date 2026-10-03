@@ -74,7 +74,7 @@ import { exampleValues, activityParts, targetTicks } from '../../lib/progressFor
 import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
 import { formatDate, formatNumber, formatInt, decimalText, inputNumber, MONTHS_SHORT } from '../../lib/localeFormat';
 import useColumnWidth from '../../components/useColumnWidth';
-import { parseDecimal, parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMath';
+import { parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMath';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
@@ -109,7 +109,7 @@ const round5 = n => Math.round(n / 5) * 5;
 export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null }) {
   const { t, language } = useLanguage();
   // Every number typed here is read the way the app language writes it ("86,5"; review 2026-10-02).
-  const num = v => { const n = parseDecimal(v, language); return Number.isFinite(n) ? n : null; };
+  const num = v => { const n = parseMeasure(v, language); return Number.isFinite(n) ? n : null; }; // body numbers: in English a comma stays the decimal
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { width: windowWidth, fontScale } = useWindowDimensions();
