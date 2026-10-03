@@ -1938,7 +1938,7 @@ export default function ProtocolsScreen() {
   const wizServing = type === 'oral'
     ? computeServings({
         targetDose: dose, doseUnit, servingStrength, servingStrengthUnit, servingUnits,
-        form: notes, divisible: divisible == null ? undefined : divisible,
+        form: notes, divisible: divisible == null ? undefined : divisible, language,
       })
     : null;
 

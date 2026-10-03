@@ -25,6 +25,7 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
+import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
@@ -399,7 +400,7 @@ export default function SerumCurveScreen({ embedded = false }) {
 
     const series = selected.map(p => {
       const entry = getHalfLifeEntry(matchName(p));
-      const doseMg = doseInCurveUnit(p.dose, p.dose_unit, entry) || 0;
+      const doseMg = doseInCurveUnit(parseDecimal(p.dose), p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
       // Dose events come from the protocol's SCHEDULE, not from hand-logged doses
       // (lib/serumModel scheduledDoses), snapped onto this 6h sample grid.
