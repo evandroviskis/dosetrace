@@ -90,7 +90,7 @@ test('last site used today reads "today", never "0d ago" (6 languages)', () => {
   const path = require('path');
   const assert = require('node:assert/strict');
   const { translations } = require('../i18n/translations.js');
-  const want = { en: 'Last: {site} · today', es: 'Último: {site} · hoy', pt: 'Último: {site} · hoje', fr: "Dernier: {site} · aujourd'hui", de: 'Letzte: {site} · heute', it: 'Ultimo: {site} · oggi' };
+  const want = { en: 'Last: {site} · today', es: 'Último: {site} · hoy', pt: 'Último: {site} · hoje', fr: 'Dernier : {site} · aujourd’hui', de: 'Letzte: {site} · heute', it: 'Ultimo: {site} · oggi' };
   for (const [l, v] of Object.entries(want)) assert.equal(translations[l].today_last_site_today, v, l);
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
   assert.match(src, /lastSite\.daysAgo === 0 \? t\('today_last_site_today'\)/);
