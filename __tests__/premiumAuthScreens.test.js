@@ -220,7 +220,7 @@ test('PA-68: Gate B invariants kept — onAuthStateChange stays synchronous; the
 });
 
 test('PA-69: no raw colours in the redesigned screens except the Google brand button', () => {
-  const strip = (src) => src.replace(/\/\/[^\n]*/g, '').replace(/googleBtn\w*: \{[^}]*\}/g, '').replace(/GOOGLE_G = \{[^}]*\}/, '');
+  const strip = (src) => src.replace(/\/\/[^\n]*/g, '').replace(/googleBtn\w*: \{[^}]*\}/g, '').replace(/appleWeb\w*: \{[^}]*\}/g, '').replace(/<AppleLogo color=\{[^}]*\} \/>/g, '').replace(/GOOGLE_G = \{[^}]*\}/, '');
   for (const [name, src] of [['PaywallScreen', PAY], ['AuthScreen', AUTH], ['OnboardingFlowScreen', ONB], ['ResetPasswordScreen', RESET], ['AuthField', read('components', 'AuthField.js')]]) {
     const body = strip(src);
     assert.doesNotMatch(body, /#[0-9A-Fa-f]{3,8}\b/, `${name}: hex colour`);

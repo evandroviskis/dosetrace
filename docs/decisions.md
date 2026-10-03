@@ -492,3 +492,6 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 ## AI protocol assistant — decided 2026-10-03 by the ledger (no question to the founder)
 - **Keep ap_fit_fact_ready** ("Syringes of 2, 3 and 5 ml are for intramuscular injection.") — the founder's own words: the larger syringes are only for intramuscular (decision on AP-21 above).
 - **AP-35, three phrases changed in all 6 languages** (CLAUDE.md AI hard line: point to a health professional; the app never calls a compound medicine; one term per concept): "whoever recommended the product" → "your healthcare provider"; "less water puts more medicine in each ml" → "the amount of water decides how much is in each ml"; "mg = how much medicine" → "how much of the compound".
+## 18+ confirmation — decided 2026-10-03 by logic (coordinator)
+- **Confirming "I'm 18 or older" also asks for the real birth year** (the app's year wheel, this year − 18 back to 1900, nothing preselected, Confirm off until a year is picked): the stored year is wrong by definition and feeds the calorie math. adult_confirmed_at and the new birth_year are saved in one merge-only profile write. Source: docs/specs/premium-and-auth.md PA-106…PA-108.
+- **The Android Apple button keeps the drawn Apple glyph for now**; downloading Apple's official artwork is the founder's call.

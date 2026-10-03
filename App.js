@@ -16,6 +16,7 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
+import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
@@ -91,6 +92,8 @@ import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import AgeConfirmScreen from './screens/AgeConfirmScreen';
+import { needsAdultConfirmation } from './lib/adultGate';
 import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
@@ -320,6 +323,13 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           <Stack.Screen name="CompleteProfile">
             {() => <OnboardingFlowScreen session={session} />}
           </Stack.Screen>
+        ) : needsAdultConfirmation(session.user?.user_metadata) ? (
+          // An old account whose stored birth year makes it under 18 confirms once that the
+          // user is 18 or older (founder 2026-10-03). Until then the app stays behind this
+          // sheet — export, delete and sign out are offered; nothing is deleted automatically.
+          <Stack.Screen name="AgeConfirm">
+            {() => <AgeConfirmScreen session={session} />}
+          </Stack.Screen>
         ) : (
           <Stack.Screen name="Main" component={MainStack} />
         )}
@@ -416,7 +426,8 @@ export default function App() {
       const u = String(url);
       const isReset = u.includes('reset-password');
       const isConfirm = u.includes('confirm-email');
-      if (!isReset && !isConfirm) return;
+      const isAppleReturn = u.includes('auth-callback');
+      if (!isReset && !isConfirm && !isAppleReturn) return;
       // Each emailed link is handled once. In memory at once (the launch URL and the url event
       // can deliver the same link together); on disk only after it worked or the server
       // refused it, so Android's re-delivered launch intent stays silent while a link that
@@ -444,6 +455,17 @@ export default function App() {
         }
         rememberLink(key);
         routeRecovery(r.pending);
+        return;
+      }
+      if (isAppleReturn) {
+        // Android killed the app while the Apple tab was open: the relaunch brings the code.
+        // With a session the in-app browser already finished it; otherwise sign in once.
+        if (hasSession) { rememberLink(key); return; }
+        const p = parseAppleReturn(u);
+        if (!p.code) { rememberLink(key); return; }
+        const { error } = await supabase.auth.exchangeCodeForSession(p.code);
+        if (cancelled) return;
+        if (error && isTransientLinkError(error)) forgetInMemory(); else rememberLink(key);
         return;
       }
       if (isConfirm) {

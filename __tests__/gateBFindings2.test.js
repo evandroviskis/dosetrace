@@ -55,8 +55,10 @@ test('GB2-5: Continue on the other-account sheet never wipes changes that are no
   assert.equal(R.unsyncedCount(db, 'u2', ['protocols', 'dose_logs'], pend), 0);
   const broken = { getAllSync: () => { throw new Error('no such table'); } };
   assert.equal(R.unsyncedCount(broken, 'u1', ['x'], pend), 0, 'a missing table counts nothing');
-  const link = read('lib', 'recoveryLink.js');
-  const so = slice(link, 'export async function signOutCurrentForRecovery', 1200);
+  // Since 2026-10-03 (Gate B round 3) the reset flow uses the one deliberate sign-out.
+  assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(\);/);
+  const link = read('lib', 'accountActions.js');
+  const so = slice(link, 'export async function signOutIntended', 1200);
   assert.ok(so.indexOf('unsyncedCount(') < so.indexOf('markIntentionalSignOut()'), 'checked before the sign-out');
   assert.match(so, /return \{ blocked: true \};/);
   assert.match(read('App.js'), /if \(r && r\.blocked\) \{ setLinkFailed\('offline'\); return; \}/);
