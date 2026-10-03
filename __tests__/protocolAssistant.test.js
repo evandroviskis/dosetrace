@@ -122,7 +122,7 @@ test('AP-4: an amount without its spread asks one neutral question: per injectio
 
 test('AP-22 (3): 240 mg a week in 3 → 80 mg = 56 units, "for your numbers", spacing from what the app can store', () => {
   const c = nadBuild().say('240 mg').tap('per:week').step('count');
-  assert.deepEqual(c.options(), ['1 · 240 mg each', '2 · 120 mg each', '3 · 80 mg each', '4 · 60 mg each', '7 · 34.29 mg each', 'Other']);
+  assert.deepEqual(c.options(), ['1 × 240 mg', '2 × 120 mg', '3 × 80 mg', '4 × 60 mg', '7 × 34.29 mg', 'Other']);
   c.tap('count:3');
   assert.ok(c.texts().includes('For your numbers: 240 mg a week in 3 doses is 80 mg each = 56.0 units.'));
   c.step('spacing');
@@ -152,7 +152,7 @@ test('AP-22 / AP-4: a total typed in one sentence ("240 mg a week in 4") is spli
 
 test('AP-4: a per-day total sets doses a day (up to the 3 the form can remind)', () => {
   const c = nadBuild().say('50 mg a day', { intent: 'answer', dose: { text: '50', unit: 'mg' }, basis: 'total', period: 'day' }).step('count');
-  assert.deepEqual(c.options(), ['1 · 50 mg each', '2 · 25 mg each', '3 · 16.67 mg each']);
+  assert.deepEqual(c.options(), ['1 × 50 mg', '2 × 25 mg', '3 × 16.67 mg']);
   c.tap('count:2').step('start');
   assert.equal(c.s.draft.dosesPerDay, 2);
   assert.equal(c.s.draft.intervalDays, 1);

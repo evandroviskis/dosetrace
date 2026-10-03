@@ -182,7 +182,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
         <View style={s.headSide} />
       </View>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
-        <ScrollView ref={scrollRef} style={s.flex} contentContainerStyle={s.list} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} style={s.flex} contentContainerStyle={s.list} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollRef.current && scrollRef.current.scrollToEnd({ animated: true })}>
           {phase === 'starting' && (
             <View style={s.app}><View style={s.row}><ActivityIndicator size="small" color={c.ink2} /><Text style={s.appText}>{t('ap_starting')}</Text></View></View>
           )}
