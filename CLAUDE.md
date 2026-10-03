@@ -71,6 +71,15 @@ in-progress reality-check on hello@dosetrace.io).
   update-over-old-version and re-auth on device and confirm previously-entered data is
   still there. This is part of ship-check Gate A/B now.
 
+## Standing rule: translate naturally, never word for word (2026-10-02, founder directive)
+
+Every translation (ES/PT/FR/DE/IT) is written the way a native app in that language would
+say it, from the context of the screen — never a literal rendering of the English. Example:
+"Reality check" in Portuguese is "Seus números reais", not "Checagem/Choque/Teste de
+realidade". Before adding or changing any string: read where it appears, what it means to
+the user, then write the natural phrase; keep one term per concept across the whole app.
+A literal translation that reads oddly to a native speaker is a bug, same as a typo.
+
 ## Standing rule: SHOW the layout before building it (2026-10-02, founder directive)
 
 The founder decides visual things with his eyes, not from text. Before ANY visual change
