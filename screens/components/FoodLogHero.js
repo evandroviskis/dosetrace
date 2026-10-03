@@ -89,7 +89,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
         <Text style={s.title}>{t('nutri_ai_badge')}</Text>
         <RowChevron color={colors.tick} />
       </View>
-      <Text style={[s.line, variant === 'journey' && s.lineJourney]}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
+      <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
       {checkLine && <Text style={s.check}>{checkLine}</Text>}
       {locked && <View style={s.cta}><Text style={s.ctaText}>{t('nutri_locked_cta')}</Text></View>}
     </TouchableOpacity>
@@ -104,10 +104,9 @@ const makeStyles = (c) => StyleSheet.create({
   grace: { marginTop: 8 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
-  // prototype r-title at 19: Geist 700 (set here: the app maps Geist from 22 pt up)
-  line: { fontSize: 19, fontFamily: fontFamilyFor('700'), lineHeight: 24, letterSpacing: -0.19, color: c.ink, fontVariant: ['tabular-nums'] },
-  // Journey card (redesign part 1): r-title at 19 in the v4 weight, Geist 600.
-  lineJourney: { fontFamily: fontFamilyFor('600'), letterSpacing: -0.19 },
+  // prototype food(): r-title at 19, Geist 600, the same on Today and Journey (set here: the
+  // app maps Geist from 22 pt up).
+  line: { fontSize: 19, fontFamily: fontFamilyFor('600'), lineHeight: 24, letterSpacing: -0.19, color: c.ink, fontVariant: ['tabular-nums'] },
   check: { fontSize: 15, lineHeight: 20, color: c.ink2, fontVariant: ['tabular-nums'] },
   cta: { alignSelf: 'flex-start', backgroundColor: c.act, borderRadius: 22, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
   ctaText: { color: c.onAct, fontWeight: '700', fontSize: 15 },

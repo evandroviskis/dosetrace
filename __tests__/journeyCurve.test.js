@@ -63,7 +63,8 @@ test('Part 17: "Est. level · now" leads the chart card for one compound, with t
 
 test('Part 17: three grid lines (0, half the peak, the peak; top = peak × 1.12), labels with one decimal ("0.0")', () => {
   const { curveTicks, axisLabel } = serum;
-  assert.deepEqual(curveTicks(0.5), { top: 0.5 * 1.12, ticks: [0, 0.25, 0.5] });
+  // founder 2026-10-02: the half line sits at its one-decimal label, 0.0 / 0.2 / 0.5 as the prototype shows
+  assert.deepEqual(curveTicks(0.5), { top: 0.5 * 1.12, ticks: [0, 0.2, 0.5] });
   assert.equal(axisLabel(0), '0.0');
   assert.equal(axisLabel(0.25), '0.3');
   assert.equal(axisLabel(122.4), '122');

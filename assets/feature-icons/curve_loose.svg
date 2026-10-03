@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Dose accumulation — the prototype's loose curve over a baseline (JI.curve, 24 grid × 1024/24) -->
+  <path d="M128 810.7c128 0 170.7-512 298.7-512s128 341.3 256 341.3 128-213.3 213.3-213.3" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M128 896h768" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

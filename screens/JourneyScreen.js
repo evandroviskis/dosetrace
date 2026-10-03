@@ -215,7 +215,7 @@ export default function JourneyScreen() {
           >
             {book && page === 'curve' ? outline : null}
             <View style={s.tileTop}>
-              <FeatureIcon name="curve" size={22} color={colors.data} />
+              <FeatureIcon name="curve_loose" size={22} color={colors.data} />
               {!premium ? <Text style={s.tag}>{t('paywall_premium')}</Text> : <RowChevron color={colors.tick} />}
             </View>
             <Text style={s.tileTitle}>{t('body_card_dosing_title')}</Text>

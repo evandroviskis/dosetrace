@@ -39,7 +39,7 @@ const MONTH_KEYS = [
   'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
 import { useTheme } from '../lib/theme';
-import { MONO } from '../lib/fonts';
+import { MONO, fontFamilyFor } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { hasPremium } from '../lib/entitlement';
@@ -652,6 +652,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   // AnimatedNumber is a fixed-width field: size it to the settled value so it never clips.
   const fontScale = PixelRatio.getFontScale();
   const numW = (str) => numberWidth(str, 34, fontScale);
+  // Part 18: the Est. level field is as wide as the number actually drawn (measured from a
+  // hidden copy), so its unit sits right next to the digits as in the prototype ("0.4 mg").
+  const [levelW, setLevelW] = useState(null);
   const hl = single ? halfLifeParts(single.entry.hours) : null;
   // One plain-language note per compound on how this model draws it.
   const noteFor = (ser) => {
@@ -880,8 +883,9 @@ export default function SerumCurveScreen({ embedded = false }) {
               <View style={s.statCol}>
                 <Text style={s.statCap}>{t('curve_current_level')}</Text>
                 <View style={s.statNumRow}>
+                  <Text style={[s.statNum, s.measure]} onLayout={(e) => setLevelW(Math.ceil(e.nativeEvent.layout.width) + 2)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{mgLabel(singleNow)}</Text>
                   <Animated.View style={statBump}>
-                    <AnimatedNumber value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={numW(mgLabel(singleNow))} />
+                    <AnimatedNumber value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={levelW != null ? levelW : numW(mgLabel(singleNow))} />
                   </Animated.View>
                   <Text style={s.statUnit}>{unitLbl}</Text>
                 </View>
@@ -1146,6 +1150,8 @@ function makeStyles(c) {
     statNumRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
     statNum: { fontSize: 34, fontWeight: '300', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
     statUnit: { fontSize: 13, color: c.ink3, fontFamily: MONO['400'], marginLeft: 3 },
+    // the hidden copy that measures the Est. level number (same font as AnimatedNumber)
+    measure: { position: 'absolute', left: 0, top: 0, opacity: 0, fontFamily: fontFamilyFor('300'), fontWeight: undefined },
     unitInline: { fontSize: 13, color: c.ink3, fontFamily: MONO['400'] },
 
     list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },

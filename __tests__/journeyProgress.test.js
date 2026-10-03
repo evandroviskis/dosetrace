@@ -154,7 +154,7 @@ test('Part 8: the running card: status, start weight, the 7-day rule, "Your real
   // The old phase-2 form is gone (Weight now, Kcal/day you ate, See my actual maintenance).
   assert.doesNotMatch(src, /cal_rc_compute|cal_rc_intake'\)|cal_rc_current_weight/);
   assert.doesNotMatch(src, /<NutritionLogger \/>/, 'the Daily intake fold is replaced by "Your reality check so far"');
-  assert.match(body, /<FeatureIcon name="calc_bars"/, 'Q15: the app\'s current icon stays');
+  assert.match(body, /<FeatureIcon name="type_glp1"/, 'founder 2026-10-02 (follow the prototype, replaces Q15): the balance scale');
 });
 
 test('Part 9: "Not run yet — tap to start" opens the start sheet (stepper, weight, Log today & set my reminder)', () => {

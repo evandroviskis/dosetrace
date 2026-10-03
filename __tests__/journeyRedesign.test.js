@@ -21,8 +21,7 @@ test('Part 1: on Journey the food card bottom line is only the 7-day run ("0 of 
 
 test('Part 1: the Journey card headline is 19 pt semibold (prototype r-title, 600), drawn chevron', () => {
   const src = read('screens/components/FoodLogHero.js');
-  assert.match(src, /lineJourney: \{[^}]*fontFamily: fontFamilyFor\('600'\)/);
-  assert.match(src, /variant === 'journey' && s\.lineJourney/);
+  assert.match(src, /line: \{ fontSize: 19, fontFamily: fontFamilyFor\('600'\)/, 'one 19 pt Geist 600 title on Journey and Today (prototype food())');
   assert.match(src, /<RowChevron color=\{colors\.tick\} \/>/);
 });
 
@@ -41,7 +40,7 @@ test('Part 2: with numbers the tile shows Weight + "Since …" and Daily burn (T
   assert.match(src, /tile\.since \?/, 'the since line when two weigh-ins exist');
   assert.match(src, /t\('cal_tdee'\)/);
   assert.match(src, /tile\.measured \? t\('hy_rc_measured_chip'\) : t\('hy_estimated'\)/);
-  assert.match(src, /<FeatureIcon name="curve" size=\{22\} color=\{colors\.data\} \/>/, 'the curve icon is data blue like its number');
+  assert.match(src, /<FeatureIcon name="curve_loose" size=\{22\} color=\{colors\.data\} \/>/, 'the prototype\'s loose curve (founder 2026-10-02), data blue like its number');
   assert.match(src, /<RowChevron color=\{colors\.tick\} \/>/, 'drawn chevron, not a "›" glyph');
   assert.doesNotMatch(src, /'›'|>›</);
 });

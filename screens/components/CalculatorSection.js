@@ -1306,7 +1306,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // daily burn becomes Measured, from the user's own weigh-ins and food log.
   const rcHead = (
     <View style={s.rowC}>
-      <FeatureIcon name="calc_bars" size={22} color={colors.ink2} />
+      <FeatureIcon name="type_glp1" size={22} color={colors.ink2} />
       <Text style={[s.title, s.grow]}>{t('cal_rc_title')}</Text>
       {!rcAllowed ? <Text style={s.otag}>{t('paywall_premium')}</Text> : null}
     </View>
@@ -1635,7 +1635,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
           </View>
         </View>
-        <TouchableOpacity style={[s.btnP, !num(bfWeight) && s.btnDim]} onPress={saveBackfillWeighIn} disabled={!num(bfWeight)} accessibilityRole="button">
+        <TouchableOpacity style={s.btnP} onPress={saveBackfillWeighIn} accessibilityRole="button">
           {bfMsg ? (
             <View style={s.savedRow}>
               <CheckMark style={s.btnPText} />
