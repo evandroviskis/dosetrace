@@ -58,7 +58,7 @@ test('part 18: the wizard wheels are DTWheel in the DoseTrace picker sheet, no n
   assert.doesNotMatch(SCREEN, /display="spinner"/);
   // (review 2026-10-02: the same short months as the date labels, lib/localeFormat)
   assert.match(SCREEN, /<DTWheel\s+columns=\{dateColumns\(startDate, new Date\(\), MONTHS_SHORT\[language\] \|\| MONTHS_SHORT\.en\)\}/);
-  assert.match(SCREEN, /onChange=\{\(col, i\) => setStartDate\(dateAfter\(startDate, new Date\(\), col, i\)\)\}/);
+  assert.match(SCREEN, /onChange=\{\(col, i\) => \{ touch\('start'\); setStartDate\(dateAfter\(startDate, new Date\(\), col, i\)\); \}\}/);
   assert.match(SCREEN, /<DTWheel\s+columns=\{timeColumns\(reminderTimes\[activeTimeIndex\] \|\| currentTimeRounded5\(\), wheel12h, dayParts\)\}/);
   // the drawing: 40-high rows, 5 shown, the well band, 19 ink3 rows and the 21 / 600 ink chosen row
   assert.match(PARTS, /export function DTWheel\(/);

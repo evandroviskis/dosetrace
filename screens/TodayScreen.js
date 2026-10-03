@@ -36,6 +36,7 @@ import BodyMapModal from './components/BodyMapModal';
 import { describeStored, hasSavedSite } from '../lib/injectionSites';
 import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
 import { dosesPerVial, computeDraw, trimZeros } from '../lib/doseMath';
+import { drawLine, exceedsMessage } from '../lib/syringes'; // ml on 2 / 3 / 5 ml syringes (AP-21)
 import { adherenceRings } from '../lib/adherenceRings';
 import TodayTracker from './components/TodayTracker';
 import SyringeScale from './components/SyringeScale';
@@ -1657,11 +1658,11 @@ export default function TodayScreen() {
           <View style={s.draw}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{decimalText(draw.drawUnits, language)}<Text style={s.drawUnit}> u · {decimalText(trimZeros(draw.drawML), language)} ml</Text></Text>
+              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text></Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             {draw.exceedsSyringe && (
-              <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', decimalText(draw.drawUnits, language)).replace('{size}', String(syr))}</Text>
+              <Text style={s.drawWarn}>{exceedsMessage(t, draw, syr, language)}</Text>
             )}
           </View>
         )}

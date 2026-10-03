@@ -259,15 +259,18 @@ export function SyringeRuler({ units, size = 100 }) {
   const u = Math.max(0, Math.min(max, Number(units) || 0));
   const W = RULER.W, x0 = RULER.x0, per = (W - 2 * x0) / max;
   const X = (v) => x0 + v * per;
+  // Insulin syringes in units (a tick every 2, numbered every 10); the larger 2 / 3 / 5 ml
+  // syringes in ml (AP-21: a tick every 0.1 ml, numbered at each whole ml).
+  const ml = max > 100;
+  const minor = ml ? 10 : 2, major = ml ? 100 : 10;
   const ticks = [];
-  for (let k = 1; k < max; k++) {
-    const lg = k % 10 === 0, md = k % 2 === 0;
-    if (!md && !lg) continue;
+  for (let k = minor; k < max; k += minor) {
+    const lg = k % major === 0;
     ticks.push(<Line key={'t' + k} x1={X(k)} y1={21} x2={X(k)} y2={lg ? 42 : 32} stroke={k < u ? c.onData : c.tick} strokeWidth={lg ? 2 : 1.2} />);
   }
   const labels = [];
-  for (let L = 0; L <= max; L += 10) {
-    labels.push(<SvgText key={'n' + L} x={X(L)} y={84} textAnchor="middle" fill={c.ink2} fontFamily={MONO['400']} fontSize={15}>{String(L)}</SvgText>);
+  for (let L = 0; L <= max; L += major) {
+    labels.push(<SvgText key={'n' + L} x={X(L)} y={84} textAnchor="middle" fill={c.ink2} fontFamily={MONO['400']} fontSize={15}>{String(ml ? L / 100 : L)}</SvgText>);
   }
   return (
     <Svg width={W} height={96}>

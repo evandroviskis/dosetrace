@@ -82,13 +82,21 @@ test('the draw units are never trimmed anywhere', () => {
   for (const [name, src] of [['ProtocolsScreen', PROTOCOLS], ['TodayScreen', TODAY], ['DosePage', DOSE_PAGE]]) {
     assert.doesNotMatch(src, /trimZeros\((draw\.)?drawUnits\)/, `${name} must keep the units decimal`);
   }
-  assert.match(PROTOCOLS, /<Text style=\{\[s\.drawBig, over && s\.drawBigRisk\]\}>\{decimalText\(draw\.drawUnits, language\)\}<\/Text>/);
-  assert.match(PROTOCOLS, /<Text style=\{\[s\.drawBig, drawExceedsSyringe && s\.drawBigRisk\]\}>\{decimalText\(drawUnits, language\)\}<\/Text>/);
+  // AP-21 (2026-10-03): through drawReading — units as computed, ml (trimmed) only on an ml syringe
+  assert.match(PROTOCOLS, /<Text style=\{\[s\.drawBig, over && s\.drawBigRisk\]\}>\{decimalText\(reading\.ml \? trimZeros\(reading\.value\) : reading\.value, language\)\}<\/Text>/);
+  assert.match(PROTOCOLS, /<Text style=\{\[s\.drawBig, drawOver && s\.drawBigRisk\]\}>\{decimalText\(drawLive\.ml \? trimZeros\(drawLive\.value\) : drawLive\.value, language\)\}<\/Text>/);
+  const { drawReading } = require('../lib/syringes');
+  assert.equal(drawReading({ drawUnits: '50.0', drawML: '0.50' }, 100).value, '50.0');
 });
 
 test('Today and the dose page trim only the ml part of "50.0 u · 0.5 ml"', () => {
+  // AP-21 (2026-10-03): both read the line from lib/syringes drawLine (ml alone on an ml syringe)
   for (const [name, src] of [['TodayScreen', TODAY], ['DosePage', DOSE_PAGE]]) {
-    assert.match(src, /\{decimalText\(draw\.drawUnits, language\)\}<Text style=\{s\.drawUnit\}> u · \{decimalText\(trimZeros\(draw\.drawML\), language\)\} ml<\/Text>/, name);
+    assert.match(src, /\{drawLine\(draw, (syr|syringeSize), language\)\.big\}<Text style=\{s\.drawUnit\}>\{drawLine\(draw, (syr|syringeSize), language\)\.small\}<\/Text>/, name);
     assert.doesNotMatch(src, /\{draw\.drawML\} ml/, name);
   }
+  const { drawLine } = require('../lib/syringes');
+  assert.deepEqual(drawLine({ drawUnits: '50.0', drawML: '0.50' }, 100, 'en'), { big: '50.0', small: ' u · 0.5 ml' });
+  assert.deepEqual(drawLine({ drawUnits: '50.0', drawML: '0.50' }, 100, 'pt'), { big: '50,0', small: ' u · 0,5 ml' });
+  assert.deepEqual(drawLine({ drawUnits: '168.0', drawML: '1.68' }, 300, 'en'), { big: '1.68', small: ' ml' });
 });
