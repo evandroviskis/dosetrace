@@ -9,8 +9,8 @@
  * two-step delete) and sign out. Nothing is ever deleted automatically. A failed save (offline)
  * says why and stays here — it can be tried again.
  */
-import { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, storedYear } from '../lib/adultGate';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
+import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
 import { DTSheet } from './components/ProtocolParts';
 
@@ -28,6 +29,19 @@ export default function AgeConfirmScreen({ session }) {
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [busy, setBusy] = useState(null); // 'confirm' | 'export' | 'delete' | 'signout'
   const [sheet, setSheet] = useState(null);
+  const tornDown = useRef(false);
+  // After the server deleted the account, the phone is cleared and signed out exactly once —
+  // whether the note is closed with OK, the scrim or Android back (Gate B).
+  const runTeardown = () => {
+    if (tornDown.current) return;
+    tornDown.current = true;
+    finishAccountDeletion().catch(() => {});
+  };
+  const closeSheet = () => {
+    const closing = sheet;
+    setSheet(null);
+    if (closing && closing.teardown) runTeardown();
+  };
   const user = session && session.user;
   const year = storedYear(user && user.user_metadata);
 
@@ -52,6 +66,8 @@ export default function AgeConfirmScreen({ session }) {
     if (busy || !user) return;
     setBusy('export');
     try {
+      // A new phone may not have the account's records yet: bring them down first.
+      if (isLocalDBEmpty(user.id)) await fullImportFromCloud().catch(() => {});
       const r = await exportMyData(user, t('settings_export_title'));
       if (r.saved) ok(t('settings_export_title'), t('settings_export_done'), 'check');
     } catch {
@@ -85,21 +101,37 @@ export default function AgeConfirmScreen({ session }) {
       if (result.offline) { setBusy(null); ok(t('error'), t('settings_delete_offline')); return; }
       if (result.appleManualRevokeNeeded) {
         setBusy(null);
-        ok(t('settings_delete_apple_revoke_title'), t('settings_delete_apple_revoke_note'), 'check', () => finishAccountDeletion());
+        setSheet({
+          icon: 'check',
+          title: t('settings_delete_apple_revoke_title'),
+          body: t(Platform.OS === 'android' ? 'settings_delete_apple_revoke_note_android' : 'settings_delete_apple_revoke_note'),
+          teardown: true,
+          buttons: [{ label: t('ok'), kind: 'primary', onPress: runTeardown }],
+        });
         return;
       }
-      await finishAccountDeletion();
+      runTeardown();
     } catch (e) {
       setBusy(null);
       ok(t('error'), friendlyError(e, t, 'error_deletion_failed'));
     }
   }
 
-  async function signOut() {
+  // Sign out asks first (as in Settings) and never wipes changes that are not backed up yet.
+  function askSignOut() {
     if (busy) return;
+    setSheet({
+      icon: 'door',
+      title: t('settings_signout'),
+      body: t('settings_signout_confirm_local'),
+      buttons: [{ label: t('cancel'), kind: 'secondary' }, { label: t('settings_signout'), kind: 'primary', onPress: doSignOut }],
+    });
+  }
+  async function doSignOut() {
     setBusy('signout');
-    await signOutIntended();
+    const r = await signOutIntended().catch(() => ({ blocked: true }));
     setBusy(null);
+    if (r && r.blocked) ok(t('settings_signout'), t('auth_signout_unsynced'));
   }
 
   const spin = (k) => (busy === k ? <ActivityIndicator color={k === 'confirm' ? colors.onAct : colors.ink} /> : null);
@@ -120,13 +152,13 @@ export default function AgeConfirmScreen({ session }) {
           <TouchableOpacity style={[s.btn, s.btnDanger]} onPress={askDelete} disabled={!!busy} accessibilityRole="button">
             {spin('delete') || <Text style={[s.btnText, s.btnTextDanger]}>{t('settings_delete')}</Text>}
           </TouchableOpacity>
-          <TouchableOpacity style={s.link} onPress={signOut} disabled={!!busy} accessibilityRole="button">
+          <TouchableOpacity style={s.link} onPress={askSignOut} disabled={!!busy} accessibilityRole="button">
             {spin('signout') || <Text style={s.linkText}>{t('settings_signout')}</Text>}
           </TouchableOpacity>
           <Text style={s.note}>{t('age_gate_note')}</Text>
         </View>
       </ScrollView>
-      <DTSheet config={sheet} onClose={() => setSheet(null)} />
+      <DTSheet config={sheet} onClose={closeSheet} />
     </SafeAreaView>
   );
 }

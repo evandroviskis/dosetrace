@@ -469,7 +469,7 @@ export default function SettingsScreen({ navigation }) {
       if (result.appleManualRevokeNeeded) {
         Alert.alert(
           t('settings_delete_apple_revoke_title'),
-          t('settings_delete_apple_revoke_note'),
+          t(Platform.OS === 'android' ? 'settings_delete_apple_revoke_note_android' : 'settings_delete_apple_revoke_note'),
           [{ text: t('done'), onPress: () => finishAccountDeletion() }],
           { cancelable: false },
         );

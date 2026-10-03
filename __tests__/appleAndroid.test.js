@@ -15,16 +15,15 @@ const state = (claims) => `${b64({ alg: 'HS256' })}.${b64(claims)}.sig`;
 const REDIRECT = 'dosetrace://auth-callback';
 const appleUrl = (clientId, claims) => `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=https%3A%2F%2Fx.supabase.co%2Fauth%2Fv1%2Fcallback&response_mode=form_post&response_type=code&scope=email+name&state=${state(claims)}`;
 
-test('PA-110: the button shows only when the Apple provider is on, a Services ID answers the web flow, and our redirect is allow-listed', () => {
-  const ok = { externalApple: true, finalUrl: appleUrl('io.outcom.dosetrace.signin', { referrer: REDIRECT }), bundleId: 'io.outcom.dosetrace', redirectTo: REDIRECT };
+test('PA-110: the button shows only when the Apple provider is on and a Services ID with its secret answers the web flow', () => {
+  const st = 'ffa6c4a9-4816-4b3e-9d1f-0c7d2a1b3e44'; // today's Supabase Auth: a plain flow-state id
+  const ok = { externalApple: true, finalUrl: appleUrl('io.outcom.dosetrace.signin', {}).replace(/state=[^&]+/, 'state=' + st), bundleId: 'io.outcom.dosetrace', redirectTo: REDIRECT };
   assert.equal(C.appleWebReady(ok), true);
   assert.equal(C.appleWebReady({ ...ok, externalApple: false }), false, 'provider off');
-  assert.equal(C.appleWebReady({ ...ok, finalUrl: appleUrl('io.outcom.dosetrace', { referrer: REDIRECT }) }), false, 'only the iOS bundle id configured (native only) → the web flow would fail');
-  assert.equal(C.appleWebReady({ ...ok, finalUrl: appleUrl('io.outcom.dosetrace.signin', { referrer: 'https://dosetrace.io' }) }), false, 'redirect not allow-listed → Supabase would land on the Site URL');
-  assert.equal(C.appleWebReady({ ...ok, finalUrl: 'https://x.supabase.co/auth/v1/authorize?provider=apple' }), false, 'Supabase answered with an error, no Apple page');
+  assert.equal(C.appleWebReady({ ...ok, finalUrl: appleUrl('io.outcom.dosetrace', {}) }), false, 'only the iOS bundle id configured (native only) → the web flow would fail');
+  assert.equal(C.appleWebReady({ ...ok, finalUrl: 'https://x.supabase.co/auth/v1/authorize?provider=apple' }), false, 'Supabase answered 400 (no OAuth secret), no Apple page');
   assert.equal(C.appleWebReady({ ...ok, finalUrl: '' }), false);
-  assert.equal(C.appleWebReady({ ...ok, finalUrl: appleUrl('io.outcom.dosetrace.signin', {}).replace(/state=[^&]+/, 'state=garbage') }), false, 'unreadable state → not ready');
-  assert.equal(C.appleWebReady({ ...ok, finalUrl: `https://evil.example/auth/authorize?client_id=x&state=${state({ referrer: REDIRECT })}` }), false, 'only Apple\'s own page counts');
+  assert.equal(C.appleWebReady({ ...ok, finalUrl: 'https://evil.example/auth/authorize?client_id=x' }), false, 'only Apple\'s own page counts');
 });
 
 test('PA-111: the authorization code comes back on our redirect; an error or a cancel is never a sign-in', () => {

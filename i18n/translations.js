@@ -10,6 +10,8 @@ export const LANGUAGES = [
 export const translations = {
   'en': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    auth_signout_unsynced: 'Some changes on this phone aren\'t backed up yet, so you\'re still signed in. Connect to the internet and try again, so nothing is lost.',
+    settings_delete_apple_revoke_note_android: 'Your account and data have been deleted. You can also remove DoseTrace\'s Sign in with Apple access anytime at account.apple.com, under Sign-In and Security.',
     age_gate_title: 'Please confirm your age',
     age_gate_body: 'DoseTrace is for adults. The birth year on your account ({year}) would make you under 18. If you\'re 18 or older, confirm it to keep using DoseTrace.',
     age_gate_confirm: 'I\'m 18 or older',
@@ -2167,6 +2169,8 @@ export const translations = {
 
   'es': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    auth_signout_unsynced: 'Algunos cambios de este teléfono aún no tienen copia de seguridad, así que sigues con la sesión iniciada. Conéctate a internet y vuelve a intentarlo para no perder nada.',
+    settings_delete_apple_revoke_note_android: 'Tu cuenta y tus datos se han eliminado. También puedes quitar el acceso de Iniciar sesión con Apple de DoseTrace cuando quieras en account.apple.com, en Inicio de sesión y seguridad.',
     age_gate_title: 'Confirma tu edad',
     age_gate_body: 'DoseTrace es para adultos. Según el año de nacimiento de tu cuenta ({year}), tendrías menos de 18 años. Si tienes 18 años o más, confírmalo para seguir usando DoseTrace.',
     age_gate_confirm: 'Tengo 18 años o más',
@@ -4324,6 +4328,8 @@ export const translations = {
 
   'pt': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    auth_signout_unsynced: 'Algumas alterações neste celular ainda não têm backup, por isso você continua conectado. Conecte-se à internet e tente de novo para não perder nada.',
+    settings_delete_apple_revoke_note_android: 'Sua conta e seus dados foram excluídos. Você também pode remover o acesso de Iniciar sessão com a Apple do DoseTrace quando quiser em account.apple.com, em Início de sessão e segurança.',
     age_gate_title: 'Confirme sua idade',
     age_gate_body: 'O DoseTrace é para adultos. Pelo ano de nascimento da sua conta ({year}), você teria menos de 18 anos. Se você tem 18 anos ou mais, confirme para continuar usando o DoseTrace.',
     age_gate_confirm: 'Tenho 18 anos ou mais',
@@ -6480,6 +6486,8 @@ export const translations = {
   },
   'fr': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    auth_signout_unsynced: 'Certaines modifications sur ce téléphone ne sont pas encore sauvegardées, vous restez donc connecté. Connectez-vous à internet et réessayez pour ne rien perdre.',
+    settings_delete_apple_revoke_note_android: 'Votre compte et vos données ont été supprimés. Vous pouvez aussi retirer l’accès de DoseTrace à Se connecter avec Apple à tout moment sur account.apple.com, dans Connexion et sécurité.',
     age_gate_title: 'Confirmez votre âge',
     age_gate_body: 'DoseTrace est réservé aux adultes. D’après l’année de naissance de votre compte ({year}), vous auriez moins de 18 ans. Si vous avez 18 ans ou plus, confirmez-le pour continuer à utiliser DoseTrace.',
     age_gate_confirm: 'J’ai 18 ans ou plus',
@@ -8636,11 +8644,13 @@ export const translations = {
   },
   'de': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    auth_signout_unsynced: 'Einige Änderungen auf diesem Handy sind noch nicht gesichert, deshalb bleibst du angemeldet. Verbinde dich mit dem Internet und versuche es erneut, damit nichts verloren geht.',
+    settings_delete_apple_revoke_note_android: 'Dein Konto und deine Daten wurden gelöscht. Du kannst den Zugriff von DoseTrace auf „Mit Apple anmelden“ jederzeit auf account.apple.com unter „Anmeldung und Sicherheit“ entfernen.',
     age_gate_title: 'Bitte bestätige dein Alter',
     age_gate_body: 'DoseTrace ist für Erwachsene. Laut dem Geburtsjahr in deinem Konto ({year}) wärst du unter 18. Wenn du 18 oder älter bist, bestätige das, um DoseTrace weiter zu nutzen.',
     age_gate_confirm: 'Ich bin 18 oder älter',
     age_gate_note: 'Nichts wird gelöscht, außer du entscheidest es. Du kannst auch deine Daten herunterladen oder dein Konto löschen.',
-    auth_continue_apple: 'Weiter mit Apple',
+    auth_continue_apple: 'Mit Apple fortfahren',
     reset_switch_offline: 'Einige Änderungen auf diesem Handy sind noch nicht gesichert, deshalb hat DoseTrace dich nicht abgemeldet. Verbinde dich mit dem Internet und öffne den Link erneut.',
     paywall_start_trial_months: '{n} Monat(e) kostenlos testen',
     paywall_cancel_sub_title: 'Kündige dein Abo',
@@ -10793,6 +10803,8 @@ export const translations = {
 
   'it': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    auth_signout_unsynced: 'Alcune modifiche su questo telefono non hanno ancora un backup, quindi resti connesso. Connettiti a internet e riprova, così non perdi nulla.',
+    settings_delete_apple_revoke_note_android: 'Il tuo account e i tuoi dati sono stati eliminati. Puoi anche rimuovere in qualsiasi momento l’accesso di DoseTrace ad Accedi con Apple su account.apple.com, in Accesso e sicurezza.',
     age_gate_title: 'Conferma la tua età',
     age_gate_body: 'DoseTrace è per adulti. In base all’anno di nascita del tuo account ({year}) avresti meno di 18 anni. Se hai 18 anni o più, confermalo per continuare a usare DoseTrace.',
     age_gate_confirm: 'Ho 18 anni o più',

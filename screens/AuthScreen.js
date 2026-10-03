@@ -75,11 +75,11 @@ function AppleLogo({ color }) {
 // dark, "Continue". Android: drawn to the same rules (black on light / white on dark, Apple's
 // logo, "Continue with Apple", 52 pt, first) and ONLY when the web flow is configured on the
 // server (lib/appleWeb appleWebAvailable) — never a dead button.
-function AppleSignInButton({ onPress, isDark, style, appleWeb, label, s }) {
+function AppleSignInButton({ onPress, isDark, style, appleWeb, label, s, busy }) {
   if (Platform.OS === 'android') {
     if (!appleWeb) return null;
     return (
-      <TouchableOpacity style={[s.appleWebBtn, isDark ? s.appleWebDark : s.appleWebLight]} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} activeOpacity={0.85}>
+      <TouchableOpacity style={[s.appleWebBtn, isDark ? s.appleWebDark : s.appleWebLight, busy && s.busy]} onPress={onPress} disabled={busy} accessibilityRole="button" accessibilityLabel={label} activeOpacity={0.85}>
         <AppleLogo color={isDark ? '#000000' : '#FFFFFF'} />
         <Text style={[s.appleWebText, isDark ? s.appleWebTextDark : s.appleWebTextLight]}>{label}</Text>
       </TouchableOpacity>
@@ -384,7 +384,7 @@ export default function AuthScreen({ onBack, initialMode }) {
 
         {/* Store-owned buttons follow the stores' rules (Apple HIG, Google branding). Apple first. */}
         <View style={s.socials}>
-          <AppleSignInButton onPress={() => social(signInWithApple)} isDark={isDark} style={s.appleBtn} appleWeb={appleWeb} label={t('auth_continue_apple')} s={s} />
+          <AppleSignInButton onPress={() => social(signInWithApple)} isDark={isDark} style={s.appleBtn} appleWeb={appleWeb} label={t('auth_continue_apple')} s={s} busy={loading} />
           <TouchableOpacity
             style={[s.googleBtn, isDark ? s.googleBtnDark : s.googleBtnLight, loading && s.busy]}
             onPress={() => social(signInWithGoogle)}
@@ -489,7 +489,7 @@ const makeStyles = (c) => StyleSheet.create({
   appleWebBtn: { height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
   appleWebLight: { backgroundColor: '#000000' },
   appleWebDark: { backgroundColor: '#FFFFFF' },
-  appleWebText: { fontSize: 19, fontWeight: '500' },
+  appleWebText: { fontSize: 22, fontWeight: '500' }, // Apple: title ≈ 43% of the button height
   appleWebTextLight: { color: '#FFFFFF' },
   appleWebTextDark: { color: '#000000' },
   googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingLeft: 16, paddingRight: 16 },
