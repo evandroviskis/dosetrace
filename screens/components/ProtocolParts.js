@@ -9,6 +9,7 @@ import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
 import { vialCells } from '../../lib/todayFormat';
+import { wheelSettle } from '../../lib/wheelPick';
 
 // A button's action runs only after the sheet is gone: presenting the camera, the
 // photo library or another sheet while this one is still animating out fails on iOS.
@@ -155,16 +156,18 @@ function WheelColumn({ values, index, onPick, s }) {
   const ref = useRef(null);
   const [live, setLive] = useState(index);
   const lastSent = useRef(index);
+  // A tap scrolls the column itself; the end of THAT scroll is never a new choice (lib/wheelPick wheelSettle).
+  const tapped = useRef(false);
   // A value changed from outside (the day clamped to a shorter month): follow it.
   useEffect(() => {
     lastSent.current = index;
     setLive(index);
     if (ref.current) ref.current.scrollTo({ y: index * ROW, animated: false });
   }, [index, values.length]);
-  const settle = (y) => {
-    const i = Math.max(0, Math.min(values.length - 1, Math.round(y / ROW)));
-    setLive(i);
-    if (i !== lastSent.current) { lastSent.current = i; onPick(i); }
+  const settle = (y, fromTap = false) => {
+    const { pick, snapTo } = wheelSettle({ y, row: ROW, count: values.length, lastSent: lastSent.current, fromTap });
+    if (snapTo != null) { setLive(snapTo); if (ref.current) ref.current.scrollTo({ y: snapTo * ROW, animated: false }); return; }
+    if (pick != null) { setLive(pick); lastSent.current = pick; onPick(pick); } else setLive(lastSent.current);
   };
   return (
     <View
@@ -187,11 +190,12 @@ function WheelColumn({ values, index, onPick, s }) {
         contentContainerStyle={s.wheelPad}
         scrollEventThrottle={16}
         onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.y / ROW); if (i !== live && i >= 0 && i < values.length) setLive(i); }}
-        onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.y)}
+        onScrollBeginDrag={() => { tapped.current = false; }}
+        onMomentumScrollEnd={(e) => { const fromTap = tapped.current; tapped.current = false; settle(e.nativeEvent.contentOffset.y, fromTap); }}
         onScrollEndDrag={(e) => { if (!e.nativeEvent.velocity || Math.abs(e.nativeEvent.velocity.y) < 0.05) settle(e.nativeEvent.contentOffset.y); }}
       >
         {values.map((v, i) => (
-          <Pressable key={i} style={s.wheelRow} onPress={() => { if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
+          <Pressable key={i} style={s.wheelRow} onPress={() => { tapped.current = true; if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
             <Text style={[s.wheelText, i === live && s.wheelTextOn]} numberOfLines={1}>{v}</Text>
           </Pressable>
         ))}
