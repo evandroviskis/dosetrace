@@ -807,7 +807,7 @@ export const translations = {
     cal_warn_bmr_floor: 'Weight-loss target raised to {kcal} kcal so it stays at or above your estimated BMR.',
     cal_warn_protein_adjusted: 'Protein is based on adjusted weight (BMI 30+), not total weight — standard practice at higher BMI.',
     cal_warn_protein_cap: 'Protein target capped at {g} g/day.',
-    cal_yr: 'y',
+    cal_yr: 'yr',
     cal_bf_short: 'BF',
     cal_check_inputs: 'One of the inputs is out of range — check the values below.',
     cal_estimate_note: 'These are estimates — a starting point, not a target set in stone. Plug the number into whatever you use to track food, then adjust based on what actually happens over 3–4 weeks.',
@@ -930,6 +930,14 @@ export const translations = {
     cal_rc_sofar_run: 'Run: {d} days · ~{kcal} kcal/day logged',
     cal_weighins_title: 'Weigh-ins',
     cal_weighins_summary: '{n} · last {date} · {w}',
+    cal_fill_numbers: 'Fill in your numbers below to see your daily burn.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Weight, height, age and sex give your daily burn. Body fat and waist make it sharper.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'None yet', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Complete your numbers', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Update your weight', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Changing your weight works like a weigh-in.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Update the {date} weigh-in', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Save as today\'s weigh-in', // Progress one card (founder 2026-10-02)
     cal_weighins_need_more: 'Two weigh-ins make a trend.',
     cal_show_all: 'Show all',
     cal_show_less: 'Show less',
@@ -2825,6 +2833,14 @@ export const translations = {
     cal_rc_sofar_run: 'Racha: {d} días · ~{kcal} kcal/día registradas',
     cal_weighins_title: 'Pesajes',
     cal_weighins_summary: '{n} · último {date} · {w}',
+    cal_fill_numbers: 'Completa tus cifras abajo para ver tu gasto diario.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Peso, altura, edad y sexo dan tu gasto diario. La grasa corporal y la cintura lo afinan.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Ninguno aún', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Completa tus cifras', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Actualizar tu peso', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Cambiar tu peso funciona como un pesaje.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Actualizar el pesaje del {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Guardar como pesaje de hoy', // Progress one card (founder 2026-10-02)
     cal_weighins_need_more: 'Dos pesajes marcan una tendencia.',
     cal_show_all: 'Ver todo',
     cal_show_less: 'Ver menos',
@@ -4720,6 +4736,14 @@ export const translations = {
     cal_rc_sofar_run: 'Sequência: {d} dias · ~{kcal} kcal/dia registradas',
     cal_weighins_title: 'Pesagens',
     cal_weighins_summary: '{n} · última {date} · {w}',
+    cal_fill_numbers: 'Preencha seus números abaixo para ver seu gasto diário.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Peso, altura, idade e sexo dão seu gasto diário. Gordura corporal e cintura deixam o número mais preciso.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Nenhuma ainda', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Complete seus números', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Atualizar seu peso', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Mudar seu peso funciona como uma pesagem.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Atualizar a pesagem de {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Salvar como pesagem de hoje', // Progress one card (founder 2026-10-02)
     cal_weighins_need_more: 'Duas pesagens mostram uma tendência.',
     cal_show_all: 'Ver tudo',
     cal_show_less: 'Ver menos',
@@ -6614,6 +6638,14 @@ export const translations = {
     cal_rc_sofar_run: 'Série : {d} jours · ~{kcal} kcal/jour enregistrées',
     cal_weighins_title: 'Pesées',
     cal_weighins_summary: '{n} · dernière {date} · {w}',
+    cal_fill_numbers: 'Renseignez vos chiffres ci-dessous pour voir votre dépense quotidienne.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Poids, taille, âge et sexe donnent votre dépense quotidienne. La masse grasse et le tour de taille l’affinent.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Aucune pour l’instant', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Complétez vos chiffres', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Mettre à jour votre poids', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Changer votre poids revient à une pesée.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Mettre à jour la pesée du {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Enregistrer comme pesée du jour', // Progress one card (founder 2026-10-02)
     cal_weighins_need_more: 'Deux pesées font une tendance.',
     cal_show_all: 'Tout afficher',
     cal_show_less: 'Afficher moins',
@@ -8508,6 +8540,14 @@ export const translations = {
     cal_rc_sofar_run: 'Serie: {d} Tage · ~{kcal} kcal/Tag erfasst',
     cal_weighins_title: 'Wägungen',
     cal_weighins_summary: '{n} · zuletzt {date} · {w}',
+    cal_fill_numbers: 'Trag unten deine Werte ein, um deinen Tagesverbrauch zu sehen.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Gewicht, Größe, Alter und Geschlecht ergeben deinen Tagesverbrauch. Körperfett und Taille machen ihn genauer.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Noch keine', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Vervollständige deine Werte', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Gewicht aktualisieren', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Eine Gewichtsänderung zählt wie eine Wägung.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Wägung vom {date} aktualisieren', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Als heutige Wägung speichern', // Progress one card (founder 2026-10-02)
     cal_weighins_need_more: 'Zwei Wägungen ergeben einen Trend.',
     cal_show_all: 'Alle anzeigen',
     cal_show_less: 'Weniger anzeigen',
@@ -10403,6 +10443,14 @@ export const translations = {
     cal_rc_sofar_run: 'Serie: {d} giorni · ~{kcal} kcal/giorno registrate',
     cal_weighins_title: 'Pesate',
     cal_weighins_summary: '{n} · ultima {date} · {w}',
+    cal_fill_numbers: 'Inserisci i tuoi numeri qui sotto per vedere il tuo consumo giornaliero.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Peso, altezza, età e sesso danno il tuo consumo giornaliero. Grasso corporeo e girovita lo rendono più preciso.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Nessuna ancora', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Completa i tuoi numeri', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Aggiorna il tuo peso', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Cambiare il peso vale come una pesata.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Aggiorna la pesata del {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Salva come pesata di oggi', // Progress one card (founder 2026-10-02)
     cal_weighins_need_more: 'Due pesate fanno una tendenza.',
     cal_show_all: 'Mostra tutto',
     cal_show_less: 'Mostra meno',

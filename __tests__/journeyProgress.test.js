@@ -14,14 +14,18 @@ const calc = () => read('screens/components/CalculatorSection.js');
 
 // ── Part 4: block order ──
 
-test('Part 4: with numbers the order is hero, Your target, daily plan, reality check, weigh-ins, your numbers', () => {
+// Part 4's order was replaced by the one card (founder 2026-10-02, docs/specs/progress-one-card.md
+// PO-1 / PO-9): hero, Your target, Log today's weight, Weigh-ins and Your numbers in ONE card,
+// then the daily plan and the reality check. The order itself is tested in progressOneCard.test.js.
+test('Part 4 → PO-1: the screen renders the one card, then the daily plan and the reality check, from progressLayout', () => {
   const src = calc();
-  assert.match(src, /\? \[heroEl, targetEl, planEl, rcEl, weighEl, numbersEl\]/);
+  assert.match(src, /const screenParts = \{ card: cardEl, plan: planEl, rc: rcEl \};/);
+  assert.match(src, /\{layout\.screen\.map\(k => screenParts\[k\]\)\}/);
+  assert.match(src, /\{layout\.card\.map\(k => cardParts\[k\]\)\}/);
 });
 
-test('Part 4: without numbers the order is Your numbers (open), reality check, Your target, weigh-ins', () => {
+test('Part 4: no "What this is" card at the top and no separate prompt card', () => {
   const src = calc();
-  assert.match(src, /: \[numbersEl, rcEl, targetEl, weighEl\]/);
   assert.doesNotMatch(src, /const introEl = /, 'the "What this is" card leaves the top (it lives in the daily plan and Understand the numbers)');
   assert.doesNotMatch(src, /const statusEl = /, 'the separate prompt card is gone (the sentence sits inside Your numbers)');
 });
@@ -34,13 +38,15 @@ test('Part 4: the Progress screen title is "Progress"', () => {
 
 // ── Part 5 / 6: hero + Log today's weight ──
 
-test('Part 5: the hero ends with the ink "Log today\'s weight" button and holds no target', () => {
+test('Part 5 → PO-5: the ink "Log today\'s weight" button sits in the one card after Your target', () => {
   const src = calc();
-  const hero = src.match(/const heroEl = plan \? \(([\s\S]*?)\n  \) : null;/);
-  assert.ok(hero, 'heroEl');
-  assert.match(hero[1], /t\('cal_log_today_weight'\)/);
-  assert.match(hero[1], /onPress=\{openWeighIn\}/);
-  assert.doesNotMatch(hero[1], /renderTargetBlock/, 'Your target is its own block (part 14)');
+  const log = src.match(/logWeight: \(([\s\S]*?)\n    \),/);
+  assert.ok(log, 'logWeight part');
+  assert.match(log[1], /t\('cal_log_today_weight'\)/);
+  assert.match(log[1], /style=\{s\.btnP\} onPress=\{openWeighIn\}/);
+  const hero = src.match(/const heroPart = \(([\s\S]*?)\n  \);\n/);
+  assert.ok(hero, 'heroPart');
+  assert.doesNotMatch(hero[1], /cal_tgt_title/, 'Your target is its own part of the card (after a line)');
 });
 
 test('Part 6: the Log today\'s weight sheet: weight, body fat, waist, the note, Save — merged into today\'s weigh-in', () => {
@@ -65,13 +71,15 @@ test('Part 6: mergeWeighIn keeps the day\'s waist unless a new one is given, nev
 
 // ── Part 7: Your numbers ──
 
-test('Part 7: before numbers the card is open with no fold arrow and the prompt sits under Metric / Imperial', () => {
+test('Part 7: before numbers Your numbers is open with no fold arrow and the prompt sits under Metric / Imperial', () => {
   const src = calc();
-  const card = src.match(/const numbersEl = \(([\s\S]*?)\n  \);\n/);
+  const part = src.match(/const numbersPart = \(([\s\S]*?)\n  \);\n/);
+  assert.ok(part);
+  assert.match(part[1], /numbersFoldable\n\s*\? foldRow\(/, 'the fold arrow only once the card is filled (PO-7 / PO-9)');
+  const card = src.match(/const numbersForm = \(([\s\S]*?)\n  \);\n/);
   assert.ok(card);
-  assert.match(card[1], /numbersFoldable \?/, 'the fold arrow only once there is a plan');
   const seg = card[1].indexOf('<SegmentedBar');
-  const prompt = card[1].indexOf("t('cal_need_inputs')");
+  const prompt = card[1].indexOf("t('cal_numbers_prompt')");
   assert.ok(seg > 0 && prompt > seg, 'the prompt sentence comes right after the Metric / Imperial bar');
   assert.match(card[1], /placeholder=\{eg\(ex\.weight\)\}/, 'example placeholders, not "—"');
   assert.match(card[1], /placeholder=\{eg\(ex\.bodyFat\)\}/);
@@ -137,7 +145,7 @@ test('Part 8: checkSoFar — one row per day of the check (newest first), kcal a
 test('Part 8: the running card: status, start weight, the 7-day rule, "Your reality check so far", reminder, then Start over / Stop always visible', () => {
   const src = calc();
   const a = src.indexOf('const rcHead = (');
-  const b = src.indexOf('const weighEl = (');
+  const b = src.indexOf('const weighPart = (');
   assert.ok(a > 0 && b > a, 'the reality check card');
   const body = src.slice(a, b);
   for (const k of ["t('cal_rc_sb_progress')", "t('nutri_run_progress')", "t('nutri_check_label')", "t('cal_rc_reset')", "t('cal_rc_stop')"]) assert.ok(body.includes(k), k);
@@ -219,10 +227,11 @@ test('Part 12: Start over and Stop ask first in a DoseTrace sheet; nothing is cl
 
 test('Part 13: Weigh-ins is a fold with a summary; no "Save a snapshot"; Show all / Show less; + Add a past weigh-in', () => {
   const src = calc();
-  const card = src.match(/const weighEl = \(([\s\S]*?)\n  \);\n/);
+  const card = src.match(/const weighPart = \(([\s\S]*?)\n  \);\n/);
   assert.ok(card);
   assert.match(card[1], /t\('cal_weighins_title'\)/);
-  assert.match(card[1], /t\('cal_weighins_summary'\)/);
+  assert.match(card[1], /weighSummary/);
+  assert.match(src, /template: t\('cal_weighins_summary'\)/);
   assert.match(card[1], /weighOpen \?/);
   assert.match(card[1], /t\(showAllW \? 'cal_show_less' : 'cal_show_all'\)/);
   assert.match(card[1], /t\('cal_tgt_backfill_add'\)/);
@@ -247,9 +256,9 @@ test('Part 13: the trend chart has three dashed grid lines, axis labels and squa
 
 // ── Part 14: Your target as its own block ──
 
-test('Part 14: Your target is its own card, Edit underlined; the editor gains Remove target in red as a DoseTrace confirm', () => {
+test('Part 14 → PO-4: Your target is a block inside the one card, Edit underlined; the editor gains Remove target in red as a DoseTrace confirm', () => {
   const src = calc();
-  assert.match(src, /const targetEl = \(\s*<View key="target" style=\{s\.card\}>\s*\{renderTargetBlock\(!!target\)\}/);
+  assert.match(src, /const targetPart = \(\s*<View key="target" style=\{s\.tgtBlock\}>\s*<View style=\{s\.sep\} \/>/);
   assert.match(src, /t\('cal_tgt_date_line'\)/);
   const clear = src.match(/function clearTargetConfirm\(\) \{[\s\S]*?\n  \}\n/);
   assert.ok(clear);
