@@ -37,12 +37,12 @@ export const STEP_FIELDS: Record<string, string[]> = {
 export const STEPS = Object.keys(STEP_FIELDS);
 
 const LIMITS: Record<string, [number, number]> = { count: [1, 60], interval_days: [1, 365], day_offset: [-730, 365] };
-const NUM_TOKEN = /^\d{1,7}(?:[.,\s ]\d{1,6}){0,3}$/;
+const NUM_TOKEN = /^\d{1,7}(?:[.,\s\u00a0]\d{1,6}){0,3}$/;
 // Other spellings of the same unit (UI / IE = IU in pt, es, fr, it / de; µg = mcg).
-const UNIT_ALIASES: Record<string, string> = { ui: 'iu', ie: 'iu', 'µg': 'mcg', ug: 'mcg' };
+const UNIT_ALIASES: Record<string, string> = { ui: 'iu', ie: 'iu', '\u00b5g': 'mcg', ug: 'mcg' };
 
 export function normText(s: unknown): string {
-  return String(s == null ? '' : s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '');
+  return String(s == null ? '' : s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
 }
 
 export function tokenInText(token: unknown, text: string): boolean {
@@ -66,10 +66,10 @@ export function tokenInText(token: unknown, text: string): boolean {
 // never "250 mg". Each unit's spellings in the 6 languages; letters may not touch the short
 // forms ("g" inside "mg" is not grams).
 const UNIT_WORDS: Record<string, RegExp> = {
-  mg: /(?<![a-zµ])mg(?![a-z])|mill?igram/i,
-  mcg: /(?<![a-z])(mcg|µg|ug)(?![a-z])|micro-?gram|mikrogramm/i,
-  IU: /(?<![a-z])(iu|ui|ie)(?![a-z])|international unit|unidades? internaciona|unités? internationale|internationale einheit|unità internazional/i,
-  g: /(?<![a-zµ])(g|gr|grams?|gramas?|gramos?|grammes?|gramm|grammi)(?![a-z])/i,
+  mg: /(?<![a-z\u00b5])mg(?![a-z])|mill?igram/i,
+  mcg: /(?<![a-z])(mcg|\u00b5g|ug)(?![a-z])|micro-?gram|mikrogramm/i,
+  IU: /(?<![a-z])(iu|ui|ie)(?![a-z])|international unit|unidades? internaciona|unit\u00e9s? internationale|internationale einheit|unit\u00e0 internazional/i,
+  g: /(?<![a-z\u00b5])(g|gr|grams?|gramas?|gramos?|grammes?|gramm|grammi)(?![a-z])/i,
 };
 const unitInText = (unit: string, text: string) => !!(UNIT_WORDS[unit] && UNIT_WORDS[unit].test(text));
 

@@ -50,7 +50,7 @@ export async function startConversation(store: StartStore, nowMs: number, limit 
   const after = await store.startsSince(since);
   if (after) {
     const idx = after.findIndex((r) => String(r.id) === String(id));
-    const place = idx >= 0 ? idx : after.length; // not found → behind everyone
+    const place = idx >= 0 ? idx : after.length; // not found \u2192 behind everyone
     if (place >= limit) {
       await store.release(id).catch(() => {});
       const kept = after.filter((r) => String(r.id) !== String(id));
