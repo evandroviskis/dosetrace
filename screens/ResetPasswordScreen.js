@@ -5,15 +5,16 @@
  * the PKCE code for a session BEFORE rendering this screen — which is what makes
  * updateUser({ password }) permitted here. Without this screen the reset link
  * dead-ended on the marketing site.
+ *
+ * Graduated (prototype authScreen 'reset', docs/specs/premium-and-auth.md PA-60/61/65):
+ * every message is a DoseTrace sheet in the user's language — never the raw server text,
+ * never a hard-coded English button.
  */
 import { useState, useMemo } from 'react';
 import {
-  View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +25,9 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
+import { validateNewPassword, authErrorMessage } from '../lib/authFlow';
+import AuthField from '../components/AuthField';
+import { DTSheet } from './components/ProtocolParts';
 
 export default function ResetPasswordScreen({ onDone }) {
   const { t } = useLanguage();
@@ -32,26 +36,36 @@ export default function ResetPasswordScreen({ onDone }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sheet, setSheet] = useState(null);
+
+  const errorSheet = (body) => setSheet({ icon: 'alert', title: t('error'), body, buttons: [{ label: t('ok'), kind: 'primary' }] });
 
   async function save() {
-    if (password.length < 6) {
-      Alert.alert(t('error'), t('auth_password_too_short'));
-      return;
-    }
-    if (password !== confirm) {
-      Alert.alert(t('error'), t('reset_pw_mismatch'));
-      return;
-    }
+    if (loading) return;
+    const bad = validateNewPassword(password, confirm);
+    if (bad) { errorSheet(t(bad.key)); return; }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      Alert.alert(t('error'), error.message);
+      errorSheet(authErrorMessage(error, t, 'reset'));
       return;
     }
-    Alert.alert(t('reset_pw_done_title'), t('reset_pw_done_msg'), [
-      { text: 'OK', onPress: () => onDone && onDone() },
-    ]);
+    // The reset link's session is the user's: they are signed in with the new password.
+    // Done (or closing the sheet) takes them into the app.
+    setSheet({
+      icon: 'check',
+      title: t('reset_pw_done_title'),
+      body: t('reset_pw_done_msg'),
+      done: true,
+      buttons: [{ label: t('done'), kind: 'primary' }], // closing it (Done or the scrim) goes on — closeSheet
+    });
+  }
+
+  function closeSheet() {
+    const wasDone = sheet && sheet.done;
+    setSheet(null);
+    if (wasDone && onDone) setTimeout(onDone, 300);
   }
 
   return (
@@ -69,38 +83,32 @@ export default function ResetPasswordScreen({ onDone }) {
           <Text style={s.title}>{t('reset_pw_title')}</Text>
           <Text style={s.sub}>{t('reset_pw_sub')}</Text>
 
-          <View style={s.field}>
-            <Text style={s.label}>{t('reset_pw_new')}</Text>
-            <TextInput
-              style={s.input}
-              accessibilityLabel={t('reset_pw_new')}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="new-password"
-              placeholderTextColor={colors.ink3}
-            />
-          </View>
-
-          <View style={s.field}>
-            <Text style={s.label}>{t('reset_pw_confirm')}</Text>
-            <TextInput
-              style={s.input}
-              accessibilityLabel={t('reset_pw_confirm')}
-              value={confirm}
-              onChangeText={setConfirm}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="new-password"
-              placeholderTextColor={colors.ink3}
-            />
-          </View>
+          <AuthField
+            label={t('reset_pw_new')}
+            value={password}
+            onChangeText={setPassword}
+            password
+            autoComplete="new-password"
+            textContentType="newPassword"
+            showLabel={t('auth_show_password')}
+            hideLabel={t('auth_hide_password')}
+          />
+          <AuthField
+            label={t('reset_pw_confirm')}
+            value={confirm}
+            onChangeText={setConfirm}
+            password
+            autoComplete="new-password"
+            textContentType="newPassword"
+            showLabel={t('auth_show_password')}
+            hideLabel={t('auth_hide_password')}
+          />
 
           <TouchableOpacity
             style={[s.btn, loading && s.btnDisabled]}
             onPress={save}
             disabled={loading}
+            accessibilityRole="button"
           >
             {loading
               ? <ActivityIndicator color={colors.onAct} />
@@ -108,31 +116,19 @@ export default function ResetPasswordScreen({ onDone }) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      <DTSheet config={sheet} onClose={closeSheet} />
     </SafeAreaView>
   );
 }
 
 // Graduated (prototype.html authScreen() 'reset'): large title, ink2 sentence,
-// labelled well inputs (radius 16), one ink capsule action. Theme tokens only.
+// labelled well inputs (radius 16) with the eye, one ink capsule action. Theme tokens only.
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
   flex: { flex: 1 },
   body: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 24, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: c.ink, letterSpacing: -0.6 },
   sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
-  field: { gap: 10 },
-  label: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    backgroundColor: c.well,
-    borderWidth: 1,
-    borderColor: c.line,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 17,
-    color: c.ink,
-  },
   btn: {
     minHeight: 52,
     borderRadius: 26,

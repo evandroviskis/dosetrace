@@ -401,8 +401,9 @@ function PdfFx({ c, t: tr, width, label, language }) {
   );
 }
 
-// Registry, in the approved order (prototype PREVIEWS): key (analytics id — the
-// existing ids stay), icon, title/body i18n keys, renderer.
+// Registry, in the approved order (prototype PREVIEWS, titles and texts as approved on the
+// Premium picture page 2026-10-03): key (analytics id — the existing ids stay), icon,
+// title/body i18n keys, renderer.
 export const PREVIEW_FEATURES = [
   { key: 'serum', icon: 'curve', titleKey: 'serum_preview_title', bodyKey: 'serum_preview_body', hero: true },
   { key: 'reality', icon: 'calc_trend', titleKey: 'pw_prev_reality_title', bodyKey: 'pw_prev_reality_body', Fx: RealityFx },
@@ -410,8 +411,8 @@ export const PREVIEW_FEATURES = [
   { key: 'scan', icon: 'scan', titleKey: 'pw_prev_scan_title', bodyKey: 'pw_prev_scan_body', Fx: ScanFx },
   { key: 'labs', icon: 'calc_bars', titleKey: 'pw_prev_labs_title', bodyKey: 'pw_prev_labs_body', Fx: LabsFx },
   { key: 'vaccine', icon: 'shield', titleKey: 'pw_prev_vax_title', bodyKey: 'pw_prev_vax_body', Fx: VaxFx },
-  { key: 'protos', icon: 'stack', titleKey: 'paywall_feat_4', bodyKey: 'ob_feat4_d', Fx: ProtosFx },
-  { key: 'pdf', icon: 'download', titleKey: 'pw_prem_pdf', bodyKey: 'export_premium_sub', Fx: PdfFx },
+  { key: 'protos', icon: 'stack', titleKey: 'pw_prev_protos_title', bodyKey: 'pw_prev_protos_body', Fx: ProtosFx },
+  { key: 'pdf', icon: 'download', titleKey: 'pw_prev_pdf_title', bodyKey: 'pw_prev_pdf_body', Fx: PdfFx },
 ];
 
 // One preview, "Example"-tagged, at a given width (also usable outside the sheet,

@@ -7,7 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform, AppState, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState, StyleSheet } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
@@ -87,6 +87,7 @@ import FAQScreen from './screens/FAQScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
 
@@ -234,17 +235,20 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecoveryDone, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry }) {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
-  // Signup confirmation came back through the deep link — the user has no other
-  // way to know it worked, so say so explicitly.
-  useEffect(() => {
-    if (!justConfirmed) return;
-    Alert.alert(t('confirm_email_done_title'), t('confirm_email_done_msg'));
-    onConfirmedShown && onConfirmedShown();
-  }, [justConfirmed]);
+  // Signup confirmation came back through the deep link — the user has no other way to
+  // know it worked, so say so; an emailed link that could not be used (expired, used, or
+  // opened on another phone) says so too instead of doing nothing (journey review
+  // 2026-10-03). Both are DoseTrace sheets (PA-66).
+  const linkSheet = justConfirmed
+    ? { icon: 'check', title: t('confirm_email_done_title'), body: t('confirm_email_done_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+    : linkFailed
+      ? { icon: 'alert', title: t('auth_link_failed_title'), body: t('auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+      : null;
+  const closeLinkSheet = () => { if (justConfirmed) onConfirmedShown && onConfirmedShown(); else onLinkFailedShown && onLinkFailedShown(); };
 
   const base = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
@@ -276,7 +280,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecovery
             // intro below is the single onboarding, and AuthScreen the single
             // auth surface.
             <Stack.Screen name="Auth">
-              {() => <AuthScreen onBack={onBackToOnboarding} />}
+              {() => <AuthScreen onBack={onBackToOnboarding} initialMode={authEntry.mode} consentFromOnboarding={authEntry.consent} />}
             </Stack.Screen>
           ) : (
             // First launch: the value-first intro flow collects the profile
@@ -301,6 +305,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovering, onRecovery
           <Stack.Screen name="Main" component={MainStack} />
         )}
       </Stack.Navigator>
+      <DTSheet config={linkSheet} onClose={closeLinkSheet} />
     </NavigationContainer>
   );
 }
@@ -319,6 +324,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
   const [justConfirmed, setJustConfirmed] = useState(false);
+  const [linkFailed, setLinkFailed] = useState(false);
+  // How the auth screen opens: Create account (from the last onboarding step, with the
+  // consent box ticked by the four confirmations just made) or Sign in (from the welcome
+  // screen). undefined = a returning signed-out user (AuthScreen decides from the stash).
+  const [authEntry, setAuthEntry] = useState({ mode: undefined, consent: false });
   // Whether the first-launch intro flow has been completed. null = not resolved
   // yet; the loading gate below waits for it, so we never flash the welcome
   // screen before the intro (or vice-versa) on first frame.
@@ -375,7 +385,8 @@ export default function App() {
       const isConfirm = u.includes('confirm-email');
       if (!isReset && !isConfirm) return;
       const { ok } = await exchangeAuthCodeFromUrl(u);
-      if (!ok || cancelled) return;
+      if (cancelled) return;
+      if (!ok) { setLinkFailed(true); return; }
       if (isReset) setRecovering(true);
       else setJustConfirmed(true);
     };
@@ -639,6 +650,20 @@ export default function App() {
     };
   }, []);
 
+  // Onboarding → auth: 'create' from the last step (the four confirmations were just made,
+  // so the consent box starts ticked), 'signin' from the welcome screen.
+  const finishOnboarding = (mode) => {
+    markSeenOnboarding().catch(() => {});
+    setAuthEntry({ mode: mode === 'signin' ? 'signin' : 'create', consent: mode !== 'signin' });
+    setSeenOnboarding(true);
+  };
+  // Back from the auth screen: the onboarding reopens from the stash at the step the user
+  // left, with every value kept (PA-62; it used to restart at the welcome screen, empty).
+  const backToOnboarding = () => {
+    setAuthEntry({ mode: undefined, consent: false });
+    setSeenOnboarding(false);
+  };
+
   // Gate the UI on fonts too, so the app never flashes the system font and
   // then reflows into Plus Jakarta Sans.
   if (loading || !fontsLoaded || seenOnboarding === null) {
@@ -667,8 +692,11 @@ export default function App() {
               justConfirmed={justConfirmed}
               onConfirmedShown={() => setJustConfirmed(false)}
               seenOnboarding={seenOnboarding}
-              onFinishOnboarding={() => { markSeenOnboarding().catch(() => {}); setSeenOnboarding(true); }}
-              onBackToOnboarding={() => setSeenOnboarding(false)}
+              linkFailed={linkFailed}
+              onLinkFailedShown={() => setLinkFailed(false)}
+              onFinishOnboarding={finishOnboarding}
+              onBackToOnboarding={backToOnboarding}
+              authEntry={authEntry}
             />
           </ThemeProvider>
         </LanguageProvider>

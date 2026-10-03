@@ -1,21 +1,32 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, StatusBar, Linking, BackHandler,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  Platform, StatusBar, Linking, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle, signInWithApple, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { friendlyError } from '../lib/friendlyError';
 import { Analytics } from '../lib/analytics';
-import { loadOnboarding } from '../lib/onboardingStore';
+import { loadOnboarding, saveOnboarding } from '../lib/onboardingStore';
+import { PRIVACY_URL } from '../lib/legalLinks';
+import { GOOGLE_SANS_MEDIUM } from '../lib/fonts';
+import { normalizeActivityLevel } from '../lib/activityLevels';
+import {
+  validateCredentials, signupNext, authErrorMessage, isNotConfirmed, consentParts,
+  socialConsentPatch, initialAuthMode, initialConsent,
+} from '../lib/authFlow';
 import Svg, { Path } from 'react-native-svg';
 import FeatureIcon from '../components/FeatureIcon';
 import CheckMark from '../components/CheckMark';
+import AuthField from '../components/AuthField';
+import LegalModal from '../components/LegalModal';
+import { DTSheet } from './components/ProtocolParts';
 
-const PRIVACY_URL = 'https://dosetrace.io/privacy-policy';
+// The address typed on this screen survives a trip back to onboarding and forward again
+// (PA-62): kept in memory for this run only — never written to storage, never the password.
+let draftEmail = '';
 
 // Back arrow (Graduated): a drawn monoline chevron in ink, never a font glyph.
 function BackChevron({ color }) {
@@ -26,15 +37,17 @@ function BackChevron({ color }) {
   );
 }
 
-// Google's "G" mark. Brand marks keep their official colors on purpose (Google
-// sign-in branding guidelines) — the only fixed colors on this screen.
+// Google's "G" mark, the current colours of Google's own asset (Sign in with Google
+// branding guidelines, updated 2026-07-07): #4285F4 / #34A853 / #FBBC04 / #E94235. Brand
+// marks keep their official colours on purpose — the only fixed colours on this screen.
+export const GOOGLE_G = { blue: '#4285F4', green: '#34A853', yellow: '#FBBC04', red: '#E94235' };
 function GoogleMark() {
   return (
-    <Svg width={20} height={20} viewBox="0 0 48 48">
-      <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    <Svg width={20} height={20} viewBox="0 0 48 48" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path fill={GOOGLE_G.red} d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <Path fill={GOOGLE_G.blue} d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <Path fill={GOOGLE_G.yellow} d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <Path fill={GOOGLE_G.green} d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
     </Svg>
   );
 }
@@ -48,6 +61,7 @@ function getAppleAuth() {
   }
   return _appleAuth;
 }
+// The system Sign in with Apple button (Apple HIG): black on light, white on dark, "Continue".
 function AppleSignInButton({ onPress, isDark, style }) {
   const AA = getAppleAuth();
   if (!AA?.AppleAuthenticationButton) return null;
@@ -63,36 +77,45 @@ function AppleSignInButton({ onPress, isDark, style }) {
 }
 
 /**
- * The account gate — sign in or create an account. This is the ONLY auth screen.
- * The value-first intro (OnboardingFlowScreen) collects the profile + consent and
- * stashes it locally, then hands off here; this screen reads that stash for the
- * sign-up metadata (social sign-ups get it via applyPendingProfile on SIGNED_IN).
+ * The account gate — sign in or create an account. This is the ONLY auth screen
+ * (docs/specs/premium-and-auth.md PA-50…PA-59; prototype authScreen, approved from the
+ * pictures 2026-10-03). The value-first intro (OnboardingFlowScreen) collects the profile
+ * + consent and stashes it locally, then hands off here; this screen reads that stash for
+ * the sign-up metadata (social sign-ups get it via applyPendingProfile on SIGNED_IN).
  *
- * Defaults to the create view when the intro just ran (stash present), else to
- * sign-in (a returning, signed-out user). A consent checkbox appears only when
- * no consent was stashed (e.g. a returning user creating a brand-new account),
- * so account creation always has a lawful basis and never dead-ends.
+ * initialMode: 'create' (from the last onboarding step) | 'signin' (from the welcome
+ * screen) | undefined (a returning signed-out user: Create when the intro just finished).
+ * consentFromOnboarding: the four confirmations were made in this run → the consent box
+ * starts ticked (prototype obcreate). Every message is a DoseTrace sheet.
  */
-export default function AuthScreen({ onBack }) {
+export default function AuthScreen({ onBack, initialMode, consentFromOnboarding = false }) {
   const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
 
-  // There must always be a way back to the welcome/intro (founder rule): a visible
-  // arrow + Android hardware/swipe back. onBack returns to OnboardingFlowScreen.
-  useEffect(() => {
-    if (!onBack) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => sub.remove();
-  }, [onBack]);
+  const [mode, setMode] = useState(initialMode === 'create' || initialMode === 'signin' ? initialMode : null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
-  const [email, setEmail] = useState('');
+  // There must always be a way back to the welcome/intro (founder rule): a visible
+  // arrow + Android hardware/swipe back. Back from Account created goes to Create.
+  const [signupDone, setSignupDone] = useState(false);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (signupDone) { setSignupDone(false); return true; }
+      if (onBack) { onBack(modeRef.current || 'signin'); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [onBack, signupDone]);
+
+  const [email, setEmailState] = useState(draftEmail);
+  const setEmail = (v) => { draftEmail = v; setEmailState(v); };
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignIn, setIsSignIn] = useState(false);
-  const [signupDone, setSignupDone] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0); // seconds until resend allowed again
-  const [hasStash, setHasStash] = useState(false);
+  const [sheet, setSheet] = useState(null);
+  const [showTerms, setShowTerms] = useState(false);
 
   // Stash-derived signup payload (never rendered as fields — the intro collected it).
   const [stash, setStash] = useState(null);
@@ -102,106 +125,131 @@ export default function AuthScreen({ onBack }) {
     let active = true;
     loadOnboarding().then((d) => {
       if (!active) return;
-      // loadOnboarding() returns {} (not null) on an empty/cleared stash, so test
-      // meaningful keys — a cleared stash (post sign-out/delete) must read as "no
-      // stash" or the consent checkbox never renders and create dead-ends.
+      // loadOnboarding() returns {} (not null) on an empty/cleared stash.
       const real = !!(d && (d.consent_accepted || d.display_name || d.primary_goal || d.gender || d.birth_year));
-      setStash(real ? d : null);
-      setHasStash(real);
-      if (real && d.consent_accepted) setConsentGiven(true);
-      // Intro just ran (real stash with consent) → create view; otherwise sign-in.
-      setIsSignIn(!(real && d.consent_accepted));
-    }).catch(() => { if (active) setIsSignIn(true); });
+      const st = real ? d : null;
+      setStash(st);
+      setMode((m) => m || initialAuthMode(initialMode, st));
+      // The box is ticked only for the person who just confirmed the four onboarding
+      // confirmations in this run; anyone else ticks it themselves (journey review).
+      setConsentGiven(consentFromOnboarding && initialConsent(st));
+    }).catch(() => { if (active) setMode((m) => m || 'signin'); });
     return () => { active = false; };
   }, []);
 
-  async function handleGoogleSignIn() {
+  const isSignIn = mode !== 'create';
+  const errorSheet = (body, title) => setSheet({ icon: 'alert', title: title || t('error'), body, buttons: [{ label: t('ok'), kind: 'primary' }] });
+
+  // Apple / Google: from Create account the consent box decides what a NEW account records
+  // (PA-59). If the sign-in is cancelled or fails, the stash goes back to how it was.
+  async function social(fn) {
+    if (loading) return;
+    const now = new Date().toISOString();
+    const patch = socialConsentPatch({ mode, consent: consentGiven, stash, nowISO: now });
+    const prior = stash ? { consent_accepted: !!stash.consent_accepted, consent_date: stash.consent_date || null } : { consent_accepted: false, consent_date: null };
+    if (patch) await saveOnboarding(patch);
     setLoading(true);
     try {
-      const { error, canceled } = await signInWithGoogle();
+      const { error, canceled } = await fn();
+      if (canceled || error) { if (patch) await saveOnboarding(prior); }
       if (canceled) return;
-      if (error) Alert.alert(t('error'), friendlyError(error, t, 'auth_signin_failed'));
+      if (error) errorSheet(authErrorMessage(error, t, 'signin'));
     } catch (e) {
-      Alert.alert(t('error'), friendlyError(e, t));
+      if (patch) await saveOnboarding(prior);
+      errorSheet(authErrorMessage(e, t, 'signin'));
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleAppleSignIn() {
-    setLoading(true);
-    const { error, canceled } = await signInWithApple();
-    setLoading(false);
-    if (canceled) return;
-    if (error) Alert.alert(t('error'), friendlyError(error, t));
-  }
-
   async function handleForgotPassword() {
     const trimmed = email.trim();
-    if (!trimmed) { Alert.alert(t('error'), t('forgot_password_enter_email')); return; }
+    if (!trimmed) { errorSheet(t('forgot_password_enter_email')); return; }
     setLoading(true);
     const { error } = await sendPasswordReset(trimmed);
     setLoading(false);
-    if (error) Alert.alert(t('error'), friendlyError(error, t));
-    else Alert.alert(t('forgot_password_sent_title'), t('forgot_password_sent_msg').replace('{email}', trimmed));
+    if (error) errorSheet(authErrorMessage(error, t, 'reset_request'));
+    else setSheet({ icon: 'check', title: t('forgot_password_sent_title'), body: t('forgot_password_sent_msg').replace('{email}', trimmed), buttons: [{ label: t('ok'), kind: 'primary' }] });
+  }
+
+  // Resend the signup confirmation email (with a 30 s cooldown to avoid spam).
+  const cooldownTimer = useRef(null);
+  useEffect(() => () => { if (cooldownTimer.current) clearInterval(cooldownTimer.current); }, []);
+  async function handleResend() {
+    if (resendCooldown > 0) return;
+    const addr = email.trim();
+    const { error } = await supabase.auth.resend({ type: 'signup', email: addr, options: { emailRedirectTo: emailConfirmRedirectUrl() } });
+    if (error) { errorSheet(authErrorMessage(error, t, 'signup')); return; }
+    setSheet({ icon: 'check', title: t('signup_resent'), body: t('onboarding_confirm_msg').replace('{email}', addr), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    setResendCooldown(30);
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    cooldownTimer.current = setInterval(() => setResendCooldown((n) => { if (n <= 1) { clearInterval(cooldownTimer.current); cooldownTimer.current = null; return 0; } return n - 1; }), 1000);
   }
 
   async function handleAuth() {
-    if (!email.trim() || !password.trim()) { Alert.alert(t('error'), t('auth_missing_fields')); return; }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { Alert.alert(t('error'), t('auth_invalid_email')); return; }
-    if (!isSignIn && password.trim().length < 6) { Alert.alert(t('error'), t('auth_password_too_short')); return; }
-    if (!isSignIn && !consentGiven) { Alert.alert(t('error'), t('consent_required')); return; }
+    if (loading) return;
+    const bad = validateCredentials({ mode: isSignIn ? 'signin' : 'create', email, password, consent: consentGiven });
+    if (bad) { errorSheet(t(bad.key)); return; }
     setLoading(true);
     let result;
     if (isSignIn) {
       result = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
-    } else {
-      const d = stash || {};
-      result = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password.trim(),
-        options: {
-          emailRedirectTo: emailConfirmRedirectUrl(),
-          data: {
-            tracking_types: Array.isArray(d.tracking_types) ? d.tracking_types : [],
-            onboarded_at: new Date().toISOString(),
-            consent_accepted: true,
-            consent_date: d.consent_date || new Date().toISOString(),
-            display_name: d.display_name || null,
-            gender: d.gender || null,
-            birth_month: d.birth_month != null ? d.birth_month : null, // stash is 1-based (matches fieldPresent)
-            birth_year: d.birth_year != null ? d.birth_year : null,
-            country: d.country || null,
-            primary_goal: d.primary_goal || null,
-            activity_level: d.activity_level || null,
-            has_provider: d.has_provider || null,
-          },
-        },
-      });
-    }
-    setLoading(false);
-    if (result.error) {
-      Alert.alert(t('error'), friendlyError(result.error, t));
-    } else if (!isSignIn) {
-      // Supabase obfuscates a duplicate signup as a user with empty identities.
-      const identities = result.data?.user?.identities;
-      if (Array.isArray(identities) && identities.length === 0) {
-        Alert.alert(t('signup_email_exists_title'), t('signup_email_exists_msg'));
-        setIsSignIn(true);
-        setPassword('');
-        return;
+      setLoading(false);
+      if (result.error) {
+        if (isNotConfirmed(result.error)) {
+          // Never confirmed: offer the link again right here (PA-58).
+          setSheet({
+            icon: 'mail',
+            title: t('error'),
+            body: t('auth_email_not_confirmed'),
+            buttons: [{ label: t('ok'), kind: 'secondary' }, { label: t('signup_resend'), kind: 'primary', onPress: handleResend }],
+          });
+        } else {
+          errorSheet(authErrorMessage(result.error, t, 'signin'));
+        }
       }
-      Analytics.onboardingCompleted({
-        trackingTypes: Array.isArray(stash?.tracking_types) ? stash.tracking_types : [],
-        language,
-        region: Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone || null,
-      });
-      // If the project auto-confirms email, signUp returns a session and
-      // onAuthStateChange signs the user straight in — DON'T show the
-      // "check your email" screen in that case (App.js routes on the session).
-      if (result.data?.session) return;
-      setSignupDone(true);
+      return; // success: App.js routes on the new session
     }
+    const d = stash || {};
+    result = await supabase.auth.signUp({
+      email: email.trim(),
+      password: password.trim(),
+      options: {
+        emailRedirectTo: emailConfirmRedirectUrl(),
+        data: {
+          tracking_types: Array.isArray(d.tracking_types) ? d.tracking_types : [],
+          onboarded_at: new Date().toISOString(),
+          consent_accepted: true, // the box is ticked (validateCredentials)
+          consent_date: (consentFromOnboarding && d.consent_date) || new Date().toISOString(),
+          display_name: d.display_name || null,
+          gender: d.gender || null,
+          birth_month: d.birth_month != null ? d.birth_month : null, // stash is 1-based (matches fieldPresent)
+          birth_year: d.birth_year != null ? d.birth_year : null,
+          country: d.country || null,
+          primary_goal: d.primary_goal || null,
+          activity_level: normalizeActivityLevel(d.activity_level) || null,
+          has_provider: d.has_provider || null,
+        },
+      },
+    });
+    setLoading(false);
+    const next = signupNext(result);
+    if (next === 'error') { errorSheet(authErrorMessage(result && result.error, t, 'signup')); return; }
+    if (next === 'exists') {
+      // Explain and stay on Create account with the address kept (prototype create_taken).
+      errorSheet(t('signup_email_exists_msg'), t('signup_email_exists_title'));
+      setPassword('');
+      return;
+    }
+    Analytics.onboardingCompleted({
+      trackingTypes: Array.isArray(stash?.tracking_types) ? stash.tracking_types : [],
+      language,
+      region: Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone || null,
+    });
+    // Auto-confirm returns a session and App.js signs the user straight in — no
+    // "check your email" screen in that case.
+    if (next === 'signed_in') return;
+    setSignupDone(true);
   }
 
   // Open the device mail app so the user can find the confirmation link.
@@ -210,24 +258,25 @@ export default function AuthScreen({ onBack }) {
     Linking.openURL(url).catch(() => Linking.openURL('mailto:').catch(() => {}));
   }
 
-  // Resend the signup confirmation email (with a 30s cooldown to avoid spam).
-  async function handleResend() {
-    if (resendCooldown > 0) return;
-    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: emailConfirmRedirectUrl() } });
-    if (error) { Alert.alert(t('error'), friendlyError(error, t)); return; }
-    Alert.alert(t('signup_resent'), t('onboarding_confirm_msg').replace('{email}', email.trim()));
-    setResendCooldown(30);
-    const iv = setInterval(() => setResendCooldown((s) => { if (s <= 1) { clearInterval(iv); return 0; } return s - 1; }), 1000);
-  }
+  const switchMode = (m) => { setMode(m); setPassword(''); };
 
   // ---- Views ---- (Graduated: docs/design/prototype.html authScreen())
-  const backRow = onBack ? (
+  const backRow = (onPress) => (
     <View style={s.navRow}>
-      <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('back')}>
+      <TouchableOpacity style={s.backBtn} onPress={onPress} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('back')}>
         <BackChevron color={colors.ink} />
       </TouchableOpacity>
     </View>
-  ) : null;
+  );
+
+  const sheets = (
+    <>
+      <DTSheet config={sheet} onClose={() => setSheet(null)} />
+      <LegalModal visible={showTerms} onClose={() => setShowTerms(false)} title={t('settings_terms')} content={t('settings_terms_body')} doneLabel={t('done')} />
+    </>
+  );
+
+  if (!mode) return <SafeAreaView style={s.container} />; // reading the stash (a few ms)
 
   if (signupDone) {
     // The email is set in ink inside the sentence; the words stay the key's own.
@@ -235,7 +284,7 @@ export default function AuthScreen({ onBack }) {
     return (
       <SafeAreaView style={s.container}>
         <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-          {backRow}
+          {backRow(() => setSignupDone(false))}
           <View style={s.confirmHead}>
             <View style={s.okBadge}><CheckMark size={34} color={colors.onInk} strokeWidth={2.4} /></View>
             <Text style={[s.title, s.titleCenter]}>{t('onboarding_confirm_title')}</Text>
@@ -249,25 +298,26 @@ export default function AuthScreen({ onBack }) {
             </Text>
             <Text style={[s.hint, s.textCenter]}>{t('onboarding_confirm_hint')}</Text>
           </View>
-          {/* Lead with the actual next step (open the email), then resend / fix a
-              typo, and keep sign-in as the last step for when they come back. */}
+          {/* Lead with the actual next step (open the email), then resend / fix a typo,
+              and keep sign-in as the last step for when they come back. */}
           <View style={s.confirmActs}>
-            <TouchableOpacity style={s.primaryBtn} onPress={openMailApp}>
+            <TouchableOpacity style={s.primaryBtn} onPress={openMailApp} accessibilityRole="button">
               <Text style={s.primaryBtnText}>{t('signup_open_email')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.secondaryBtn} onPress={handleResend} disabled={resendCooldown > 0}>
+            <TouchableOpacity style={s.secondaryBtn} onPress={handleResend} disabled={resendCooldown > 0} accessibilityRole="button">
               <Text style={[s.secondaryBtnText, resendCooldown > 0 && s.secondaryBtnTextDim]}>
                 {resendCooldown > 0 ? `${t('signup_resend')} (${resendCooldown})` : t('signup_resend')}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.secondaryBtn} onPress={() => { setSignupDone(false); setIsSignIn(true); setPassword(''); }}>
+            <TouchableOpacity style={s.secondaryBtn} onPress={() => { setSignupDone(false); switchMode('signin'); }} accessibilityRole="button">
               <Text style={s.secondaryBtnText}>{t('onboarding_go_signin')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.linkBtnCenter} onPress={() => { setSignupDone(false); setIsSignIn(false); setPassword(''); }}>
+            <TouchableOpacity style={s.linkBtnCenter} onPress={() => { setSignupDone(false); switchMode('create'); }} accessibilityRole="button">
               <Text style={s.linkText}>{t('signup_wrong_email')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
+        {sheets}
       </SafeAreaView>
     );
   }
@@ -275,7 +325,7 @@ export default function AuthScreen({ onBack }) {
   return (
     <SafeAreaView style={s.container}>
       <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {backRow}
+        {onBack ? backRow(() => onBack(mode)) : null}
         {!isSignIn ? (
           <View style={s.head}>
             <FeatureIcon name="curve" size={48} color={colors.data} />
@@ -289,54 +339,76 @@ export default function AuthScreen({ onBack }) {
           </View>
         )}
 
-        {/* Apple / Google keep their brand-guideline looks (fixed colors on purpose). */}
+        {/* Store-owned buttons follow the stores' rules (Apple HIG, Google branding). Apple first. */}
         <View style={s.socials}>
-          <AppleSignInButton onPress={handleAppleSignIn} isDark={isDark} style={s.appleBtn} />
-          <TouchableOpacity style={[s.googleBtn, isDark ? s.googleBtnDark : s.googleBtnLight, loading && s.busy]} onPress={handleGoogleSignIn} disabled={loading}>
+          <AppleSignInButton onPress={() => social(signInWithApple)} isDark={isDark} style={s.appleBtn} />
+          <TouchableOpacity
+            style={[s.googleBtn, isDark ? s.googleBtnDark : s.googleBtnLight, loading && s.busy]}
+            onPress={() => social(signInWithGoogle)}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={t('onboarding_google_signin')}
+          >
             <GoogleMark />
-            <Text style={[s.googleBtnText, isDark ? s.googleBtnTextDark : s.googleBtnTextLight]}>{loading ? t('loading') : t('onboarding_google_signin')}</Text>
+            <Text style={[s.googleBtnText, isDark ? s.googleBtnTextDark : s.googleBtnTextLight]}>{t('onboarding_google_signin')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={s.orDivider}><View style={s.orLine} /><Text style={s.orText}>{t('onboarding_or')}</Text><View style={s.orLine} /></View>
 
-        <View style={s.field}>
-          <Text style={s.fieldLabel}>{t('onboarding_email')}</Text>
-          <TextInput style={s.input} accessibilityLabel={t('onboarding_email')} placeholderTextColor={colors.ink3} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-        </View>
-        <View style={s.field}>
-          <Text style={s.fieldLabel}>{t('onboarding_password')}</Text>
-          <TextInput style={s.input} accessibilityLabel={t('onboarding_password')} placeholderTextColor={colors.ink3} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} />
-        </View>
+        <AuthField
+          label={t('onboarding_email')}
+          value={email}
+          onChangeText={setEmail}
+          email
+          placeholder={t('auth_email_ph')}
+          autoComplete="email"
+          textContentType="emailAddress"
+        />
+        <AuthField
+          label={t('onboarding_password')}
+          value={password}
+          onChangeText={setPassword}
+          password
+          autoComplete={isSignIn ? 'current-password' : 'new-password'}
+          textContentType={isSignIn ? 'password' : 'newPassword'}
+          showLabel={t('auth_show_password')}
+          hideLabel={t('auth_hide_password')}
+        />
 
         {isSignIn && (
-          <TouchableOpacity style={s.forgotBtn} onPress={handleForgotPassword}>
+          <TouchableOpacity style={s.forgotBtn} onPress={handleForgotPassword} accessibilityRole="button">
             <Text style={s.linkText}>{t('forgot_password')}</Text>
           </TouchableOpacity>
         )}
 
-        {/* Consent only when the intro didn't already stash it (returning-user create). */}
-        {!isSignIn && !hasStash && (
+        {/* Create account always asks for consent, with BOTH documents linked (PA-63). */}
+        {!isSignIn && (
           <TouchableOpacity style={s.consentRow} onPress={() => setConsentGiven((v) => !v)} activeOpacity={0.7} accessibilityRole="checkbox" accessibilityState={{ checked: consentGiven }}>
             <View style={[s.checkbox, consentGiven && s.checkboxOn]}>
               {consentGiven && <CheckMark size={16} color={colors.onInk} />}
             </View>
             <Text style={s.consentText}>
-              {t('auth_agree_terms')}{' '}
-              <Text style={s.consentLink} onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}>
-                {t('settings_privacy_policy')}
-              </Text>
+              {consentParts(t('auth_agree_terms_privacy')).map((p, i) => (
+                p.link === 'terms' ? (
+                  <Text key={i} style={s.consentLink} accessibilityRole="link" onPress={() => setShowTerms(true)}>{t('settings_terms')}</Text>
+                ) : p.link === 'privacy' ? (
+                  <Text key={i} style={s.consentLink} accessibilityRole="link" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}>{t('settings_privacy_policy')}</Text>
+                ) : (
+                  <Text key={i}>{p.text}</Text>
+                )
+              ))}
             </Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={[s.primaryBtn, loading && s.busy]} onPress={handleAuth} disabled={loading}>
+        <TouchableOpacity style={[s.primaryBtn, loading && s.busy]} onPress={handleAuth} disabled={loading} accessibilityRole="button">
           <Text style={s.primaryBtnText}>
-            {loading ? t('loading') : (isSignIn ? t('onboarding_signin') : t('onboarding_create_account'))}
+            {loading ? t('loading') : (isSignIn ? t('onboarding_signin_title') : t('onboarding_create_account'))}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.linkBtnCenter} onPress={() => { setIsSignIn((v) => !v); setPassword(''); }}>
+        <TouchableOpacity style={s.linkBtnCenter} onPress={() => switchMode(isSignIn ? 'create' : 'signin')} accessibilityRole="button">
           <Text style={s.linkText}>
             {isSignIn ? t('onboarding_create_account') : t('onboarding_already_have_account')}
           </Text>
@@ -344,14 +416,17 @@ export default function AuthScreen({ onBack }) {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+      {sheets}
     </SafeAreaView>
   );
 }
 
 // Graduated (DESIGN.md §2–§5): ground screen, ink text in three steps, one ink
 // capsule action, well inputs (radius 16), underlined ink text links, no blue
-// except the data icon. Theme tokens only — the Google button's brand colors
-// are the one deliberate exception (Google sign-in branding guidelines).
+// except the data icon. Theme tokens only — the Google button's colours and type are
+// the deliberate exception (Sign in with Google branding guidelines, updated 2026-07-07:
+// light #FFFFFF / stroke #747775 / text #1F1F1F, dark #131314 / #8E918F / #E3E3E3,
+// Google Sans Medium, on iOS 16 pt before the G, 12 pt after it, 16 pt after the text).
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 0 },
   scroll: { flex: 1 },
@@ -367,19 +442,16 @@ const makeStyles = (c) => StyleSheet.create({
   hint: { fontSize: 13, lineHeight: 18, color: c.ink3 },
   socials: { gap: 10, paddingTop: 6 },
   appleBtn: { height: 52 },
-  googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 16 },
+  googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingLeft: 16, paddingRight: 16 },
   googleBtnLight: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
   googleBtnDark: { backgroundColor: '#131314', borderColor: '#8E918F' },
-  googleBtnText: { fontSize: 17, fontWeight: '600' },
+  googleBtnText: { fontSize: 17, fontFamily: GOOGLE_SANS_MEDIUM },
   googleBtnTextLight: { color: '#1F1F1F' },
   googleBtnTextDark: { color: '#E3E3E3' },
   busy: { opacity: 0.6 },
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   orLine: { flex: 1, height: 1, backgroundColor: c.line },
   orText: { fontSize: 13, color: c.ink2 },
-  field: { gap: 10 },
-  fieldLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
-  input: { minHeight: 52, borderRadius: 16, backgroundColor: c.well, borderWidth: 1, borderColor: c.line, paddingHorizontal: 16, paddingVertical: 12, fontSize: 17, color: c.ink },
   forgotBtn: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center' },
   linkBtnCenter: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, textAlign: 'center' },

@@ -57,7 +57,9 @@ test('S-22: no user-facing string calls the plan "Pro" (6 languages)', () => {
     // German "Pro Upload zahlen" means "pay PER upload" — not the plan name.
     .filter((l) => !/paywall_bloodwork_free_price: 'Pro Upload zahlen'/.test(l));
   assert.deepEqual(hits.map((l) => l.trim().slice(0, 60)), []);
-  for (const key of ['preview_unlock_cta', 'blood_premium_markers', 'pw_prev_scan_body', 'paywall_lifetime_sub']) {
+  // pw_prev_scan_body left this list on 2026-10-03: the approved Premium page (part 4) takes the
+  // prototype text, which ends at "…onto its chart." (no "Included with Premium").
+  for (const key of ['preview_unlock_cta', 'blood_premium_markers', 'paywall_lifetime_sub']) {
     const v = valuesOf(key);
     assert.equal(v.length, 6, key);
     for (const s of v) assert.match(s, /Premium/, `${key}: ${s.slice(0, 40)}`);

@@ -20,10 +20,16 @@ test('pw_prev_labs_body never judges a range, in all 6 languages', () => {
 
 test('cloud backup is never sold as Premium; the Settings card sells the curve', () => {
   for (const s of vals('settings_premium_feat_1')) assert.doesNotMatch(s, /cloud|nube|nuvem|Cloud|backup|sauvegarde|Sicherung/i, s);
-  const pw = read('screens/PaywallScreen.js');
-  const prem = pw.slice(pw.indexOf('const PREMIUM_FEATURES = ['), pw.indexOf('];', pw.indexOf('const PREMIUM_FEATURES = [')));
-  assert.match(prem, /settings_premium_feat_3/, 'the AI food log is in the paywall Premium list');
-  assert.doesNotMatch(prem, /sync|backup/i);
+  // Premium redesign (founder 2026-10-03, picture page part 3 = the prototype): the AI food log
+  // sits in the Free vs Premium table (free for FREE_DAYS days, Premium every day) and the
+  // six "What's included" lines never sell backup / sync.
+  const { comparisonRows, includedLines } = require('../lib/paywallPlans');
+  const id = (k) => k;
+  const food = comparisonRows(id, { freeFoodDays: 7 }).find((r) => r.label === 'nutri_ai_badge');
+  assert.ok(food && typeof food.free === 'string', 'the AI food log row shows its free days');
+  const sync = comparisonRows(id, { freeFoodDays: 7 }).find((r) => r.label === 'pw_free_sync');
+  assert.equal(sync.free, true, 'cloud backup & sync is free');
+  assert.doesNotMatch(includedLines(id).join(' '), /sync|backup/i);
 });
 
 test('Skipped is neutral (ink2); only Missed is risk', () => {

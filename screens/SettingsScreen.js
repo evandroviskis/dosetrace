@@ -44,6 +44,8 @@ import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { pluralKey } from '../lib/plural';
+import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity } from '../lib/activityLevels';
+import { activityParts } from '../lib/progressFormat';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -217,7 +219,7 @@ export default function SettingsScreen({ navigation }) {
       setCountry(user.user_metadata?.country || '');
       const pg = user.user_metadata?.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
-      setActivityLevel(user.user_metadata?.activity_level || '');
+      setActivityLevel(normalizeActivityLevel(user.user_metadata?.activity_level)); // 4 → 5 levels, never lost
       setHasProvider(user.user_metadata?.has_provider || '');
     }
   }
@@ -270,6 +272,8 @@ export default function SettingsScreen({ navigation }) {
           country: country.trim() || null,
           primary_goal: primaryGoals.length > 0 ? primaryGoals.join(',') : null,
           activity_level: activityLevel || null,
+          // An old 4-level value rewritten as its new level is kept (never lose user data).
+          ...legacyActivity(user?.user_metadata?.activity_level, activityLevel),
           has_provider: hasProvider || null,
         },
       });
@@ -1245,21 +1249,27 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_activity')}</Text>
-              <View style={s.editRow}>
-                {[
-                  { key: 'sedentary', label: t('profile_activity_sedentary') },
-                  { key: 'moderate', label: t('profile_activity_moderate') },
-                  { key: 'active', label: t('profile_activity_active') },
-                  { key: 'very_active', label: t('profile_activity_very_active') },
-                ].map(a => (
-                  <TouchableOpacity
-                    key={a.key}
-                    style={[s.editPill, activityLevel === a.key && s.editPillOn]}
-                    onPress={() => setActivityLevel(a.key)}
-                  >
-                    <Text style={[s.editPillText, activityLevel === a.key && s.editPillTextOn]}>{a.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* One activity scale everywhere (Q3 = A, A-54): the calculator's 5 levels, a bold
+                  title and its sub-line, as onboarding "Your routine". An old 4-level value is
+                  shown on its new level (lib/activityLevels) and saved as the new key. */}
+              <View style={s.actList}>
+                {PROFILE_ACTIVITY.map((a, i) => {
+                  const on = activityLevel === a.key;
+                  const prevOn = i > 0 && activityLevel === PROFILE_ACTIVITY[i - 1].key;
+                  const parts = activityParts(t(a.labelKey));
+                  return (
+                    <View key={a.key}>
+                      {i > 0 && <View style={[s.actDiv, (on || prevOn) && s.actDivHidden]} />}
+                      <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivityLevel(a.key)} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+                        <View style={s.actTexts}>
+                          <Text style={s.actText}>{parts[0]}</Text>
+                          {parts[1] ? <Text style={s.actSub}>{parts[1]}</Text> : null}
+                        </View>
+                        {on && <CheckMark size={22} color={colors.ink} />}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
               </View>
             </View>
 
@@ -1489,6 +1499,14 @@ const settingsGraduated = (c) => ({
   editRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   editMGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   editMChip: { width: '22%', flexGrow: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 1, borderColor: c.line },
+  actList: { backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, overflow: 'hidden' },
+  actRow: { minHeight: 60, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 2, borderColor: c.raised },
+  actRowOn: { borderColor: c.ink },
+  actDiv: { height: 1, backgroundColor: c.line },
+  actDivHidden: { backgroundColor: c.raised },
+  actTexts: { flex: 1, gap: 2 },
+  actText: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+  actSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   editPill: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: c.line },
   editPillOn: { backgroundColor: c.raised, borderColor: c.ink, borderWidth: 1.5 },
   editPillText: { fontSize: 15, color: c.ink2, fontWeight: '400' },

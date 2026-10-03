@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Platform,
   Linking,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
   getOfferings,
@@ -22,11 +22,17 @@ import {
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
+import RowChevron from '../components/RowChevron';
 import AccumulationHero from '../components/AccumulationHero';
 import { FeaturePreviewSheet, PREVIEW_FEATURES } from '../components/FeaturePreviews';
-import { friendlyError } from '../lib/friendlyError';
+import { DTSheet } from './components/ProtocolParts';
 import { getEntitlement } from '../lib/entitlement';
 import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
+import {
+  pickPackages, paywallView, savingsPct, perMonthString, ctaModel, defaultPlan,
+  purchaseOutcome, restoreOutcome, outcomeSheet, comparisonRows, includedLines, storeName,
+} from '../lib/paywallPlans';
+import { FREE_DAYS } from '../lib/foodThread';
 import LegalModal from '../components/LegalModal';
 import { Analytics } from '../lib/analytics';
 import CheckMark from '../components/CheckMark';
@@ -35,8 +41,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PAYWALL_VIEWS_KEY = 'dosetrace_paywall_views';
 const PAYWALL_ANIM_VARIANT = 'hero_b'; // bump when the paywall hero animation changes
 
+// The back arrow (prototype CHEV), drawn — never a font glyph.
+function BackChevron({ color }) {
+  return (
+    <Svg width={11} height={18} viewBox="0 0 10 16" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path d="M8 2 L2 8 L8 14" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+/**
+ * Upgrade to Premium (docs/specs/premium-and-auth.md PA-1…PA-21; prototype paywallScreen,
+ * approved from the pictures 2026-10-03). Every price, saving and trial comes from the store
+ * at runtime (lib/paywallPlans); every message is a DoseTrace sheet, never a native alert.
+ */
 export default function PaywallScreen({ navigation, route }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
@@ -44,55 +64,62 @@ export default function PaywallScreen({ navigation, route }) {
   const heroW = Math.min(CONTENT_MAX_WIDTH, winW) - 32 - 28;
   const scrollRef = useRef(null);
   const plansY = useRef(0);
-  // Which entry point sent the user here (serum card, PDF wall, 2nd-upload wall,
-  // settings, protocol limit, preview sheet, …) — for per-source conversion.
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  // Which entry point sent the user here (serum card, PDF wall, settings, protocol limit,
+  // preview sheet, …) — for per-source conversion.
   const source = route?.params?.source || 'unknown';
-  const [selected, setSelected] = useState('annual');
+  const onSuccess = route?.params?.onSuccess;
+  const [selected, setSelected] = useState(null);
   const [packages, setPackages] = useState([]);
+  const [eligibility, setEligibility] = useState(null); // iOS { productId: bool }; null = unknown
   const [loading, setLoading] = useState(true);
+  const [premium, setPremium] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [trialEligibility, setTrialEligibility] = useState(null); // null = unknown
   const [previewKey, setPreviewKey] = useState(null); // which feature preview sheet is open
-  const onSuccess = route?.params?.onSuccess;
+  const [sheet, setSheet] = useState(null); // the DoseTrace message sheet
+  const [showTerms, setShowTerms] = useState(false);
 
-  function openPreview(key) {
-    Analytics.previewSheetViewed(key);
-    setPreviewKey(key);
-  }
+  // Terms link: Apple's Standard EULA on iOS, DoseTrace's own terms (in-app) on Android.
+  const terms = termsTarget(Platform.OS);
 
-  // "Unlock with Premium" inside a preview: we are already on the paywall, so it
-  // closes the sheet and brings the plans into view (no purchase is started).
-  function unlockFromPreview() {
-    setPreviewKey(null);
-    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, plansY.current - 12), animated: true }), 250);
-  }
+  const leave = useCallback(() => { if (navigation.canGoBack?.() !== false) navigation.goBack(); }, [navigation]);
 
-  const FREE_FEATURES = [
-    { label: t('paywall_free_feat_1'), included: true },   // Reconstitution calculator
-    { label: t('paywall_free_feat_3'), included: true },   // Up to 3 protocols
-    { label: t('paywall_free_feat_4'), included: true },   // Injection log & vial tracker
-    { label: t('paywall_free_feat_5'), included: true },   // Reminders
-    { label: t('pw_free_labvax'), included: true },        // Lab & vaccine journals (manual)
-    { label: t('pw_free_calc'), included: true },          // Energy & protein calculator
-    { label: t('pw_free_scan1'), included: true },         // 3 free scans a month (one pool: labs, vaccines, vials)
-    { label: t('pw_free_sync'), included: true },          // Cloud backup & sync (free)
-    { label: t('paywall_feat_4'), included: false },       // Unlimited protocols
-    { label: t('pw_prem_scan'), included: false },         // Lab, vaccine & vial scans (Premium)
-    { label: t('pw_prem_pdf'), included: false },          // PDF export
-    { label: t('pw_prem_reality'), included: false },      // Reality check + progress
-    { label: t('body_card_dosing_title'), included: false }, // Dose accumulation / serum curve
-  ];
+  // A message sheet for one outcome (lib/paywallPlans outcomeSheet). Done on a success
+  // sheet leaves the paywall; every other sheet just closes (OK).
+  const showOutcome = useCallback((kind) => {
+    const cfg = outcomeSheet(kind, t);
+    if (!cfg) return;
+    setSheet({
+      icon: cfg.icon,
+      title: cfg.title,
+      body: cfg.body,
+      buttons: [{ label: cfg.done ? t('done') : t('ok'), kind: 'primary', onPress: cfg.done ? leave : undefined }],
+    });
+  }, [t, leave]);
 
-  const PREMIUM_FEATURES = [
-    t('paywall_feat_1'),        // Everything in Free
-    t('paywall_feat_4'),        // Unlimited protocols
-    t('pw_prem_scan_full'),     // Unlimited lab & vaccine scanning — photo/PDF, any language
-    t('pw_prem_pdf'),           // PDF export for your doctor
-    t('pw_prem_reality'),       // Reality check & progress tracking
-    t('settings_premium_feat_3'), // AI food log, every day (same promise as the Settings card)
-    t('body_card_dosing_title'), // Dose accumulation / serum curve
-  ];
+  // Prices, the trial answer and the user's Premium state, all before any buy button
+  // shows (PA-6): the label never changes under the user's thumb.
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [pkgs, ent] = await Promise.all([
+      getOfferings().catch(() => []),
+      getEntitlement().catch(() => ({ premium: false })),
+    ]);
+    let elig = null;
+    const subIds = (pkgs || [])
+      .filter((p) => p && (p.packageType === 'MONTHLY' || p.packageType === 'ANNUAL') && p.product)
+      .map((p) => p.product.identifier);
+    if (subIds.length > 0) elig = await checkTrialEligibility(subIds).catch(() => null);
+    if (!mounted.current) return;
+    setPackages(pkgs || []);
+    setEligibility(elig);
+    setSelected((cur) => cur || defaultPlan(pkgs));
+    setPremium(!!(ent && ent.premium));
+    setLoading(false);
+    if (ent && ent.premium) showOutcome('premium_already');
+  }, [showOutcome]);
 
   useEffect(() => {
     Analytics.viewed('paywall');
@@ -106,131 +133,68 @@ export default function PaywallScreen({ navigation, route }) {
       } catch { /* ignore */ }
       Analytics.paywallViewed(source, { animVariant: PAYWALL_ANIM_VARIANT, viewCount });
     })();
-    loadOfferings();
+    load();
   }, []);
 
-  async function loadOfferings() {
-    const pkgs = await getOfferings();
-    setPackages(pkgs);
-    setLoading(false);
-
-    // Trial eligibility (iOS-only API — null means unknown, show neutral copy)
-    // Trial eligibility (iOS-only) is keyed by the real store product id, taken
-    // from the actual subscription packages (see getPackageFor note on Android
-    // base-plan suffixes).
-    const subIds = pkgs
-      .filter(p => p.packageType === 'MONTHLY' || p.packageType === 'ANNUAL')
-      .map(p => p.product.identifier);
-    if (subIds.length > 0) {
-      const eligibility = await checkTrialEligibility(subIds);
-      setTrialEligibility(eligibility);
-    }
+  function openPreview(key) {
+    Analytics.previewSheetViewed(key);
+    setPreviewKey(key);
   }
 
-  function getPackageFor(type) {
-    // Match by RevenueCat packageType, NOT product.identifier. On Android a
-    // subscription's product.identifier carries its base-plan suffix
-    // (e.g. "monthly:p1m", "yearly:annual"), so matching the bare id hides every
-    // subscription and leaves only the suffix-less lifetime product visible.
-    const wanted = type === 'annual' ? 'ANNUAL'
-      : type === 'monthly' ? 'MONTHLY'
-      : 'LIFETIME';
-    return packages.find(p => p.packageType === wanted);
+  // "Unlock with Premium" inside a preview: we are already on the paywall, so it closes the
+  // sheet and brings the plans into view (no purchase is started).
+  function unlockFromPreview() {
+    setPreviewKey(null);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, plansY.current - 12), animated: true }), 250);
   }
 
-  const annualPkg = getPackageFor('annual');
-  const monthlyPkg = getPackageFor('monthly');
-  const lifetimePkg = getPackageFor('lifetime');
-  const selectedPkg = getPackageFor(selected);
-  const hasSubscription = !!(annualPkg || monthlyPkg);
-  const hasAnyPackage = !!(hasSubscription || lifetimePkg);
-
-  // Only claim a free trial when eligibility is confirmed by the store
-  const trialEligible = !!(selectedPkg && trialEligibility &&
-    trialEligibility[selectedPkg.product.identifier] === true);
-
-  function monthlyEquivalent(pkg) {
-    return pkg?.product?.pricePerMonthString || null;
-  }
-
-  function annualSavingsLabel() {
-    const a = annualPkg?.product?.price;
-    const m = monthlyPkg?.product?.price;
-    if (!a || !m) return null;
-    const pct = Math.round((1 - a / (m * 12)) * 100);
-    return pct > 0 ? t('paywall_save_pct').replace('{pct}', String(pct)) : null;
-  }
-
-  function ctaSubText() {
-    if (!selectedPkg) return '';
-    const per = t(selected === 'annual' ? 'paywall_per_year' : 'paywall_per_month');
-    const price = `${selectedPkg.product.priceString} ${per}`;
-    const key = trialEligible ? 'paywall_then_price' : 'paywall_price_cancel';
-    return t(key).replace('{price}', price);
-  }
+  const view = paywallView({ loading, premium, pkgs: packages });
+  const { annual: annualPkg, monthly: monthlyPkg, lifetime: lifetimePkg } = pickPackages(packages);
+  const cta = selected ? ctaModel({ selected, pkgs: packages, eligibility, platform: Platform.OS, t }) : null;
+  const save = savingsPct(annualPkg, monthlyPkg);
+  const perMonth = perMonthString(annualPkg, language);
 
   async function doPurchase(pkg, plan) {
-    if (!pkg) {
-      Alert.alert(t('error'), t('paywall_product_unavailable'));
-      return;
-    }
+    if (purchasing) return;
+    if (!pkg) { showOutcome('unavailable'); return; }
     Analytics.paywallCtaTapped({ plan, source });
     setPurchasing(true);
     const result = await purchasePackage(pkg);
+    let premiumNow = false;
+    // Refresh the ONE entitlement helper (it also writes the offline cache at once).
+    if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
+    if (!mounted.current) return;
     setPurchasing(false);
-
-    if (result.success) {
-      // Refresh the ONE entitlement helper (it also writes the offline cache at once).
-      const ent = await getEntitlement();
-      const premium = result.premium || ent.premium;
-      if (premium) Analytics.purchaseCompleted({ plan, source });
-      if (premium && onSuccess) onSuccess();
-      navigation.goBack();
-    } else if (!result.cancelled) {
-      Alert.alert(t('error'), friendlyError(result.error, t, 'paywall_purchase_failed'));
+    const outcome = purchaseOutcome(result, premiumNow);
+    if (outcome === 'premium') {
+      Analytics.purchaseCompleted({ plan, source });
+      if (onSuccess) onSuccess();
+      leave();
+      return;
     }
+    showOutcome(outcome); // pending / failed; cancelled says nothing
   }
-
-  function handlePurchase() {
-    doPurchase(selectedPkg, selected);
-  }
-
-  function handleLifetime() {
-    doPurchase(lifetimePkg, 'lifetime');
-  }
-
-  // Terms link: Apple's Standard EULA on iOS, DoseTrace's own terms (in-app) on Android.
-  const terms = termsTarget(Platform.OS);
-  const [showTerms, setShowTerms] = useState(false);
 
   async function handleRestore() {
+    if (restoring) return;
     setRestoring(true);
     const result = await restorePurchases();
+    let premiumNow = false;
+    if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
+    if (!mounted.current) return;
     setRestoring(false);
-
-    if (result.success) {
-      const ent = await getEntitlement();
-      const premium = result.premium || ent.premium;
-      if (premium) {
-        Alert.alert(t('paywall_restored'), t('paywall_restored_msg'));
-        if (onSuccess) onSuccess();
-        navigation.goBack();
-      } else {
-        Alert.alert(t('paywall_no_purchases'), t('paywall_no_purchases_msg'));
-      }
-    } else {
-      Alert.alert(t('error'), friendlyError(result.error, t, 'paywall_restore_failed'));
-    }
+    const outcome = restoreOutcome(result, premiumNow);
+    if (outcome === 'restored' && onSuccess) onSuccess();
+    showOutcome(outcome === 'failed' ? 'restore_failed' : outcome);
   }
 
-  // Graduated (docs/design/prototype.html paywallScreen, approved 2026-09-30):
-  // hero curve, the 8 feature previews, the plans (selected = ink outline + ink
-  // radio), Lifetime as a secondary action, ONE ink capsule to buy, the store's
-  // billing text, then Restore + Terms of Use (EULA) + Privacy, then the comparison.
+  // Graduated (prototype paywallScreen): hero curve, the 8 feature previews, the plans
+  // (selected = ink outline + ink radio), Lifetime as a secondary action, ONE ink capsule to
+  // buy, the store's billing text, then Restore + Terms of Use (EULA) + Privacy, then the
+  // comparison and what Premium includes.
   const renderPlan = (plan, pkg) => {
     const on = selected === plan;
-    const annual = plan === 'annual';
-    const save = annual ? annualSavingsLabel() : null;
+    const isAnnual = plan === 'annual';
     return (
       <TouchableOpacity
         key={plan}
@@ -240,22 +204,20 @@ export default function PaywallScreen({ navigation, route }) {
         accessibilityRole="radio"
         accessibilityState={{ checked: on }}
       >
-        {annual ? (
+        {isAnnual ? (
           <View style={s.otag}><Text style={s.otagText}>{t('paywall_best_value')}</Text></View>
         ) : (
           <View style={s.otagSpace} />
         )}
         <View style={[s.radio, on && s.radioOn]} />
-        <Text style={s.planName}>{t(annual ? 'paywall_annual' : 'paywall_monthly')}</Text>
-        {/* The billed amount is the biggest price on the card; the length sits next to it. */}
+        <Text style={s.planName}>{t(isAnnual ? 'paywall_annual' : 'paywall_monthly')}</Text>
+        {/* Apple 3.1.2: the billed amount is the biggest price on the card; the length sits next to it. */}
         <Text style={s.planPrice} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{pkg.product.priceString}</Text>
-        <Text style={s.planPer}>{t(annual ? 'paywall_per_year' : 'paywall_per_month')}</Text>
-        {annual ? (
+        <Text style={s.planPer}>{t(isAnnual ? 'paywall_per_year' : 'paywall_per_month')}</Text>
+        {isAnnual ? (
           <>
-            {save ? <Text style={s.planSave}>{save}</Text> : null}
-            {monthlyEquivalent(pkg) ? (
-              <Text style={s.planFoot}>{`${monthlyEquivalent(pkg)} ${t('paywall_per_month')}`}</Text>
-            ) : null}
+            {save ? <Text style={s.planSave}>{t('paywall_save_pct').replace('{pct}', String(save))}</Text> : null}
+            {perMonth ? <Text style={s.planFoot}>{`${perMonth} ${t('paywall_per_month')}`}</Text> : null}
           </>
         ) : (
           <Text style={[s.planFoot, s.planFootEnd]}>{t('paywall_billed_monthly')}</Text>
@@ -264,11 +226,14 @@ export default function PaywallScreen({ navigation, route }) {
     );
   };
 
+  const rows = comparisonRows(t, { freeFoodDays: FREE_DAYS });
+
   return (
     <SafeAreaView style={s.container}>
       <View style={s.nav}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.navSide} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={s.navBack} numberOfLines={1}>{t('paywall_back')}</Text>
+        <TouchableOpacity onPress={leave} style={[s.navSide, s.navBack]} accessibilityRole="button" accessibilityLabel={t('back')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <BackChevron color={colors.ink} />
+          <Text style={s.navBackText} numberOfLines={1}>{t('back')}</Text>
         </TouchableOpacity>
         <Text style={s.navTitle} numberOfLines={1}>{t('paywall_title')}</Text>
         <View style={s.navSide} />
@@ -277,9 +242,8 @@ export default function PaywallScreen({ navigation, route }) {
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
 
         <View style={s.hero}>
-          {/* Show the moat, don't describe it: the dose-accumulation curve draws
-              itself at the purchase moment. Illustrative Example data only —
-              the user's real curve is computed from their own log once Premium. */}
+          {/* Show the moat, don't describe it: the dose-accumulation curve draws itself at the
+              purchase moment. Illustrative Example data only. */}
           <AccumulationHero width={heroW} height={140} />
           <Text style={s.heroTitle}>{t('paywall_hero_title')}</Text>
           <Text style={s.heroSub}>{t('paywall_hero_sub')}</Text>
@@ -302,24 +266,27 @@ export default function PaywallScreen({ navigation, route }) {
               >
                 <FeatureIcon name={f.icon} size={26} color={colors.data} />
                 <Text style={s.rowText}>{t(f.titleKey)}</Text>
-                <Text style={s.chev}>›</Text>
+                <RowChevron color={colors.tick} />
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         <View onLayout={(e) => { plansY.current = e.nativeEvent.layout.y; }}>
-          {loading ? (
+          {view === 'loading' ? (
             <View style={s.loadingBox}>
               <ActivityIndicator color={colors.ink2} />
             </View>
-          ) : !hasAnyPackage ? (
+          ) : view === 'unavailable' ? (
             <View style={s.unavailable}>
               <Text style={s.unavailableText}>{t('paywall_unavailable')}</Text>
+              <TouchableOpacity style={s.linkBtn} onPress={load} accessibilityRole="button">
+                <Text style={s.legalLink}>{t('pw_try_again')}</Text>
+              </TouchableOpacity>
             </View>
-          ) : (
+          ) : view === 'plans' ? (
             <View style={s.buy}>
-              {hasSubscription && (
+              {(annualPkg || monthlyPkg) && (
                 <View style={s.plans} accessibilityRole="radiogroup">
                   {annualPkg && renderPlan('annual', annualPkg)}
                   {monthlyPkg && renderPlan('monthly', monthlyPkg)}
@@ -335,7 +302,7 @@ export default function PaywallScreen({ navigation, route }) {
                     </View>
                     <TouchableOpacity
                       style={[s.lifetimeBtn, purchasing && s.busy]}
-                      onPress={handleLifetime}
+                      onPress={() => doPurchase(lifetimePkg, 'lifetime')}
                       disabled={purchasing}
                       accessibilityRole="button"
                     >
@@ -346,10 +313,10 @@ export default function PaywallScreen({ navigation, route }) {
                 </View>
               )}
 
-              {hasSubscription && (
+              {cta && (
                 <TouchableOpacity
                   style={[s.cta, purchasing && s.busy]}
-                  onPress={handlePurchase}
+                  onPress={() => doPurchase(cta.pkg, selected)}
                   disabled={purchasing}
                   activeOpacity={0.85}
                   accessibilityRole="button"
@@ -358,23 +325,20 @@ export default function PaywallScreen({ navigation, route }) {
                     <ActivityIndicator color={colors.onAct} />
                   ) : (
                     <>
-                      <Text style={s.ctaText}>
-                        {trialEligible ? t('paywall_start_trial') : t('paywall_subscribe_now')}
-                      </Text>
-                      <Text style={s.ctaSub}>{ctaSubText()}</Text>
+                      <Text style={s.ctaText}>{cta.title}</Text>
+                      <Text style={s.ctaSub}>{cta.sub}</Text>
                     </>
                   )}
                 </TouchableOpacity>
               )}
 
-              {hasSubscription && (
+              {cta && (
                 <Text style={s.legalNote}>
-                  {(trialEligible ? t('paywall_legal') : t('paywall_legal_no_trial'))
-                    .replace(/\{store\}/g, Platform.OS === 'ios' ? 'Apple ID' : 'Google Play')}
+                  {t(cta.legalKey).replace(/\{store\}/g, storeName(Platform.OS))}
                 </Text>
               )}
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={s.links}>
@@ -414,13 +378,15 @@ export default function PaywallScreen({ navigation, route }) {
               <Text style={[s.cmpHead, s.cmpCell]}>{t('paywall_free')}</Text>
               <Text style={[s.cmpHead, s.cmpCell, s.cmpHeadPremium]}>{t('paywall_premium')}</Text>
             </View>
-            {FREE_FEATURES.map((f, i) => (
+            {rows.map((r, i) => (
               <View key={i} style={[s.cmpRow, s.rowSep]}>
-                <Text style={[s.cmpLabel, s.cmpLabelCol]}>{f.label}</Text>
+                <Text style={[s.cmpLabel, s.cmpLabelCol]}>{r.label}</Text>
                 <View style={s.cmpCell}>
-                  {f.included
+                  {r.free === true
                     ? <CheckMark size={18} color={colors.ink} />
-                    : <Text style={s.cmpNo}>—</Text>}
+                    : r.free === false
+                      ? <Text style={s.cmpNo}>—</Text>
+                      : <Text style={s.cmpAmount}>{r.free}</Text>}
                 </View>
                 <View style={s.cmpCell}><CheckMark size={18} color={colors.ink} /></View>
               </View>
@@ -431,7 +397,7 @@ export default function PaywallScreen({ navigation, route }) {
         <View style={s.section}>
           <Text style={[s.sectionTitle, s.sectionHead]}>{t('paywall_whats_included_premium')}</Text>
           <View style={s.names}>
-            {PREMIUM_FEATURES.map((f, i) => (
+            {includedLines(t).map((f, i) => (
               <View key={i} style={s.nameRow}>
                 <CheckMark size={20} color={colors.data} />
                 <Text style={s.nameText}>{f}</Text>
@@ -444,6 +410,7 @@ export default function PaywallScreen({ navigation, route }) {
       </ScrollView>
 
       <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} onUnlock={unlockFromPreview} />
+      <DTSheet config={sheet} onClose={() => setSheet(null)} />
       {terms.kind === 'inApp' && (
         <LegalModal
           visible={showTerms}
@@ -462,8 +429,9 @@ export default function PaywallScreen({ navigation, route }) {
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 16, gap: 8 },
-  navSide: { width: 72, minHeight: 44, justifyContent: 'center' },
-  navBack: { fontSize: 17, color: c.ink },
+  navSide: { width: 76, minHeight: 44, justifyContent: 'center' },
+  navBack: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6 },
+  navBackText: { fontSize: 17, color: c.ink },
   navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
   content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 24 },
 
@@ -479,10 +447,9 @@ const makeStyles = (c) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
   rowSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
   rowText: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
-  chev: { fontSize: 22, color: c.ink3 },
 
   loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
-  unavailable: { backgroundColor: c.raised, borderRadius: 20, padding: 20, alignItems: 'center' },
+  unavailable: { backgroundColor: c.raised, borderRadius: 20, padding: 20, alignItems: 'center', gap: 4 },
   unavailableText: { fontSize: 15, lineHeight: 20, color: c.ink2, textAlign: 'center' },
 
   buy: { gap: 12 },
@@ -526,11 +493,12 @@ const makeStyles = (c) => StyleSheet.create({
 
   cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 8 },
   cmpLabelCol: { flex: 1 },
-  cmpCell: { width: 64, alignItems: 'center', textAlign: 'center' },
+  cmpCell: { width: 72, alignItems: 'center', textAlign: 'center' },
   cmpHead: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
   cmpHeadPremium: { color: c.data, fontWeight: '700' },
   cmpLabel: { fontSize: 15, lineHeight: 20, color: c.ink },
   cmpNo: { fontSize: 15, fontWeight: '600', color: c.ink3 },
+  cmpAmount: { fontSize: 12, lineHeight: 16, color: c.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
 
   names: { gap: 8, paddingHorizontal: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

@@ -1,11 +1,38 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image,
-  StyleSheet, useWindowDimensions, Modal, FlatList, BackHandler, Alert, Linking,
+  StyleSheet, useWindowDimensions, Modal, BackHandler, Linking,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
+import { useLanguage } from '../i18n/LanguageContext';
+import { useTheme } from '../lib/theme';
+import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import { saveOnboarding, loadOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
+import { supabase, signOutGoogleNative, missingProfileFields } from '../lib/supabase';
+import { markIntentionalSignOut } from '../lib/authIntent';
+import { goalOptions } from '../lib/profileGoals';
+import { COUNTRIES, countryLabel } from '../lib/countries';
+import { PRIVACY_URL } from '../lib/legalLinks';
+import { friendlyError } from '../lib/friendlyError';
+import { PROFILE_ACTIVITY } from '../lib/activityLevels';
+import { activityParts } from '../lib/progressFormat';
+import {
+  STEPS, birthYearState, activeSteps as stepsFor, canContinue as canGo, formFrom, stashPatch,
+  accountPatch, refreshForm, entryStep,
+} from '../lib/onboardingSteps';
+import AccumulationHero from '../components/AccumulationHero';
+import FeatureIcon from '../components/FeatureIcon';
+import CheckMark from '../components/CheckMark';
+import SegmentedBar from '../components/SegmentedBar';
+import LegalModal from '../components/LegalModal';
+import { DTSheet } from './components/ProtocolParts';
+import { BottomSheet } from './components/BodySheets';
+import Svg, { Path } from 'react-native-svg';
+import { MONO } from '../lib/fonts';
 
 // One progress segment: fills (or empties) as you move through the steps.
 function ProgressDash({ on, s }) {
@@ -22,22 +49,6 @@ function ProgressDash({ on, s }) {
     </View>
   );
 }
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
-import { useLanguage } from '../i18n/LanguageContext';
-import { useTheme } from '../lib/theme';
-import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { saveOnboarding, markSeenOnboarding } from '../lib/onboardingStore';
-import { supabase, signOutGoogleNative, missingProfileFields } from '../lib/supabase';
-import { markIntentionalSignOut } from '../lib/authIntent';
-import { goalOptions } from '../lib/profileGoals';
-import { COUNTRIES, countryLabel } from '../lib/countries';
-import AccumulationHero from '../components/AccumulationHero';
-import FeatureIcon from '../components/FeatureIcon';
-import CheckMark from '../components/CheckMark';
-import SegmentedBar from '../components/SegmentedBar';
-import Svg, { Path } from 'react-native-svg';
-import { MONO } from '../lib/fonts';
 
 // Drawn monoline chevron (back / open / dropdown) — never a font glyph.
 const CHEVRON_PATHS = { left: 'M8 2 L2 8 L8 14', right: 'M2 2 L8 8 L2 14', down: 'M2 2 L8 8 L14 2' };
@@ -51,33 +62,26 @@ function Chevron({ dir, color }) {
 }
 
 /**
- * The single value-before-signup onboarding. Runs on first launch (no account
- * yet), educates on the app, collects the FULL required profile (name, age
- * [month+year], sex, country, goal, what-you-track, activity, provider) plus
- * binding consent, and hands off to account creation LAST. Everything is stashed
- * (onboardingStore) and written to the account at sign-up, so there is no second
- * profile step afterward — this replaces the old 8-intro + 7-legacy = 15 screens
- * with one flow.
+ * The single value-before-signup onboarding (docs/specs/premium-and-auth.md PA-30…PA-42;
+ * prototype onbScreen, approved from the pictures 2026-10-03). The rules live in
+ * lib/onboardingSteps.js; this screen renders them.
  *
- * TWO MODES (one screen, no more separate CompleteProfileScreen):
- *  • Pre-account (no `session`): the value-first flow. onDone() flips App.js to the
- *    auth screen, which reads the stash and creates the account; applyPendingProfile
- *    then writes the stash on SIGNED_IN.
- *  • Signed-in (`session` passed): an Apple/Google sign-in or a returning account
- *    missing required fields. Prefills from the profile, shows ONLY the missing
- *    steps, and writes straight to the account on finish (the stash path never
- *    fires here). Offers a sign-out escape. On save, USER_UPDATED clears the gate.
+ * TWO MODES (one screen):
+ *  • Pre-account (no `session`): the prototype's 8 steps. Everything typed is stashed
+ *    (onboardingStore) as the user goes, and the flow reopens where it was left with the
+ *    values kept (Back from Create account lands on "Never miss a dose"). Both buttons of the
+ *    last step go to Create account: onDone('create'); "Already have an account? Sign in"
+ *    on the welcome screen: onDone('signin').
+ *  • Signed-in (`session` passed): an Apple/Google sign-in or a returning account missing
+ *    required fields (the build-49 gate). Prefilled from the account, only the missing steps
+ *    (+ consent if never recorded), then "Finish setup", which writes only those steps'
+ *    fields to the account. A sign-out escape stays in the corner.
  */
-const STEPS = ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders', 'ready'];
-
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
   'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
-const PRIVACY_URL = 'https://dosetrace.io/privacy-policy';
-const BIRTH_YEARS = [];
-const _thisYear = new Date().getFullYear();
-for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
+const FRESH_ACCOUNT_WINDOW_MS = 60 * 60 * 1000; // same window as applyPendingProfile
 
 export default function OnboardingFlowScreen({ onDone, session }) {
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
@@ -85,43 +89,81 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
   const heroW = Math.min(420, winW - 32); // 16 pt screen gutter each side
+  const thisYear = new Date().getFullYear();
 
-  // Signed-in mode: the user already has an account (an Apple/Google sign-in, or
-  // a returning account missing required fields). We prefill from their profile,
-  // show only the steps they still need, WRITE the result straight to the account
-  // on finish, and offer a sign-out escape. No session → the original pre-account
-  // flow (stash locally → Auth → applyPendingProfile on sign-up).
   const signedIn = !!session?.user;
   const meta = (session && session.user && session.user.user_metadata) || {};
   const [saving, setSaving] = useState(false);
+  const [sheet, setSheet] = useState(null);
 
+  // The form. Signed-in: from the account. Pre-account: from the stash (loaded below).
+  const [d, setD] = useState(() => formFrom(signedIn ? meta : {}));
+  const touched = useRef(new Set());
+  const set = (k, v) => { touched.current.add(k); setD((cur) => ({ ...cur, [k]: typeof v === 'function' ? v(cur[k]) : v })); };
+  const [ready, setReady] = useState(signedIn);
   const [step, setStep] = useState(0);
-  const [goals, setGoals] = useState(String(meta.primary_goal || '').split(',').map((x) => x.trim()).filter(Boolean)); // multi-select
-  const [tracking, setTracking] = useState(Array.isArray(meta.tracking_types) ? meta.tracking_types : []);
-  const [name, setName] = useState(meta.display_name || '');
-  const [birthMonth, setBirthMonth] = useState(meta.birth_month != null ? meta.birth_month - 1 : null); // stored 1-based → 0-11 index
-  const [birthYear, setBirthYear] = useState(meta.birth_year != null ? meta.birth_year : null);
-  const [birthYearText, setBirthYearText] = useState(meta.birth_year != null ? String(meta.birth_year) : '');
-  const [gender, setGender] = useState(meta.gender || '');
-  const [country, setCountry] = useState(meta.country || '');
-  const [activity, setActivity] = useState(meta.activity_level || '');
-  const [provider, setProvider] = useState(meta.has_provider != null ? String(meta.has_provider) : '');
-  const [confirmed, setConfirmed] = useState({});      // consent terms
+
+  // Pre-account: reopen with what was already entered, at the step the user left
+  // (PA-62 — Back from Create account used to restart empty).
+  useEffect(() => {
+    if (signedIn) return;
+    let active = true;
+    loadOnboarding().then((stash) => {
+      if (!active) return;
+      setD(formFrom(stash));
+      setStep(entryStep(stash));
+      setReady(true);
+    }).catch(() => { if (active) setReady(true); });
+    return () => { active = false; };
+  }, []);
+
+  // Signed-in: a fresh account (an Apple/Google sign-up minutes ago) may still be waiting
+  // for the deferred write of its onboarding answers — show them now (same 1 h window and
+  // leak guard as applyPendingProfile). Later profile changes fill untouched fields.
+  useEffect(() => {
+    if (!signedIn) return;
+    const created = Date.parse(session.user.created_at || '');
+    if (!(isFinite(created) && Date.now() - created < FRESH_ACCOUNT_WINDOW_MS)) return;
+    let active = true;
+    loadOnboarding().then((stash) => {
+      if (active && stash && Object.keys(stash).length) setD((cur) => refreshForm(cur, { ...stash, ...metaForms(meta) }, touched.current));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+  const metaKey = JSON.stringify(meta);
+  useEffect(() => {
+    if (signedIn) setD((cur) => refreshForm(cur, meta, touched.current));
+  }, [metaKey]);
+
   const [showLang, setShowLang] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  const [legal, setLegal] = useState(false);
 
-  // Step transition: the new step slides in from the direction you're moving
-  // (Continue → from the right, Back → from the left) while it fades in.
+  // The steps to show (lib/onboardingSteps activeSteps).
+  const missingKey = signedIn ? missingProfileFields(session.user).join(',') : '';
+  const steps = useMemo(
+    () => stepsFor({ signedIn, missing: missingKey ? missingKey.split(',') : [], consentAccepted: !!meta.consent_accepted }),
+    [signedIn, missingKey, meta.consent_accepted],
+  );
+  // Self-heal: right after an Apple/Google sign-up the session + metadata hydrate over a
+  // few frames, so the steps can shrink while `step` still points past the new end (the
+  // "blank onboarding screen after Sign in with Apple" bug). Clamp step back into range.
+  useEffect(() => {
+    if (step > steps.length - 1) setStep(Math.max(0, steps.length - 1));
+  }, [steps.length, step]);
+  const cur = steps[step];
+
+  // Step transition: the new step slides in from the direction you're moving.
   const reduceMotion = useReducedMotion();
-  const enter = useSharedValue(0);
+  const enter = useSharedValue(1);
   const dir = useSharedValue(0);
   const prevStepRef = useRef(step);
   useEffect(() => {
-    const d = step > prevStepRef.current ? 1 : step < prevStepRef.current ? -1 : 0;
+    const dd = step > prevStepRef.current ? 1 : step < prevStepRef.current ? -1 : 0;
     prevStepRef.current = step;
     if (reduceMotion) { enter.value = 1; return; }
-    dir.value = d;
+    dir.value = dd;
     enter.value = 0;
     enter.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
   }, [step, reduceMotion]);
@@ -130,8 +172,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     transform: [{ translateX: 24 * dir.value * (1 - enter.value) }],
   }));
 
-  // Android hardware / swipe back: close an open picker, else step back one; on
-  // the first screen let the OS handle it (exit). There must always be a way back.
+  // Android hardware / swipe back: close an open picker, else step back one; on the first
+  // screen let the OS handle it (exit). There must always be a way back.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showLang) { setShowLang(false); return true; }
@@ -149,12 +191,6 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     { key: 'hormones', label: t('onboarding_compound_hormones'), icon: 'reconstitution' },
     { key: 'glp1', label: t('onboarding_compound_glp1'), icon: 'type_glp1' },
     { key: 'oral', label: t('onboarding_compound_oral'), icon: 'type_capsule' },
-  ];
-  const ACTIVITY = [
-    { key: 'sedentary', label: t('profile_activity_sedentary') },
-    { key: 'moderate', label: t('profile_activity_moderate') },
-    { key: 'active', label: t('profile_activity_active') },
-    { key: 'very_active', label: t('profile_activity_very_active') },
   ];
   const PROVIDERS = [
     { key: 'yes', label: t('profile_provider_yes') },
@@ -178,113 +214,44 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     { key: 'ai', t: t('ob_term3_t'), d: t('ob_term3_d') },
     { key: 'priv', t: t('ob_term4_t'), d: t('ob_term4_d') },
   ];
-  // Already-consented accounts count as done (their consent step is skipped).
-  const consentDone = TERMS.every((x) => confirmed[x.key]) || !!meta.consent_accepted;
 
-  // The steps to actually show. Pre-account: the full flow. Signed-in: only the
-  // steps whose required fields are still missing, + consent (if not recorded) +
-  // the finish screen — so a returning user fills only the gaps, a brand-new
-  // social user still sees the whole profile flow.
-  const activeSteps = useMemo(() => {
-    if (!signedIn) return STEPS;
-    const need = new Set(missingProfileFields(session.user)); // name,age,sex,country,goal,activity,tracking,provider
-    const out = [];
-    if (need.has('goal')) out.push('goal');
-    if (need.has('tracking')) out.push('tracking');
-    if (need.has('name') || need.has('age') || need.has('sex') || need.has('country')) out.push('about');
-    if (need.has('activity') || need.has('provider')) out.push('routine');
-    if (!meta.consent_accepted) out.push('consent');
-    out.push('ready');
-    return out;
-  }, [signedIn, session, meta.consent_accepted]);
-
-  // Self-heal: right after an Apple/Google sign-up the session + metadata hydrate
-  // over a few frames, so activeSteps can shrink (or a consent record lands
-  // mid-flow) while `step` still points past the new end. That makes
-  // activeSteps[step] undefined → the body renders blank with only a stray
-  // Continue, and nothing resets it (the "blank onboarding screen after Sign in
-  // with Apple, had to restart the app" bug). Clamp step back into range.
-  useEffect(() => {
-    if (step > activeSteps.length - 1) setStep(Math.max(0, activeSteps.length - 1));
-  }, [activeSteps.length, step]);
-
-  function toggleTracking(key) {
-    setTracking((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
-  }
-
-  const canContinue = () => {
-    const cur = activeSteps[step];
-    if (!cur) return false; // step out of range mid-hydration — don't advance a blank step
-    if (cur === 'goal') return goals.length > 0;
-    if (cur === 'tracking') return tracking.length > 0;
-    if (cur === 'about') return !!name.trim() && !!gender && !!country && birthMonth != null && birthYear != null;
-    if (cur === 'routine') return !!activity && !!provider;
-    if (cur === 'consent') return consentDone;
-    return true;
-  };
+  const year = birthYearState(d.birthYearText, thisYear);
+  const form = { ...d, birthYear: year.year };
+  const canContinue = () => canGo(cur, form);
 
   async function persist() {
-    // Only stash keys that actually have a value. saveOnboarding merges {...cur,
-    // ...patch}, and a spread copies undefined-valued keys — so writing `undefined`
-    // for a not-yet-filled field would CLOBBER a value entered on an earlier step
-    // (the mid-onboarding-kill data-loss path). Strip undefined before saving.
-    const patch = {
-      display_name: name.trim() || undefined,
-      primary_goal: goals.length ? goals.join(',') : undefined,
-      tracking_types: tracking.length ? tracking : undefined,
-      gender: gender || undefined,
-      country: country || undefined,
-      birth_year: birthYear != null ? birthYear : undefined,
-      birth_month: birthMonth != null ? birthMonth + 1 : undefined, // store 1-based
-      activity_level: activity || undefined,
-      has_provider: provider || undefined,
-      consent_accepted: consentDone || undefined,
-      consent_date: consentDone ? new Date().toISOString() : undefined,
-    };
-    Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
-    await saveOnboarding(patch);
+    // Only keys with a value (saveOnboarding merges — an undefined would clobber an earlier step).
+    if (!signedIn) await saveOnboarding(stashPatch(form, new Date().toISOString()));
   }
 
   async function next() {
     if (!canContinue()) return;
     await persist();
-    if (step < activeSteps.length - 1) setStep(step + 1);
+    if (step < steps.length - 1) setStep(step + 1);
     else finish();
   }
   function back() { if (step > 0) setStep(step - 1); }
 
-  async function finish() {
-    // Signed-in mode: write the profile straight to the account (the pre-account
-    // stash path never fires here — SIGNED_IN already happened). On error, keep
-    // the entered data and surface it; success clears the gate via USER_UPDATED.
-    if (signedIn) {
-      if (saving) return;
-      setSaving(true);
-      const data = {
-        display_name: name.trim(),
-        primary_goal: goals.join(','),
-        tracking_types: tracking,
-        gender,
-        country: country.trim(),
-        birth_year: birthYear,
-        birth_month: birthMonth != null ? birthMonth + 1 : null,
-        activity_level: activity,
-        has_provider: provider,
-        onboarded_at: meta.onboarded_at || new Date().toISOString(),
-      };
-      if (consentDone && !meta.consent_accepted) {
-        data.consent_accepted = true;
-        data.consent_date = new Date().toISOString();
-      }
-      const { error } = await supabase.auth.updateUser({ data });
-      setSaving(false);
-      if (error) { Alert.alert(t('error'), error.message || String(error)); return; }
-      await markSeenOnboarding();
-      return; // App.js re-evaluates isProfileComplete() on USER_UPDATED → Main
-    }
+  async function toAuth(mode) {
     await persist();
     await markSeenOnboarding();
-    onDone && onDone();
+    onDone && onDone(mode);
+  }
+
+  async function finish() {
+    if (!signedIn) { toAuth('create'); return; }
+    // Signed-in: write the shown steps' fields to the account; on error keep everything
+    // typed and say so in a DoseTrace sheet. Success clears the gate via USER_UPDATED.
+    if (saving) return;
+    setSaving(true);
+    const data = accountPatch(form, meta, new Date().toISOString(), steps);
+    const { error } = await supabase.auth.updateUser({ data });
+    setSaving(false);
+    if (error) {
+      setSheet({ icon: 'alert', title: t('error'), body: friendlyError(error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      return;
+    }
+    await markSeenOnboarding();
   }
 
   // Escape hatch for a signed-in user who doesn't want to finish the profile —
@@ -296,16 +263,17 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     catch { await supabase.auth.signOut().catch(() => {}); }
   }
 
+  // "Never miss a dose": iOS asks for notifications, then Create account (both buttons go
+  // there — the "You're all set" step is gone, founder 2026-09-29).
   async function enableNotifications() {
     try { await Notifications.requestPermissionsAsync(); } catch (e) { /* later */ }
-    setStep(step + 1);
+    toAuth('create');
   }
 
-  const cur = activeSteps[step];
-  const filteredCountries = COUNTRIES.filter((c) => {
-    const q = countrySearch.toLowerCase();
-    return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
-  });
+  const q = countrySearch.toLowerCase();
+  const filteredCountries = COUNTRIES.filter((c) => c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q));
+
+  if (!ready) return <SafeAreaView style={s.root} />; // reading the stash (a few ms)
 
   return (
     <SafeAreaView style={s.root}>
@@ -315,10 +283,10 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             <Chevron dir="left" color={colors.ink} />
           </TouchableOpacity>
           <View style={s.progress}>
-            {activeSteps.map((_, i) => (<ProgressDash key={i} on={i <= step} s={s} />))}
+            {steps.map((_, i) => (<ProgressDash key={i} on={i <= step} s={s} />))}
           </View>
           {signedIn ? (
-            <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn}>
+            <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn} accessibilityRole="button">
               <Text style={s.signOutLink}>{t('settings_signout')}</Text>
             </TouchableOpacity>
           ) : (
@@ -338,9 +306,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   <Chevron dir="down" color={colors.ink2} />
                 </TouchableOpacity>
               </View>
-              <View style={s.splashCenter}>
-                {/* The brand mark keeps its own artwork (fixed brand colors on purpose). */}
-                <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" />
+              <View style={s.splashHead}>
+                {/* The droplet app icon (founder 2026-09-07, Q1 = B) — its own artwork, fixed brand colours. */}
+                <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
                 <Text style={s.brand}>DoseTrace</Text>
                 <Text style={s.phrase}>{t('ob_phrase')}</Text>
               </View>
@@ -377,12 +345,12 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               <Text style={s.hint}>{t('profile_goal_multi_hint')}</Text>
               <View style={s.pillRow}>
                 {GOALS.map((g) => {
-                  const on = goals.includes(g.key);
+                  const on = d.goals.includes(g.key);
                   return (
                     <TouchableOpacity
                       key={g.key}
                       style={[s.pill, on && s.pillOn]}
-                      onPress={() => setGoals((prev) => (prev.includes(g.key) ? prev.filter((k) => k !== g.key) : [...prev, g.key]))}
+                      onPress={() => set('goals', (prev) => (prev.includes(g.key) ? prev.filter((k) => k !== g.key) : [...prev, g.key]))}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: on }}
                     >
@@ -402,9 +370,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               </View>
               <View style={s.pillRow}>
                 {COMPOUNDS.map((c) => {
-                  const on = tracking.includes(c.key);
+                  const on = d.tracking.includes(c.key);
                   return (
-                    <TouchableOpacity key={c.key} style={[s.pill, s.pillIcon, on && s.pillOn]} onPress={() => toggleTracking(c.key)} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                    <TouchableOpacity key={c.key} style={[s.pill, s.pillIcon, on && s.pillOn]} onPress={() => set('tracking', (p) => (p.includes(c.key) ? p.filter((k) => k !== c.key) : [...p, c.key]))} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
                       <FeatureIcon name={c.icon} size={20} color={on ? colors.ink : colors.ink2} />
                       <Text style={[s.pillText, on && s.pillTextOn]}>{c.label}</Text>
                     </TouchableOpacity>
@@ -428,18 +396,17 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   style={s.input}
                   placeholder={t('profile_name_placeholder')}
                   placeholderTextColor={colors.ink3}
-                  value={name} onChangeText={setName} autoCapitalize="words" autoCorrect={false}
+                  value={d.name} onChangeText={(v) => set('name', v)} autoCapitalize="words" autoCorrect={false}
                 />
               </View>
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_birth_month')}<Text style={s.req}> *</Text></Text>
-                {/* Month as a full 4-across grid (all 12 visible), year typed —
-                    scrolling through ~70 years horizontally was the bad UX. */}
+                {/* Month as a full 4-across grid (all 12 visible), year typed. */}
                 <View style={s.mGrid}>
                   {MONTH_KEYS.map((mk, idx) => (
-                    <TouchableOpacity key={mk} style={[s.pill, s.mChip, birthMonth === idx && s.pillOn]} onPress={() => setBirthMonth(idx)} accessibilityRole="radio" accessibilityState={{ selected: birthMonth === idx }}>
-                      <Text style={[s.pillText, birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
+                    <TouchableOpacity key={mk} style={[s.pill, s.mChip, d.birthMonth === idx && s.pillOn]} onPress={() => set('birthMonth', idx)} accessibilityRole="radio" accessibilityState={{ selected: d.birthMonth === idx }}>
+                      <Text style={[s.pillText, d.birthMonth === idx && s.pillTextOn]}>{t(mk)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -451,30 +418,26 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   style={s.input}
                   placeholder={t('profile_birth_year_ph')}
                   placeholderTextColor={colors.ink3}
-                  value={birthYearText}
-                  onChangeText={(txt) => {
-                    const digits = txt.replace(/[^0-9]/g, '').slice(0, 4);
-                    setBirthYearText(digits);
-                    const n = parseInt(digits, 10);
-                    const max = new Date().getFullYear() - 18; // 18+ only
-                    setBirthYear(digits.length === 4 && n >= 1900 && n <= max ? n : null);
-                  }}
+                  value={d.birthYearText}
+                  onChangeText={(txt) => set('birthYearText', birthYearState(txt, thisYear).digits)}
                   keyboardType="number-pad"
                   maxLength={4}
                 />
+                {/* Adults only (18+): say why Continue stays dim — never a silent refusal. */}
+                {year.note ? <Text style={s.note}>{t('ob_adult_note').replace('{max}', String(year.max))}</Text> : null}
               </View>
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_sex')}<Text style={s.req}> *</Text></Text>
-                <SegmentedBar accessibilityLabel={t('profile_sex')} items={SEXES} value={gender} onChange={setGender} />
+                <SegmentedBar accessibilityLabel={t('profile_sex')} items={SEXES} value={d.gender} onChange={(v) => set('gender', v)} />
                 <Text style={s.help}>{t('profile_sex_help')}</Text>
               </View>
 
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_country')}<Text style={s.req}> *</Text></Text>
-                <TouchableOpacity style={s.selectBtn} onPress={() => { setCountrySearch(''); setShowCountry(true); }}>
-                  <Text style={[s.selectText, !country && s.selectTextEmpty]}>
-                    {country ? countryLabel(country, language) : t('profile_country_placeholder')}
+                <TouchableOpacity style={s.selectBtn} onPress={() => { setCountrySearch(''); setShowCountry(true); }} accessibilityRole="button">
+                  <Text style={[s.selectText, !d.country && s.selectTextEmpty]}>
+                    {d.country ? countryLabel(d.country, language) : t('profile_country_placeholder')}
                   </Text>
                   <Chevron dir="right" color={colors.ink3} />
                 </TouchableOpacity>
@@ -489,15 +452,20 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               </View>
               <View style={s.field}>
                 <Text style={s.fieldHead}>{t('profile_activity')}</Text>
+                {/* One activity scale everywhere: the calculator's 5 levels, title + sub-line. */}
                 <View style={s.actList}>
-                  {ACTIVITY.map((a, i) => {
-                    const on = activity === a.key;
-                    const prevOn = i > 0 && activity === ACTIVITY[i - 1].key;
+                  {PROFILE_ACTIVITY.map((a, i) => {
+                    const on = d.activity === a.key;
+                    const prevOn = i > 0 && d.activity === PROFILE_ACTIVITY[i - 1].key;
+                    const parts = activityParts(t(a.labelKey));
                     return (
                       <View key={a.key}>
                         {i > 0 && <View style={[s.actDiv, (on || prevOn) && s.actDivHidden]} />}
-                        <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivity(a.key)} accessibilityRole="radio" accessibilityState={{ selected: on }}>
-                          <Text style={s.actText}>{a.label}</Text>
+                        <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => set('activity', a.key)} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+                          <View style={s.actTexts}>
+                            <Text style={s.actText}>{parts[0]}</Text>
+                            {parts[1] ? <Text style={s.actSub}>{parts[1]}</Text> : null}
+                          </View>
                           {on && <CheckMark size={22} color={colors.ink} />}
                         </TouchableOpacity>
                       </View>
@@ -507,7 +475,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               </View>
               <View style={s.field}>
                 <Text style={s.fieldHead}>{t('profile_provider')}</Text>
-                <SegmentedBar accessibilityLabel={t('profile_provider')} items={PROVIDERS} value={provider} onChange={setProvider} />
+                <SegmentedBar accessibilityLabel={t('profile_provider')} items={PROVIDERS} value={d.provider} onChange={(v) => set('provider', v)} />
               </View>
             </>
           )}
@@ -519,30 +487,39 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 <Text style={s.sub}>{t('ob_terms_sub')}</Text>
               </View>
               <View style={s.termList}>
-                {TERMS.map((x, i) => (
-                  <TouchableOpacity
-                    key={x.key}
-                    style={[s.termRow, i > 0 && s.termRowDiv]}
-                    onPress={() => setConfirmed((c) => ({ ...c, [x.key]: !c[x.key] }))}
-                    activeOpacity={0.8}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: !!confirmed[x.key] }}
-                  >
-                    <View style={[s.check, confirmed[x.key] && s.checkOn]}>
-                      {confirmed[x.key] && <CheckMark size={16} color={colors.onInk} />}
-                    </View>
-                    <View style={s.termText}>
-                      <Text style={s.termTitle}>{x.t}</Text>
-                      <Text style={s.termDesc}>{x.d}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                {TERMS.map((x, i) => {
+                  const on = !!(d.terms && d.terms[x.key]);
+                  return (
+                    <TouchableOpacity
+                      key={x.key}
+                      style={[s.termRow, i > 0 && s.termRowDiv]}
+                      onPress={() => set('terms', (c) => ({ ...(c || {}), [x.key]: !(c && c[x.key]) }))}
+                      activeOpacity={0.8}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
+                    >
+                      <View style={[s.check, on && s.checkOn]}>
+                        {on && <CheckMark size={16} color={colors.onInk} />}
+                      </View>
+                      <View style={s.termText}>
+                        <Text style={s.termTitle}>{x.t}</Text>
+                        <Text style={s.termDesc}>{x.d}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              {/* Functional privacy-policy link at the point of data collection
-                  (Apple 5.1.1(ii)). */}
-              <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} style={s.linkBtn}>
-                <Text style={s.linkText}>{t('settings_privacy_policy')}</Text>
-              </TouchableOpacity>
+              {/* Functional links at the point of data collection (Apple 5.1.1(ii)): the
+                  Terms of service (in the app — dosetrace.io has no terms page) and the
+                  Privacy policy. */}
+              <View style={s.linkRow}>
+                <TouchableOpacity onPress={() => setLegal(true)} style={s.linkBtn} accessibilityRole="link">
+                  <Text style={s.linkText}>{t('settings_terms')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} style={s.linkBtn} accessibilityRole="link">
+                  <Text style={s.linkText}>{t('settings_privacy_policy')}</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
 
@@ -554,11 +531,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             </View>
           )}
 
-          {cur === 'ready' && (
+          {cur === 'finish' && (
             <View style={s.centerStep}>
-              <Image source={require('../assets/adaptive-icon.png')} style={s.logoSm} resizeMode="contain" />
+              <Image source={require('../assets/adaptive-icon.png')} style={s.logoSm} resizeMode="contain" accessibilityIgnoresInvertColors />
               <Text style={[s.title, s.textCenter]}>{t('ob_ready_title')}</Text>
-              <Text style={[s.sub, s.textCenter]}>{signedIn ? t('ob_finish_sub') : t('ob_ready_sub')}</Text>
+              <Text style={[s.sub, s.textCenter]}>{t('ob_finish_sub')}</Text>
             </View>
           )}
 
@@ -568,34 +545,35 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       <View style={s.footer}>
         {cur === 'splash' && (
           <>
-            <TouchableOpacity style={s.primaryBtn} onPress={next}>
+            <TouchableOpacity style={s.primaryBtn} onPress={next} accessibilityRole="button">
               <Text style={s.primaryBtnText}>{t('ob_get_started')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.linkBtn} onPress={() => onDone && onDone()}>
+            <TouchableOpacity style={s.linkBtn} onPress={() => toAuth('signin')} accessibilityRole="button">
               <Text style={s.linkText}>{t('onboarding_already_have_account')}</Text>
             </TouchableOpacity>
           </>
         )}
         {cur === 'reminders' && (
           <>
-            <TouchableOpacity style={s.primaryBtn} onPress={enableNotifications}>
+            <TouchableOpacity style={s.primaryBtn} onPress={enableNotifications} accessibilityRole="button">
               <Text style={s.primaryBtnText}>{t('ob_enable_notifs')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.linkBtn} onPress={() => setStep(step + 1)}>
+            <TouchableOpacity style={s.linkBtn} onPress={() => toAuth('create')} accessibilityRole="button">
               <Text style={s.linkText}>{t('ob_not_now')}</Text>
             </TouchableOpacity>
           </>
         )}
-        {cur === 'ready' && (
-          <TouchableOpacity style={[s.primaryBtn, saving && { opacity: 0.5 }]} onPress={finish} disabled={saving}>
-            <Text style={s.primaryBtnText}>{signedIn ? t('ob_finish_setup') : t('ob_create_account')}</Text>
+        {cur === 'finish' && (
+          <TouchableOpacity style={[s.primaryBtn, saving && s.primaryBtnDim]} onPress={finish} disabled={saving} accessibilityRole="button">
+            <Text style={s.primaryBtnText}>{t('ob_finish_setup')}</Text>
           </TouchableOpacity>
         )}
-        {!['splash', 'reminders', 'ready'].includes(cur) && (
+        {!['splash', 'reminders', 'finish'].includes(cur) && (
           <TouchableOpacity
             style={[s.primaryBtn, !canContinue() && s.primaryBtnDim]}
             onPress={next}
             disabled={!canContinue()}
+            accessibilityRole="button"
             accessibilityState={{ disabled: !canContinue() }}
           >
             <Text style={s.primaryBtnText}>{t('ob_continue')}</Text>
@@ -625,10 +603,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: on }}
                   >
-                    {/* Use `native` (the localized language name) — the LANGUAGES
-                        objects have code/name/native/flag, NO `label`, so `l.label`
-                        rendered as blank rows (invisible picker). Every color is an
-                        explicit theme token so it can't go white-on-white either. */}
+                    {/* `native` = the localized language name (the objects have no `label`). */}
                     <View style={s.langCode}><Text style={s.langCodeText}>{String(l.code).toUpperCase()}</Text></View>
                     <View style={s.langNames}>
                       <Text style={s.langOptText}>{l.native}</Text>
@@ -643,47 +618,52 @@ export default function OnboardingFlowScreen({ onDone, session }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Country picker */}
-      <Modal visible={showCountry} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCountry(false)}>
-        <SafeAreaView style={s.pickerRoot}>
-          <View style={s.pickerHead}>
-            <View style={{ minWidth: 60 }} />
-            <Text style={s.pickerTitle}>{t('profile_country')}</Text>
-            <TouchableOpacity onPress={() => setShowCountry(false)} style={s.pickerDone}>
-              <Text style={s.sheetDoneText}>{t('done')}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={s.searchWrap}>
-            <View style={s.searchIcon} pointerEvents="none"><FeatureIcon name="search" size={18} color={colors.ink3} /></View>
-            <TextInput
-              style={[s.input, s.searchInput]}
-              placeholder={t('profile_country_search')}
-              placeholderTextColor={colors.ink3}
-              value={countrySearch} onChangeText={setCountrySearch}
-              autoCapitalize="none" autoCorrect={false} autoFocus
-            />
-          </View>
-          <FlatList
-            data={filteredCountries}
-            keyExtractor={(item) => item}
-            style={s.countryList}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item, index }) => (
-              <TouchableOpacity
-                style={[s.countryRow, index > 0 && s.countryRowDiv]}
-                onPress={() => { setCountry(item); setShowCountry(false); }}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: country === item }}
-              >
-                <Text style={s.countryText}>{countryLabel(item, language)}</Text>
-                {country === item && <CheckMark size={22} color={colors.ink} />}
-              </TouchableOpacity>
-            )}
+      {/* Country (prototype countrySheet): a bottom sheet with "Country", Done, the search
+          field and the list; the chosen country carries the check. */}
+      <BottomSheet visible={showCountry} onClose={() => setShowCountry(false)}>
+        <View style={s.sheetHead}>
+          <Text style={s.sheetTitle}>{t('profile_country')}</Text>
+          <TouchableOpacity onPress={() => setShowCountry(false)} style={s.sheetDone} accessibilityRole="button">
+            <Text style={s.sheetDoneText}>{t('done')}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={s.searchWrap}>
+          <View style={s.searchIcon} pointerEvents="none"><FeatureIcon name="search" size={18} color={colors.ink3} /></View>
+          <TextInput
+            style={[s.input, s.searchInput]}
+            placeholder={t('profile_country_search')}
+            placeholderTextColor={colors.ink3}
+            value={countrySearch} onChangeText={setCountrySearch}
+            autoCapitalize="none" autoCorrect={false}
           />
-        </SafeAreaView>
-      </Modal>
+        </View>
+        <View>
+          {filteredCountries.map((item, index) => (
+            <TouchableOpacity
+              key={item}
+              style={[s.countryRow, index > 0 && s.countryRowDiv]}
+              onPress={() => { set('country', item); setShowCountry(false); }}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: d.country === item }}
+            >
+              <Text style={s.countryText}>{countryLabel(item, language)}</Text>
+              {d.country === item && <CheckMark size={22} color={colors.ink} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </BottomSheet>
+
+      <LegalModal visible={legal} onClose={() => setLegal(false)} title={t('settings_terms')} content={t('settings_terms_body')} doneLabel={t('done')} />
+      <DTSheet config={sheet} onClose={() => setSheet(null)} />
     </SafeAreaView>
   );
+}
+
+// The account's metadata keys as the stash uses them (both are user_metadata-shaped).
+function metaForms(meta) {
+  const out = {};
+  for (const [k, v] of Object.entries(meta || {})) if (v != null && v !== '' && !(Array.isArray(v) && v.length === 0)) out[k] = v;
+  return out;
 }
 
 // Graduated (docs/design/prototype.html onbScreen(), DESIGN.md §2–§5): ground
@@ -705,12 +685,12 @@ function makeStyles(colors) {
     dashFill: { height: '100%', borderRadius: 2, backgroundColor: c.ink },
     content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 14, flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
-    // Splash
+    // Splash (prototype: the block starts 90 pt under the language pill, not centred)
     splashWrap: { flex: 1 },
     langRow: { flexDirection: 'row', justifyContent: 'flex-end' },
     langPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, flexDirection: 'row', alignItems: 'center', gap: 6 },
     langPillText: { fontSize: 13, color: c.ink2 },
-    splashCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingBottom: 44 },
+    splashHead: { alignItems: 'center', gap: 14, paddingTop: 90 },
     logo: { width: 112, height: 112 },
     logoSm: { width: 84, height: 84 },
     brand: { fontSize: 42, lineHeight: 48, fontWeight: '700', color: c.ink, letterSpacing: -0.84 },
@@ -723,6 +703,7 @@ function makeStyles(colors) {
     textCenter: { textAlign: 'center' },
     hint: { fontSize: 13, lineHeight: 18, color: c.ink2 },
     help: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+    note: { fontSize: 13, lineHeight: 18, color: c.ink, paddingHorizontal: 4 },
 
     // Features
     featList: { gap: 14 },
@@ -752,15 +733,15 @@ function makeStyles(colors) {
     selectText: { flex: 1, fontSize: 17, color: c.ink },
     selectTextEmpty: { color: c.ink3 },
 
-    // Segmented control (segw fill)
-
-    // Activity list (actlist)
+    // Activity list (actlist): bold title, ink2 sub-line
     actList: { backgroundColor: c.raised, borderRadius: 16, borderWidth: 1, borderColor: c.line, overflow: 'hidden' },
     actRow: { minHeight: 60, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 2, borderColor: c.raised },
     actRowOn: { borderColor: c.ink },
     actDiv: { height: 1, backgroundColor: c.line },
     actDivHidden: { backgroundColor: c.raised },
-    actText: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+    actTexts: { flex: 1, gap: 2 },
+    actText: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+    actSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
 
     // Consent list
     termList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
@@ -771,6 +752,7 @@ function makeStyles(colors) {
     termText: { flex: 1, gap: 3 },
     termTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
     termDesc: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    linkRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 24 },
 
     centerStep: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 8 },
 
@@ -782,7 +764,7 @@ function makeStyles(colors) {
     linkBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
     linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, textAlign: 'center' },
 
-    // Language sheet
+    // Language sheet / country sheet heads
     langBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingBottom: 30 },
     langSheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
     sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -798,17 +780,11 @@ function makeStyles(colors) {
     langOptText: { fontSize: 17, fontWeight: '600', color: c.ink },
     langOptSub: { fontSize: 13, color: c.ink2 },
 
-    // Country picker
-    pickerRoot: { flex: 1, backgroundColor: c.ground },
-    pickerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, minHeight: 56, borderBottomWidth: 1, borderBottomColor: c.line },
-    pickerTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
-    pickerDone: { minWidth: 60, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
-    searchWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, justifyContent: 'center' },
-    searchIcon: { position: 'absolute', left: 30, top: 12, bottom: 8, justifyContent: 'center', zIndex: 1 },
-    searchInput: { paddingLeft: 42 },
-    countryList: { flex: 1, paddingHorizontal: 16 },
-    countryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
-    countryRowDiv: { borderTopWidth: 1, borderTopColor: c.line },
+    searchWrap: { justifyContent: 'center' },
+    searchIcon: { position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 },
+    searchInput: { paddingLeft: 42, minHeight: 46 },
+    countryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 10 },
+    countryRowDiv: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
     countryText: { flex: 1, fontSize: 17, color: c.ink },
   });
 }
