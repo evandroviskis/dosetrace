@@ -30,16 +30,11 @@ import {
   STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
-import { formatDate, formatNumber, decimalText } from '../lib/localeFormat';
+import { formatDate, formatNumber, decimalText, MONTHS_SHORT } from '../lib/localeFormat';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
 
-const MONTH_KEYS = [
-  'month_jan', 'month_feb', 'month_mar', 'month_apr',
-  'month_may', 'month_jun', 'month_jul', 'month_aug',
-  'month_sep', 'month_oct', 'month_nov', 'month_dec',
-];
 import { useTheme } from '../lib/theme';
 import { MONO, fontFamilyFor } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
@@ -888,7 +883,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <View style={s.statNumRow}>
                   <Text style={[s.statNum, s.measure]} onLayout={(e) => setLevelW(Math.ceil(e.nativeEvent.layout.width) + 2)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{mgLabel(singleNow)}</Text>
                   <Animated.View style={statBump}>
-                    <AnimatedNumber value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={levelW != null ? levelW : numW(mgLabel(singleNow))} />
+                    <AnimatedNumber key={language} value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={levelW != null ? levelW : numW(mgLabel(singleNow))} />
                   </Animated.View>
                   <Text style={s.statUnit}>{unitLbl}</Text>
                 </View>
@@ -1060,7 +1055,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       {/* "Other date": the prototype wheel in a DoseTrace bottom sheet (part 19). */}
       <DTPickerSheet visible={showReadoutPicker} title={t('curve_readout_title')} doneLabel={t('curve_done')} onDone={() => { if (!readoutDate) setReadoutDate(todayISO()); setShowReadoutPicker(false); }}>
         <DTWheel
-          columns={dateColumns(readoutISO, new Date(), MONTH_KEYS.map(k => t(k)))}
+          columns={dateColumns(readoutISO, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en)}
           onChange={(col, i) => setReadoutDate(dateAfter(readoutISO, new Date(), col, i))}
         />
       </DTPickerSheet>

@@ -237,7 +237,7 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
       </View>
       <View style={s.readout}>
         <Animated.View style={[s.numWrap, numBump]}>
-          <AnimatedNumber value={value} format={fmt} style={s.num} width={56} align="left" />
+          <AnimatedNumber key={language} value={value} format={fmt} style={s.num} width={56} align="left" />
         </Animated.View>
         <Text style={s.unit}>mg</Text>
       </View>
@@ -252,7 +252,7 @@ export default function AccumulationHero({ width = 300, height = 140, playKey })
           <ACircle animatedProps={haloProps} fill={colors.data} />
           <ACircle animatedProps={dotProps} r={4.5} fill={colors.data} />
         </Svg>
-        {G.peaksX.map((_, i) => <DoseLabel key={`lb-${i}`} t={t} G={G} i={i} style={s.floatLabel} dec={dec} />)}
+        {G.peaksX.map((_, i) => <DoseLabel key={`lb-${i}-${language}`} t={t} G={G} i={i} style={s.floatLabel} dec={dec} />)}
       </View>
     </Animated.View>
   );

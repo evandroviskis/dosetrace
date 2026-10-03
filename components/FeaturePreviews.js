@@ -427,7 +427,7 @@ export function FeaturePreview({ featureKey, width }) {
   return (
     <View style={s.fx}>
       <View style={s.tag}><Text style={s.tagText}>{t('paywall_hero_example')}</Text></View>
-      <f.Fx c={colors} t={t} width={width} label={label} language={language} />
+      <f.Fx key={language} c={colors} t={t} width={width} label={label} language={language} />
     </View>
   );
 }

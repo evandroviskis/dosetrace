@@ -72,7 +72,7 @@ import { FoodReminderRow } from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
 import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
-import { formatDate, formatNumber, formatInt, decimalText, inputNumber } from '../../lib/localeFormat';
+import { formatDate, formatNumber, formatInt, decimalText, inputNumber, MONTHS_SHORT } from '../../lib/localeFormat';
 import useColumnWidth from '../../components/useColumnWidth';
 import { parseDecimal, canonicalDecimal } from '../../lib/doseMath';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
@@ -98,11 +98,6 @@ const daysBetween = (fromISO, toISO) => {
 // delete a user's older entries — a data-loss the "never lose data" rule forbids).
 // Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
 
-const MONTH_KEYS = [
-  'month_jan', 'month_feb', 'month_mar', 'month_apr',
-  'month_may', 'month_jun', 'month_jul', 'month_aug',
-  'month_sep', 'month_oct', 'month_nov', 'month_dec',
-];
 
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
 const round10 = n => Math.round(n / 10) * 10;
@@ -1038,7 +1033,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     .replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min))))
     .replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max))))
     .replace('{unit}', wUnit);
-  const monthLabels = MONTH_KEYS.map(k => t(k));
+  const monthLabels = MONTHS_SHORT[language] || MONTHS_SHORT.en; // the wheels use the same short months as the dates
   const wiCanSave = num(wiWeight) != null;
 
   // One metric row of the target: current → target, the graduated scale, and a
@@ -1432,7 +1427,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
               <View>
                 {soFar.rows.map((r, i) => (
                   <View key={r.date} style={[s.dayRow, i > 0 && s.dayRowSep]}>
-                    <Text style={[s.sec, s.tnum, s.dayDate, { minWidth: dateColW }]} numberOfLines={1} onLayout={onDateColLayout}>{formatDate(r.date, language, 'dayMonth')}</Text>
+                    <View style={[s.dayDate, { minWidth: dateColW }]}><Text style={[s.sec, s.tnum, s.measureSelf]} numberOfLines={1} onLayout={onDateColLayout}>{formatDate(r.date, language, 'dayMonth')}</Text></View>
                     <Text style={[s.sec2, s.tnum, s.grow]}>
                       {r.state === 'food'
                         ? t(r.items === 1 ? 'cal_rc_sofar_row_one' : 'cal_rc_sofar_row').replace('{kcal}', fmtInt(r.kcal)).replace('{n}', String(r.items))
@@ -1961,6 +1956,7 @@ const makeStyles = (c) => StyleSheet.create({
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 10 },
   dayRowSep: { borderTopWidth: 1, borderTopColor: c.line },
   dayDate: { flexShrink: 0 },
+  measureSelf: { alignSelf: 'flex-start' }, // a measured cell reports its own text width (useColumnWidth)
   runLine: { paddingTop: 4 },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8 },
   // weigh-ins history (prototype .hist: 1 / 1 / 0.9 / 0.8)

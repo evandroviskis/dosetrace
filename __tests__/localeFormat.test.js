@@ -13,13 +13,13 @@ const SEP30 = '2026-09-30';                  // a Wednesday
 const NOW = new Date(2026, 9, 2);
 
 test('dayMonth: Oct 19 in each language', () => {
-  const want = { en: 'Oct 19', pt: '19 de out.', es: '19 oct.', fr: '19 oct.', de: '19. Okt.', it: '19 ott' };
+  const want = { en: 'Oct 19', pt: '19 de out.', es: '19 oct', fr: '19 oct.', de: '19. Okt.', it: '19 ott' }; // Spanish without a dot (ICU, review 2026-10-02)
   for (const [l, s] of Object.entries(want)) assert.equal(formatDate(OCT19, l, 'dayMonth'), s, l);
 });
 
 test('dayMonth: the longest short months (Sep 30, Feb 28, Mar 30, Jul 30)', () => {
   assert.equal(formatDate(SEP30, 'pt'), '30 de set.');
-  assert.equal(formatDate(SEP30, 'es'), '30 sept.');
+  assert.equal(formatDate(SEP30, 'es'), '30 sept');
   assert.equal(formatDate(SEP30, 'fr'), '30 sept.');
   assert.equal(formatDate(SEP30, 'de'), '30. Sept.');
   assert.equal(formatDate(SEP30, 'it'), '30 set');
@@ -36,22 +36,22 @@ test('a bare ISO day never moves to the day before', () => {
 
 test('dayMonthAuto adds the year only when it is not this year', () => {
   assert.equal(formatDate('2026-10-19', 'pt', 'dayMonthAuto', NOW), '19 de out.');
-  const want = { en: 'Dec 30, 2025', pt: '30 de dez. de 2025', es: '30 dic. 2025', fr: '30 déc. 2025', de: '30. Dez. 2025', it: '30 dic 2025' };
+  const want = { en: 'Dec 30, 2025', pt: '30 de dez. de 2025', es: '30 dic 2025', fr: '30 déc. 2025', de: '30. Dez. 2025', it: '30 dic 2025' };
   for (const [l, s] of Object.entries(want)) assert.equal(formatDate('2025-12-30', l, 'dayMonthAuto', NOW), s, l);
 });
 
 test('dayMonthYear in each language', () => {
-  const want = { en: 'Oct 19, 2026', pt: '19 de out. de 2026', es: '19 oct. 2026', fr: '19 oct. 2026', de: '19. Okt. 2026', it: '19 ott 2026' };
+  const want = { en: 'Oct 19, 2026', pt: '19 de out. de 2026', es: '19 oct 2026', fr: '19 oct. 2026', de: '19. Okt. 2026', it: '19 ott 2026' };
   for (const [l, s] of Object.entries(want)) assert.equal(formatDate(OCT19, l, 'dayMonthYear'), s, l);
 });
 
 test('weekdayDayMonth in each language', () => {
-  const want = { en: 'Mon, Oct 19', pt: 'seg., 19 de out.', es: 'lun, 19 oct.', fr: 'lun. 19 oct.', de: 'Mo., 19. Okt.', it: 'lun 19 ott' };
+  const want = { en: 'Mon, Oct 19', pt: 'seg., 19 de out.', es: 'lun, 19 oct', fr: 'lun. 19 oct.', de: 'Mo., 19. Okt.', it: 'lun 19 ott' };
   for (const [l, s] of Object.entries(want)) assert.equal(formatDate(OCT19, l, 'weekdayDayMonth'), s, l);
 });
 
 test('weekdayDayMonthYear in each language', () => {
-  const want = { en: 'Mon, Oct 19, 2026', pt: 'seg., 19 de out. de 2026', es: 'lun, 19 oct. 2026', fr: 'lun. 19 oct. 2026', de: 'Mo., 19. Okt. 2026', it: 'lun 19 ott 2026' };
+  const want = { en: 'Mon, Oct 19, 2026', pt: 'seg., 19 de out. de 2026', es: 'lun, 19 oct 2026', fr: 'lun. 19 oct. 2026', de: 'Mo., 19. Okt. 2026', it: 'lun 19 ott 2026' };
   for (const [l, s] of Object.entries(want)) assert.equal(formatDate(OCT19, l, 'weekdayDayMonthYear'), s, l);
 });
 
@@ -66,16 +66,16 @@ test('weekdayLong (the Today header) in each language', () => {
 });
 
 test('weekdayLongDayMonthAuto (the Dose log day headers) in each language', () => {
-  const want = { en: 'Monday, Oct 19', pt: 'segunda-feira, 19 de out.', es: 'lunes, 19 oct.', fr: 'lundi 19 oct.', de: 'Montag, 19. Okt.', it: 'lunedì 19 ott' };
+  const want = { en: 'Monday, Oct 19', pt: 'segunda-feira, 19 de out.', es: 'lunes, 19 oct', fr: 'lundi 19 oct.', de: 'Montag, 19. Okt.', it: 'lunedì 19 ott' };
   for (const [l, s] of Object.entries(want)) assert.equal(formatDate(OCT19, l, 'weekdayLongDayMonthAuto', NOW), s, l);
   assert.equal(formatDate('2025-12-30', 'en', 'weekdayLongDayMonthAuto', NOW), 'Tuesday, Dec 30, 2025');
   assert.equal(formatDate('2025-12-30', 'pt', 'weekdayLongDayMonthAuto', NOW), 'terça-feira, 30 de dez. de 2025');
 });
 
 test('weekday and monthYear in each language', () => {
-  const wd = { en: 'Mon', pt: 'seg.', es: 'lun', fr: 'lun.', de: 'Mo.', it: 'lun' };
+  const wd = { en: 'Mon', pt: 'seg.', es: 'lun', fr: 'lun.', de: 'Mo', it: 'lun' }; // a weekday alone: German without the dot (ICU)
   for (const [l, s] of Object.entries(wd)) assert.equal(formatDate(OCT19, l, 'weekday'), s, l);
-  const my = { en: 'Oct 2026', pt: 'out. de 2026', es: 'oct. 2026', fr: 'oct. 2026', de: 'Okt. 2026', it: 'ott 2026' };
+  const my = { en: 'Oct 2026', pt: 'out. de 2026', es: 'oct 2026', fr: 'oct. 2026', de: 'Okt. 2026', it: 'ott 2026' };
   for (const [l, s] of Object.entries(my)) assert.equal(formatDate(OCT19, l, 'monthYear'), s, l);
 });
 
@@ -109,7 +109,7 @@ test('formatNumber leaves what is not a plain number alone', () => {
 });
 
 test('formatInt: thousands grouping per language (2,480 kcal is wrong in Portuguese)', () => {
-  const want = { en: '2,480', pt: '2.480', es: '2480', fr: '2 480', de: '2.480', it: '2.480' };
+  const want = { en: '2,480', pt: '2.480', es: '2480', fr: '2 480', de: '2.480', it: '2480' }; // Italian like Spanish: 4 digits ungrouped (ICU)
   for (const [l, s] of Object.entries(want)) assert.equal(formatInt(2480.4, l), s, l);
   assert.equal(formatInt(24800, 'es'), '24.800');
   assert.equal(formatInt(980, 'pt'), '980');

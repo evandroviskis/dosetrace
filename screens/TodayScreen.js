@@ -1759,8 +1759,8 @@ export default function TodayScreen() {
               accessibilityRole="button"
               accessibilityState={book ? { selected: pickedUp } : undefined}
             >
-              <View style={[s.upTimeCol, { minWidth: upColW }]} onLayout={key === 'n5' ? onUpColLayout : undefined}>
-                {key === 'n5' && <Text style={s.upDay} numberOfLines={1}>{formatDate(d, language, 'weekdayDayMonth')}</Text>}
+              <View style={[s.upTimeCol, { minWidth: upColW }]}>
+                {key === 'n5' && <Text style={[s.upDay, s.measureSelf]} numberOfLines={1} onLayout={onUpColLayout}>{formatDate(d, language, 'weekdayDayMonth')}</Text>}
                 <Text style={s.upTime}>{formatTimeAMPM(hhmm)}</Text>
               </View>
               <View style={[s.updot, { backgroundColor: displayColor(p.color) || colors.data }]} />
@@ -2426,6 +2426,7 @@ const todayV21Styles = (c) => ({
   upRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
   upTimeCol: { gap: 1 }, // width: useColumnWidth (88 pt at least, the widest date of the language)
   upDay: { fontSize: 15, color: c.ink, fontVariant: ['tabular-nums'] },
+  measureSelf: { alignSelf: 'flex-start' }, // a measured cell reports its own text width (useColumnWidth)
   updot: { width: 9, height: 9, borderRadius: 5 },
   upTime: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   upMain: { flex: 1, minWidth: 0, gap: 1 },

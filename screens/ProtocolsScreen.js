@@ -28,7 +28,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
-import { formatDate, decimalText, inputNumber } from '../lib/localeFormat';
+import { formatDate, decimalText, inputNumber, MONTHS_SHORT } from '../lib/localeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -2832,7 +2832,7 @@ export default function ProtocolsScreen() {
             <DTPickerSheet visible={showModal && showStartPicker} title={t('protocols_start_date')} doneLabel={t('done')} onDone={() => setShowStartPicker(false)}>
               {/* Part 18: the prototype wheel (short months, the chosen row bold on a band). */}
               <DTWheel
-                columns={dateColumns(startDate, new Date(), MONTH_KEYS.map(k => t(k)))}
+                columns={dateColumns(startDate, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en)}
                 onChange={(col, i) => setStartDate(dateAfter(startDate, new Date(), col, i))}
               />
             </DTPickerSheet>

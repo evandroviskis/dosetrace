@@ -56,7 +56,8 @@ test('time wheel: 12-hour hour / minute / AM-PM, 24-hour hour / minute; every mi
 
 test('part 18: the wizard wheels are DTWheel in the DoseTrace picker sheet, no native spinner', () => {
   assert.doesNotMatch(SCREEN, /display="spinner"/);
-  assert.match(SCREEN, /<DTWheel\s+columns=\{dateColumns\(startDate, new Date\(\), MONTH_KEYS\.map\(k => t\(k\)\)\)\}/);
+  // (review 2026-10-02: the same short months as the date labels, lib/localeFormat)
+  assert.match(SCREEN, /<DTWheel\s+columns=\{dateColumns\(startDate, new Date\(\), MONTHS_SHORT\[language\] \|\| MONTHS_SHORT\.en\)\}/);
   assert.match(SCREEN, /onChange=\{\(col, i\) => setStartDate\(dateAfter\(startDate, new Date\(\), col, i\)\)\}/);
   assert.match(SCREEN, /<DTWheel\s+columns=\{timeColumns\(reminderTimes\[activeTimeIndex\] \|\| currentTimeRounded5\(\), wheel12h, dayParts\)\}/);
   // the drawing: 40-high rows, 5 shown, the well band, 19 ink3 rows and the 21 / 600 ink chosen row

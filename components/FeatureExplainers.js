@@ -488,7 +488,7 @@ export function FeatureExplainerSheet({ featureKey, onClose, onTry }) {
               </View>
               <View style={s.card}>
                 <View style={s.tag}><Text style={s.tagText}>{t('paywall_hero_example')}</Text></View>
-                <Fx c={colors} t={t} width={inner} label={`${t('paywall_hero_example')}: ${t(xp.titleKey)}`} language={language} timeFormat={timeFormat} />
+                <Fx key={language} c={colors} t={t} width={inner} label={`${t('paywall_hero_example')}: ${t(xp.titleKey)}`} language={language} timeFormat={timeFormat} />
               </View>
               <Text style={s.text}>{t(xp.bodyKey)}</Text>
               <View style={s.btns}>
