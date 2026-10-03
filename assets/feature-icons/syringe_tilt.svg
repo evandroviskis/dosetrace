@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Vaccine journal — the prototype's syringe tilted -45 degrees, needle down-left (BI.vax, 24 grid × 1024/24) -->
+  <g transform="rotate(-45 512 512)">
+    <path d="M128 512h128M256 405.3h426.7v213.3H256zM682.7 341.3v341.3M682.7 512h128M810.7 426.7v170.7M384 405.3v85.3M512 405.3v85.3" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -35,6 +35,15 @@ export const FEATURE_ICON_XML = {
     C745 560 785 550 835 520
   " fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
 </svg>`,
+  lab_frame: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M213.3 366.9V251.7c0 -29.9 21.3 -51.2 51.2 -51.2h115.2M810.7 366.9V251.7c0 -29.9 -21.3 -51.2 -51.2 -51.2h-115.2M213.3 657.1v115.2c0 29.9 21.3 51.2 51.2 51.2h115.2M810.7 657.1v115.2c0 29.9 -21.3 51.2 -51.2 51.2h-115.2" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M512 324.3c-64 102.4 -128 174.9 -128 260.3 0 76.8 55.5 140.8 128 140.8s128 -64 128 -140.8c0 -85.3 -64 -157.9 -128 -260.3z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+  syringe_tilt: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-45 512 512)">
+    <path d="M128 512h128M256 405.3h426.7v213.3H256zM682.7 341.3v341.3M682.7 512h128M810.7 426.7v170.7M384 405.3v85.3M512 405.3v85.3" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>`,
   curve_loose: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <path d="M128 810.7c128 0 170.7-512 298.7-512s128 341.3 256 341.3 128-213.3 213.3-213.3" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M128 896h768" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>

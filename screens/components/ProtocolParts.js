@@ -87,7 +87,8 @@ export function DTSheet({ config, onClose }) {
 }
 
 // Bottom action sheet (photo choice): a raised group of options, Cancel apart below.
-// config = { title, options: [{ label, onPress }], cancelLabel }.
+// config = { heading?, title, options: [{ label, onPress }], cancelLabel }. heading: an optional bold
+// first line over the title (My Body's "Add a lab report" / "Scan a vaccine record", prototype srcSheet).
 export function DTActionSheet({ config, onClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
@@ -101,9 +102,14 @@ export function DTActionSheet({ config, onClose }) {
       <Pressable style={[s.scrim, s.scrimBottom]} onPress={onClose}>
         <Pressable style={s.actWrap} onPress={() => {}} accessibilityViewIsModal>
           <View style={s.actGroup}>
-            {shown.title ? <Text style={s.actTitle}>{shown.title}</Text> : null}
+            {shown.heading ? (
+              <View style={s.actHeadWrap}>
+                <Text style={s.actHeading}>{shown.heading}</Text>
+                {shown.title ? <Text style={[s.actTitle, s.actTitleUnder]}>{shown.title}</Text> : null}
+              </View>
+            ) : shown.title ? <Text style={s.actTitle}>{shown.title}</Text> : null}
             {shown.options.map((o, i) => (
-              <TouchableOpacity key={i} style={[s.actOpt, (i > 0 || shown.title) && s.actSep]} onPress={() => press(o.onPress)} accessibilityRole="button">
+              <TouchableOpacity key={i} style={[s.actOpt, (i > 0 || shown.title || shown.heading) && s.actSep]} onPress={() => press(o.onPress)} accessibilityRole="button">
                 <Text style={s.actOptText}>{o.label}</Text>
               </TouchableOpacity>
             ))}
@@ -295,6 +301,9 @@ const sheetStyles = (c) => StyleSheet.create({
   actWrap: { width: '100%', maxWidth: 520, alignSelf: 'center', gap: 8 },
   actGroup: { backgroundColor: c.raised, borderRadius: 18, overflow: 'hidden' },
   actTitle: { fontSize: 13, lineHeight: 18, color: c.ink2, textAlign: 'center', paddingHorizontal: 18, paddingVertical: 14 },
+  actHeadWrap: { paddingHorizontal: 18, paddingVertical: 14, gap: 2 },
+  actHeading: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: c.ink, textAlign: 'center' },
+  actTitleUnder: { paddingHorizontal: 0, paddingVertical: 0 },
   actOpt: { minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   actSep: { borderTopWidth: 1, borderTopColor: c.line },
   actOptText: { fontSize: 19, color: c.ink },
