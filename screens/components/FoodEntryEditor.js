@@ -95,7 +95,10 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
       {/* A bottom sheet (prototype foodEditor / FC-edit) that slides up: Cancel · title · Save,
           the day bar, then each item (its name, then its numbers), and Remove entry. A tap
           outside the sheet cancels, as Cancel does. */}
-      <KeyboardAvoidingView style={s.scrim} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* KeyboardAvoidingView owns its bottom padding (the keyboard height), so the sheet's
+          30 pt inset sits on the View inside it (sheetInset.test.js). */}
+      <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.scrim}>
         <Pressable style={StyleSheet.absoluteFill} onPress={cancel} accessibilityRole="button" accessibilityLabel={t('cancel')} />
         <Animated.View entering={SlideInDown.duration(280)} style={s.sheet}>
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
@@ -157,6 +160,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
             </TouchableOpacity>
           </ScrollView>
         </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -189,7 +193,8 @@ function Chev({ dir, color }) {
 
 // Graduated (prototype .sheet.bsheet / .segw / .stepper / .feitem / .fe3 / .winp / .dangerbtn).
 const makeStyles = (c) => StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
+  kav: { flex: 1, backgroundColor: c.overlay },
+  scrim: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
   sheet: { backgroundColor: c.raised, borderRadius: 26, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', maxHeight: '100%', overflow: 'hidden' },
   body: { padding: 20, gap: 14 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },

@@ -1844,11 +1844,15 @@ function TargetScale({ start, goal, frac, colors, width, label }) {
 function SheetModal({ visible, onClose, s, children }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.scrim} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.sheet}>
-          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetBody}>
-            {children}
-          </ScrollView>
+      {/* KeyboardAvoidingView owns its bottom padding (the keyboard height, 0 when closed), so
+          the sheet's 30 pt inset sits on the View inside it (sheetInset.test.js). */}
+      <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.scrim}>
+          <View style={s.sheet}>
+            <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetBody}>
+              {children}
+            </ScrollView>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -1975,7 +1979,8 @@ const makeStyles = (c) => StyleSheet.create({
   // footer
   disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
   // sheets (prototype .scrim.bot / .sheet.bsheet)
-  scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
+  kav: { flex: 1, backgroundColor: c.scrim },
+  scrim: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
   sheet: { backgroundColor: c.raised, borderRadius: 26, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', maxHeight: '100%', overflow: 'hidden' },
   sheetBody: { padding: 20, gap: 14 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
