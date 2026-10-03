@@ -478,3 +478,6 @@ Source: the coordinator of the Premium/Auth build, applying the ledger and produ
 - **Play free trial "new customers only"** checked read-only 2026-10-03: free-trial-7d on monthly (p1m) and yearly (annual), ACTIVE, 7 days free, targeting anySubscriptionInApp. Nothing changed in Play.
 - **Still the founder's questions:** (a) old accounts whose birth year makes them under 18; (b) accounts created with Apple used on Android.
 - **Dose-split options read as multiplication: "2 × 120 mg", "3 × 80 mg" (× sign, localized decimals), never "2 · 120 mg each"** — founder 2026-10-03 (a dot after the count reads like option numbers).
+- **Deploy the AI assistant server parts (usage migration, protocol-assistant function, updated privacy policy page) before the build** — founder 2026-10-03 "1 sim".
+- **Old accounts whose birth year makes them under 18: a one-time "I'm 18 or older" confirmation; if not confirmed, the user can export and delete the account** — founder 2026-10-03 "2 sim".
+- **"Continue with Apple" also on Android** (accounts created with Apple must be able to sign in there) — founder 2026-10-03 "3 sim".
