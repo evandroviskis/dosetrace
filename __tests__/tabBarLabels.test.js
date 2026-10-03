@@ -22,7 +22,7 @@ const WANT = {
   en: { tabbar_protocols: 'Protocols', tabbar_settings: 'Settings' },
   es: { tabbar_protocols: 'Protocolos', tabbar_settings: 'Ajustes' },
   pt: { tabbar_protocols: 'Protocolos', tabbar_settings: 'Ajustes' },
-  fr: { tabbar_protocols: 'Protocoles', tabbar_settings: 'Réglages' },
+  fr: { tabbar_protocols: 'Protocoles', tabbar_settings: 'Paramètres' },
   de: { tabbar_protocols: 'Protokolle', tabbar_settings: 'Optionen' },
   it: { tabbar_protocols: 'Protocolli', tabbar_settings: 'Opzioni' },
 };
@@ -32,8 +32,8 @@ const WANT = {
 const MEASURED = {
   'Today': 32.7, 'Protocols': 52.1, 'Journey': 44.2, 'My Body': 47.1, 'Settings': 45.7,
   'Hoy': 21.5, 'Protocolos': 58.9, 'Progreso': 49.5, 'Mi cuerpo': 54.2, 'Ajustes': 40.8,
-  'Hoje': 24.9, 'Jornada': 44.5, 'Meu corpo': 57.9,
-  "Aujourd'hui": 62.9, 'Protocoles': 58.7, 'Parcours': 48.6, 'Mon corps': 57.5, 'Réglages': 50.2,
+  'Hoje': 24.9, 'Evolução': 49.1, 'Meu corpo': 57.9,
+  "Aujourd'hui": 62.9, 'Protocoles': 58.7, 'Parcours': 48.6, 'Mon corps': 57.5, 'Paramètres': 62.7,
   'Heute': 32.8, 'Protokolle': 55.4, 'Verlauf': 39.2, 'Mein Körper': 66.2, 'Optionen': 50.0,
   'Oggi': 25.8, 'Protocolli': 52.2, 'Percorso': 48.8, 'Il mio corpo': 64.1, 'Opzioni': 41.4,
 };
@@ -50,7 +50,9 @@ test('App.js uses the tab-bar keys; the screen-title keys stay full', () => {
   assert.match(APP, /label: t\('tabbar_settings'\)/);
   assert.doesNotMatch(APP, /label: t\('tab_protocols'\)|label: t\('tab_settings'\)/);
   assert.equal(tr.pt.tab_protocols, 'Meus protocolos', 'the full name stays for titles and back links');
-  assert.equal(tr.pt.tab_settings, 'Configurações');
+  assert.equal(tr.pt.tab_settings, 'Ajustes', 'one name for Settings in Portuguese (founder 2026-10-02)');
+  assert.equal(tr.es.tab_settings, 'Ajustes');
+  assert.equal(tr.fr.tab_settings, 'Paramètres');
   assert.equal(tr.en.tab_protocols, 'My Protocols', 'English keeps My Protocols for the screen title');
 });
 

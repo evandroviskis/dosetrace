@@ -2066,7 +2066,7 @@ export const translations = {
     nutri_tot_today: 'Hoy: {kcal} kcal · {carbs} g carbohidratos · {protein} g proteína',
     nutri_tot_week: 'Últimos 7 días: {total} kcal ÷ {d} días ≈ {avg}/día (comida en {n} días)',
     nutri_tot_window: 'Toda la medición hasta ahora, con hoy: {total} kcal ÷ {d} días ≈ {avg}/día (comida en {n} días)',
-    tab_settings: 'Configuración',
+    tab_settings: 'Ajustes',
     // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
     tabbar_protocols: 'Protocolos',
     tabbar_settings: 'Ajustes',
@@ -2349,7 +2349,7 @@ export const translations = {
     vials_log_mix_sub: 'Registra cuándo mezclaste un vial nuevo para controlar sus 30 días de validez.',
 
     // SETTINGS
-    settings_title: 'Configuración',
+    settings_title: 'Ajustes',
     settings_language: 'Idioma',
     settings_language_sub: 'Elige tu idioma preferido. La app se actualizará inmediatamente.',
     settings_preferences: 'Preferencias',
@@ -3854,7 +3854,7 @@ export const translations = {
     tab_log: 'Registro',
     tab_vials: 'Frascos',
     tab_body: 'Meu corpo',
-    tab_journey: 'Jornada',
+    tab_journey: 'Evolução',
     journey_subtitle: 'Acompanhe como seu corpo está realmente respondendo.',
     nutri_title: 'Consumo diário',
     nutri_demo_meal: '3 ovos, 2 torradas e um café',
@@ -3981,7 +3981,7 @@ export const translations = {
     nutri_tot_today: 'Hoje: {kcal} kcal · {carbs} g de carboidratos · {protein} g de proteína',
     nutri_tot_week: 'Últimos 7 dias: {total} kcal ÷ {d} dias ≈ {avg}/dia (comida em {n} dias)',
     nutri_tot_window: 'Toda a medição até agora, com hoje: {total} kcal ÷ {d} dias ≈ {avg}/dia (comida em {n} dias)',
-    tab_settings: 'Configurações',
+    tab_settings: 'Ajustes',
     // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
     tabbar_protocols: 'Protocolos',
     tabbar_settings: 'Ajustes',
@@ -4264,7 +4264,7 @@ export const translations = {
     vials_log_mix_sub: 'Registre quando reconstituiu um novo frasco para acompanhar o prazo de 30 dias até o vencimento.',
 
     // SETTINGS
-    settings_title: 'Configurações',
+    settings_title: 'Ajustes',
     settings_language: 'Idioma',
     settings_language_sub: 'Escolha seu idioma preferido. O app muda na hora.',
     settings_preferences: 'Preferências',
@@ -4306,7 +4306,7 @@ export const translations = {
     settings_report_empty: 'Nenhum protocolo ativo para incluir no relatório.',
     settings_data_privacy: 'Dados e privacidade',
     settings_privacy_policy: 'Política de privacidade',
-    settings_privacy_body: "POLÍTICA DE PRIVACIDADE\n\nÚltima atualização: abril de 2026\n\nA Outcom opera o aplicativo móvel DoseTrace.\n\nDADOS QUE COLETAMOS\nAo criar uma conta, coletamos seu endereço de e-mail. Opcionalmente, você pode fornecer seu nome, sexo, mês e ano de nascimento, país, objetivos de bem-estar, nível de atividade e se você trabalha com um profissional de saúde. Os dados de protocolos, registros de doses, registros de frascos e lembretes que você cria são salvos no seu dispositivo e sincronizados, criptografados em trânsito, com nossa nuvem segura (Supabase, Estados Unidos), de modo que seus dados têm backup e ficam disponíveis em seus dispositivos.\n\nCOMO USAMOS SEUS DADOS\nUsamos seus dados para fornecer e personalizar o serviço DoseTrace. As informações opcionais do perfil (nome, sexo, faixa etária, país, objetivos, nível de atividade) podem ser usadas de forma agregada e anonimizada para melhorar nosso serviço e desenvolver parcerias de bem-estar. Além da extração com IA descrita abaixo, não compartilhamos dados individuais de usuários com terceiros. Não vendemos seus dados pessoais. Não usamos seus dados de saúde para fins publicitários.\n\nEXTRAÇÃO COM IA (OPCIONAL)\nSe você optar por escanear um exame de laboratório ou carteira de vacinação, a foto ou o PDF selecionado é transmitido à Anthropic PBC (o serviço de IA Claude) para extração de texto única, somente após você dar permissão explícita no app. Apenas o arquivo selecionado é enviado. Ele é usado somente para extrair os valores, não é utilizado para treinar modelos de IA e não é retido pela Anthropic além do monitoramento antiabuso de curto prazo. A Anthropic protege esses dados com salvaguardas equivalentes a esta política.\n\nARMAZENAMENTO DE DADOS\nSeus dados são armazenados no seu dispositivo e sincronizados, criptografados em trânsito, com os servidores seguros na nuvem da Supabase nos Estados Unidos, de modo que têm backup e ficam disponíveis em seus dispositivos.\nExames de laboratório e carteiras de vacinação que você optar por escanear são, além disso, enviados uma única vez à Anthropic para extração de texto, como descrito acima.\n\nSEUS DIREITOS\nVocê pode excluir sua conta e todos os dados associados a qualquer momento em Configurações no app, ou entrando em contato com hello@dosetrace.io.\n\nCRIANÇAS\nO DoseTrace não se destina ao uso por pessoas menores de 18 anos.\n\nALTERAÇÕES\nPodemos atualizar esta política periodicamente. O uso contínuo do aplicativo constitui aceitação da política atualizada.\n\nCONTATO\nhello@dosetrace.io",
+    settings_privacy_body: 'POLÍTICA DE PRIVACIDADE\n\nÚltima atualização: abril de 2026\n\nA Outcom opera o aplicativo móvel DoseTrace.\n\nDADOS QUE COLETAMOS\nAo criar uma conta, coletamos seu endereço de e-mail. Opcionalmente, você pode fornecer seu nome, sexo, mês e ano de nascimento, país, objetivos de bem-estar, nível de atividade e se você trabalha com um profissional de saúde. Os dados de protocolos, registros de doses, registros de frascos e lembretes que você cria são salvos no seu dispositivo e sincronizados, criptografados em trânsito, com nossa nuvem segura (Supabase, Estados Unidos), de modo que seus dados têm backup e ficam disponíveis em seus dispositivos.\n\nCOMO USAMOS SEUS DADOS\nUsamos seus dados para fornecer e personalizar o serviço DoseTrace. As informações opcionais do perfil (nome, sexo, faixa etária, país, objetivos, nível de atividade) podem ser usadas de forma agregada e anonimizada para melhorar nosso serviço e desenvolver parcerias de bem-estar. Além da extração com IA descrita abaixo, não compartilhamos dados individuais de usuários com terceiros. Não vendemos seus dados pessoais. Não usamos seus dados de saúde para fins publicitários.\n\nEXTRAÇÃO COM IA (OPCIONAL)\nSe você optar por escanear um exame de laboratório ou carteira de vacinação, a foto ou o PDF selecionado é transmitido à Anthropic PBC (o serviço de IA Claude) para extração de texto única, somente após você dar permissão explícita no app. Apenas o arquivo selecionado é enviado. Ele é usado somente para extrair os valores, não é utilizado para treinar modelos de IA e não é retido pela Anthropic além do monitoramento antiabuso de curto prazo. A Anthropic protege esses dados com salvaguardas equivalentes a esta política.\n\nARMAZENAMENTO DE DADOS\nSeus dados são armazenados no seu dispositivo e sincronizados, criptografados em trânsito, com os servidores seguros na nuvem da Supabase nos Estados Unidos, de modo que têm backup e ficam disponíveis em seus dispositivos.\nExames de laboratório e carteiras de vacinação que você optar por escanear são, além disso, enviados uma única vez à Anthropic para extração de texto, como descrito acima.\n\nSEUS DIREITOS\nVocê pode excluir sua conta e todos os dados associados a qualquer momento em Ajustes no app, ou entrando em contato com hello@dosetrace.io.\n\nCRIANÇAS\nO DoseTrace não se destina ao uso por pessoas menores de 18 anos.\n\nALTERAÇÕES\nPodemos atualizar esta política periodicamente. O uso contínuo do aplicativo constitui aceitação da política atualizada.\n\nCONTATO\nhello@dosetrace.io',
     settings_terms: 'Termos de uso',
     settings_terms_body: "TERMOS DE SERVIÇO\n\nÚltima atualização: abril de 2026\n\nAo baixar ou usar o DoseTrace, você concorda com estes termos.\n\nUSO DO APLICATIVO\nO DoseTrace é fornecido apenas para fins de acompanhamento pessoal de bem-estar. Você deve ter 18 anos ou mais para usar este aplicativo. Você é responsável por manter a confidencialidade das credenciais da sua conta.\n\nAVISO MÉDICO\nO DoseTrace não fornece aconselhamento médico. Consulte nosso Aviso médico para mais detalhes.\n\nASSINATURA PREMIUM\nOs recursos premium estão disponíveis por assinatura pelo preço exibido no aplicativo no momento da compra. As assinaturas são renovadas automaticamente, a menos que sejam canceladas pelo menos 24 horas antes da data de renovação. Gerencie as assinaturas nas configurações do seu ID Apple.\n\nPROPRIEDADE INTELECTUAL\nTodo o conteúdo, recursos e funcionalidades do DoseTrace pertencem à Outcom e são protegidos pelas leis de propriedade intelectual aplicáveis.\n\nLIMITAÇÃO DE RESPONSABILIDADE\nA Outcom não se responsabiliza por quaisquer danos indiretos, incidentais ou consequentes decorrentes do uso do DoseTrace.\n\nRESCISÃO\nReservamo-nos o direito de encerrar contas que violem estes termos.\n\nLEI APLICÁVEL\nEstes termos são regidos pelas leis do estado da Flórida, Estados Unidos.\n\nCONTATO\nhello@dosetrace.io",
     settings_disclaimer: 'Aviso médico',
@@ -4342,7 +4342,7 @@ export const translations = {
     onboarding_welcome_sub: 'O jeito inteligente de acompanhar seus compostos, doses e frascos — tudo em um só lugar.',
     onboarding_welcome_btn: 'Começar',
     onboarding_language_title: 'Escolha seu idioma',
-    onboarding_language_sub: 'Você pode mudar isso depois nas Configurações.',
+    onboarding_language_sub: 'Você pode mudar isso depois em Ajustes.',
     onboarding_compound_title: 'O que você está usando?',
     onboarding_compound_sub: 'Marque todos os que você usa. Isso nos ajuda a personalizar sua experiência.',
     onboarding_compound_peptides: 'Peptídeos',
@@ -4985,7 +4985,7 @@ export const translations = {
     blood_source_camera: 'Tirar uma foto',
     blood_source_photo: 'Escolher uma foto',
     blood_source_pdf: 'Arquivo PDF',
-    blood_camera_denied: 'O acesso à câmera está desativado. Ative-o nas Configurações para escanear um exame.',
+    blood_camera_denied: 'O acesso à câmera está desativado. Ative-o nos Ajustes do iPhone para escanear um exame.',
     blood_needs_build: 'A captura de fotos requer a versão mais recente do app. Por enquanto, você pode enviar um PDF.',
     blood_hub_disclaimer: 'Você inseriu estes dados. O DoseTrace os organiza e exibe em gráficos — nunca interpreta seus resultados. Para qualquer dúvida médica, consulte um profissional qualificado.',
     blood_view_by_date: 'Por data',
@@ -5665,7 +5665,7 @@ export const translations = {
     consent_analytics_toggle: 'Permitir análises de uso anônimas para melhorar o DoseTrace',
     consent_accept: 'Entendo e concordo com as práticas de dados descritas acima',
     consent_continue: 'Continuar',
-    consent_footer: 'Você pode alterar essas preferências a qualquer momento em Configurações > Dados e privacidade.',
+    consent_footer: 'Você pode alterar essas preferências a qualquer momento em Ajustes > Dados e privacidade.',
     settings_analytics: 'Análises de uso',
     settings_analytics_sub: 'Ajude a melhorar o DoseTrace com dados anônimos',
     settings_export_title: 'Baixar meus dados',
@@ -5766,7 +5766,7 @@ export const translations = {
     tab_today: 'Aujourd\'hui',
     tab_protocols: 'Mes protocoles',
     tab_log: 'Journal',
-    tab_vials: 'Fioles',
+    tab_vials: 'Flacons',
     tab_body: 'Mon corps',
     tab_journey: 'Parcours',
     journey_subtitle: 'Suivez la façon dont votre corps réagit vraiment.',
@@ -5898,7 +5898,7 @@ export const translations = {
     tab_settings: 'Paramètres',
     // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
     tabbar_protocols: 'Protocoles',
-    tabbar_settings: 'Réglages',
+    tabbar_settings: 'Paramètres',
 
     // TODAY
     today_greeting_morning: 'Bonjour',
@@ -6141,7 +6141,7 @@ export const translations = {
     log_change_site: "Changer de site",
 
     // VIALS
-    vials_title: 'Fioles',
+    vials_title: 'Flacons',
     vials_new_btn: '+ Nouveau flacon',
     vials_active: 'Actif',
     vials_expiring_soon: 'Expire bientôt',
@@ -6220,7 +6220,7 @@ export const translations = {
     settings_report_empty: 'Aucun protocole actif à inclure dans le rapport.',
     settings_data_privacy: 'Données et confidentialité',
     settings_privacy_policy: 'Politique de confidentialité',
-    settings_privacy_body: "POLITIQUE DE CONFIDENTIALITÉ\n\nDernière mise à jour : avril 2026\n\nOutcom exploite l'application mobile DoseTrace.\n\nDONNÉES QUE NOUS COLLECTONS\nLorsque vous créez un compte, nous collectons votre adresse e-mail. Vous pouvez éventuellement fournir votre nom, sexe, mois et année de naissance, pays, objectifs de bien-être, niveau d'activité et si vous êtes suivi par un professionnel de santé. Les données de protocoles, journaux de doses, enregistrements de flacons et rappels que vous créez sont enregistrés sur votre appareil et synchronisés, chiffrés en transit, avec notre cloud sécurisé (Supabase, États-Unis), afin que vos données soient sauvegardées et disponibles sur vos appareils.\n\nCOMMENT NOUS UTILISONS VOS DONNÉES\nNous utilisons vos données pour fournir et personnaliser le service DoseTrace. Les informations de profil facultatives (nom, sexe, tranche d'âge, pays, objectifs, niveau d'activité) peuvent être utilisées sous forme agrégée et anonymisée pour améliorer notre service et développer des partenariats de bien-être. En dehors de l'extraction par IA décrite ci-dessous, nous ne partageons pas les données individuelles des utilisateurs avec des tiers. Nous ne vendons pas vos données personnelles. Nous n'utilisons pas vos données de santé à des fins publicitaires.\n\nEXTRACTION PAR IA (FACULTATIVE)\nSi vous choisissez de numériser un rapport de laboratoire ou un carnet de vaccination, la photo ou le PDF sélectionné est transmis à Anthropic PBC (le service d'IA Claude) pour une extraction de texte ponctuelle, uniquement après votre autorisation explicite dans l'app. Seul le fichier sélectionné est envoyé. Il sert uniquement à extraire les valeurs, n'est pas utilisé pour entraîner des modèles d'IA et n'est pas conservé par Anthropic au-delà de la surveillance antiabus à court terme. Anthropic protège ces données avec des garanties équivalentes à cette politique.\n\nSTOCKAGE DES DONNÉES\nVos données sont stockées sur votre appareil et synchronisées, chiffrées en transit, avec les serveurs cloud sécurisés de Supabase aux États-Unis, afin d’être sauvegardées et disponibles sur vos appareils.\nLes rapports d’analyses et carnets de vaccination que vous choisissez de numériser sont en outre envoyés une seule fois à Anthropic pour l’extraction de texte, comme décrit ci-dessus.\n\nVOS DROITS\nVous pouvez supprimer votre compte et toutes les données associées à tout moment depuis les Réglages de l’app, ou en écrivant à hello@dosetrace.io.\n\nENFANTS\nDoseTrace n'est pas destinée à être utilisée par des personnes de moins de 18 ans.\n\nMODIFICATIONS\nNous pouvons mettre à jour cette politique périodiquement. L'utilisation continue de l'application constitue l'acceptation de la politique mise à jour.\n\nCONTACT\nhello@dosetrace.io",
+    settings_privacy_body: "POLITIQUE DE CONFIDENTIALITÉ\n\nDernière mise à jour : avril 2026\n\nOutcom exploite l'application mobile DoseTrace.\n\nDONNÉES QUE NOUS COLLECTONS\nLorsque vous créez un compte, nous collectons votre adresse e-mail. Vous pouvez éventuellement fournir votre nom, sexe, mois et année de naissance, pays, objectifs de bien-être, niveau d'activité et si vous êtes suivi par un professionnel de santé. Les données de protocoles, journaux de doses, enregistrements de flacons et rappels que vous créez sont enregistrés sur votre appareil et synchronisés, chiffrés en transit, avec notre cloud sécurisé (Supabase, États-Unis), afin que vos données soient sauvegardées et disponibles sur vos appareils.\n\nCOMMENT NOUS UTILISONS VOS DONNÉES\nNous utilisons vos données pour fournir et personnaliser le service DoseTrace. Les informations de profil facultatives (nom, sexe, tranche d'âge, pays, objectifs, niveau d'activité) peuvent être utilisées sous forme agrégée et anonymisée pour améliorer notre service et développer des partenariats de bien-être. En dehors de l'extraction par IA décrite ci-dessous, nous ne partageons pas les données individuelles des utilisateurs avec des tiers. Nous ne vendons pas vos données personnelles. Nous n'utilisons pas vos données de santé à des fins publicitaires.\n\nEXTRACTION PAR IA (FACULTATIVE)\nSi vous choisissez de numériser un rapport de laboratoire ou un carnet de vaccination, la photo ou le PDF sélectionné est transmis à Anthropic PBC (le service d'IA Claude) pour une extraction de texte ponctuelle, uniquement après votre autorisation explicite dans l'app. Seul le fichier sélectionné est envoyé. Il sert uniquement à extraire les valeurs, n'est pas utilisé pour entraîner des modèles d'IA et n'est pas conservé par Anthropic au-delà de la surveillance antiabus à court terme. Anthropic protège ces données avec des garanties équivalentes à cette politique.\n\nSTOCKAGE DES DONNÉES\nVos données sont stockées sur votre appareil et synchronisées, chiffrées en transit, avec les serveurs cloud sécurisés de Supabase aux États-Unis, afin d’être sauvegardées et disponibles sur vos appareils.\nLes rapports d’analyses et carnets de vaccination que vous choisissez de numériser sont en outre envoyés une seule fois à Anthropic pour l’extraction de texte, comme décrit ci-dessus.\n\nVOS DROITS\nVous pouvez supprimer votre compte et toutes les données associées à tout moment depuis les Paramètres de l’app, ou en écrivant à hello@dosetrace.io.\n\nENFANTS\nDoseTrace n'est pas destinée à être utilisée par des personnes de moins de 18 ans.\n\nMODIFICATIONS\nNous pouvons mettre à jour cette politique périodiquement. L'utilisation continue de l'application constitue l'acceptation de la politique mise à jour.\n\nCONTACT\nhello@dosetrace.io",
     settings_terms: "Conditions d'utilisation",
     settings_terms_body: "CONDITIONS DE SERVICE\n\nDernière mise à jour : avril 2026\n\nEn téléchargeant ou en utilisant DoseTrace, vous acceptez ces conditions.\n\nUTILISATION DE L'APPLICATION\nDoseTrace est fournie uniquement à des fins de suivi personnel du bien-être. Vous devez avoir 18 ans ou plus pour utiliser cette application. Vous êtes responsable de la confidentialité des identifiants de votre compte.\n\nAVERTISSEMENT MÉDICAL\nDoseTrace ne fournit pas de conseils médicaux. Consultez notre Avertissement médical pour plus de détails.\n\nABONNEMENT PREMIUM\nLes fonctionnalités premium sont disponibles par abonnement au prix indiqué dans l'application au moment de l'achat. Les abonnements se renouvellent automatiquement sauf annulation au moins 24 heures avant la date de renouvellement. Gérez vos abonnements dans les réglages de votre identifiant Apple.\n\nPROPRIÉTÉ INTELLECTUELLE\nTout le contenu, les fonctionnalités et les fonctions de DoseTrace appartiennent à Outcom et sont protégés par les lois applicables en matière de propriété intellectuelle.\n\nLIMITATION DE RESPONSABILITÉ\nOutcom ne saurait être tenue responsable de tout dommage indirect, accessoire ou consécutif résultant de votre utilisation de DoseTrace.\n\nRÉSILIATION\nNous nous réservons le droit de résilier les comptes qui enfreignent ces conditions.\n\nDROIT APPLICABLE\nCes conditions sont régies par les lois de l'État de Floride, États-Unis.\n\nCONTACT\nhello@dosetrace.io",
     settings_disclaimer: 'Avertissement médical',
@@ -6456,7 +6456,7 @@ export const translations = {
     ],
 
     // BLOODWORK
-    blood_title: 'Examen sanguin',
+    blood_title: 'Bilan sanguin',
     body_section_labs: 'Analyses',
     body_section_vaccines: 'Vaccins',
     body_section_calc: 'Calculateur',
@@ -6698,7 +6698,7 @@ export const translations = {
     cal_show_all: 'Tout afficher',
     cal_show_less: 'Afficher moins',
     cal_tgt_date_line: 'Date visée : {date}',
-    cal_snap_waist: 'Taille',
+    cal_snap_waist: 'Tour de taille',
     cal_premium_locked: 'Une fonction Premium',
     cal_premium_cta: 'Passer à Premium',
     export_records: 'Exporter',
@@ -8338,7 +8338,7 @@ export const translations = {
         ]
       },
       {
-        category: 'Blutuntersuchung',
+        category: 'Blutwerte',
         questions: [
           {
             q: 'Wie funktioniert das Hochladen von Laborberichten?',
@@ -8370,7 +8370,7 @@ export const translations = {
     ],
 
     // BLOODWORK
-    blood_title: 'Blutuntersuchung',
+    blood_title: 'Blutwerte',
     body_section_labs: 'Labor',
     body_section_vaccines: 'Impfungen',
     body_section_calc: 'Rechner',
@@ -10623,8 +10623,8 @@ export const translations = {
     paywall_hero_example: "Esempio",
     xp_try: "Prova",
     xp_note: "Numeri di esempio. Lo vedi finché non usi la funzione per la prima volta.",
-    xp_recon_title: "Mai più indovinare quanto aspirare",
-    xp_recon_body: "Inserisci il tuo flacone, l'acqua che aggiungi e la tua dose. DoseTrace calcola quante unità aspirare nella siringa, così i conti sono già fatti.",
+    xp_recon_title: 'Mai più tirare a indovinare quanto prelevare',
+    xp_recon_body: "Inserisci il tuo flacone, l'acqua che aggiungi e la tua dose. DoseTrace calcola quante unità prelevare con la siringa, così i conti sono già fatti.",
     xp_vial_title: 'Sai sempre quando un flacone sta finendo',
     xp_vial_body: 'Ogni dose che registri viene scalata dal flacone. DoseTrace mostra le dosi e i giorni rimasti e ti avvisa prima che finisca.',
     xp_remind_title: "Un promemoria al momento giusto",
@@ -10656,7 +10656,7 @@ export const translations = {
     xp_log_foot: "Ogni dose che registri riempie la tua settimana",
     xp_energy_years: "{n} anni",
     xp_energy_active: "Moderatamente attivo",
-    xp_energy_bmr: "Consumo a riposo (MB)",
+    xp_energy_bmr: 'Consumo a riposo (BMR)',
     xp_energy_tdee: "Consumo giornaliero (stima)",
     xp_energy_per_day: "g / giorno",
     xp_energy_foot: "Stime da formule standard · fonti nell'app",
