@@ -11,7 +11,7 @@ test('S-08: the curve disclaimer says "planned schedule", never "logged doses" (
   const src = fs.readFileSync(path.join(__dirname, '..', 'i18n', 'translations.js'), 'utf8');
   const v = [...src.matchAll(/\n\s+curve_disclaimer: (['"])(.*)\1,/g)].map((m) => m[2]);
   assert.equal(v.length, 6);
-  const planned = [/your planned schedule/, /tu esquema planificado/, /seu esquema planejado/, /votre schéma prévu/, /deines geplanten Schemas/, /tuo schema pianificato/];
+  const planned = [/your planned schedule/, /tu esquema planificado/, /seu esquema planejado/, /votre schéma prévu/, /deines geplanten Schemas/, /orari che hai pianificato/];
   v.forEach((s, i) => {
     assert.match(s, planned[i], s.slice(0, 80));
     assert.doesNotMatch(s, /logged doses|dosis registradas|doses que você registrou|doses enregistrées|protokollierten Dosen|dosi registrate/, s.slice(0, 80));
