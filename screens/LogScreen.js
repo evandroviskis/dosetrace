@@ -5,7 +5,6 @@ import {
   SectionList,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   Pressable,
   Platform,
@@ -78,6 +77,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // the "Delete this dose?" confirm (DTSheet config inputs) for that row.
   const [doseSheet, setDoseSheet] = useState(null);
   const [deleteAsk, setDeleteAsk] = useState(null);
+  // DoseTrace sheets instead of native alerts (M4): `logSheet` on the screen (the Missed
+  // choice, errors); `siteSheet` presented from inside the site picker.
+  const [logSheet, setLogSheet] = useState(null);
+  const [siteSheet, setSiteSheet] = useState(null);
   const insets = useSafeAreaInsets();
 
   // BK-10: a Dose log pushed while folded moves onto Today's right page on unfold.
@@ -106,22 +109,22 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // didn't log it in time. Changing the outcome updates the same row (no new
   // log), so the streak/adherence recompute on the next focus.
   function openMissedEditor(log) {
-    Alert.alert(
-      t('log_missed_edit_title'),
-      t('log_missed_edit_msg'),
-      [
-        { text: t('log_mark_taken'), onPress: () => setMissedOutcome(log, 'Taken') },
-        { text: t('log_mark_skipped'), onPress: () => setMissedOutcome(log, 'Skipped') },
-        { text: t('cancel'), style: 'cancel' },
+    setLogSheet({
+      title: t('log_missed_edit_title'),
+      body: t('log_missed_edit_msg'),
+      buttons: [
+        { label: t('log_mark_taken'), kind: 'primary', onPress: () => setMissedOutcome(log, 'Taken') },
+        { label: t('log_mark_skipped'), kind: 'secondary', onPress: () => setMissedOutcome(log, 'Skipped') },
+        { label: t('cancel'), kind: 'secondary' },
       ],
-    );
+    });
   }
 
   // S-25 (founder 2026-10-01): a Missed injectable changed to Taken is asked where it
   // was injected first (Skip allowed); Cancel leaves it Missed.
   function setMissedOutcome(log, outcome) {
     if (outcome === 'Taken' && needsSiteQuestion(log.protocols?.type)) {
-      setTimeout(() => openSiteEditor(log, 'ask'), 350); // after the Alert has closed
+      setTimeout(() => openSiteEditor(log, 'ask'), 350); // after the sheet has closed
       return;
     }
     writeOutcome(log.id, { outcome });
@@ -198,10 +201,15 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   function handleSiteBack() {
     const tgt = bodyMapTarget;
     if (!tgt || !planSitePickerAction({ mode: tgt.mode, action: 'back' }).confirm) { siteAction('back'); return; }
-    Alert.alert(t('today_site_back_title'), t('today_site_back_msg'), [
-      { text: t('today_site_back_stay'), style: 'cancel' },
-      { text: t('today_site_back_leave'), style: 'destructive', onPress: () => siteAction('leave') },
-    ], { cancelable: true });
+    // Asked from inside the picker (BodyMapModal sheet): Stay first, Leave in the risk colour.
+    setSiteSheet({
+      title: t('today_site_back_title'),
+      body: t('today_site_back_msg'),
+      buttons: [
+        { label: t('today_site_back_stay'), kind: 'secondary' },
+        { label: t('today_site_back_leave'), kind: 'danger', onPress: () => siteAction('leave') },
+      ],
+    });
   }
 
   // ── The dose sheet (founder 2026-10-02, option A) ──────────────────────────────────
@@ -294,7 +302,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       fetchLogs();
       if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
     } catch (err) {
-      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+      setLogSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
     }
   }
 
@@ -627,6 +635,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       </Modal>
 
       <DTSheet config={deleteSheet} onClose={closeDeleteAsk} />
+      <DTSheet config={logSheet} onClose={() => setLogSheet(null)} />
 
       <BodyMapModal
         visible={bodyMapVisible}
@@ -638,6 +647,8 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         protocolName={bodyMapTarget?.protocolName || null}
         protocolId={bodyMapTarget?.protocolId ?? null}
         recentLogs={bodyMapTarget?.recentLogs || []}
+        sheet={siteSheet}
+        onSheetClose={() => setSiteSheet(null)}
       />
     </SafeAreaView>
   );

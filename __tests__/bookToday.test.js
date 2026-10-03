@@ -290,7 +290,7 @@ test('BK-19: the dose page reloads when the app returns to the foreground and fo
 test('BK-20: Today\'s site question, vial prompt and "still going?" wait while the embedded Log\'s site editor is open', () => {
   const open = TODAY.slice(TODAY.indexOf('async function openNextQuestion('), TODAY.indexOf('function commitQuestion('));
   // + the Skip sheet (Today redesign part 14): one popup at a time.
-  assert.match(open, /if \(!focusedRef\.current \|\| bodyMapOpenRef\.current \|\| vialPromptOpenRef\.current \|\| inactivePromptOpenRef\.current \|\| logPopupOpenRef\.current \|\| skipSheetOpenRef\.current\) return;/);
+  assert.match(open, /if \(!focusedRef\.current \|\| bodyMapOpenRef\.current \|\| vialPromptOpenRef\.current \|\| inactivePromptOpenRef\.current \|\| logPopupOpenRef\.current \|\| skipSheetOpenRef\.current \|\| todaySheetOpenRef\.current\) return;/);
   assert.match(open, /if \(!q\) \{ runLogPopupWaiter\(\); return; \}/, 'with no question left, a waiting Log editor opens');
   assert.match(TODAY, /if \(bodyMapOpenRef\.current \|\| siteQueueRef\.current\.length \|\| logPopupOpenRef\.current\) return;/, '"still going?" never over the editor');
   const vp = code(TODAY, fnDecl(todayAst, 'showVialPromptFor'));

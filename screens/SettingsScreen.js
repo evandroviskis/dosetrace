@@ -9,7 +9,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   Linking,
   Share,
@@ -47,6 +46,7 @@ import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity } from '../lib
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { scanMissedDoses } from '../lib/doseActions';
+import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount } from '../lib/accountActions';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
@@ -130,6 +130,26 @@ export default function SettingsScreen({ navigation }) {
   const [hasProvider, setHasProvider] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  // DoseTrace sheets instead of native alerts (decisions: "DoseTrace sheets replace native iOS
+  // alerts everywhere"). `sheet` sits on the screen; `editSheet` is presented from inside the
+  // Edit profile sheet (a popup opened from a popup is rendered inside it, M1).
+  const [sheet, setSheet] = useState(null);
+  const [editSheet, setEditSheet] = useState(null);
+  const tornDown = useRef(false);
+  const notice = (title, body, icon) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary' }] });
+  const errorSheet = (body) => notice(t('error'), body, 'warning');
+  // After the server deleted the account, the phone is cleared and signed out exactly once,
+  // however the Apple note is closed (Done, the scrim or Android back), as on the 18+ sheet.
+  const runTeardown = () => {
+    if (tornDown.current) return;
+    tornDown.current = true;
+    finishAccountDeletion().catch(() => {});
+  };
+  const closeSheet = () => {
+    const closing = sheet;
+    setSheet(null);
+    if (closing && closing.teardown) runTeardown();
+  };
   // Collapsible Settings sections (remembered). All start collapsed — the user
   // opens only what they need, so the screen stays clean.
   const ALL_COLLAPSED = { account: true, notifications: true, privacy: true, support: true };
@@ -235,7 +255,7 @@ export default function SettingsScreen({ navigation }) {
     try { ({ error } = await supabase.auth.updateUser({ data: { [key]: val } })); } catch (e) { error = e; }
     if (error) {
       setter(!val);
-      Alert.alert(t('error'), friendlyError(error, t, 'error_save_failed'));
+      errorSheet(friendlyError(error, t, 'error_save_failed'));
       return;
     }
     // Re-sync all notifications to respect the new preference
@@ -261,7 +281,7 @@ export default function SettingsScreen({ navigation }) {
     if (!activityLevel) missing.push(t('profile_activity'));
     if (!hasProvider) missing.push(t('profile_provider'));
     if (missing.length > 0) {
-      Alert.alert(t('profile_required_legend').replace(/^\*\s*/, ''), missing.join('\n'));
+      setEditSheet({ icon: 'warning', title: t('profile_required_legend').replace(/^\*\s*/, ''), body: missing.join('\n'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
     try {
@@ -284,7 +304,7 @@ export default function SettingsScreen({ navigation }) {
       setShowEditProfile(false);
       fetchUser();
     } catch (e) {
-      Alert.alert(t('error'), friendlyError(e, t, 'error_save_failed'));
+      setEditSheet({ icon: 'warning', title: t('error'), body: friendlyError(e, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
     }
   }
 
@@ -294,9 +314,9 @@ export default function SettingsScreen({ navigation }) {
     try {
       // The one export (lib/accountActions), shared with the 18+ confirmation sheet.
       const r = await exportMyData(user, t('settings_export_title'));
-      if (r.saved) Alert.alert(t('settings_export_title'), t('settings_export_done'));
+      if (r.saved) notice(t('settings_export_title'), t('settings_export_done'), 'check');
     } catch (e) {
-      Alert.alert(t('error'), t('settings_export_error'));
+      errorSheet(t('settings_export_error'));
     }
     setExporting(false);
   }
@@ -320,7 +340,7 @@ export default function SettingsScreen({ navigation }) {
       const vials = getLocalVials(user.id) || [];
 
       if (protocols.length === 0) {
-        Alert.alert(t('settings_report_title'), t('settings_report_empty'));
+        notice(t('settings_report_title'), t('settings_report_empty'));
         setExporting(false);
         return;
       }
@@ -396,18 +416,18 @@ export default function SettingsScreen({ navigation }) {
         title: t('settings_report_title'),
       });
     } catch (e) {
-      Alert.alert(t('error'), friendlyError(e, t));
+      errorSheet(friendlyError(e, t));
     }
     setExporting(false);
   }
 
   async function handleSignOut() {
-    Alert.alert(t('settings_signout'), t('settings_signout_confirm_local'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('settings_signout'),
-        style: 'destructive',
-        onPress: async () => {
+    setSheet({
+      title: t('settings_signout'),
+      body: t('settings_signout_confirm_local'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('settings_signout'), kind: 'danger', onPress: async () => {
           // Best-effort: push this user's pending changes before local data
           // is wiped by the SIGNED_OUT handler.
           try { await forceSync(); } catch (e) { /* best effort */ }
@@ -425,38 +445,29 @@ export default function SettingsScreen({ navigation }) {
           // SIGNED_OUT, which routes back to the welcome screen.
           try { await supabase.auth.signOut({ scope: 'local' }); }
           catch { await supabase.auth.signOut().catch(() => {}); }
-        },
-      },
-    ]);
+        } },
+      ],
+    });
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
-      t('settings_delete'),
-      t('settings_delete_permanent_msg'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('settings_delete_confirm'),
-          style: 'destructive',
-          onPress: () => {
-            // Second confirmation — this is irreversible
-            Alert.alert(
-              t('settings_delete_final_title'),
-              t('settings_delete_final_msg'),
-              [
-                { text: t('cancel'), style: 'cancel' },
-                {
-                  text: t('settings_delete_final_confirm'),
-                  style: 'destructive',
-                  onPress: () => executeAccountDeletion(),
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+    setSheet({
+      title: t('settings_delete'),
+      body: t('settings_delete_permanent_msg'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        // Second confirmation — this is irreversible. The sheet runs a button's action
+        // after it has closed, so the second sheet opens on its own.
+        { label: t('settings_delete_confirm'), kind: 'danger', onPress: () => setSheet({
+          title: t('settings_delete_final_title'),
+          body: t('settings_delete_final_msg'),
+          buttons: [
+            { label: t('cancel'), kind: 'secondary' },
+            { label: t('settings_delete_final_confirm'), kind: 'danger', onPress: () => executeAccountDeletion() },
+          ],
+        }) },
+      ],
+    });
   }
 
   async function executeAccountDeletion() {
@@ -464,25 +475,26 @@ export default function SettingsScreen({ navigation }) {
       // The one delete (lib/accountActions → delete-user: ALL of the user's data rows first,
       // then the auth account), shared with the 18+ confirmation sheet.
       const result = await requestAccountDeletion();
-      if (result.noSession) { Alert.alert(t('error'), t('error_no_session')); return; }
-      if (result.offline) { Alert.alert(t('error'), t('settings_delete_offline')); return; }
+      if (result.noSession) { errorSheet(t('error_no_session')); return; }
+      if (result.offline) { errorSheet(t('settings_delete_offline')); return; }
 
       // The account + data are deleted. If the user signed in with Apple but we
       // had no stored token to auto-revoke (a pre-feature account, or a transient
       // revoke failure), tell them how to remove Apple access themselves — Apple
       // 5.1.1(v) fallback guidance. The deletion itself already succeeded.
       if (result.appleManualRevokeNeeded) {
-        Alert.alert(
-          t('settings_delete_apple_revoke_title'),
-          t(Platform.OS === 'android' ? 'settings_delete_apple_revoke_note_android' : 'settings_delete_apple_revoke_note'),
-          [{ text: t('done'), onPress: () => finishAccountDeletion() }],
-          { cancelable: false },
-        );
+        setSheet({
+          icon: 'check',
+          title: t('settings_delete_apple_revoke_title'),
+          body: t(Platform.OS === 'android' ? 'settings_delete_apple_revoke_note_android' : 'settings_delete_apple_revoke_note'),
+          teardown: true,
+          buttons: [{ label: t('done'), kind: 'primary', onPress: runTeardown }],
+        });
         return;
       }
-      await finishAccountDeletion();
+      runTeardown();
     } catch (e) {
-      Alert.alert(t('error'), friendlyError(e, t, 'error_deletion_failed'));
+      errorSheet(friendlyError(e, t, 'error_deletion_failed'));
     }
   }
 
@@ -688,7 +700,7 @@ export default function SettingsScreen({ navigation }) {
             style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
             onPress={async () => {
               const ok = await openBatteryOptimizationSettings();
-              if (!ok) Alert.alert(t('settings_reliable_reminders'), t('settings_reliable_reminders_sub'));
+              if (!ok) notice(t('settings_reliable_reminders'), t('settings_reliable_reminders_sub'));
             }}
           >
             <View style={s.rowLeft}>
@@ -1006,6 +1018,10 @@ export default function SettingsScreen({ navigation }) {
           one or drops what was typed in it (BK-10). */}
       {book ? renderBook() : renderPhone()}
 
+      {/* The screen's DoseTrace sheet. While Edit profile is up its own sheet (below, inside it)
+          is the one shown, so two popups are never stacked side by side (M1). */}
+      <DTSheet config={showEditProfile ? null : sheet} onClose={closeSheet} />
+
       {/* LANGUAGE PICKER MODAL */}
       <Modal
         visible={showLanguagePicker}
@@ -1262,6 +1278,8 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
             <View style={{ height: 40 }} />
           </ScrollView>
+
+          <DTSheet config={editSheet} onClose={() => setEditSheet(null)} />
 
           {/* COUNTRY PICKER: presented FROM the Edit profile sheet (nested), never as a
               sibling of it. iOS refuses a second sibling pageSheet ("already presenting") and

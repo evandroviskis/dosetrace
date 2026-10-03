@@ -13,7 +13,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, AccessibilityInfo } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, AccessibilityInfo } from 'react-native';
 import GradSwitch from '../../components/GradSwitch';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../../lib/supabase';
@@ -22,6 +22,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { syncFoodLogReminder } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
+import { DTSheet } from './ProtocolParts';
 
 // The animated example (prototype FC-demo) — used for "See how it works" in the food
 // chat and for the locked upsell here. Respects Reduce Motion (static final frame).
@@ -88,6 +89,7 @@ export function FoodReminderRow() {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const [foodReminders, setFoodReminders] = useState(true);
+  const [sheet, setSheet] = useState(null); // DoseTrace sheet instead of a native alert (M4)
   useFocusEffect(useCallback(() => {
     let alive = true;
     getCachedUser().then((user) => { if (alive) setFoodReminders(user?.user_metadata?.food_reminders !== false); }).catch(() => {});
@@ -99,7 +101,7 @@ export function FoodReminderRow() {
     try { ({ error } = await supabase.auth.updateUser({ data: { food_reminders: val } })); } catch (e) { error = e; }
     if (error) {
       setFoodReminders(!val);
-      Alert.alert(t('error'), friendlyError(error, t, 'error_save_failed'));
+      setSheet({ icon: 'warning', title: t('error'), body: friendlyError(error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
     syncFoodLogReminder().catch(() => {});
@@ -116,6 +118,7 @@ export function FoodReminderRow() {
         onValueChange={toggleFoodReminders}
         accessibilityLabel={t('settings_food_reminders')}
       />
+      <DTSheet config={sheet} onClose={() => setSheet(null)} />
     </View>
   );
 }

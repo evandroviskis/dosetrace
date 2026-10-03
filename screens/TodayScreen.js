@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   TextInput,
   useWindowDimensions,
@@ -218,6 +217,25 @@ export default function TodayScreen() {
   const [bodyMapTarget, setBodyMapTarget] = useState(null); // { q, protocolId, recentLogs, initialStored, mode: 'ask' }
   const [skipAsk, setSkipAsk] = useState(null); // the "Skip dose?" sheet: { name, onSkip } (part 14)
   const skipSheetOpenRef = useRef(false);
+  // DoseTrace sheets instead of native alerts (M4). `todaySheet`: errors and the "yesterday or
+  // today?" question, on the screen; it counts as one of Today's popups (one at a time).
+  // `vialSheet` is presented from inside the vial prompt, `siteSheet` from inside the site
+  // picker (a popup opened from a popup is rendered inside it, M1).
+  const [todaySheet, setTodaySheet] = useState(null);
+  const todaySheetOpenRef = useRef(false);
+  const [vialSheet, setVialSheet] = useState(null);
+  const [siteSheet, setSiteSheet] = useState(null);
+  const okButton = () => [{ label: t('ok'), kind: 'primary' }];
+  function showTodaySheet(config, delayMs = 0) {
+    todaySheetOpenRef.current = true;
+    if (delayMs) setTimeout(() => setTodaySheet(config), delayMs); else setTodaySheet(config);
+  }
+  function closeTodaySheet() {
+    setTodaySheet(null);
+    todaySheetOpenRef.current = false;
+    setTimeout(openNextQuestion, 450); // a site question that waited opens
+  }
+  const todayError = (body, delayMs) => showTodaySheet({ icon: 'warning', title: t('error'), body, buttons: okButton() }, delayMs);
   const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
 
   // S-26 book layout (BK-16, BK-19, BK-20): the rows the dose page reads (yesterday + today),
@@ -811,7 +829,8 @@ export default function TodayScreen() {
         console.warn('markTaken follow-up failed', err);
       } else {
         resetTake(protocol.id); // the button already shows "Taken" — put it back
-        Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+        // After a site answer the picker is still fading out: the sheet waits for it.
+        todayError(friendlyError(err, t, 'error_save_failed'), opts.vialPromptDelay ? 700 : 0);
       }
     }
   }
@@ -839,13 +858,13 @@ export default function TodayScreen() {
 
   // A popup of Today's own is open (or the vial prompt is about to open).
   function todayPopupBusy() {
-    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current;
+    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current;
   }
 
   async function openNextQuestion() {
     // BK-20: one popup at a time across both pages — also not over the embedded Dose log's
     // site editor; the question waits and opens when that editor closes.
-    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current) return;
+    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
     const q = siteQueueRef.current.shift();
     if (!q) { runLogPopupWaiter(); return; }
     // Paused / deleted, or already logged (another device, a banner): nothing to ask.
@@ -933,15 +952,15 @@ export default function TodayScreen() {
     const tgt = bodyMapTarget;
     if (!tgt) return;
     if (!planSitePickerAction({ mode: tgt.mode, action: 'back' }).confirm) { pickerAction('back'); return; }
-    Alert.alert(
-      t('today_site_back_title'),
-      t('today_site_back_msg'),
-      [
-        { text: t('today_site_back_stay'), style: 'cancel' },
-        { text: t('today_site_back_leave'), style: 'destructive', onPress: () => pickerAction('leave') },
+    // Asked from inside the picker (BodyMapModal sheet): Stay first, Leave in the risk colour.
+    setSiteSheet({
+      title: t('today_site_back_title'),
+      body: t('today_site_back_msg'),
+      buttons: [
+        { label: t('today_site_back_stay'), kind: 'secondary' },
+        { label: t('today_site_back_leave'), kind: 'danger', onPress: () => pickerAction('leave') },
       ],
-      { cancelable: true },
-    );
+    });
   }
   function handleBodyMapSkip() { pickerAction('skip'); }
   function handleBodyMapSave({ stored }) { pickerAction('save', stored); }
@@ -1030,7 +1049,7 @@ export default function TodayScreen() {
         Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
         requestSync();
       } catch (err) {
-        Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+        todayError(friendlyError(err, t, 'error_save_failed'));
       }
     };
     skipSheetOpenRef.current = true;
@@ -1100,7 +1119,7 @@ export default function TodayScreen() {
       const user = await getCachedUser();
       if (!user) return;
       const mixDate = toPastDateString(newVialMonth, newVialDay);
-      if (!mixDate) { Alert.alert(t('error'), t('today_invalid_date')); return; }
+      if (!mixDate) { setVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: okButton() }); return; }
       // Vial row from lib/newVial (tested): capacity derived from the protocol;
       // the protocol itself is never changed, so its history is kept (S-01).
       const { vial, protocolUpdate } = newVialRecords(continuationProtocol, mixDate, user.id);
@@ -1115,7 +1134,7 @@ export default function TodayScreen() {
       syncVialAlerts().catch(() => {});
       requestSync();
     } catch (err) {
-      Alert.alert(t('error'), friendlyError(err, t, 'error_save_failed'));
+      setVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: okButton() });
     }
   }
 
@@ -1213,7 +1232,7 @@ export default function TodayScreen() {
       if (attempt < 12) setTimeout(() => handleTake(p, btnRect, attempt + 1, { ...opts, tapMs }), 250);
       else {
         resetTake(p.id);
-        Alert.alert(t('error'), t('error_save_failed'));
+        todayError(t('error_save_failed'));
       }
       return;
     }
@@ -1223,19 +1242,20 @@ export default function TodayScreen() {
     const pend = slot.flipRowId != null ? null : pendingPromptFor(pendingYest, p.id, { pendingResolved: !!opts.pendingResolved });
     if (pend) {
       const vars = (str) => str.replace('{name}', p.compound_id ? t(p.compound_id) : p.name).replace('{time}', formatTimeAMPM(new Date(pend.slotMs).toTimeString().slice(0, 5)));
-      Alert.alert(
-        t('today_pending_prompt_title'),
-        vars(t('today_pending_prompt_msg')),
-        [
-          { text: t('today_pending_prompt_yesterday'), onPress: () => { resetTake(p.id); takePending(pend); } },
+      // Cancel last (three choices stack); a tap outside or Android back = Cancel.
+      showTodaySheet({
+        title: t('today_pending_prompt_title'),
+        body: vars(t('today_pending_prompt_msg')),
+        buttons: [
+          { label: t('today_pending_prompt_yesterday'), kind: 'primary', onPress: () => { resetTake(p.id); takePending(pend); } },
           // Nothing is written here: yesterday's Skipped row goes in with this dose (S-25).
-          { text: t('today_pending_prompt_today'), onPress: () => {
+          { label: t('today_pending_prompt_today'), kind: 'secondary', onPress: () => {
             handleTake(p, btnRect, 0, { ...opts, pendingResolved: true, tapMs, skipYesterday: { dayKey: pend.dayKey, slotMs: pend.slotMs } });
           } },
-          { text: t('cancel'), style: 'cancel', onPress: () => resetTake(p.id) },
+          { label: t('cancel'), kind: 'secondary', onPress: () => resetTake(p.id) },
         ],
-        { cancelable: true, onDismiss: () => resetTake(p.id) },
-      );
+        onDismiss: () => resetTake(p.id),
+      });
       return;
     }
     // An injectable: ask where it was injected; the answer writes it (S-25).
@@ -2039,6 +2059,8 @@ export default function TodayScreen() {
         whenLabel={siteWhen}
         protocolId={bodyMapTarget?.protocolId ?? null}
         recentLogs={bodyMapTarget?.recentLogs || []}
+        sheet={siteSheet}
+        onSheetClose={() => setSiteSheet(null)}
       />
 
       {/* Vial continuation modal */}
@@ -2131,6 +2153,8 @@ export default function TodayScreen() {
             </View>
           </View>
         </View>
+        {/* Errors from the vial prompt are presented from inside it (M1/M4). */}
+        <DTSheet config={vialSheet} onClose={() => setVialSheet(null)} />
       </Modal>
 
       {/* Inactivity nudge: "is this protocol finished?" */}
@@ -2158,6 +2182,8 @@ export default function TodayScreen() {
 
       {/* Part 14: "Skip dose?" — the DoseTrace sheet. */}
       <DTSheet config={skipSheet} onClose={closeSkipAsk} />
+      {/* Errors and the "yesterday or today?" question (M4). */}
+      <DTSheet config={todaySheet} onClose={closeTodaySheet} />
 
       {/* The dose drop that travels from a "Mark taken" button into the ring. */}
       <Animated.View pointerEvents="none" style={[s.flyDrop, flyStyle]}>

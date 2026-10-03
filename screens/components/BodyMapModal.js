@@ -25,9 +25,14 @@
  *   protocolName:   string (e.g. "BPC-157") — shown in subtitle
  *   protocolId:     id (optional) — opens on the route this protocol last used in the log
  *   recentLogs:     dose_log rows (the user's own log: recall + last route)
+ *   sheet:          DoseTrace sheet config (optional) — a question asked while the picker is up
+ *                   (the Android back "stay or leave?") is presented FROM the picker, never
+ *                   beside it (one popup at a time, M1/M4)
+ *   onSheetClose:   () => void — clears `sheet`
  */
 
 import { useState, useMemo, useEffect } from 'react';
+import { DTSheet } from './ProtocolParts';
 import {
   View,
   Text,
@@ -109,6 +114,8 @@ export default function BodyMapModal({
   whenLabel = null, // the dose's time, shown after the name (Today redesign part 16)
   protocolId = null,
   recentLogs = [],
+  sheet = null,
+  onSheetClose = null,
 }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
@@ -427,6 +434,7 @@ export default function BodyMapModal({
           )}
         </View>
       </KeyboardAvoidingView>
+      <DTSheet config={sheet} onClose={onSheetClose || (() => {})} />
     </Modal>
   );
 }

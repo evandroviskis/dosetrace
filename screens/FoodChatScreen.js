@@ -14,7 +14,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, FlatList,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Linking,
   KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +36,8 @@ import {
 import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
-import { requestAIConsent } from '../lib/aiConsent';
+import { DTSheet } from './components/ProtocolParts';
+import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
 import { syncFoodLogReminder, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
@@ -97,6 +98,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [screenReader, setScreenReader] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [chatSheet, setChatSheet] = useState(null); // DoseTrace sheet instead of a native alert (M4)
   const [consentOpen, setConsentOpen] = useState(false);
   const [showDemo, setShowDemo] = useState(false); // "See how it works" sheet
   const [loaded, setLoaded] = useState(false);
@@ -226,11 +228,49 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   // first so the page's chat reads it back (never lose what was typed).
   useUnfoldToPage('FoodChat', { embedded, params: routeParams, beforeLeave: () => saveDraftNow(guardRef.current.text) });
 
-  // An alert holds the chat open until it is answered.
+  // A DoseTrace sheet holds the chat open until it is answered (M4: no native alerts).
+  // buttons: [{ text, style: 'cancel' | 'destructive' | undefined, onPress }]. Two buttons sit in
+  // a row with Cancel first; three stack with Cancel last. The risk colour marks a destructive
+  // choice; a tap outside or Android back = Cancel.
   function alert(title, msg, buttons) {
     setAlertOpen(true);
-    const wrap = (buttons && buttons.length ? buttons : [{ text: 'OK' }]).map((b) => ({ ...b, onPress: () => { setAlertOpen(false); b.onPress && b.onPress(); } }));
-    Alert.alert(title, msg, wrap, { cancelable: true, onDismiss: () => setAlertOpen(false) });
+    const list = buttons && buttons.length ? buttons : [{ text: t('ok') }];
+    const cancel = list.filter((b) => b.style === 'cancel');
+    const rest = list.filter((b) => b.style !== 'cancel');
+    const ordered = list.length > 2 ? [...rest, ...cancel] : [...cancel, ...rest];
+    const lastAction = rest[rest.length - 1];
+    setChatSheet({
+      icon: title === t('error') ? 'warning' : undefined,
+      title,
+      body: msg,
+      buttons: ordered.map((b) => ({
+        label: b.text,
+        kind: b.style === 'destructive' ? 'danger' : b.style === 'cancel' ? 'secondary' : b === lastAction ? 'primary' : 'secondary',
+        onPress: b.onPress,
+      })),
+    });
+  }
+  function closeChatSheet() { setChatSheet(null); setAlertOpen(false); }
+  // The one shared AI consent (same key, same policy link as every AI feature), asked in the
+  // DoseTrace sheet. Resolves true only after an explicit "Agree"; the policy link opens the
+  // page and keeps the send cancelled (the typed text stays in the box).
+  function askAIConsent() {
+    return new Promise((resolve) => {
+      hasAIConsent().then((granted) => {
+        if (granted) { resolve(true); return; }
+        setChatSheet({
+          icon: 'ai_spark',
+          title: t('ai_consent_title'),
+          body: t('ai_consent_body'),
+          link: { label: t('ai_consent_privacy'), onPress: () => { Linking.openURL(AI_PRIVACY_URL).catch(() => {}); resolve(false); } },
+          buttons: [
+            { label: t('cancel'), kind: 'secondary', onPress: () => resolve(false) },
+            { label: t('ai_consent_agree'), kind: 'primary', onPress: async () => { await grantAIConsent(); resolve(true); } },
+          ],
+          onDismiss: () => resolve(false),
+        });
+      });
+    });
   }
 
   // ── Questions about today (FL-4/6) ─────────────────────────────
@@ -272,7 +312,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     // "I ate nothing" makes it a 0-kcal day that counts toward the 7 days in a row.
     const hasFood = (rows || []).some((r) => r && r.entry_date === dayKey && !isMarker(r));
     if (!hasFood && !opts.confirmed) {
-      Alert.alert(t('nutri_close_empty_title'), t('nutri_close_empty_msg'), [
+      alert(t('nutri_close_empty_title'), t('nutri_close_empty_msg'), [
         { text: t('cancel'), style: 'cancel' },
         { text: t('nutri_close_just_close'), onPress: () => closeDay(dayKey, { confirmed: true }) },
         { text: t('nutri_close_ate_nothing'), onPress: () => closeDay(dayKey, { confirmed: true, ateNothing: true }) },
@@ -309,7 +349,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       return;
     }
     setConsentOpen(true);
-    const consented = await requestAIConsent(t);
+    const consented = await askAIConsent();
     setConsentOpen(false);
     if (!consented) return;
     setNotice(null);
@@ -725,6 +765,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           </View>
         </KeyboardAvoidingView>
       )}
+
+      <DTSheet config={chatSheet} onClose={closeChatSheet} />
 
       <FoodEntryEditor row={editRow} onClose={() => { setEditRow(null); touch(); }} onSaved={() => refresh(userId)} />
 

@@ -42,7 +42,9 @@ function useLast(config) {
 // Centered DoseTrace sheet: optional icon in a well circle, title 22/700, body 17 ink2,
 // buttons per the Graduated rules. config = { icon, title, body, link: { label, onPress },
 // note, buttons:
-// [{ label, kind: 'primary' | 'secondary' | 'danger', onPress }] }.
+// [{ label, kind: 'primary' | 'secondary' | 'danger', onPress }], onDismiss }.
+// onDismiss (optional) runs when the sheet is closed WITHOUT a button (a tap outside, Android
+// back) — the native alert's cancelable onDismiss — after the sheet has gone.
 export function DTSheet({ config, onClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
@@ -54,9 +56,10 @@ export function DTSheet({ config, onClose }) {
   const stack = btns.length !== 2 || btns.some(b => String(b.label).length > 14);
   const ordered = stack && btns.length === 2 ? [btns[1], btns[0]] : btns;
   const press = (b) => { after.queue(b.onPress); onClose(); };
+  const dismiss = () => { after.queue(shown.onDismiss); onClose(); };
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} onDismiss={after.onDismiss}>
-      <Pressable style={s.scrim} onPress={onClose} accessibilityRole="button" >
+    <Modal visible={open} transparent animationType="fade" onRequestClose={dismiss} onDismiss={after.onDismiss}>
+      <Pressable style={s.scrim} onPress={dismiss} accessibilityRole="button" >
         <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
           {shown.icon ? (
             <View style={s.icon}><FeatureIcon name={shown.icon} size={26} color={c.ink} /></View>
