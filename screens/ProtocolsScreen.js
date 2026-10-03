@@ -1644,7 +1644,7 @@ export default function ProtocolsScreen() {
       // Started before installing the app? Offer to backfill the elapsed scheduled
       // doses as Taken so adherence + history reflect them (the curve already reads
       // the schedule). Applies to every type. Only when the start date is in the past.
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
       const pastCount = (protocolData && safeStart < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
       if (pastCount > 0) {
         // Shown once the add sheet is gone (screenSheet waits for it).
@@ -2618,7 +2618,7 @@ export default function ProtocolsScreen() {
                       onChange={(event, d) => {
                         setShowStartPicker(false);
                         if (event.type === 'dismissed') return;
-                        if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setStartDate(x.toISOString().split('T')[0]); }
+                        if (d) setStartDate(isoDay(d, 0));
                       }}
                     />
                   )}

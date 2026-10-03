@@ -31,6 +31,7 @@ import {
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols } from '../lib/localeFormat';
+import { localISO } from '../lib/localDate';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
@@ -187,9 +188,10 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 // Estimated level (mg or IU) from the summed dose model — not "amount in the body"
 // not a serum concentration — the disclaimer says so.
 
+// The user's local calendar day (lib/localDate) — never a UTC date: noon local turned into
+// UTC was the day before east of UTC+12.
 function todayISO() {
-  const d = new Date(); d.setHours(12, 0, 0, 0);
-  return d.toISOString().split('T')[0];
+  return localISO();
 }
 
 
