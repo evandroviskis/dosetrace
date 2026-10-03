@@ -71,6 +71,16 @@ in-progress reality-check on hello@dosetrace.io).
   update-over-old-version and re-auth on device and confirm previously-entered data is
   still there. This is part of ship-check Gate A/B now.
 
+## Standing rule: decide what is already decided — ask only real questions (2026-10-03, founder directive)
+
+The founder must not have to re-explain the project. Before putting ANY question to him:
+1. **Ledger:** check `docs/decisions.md` (and memory, grok notes, signed specs). Already answered → apply it, say so in one line.
+2. **Logic:** if the answer follows from how the features connect and why they exist, decide it and state the reason in one line.
+   (Example: a 7-day reality check cannot run on 3 free food-log days → the food log gets 7 free days. Never ask that.)
+3. **Only then ask**, and only about real preferences (taste, money, risk, scope) — all open questions of a phase in ONE round.
+Every agent brief must carry the relevant decisions from the ledger; every new founder answer is added to `docs/decisions.md`
+the same day. Relaying a sub-agent's question without this filter is a process failure.
+
 ## Standing rule: translate naturally, never word for word (2026-10-02, founder directive)
 
 Every translation (ES/PT/FR/DE/IT) is written the way a native app in that language would
