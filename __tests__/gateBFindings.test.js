@@ -24,7 +24,7 @@ test('GB-2 (major): consent counts only when THIS person ticked the four boxes i
   assert.equal(O.canContinue('consent', { terms: { ...all, ai: false }, consentAccepted: true }), false, 'a stored consent no longer passes the step');
   assert.equal(O.canContinue('consent', { terms: all }), true);
   const p = O.stashPatch({ terms: { ...all, ai: false }, consentAccepted: true }, 'NOW');
-  assert.ok(!('consent_accepted' in p), 'an unticked box records no consent');
+  assert.equal(p.consent_accepted, false, 'an unticked box records no consent');
   // Resume: a finished stash reopens on the consent step (boxes empty) unless the consent was
   // passed in this run (Back from Create account) — never pre-ticked for whoever holds the phone.
   const stash = { display_name: 'Sam', primary_goal: 'fitness', tracking_types: ['peptides'], gender: 'male', country: 'Brazil', birth_year: 1990, birth_month: 4, activity_level: 'moderate', has_provider: 'no', consent_accepted: true };
@@ -43,7 +43,7 @@ test('GB-3 (major): an email link that was already handled, or arrives while sig
   const app = read('App.js');
   assert.match(app, /dosetrace_links_handled/, 'handled links are remembered');
   assert.match(app, /if \(handled\.includes\(key\)\) return;/);
-  assert.match(app, /isConfirm[\s\S]{0,300}if \(hasSession\) return;/, 'a confirm link while signed in is silent');
+  assert.match(app, /isConfirm[\s\S]{0,300}if \(hasSession\) \{ rememberLink\(key\); return; \}/, 'a confirm link while signed in is silent');
   assert.match(app, /auth_confirm_link_failed_msg/);
   const i18n = read('i18n', 'translations.js');
   assert.equal((i18n.match(/\n\s+auth_confirm_link_failed_msg: /g) || []).length, 6);

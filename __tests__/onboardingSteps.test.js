@@ -84,7 +84,7 @@ test('PA-37: an existing user\'s 4-level choice migrates to the 5 levels and is 
 
 test('PA-38: the stash patch writes only what is filled (no undefined clobbers an earlier step)', () => {
   const p = O.stashPatch({ goals: ['sleep'], tracking: [], name: ' ', terms: {} }, '2026-10-03T00:00:00Z');
-  assert.deepEqual(p, { primary_goal: 'sleep' });
+  assert.deepEqual(p, { primary_goal: 'sleep', consent_accepted: false, consent_date: null }, 'consent is always written (false until all four boxes) — Gate B re-review');
   const all = O.stashPatch({ goals: ['a', 'b'], tracking: ['oral'], name: 'Bo', gender: 'male', country: 'Peru', birthMonth: 11, birthYear: 1970, activity: 'light', provider: 'no', terms: { med: 1, est: 1, ai: 1, priv: 1 } }, 'NOW');
   assert.deepEqual(all, { display_name: 'Bo', primary_goal: 'a,b', tracking_types: ['oral'], gender: 'male', country: 'Peru', birth_year: 1970, birth_month: 12, activity_level: 'light', has_provider: 'no', consent_accepted: true, consent_date: 'NOW', activity_scale: 5 });
 });

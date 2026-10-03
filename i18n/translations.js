@@ -10,6 +10,7 @@ export const LANGUAGES = [
 export const translations = {
   'en': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    reset_switch_offline: 'Some changes on this phone aren\'t backed up yet, so DoseTrace didn\'t sign you out. Connect to the internet and open the link again.',
     paywall_start_trial_months: 'Start {n}-month free trial',
     paywall_cancel_sub_title: 'Cancel your subscription',
     paywall_cancel_sub_msg: 'Lifetime Access is now active. Your subscription keeps renewing until you cancel it in your {store} subscription settings — DoseTrace can’t cancel it for you.',
@@ -1970,6 +1971,7 @@ export const translations = {
 
   'es': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    reset_switch_offline: 'Algunos cambios de este teléfono aún no tienen copia de seguridad, así que DoseTrace no ha cerrado tu sesión. Conéctate a internet y vuelve a abrir el enlace.',
     paywall_start_trial_months: 'Empieza tu prueba gratis de {n} mes(es)',
     paywall_cancel_sub_title: 'Cancela tu suscripción',
     paywall_cancel_sub_msg: 'El acceso de por vida ya está activo. Tu suscripción se seguirá renovando hasta que la canceles en los ajustes de suscripciones de {store}; DoseTrace no puede cancelarla por ti.',
@@ -3930,6 +3932,7 @@ export const translations = {
 
   'pt': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    reset_switch_offline: 'Algumas alterações neste celular ainda não têm backup, por isso o DoseTrace não saiu da sua conta. Conecte-se à internet e abra o link de novo.',
     paywall_start_trial_months: 'Começar teste grátis de {n} mês(es)',
     paywall_cancel_sub_title: 'Cancele sua assinatura',
     paywall_cancel_sub_msg: 'O acesso vitalício já está ativo. Sua assinatura continua sendo renovada até você cancelá-la nos ajustes de assinaturas do {store} — o DoseTrace não consegue cancelar por você.',
@@ -5889,6 +5892,7 @@ export const translations = {
   },
   'fr': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    reset_switch_offline: 'Certaines modifications sur ce téléphone ne sont pas encore sauvegardées, DoseTrace ne vous a donc pas déconnecté. Connectez-vous à internet et rouvrez le lien.',
     paywall_start_trial_months: 'Commencer l’essai gratuit de {n} mois',
     paywall_cancel_sub_title: 'Résiliez votre abonnement',
     paywall_cancel_sub_msg: 'L’accès à vie est actif. Votre abonnement continue de se renouveler jusqu’à ce que vous le résiliiez dans les réglages d’abonnement {store} — DoseTrace ne peut pas le faire pour vous.',
@@ -7848,6 +7852,7 @@ export const translations = {
   },
   'de': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    reset_switch_offline: 'Einige Änderungen auf diesem Handy sind noch nicht gesichert, deshalb hat DoseTrace dich nicht abgemeldet. Verbinde dich mit dem Internet und öffne den Link erneut.',
     paywall_start_trial_months: '{n} Monat(e) kostenlos testen',
     paywall_cancel_sub_title: 'Kündige dein Abo',
     paywall_cancel_sub_msg: 'Der lebenslange Zugang ist jetzt aktiv. Dein Abo verlängert sich weiter, bis du es in den {store}-Aboeinstellungen kündigst – DoseTrace kann es nicht für dich kündigen.',
@@ -9808,6 +9813,7 @@ export const translations = {
 
   'it': {
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
+    reset_switch_offline: 'Alcune modifiche su questo telefono non hanno ancora un backup, quindi DoseTrace non ti ha disconnesso. Connettiti a internet e riapri il link.',
     paywall_start_trial_months: 'Inizia la prova gratuita di {n} mese/i',
     paywall_cancel_sub_title: 'Disdici il tuo abbonamento',
     paywall_cancel_sub_msg: 'L’accesso a vita è attivo. Il tuo abbonamento continua a rinnovarsi finché non lo disdici nelle impostazioni di abbonamento di {store}: DoseTrace non può disdirlo per te.',

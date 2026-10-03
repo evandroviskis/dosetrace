@@ -474,5 +474,6 @@ Source: the coordinator of the Premium/Auth build, applying the ledger and produ
 - **Lifetime bought while a subscription is active:** after the purchase a DoseTrace sheet says the subscription keeps renewing until the user cancels it in the store's subscription settings; the app cannot cancel it.
 - **RevenueCat restore/transfer: keep the RevenueCat project's current setting** (it lives only in the RevenueCat dashboard; not recorded in the repo).
 - **A reset link opened while signed in as another account:** a sheet names the link's account and the current one and asks to continue (sign out of the current one first) or cancel. **Killing the app on Reset password:** the reset screen comes back (pending recovery, one hour); nothing is half-written — the password and the app's session change together when the new password is saved.
+- **Reset password gets a way out ("Not now")** — a pending reset must never lock anyone out; a dead link session ends the reset by itself (Gate B re-review, 2026-10-03).
 - **Play free trial "new customers only"** checked read-only 2026-10-03: free-trial-7d on monthly (p1m) and yearly (annual), ACTIVE, 7 days free, targeting anySubscriptionInApp. Nothing changed in Play.
 - **Still the founder's questions:** (a) old accounts whose birth year makes them under 18; (b) accounts created with Apple used on Android.

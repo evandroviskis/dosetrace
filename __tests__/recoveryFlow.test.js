@@ -18,10 +18,10 @@ test('PA-75: a reset link for another account than the one signed in asks first;
   const app = read('App.js');
   assert.match(app, /if \(decision === 'ask'\) setSwitchAsk\(\{ pending, current: cur\?\.user\?\.email \|\| '' \}\);/);
   assert.match(app, /t\('reset_switch_msg'\)\.replace\('\{link\}', switchAsk\.pending\.email \|\| ''\)\.split\('\{current\}'\)\.join\(switchAsk\.current \|\| ''\)/, 'the sheet names both accounts');
-  assert.match(app, /signOutCurrentForRecovery\(\)\.finally\(\(\) => setRecovery\(p\)\)/, 'Continue: the deliberate sign-out first, then the reset');
+  assert.match(app, /\.then\(\(\) => signOutCurrentForRecovery\(\)\)[\s\S]{0,160}setRecovery\(p\);/, 'Continue: the deliberate sign-out first, then the reset');
   assert.match(app, /onSwitchCancel=\{\(\) => \{ discardPendingRecovery\(\); \}\}/, 'Cancel drops the link');
   const so = read('lib', 'recoveryLink.js');
-  assert.match(so, /forceSync\(\)[\s\S]{0,200}removePushToken\(\)[\s\S]{0,80}markIntentionalSignOut\(\);/, 'the same order as Settings → Sign out');
+  assert.match(so, /forceSync\(\)[\s\S]{0,700}removePushToken\(\)[\s\S]{0,80}markIntentionalSignOut\(\);/, 'the same order as Settings → Sign out');
   const i18n = read('i18n', 'translations.js');
   for (const k of ['reset_switch_title', 'reset_switch_msg', 'reset_switch_continue']) assert.equal((i18n.match(new RegExp(`\\n\\s+${k}: `, 'g')) || []).length, 6, k);
   for (const m of i18n.matchAll(/\n\s+reset_switch_msg: '(.*)',/g)) { assert.match(m[1], /\{link\}/); assert.match(m[1], /\{current\}/); }

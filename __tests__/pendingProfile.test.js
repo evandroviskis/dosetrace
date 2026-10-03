@@ -53,7 +53,7 @@ test('PA-72: the answers fill ONLY the missing fields of an existing account, ne
 test('PA-73: the answers leave the device once written into an account and on any real sign-out', () => {
   const store = read('lib', 'onboardingStore.js');
   assert.match(store, /await clearOnboarding\(\); \/\/ written \(or nothing missing\): gone from the device/);
-  assert.match(read('screens', 'AuthScreen.js'), /if \(fresh\) clearOnboarding\(\)\.catch/, 'email sign-up: cleared right after the account has them');
+  assert.match(read('screens', 'AuthScreen.js'), /if \(fresh\) \{ usedFreshRef\.current = true; clearOnboarding\(\)\.catch/, 'email sign-up: cleared right after the account has them');
   assert.match(read('screens', 'OnboardingFlowScreen.js'), /clearOnboarding\(\)\.catch\(\(\) => \{\}\); \/\/ written into the account/, 'Finish setup: cleared after the save');
   const app = read('App.js');
   const wipe = app.slice(app.indexOf("if (!intentional) return; // spurious"), app.indexOf("if (_event === 'SIGNED_IN'"));

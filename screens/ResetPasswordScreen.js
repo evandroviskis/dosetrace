@@ -25,7 +25,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { validateNewPassword, newPasswordValue, authErrorMessage } from '../lib/authFlow';
-import { saveRecoveryPassword } from '../lib/recoveryLink';
+import { saveRecoveryPassword, discardPendingRecovery } from '../lib/recoveryLink';
 import AuthField from '../components/AuthField';
 import { DTSheet } from './components/ProtocolParts';
 
@@ -50,6 +50,11 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
     const res = await saveRecoveryPassword(recovery, newPasswordValue(password));
     setLoading(false);
     if (res.error) {
+      if (res.terminal) {
+        // The link's session is gone (used, expired, account removed): say so, then leave.
+        setSheet({ icon: 'alert', title: t('error'), body: t('reset_pw_link_expired'), done: true, buttons: [{ label: t('ok'), kind: 'primary' }] });
+        return;
+      }
       errorSheet(authErrorMessage(res.error, t, 'reset'));
       return;
     }
@@ -62,6 +67,11 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
       done: true,
       buttons: [{ label: t('done'), kind: 'primary' }], // closing it (Done or the scrim) goes on — closeSheet
     });
+  }
+
+  async function notNow() {
+    await discardPendingRecovery();
+    if (onDone) onDone();
   }
 
   function closeSheet() {
@@ -116,6 +126,11 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
               ? <ActivityIndicator color={colors.onAct} />
               : <Text style={s.btnText}>{t('reset_pw_save')}</Text>}
           </TouchableOpacity>
+          {/* A way out (Gate B re-review): drop this link and go on — the account the app is
+              signed in to (if any) was never touched. */}
+          <TouchableOpacity style={s.linkBtn} onPress={notNow} disabled={loading} accessibilityRole="button">
+            <Text style={s.linkText}>{t('ob_not_now')}</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
       <DTSheet config={sheet} onClose={closeSheet} />
@@ -141,4 +156,6 @@ const makeStyles = (c) => StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
+  linkBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  linkText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, textAlign: 'center' },
 });

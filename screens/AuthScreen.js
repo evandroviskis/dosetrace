@@ -116,6 +116,9 @@ export default function AuthScreen({ onBack, initialMode }) {
   // until it is ready the button text uses the system font for a moment.
   const [googleFont] = useFonts({ [GOOGLE_SANS_MEDIUM]: require('../assets/fonts/GoogleSans_500Medium.ttf') });
   const busyRef = useRef(false);
+  // These answers were this person's when the first sign-up sent them; a corrected address
+  // ("Wrong address? Go back") sends them again even though the device copy is gone.
+  const usedFreshRef = useRef(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0); // seconds until resend allowed again
@@ -173,10 +176,13 @@ export default function AuthScreen({ onBack, initialMode }) {
   }
 
   async function handleForgotPassword() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     const trimmed = email.trim();
-    if (!trimmed) { errorSheet(t('forgot_password_enter_email')); return; }
+    if (!trimmed) { busyRef.current = false; errorSheet(t('forgot_password_enter_email')); return; }
     setLoading(true);
     const { error } = await sendPasswordReset(trimmed);
+    busyRef.current = false;
     setLoading(false);
     if (error) errorSheet(authErrorMessage(error, t, 'reset_request'));
     else setSheet({ icon: 'check', title: t('forgot_password_sent_title'), body: t('forgot_password_sent_msg').replace('{email}', trimmed), buttons: [{ label: t('ok'), kind: 'primary' }] });
@@ -197,7 +203,12 @@ export default function AuthScreen({ onBack, initialMode }) {
   }
 
   async function handleAuth() {
-    if (loading) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try { await doAuth(); } finally { busyRef.current = false; }
+  }
+
+  async function doAuth() {
     const bad = validateCredentials({ mode: isSignIn ? 'signin' : 'create', email, password, consent: consentGiven });
     if (bad) { errorSheet(t(bad.key)); return; }
     setLoading(true);
@@ -222,7 +233,7 @@ export default function AuthScreen({ onBack, initialMode }) {
     }
     // The onboarding answers go into the new account only when they are this person's
     // (answered in this run — lib/pendingProfile); then they leave the device (PA-71).
-    const fresh = isStashFresh();
+    const fresh = isStashFresh() || usedFreshRef.current;
     result = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
@@ -242,7 +253,7 @@ export default function AuthScreen({ onBack, initialMode }) {
     }
     // Written into the account: clear the answers from the device (kept on this screen for a
     // corrected address via Wrong address? Go back).
-    if (fresh) clearOnboarding().catch(() => {});
+    if (fresh) { usedFreshRef.current = true; clearOnboarding().catch(() => {}); }
     Analytics.onboardingCompleted({
       trackingTypes: Array.isArray(stash?.tracking_types) ? stash.tracking_types : [],
       language,

@@ -11,10 +11,11 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, App
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
-import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow } from './lib/onboardingStore';
+import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
+import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
-import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery } from './lib/recoveryLink';
-import { recoveryDecision, linkKey } from './lib/recoveryFlow';
+import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
+import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
@@ -259,7 +260,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
     : justConfirmed
       ? { icon: 'check', title: t('confirm_email_done_title'), body: t('confirm_email_done_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
       : linkFailed
-        ? { icon: 'alert', title: t('auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+        ? { icon: 'alert', title: t(linkFailed === 'offline' ? 'reset_switch_title' : 'auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : linkFailed === 'offline' ? 'reset_switch_offline' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
         : null;
   // Closing a sheet only hides it; the buttons carry the actions (DTSheet runs them after).
   const closeLinkSheet = () => {
@@ -345,7 +346,8 @@ export default function App() {
   const [recovery, setRecovery] = useState(null);
   const [switchAsk, setSwitchAsk] = useState(null); // { pending, current } — a link for another account
   const [justConfirmed, setJustConfirmed] = useState(false);
-  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm'
+  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm' | 'offline'
+  const seenLinks = useRef(new Set()); // emailed links already being handled in this run
   // How the auth screen opens: Create account (from the last onboarding step, with the
   // consent box ticked by the four confirmations just made) or Sign in (from the welcome
   // screen). undefined = a returning signed-out user (AuthScreen decides from the stash).
@@ -415,14 +417,19 @@ export default function App() {
       const isReset = u.includes('reset-password');
       const isConfirm = u.includes('confirm-email');
       if (!isReset && !isConfirm) return;
-      // Each emailed link is handled once: Android re-delivers the launch intent after the
-      // process dies, and a used code must not then look like a broken link (Gate B).
+      // Each emailed link is handled once. In memory at once (the launch URL and the url event
+      // can deliver the same link together); on disk only after it worked or the server
+      // refused it, so Android's re-delivered launch intent stays silent while a link that
+      // failed offline can simply be tapped again (Gate B + re-review).
       const key = linkKey(u);
+      if (seenLinks.current.has(key)) return;
+      seenLinks.current.add(key);
       let handled = [];
       try { const raw = await AsyncStorage.getItem('dosetrace_links_handled'); handled = raw ? JSON.parse(raw) : []; } catch { handled = []; }
       if (!Array.isArray(handled)) handled = [];
       if (handled.includes(key)) return;
-      try { await AsyncStorage.setItem('dosetrace_links_handled', JSON.stringify([...handled, key].slice(-20))); } catch { /* best effort */ }
+      const rememberLink = (k) => { AsyncStorage.setItem('dosetrace_links_handled', JSON.stringify([...handled, k].slice(-20))).catch(() => {}); };
+      const forgetInMemory = () => { seenLinks.current.delete(key); };
       const cur = await currentSession();
       const hasSession = !!cur?.user;
       if (cancelled) return;
@@ -430,20 +437,27 @@ export default function App() {
         const r = await openRecoveryLink(u);
         if (cancelled) return;
         if (r.error) {
+          if (!isTransientLinkError(r.error)) rememberLink(key); else forgetInMemory();
           // The reset screen may already be up from an earlier open of this link.
           if (!(await loadPendingRecovery())) setLinkFailed('reset');
           return;
         }
+        rememberLink(key);
         routeRecovery(r.pending);
         return;
       }
       if (isConfirm) {
         // Signed in already: the server confirmed the address before redirecting; the app
         // has nothing to change (and never switches accounts on a confirm link).
-        if (hasSession) return;
-        const { ok } = await exchangeAuthCodeFromUrl(u);
+        if (hasSession) { rememberLink(key); return; }
+        const { ok, error } = await exchangeAuthCodeFromUrl(u);
         if (cancelled) return;
-        if (!ok) { setLinkFailed('confirm'); return; }
+        if (!ok) {
+          if (!isTransientLinkError(error)) rememberLink(key); else forgetInMemory();
+          setLinkFailed('confirm');
+          return;
+        }
+        rememberLink(key);
         setJustConfirmed(true);
       }
     };
@@ -539,7 +553,13 @@ export default function App() {
     // Resolve the first-launch intro flag; the loading gate holds until it's
     // non-null, so a brand-new install shows the intro (not the welcome screen)
     // on first frame. Fail-safe to "seen" so a read error can't wedge the gate.
-    hasSeenOnboarding().then((seen) => setSeenOnboarding(!!seen)).catch(() => setSeenOnboarding(true));
+    // A finished onboarding whose consent was not given in THIS run (the app was killed on
+    // Create account) reopens on "Before we begin", never straight on Create account, so the
+    // person at the screen confirms and keeps their answers (Gate B re-review). Only matters
+    // with no session.
+    Promise.all([hasSeenOnboarding(), loadOnboarding()])
+      .then(([seen, stash]) => setSeenOnboarding(!!seen && !hasAnswers(stash)))
+      .catch(() => setSeenOnboarding(true));
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
@@ -593,6 +613,9 @@ export default function App() {
       setSession(session); // drives the navigator (null → Onboarding) immediately
 
       if (_event === 'SIGNED_OUT') {
+        // Any sign-out ends the onboarding answers' freshness: a different account signing in
+        // later in this run never receives them (pure, synchronous — safe here).
+        endStashFreshness();
         // WIPE only on an INTENTIONAL sign-out (user tapped Sign Out / Delete). A
         // SPURIOUS SIGNED_OUT (token-refresh failure / expired session) must NOT
         // wipe — that destructive wipe on a mere session hiccup is what erased an
@@ -752,14 +775,21 @@ export default function App() {
               recovery={recovery}
               onRecoveryDone={() => setRecovery(null)}
               switchAsk={switchAsk}
-              onSwitchClose={() => setSwitchAsk(null)}
+              onSwitchClose={() => { setSwitchAsk(null); discardPendingRecovery(); }}
               onSwitchCancel={() => { discardPendingRecovery(); }}
               onSwitchContinue={() => {
                 const p = switchAsk && switchAsk.pending;
                 if (!p) return;
                 // Sign out of the current account the deliberate way (push, then wipe), then
                 // set the new password for the link's account.
-                signOutCurrentForRecovery().finally(() => setRecovery(p));
+                // The sheet's close dropped the pending link; Continue keeps it (kill-safe).
+                savePendingRecovery(p)
+                  .then(() => signOutCurrentForRecovery())
+                  .then((r) => {
+                    if (r && r.blocked) { setLinkFailed('offline'); return; }
+                    setRecovery(p);
+                  })
+                  .catch(() => setRecovery(p));
               }}
               justConfirmed={justConfirmed}
               onConfirmedShown={() => setJustConfirmed(false)}

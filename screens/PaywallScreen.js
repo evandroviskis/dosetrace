@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   Linking,
+  BackHandler,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -85,6 +86,15 @@ export default function PaywallScreen({ navigation, route }) {
   // Terms link: Apple's Standard EULA on iOS, DoseTrace's own terms (in-app) on Android.
   const terms = termsTarget(Platform.OS);
 
+  // While the store works, the screen stays: no iOS swipe-back, no Android hardware back.
+  useEffect(() => {
+    navigation.setOptions?.({ gestureEnabled: !(purchasing || restoring) });
+  }, [purchasing, restoring]);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => busyRef.current);
+    return () => sub.remove();
+  }, []);
+
   const leave = useCallback(() => { if (navigation.canGoBack?.() !== false) navigation.goBack(); }, [navigation]);
 
   // A message sheet for one outcome (lib/paywallPlans outcomeSheet). Done on a success
@@ -161,11 +171,15 @@ export default function PaywallScreen({ navigation, route }) {
     if (!pkg) { busyRef.current = false; showOutcome('unavailable'); return; }
     Analytics.paywallCtaTapped({ plan, source });
     setPurchasing(true);
-    const result = await purchasePackage(pkg);
+    let result = null;
     let premiumNow = false;
-    // Refresh the ONE entitlement helper (it also writes the offline cache at once).
-    if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
-    busyRef.current = false;
+    try {
+      result = await purchasePackage(pkg);
+      // Refresh the ONE entitlement helper (it also writes the offline cache at once).
+      if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
+    } finally {
+      busyRef.current = false;
+    }
     const outcome = purchaseOutcome(result, premiumNow);
     // A real purchase is counted and reported back even if the screen has closed meanwhile.
     if (outcome === 'premium') {
@@ -188,10 +202,14 @@ export default function PaywallScreen({ navigation, route }) {
     if (busyRef.current) return;
     busyRef.current = true;
     setRestoring(true);
-    const result = await restorePurchases();
+    let result = null;
     let premiumNow = false;
-    if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
-    busyRef.current = false;
+    try {
+      result = await restorePurchases();
+      if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
+    } finally {
+      busyRef.current = false;
+    }
     const outcome = restoreOutcome(result, premiumNow);
     if (outcome === 'restored' && onSuccess) onSuccess();
     if (!mounted.current) return;

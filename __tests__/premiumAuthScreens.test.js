@@ -150,7 +150,7 @@ test('PA-65: Reset password — two fields with the eye, sheets for every messag
 });
 
 test('PA-66: email links: confirmed and failed both show a DoseTrace sheet', () => {
-  assert.match(APP, /if \(!ok\) \{ setLinkFailed\('confirm'\); return; \}/);
+  assert.match(APP, /if \(!ok\) \{[\s\S]{0,160}setLinkFailed\('confirm'\);/);
   assert.match(APP, /<DTSheet config=\{linkSheet\} onClose=\{closeLinkSheet\} \/>/);
   assert.doesNotMatch(APP, /Alert\./);
   for (const k of ['auth_link_failed_title', 'auth_link_failed_msg']) assert.equal(valuesOf(k).length, 6, k);
