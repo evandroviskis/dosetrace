@@ -79,6 +79,6 @@ test('FX-15: the FAQ "What does Premium include?" lists reality-check results (n
   assert.equal(lines.length, 6);
   for (const l of lines) {
     assert.doesNotMatch(l, /progress tracking|comprobación real y seguimiento|verificação real e progresso|vérification réelle et suivi|Realitätscheck und Fortschritt|verifica reale e progressi/, l.trim().slice(0, 60));
-    assert.match(l, /weigh-ins|pesajes|pesagens|pesées|Wiegungen|pesate/, l.trim().slice(0, 60));
+    assert.match(l, /weigh-ins|pesajes|pesagens|pesées|Wägungen|pesate/, l.trim().slice(0, 60));
   }
 });

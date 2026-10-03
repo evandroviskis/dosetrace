@@ -16,7 +16,7 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'i18n', 'translations.js'
 const valuesOf = (key) => [...src.matchAll(new RegExp(`\\n\\s+${key}: (['"])(.*)\\1,`, 'g'))].map((m) => m[2]);
 const UNLIMITED = /unlimited|ilimitad|illimit|unbegrenzt/i;
 const NOT_PROTOCOLS = (s) => s.replace(/(unlimited|unbegrenzte)\s+proto\w*|proto\w*\s+(ilimitad\w*|illimit\w*)/gi, '');
-const COMBINED = /labs, vaccine cards and vials combined|análisis, cartillas de vacunas y viales juntos|exames, carteiras de vacinação e frascos|analyses, carnets de vaccination et flacons confondus|Laborwerte, Impfpässe und Ampullen zusammen|analisi, tessere vaccinali e flaconi insieme/;
+const COMBINED = /labs, vaccine cards and vials combined|análisis, cartillas de vacunas y viales juntos|exames, carteiras de vacinação e frascos|analyses, carnets de vaccination et flacons confondus|Laborberichte, Impfpässe und Fläschchen zusammen|analisi, tessere vaccinali e flaconi insieme/;
 // Premium-side scan strings the app shows (grep of screens/components, 2026-10-01).
 const PREMIUM_KEYS = ['settings_premium_feat_4', 'blood_premium_markers', 'pw_prev_scan_body', 'blood_upgrade_title', 'blood_upgrade_sub', 'blood_upgrade_feat_1', 'paywall_hero_sub', 'pw_prem_scan', 'pw_prem_scan_full'];
 const FREE_KEYS = ['blood_first_free', 'blood_empty_sub'];
