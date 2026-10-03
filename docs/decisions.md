@@ -458,3 +458,10 @@ These are NOT settled. Each lists both sides with their sources. The ledger abov
 - **Gym body-composition scans are a measurement source, not advice** — no conflict with the AI line.
 - **Site questions older than 7 days are let go** (FX-25 as built; the dose window has closed).
 - **DE/IT tab names are not swapped** (checked: DE Verlauf/Optionen/Mein Körper, IT Percorso/Opzioni/Il mio corpo).
+
+## Founder answers 2026-10-03 (single round)
+- **Build Premium (paywall) and Onboarding/Auth as on the picture pages** — "1 sim".
+- **The next store release ships COMPLETE, including the AI protocol assistant, with exhaustive tests** — "2 construa e mande completo para as lojas" (no deferral).
+- **Free plan keeps 3 active protocols** — "3 mantém".
+- **Brazil prices equal in both stores, matching Apple (R$19,90/month, R$199,90/year)** — "4 iguala à Apple".
+- **My Body (MB-1..31) and Progress one card (PO-1..26) checklists signed** — "5 assino".

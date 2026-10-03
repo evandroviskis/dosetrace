@@ -5,7 +5,7 @@
 - daily burn rule: founder "option A" 2026-10-02 — the daily burn needs weight, height, age and sex; body fat and waist only sharpen it (lib/energyCalc unchanged: Katch-McArdle when body fat is known). Existing users who had a weight + body fat number keep it (approved migration).
 - weight edited in Your numbers: founder decision 2026-10-02 — with weigh-ins it works like a weigh-in and asks first.
 - code: lib/progressCard.js (pure rules), screens/components/CalculatorSection.js (the screen), lib/progressTile.js (the Journey tile follows the same daily-burn rule).
-- checklist-signed: pending — the design was approved by the founder from the pictures on 2026-10-02; this row-by-row checklist awaits his signature.
+- checklist-signed: 2026-10-03 by the founder (in chat: "5 assino"); design approved from the pictures on 2026-10-02
 - committed-to: next build (founder "approved → next build" rule)
 
 ## Acceptance checklist

@@ -5,7 +5,7 @@
 - founder decisions that apply everywhere: palette B (lib/protocolColors displayColor), SegmentedBar for side-by-side choices, DoseTrace sheets instead of native alerts, every delete asks first.
 - code: screens/BodyScreen.js (hub, Lab test journal, test, marker, sheets), screens/components/VaccinesSection.js (Vaccine journal, add/edit, scan), screens/components/BodySheets.js (bottom sheet, sheet bars, toast), lib/bodyHub.js, lib/bodyScan.js, lib/bodyDates.js (pure rules), components/featureIconsData.js (lab_frame, syringe_tilt).
 - data: nothing is migrated or dropped. Lab values, vaccines, favourites and labels stay where they are; every delete is the synced tombstone (sync_status 'deleted').
-- checklist-signed: pending — the design was approved by the founder from the pictures on 2026-10-03; this row-by-row checklist awaits his signature.
+- checklist-signed: 2026-10-03 by the founder (in chat: "5 assino"); design approved from the pictures on 2026-10-03
 - committed-to: next build (founder "approved → next build" rule)
 
 ## Acceptance checklist
