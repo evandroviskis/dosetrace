@@ -1718,7 +1718,7 @@ export default function TodayScreen() {
         {cp.next && (
           <View style={s.acts}>
             <TouchableOpacity style={s.btnSkip} onPress={() => skipDose(p, cp.next)} accessibilityRole="button">
-              <Text style={s.btnSkipText}>{t('today_skip')}</Text>
+              <Text style={s.btnSkipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_skip')}</Text>
             </TouchableOpacity>
             <TakeButton
               key={`take-${p.id}-${dosesTakenToday}-${takeReset[p.id] || 0}-${cp.next.slotMs != null ? cp.next.slotMs : `i${cp.next.ti}`}`}
@@ -1894,7 +1894,7 @@ export default function TodayScreen() {
                   )}
                   <View style={s.acts2}>
                     <TouchableOpacity style={s.btnSkip} onPress={() => skipPending(item)} accessibilityRole="button">
-                      <Text style={s.btnSkipText}>{t('today_pending_skip')}</Text>
+                      <Text style={s.btnSkipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_skip')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={s.btnAct} onPress={() => takePending(item)} accessibilityRole="button">
                       <Text style={s.btnActText}>{t('today_pending_take')}</Text>
