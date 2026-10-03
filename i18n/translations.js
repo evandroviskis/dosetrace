@@ -151,6 +151,9 @@ export const translations = {
     nutri_tot_week: 'Last 7 days: {total} kcal ÷ {d} days ≈ {avg}/day (food on {n} days)',
     nutri_tot_window: 'Whole check so far, incl. today: {total} kcal ÷ {d} days ≈ {avg}/day (food on {n} days)',
     tab_settings: 'Settings',
+    // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
+    tabbar_protocols: 'My Protocols',
+    tabbar_settings: 'Settings',
 
     // TODAY
     today_greeting_morning: 'Good morning',
@@ -2062,6 +2065,9 @@ export const translations = {
     nutri_tot_week: 'Últimos 7 días: {total} kcal ÷ {d} días ≈ {avg}/día (comida en {n} días)',
     nutri_tot_window: 'Toda la medición hasta ahora, con hoy: {total} kcal ÷ {d} días ≈ {avg}/día (comida en {n} días)',
     tab_settings: 'Configuración',
+    // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
+    tabbar_protocols: 'Protocolos',
+    tabbar_settings: 'Ajustes',
 
     // TODAY
     today_greeting_morning: 'Buenos días',
@@ -3973,6 +3979,9 @@ export const translations = {
     nutri_tot_week: 'Últimos 7 dias: {total} kcal ÷ {d} dias ≈ {avg}/dia (comida em {n} dias)',
     nutri_tot_window: 'Toda a medição até agora, com hoje: {total} kcal ÷ {d} dias ≈ {avg}/dia (comida em {n} dias)',
     tab_settings: 'Configurações',
+    // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
+    tabbar_protocols: 'Protocolos',
+    tabbar_settings: 'Ajustes',
 
     // TODAY
     today_greeting_morning: 'Bom dia',
@@ -5883,6 +5892,9 @@ export const translations = {
     nutri_tot_week: '7 derniers jours : {total} kcal ÷ {d} jours ≈ {avg}/jour (repas notés sur {n} jours)',
     nutri_tot_window: "Toute la mesure jusqu'ici, aujourd'hui compris : {total} kcal ÷ {d} jours ≈ {avg}/jour (repas notés sur {n} jours)",
     tab_settings: 'Paramètres',
+    // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
+    tabbar_protocols: 'Protocoles',
+    tabbar_settings: 'Réglages',
 
     // TODAY
     today_greeting_morning: 'Bon matin',
@@ -7793,6 +7805,9 @@ export const translations = {
     nutri_tot_week: 'Letzte 7 Tage: {total} kcal ÷ {d} Tage ≈ {avg}/Tag (Essen an {n} Tagen)',
     nutri_tot_window: 'Ganze Messung bisher, inkl. heute: {total} kcal ÷ {d} Tage ≈ {avg}/Tag (Essen an {n} Tagen)',
     tab_settings: 'Einstellungen',
+    // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
+    tabbar_protocols: 'Protokolle',
+    tabbar_settings: 'Optionen',
 
     // TODAY
     today_greeting_morning: 'Guten Morgen',
@@ -9704,6 +9719,9 @@ export const translations = {
     nutri_tot_week: 'Ultimi 7 giorni: {total} kcal ÷ {d} giorni ≈ {avg}/giorno (cibo in {n} giorni)',
     nutri_tot_window: 'Tutta la misurazione finora, oggi incluso: {total} kcal ÷ {d} giorni ≈ {avg}/giorno (cibo in {n} giorni)',
     tab_settings: 'Impostazioni',
+    // The bottom tab bar's own short labels (founder 2026-10-02): titles keep tab_*.
+    tabbar_protocols: 'Protocolli',
+    tabbar_settings: 'Opzioni',
 
     // TODAY
     today_greeting_morning: 'Buongiorno',

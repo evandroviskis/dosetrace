@@ -165,10 +165,10 @@ function MainTabs() {
 
   const tabs = [
     { name: 'Today', label: t('tab_today'), Glyph: TodayGlyph, component: TodayScreen },
-    { name: 'Protocols', label: t('tab_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
+    { name: 'Protocols', label: t('tabbar_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
     { name: 'Journey', label: t('tab_journey'), Glyph: JourneyGlyph, component: JourneyScreen },
     { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
-    { name: 'Settings', label: t('tab_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
+    { name: 'Settings', label: t('tabbar_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
   ];
 
   const { colors } = useTheme();
