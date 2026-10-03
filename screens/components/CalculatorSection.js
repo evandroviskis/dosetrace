@@ -74,7 +74,7 @@ import { exampleValues, activityParts, targetTicks } from '../../lib/progressFor
 import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
 import { formatDate, formatNumber, formatInt, decimalText, inputNumber, MONTHS_SHORT } from '../../lib/localeFormat';
 import useColumnWidth from '../../components/useColumnWidth';
-import { parseDecimal, canonicalDecimal } from '../../lib/doseMath';
+import { parseDecimal, parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMath';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
@@ -285,19 +285,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // Synced calc_inputs table (S-03); the old metadata only before migration.
     const saved = await getCalcInputs().catch(() => null);
     // A weight typed in Your numbers and not decided yet (PO-14) comes back from the draft.
-    const savedW = saved && typeof saved === 'object' && saved.weight != null ? inputNumber(saved.weight, language) : '';
+    const savedW = saved && typeof saved === 'object' && saved.weight != null ? savedFieldText(saved.weight, language) : ''; // read as saved (comma = decimal)
     setWeightField(wDraft && wDraft.text != null ? wDraft.text : savedW);
     // PO-13: decided once from what was saved before this version, then kept in the payload.
     setLegacyBurn(legacyBurnFromSaved({ saved, sexKnown: !!(body && body.profileSex), age: body ? body.age : null }));
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
-      if (saved.weight != null) setWeight(inputNumber(saved.weight, language));
+      if (saved.weight != null) setWeight(savedFieldText(saved.weight, language));
       if (saved.bfSource) setBfSource(saved.bfSource);
-      if (saved.bodyFat != null) setBodyFat(inputNumber(saved.bodyFat, language));
-      if (saved.height != null) setHeight(inputNumber(saved.height, language));
+      if (saved.bodyFat != null) setBodyFat(savedFieldText(saved.bodyFat, language));
+      if (saved.height != null) setHeight(savedFieldText(saved.height, language));
       if (saved.activity != null) setActivity(saved.activity);
       if (saved.goal) setGoal(saved.goal);
-      if (saved.waist != null) setWaist(inputNumber(saved.waist, language));
+      if (saved.waist != null) setWaist(savedFieldText(saved.waist, language));
     }
     loadedRef.current = true;
     setLoaded(true);
@@ -363,7 +363,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload
     // without it was saved before option A); legacyBurn keeps that decision.
     // Stored canonical ("86.5", never "86,5"): the payload never depends on the typing language.
-    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language), bfSource, bodyFat: canonicalDecimal(bodyFat, language), sex, age, height: canonicalDecimal(height, language), activity, goal, waist: canonicalDecimal(waist, language), oneCard: 1, legacyBurn });
+    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language, parseMeasure), bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: canonicalDecimal(height, language, parseMeasure), activity, goal, waist: canonicalDecimal(waist, language, parseMeasure), oneCard: 1, legacyBurn });
   }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist, legacyBurn]);
   useEffect(() => () => inputsSave.current.flush(), []);
   if (flushRef) flushRef.current = () => inputsSave.current.flush();

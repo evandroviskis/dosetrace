@@ -25,13 +25,14 @@ test('canonicalDecimal stores a typed number as a dot-decimal string in every la
 });
 
 test('Your numbers writes canonical numbers to calc_inputs', () => {
-  assert.match(CALC, /inputsSave\.current\.schedule\(\{ unit, weight: canonicalDecimal\(weight, language\), bfSource, bodyFat: canonicalDecimal\(bodyFat, language\), sex, age, height: canonicalDecimal\(height, language\), activity, goal, waist: canonicalDecimal\(waist, language\),/);
+  // (second review: read with the body-number rule, lib/doseMath parseMeasure)
+  assert.match(CALC, /inputsSave\.current\.schedule\(\{ unit, weight: canonicalDecimal\(weight, language, parseMeasure\), bfSource, bodyFat: canonicalDecimal\(bodyFat, language, parseMeasure\), sex, age, height: canonicalDecimal\(height, language, parseMeasure\), activity, goal, waist: canonicalDecimal\(waist, language, parseMeasure\),/);
 });
 
 test('Your numbers prefills a saved string in the app language too', () => {
   for (const k of ['weight', 'bodyFat', 'height', 'waist']) {
     const setter = 'set' + k[0].toUpperCase() + k.slice(1);
-    assert.match(CALC, new RegExp(`if \\(saved\\.${k} != null\\) ${setter}\\(inputNumber\\(saved\\.${k}, language\\)\\);`), k);
+    assert.match(CALC, new RegExp(`if \\(saved\\.${k} != null\\) ${setter}\\(savedFieldText\\(saved\\.${k}, language\\)\\);`), k);
   }
-  assert.match(CALC, /saved\.weight != null \? inputNumber\(saved\.weight, language\) : ''/);
+  assert.match(CALC, /saved\.weight != null \? savedFieldText\(saved\.weight, language\) : ''/);
 });
