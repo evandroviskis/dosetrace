@@ -37,11 +37,15 @@ function mentions(node, name) {
   return hit;
 }
 
+// A sheet: a Modal, or since the My Body redesign (docs/specs/my-body.md, 2026-10-03) the
+// bottom sheet (BottomSheet, visible=) and the shared preview sheet (FeaturePreviewSheet,
+// featureKey=), both Modals inside.
+const SHEETS = ['Modal', 'BottomSheet', 'FeaturePreviewSheet'];
 function modalByVisible(src, stateName) {
   const found = [];
   walk(ast(src), [], (n, anc) => {
-    if (n.type !== 'JSXElement' || n.openingElement.name.name !== 'Modal') return;
-    const vis = n.openingElement.attributes.find((a) => a.name && a.name.name === 'visible');
+    if (n.type !== 'JSXElement' || !SHEETS.includes(n.openingElement.name.name)) return;
+    const vis = n.openingElement.attributes.find((a) => a.name && (a.name.name === 'visible' || a.name.name === 'featureKey'));
     if (vis && vis.value && vis.value.expression && mentions(vis.value.expression, stateName)) found.push({ n, anc });
   });
   return found;

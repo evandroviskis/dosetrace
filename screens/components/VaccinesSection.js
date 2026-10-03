@@ -8,22 +8,23 @@
  *   The user enters everything. The app NEVER advises which vaccines to get
  *   or when — the next-due date is whatever the user typed. No schedules, no
  *   recommendations, no interpretation. It's a record, not medical advice.
+ *
+ * Graduated redesign (docs/specs/my-body.md MB-20…MB-24, founder 2026-10-03): the add/edit
+ * form is a bottom sheet that hugs its content, the dates open the date-wheel sheet, Save
+ * without a name shows a toast, Delete asks first, and every popup of the scan is a DoseTrace
+ * sheet (never a native alert).
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Modal, Platform,
-  Alert, ActivityIndicator,
+  View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
-import { requestAIConsent } from '../../lib/aiConsent';
+import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../../lib/aiConsent';
 import { hasPremium } from '../../lib/entitlement';
-import { quotaLimitFrom, fillQuotaMessage } from '../../lib/scanQuotaMessage';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -31,38 +32,21 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
 import { requestSync } from '../../lib/sync';
 import { hasNativeModule } from '../../lib/nativeModule';
-import { CrossMark } from '../../components/CheckMark';
+import { formatDate as localeDate, MONTHS_SHORT } from '../../lib/localeFormat';
+import { pluralKey } from '../../lib/plural';
+import { validateVaccine, scanErrorKind, scanErrorSheet } from '../../lib/bodyScan';
+import { vaccineNameMissing, deleteVaccineCopy } from '../../lib/bodyHub';
+import { todayLocal, wheelColumns, wheelAfter } from '../../lib/bodyDates';
+import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
+import { BottomSheet, SheetBar, SheetToast } from './BodySheets';
 import Svg, { Path } from 'react-native-svg';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-
-// Sanitize an extracted vaccine row: require a name + valid ISO date_given,
-// null-out an invalid next_due, coerce notes to a string.
-function validateVaccine(v) {
-  if (!v || typeof v.name !== 'string' || !v.name.trim()) return null;
-  const iso = /^\d{4}-\d{2}-\d{2}$/;
-  const dateGiven = typeof v.date_given === 'string' && iso.test(v.date_given) ? v.date_given : null;
-  if (!dateGiven) return null;
-  const nextDue = typeof v.next_due === 'string' && iso.test(v.next_due) ? v.next_due : null;
-  const notes = typeof v.notes === 'string' ? v.notes.trim() : '';
-  // Structured detail fields — captured if the extractor provides them (kept
-  // backward-compatible: today's edge function only returns name/date/notes).
-  const str = (x) => (typeof x === 'string' && x.trim() ? x.trim() : null);
-  const doseNum = Number.isInteger(v.dose_number) ? v.dose_number
-    : (typeof v.dose_number === 'string' && /^\d+$/.test(v.dose_number.trim()) ? parseInt(v.dose_number.trim(), 10) : null);
-  return {
-    name: v.name.trim(), date_given: dateGiven, next_due: nextDue, notes,
-    manufacturer: str(v.manufacturer), batch_lot: str(v.batch_lot),
-    dose_number: doseNum, provider: str(v.provider), location: str(v.location),
-  };
-}
-
-import { formatDate as localeDate } from '../../lib/localeFormat';
-import { pluralKey } from '../../lib/plural';
-
-function todayISO() {
-  return new Date().toISOString().split('T')[0];
-}
+const TOAST_MS = 4000; // the prototype toast()
+// The date wheels (MB-21): a vaccine may have been given decades ago, never in the future;
+// a next-due booster may be years ahead.
+const GIVEN_RANGE = { back: 80, ahead: 0 };
+const DUE_RANGE = { back: 10, ahead: 15 };
 
 // S-26 book layout (docs/specs/book-layout.md):
 //   inline: the list renders without its own ScrollView, inside the My Body left page (BK-6).
@@ -77,7 +61,7 @@ function todayISO() {
 //     the right page's Edit open this instance's add/edit sheet. On a phone none is passed.
 export default function VaccinesSection({ inline = false, draftRef = null, onSheetChange = null, onSelect = null, selectedId = null, onListChange = null, controlRef = null } = {}) {
   const { t, language } = useLanguage();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
 
@@ -88,7 +72,7 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   const [modalOpen, setModalOpen] = useState(!!carried);
   const [editingId, setEditingId] = useState(carried ? carried.editingId : null);
   const [name, setName] = useState(carried ? carried.name : '');
-  const [dateGiven, setDateGiven] = useState(carried ? carried.dateGiven : todayISO());
+  const [dateGiven, setDateGiven] = useState(carried ? carried.dateGiven : todayLocal());
   const [nextDue, setNextDue] = useState(carried ? carried.nextDue : '');   // '' = none
   const [notes, setNotes] = useState(carried ? carried.notes : '');
   const [manufacturer, setManufacturer] = useState(carried ? carried.manufacturer : '');
@@ -97,10 +81,15 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   const [provider, setProvider] = useState(carried ? carried.provider : '');
   const [location, setLocation] = useState(carried ? carried.location : '');
   const [pickerFor, setPickerFor] = useState(carried ? carried.pickerFor : null); // 'given' | 'due' | null
-  const [premium, setPremium] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [extracted, setExtracted] = useState([]);   // reviewed before saving
-  const [reviewOpen, setReviewOpen] = useState(false);
+  // DoseTrace sheets: formSheet shows over the add/edit sheet (Delete vaccine?); scanSheet and
+  // scanChoice belong to the journal (scan, Premium, results, errors).
+  const [formSheet, setFormSheet] = useState(null);
+  const [scanSheet, setScanSheet] = useState(null);
+  const [scanChoice, setScanChoice] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   useFocusEffect(useCallback(() => { fetchList(); }, []));
 
@@ -122,7 +111,6 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   });
 
   async function fetchList() {
-    setPremium(await hasPremium());
     const user = await getCachedUser();
     if (!user) return;
     const next = getVaccines(user.id) || [];
@@ -130,33 +118,67 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
     if (onListChange) onListChange(next);
   }
 
+  // A sheet that follows the camera / photo library waits for it to close (iOS presents
+  // nothing while another view is still animating out).
+  function notice(cfg, afterPicker) {
+    const withOk = { ...cfg, icon: cfg.icon === undefined ? 'warning' : cfg.icon, buttons: [{ label: t('ok'), kind: 'primary' }] };
+    if (afterPicker) setTimeout(() => setScanSheet(withOk), 450);
+    else setScanSheet(withOk);
+  }
+  function premiumSheet() {
+    // Part 20: Cancel on the left, Go Premium on the right (prototype vaxPremium).
+    setScanSheet({
+      title: t('vax_scan_premium_title'),
+      body: t('vax_scan_premium_sub'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('vax_premium_cta'), kind: 'primary', onPress: () => navigation.navigate('Paywall') },
+      ],
+    });
+  }
+
   // ── Scan / upload a card or doctor's sheet ───────────────────────
   async function handleScanPress() {
-    if (!(await hasPremium())) {
-      Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
-        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
-        { text: t('cancel'), style: 'cancel' },
-      ]);
+    if (!(await hasPremium())) { premiumSheet(); return; }
+    // Consent gate: the card photo/PDF goes to a third-party AI service — Apple
+    // 5.1.1(i)/5.1.2(i) requires explicit permission before sending. Asked in the DoseTrace
+    // sheet with the one shared consent key; the policy link opens the page and keeps the
+    // flow cancelled (the user taps Scan again).
+    if (!(await hasAIConsent())) {
+      setScanSheet({
+        icon: 'ai_spark',
+        title: t('ai_consent_title'),
+        body: t('ai_consent_body'),
+        link: { label: t('ai_consent_privacy'), onPress: () => Linking.openURL(AI_PRIVACY_URL).catch(() => {}) },
+        buttons: [
+          { label: t('cancel'), kind: 'secondary' },
+          { label: t('ai_consent_agree'), kind: 'primary', onPress: async () => { await grantAIConsent(); openScanChoice(); } },
+        ],
+      });
       return;
     }
-    // Consent gate: the card photo/PDF goes to a third-party AI service —
-    // Apple 5.1.1(i)/5.1.2(i) requires explicit permission before sending.
-    if (!(await requestAIConsent(t))) return;
-    Alert.alert(t('vax_scan_choose_title'), t('vax_scan_choose_sub'), [
-      { text: t('blood_source_camera'), onPress: () => pickImageAndExtract(true) },
-      { text: t('blood_source_photo'), onPress: () => pickImageAndExtract(false) },
-      { text: t('blood_source_pdf'), onPress: () => pickPdfAndExtract() },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
+    openScanChoice();
+  }
+  function openScanChoice() {
+    setScanChoice({
+      heading: t('vax_scan_choose_title'),
+      title: t('vax_scan_choose_sub'),
+      options: [
+        { label: t('blood_source_camera'), onPress: () => pickImageAndExtract(true) },
+        { label: t('blood_source_photo'), onPress: () => pickImageAndExtract(false) },
+        { label: t('blood_source_pdf'), onPress: () => pickPdfAndExtract() },
+      ],
+      cancelLabel: t('cancel'),
+    });
   }
 
   async function pickImageAndExtract(fromCamera) {
-    if (!hasNativeModule('ExponentImagePicker')) { Alert.alert(t('error'), t('blood_needs_build')); return; }
+    if (!hasNativeModule('ExponentImagePicker')) { notice(scanErrorSheet('build', t)); return; }
     const ImagePicker = require('expo-image-picker');
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert(t('error'), t('blood_camera_denied')); return; }
+        if (!perm.granted) { notice(scanErrorSheet('camera', t), true); return; }
       }
       const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
       const result = fromCamera
@@ -164,15 +186,15 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
         : await ImagePicker.launchImageLibraryAsync(opts);
       if (result.canceled) return;
       const asset = result.assets[0];
-      if (!asset?.base64) { Alert.alert(t('error'), t('blood_error_read')); return; }
-      if (asset.base64.length > MAX_FILE_BYTES * 1.4) { Alert.alert(t('error'), t('blood_error_file_too_large')); return; }
+      if (!asset?.base64) { notice(scanErrorSheet('read', t), true); return; }
+      if (asset.base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('big', t), true); return; }
       const mediaType = asset.mimeType
         || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
       setUploading(true);
       await extractVaccines({ image_base64: asset.base64, media_type: mediaType });
     } catch (err) {
       setUploading(false);
-      Alert.alert(t('error'), t('blood_error_read'));
+      notice(scanErrorSheet('read', t), true);
     }
   }
 
@@ -183,11 +205,11 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
       const file = result.assets[0];
       setUploading(true);
       const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
-      if (base64.length > MAX_FILE_BYTES * 1.4) { setUploading(false); Alert.alert(t('error'), t('blood_error_file_too_large')); return; }
+      if (base64.length > MAX_FILE_BYTES * 1.4) { setUploading(false); notice(scanErrorSheet('big', t), true); return; }
       await extractVaccines({ pdf_base64: base64 });
     } catch (err) {
       setUploading(false);
-      Alert.alert(t('error'), t('blood_error_read'));
+      notice(scanErrorSheet('read', t), true);
     }
   }
 
@@ -196,10 +218,7 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
     // point (fresh isPremium) so the paid extraction never runs for a free user.
     if (!(await hasPremium())) {
       setUploading(false);
-      Alert.alert(t('vax_scan_premium_title'), t('vax_scan_premium_sub'), [
-        { text: t('vax_premium_cta'), onPress: () => navigation.navigate('Paywall') },
-        { text: t('cancel'), style: 'cancel' },
-      ]);
+      premiumSheet();
       return;
     }
     try {
@@ -208,29 +227,18 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
       });
       if (error) {
         setUploading(false);
-        // Same distinction as lab scanning: a service outage is not the user's card.
+        // Same distinction as lab scanning: a service outage is not the user's card; the
+        // monthly limit names the limit the server sends (A-60).
         const status = error.context?.status;
-        let code = null;
         let errBody = null;
-        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
-        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
-          || (code == null && [500, 502, 503].includes(status));
-        if (code === 'quota_exceeded' || status === 429) {
-          Alert.alert(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)));
-        } else if (serviceDown) {
-          Alert.alert(t('blood_error_service'), t('blood_error_service_sub'));
-        } else {
-          Alert.alert(t('vax_scan_error'), t('vax_scan_error_sub'));
-        }
+        try { errBody = await error.context?.clone?.().json(); } catch { /* body unavailable */ }
+        notice(scanErrorSheet(scanErrorKind({ code: errBody?.code ?? null, status }), t, { what: 'vaccine', errBody }));
         return;
       }
       const raw = Array.isArray(data?.vaccines) ? data.vaccines : [];
       const clean = raw.map(validateVaccine).filter(Boolean);
       setUploading(false);
-      if (clean.length === 0) {
-        Alert.alert(t('vax_scan_error'), t('vax_scan_none'));
-        return;
-      }
+      if (clean.length === 0) { notice(scanErrorSheet('none', t)); return; }
 
       // Auto-save everything the AI read, dated from the document — no
       // record-by-record approval. The user edits later via the list. Entries
@@ -241,15 +249,15 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
       const lines = [t(pluralKey('vax_imported_body', saved, language)).replace('{count}', String(saved))];
       if (dropped > 0) lines.push(t(pluralKey('vax_imported_dropped', dropped, language)).replace('{count}', String(dropped)));
       lines.push(t('vax_imported_hint'));
-      Alert.alert(t('vax_imported_title'), lines.join('\n\n'));
+      notice({ icon: null, title: t('vax_imported_title'), body: lines.join('\n\n') });
     } catch (err) {
       setUploading(false);
-      Alert.alert(t('vax_scan_error'), t('vax_scan_error_sub'));
+      notice(scanErrorSheet('unread', t, { what: 'vaccine' }));
     }
   }
 
   // Insert extracted vaccines straight into storage (no review gate). Returns the
-  // number saved. Dates come from each record's date_given. Shared by auto-save.
+  // number saved. Dates come from each record's date_given.
   async function persistVaccines(list) {
     const user = await getCachedUser();
     if (!user) return 0;
@@ -265,13 +273,6 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
     return list.length;
   }
 
-  // Retained for the (now-unreachable) review sheet; delegates to persistVaccines.
-  async function saveExtracted() {
-    await persistVaccines(extracted);
-    setReviewOpen(false);
-    setExtracted([]);
-  }
-
   function formatDate(iso) {
     if (!iso) return '';
     return localeDate(String(iso).slice(0, 10), language, 'long') || iso;
@@ -279,15 +280,16 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
 
   function openAdd() {
     setEditingId(null);
-    setName(''); setDateGiven(todayISO()); setNextDue(''); setNotes('');
+    setName(''); setDateGiven(todayLocal()); setNextDue(''); setNotes('');
     setManufacturer(''); setDoseNumber(''); setBatchLot(''); setProvider(''); setLocation('');
+    setPickerFor(null);
     setModalOpen(true);
   }
 
   function openEdit(v) {
     setEditingId(v.id);
     setName(v.name || '');
-    setDateGiven(v.date_given || todayISO());
+    setDateGiven(v.date_given || todayLocal());
     setNextDue(v.next_due || '');
     setNotes(v.notes || '');
     setManufacturer(v.manufacturer || '');
@@ -295,18 +297,29 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
     setBatchLot(v.batch_lot || '');
     setProvider(v.provider || '');
     setLocation(v.location || '');
+    setPickerFor(null);
     setModalOpen(true);
   }
 
+  function showToast(text) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(text);
+    toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
+  }
+  function closeForm() {
+    setPickerFor(null);
+    setModalOpen(false);
+  }
+
   async function save() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
+    // MB-21: no name → say so (prototype toast), save nothing.
+    if (vaccineNameMissing(name)) { showToast(t('vax_name_first')); return; }
     const user = await getCachedUser();
     if (!user) return;
     // dose_number is an integer column — keep only digits, null if empty/invalid.
     const doseInt = /^\d+$/.test(doseNumber.trim()) ? parseInt(doseNumber.trim(), 10) : null;
     const payload = {
-      name: trimmed,
+      name: name.trim(),
       date_given: dateGiven || null,
       next_due: nextDue || null,
       notes: notes.trim() || null,
@@ -322,18 +335,34 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
       insertVaccine({ user_id: user.id, ...payload });
     }
     requestSync();
-    setModalOpen(false);
+    closeForm();
     fetchList();
   }
 
-  function removeVaccine() {
+  // MB-22 (bug): Delete vaccine asks first; only the question's Delete writes the synced
+  // tombstone (deleteVaccine → sync_status 'deleted').
+  function askDeleteVaccine() {
     if (!editingId) return;
-    deleteVaccine(editingId);
+    const id = editingId;
+    const copy = deleteVaccineCopy(t, name.trim());
+    setFormSheet({
+      title: copy.title,
+      body: copy.body,
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('blood_report_delete_confirm'), kind: 'danger', onPress: () => deleteVaccineNow(id) },
+      ],
+    });
+  }
+  function deleteVaccineNow(id) {
+    deleteVaccine(id);
     requestSync();
     setModalOpen(false);
     fetchList();
   }
 
+  const monthLabels = MONTHS_SHORT[language] || MONTHS_SHORT.en;
+  const today = todayLocal();
   const q = search.trim().toLowerCase();
   const filtered = q ? list.filter(v => (v.name || '').toLowerCase().includes(q)) : list;
 
@@ -348,18 +377,13 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
         <Text style={[s.foot, s.padX]}>{t('vax_disclaimer')}</Text>
 
         <View style={s.actionRow}>
-          <TouchableOpacity style={[s.btn, s.btnP]} onPress={openAdd}>
+          <TouchableOpacity style={[s.btn, s.btnP]} onPress={openAdd} accessibilityRole="button">
             <Text style={s.btnPText}>+ {t('vax_add')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.btn, s.btnO]} onPress={handleScanPress} disabled={uploading}>
-            {uploading ? (
-              <ActivityIndicator size="small" color={colors.ink} />
-            ) : (
-              <>
-                <FeatureIcon name="scan" size={18} color={colors.ink} />
-                <Text style={s.btnOText}>{t('vax_scan')}</Text>
-              </>
-            )}
+          {/* One indicator while a record is read: the card below (MB-23), never the button. */}
+          <TouchableOpacity style={[s.btn, s.btnO]} onPress={handleScanPress} disabled={uploading} accessibilityRole="button" accessibilityState={{ disabled: uploading }}>
+            <FeatureIcon name="lab_frame" size={18} color={colors.ink} />
+            <Text style={s.btnOText}>{t('vax_scan')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -372,7 +396,7 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
 
         {list.length === 0 && (
           <View style={[s.card, s.emptyCard]}>
-            <FeatureIcon name="syringe" size={44} color={colors.ink3} />
+            <FeatureIcon name="syringe_tilt" size={44} color={colors.ink3} />
             <Text style={[s.title, s.center]}>{t('vax_empty_title')}</Text>
             <Text style={[s.sec, s.center]}>{t('vax_empty_sub')}</Text>
           </View>
@@ -434,186 +458,151 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
         })}
       </JournalScroll>
 
-      {/* ADD / EDIT (prototype vaxForm) */}
-      <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
-        <SafeAreaView style={s.modal}>
-          <View style={s.sheetHead}>
-            <TouchableOpacity onPress={() => setModalOpen(false)} style={s.sheetSide}>
-              <Text style={s.sheetCancel}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <Text style={s.sheetTitle} numberOfLines={1}>{editingId ? t('vax_edit_title') : t('vax_add_title')}</Text>
-            <TouchableOpacity onPress={save} style={[s.sheetSide, s.sheetSideEnd]}>
-              <Text style={s.sheetSave}>{t('save')}</Text>
-            </TouchableOpacity>
-          </View>
+      {/* ADD / EDIT (prototype vaxForm): a bottom sheet that hugs its content. */}
+      <BottomSheet visible={modalOpen} onClose={closeForm} overlay={<SheetToast text={toast} />}>
+        <SheetBar
+          title={editingId ? t('vax_edit_title') : t('vax_add_title')}
+          cancelLabel={t('cancel')}
+          onCancel={closeForm}
+          actionLabel={t('save')}
+          onAction={save}
+        />
+        <View style={s.fld}>
+          <Text style={s.fieldLabel}>{t('vax_name_label')}</Text>
+          <TextInput
+            style={s.input}
+            placeholder={t('vax_name_ph')}
+            placeholderTextColor={colors.ink3}
+            value={name}
+            onChangeText={setName}
+          />
+        </View>
 
-          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={s.fieldLabel}>{t('vax_name_label')}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={t('vax_name_ph')}
-              placeholderTextColor={colors.ink3}
-              value={name}
-              onChangeText={setName}
-            />
+        <View style={s.fld}>
+          <Text style={s.fieldLabel}>{t('vax_date_given')}</Text>
+          <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor('given')} accessibilityRole="button">
+            <Text style={[s.body, s.tnum]}>{formatDate(dateGiven)}</Text>
+            <FeatureIcon name="calendar" size={20} color={colors.ink2} />
+          </TouchableOpacity>
+        </View>
 
-            <Text style={s.fieldLabel}>{t('vax_date_given')}</Text>
-            <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor(pickerFor === 'given' ? null : 'given')}>
-              <Text style={[s.body, s.tnum]}>{formatDate(dateGiven)}</Text>
-              <FeatureIcon name="calendar" size={20} color={colors.ink2} />
-            </TouchableOpacity>
-            {pickerFor === 'given' && (
-              <DateTimePicker
-                value={new Date((dateGiven || todayISO()) + 'T12:00:00')}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                themeVariant={isDark ? 'dark' : 'light'}
-                maximumDate={new Date()}
-                onChange={(event, d) => {
-                  setPickerFor(Platform.OS === 'ios' ? 'given' : null);
-                  if (event.type === 'dismissed') { setPickerFor(null); return; }
-                  if (d) setDateGiven(d.toISOString().split('T')[0]);
-                }}
-              />
-            )}
-
-            <View style={s.dueHeader}>
-              <Text style={[s.fieldLabel, s.grow]}>{t('vax_next_due_opt')}</Text>
-              {nextDue ? (
-                <TouchableOpacity onPress={() => setNextDue('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={s.clearLink}>{t('vax_clear')}</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor(pickerFor === 'due' ? null : 'due')}>
-              <Text style={[nextDue ? s.body : s.bodyMuted, s.tnum]}>
-                {nextDue ? formatDate(nextDue) : t('vax_next_due_none')}
-              </Text>
-              <FeatureIcon name="calendar" size={20} color={colors.ink2} />
-            </TouchableOpacity>
-            {pickerFor === 'due' && (
-              <DateTimePicker
-                value={new Date((nextDue || todayISO()) + 'T12:00:00')}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                themeVariant={isDark ? 'dark' : 'light'}
-                onChange={(event, d) => {
-                  setPickerFor(Platform.OS === 'ios' ? 'due' : null);
-                  if (event.type === 'dismissed') { setPickerFor(null); return; }
-                  if (d) setNextDue(d.toISOString().split('T')[0]);
-                }}
-              />
-            )}
-
-            <Text style={s.sectionLabel}>{t('vax_details_section')}</Text>
-
-            <View style={s.fieldRow}>
-              <View style={s.fieldCol}>
-                <Text style={s.fieldLabel}>{t('vax_manufacturer')}</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder={t('vax_manufacturer_ph')}
-                  placeholderTextColor={colors.ink3}
-                  value={manufacturer}
-                  onChangeText={setManufacturer}
-                />
-              </View>
-              <View style={s.fieldColNarrow}>
-                <Text style={s.fieldLabel}>{t('vax_dose_number')}</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder="1"
-                  placeholderTextColor={colors.ink3}
-                  value={doseNumber}
-                  onChangeText={(v) => setDoseNumber(v.replace(/[^0-9]/g, ''))}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                />
-              </View>
-            </View>
-
-            <Text style={s.fieldLabel}>{t('vax_batch_lot')}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={t('vax_batch_lot_ph')}
-              placeholderTextColor={colors.ink3}
-              value={batchLot}
-              onChangeText={setBatchLot}
-              autoCapitalize="characters"
-            />
-
-            <Text style={s.fieldLabel}>{t('vax_provider')}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={t('vax_provider_ph')}
-              placeholderTextColor={colors.ink3}
-              value={provider}
-              onChangeText={setProvider}
-            />
-
-            <Text style={s.fieldLabel}>{t('vax_location')}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={t('vax_location_ph')}
-              placeholderTextColor={colors.ink3}
-              value={location}
-              onChangeText={setLocation}
-            />
-
-            <Text style={s.fieldLabel}>{t('vax_notes')}</Text>
-            <TextInput
-              style={[s.input, s.notesInput]}
-              placeholder={t('vax_notes_ph')}
-              placeholderTextColor={colors.ink3}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-
-            {editingId ? (
-              <TouchableOpacity style={s.dangerBtn} onPress={removeVaccine}>
-                <Text style={s.dangerText}>{t('vax_delete')}</Text>
+        <View style={s.fld}>
+          <View style={s.dueHeader}>
+            <Text style={[s.fieldLabel, s.grow]}>{t('vax_next_due_opt')}</Text>
+            {nextDue ? (
+              <TouchableOpacity onPress={() => setNextDue('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+                <Text style={s.clearLink}>{t('vax_clear')}</Text>
               </TouchableOpacity>
             ) : null}
-
-            <View style={{ height: 60 }} />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* REVIEW EXTRACTED VACCINES (retained, unreachable while scans auto-save) */}
-      <Modal visible={reviewOpen} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={s.modal}>
-          <View style={s.sheetHead}>
-            <TouchableOpacity onPress={() => { setReviewOpen(false); setExtracted([]); }} style={s.sheetSide}>
-              <Text style={s.sheetCancel}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <Text style={s.sheetTitle} numberOfLines={1}>{t('vax_review_title')}</Text>
-            <TouchableOpacity onPress={saveExtracted} style={[s.sheetSide, s.sheetSideEnd]}>
-              <Text style={s.sheetSave}>{t('vax_save_all')}</Text>
-            </TouchableOpacity>
           </View>
-          <ScrollView style={s.modalBody} contentContainerStyle={s.reviewList} showsVerticalScrollIndicator={false}>
-            <Text style={s.head}>{t('vax_review_note').replace('{n}', String(extracted.length))}</Text>
-            {extracted.map((v, i) => (
-              <View key={i} style={[s.reviewCard, s.cardRow]}>
-                <View style={[s.grow, s.col5]}>
-                  <Text style={s.head}>{v.name}</Text>
-                  <Text style={[s.sec, s.tnum]}>{formatDate(v.date_given)}</Text>
-                  {v.next_due ? <Text style={[s.secInk, s.tnum]}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text> : null}
-                  {v.notes ? <Text style={s.foot}>{v.notes}</Text> : null}
-                </View>
-                <TouchableOpacity onPress={() => setExtracted(prev => prev.filter((_, idx) => idx !== i))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <CrossMark size={16} color={colors.risk} />
-                </TouchableOpacity>
-              </View>
-            ))}
-            {extracted.length === 0 && <Text style={s.foot}>{t('vax_review_empty')}</Text>}
-            <Text style={s.foot}>{t('vax_review_hint')}</Text>
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+          <TouchableOpacity style={s.dateBtn} onPress={() => setPickerFor('due')} accessibilityRole="button">
+            <Text style={[nextDue ? s.body : s.bodyMuted, s.tnum]}>
+              {nextDue ? formatDate(nextDue) : t('vax_next_due_none')}
+            </Text>
+            <FeatureIcon name="calendar" size={20} color={colors.ink2} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={s.sectionLabel}>{t('vax_details_section')}</Text>
+
+        <View style={s.fieldRow}>
+          <View style={[s.fld, s.fieldCol]}>
+            <Text style={s.fieldLabel}>{t('vax_manufacturer')}</Text>
+            <TextInput
+              style={s.input}
+              placeholder={t('vax_manufacturer_ph')}
+              placeholderTextColor={colors.ink3}
+              value={manufacturer}
+              onChangeText={setManufacturer}
+            />
+          </View>
+          <View style={[s.fld, s.fieldColNarrow]}>
+            <Text style={s.fieldLabel}>{t('vax_dose_number')}</Text>
+            <TextInput
+              style={s.input}
+              placeholder="1"
+              placeholderTextColor={colors.ink3}
+              value={doseNumber}
+              onChangeText={(v) => setDoseNumber(v.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={2}
+            />
+          </View>
+        </View>
+
+        <View style={s.fld}>
+          <Text style={s.fieldLabel}>{t('vax_batch_lot')}</Text>
+          <TextInput
+            style={s.input}
+            placeholder={t('vax_batch_lot_ph')}
+            placeholderTextColor={colors.ink3}
+            value={batchLot}
+            onChangeText={setBatchLot}
+            autoCapitalize="characters"
+          />
+        </View>
+
+        <View style={s.fld}>
+          <Text style={s.fieldLabel}>{t('vax_provider')}</Text>
+          <TextInput
+            style={s.input}
+            placeholder={t('vax_provider_ph')}
+            placeholderTextColor={colors.ink3}
+            value={provider}
+            onChangeText={setProvider}
+          />
+        </View>
+
+        <View style={s.fld}>
+          <Text style={s.fieldLabel}>{t('vax_location')}</Text>
+          <TextInput
+            style={s.input}
+            placeholder={t('vax_location_ph')}
+            placeholderTextColor={colors.ink3}
+            value={location}
+            onChangeText={setLocation}
+          />
+        </View>
+
+        <View style={s.fld}>
+          <Text style={s.fieldLabel}>{t('vax_notes')}</Text>
+          <TextInput
+            style={[s.input, s.notesInput]}
+            placeholder={t('vax_notes_ph')}
+            placeholderTextColor={colors.ink3}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+          />
+        </View>
+
+        {editingId ? (
+          <TouchableOpacity style={s.dangerBtn} onPress={askDeleteVaccine} accessibilityRole="button">
+            <Text style={s.dangerText}>{t('vax_delete')}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* The date wheels (prototype openDate): a sheet titled with the field, Done. The day
+            is one local ISO string shared by the field and the wheel (MB-21). */}
+        <DTPickerSheet visible={pickerFor === 'given'} title={t('vax_date_given')} doneLabel={t('done')} onDone={() => setPickerFor(null)}>
+          <DTWheel
+            columns={wheelColumns(dateGiven || today, new Date(), monthLabels, GIVEN_RANGE)}
+            onChange={(col, i) => setDateGiven(wheelAfter(dateGiven || today, new Date(), col, i, { ...GIVEN_RANGE, max: today }))}
+          />
+        </DTPickerSheet>
+        <DTPickerSheet visible={pickerFor === 'due'} title={t('vax_next_due_opt')} doneLabel={t('done')} onDone={() => { if (!nextDue) setNextDue(today); setPickerFor(null); }}>
+          <DTWheel
+            columns={wheelColumns(nextDue || today, new Date(), monthLabels, DUE_RANGE)}
+            onChange={(col, i) => setNextDue(wheelAfter(nextDue || today, new Date(), col, i, DUE_RANGE))}
+          />
+        </DTPickerSheet>
+        {/* Delete vaccine? shows over the sheet. */}
+        <DTSheet config={modalOpen ? formSheet : null} onClose={() => setFormSheet(null)} />
+      </BottomSheet>
+
+      {/* The scan's sheets (part 19 / 20): permission, source, results, errors, Premium. */}
+      <DTSheet config={modalOpen ? null : scanSheet} onClose={() => setScanSheet(null)} />
+      <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />
     </View>
   );
 }
@@ -688,28 +677,17 @@ const makeStyles = (c) => StyleSheet.create({
   input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 10, fontSize: 17, color: c.ink },
   searchInput: { minHeight: 46, paddingLeft: 42 },
 
-  // add / edit sheet
-  modal: { flex: 1, backgroundColor: c.raised },
-  modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 4 },
-  sheetHead: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 20, gap: 8 },
-  sheetSide: { width: 80, minHeight: 44, justifyContent: 'center' },
-  sheetSideEnd: { alignItems: 'flex-end' },
-  sheetCancel: { fontSize: 17, color: c.ink },
-  sheetSave: { fontSize: 17, fontWeight: '600', color: c.ink },
-  sheetTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
-  fieldLabel: { fontSize: 13, color: c.ink2, marginBottom: 6, marginTop: 14 },
-  sectionLabel: { fontSize: 17, fontWeight: '600', color: c.ink, marginTop: 24, marginBottom: 2 },
+  // add / edit sheet (prototype .fld: label 13 ink2 with 4 pt inset, 10 pt to the field)
+  fld: { gap: 10 },
+  fieldLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  sectionLabel: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, paddingHorizontal: 4, paddingTop: 6 },
   fieldRow: { flexDirection: 'row', gap: 12 },
   fieldCol: { flex: 1 },
   fieldColNarrow: { width: 96 },
   notesInput: { minHeight: 88, paddingTop: 12, textAlignVertical: 'top' },
   dateBtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.well },
-  dueHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  clearLink: { fontSize: 13, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, marginBottom: 6 },
-  dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  dueHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  clearLink: { fontSize: 13, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, paddingHorizontal: 4 },
+  dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk, textAlign: 'center' },
-
-  // retained review sheet
-  reviewList: { gap: 10 },
-  reviewCard: { backgroundColor: c.well, borderRadius: 16, padding: 14 },
 });

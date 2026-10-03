@@ -197,9 +197,10 @@ test('BK-10: folding shows the chosen test as the phone detail; unfolding moves 
 test('BK-10: sheets keep their typed values across a fold/unfold', () => {
   // Nothing in My Body is keyed on `book` (a key change would remount and drop typed values).
   assert.doesNotMatch(BODY, /key=\{[^}]*\bbook\b/);
-  // Every BodyScreen sheet (upload upsell, review, export, edit value, Curve preview) lives
-  // outside the layout branch, in BodyScreen's own state, so the fold never unmounts it.
-  const modals = jsxByName(BODY, 'Modal');
+  // Every BodyScreen sheet (upload upsell, export, edit value, Curve preview, the DoseTrace
+  // sheets and the source choice — My Body redesign 2026-10-03) lives outside the layout
+  // branch, in BodyScreen's own state, so the fold never unmounts it.
+  const modals = ['BottomSheet', 'FeaturePreviewSheet', 'DTSheet', 'DTActionSheet', 'DTPickerSheet'].flatMap((n) => jsxByName(BODY, n));
   assert.ok(modals.length >= 5);
   for (const { anc } of modals) {
     const gated = anc.some((a) => a.type === 'ConditionalExpression' && isIdent(a.test, 'book'));
@@ -208,7 +209,7 @@ test('BK-10: sheets keep their typed values across a fold/unfold', () => {
   // The add/edit vaccine sheet lives in VaccinesSection, which moves between the layouts: its
   // values are kept in BodyScreen's ref while it is open and restored by the next instance.
   assert.match(BODY, /const vaxDraft = useRef\(null\);/);
-  assert.match(BODY, /<VaccinesSection draftRef=\{vaxDraft\} onSheetChange=\{setVaxSheetOpen\} \/>/, 'phone instance');
+  assert.match(BODY, /<VaccinesSection draftRef=\{vaxDraft\} onSheetChange=\{setVaxSheetOpen\} onListChange=\{onVaxList\} \/>/, 'phone instance');
   assert.match(VAX, /const \[carried\] = useState\(\(\) => \(draftRef && draftRef\.current\) \|\| null\);/);
   for (const f of ['name', 'dateGiven', 'nextDue', 'notes', 'manufacturer', 'doseNumber', 'batchLot', 'provider', 'location', 'pickerFor', 'editingId']) {
     assert.match(VAX, new RegExp(`useState\\(carried \\? carried\\.${f} : `), `${f} restored`);
@@ -317,7 +318,7 @@ test('BK-18: the vaccine is the right page; its key is the vaccine id; a deleted
   // The section hands over every fresh list (after add, edit, delete, scan or focus).
   const fetchList = findFn(VAX, 'fetchList').code;
   assert.match(fetchList, /const next = getVaccines\(user\.id\) \|\| \[\];\s*\n\s*setList\(next\);\s*\n\s*if \(onListChange\) onListChange\(next\);/);
-  for (const f of ['save', 'removeVaccine', 'persistVaccines']) assert.match(findFn(VAX, f).code, /fetchList\(\);/, `${f} refreshes the list`);
+  for (const f of ['save', 'deleteVaccineNow', 'persistVaccines']) assert.match(findFn(VAX, f).code, /fetchList\(\);/, `${f} refreshes the list`);
 });
 
 test('BK-18: Edit on the read page opens today\'s add/edit sheet for that vaccine', () => {
@@ -331,12 +332,13 @@ test('BK-18: Edit on the read page opens today\'s add/edit sheet for that vaccin
   assert.deepEqual(opened, [{ id: 7, name: 'Hepatitis B' }]);
   assert.doesNotThrow(() => new Function('vaxControl', `${code}\nreturn editVaccine;`)({ current: null })({ id: 7 }), 'no sheet mounted: nothing happens');
   // VaccinesSection exposes its own openEdit, the one the phone tap uses: it fills the fields
-  // from the vaccine and opens the same add/edit Modal (titled Edit vaccine).
+  // from the vaccine and opens the same add/edit sheet (titled Edit vaccine; a bottom sheet since
+  // the My Body redesign, docs/specs/my-body.md MB-21).
   assert.match(VAX, /controlRef\.current = \{ openEdit \};\s*\n\s*return \(\) => \{ controlRef\.current = null; \};/);
   const openEdit = findFn(VAX, 'openEdit').code;
   assert.match(openEdit, /setEditingId\(v\.id\);/);
   assert.match(openEdit, /setModalOpen\(true\);/);
-  assert.match(VAX, /<Modal visible=\{modalOpen\} animationType="slide" presentationStyle="pageSheet"/);
+  assert.match(VAX, /<BottomSheet visible=\{modalOpen\}/);
   assert.match(VAX, /\{editingId \? t\('vax_edit_title'\) : t\('vax_add_title'\)\}/);
   // Only the book instance gets the control; the right page only exists in the book.
   assert.equal((BODY.match(/controlRef=\{vaxControl\}/g) || []).length, 1);
@@ -346,7 +348,9 @@ test('BK-18/BK-2: the phone keeps today\'s tap-to-edit; no read page or selectio
   const panes = jsxByName(BODY, 'BookPanes');
   const cond = [...panes[0].anc].reverse().find((a) => a.type === 'ConditionalExpression');
   const phone = BODY.slice(cond.alternate.start, cond.alternate.end);
-  assert.match(phone, /<VaccinesSection draftRef=\{vaxDraft\} onSheetChange=\{setVaxSheetOpen\} \/>/, 'phone instance: no onSelect, no selection, no control');
+  // The phone instance hands its fresh list to BodyScreen (the hub card, Export and the export
+  // sheet count the vaccines that exist, docs/specs/my-body.md MB-9) — still no selection.
+  assert.match(phone, /<VaccinesSection draftRef=\{vaxDraft\} onSheetChange=\{setVaxSheetOpen\} onListChange=\{onVaxList\} \/>/, 'phone instance: no onSelect, no selection, no control');
   assert.doesNotMatch(phone, /VaccinePage|onSelect|selectedId|selectVaccine|controlRef/);
   // Without onSelect a tap opens the sheet and no selected state is reported.
   assert.match(VAX, /onPress=\{\(\) => \(onSelect \? onSelect\(v\) : openEdit\(v\)\)\}/);

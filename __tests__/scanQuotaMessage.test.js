@@ -35,9 +35,17 @@ test('A-60: the message in all 6 languages has the {n} placeholder and no fixed 
 });
 
 test('A-60: the three scan screens read the server limit and fill the message', () => {
-  for (const f of [['screens', 'BodyScreen.js'], ['screens', 'ProtocolsScreen.js'], ['screens', 'components', 'VaccinesSection.js']]) {
-    const src = read(...f);
-    assert.match(src, /fillQuotaMessage\(t\('vial_scan_quota_sub'\), quotaLimitFrom\(/, f.join('/'));
-    assert.doesNotMatch(src, /Alert\.alert\(t\('vial_scan_quota_title'\), t\('vial_scan_quota_sub'\)\)/, f.join('/'));
+  // My Protocols fills it itself; My Body's lab and vaccine scans share lib/bodyScan.js
+  // scanErrorSheet (docs/specs/my-body.md MB-13), handing it the server's error body.
+  assert.match(read('screens', 'ProtocolsScreen.js'), /fillQuotaMessage\(t\('vial_scan_quota_sub'\), quotaLimitFrom\(/);
+  assert.match(read('lib', 'bodyScan.js'), /fillQuotaMessage\(t\('vial_scan_quota_sub'\), quotaLimitFrom\(errBody\)\)/);
+  for (const f of [['screens', 'BodyScreen.js'], ['screens', 'components', 'VaccinesSection.js']]) {
+    assert.match(read(...f), /scanErrorSheet\(scanErrorKind\(\{ code: errBody\?\.code \?\? null, status \}\), t, \{ what: '(lab|vaccine)', errBody \}\)/, f.join('/'));
   }
+  for (const f of [['screens', 'BodyScreen.js'], ['screens', 'ProtocolsScreen.js'], ['screens', 'components', 'VaccinesSection.js']]) {
+    assert.doesNotMatch(read(...f), /Alert\.alert\(t\('vial_scan_quota_title'\), t\('vial_scan_quota_sub'\)\)/, f.join('/'));
+  }
+  const { scanErrorSheet } = require('../lib/bodyScan');
+  const t = (k) => ({ vial_scan_quota_title: 'Monthly scan limit reached', vial_scan_quota_sub: "You've used your {n} scans for this month." }[k] || k);
+  assert.deepEqual(scanErrorSheet('quota', t, { errBody: { code: 'quota_exceeded', limit: 20 } }), { title: 'Monthly scan limit reached', body: "You've used your 20 scans for this month." });
 });
