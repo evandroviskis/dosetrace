@@ -32,6 +32,7 @@ export const translations = {
     nutri_save: 'Save',
     nutri_delete_entry: 'Remove entry',
     nutri_free_note: '{n} free days left, then Premium.',
+    nutri_free_note_one: '{n} free day left, then Premium.', // singular (lib/plural.js)
     nutri_intro: 'So, what have you eaten? Earlier days count too.',
     nutri_close_empty_title: "Nothing logged for this day",
     nutri_close_empty_msg: "Did you really eat nothing? Your reality check measures your real daily calories — and the plan for your goal — from what you log. A missed meal or a guessed amount (100 g of rice that was really 350 g) changes the result a lot. Only a day you confirm as \"nothing eaten\" counts toward your 7 days in a row.",
@@ -135,6 +136,7 @@ export const translations = {
     nutri_hero_cta: 'Log food',
     nutri_hero_empty: 'Nothing logged yet today',
     nutri_hero_today: 'Today: {n} items · ~{kcal} kcal',
+    nutri_hero_today_one: 'Today: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Today is closed · ~{kcal} kcal',
     nutri_hero_day: 'Reality check · day {n} of {total}',
     nutri_hero_weigh: 'Reality check · time to weigh in',
@@ -176,6 +178,7 @@ export const translations = {
     notif_taken_nothing_title: 'Nothing new logged',
     notif_dose_title_private: 'Dose reminder',
     notif_morning_due_private: '{n} scheduled today.',
+    notif_morning_due_private_one: '{n} scheduled today.', // singular (lib/plural.js)
     settings_notif_names: 'Show names in notifications',
     settings_notif_names_sub: 'Off: reminders on the lock screen say “Dose reminder” instead of the compound name.',
     alert_snooze: 'Remind me',
@@ -196,6 +199,7 @@ export const translations = {
     today_section_tomorrow: "Tomorrow",
     today_section_next5: "Next 5 days",
     today_more_later: "{count} more scheduled later",
+    today_more_later_one: '{count} more scheduled later', // singular (lib/plural.js)
     today_section_upcoming: "Upcoming",
     today_done_of: 'of doses',
     today_doses: 'doses',
@@ -248,6 +252,7 @@ export const translations = {
     today_tx_over_end: 'Yes, it\'s finished',
     today_tx_over_keep: 'Still going',
     today_vial_new_capacity: 'New vial: ~{n} doses (from your vial size and dose).',
+    today_vial_new_capacity_one: 'New vial: ~{n} dose (from your vial size and dose).', // singular (lib/plural.js)
     today_vial_add: 'Log new vial',
     today_add_vial: '+ Add vial',
     today_taken_partial: "complete today",
@@ -1047,6 +1052,7 @@ export const translations = {
     blood_premium_badge: 'Bloodwork scan — Premium feature',
     blood_premium_only: "Reading lab reports is a Premium feature.",
     blood_premium_markers: "You've scanned {n} markers. Premium charts every one over time and keeps reading your labs — any language, photo or PDF.",
+    blood_premium_markers_one: "You've scanned {n} marker. Premium charts it over time and keeps reading your labs — any language, photo or PDF.", // singular (lib/plural.js)
     paywall_hero_example: "Example",
     xp_try: "Try it",
     xp_note: "Example numbers. You see this until you first use the feature.",
@@ -1295,6 +1301,7 @@ export const translations = {
     protocols_vial_valid: 'Days the vial stays good',
     protocols_vial_valid_hint: 'A general reference (~30 days). Adjust it to match your storage — this is your own tracking, not medical advice.',
     protocols_vial_days_left: '{n} days left',
+    protocols_vial_days_left_one: '{n} day left', // singular (lib/plural.js)
     protocols_vial_noun: 'vial',
     protocols_dose_noun: 'dose',
     protocols_vial_size: "Vial size (ml)",
@@ -1303,8 +1310,11 @@ export const translations = {
     protocols_vial_expiry_hint: "From the box: month and year",
     protocols_injections_left: "{n} injections left",
     protocols_doses_left: "{n} of {total} doses left",
+    protocols_doses_left_one: '{n} of {total} doses left', // singular (lib/plural.js)
     protocols_doses_capacity: "{total} doses per vial",
+    protocols_doses_capacity_one: '{total} dose per vial', // singular (lib/plural.js)
     protocols_low_supply: 'Low · {n} left',
+    protocols_low_supply_one: 'Low · {n} left', // singular (lib/plural.js)
     protocols_new_vial: "New vial",
     protocols_vial_past: 'Past window',
     protocols_sort_added: 'Recently added',
@@ -1726,7 +1736,9 @@ export const translations = {
     protocols_first_dose_hint: 'Starting today: only dose times from now on count today. Earlier times begin tomorrow.',
     protocols_backfill_title: 'Log past doses?',
     protocols_backfill_msg: 'You marked this as started on {date}. Log the {n} scheduled doses since then as complete? This updates your adherence and history.',
+    protocols_backfill_msg_one: 'You marked this as started on {date}. Log the {n} scheduled dose since then as complete? This updates your adherence and history.', // singular (lib/plural.js)
     protocols_backfill_yes: 'Log {n} doses',
+    protocols_backfill_yes_one: 'Log {n} dose', // singular (lib/plural.js)
     protocols_backfill_no: 'Not now',
     protocols_limit_title: 'Protocol limit reached',
     protocols_limit_msg: "The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days.",
@@ -1758,8 +1770,10 @@ export const translations = {
     report_total_logged: 'Total doses logged: {count}',
     report_dose_line: 'Dose: {dose} · {frequency}',
     report_outcome_line: 'Complete: {taken} · Skipped: {skipped} · Adherence: {percent}%',
-    report_streak_line: 'Current streak: {days} day(s)',
+    report_streak_line: 'Current streak: {days} days',
+    report_streak_line_one: 'Current streak: {days} day', // singular (lib/plural.js)
     report_vial_line: 'Vial: {count} doses remaining',
+    report_vial_line_one: 'Vial: {count} dose remaining', // singular (lib/plural.js)
     report_generated: 'Generated by DoseTrace on {date}',
     report_footer_1: 'This is a user-generated wellness tracking summary.',
     report_footer_2: 'It does not constitute medical advice or a clinical record.',
@@ -1785,12 +1799,15 @@ export const translations = {
     blood_dropped_sub: 'value(s) couldn\'t be read as numbers and were skipped.',
     blood_imported_title: 'Report imported',
     blood_imported_body: '{count} markers saved · {date}',
+    blood_imported_body_one: '{count} marker saved · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Tap any marker to edit it anytime.',
     blood_imported_date_fallback: 'The report date couldn\'t be read, so today\'s date was used — open the report to set the correct date.',
     vax_imported_title: 'Vaccines imported',
     vax_imported_body: '{count} vaccines saved',
+    vax_imported_body_one: '{count} vaccine saved', // singular (lib/plural.js)
     vax_imported_hint: 'Tap any record to edit it anytime.',
-    vax_imported_dropped: '{count} entry(ies) without a readable date were skipped.',
+    vax_imported_dropped: '{count} entries without a readable date were skipped.',
+    vax_imported_dropped_one: '{count} entry without a readable date was skipped.', // singular (lib/plural.js)
     blood_date_fallback_note: 'We couldn\'t read the report date from this PDF, so today\'s date was used. Cancel and re-upload if that\'s not right.',
     protocols_bac_info: 'Bacteriostatic water keeps reconstituted peptides stable for ~30 days refrigerated.',
     protocols_skip_vial: 'I haven\'t mixed this vial yet — skip',
@@ -1854,6 +1871,7 @@ export const translations = {
     bodymap_suggested: 'Longest unused',
     bodymap_no_selection: 'Tap a spot on the body',
     bodymap_n_selected: '{count} selected',
+    bodymap_n_selected_one: '{count} selected', // singular (lib/plural.js)
     bodymap_disclaimer: 'Personal log only. Follow your healthcare provider\'s instructions for injection technique and site selection.',
     today_pick_site_skip: "Skip",
     today_take_undone: "Not marked complete. Mark it again to log it.",
@@ -1947,6 +1965,7 @@ export const translations = {
     nutri_save: 'Guardar',
     nutri_delete_entry: 'Eliminar entrada',
     nutri_free_note: 'Te quedan {n} días gratis; después, Premium.',
+    nutri_free_note_one: 'Te queda {n} día gratis; después, Premium.', // singular (lib/plural.js)
     nutri_intro: '¿Y qué has comido? Los días anteriores también cuentan.',
     nutri_close_empty_title: "No hay nada registrado este día",
     nutri_close_empty_msg: '¿De verdad no comiste nada? Tus cifras reales —cuánto gastas de verdad al día y el plan para tu objetivo— se calculan con lo que registras. Una comida olvidada o una cantidad a ojo (100 g de arroz que en realidad eran 350 g) cambia mucho el resultado. Solo cuenta para tus 7 días seguidos un día que confirmes como «no comí nada».',
@@ -2050,6 +2069,7 @@ export const translations = {
     nutri_hero_cta: 'Registrar comida',
     nutri_hero_empty: 'Aún no hay nada registrado hoy',
     nutri_hero_today: 'Hoy: {n} alimentos · ~{kcal} kcal',
+    nutri_hero_today_one: 'Hoy: {n} alimento · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoy: día cerrado · ~{kcal} kcal',
     nutri_hero_day: 'Tus cifras reales · día {n} de {total}',
     nutri_hero_weigh: 'Tus cifras reales · hora de pesarte',
@@ -2091,6 +2111,7 @@ export const translations = {
     notif_taken_nothing_title: 'No se registró nada nuevo',
     notif_dose_title_private: 'Recordatorio de dosis',
     notif_morning_due_private: '{n} programadas hoy.',
+    notif_morning_due_private_one: '{n} programada hoy.', // singular (lib/plural.js)
     settings_notif_names: 'Mostrar nombres en las notificaciones',
     settings_notif_names_sub: 'Desactivado: los recordatorios en la pantalla de bloqueo dirán «Recordatorio de dosis» en lugar del nombre del compuesto.',
     alert_snooze: 'Recordarme',
@@ -2111,6 +2132,7 @@ export const translations = {
     today_section_tomorrow: "Mañana",
     today_section_next5: "Próximos 5 días",
     today_more_later: "{count} más programadas para después",
+    today_more_later_one: '{count} más programada para después', // singular (lib/plural.js)
     today_section_upcoming: "Próximas",
     today_done_of: 'de las dosis',
     today_doses: 'dosis',
@@ -2163,6 +2185,7 @@ export const translations = {
     today_tx_over_end: 'Sí, terminó',
     today_tx_over_keep: 'Sigo con esto',
     today_vial_new_capacity: 'Nuevo vial: ~{n} dosis (según el tamaño del vial y la dosis).',
+    today_vial_new_capacity_one: 'Nuevo vial: ~{n} dosis (según el tamaño del vial y la dosis).', // singular (lib/plural.js)
     today_vial_add: 'Registrar nuevo vial',
     today_add_vial: '+ Añadir vial',
     today_taken_partial: "completadas hoy",
@@ -2962,6 +2985,7 @@ export const translations = {
     blood_premium_badge: 'Escaneo de análisis: función Premium',
     blood_premium_only: 'La lectura de análisis es una función Premium.',
     blood_premium_markers: 'Has escaneado {n} marcadores. Premium muestra cada uno en un gráfico a lo largo del tiempo y sigue leyendo tus análisis, en cualquier idioma, en foto o PDF.',
+    blood_premium_markers_one: 'Has escaneado {n} marcador. Premium lo muestra en un gráfico a lo largo del tiempo y sigue leyendo tus análisis, en cualquier idioma, en foto o PDF.', // singular (lib/plural.js)
     paywall_hero_example: "Ejemplo",
     xp_try: "Probar",
     xp_note: "Números de ejemplo. Verás esto hasta que uses la función por primera vez.",
@@ -3210,6 +3234,7 @@ export const translations = {
     protocols_vial_valid: 'Días de validez del vial',
     protocols_vial_valid_hint: 'Una referencia general (~30 días). Ajústalo según cómo lo conserves; es tu propio registro, no consejo médico.',
     protocols_vial_days_left: '{n} días restantes',
+    protocols_vial_days_left_one: '{n} día restante', // singular (lib/plural.js)
     protocols_vial_noun: 'vial',
     protocols_dose_noun: 'dosis',
     protocols_vial_size: "Tamaño del vial (ml)",
@@ -3218,8 +3243,11 @@ export const translations = {
     protocols_vial_expiry_hint: "De la caja: mes y año",
     protocols_injections_left: "{n} inyecciones restantes",
     protocols_doses_left: "{n} de {total} dosis restantes",
+    protocols_doses_left_one: 'Queda {n} de {total} dosis', // singular (lib/plural.js)
     protocols_doses_capacity: "{total} dosis por vial",
+    protocols_doses_capacity_one: '{total} dosis por vial', // singular (lib/plural.js)
     protocols_low_supply: 'Quedan solo {n}',
+    protocols_low_supply_one: 'Queda solo {n}', // singular (lib/plural.js)
     protocols_new_vial: "Nuevo vial",
     protocols_vial_past: 'Fuera de plazo',
     protocols_sort_added: 'Recientes',
@@ -3641,7 +3669,9 @@ export const translations = {
     protocols_first_dose_hint: 'Si empiezas hoy: solo cuentan las tomas a partir de ahora. Las horas anteriores empiezan mañana.',
     protocols_backfill_title: '¿Registrar dosis pasadas?',
     protocols_backfill_msg: 'Marcaste que empezaste el {date}. ¿Registrar las {n} dosis programadas desde entonces como completadas? Esto actualiza tu adherencia e historial.',
+    protocols_backfill_msg_one: 'Marcaste que empezaste el {date}. ¿Registrar como completada {n} dosis programada desde entonces? Esto actualiza tu adherencia e historial.', // singular (lib/plural.js)
     protocols_backfill_yes: 'Registrar {n} dosis',
+    protocols_backfill_yes_one: 'Registrar {n} dosis', // singular (lib/plural.js)
     protocols_backfill_no: 'Ahora no',
     protocols_limit_title: 'Límite de protocolos alcanzado',
     protocols_limit_msg: "El plan gratuito incluye hasta 3 protocolos activos. Hazte Premium para tener protocolos ilimitados y pruébalo gratis 7 días.",
@@ -3673,8 +3703,10 @@ export const translations = {
     report_total_logged: 'Dosis registradas en total: {count}',
     report_dose_line: 'Dosis: {dose} · {frequency}',
     report_outcome_line: 'Completadas: {taken} · Omitidas: {skipped} · Adherencia: {percent}%',
-    report_streak_line: 'Racha actual: {days} día(s)',
+    report_streak_line: 'Racha actual: {days} días',
+    report_streak_line_one: 'Racha actual: {days} día', // singular (lib/plural.js)
     report_vial_line: 'Vial: {count} dosis restantes',
+    report_vial_line_one: 'Vial: {count} dosis restante', // singular (lib/plural.js)
     report_generated: 'Generado por DoseTrace el {date}',
     report_footer_1: 'Este es un resumen de seguimiento de bienestar generado por el usuario.',
     report_footer_2: 'No constituye consejo médico ni un registro clínico.',
@@ -3700,12 +3732,15 @@ export const translations = {
     blood_dropped_sub: 'valor(es) no se pudieron leer como números y se omitieron.',
     blood_imported_title: 'Informe importado',
     blood_imported_body: '{count} marcadores guardados · {date}',
+    blood_imported_body_one: '{count} marcador guardado · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Toca cualquier marcador para editarlo cuando quieras.',
     blood_imported_date_fallback: 'No se pudo leer la fecha del informe, así que se usó la de hoy: abre el informe para poner la fecha correcta.',
     vax_imported_title: 'Vacunas importadas',
     vax_imported_body: '{count} vacunas guardadas',
+    vax_imported_body_one: '{count} vacuna guardada', // singular (lib/plural.js)
     vax_imported_hint: 'Toca cualquier registro para editarlo cuando quieras.',
-    vax_imported_dropped: '{count} entrada(s) sin fecha legible se omitieron.',
+    vax_imported_dropped: '{count} entradas sin fecha legible se omitieron.',
+    vax_imported_dropped_one: '{count} entrada sin fecha legible se omitió.', // singular (lib/plural.js)
     blood_date_fallback_note: 'No pudimos leer la fecha del informe de este PDF, así que se usó la fecha de hoy. Cancela y vuelve a subirlo si no es correcta.',
     protocols_bac_info: 'El agua bacteriostática mantiene los péptidos reconstituidos estables durante ~30 días refrigerados.',
     protocols_skip_vial: 'Aún no he mezclado este vial: omitir',
@@ -3768,7 +3803,8 @@ export const translations = {
     bodymap_selected: 'Seleccionado',
     bodymap_suggested: 'Más tiempo sin usar',
     bodymap_no_selection: 'Toca un punto en el cuerpo',
-    bodymap_n_selected: '{count} seleccionado(s)',
+    bodymap_n_selected: '{count} seleccionados',
+    bodymap_n_selected_one: '{count} seleccionado', // singular (lib/plural.js)
     bodymap_disclaimer: 'Solo es un registro personal. Sigue las indicaciones de tu profesional de la salud para la técnica de inyección y la elección del sitio.',
     today_pick_site_skip: "Omitir",
     today_take_undone: "No se marcó como completada. Márcala de nuevo para registrarla.",
@@ -3862,6 +3898,7 @@ export const translations = {
     nutri_save: 'Salvar',
     nutri_delete_entry: 'Remover registro',
     nutri_free_note: 'Restam {n} dias grátis, depois é Premium.',
+    nutri_free_note_one: 'Resta {n} dia grátis, depois é Premium.', // singular (lib/plural.js)
     nutri_intro: 'E aí, o que você comeu? Dias anteriores também contam.',
     nutri_close_empty_title: "Nada registrado neste dia",
     nutri_close_empty_msg: 'Você realmente não comeu nada? Seus números reais — quanto você gasta de verdade por dia e o plano para o seu objetivo — saem do que você registra. Uma refeição esquecida ou uma quantidade no chute (100 g de arroz que na verdade eram 350 g) muda muito o resultado. Só conta para os seus 7 dias seguidos um dia que você confirmar como "não comi nada".',
@@ -3965,6 +4002,7 @@ export const translations = {
     nutri_hero_cta: 'Registrar comida',
     nutri_hero_empty: 'Nada registrado hoje ainda',
     nutri_hero_today: 'Hoje: {n} itens · ~{kcal} kcal',
+    nutri_hero_today_one: 'Hoje: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoje está fechado · ~{kcal} kcal',
     nutri_hero_day: 'Seus números reais · dia {n} de {total}',
     nutri_hero_weigh: 'Seus números reais · hora de se pesar',
@@ -4006,6 +4044,7 @@ export const translations = {
     notif_taken_nothing_title: 'Nada novo registrado',
     notif_dose_title_private: 'Lembrete de dose',
     notif_morning_due_private: '{n} programadas hoje.',
+    notif_morning_due_private_one: '{n} programada hoje.', // singular (lib/plural.js)
     settings_notif_names: 'Mostrar nomes nas notificações',
     settings_notif_names_sub: 'Desligado: na tela de bloqueio aparece “Lembrete de dose” em vez do nome do composto.',
     alert_snooze: 'Lembrar depois',
@@ -4026,6 +4065,7 @@ export const translations = {
     today_section_tomorrow: "Amanhã",
     today_section_next5: "Próximos 5 dias",
     today_more_later: 'Mais {count} programadas para depois',
+    today_more_later_one: 'Mais {count} programada para depois', // singular (lib/plural.js)
     today_section_upcoming: "Próximas",
     today_done_of: 'das doses',
     today_doses: 'doses',
@@ -4078,6 +4118,7 @@ export const translations = {
     today_tx_over_end: 'Sim, terminou',
     today_tx_over_keep: 'Ainda em andamento',
     today_vial_new_capacity: 'Novo frasco: ~{n} doses (com base no tamanho do frasco e na dose).',
+    today_vial_new_capacity_one: 'Novo frasco: ~{n} dose (com base no tamanho do frasco e na dose).', // singular (lib/plural.js)
     today_vial_add: 'Registrar novo frasco',
     today_add_vial: '+ Adicionar frasco',
     today_taken_partial: "concluídas hoje",
@@ -4877,6 +4918,7 @@ export const translations = {
     blood_premium_badge: 'Leitura de exames — recurso Premium',
     blood_premium_only: 'A leitura de exames é um recurso Premium.',
     blood_premium_markers: 'Você escaneou {n} marcadores. O Premium mostra cada um em gráfico ao longo do tempo e continua lendo seus exames — em qualquer idioma, por foto ou PDF.',
+    blood_premium_markers_one: 'Você escaneou {n} marcador. O Premium o mostra em gráfico ao longo do tempo e continua lendo seus exames — em qualquer idioma, por foto ou PDF.', // singular (lib/plural.js)
     paywall_hero_example: "Exemplo",
     xp_try: "Experimentar",
     xp_note: 'Números de exemplo. Isto aparece até você usar o recurso pela primeira vez.',
@@ -5125,6 +5167,7 @@ export const translations = {
     protocols_vial_valid: 'Validade do frasco (em dias)',
     protocols_vial_valid_hint: 'Uma referência geral (~30 dias). Ajuste conforme seu armazenamento — é seu próprio registro, não aconselhamento médico.',
     protocols_vial_days_left: '{n} dias restantes',
+    protocols_vial_days_left_one: '{n} dia restante', // singular (lib/plural.js)
     protocols_vial_noun: 'frasco',
     protocols_dose_noun: 'dose',
     protocols_vial_size: "Tamanho do frasco (ml)",
@@ -5133,8 +5176,11 @@ export const translations = {
     protocols_vial_expiry_hint: 'Mês e ano, como na caixa',
     protocols_injections_left: "{n} injeções restantes",
     protocols_doses_left: "{n} de {total} doses restantes",
+    protocols_doses_left_one: 'Resta {n} de {total} doses', // singular (lib/plural.js)
     protocols_doses_capacity: "{total} doses por frasco",
+    protocols_doses_capacity_one: '{total} dose por frasco', // singular (lib/plural.js)
     protocols_low_supply: 'Baixo · {n} restantes',
+    protocols_low_supply_one: 'Baixo · {n} restante', // singular (lib/plural.js)
     protocols_new_vial: "Novo frasco",
     protocols_vial_past: 'Fora do prazo',
     protocols_sort_added: 'Recentes',
@@ -5556,7 +5602,9 @@ export const translations = {
     protocols_first_dose_hint: 'Se começar hoje, só contam os horários a partir de agora; os horários anteriores começam amanhã.',
     protocols_backfill_title: 'Registrar doses passadas?',
     protocols_backfill_msg: 'Você marcou que começou em {date}. Registrar as {n} doses programadas desde então como concluídas? Isso atualiza sua adesão e histórico.',
+    protocols_backfill_msg_one: 'Você marcou que começou em {date}. Registrar como concluída {n} dose programada desde então? Isso atualiza sua adesão e histórico.', // singular (lib/plural.js)
     protocols_backfill_yes: 'Registrar {n} doses',
+    protocols_backfill_yes_one: 'Registrar {n} dose', // singular (lib/plural.js)
     protocols_backfill_no: 'Agora não',
     protocols_limit_title: 'Limite de protocolos atingido',
     protocols_limit_msg: "O plano gratuito inclui até 3 protocolos ativos. Assine o Premium para protocolos ilimitados e experimente grátis por 7 dias.",
@@ -5588,8 +5636,10 @@ export const translations = {
     report_total_logged: 'Total de doses registradas: {count}',
     report_dose_line: 'Dose: {dose} · {frequency}',
     report_outcome_line: 'Concluídas: {taken} · Puladas: {skipped} · Adesão: {percent}%',
-    report_streak_line: 'Sequência atual: {days} dia(s)',
+    report_streak_line: 'Sequência atual: {days} dias',
+    report_streak_line_one: 'Sequência atual: {days} dia', // singular (lib/plural.js)
     report_vial_line: 'Frasco: {count} doses restantes',
+    report_vial_line_one: 'Frasco: {count} dose restante', // singular (lib/plural.js)
     report_generated: 'Gerado pelo DoseTrace em {date}',
     report_footer_1: 'Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.',
     report_footer_2: 'Não constitui aconselhamento médico nem registro clínico.',
@@ -5615,12 +5665,15 @@ export const translations = {
     blood_dropped_sub: 'valor(es) não puderam ser lidos como números e foram ignorados.',
     blood_imported_title: 'Exame importado',
     blood_imported_body: '{count} marcadores salvos · {date}',
+    blood_imported_body_one: '{count} marcador salvo · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Toque em qualquer marcador para editá-lo quando quiser.',
     blood_imported_date_fallback: 'A data do exame não pôde ser lida, então usamos a de hoje — abra o exame para definir a data correta.',
     vax_imported_title: 'Vacinas importadas',
     vax_imported_body: '{count} vacinas salvas',
+    vax_imported_body_one: '{count} vacina salva', // singular (lib/plural.js)
     vax_imported_hint: 'Toque em qualquer registro para editá-lo quando quiser.',
-    vax_imported_dropped: '{count} registro(s) sem data legível foram ignorados.',
+    vax_imported_dropped: '{count} registros sem data legível foram ignorados.',
+    vax_imported_dropped_one: '{count} registro sem data legível foi ignorado.', // singular (lib/plural.js)
     blood_date_fallback_note: 'Não conseguimos ler a data do exame neste PDF, então usamos a data de hoje. Cancele e envie de novo se não estiver correta.',
     protocols_bac_info: 'A água bacteriostática mantém os peptídeos reconstituídos estáveis por ~30 dias na geladeira.',
     protocols_skip_vial: 'Ainda não reconstituí este frasco — pular',
@@ -5683,7 +5736,8 @@ export const translations = {
     bodymap_selected: 'Selecionado',
     bodymap_suggested: 'Mais tempo sem uso',
     bodymap_no_selection: 'Toque em um ponto do corpo',
-    bodymap_n_selected: '{count} selecionado(s)',
+    bodymap_n_selected: '{count} selecionados',
+    bodymap_n_selected_one: '{count} selecionado', // singular (lib/plural.js)
     bodymap_disclaimer: 'Registro pessoal. Siga as orientações do seu profissional de saúde para a técnica de aplicação e a escolha do local.',
     today_pick_site_skip: "Pular",
     today_take_undone: "Não foi marcada como concluída. Marque de novo para registrar.",
@@ -5776,6 +5830,7 @@ export const translations = {
     nutri_save: 'Enregistrer',
     nutri_delete_entry: 'Supprimer l\'entrée',
     nutri_free_note: '{n} jours gratuits restants, puis Premium.',
+    nutri_free_note_one: '{n} jour gratuit restant, puis Premium.', // singular (lib/plural.js)
     nutri_intro: 'Alors, qu’avez-vous mangé ? Les jours précédents comptent aussi.',
     nutri_close_empty_title: "Rien d’enregistré ce jour-là",
     nutri_close_empty_msg: 'Vous n’avez vraiment rien mangé ? Vos vrais chiffres — ce que vous dépensez réellement par jour et le plan pour votre objectif — sont calculés à partir de ce que vous notez. Un repas oublié ou une quantité estimée au jugé (100 g de riz qui en faisaient en réalité 350) change beaucoup le résultat. Seul un jour confirmé « je n’ai rien mangé » compte dans vos 7 jours d’affilée.',
@@ -5879,6 +5934,7 @@ export const translations = {
     nutri_hero_cta: 'Noter un repas',
     nutri_hero_empty: "Rien de noté aujourd'hui",
     nutri_hero_today: "Aujourd'hui : {n} éléments · ~{kcal} kcal",
+    nutri_hero_today_one: "Aujourd'hui : {n} élément · ~{kcal} kcal", // singular (lib/plural.js)
     nutri_hero_closed: 'Journée clôturée · ~{kcal} kcal',
     nutri_hero_day: 'Vos vrais chiffres · jour {n} sur {total}',
     nutri_hero_weigh: "Vos vrais chiffres · c'est l'heure de la pesée",
@@ -5920,6 +5976,7 @@ export const translations = {
     notif_taken_nothing_title: 'Rien de nouveau enregistré',
     notif_dose_title_private: 'Rappel de dose',
     notif_morning_due_private: '{n} doses prévues aujourd’hui.',
+    notif_morning_due_private_one: '{n} dose prévue aujourd’hui.', // singular (lib/plural.js)
     settings_notif_names: 'Afficher les noms dans les notifications',
     settings_notif_names_sub: 'Désactivé : l’écran verrouillé affiche « Rappel de dose » au lieu du nom du composé.',
     alert_snooze: 'Me le rappeler',
@@ -5940,6 +5997,7 @@ export const translations = {
     today_section_tomorrow: "Demain",
     today_section_next5: "5 prochains jours",
     today_more_later: "{count} autres prévues plus tard",
+    today_more_later_one: '{count} autre prévue plus tard', // singular (lib/plural.js)
     today_section_upcoming: "À venir",
     today_done_of: 'des doses',
     today_doses: 'doses',
@@ -5992,6 +6050,7 @@ export const translations = {
     today_tx_over_end: 'Oui, c\'est terminé',
     today_tx_over_keep: 'Toujours en cours',
     today_vial_new_capacity: 'Nouveau flacon : ~{n} doses (selon la taille du flacon et la dose).',
+    today_vial_new_capacity_one: 'Nouveau flacon : ~{n} dose (selon la taille du flacon et la dose).', // singular (lib/plural.js)
     today_vial_add: 'Enregistrer un nouveau flacon',
     today_add_vial: '+ Ajouter un flacon',
     today_taken_partial: "effectuées aujourd'hui",
@@ -6791,6 +6850,7 @@ export const translations = {
     blood_premium_badge: 'Scan d’analyses — fonctionnalité Premium',
     blood_premium_only: 'La lecture des bilans est une fonctionnalité Premium.',
     blood_premium_markers: "Vous avez scanné {n} marqueurs. Avec Premium, suivez l'évolution de chacun et continuez à faire lire vos analyses — dans toutes les langues, en photo ou en PDF.",
+    blood_premium_markers_one: 'Vous avez scanné {n} marqueur. Avec Premium, suivez son évolution et continuez à faire lire vos analyses — dans toutes les langues, en photo ou en PDF.', // singular (lib/plural.js)
     paywall_hero_example: "Exemple",
     xp_try: "Essayer",
     xp_note: "Exemple chiffré. Il s'affiche jusqu'à ce que vous utilisiez la fonction.",
@@ -7039,6 +7099,7 @@ export const translations = {
     protocols_vial_valid: 'Jours de validité du flacon',
     protocols_vial_valid_hint: 'Une référence générale (~30 jours). Ajustez-la selon votre stockage — c\'est votre propre suivi, pas un avis médical.',
     protocols_vial_days_left: '{n} jours restants',
+    protocols_vial_days_left_one: '{n} jour restant', // singular (lib/plural.js)
     protocols_vial_noun: 'flacon',
     protocols_dose_noun: 'dose',
     protocols_vial_size: "Taille du flacon (ml)",
@@ -7047,8 +7108,11 @@ export const translations = {
     protocols_vial_expiry_hint: "Sur la boîte : mois et année",
     protocols_injections_left: "{n} injections restantes",
     protocols_doses_left: '{n} doses restantes sur {total}',
+    protocols_doses_left_one: '{n} dose restante sur {total}', // singular (lib/plural.js)
     protocols_doses_capacity: "{total} doses par flacon",
+    protocols_doses_capacity_one: '{total} dose par flacon', // singular (lib/plural.js)
     protocols_low_supply: 'Faible · {n} restantes',
+    protocols_low_supply_one: 'Faible · {n} restante', // singular (lib/plural.js)
     protocols_new_vial: "Nouveau flacon",
     protocols_vial_past: 'Hors délai',
     protocols_sort_added: 'Récents',
@@ -7470,7 +7534,9 @@ export const translations = {
     protocols_first_dose_hint: "Si vous commencez aujourd'hui, seules les prises à venir comptent pour aujourd'hui ; les horaires déjà passés commencent demain.",
     protocols_backfill_title: 'Enregistrer les doses passées ?',
     protocols_backfill_msg: 'Vous avez indiqué avoir commencé le {date}. Enregistrer les {n} doses prévues depuis comme effectuées ? Cela met à jour votre observance et votre historique.',
+    protocols_backfill_msg_one: 'Vous avez indiqué avoir commencé le {date}. Enregistrer {n} dose prévue depuis comme effectuée ? Cela met à jour votre observance et votre historique.', // singular (lib/plural.js)
     protocols_backfill_yes: 'Enregistrer {n} doses',
+    protocols_backfill_yes_one: 'Enregistrer {n} dose', // singular (lib/plural.js)
     protocols_backfill_no: 'Pas maintenant',
     protocols_limit_title: 'Limite de protocoles atteinte',
     protocols_limit_msg: 'L’offre gratuite inclut jusqu’à 3 protocoles actifs. Passez à Premium pour un nombre illimité — avec 7 jours d’essai gratuit.',
@@ -7502,8 +7568,10 @@ export const translations = {
     report_total_logged: 'Nombre total de doses enregistrées : {count}',
     report_dose_line: 'Dose : {dose} · {frequency}',
     report_outcome_line: 'Effectuées : {taken} · Sautées : {skipped} · Observance : {percent} %',
-    report_streak_line: 'Série actuelle : {days} jour(s)',
+    report_streak_line: 'Série actuelle : {days} jours',
+    report_streak_line_one: 'Série actuelle : {days} jour', // singular (lib/plural.js)
     report_vial_line: 'Flacon : {count} doses restantes',
+    report_vial_line_one: 'Flacon : {count} dose restante', // singular (lib/plural.js)
     report_generated: 'Généré par DoseTrace le {date}',
     report_footer_1: 'Ceci est un résumé de suivi de bien-être généré par l\'utilisateur.',
     report_footer_2: 'Il ne constitue pas un avis médical ni un dossier clinique.',
@@ -7529,12 +7597,15 @@ export const translations = {
     blood_dropped_sub: 'valeur(s) n\'ont pas pu être lues comme des nombres et ont été ignorées.',
     blood_imported_title: 'Bilan importé',
     blood_imported_body: '{count} marqueurs enregistrés · {date}',
+    blood_imported_body_one: '{count} marqueur enregistré · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Touchez n\'importe quel marqueur pour le modifier à tout moment.',
     blood_imported_date_fallback: "La date du bilan n'a pas pu être lue, la date du jour a donc été utilisée — ouvrez le bilan pour indiquer la bonne date.",
     vax_imported_title: 'Vaccins importés',
     vax_imported_body: '{count} vaccins enregistrés',
+    vax_imported_body_one: '{count} vaccin enregistré', // singular (lib/plural.js)
     vax_imported_hint: "Touchez n'importe quel vaccin pour le modifier à tout moment.",
-    vax_imported_dropped: '{count} entrée(s) sans date lisible ont été ignorées.',
+    vax_imported_dropped: '{count} entrées sans date lisible ont été ignorées.',
+    vax_imported_dropped_one: '{count} entrée sans date lisible a été ignorée.', // singular (lib/plural.js)
     blood_date_fallback_note: "Impossible de lire la date du bilan dans ce PDF, la date du jour a donc été utilisée. Annulez et réimportez si ce n'est pas correct.",
     protocols_bac_info: "L'eau bactériostatique maintient les peptides reconstitués stables pendant environ 30 jours au réfrigérateur.",
     protocols_skip_vial: "Je n'ai pas encore reconstitué ce flacon — passer",
@@ -7597,7 +7668,8 @@ export const translations = {
     bodymap_selected: 'Sélectionné',
     bodymap_suggested: 'Inutilisé depuis le plus longtemps',
     bodymap_no_selection: 'Touchez un point sur le corps',
-    bodymap_n_selected: '{count} sélectionné(s)',
+    bodymap_n_selected: '{count} sélectionnés',
+    bodymap_n_selected_one: '{count} sélectionné', // singular (lib/plural.js)
     bodymap_disclaimer: "Journal personnel uniquement. Suivez les instructions de votre professionnel de santé pour la technique d'injection et le choix du site.",
     today_pick_site_skip: "Ignorer",
     today_take_undone: 'Non marquée comme effectuée. Marquez-la à nouveau pour l’enregistrer.',
@@ -7690,6 +7762,7 @@ export const translations = {
     nutri_save: 'Speichern',
     nutri_delete_entry: 'Eintrag entfernen',
     nutri_free_note: 'Noch {n} Gratistage, dann Premium.',
+    nutri_free_note_one: 'Noch {n} Gratistag, dann Premium.', // singular (lib/plural.js)
     nutri_intro: 'Und, was hast du gegessen? Frühere Tage zählen auch.',
     nutri_close_empty_title: "Für diesen Tag ist nichts eingetragen",
     nutri_close_empty_msg: 'Hast du wirklich nichts gegessen? Deine echten Zahlen – was dein Körper tatsächlich pro Tag verbraucht und der Plan für dein Ziel – entstehen aus dem, was du einträgst. Eine vergessene Mahlzeit oder eine geschätzte Menge (100 g Reis, die in Wirklichkeit 350 g waren) verändert das Ergebnis stark. Nur ein Tag, den du als „nichts gegessen“ bestätigst, zählt zu deinen 7 Tagen am Stück.',
@@ -7793,6 +7866,7 @@ export const translations = {
     nutri_hero_cta: 'Essen eintragen',
     nutri_hero_empty: 'Heute noch nichts eingetragen',
     nutri_hero_today: 'Heute: {n} Einträge · ~{kcal} kcal',
+    nutri_hero_today_one: 'Heute: {n} Eintrag · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Heute abgeschlossen · ~{kcal} kcal',
     nutri_hero_day: 'Deine echten Zahlen · Tag {n} von {total}',
     nutri_hero_weigh: 'Deine echten Zahlen · Zeit zum Wiegen',
@@ -7834,6 +7908,7 @@ export const translations = {
     notif_taken_nothing_title: 'Nichts Neues eingetragen',
     notif_dose_title_private: 'Dosis-Erinnerung',
     notif_morning_due_private: '{n} heute geplant.',
+    notif_morning_due_private_one: '{n} heute geplant.', // singular (lib/plural.js)
     settings_notif_names: 'Namen in Mitteilungen zeigen',
     settings_notif_names_sub: 'Aus: Auf dem Sperrbildschirm steht „Dosis-Erinnerung“ statt des Substanznamens.',
     alert_snooze: 'Später erinnern',
@@ -7854,6 +7929,7 @@ export const translations = {
     today_section_tomorrow: "Morgen",
     today_section_next5: "Nächste 5 Tage",
     today_more_later: "{count} weitere später geplant",
+    today_more_later_one: '{count} weitere später geplant', // singular (lib/plural.js)
     today_section_upcoming: "Demnächst",
     today_done_of: 'der Dosen',
     today_doses: 'Dosen',
@@ -7906,6 +7982,7 @@ export const translations = {
     today_tx_over_end: 'Ja, abgeschlossen',
     today_tx_over_keep: 'Läuft noch',
     today_vial_new_capacity: 'Neues Fläschchen: ~{n} Dosen (aus Fläschchengröße und Dosis).',
+    today_vial_new_capacity_one: 'Neues Fläschchen: ~{n} Dosis (aus Fläschchengröße und Dosis).', // singular (lib/plural.js)
     today_vial_add: 'Neues Fläschchen erfassen',
     today_add_vial: '+ Fläschchen hinzufügen',
     today_taken_partial: "heute erledigt",
@@ -8705,6 +8782,7 @@ export const translations = {
     blood_premium_badge: 'Laborbericht-Scan – Premium-Funktion',
     blood_premium_only: 'Das Auslesen von Laborberichten ist eine Premium-Funktion.',
     blood_premium_markers: 'Du hast {n} Werte gescannt. Mit Premium siehst du jeden davon im Zeitverlauf, und deine Laborberichte werden weiter ausgelesen – in jeder Sprache, als Foto oder PDF.',
+    blood_premium_markers_one: 'Du hast {n} Wert gescannt. Mit Premium siehst du ihn im Zeitverlauf, und deine Laborberichte werden weiter ausgelesen – in jeder Sprache, als Foto oder PDF.', // singular (lib/plural.js)
     paywall_hero_example: "Beispiel",
     xp_try: "Ausprobieren",
     xp_note: "Beispielzahlen. Du siehst das, bis du die Funktion zum ersten Mal nutzt.",
@@ -8953,6 +9031,7 @@ export const translations = {
     protocols_vial_valid: 'Haltbarkeit des Fläschchens (Tage)',
     protocols_vial_valid_hint: 'Ein allgemeiner Richtwert (~30 Tage). Passe ihn an deine Lagerung an – dies ist deine eigene Aufzeichnung, keine medizinische Beratung.',
     protocols_vial_days_left: 'Noch {n} Tage',
+    protocols_vial_days_left_one: 'Noch {n} Tag', // singular (lib/plural.js)
     protocols_vial_noun: 'Fläschchen',
     protocols_dose_noun: 'Dosis',
     protocols_vial_size: 'Fläschchengröße (ml)',
@@ -8961,8 +9040,11 @@ export const translations = {
     protocols_vial_expiry_hint: 'Steht auf der Packung: Monat und Jahr',
     protocols_injections_left: "{n} Injektionen übrig",
     protocols_doses_left: "{n} von {total} Dosen übrig",
+    protocols_doses_left_one: '{n} von {total} Dosen übrig', // singular (lib/plural.js)
     protocols_doses_capacity: '{total} Dosen pro Fläschchen',
+    protocols_doses_capacity_one: '{total} Dosis pro Fläschchen', // singular (lib/plural.js)
     protocols_low_supply: 'Wenig · {n} übrig',
+    protocols_low_supply_one: 'Wenig · {n} übrig', // singular (lib/plural.js)
     protocols_new_vial: 'Neues Fläschchen',
     protocols_vial_past: 'Zeitfenster abgelaufen',
     protocols_sort_added: 'Neueste',
@@ -9384,7 +9466,9 @@ export const translations = {
     protocols_first_dose_hint: 'Beim Start heute zählen nur Dosiszeiten ab jetzt. Frühere Zeiten beginnen morgen.',
     protocols_backfill_title: 'Vergangene Dosen erfassen?',
     protocols_backfill_msg: 'Du hast als Start den {date} angegeben. Die {n} seitdem geplanten Dosen als erledigt erfassen? Das aktualisiert deine Einhaltung und den Verlauf.',
+    protocols_backfill_msg_one: 'Du hast als Start den {date} angegeben. Die {n} seitdem geplante Dosis als erledigt erfassen? Das aktualisiert deine Einhaltung und den Verlauf.', // singular (lib/plural.js)
     protocols_backfill_yes: '{n} Dosen erfassen',
+    protocols_backfill_yes_one: '{n} Dosis erfassen', // singular (lib/plural.js)
     protocols_backfill_no: 'Jetzt nicht',
     protocols_limit_title: 'Protokoll-Limit erreicht',
     protocols_limit_msg: "Der kostenlose Plan umfasst bis zu 3 aktive Protokolle. Hol dir Premium für unbegrenzte Protokolle – 7 Tage kostenlos testen.",
@@ -9416,8 +9500,10 @@ export const translations = {
     report_total_logged: 'Eingetragene Dosen insgesamt: {count}',
     report_dose_line: 'Dosis: {dose} · {frequency}',
     report_outcome_line: 'Erledigt: {taken} · Übersprungen: {skipped} · Einhaltung: {percent} %',
-    report_streak_line: 'Aktuelle Serie: {days} Tag(e)',
+    report_streak_line: 'Aktuelle Serie: {days} Tage',
+    report_streak_line_one: 'Aktuelle Serie: {days} Tag', // singular (lib/plural.js)
     report_vial_line: 'Fläschchen: {count} Dosen übrig',
+    report_vial_line_one: 'Fläschchen: {count} Dosis übrig', // singular (lib/plural.js)
     report_generated: 'Erstellt von DoseTrace am {date}',
     report_footer_1: 'Dies ist eine vom Nutzer erstellte Wellness-Tracking-Übersicht.',
     report_footer_2: 'Sie stellt keine medizinische Beratung und keine Krankenakte dar.',
@@ -9443,12 +9529,15 @@ export const translations = {
     blood_dropped_sub: 'Wert(e) konnten nicht als Zahlen gelesen werden und wurden übersprungen.',
     blood_imported_title: 'Bericht importiert',
     blood_imported_body: '{count} Marker gespeichert · {date}',
+    blood_imported_body_one: '{count} Marker gespeichert · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Tippe auf einen Marker, um ihn jederzeit zu bearbeiten.',
     blood_imported_date_fallback: 'Das Berichtsdatum konnte nicht gelesen werden, daher wurde das heutige Datum verwendet – öffne den Bericht, um das richtige Datum einzutragen.',
     vax_imported_title: 'Impfungen importiert',
     vax_imported_body: '{count} Impfungen gespeichert',
+    vax_imported_body_one: '{count} Impfung gespeichert', // singular (lib/plural.js)
     vax_imported_hint: 'Tippe auf einen Eintrag, um ihn jederzeit zu bearbeiten.',
-    vax_imported_dropped: '{count} Eintrag/Einträge ohne lesbares Datum wurden übersprungen.',
+    vax_imported_dropped: '{count} Einträge ohne lesbares Datum wurden übersprungen.',
+    vax_imported_dropped_one: '{count} Eintrag ohne lesbares Datum wurde übersprungen.', // singular (lib/plural.js)
     blood_date_fallback_note: 'Das Berichtsdatum konnte aus diesem PDF nicht gelesen werden, daher wurde das heutige Datum verwendet. Brich ab und lade es erneut hoch, falls das nicht stimmt.',
     protocols_bac_info: 'Mit bakteriostatischem Wasser bleiben rekonstituierte Peptide im Kühlschrank etwa 30 Tage stabil.',
     protocols_skip_vial: 'Ich habe dieses Fläschchen noch nicht gemischt – überspringen',
@@ -9512,6 +9601,7 @@ export const translations = {
     bodymap_suggested: 'Am längsten ungenutzt',
     bodymap_no_selection: 'Tippe auf einen Punkt am Körper',
     bodymap_n_selected: '{count} ausgewählt',
+    bodymap_n_selected_one: '{count} ausgewählt', // singular (lib/plural.js)
     bodymap_disclaimer: 'Nur für deine eigenen Aufzeichnungen. Befolge die Anweisungen deines Arztes zur Injektionstechnik und Stellenauswahl.',
     today_pick_site_skip: "Überspringen",
     today_take_undone: "Nicht als erledigt markiert. Markiere sie erneut, um sie zu protokollieren.",
@@ -9605,6 +9695,7 @@ export const translations = {
     nutri_save: 'Salva',
     nutri_delete_entry: 'Rimuovi voce',
     nutri_free_note: '{n} giorni gratis rimasti, poi Premium.',
+    nutri_free_note_one: '{n} giorno gratis rimasto, poi Premium.', // singular (lib/plural.js)
     nutri_intro: 'Allora, cosa hai mangiato? Contano anche i giorni precedenti.',
     nutri_close_empty_title: "Niente registrato per questo giorno",
     nutri_close_empty_msg: 'Non hai mangiato proprio niente? I tuoi numeri reali — quanto consumi davvero ogni giorno e il piano per il tuo obiettivo — si calcolano da ciò che registri. Un pasto dimenticato o una quantità stimata a occhio (100 g di riso che in realtà erano 350 g) cambia molto il risultato. Solo un giorno confermato come «non ho mangiato niente» conta per i tuoi 7 giorni di fila.',
@@ -9708,6 +9799,7 @@ export const translations = {
     nutri_hero_cta: 'Registra cibo',
     nutri_hero_empty: 'Ancora niente registrato oggi',
     nutri_hero_today: 'Oggi: {n} voci · ~{kcal} kcal',
+    nutri_hero_today_one: 'Oggi: {n} voce · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Giornata chiusa · ~{kcal} kcal',
     nutri_hero_day: 'I tuoi numeri reali · giorno {n} di {total}',
     nutri_hero_weigh: 'I tuoi numeri reali · è ora di pesarti',
@@ -9749,6 +9841,7 @@ export const translations = {
     notif_taken_nothing_title: 'Nulla di nuovo registrato',
     notif_dose_title_private: 'Promemoria dose',
     notif_morning_due_private: '{n} programmate oggi.',
+    notif_morning_due_private_one: '{n} programmata oggi.', // singular (lib/plural.js)
     settings_notif_names: 'Mostra i nomi nelle notifiche',
     settings_notif_names_sub: 'Se disattivato, sulla schermata di blocco i promemoria mostrano «Promemoria dose» al posto del nome del composto.',
     alert_snooze: 'Ricordamelo',
@@ -9769,6 +9862,7 @@ export const translations = {
     today_section_tomorrow: "Domani",
     today_section_next5: "Prossimi 5 giorni",
     today_more_later: "{count} altre in programma più avanti",
+    today_more_later_one: '{count} altra in programma più avanti', // singular (lib/plural.js)
     today_section_upcoming: "Prossime",
     today_done_of: 'delle dosi',
     today_doses: 'dosi',
@@ -9821,6 +9915,7 @@ export const translations = {
     today_tx_over_end: 'Sì, è terminato',
     today_tx_over_keep: 'Ancora in corso',
     today_vial_new_capacity: 'Nuovo flacone: ~{n} dosi (in base alla dimensione del flacone e alla dose).',
+    today_vial_new_capacity_one: 'Nuovo flacone: ~{n} dose (in base alla dimensione del flacone e alla dose).', // singular (lib/plural.js)
     today_vial_add: 'Registra nuovo flacone',
     today_add_vial: '+ Aggiungi flacone',
     today_taken_partial: "completate oggi",
@@ -10620,6 +10715,7 @@ export const translations = {
     blood_premium_badge: 'Scansione analisi — funzione Premium',
     blood_premium_only: 'La lettura delle analisi è una funzione Premium.',
     blood_premium_markers: 'Hai scansionato {n} marcatori. Con Premium vedi ognuno in un grafico nel tempo e continui a far leggere le tue analisi, in qualsiasi lingua, da foto o PDF.',
+    blood_premium_markers_one: 'Hai scansionato {n} marcatore. Con Premium lo vedi in un grafico nel tempo e continui a far leggere le tue analisi, in qualsiasi lingua, da foto o PDF.', // singular (lib/plural.js)
     paywall_hero_example: "Esempio",
     xp_try: "Prova",
     xp_note: "Numeri di esempio. Lo vedi finché non usi la funzione per la prima volta.",
@@ -10868,6 +10964,7 @@ export const translations = {
     protocols_vial_valid: 'Giorni di validità del flacone',
     protocols_vial_valid_hint: 'Un riferimento generale (~30 giorni). Modificalo in base alla tua conservazione — è il tuo registro personale, non un consiglio medico.',
     protocols_vial_days_left: '{n} giorni rimasti',
+    protocols_vial_days_left_one: '{n} giorno rimasto', // singular (lib/plural.js)
     protocols_vial_noun: 'per flacone',
     protocols_dose_noun: 'dose',
     protocols_vial_size: 'Capacità del flacone (ml)',
@@ -10876,8 +10973,11 @@ export const translations = {
     protocols_vial_expiry_hint: "Dalla confezione: mese e anno",
     protocols_injections_left: "{n} iniezioni rimaste",
     protocols_doses_left: "{n} di {total} dosi rimaste",
+    protocols_doses_left_one: '{n} dose rimasta su {total}', // singular (lib/plural.js)
     protocols_doses_capacity: '{total} dosi per flacone',
+    protocols_doses_capacity_one: '{total} dose per flacone', // singular (lib/plural.js)
     protocols_low_supply: 'Scorta bassa · {n} rimaste',
+    protocols_low_supply_one: 'Scorta bassa · {n} rimasta', // singular (lib/plural.js)
     protocols_new_vial: "Nuovo flacone",
     protocols_vial_past: 'Oltre la validità',
     protocols_sort_added: 'Recenti',
@@ -11299,7 +11399,9 @@ export const translations = {
     protocols_first_dose_hint: 'Se inizi oggi, contano solo gli orari da adesso in poi; quelli già passati partono da domani.',
     protocols_backfill_title: 'Registrare le dosi passate?',
     protocols_backfill_msg: 'Hai indicato di aver iniziato il {date}. Registrare le {n} dosi programmate da allora come completate? Questo aggiorna aderenza e cronologia.',
+    protocols_backfill_msg_one: 'Hai indicato di aver iniziato il {date}. Registrare {n} dose programmata da allora come completata? Questo aggiorna aderenza e cronologia.', // singular (lib/plural.js)
     protocols_backfill_yes: 'Registra {n} dosi',
+    protocols_backfill_yes_one: 'Registra {n} dose', // singular (lib/plural.js)
     protocols_backfill_no: 'Non ora',
     protocols_limit_title: 'Limite di protocolli raggiunto',
     protocols_limit_msg: "Il piano gratuito include fino a 3 protocolli attivi. Passa a Premium per protocolli illimitati e provalo gratis per 7 giorni.",
@@ -11331,8 +11433,10 @@ export const translations = {
     report_total_logged: 'Dosi totali registrate: {count}',
     report_dose_line: 'Dose: {dose} · {frequency}',
     report_outcome_line: 'Completate: {taken} · Saltate: {skipped} · Aderenza: {percent}%',
-    report_streak_line: 'Serie attuale: {days} giorno/i',
+    report_streak_line: 'Serie attuale: {days} giorni',
+    report_streak_line_one: 'Serie attuale: {days} giorno', // singular (lib/plural.js)
     report_vial_line: 'Flacone: {count} dosi rimanenti',
+    report_vial_line_one: 'Flacone: {count} dose rimanente', // singular (lib/plural.js)
     report_generated: 'Generato da DoseTrace il {date}',
     report_footer_1: 'Questo è un riepilogo di monitoraggio del benessere generato dall\'utente.',
     report_footer_2: 'Non costituisce un parere medico né una cartella clinica.',
@@ -11358,12 +11462,15 @@ export const translations = {
     blood_dropped_sub: 'valore/i non leggibili come numeri e quindi saltati.',
     blood_imported_title: 'Referto importato',
     blood_imported_body: '{count} marcatori salvati · {date}',
+    blood_imported_body_one: '{count} marcatore salvato · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Tocca un marcatore per modificarlo quando vuoi.',
     blood_imported_date_fallback: 'Non è stato possibile leggere la data del referto, quindi è stata usata quella di oggi: apri il referto per impostare la data corretta.',
     vax_imported_title: 'Vaccini importati',
     vax_imported_body: '{count} vaccini salvati',
+    vax_imported_body_one: '{count} vaccino salvato', // singular (lib/plural.js)
     vax_imported_hint: 'Tocca un vaccino per modificarlo quando vuoi.',
-    vax_imported_dropped: '{count} voce/i senza data leggibile sono state ignorate.',
+    vax_imported_dropped: '{count} voci senza data leggibile sono state ignorate.',
+    vax_imported_dropped_one: '{count} voce senza data leggibile è stata ignorata.', // singular (lib/plural.js)
     blood_date_fallback_note: 'Non siamo riusciti a leggere la data del referto da questo PDF, quindi è stata usata la data di oggi. Annulla e ricarica se non è corretta.',
     protocols_bac_info: "Con l'acqua batteriostatica i peptidi ricostituiti restano stabili per circa 30 giorni in frigorifero.",
     protocols_skip_vial: 'Non ho ancora ricostituito questo flacone — salta',
@@ -11426,7 +11533,8 @@ export const translations = {
     bodymap_selected: 'Selezionato',
     bodymap_suggested: 'Non usato da più tempo',
     bodymap_no_selection: 'Tocca un punto sul corpo',
-    bodymap_n_selected: '{count} selezionato/i',
+    bodymap_n_selected: '{count} selezionati',
+    bodymap_n_selected_one: '{count} selezionato', // singular (lib/plural.js)
     bodymap_disclaimer: 'Solo un registro personale. Segui le indicazioni del tuo medico per la tecnica di iniezione e la scelta del sito.',
     today_pick_site_skip: "Salta",
     today_take_undone: "Non contrassegnata come completata. Contrassegnala di nuovo per registrarla.",

@@ -21,6 +21,7 @@ import { localISO } from '../../lib/localDate';
 import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
 import { fontFamilyFor } from '../../lib/fonts';
+import { pluralKey } from '../../lib/plural';
 
 const CHECK_DAYS = 21;
 
@@ -71,7 +72,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
   const { items, kcal, closed } = state.sum;
   const todayLine = closed
     ? t('nutri_hero_closed').replace('{kcal}', String(kcal))
-    : items > 0 ? t('nutri_hero_today').replace('{n}', String(items)).replace('{kcal}', String(kcal)) : t('nutri_hero_empty');
+    : items > 0 ? t(pluralKey('nutri_hero_today', items, language)).replace('{n}', String(items)).replace('{kcal}', String(kcal)) : t('nutri_hero_empty');
 
   return (
     <View style={variant === 'today' && s.cardToday}>

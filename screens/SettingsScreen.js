@@ -43,6 +43,7 @@ import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
+import { pluralKey } from '../lib/plural';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -381,9 +382,9 @@ export default function SettingsScreen({ navigation }) {
         report += `${ps.name}\n`;
         report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
         report += `  ${t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{percent}', ps.adherence)}\n`;
-        report += `  ${t('report_streak_line').replace('{days}', ps.streak)}\n`;
+        report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{days}', ps.streak)}\n`;
         if (ps.vialRemaining !== null) {
-          report += `  ${t('report_vial_line').replace('{count}', ps.vialRemaining)}\n`;
+          report += `  ${t(pluralKey('report_vial_line', ps.vialRemaining, language)).replace('{count}', ps.vialRemaining)}\n`;
         }
         report += `\n`;
       });

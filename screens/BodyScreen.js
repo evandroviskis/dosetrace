@@ -47,6 +47,7 @@ import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection, paneWidths } from '../lib/bookLayout';
 import { clearSelection } from '../lib/bookSelection';
 import SerumCurveScreen from './SerumCurveScreen';
+import { pluralKey } from '../lib/plural';
 
 // Monochrome line glyphs for the My Body hub tiles — same 24×24 / ~1.9-stroke
 // language as the tab-bar icons in App.js, replacing the old mismatched emoji.
@@ -680,7 +681,7 @@ export default function BodyScreen({ navigation, route }) {
         return;
       }
       const lines = [
-        t('blood_imported_body').replace('{count}', String(saved)).replace('{date}', formatDate(parsedDate)),
+        t(pluralKey('blood_imported_body', saved, language)).replace('{count}', String(saved)).replace('{date}', formatDate(parsedDate)),
       ];
       if (dateFallback) lines.push(t('blood_imported_date_fallback'));
       if (droppedCount > 0) lines.push(`${droppedCount} ${t('blood_dropped_sub')}`);
@@ -1071,7 +1072,7 @@ export default function BodyScreen({ navigation, route }) {
               {uploadCount === 0
                 ? t('blood_first_free')
                 : (markerSeries.length > 0
-                    ? t('blood_premium_markers').replace('{n}', String(markerSeries.length))
+                    ? t(pluralKey('blood_premium_markers', markerSeries.length, language)).replace('{n}', String(markerSeries.length))
                     : t('blood_premium_only'))}
             </Text>
             <TouchableOpacity style={[s.btnP, s.btnSm, s.selfStart]} onPress={() => setShowUpgradeModal(true)}>

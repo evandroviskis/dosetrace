@@ -58,6 +58,7 @@ function validateVaccine(v) {
 }
 
 import { formatDate as localeDate } from '../../lib/localeFormat';
+import { pluralKey } from '../../lib/plural';
 
 function todayISO() {
   return new Date().toISOString().split('T')[0];
@@ -237,8 +238,8 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
       // today) and reported.
       const saved = await persistVaccines(clean);
       const dropped = raw.length - clean.length;
-      const lines = [t('vax_imported_body').replace('{count}', String(saved))];
-      if (dropped > 0) lines.push(t('vax_imported_dropped').replace('{count}', String(dropped)));
+      const lines = [t(pluralKey('vax_imported_body', saved, language)).replace('{count}', String(saved))];
+      if (dropped > 0) lines.push(t(pluralKey('vax_imported_dropped', dropped, language)).replace('{count}', String(dropped)));
       lines.push(t('vax_imported_hint'));
       Alert.alert(t('vax_imported_title'), lines.join('\n\n'));
     } catch (err) {

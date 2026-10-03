@@ -63,6 +63,7 @@ import { defaultSelection } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
+import { pluralKey } from '../lib/plural';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
@@ -531,8 +532,8 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
       {capacity != null && (
         <Text style={s.vialHead}>
           {remaining != null
-            ? t('protocols_doses_left').replace('{n}', String(remaining)).replace('{total}', String(capacity))
-            : t('protocols_doses_capacity').replace('{total}', String(capacity))}
+            ? t(pluralKey('protocols_doses_left', remaining, language)).replace('{n}', String(remaining)).replace('{total}', String(capacity))
+            : t(pluralKey('protocols_doses_capacity', capacity, language)).replace('{total}', String(capacity))}
         </Text>
       )}
       {(dateText || (daysLeft != null && !past)) && (
@@ -541,7 +542,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
           {dateText && daysLeft != null && !past ? ' · ' : ''}
           {daysLeft != null && !past ? (
             <Text style={{ color: daysTone(daysLeft, c), fontWeight: daysLeft <= 7 ? '600' : '400' }}>
-              {t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
+              {t(pluralKey('protocols_vial_days_left', daysLeft, language)).replace('{n}', String(daysLeft))}
             </Text>
           ) : null}
         </Text>
@@ -550,7 +551,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
         <View style={s.tags}>
           {supply.low && (
             <View style={[s.otag, s.otagAttn]}>
-              <Text style={[s.otagText, s.otagTextAttn]}>{t('protocols_low_supply').replace('{n}', String(remaining))}</Text>
+              <Text style={[s.otagText, s.otagTextAttn]}>{t(pluralKey('protocols_low_supply', remaining, language)).replace('{n}', String(remaining))}</Text>
             </View>
           )}
           {past && (
@@ -623,14 +624,14 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
             {showCap ? (
               <Text style={s.supplyStrong}>
                 {dosesRemaining != null
-                  ? t('protocols_doses_left').replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
-                  : t('protocols_doses_capacity').replace('{total}', String(vialDoseCapacity))}
+                  ? t(pluralKey('protocols_doses_left', dosesRemaining, language)).replace('{n}', String(dosesRemaining)).replace('{total}', String(vialDoseCapacity))
+                  : t(pluralKey('protocols_doses_capacity', vialDoseCapacity, language)).replace('{total}', String(vialDoseCapacity))}
               </Text>
             ) : null}
             {showCap && showDays ? ' · ' : ''}
             {showDays ? (
               <Text style={{ color: daysTone(vialDaysLeft, c), fontWeight: vialDaysLeft <= 7 ? '600' : '400' }}>
-                {t('protocols_vial_days_left').replace('{n}', String(vialDaysLeft))}
+                {t(pluralKey('protocols_vial_days_left', vialDaysLeft, language)).replace('{n}', String(vialDaysLeft))}
               </Text>
             ) : null}
           </Text>
@@ -639,7 +640,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
       <View style={s.tags}>
         {lowSupply && (
           <View style={[s.otag, s.otagAttn]}>
-            <Text style={[s.otagText, s.otagTextAttn]}>{t('protocols_low_supply').replace('{n}', String(dosesRemaining))}</Text>
+            <Text style={[s.otagText, s.otagTextAttn]}>{t(pluralKey('protocols_low_supply', dosesRemaining, language)).replace('{n}', String(dosesRemaining))}</Text>
           </View>
         )}
         {past && (
@@ -1649,11 +1650,11 @@ export default function ProtocolsScreen() {
         // Shown once the add sheet is gone (screenSheet waits for it).
         setScreenSheet({
           title: t('protocols_backfill_title'),
-          body: t('protocols_backfill_msg').replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
+          body: t(pluralKey('protocols_backfill_msg', pastCount, language)).replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
           buttons: [
             { label: t('protocols_backfill_no'), kind: 'secondary' },
             {
-              label: t('protocols_backfill_yes').replace('{n}', String(pastCount)),
+              label: t(pluralKey('protocols_backfill_yes', pastCount, language)).replace('{n}', String(pastCount)),
               kind: 'primary',
               onPress: () => {
                 try { backfillTakenDoses(newId); } catch { /* best-effort */ }

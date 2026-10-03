@@ -79,5 +79,7 @@ test('part 17: the vial-finished pop-up is drawn with Graduated tokens (prototyp
   assert.match(style(TODAY, 'promptMonthPillOn'), /backgroundColor: c\.raised, borderWidth: 1\.5, borderColor: c\.ink/);
   assert.match(style(TODAY, 'promptDayInput'), /backgroundColor: c\.raised[^}]*borderRadius: 14[^}]*minHeight: 50/);
   // same words as before
-  for (const k of ['today_vial_done_title', 'today_vial_done_sub', 'today_vial_mix_date', 'today_vial_finished', 'today_vial_add', 'today_vial_new_capacity']) assert.match(TODAY, new RegExp(`t\\('${k}'\\)`));
+  for (const k of ['today_vial_done_title', 'today_vial_done_sub', 'today_vial_mix_date', 'today_vial_finished', 'today_vial_add']) assert.match(TODAY, new RegExp(`t\\('${k}'\\)`));
+  // The capacity line picks its singular or plural form (pluralCounts.test.js).
+  assert.match(TODAY, /t\(pluralKey\('today_vial_new_capacity'/);
 });

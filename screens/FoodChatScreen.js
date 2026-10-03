@@ -47,6 +47,7 @@ const EDITOR_OPEN_KEY = 'foodChat:editorOpen';
 import { FoodDemo } from './components/NutritionLogger';
 
 import { formatDate } from '../lib/localeFormat';
+import { pluralKey } from '../lib/plural';
 // Per-device conveniences (not user data): today's asked questions (+ the one on
 // screen) and the unsent draft (FL-36, per user).
 const ASKED_KEY = 'dosetrace_food_asked';
@@ -720,7 +721,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
                 {busy ? <ActivityIndicator size="small" color={colors.onAct} /> : <FeatureIcon name="ai_spark" size={20} color={colors.onAct} />}
               </TouchableOpacity>
             </View>
-            <Text style={s.caveat}>{t('nutri_est_note')}{inTrial && freeLeft > 0 ? '  ·  ' + t('nutri_free_note').replace('{n}', String(freeLeft)) : ''}</Text>
+            <Text style={s.caveat}>{t('nutri_est_note')}{inTrial && freeLeft > 0 ? '  ·  ' + t(pluralKey('nutri_free_note', freeLeft, language)).replace('{n}', String(freeLeft)) : ''}</Text>
           </View>
         </KeyboardAvoidingView>
       )}

@@ -123,6 +123,7 @@ import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
 } from '../lib/schedule';
 import CheckMark from '../components/CheckMark';
+import { pluralKey } from '../lib/plural';
 
 const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
 const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
@@ -1699,7 +1700,7 @@ export default function TodayScreen() {
                 {daysLeft != null && (
                   // Q9 = B (founder, re-confirmed 2026-10-02 "dias coloridos"): coloured by deadline.
                   <Text style={{ color: daysLeft <= 3 ? colors.risk : daysLeft <= 7 ? colors.attention : colors.ok, fontWeight: '600' }}>
-                    {daysLeft <= 0 ? t('protocols_vial_past') : t('protocols_vial_days_left').replace('{n}', String(daysLeft))}
+                    {daysLeft <= 0 ? t('protocols_vial_past') : t(pluralKey('protocols_vial_days_left', daysLeft, language)).replace('{n}', String(daysLeft))}
                   </Text>
                 )}
               </Text>
@@ -1979,13 +1980,13 @@ export default function TodayScreen() {
               {foldRow('tom', t('today_section_tomorrow'), tomorrowCards)}
               {foldRow('n5', t('today_section_next5'), next5Cards, laterCount > 0 ? (
                 <View style={s.laterRow}>
-                  <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>
+                  <Text style={s.laterHint}>{t(pluralKey('today_more_later', laterCount, language)).replace('{count}', laterCount)}</Text>
                 </View>
               ) : null)}
               {/* Nothing in the next 5 days: the "later" line stays visible under Tomorrow. */}
               {next5Cards.length === 0 && laterCount > 0 && (
                 <View style={s.laterRow}>
-                  <Text style={s.laterHint}>{t('today_more_later').replace('{count}', laterCount)}</Text>
+                  <Text style={s.laterHint}>{t(pluralKey('today_more_later', laterCount, language)).replace('{count}', laterCount)}</Text>
                 </View>
               )}
             </View>
@@ -2106,7 +2107,7 @@ export default function TodayScreen() {
               });
               return cap ? (
                 <Text style={s.promptLabel}>
-                  {t('today_vial_new_capacity').replace('{n}', String(cap))}
+                  {t(pluralKey('today_vial_new_capacity', cap, language)).replace('{n}', String(cap))}
                 </Text>
               ) : null;
             })()}

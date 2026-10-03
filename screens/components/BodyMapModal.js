@@ -72,6 +72,7 @@ import {
 } from '../../lib/bodySites';
 import CheckMark, { CrossMark } from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
+import { pluralKey } from '../../lib/plural';
 
 // The founder's images (assets/body, @2x 600 x 750 and @3x 768 x 960).
 const BODY_IMAGES = {
@@ -109,7 +110,7 @@ export default function BodyMapModal({
   protocolId = null,
   recentLogs = [],
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowDimensions();
@@ -397,7 +398,7 @@ export default function BodyMapModal({
 
             <Text style={s.summary}>
               {selected.length
-                ? <><Text style={{ fontWeight: '600' }}>{t('bodymap_n_selected').replace('{count}', String(selected.length))}:</Text> {selectedNames.join(' · ')}</>
+                ? <><Text style={{ fontWeight: '600' }}>{t(pluralKey('bodymap_n_selected', selected.length, language)).replace('{count}', String(selected.length))}:</Text> {selectedNames.join(' · ')}</>
                 : <Text style={{ color: colors.ink2 }}>{t('bodymap_no_selection')}</Text>}
             </Text>
           </ScrollView>
