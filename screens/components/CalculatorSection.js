@@ -56,7 +56,7 @@ import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
   getFoodLogsSince,
   getRealityChecks, upsertRealityCheck, clearRealityChecks,
-  getCalcSnapshots, upsertCalcSnapshot,
+  getCalcSnapshots, upsertCalcSnapshot, correctCalcSnapshot, deleteCalcSnapshot,
   getCalcTarget, upsertCalcTarget, clearCalcTarget,
 } from '../../lib/database';
 
@@ -71,6 +71,7 @@ import FeatureIcon from '../../components/FeatureIcon';
 import { FoodReminderRow } from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
+import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
@@ -622,6 +623,58 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }
   // A past weigh-in is never in the future.
   const clampPast = (iso) => (iso > todayISO() ? todayISO() : iso);
+
+  // ── Fix or delete a weigh-in (PO-19..PO-25, founder 2026-10-02) ───────
+  // A row of the table opens "Weigh-in": the date is fixed; Save corrects that day in place
+  // (lib/weighInEdit, synced calc_snapshots); Delete asks first and leaves a synced tombstone.
+  // The weigh-in that started the open reality check can be fixed but not deleted; fixing it
+  // moves the check's start weight with it.
+  const [weEdit, setWeEdit] = useState(null); // { date, weight, bodyFat, waist, original }
+  const [weBad, setWeBad] = useState(false);
+  function openWeighInEdit(date) {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const row = getCalcSnapshots(uid).find(sn => sn.entry_date === date);
+    if (!row) return;
+    setWeBad(false);
+    setWeEdit({ date, original: row, ...weighInFormValues(row, unit) });
+  }
+  function closeWeighInEdit() { setWeEdit(null); setWeBad(false); }
+  function saveWeighInEdit() {
+    const uid = userIdRef.current;
+    if (!uid || !weEdit) return;
+    const read = readWeighInForm({ weight: weEdit.weight, bodyFat: weEdit.bodyFat, waist: weEdit.waist, unit, original: weEdit.original });
+    if (!read.ok) { setWeBad(true); return; }
+    correctCalcSnapshot(uid, weEdit.date, read);
+    const startFix = checkStartPatch(rcStart, weEdit.date, read.weightKg);
+    if (startFix) { setRcStart(startFix); setRealityStart(startFix).catch(() => {}); }
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    calcChanged();
+    closeWeighInEdit();
+  }
+  function deleteWeighInNow() {
+    const uid = userIdRef.current;
+    if (!uid || !weEdit) return;
+    deleteCalcSnapshot(uid, weEdit.date, rcStart);
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    calcChanged();
+    closeWeighInEdit();
+  }
+  function confirmDeleteWeighIn() {
+    if (!weEdit) return;
+    const w = weEdit.original && weEdit.original.weight_kg != null ? `${fmtW(weEdit.original.weight_kg)} ${wUnit}` : '—';
+    setConfirm({
+      title: t('cal_wi_del_title'),
+      body: t('cal_wi_del_body').replace('{date}', fmtShort(weEdit.date)).replace('{weight}', w),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('nutri_delete'), kind: 'danger', onPress: deleteWeighInNow },
+      ],
+    });
+  }
+  const weAct = weEdit ? weighInActions(weEdit.date, rcStart) : { canDelete: false, isCheckStart: false };
 
   // ETA weeks → { weeks, when } where `when` is the projected finish day.
   function fmtEta(weeks) {
@@ -1464,17 +1517,21 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
                 <Text style={[s.cap2, s.histW]}>{t('cal_snap_weight')}</Text>
                 <Text style={[s.cap2, s.histB]}>{t('cal_snap_bodyfat')}</Text>
                 <Text style={[s.cap2, s.histC]}>{t('cal_snap_waist')}</Text>
+                <View style={s.histCv} />
               </View>
+              {/* PO-19: every row opens "Weigh-in" (fix or delete), a chevron at its end. */}
               {histRows.map(r => (
-                <View key={r.date} style={s.histRow}>
+                <TouchableOpacity key={r.date} style={s.histRow} onPress={() => openWeighInEdit(r.date)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${fmtShort(r.date)} · ${r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}`}>
                   <Text style={[s.sec, s.tnum, s.histDate]}>{fmtShort(r.date)}</Text>
                   <Text style={[s.val15, s.histW]}>{r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}</Text>
                   <Text style={[s.val15, s.histB]}>{r.bodyFatPct != null ? `${Math.round(r.bodyFatPct * 10) / 10}%` : '—'}</Text>
                   <Text style={[s.val15, s.histC]}>{r.waistCm != null ? `${Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10} ${hUnit}` : '—'}</Text>
-                </View>
+                  <View style={s.histCv}><RowChevron color={colors.ink3} /></View>
+                </TouchableOpacity>
               ))}
             </View>
           ) : null}
+          {histRows.length > 0 ? <Text style={s.foot2}>{t('cal_wedit_hint')}</Text> : null}
           {/* Backfill a past weigh-in — for someone who started before installing. */}
           <View style={s.rowCenter}>
             <TouchableOpacity onPress={() => setBfOpen(true)} activeOpacity={0.7} style={[s.linkHit, s.grow]} accessibilityRole="button">
@@ -1608,6 +1665,53 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         ) : null}
       </SheetModal>
 
+      {/* Fix or delete a weigh-in (PO-20..PO-24, founder 2026-10-02, prototype wedit sheet). */}
+      <SheetModal visible={!!weEdit} onClose={closeWeighInEdit} s={s}>
+        {weEdit ? (
+          <>
+            <View style={s.sheetHead}>
+              <TouchableOpacity onPress={closeWeighInEdit} style={s.sheetSide} accessibilityRole="button">
+                <Text style={s.txtBtn}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <Text style={s.sheetTitle} numberOfLines={2}>{t('cal_wi_title')}</Text>
+              <View style={s.sheetSide} />
+            </View>
+            <View style={s.fld}>
+              <Text style={s.fieldLab}>{t('cal_tgt_backfill_date')}</Text>
+              <Text style={[s.body, s.fixedDate]}>{fmtDate(weEdit.date)}</Text>
+            </View>
+            <View style={s.fieldRow}>
+              <View style={s.fldHalf}>
+                <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
+                <TextInput style={s.input} value={weEdit.weight} onChangeText={v => { setWeBad(false); setWeEdit(e => ({ ...e, weight: v })); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+              </View>
+              <View style={s.fldHalf}>
+                <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
+                <TextInput style={s.input} value={weEdit.bodyFat} onChangeText={v => { setWeBad(false); setWeEdit(e => ({ ...e, bodyFat: v })); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+              </View>
+            </View>
+            <View style={s.fld}>
+              <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+              <TextInput style={s.input} value={weEdit.waist} onChangeText={v => { setWeBad(false); setWeEdit(e => ({ ...e, waist: v })); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+            </View>
+            {weBad ? <Text style={s.tnote}>{t('cal_wi_invalid')}</Text> : null}
+            <Text style={s.foot2}>{t('cal_wi_note')}</Text>
+            <TouchableOpacity style={s.btnP} onPress={saveWeighInEdit} accessibilityRole="button">
+              <Text style={s.btnPText}>{t('save')}</Text>
+            </TouchableOpacity>
+            {weAct.canDelete ? (
+              <TouchableOpacity style={s.dangerBtn} onPress={confirmDeleteWeighIn} activeOpacity={0.7} accessibilityRole="button">
+                <Text style={s.dangerText}>{t('cal_wi_delete')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={[s.foot2, s.centerNote]}>{t('cal_wi_rc_start')}</Text>
+            )}
+          </>
+        ) : null}
+        {/* Delete this weigh-in? asks inside the sheet so it shows over it. */}
+        <DTSheet config={weEdit ? confirm : null} onClose={closeConfirm} />
+      </SheetModal>
+
       {/* Add a past weigh-in (part 13, prototype pastSheet). */}
       <SheetModal visible={bfOpen} onClose={closeBackfill} s={s}>
         <View style={s.sheetHead}>
@@ -1703,7 +1807,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       </SheetModal>
 
       {/* Start over? / Stop reality check? / Update your weight (DoseTrace sheets, part 12, PO-14). */}
-      <DTSheet config={targetEditing ? null : confirm} onClose={closeConfirm} />
+      <DTSheet config={targetEditing || weEdit ? null : confirm} onClose={closeConfirm} />
 
       {/* Free plan: "See how it works" — the explainer first, then Unlock with Premium (part 11). */}
       <FeaturePreviewSheet featureKey={rcExplain ? 'reality' : null} onClose={() => setRcExplain(false)} onUnlock={() => { setRcExplain(false); navigation.navigate('Paywall', { source: 'reality_check' }); }} />
@@ -1869,9 +1973,12 @@ const makeStyles = (c) => StyleSheet.create({
   histW: { flex: 1, minWidth: 0, textAlign: 'right' },
   histB: { flex: 0.9, minWidth: 0, textAlign: 'right' },
   histC: { flex: 0.8, minWidth: 0, textAlign: 'right' },
+  histCv: { width: 22, alignItems: 'flex-end', justifyContent: 'center' },
   datebtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.well },
   dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
+  fixedDate: { paddingHorizontal: 4 },
+  centerNote: { textAlign: 'center' },
   // footer
   disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
   // sheets (prototype .scrim.bot / .sheet.bsheet)

@@ -938,6 +938,14 @@ export const translations = {
     cal_wedit_body: 'Changing your weight works like a weigh-in.', // Progress one card (founder 2026-10-02)
     cal_wedit_update: 'Update the {date} weigh-in', // Progress one card (founder 2026-10-02)
     cal_wedit_today: 'Save as today\'s weigh-in', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Tap a weigh-in to fix or delete it.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Weigh-in', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Changes here update your progress, your target and your reality check.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Delete weigh-in', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Delete this weigh-in?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Your progress, your target and your reality check update without it. This can\'t be undone.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'This weigh-in starts your reality check, so it can be fixed but not deleted.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Enter a weight between 25 and 300 kg (55–660 lb); body fat 3–70%.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'Two weigh-ins make a trend.',
     cal_show_all: 'Show all',
     cal_show_less: 'Show less',
@@ -2841,6 +2849,14 @@ export const translations = {
     cal_wedit_body: 'Cambiar tu peso funciona como un pesaje.', // Progress one card (founder 2026-10-02)
     cal_wedit_update: 'Actualizar el pesaje del {date}', // Progress one card (founder 2026-10-02)
     cal_wedit_today: 'Guardar como pesaje de hoy', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Toca un pesaje para corregirlo o eliminarlo.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesaje', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Los cambios aquí actualizan tu progreso, tu objetivo y tu comprobación real.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Eliminar pesaje', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: '¿Eliminar este pesaje?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Tu progreso, tu objetivo y tu comprobación real se actualizan sin él. No se puede deshacer.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Este pesaje inicia tu comprobación real, así que se puede corregir pero no eliminar.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Introduce un peso entre 25 y 300 kg (55–660 lb); grasa corporal 3–70 %.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'Dos pesajes marcan una tendencia.',
     cal_show_all: 'Ver todo',
     cal_show_less: 'Ver menos',
@@ -4744,6 +4760,14 @@ export const translations = {
     cal_wedit_body: 'Mudar seu peso funciona como uma pesagem.', // Progress one card (founder 2026-10-02)
     cal_wedit_update: 'Atualizar a pesagem de {date}', // Progress one card (founder 2026-10-02)
     cal_wedit_today: 'Salvar como pesagem de hoje', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Toque em uma pesagem para corrigir ou excluir.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesagem', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'As mudanças aqui atualizam seu progresso, sua meta e seu teste de realidade.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Excluir pesagem', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Excluir esta pesagem?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Seu progresso, sua meta e seu teste de realidade são atualizados sem ela. Não dá para desfazer.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Esta pesagem inicia seu teste de realidade, então pode ser corrigida, mas não excluída.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Digite um peso entre 25 e 300 kg (55–660 lb); gordura corporal de 3 a 70%.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'Duas pesagens mostram uma tendência.',
     cal_show_all: 'Ver tudo',
     cal_show_less: 'Ver menos',
@@ -6646,6 +6670,14 @@ export const translations = {
     cal_wedit_body: 'Changer votre poids revient à une pesée.', // Progress one card (founder 2026-10-02)
     cal_wedit_update: 'Mettre à jour la pesée du {date}', // Progress one card (founder 2026-10-02)
     cal_wedit_today: 'Enregistrer comme pesée du jour', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Touchez une pesée pour la corriger ou la supprimer.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesée', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Ces changements mettent à jour votre progression, votre objectif et votre vérification réelle.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Supprimer la pesée', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Supprimer cette pesée ?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Votre progression, votre objectif et votre vérification réelle se mettent à jour sans elle. Action irréversible.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Cette pesée lance votre vérification réelle : elle peut être corrigée mais pas supprimée.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Saisissez un poids entre 25 et 300 kg (55–660 lb) ; masse grasse 3–70 %.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'Deux pesées font une tendance.',
     cal_show_all: 'Tout afficher',
     cal_show_less: 'Afficher moins',
@@ -8548,6 +8580,14 @@ export const translations = {
     cal_wedit_body: 'Eine Gewichtsänderung zählt wie eine Wägung.', // Progress one card (founder 2026-10-02)
     cal_wedit_update: 'Wägung vom {date} aktualisieren', // Progress one card (founder 2026-10-02)
     cal_wedit_today: 'Als heutige Wägung speichern', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Tippe auf eine Wägung, um sie zu korrigieren oder zu löschen.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Wägung', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Änderungen hier aktualisieren deinen Fortschritt, dein Ziel und deinen Realitätscheck.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Wägung löschen', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Diese Wägung löschen?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Dein Fortschritt, dein Ziel und dein Realitätscheck werden ohne sie aktualisiert. Das lässt sich nicht rückgängig machen.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Mit dieser Wägung beginnt dein Realitätscheck – sie kann korrigiert, aber nicht gelöscht werden.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Gib ein Gewicht zwischen 25 und 300 kg (55–660 lb) ein; Körperfett 3–70 %.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'Zwei Wägungen ergeben einen Trend.',
     cal_show_all: 'Alle anzeigen',
     cal_show_less: 'Weniger anzeigen',
@@ -10451,6 +10491,14 @@ export const translations = {
     cal_wedit_body: 'Cambiare il peso vale come una pesata.', // Progress one card (founder 2026-10-02)
     cal_wedit_update: 'Aggiorna la pesata del {date}', // Progress one card (founder 2026-10-02)
     cal_wedit_today: 'Salva come pesata di oggi', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Tocca una pesata per correggerla o eliminarla.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesata', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Le modifiche qui aggiornano i tuoi progressi, il tuo obiettivo e la tua verifica reale.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Elimina pesata', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Eliminare questa pesata?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. I tuoi progressi, il tuo obiettivo e la tua verifica reale si aggiornano senza di essa. Non si può annullare.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Questa pesata avvia la tua verifica reale, quindi si può correggere ma non eliminare.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Inserisci un peso tra 25 e 300 kg (55–660 lb); grasso corporeo 3–70%.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'Due pesate fanno una tendenza.',
     cal_show_all: 'Mostra tutto',
     cal_show_less: 'Mostra meno',
