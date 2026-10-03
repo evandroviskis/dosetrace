@@ -1337,7 +1337,7 @@ export default function ProtocolsScreen() {
   }
 
   function adjustWater(dir) {
-    const current = parseDecimal(water) || 0;
+    const current = parseDecimal(water, language) || 0;
     const next = Math.max(0.5, Math.round((current + dir * 0.5) * 10) / 10);
     setWater(inputNumber(next, language));
   }
@@ -1533,6 +1533,7 @@ export default function ProtocolsScreen() {
   const wizardDraw = computeDraw({
     type, amount, water, dose, doseUnit, unit,
     concentration, concentrationUnit, syringeSize,
+    language, // typed in the app language ("1,25", "1.250")
   });
   const drawML = wizardDraw.drawML;
   const drawUnits = wizardDraw.drawUnits;
@@ -1579,7 +1580,7 @@ export default function ProtocolsScreen() {
     if (editingId) {
       // Only what the user changed is written (founder decision 2, 2026-10-02): the form
       // as opened and the form now go through the same builder; equal fields are left alone.
-      const patch = editStartRef.current ? editPatch(editStartRef.current, currentForm(), frequencyLabel) : {};
+      const patch = editStartRef.current ? editPatch(editStartRef.current, currentForm(), frequencyLabel, language) : {};
       // Did the timing actually move? Only then should we clear already-delivered
       // banners (a rename or color change must NOT drop a still-pending reminder).
       const scheduleChanged = ['reminder_time', 'doses_per_day', 'interval_days', 'start_date'].some(k => k in patch);
@@ -1587,11 +1588,11 @@ export default function ProtocolsScreen() {
 
       // RTU vial: only the vial fields the edit changed; a vial is created only when the
       // user's change describes one and there is none yet.
-      const vialPatch = editStartRef.current ? rtuVialPatch(editStartRef.current, currentForm()) : null;
+      const vialPatch = editStartRef.current ? rtuVialPatch(editStartRef.current, currentForm(), language) : null;
       if (vialPatch) {
         const existing = vialsByProtocol[editingId];
         if (existing) updateVial(existing.id, vialPatch);
-        else insertVial({ user_id: user.id, protocol_id: editingId, doses_taken: 0, ...rtuVialFields(currentForm()) });
+        else insertVial({ user_id: user.id, protocol_id: editingId, doses_taken: 0, ...rtuVialFields(currentForm(), language) });
       }
       setSaving(false);
       // Reschedule from the freshly-persisted row (real user_id/created_at) so
@@ -1617,22 +1618,22 @@ export default function ProtocolsScreen() {
       }
       // RTU has no dilution: the vial's total compound (concentration × bottle volume) is
       // stored in `amount` (lib/protocolForm protocolPayload) so the card shows "X mg vial".
-      const newId = insertProtocol({ user_id: user.id, ...protocolPayload(currentForm(), frequencyLabel), start_date: safeStart });
+      const newId = insertProtocol({ user_id: user.id, ...protocolPayload(currentForm(), frequencyLabel, language), start_date: safeStart });
 
       if (type === 'recon' && !skipVial) {
         insertVial({
           user_id: user.id, protocol_id: newId,
           mixed_on: toPastSupabaseDate(vialMonth, vialDay),
-          water_ml: parseDecimal(water) || null,
+          water_ml: parseDecimal(water, language) || null,
           // Vial capacity is derived (vial amount ÷ dose), not asked.
-          total_doses: dosesPerVial({ amount, unit, dose, doseUnit }),
+          total_doses: dosesPerVial({ amount, unit, dose, doseUnit, language }),
           doses_taken: 0,
         });
       }
 
       // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
       // expiry from the box (month/year → last day of that month).
-      const rtuVial = rtuVialFields(currentForm());
+      const rtuVial = rtuVialFields(currentForm(), language);
       if (rtuVial) insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
       setSaving(false);
       const protocolData = getProtocolById(newId);
@@ -2421,7 +2422,7 @@ export default function ProtocolsScreen() {
                             style={s.stepperValInput}
                             value={String(water || '')}
                             onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
-                            onBlur={() => { const n = parseDecimal(water); setWater(inputNumber(!(n > 0) ? 0.5 : Math.max(0.5, n), language)); }}
+                            onBlur={() => { const n = parseDecimal(water, language); setWater(inputNumber(!(n > 0) ? 0.5 : Math.max(0.5, n), language)); }}
                             keyboardType="decimal-pad"
                             selectTextOnFocus
                             placeholder={decimalText('0.5', language)}
@@ -2446,11 +2447,11 @@ export default function ProtocolsScreen() {
                         Given the concentration (amount ÷ diluent) this shows the
                         real mass and can fill the dose — pure conversion, stored as
                         mass so all downstream math is unchanged. Folds (prototype .fold2). */}
-                    {['mg', 'mcg'].includes(unit) && parseDecimal(amount) > 0 && parseDecimal(water) > 0 && (() => {
+                    {['mg', 'mcg'].includes(unit) && parseDecimal(amount, language) > 0 && parseDecimal(water, language) > 0 && (() => {
                       // Normalize the peptide amount to mg so the concentration is
                       // correct even when the vial is labeled in mcg.
-                      const amountMg = unit === 'mcg' ? parseDecimal(amount) / 1000 : parseDecimal(amount);
-                      const iuMassMg = massFromUnits(iuInput, amountMg, water);
+                      const amountMg = unit === 'mcg' ? parseDecimal(amount, language) / 1000 : parseDecimal(amount, language);
+                      const iuMassMg = massFromUnits(iuInput, amountMg, water, language);
                       const parts = iuMassMg != null ? massParts(iuMassMg) : null;
                       return (
                         <View style={s.fold2}>
@@ -2467,13 +2468,13 @@ export default function ProtocolsScreen() {
                               </View>
                               {parts && (
                                 <View style={s.inrow}>
-                                  <Text style={s.iuEquiv}>{`${iuInput} u = ${parts.mcg} mcg (${parts.mg} mg)`}</Text>
+                                  <Text style={s.iuEquiv}>{`${iuInput} u = ${decimalText(parts.mcg, language)} mcg (${decimalText(parts.mg, language)} mg)`}</Text>
                                   <Pill
                                     s={s}
                                     label={t('protocols_iu_use')}
                                     onPress={() => {
-                                      if (iuMassMg < 1) { setDose(parts.mcg); setDoseUnit('mcg'); }
-                                      else { setDose(parts.mg); setDoseUnit('mg'); }
+                                      if (iuMassMg < 1) { setDose(inputNumber(parts.mcg, language)); setDoseUnit('mcg'); }
+                                      else { setDose(inputNumber(parts.mg, language)); setDoseUnit('mg'); }
                                     }}
                                   />
                                 </View>

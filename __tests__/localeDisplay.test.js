@@ -32,23 +32,24 @@ test('protocol form prefill: "0,25" in Portuguese, and an untouched Edit saves t
   assert.equal(pt.water, '2,5');
   assert.equal(formFromProtocol(RECON, null, NOW).dose, '0.25', 'English by default');
   for (const [p, v] of [[RECON, null], [RTU, VIAL], [ORAL, null]]) {
-    const en = protocolPayload(formFromProtocol(p, v, NOW, 'en'), freq);
+    const en = protocolPayload(formFromProtocol(p, v, NOW, 'en'), freq, 'en');
     for (const l of LANGS) {
       const f = formFromProtocol(p, v, NOW, l);
-      assert.deepEqual(protocolPayload(f, freq), en, `${l} ${p.type}: the same numbers as English`);
-      assert.deepEqual(editPatch(f, formFromProtocol(p, v, NOW, l), freq), {}, `${l} ${p.type}: nothing written`);
-      assert.equal(protocolPayload(f, freq).dose, p.dose, `${l} ${p.type}: dose round-trips`);
+      assert.deepEqual(protocolPayload(f, freq, l), en, `${l} ${p.type}: the same numbers as English`);
+      assert.deepEqual(editPatch(f, formFromProtocol(p, v, NOW, l), freq, l), {}, `${l} ${p.type}: nothing written`);
+      assert.equal(protocolPayload(f, freq, l).dose, p.dose, `${l} ${p.type}: dose round-trips`);
     }
   }
 });
 
 test('lab value edit and Your numbers: a prefilled number saves back the same value through their parsers', () => {
-  const labParse = (v) => parseFloat(String(v).replace(',', '.'));   // BodyScreen saveMarkerEdit
-  const calcNum = (v) => parseFloat(String(v).replace(',', '.'));    // CalculatorSection num
+  const { parseDecimal } = require('../lib/doseMath');
+  const labParse = (v, l) => parseDecimal(v, l);   // BodyScreen saveMarkerEdit (review 2026-10-02: language-aware)
+  const calcNum = (v, l) => parseDecimal(v, l);    // CalculatorSection num
   for (const l of LANGS) {
     for (const v of [5.2, 0.85, 12.345, 1250.5, 986, 1.125, 84.6, 181, 21.5]) {
-      assert.equal(labParse(inputNumber(v, l)), v, `${l} lab ${v}`);
-      assert.equal(calcNum(inputNumber(v, l)), v, `${l} numbers ${v}`);
+      assert.equal(labParse(inputNumber(v, l), l), v, `${l} lab ${v}`);
+      assert.equal(calcNum(inputNumber(v, l), l), v, `${l} numbers ${v}`);
     }
   }
   assert.equal(inputNumber(5.2, 'pt'), '5,2');

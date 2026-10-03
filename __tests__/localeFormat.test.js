@@ -137,23 +137,25 @@ test('inputNumber: a prefilled number shows the language separator and never gro
   assert.equal(inputNumber('', 'pt'), '');
 });
 
-test('inputNumber round-trips through parseDecimal in every language', () => {
+test('inputNumber round-trips through parseDecimal(text, language) in every language', () => {
   const values = [86, 86.4, 0.5, 0.25, 0.125, 1.25, 1.125, 12.345, 189.6, 2480, 1234.5, 20, 3.0, 99.99];
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
     for (const v of values) {
       for (const digits of [undefined, 1, 2, 3]) {
         const shown = inputNumber(v, l, digits);
         const expect = digits == null ? v : Number(v.toFixed(digits));
-        assert.equal(parseDecimal(shown), expect, `${l} ${v} digits=${digits} -> "${shown}"`);
+        assert.equal(parseDecimal(shown, l), expect, `${l} ${v} digits=${digits} -> "${shown}"`);
       }
     }
   }
 });
 
-test('inputNumber: "1,250" would read as one thousand, so it becomes "1,2500"', () => {
-  assert.equal(inputNumber(1.25, 'pt', 3), '1,2500');
-  assert.equal(parseDecimal(inputNumber(1.25, 'pt', 3)), 1.25);
-  assert.equal(inputNumber(0.125, 'pt'), '0,125'); // a leading zero is never thousands
+// Review 2026-10-02: no "1,2500" trick — the field shows "1,250" and the language-aware
+// parser reads it as 1.25 in a comma language.
+test('inputNumber: 1.25 with three decimals is "1,250" in Portuguese and reads back as 1.25', () => {
+  assert.equal(inputNumber(1.25, 'pt', 3), '1,250');
+  assert.equal(parseDecimal(inputNumber(1.25, 'pt', 3), 'pt'), 1.25);
+  assert.equal(inputNumber(0.125, 'pt'), '0,125');
 });
 
 // Review 2026-10-02 (LOW): a value stored as TEXT that is not a plain number comes back

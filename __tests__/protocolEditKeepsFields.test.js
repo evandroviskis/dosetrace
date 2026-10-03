@@ -108,8 +108,9 @@ test('decision 2: a NEW protocol starts with Today chosen in the first-dose bar'
 
 test('decision 2: the screen builds the edit save from the patch, never the whole form', () => {
   const save = fnBody(SCREEN, 'saveProtocol');
-  assert.match(save, /editPatch\(editStartRef\.current, currentForm\(\), frequencyLabel\)/);
-  assert.match(save, /rtuVialPatch\(editStartRef\.current, currentForm\(\)\)/);
+  // (review 2026-10-02: both read the form in the app language)
+  assert.match(save, /editPatch\(editStartRef\.current, currentForm\(\), frequencyLabel, language\)/);
+  assert.match(save, /rtuVialPatch\(editStartRef\.current, currentForm\(\), language\)/);
   assert.doesNotMatch(save, /updateProtocol\(editingId, \{\s*name, compound_id/, 'the old whole-row write is gone');
   assert.match(fnBody(SCREEN, 'openEdit'), /editStartRef\.current = f;/);
   assert.match(fnBody(SCREEN, 'resetForm'), /newProtocolForm\(new Date\(\)\)/);

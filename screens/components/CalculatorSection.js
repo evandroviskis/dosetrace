@@ -74,6 +74,7 @@ import { exampleValues, activityParts, targetTicks } from '../../lib/progressFor
 import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
 import { formatDate, formatNumber, formatInt, decimalText, inputNumber } from '../../lib/localeFormat';
 import useColumnWidth from '../../components/useColumnWidth';
+import { parseDecimal } from '../../lib/doseMath';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
@@ -106,13 +107,14 @@ const MONTH_KEYS = [
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
 const round10 = n => Math.round(n / 10) * 10;
 const round5 = n => Math.round(n / 5) * 5;
-const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
 
 // flushRef (optional): the screen gets a function that writes any pending input now, for its
 // beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
 // page it sits on, so the chart fits the page instead of the whole unfolded window.
 export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null }) {
   const { t, language } = useLanguage();
+  // Every number typed here is read the way the app language writes it ("86,5"; review 2026-10-02).
+  const num = v => { const n = parseDecimal(v, language); return Number.isFinite(n) ? n : null; };
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { width: windowWidth, fontScale } = useWindowDimensions();

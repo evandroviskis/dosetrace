@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { formatDate as localeDate, decimalText, inputNumber } from '../lib/localeFormat';
+import { parseDecimal } from '../lib/doseMath';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
@@ -153,6 +154,7 @@ function validateExtraction(data) {
     }
     let value = m.value;
     if (typeof value !== 'number') {
+      // The lab-reading service's text (any report language): its own rule, unchanged.
       value = parseFloat(String(value ?? '').replace(',', '.'));
     }
     if (!Number.isFinite(value)) {
@@ -712,7 +714,7 @@ export default function BodyScreen({ navigation, route }) {
         user_id: user.id,
         report_date: date,
         marker: String(m.marker || '').trim(),
-        value: parseFloat(String(m.value).replace(',', '.')),
+        value: parseDecimal(m.value, language),
         unit: String(m.unit || '').trim(),
       }))
       .filter(r => r.marker && Number.isFinite(r.value));
@@ -752,7 +754,7 @@ export default function BodyScreen({ navigation, route }) {
   }
   function saveMarkerEdit() {
     if (!mEdit) return;
-    const value = parseFloat(String(mValue).replace(',', '.'));
+    const value = parseDecimal(mValue, language);
     if (!mName.trim() || !Number.isFinite(value)) {
       Alert.alert(t('error'), t('blood_edit_invalid'));
       return;
