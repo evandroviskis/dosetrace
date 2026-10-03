@@ -104,6 +104,14 @@ test('Dose accumulation numbers: level and axis labels use the language decimal'
   assert.equal(axisLabel(0, 'en'), '0.0');
 });
 
+test('Dose accumulation half-life in hours uses the language decimal (simulator 2026-10-02: "Meia-vida 0.5 h")', () => {
+  const src = read('screens', 'SerumCurveScreen.js');
+  assert.doesNotMatch(src, /return `\$\{hours\}h`;/, 'halfLifeLabel hours');
+  assert.doesNotMatch(src, /return \{ num: String\(hours\), unit: 'h' \};/, 'halfLifeParts hours');
+  assert.match(src, /return `\$\{decimalText\(hours, language\)\}h`;/);
+  assert.match(src, /return \{ num: decimalText\(hours, language\), unit: 'h' \};/);
+});
+
 test('example values in empty fields use the language decimal', () => {
   assert.deepEqual(exampleValues('metric', 'pt'), { weight: '80,0', bodyFat: '20', waist: '90', height: '178' });
   assert.deepEqual(exampleValues('imperial', 'es'), { weight: '176,4', bodyFat: '20', waist: '35,4', height: '70,1' });

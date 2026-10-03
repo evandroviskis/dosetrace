@@ -29,7 +29,7 @@ import {
   STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
-import { formatDate, formatNumber } from '../lib/localeFormat';
+import { formatDate, formatNumber, decimalText } from '../lib/localeFormat';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
@@ -212,7 +212,7 @@ function halfLifeLabel(hours, language = 'en') {
     const days = hours / 24;
     return `${Number.isInteger(days) ? days : formatNumber(days, language, { digits: 1 })}d`;
   }
-  return `${hours}h`;
+  return `${decimalText(hours, language)}h`;
 }
 
 // The same label split into a number and its unit, for the 34 pt stat.
@@ -222,7 +222,7 @@ function halfLifeParts(hours, language = 'en') {
     const days = hours / 24;
     return { num: String(Number.isInteger(days) ? days : formatNumber(days, language, { digits: 1 })), unit: 'd' };
   }
-  return { num: String(hours), unit: 'h' };
+  return { num: decimalText(hours, language), unit: 'h' };
 }
 
 // The back row names the screen it returns to (prototype navrow), else "Back".
