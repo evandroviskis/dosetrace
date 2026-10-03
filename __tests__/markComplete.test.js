@@ -9,10 +9,9 @@ const KEYS = ['today_mark_taken', 'notif_action_complete', 'log_mark_taken', 're
   'today_site_back_msg', 'today_tip_2', 'protocols_backfill_msg', 'xp_remind_body', 'xp_remind_taken', 'xp_notes_taken', 'today_pending_take'];
 const OLD = { en: /\btaken\b/i, es: /\btomad[ao]s?\b/i, pt: /\btomad[ao]s?\b/i, fr: /\bpris(es?)?\b/i, de: /\b(ein)?genommen\b/i, it: /\b(assunt[aeio]|pres[ae])\b/i };
 
-test('Mark complete in 6 languages', () => {
+test('Mark complete in 6 languages (the notification action and the dose-log choice; Today\'s button has its short verb, todayTakeButtonFit.test.js)', () => {
   const want = { en: 'Mark complete', es: 'Marcar como completada', pt: 'Marcar como concluída', fr: 'Marquer comme effectuée', de: 'Als erledigt markieren', it: 'Segna come completata' };
   for (const [l, v] of Object.entries(want)) {
-    assert.equal(translations[l].today_mark_taken, v, l);
     assert.equal(translations[l].notif_action_complete, v, l);
     assert.equal(translations[l].log_mark_taken, v, l);
   }
