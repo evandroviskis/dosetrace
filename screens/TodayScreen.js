@@ -33,7 +33,7 @@ import { wasDeleted } from '../lib/deleteDose';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
 import BodyMapModal from './components/BodyMapModal';
-import { describeStored } from '../lib/injectionSites';
+import { describeStored, hasSavedSite } from '../lib/injectionSites';
 import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
 import { dosesPerVial, computeDraw, trimZeros } from '../lib/doseMath';
 import { adherenceRings } from '../lib/adherenceRings';
@@ -233,7 +233,7 @@ export default function TodayScreen() {
   const vialDeferredRef = useRef(false); // the vial prompt waits for the embedded Log's editor
 
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
-  // Shape: { [protocolId]: { summary: 'Abdomen', daysAgo: 3 } }
+  // Shape: { [protocolId]: { stored: '{"type":"subq","sites":["abdomen_lr"]}', daysAgo: 3 } } (named when drawn)
   const [lastSiteByProtocol, setLastSiteByProtocol] = useState({});
 
   // The Undo bar's time runs only while nothing covers it: a pop-up in front (vial finished,
@@ -467,11 +467,12 @@ export default function TodayScreen() {
       const out = {};
       Object.keys(newest).forEach(pid => {
         const l = newest[pid];
-        const summary = describeStored(l.injection_site, t);
-        if (!summary) return;
+        // The stored value is kept and named when the card is drawn, in the language shown then
+        // (lastSiteLanguage.test.js): naming it here froze the name in the language of this read.
+        if (!hasSavedSite(l.injection_site)) return;
         const ms = Date.now() - new Date(l.logged_at).getTime();
         const daysAgo = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-        out[pid] = { summary, daysAgo };
+        out[pid] = { stored: l.injection_site, daysAgo };
       });
       setLastSiteByProtocol(out);
     } catch { /* ignore */ }
@@ -1586,6 +1587,7 @@ export default function TodayScreen() {
     const pStreak = protocolStreaks[p.id] || 0;
     const due = cp.due;
     const lastSite = lastSiteByProtocol[p.id];
+    const lastSiteName = lastSite ? describeStored(lastSite.stored, t) : null;
     const name = p.compound_id ? t(p.compound_id) : p.name;
     const { draw, syr } = doseDraw(p);
     // BK-8: the dose open on the right page has an ink outline (book layout only). The card is
@@ -1665,14 +1667,14 @@ export default function TodayScreen() {
         )}
         {/* Part 7: Day X of Y, the last site (full name) and the streak on one line that
             wraps when there is no room (prototype .meta r-foot). */}
-        {(progress || lastSite || pStreak > 0) && (
+        {(progress || lastSiteName || pStreak > 0) && (
           <View style={s.dmeta}>
             {progress && (
               <Text style={s.dmetaText}>{t('today_day_of').replace('{current}', progress.current).replace('{total}', progress.total)}</Text>
             )}
-            {lastSite && (
+            {lastSiteName && (
               <Text style={s.dmetaText}>
-                {(lastSite.daysAgo === 0 ? t('today_last_site_today') : t('today_last_site')).replace('{site}', lastSite.summary).replace('{days}', String(lastSite.daysAgo))}
+                {(lastSite.daysAgo === 0 ? t('today_last_site_today') : t('today_last_site')).replace('{site}', lastSiteName).replace('{days}', String(lastSite.daysAgo))}
               </Text>
             )}
             {pStreak > 0 && (
