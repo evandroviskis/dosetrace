@@ -16,6 +16,7 @@ export const TURNS_PER_DAY = 200; // a hard abuse ceiling across conversations (
 //   reserveStart()         → the new row's id, or null when the insert failed
 //   release(id)            → delete that row
 export interface StartStore {
+  hasStart?(): Promise<boolean | null>; // this conversation already counted (a retried start)
   startsSince(sinceIso: string): Promise<Array<{ id: string | number; created_at: string }> | null>;
   reserveStart(): Promise<string | number | null>;
   release(id: string | number): Promise<void>;
@@ -38,6 +39,9 @@ export function resetsAtFrom(rows: Array<{ created_at: string }>, limit = WEEKLY
 // signed-in user is never blocked by a broken counter; the manual form works regardless).
 export async function startConversation(store: StartStore, nowMs: number, limit = WEEKLY_LIMIT): Promise<StartOutcome> {
   const since = new Date(nowMs - WINDOW_MS).toISOString();
+  // The same conversation is never counted twice (decided 2026-10-03 by logic: one use =
+  // one conversation, counted at its first answer to the AI).
+  if (store.hasStart && (await store.hasStart())) return { status: 'ok', remaining: null, resetsAt: null, counted: false };
   const before = await store.startsSince(since);
   if (before == null) return { status: 'ok', remaining: null, resetsAt: null, counted: false };
   if (before.length >= limit) return { status: 'refused', limit, resetsAt: resetsAtFrom(before, limit) };

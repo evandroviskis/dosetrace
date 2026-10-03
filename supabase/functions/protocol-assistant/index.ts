@@ -52,19 +52,23 @@ Deno.serve(async (req) => {
     const admin = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
     const nowMs = Date.now();
 
-    // ── start: one use of the weekly limit ──────────────────────────────────
+    // ── start: one use of the weekly limit. The app calls it with the conversation's FIRST
+    // answer to the AI (or the label photo), never when the window opens (AP-18). ──────────
     if (action === 'start') {
       const door = typeof body.door === 'string' && DOORS.has(body.door) ? body.door : 'build';
       if (!admin) return json({ ok: true, remaining: null }, 200); // fail open (counter unavailable)
       // Storage limitation: only 7 days are ever counted; rows older than 30 days go.
       await admin.from('ai_assistant_usage').delete().eq('user_id', user.id).lt('created_at', new Date(nowMs - 30 * 86400000).toISOString()).then(() => {}, () => {});
       // A retried start for the same conversation never counts twice.
-      const { data: existing, error: exErr } = await admin.from('ai_assistant_usage').select('id')
-        .eq('user_id', user.id).eq('conversation_id', conversationId).eq('kind', 'start').limit(1);
-      if (isMissingTable(exErr)) return json({ error: 'Usage table missing', code: 'not_configured' }, 500);
-      if (!exErr && existing && existing.length) return json({ ok: true, remaining: null }, 200);
       let missing = false;
       const outcome = await startConversation({
+        // A retried start of the same conversation is never counted twice.
+        async hasStart() {
+          const { data, error } = await admin.from('ai_assistant_usage').select('id')
+            .eq('user_id', user.id).eq('conversation_id', conversationId).eq('kind', 'start').limit(1);
+          if (error) { if (isMissingTable(error)) missing = true; return null; }
+          return !!(data && data.length);
+        },
         async startsSince(sinceIso) {
           const { data, error } = await admin.from('ai_assistant_usage').select('id, created_at')
             .eq('user_id', user.id).eq('kind', 'start').gte('created_at', sinceIso)
