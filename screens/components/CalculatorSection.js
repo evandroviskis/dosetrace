@@ -73,6 +73,7 @@ import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
 import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
 import { formatDate, formatNumber, formatInt, decimalText, inputNumber } from '../../lib/localeFormat';
+import useColumnWidth from '../../components/useColumnWidth';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
@@ -117,6 +118,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const { width: windowWidth, fontScale } = useWindowDimensions();
   const CHART_WIDTH = Math.min(paneWidth || windowWidth, CONTENT_MAX_WIDTH) - 68; // screen gutter 16 + card padding 18, both sides
   const s = useMemo(() => makeStyles(colors), [colors]);
+  // Your reality check so far: the date column fits its widest date in this language (founder
+  // 2026-10-02, "30 de / set." wrapped in a fixed 64 pt column).
+  const [dateColW, onDateColLayout] = useColumnWidth(64, language);
 
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
   const [weight, setWeight] = useState('');         // the weight the math uses (saved)
@@ -1425,7 +1429,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
               <View>
                 {soFar.rows.map((r, i) => (
                   <View key={r.date} style={[s.dayRow, i > 0 && s.dayRowSep]}>
-                    <Text style={[s.sec, s.tnum, s.dayDate]}>{fmtShort(r.date)}</Text>
+                    <Text style={[s.sec, s.tnum, s.dayDate, { minWidth: dateColW }]} numberOfLines={1} onLayout={onDateColLayout}>{formatDate(r.date, language, 'dayMonth')}</Text>
                     <Text style={[s.sec2, s.tnum, s.grow]}>
                       {r.state === 'food'
                         ? t(r.items === 1 ? 'cal_rc_sofar_row_one' : 'cal_rc_sofar_row').replace('{kcal}', fmtInt(r.kcal)).replace('{n}', String(r.items))
@@ -1953,7 +1957,7 @@ const makeStyles = (c) => StyleSheet.create({
   stepVal: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 10 },
   dayRowSep: { borderTopWidth: 1, borderTopColor: c.line },
-  dayDate: { width: 64 },
+  dayDate: { flexShrink: 0 },
   runLine: { paddingTop: 4 },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8 },
   // weigh-ins history (prototype .hist: 1 / 1 / 0.9 / 0.8)
