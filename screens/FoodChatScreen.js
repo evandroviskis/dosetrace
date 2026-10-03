@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay, useReducedMotion } from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -32,7 +33,7 @@ import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse, isMarker,
 } from '../lib/nutrition';
-import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice } from '../lib/foodThread';
+import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { requestAIConsent } from '../lib/aiConsent';
@@ -134,9 +135,12 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     // The draft / put-back text survives closing the chat (FL-36).
     try { const d = await AsyncStorage.getItem(draftKey(uid)); if (d) setText((cur) => cur || d); } catch { /* ignore */ }
     const r = refresh(uid);
-    // Resume the question that was on screen (FL-32), if it still applies.
-    const cur = askedRef.current.current;
-    if (cur && askedRef.current.day === localISO() && !closedDays(r).has(localISO())) setQuestion(cur);
+    // Resume the question that was on screen (FL-32) only while it still applies: like the
+    // prototype, a day question follows a log — never on open when nothing logged today
+    // calls for it (founder 2026-10-02).
+    const cur = askedRef.current.day === localISO() ? askedRef.current.current : null;
+    const keep = resumableQuestion(cur, r, localISO(), askedRef.current.ids, new Date());
+    if (keep) setQuestion(keep);
     setLoaded(true);
     // Offline rows and offline follow-up answers catch up now (FL-19/28).
     const { changed, updatedItems } = await catchUpFood(uid, language);
@@ -640,7 +644,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
         return (
           <AppBubble style={s.typing}>
             <Text style={s.typingText}>{t('nutri_typing')}</Text>
-            <ActivityIndicator size="small" color={colors.ink3} accessibilityLabel={t('nutri_typing')} />
+            <TypingDots s={s} label={t('nutri_typing')} />
           </AppBubble>
         );
       default:
@@ -650,9 +654,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
 
   const canSend = !busy && !!text.trim();
 
-  // iOS shows this as a sheet that already starts below the status bar (A-68). On a book
-  // page the Journey tab screen already holds the top edge.
-  const edges = embedded ? ['left', 'right'] : (Platform.OS === 'ios' ? ['left', 'right', 'bottom'] : ['top', 'left', 'right', 'bottom']);
+  // Journey redesign part 21 (founder 2026-10-02): the chat opens full screen on both
+  // platforms (it used to be an iOS sheet that started below the status bar, A-68), so it
+  // holds the top edge itself. On a book page the Journey tab screen already holds it.
+  const edges = embedded ? ['left', 'right'] : ['top', 'left', 'right', 'bottom'];
   return (
     <SafeAreaView style={s.container} edges={edges}>
       <View style={s.header}>
@@ -713,8 +718,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
                 multiline
                 editable={!busy}
               />
-              <TouchableOpacity style={[s.send, !canSend && s.sendOff]} onPress={onSubmit} disabled={!canSend} accessibilityRole="button" accessibilityLabel={t('nutri_send')} accessibilityState={{ disabled: !canSend }}>
-                {busy ? <ActivityIndicator size="small" color={colors.ink3} /> : <FeatureIcon name="ai_spark" size={20} color={canSend ? colors.onAct : colors.ink3} />}
+              <TouchableOpacity style={s.send} onPress={onSubmit} disabled={!canSend} accessibilityRole="button" accessibilityLabel={t('nutri_send')} accessibilityState={{ disabled: !canSend }}>
+                {busy ? <ActivityIndicator size="small" color={colors.onAct} /> : <FeatureIcon name="ai_spark" size={20} color={colors.onAct} />}
               </TouchableOpacity>
             </View>
             <Text style={s.caveat}>{t('nutri_est_note')}{inTrial && freeLeft > 0 ? '  ·  ' + t('nutri_free_note').replace('{n}', String(freeLeft)) : ''}</Text>
@@ -734,6 +739,26 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       </Modal>
     </SafeAreaView>
   );
+}
+
+// "Reading your message": three dots blinking one after another (prototype .typing .dots:
+// 5 pt, gap 3, ink3, 1 s, 0.2 s apart); with Reduce Motion they rest at 0.6.
+function TypingDots({ s, label }) {
+  const reduced = useReducedMotion();
+  return (
+    <View style={s.dots} accessible accessibilityLabel={label}>
+      {[0, 1, 2].map((k) => <TypingDot key={k} delay={k * 200} reduced={reduced} s={s} />)}
+    </View>
+  );
+}
+function TypingDot({ delay, reduced, s }) {
+  const o = useSharedValue(reduced ? 0.6 : 0.2);
+  useEffect(() => {
+    if (reduced) { o.value = 0.6; return; }
+    o.value = withDelay(delay, withRepeat(withSequence(withTiming(1, { duration: 500 }), withTiming(0.2, { duration: 500 })), -1));
+  }, [reduced]); // eslint-disable-line react-hooks/exhaustive-deps
+  const st = useAnimatedStyle(() => ({ opacity: o.value }));
+  return <Animated.View style={[s.dot, st]} />;
 }
 
 // Graduated (prototype .chatsheet / .chathd / .chatbody / .bub / .entry / .erow / .etot /
@@ -758,7 +783,9 @@ const makeStyles = (c) => StyleSheet.create({
   introWrap: { alignSelf: 'stretch' },
   seeHow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, marginLeft: 6, marginTop: -4 },
   seeHowText: { fontSize: 15, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
-  typing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  typing: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: c.ink3 },
   typingText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   userWrap: { alignSelf: 'flex-end', maxWidth: '84%', marginVertical: 5, alignItems: 'flex-end' },
   user: { backgroundColor: c.act, borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 12 },
@@ -797,7 +824,6 @@ const makeStyles = (c) => StyleSheet.create({
   input: { flex: 1, minHeight: 46, maxHeight: 120, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 23, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink },
   send: { width: 46, height: 46, borderRadius: 23, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   // Disabled = well + ink3 (readable, clearly inactive), never a faded fill.
-  sendOff: { backgroundColor: c.well },
   caveat: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2, textAlign: 'center', marginTop: 6, paddingBottom: 4 },
   locked: { flex: 1, justifyContent: 'center', padding: 16 },
   lockedCard: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },

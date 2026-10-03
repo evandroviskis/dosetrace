@@ -90,11 +90,14 @@ const calc = () => read('screens/components/CalculatorSection.js');
 test('A-77: CalculatorSection reads its unsaved form text back from the draft store on mount', () => {
   const src = calc();
   assert.match(src, /import \{[^}]*\bgetDraft\b[^}]*\} from '\.\.\/\.\.\/lib\/draftStore'/);
-  // Reality-check weigh-ins (start weight, current weight, chosen start day) and intake.
+  // Reality-check start sheet (start weight, chosen start day). Journey redesign 2026-10-02:
+  // the typed phase-2 fields (weight now, kcal/day) are gone — the check finishes from the
+  // day-21 weigh-in and the food log — so they have no draft any more.
   assert.match(src, /const \[rcDraft\] = useState\(\(\) => getDraft\('progress:rcWeigh'\)\)/, 'read once, on mount');
   assert.match(src, /useState\(\(\) => \(rcDraft && rcDraft\.then\) \|\| ''\)/, 'start weight');
-  assert.match(src, /useState\(\(\) => \(rcDraft && rcDraft\.now\) \|\| ''\)/, 'current weight');
-  assert.match(src, /useState\(\(\) => getDraft\('progress:rcIntake'\) \|\| ''\)/, 'intake');
+  // Log today's weight sheet (parts 5-6).
+  assert.match(src, /const \[wiDraft\] = useState\(\(\) => getDraft\('progress:todayWeigh'\)\)/);
+  assert.match(src, /useState\(\(\) => \(wiDraft && wiDraft\.weight\) \|\| ''\)/);
   // Target sheet: open with its typed values.
   assert.match(src, /const \[tgtDraft\] = useState\(\(\) => getDraft\('progress:target'\)\)/);
   assert.match(src, /const \[targetEditing, setTargetEditing\] = useState\(\(\) => !!tgtDraft\)/);
@@ -107,10 +110,10 @@ test('A-77: CalculatorSection reads its unsaved form text back from the draft st
 
 test('A-77: CalculatorSection writes every change of those fields to the draft store', () => {
   const src = calc();
-  assert.match(src, /keepDraft\('progress:rcWeigh', \{ then: rcThen, now: rcNow, startDate: rcStartDate, thenAuto: rcThenAuto\.current \}\);\s*\}, \[rcThen, rcNow, rcStartDate\]\)/);
+  assert.match(src, /keepDraft\('progress:rcWeigh', \{ then: rcThen, startDate: rcStartDate, thenAuto: rcThenAuto\.current \}\);\s*\}, \[rcThen, rcStartDate\]\)/);
   assert.match(src, /const rcThenAuto = useRef\(rcDraft && rcDraft\.thenAuto != null \? rcDraft\.thenAuto : null\)/, 'a prefilled start weight stays "prefilled" after a remount');
   assert.match(src, /validStartDate\(rcDraft\.startDate, todayISO\(\)\)/, 'a kept start day that is now more than 7 days back is dropped');
-  assert.match(src, /keepDraft\('progress:rcIntake', rcIntake\);\s*\}, \[rcIntake\]\)/);
+  assert.match(src, /keepDraft\('progress:todayWeigh', typed \? \{ weight: wiWeight, bf: wiBf, waist: wiWaist, open: wiOpen \} : null\);/);
   assert.match(src, /if \(targetEditing\) setDraft\('progress:target', \{ weight: tgtWeight, bf: tgtBF, date: tgtDate \}\);\s*else clearDraft\('progress:target'\);/);
   assert.match(src, /keepDraft\('progress:pastWeighIn', /);
 });
@@ -122,8 +125,8 @@ test('A-77: a save (or the target Cancel, which discards on purpose today) clear
     assert.ok(m, name);
     return m[0];
   };
-  assert.match(fn('saveRealityCheck'), /clearDraft\('progress:rcWeigh'\); clearDraft\('progress:rcIntake'\);/);
-  assert.match(fn('saveRcWeighIn'), /clearDraft\('progress:rcWeigh'\);/);
+  assert.match(src.match(/async function startRealityCheck\(\) \{[\s\S]*?\n  \}\n/)[0], /clearDraft\('progress:rcWeigh'\);/);
+  assert.match(fn('saveTodayWeighIn'), /clearDraft\('progress:todayWeigh'\);/);
   // The target sheet: closing it (Cancel, backdrop, Android back) or saving ends targetEditing,
   // and the effect above clears the draft; the past weigh-in save empties its fields.
   assert.match(src, /const closeTarget = \(\) => \{ setTargetEditing\(false\);/);

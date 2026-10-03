@@ -1,11 +1,18 @@
 /**
  * DoseTrace — Energy & protein calculator (the Progress screen, behind Journey's tile)
  *
- * Graduated redesign (docs/design/prototype.html progressScreen): with a plan the order
- * is hero (weight, daily burn, target) → daily plan → reality check (with the food
- * log's intake + reminder) → weigh-ins → your numbers; before one it is intro → your
- * numbers → status → reality check → target → weigh-ins. Then the disclaimer and
- * Understand the numbers / Sources. Target and past weigh-in are bottom sheets.
+ * One card on top (docs/specs/progress-one-card.md, founder 2026-10-02 from the pictures):
+ * weight + daily burn, the since and formula lines, Your target, Log today's weight, then the
+ * Weigh-ins and Your numbers folds — all inside ONE card (lib/progressCard progressLayout).
+ * Below it the daily plan and the reality check. First use: the same card with "—", Your
+ * numbers open under the hero (no fold), Your target, Weigh-ins "None yet"; then the reality
+ * check. The daily burn needs weight, height, age and sex (founder option A); an existing
+ * user's weight + body fat number is kept with "Complete your numbers". A weight changed in
+ * Your numbers asks first once weigh-ins exist (it works like a weigh-in).
+ * Then the disclaimer and Understand the numbers / Sources. Log today's weight,
+ * the reality-check start, the target and a past weigh-in are bottom sheets; Start over,
+ * Stop and Remove target ask first in DoseTrace sheets. The reality check finishes from
+ * the user's own weigh-in (day 21) and food log (7 days in a row) — nothing typed twice.
  *
  * A one-shot general-wellness REALITY CHECK (BODY_TAB_SPEC): estimate BMR →
  * TDEE → a calorie target (as a % of TDEE) → a protein target, from the user's
@@ -21,8 +28,8 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Linking, useWindowDimensions, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
-import Svg, { Path, Rect, Line } from 'react-native-svg';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasPremium } from '../../lib/entitlement';
@@ -37,10 +44,10 @@ import {
   targetProjection, seriesRatePerWeek, goalsForTdee, TARGET_MIN_WINDOW_DAYS,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
-import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight } from '../../lib/realityCheckRules';
+import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource } from '../../lib/realityCheckRules';
+import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync, notifyDataChanged } from '../../lib/sync';
 import { getDraft, setDraft, clearDraft, keepDraft } from '../../lib/draftStore';
@@ -49,7 +56,7 @@ import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
   getFoodLogsSince,
   getRealityChecks, upsertRealityCheck, clearRealityChecks,
-  getCalcSnapshots, upsertCalcSnapshot,
+  getCalcSnapshots, upsertCalcSnapshot, correctCalcSnapshot, deleteCalcSnapshot,
   getCalcTarget, upsertCalcTarget, clearCalcTarget,
 } from '../../lib/database';
 
@@ -61,11 +68,20 @@ const rcRowToUI = (r) => ({ date: r.entry_date, tdee: r.tdee, ratePerWeekKg: r.r
 const snapRowToUI = (r) => ({ date: r.entry_date, weightKg: r.weight_kg, waistCm: r.waist_cm, bodyFatPct: r.body_fat_pct, lbm: r.lbm, bmr: r.bmr, tdee: r.tdee });
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
-import NutritionLogger from './NutritionLogger';
-import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
+import { FoodReminderRow } from './NutritionLogger';
+import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
+import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
+import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
+import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
+import { dateColumns, dateAfter } from '../../lib/wheelPick';
+import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
+import { FeaturePreviewSheet } from '../../components/FeaturePreviews';
+import FoldChevron from '../../components/FoldChevron';
+import RowChevron from '../../components/RowChevron';
 import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
+import LearnBlock from './LearnBlock';
 
 const LOCALE_MAP = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
@@ -80,21 +96,16 @@ const daysBetween = (fromISO, toISO) => {
 // delete a user's older entries — a data-loss the "never lose data" rule forbids).
 // Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
 
+const MONTH_KEYS = [
+  'month_jan', 'month_feb', 'month_mar', 'month_apr',
+  'month_may', 'month_jun', 'month_jul', 'month_aug',
+  'month_sep', 'month_oct', 'month_nov', 'month_dec',
+];
+
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
 const round10 = n => Math.round(n / 10) * 10;
 const round5 = n => Math.round(n / 5) * 5;
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
-
-// Published sources for every figure this calculator shows (App Review 1.4.1:
-// health information must cite its sources). Citation text stays in English —
-// the convention for references; the topic label (t(key)) is localized.
-const REFERENCES = [
-  { key: 'cal_src_bmr_mifflin', cite: 'Mifflin & St Jeor et al. — Am J Clin Nutr, 1990', url: 'https://doi.org/10.1093/ajcn/51.2.241' },
-  { key: 'cal_src_bmr_lbm', cite: 'Cunningham — Am J Clin Nutr, 1991', url: 'https://pubmed.ncbi.nlm.nih.gov/1957828/' },
-  { key: 'cal_src_protein', cite: 'Jäger et al. — ISSN Position Stand, 2017', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5477153/' },
-  { key: 'cal_src_glycogen', cite: 'Muscle glycogen & body water — Nutrients, 2023', url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9823884/' },
-  { key: 'cal_src_energy', cite: 'Hall — Int J Obes, 2008', url: 'https://www.nature.com/articles/0803720' },
-];
 
 // flushRef (optional): the screen gets a function that writes any pending input now, for its
 // beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
@@ -109,7 +120,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const locale = LOCALE_MAP[language] || 'en-US';
 
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState('');         // the weight the math uses (saved)
+  // The Your numbers weight field. Before any weigh-in it IS the weight (saved as typed);
+  // once weigh-ins exist a change is decided when the field is left (ask first, PO-14), and
+  // until then it is kept in lib/draftStore like the other forms' typed text.
+  const [wDraft] = useState(() => getDraft('progress:numbersWeight'));
+  const [weightField, setWeightField] = useState(() => (wDraft && wDraft.text) || '');
+  // Founder option A (PO-12/13): an existing user's weight + body fat daily burn is kept.
+  const [legacyBurn, setLegacyBurn] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [filledSticky, setFilledSticky] = useState(false); // the card stays "filled" this visit once it was
   const [bfSource, setBfSource] = useState('gym');
   const [bodyFat, setBodyFat] = useState('');
   const [sex, setSex] = useState('male');
@@ -123,13 +143,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [activity, setActivity] = useState(1.375);
   const [goal, setGoal] = useState('lose');
   const [waist, setWaist] = useState('');
-  const [expl, setExpl] = useState(null);           // which explainer is open
   const [numbersOpen, setNumbersOpen] = useState(null); // "Your numbers" collapse: null = auto (open until there is a plan)
   const [introOpen, setIntroOpen] = useState(false);    // "What this is" inside the daily plan
-  const [learnOpen, setLearnOpen] = useState(false);   // "Understand the numbers" group
-  const [sourcesOpen, setSourcesOpen] = useState(false); // "Sources & references" group
   const [premium, setPremium] = useState(false);
-  const [rcWeighMsg, setRcWeighMsg] = useState(false);
   const [rcFree, setRcFree] = useState(false); // free 7 days of food log + reality check (FL-41)
   const [snapshots, setSnapshots] = useState([]);
   // Text typed in the forms below and not saved yet comes back from lib/draftStore when this
@@ -141,22 +157,34 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // null = today; else a past weigh-in day (≤ 7 days back; a kept day that is now too old is dropped)
   const [rcStartDate, setRcStartDate] = useState(() => (rcDraft && rcDraft.startDate && validStartDate(rcDraft.startDate, todayISO()) ? rcDraft.startDate : null));
   const rcThenAuto = useRef(rcDraft && rcDraft.thenAuto != null ? rcDraft.thenAuto : null); // the start weight the date picker last filled in (never overwrite a typed one)
-  const [snapMsg, setSnapMsg] = useState(false);
-  // Reality-check inputs (display units).
-  const [rcThen, setRcThen] = useState(() => (rcDraft && rcDraft.then) || '');         // phase-1 starting weight
-  const [rcNow, setRcNow] = useState(() => (rcDraft && rcDraft.now) || '');           // phase-2 current weight
-  const [rcIntake, setRcIntake] = useState(() => getDraft('progress:rcIntake') || '');
-  const [rc, setRc] = useState(null);               // { status, tdee, ratePerWeekKg }
+  // Reality check: the start weight typed in the start sheet (display units).
+  const [rcThen, setRcThen] = useState(() => (rcDraft && rcDraft.then) || '');
   const [rcStart, setRcStart] = useState(null);     // { date, weightKg } — open check-in
-  const [rcOpen, setRcOpen] = useState(false);      // collapsible panel under the goal
+  const [rcStartOpen, setRcStartOpen] = useState(false); // the start sheet (part 9)
+  const [rcExplain, setRcExplain] = useState(false);     // free plan: "See how it works" (part 11)
+  const [soFarOpen, setSoFarOpen] = useState(false);     // "Your reality check so far" (part 8)
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
-  const [rcSavedMsg, setRcSavedMsg] = useState(false);
-  const [foodRows, setFoodRows] = useState([]); // food_logs rows, for the check-window intake
+  const [foodRows, setFoodRows] = useState([]); // food_logs rows, for the check's run and day list
+  // Calories typed by hand (founder 2026-10-02) and the sources of finished results, from
+  // the synced calc_inputs payload ({ rcTypedKcal, rcResultSources }); re-read each focus.
+  const [rcInputs, setRcInputs] = useState(null);
+  const [kcalDraft] = useState(() => getDraft('progress:rcKcal'));
+  const [kcalOpen, setKcalOpen] = useState(() => !!(kcalDraft && kcalDraft.open));
+  const [kcalText, setKcalText] = useState(() => (kcalDraft && kcalDraft.text) || '');
+  const [confirm, setConfirm] = useState(null); // DoseTrace confirm sheet (Start over? / Stop / Remove target / sex)
+  // Log today's weight (parts 5-6); its typed values survive a remount like the other forms.
+  const [wiDraft] = useState(() => getDraft('progress:todayWeigh'));
+  const [wiOpen, setWiOpen] = useState(() => !!(wiDraft && wiDraft.open));
+  const [wiWeight, setWiWeight] = useState(() => (wiDraft && wiDraft.weight) || '');
+  const [wiBf, setWiBf] = useState(() => (wiDraft && wiDraft.bf) || '');
+  const [wiWaist, setWiWaist] = useState(() => (wiDraft && wiDraft.waist) || '');
+  // Weigh-ins card (part 13): folded by default; the newest five unless Show all.
+  const [weighOpen, setWeighOpen] = useState(false);
+  const [showAllW, setShowAllW] = useState(false);
 
   // ── Personal target (build 56) ──────────────────────────────────
   const [target, setTarget] = useState(null);        // the saved calc_targets row
   const [targetEditing, setTargetEditing] = useState(() => !!tgtDraft); // a kept target draft reopens its sheet
-  const [tgtFormOpen, setTgtFormOpen] = useState(false); // empty target stays a compact card until tapped
   const [tgtWeight, setTgtWeight] = useState(() => (tgtDraft && tgtDraft.weight) || '');     // display units
   const [tgtBF, setTgtBF] = useState(() => (tgtDraft && tgtDraft.bf) || '');             // %
   const [tgtDate, setTgtDate] = useState(() => (tgtDraft && tgtDraft.date) || null);       // ISO 'YYYY-MM-DD' | null
@@ -238,9 +266,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // S-04 / FX-10: the PROFILE is the only source for sex and age — applied on every
     // focus so a change in Settings reaches the BMR; saved calculator values are used
     // only while the profile has none.
+    let body = null;
     {
       const savedForBody = await getCalcInputs().catch(() => null);
-      const body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
+      setRcInputs(savedForBody ? { rcTypedKcal: savedForBody.rcTypedKcal ?? null, rcResultSources: savedForBody.rcResultSources ?? null } : null);
+      body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
       setSex(body.sex);
       setProfileSex(body.profileSex);
       setAgeFromProfile(body.ageFromProfile);
@@ -254,6 +284,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (rcs) setRcStart(rcs);
     // Synced calc_inputs table (S-03); the old metadata only before migration.
     const saved = await getCalcInputs().catch(() => null);
+    // A weight typed in Your numbers and not decided yet (PO-14) comes back from the draft.
+    const savedW = saved && typeof saved === 'object' && saved.weight != null ? String(saved.weight) : '';
+    setWeightField(wDraft && wDraft.text != null ? wDraft.text : savedW);
+    // PO-13: decided once from what was saved before this version, then kept in the payload.
+    setLegacyBurn(legacyBurnFromSaved({ saved, sexKnown: !!(body && body.profileSex), age: body ? body.age : null }));
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
       if (saved.weight != null) setWeight(String(saved.weight));
@@ -265,6 +300,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       if (saved.waist != null) setWaist(String(saved.waist));
     }
     loadedRef.current = true;
+    setLoaded(true);
   }
 
   // Convert display inputs → metric for the math.
@@ -277,12 +313,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     };
   }, [weight, height, unit]);
 
+  // PO-12 / PO-13 (founder option A): the daily burn needs weight, height, age and sex (the
+  // profile's — never the 'male' default); body fat only sharpens it (the engine then uses
+  // Katch-McArdle, unchanged). An existing user's weight + body fat number is kept.
+  const burnGate = useMemo(() => dailyBurnGate({
+    weightKg: metric.weightKg,
+    heightCm: metric.heightCm,
+    age: num(age),
+    sexKnown: !!profileSex,
+    bodyFatPct: bfSource === 'unknown' ? null : num(bodyFat),
+    legacyBurn,
+  }), [metric, age, profileSex, bfSource, bodyFat, legacyBurn]);
   const result = useMemo(() => {
     const isUnknown = bfSource === 'unknown';
-    // The Mifflin (body-fat-unknown) BMR is sex-specific. Rather than silently
-    // computing off the 'male' default, gate on the profile's sex being set.
-    // Katch-McArdle (body fat known) doesn't use sex, so it's never gated.
-    if (isUnknown && !profileSex) return { sexGated: true };
     const plan = energyPlan({
       weightKg: metric.weightKg,
       heightCm: metric.heightCm,
@@ -293,9 +336,22 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       goal,
     });
     if (!plan.ok) return plan.warnings.length ? { invalid: true, warnings: plan.warnings } : null;
-    return plan;
-  }, [metric, age, sex, bodyFat, bfSource, activity, goal, profileSex]);
-  const plan = result && !result.invalid && !result.sexGated ? result : null;
+    return burnGate.show ? plan : null;
+  }, [metric, age, sex, bodyFat, bfSource, activity, goal, burnGate]);
+  const plan = result && !result.invalid ? result : null;
+  // The card is "filled" (Your numbers folds away at its end) once there is a daily burn; it
+  // stays so for this visit, so a field being retyped never moves the form under the finger.
+  // When the burn first appears while the user is typing, Your numbers stays open.
+  const firstFillEval = useRef(true);
+  useEffect(() => {
+    if (!loaded) return;
+    if (plan && !filledSticky) {
+      setFilledSticky(true);
+      if (!firstFillEval.current) setNumbersOpen(o => (o == null ? true : o));
+    }
+    firstFillEval.current = false;
+  }, [loaded, !!plan]);
+  const filled = !!plan || filledSticky;
 
   // Persist inputs (debounced, fire-and-forget) once initial load is done. A value typed
   // less than 0.9 s before the screen goes away (back, or a fold / unfold moving it) is
@@ -304,8 +360,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => saveCalcInputs(payload).then(calcChanged), 900); // synced table + user_metadata mirror
   useEffect(() => {
     if (!loadedRef.current) return;
-    inputsSave.current.schedule({ unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist });
-  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist]);
+    // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload
+    // without it was saved before option A); legacyBurn keeps that decision.
+    inputsSave.current.schedule({ unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist, oneCard: 1, legacyBurn });
+  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist, legacyBurn]);
   useEffect(() => () => inputsSave.current.flush(), []);
   if (flushRef) flushRef.current = () => inputsSave.current.flush();
 
@@ -317,11 +375,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // BK-14 / A-77: the unsaved form text follows every keystroke into lib/draftStore (memory
   // only). A save or a discard empties the fields or ends the sheet, which clears the draft.
   useEffect(() => {
-    keepDraft('progress:rcWeigh', { then: rcThen, now: rcNow, startDate: rcStartDate, thenAuto: rcThenAuto.current });
-  }, [rcThen, rcNow, rcStartDate]);
+    keepDraft('progress:rcWeigh', { then: rcThen, startDate: rcStartDate, thenAuto: rcThenAuto.current });
+  }, [rcThen, rcStartDate]);
   useEffect(() => {
-    keepDraft('progress:rcIntake', rcIntake);
-  }, [rcIntake]);
+    keepDraft('progress:rcKcal', kcalText ? { text: kcalText, open: kcalOpen } : null);
+  }, [kcalText, kcalOpen]);
+  useEffect(() => {
+    if (!loaded) return;
+    keepDraft('progress:numbersWeight', weightField !== weight ? { text: weightField } : null);
+  }, [loaded, weightField, weight]);
+  useEffect(() => {
+    const typed = wiWeight || wiBf || wiWaist;
+    keepDraft('progress:todayWeigh', typed ? { weight: wiWeight, bf: wiBf, waist: wiWaist, open: wiOpen } : null);
+  }, [wiOpen, wiWeight, wiBf, wiWaist]);
   useEffect(() => {
     // The target sheet discards on Cancel today (it reseeds from the saved target), so its
     // draft lives only while the sheet is open.
@@ -339,19 +405,87 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const hUnit = unit === 'imperial' ? t('cal_unit_in') : t('cal_unit_cm');
   const isUnknown = bfSource === 'unknown';
 
-  // Write sex assigned at birth to the profile (the source of truth for the
-  // sex-specific BMR path), then unblock the calculation.
+  // Write sex assigned at birth to the profile (the source of truth for the sex-specific
+  // BMR path, S-04). Your numbers asks it with a Male / Female bar that starts with neither
+  // chosen, so the daily burn never runs off a default (PO-11/12). updateUser merges the
+  // one key into user_metadata; the other profile keys are kept.
   async function saveProfileSex(val) {
+    if (val !== 'male' && val !== 'female') return;
     setSex(val);
     setProfileSex(val);
     try { await supabase.auth.updateUser({ data: { gender: val } }); } catch (e) { /* non-fatal */ }
   }
-  function promptProfileSex() {
-    Alert.alert(t('cal_sex_gate_title'), t('cal_sex_gate_body'), [
-      { text: t('profile_gender_male'), onPress: () => saveProfileSex('male') },
-      { text: t('profile_gender_female'), onPress: () => saveProfileSex('female') },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
+
+  // ── Weight in Your numbers (PO-14 / PO-15 / PO-17, founder 2026-10-02) ──
+  // Before any weigh-in the field is the weight (saved as typed), and a weight the user
+  // changed becomes the first weigh-in when the field is left (founder "A"; never on open,
+  // load or migration). Once weigh-ins exist a changed weight works like a weigh-in: when
+  // the field is left the user is asked (DoseTrace sheet) to update the latest weigh-in or
+  // save it as today's; Cancel (or a tap outside) puts the saved weight back. One weigh-in
+  // write per save, merged by day.
+  const hasWeighIns = snapshots.some(x => x.weightKg != null);
+  const weightFocusRef = useRef(null); // the field's text when it was entered
+  function onWeightChange(v) {
+    setWeightField(v);
+    if (!hasWeighIns) setWeight(v);
+  }
+  function revertWeightField() { setWeightField(weight); }
+  // The DoseTrace sheet closes first and runs the chosen button after it fades; a question
+  // with onDismiss (Update your weight) undoes itself on any close — Cancel or a tap outside —
+  // and a chosen answer then writes its own value.
+  function closeConfirm() {
+    const c = confirm;
+    setConfirm(null);
+    if (c && c.onDismiss) c.onDismiss();
+  }
+  function commitWeightField() {
+    const entered = weightFocusRef.current;
+    weightFocusRef.current = null;
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const typed = num(weightField);
+    const toKg = v => (unit === 'imperial' ? lbToKg(v) : v);
+    const old = num(weight);
+    const kg = typed == null ? null : toKg(typed);
+    const text = weightField;
+    const d = weightEditAsk({ rows: getCalcSnapshots(uid), oldWeightKg: old == null ? null : toKg(old), newWeightKg: kg, todayISO: todayISO() });
+    if (d.kind === 'first') {
+      // PO-17: no weigh-in yet — a weight the user changed here becomes the first one.
+      if (kg == null || (entered != null && entered === text)) return;
+      setWeight(text);
+      const wc = num(waist);
+      applyWeightEdit('first', kg, text, {
+        bodyFatPct: isUnknown ? null : num(bodyFat),
+        waistCm: wc == null ? null : (unit === 'imperial' ? inToCm(wc) : wc),
+      });
+      return;
+    }
+    if (weightField === weight) return;
+    if (kg == null) { revertWeightField(); return; }
+    if (d.kind !== 'ask') { setWeight(text); return; }
+    setConfirm({
+      title: t('cal_wedit_title'),
+      body: t('cal_wedit_body'),
+      onDismiss: revertWeightField,
+      buttons: [
+        { label: t('cal_wedit_update').replace('{date}', fmtShort(d.latestDate)), kind: 'primary', onPress: () => applyWeightEdit('update', kg, text) },
+        ...(d.options.includes('today') ? [{ label: t('cal_wedit_today'), kind: 'secondary', onPress: () => applyWeightEdit('today', kg, text) }] : []),
+        { label: t('cancel'), kind: 'secondary' },
+      ],
+    });
+  }
+  function applyWeightEdit(choice, kg, text, extra = {}) {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const row = weightEditWrite({ choice, rows: getCalcSnapshots(uid), newWeightKg: kg, todayISO: todayISO(), ...extra });
+    if (!row) return;
+    upsertCalcSnapshot(uid, row);
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    setWeight(text);
+    setWeightField(text);
+    clearDraft('progress:numbersWeight');
+    calcChanged();
   }
 
   // Switching units must CONVERT the values already typed, not just relabel
@@ -364,10 +498,12 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const cw = str => { const n = num(str); return n == null ? str : fmt(toImp ? kgToLb(n) : lbToKg(n)); };
     const ch = str => { const n = num(str); return n == null ? str : fmt(toImp ? cmToIn(n) : inToCm(n)); };
     setWeight(cw(weight));
+    setWeightField(cw(weightField));
     setHeight(ch(height));
     setWaist(ch(waist));
     setRcThen(cw(rcThen));
-    setRcNow(cw(rcNow));
+    setWiWeight(cw(wiWeight));
+    setWiWaist(ch(wiWaist));
     setUnit(next);
   }
 
@@ -377,28 +513,36 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     return unit === 'imperial' ? inToCm(w) : w;
   }, [waist, unit]);
 
-  // ── Snapshots (premium) ──────────────────────────────────────────
-  async function saveSnapshot() {
-    if (!plan || metric.weightKg == null) return;
-    const snap = {
-      date: todayISO(),
-      weightKg: metric.weightKg,
-      waistCm,
-      bodyFatPct: isUnknown ? null : num(bodyFat),
-      lbm: plan.lbm,
-      bmr: Math.round(plan.bmr),
-      tdee: Math.round(plan.tdeeVal),
-    };
-    // One row per day (latest wins) in the synced calc_snapshots table — an
-    // upsert, never a whole-array rewrite, so history can't be truncated.
+  // ── Log today's weight (redesign parts 5-6, Q10 = A) ─────────────
+  // Every weigh-in is the user's own data: saved as TODAY's row in calc_snapshots, merged
+  // against a fresh read so nothing logged earlier that day is lost (FX-15: never
+  // paywalled). The weight / body fat / waist typed here also become the current numbers
+  // in Your numbers, so the plan, the target and the reality check use them.
+  function openWeighIn() { setWiOpen(true); }
+  function closeWeighIn() { setWiOpen(false); }
+  function saveTodayWeighIn() {
     const uid = userIdRef.current;
-    if (!uid) return; // no session yet — don't show a "saved" toast for a no-op
-    upsertCalcSnapshot(uid, { entry_date: snap.date, weight_kg: snap.weightKg ?? null, waist_cm: snap.waistCm ?? null, body_fat_pct: snap.bodyFatPct ?? null, lbm: snap.lbm ?? null, bmr: snap.bmr ?? null, tdee: snap.tdee ?? null });
+    if (!uid) return;
+    const w = num(wiWeight);
+    if (w == null) return;
+    const date = todayISO();
+    const weightKg = unit === 'imperial' ? lbToKg(w) : w;
+    const bfv = num(wiBf);
+    const wc = num(wiWaist);
+    const waistCmNew = wc == null ? null : (unit === 'imperial' ? inToCm(wc) : wc);
+    const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
+    upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg, bodyFatPct: bfv, waistCm: waistCmNew }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    setWeight(String(w));
+    setWeightField(String(w));
+    clearDraft('progress:numbersWeight');
+    if (bfv != null && !isUnknown) setBodyFat(String(bfv));
+    if (wc != null) setWaist(String(wc));
+    setWiWeight(''); setWiBf(''); setWiWaist('');
+    clearDraft('progress:todayWeigh');
     calcChanged();
-    setSnapMsg(true);
-    setTimeout(() => setSnapMsg(false), 2500);
+    setWiOpen(false);
   }
 
   // ── Target handlers (build 56) ───────────────────────────────────
@@ -439,18 +583,22 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setTarget(getCalcTarget(uid));
     calcChanged();
     setTargetEditing(false);
-    setTgtFormOpen(false);
   }
 
+  // Remove target (the editor's red link): asks first in a DoseTrace sheet (prototype confirm).
   function clearTargetConfirm() {
-    Alert.alert(t('cal_tgt_clear_title'), t('cal_tgt_clear_body'), [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('cal_tgt_clear_confirm'), style: 'destructive', onPress: () => {
-        const uid = userIdRef.current; if (!uid) return;
-        clearCalcTarget(uid); requestSync?.(); calcChanged();
-        setTarget(null); setTargetEditing(false); setTgtFormOpen(false);
-      } },
-    ]);
+    setConfirm({
+      title: t('cal_tgt_clear_title'),
+      body: t('cal_tgt_clear_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('cal_tgt_clear_confirm'), kind: 'danger', onPress: () => {
+          const uid = userIdRef.current; if (!uid) return;
+          clearCalcTarget(uid); requestSync?.(); calcChanged();
+          setTarget(null); setTargetEditing(false);
+        } },
+      ],
+    });
   }
 
   // Backfill a past weigh-in → a dated snapshot (weight + optional BF). Merges
@@ -473,33 +621,68 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setBfWeight(''); setBfBodyFat(''); setBfDate(todayISO());
     setBfMsg(true); setTimeout(() => setBfMsg(false), 2500);
   }
+  // A past weigh-in is never in the future.
+  const clampPast = (iso) => (iso > todayISO() ? todayISO() : iso);
 
-  // The weigh-in of a reality check that is already running, for a user whose free
-  // days ended (FX-15: weigh-ins are never paywalled; only the result is). Saved as
-  // today's snapshot, merged so nothing logged earlier that day is lost.
-  function saveRcWeighIn() {
+  // ── Fix or delete a weigh-in (PO-19..PO-25, founder 2026-10-02) ───────
+  // A row of the table opens "Weigh-in": the date is fixed; Save corrects that day in place
+  // (lib/weighInEdit, synced calc_snapshots); Delete asks first and leaves a synced tombstone.
+  // The weigh-in that started the open reality check can be fixed but not deleted; fixing it
+  // moves the check's start weight with it.
+  const [weEdit, setWeEdit] = useState(null); // { date, weight, bodyFat, waist, original }
+  const [weBad, setWeBad] = useState(false);
+  function openWeighInEdit(date) {
     const uid = userIdRef.current;
     if (!uid) return;
-    const w = num(rcNow);
-    if (w == null) return;
-    const weightKg = unit === 'imperial' ? lbToKg(w) : w;
-    const date = todayISO();
-    const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
-    upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg }));
+    const row = getCalcSnapshots(uid).find(sn => sn.entry_date === date);
+    if (!row) return;
+    setWeBad(false);
+    setWeEdit({ date, original: row, ...weighInFormValues(row, unit) });
+  }
+  function closeWeighInEdit() { setWeEdit(null); setWeBad(false); }
+  function saveWeighInEdit() {
+    const uid = userIdRef.current;
+    if (!uid || !weEdit) return;
+    const read = readWeighInForm({ weight: weEdit.weight, bodyFat: weEdit.bodyFat, waist: weEdit.waist, unit, original: weEdit.original });
+    if (!read.ok) { setWeBad(true); return; }
+    correctCalcSnapshot(uid, weEdit.date, read);
+    const startFix = checkStartPatch(rcStart, weEdit.date, read.weightKg);
+    if (startFix) { setRcStart(startFix); setRealityStart(startFix).catch(() => {}); }
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
-    clearDraft('progress:rcWeigh');
     calcChanged();
-    setRcWeighMsg(true); setTimeout(() => setRcWeighMsg(false), 2500);
+    closeWeighInEdit();
   }
+  function deleteWeighInNow() {
+    const uid = userIdRef.current;
+    if (!uid || !weEdit) return;
+    deleteCalcSnapshot(uid, weEdit.date, rcStart);
+    requestSync?.();
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    calcChanged();
+    closeWeighInEdit();
+  }
+  function confirmDeleteWeighIn() {
+    if (!weEdit) return;
+    const w = weEdit.original && weEdit.original.weight_kg != null ? `${fmtW(weEdit.original.weight_kg)} ${wUnit}` : '—';
+    setConfirm({
+      title: t('cal_wi_del_title'),
+      body: t('cal_wi_del_body').replace('{date}', fmtShort(weEdit.date)).replace('{weight}', w),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('nutri_delete'), kind: 'danger', onPress: deleteWeighInNow },
+      ],
+    });
+  }
+  const weAct = weEdit ? weighInActions(weEdit.date, rcStart) : { canDelete: false, isCheckStart: false };
 
-  // ETA weeks → { weeks, when } where `when` is the projected finish month.
+  // ETA weeks → { weeks, when } where `when` is the projected finish day.
   function fmtEta(weeks) {
     if (weeks == null || !Number.isFinite(weeks)) return null;
     const w = Math.max(1, Math.round(weeks));
     const done = new Date(); done.setDate(done.getDate() + w * 7);
     const sameYear = done.getFullYear() === new Date().getFullYear();
-    const when = done.toLocaleDateString(locale, { month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+    const when = done.toLocaleDateString(locale, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
     return { weeks: w, when };
   }
 
@@ -512,7 +695,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       { key: 'weight', label: t('cal_snap_weight'), color: colors.data, unit: wUnit, points: weightPts },
       { key: 'waist', label: t('cal_snap_waist'), color: colors.ink2, unit: hUnit, points: waistPts },
     ].filter(sr => sr.points.length > 0);
-  }, [snapshots, unit, colors]);
+  }, [snapshots, unit, colors, language]);
 
   const snapPointCount = chartSeries.reduce((n, sr) => Math.max(n, sr.points.length), 0);
 
@@ -558,7 +741,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     });
   }, [target, currentBF, usableBfRate]);
 
-  // A one-line "since your first snapshot" delta for the overview panel.
+  // A one-line "since your first weigh-in" delta for the hero.
   const progressSummary = useMemo(() => {
     if (snapshots.length < 2) return null;
     const sorted = [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -575,31 +758,80 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const d = new Date(iso + 'T12:00:00');
     return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
   };
+  // "Aug 31" (the year only when it is not this year).
+  const fmtShort = iso => {
+    const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', ...(d.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }) });
+  };
+  const fmtInt = n => Math.round(n).toLocaleString(locale);
+  // "Tue, Sep 22, 2026" (the sheets' date buttons, prototype wdl()).
+  const fmtLong = iso => {
+    const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+    return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  // A target date is never in the past.
+  const clampFuture = iso => (iso < todayISO() ? todayISO() : iso);
 
   // ── Reality check (Premium, or a free user's 7 free days — FL-41) ──
   const rcAllowed = premium || rcFree;
   const rcAccess = realityCheckAccess({ premium, rcFree, hasOpenCheck: !!rcStart });
-  // Auto days-between the two weigh-ins; null until phase 2.
-  const rcElapsedDays = rcStart ? daysBetween(rcStart.date, todayISO()) : null;
-  // Intake across THIS check (founder: the check window matters, not day by day):
-  // everything logged from the start date through today ÷ the same elapsed days
-  // the TDEE uses. Offered tap-to-use with its working shown; never auto-filled.
-  // FL-3: only a run of 7+ consecutive complete days is offered; until then, progress.
+  // The check's food-log run (FL-3: 7+ consecutive complete days) and the day list of
+  // "Your reality check so far" — the user's own logged food, never a typed guess.
   const foodRun = useMemo(
     () => (rcStart ? intakeRun(foodRows, String(rcStart.date).slice(0, 10), todayISO()) : null),
     [foodRows, rcStart],
   );
-  const foodIntake = foodRun && foodRun.ok ? foodRun : null;
-  // The date the day-21 reminder is set for (display only).
+  const soFar = useMemo(
+    () => (rcStart ? checkSoFar(foodRows, String(rcStart.date).slice(0, 10), todayISO()) : null),
+    [foodRows, rcStart],
+  );
+  // The date the day-21 weigh-in is due (display only).
   const rcRemindOn = useMemo(() => {
     if (!rcStart) return null;
     const d = new Date(rcStart.date + 'T12:00:00');
     d.setDate(d.getDate() + REALITY_CHECK_DAYS);
     return localISO(d);
   }, [rcStart]);
+  const rcDayN = rcStart ? Math.min(daysBetween(rcStart.date, todayISO()) + 1, REALITY_CHECK_DAYS) : null;
+
+  // The average per day the user typed for THIS check (founder 2026-10-02), or null.
+  const typedKcal = rcStart ? typedIntakeFor(rcInputs, String(rcStart.date).slice(0, 10)) : null;
+  // Where the open check stands (parts 8 / 10): it finishes from the first weigh-in on or
+  // after day 21 and the intake — the food log's 7-day run, else the typed average; both
+  // present: the food run, and the typed value is kept (lib/realityCheckRules checkOutcome).
+  const outcome = useMemo(
+    () => checkOutcome({ start: rcStart, snapshots, run: foodRun, typedKcal, todayISO: todayISO(), days: REALITY_CHECK_DAYS }),
+    [rcStart, snapshots, foodRun, typedKcal],
+  );
+  const outcomeResult = useMemo(() => {
+    if (outcome.state !== 'ready') return null;
+    const res = realityCheckTDEE({ avgDailyCalories: outcome.avgDailyCalories, weightChangeKg: outcome.weightChangeKg, days: outcome.days });
+    return { ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg: outcome.weightChangeKg, days: outcome.days }), weighIn: outcome.weighIn, source: outcome.source };
+  }, [outcome]);
+  // A finished check is saved once and closed — only for someone who may see the result
+  // (FL-41: a free user after the free days keeps the check open until Premium or Stop).
+  // A check that already has a saved result (saved with the old typed form before this
+  // update) is never finished a second time: its saved number is the user's, never rewritten.
+  const rcStartISO = rcStart ? String(rcStart.date).slice(0, 10) : null;
+  const checkSaved = !!rcStart && realityLog.some(c => c.date >= rcStartISO);
+  const completing = useRef(false);
+  useEffect(() => {
+    if (!outcomeResult || outcomeResult.status !== 'ok' || !rcAccess.canSeeResult || checkSaved || completing.current) return;
+    completing.current = true;
+    completeRealityCheck(outcomeResult).catch(() => {}).finally(() => { completing.current = false; });
+  }, [outcomeResult, rcAccess.canSeeResult, checkSaved]);
 
   // Phase 1 — log the starting weight (today, or a weigh-in up to 7 days back) and
-  // arm the +21-day reminder.
+  // arm the +21-day reminder. The sheet opens on today with today's weigh-in, if any.
+  function openRcStart() {
+    setRcStartDate(null);
+    const w = weighInOn(snapshots, todayISO());
+    const snap = w == null ? null : Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10;
+    const v = prefillStartWeight(rcThen, rcThenAuto.current, snap);
+    if (v != null) { setRcThen(v); rcThenAuto.current = v || null; }
+    setRcStartOpen(true);
+  }
   function shiftRcStartDate(delta) {
     const next = stepStartDate(rcStartDate || todayISO(), delta, todayISO());
     setRcStartDate(next === todayISO() ? null : next);
@@ -612,119 +844,140 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }
   // The start can be a past weigh-in, at most 7 days back (FL-44, founder
   // 2026-09-27) — validated again here, never further back, never in the future.
+  // The start weight is also kept as that day's weigh-in when the day has none yet
+  // (never over a weight already saved that day).
   async function startRealityCheck() {
     const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
     if (kg == null) return;
     const date = rcStartDate && validStartDate(rcStartDate, todayISO()) ? rcStartDate : todayISO();
     // Free days count from the day of this TAP, never the backdated start (FL-41 × FL-44).
     ensureFreeStart(userIdRef.current);
+    const uid = userIdRef.current;
+    if (uid) {
+      const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
+      if (!existing || existing.weight_kg == null) {
+        upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg: kg }));
+        requestSync?.();
+        setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+      }
+    }
     const start = { date, weightKg: kg };
     setRcStart(start);
     setRcThen('');
     setRcStartDate(null);
     rcThenAuto.current = null;
-    setRc(null);
+    setRcStartOpen(false);
+    clearDraft('progress:rcWeigh');
     await setRealityStart(start);
     calcChanged();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
 
-  // Clear the open check-in and cancel its reminder (back to phase 1).
+  // Start over (after "Start over?"): clear the open check and its reminders (back to
+  // "Not run yet"). Weigh-ins and logged meals are kept.
   async function resetRealityCheck() {
     setRcStart(null);
-    setRcNow('');
-    setRc(null);
+    await clearRealityStart();
+    calcChanged();
+    syncRealityCheckReminder().catch(() => {});
+    syncFoodLogReminder().catch(() => {});
+  }
+  function confirmResetRealityCheck() {
+    setConfirm({
+      title: t('cal_rc_reset_title'),
+      body: t('cal_rc_reset_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('cal_rc_reset'), kind: 'danger', onPress: resetRealityCheck },
+      ],
+    });
+  }
+
+  // Stop the reality check entirely (founder-requested, one easy-to-reach button):
+  // confirm in a DoseTrace sheet, then clear the open check-in AND the saved numbers,
+  // and cancel both the weigh-in reminder and the daily food-log reminder. Logged meals
+  // and weigh-ins are KEPT. Nothing is cleared before the confirm.
+  function stopRealityCheck() {
+    setConfirm({
+      title: t('cal_rc_stop_title'),
+      body: t('cal_rc_stop_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('cal_rc_stop_confirm'), kind: 'danger', onPress: async () => {
+          setRcStart(null); setRealityLog([]);
+          await clearRealityStart();
+          if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
+          calcChanged();
+          syncRealityCheckReminder().catch(() => {});
+          syncFoodLogReminder().catch(() => {});
+        } },
+      ],
+    });
+  }
+
+  // Part 10: a finished check (ready + plausible) is saved as a result row on its weigh-in
+  // day, then the open check closes (its reminders stop). The start weight is kept as the
+  // start day's weigh-in when that day has none, so nothing the user entered is lost.
+  async function completeRealityCheck(res) {
+    const uid = userIdRef.current;
+    if (!uid || !rcStart) return;
+    const startDay = String(rcStart.date).slice(0, 10);
+    if (getRealityChecks(uid).some(r => r.entry_date >= startDay)) return;
+    const onStart = getCalcSnapshots(uid).find(sn => sn.entry_date === startDay) || null;
+    if (!onStart || onStart.weight_kg == null) upsertCalcSnapshot(uid, mergeWeighIn(onStart, { date: startDay, weightKg: rcStart.weightKg }));
+    upsertRealityCheck(uid, { entry_date: res.weighIn.date, tdee: Math.round(res.tdee), rate_per_week_kg: res.ratePerWeekKg ?? null });
+    requestSync?.();
+    setRealityLog(getRealityChecks(uid).map(rcRowToUI));
+    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    // Which intake this result used (food log or the typed average), kept next to it in the
+    // synced calc_inputs payload; a typed value is never removed by finishing.
+    const srcPatch = resultSourcePatch(res.weighIn.date, res.source);
+    setRcInputs(prev => mergeCalcInputs(prev, srcPatch));
+    await saveCalcInputs(srcPatch).catch(() => {});
+    setRcStart(null);
     await clearRealityStart();
     calcChanged();
     syncRealityCheckReminder().catch(() => {});
     syncFoodLogReminder().catch(() => {});
   }
 
-  // Stop the reality check entirely (founder-requested, one easy-to-reach button):
-  // confirm, then clear the open check-in AND the saved numbers, and cancel both
-  // the weigh-in reminder and the daily food-log reminder. Logged meals are KEPT.
-  function stopRealityCheck() {
-    Alert.alert(t('cal_rc_stop_title'), t('cal_rc_stop_body'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('cal_rc_stop_confirm'), style: 'destructive', onPress: async () => {
-          setRcStart(null); setRcNow(''); setRc(null); setRealityLog([]);
-          await clearRealityStart();
-          if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
-          calcChanged();
-          syncRealityCheckReminder().catch(() => {});
-          syncFoodLogReminder().catch(() => {});
-        },
-      },
-    ]);
+  // Calories typed by hand (founder 2026-10-02): one average per day for the open check,
+  // changeable or clearable until the check finishes (a saved result is never rewritten).
+  function openTypedKcal() {
+    if (!rcStart || checkSaved) return;
+    if (!kcalText && typedKcal != null) setKcalText(String(typedKcal));
+    setKcalOpen(true);
   }
-
-  // Phase 2 — compute from the stored starting weight + today's weight, using the
-  // auto-measured elapsed days.
-  function computeReality() {
-    if (!rcStart) { setRc(null); return; }
-    const nowKg = num(rcNow) == null ? null : (unit === 'imperial' ? lbToKg(num(rcNow)) : num(rcNow));
-    const days = rcElapsedDays;
-    const intake = num(rcIntake);
-    if (nowKg == null || !days || intake == null) { setRc(null); return; }
-    // weightChangeKg = amount lost (positive when weight went down).
-    const weightChangeKg = rcStart.weightKg - nowKg;
-    const res = realityCheckTDEE({ avgDailyCalories: intake, weightChangeKg, days });
-    setRc({ ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg, days }) });
-  }
-
-  // Save the current valid check so its weekly rate can be tracked over time
-  // (one per day, latest wins) — this is how "1 kg/week → 2.5 kg/week" surfaces.
-  // Completing a check closes the current window; the user can start a fresh one.
-  async function saveRealityCheck() {
-    if (!rc || rc.status !== 'ok') return;
-    const entry = { date: todayISO(), tdee: Math.round(rc.tdee), ratePerWeekKg: rc.ratePerWeekKg };
-    // Upsert one row per date in the synced reality_checks table (no array rewrite).
-    const uid = userIdRef.current;
-    if (!uid) return; // no session yet — don't show a "saved" toast for a no-op
-    upsertRealityCheck(uid, { entry_date: entry.date, tdee: entry.tdee ?? null, rate_per_week_kg: entry.ratePerWeekKg ?? null });
-    requestSync?.();
-    setRealityLog(getRealityChecks(uid).map(rcRowToUI));
-    clearDraft('progress:rcWeigh'); clearDraft('progress:rcIntake');
+  function closeTypedKcal() { setKcalOpen(false); }
+  const kcalParsed = parseTypedKcal(kcalText);
+  async function saveTypedKcal(kcal) {
+    if (!rcStart || checkSaved) { setKcalOpen(false); return; } // the check closed meanwhile: nothing to attach it to
+    const patch = typedIntakePatch(String(rcStart.date).slice(0, 10), kcal);
+    setRcInputs(prev => mergeCalcInputs(prev, patch));
+    setKcalText('');
+    setKcalOpen(false);
+    clearDraft('progress:rcKcal');
+    await saveCalcInputs(patch).catch(() => {});
     calcChanged();
-    setRcSavedMsg(true);
-    setTimeout(() => setRcSavedMsg(false), 2500);
   }
 
-  // Roll straight into the next window using today's weight as the new start —
-  // this is the "1st → 2nd → 3rd measurement" sequence, always 3 weeks apart.
-  async function startNextRealityCheck() {
-    const kg = num(rcNow) == null ? null : (unit === 'imperial' ? lbToKg(num(rcNow)) : num(rcNow));
-    setRc(null);
-    setRcNow('');
-    if (kg == null) { await resetRealityCheck(); return; }
-    const start = { date: todayISO(), weightKg: kg };
-    setRcStart(start);
-    await setRealityStart(start);
-    calcChanged();
-    syncRealityCheckReminder().catch(() => {});
-    syncFoodLogReminder().catch(() => {});
-  }
-
-  // Weekly rate → display units, one decimal, absolute value (sign drives the label).
+  // Weekly rate → display units, absolute value (sign drives the label).
   const rateDisplay = kg => {
     if (kg == null) return null;
     const v = unit === 'imperial' ? kgToLb(kg) : kg;
-    return Math.abs(Math.round(v * 10) / 10);
+    return Math.abs(Math.round(v * 100) / 100);
   };
 
   // ── Scoreboard ───────────────────────────────────────────────────
-  // The number to headline for the reality check: the live result if it's
-  // valid, otherwise the most recent saved check.
+  // The measured daily burn: the most recent saved check.
   const scoreCheck = useMemo(() => {
-    if (rc && rc.status === 'ok') return { tdee: rc.tdee, ratePerWeekKg: rc.ratePerWeekKg };
     if (realityLog.length) {
       const l = realityLog[realityLog.length - 1];
       return { tdee: l.tdee, ratePerWeekKg: l.ratePerWeekKg };
     }
     return null;
-  }, [rc, realityLog]);
+  }, [realityLog]);
 
   // Goal targets: when a reality-check MEASURED maintenance exists, recompute the
   // lose/maintain/gain calories off it through the SAME floored engine (not a raw
@@ -736,10 +989,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     return plan.allGoals;
   }, [plan, scoreCheck, sex]);
 
-  // Tap a scoreboard tile → jump down to the calculator that produced it.
   const scrollRef = useRef(null);
-  const detailsY = useRef(0);
-  const scrollTo = yRef => scrollRef.current?.scrollTo({ y: Math.max((yRef.current || 0) - 8, 0), animated: true });
 
   // Warning codes from the engine → localized copy.
   const warnText = w => {
@@ -751,59 +1001,48 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     return null;
   };
 
-  // Echo the inputs the math actually used — a wrong/stale input should be
-  // visible right next to the results, not discovered weeks later.
-  const echoParts = useMemo(() => {
-    const parts = [];
-    if (num(weight) != null) parts.push(`${weight} ${wUnit}`);
-    if (!isUnknown && num(bodyFat) != null) parts.push(`${bodyFat}% ${t('cal_bf_short')}`);
-    if (isUnknown) {
-      parts.push(t(`cal_sex_${sex}`));
-      if (num(age) != null) parts.push(`${age} ${t('cal_yr')}`);
-      if (num(height) != null) parts.push(`${height} ${hUnit}`);
-    }
-    parts.push(`×${activity}`);
-    return parts;
-  }, [weight, bodyFat, isUnknown, sex, age, height, activity, unit, language]);
-
-  // "Your numbers" auto-collapses once there is a plan (the user can still open it);
-  // collapsed, it shows a one-line summary of the inputs (activity included) + Edit.
-  const numbersOpenEff = numbersOpen == null ? !plan : numbersOpen;
+  // The one card's order (PO-1 / PO-9 / PO-10, lib/progressCard). Your numbers (PO-7): in the
+  // filled card a fold whose one line repeats the numbers the math uses — "84.6 kg · 181 cm ·
+  // 38 yr · Male · 21% BF · Moderate" (only the parts that exist); first use: open, no fold.
+  const weighInCount = snapshots.length;
+  const layout = progressLayout({ filled, hasPlan: !!plan, weighInCount });
+  const numbersFoldable = layout.numbersFoldable;
+  const numbersOpenEff = !numbersFoldable ? true : (numbersOpen == null ? false : numbersOpen);
   const youNowSummary = useMemo(() => {
     const act = ACTIVITY_LEVELS.find(a => a.value === activity);
-    return [...echoParts.filter(p => !String(p).startsWith('×')), act ? t(act.key) : null].filter(Boolean).join(' · ');
-  }, [echoParts, activity, language]);
+    return numbersLine({
+      weight, wUnit, height, hUnit, age, yr: t('cal_yr'),
+      sexLabel: profileSex ? t(`cal_sex_${profileSex}`) : null,
+      bodyFat: isUnknown ? null : bodyFat, bfShort: t('cal_bf_short'),
+      activityLabel: act ? activityParts(t(act.key))[0] : null,
+    });
+  }, [weight, bodyFat, isUnknown, profileSex, age, height, activity, unit, language]);
+  const ex = exampleValues(unit);
+  const eg = v => t('cal_eg').replace('{v}', v);
 
   const toDisplayW = kg => (unit === 'imperial' ? kgToLb(kg) : kg);
-
-  // "What this is" is the first entry of Understand the numbers (journey-dashboard #4).
-  const EXPLAINERS = [
-    { key: 'intro', title: t('cal_intro_title'), body: t('cal_intro_body') },
-    { key: 'scale', title: t('cal_expl_scale_title'), body: t('cal_expl_scale_body') },
-    { key: 'deficit', title: t('cal_expl_deficit_title'), body: t('cal_expl_deficit_body') },
-    { key: 'measure', title: t('cal_expl_measure_title'), body: t('cal_expl_measure_body') },
-    { key: 'composition', title: t('cal_expl_comp_title'), body: t('cal_expl_comp_body') },
-  ];
 
   // Display helpers (Graduated): weights to one decimal in the display unit.
   const fmtW = kg => (kg == null ? null : (Math.round(toDisplayW(kg) * 10) / 10).toFixed(1));
   const sortedSnaps = [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1));
   const lastSnap = sortedSnaps.length ? sortedSnaps[sortedSnaps.length - 1] : null;
-  const histRows = [...sortedSnaps].reverse().slice(0, 5); // newest five; the chart holds them all
+  const histAll = [...sortedSnaps].reverse();
+  const histRows = showAllW ? histAll : histAll.slice(0, 5); // newest five unless Show all; the chart holds them all
   const tgtValid = num(tgtWeight) != null || num(tgtBF) != null;
   const tgtLow = (() => {
     const tw = num(tgtWeight);
     if (tw == null || !plan?.healthyRange) return false;
     return (unit === 'imperial' ? lbToKg(tw) : tw) < plan.healthyRange.min;
   })();
-  const closeTarget = () => { setTargetEditing(false); setTgtFormOpen(false); setShowTgtDatePicker(false); };
+  const closeTarget = () => { setTargetEditing(false); setShowTgtDatePicker(false); };
   const closeBackfill = () => { setBfOpen(false); setShowBfDatePicker(false); };
-  const rcExpandable = rcAllowed || !!rcStart || realityLog.length > 0;
   const atEarliest = (rcStartDate || todayISO()) <= earliestStart(todayISO());
   const healthyText = key => t(key)
     .replace('{min}', String(Math.round(toDisplayW(plan.healthyRange.min))))
     .replace('{max}', String(Math.round(toDisplayW(plan.healthyRange.max))))
     .replace('{unit}', wUnit);
+  const monthLabels = MONTH_KEYS.map(k => t(k));
+  const wiCanSave = num(wiWeight) != null;
 
   // One metric row of the target: current → target, the graduated scale, and a
   // direction-aware status (ETA / reached / moving away / no rate yet). All
@@ -825,20 +1064,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // ETA toward a below-range weight (App Store 1.4 / eating-disorder exposure).
     const belowRange = isW && plan?.healthyRange && targetCanon != null && targetCanon < plan.healthyRange.min;
     const eta = proj.state === 'eta' ? fmtEta(proj.etaWeeks) : null;
+    const one = v => (v == null ? '—' : isW ? Number(v).toFixed(1) : String(v));
     return (
       <View style={s.tgtMetric} key={kind}>
-        <View style={s.rowBetween}>
-          <Text style={s.sec2}>{isW ? t('cal_snap_weight') : t('cal_snap_bodyfat')}</Text>
-          <Text style={s.val15}>{cur ?? '—'} → {tgt ?? '—'} {unitLabel}</Text>
+        <View style={s.rowCenter}>
+          <Text style={[s.sec2, s.grow]}>{isW ? t('cal_snap_weight') : t('cal_snap_bodyfat')}</Text>
+          <Text style={s.val15}>{one(cur)} → {one(tgt)} {unitLabel}</Text>
         </View>
         {frac != null ? (
-          <View>
-            <TargetScale frac={frac} colors={colors} />
-            <View style={s.rowBetween}>
-              <Text style={s.scaleLab}>{disp(startCanon)}</Text>
-              <Text style={[s.scaleLab, s.scaleLabEnd]}>{tgt}</Text>
-            </View>
-          </View>
+          <TargetScale start={disp(startCanon)} goal={tgt} frac={frac} colors={colors} width={CHART_WIDTH} label={one} />
         ) : null}
         {/* reached is a pure current-vs-target fact — free. */}
         {proj.state === 'reached' ? (
@@ -846,11 +1080,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         ) : belowRange ? null /* status line suppressed; the range note below carries it */
         : showEta ? (
           proj.state === 'eta' && eta ? (
-            <Text style={s.body}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
+            <Text style={[s.body, s.tnum]}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
           ) : proj.state === 'away' ? (
             <Text style={s.body}>{t('cal_tgt_away')}</Text>
           ) : (
-            <Text style={s.sec2}>{t('cal_tgt_no_rate')}</Text>
+            <Text style={s.body}>{t('cal_tgt_no_rate')}</Text>
           )
         ) : (
           // Free: no measured pace — teaser to Premium.
@@ -859,104 +1093,126 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           </TouchableOpacity>
         )}
         {showEta && !belowRange && proj.state === 'eta' && rateInfo ? (
-          <Text style={s.foot2}>{t('cal_tgt_basis').replace('{from}', fmtDate(rateInfo.firstDate)).replace('{to}', fmtDate(rateInfo.lastDate))}</Text>
+          <Text style={[s.foot2, s.tnum]}>{t('cal_tgt_basis').replace('{from}', fmtDate(rateInfo.firstDate)).replace('{to}', fmtDate(rateInfo.lastDate))}</Text>
         ) : null}
         {belowRange ? (
           <Text style={s.tnote}>{healthyText('cal_tgt_below_range')}</Text>
         ) : isW && plan?.healthyRange ? (
-          <Text style={s.foot2}>{healthyText('cal_tgt_healthy')}</Text>
+          <Text style={[s.foot2, s.tnum]}>{healthyText('cal_tgt_healthy')}</Text>
         ) : null}
       </View>
     );
   };
 
-  // Your target — a weight and/or body-fat goal. Setting a goal + the scale are
-  // FREE (matches the free-targets split); the MEASURED timeline is the Premium
-  // unlock. Never advisory. Inside the hero once there is a plan; its own card before.
-  const renderTargetBlock = (inHero) => {
-    if (!target && !inHero) {
-      return (
-        <>
-          <Text style={s.title}>{t('cal_tgt_title')}</Text>
-          <Text style={s.sec2}>{t('cal_tgt_sub')}</Text>
-          <TouchableOpacity style={s.btnO} onPress={beginEditTarget} activeOpacity={0.75} accessibilityRole="button">
-            <Text style={s.btnOText}>{t('hy_set_target')}</Text>
-          </TouchableOpacity>
-        </>
-      );
-    }
-    return (
-      <View style={s.tgtBlock}>
-        <View style={s.rowC}>
-          <Text style={[inHero ? s.head : s.title, s.grow]}>{t('cal_tgt_title')}</Text>
-          <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7} style={s.linkHit} accessibilityRole="button">
-            <Text style={s.linkU}>{target ? t('cal_tgt_edit') : t('hy_set_target')}</Text>
-          </TouchableOpacity>
-        </View>
-        {target && weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, usableWeightRate, premium) : null}
-        {target && bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, usableBfRate, premium) : null}
-      </View>
-    );
-  };
+  // Weigh-ins (PO-6): "5 · last Sep 28 · 84.6 kg · 21% BF", or "None yet".
+  const weighSummary = weighInsLine({
+    rows: snapshots, template: t('cal_weighins_summary'), none: t('cal_weighins_none'),
+    fmtDate: fmtShort, fmtWeight: kg => `${fmtW(kg)} ${wUnit}`, bfShort: t('cal_bf_short'),
+  });
 
-  // ── Sections (Graduated, docs/design/prototype.html progressScreen) ──
-  // Hero: weight + daily burn (Estimated / Measured), the since-line, and the target.
-  // Once a reality-check exists, the MEASURED maintenance is the real daily burn (the
-  // formula under/over-shoots); the generic estimate drops to the source line.
-  const heroEl = plan ? (
-    <View key="hero" style={s.card}>
+  // ── The one card (PO-1..PO-11, founder 2026-10-02; docs/specs/progress-one-card.md) ──
+  // Hero (PO-2 / PO-3): weight + daily burn (Estimated / Measured), the since line and the
+  // formula line. Once a reality check exists the MEASURED maintenance is the daily burn and
+  // the estimate drops to the formula line. Without a daily burn it reads "—" in ink3 with
+  // the fill-in line; an existing user's kept burn (PO-13) adds "Complete your numbers".
+  const heroWeight = fmtW(currentWeightKg);
+  const heroPart = (
+    <View key="hero" style={s.gap12}>
       <View style={s.heroPair}>
         <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
           <Text style={s.foot2}>{t('cal_weight')}</Text>
-          <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
-            {fmtW(currentWeightKg) ?? '—'}<Text style={s.unit}> {wUnit}</Text>
-          </Text>
+          {heroWeight != null ? (
+            <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
+              {heroWeight}<Text style={s.unit}> {wUnit}</Text>
+            </Text>
+          ) : <Text style={[s.display, s.displayEmpty]}>—</Text>}
         </View>
         <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
           <Text style={s.foot2}>{t('cal_tdee')}</Text>
-          <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
-            {round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal)}<Text style={s.unit}> {t('cal_kcal')}</Text>
-          </Text>
-          <View style={[s.chip, scoreCheck && s.chipMeas]}>
-            <Text style={[s.chipText, scoreCheck && s.chipMeasText]}>{scoreCheck ? t('hy_rc_measured_chip') : t('hy_estimated')}</Text>
-          </View>
+          {plan ? (
+            <>
+              <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
+                {fmtInt(round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal))}<Text style={s.unit}> {t('cal_kcal')}</Text>
+              </Text>
+              <View style={[s.chip, scoreCheck && s.chipMeas]}>
+                <Text style={[s.chipText, scoreCheck && s.chipMeasText]}>{scoreCheck ? t('hy_rc_measured_chip') : t('hy_estimated')}</Text>
+              </View>
+            </>
+          ) : <Text style={[s.display, s.displayEmpty]}>—</Text>}
         </View>
       </View>
-      {progressSummary ? (
-        <Text style={s.sec2}>
-          {t('cal_since')} {fmtDate(progressSummary.firstDate)}: {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}</Text>
-          {progressSummary.waistDelta != null ? <>{'  ·  '}{t('cal_snap_waist')} <Text style={s.mono}>{signed(progressSummary.waistDelta)} {hUnit}</Text></> : null}
-        </Text>
-      ) : null}
-      <Text style={s.foot2}>
-        {scoreCheck
-          ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${round10(plan.tdeeVal)}`
-          : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${round10(plan.bmr)}`}
-      </Text>
-      <View style={s.sep} />
-      {renderTargetBlock(true)}
+      <View style={s.gap6}>
+        {progressSummary ? (
+          <Text style={[s.sec2, s.tnum]}>
+            {t('cal_since')} {fmtShort(progressSummary.firstDate)}: {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}</Text>
+            {progressSummary.waistDelta != null ? <>{' · '}{t('cal_snap_waist')} <Text style={s.mono}>{signed(progressSummary.waistDelta)} {hUnit}</Text></> : null}
+          </Text>
+        ) : null}
+        {plan ? (
+          <Text style={[s.foot2, s.tnum]}>
+            {scoreCheck
+              ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${fmtInt(round10(plan.tdeeVal))}`
+              : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${fmtInt(round10(plan.bmr))}`}
+          </Text>
+        ) : (
+          <Text style={s.sec2}>{t('cal_fill_numbers')}</Text>
+        )}
+        {plan && !burnGate.complete ? (
+          <TouchableOpacity onPress={() => setNumbersOpen(true)} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.linkU}>{t('cal_complete_numbers')}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
-  ) : null;
+  );
 
-  // Your daily plan: all three goals side by side (tap to choose), protein, context.
-  // When a reality-check exists the goals are recomputed off the MEASURED maintenance
-  // through the floored engine (effectiveGoals), so the calorie floor still holds.
+  // Your target (PO-4): inside the card after a line — the content of the former Your target
+  // card (weight → target, the scale, the ETA, the base and healthy-range lines, the date)
+  // with Edit / Set a target opening its sheet. Setting a goal + the scale are FREE; the
+  // MEASURED timeline is the Premium unlock. Never advisory.
+  const targetPart = (
+    <View key="target" style={s.tgtBlock}>
+      <View style={s.sep} />
+      <View style={s.rowCenter}>
+        <Text style={[s.head, s.grow]}>{t('cal_tgt_title')}</Text>
+        <TouchableOpacity onPress={beginEditTarget} activeOpacity={0.7} style={s.linkHit} accessibilityRole="button">
+          <Text style={s.linkU}>{target ? t('cal_tgt_edit') : t('hy_set_target')}</Text>
+        </TouchableOpacity>
+      </View>
+      {target && weightProj ? renderTargetMetric('weight', weightProj, currentWeightKg, target.target_weight_kg, usableWeightRate, premium) : null}
+      {target && bfProj ? renderTargetMetric('bodyfat', bfProj, currentBF, target.target_body_fat_pct, usableBfRate, premium) : null}
+      {target && target.target_date ? (
+        <Text style={[s.foot2, s.tnum]}>{t('cal_tgt_date_line').replace('{date}', fmtDate(target.target_date))}</Text>
+      ) : null}
+    </View>
+  );
+
+  // A fold row inside the card (PO-6 / PO-7): a line above, title, one summary line, chevron.
+  const foldRow = (key, title, sub, open, onPress) => (
+    <TouchableOpacity key={`${key}Head`} style={s.foldRowCard} activeOpacity={0.7} onPress={onPress} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+      <View style={[s.grow, s.gap2]}>
+        <Text style={s.head}>{title}</Text>
+        {sub ? <Text style={[s.foot2, s.tnum]} numberOfLines={2}>{sub}</Text> : null}
+      </View>
+      <FoldChevron open={open} color={colors.ink3} />
+    </TouchableOpacity>
+  );
+
+  // Your daily plan (part 15): all three goals side by side (tap to choose), protein,
+  // context. When a reality-check exists the goals are recomputed off the MEASURED
+  // maintenance through the floored engine (effectiveGoals), so the calorie floor holds.
   const planEl = plan ? (
     <View key="plan" style={s.card}>
-      <View style={s.gap2}>
-        <Text style={s.title}>{t('hy_daily_plan')}</Text>
-        {/* Echo the inputs the math used — a wrong/stale input shows right here. */}
-        <Text style={s.foot2} numberOfLines={2}>{echoParts.join(' · ')}</Text>
-      </View>
+      <Text style={s.title}>{t('hy_daily_plan')}</Text>
       <View style={s.goals}>
         {['lose', 'maintain', 'gain'].map(g => {
           const on = goal === g;
           const gc = (effectiveGoals || plan.allGoals)[g];
           return (
             <TouchableOpacity key={g} style={[s.goal, on && s.goalOn]} onPress={() => setGoal(g)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
-              <Text style={[s.cap2, on && s.inkText]}>{t(`cal_goal_${g}`)}</Text>
-              <Text style={s.val}>{round10(gc.mid)}</Text>
-              <Text style={s.cap2}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
+              <Text style={s.cap2}>{t(`cal_goal_${g}`)}</Text>
+              <Text style={s.val}>{fmtInt(round10(gc.mid))}</Text>
+              <Text style={[s.cap2, s.tnum]}>{g === 'lose' ? '−15–20%' : g === 'gain' ? '+10–15%' : t('cal_tdee')}</Text>
             </TouchableOpacity>
           );
         })}
@@ -969,15 +1225,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.cell}>
         <Text style={s.cap2}>{t('cal_protein')}</Text>
         <Text style={s.val}>{round5(plan.protein.rec)} {t('cal_g_day')}</Text>
-        <Text style={s.foot2}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
+        <Text style={[s.foot2, s.tnum]}>{round5(plan.protein.low)}–{round5(plan.protein.high)} · {t(`cal_protein_basis_${plan.protein.basis}${unit === 'imperial' ? '_imp' : ''}`)}</Text>
       </View>
       {/* Context chips — BMI + macros */}
       <View style={s.chips}>
         {plan.bmi != null && plan.healthyRange && (
-          <View style={s.chipBox}><Text style={s.cap2}>{t('cal_bmi')} {(Math.round(plan.bmi * 10) / 10).toFixed(1)} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
+          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_bmi')} {(Math.round(plan.bmi * 10) / 10).toFixed(1)} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
         )}
         {plan.macros && (
-          <View style={s.chipBox}><Text style={s.cap2}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
+          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
         )}
       </View>
       {/* Safety notes from the engine */}
@@ -989,412 +1245,474 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         onPress={() => setIntroOpen(v => !v)}
         accessibilityRole="button"
         accessibilityState={{ expanded: introOpen }}
-        style={s.foldRow}
+        style={s.foldRowSm}
         activeOpacity={0.7}
       >
         <Text style={[s.sec, s.grow]}>{t('cal_intro_title')}</Text>
-        <Chev dir={introOpen ? 'up' : 'down'} color={colors.ink3} />
+        <FoldChevron open={introOpen} color={colors.ink3} />
       </TouchableOpacity>
       {introOpen && <Text style={s.sec2}>{t('cal_intro_body')}</Text>}
       <Text style={s.foot2}>{t('cal_estimate_note')}</Text>
     </View>
   ) : null;
 
-  // Before there are results the intro explains what to do, so it leads.
-  const introEl = !plan ? (
-    <View key="intro" style={s.card}>
-      <Text style={s.head}>{t('cal_intro_title')}</Text>
-      <Text style={s.sec2}>{t('cal_intro_body')}</Text>
+  // Your numbers form (PO-11): asks everything, always — units, weight, height, age, sex, body
+  // fat and waist (optional), the body-fat source, activity. It feeds the weight and the daily
+  // burn. The prompt shows until there is a daily burn.
+  const numbersForm = (
+    <View key="form" style={s.formBlock}>
+      <SegmentedBar
+        items={[{ key: 'metric', label: t('cal_metric') }, { key: 'imperial', label: t('cal_imperial') }]}
+        value={unit}
+        onChange={changeUnit}
+        style={s.unitBar}
+      />
+      {!plan ? <Text style={s.sec2}>{t('cal_numbers_prompt')}</Text> : null}
+      {result && result.invalid ? (
+        <View style={s.warnbox}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
+      ) : null}
+      <View style={s.fieldRow}>
+        <View style={s.fldHalf}>
+          <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
+          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} onFocus={() => { weightFocusRef.current = weightField; }} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
+        </View>
+        <View style={s.fldHalf}>
+          <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
+          <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={eg(ex.height)} placeholderTextColor={colors.ink3} />
+        </View>
+      </View>
+      <View style={s.fieldRow}>
+        <View style={s.fldHalf}>
+          <Text style={s.fieldLab}>{t('cal_age')}</Text>
+          <TextInput style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder={eg('38')} placeholderTextColor={colors.ink3} />
+        </View>
+        <View style={s.fldHalf}>
+          <Text style={s.fieldLab}>{t('cal_sex')}</Text>
+          <SegmentedBar
+            accessibilityLabel={t('cal_sex')}
+            items={['male', 'female'].map(sx => ({ key: sx, label: t(`cal_sex_${sx}`) }))}
+            value={profileSex}
+            onChange={saveProfileSex}
+          />
+        </View>
+      </View>
+      <View style={s.fieldRow}>
+        <View style={s.fldHalf}>
+          <Text style={s.fieldLab}>{t('cal_bodyfat')} (%) · {t('cal_optional')}</Text>
+          <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder={eg(ex.bodyFat)} placeholderTextColor={colors.ink3} />
+        </View>
+        <View style={s.fldHalf}>
+          <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+          <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder={eg(ex.waist)} placeholderTextColor={colors.ink3} />
+        </View>
+      </View>
+      <Text style={s.fieldHint}>{t('cal_waist_hint')}</Text>
+      <View style={s.fld}>
+        <Text style={s.fieldLab}>{t('cal_bf_source')}</Text>
+        <View style={s.pills}>
+          {BF_SOURCES.map(src => (
+            <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)} accessibilityRole="button" accessibilityState={{ selected: bfSource === src }}>
+              <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={s.fieldHint}>{t(`cal_bf_${bfSource}_hint`)}</Text>
+      </View>
+      {/* Activity is an input too — it folds with "Your numbers". */}
+      <View style={s.fld}>
+        <View style={s.actHead}>
+          <FeatureIcon name="calc_bolt" size={18} color={colors.ink2} />
+          <Text style={s.head}>{t('cal_activity')}</Text>
+        </View>
+        <View style={s.actlist}>
+          {ACTIVITY_LEVELS.map((a, i) => {
+            const on = activity === a.value;
+            const prevOn = i > 0 && ACTIVITY_LEVELS[i - 1].value === activity;
+            const parts = activityParts(t(a.key));
+            return (
+              <View key={a.value}>
+                {i > 0 ? <View style={[s.actSep, (on || prevOn) && s.actSepHidden]} /> : null}
+                <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                  <View style={[s.grow, s.gap2]}>
+                    <Text style={s.head}>{parts[0]}</Text>
+                    {parts.length > 1 ? <Text style={s.sec2}>{parts[1]}</Text> : null}
+                  </View>
+                  {on ? <CheckMark size={22} color={colors.ink} /> : null}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      </View>
     </View>
-  ) : null;
+  );
+  const numbersPart = (
+    <View key="numbers" style={s.foldBlock}>
+      {numbersFoldable
+        ? foldRow('numbers', t('cal_your_numbers'), youNowSummary, numbersOpenEff, () => setNumbersOpen(!numbersOpenEff))
+        : <View key="numbersHead" style={s.foldRowCard}><Text style={[s.head, s.grow]}>{t('cal_your_numbers')}</Text></View>}
+      {numbersOpenEff ? numbersForm : null}
+    </View>
+  );
 
-  // No plan yet: why (sex not set / an input out of range / not enough inputs).
-  const statusEl = !plan ? (
-    <View key="status" style={s.card}>
-      {result && result.sexGated ? (
+  // Reality check (parts 8-12; Premium, or a free user's 7 free days — FL-41): how the
+  // daily burn becomes Measured, from the user's own weigh-ins and food log.
+  const rcHead = (
+    <View style={s.rowC}>
+      <FeatureIcon name="type_glp1" size={22} color={colors.ink2} />
+      <Text style={[s.title, s.grow]}>{t('cal_rc_title')}</Text>
+      {!rcAllowed ? <Text style={s.otag}>{t('paywall_premium')}</Text> : null}
+    </View>
+  );
+  const howRow = (
+    <TouchableOpacity style={s.foldRow} activeOpacity={0.7} onPress={() => setRcExplain(true)} accessibilityRole="button">
+      <Text style={[s.head, s.grow]}>{t('nutri_how')}</Text>
+      <RowChevron color={colors.tick} />
+    </TouchableOpacity>
+  );
+  const stopLink = (
+    <TouchableOpacity onPress={stopRealityCheck} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+      <Text style={s.linkRisk}>{t('cal_rc_stop')}</Text>
+    </TouchableOpacity>
+  );
+  // In progress: the status line, the start weigh-in, the 7-day rule (or the outcome note).
+  const rcStatusLines = rcStart ? (
+    <>
+      <Text style={[s.body, s.tnum]}>
+        {outcome.state === 'due' ? t('cal_rc_due') : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}
+      </Text>
+      <Text style={[s.sec2, s.tnum]}>
+        ①  <Text style={s.mono}>{fmtW(rcStart.weightKg)} {wUnit}</Text> · {fmtShort(rcStart.date)}
+      </Text>
+      {outcomeResult && outcomeResult.status !== 'ok' ? (
+        <Text style={s.sec2}>{t(`cal_rc_${outcomeResult.status}`)}</Text>
+      ) : foodRun && foodRun.ok ? (
         <>
-          <Text style={s.head}>{t('cal_sex_gate_title')}</Text>
-          <Text style={s.sec2}>{t('cal_sex_gate_body')}</Text>
-          <TouchableOpacity style={s.btnP} onPress={promptProfileSex} accessibilityRole="button">
-            <Text style={s.btnPText}>{t('cal_sex_gate_btn')}</Text>
+          <Text style={[s.sec2, s.tnum]}>{t('nutri_run_summary').replace('{avg}', fmtInt(foodRun.avgKcal)).replace('{d}', String(foodRun.days))}</Text>
+          {typedKcal != null ? <Text style={[s.foot2, s.tnum]}>{t('cal_rc_kcal_both').replace('{kcal}', fmtInt(typedKcal))}</Text> : null}
+        </>
+      ) : typedKcal != null ? (
+        <Text style={[s.sec2, s.tnum]}>{t('cal_rc_kcal_typed').replace('{kcal}', fmtInt(typedKcal))}</Text>
+      ) : (
+        <Text style={[s.sec2, s.tnum]}>{t('nutri_run_progress').replace('{n}', String(Math.min(foodRun ? foodRun.current : 0, MIN_RUN_DAYS)))}</Text>
+      )}
+    </>
+  ) : null;
+  const soFarEmpty = !!soFar && soFar.rows.every(r => r.state !== 'food');
+  // The intake the newest result used; none for a result saved before sources were kept.
+  const latestSource = realityLog.length ? resultSource(rcInputs, realityLog[realityLog.length - 1].date) : null;
+  const rcEl = (
+    <View key="rc" style={s.card}>
+      {rcHead}
+      {!rcAllowed ? (
+        // Free plan (part 11): explainer first, then Unlock with Premium. A check that is
+        // already running keeps its weigh-in (FX-15) and Stop (never behind the paywall).
+        <>
+          {rcStatusLines || <Text style={s.sec2}>{t('cal_rc_sub')}</Text>}
+          {rcStart && rcAccess.canLogWeighIn ? (
+            <TouchableOpacity style={s.btnO} onPress={openWeighIn} activeOpacity={0.75} accessibilityRole="button">
+              <Text style={s.btnOText}>{t('cal_log_today_weight')}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {howRow}
+          {(rcStart || realityLog.length > 0) ? stopLink : null}
+        </>
+      ) : rcStart && !checkSaved ? (
+        // Part 8: in progress — no fold to open; Start over / Stop always in view.
+        <>
+          {rcStatusLines}
+          <TouchableOpacity onPress={openTypedKcal} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.linkU}>{typedKcal != null ? t('cal_rc_kcal_change') : t('cal_rc_kcal_link')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.foldRow} activeOpacity={0.7} onPress={() => setSoFarOpen(o => !o)} accessibilityRole="button" accessibilityState={{ expanded: soFarOpen }}>
+            <Text style={[s.body, s.grow]}>{t('nutri_check_label')}</Text>
+            <FoldChevron open={soFarOpen} color={colors.ink3} />
+          </TouchableOpacity>
+          {soFarOpen && soFar ? (
+            soFarEmpty && soFar.rows.length === 1 ? (
+              <Text style={s.sec2}>{t('cal_rc_sofar_day1').replace('{n}', String(rcDayN)).replace('{total}', String(REALITY_CHECK_DAYS))}</Text>
+            ) : (
+              <View>
+                {soFar.rows.map((r, i) => (
+                  <View key={r.date} style={[s.dayRow, i > 0 && s.dayRowSep]}>
+                    <Text style={[s.sec, s.tnum, s.dayDate]}>{fmtShort(r.date)}</Text>
+                    <Text style={[s.sec2, s.tnum, s.grow]}>
+                      {r.state === 'food'
+                        ? t(r.items === 1 ? 'cal_rc_sofar_row_one' : 'cal_rc_sofar_row').replace('{kcal}', fmtInt(r.kcal)).replace('{n}', String(r.items))
+                        : r.state === 'not_recorded' ? t('nutri_marked_not_recorded') : t('nutri_nothing_logged')}
+                    </Text>
+                  </View>
+                ))}
+                {soFar.run.days > 0 ? (
+                  <Text style={[s.foot2, s.tnum, s.runLine]}>{t('cal_rc_sofar_run').replace('{d}', String(soFar.run.days)).replace('{kcal}', fmtInt(soFar.run.avgKcal))}</Text>
+                ) : null}
+              </View>
+            )
+          ) : null}
+          <FoodReminderRow />
+          <View style={s.linkRow}>
+            <TouchableOpacity onPress={confirmResetRealityCheck} style={s.linkHit} accessibilityRole="button">
+              <Text style={s.linkU}>{t('cal_rc_reset')}</Text>
+            </TouchableOpacity>
+            {stopLink}
+          </View>
+        </>
+      ) : scoreCheck ? (
+        // Part 10: the result as a sentence, the checks over time, and the next check.
+        <>
+          <Text style={[s.body, s.tnum]}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{fmtInt(round10(scoreCheck.tdee))} {t('cal_kcal')}/{t('cal_day')}</Text>.</Text>
+          {latestSource ? (
+            <Text style={s.foot2}>{t(latestSource === 'typed' ? 'cal_rc_src_typed' : 'cal_rc_src_food')}</Text>
+          ) : null}
+          <View style={s.gap6}>
+            <Text style={s.cap2}>{t('cal_rc_log_title')}</Text>
+            {[...realityLog].reverse().map((c) => (
+              <View key={c.date} style={s.logRow}>
+                <Text style={[s.sec, s.tnum, s.grow]}>{fmtShort(c.date)}</Text>
+                <Text style={[s.val15, s.ink2Text]}>
+                  {c.ratePerWeekKg != null
+                    ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
+                    : '—'}
+                </Text>
+                <Text style={s.val15}>{fmtInt(round10(c.tdee))} {t('cal_kcal')}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={s.btnO} onPress={openRcStart} activeOpacity={0.75} accessibilityRole="button">
+            <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+          </TouchableOpacity>
+          {stopLink}
+        </>
+      ) : (
+        // Part 9: not run yet — the row opens the start sheet.
+        <>
+          <Text style={s.sec2}>{t('cal_rc_sub')}</Text>
+          <TouchableOpacity style={s.foldRow} activeOpacity={0.7} onPress={openRcStart} accessibilityRole="button">
+            <Text style={[s.body, s.grow]}>{t('cal_rc_sb_run')}</Text>
+            <RowChevron color={colors.tick} />
           </TouchableOpacity>
         </>
-      ) : result && result.invalid ? (
-        <View style={s.warnbox}><Text style={s.warnText}>{t('cal_check_inputs')}</Text></View>
-      ) : (
-        <Text style={s.sec2}>{t('cal_need_inputs')}</Text>
       )}
     </View>
-  ) : null;
+  );
 
-  const targetEl = !plan ? (
-    <View key="target" style={s.card}>
-      {renderTargetBlock(false)}
-    </View>
-  ) : null;
-
-  // Your numbers — auto-collapses once there is a plan (the user can still open it);
-  // collapsed, it shows a one-line summary of the inputs (activity included).
-  const numbersEl = (
-    <View key="numbers" style={s.card}>
-      <TouchableOpacity style={s.foldHead} activeOpacity={0.7} onPress={() => setNumbersOpen(!numbersOpenEff)} accessibilityRole="button" accessibilityState={{ expanded: numbersOpenEff }}>
-        <View style={[s.grow, s.gap2]}>
-          <Text style={s.title}>{t('cal_your_numbers')}</Text>
-          {!numbersOpenEff && youNowSummary ? <Text style={s.foot2} numberOfLines={2}>{youNowSummary}</Text> : null}
-        </View>
-        <Chev dir={numbersOpenEff ? 'up' : 'down'} color={colors.ink3} />
-      </TouchableOpacity>
-      {numbersOpenEff && (
-        <>
-          <SegmentedBar
-            items={[{ key: 'metric', label: t('cal_metric') }, { key: 'imperial', label: t('cal_imperial') }]}
-            value={unit}
-            onChange={changeUnit}
-          />
-          {/* Weight + body fat (or age, on the height/age/sex path) */}
-          <View style={s.fieldRow}>
-            <View style={s.fldHalf}>
-              <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
-              <TextInput style={s.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-            </View>
-            {!isUnknown ? (
-              <View style={s.fldHalf}>
-                <Text style={s.fieldLab}>{t('cal_bodyfat')} (%)</Text>
-                <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+  // Weigh-ins (PO-6, part 13): a fold in the card with its one-line summary; open: the trend
+  // chart, the newest weigh-ins (Show all / Show less) and + Add a past weigh-in. Never
+  // paywalled (FX-15).
+  const weighPart = (
+    <View key="weighIns" style={s.foldBlock}>
+      {foldRow('weighIns', t('cal_weighins_title'), weighSummary, weighOpen, () => setWeighOpen(o => !o))}
+      {weighOpen ? (
+        <View style={s.foldBlock}>
+          {snapPointCount >= 2 ? (
+            <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
+          ) : (
+            <Text style={s.sec2}>{t('cal_weighins_need_more')}</Text>
+          )}
+          {/* The weigh-ins as rows (date · weight · body fat · waist); all of them are on the chart. */}
+          {histRows.length > 0 ? (
+            <View>
+              <View style={s.histHead}>
+                <Text style={[s.cap2, s.histDate]}>{t('cal_tgt_backfill_date')}</Text>
+                <Text style={[s.cap2, s.histW]}>{t('cal_snap_weight')}</Text>
+                <Text style={[s.cap2, s.histB]}>{t('cal_snap_bodyfat')}</Text>
+                <Text style={[s.cap2, s.histC]}>{t('cal_snap_waist')}</Text>
+                <View style={s.histCv} />
               </View>
-            ) : (
-              <View style={s.fldHalf}>
-                <Text style={s.fieldLab}>{t('cal_age')}</Text>
-                <TextInput style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-              </View>
-            )}
-          </View>
-          {isUnknown ? (
-            <View style={s.fld}>
-              <Text style={s.fieldLab}>{t('cal_sex')}</Text>
-              {profileSex ? (
-                <SegmentedBar
-                  accessibilityLabel={t('cal_sex')}
-                  items={['male', 'female'].map(sx => ({ key: sx, label: t(`cal_sex_${sx}`) }))}
-                  value={sex}
-                  onChange={saveProfileSex}
-                />
-              ) : (
-                // Not set in the profile → prompt to complete it instead of defaulting.
-                <TouchableOpacity style={s.btnO} onPress={promptProfileSex} accessibilityRole="button">
-                  <Text style={s.btnOText}>{t('cal_sex_gate_btn')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : null}
-          <View style={s.fld}>
-            <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
-            <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-            <Text style={s.foot2}>{t('cal_waist_hint')}</Text>
-          </View>
-          <View style={s.sep} />
-          {/* Height is universal (BMI, waist-to-height, and the Mifflin fallback all need it). */}
-          <View style={s.fld}>
-            <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
-            <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-          </View>
-          <View style={s.fld}>
-            <Text style={s.fieldLab}>{t('cal_bf_source')}</Text>
-            <View style={s.pills}>
-              {BF_SOURCES.map(src => (
-                <TouchableOpacity key={src} style={[s.pill, bfSource === src && s.pillOn]} onPress={() => setBfSource(src)} accessibilityRole="button" accessibilityState={{ selected: bfSource === src }}>
-                  <Text style={[s.pillText, bfSource === src && s.pillTextOn]}>{t(`cal_bf_${src}`)}</Text>
+              {/* PO-19: every row opens "Weigh-in" (fix or delete), a chevron at its end. */}
+              {histRows.map(r => (
+                <TouchableOpacity key={r.date} style={s.histRow} onPress={() => openWeighInEdit(r.date)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${fmtShort(r.date)} · ${r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}`}>
+                  <Text style={[s.sec, s.tnum, s.histDate]}>{fmtShort(r.date)}</Text>
+                  <Text style={[s.val15, s.histW]}>{r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}</Text>
+                  <Text style={[s.val15, s.histB]}>{r.bodyFatPct != null ? `${Math.round(r.bodyFatPct * 10) / 10}%` : '—'}</Text>
+                  <Text style={[s.val15, s.histC]}>{r.waistCm != null ? `${Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10} ${hUnit}` : '—'}</Text>
+                  <View style={s.histCv}><RowChevron color={colors.ink3} /></View>
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={s.foot2}>{t(`cal_bf_${bfSource}_hint`)}</Text>
-          </View>
-          {/* Activity is an input too — it collapses with "Your numbers". */}
-          <View style={s.fld}>
-            <View style={s.rowC}>
-              <FeatureIcon name="calc_bolt" size={18} color={colors.ink2} />
-              <Text style={s.head}>{t('cal_activity')}</Text>
-            </View>
-            <View style={s.actlist}>
-              {ACTIVITY_LEVELS.map((a, i) => {
-                const on = activity === a.value;
-                const prevOn = i > 0 && ACTIVITY_LEVELS[i - 1].value === activity;
-                const parts = String(t(a.key)).split(' — ');
-                return (
-                  <View key={a.value}>
-                    {i > 0 ? <View style={[s.actSep, (on || prevOn) && s.actSepHidden]} /> : null}
-                    <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                      <View style={[s.grow, s.gap2]}>
-                        <Text style={s.head}>{parts[0]}</Text>
-                        {parts.length > 1 ? <Text style={s.sec2}>{parts.slice(1).join(' — ')}</Text> : null}
-                      </View>
-                      {on ? <CheckMark size={22} color={colors.ink} /> : null}
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </>
-      )}
-    </View>
-  );
-
-  // Reality check (Premium, or a free user's 7 free days — FL-41): how the daily burn
-  // becomes Measured. Its food-log intake, totals, unlogged days and the food-log
-  // reminder live in this card too (journey-dashboard: NutritionLogger → Reality check).
-  const rcEl = (
-    <View key="rc" style={s.card}>
-      <View style={s.rowC}>
-        <FeatureIcon name="calc_bars" size={22} color={colors.ink2} />
-        <Text style={[s.title, s.grow]}>{t('cal_rc_title')}</Text>
-        {!rcAllowed ? <Text style={s.otag}>{t('paywall_premium')}</Text> : null}
-      </View>
-      {!rcStart && !scoreCheck ? <Text style={s.sec2}>{t('cal_rc_sub')}</Text> : null}
-      <TouchableOpacity
-        style={s.foldRow}
-        activeOpacity={0.7}
-        // Locked users with an open check can still open the panel to STOP it (never behind the paywall).
-        onPress={() => (rcExpandable ? setRcOpen(o => !o) : navigation.navigate('Paywall'))}
-        accessibilityRole="button"
-        accessibilityState={rcExpandable ? { expanded: rcOpen } : undefined}
-      >
-        <View style={s.grow}>
-          {rcAllowed ? (
-            scoreCheck ? (
-              <Text style={s.body}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{round10(scoreCheck.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text></Text>
-            ) : rcStart ? (
-              <Text style={s.body}>{t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}</Text>
-            ) : (
-              <Text style={s.body}>{t('cal_rc_sb_run')}</Text>
-            )
-          ) : (
-            <Text style={s.body}>{t('cal_rc_sb_locked')}</Text>
-          )}
-        </View>
-        {rcAllowed && scoreCheck && scoreCheck.ratePerWeekKg != null && Math.abs(scoreCheck.ratePerWeekKg) >= 0.05 ? (
-          <Text style={[s.val15, s.ink2Text]}>
-            {scoreCheck.ratePerWeekKg >= 0 ? '−' : '+'}{rateDisplay(scoreCheck.ratePerWeekKg)} {wUnit}/{t('cal_week')}
-          </Text>
-        ) : null}
-        <Chev dir={rcExpandable ? (rcOpen ? 'up' : 'down') : 'right'} color={colors.ink3} />
-      </TouchableOpacity>
-      {rcOpen && (
-        <View style={s.panel}>
-          {rcStart || scoreCheck ? <Text style={s.sec2}>{t('cal_rc_sub')}</Text> : null}
-          {rcAllowed ? (
-            <>
-              {!rcStart ? (
-                // ── Phase 1: log the starting weight, arm the 3-week reminder ──
-                <>
-                  <View style={s.fld}>
-                    <Text style={s.fieldLab}>{t('cal_rc_start_on')}</Text>
-                    <View style={s.stepper}>
-                      <TouchableOpacity style={[s.stepBtn, atEarliest && s.stepOff]} onPress={() => shiftRcStartDate(-1)} disabled={atEarliest} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
-                        <Chev dir="left" color={colors.ink} size={20} />
-                      </TouchableOpacity>
-                      <Text style={s.stepVal}>{rcStartDate ? fmtDate(rcStartDate) : t('nutri_day_today')}</Text>
-                      <TouchableOpacity style={[s.stepBtn, !rcStartDate && s.stepOff]} onPress={() => shiftRcStartDate(1)} disabled={!rcStartDate} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
-                        <Chev dir="right" color={colors.ink} size={20} />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={s.foot2}>{t('cal_rc_start_on_hint')}</Text>
-                  </View>
-                  <View style={s.fld}>
-                    <Text style={s.fieldLab}>{t('cal_rc_start_weight')} ({wUnit})</Text>
-                    <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-                  </View>
-                  <TouchableOpacity style={s.btnP} onPress={startRealityCheck} accessibilityRole="button">
-                    <Text style={s.btnPText}>{t('cal_rc_start_btn')}</Text>
-                  </TouchableOpacity>
-                  <Text style={s.foot2}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
-                </>
-              ) : (
-                // ── Phase 2: return, log current weight; days are auto-measured ──
-                <>
-                  <View style={s.gap4}>
-                    <Text style={s.sec2}>
-                      ①  <Text style={s.mono}>{Math.round((unit === 'imperial' ? kgToLb(rcStart.weightKg) : rcStart.weightKg) * 10) / 10} {wUnit}</Text>  ·  {fmtDate(rcStart.date)}
-                    </Text>
-                    <Text style={s.foot2}>
-                      {t('cal_rc_remind_on').replace('{date}', fmtDate(rcRemindOn))}  ·  {t('cal_rc_elapsed').replace('{n}', String(rcElapsedDays))}
-                    </Text>
-                  </View>
-                  <View style={s.fld}>
-                    <Text style={s.fieldLab}>{t('cal_rc_current_weight')} ({wUnit})</Text>
-                    <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-                  </View>
-                  <View style={s.fld}>
-                    <Text style={s.fieldLab}>{t('cal_rc_intake')}</Text>
-                    <TextInput style={s.input} value={rcIntake} onChangeText={setRcIntake} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-                    {foodIntake ? (
-                      <>
-                        <TouchableOpacity style={s.pill} onPress={() => setRcIntake(String(foodIntake.avgKcal))} activeOpacity={0.7} accessibilityRole="button">
-                          <Text style={[s.pillText, s.inkText]}>{t('cal_rc_use_log').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{n}', String(foodIntake.avgKcal))}</Text>
-                        </TouchableOpacity>
-                        <Text style={s.foot2}>{t('nutri_run_working').replace('{total}', String(foodIntake.totalKcal)).replace('{d}', String(foodIntake.days)).replace('{from}', fmtDate(foodIntake.fromISO)).replace('{to}', fmtDate(foodIntake.toISO))}</Text>
-                        <Text style={s.foot2}>{t('cal_rc_from_log_note')}</Text>
-                      </>
-                    ) : foodRun ? (
-                      // No intake number until 7 days in a row are fully logged (FL-3).
-                      <Text style={s.foot2}>{t('nutri_run_progress').replace('{n}', String(Math.min(foodRun.current, MIN_RUN_DAYS)))}</Text>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity style={s.btnP} onPress={computeReality} accessibilityRole="button">
-                    <Text style={s.btnPText}>{t('cal_rc_compute')}</Text>
-                  </TouchableOpacity>
-
-                  {rc && rc.status === 'ok' && (
-                    <View style={s.result}>
-                      <Text style={s.body}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{round10(rc.tdee)} {t('cal_kcal')}/{t('cal_day')}</Text></Text>
-                      {rc.ratePerWeekKg != null && Math.abs(rc.ratePerWeekKg) >= 0.05 ? (
-                        <Text style={s.sec}>
-                          {t('cal_rc_rate_losing')} <Text style={s.mono}>{rateDisplay(rc.ratePerWeekKg)} {wUnit}/{t('cal_week')}</Text> {rc.ratePerWeekKg >= 0 ? t('cal_rc_rate_lost') : t('cal_rc_rate_gained')}
-                        </Text>
-                      ) : null}
-                      {plan ? <Text style={s.sec2}>{t('cal_rc_vs')} {round10(plan.tdeeVal)} {t('cal_kcal')}.</Text> : null}
-                      <TouchableOpacity style={s.btnP} onPress={saveRealityCheck} accessibilityRole="button">
-                        {rcSavedMsg ? (
-                          <View style={s.savedRow}>
-                            <CheckMark style={s.btnPText} />
-                            <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
-                          </View>
-                        ) : <Text style={s.btnPText}>{t('cal_rc_save')}</Text>}
-                      </TouchableOpacity>
-                      <TouchableOpacity style={s.btnO} onPress={startNextRealityCheck} accessibilityRole="button">
-                        <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
-                      </TouchableOpacity>
-                      <Text style={[s.head, s.mt6]}>{t('cal_rc_why_title')}</Text>
-                      {[1, 2, 3, 4, 5].map(i => <Text key={i} style={s.sec2}>•  {t(`cal_rc_why_${i}`)}</Text>)}
-                      <Text style={s.foot2}>{t('cal_rc_unreliable_note')}</Text>
-                    </View>
-                  )}
-                  {rc && rc.status !== 'ok' && (
-                    <View style={s.result}><Text style={s.sec2}>{t(`cal_rc_${rc.status}`)}</Text></View>
-                  )}
-                </>
-              )}
-
-              {realityLog.length > 0 && (
-                <View style={s.gap6}>
-                  <Text style={s.cap2}>{t('cal_rc_log_title')}</Text>
-                  {[...realityLog].reverse().map((c) => (
-                    <View key={c.date} style={s.logRow}>
-                      <Text style={[s.sec, s.grow]}>{fmtDate(c.date)}</Text>
-                      <Text style={[s.val15, s.ink2Text]}>
-                        {c.ratePerWeekKg != null
-                          ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${rateDisplay(c.ratePerWeekKg)} ${wUnit}/${t('cal_week')}`
-                          : '—'}
-                      </Text>
-                      <Text style={s.val15}>{round10(c.tdee)} {t('cal_kcal')}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              {(rcStart || realityLog.length > 0) && (
-                <View style={s.linkRow}>
-                  {rcStart ? (
-                    <TouchableOpacity onPress={resetRealityCheck} style={s.linkHit} accessibilityRole="button">
-                      <Text style={s.linkU}>{t('cal_rc_reset')}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity onPress={stopRealityCheck} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
-                    <Text style={s.linkRisk}>{t('cal_rc_stop')}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </>
-          ) : (
-            <View style={s.rcLocked}>
-              {/* FX-15: a check that is already running keeps its weigh-in — only the result is Premium. */}
-              {rcAccess.canLogWeighIn ? (
-                <View style={s.fld}>
-                  <Text style={s.fieldLab}>{t('cal_rc_current_weight')} ({wUnit})</Text>
-                  <TextInput style={s.input} value={rcNow} onChangeText={setRcNow} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
-                  <TouchableOpacity style={[s.btnP, !num(rcNow) && s.btnOff]} onPress={saveRcWeighIn} disabled={!num(rcNow)} accessibilityRole="button">
-                    {rcWeighMsg ? (
-                      <View style={s.savedRow}>
-                        <CheckMark style={s.btnPText} />
-                        <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
-                      </View>
-                    ) : <Text style={[s.btnPText, !num(rcNow) && s.btnOffText]}>{t('cal_tgt_backfill_save')}</Text>}
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-              <Text style={s.sec2}>{t('cal_rc_locked_intro')}</Text>
-              <Text style={s.head}>{t('cal_rc_locked_lead')}</Text>
-              <View style={s.gap2}>
-                <Text style={s.sec2}>1.  {t('cal_rc_start_weight')}</Text>
-                <Text style={s.sec2}>2.  {t('cal_rc_current_weight')}</Text>
-                <Text style={s.sec2}>3.  {t('cal_rc_intake')}</Text>
-              </View>
-              <Text style={s.sec}>{t('cal_rc_locked_payoff')}</Text>
-              <TouchableOpacity style={s.btnP} onPress={() => navigation.navigate('Paywall')} accessibilityRole="button">
-                <Text style={s.btnPText}>{t('cal_premium_cta')}</Text>
+          ) : null}
+          {histRows.length > 0 ? <Text style={s.foot2}>{t('cal_wedit_hint')}</Text> : null}
+          {/* Backfill a past weigh-in — for someone who started before installing. */}
+          <View style={s.rowCenter}>
+            <TouchableOpacity onPress={() => setBfOpen(true)} activeOpacity={0.7} style={[s.linkHit, s.grow]} accessibilityRole="button">
+              <Text style={s.linkU}>{t('cal_tgt_backfill_add')}</Text>
+            </TouchableOpacity>
+            {histAll.length > 5 ? (
+              <TouchableOpacity onPress={() => setShowAllW(v => !v)} activeOpacity={0.7} style={s.linkHit} accessibilityRole="button">
+                <Text style={s.linkU}>{t(showAllW ? 'cal_show_less' : 'cal_show_all')}</Text>
               </TouchableOpacity>
-              {/* Stop stays reachable when locked (FL-41) — it only clears the check; logged meals are kept. */}
-              {(rcStart || realityLog.length > 0) && (
-                <TouchableOpacity style={s.linkHit} onPress={stopRealityCheck} activeOpacity={0.7} accessibilityRole="button">
-                  <Text style={s.linkRisk}>{t('cal_rc_stop')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </View>
-      )}
-      {/* Food log — feeds the reality check's intake (totals, run, unlogged days, reminder). */}
-      <NutritionLogger />
-    </View>
-  );
-
-  const weighEl = (
-    <View key="weigh" style={s.card}>
-      {/* Progress snapshots — weigh-ins are never paywalled (FX-15) */}
-      <View style={s.gap2}>
-        <Text style={s.title}>{t('cal_snap_title')}</Text>
-        {lastSnap ? (
-          <Text style={s.foot2}>{sortedSnaps.length} · {fmtDate(lastSnap.date)}{lastSnap.weightKg != null ? <> · <Text style={s.mono}>{fmtW(lastSnap.weightKg)} {wUnit}</Text></> : null}</Text>
-        ) : null}
-      </View>
-      <Text style={s.sec2}>{t('cal_snap_sub')}</Text>
-      <TouchableOpacity style={[s.btnP, !plan && s.btnOff]} onPress={saveSnapshot} disabled={!plan} accessibilityRole="button">
-        {snapMsg ? (
-          <View style={s.savedRow}>
-            <CheckMark style={s.btnPText} />
-            <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
+            ) : null}
           </View>
-        ) : <Text style={[s.btnPText, !plan && s.btnOffText]}>{t('cal_snap_save')}</Text>}
-      </TouchableOpacity>
-      {snapPointCount >= 2 ? (
-        <ProgressChart series={chartSeries} locale={locale} width={CHART_WIDTH} />
-      ) : (
-        <Text style={s.sec2}>{t('cal_snap_need_more')}</Text>
-      )}
-      {/* The newest weigh-ins as rows (date · weight · body fat · waist); all of them are on the chart. */}
-      {histRows.length > 0 ? (
-        <View>
-          <View style={s.histHead}>
-            <Text style={[s.cap2, s.histDate]}>{t('cal_tgt_backfill_date')}</Text>
-            <Text style={[s.cap2, s.histCell]}>{t('cal_snap_weight')}</Text>
-            <Text style={[s.cap2, s.histCell]}>{t('cal_snap_bodyfat')}</Text>
-            <Text style={[s.cap2, s.histCell]}>{t('cal_snap_waist')}</Text>
-          </View>
-          {histRows.map(r => (
-            <View key={r.date} style={s.histRow}>
-              <Text style={[s.sec, s.histDate]}>{fmtDate(r.date)}</Text>
-              <Text style={[s.val15, s.histCell]}>{r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}</Text>
-              <Text style={[s.val15, s.histCell]}>{r.bodyFatPct != null ? `${Math.round(r.bodyFatPct * 10) / 10}%` : '—'}</Text>
-              <Text style={[s.val15, s.histCell]}>{r.waistCm != null ? `${Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10} ${hUnit}` : '—'}</Text>
-            </View>
-          ))}
         </View>
       ) : null}
-      {/* Backfill a past weigh-in — for someone who started before installing.
-          Writes a dated snapshot so the measured rate (and the target ETA)
-          can appear without waiting weeks. */}
-      <TouchableOpacity onPress={() => setBfOpen(true)} activeOpacity={0.7} style={s.linkHit} accessibilityRole="button">
-        <Text style={s.linkU}>{t('cal_tgt_backfill_add')}</Text>
+    </View>
+  );
+
+  const cardParts = {
+    hero: heroPart,
+    target: targetPart,
+    logWeight: (
+      <TouchableOpacity key="logWeight" style={s.btnP} onPress={openWeighIn} activeOpacity={0.85} accessibilityRole="button">
+        <Text style={s.btnPText}>{t('cal_log_today_weight')}</Text>
       </TouchableOpacity>
+    ),
+    weighIns: weighPart,
+    numbers: numbersPart,
+  };
+  const cardEl = (
+    <View key="card" style={s.card}>
+      {layout.card.map(k => cardParts[k])}
+    </View>
+  );
+  const screenParts = { card: cardEl, plan: planEl, rc: rcEl };
+
+  return (
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
+      {header}
+      {/* The one card, then the daily plan (with a daily burn) and the reality check (PO-1 / PO-9).
+          Keyed, so a part that moves when the daily burn appears keeps its state (no remount).
+          Drawn once the saved numbers are read, so a filled card never flashes as first use. */}
+      {loaded ? layout.screen.map(k => screenParts[k]) : null}
+
+      {/* The disclaimer qualifies every number on this screen. */}
+      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
+
+      {/* Understand the numbers + Sources & references (shared with the Journey dashboard). */}
+      <LearnBlock />
+
+      {/* Log today's weight (part 6, prototype weighin sheet). */}
+      <SheetModal visible={wiOpen} onClose={closeWeighIn} s={s}>
+        <View style={s.sheetHeadL}>
+          <Text style={[s.title, s.grow]}>{t('cal_log_today_weight')}</Text>
+          <TouchableOpacity onPress={closeWeighIn} style={s.sheetSideEnd} accessibilityRole="button">
+            <Text style={s.txtBtn}>{t('cancel')}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={s.fieldRow}>
+          <View style={s.fldHalf}>
+            <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
+            <TextInput style={s.input} value={wiWeight} onChangeText={setWiWeight} keyboardType="decimal-pad" placeholder={fmtW(currentWeightKg) || '—'} placeholderTextColor={colors.ink3} />
+          </View>
+          <View style={s.fldHalf}>
+            <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
+            <TextInput style={s.input} value={wiBf} onChangeText={setWiBf} keyboardType="decimal-pad" placeholder={currentBF != null ? String(Math.round(currentBF * 10) / 10) : '—'} placeholderTextColor={colors.ink3} />
+          </View>
+        </View>
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+          <TextInput style={s.input} value={wiWaist} onChangeText={setWiWaist} keyboardType="decimal-pad" placeholder={waist || '—'} placeholderTextColor={colors.ink3} />
+        </View>
+        <Text style={s.foot2}>{t('cal_log_today_note')}</Text>
+        <TouchableOpacity style={[s.btnP, !wiCanSave && s.btnDim]} onPress={saveTodayWeighIn} disabled={!wiCanSave} accessibilityRole="button" accessibilityState={{ disabled: !wiCanSave }}>
+          <Text style={s.btnPText}>{t('save')}</Text>
+        </TouchableOpacity>
+      </SheetModal>
+
+      {/* Reality check start (part 9, prototype rcStartSheet). */}
+      <SheetModal visible={rcStartOpen} onClose={() => setRcStartOpen(false)} s={s}>
+        <View style={s.sheetHead}>
+          <TouchableOpacity onPress={() => setRcStartOpen(false)} style={s.sheetSide} accessibilityRole="button">
+            <Text style={s.txtBtn}>{t('cancel')}</Text>
+          </TouchableOpacity>
+          <Text style={s.sheetTitle} numberOfLines={2}>{t('cal_rc_title')}</Text>
+          <View style={s.sheetSide} />
+        </View>
+        <Text style={s.sec2}>{t('cal_rc_sub')}</Text>
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_rc_start_on')}</Text>
+          <View style={s.stepper}>
+            <TouchableOpacity style={[s.stepBtn, atEarliest && s.stepOff]} onPress={() => shiftRcStartDate(-1)} disabled={atEarliest} accessibilityRole="button" accessibilityLabel={t('nutri_date_earlier')}>
+              <StepChev dir="left" color={colors.ink} />
+            </TouchableOpacity>
+            <Text style={s.stepVal}>{rcStartDate ? fmtDate(rcStartDate) : t('nutri_day_today')}</Text>
+            <TouchableOpacity style={[s.stepBtn, !rcStartDate && s.stepOff]} onPress={() => shiftRcStartDate(1)} disabled={!rcStartDate} accessibilityRole="button" accessibilityLabel={t('nutri_date_later')}>
+              <StepChev dir="right" color={colors.ink} />
+            </TouchableOpacity>
+          </View>
+          <Text style={s.fieldLab}>{t('cal_rc_start_on_hint')}</Text>
+        </View>
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
+          <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+        </View>
+        <TouchableOpacity style={[s.btnP, num(rcThen) == null && s.btnDim]} onPress={startRealityCheck} disabled={num(rcThen) == null} accessibilityRole="button">
+          <Text style={s.btnPText}>{t('cal_rc_start_btn')}</Text>
+        </TouchableOpacity>
+        <Text style={s.foot2}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+      </SheetModal>
+
+      {/* Reality check typed calories (founder 2026-10-02: keep typing the calories by hand). */}
+      <SheetModal visible={kcalOpen} onClose={closeTypedKcal} s={s}>
+        <View style={s.sheetHead}>
+          <TouchableOpacity onPress={closeTypedKcal} style={s.sheetSide} accessibilityRole="button">
+            <Text style={s.txtBtn}>{t('cancel')}</Text>
+          </TouchableOpacity>
+          <Text style={s.sheetTitle} numberOfLines={2}>{t('cal_rc_kcal_title')}</Text>
+          <View style={s.sheetSide} />
+        </View>
+        <View style={s.fld}>
+          <Text style={s.fieldLab}>{t('cal_rc_kcal_field')} ({t('cal_kcal')})</Text>
+          <TextInput style={s.input} value={kcalText} onChangeText={setKcalText} keyboardType="number-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+        </View>
+        <Text style={s.foot2}>{t('cal_rc_kcal_hint')}</Text>
+        <TouchableOpacity style={[s.btnP, kcalParsed == null && s.btnDim]} onPress={() => saveTypedKcal(kcalParsed)} disabled={kcalParsed == null} accessibilityRole="button" accessibilityState={{ disabled: kcalParsed == null }}>
+          <Text style={s.btnPText}>{t('save')}</Text>
+        </TouchableOpacity>
+        {typedKcal != null ? (
+          <TouchableOpacity onPress={() => saveTypedKcal(null)} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={s.linkU}>{t('cal_rc_kcal_clear')}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </SheetModal>
+
+      {/* Fix or delete a weigh-in (PO-20..PO-24, founder 2026-10-02, prototype wedit sheet). */}
+      <SheetModal visible={!!weEdit} onClose={closeWeighInEdit} s={s}>
+        {weEdit ? (
+          <>
+            <View style={s.sheetHead}>
+              <TouchableOpacity onPress={closeWeighInEdit} style={s.sheetSide} accessibilityRole="button">
+                <Text style={s.txtBtn}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <Text style={s.sheetTitle} numberOfLines={2}>{t('cal_wi_title')}</Text>
+              <View style={s.sheetSide} />
+            </View>
+            <View style={s.fld}>
+              <Text style={s.fieldLab}>{t('cal_tgt_backfill_date')}</Text>
+              <Text style={[s.body, s.fixedDate]}>{fmtDate(weEdit.date)}</Text>
+            </View>
+            <View style={s.fieldRow}>
+              <View style={s.fldHalf}>
+                <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
+                <TextInput style={s.input} value={weEdit.weight} onChangeText={v => { setWeBad(false); setWeEdit(e => ({ ...e, weight: v })); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+              </View>
+              <View style={s.fldHalf}>
+                <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
+                <TextInput style={s.input} value={weEdit.bodyFat} onChangeText={v => { setWeBad(false); setWeEdit(e => ({ ...e, bodyFat: v })); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+              </View>
+            </View>
+            <View style={s.fld}>
+              <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
+              <TextInput style={s.input} value={weEdit.waist} onChangeText={v => { setWeBad(false); setWeEdit(e => ({ ...e, waist: v })); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+            </View>
+            {weBad ? <Text style={s.tnote}>{t('cal_wi_invalid')}</Text> : null}
+            <Text style={s.foot2}>{t('cal_wi_note')}</Text>
+            <TouchableOpacity style={s.btnP} onPress={saveWeighInEdit} accessibilityRole="button">
+              <Text style={s.btnPText}>{t('save')}</Text>
+            </TouchableOpacity>
+            {weAct.canDelete ? (
+              <TouchableOpacity style={s.dangerBtn} onPress={confirmDeleteWeighIn} activeOpacity={0.7} accessibilityRole="button">
+                <Text style={s.dangerText}>{t('cal_wi_delete')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={[s.foot2, s.centerNote]}>{t('cal_wi_rc_start')}</Text>
+            )}
+          </>
+        ) : null}
+        {/* Delete this weigh-in? asks inside the sheet so it shows over it. */}
+        <DTSheet config={weEdit ? confirm : null} onClose={closeConfirm} />
+      </SheetModal>
+
+      {/* Add a past weigh-in (part 13, prototype pastSheet). */}
       <SheetModal visible={bfOpen} onClose={closeBackfill} s={s}>
         <View style={s.sheetHead}>
           <TouchableOpacity onPress={closeBackfill} style={s.sheetSide} accessibilityRole="button">
@@ -1407,17 +1725,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         <View style={s.fld}>
           <Text style={s.fieldLab}>{t('cal_tgt_backfill_date')}</Text>
           <TouchableOpacity style={s.datebtn} onPress={() => setShowBfDatePicker(true)} activeOpacity={0.7} accessibilityRole="button">
-            <Text style={s.body}>{fmtDate(bfDate)}</Text>
+            <Text style={s.body}>{fmtLong(bfDate)}</Text>
             <FeatureIcon name="calendar" size={20} color={colors.ink2} />
           </TouchableOpacity>
-          {showBfDatePicker ? (
-            <DateTimePicker
-              value={new Date(bfDate + 'T12:00:00')}
-              mode="date"
-              maximumDate={new Date()}
-              onChange={(e, d) => { setShowBfDatePicker(false); if (d) setBfDate(localISO(d)); }}
-            />
-          ) : null}
         </View>
         <View style={s.fieldRow}>
           <View style={s.fldHalf}>
@@ -1429,73 +1739,21 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
           </View>
         </View>
-        <TouchableOpacity style={[s.btnP, !num(bfWeight) && s.btnOff]} onPress={saveBackfillWeighIn} disabled={!num(bfWeight)} accessibilityRole="button">
+        <TouchableOpacity style={s.btnP} onPress={saveBackfillWeighIn} accessibilityRole="button">
           {bfMsg ? (
             <View style={s.savedRow}>
               <CheckMark style={s.btnPText} />
               <Text style={s.btnPText}>{t('cal_snap_saved')}</Text>
             </View>
-          ) : <Text style={[s.btnPText, !num(bfWeight) && s.btnOffText]}>{t('cal_tgt_backfill_save')}</Text>}
+          ) : <Text style={s.btnPText}>{t('cal_tgt_backfill_save')}</Text>}
         </TouchableOpacity>
+        <DTPickerSheet visible={showBfDatePicker} title={t('cal_tgt_backfill_date')} doneLabel={t('done')} onDone={() => setShowBfDatePicker(false)}>
+          <DTWheel
+            columns={dateColumns(bfDate, new Date(), monthLabels)}
+            onChange={(col, i) => setBfDate(clampPast(dateAfter(bfDate, new Date(), col, i)))}
+          />
+        </DTPickerSheet>
       </SheetModal>
-    </View>
-  );
-
-  return (
-    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
-      {header}
-      {/* Order (prototype progressScreen): what the user needs every visit first. Keyed,
-          so a card that moves when the plan appears keeps its state (no remount). */}
-      {plan
-        ? [heroEl, planEl, rcEl, weighEl, numbersEl]
-        : [introEl, numbersEl, statusEl, rcEl, targetEl, weighEl]}
-
-      {/* The disclaimer qualifies every number on this screen. */}
-      <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
-
-      {/* Understand the numbers — collapsed by default */}
-      <View style={s.list}>
-        <TouchableOpacity style={s.listHead} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: learnOpen }}>
-          <Text style={[s.head, s.grow]}>{t('cal_learn')}</Text>
-          <Chev dir={learnOpen ? 'up' : 'down'} color={colors.ink3} />
-        </TouchableOpacity>
-        {learnOpen && EXPLAINERS.map(e => (
-          <View key={e.key} style={s.listItem}>
-            <TouchableOpacity style={s.listRow} onPress={() => setExpl(expl === e.key ? null : e.key)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: expl === e.key }}>
-              <Text style={[s.body, s.grow]}>{e.title}</Text>
-              <Chev dir={expl === e.key ? 'up' : 'down'} color={colors.ink3} />
-            </TouchableOpacity>
-            {expl === e.key && <Text style={[s.sec2, s.listBody]}>{e.body}</Text>}
-          </View>
-        ))}
-        {/* Sources & references — collapsed by default (App Review 1.4.1) */}
-        <View style={s.listItem}>
-          <TouchableOpacity style={s.listHead} onPress={() => setSourcesOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: sourcesOpen }}>
-            <Text style={[s.head, s.grow]}>{t('cal_sources_title')}</Text>
-            <Chev dir={sourcesOpen ? 'up' : 'down'} color={colors.ink3} />
-          </TouchableOpacity>
-          {sourcesOpen && (
-            <>
-              <Text style={[s.foot2, s.listBody]}>{t('cal_sources_intro')}</Text>
-              {REFERENCES.map(r => (
-                <TouchableOpacity
-                  key={r.key}
-                  style={s.srcRow}
-                  activeOpacity={0.6}
-                  onPress={() => Linking.openURL(r.url).catch(() => {})}
-                  accessibilityRole="link"
-                >
-                  <View style={[s.grow, s.gap2]}>
-                    <Text style={s.body}>{t(r.key)}</Text>
-                    <Text style={s.foot2}>{r.cite}</Text>
-                  </View>
-                  <ExternalIcon color={colors.ink2} />
-                </TouchableOpacity>
-              ))}
-            </>
-          )}
-        </View>
-      </View>
 
       {/* Your target — edit sheet (prototype tgtSheet). */}
       <SheetModal visible={targetEditing} onClose={closeTarget} s={s}>
@@ -1524,7 +1782,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         <View style={s.fld}>
           <Text style={s.fieldLab}>{t('cal_tgt_date')}</Text>
           <TouchableOpacity style={s.datebtn} onPress={() => setShowTgtDatePicker(true)} activeOpacity={0.7} accessibilityRole="button">
-            <Text style={tgtDate ? s.body : s.bodyMuted}>{tgtDate ? fmtDate(tgtDate) : t('cal_tgt_no_date')}</Text>
+            <Text style={s.body}>{tgtDate ? fmtLong(tgtDate) : t('cal_tgt_no_date')}</Text>
             <FeatureIcon name="calendar" size={20} color={colors.ink2} />
           </TouchableOpacity>
           {tgtDate ? (
@@ -1532,61 +1790,59 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
               <Text style={[s.linkU, s.linkSm]}>{t('cal_tgt_remove_date')}</Text>
             </TouchableOpacity>
           ) : null}
-          {showTgtDatePicker ? (
-            <DateTimePicker
-              value={tgtDate ? new Date(tgtDate + 'T12:00:00') : new Date()}
-              mode="date"
-              minimumDate={new Date()}
-              onChange={(e, d) => { setShowTgtDatePicker(false); if (d) setTgtDate(localISO(d)); }}
-            />
-          ) : null}
         </View>
         {target ? (
           <TouchableOpacity style={s.dangerBtn} onPress={clearTargetConfirm} activeOpacity={0.7} accessibilityRole="button">
             <Text style={s.dangerText}>{t('cal_tgt_remove')}</Text>
           </TouchableOpacity>
         ) : null}
+        <DTPickerSheet visible={showTgtDatePicker} title={t('cal_tgt_date')} doneLabel={t('done')} onDone={() => { if (!tgtDate) setTgtDate(clampFuture(todayISO())); setShowTgtDatePicker(false); }}>
+          <DTWheel
+            columns={dateColumns(tgtDate || todayISO(), new Date(), monthLabels)}
+            onChange={(col, i) => setTgtDate(clampFuture(dateAfter(tgtDate || todayISO(), new Date(), col, i)))}
+          />
+        </DTPickerSheet>
+        {/* Remove target asks first: inside the editor so it shows over this sheet. */}
+        <DTSheet config={targetEditing ? confirm : null} onClose={() => setConfirm(null)} />
       </SheetModal>
+
+      {/* Start over? / Stop reality check? / Update your weight (DoseTrace sheets, part 12, PO-14). */}
+      <DTSheet config={targetEditing || weEdit ? null : confirm} onClose={closeConfirm} />
+
+      {/* Free plan: "See how it works" — the explainer first, then Unlock with Premium (part 11). */}
+      <FeaturePreviewSheet featureKey={rcExplain ? 'reality' : null} onClose={() => setRcExplain(false)} onUnlock={() => { setRcExplain(false); navigation.navigate('Paywall', { source: 'reality_check' }); }} />
     </ScrollView>
   );
 }
 
-// A thin monoline chevron (prototype UP / DOWN / CHEV).
-const CHEV_PATHS = { down: 'M3 6l5 5 5-5', up: 'M3 10l5-5 5 5', left: 'M10 3l-5 5 5 5', right: 'M6 3l5 5-5 5' };
-function Chev({ dir = 'down', color, size = 16 }) {
+// The stepper arrows of the start sheet (prototype: 20 pt, the 24 grid, stroke 1.8).
+function StepChev({ dir, color }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 16 16">
-      <Path d={CHEV_PATHS[dir]} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={20} height={20} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path d={dir === 'left' ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
-// Opens in the browser (prototype's external-link glyph, monoline).
-function ExternalIcon({ color }) {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
-      <Path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-// The target as a graduated scale (DESIGN.md §5: no rounded progress bars): the
-// covered distance in data blue with onData ticks inside, the rest as tick marks,
-// and the "now" marker in ink.
-function TargetScale({ frac, colors }) {
-  const W = 320, x0 = 2, x1 = W - 2, N = 20;
+// The target as a graduated scale (prototype targetScale, DESIGN.md §5: no rounded progress
+// bars): one tick every 0.5 from the start (left) to the goal (right), majors on whole units;
+// the covered distance in data blue with onData ticks inside; the "now" marker in ink; the
+// start and goal values under the ends. Drawn in a 320 x 44 box scaled to the card width.
+function TargetScale({ start, goal, frac, colors, width, label }) {
+  const W = 320, H = 44, x0 = 12, x1 = W - 12;
+  const X = v => x0 + ((start - v) / (start - goal)) * (x1 - x0);
   const xf = x0 + Math.max(0, Math.min(1, frac)) * (x1 - x0);
-  const ticks = [];
-  for (let i = 0; i <= N; i++) {
-    const x = x0 + (i / N) * (x1 - x0);
-    const major = i % 5 === 0;
-    ticks.push(<Line key={i} x1={x} x2={x} y1={major ? 4 : 10} y2={24} stroke={x <= xf ? colors.onData : colors.tick} strokeWidth={major ? 1.4 : 0.9} />);
-  }
+  const ticks = targetTicks(start, goal);
   return (
-    <Svg width="100%" height={30} viewBox={`0 0 ${W} 30`} preserveAspectRatio="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Rect x={x0} y={8} width={Math.max(0, xf - x0)} height={12} rx={2} fill={colors.data} />
-      {ticks}
-      <Rect x={Math.min(x1 - 4, Math.max(x0, xf - 2))} y={1} width={4} height={26} rx={1.5} fill={colors.ink} />
+    <Svg width="100%" height={Math.round(((width || W) * H) / W)} viewBox={`0 0 ${W} ${H}`} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Rect x={x0} y={10} width={Math.max(0, xf - x0)} height={12} rx={2} fill={colors.data} />
+      {ticks.map((tk, i) => {
+        const x = X(tk.v);
+        return <Line key={i} x1={x} x2={x} y1={tk.major ? 6 : 12} y2={26} stroke={x <= xf ? colors.onData : colors.tick} strokeWidth={tk.major ? 1.4 : 0.9} />;
+      })}
+      <SvgText x={x0} y={40} fontFamily={MONO['400']} fontSize={11} fill={colors.ink3}>{label(start)}</SvgText>
+      <SvgText x={x1} y={40} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.ink}>{label(goal)}</SvgText>
+      <Rect x={Math.min(x1 - 4, Math.max(x0, xf - 2))} y={3} width={4} height={26} rx={1.5} fill={colors.ink} />
     </Svg>
   );
 }
@@ -1612,29 +1868,27 @@ function SheetModal({ visible, onClose, s, children }) {
 // one ink action per card; selection = ink outline; data blue only for data.
 const makeStyles = (c) => StyleSheet.create({
   scroll: { flex: 1 },
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 60, gap: 12 },
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 40, gap: 14 },
   grow: { flex: 1, minWidth: 0 },
   gap2: { gap: 2 },
-  gap4: { gap: 4 },
   gap6: { gap: 6 },
-  mt6: { marginTop: 6 },
+  gap12: { gap: 12 },
+  tnum: { fontVariant: ['tabular-nums'] },
   card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
-  rowC: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+  rowC: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowCenter: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sep: { height: 1, backgroundColor: c.line },
   // type roles (DESIGN.md §3; Geist is applied automatically from 22 pt)
   title: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: c.ink, letterSpacing: -0.2 },
   head: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
   body: { fontSize: 17, lineHeight: 22, color: c.ink },
-  bodyMuted: { fontSize: 17, lineHeight: 22, color: c.ink3 },
   sec: { fontSize: 15, lineHeight: 20, color: c.ink },
   sec2: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   foot2: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   cap2: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
-  inkText: { color: c.ink },
   ink2Text: { color: c.ink2 },
   val: { fontFamily: MONO['500'], fontSize: 17, lineHeight: 22, color: c.ink, fontVariant: ['tabular-nums'] },
-  val15: { fontFamily: MONO['500'], fontSize: 15, lineHeight: 20, color: c.ink, fontVariant: ['tabular-nums'] },
+  val15: { fontFamily: MONO['500'], fontSize: 15, lineHeight: 19, color: c.ink, fontVariant: ['tabular-nums'] },
   mono: { fontFamily: MONO['500'], color: c.ink, fontVariant: ['tabular-nums'] },
   tnote: { fontSize: 13, lineHeight: 18, color: c.attention },
   // hero (prototype heroCard): two 56 pt numbers, units in mono
@@ -1642,16 +1896,15 @@ const makeStyles = (c) => StyleSheet.create({
   heroCol: { flexGrow: 1, flexBasis: 140, minWidth: 0, gap: 6 },
   heroColStack: { flexBasis: '100%' }, // side-by-side numbers stack from ~130% text size
   display: { fontSize: 56, lineHeight: 62, fontWeight: '500', color: c.ink, letterSpacing: -1.6, fontVariant: ['tabular-nums'] },
+  displayEmpty: { color: c.ink3 },
   unit: { fontFamily: MONO['400'], fontSize: 13, fontWeight: '400', color: c.ink3, letterSpacing: 0 },
-  chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, justifyContent: 'center' },
+  chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 2, justifyContent: 'center' },
   chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   chipMeas: { borderColor: c.data },
   chipMeasText: { color: c.data },
   // target
-  tgtBlock: { gap: 10 },
-  tgtMetric: { gap: 8 },
-  scaleLab: { fontFamily: MONO['400'], fontSize: 12, color: c.ink3, fontVariant: ['tabular-nums'] },
-  scaleLabEnd: { color: c.ink },
+  tgtBlock: { gap: 12 },
+  tgtMetric: { gap: 12 },
   // daily plan
   goals: { flexDirection: 'row', gap: 8 },
   goal: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: c.line, borderRadius: 14, padding: 10, gap: 2 },
@@ -1661,33 +1914,40 @@ const makeStyles = (c) => StyleSheet.create({
   chipBox: { borderWidth: 1, borderColor: c.line, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 },
   warnbox: { borderWidth: 1, borderColor: c.attention, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
   warnText: { fontSize: 15, lineHeight: 20, color: c.ink },
-  foldRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 4 },
-  foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  // prototype .fh rows: 60 high, gap 12, a line above inside a card
+  foldRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, borderTopWidth: 1, borderTopColor: c.line },
+  foldRowSm: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 40, borderTopWidth: 1, borderTopColor: c.line },
+  // the one card's folds (prototype .fh in the card: a line above, min 56)
+  foldBlock: { gap: 12 },
+  foldRowCard: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.line },
+  formBlock: { gap: 12 },
   // inputs
+  unitBar: { alignSelf: 'flex-start' },
   fieldRow: { flexDirection: 'row', gap: 12 },
-  fld: { gap: 6 },
-  fldHalf: { flex: 1, minWidth: 0, gap: 6 },
-  fieldLab: { fontSize: 13, lineHeight: 18, color: c.ink2 },
-  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink },
+  fld: { gap: 10 },
+  fldHalf: { flex: 1, minWidth: 0, gap: 10 },
+  fieldLab: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  fieldHint: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
   inputLocked: { backgroundColor: c.well, color: c.ink2 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { alignSelf: 'flex-start', minHeight: 36, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
-  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5, paddingVertical: 6.5 },
+  pill: { alignSelf: 'flex-start', minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+  pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5 },
   pillText: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   pillTextOn: { color: c.ink, fontWeight: '600' },
+  actHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   actlist: { borderWidth: 1, borderColor: c.line, borderRadius: 16, overflow: 'hidden' },
   actRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 2, borderColor: c.raised, borderRadius: 16 },
   actRowOn: { borderColor: c.ink },
-  actSep: { height: 1, backgroundColor: c.line, marginHorizontal: 14 },
+  actSep: { height: 1, backgroundColor: c.line },
   actSepHidden: { backgroundColor: c.raised },
   // actions
-  btnP: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 10 },
+  btnP: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnPText: { color: c.onAct, fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  btnO: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 10 },
+  btnO: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnOText: { color: c.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  // disabled = well, ink3, dashed line border (readable, clearly inactive)
-  btnOff: { backgroundColor: c.well, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line },
-  btnOffText: { color: c.ink3 },
+  // disabled = the same button dimmed (prototype .btn.obdim, opacity .35)
+  btnDim: { opacity: 0.35 },
   savedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   linkU: { fontSize: 17, lineHeight: 22, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
   linkSm: { fontSize: 13, lineHeight: 18 },
@@ -1695,39 +1955,40 @@ const makeStyles = (c) => StyleSheet.create({
   linkHit: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   linkHitSm: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },
   linkRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 24 },
-  otag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 3, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
+  otag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 12, minHeight: 24, lineHeight: 20, paddingHorizontal: 9, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
   // reality check
-  panel: { gap: 12 },
   stepper: { flexDirection: 'row', alignItems: 'center', minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised },
   stepBtn: { width: 56, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
   stepOff: { opacity: 0.35 },
   stepVal: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
-  result: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 14, gap: 10 },
-  logRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, paddingBottom: 2 },
-  rcLocked: { gap: 12 },
-  // weigh-ins history (prototype .hist)
-  histHead: { flexDirection: 'row', paddingBottom: 6 },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 10 },
+  dayRowSep: { borderTopWidth: 1, borderTopColor: c.line },
+  dayDate: { width: 64 },
+  runLine: { paddingTop: 4 },
+  logRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8 },
+  // weigh-ins history (prototype .hist: 1 / 1 / 0.9 / 0.8)
+  histHead: { flexDirection: 'row', paddingBottom: 9 },
   histRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: c.line },
-  histDate: { flex: 1.1, minWidth: 0 },
-  histCell: { flex: 1, minWidth: 0, textAlign: 'right' },
+  histDate: { flex: 1, minWidth: 0 },
+  histW: { flex: 1, minWidth: 0, textAlign: 'right' },
+  histB: { flex: 0.9, minWidth: 0, textAlign: 'right' },
+  histC: { flex: 0.8, minWidth: 0, textAlign: 'right' },
+  histCv: { width: 22, alignItems: 'flex-end', justifyContent: 'center' },
   datebtn: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: c.well },
   dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
+  fixedDate: { paddingHorizontal: 4 },
+  centerNote: { textAlign: 'center' },
   // footer
   disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
-  list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
-  listHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60 },
-  listItem: { borderTopWidth: 1, borderTopColor: c.line },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
-  listBody: { paddingBottom: 14 },
-  srcRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
   // sheets (prototype .scrim.bot / .sheet.bsheet)
-  scrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
+  scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 48, paddingBottom: 30 },
   sheet: { backgroundColor: c.raised, borderRadius: 26, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', maxHeight: '100%', overflow: 'hidden' },
   sheetBody: { padding: 20, gap: 14 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
-  sheetSide: { minWidth: 64, minHeight: 44, justifyContent: 'center' },
-  sheetSideEnd: { alignItems: 'flex-end' },
+  sheetHeadL: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  sheetSide: { minWidth: 52, minHeight: 44, justifyContent: 'center' },
+  sheetSideEnd: { minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' },
   sheetTitle: { flex: 1, textAlign: 'center', fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
   txtBtn: { fontSize: 17, color: c.ink },
   txtBtnStrong: { fontSize: 17, fontWeight: '600', color: c.ink },

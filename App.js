@@ -4,7 +4,7 @@ import { resetAllSelections } from './lib/bookSelection';
 import { clearAllDrafts } from './lib/draftStore';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Alert, Platform, AppState, StyleSheet } from 'react-native';
@@ -224,8 +224,10 @@ function MainStack() {
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
       {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
-          reminder all open this full-screen modal; swipe down to close. */}
-      <Stack.Screen name="FoodChat" component={FoodChatScreen} options={{ presentation: 'modal', gestureEnabled: true, gestureDirection: 'vertical' }} />
+          reminder all open it. Journey redesign part 21 (founder 2026-10-02): full screen,
+          sliding up from the bottom (no iOS sheet with the screen behind peeking above);
+          swipe down or Done to close. */}
+      <Stack.Screen name="FoodChat" component={FoodChatScreen} options={{ gestureEnabled: true, gestureDirection: 'vertical', cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
     </Stack.Navigator>
   );
 }

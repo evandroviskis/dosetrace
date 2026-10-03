@@ -14,12 +14,16 @@ const path = require('path');
 
 const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 
-test('A-68: the food chat sheet does not pad the top safe-area inset on iOS', () => {
+// Journey redesign part 21 (founder 2026-10-02) replaces the iOS sheet of A-68 with a
+// full-screen chat: there is no sheet below the status bar any more, so the chat pads the top
+// inset itself on both platforms (no empty band, no header under the status bar).
+test('A-68 / part 21: the full-screen food chat pads the top safe-area inset (it is no sheet any more)', () => {
   const src = read('screens/FoodChatScreen.js');
   const m = src.match(/<SafeAreaView style=\{s\.container\} edges=\{([^}]+)\}/);
   assert.ok(m, 'chat root SafeAreaView found');
-  assert.doesNotMatch(m[1], /^\s*\[\s*'top'/, 'top edge must not be unconditional');
-  assert.match(src, /Platform\.OS === 'ios'/, 'the top edge depends on the platform');
+  assert.match(src, /const edges = embedded \? \['left', 'right'\] : \['top', 'left', 'right', 'bottom'\];/);
+  const app = read('App.js');
+  assert.doesNotMatch(app.match(/<Stack\.Screen name="FoodChat"[^\n]*/)[0], /presentation: 'modal'/, 'not an iOS modal sheet');
 });
 
 test('A-69: the example accumulation number sits next to its unit', () => {

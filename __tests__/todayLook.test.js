@@ -84,7 +84,8 @@ test('part 4: food card — drawn chevron, ink2 icon at 22 (current sparkle, Q15
   assert.ok(!FOOD.includes('›'));
   assert.match(FOOD, /<RowChevron color=\{colors\.tick\} \/>/);
   assert.match(FOOD, /<FeatureIcon name="ai_spark" size=\{22\} color=\{colors\.ink2\} \/>/);
-  assert.match(style(FOOD, 'line'), /fontSize: 19, fontFamily: fontFamilyFor\('700'\)/);
+  // founder 2026-10-02 "follow the prototype in everything": food() r-title at 19 is Geist 600 on Today too
+  assert.match(style(FOOD, 'line'), /fontSize: 19, fontFamily: fontFamilyFor\('600'\)/);
   assert.match(style(FOOD, 'card'), /paddingTop: 16/);
   assert.match(style(FOOD, 'card'), /gap: 8/);
   assert.match(style(FOOD, 'head'), /gap: 10/);

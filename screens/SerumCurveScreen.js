@@ -7,13 +7,11 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  Platform,
   PixelRatio,
   useWindowDimensions,
 } from 'react-native';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, G, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
 import Animated, {
@@ -28,10 +26,20 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getActiveProtocols, getBiomarkers } from '../lib/database';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import {
-  PAST_DAYS, STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
+  STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
+import { dateColumns, dateAfter } from '../lib/wheelPick';
+import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
+import RowChevron from '../components/RowChevron';
+
+const MONTH_KEYS = [
+  'month_jan', 'month_feb', 'month_mar', 'month_apr',
+  'month_may', 'month_jun', 'month_jul', 'month_aug',
+  'month_sep', 'month_oct', 'month_nov', 'month_dec',
+];
 import { useTheme } from '../lib/theme';
-import { MONO } from '../lib/fonts';
+import { MONO, fontFamilyFor } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { hasPremium } from '../lib/entitlement';
@@ -40,6 +48,9 @@ import CheckMark from '../components/CheckMark';
 import SegmentedBar from '../components/SegmentedBar';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
+import { restoreCurveView, FUTURE_PRESETS } from '../lib/curveView';
+import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
+import { notifyDataChanged } from '../lib/sync';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -174,7 +185,6 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 
 // The schedule → dose → level math lives in lib/serumModel.js (shared with the
 // Journey tile, so both always show the same Est. level).
-const FUTURE_PRESETS = [7, 14, 30, 60, 90];
 
 
 // Estimated level (mg or IU) from the summed dose model — not "amount in the body"
@@ -255,6 +265,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const [readoutDate, setReadoutDate] = useState(null); // ISO 'YYYY-MM-DD'; null = today
   const [showReadoutPicker, setShowReadoutPicker] = useState(false);
   const [labDates, setLabDates] = useState([]);         // distinct blood-exam dates
+  // Founder 2026-10-02: the curve opens on the last 3 days (a new protocol fills the chart);
+  // choosing an earlier date in "Estimate on a date" reaches the chart back to it.
+  const pastDays = curveWindowDays(readoutDate, todayISO());
 
   useFocusEffect(
     useCallback(() => {
@@ -277,9 +290,12 @@ export default function SerumCurveScreen({ embedded = false }) {
     }, [navigation, embedded])
   );
 
+  const userIdRef = useRef(null);
   async function fetchData() {
     const user = await getCachedUser();
     if (!user) return;
+    userIdRef.current = user.id;
+    const savedView = await loadCurveView(user.id);
     // Blends (Wolverine/Glow/KLOW) are expanded into one virtual protocol per
     // component, its dose split from the logged blend dose by the common ratio
     // (lib/compounds BLEND_RATIOS); each component charts its own line. IU-dosed
@@ -289,13 +305,14 @@ export default function SerumCurveScreen({ embedded = false }) {
     const { active, iu, noData, noDose } = splitCurveProtocols(getActiveProtocols(user.id), t);
     setNotCharted({ iu, noData, noDose });
     setProtocols(active);
-    // Keep any still-valid selection; otherwise default to the first compound.
-    setSelectedIds(prev => {
-      const u = (id) => { const p = active.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
-      const still = prev.filter(id => active.some(p => p.id === id));
-      const kept = still.filter(id => u(id) === u(still[0])); // one unit per chart
-      return kept.length ? kept : (active[0] ? [active[0].id] : []);
-    });
+    // Opens exactly as the user left it (lib/curveView, founder 2026-10-02): the remembered
+    // compounds still on the chart (one unit per chart), Combined and the horizon; nothing
+    // remembered or valid → the first compound. Reading the view writes nothing.
+    const u = (id) => { const p = active.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
+    const view = restoreCurveView({ saved: savedView, active, unitOf: u });
+    setSelectedIds(view.selectedIds);
+    setShowCombined(view.showCombined);
+    setFutureDays(view.futureDays);
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(user.id) || [];
     const uniq = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
@@ -317,24 +334,39 @@ export default function SerumCurveScreen({ embedded = false }) {
     return p ? curveUnit(getHalfLifeEntry(matchName(p))) : 'mg';
   }
 
+  // Only a change the user makes is remembered (per user), never the opening itself.
+  function rememberView(patch) {
+    saveCurveView(userIdRef.current, patch).then(() => notifyDataChanged('curve')).catch(() => {});
+  }
+  function nextSelection(prev, id) {
+    if (prev.includes(id)) {
+      // Never allow zero selected — keep the last one.
+      return prev.length === 1 ? prev : prev.filter(x => x !== id);
+    }
+    // mg and IU can't share one axis: picking a compound in the other unit
+    // starts a new selection with it.
+    if (prev.length && unitOf(prev[0]) !== unitOf(id)) return [id];
+    return [...prev, id];
+  }
   function toggle(id) {
-    setSelectedIds(prev => {
-      if (prev.includes(id)) {
-        // Never allow zero selected — keep the last one.
-        return prev.length === 1 ? prev : prev.filter(x => x !== id);
-      }
-      // mg and IU can't share one axis: picking a compound in the other unit
-      // starts a new selection with it.
-      if (prev.length && unitOf(prev[0]) !== unitOf(id)) return [id];
-      return [...prev, id];
-    });
+    const next = nextSelection(selectedIds, id);
+    setSelectedIds(next);
+    rememberView({ selectedIds: next });
+  }
+  function changeCombined(v) {
+    setShowCombined(v);
+    rememberView({ showCombined: !!v });
+  }
+  function changeHorizon(d) {
+    setFutureDays(d);
+    rememberView({ futureDays: d });
   }
 
   const chartWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 32; // screen gutter + card padding
   const chartHeight = 220;
   const AXIS_W = 38;            // left gutter for mg labels
   const PLOT_TOP = 8;           // headroom above the peak
-  const PLOT_BOTTOM = chartHeight - 4;
+  const PLOT_BOTTOM = chartHeight - 10; // room for the scheduled-dose ticks under the axis
   const plotLeft = AXIS_W;
   const plotRight = chartWidth;
   const stepMs = STEP_HOURS * 3600 * 1000;
@@ -342,7 +374,6 @@ export default function SerumCurveScreen({ embedded = false }) {
   // Shared plot mappers. Scale to a "nice" ceiling (plotMax) that sits ABOVE the
   // peak, so the highest spike never clips the top edge; set just after `model`.
   let plotMax = 1;
-  let yStep = 1;
   const yForLevel = (lv) => PLOT_BOTTOM - (lv / plotMax) * (PLOT_BOTTOM - PLOT_TOP);
   const xForIndex = (i) => {
     const n = model ? model.nSteps : 1;
@@ -360,7 +391,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     // 12:00, so every dose lands exactly ON a sample — otherwise a fast compound
     // (t½ ≲ 2h) sampled at arbitrary times of day draws near-zero or random
     // spikes that change with the minute you open the screen.
-    const start = curveGridStart(now);
+    const start = curveGridStart(now, pastDays);
     const end = now + futureDays * 24 * 3600 * 1000;
     const nSteps = Math.round((end - start) / stepMs);
 
@@ -390,6 +421,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       return {
         id: p.id,
+        p,
         name: p.__label || (p.compound_id ? t(p.compound_id) : p.name),
         color: displayColor(p.color) || colors.data,
         fromBlend: !!p.__blend,
@@ -435,22 +467,12 @@ export default function SerumCurveScreen({ embedded = false }) {
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
     return { series, combined, max, nowIdx, nowF, nSteps, start, now, unit: series[0] ? series[0].unit : 'mg' };
-  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays]);
+  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays]);
 
-  // Round the axis up to a readable ceiling above the peak (so nothing clips).
-  if (model && model.max > 0) {
-    const raw = model.max / 4;
-    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    yStep = (raw / mag >= 5 ? 5 : raw / mag >= 2 ? 2 : 1) * mag;
-    plotMax = Math.ceil(model.max / yStep) * yStep;
-  }
-  // mg tick values for the y-axis, 0 → plotMax.
-  function yTicks() {
-    if (!model || model.max <= 0) return [];
-    const ticks = [];
-    for (let v = 0; v <= plotMax + 0.001; v += yStep) ticks.push(v);
-    return ticks;
-  }
+  // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
+  // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
+  const ticksY = curveTicks(model ? model.max : 0);
+  if (model && model.max > 0) plotMax = ticksY.top;
 
   const nowX = model ? xForIndex(model.nowF) : plotLeft;
   const single = model && model.series.length === 1 ? model.series[0] : null;
@@ -461,7 +483,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const now = Date.now();
   // Same aligned origin as the model's sample grid, so the readout marker sits
   // exactly where the curve's samples are.
-  const winStart = model ? model.start : now - PAST_DAYS * 24 * 3600 * 1000;
+  const winStart = model ? model.start : now - pastDays * 24 * 3600 * 1000;
   const winEnd = now + futureDays * 24 * 3600 * 1000;
   const readoutISO = readoutDate || todayISO();
   const readoutRaw = new Date(readoutISO + 'T12:00:00').getTime();
@@ -472,6 +494,17 @@ export default function SerumCurveScreen({ embedded = false }) {
     : model ? model.start + Math.round((readoutRaw - model.start) / stepMs) * stepMs : readoutRaw;
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
   const levelAtDate = (ser, T) => levelAt(ser.doses, ser.doseMg, ser.entry, T);
+  // The same for a chosen date past the projection: its own scheduled doses up to that date.
+  const readoutLevel = (ser, T) => (T <= winEnd || !model ? levelAtDate(ser, T)
+    : levelAt(scheduledDoses(ser.p, ser.entry, model.start, T, model.now), ser.doseMg, ser.entry, T));
+  // Part 19: the next three days with a scheduled dose, as chips.
+  const upcoming = useMemo(
+    () => upcomingDoseDays(protocols.filter(p => selectedIds.includes(p.id)), Date.now(), 3),
+    [protocols, selectedIds],
+  );
+  const chipDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const customDate = !!readoutDate && !upcoming.includes(readoutDate) && !labDates.includes(readoutDate);
+  const pickDate = (iso) => setReadoutDate(prev => (prev === iso ? null : iso));
   const seriesById = {};
   if (model) for (const ser of model.series) seriesById[ser.id] = ser;
   // Marker x only when the readout date sits inside the plotted window.
@@ -619,6 +652,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   // AnimatedNumber is a fixed-width field: size it to the settled value so it never clips.
   const fontScale = PixelRatio.getFontScale();
   const numW = (str) => numberWidth(str, 34, fontScale);
+  // Part 18: the Est. level field is as wide as the number actually drawn (measured from a
+  // hidden copy), so its unit sits right next to the digits as in the prototype ("0.4 mg").
+  const [levelW, setLevelW] = useState(null);
   const hl = single ? halfLifeParts(single.entry.hours) : null;
   // One plain-language note per compound on how this model draws it.
   const noteFor = (ser) => {
@@ -648,7 +684,10 @@ export default function SerumCurveScreen({ embedded = false }) {
             accessibilityRole="button"
             accessibilityLabel={t('common_back')}
           >
-            <Text style={s.back}>‹ {backLabel}</Text>
+            <View style={s.backRow}>
+              <View style={s.backChev}><RowChevron color={colors.ink} /></View>
+              <Text style={s.back}>{backLabel}</Text>
+            </View>
           </TouchableOpacity>
         </View>
       )}
@@ -688,13 +727,33 @@ export default function SerumCurveScreen({ embedded = false }) {
 
           {/* Chart card */}
           <View style={s.card}>
-            <View style={s.cardTop}>
-              <Text style={s.rangeLabel}>
-                {t('curve_last_days')} {PAST_DAYS}d · +{futureDays}d {t('curve_projection')}
-                {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
-              </Text>
-              <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
-            </View>
+            {/* Part 17: the number the Journey tile shows leads the card. */}
+            {single ? (
+              <View style={s.heroRow}>
+                <View style={s.heroCol}>
+                  <Text style={s.foot}>{t('curve_level_now')}</Text>
+                  <Text style={[s.heroNum, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {mgLabel(single.nowLevel)}<Text style={s.unitInline}> {unitLbl}</Text>
+                  </Text>
+                </View>
+                <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
+              </View>
+            ) : (
+              <>
+                {model && model.series.map(ser => (
+                  <View key={`h-${ser.id}`} style={s.heroMultiRow}>
+                    <View style={[s.dot, { backgroundColor: ser.color }]} />
+                    <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
+                    <Text style={s.readoutVal}>{mgLabel(ser.nowLevel)} {unitLbl}</Text>
+                  </View>
+                ))}
+                <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
+              </>
+            )}
+            <Text style={s.rangeLabel}>
+              {t('curve_last_days')} {pastDays}d · +{futureDays}d {t('curve_projection')}
+              {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
+            </Text>
 
             {/* a touch on the chart skips the opening moment to its end */}
             <View onTouchStart={finishIntro}>
@@ -703,14 +762,21 @@ export default function SerumCurveScreen({ embedded = false }) {
               <ARect y={PLOT_TOP} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.well} animatedProps={zoneProps} />
               {/* y-axis: gridlines + labels (dip and return during a rescale) */}
               <AG animatedProps={gridProps}>
-              {yTicks().map((v, i) => (
+              {ticksY.ticks.map((v, i) => (
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.line} strokeWidth={1} strokeDasharray="2,3" />
-                  <SvgText x={plotLeft - 6} y={yForLevel(v) + 3.5} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="end">
-                    {mgLabel(v)}
+                  <SvgText x={plotLeft - 4} y={yForLevel(v) + 3} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="end">
+                    {axisLabel(v)}
                   </SvgText>
                 </React.Fragment>
               ))}
+              {/* a short tick under the axis for every scheduled dose in the window */}
+              {model && model.max > 0 && model.series.map(ser => ser.doses
+                .filter(ts => ts >= model.start && ts <= model.start + model.nSteps * stepMs)
+                .map(ts => {
+                  const x = xForIndex((ts - model.start) / stepMs);
+                  return <Line key={`tk-${ser.id}-${ts}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={1.4} />;
+                }))}
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="start">{unitLbl}</SvgText>
               </AG>
               {/* NOW line — rises from the baseline when the pen reaches today */}
@@ -783,7 +849,7 @@ export default function SerumCurveScreen({ embedded = false }) {
             </View>
 
             <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]}>
-              <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{PAST_DAYS}d</Text>
+              <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{pastDays}d</Text>
               <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]}>+{futureDays}d</Text>
               {model && (
                 <Text style={[s.axisNow, { position: 'absolute', left: Math.max(0, (nowX - AXIS_W) - 14) }]}>
@@ -792,6 +858,13 @@ export default function SerumCurveScreen({ embedded = false }) {
               )}
             </Animated.View>
 
+            {/* Legend (part 17): estimate · projection · scheduled doses */}
+            <View style={s.legendKeys}>
+              <View style={s.legendKey}><View style={s.lgSolid} /><Text style={s.legendKeyText}>{t('curve_lg_estimate')}</Text></View>
+              <View style={s.legendKey}><View style={s.lgDash}>{[0, 1, 2].map(k => <View key={k} style={s.lgDashBit} />)}</View><Text style={s.legendKeyText}>{t('curve_lg_projection')}</Text></View>
+              <View style={s.legendKey}><View style={s.lgTick} /><Text style={s.legendKeyText}>{t('curve_lg_doses')}</Text></View>
+            </View>
+
             {/* Projection horizon: the shared bar */}
             <View style={s.fld}>
               <Text style={s.fldLabel}>{t('curve_project_ahead')}</Text>
@@ -799,7 +872,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 accessibilityLabel={t('curve_project_ahead')}
                 items={FUTURE_PRESETS.map(d => ({ key: d, label: `+${d}d` }))}
                 value={futureDays}
-                onChange={setFutureDays}
+                onChange={changeHorizon}
               />
             </View>
           </View>
@@ -810,8 +883,9 @@ export default function SerumCurveScreen({ embedded = false }) {
               <View style={s.statCol}>
                 <Text style={s.statCap}>{t('curve_current_level')}</Text>
                 <View style={s.statNumRow}>
+                  <Text style={[s.statNum, s.measure]} onLayout={(e) => setLevelW(Math.ceil(e.nativeEvent.layout.width) + 2)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{mgLabel(singleNow)}</Text>
                   <Animated.View style={statBump}>
-                    <AnimatedNumber value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={numW(mgLabel(singleNow))} />
+                    <AnimatedNumber value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={levelW != null ? levelW : numW(mgLabel(singleNow))} />
                   </Animated.View>
                   <Text style={s.statUnit}>{unitLbl}</Text>
                 </View>
@@ -867,7 +941,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               </View>
               <GradSwitch
                 value={showCombined}
-                onValueChange={setShowCombined}
+                onValueChange={changeCombined}
               />
             </View>
           )}
@@ -875,43 +949,37 @@ export default function SerumCurveScreen({ embedded = false }) {
           {/* ── Estimate on a date (cross-reference a blood draw) ── */}
           <View style={s.card}>
             <Text style={s.cardHead}>{t('curve_readout_title')}</Text>
-            <TouchableOpacity style={s.dateBtn} onPress={() => setShowReadoutPicker(v => !v)} accessibilityRole="button">
-              <FeatureIcon name="calendar" size={16} color={colors.ink} />
-              <Text style={s.dateBtnText}>{dateLong(readoutISO)}</Text>
-            </TouchableOpacity>
-            {showReadoutPicker && (
-              <DateTimePicker
-                value={new Date(readoutISO + 'T12:00:00')}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                maximumDate={new Date(winEnd)}
-                themeVariant={colors.scheme === 'dark' ? 'dark' : 'light'}
-                textColor={colors.ink}
-                onChange={(event, d) => {
-                  setShowReadoutPicker(Platform.OS === 'ios');
-                  if (event.type === 'dismissed') { setShowReadoutPicker(false); return; }
-                  if (d) { const x = new Date(d); x.setHours(12, 0, 0, 0); setReadoutDate(x.toISOString().split('T')[0]); }
-                }}
-              />
-            )}
+            {/* Part 19: the next three dose days, "Other date" (the wheel), then bloodwork dates. */}
+            <View style={s.chips}>
+              {upcoming.slice(0, 3).map(d => {
+                const on = readoutDate === d;
+                return (
+                  <TouchableOpacity key={d} style={[s.pill, on && s.pillOn]} onPress={() => pickDate(d)} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                    <Text style={[s.pillText, on && s.pillTextOn]}>{chipDay(d)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity style={[s.pill, customDate && s.pillOn]} onPress={() => setShowReadoutPicker(true)} accessibilityRole="button" accessibilityState={{ selected: customDate }}>
+                <Text style={[s.pillText, customDate && s.pillTextOn]}>{customDate ? dateLong(readoutDate) : t('curve_other_date')}</Text>
+              </TouchableOpacity>
+            </View>
 
             {labDates.length > 0 && (
               <>
                 <Text style={s.foot}>{t('curve_readout_lab_hint')}</Text>
                 <View style={s.chips}>
                   {labDates.map(d => {
-                    const on = readoutISO === d;
+                    const on = readoutDate === d;
                     return (
                       <TouchableOpacity
                         key={d}
                         style={[s.pill, on && s.pillOn]}
-                        onPress={() => setReadoutDate(d)}
+                        onPress={() => pickDate(d)}
                         accessibilityRole="button"
                         accessibilityState={{ selected: on }}
                       >
-                        <FeatureIcon name="droplet" size={13} color={on ? colors.ink : colors.ink2} />
                         <Text style={[s.pillText, on && s.pillTextOn]}>
-                          {new Date(d + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' })}
+                          {t('curve_bloodwork_chip').replace('{date}', new Date(d + 'T12:00:00').toLocaleDateString(LOCALE_MAP[language] || 'en-US', { month: 'short', day: 'numeric' }))}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -920,26 +988,30 @@ export default function SerumCurveScreen({ embedded = false }) {
               </>
             )}
 
-            {/* per-line estimate on the chosen date */}
-            <View style={s.sep} />
-            {model && model.series.map(ser => (
-              <View key={`ro-${ser.id}`} style={s.readoutRow}>
-                <View style={[s.dot, { backgroundColor: ser.color }]} />
-                <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
-                <Text style={s.readoutVal}>{mgLabel(levelAtDate(ser, readoutT))}<Text style={s.unitInline}> {unitLbl}</Text></Text>
-              </View>
-            ))}
-            {showCombined && model && model.combined.map(c => (
-              <View key={`ro-${c.id}`} style={s.readoutRow}>
-                <View style={[s.combinedSwatch, { backgroundColor: colors.ink }]} />
-                <Text style={[s.readoutName, { fontWeight: '700' }]} numberOfLines={1}>
-                  {t('curve_combined')} · {t(`substance_${c.substance}`)}
-                </Text>
-                <Text style={s.readoutVal}>
-                  {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? levelAtDate(seriesById[mid], readoutT) : 0), 0))}<Text style={s.unitInline}> {unitLbl}</Text>
-                </Text>
-              </View>
-            ))}
+            {/* the estimate on the chosen date, per line */}
+            {readoutDate ? (
+              <>
+                <View style={s.sep} />
+                {model && model.series.map(ser => (
+                  <View key={`ro-${ser.id}`} style={s.readoutRow}>
+                    <View style={[s.dot, { backgroundColor: ser.color }]} />
+                    <Text style={s.readoutName} numberOfLines={2}>{ser.name} · {readoutShort}</Text>
+                    <Text style={s.readoutVal}>{readoutT < model.start ? '—' : mgLabel(readoutLevel(ser, readoutT))} {unitLbl}</Text>
+                  </View>
+                ))}
+                {showCombined && model && model.combined.map(c => (
+                  <View key={`ro-${c.id}`} style={s.readoutRow}>
+                    <View style={[s.combinedSwatch, { backgroundColor: colors.ink }]} />
+                    <Text style={[s.readoutName, { fontWeight: '700' }]} numberOfLines={2}>
+                      {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
+                    </Text>
+                    <Text style={s.readoutVal}>
+                      {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))} {unitLbl}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
           </View>
 
           {/* Honesty: evidence tier, how the model draws it, and the source — one tap away */}
@@ -981,6 +1053,14 @@ export default function SerumCurveScreen({ embedded = false }) {
           <Text style={s.disclaimer}>{t('curve_disclaimer')}</Text>
         </ScrollView>
       )}
+
+      {/* "Other date": the prototype wheel in a DoseTrace bottom sheet (part 19). */}
+      <DTPickerSheet visible={showReadoutPicker} title={t('curve_readout_title')} doneLabel={t('curve_done')} onDone={() => { if (!readoutDate) setReadoutDate(todayISO()); setShowReadoutPicker(false); }}>
+        <DTWheel
+          columns={dateColumns(readoutISO, new Date(), MONTH_KEYS.map(k => t(k)))}
+          onChange={(col, i) => setReadoutDate(dateAfter(readoutISO, new Date(), col, i))}
+        />
+      </DTPickerSheet>
 
       {/* Multi-select picker sheet */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
@@ -1031,8 +1111,10 @@ function makeStyles(c) {
     nav: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
     navEmbedded: { height: 8 }, // on a book page: the title lines up with the left page's title
     back: { fontSize: 17, color: c.ink },
+    backRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    backChev: { transform: [{ scaleX: -1 }] },
     title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 4, paddingTop: 4, paddingBottom: 12 },
-    scroll: { paddingHorizontal: 16, paddingBottom: 40, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    scroll: { paddingHorizontal: 16, paddingBottom: 24, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
     // the title already carries the screen gutter inside the scroll
     pickrow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 18, minHeight: 56, paddingHorizontal: 16 },
@@ -1040,15 +1122,26 @@ function makeStyles(c) {
     dot: { width: 9, height: 9, borderRadius: 5 },
     notCharted: { fontSize: 13, color: c.ink2, lineHeight: 18, paddingHorizontal: 4 },
 
-    card: { backgroundColor: c.raised, borderRadius: 20, padding: 16, gap: 10 },
-    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
+    card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+    // part 17 hero: "Est. level · now" + the 56 pt number in data blue, the chip on the right
+    heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+    heroCol: { flex: 1, minWidth: 0, gap: 4 },
+    heroNum: { fontSize: 56, lineHeight: 60, fontWeight: '500', letterSpacing: -1.6, fontVariant: ['tabular-nums'] },
+    heroMultiRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    legendKeys: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6 },
+    legendKey: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    legendKeyText: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
+    lgSolid: { width: 18, height: 2, backgroundColor: c.data },
+    lgDash: { width: 18, height: 2, flexDirection: 'row', justifyContent: 'space-between' },
+    lgDashBit: { width: 4, height: 2, backgroundColor: c.data },
+    lgTick: { width: 2, height: 8, backgroundColor: c.data },
     rangeLabel: { flex: 1, fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
-    chip: { minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, justifyContent: 'center' },
+    chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 2, justifyContent: 'center' },
     chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
     axisLabel: { fontSize: 11, color: c.ink3, fontFamily: MONO['400'] },
     axisNow: { fontSize: 11, color: c.ink, fontWeight: '700' },
 
-    fld: { gap: 8, marginTop: 6 },
+    fld: { gap: 10 },
     fldLabel: { fontSize: 13, color: c.ink2 },
 
     curvestats: { flexDirection: 'row', gap: 8, backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16 },
@@ -1057,6 +1150,8 @@ function makeStyles(c) {
     statNumRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
     statNum: { fontSize: 34, fontWeight: '300', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
     statUnit: { fontSize: 13, color: c.ink3, fontFamily: MONO['400'], marginLeft: 3 },
+    // the hidden copy that measures the Est. level number (same font as AnimatedNumber)
+    measure: { position: 'absolute', left: 0, top: 0, opacity: 0, fontFamily: fontFamilyFor('300'), fontWeight: undefined },
     unitInline: { fontSize: 13, color: c.ink3, fontFamily: MONO['400'] },
 
     list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
@@ -1077,17 +1172,17 @@ function makeStyles(c) {
     dateBtnText: { fontSize: 17, color: c.ink },
     foot: { fontSize: 13, lineHeight: 18, color: c.ink2 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line },
-    pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
+    pill: { flexDirection: 'row', alignItems: 'center', minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line },
+    pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5 },
     pillText: { fontSize: 13, color: c.ink2 },
     pillTextOn: { color: c.ink, fontWeight: '600' },
-    sep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line },
-    readoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 36 },
-    readoutName: { flex: 1, fontSize: 17, color: c.ink },
-    readoutVal: { fontSize: 15, fontWeight: '500', color: c.ink, fontFamily: MONO['500'], fontVariant: ['tabular-nums'] },
+    sep: { height: 1, backgroundColor: c.line },
+    readoutRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    readoutName: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
+    readoutVal: { fontSize: 17, lineHeight: 22, color: c.ink, fontFamily: MONO['500'], fontVariant: ['tabular-nums'] },
 
     noteBlock: { gap: 6 },
-    noteSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 12, marginTop: 4 },
+    noteSep: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12 },
     noteHead: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
     noteName: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },
     otag: { minHeight: 24, borderRadius: 12, borderWidth: 1, paddingHorizontal: 9, justifyContent: 'center' },

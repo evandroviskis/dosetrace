@@ -104,7 +104,7 @@ export const translations = {
     nutri_mark_not_recorded: 'Not recorded',
     nutri_marked_not_recorded: 'Marked not recorded',
     nutri_undo: 'Undo',
-    nutri_nothing_logged: 'Nothing logged',
+    nutri_nothing_logged: 'nothing logged',
     nutri_retry_later: "Saved — the AI couldn't be reached just now. I'll try again in a moment, and each time you open the log.",
     nutri_free_ending_note_nocheck: 'Your 7 free days end on {until} — food logged on {logged} days so far. Premium keeps the food log and the reality check open after {until}.',
     nutri_grace_note_premium_nocheck: 'Your Premium has ended. You can keep logging until {until}; Premium keeps the food log and the reality check open after that.',
@@ -570,6 +570,12 @@ export const translations = {
     curve_project_ahead: 'Project ahead',
     curve_readout_title: 'Estimate on a date',
     curve_readout_lab_hint: 'Jump to a blood-draw date:',
+    curve_level_now: 'Est. level · now',
+    curve_lg_estimate: 'estimate',
+    curve_lg_projection: 'projection',
+    curve_lg_doses: 'scheduled doses',
+    curve_other_date: 'Other date',
+    curve_bloodwork_chip: '{date} · bloodwork',
     curve_half_life: 'Half-life',
     curve_source_label: 'Source',
     curve_fast_note: 'In this model, {names} clears within hours, so each spike is one scheduled dose and the estimate does not build up between doses.',
@@ -728,7 +734,7 @@ export const translations = {
     body_card_dosing_desc: "See how your logged doses stack up over time, from a half-life you enter. A math estimate — never a measurement.",
     cal_disclaimer: 'An estimate for general wellness, not medical advice or a prescription. It is never linked to any medication or dose — just energy math from the numbers you enter. Individual variation of ±10–15% is normal.',
     cal_intro_title: 'What this is',
-    cal_intro_body: 'Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. A quick reality check, not a food tracker — save snapshots to watch the numbers change over time.',
+    cal_intro_body: 'Your basal metabolic rate (BMR) is roughly how many calories your body burns at rest each day — just to keep you running. Enter your stats once and it estimates that number, plus the daily calories and protein that fit your goal. Adding your body-fat percentage sharpens the estimate, since the math can then work from your lean mass. Every weigh-in is saved, so you can watch the numbers change over time.',
     cal_overview_title: 'Your goal',
     cal_your_details: 'Your details',
     cal_your_numbers: 'Your numbers',
@@ -801,11 +807,11 @@ export const translations = {
     cal_warn_bmr_floor: 'Weight-loss target raised to {kcal} kcal so it stays at or above your estimated BMR.',
     cal_warn_protein_adjusted: 'Protein is based on adjusted weight (BMI 30+), not total weight — standard practice at higher BMI.',
     cal_warn_protein_cap: 'Protein target capped at {g} g/day.',
-    cal_yr: 'y',
+    cal_yr: 'yr',
     cal_bf_short: 'BF',
     cal_check_inputs: 'One of the inputs is out of range — check the values below.',
     cal_estimate_note: 'These are estimates — a starting point, not a target set in stone. Plug the number into whatever you use to track food, then adjust based on what actually happens over 3–4 weeks.',
-    cal_need_inputs: 'Enter your weight and body fat (or height, age and sex) to see your estimate.',
+    cal_need_inputs: 'Enter your weight, height, age and sex to see your daily burn.',
     cal_learn: 'Understand the numbers',
     cal_sources_title: 'Sources & references',
     cal_sources_intro: 'The formulas and figures in this calculator come from published research. Tap a source to read it.',
@@ -890,7 +896,7 @@ export const translations = {
     cal_tgt_locked_eta: 'Unlock Premium to project a timeline from your measured pace.',
     cal_tgt_below_range: 'This target is below the healthy range for your height ({min}–{max} {unit}).',
     cal_tgt_away: 'Moving away from this target at your current pace — no timeline yet.',
-    cal_tgt_no_rate: 'Log two weigh-ins about two weeks apart (or add past ones under snapshots) to project a timeline.',
+    cal_tgt_no_rate: 'Log two weigh-ins about two weeks apart (or add past ones under Weigh-ins) to project a timeline.',
     cal_tgt_basis: 'Based on your weigh-ins {from}–{to}.',
     cal_tgt_healthy: 'Healthy range for your height: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Remove target?',
@@ -901,6 +907,49 @@ export const translations = {
     cal_tgt_backfill_hint: 'Already underway? Add a weigh-in from a past date so your pace shows sooner.',
     cal_tgt_backfill_date: 'Date',
     cal_tgt_backfill_save: 'Save weigh-in',
+    // Journey redesign, Progress (founder 2026-10-02)
+    cal_log_today_weight: 'Log today\'s weight',
+    cal_log_today_note: 'Saved as today\'s weigh-in. It updates your progress, your target and your reality check.',
+    cal_eg: 'e.g. {v}',
+    cal_rc_reset_title: 'Start over?',
+    cal_rc_kcal_link: 'Type your average calories instead',
+    cal_rc_kcal_change: 'Change the calories you typed',
+    cal_rc_kcal_title: 'Your average calories',
+    cal_rc_kcal_field: 'Average calories per day',
+    cal_rc_kcal_hint: 'Your own average for the days of this check. When your food log has 7 days in a row, the food log is used and this number is kept.',
+    cal_rc_kcal_clear: 'Clear the typed calories',
+    cal_rc_kcal_typed: 'Typed average: {kcal} kcal/day',
+    cal_rc_kcal_both: 'Using your food log. The {kcal} kcal/day you typed is kept.',
+    cal_rc_src_food: 'From your food log',
+    cal_rc_src_typed: 'From the average calories you typed',
+    cal_rc_reset_body: 'This clears the start weight of this check and its reminders. Your weigh-ins and logged meals are kept.',
+    cal_rc_due: 'Time to weigh in — log today\'s weight to finish your reality check.',
+    cal_rc_sofar_day1: 'Day {n} of {total}. Nothing logged yet today.',
+    cal_rc_sofar_row: '{kcal} kcal · {n} items',
+    cal_rc_sofar_row_one: '{kcal} kcal · 1 item',
+    cal_rc_sofar_run: 'Run: {d} days · ~{kcal} kcal/day logged',
+    cal_weighins_title: 'Weigh-ins',
+    cal_weighins_summary: '{n} · last {date} · {w}',
+    cal_fill_numbers: 'Fill in your numbers below to see your daily burn.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Weight, height, age and sex give your daily burn. Body fat and waist make it sharper.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'None yet', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Complete your numbers', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Update your weight', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Changing your weight works like a weigh-in.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Update the {date} weigh-in', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Save as today\'s weigh-in', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Tap a weigh-in to fix or delete it.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Weigh-in', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Changes here update your progress, your target and your reality check.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Delete weigh-in', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Delete this weigh-in?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Your progress, your target and your reality check update without it. This can\'t be undone.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'This weigh-in starts your reality check, so it can be fixed but not deleted.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Enter a weight between 25 and 300 kg (55–660 lb); body fat 3–70%.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_weighins_need_more: 'Two weigh-ins make a trend.',
+    cal_show_all: 'Show all',
+    cal_show_less: 'Show less',
+    cal_tgt_date_line: 'Target date: {date}',
     cal_snap_waist: 'Waist',
     cal_premium_locked: 'A Premium feature',
     cal_premium_cta: 'Go Premium',
@@ -1966,7 +2015,7 @@ export const translations = {
     nutri_mark_not_recorded: 'No registrado',
     nutri_marked_not_recorded: 'Marcado como no registrado',
     nutri_undo: 'Deshacer',
-    nutri_nothing_logged: 'Nada registrado',
+    nutri_nothing_logged: 'nada registrado',
     nutri_retry_later: 'Guardado: no se pudo contactar con la IA ahora mismo. Lo intentaré de nuevo en un momento y cada vez que abras el registro.',
     nutri_free_ending_note_nocheck: 'Tus 7 días gratis terminan el {until}; comida registrada en {logged} días hasta ahora. Premium mantiene abiertos el registro de comida y la comprobación después del {until}.',
     nutri_grace_note_premium_nocheck: 'Tu Premium ha terminado. Puedes seguir registrando hasta el {until}; Premium mantiene abiertos el registro de comida y la comprobación después.',
@@ -2432,6 +2481,12 @@ export const translations = {
     curve_project_ahead: 'Proyectar',
     curve_readout_title: 'Estimación en una fecha',
     curve_readout_lab_hint: 'Ir a una fecha de análisis:',
+    curve_level_now: 'Nivel est. · ahora',
+    curve_lg_estimate: 'estimación',
+    curve_lg_projection: 'proyección',
+    curve_lg_doses: 'dosis programadas',
+    curve_other_date: 'Otra fecha',
+    curve_bloodwork_chip: '{date} · análisis',
     curve_half_life: 'Vida media',
     curve_source_label: 'Fuente',
     curve_fast_note: 'En este modelo, {names} se elimina en horas: cada pico es una dosis programada y la estimación no se acumula entre dosis.',
@@ -2590,7 +2645,7 @@ export const translations = {
     body_card_dosing_desc: "Mira cómo se acumulan tus dosis registradas con el tiempo, a partir de una vida media que tú introduces. Una estimación matemática, nunca una medición.",
     cal_disclaimer: 'Una estimación para bienestar general, no un consejo médico ni una prescripción. Nunca se vincula a ningún medicamento ni dosis: solo cálculos de energía a partir de los números que ingresas. Una variación individual de ±10-15% es normal.',
     cal_intro_title: 'Qué es esto',
-    cal_intro_body: 'Tu tasa metabólica basal (TMB) es, a grandes rasgos, cuántas calorías quema tu cuerpo en reposo cada día, solo para mantenerte en marcha. Ingresa tus datos una vez y estima ese número, junto con las calorías y proteínas diarias que encajan con tu objetivo. Añadir tu porcentaje de grasa corporal afina la estimación, porque el cálculo puede partir de tu masa magra. Una comprobación rápida, no un registro de comidas: guarda instantáneas para ver cómo cambian los números con el tiempo.',
+    cal_intro_body: 'Tu tasa metabólica basal (TMB) es, a grandes rasgos, cuántas calorías quema tu cuerpo en reposo cada día, solo para mantenerte en marcha. Ingresa tus datos una vez y estima ese número, junto con las calorías y proteínas diarias que encajan con tu objetivo. Añadir tu porcentaje de grasa corporal afina la estimación, porque el cálculo puede partir de tu masa magra. Cada pesaje se guarda, así puedes ver cómo cambian los números con el tiempo.',
     cal_overview_title: 'Tu objetivo',
     cal_your_details: 'Tus datos',
     cal_your_numbers: 'Tus cifras',
@@ -2663,11 +2718,11 @@ export const translations = {
     cal_warn_bmr_floor: 'La meta para perder peso se elevó a {kcal} kcal para no quedar por debajo de tu TMB estimada.',
     cal_warn_protein_adjusted: 'La proteína se calcula sobre peso ajustado (IMC 30+), no sobre el peso total: práctica estándar con IMC alto.',
     cal_warn_protein_cap: 'La meta de proteína se limitó a {g} g/día.',
-    cal_yr: 'a',
+    cal_yr: 'años',
     cal_bf_short: 'GC',
     cal_check_inputs: 'Uno de los datos está fuera de rango: revisa los valores de abajo.',
     cal_estimate_note: 'Son estimaciones: un punto de partida, no una meta fija. Usa el número en lo que uses para registrar comida y ajústalo según lo que realmente ocurra en 3-4 semanas.',
-    cal_need_inputs: 'Ingresa tu peso y grasa corporal (o altura, edad y sexo) para ver tu estimación.',
+    cal_need_inputs: 'Ingresa tu peso, altura, edad y sexo para ver tu gasto diario.',
     cal_learn: 'Entiende los números',
     cal_sources_title: 'Fuentes y referencias',
     cal_sources_intro: 'Las fórmulas y cifras de esta calculadora provienen de investigaciones publicadas. Toca una fuente para leerla.',
@@ -2752,7 +2807,7 @@ export const translations = {
     cal_tgt_locked_eta: 'Consigue Premium para proyectar un plazo según tu ritmo medido.',
     cal_tgt_below_range: 'Este objetivo está por debajo del rango saludable para tu altura ({min}–{max} {unit}).',
     cal_tgt_away: 'Te alejas de este objetivo a tu ritmo actual — aún sin previsión.',
-    cal_tgt_no_rate: 'Registra dos pesajes con unas dos semanas de diferencia (o añade anteriores en instantáneas) para estimar un plazo.',
+    cal_tgt_no_rate: 'Registra dos pesajes con unas dos semanas de diferencia (o añade anteriores en Pesajes) para estimar un plazo.',
     cal_tgt_basis: 'Según tus pesajes {from}–{to}.',
     cal_tgt_healthy: 'Rango saludable para tu altura: {min}–{max} {unit}.',
     cal_tgt_clear_title: '¿Quitar objetivo?',
@@ -2763,6 +2818,49 @@ export const translations = {
     cal_tgt_backfill_hint: '¿Ya empezaste? Añade un pesaje de una fecha pasada para ver tu ritmo antes.',
     cal_tgt_backfill_date: 'Fecha',
     cal_tgt_backfill_save: 'Guardar pesaje',
+    // Journey redesign, Progress (founder 2026-10-02)
+    cal_log_today_weight: 'Registrar el peso de hoy',
+    cal_log_today_note: 'Se guarda como el pesaje de hoy. Actualiza tu progreso, tu objetivo y tu comprobación real.',
+    cal_eg: 'p. ej. {v}',
+    cal_rc_reset_title: '¿Empezar de nuevo?',
+    cal_rc_kcal_link: 'Escribir tus calorías medias en su lugar',
+    cal_rc_kcal_change: 'Cambiar las calorías que escribiste',
+    cal_rc_kcal_title: 'Tus calorías medias',
+    cal_rc_kcal_field: 'Calorías medias por día',
+    cal_rc_kcal_hint: 'Tu propia media para los días de esta comprobación. Cuando tu registro de comida tenga 7 días seguidos, se usa el registro y este número se conserva.',
+    cal_rc_kcal_clear: 'Borrar las calorías escritas',
+    cal_rc_kcal_typed: 'Media escrita: {kcal} kcal/día',
+    cal_rc_kcal_both: 'Se usa tu registro de comida. Las {kcal} kcal/día que escribiste se conservan.',
+    cal_rc_src_food: 'De tu registro de comida',
+    cal_rc_src_typed: 'De las calorías medias que escribiste',
+    cal_rc_reset_body: 'Esto borra el peso inicial de esta comprobación y sus recordatorios. Tus pesajes y comidas registradas se conservan.',
+    cal_rc_due: 'Hora de pesarte: registra el peso de hoy para terminar tu comprobación real.',
+    cal_rc_sofar_day1: 'Día {n} de {total}. Aún no hay nada registrado hoy.',
+    cal_rc_sofar_row: '{kcal} kcal · {n} elementos',
+    cal_rc_sofar_row_one: '{kcal} kcal · 1 elemento',
+    cal_rc_sofar_run: 'Racha: {d} días · ~{kcal} kcal/día registradas',
+    cal_weighins_title: 'Pesajes',
+    cal_weighins_summary: '{n} · último {date} · {w}',
+    cal_fill_numbers: 'Completa tus cifras abajo para ver tu gasto diario.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Peso, altura, edad y sexo dan tu gasto diario. La grasa corporal y la cintura lo afinan.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Ninguno aún', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Completa tus cifras', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Actualizar tu peso', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Cambiar tu peso funciona como un pesaje.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Actualizar el pesaje del {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Guardar como pesaje de hoy', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Toca un pesaje para corregirlo o eliminarlo.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesaje', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Los cambios aquí actualizan tu progreso, tu objetivo y tu comprobación real.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Eliminar pesaje', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: '¿Eliminar este pesaje?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Tu progreso, tu objetivo y tu comprobación real se actualizan sin él. No se puede deshacer.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Este pesaje inicia tu comprobación real, así que se puede corregir pero no eliminar.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Introduce un peso entre 25 y 300 kg (55–660 lb); grasa corporal 3–70 %.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_weighins_need_more: 'Dos pesajes marcan una tendencia.',
+    cal_show_all: 'Ver todo',
+    cal_show_less: 'Ver menos',
+    cal_tgt_date_line: 'Fecha objetivo: {date}',
     cal_snap_waist: 'Cintura',
     cal_premium_locked: 'Una función Premium',
     cal_premium_cta: 'Hazte Premium',
@@ -3828,7 +3926,7 @@ export const translations = {
     nutri_mark_not_recorded: 'Não registrado',
     nutri_marked_not_recorded: 'Marcado como não registrado',
     nutri_undo: 'Desfazer',
-    nutri_nothing_logged: 'Nada registrado',
+    nutri_nothing_logged: 'nada registrado',
     nutri_retry_later: 'Salvo — não foi possível falar com a IA agora. Vou tentar de novo em instantes e sempre que você abrir o registro.',
     nutri_free_ending_note_nocheck: 'Seus 7 dias grátis terminam em {until} — comida registrada em {logged} dias até agora. O Premium mantém o registro de comida e o acompanhamento abertos depois de {until}.',
     nutri_grace_note_premium_nocheck: 'Seu Premium terminou. Você pode continuar registrando até {until}; o Premium mantém o registro de comida e o acompanhamento abertos depois disso.',
@@ -4294,6 +4392,12 @@ export const translations = {
     curve_project_ahead: 'Projetar',
     curve_readout_title: 'Estimativa em uma data',
     curve_readout_lab_hint: 'Ir para uma data de coleta:',
+    curve_level_now: 'Nível est. · agora',
+    curve_lg_estimate: 'estimativa',
+    curve_lg_projection: 'projeção',
+    curve_lg_doses: 'doses programadas',
+    curve_other_date: 'Outra data',
+    curve_bloodwork_chip: '{date} · exame de sangue',
     curve_half_life: 'Meia-vida',
     curve_source_label: 'Fonte',
     curve_fast_note: 'Neste modelo, {names} é eliminado em poucas horas: cada pico é uma dose programada e a estimativa não se acumula entre doses.',
@@ -4452,7 +4556,7 @@ export const translations = {
     body_card_dosing_desc: "Veja como suas doses registradas se acumulam ao longo do tempo, a partir de uma meia-vida que você digita. Uma estimativa matemática, nunca uma medição.",
     cal_disclaimer: 'Uma estimativa para bem-estar geral, não um conselho médico nem uma prescrição. Nunca é vinculada a nenhum medicamento ou dose — apenas cálculos de energia a partir dos números que você insere. Uma variação individual de ±10-15% é normal.',
     cal_intro_title: 'O que é isto',
-    cal_intro_body: 'Sua taxa metabólica basal (TMB) é, a grosso modo, quantas calorias seu corpo queima em repouso a cada dia — só para manter você funcionando. Insira seus dados uma vez e ele estima esse número, junto com as calorias e proteínas diárias que combinam com seu objetivo. Informar seu percentual de gordura corporal deixa a estimativa mais precisa, pois o cálculo pode partir da sua massa magra. Uma verificação rápida, não um registro de comida — salve registros para acompanhar como os números mudam ao longo do tempo.',
+    cal_intro_body: 'Sua taxa metabólica basal (TMB) é, a grosso modo, quantas calorias seu corpo queima em repouso a cada dia — só para manter você funcionando. Insira seus dados uma vez e ele estima esse número, junto com as calorias e proteínas diárias que combinam com seu objetivo. Informar seu percentual de gordura corporal deixa a estimativa mais precisa, pois o cálculo pode partir da sua massa magra. Cada pesagem fica salva, para você acompanhar como os números mudam ao longo do tempo.',
     cal_overview_title: 'Seu objetivo',
     cal_your_details: 'Seus dados',
     cal_your_numbers: 'Seus números',
@@ -4525,11 +4629,11 @@ export const translations = {
     cal_warn_bmr_floor: 'A meta para emagrecer foi elevada para {kcal} kcal para não ficar abaixo da sua TMB estimada.',
     cal_warn_protein_adjusted: 'A proteína é calculada sobre peso ajustado (IMC 30+), não sobre o peso total — prática padrão com IMC alto.',
     cal_warn_protein_cap: 'A meta de proteína foi limitada a {g} g/dia.',
-    cal_yr: 'a',
+    cal_yr: 'anos',
     cal_bf_short: 'GC',
     cal_check_inputs: 'Um dos dados está fora da faixa: confira os valores abaixo.',
     cal_estimate_note: 'São estimativas: um ponto de partida, não uma meta fixa. Use o número no que você usa para registrar comida e ajuste conforme o que realmente acontecer em 3-4 semanas.',
-    cal_need_inputs: 'Insira seu peso e gordura corporal (ou altura, idade e sexo) para ver sua estimativa.',
+    cal_need_inputs: 'Insira seu peso, altura, idade e sexo para ver seu gasto diário.',
     cal_learn: 'Entenda os números',
     cal_sources_title: 'Fontes e referências',
     cal_sources_intro: 'As fórmulas e números desta calculadora vêm de pesquisas publicadas. Toque em uma fonte para lê-la.',
@@ -4614,7 +4718,7 @@ export const translations = {
     cal_tgt_locked_eta: 'Assine o Premium para projetar um prazo pelo seu ritmo medido.',
     cal_tgt_below_range: 'Esta meta está abaixo da faixa saudável para sua altura ({min}–{max} {unit}).',
     cal_tgt_away: 'Afastando-se desta meta no seu ritmo atual — ainda sem previsão.',
-    cal_tgt_no_rate: 'Registre duas pesagens com cerca de duas semanas de intervalo (ou adicione anteriores em instantâneos) para estimar um prazo.',
+    cal_tgt_no_rate: 'Registre duas pesagens com cerca de duas semanas de intervalo (ou adicione anteriores em Pesagens) para estimar um prazo.',
     cal_tgt_basis: 'Com base nas suas pesagens {from}–{to}.',
     cal_tgt_healthy: 'Faixa saudável para sua altura: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Remover meta?',
@@ -4625,6 +4729,49 @@ export const translations = {
     cal_tgt_backfill_hint: 'Já começou? Adicione uma pesagem de uma data passada para ver seu ritmo mais cedo.',
     cal_tgt_backfill_date: 'Data',
     cal_tgt_backfill_save: 'Salvar pesagem',
+    // Journey redesign, Progress (founder 2026-10-02)
+    cal_log_today_weight: 'Registrar o peso de hoje',
+    cal_log_today_note: 'Salvo como a pesagem de hoje. Atualiza seu progresso, sua meta e o Confira a Realidade.',
+    cal_eg: 'ex.: {v}',
+    cal_rc_reset_title: 'Começar de novo?',
+    cal_rc_kcal_link: 'Digitar suas calorias médias em vez disso',
+    cal_rc_kcal_change: 'Alterar as calorias que você digitou',
+    cal_rc_kcal_title: 'Suas calorias médias',
+    cal_rc_kcal_field: 'Calorias médias por dia',
+    cal_rc_kcal_hint: 'Sua própria média para os dias deste acompanhamento. Quando o seu registro de comida tiver 7 dias seguidos, o registro é usado e este número é mantido.',
+    cal_rc_kcal_clear: 'Apagar as calorias digitadas',
+    cal_rc_kcal_typed: 'Média digitada: {kcal} kcal/dia',
+    cal_rc_kcal_both: 'Usando o seu registro de comida. As {kcal} kcal/dia que você digitou são mantidas.',
+    cal_rc_src_food: 'Do seu registro de comida',
+    cal_rc_src_typed: 'Das calorias médias que você digitou',
+    cal_rc_reset_body: 'Isso apaga o peso inicial deste acompanhamento e seus lembretes. Suas pesagens e refeições registradas são mantidas.',
+    cal_rc_due: 'Hora de se pesar: registre o peso de hoje para concluir o acompanhamento.',
+    cal_rc_sofar_day1: 'Dia {n} de {total}. Nada registrado hoje ainda.',
+    cal_rc_sofar_row: '{kcal} kcal · {n} itens',
+    cal_rc_sofar_row_one: '{kcal} kcal · 1 item',
+    cal_rc_sofar_run: 'Sequência: {d} dias · ~{kcal} kcal/dia registradas',
+    cal_weighins_title: 'Pesagens',
+    cal_weighins_summary: '{n} · última {date} · {w}',
+    cal_fill_numbers: 'Preencha seus números abaixo para ver seu gasto diário.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Peso, altura, idade e sexo dão seu gasto diário. Gordura corporal e cintura deixam o número mais preciso.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Nenhuma ainda', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Complete seus números', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Atualizar seu peso', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Mudar seu peso funciona como uma pesagem.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Atualizar a pesagem de {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Salvar como pesagem de hoje', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Toque em uma pesagem para corrigir ou excluir.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesagem', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'As mudanças aqui atualizam seu progresso, sua meta e seu teste de realidade.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Excluir pesagem', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Excluir esta pesagem?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Seu progresso, sua meta e seu teste de realidade são atualizados sem ela. Não dá para desfazer.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Esta pesagem inicia seu teste de realidade, então pode ser corrigida, mas não excluída.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Digite um peso entre 25 e 300 kg (55–660 lb); gordura corporal de 3 a 70%.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_weighins_need_more: 'Duas pesagens mostram uma tendência.',
+    cal_show_all: 'Ver tudo',
+    cal_show_less: 'Ver menos',
+    cal_tgt_date_line: 'Data da meta: {date}',
     cal_snap_waist: 'Cintura',
     cal_premium_locked: 'Um recurso Premium',
     cal_premium_cta: 'Seja Premium',
@@ -5689,7 +5836,7 @@ export const translations = {
     nutri_mark_not_recorded: 'Non noté',
     nutri_marked_not_recorded: 'Marqué comme non noté',
     nutri_undo: 'Annuler',
-    nutri_nothing_logged: 'Rien de noté',
+    nutri_nothing_logged: 'rien de noté',
     nutri_retry_later: "Enregistré — l'IA n'a pas pu être jointe pour l'instant. Je réessaie dans un instant, et à chaque ouverture du journal.",
     nutri_free_ending_note_nocheck: "Vos 7 jours gratuits se terminent le {until} — repas notés sur {logged} jours pour l'instant. Premium garde le journal et le suivi ouverts après le {until}.",
     nutri_grace_note_premium_nocheck: "Votre Premium est terminé. Vous pouvez continuer à noter jusqu'au {until} ; Premium garde le journal et le suivi ouverts ensuite.",
@@ -6155,6 +6302,12 @@ export const translations = {
     curve_project_ahead: 'Projeter',
     curve_readout_title: 'Estimation à une date',
     curve_readout_lab_hint: 'Aller à une date de prise de sang :',
+    curve_level_now: 'Niveau est. · maintenant',
+    curve_lg_estimate: 'estimation',
+    curve_lg_projection: 'projection',
+    curve_lg_doses: 'doses prévues',
+    curve_other_date: 'Autre date',
+    curve_bloodwork_chip: '{date} · prise de sang',
     curve_half_life: 'Demi-vie',
     curve_source_label: 'Source',
     curve_fast_note: 'Dans ce modèle, {names} est éliminé en quelques heures : chaque pic correspond à une dose prévue et l’estimation ne s’accumule pas entre les doses.',
@@ -6313,7 +6466,7 @@ export const translations = {
     body_card_dosing_desc: "Visualise comment tes doses enregistrées s'accumulent dans le temps, à partir d'une demi-vie que tu saisis. Une estimation mathématique, jamais une mesure.",
     cal_disclaimer: 'Une estimation pour le bien-être général, pas un avis médical ni une prescription. Elle n\'est jamais liée à un médicament ou à une dose — juste un calcul d\'énergie à partir des chiffres que vous saisissez. Une variation individuelle de ±10-15 % est normale.',
     cal_intro_title: 'Ce que c\'est',
-    cal_intro_body: 'Votre métabolisme de base (BMR) correspond, en gros, au nombre de calories que votre corps brûle au repos chaque jour, simplement pour vous maintenir en vie. Saisissez vos données une fois et il estime ce chiffre, ainsi que les calories et protéines quotidiennes adaptées à votre objectif. Indiquer votre pourcentage de masse grasse affine l\'estimation, car le calcul peut alors partir de votre masse maigre. Une vérification rapide, pas un journal alimentaire — enregistrez des instantanés pour suivre l\'évolution des chiffres.',
+    cal_intro_body: 'Votre métabolisme de base (BMR) correspond, en gros, au nombre de calories que votre corps brûle au repos chaque jour, simplement pour vous maintenir en vie. Saisissez vos données une fois et il estime ce chiffre, ainsi que les calories et protéines quotidiennes adaptées à votre objectif. Indiquer votre pourcentage de masse grasse affine l\'estimation, car le calcul peut alors partir de votre masse maigre. Chaque pesée est enregistrée, pour suivre l\'évolution des chiffres dans le temps.',
     cal_overview_title: 'Votre objectif',
     cal_your_details: 'Vos informations',
     cal_your_numbers: 'Vos chiffres',
@@ -6390,7 +6543,7 @@ export const translations = {
     cal_bf_short: 'MG',
     cal_check_inputs: 'Une des valeurs est hors plage : vérifiez les champs ci-dessous.',
     cal_estimate_note: 'Ce sont des estimations : un point de départ, pas un objectif figé. Reportez le chiffre dans l\'outil que vous utilisez pour suivre l\'alimentation, puis ajustez selon ce qui se passe réellement sur 3-4 semaines.',
-    cal_need_inputs: 'Saisissez votre poids et masse grasse (ou taille, âge et sexe) pour voir votre estimation.',
+    cal_need_inputs: 'Saisissez votre poids, votre taille, votre âge et votre sexe pour voir votre dépense quotidienne.',
     cal_learn: 'Comprendre les chiffres',
     cal_sources_title: 'Sources et références',
     cal_sources_intro: 'Les formules et chiffres de ce calculateur proviennent de recherches publiées. Touchez une source pour la consulter.',
@@ -6475,7 +6628,7 @@ export const translations = {
     cal_tgt_locked_eta: 'Passez à Premium pour estimer un délai selon votre rythme mesuré.',
     cal_tgt_below_range: 'Cet objectif est sous la fourchette saine pour votre taille ({min}–{max} {unit}).',
     cal_tgt_away: 'Vous vous éloignez de cet objectif à votre rythme actuel — pas encore d\'estimation.',
-    cal_tgt_no_rate: 'Enregistrez deux pesées à environ deux semaines d\'intervalle (ou ajoutez-en d\'anciennes dans les instantanés) pour estimer un délai.',
+    cal_tgt_no_rate: 'Enregistrez deux pesées à environ deux semaines d\'intervalle (ou ajoutez-en d\'anciennes dans Pesées) pour estimer un délai.',
     cal_tgt_basis: 'D\'après vos pesées {from}–{to}.',
     cal_tgt_healthy: 'Fourchette saine pour votre taille : {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Retirer l\'objectif ?',
@@ -6486,6 +6639,49 @@ export const translations = {
     cal_tgt_backfill_hint: 'Déjà en cours ? Ajoutez une pesée à une date passée pour voir votre rythme plus tôt.',
     cal_tgt_backfill_date: 'Date',
     cal_tgt_backfill_save: 'Enregistrer la pesée',
+    // Journey redesign, Progress (founder 2026-10-02)
+    cal_log_today_weight: 'Noter le poids du jour',
+    cal_log_today_note: 'Enregistré comme la pesée du jour. Il met à jour votre progression, votre objectif et votre vérification réelle.',
+    cal_eg: 'ex. {v}',
+    cal_rc_reset_title: 'Recommencer ?',
+    cal_rc_kcal_link: 'Saisir plutôt vos calories moyennes',
+    cal_rc_kcal_change: 'Modifier les calories saisies',
+    cal_rc_kcal_title: 'Vos calories moyennes',
+    cal_rc_kcal_field: 'Calories moyennes par jour',
+    cal_rc_kcal_hint: 'Votre propre moyenne pour les jours de ce suivi. Quand votre journal compte 7 jours d\'affilée, le journal est utilisé et ce nombre est conservé.',
+    cal_rc_kcal_clear: 'Effacer les calories saisies',
+    cal_rc_kcal_typed: 'Moyenne saisie : {kcal} kcal/jour',
+    cal_rc_kcal_both: 'Votre journal est utilisé. Les {kcal} kcal/jour saisies sont conservées.',
+    cal_rc_src_food: 'Depuis votre journal',
+    cal_rc_src_typed: 'Depuis les calories moyennes saisies',
+    cal_rc_reset_body: 'Cela efface le poids de départ de ce bilan et ses rappels. Vos pesées et repas enregistrés sont conservés.',
+    cal_rc_due: 'C\'est le moment de vous peser : notez le poids du jour pour terminer votre vérification réelle.',
+    cal_rc_sofar_day1: 'Jour {n} sur {total}. Rien d\'enregistré aujourd\'hui.',
+    cal_rc_sofar_row: '{kcal} kcal · {n} aliments',
+    cal_rc_sofar_row_one: '{kcal} kcal · 1 aliment',
+    cal_rc_sofar_run: 'Série : {d} jours · ~{kcal} kcal/jour enregistrées',
+    cal_weighins_title: 'Pesées',
+    cal_weighins_summary: '{n} · dernière {date} · {w}',
+    cal_fill_numbers: 'Renseignez vos chiffres ci-dessous pour voir votre dépense quotidienne.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Poids, taille, âge et sexe donnent votre dépense quotidienne. La masse grasse et le tour de taille l’affinent.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Aucune pour l’instant', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Complétez vos chiffres', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Mettre à jour votre poids', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Changer votre poids revient à une pesée.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Mettre à jour la pesée du {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Enregistrer comme pesée du jour', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Touchez une pesée pour la corriger ou la supprimer.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesée', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Ces changements mettent à jour votre progression, votre objectif et votre vérification réelle.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Supprimer la pesée', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Supprimer cette pesée ?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Votre progression, votre objectif et votre vérification réelle se mettent à jour sans elle. Action irréversible.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Cette pesée lance votre vérification réelle : elle peut être corrigée mais pas supprimée.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Saisissez un poids entre 25 et 300 kg (55–660 lb) ; masse grasse 3–70 %.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_weighins_need_more: 'Deux pesées font une tendance.',
+    cal_show_all: 'Tout afficher',
+    cal_show_less: 'Afficher moins',
+    cal_tgt_date_line: 'Date visée : {date}',
     cal_snap_waist: 'Taille',
     cal_premium_locked: 'Une fonction Premium',
     cal_premium_cta: 'Passer Premium',
@@ -7550,7 +7746,7 @@ export const translations = {
     nutri_mark_not_recorded: 'Nicht erfasst',
     nutri_marked_not_recorded: 'Als nicht erfasst markiert',
     nutri_undo: 'Rückgängig',
-    nutri_nothing_logged: 'Nichts eingetragen',
+    nutri_nothing_logged: 'nichts eingetragen',
     nutri_retry_later: 'Gespeichert – die KI war gerade nicht erreichbar. Ich versuche es gleich noch einmal und jedes Mal, wenn du das Protokoll öffnest.',
     nutri_free_ending_note_nocheck: 'Deine 7 Gratistage enden am {until} – bisher Essen an {logged} Tagen eingetragen. Mit Premium bleiben Essensprotokoll und Check nach {until} offen.',
     nutri_grace_note_premium_nocheck: 'Dein Premium ist abgelaufen. Du kannst bis {until} weiter eintragen; mit Premium bleiben Essensprotokoll und Check danach offen.',
@@ -8016,6 +8212,12 @@ export const translations = {
     curve_project_ahead: 'Vorausschau',
     curve_readout_title: 'Schätzung an einem Datum',
     curve_readout_lab_hint: 'Zu einem Blutabnahme-Datum springen:',
+    curve_level_now: 'Gesch. Niveau · jetzt',
+    curve_lg_estimate: 'Schätzung',
+    curve_lg_projection: 'Projektion',
+    curve_lg_doses: 'geplante Dosen',
+    curve_other_date: 'Anderes Datum',
+    curve_bloodwork_chip: '{date} · Blutbild',
     curve_half_life: 'Halbwertszeit',
     curve_source_label: 'Quelle',
     curve_fast_note: 'In diesem Modell wird {names} innerhalb von Stunden abgebaut: Jede Spitze ist eine geplante Dosis, und die Schätzung baut sich zwischen den Dosen nicht auf.',
@@ -8174,7 +8376,7 @@ export const translations = {
     body_card_dosing_desc: "Sieh, wie sich deine erfassten Dosen im Laufe der Zeit summieren – anhand einer Halbwertszeit, die du eingibst. Eine mathematische Schätzung, keine Messung.",
     cal_disclaimer: 'Eine Schätzung für allgemeines Wohlbefinden, keine medizinische Beratung oder Verordnung. Sie ist nie mit einem Medikament oder einer Dosis verknüpft — nur Energie-Rechnung aus deinen Zahlen. Eine individuelle Abweichung von ±10-15 % ist normal.',
     cal_intro_title: 'Was das ist',
-    cal_intro_body: 'Dein Grundumsatz (BMR) ist grob gesagt, wie viele Kalorien dein Körper pro Tag in Ruhe verbrennt — nur um dich am Laufen zu halten. Gib deine Werte einmal ein und es schätzt diese Zahl sowie die täglichen Kalorien und das Protein passend zu deinem Ziel. Wenn du deinen Körperfettanteil angibst, wird die Schätzung genauer, weil die Berechnung dann von deiner fettfreien Masse ausgeht. Ein schneller Check, kein Ernährungstagebuch — speichere Momentaufnahmen, um zu verfolgen, wie sich die Zahlen mit der Zeit verändern.',
+    cal_intro_body: 'Dein Grundumsatz (BMR) ist grob gesagt, wie viele Kalorien dein Körper pro Tag in Ruhe verbrennt — nur um dich am Laufen zu halten. Gib deine Werte einmal ein und es schätzt diese Zahl sowie die täglichen Kalorien und das Protein passend zu deinem Ziel. Wenn du deinen Körperfettanteil angibst, wird die Schätzung genauer, weil die Berechnung dann von deiner fettfreien Masse ausgeht. Jede Wägung wird gespeichert, so siehst du, wie sich die Zahlen mit der Zeit verändern.',
     cal_overview_title: 'Dein Ziel',
     cal_your_details: 'Deine Angaben',
     cal_your_numbers: 'Deine Werte',
@@ -8251,7 +8453,7 @@ export const translations = {
     cal_bf_short: 'KF',
     cal_check_inputs: 'Einer der Werte liegt außerhalb des Bereichs – prüfe die Eingaben unten.',
     cal_estimate_note: 'Das sind Schätzungen — ein Ausgangspunkt, kein festes Ziel. Trage die Zahl in dein Ernährungs-Tracking ein und passe sie nach 3-4 Wochen an das an, was tatsächlich passiert.',
-    cal_need_inputs: 'Gib Gewicht und Körperfett (oder Größe, Alter und Geschlecht) ein, um deine Schätzung zu sehen.',
+    cal_need_inputs: 'Gib Gewicht, Größe, Alter und Geschlecht ein, um deinen Tagesverbrauch zu sehen.',
     cal_learn: 'Die Zahlen verstehen',
     cal_sources_title: 'Quellen & Referenzen',
     cal_sources_intro: 'Die Formeln und Werte in diesem Rechner stammen aus veröffentlichter Forschung. Tippe auf eine Quelle, um sie zu lesen.',
@@ -8336,7 +8538,7 @@ export const translations = {
     cal_tgt_locked_eta: 'Hol dir Premium, um aus deinem gemessenen Tempo einen Zeitraum zu schätzen.',
     cal_tgt_below_range: 'Dieses Ziel liegt unter dem gesunden Bereich für deine Größe ({min}–{max} {unit}).',
     cal_tgt_away: 'Du entfernst dich in deinem aktuellen Tempo von diesem Ziel — noch keine Prognose.',
-    cal_tgt_no_rate: 'Trage zwei Wägungen im Abstand von etwa zwei Wochen ein (oder füge frühere unter Schnappschüssen hinzu), um einen Zeitraum zu schätzen.',
+    cal_tgt_no_rate: 'Trage zwei Wägungen im Abstand von etwa zwei Wochen ein (oder füge frühere unter Wägungen hinzu), um einen Zeitraum zu schätzen.',
     cal_tgt_basis: 'Basierend auf deinen Wägungen {from}–{to}.',
     cal_tgt_healthy: 'Gesunder Bereich für deine Größe: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Ziel entfernen?',
@@ -8347,6 +8549,49 @@ export const translations = {
     cal_tgt_backfill_hint: 'Schon dabei? Füge eine Wägung mit vergangenem Datum hinzu, damit dein Tempo früher erscheint.',
     cal_tgt_backfill_date: 'Datum',
     cal_tgt_backfill_save: 'Wägung speichern',
+    // Journey redesign, Progress (founder 2026-10-02)
+    cal_log_today_weight: 'Heutiges Gewicht eintragen',
+    cal_log_today_note: 'Als heutige Wägung gespeichert. Sie aktualisiert deinen Fortschritt, dein Ziel und deinen Realitätscheck.',
+    cal_eg: 'z. B. {v}',
+    cal_rc_reset_title: 'Neu beginnen?',
+    cal_rc_kcal_link: 'Stattdessen deine durchschnittlichen Kalorien eingeben',
+    cal_rc_kcal_change: 'Eingegebene Kalorien ändern',
+    cal_rc_kcal_title: 'Deine durchschnittlichen Kalorien',
+    cal_rc_kcal_field: 'Durchschnittliche Kalorien pro Tag',
+    cal_rc_kcal_hint: 'Dein eigener Durchschnitt für die Tage dieses Checks. Sobald dein Essensprotokoll 7 Tage am Stück hat, wird das Protokoll verwendet und diese Zahl bleibt erhalten.',
+    cal_rc_kcal_clear: 'Eingegebene Kalorien löschen',
+    cal_rc_kcal_typed: 'Eingegebener Durchschnitt: {kcal} kcal/Tag',
+    cal_rc_kcal_both: 'Dein Essensprotokoll wird verwendet. Die eingegebenen {kcal} kcal/Tag bleiben erhalten.',
+    cal_rc_src_food: 'Aus deinem Essensprotokoll',
+    cal_rc_src_typed: 'Aus den eingegebenen durchschnittlichen Kalorien',
+    cal_rc_reset_body: 'Das löscht das Startgewicht dieses Checks und seine Erinnerungen. Deine Wägungen und erfassten Mahlzeiten bleiben erhalten.',
+    cal_rc_due: 'Zeit zum Wiegen: Trage das heutige Gewicht ein, um deinen Realitätscheck abzuschließen.',
+    cal_rc_sofar_day1: 'Tag {n} von {total}. Heute noch nichts erfasst.',
+    cal_rc_sofar_row: '{kcal} kcal · {n} Einträge',
+    cal_rc_sofar_row_one: '{kcal} kcal · 1 Eintrag',
+    cal_rc_sofar_run: 'Serie: {d} Tage · ~{kcal} kcal/Tag erfasst',
+    cal_weighins_title: 'Wägungen',
+    cal_weighins_summary: '{n} · zuletzt {date} · {w}',
+    cal_fill_numbers: 'Trag unten deine Werte ein, um deinen Tagesverbrauch zu sehen.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Gewicht, Größe, Alter und Geschlecht ergeben deinen Tagesverbrauch. Körperfett und Taille machen ihn genauer.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Noch keine', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Vervollständige deine Werte', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Gewicht aktualisieren', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Eine Gewichtsänderung zählt wie eine Wägung.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Wägung vom {date} aktualisieren', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Als heutige Wägung speichern', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Tippe auf eine Wägung, um sie zu korrigieren oder zu löschen.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Wägung', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Änderungen hier aktualisieren deinen Fortschritt, dein Ziel und deinen Realitätscheck.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Wägung löschen', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Diese Wägung löschen?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Dein Fortschritt, dein Ziel und dein Realitätscheck werden ohne sie aktualisiert. Das lässt sich nicht rückgängig machen.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Mit dieser Wägung beginnt dein Realitätscheck – sie kann korrigiert, aber nicht gelöscht werden.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Gib ein Gewicht zwischen 25 und 300 kg (55–660 lb) ein; Körperfett 3–70 %.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_weighins_need_more: 'Zwei Wägungen ergeben einen Trend.',
+    cal_show_all: 'Alle anzeigen',
+    cal_show_less: 'Weniger anzeigen',
+    cal_tgt_date_line: 'Zieldatum: {date}',
     cal_snap_waist: 'Taille',
     cal_premium_locked: 'Eine Premium-Funktion',
     cal_premium_cta: 'Premium holen',
@@ -9412,7 +9657,7 @@ export const translations = {
     nutri_mark_not_recorded: 'Non registrato',
     nutri_marked_not_recorded: 'Segnato come non registrato',
     nutri_undo: 'Annulla',
-    nutri_nothing_logged: 'Niente registrato',
+    nutri_nothing_logged: 'niente registrato',
     nutri_retry_later: "Salvato — l'IA non era raggiungibile in questo momento. Riprovo tra poco e ogni volta che apri il diario.",
     nutri_free_ending_note_nocheck: 'I tuoi 7 giorni gratuiti finiscono il {until}: cibo registrato in {logged} giorni finora. Premium tiene aperti il diario alimentare e il controllo dopo il {until}.',
     nutri_grace_note_premium_nocheck: 'Il tuo Premium è terminato. Puoi continuare a registrare fino al {until}; Premium tiene aperti il diario alimentare e il controllo dopo.',
@@ -9878,6 +10123,12 @@ export const translations = {
     curve_project_ahead: 'Proietta',
     curve_readout_title: 'Stima in una data',
     curve_readout_lab_hint: 'Vai a una data del prelievo:',
+    curve_level_now: 'Livello stim. · ora',
+    curve_lg_estimate: 'stima',
+    curve_lg_projection: 'proiezione',
+    curve_lg_doses: 'dosi programmate',
+    curve_other_date: 'Altra data',
+    curve_bloodwork_chip: '{date} · esami del sangue',
     curve_half_life: 'Emivita',
     curve_source_label: 'Fonte',
     curve_fast_note: 'In questo modello, {names} viene eliminato in poche ore: ogni picco è una dose programmata e la stima non si accumula tra una dose e l’altra.',
@@ -10036,7 +10287,7 @@ export const translations = {
     body_card_dosing_desc: "Guarda come le dosi che registri si accumulano nel tempo, da un'emivita che inserisci tu. Una stima matematica, mai una misurazione.",
     cal_disclaimer: 'Una stima per il benessere generale, non un consiglio medico né una prescrizione. Non è mai collegata ad alcun farmaco o dose — solo calcoli energetici dai numeri che inserisci. Una variazione individuale di ±10-15% è normale.',
     cal_intro_title: 'Cos\'è',
-    cal_intro_body: 'Il tuo metabolismo basale (BMR) è, in parole semplici, quante calorie il tuo corpo brucia a riposo ogni giorno, solo per tenerti in vita. Inserisci i tuoi dati una volta e stima quel numero, insieme alle calorie e alle proteine giornaliere adatte al tuo obiettivo. Indicare la percentuale di grasso corporeo rende la stima più precisa, perché il calcolo può partire dalla tua massa magra. Una verifica rapida, non un diario alimentare — salva istantanee per seguire come cambiano i numeri nel tempo.',
+    cal_intro_body: 'Il tuo metabolismo basale (BMR) è, in parole semplici, quante calorie il tuo corpo brucia a riposo ogni giorno, solo per tenerti in vita. Inserisci i tuoi dati una volta e stima quel numero, insieme alle calorie e alle proteine giornaliere adatte al tuo obiettivo. Indicare la percentuale di grasso corporeo rende la stima più precisa, perché il calcolo può partire dalla tua massa magra. Ogni pesata viene salvata, così puoi seguire come cambiano i numeri nel tempo.',
     cal_overview_title: 'Il tuo obiettivo',
     cal_your_details: 'I tuoi dati',
     cal_your_numbers: 'I tuoi numeri',
@@ -10109,11 +10360,11 @@ export const translations = {
     cal_warn_bmr_floor: 'L\'obiettivo per dimagrire è stato alzato a {kcal} kcal per non scendere sotto il tuo MB stimato.',
     cal_warn_protein_adjusted: 'Le proteine sono calcolate sul peso corretto (IMC 30+), non sul peso totale — prassi standard con IMC alto.',
     cal_warn_protein_cap: 'L\'obiettivo proteico è stato limitato a {g} g/giorno.',
-    cal_yr: 'a',
+    cal_yr: 'anni',
     cal_bf_short: 'MG',
     cal_check_inputs: 'Uno dei dati è fuori intervallo: controlla i valori qui sotto.',
     cal_estimate_note: 'Sono stime: un punto di partenza, non un obiettivo fisso. Inserisci il numero nell\'app che usi per registrare il cibo e regolalo in base a ciò che accade davvero in 3-4 settimane.',
-    cal_need_inputs: 'Inserisci peso e grasso corporeo (o altezza, età e sesso) per vedere la tua stima.',
+    cal_need_inputs: 'Inserisci peso, altezza, età e sesso per vedere il tuo consumo giornaliero.',
     cal_learn: 'Capire i numeri',
     cal_sources_title: 'Fonti e riferimenti',
     cal_sources_intro: 'Le formule e i valori di questo calcolatore provengono da ricerche pubblicate. Tocca una fonte per leggerla.',
@@ -10198,7 +10449,7 @@ export const translations = {
     cal_tgt_locked_eta: 'Passa a Premium per stimare i tempi dal tuo ritmo misurato.',
     cal_tgt_below_range: 'Questo obiettivo è sotto la fascia sana per la tua altezza ({min}–{max} {unit}).',
     cal_tgt_away: 'Ti stai allontanando da questo obiettivo al ritmo attuale — nessuna stima per ora.',
-    cal_tgt_no_rate: 'Registra due pesate a circa due settimane di distanza (o aggiungine di passate nelle istantanee) per stimare i tempi.',
+    cal_tgt_no_rate: 'Registra due pesate a circa due settimane di distanza (o aggiungine di passate in Pesate) per stimare i tempi.',
     cal_tgt_basis: 'In base alle tue pesate {from}–{to}.',
     cal_tgt_healthy: 'Fascia sana per la tua altezza: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Rimuovere l\'obiettivo?',
@@ -10209,6 +10460,49 @@ export const translations = {
     cal_tgt_backfill_hint: 'Già in corso? Aggiungi una pesata con una data passata per vedere prima il tuo ritmo.',
     cal_tgt_backfill_date: 'Data',
     cal_tgt_backfill_save: 'Salva pesata',
+    // Journey redesign, Progress (founder 2026-10-02)
+    cal_log_today_weight: 'Registra il peso di oggi',
+    cal_log_today_note: 'Salvato come pesata di oggi. Aggiorna i tuoi progressi, il tuo obiettivo e la tua verifica reale.',
+    cal_eg: 'es. {v}',
+    cal_rc_reset_title: 'Ricominciare?',
+    cal_rc_kcal_link: 'Inserisci invece le tue calorie medie',
+    cal_rc_kcal_change: 'Modifica le calorie inserite',
+    cal_rc_kcal_title: 'Le tue calorie medie',
+    cal_rc_kcal_field: 'Calorie medie al giorno',
+    cal_rc_kcal_hint: 'La tua media per i giorni di questo controllo. Quando il diario alimentare ha 7 giorni di fila, si usa il diario e questo numero viene mantenuto.',
+    cal_rc_kcal_clear: 'Cancella le calorie inserite',
+    cal_rc_kcal_typed: 'Media inserita: {kcal} kcal/giorno',
+    cal_rc_kcal_both: 'Si usa il tuo diario alimentare. Le {kcal} kcal/giorno inserite vengono mantenute.',
+    cal_rc_src_food: 'Dal tuo diario alimentare',
+    cal_rc_src_typed: 'Dalle calorie medie inserite',
+    cal_rc_reset_body: 'Questo cancella il peso iniziale di questo check e i suoi promemoria. Le tue pesate e i pasti registrati vengono mantenuti.',
+    cal_rc_due: 'È ora di pesarti: registra il peso di oggi per completare la tua verifica reale.',
+    cal_rc_sofar_day1: 'Giorno {n} di {total}. Ancora niente registrato oggi.',
+    cal_rc_sofar_row: '{kcal} kcal · {n} voci',
+    cal_rc_sofar_row_one: '{kcal} kcal · 1 voce',
+    cal_rc_sofar_run: 'Serie: {d} giorni · ~{kcal} kcal/giorno registrate',
+    cal_weighins_title: 'Pesate',
+    cal_weighins_summary: '{n} · ultima {date} · {w}',
+    cal_fill_numbers: 'Inserisci i tuoi numeri qui sotto per vedere il tuo consumo giornaliero.', // Progress one card (founder 2026-10-02)
+    cal_numbers_prompt: 'Peso, altezza, età e sesso danno il tuo consumo giornaliero. Grasso corporeo e girovita lo rendono più preciso.', // Progress one card (founder 2026-10-02)
+    cal_weighins_none: 'Nessuna ancora', // Progress one card (founder 2026-10-02)
+    cal_complete_numbers: 'Completa i tuoi numeri', // Progress one card (founder 2026-10-02)
+    cal_wedit_title: 'Aggiorna il tuo peso', // Progress one card (founder 2026-10-02)
+    cal_wedit_body: 'Cambiare il peso vale come una pesata.', // Progress one card (founder 2026-10-02)
+    cal_wedit_update: 'Aggiorna la pesata del {date}', // Progress one card (founder 2026-10-02)
+    cal_wedit_today: 'Salva come pesata di oggi', // Progress one card (founder 2026-10-02)
+    cal_wedit_hint: 'Tocca una pesata per correggerla o eliminarla.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_title: 'Pesata', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_note: 'Le modifiche qui aggiornano i tuoi progressi, il tuo obiettivo e la tua verifica reale.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_delete: 'Elimina pesata', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_title: 'Eliminare questa pesata?', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. I tuoi progressi, il tuo obiettivo e la tua verifica reale si aggiornano senza di essa. Non si può annullare.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Questa pesata avvia la tua verifica reale, quindi si può correggere ma non eliminare.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_invalid: 'Inserisci un peso tra 25 e 300 kg (55–660 lb); grasso corporeo 3–70%.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_weighins_need_more: 'Due pesate fanno una tendenza.',
+    cal_show_all: 'Mostra tutto',
+    cal_show_less: 'Mostra meno',
+    cal_tgt_date_line: 'Data obiettivo: {date}',
     cal_snap_waist: 'Vita',
     cal_premium_locked: 'Una funzione Premium',
     cal_premium_cta: 'Passa a Premium',

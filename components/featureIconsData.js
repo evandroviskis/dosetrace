@@ -35,6 +35,10 @@ export const FEATURE_ICON_XML = {
     C745 560 785 550 835 520
   " fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
 </svg>`,
+  curve_loose: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M128 810.7c128 0 170.7-512 298.7-512s128 341.3 256 341.3 128-213.3 213.3-213.3" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M128 896h768" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
   bell: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <path d="M320 650h384" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M372 650V455c0-106 62-186 140-186s140 80 140 186v195" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
