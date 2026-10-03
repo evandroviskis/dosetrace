@@ -51,7 +51,8 @@ test('the new-protocol backfill offer compares the start with the LOCAL today', 
 
 test('the Android start-date picker keeps the picked local day', () => {
   const src = read('screens', 'ProtocolsScreen.js');
-  assert.match(src, /if \(d\) setStartDate\(isoDay\(d, 0\)\);/);
+  // (AP-10, 2026-10-03: the pick also marks the start as set by the user for the AI assistant)
+  assert.match(src, /if \(d\) \{ touch\('start'\); setStartDate\(isoDay\(d, 0\)\); \}/);
   const { isoDay } = require('../lib/protocolForm');
   assert.equal(isoDay(new Date(2026, 9, 3, 0, 0), 0), '2026-10-03', 'midnight local Oct 3 at UTC+14 stays Oct 3');
 });

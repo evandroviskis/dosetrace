@@ -115,7 +115,8 @@ test('part 5 / 11 / 12: the protocol screen rhythm (14 between, 26 block after b
 test('part 6: the unit 3 pt after the number, the decimal kept, 1 pt line over the reads', () => {
   assert.match(style(SCREEN, 'drawBigUnit'), /marginLeft: 3/);
   assert.match(style(SCREEN, 'bigRow'), /flexDirection: 'row', alignItems: 'baseline'/);
-  assert.match(SCREEN, /<Text style=\{\[s\.drawBig, over && s\.drawBigRisk\]\}>\{decimalText\(draw\.drawUnits, language\)\}<\/Text>/, 'drawUnits as computed ("100.0", "100,0" in pt)');
+  // AP-21 (2026-10-03): read through drawReading — units as computed ("100.0", "100,0" in pt), ml only on a 2 / 3 / 5 ml syringe
+  assert.match(SCREEN, /<Text style=\{\[s\.drawBig, over && s\.drawBigRisk\]\}>\{decimalText\(reading\.ml \? trimZeros\(reading\.value\) : reading\.value, language\)\}<\/Text>/, 'drawUnits as computed');
   assert.match(style(SCREEN, 'reads'), /borderTopWidth: 1,/);
   assert.match(style(SCREEN, 'hintRow'), /gap: 6 \}/);
 });
@@ -158,7 +159,10 @@ test('part 16: drawn − / +, drawn fold arrow; the dose words untouched', () =>
   assert.match(SCREEN, /<StepGlyph plus color=\{colors\.ink\} \/>/);
   assert.match(PARTS, /d=\{plus \? 'M12 6v12M6 12h12' : 'M6 12h12'\}/);
   assert.match(SCREEN, /<FoldChevron open=\{iuOpen\} color=\{colors\.ink3\} \/>/);
-  assert.match(SCREEN, /<Fld s=\{s\} label=\{t\('protocols_desired_dose'\)\}>/);
+  // AP-13 (signed 2026-10-02) relabels the powder dose field "Dose per injection" with its hint;
+  // "Desired dose" stays on the protocol page's Dose details row.
+  assert.match(SCREEN, /<Fld s=\{s\} label=\{doseLabel\} labelExtra=\{doseQ\} hint=\{t\('protocols_dose_hint'\)\}>/);
+  assert.match(SCREEN, /const doseLabel = t\('protocols_dose_per_injection'\);/);
   assert.equal(TR.en.protocols_desired_dose, 'Desired dose');
 });
 

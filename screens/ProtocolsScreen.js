@@ -40,6 +40,13 @@ import {
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
+import { drawReading, smallDraw, isMlSyringe, sizeLabel as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
+import { explainerModel } from '../lib/fitExplainer';
+import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
+import { renderText } from '../lib/assistantText';
+import ProtocolAssistant from './components/ProtocolAssistant';
+import FitExplainer from './components/FitExplainer';
+import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
 import { supplyState } from '../lib/supplyLow';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
@@ -234,10 +241,12 @@ function Pill({ s, label, on, onPress, short }) {
   );
 }
 
-function Fld({ s, label, hint, children }) {
+function Fld({ s, label, hint, children, labelExtra }) {
   return (
     <View style={s.fld}>
-      {label ? <Text style={s.fldLabel}>{label}</Text> : null}
+      {label && labelExtra ? (
+        <View style={s.fldLabelRow}><Text style={s.fldLabel}>{label}</Text>{labelExtra}</View>
+      ) : label ? <Text style={s.fldLabel}>{label}</Text> : null}
       {children}
       {hint ? <Text style={s.fldHint}>{hint}</Text> : null}
     </View>
@@ -319,6 +328,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const units = Number(draw.drawUnits);
   const over = units > syringeMax;
   const alt = altMass(p.dose, p.dose_unit, language);
+  const reading = drawReading(draw, syringeMax); // ml on a 2 / 3 / 5 ml syringe (AP-21)
 
   return (
     <View style={s.hobj}>
@@ -334,13 +344,16 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
         <View style={s.drawHead}>
           <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
           <View style={s.bigRow}>
-            <Text style={[s.drawBig, over && s.drawBigRisk]}>{decimalText(draw.drawUnits, language)}</Text>
-            <Text style={s.drawBigUnit}>{t('protocols_syringe_units')}</Text>
+            <Text style={[s.drawBig, over && s.drawBigRisk]}>{decimalText(reading.ml ? trimZeros(reading.value) : reading.value, language)}</Text>
+            <Text style={s.drawBigUnit}>{reading.ml ? 'ml' : t('protocols_syringe_units')}</Text>
           </View>
         </View>
         {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
         {over && (
-          <Text style={s.drawWarn}>{t('protocols_draw_exceeds_warning').replace('{units}', decimalText(draw.drawUnits, language)).replace('{size}', String(syringeMax))}</Text>
+          <Text style={s.drawWarn}>{exceedsMessage(t, draw, syringeMax, language)}</Text>
+        )}
+        {!over && smallDraw(draw.drawUnits, syringeMax) && (
+          <Text style={s.smallDraw}>{t('protocols_small_draw').replace('{u}', decimalText(draw.drawUnits, language))}</Text>
         )}
         <View style={s.hintRow}>
           <FeatureIcon name="search" size={14} color={c.ink2} />
@@ -359,7 +372,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_size')}</Text>
-          <Text style={s.readVal}>{syringeMax} u</Text>
+          <Text style={s.readVal}>{syringeSizeLabel(syringeMax, language)}</Text>
         </View>
       </View>
       <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
@@ -397,7 +410,9 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
           <Pressable style={s.zoomSheet} onPress={() => {}} accessibilityViewIsModal>
             <Text style={s.zoomTitle}>{name}</Text>
             <Text style={s.zoomReadout}>
-              {t('protocols_syringe_draw_to')} <Text style={s.zoomReadoutVal}>{decimalText(draw.drawUnits, language)}u</Text> · {decimalText(trimZeros(draw.drawML), language)} ml
+              {t('protocols_syringe_draw_to')} {isMlSyringe(syringeMax)
+                ? <Text style={s.zoomReadoutVal}>{decimalText(trimZeros(draw.drawML), language)} ml</Text>
+                : <><Text style={s.zoomReadoutVal}>{decimalText(draw.drawUnits, language)}u</Text> · {decimalText(trimZeros(draw.drawML), language)} ml</>}
             </Text>
             <ScrollView
               horizontal
@@ -923,6 +938,18 @@ export default function ProtocolsScreen() {
   const [containerUnits, setContainerUnits] = useState('');
   const [divisible, setDivisible] = useState(null); // null = unanswered, true/false = user's answer
   const [saving, setSaving] = useState(false);
+  // ── AI protocol assistant (docs/specs/ai-protocol-assistant.md) ──
+  // assistant: { door } while the assistant window shows in the sheet (AP-1). touchedRef: the
+  // form fields the user set by hand (a new form arrives pre-filled; those defaults are not the
+  // user's answers, AP-10 / journey review A1). visitedStep: how far the user walked the form.
+  const [assistant, setAssistant] = useState(null);
+  const [pendingSave, setPendingSave] = useState(false);
+  const [explainerOpen, setExplainerOpen] = useState(false);
+  const [syrPickerOpen, setSyrPickerOpen] = useState(false);
+  const touchedRef = useRef(new Set());
+  const assistantCloseRef = useRef(null); // the assistant's own close (back / swipe-down)
+  const [visitedStep, setVisitedStep] = useState(1);
+  const touch = (k) => touchedRef.current.add(k);
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -941,6 +968,7 @@ export default function ProtocolsScreen() {
     return firstDoseChoice(startDate, new Date()) === offset;
   }
   function setStartOffset(offset) {
+    touch('start');
     setStartDate(isoDay(new Date(), offset));
   }
   function formatStartDate(iso) {
@@ -982,6 +1010,7 @@ export default function ProtocolsScreen() {
 
   // When interval changes, clamp doses_per_day and adjust times
   function handleIntervalChange(newInterval) {
+    touch('schedule');
     setIntervalDays(newInterval);
     // Only allow multiple doses per day for daily or every-2-day
     if (newInterval > 2) {
@@ -993,6 +1022,7 @@ export default function ProtocolsScreen() {
 
   // When doses per day changes, adjust reminder times array
   function handleDosesPerDayChange(newCount) {
+    touch('schedule');
     setDosesPerDay(newCount);
     setActiveTimeIndex(0); // reset so a stale index can't write past the array
     setReminderTimes(prev => {
@@ -1244,6 +1274,8 @@ export default function ProtocolsScreen() {
     setTotalDoses(''); setSkipVial(false);
     setVialScanning(false); setVialScanned(false);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
+    touchedRef.current = new Set(); setVisitedStep(1);
+    setAssistant(null); setExplainerOpen(false); setSyrPickerOpen(false);
   }
 
   function getCompoundKeys() {
@@ -1338,6 +1370,7 @@ export default function ProtocolsScreen() {
   }
 
   function adjustWater(dir) {
+    touch('water');
     const current = parseDecimal(water, language) || 0;
     const next = Math.max(0.5, Math.round((current + dir * 0.5) * 10) / 10);
     setWater(inputNumber(next, language));
@@ -1473,23 +1506,34 @@ export default function ProtocolsScreen() {
     });
   }
 
+  // The form: a read label is applied as review drafts (as before).
   async function pickVialAndExtract(fromCamera) {
-    if (!hasNativeModule('ExponentImagePicker')) { wizNotice(t('error'), t('blood_needs_build')); return; }
+    const r = await extractVialLabel(fromCamera);
+    if (!r) return;
+    if (r.vial) { applyVialScan(r.vial); return; }
+    wizNotice(r.error.title, r.error.body, true);
+  }
+
+  // The extraction itself (same consent, same shared monthly quota, same edge function):
+  // resolves { vial } | { error: { title, body }, quota } | null (cancelled). Never throws.
+  async function extractVialLabel(fromCamera) {
+    const fail = (title, body, extra) => ({ error: { title, body }, ...(extra || {}) });
+    if (!hasNativeModule('ExponentImagePicker')) return fail(t('error'), t('blood_needs_build'));
     const ImagePicker = require('expo-image-picker');
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { wizNotice(t('error'), t('blood_camera_denied'), true); return; }
+        if (!perm.granted) return fail(t('error'), t('blood_camera_denied'));
       }
       const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
       const result = fromCamera
         ? await ImagePicker.launchCameraAsync(opts)
         : await ImagePicker.launchImageLibraryAsync(opts);
-      if (result.canceled) return;
+      if (result.canceled) return null;
       const asset = result.assets[0];
       // Vial-photo errors reuse "Couldn't read that label" (approved 2026-09-29).
-      if (!asset?.base64) { wizNotice(t('vial_scan_error'), t('vial_scan_error_sub'), true); return; }
-      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) { wizNotice(t('error'), t('blood_error_file_too_large'), true); return; }
+      if (!asset?.base64) return fail(t('vial_scan_error'), t('vial_scan_error_sub'));
+      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(t('error'), t('blood_error_file_too_large'));
       const mediaType = asset.mimeType
         || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
       setVialScanning(true);
@@ -1503,29 +1547,102 @@ export default function ProtocolsScreen() {
         let errBody = null;
         try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
         if (code === 'quota_exceeded' || status === 429) {
-          wizNotice(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)), true);
-          return;
+          return fail(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)), { quota: true });
         }
         const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
-        wizNotice(
+        return fail(
           serviceDown ? t('blood_error_service') : t('vial_scan_error'),
           serviceDown ? t('vial_scan_error_service_sub') : t('vial_scan_error_sub'),
-          true,
         );
-        return;
       }
       const v = data?.vial;
       if (!v || (v.compound_name == null && v.amount == null && v.concentration == null)) {
-        wizNotice(t('vial_scan_error'), t('vial_scan_none'), true);
-        return;
+        return fail(t('vial_scan_error'), t('vial_scan_none'));
       }
-      applyVialScan(v);
+      return { vial: v };
     } catch (err) {
       setVialScanning(false);
-      wizNotice(t('vial_scan_error'), t('vial_scan_error_sub'), true);
+      return fail(t('vial_scan_error'), t('vial_scan_error_sub'));
     }
   }
+
+  // ── The AI protocol assistant: four ways in, one window (AP-1) ──
+  // The manual form stays the default and works without it (AP-0). The shared AI consent is
+  // asked first in the DoseTrace sheet (AP-15); declining leaves the form as it is.
+  async function openAssistant(door) {
+    Keyboard.dismiss();
+    if (!(await hasAIConsent())) {
+      setWizSheet({
+        icon: 'ai_spark',
+        title: t('ai_consent_title'),
+        body: t('ai_consent_body'),
+        link: { label: t('ai_consent_privacy'), onPress: () => Linking.openURL(AI_PRIVACY_URL).catch(() => {}) },
+        buttons: [
+          { label: t('cancel'), kind: 'secondary' },
+          { label: t('ai_consent_agree'), kind: 'primary', onPress: async () => { await grantAIConsent(); setAssistant({ door }); } },
+        ],
+      });
+      return;
+    }
+    setAssistant({ door });
+  }
+
+  // A split in the explainer (AP-12): the dose becomes the user's weekly number divided by the
+  // count they tapped, and the spacing is asked right away with the AP-26 options — a split
+  // never leaves the schedule as it was (regulatory review 2026-10-03 B3).
+  function chooseSplit(each, n) {
+    setDose(inputNumber(each, language));
+    setExplainerOpen(false);
+    touch('schedule');
+    if (7 % n === 0) { const k = 7 / n; handleIntervalChange(k); setCustomIntervalOpen(k !== 1); setCustomIntervalText(k !== 1 ? String(k) : ''); return; }
+    const pick = (k) => { handleIntervalChange(k); setCustomIntervalOpen(k !== 1); setCustomIntervalText(k !== 1 ? String(k) : ''); };
+    const buttons = spacingOptions({ period: 'week', count: n }).map((o) => ({ label: renderText(t, o.key, o.params), kind: 'secondary', onPress: () => pick(o.interval) }));
+    buttons.push({ label: t('ap_opt_other_spacing'), kind: 'secondary', onPress: () => setStep(4) });
+    setTimeout(() => setWizSheet({ title: t('ap_q_spacing_week').replace('{n}', String(n)), buttons }), 450);
+  }
+
+  // The compound lists the assistant matches a name against (AP-6).
+  function assistantCatalog() {
+    const list = (keys) => keys.map((key) => ({ key, label: t(key) }));
+    return { recon: list(LYOPHILIZED_KEYS), rtu: list(RTU_KEYS), oral: list(ORAL_KEYS) };
+  }
+
+  // The vial's mixing date as the form holds it (month + day, resolved to the past).
+  function formMixedOn() {
+    return toPastSupabaseDate(vialMonth, vialDay);
+  }
+
+  // The assistant ended. save: the same Save as the form (AP-17, AP-26 Done); fill: the form
+  // filled in, on its last step to check and save (AP-9); handback: back to the form with every
+  // answer kept, on the step of the first thing still missing (AP-0, AP-16).
+  function finishAssistant(kind, result) {
+    setAssistant(null);
+    if (!result) return;
+    const f = result.form;
+    applyForm(f);
+    setSearchQuery(f.name || '');
+    setShowSuggestions(false);
+    compositionForRef.current = f.compoundId || null;
+    // Only what the user answered in the assistant now counts as set by hand (AP-10).
+    for (const k of Object.keys(result.set || {})) if (result.set[k]) touch(k);
+    if (result.notMixed) setSkipVial(true);
+    if (result.mixedOn) {
+      const d = new Date(result.mixedOn + 'T12:00:00');
+      if (!isNaN(d.getTime())) { setVialMonth(d.getMonth()); setVialDay(String(d.getDate())); setSkipVial(false); touch('mixed'); }
+    }
+    if (kind === 'save') { setPendingSave(true); return; }
+    if (kind === 'fill') { setStep(editingId ? 4 : f.type === 'recon' ? 5 : 4); return; }
+    setStep(Math.max(1, Math.min(stepForHandback(f), editingId ? 4 : f.type === 'recon' ? 5 : 4)));
+  }
+
+  // Done (AP-26): one tap creates the protocol through the form's own Save, once the filled
+  // values are on screen (the same checks, vial, reminders and backfill offer as by hand).
+  useEffect(() => {
+    if (!pendingSave) return;
+    setPendingSave(false);
+    saveProtocol();
+  }, [pendingSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate draw volume from the current wizard inputs (pure module).
   const unitsOk = type === 'recon'
@@ -1543,11 +1660,15 @@ export default function ProtocolsScreen() {
   // A recon draw that overflows the chosen syringe is almost always a data-entry
   // slip (wrong water volume, dose, or syringe). Flag it and block saving.
   const drawExceedsSyringe = type === 'recon' && wizardDraw.exceedsSyringe;
+  // Ready to use: over the chosen syringe is shown (red syringe, the warning, the explainer and
+  // the AI help, AP-12 / AP-21) but, as before, it does not block saving.
+  const drawOver = type !== 'oral' && wizardDraw.exceedsSyringe;
   // The dose step can't be left until the entered values produce a drawable dose.
   const doseStepBlocked = unitMismatch || drawExceedsSyringe;
-  const drawExceedsMsg = t('protocols_draw_exceeds_warning')
-    .replace('{units}', drawUnits ? decimalText(drawUnits, language) : '?')
-    .replace('{size}', String(syringeSize));
+  const drawExceedsMsg = drawUnits ? exceedsMessage(t, wizardDraw, syringeSize, language)
+    : t('protocols_draw_exceeds_warning').replace('{units}', '?').replace('{size}', String(syringeSize));
+  const drawLive = drawReading(wizardDraw, syringeSize); // ml on a 2 / 3 / 5 ml syringe (AP-21)
+  const fitModel = drawOver ? explainerModel(currentForm(), language) : null;
 
   // Resolve the diluent selection to a stored value: token for a preset choice,
   // the trimmed free text for 'other', or null if the user left it blank.
@@ -1936,7 +2057,30 @@ export default function ProtocolsScreen() {
   // Add step 3: the live result sits under the fields it depends on and appears only
   // once it can be computed (founder 2026-09-29).
   const [liveW, setLiveW] = useState(0);
-  const showLiveDraw = type !== 'oral' && !unitMismatch && !!drawML && (drawValid || drawExceedsSyringe);
+  // AP-13: "Dose per injection" with its hint; the "?" opens the explainer (AP-12) when the
+  // dose does not fit, the moment there is something to explain with the user's numbers.
+  const doseLabel = t('protocols_dose_per_injection');
+  const doseQ = drawOver ? (
+    <TouchableOpacity style={s.qBtn} onPress={() => setExplainerOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('fx_title')}>
+      <Text style={s.qText}>?</Text>
+    </TouchableOpacity>
+  ) : null;
+  const showLiveDraw = type !== 'oral' && !unitMismatch && !!drawML && (drawValid || drawOver);
+  // How far the user walked the form (fields of a step not yet seen are not "filled", AP-10).
+  useEffect(() => { setVisitedStep((v) => Math.max(v, step)); }, [step]);
+  // An AI door card (AP-1): the spark, the title and one line, opening the assistant.
+  const aiDoor = (door, sub, extra) => (
+    <TouchableOpacity style={s.aiDoor} onPress={() => openAssistant(door)} accessibilityRole="button">
+      <View style={s.aiDoorIcon}><FeatureIcon name="ai_spark" size={22} color={colors.ink2} /></View>
+      <View style={s.aiDoorText}>
+        <Text style={s.aiDoorTitle}>{t(`ap_title_${door}`)}</Text>
+        <Text style={s.aiDoorSub}>{t(sub)}</Text>
+      </View>
+      {extra}
+    </TouchableOpacity>
+  );
+  // The new-protocol form only: Build on an empty first step, Finish once something is in it.
+  const firstDoor = hasNewProtocolInput(currentForm(), searchQuery) || name ? 'finish' : 'build';
   const wizServing = type === 'oral'
     ? computeServings({
         targetDose: dose, doseUnit, servingStrength, servingStrengthUnit, servingUnits,
@@ -2122,6 +2266,9 @@ export default function ProtocolsScreen() {
         presentationStyle="pageSheet"
         onDismiss={() => setWizardPresented(false)}
         onRequestClose={() => {
+          // The assistant open: back / swipe-down returns to the form with every answer kept
+          // (AP-16; senior review 2026-10-03, MED 6).
+          if (assistant) { if (assistantCloseRef.current) assistantCloseRef.current(); return; }
           // Android system back (edge-swipe / nav-bar button): step back, or close
           // from the first step — mirrors the footer Back, so it's reachable
           // without hitting the top of the screen.
@@ -2130,6 +2277,20 @@ export default function ProtocolsScreen() {
         }}
       >
         <SafeAreaView style={s.modal}>
+          {assistant ? (
+            <ProtocolAssistant
+              key={assistant.door}
+              door={assistant.door}
+              form={currentForm()}
+              ctx={{ touched: Array.from(touchedRef.current), visitedStep, mixedOn: skipVial ? null : formMixedOn(), skipVial, editing: !!editingId }}
+              registerClose={(fn) => { assistantCloseRef.current = fn; }}
+              catalog={assistantCatalog()}
+              t={t}
+              language={language}
+              scanLabel={extractVialLabel}
+              onFinish={finishAssistant}
+            />
+          ) : (
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {/* Cancel top-left, the title, Save top-right while editing (approved 2026-09-29). */}
           <View style={s.wnav}>
@@ -2154,6 +2315,12 @@ export default function ProtocolsScreen() {
 
             {step === 1 && (
               <>
+                {!editingId && (
+                  <>
+                    {aiDoor(firstDoor, firstDoor === 'build' ? 'ap_door_build_sub' : 'ap_door_finish_sub')}
+                    {firstDoor === 'build' && <Text style={[s.footC3, s.flush, s.aiDoorOr]}>{t('ap_door_or_form')}</Text>}
+                  </>
+                )}
                 <View style={s.wt}>
                   <Text style={s.wtTitle}>{editingId ? t('protocols_edit_compound') : t('protocols_step_name')}</Text>
                   <Text style={s.wtSub}>{t('protocols_step_name_sub')}</Text>
@@ -2173,6 +2340,8 @@ export default function ProtocolsScreen() {
                           style={[s.tile, on && s.tileOn]}
                           onPress={() => {
                             setType(typeOpt.val);
+                            touch('type');
+                            setSyringeSize((sz) => allowedSyringe(typeOpt.val, sz));
                             setName('');
                             setCompoundId(null);
                             setSearchQuery('');
@@ -2275,6 +2444,7 @@ export default function ProtocolsScreen() {
               );
               return (
                 <>
+                  {!editingId && aiDoor('finish', 'ap_door_finish_sub')}
                   <View style={s.wt}>
                     <Text style={s.wtTitle}>{t('protocols_step_color')}</Text>
                     <Text style={s.wtSub}>{t('protocols_step_color_sub')}</Text>
@@ -2319,6 +2489,7 @@ export default function ProtocolsScreen() {
 
             {step === 3 && (
               <>
+                {!editingId && aiDoor('dose', 'ap_door_dose_sub')}
                 <View style={s.wt}>
                   <Text style={s.wtTitle}>{t('protocols_step_dose')}</Text>
                   <Text style={s.wtSub}>{t('protocols_step_dose_sub')}</Text>
@@ -2422,7 +2593,7 @@ export default function ProtocolsScreen() {
                           <TextInput
                             style={s.stepperValInput}
                             value={String(water || '')}
-                            onChangeText={(v) => setWater(v.replace(/[^0-9.,]/g, ''))}
+                            onChangeText={(v) => { touch('water'); setWater(v.replace(/[^0-9.,]/g, '')); }}
                             onBlur={() => { const n = parseDecimal(water, language); setWater(inputNumber(!(n > 0) ? 0.5 : Math.max(0.5, n), language)); }}
                             keyboardType="decimal-pad"
                             selectTextOnFocus
@@ -2437,7 +2608,7 @@ export default function ProtocolsScreen() {
                         </TouchableOpacity>
                       </View>
                     </Fld>
-                    <Fld s={s} label={t('protocols_desired_dose')}>
+                    <Fld s={s} label={doseLabel} labelExtra={doseQ} hint={t('protocols_dose_hint')}>
                       <View style={s.inrow}>
                         <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} ${decimalText('0.5', language)}`} keyboardType="numeric" value={dose} onChangeText={setDose} />
                         {unitSeg(['mg', 'mcg', 'IU'], doseUnit, setDoseUnit)}
@@ -2487,13 +2658,9 @@ export default function ProtocolsScreen() {
                     })()}
                     <Fld s={s} label={t('protocols_syringe_size_label')}>
                       <SegmentedBar
-                        items={[
-                          { key: 100, label: '1 ml · 100u' },
-                          { key: 50, label: '0.5 ml · 50u' },
-                          { key: 30, label: '0.3 ml · 30u' },
-                        ]}
+                        items={syringeGroups(type)[0].sizes.slice().reverse().map((sz) => ({ key: sz, label: `${decimalText(String(sz / 100), language)} ml · ${sz}u` }))}
                         value={syringeSize}
-                        onChange={setSyringeSize}
+                        onChange={(v) => { touch('syringe'); setSyringeSize(v); }}
                       />
                     </Fld>
                   </>
@@ -2501,7 +2668,7 @@ export default function ProtocolsScreen() {
 
                 {type === 'rtu' && (
                   <>
-                    <Fld s={s} label={t('protocols_dose_per_injection')}>
+                    <Fld s={s} label={doseLabel} labelExtra={doseQ} hint={t('protocols_dose_hint')}>
                       <View style={s.inrow}>
                         <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 100`} keyboardType="numeric" value={dose} onChangeText={setDose} />
                         {unitSeg(['mg', 'mcg', 'IU'], doseUnit, setDoseUnit)}
@@ -2512,6 +2679,9 @@ export default function ProtocolsScreen() {
                         <WInput s={s} c={colors} style={s.inrowInput} placeholder={`${t('protocols_eg')} 200`} keyboardType="numeric" value={concentration} onChangeText={setConcentration} />
                         {unitSeg(['mg', 'mcg', 'IU'], concentrationUnit, setConcentrationUnit, '/ml')}
                       </View>
+                    </Fld>
+                    <Fld s={s} label={t('protocols_syringe_size_label')} hint={isMlSyringe(syringeSize) ? t('ap_syr_ml_note') : null}>
+                      <SyringePickerRow size={syringeSize} language={language} t={t} onPress={() => setSyrPickerOpen(true)} />
                     </Fld>
                     <Fld s={s} label={t('protocols_vial_size')} hint={t('protocols_vial_size_hint')}>
                       <WInput s={s} c={colors} placeholder={`${t('protocols_eg')} 10`} keyboardType="numeric" value={vialMl} onChangeText={setVialMl} />
@@ -2539,15 +2709,30 @@ export default function ProtocolsScreen() {
                     <View style={s.drawHead}>
                       <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
                       <View style={s.bigRow}>
-                        <Text style={[s.drawBig, drawExceedsSyringe && s.drawBigRisk]}>{decimalText(drawUnits, language)}</Text>
-                        <Text style={s.drawBigUnit}>{t('protocols_units')}</Text>
+                        <Text style={[s.drawBig, drawOver && s.drawBigRisk]}>{decimalText(drawLive.ml ? trimZeros(drawLive.value) : drawLive.value, language)}</Text>
+                        <Text style={s.drawBigUnit}>{drawLive.ml ? 'ml' : t('protocols_units')}</Text>
                       </View>
                     </View>
                     {liveW > 0 && (
-                      <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
+                      <Pressable disabled={!drawOver} onPress={() => setExplainerOpen(true)} accessibilityRole={drawOver ? 'button' : undefined} accessibilityLabel={drawOver ? t('fx_title') : undefined}>
+                        <SyringeScale units={Number(drawUnits)} size={syringeSize} width={liveW - 36} />
+                      </Pressable>
                     )}
-                    <Text style={s.liveMl}>{decimalText(trimZeros(drawML), language)} ml</Text>
-                    {drawExceedsSyringe && <WarnBox s={s} risk text={drawExceedsMsg} />}
+                    {!drawLive.ml && <Text style={s.liveMl}>{decimalText(trimZeros(drawML), language)} ml</Text>}
+                    {!drawOver && smallDraw(drawUnits, syringeSize) && (
+                      <Text style={s.smallDraw}>{t('protocols_small_draw').replace('{u}', decimalText(drawUnits, language))}</Text>
+                    )}
+                    {drawOver && (
+                      <Pressable style={[s.warnbox, s.warnboxRisk]} onPress={() => setExplainerOpen(true)} accessibilityRole="button">
+                        <Text style={[s.warnText, s.warnTextRisk]}>{drawExceedsMsg}</Text>
+                        <View style={s.warnLinks}>
+                          <View style={s.warnLinkRow}><Text style={s.warnLink}>{t('ap_why')}</Text><RowChevron color={colors.risk} /></View>
+                          <TouchableOpacity style={s.warnLinkRow} onPress={() => openAssistant('fit')} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8 }}>
+                            <Text style={s.warnLink}>{t('ap_door_fit')}</Text><RowChevron color={colors.risk} />
+                          </TouchableOpacity>
+                        </View>
+                      </Pressable>
+                    )}
                   </View>
                 )}
                 {wizServing && wizServing.unitMismatch && <View style={s.live}><WarnBox s={s} text={t('protocols_serving_unit_mismatch')} /></View>}
@@ -2587,6 +2772,7 @@ export default function ProtocolsScreen() {
 
             {step === 4 && (
               <>
+                {!editingId && aiDoor('finish', 'ap_door_finish_sub')}
                 <View style={s.wt}>
                   <Text style={s.wtTitle}>{t('protocols_step_schedule')}</Text>
                   <Text style={s.wtSub}>{t('protocols_step_schedule_sub')}</Text>
@@ -2618,7 +2804,7 @@ export default function ProtocolsScreen() {
                       onChange={(event, d) => {
                         setShowStartPicker(false);
                         if (event.type === 'dismissed') return;
-                        if (d) setStartDate(isoDay(d, 0));
+                        if (d) { touch('start'); setStartDate(isoDay(d, 0)); }
                       }}
                     />
                   )}
@@ -2734,6 +2920,7 @@ export default function ProtocolsScreen() {
 
             {step === 5 && type === 'recon' && !editingId && (
               <>
+                {aiDoor('finish', 'ap_door_finish_sub')}
                 <View style={s.wt}>
                   <Text style={s.wtTitle}>{t('protocols_step_vial')}</Text>
                   <Text style={s.wtSub}>{t('protocols_step_vial_sub')}</Text>
@@ -2743,7 +2930,7 @@ export default function ProtocolsScreen() {
                     <Fld s={s} label={t('protocols_date_mixed')}>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
                         {MONTH_KEYS.map((mk, idx) => (
-                          <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onPress={() => setVialMonth(idx)} />
+                          <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onPress={() => { touch('mixed'); setVialMonth(idx); }} />
                         ))}
                       </ScrollView>
                       <View style={s.inrow}>
@@ -2757,7 +2944,7 @@ export default function ProtocolsScreen() {
                         value={vialDay}
                         onChangeText={(val) => {
                           const num = parseInt(val);
-                          if (val === '' || (num >= 1 && num <= 31)) setVialDay(val);
+                          if (val === '' || (num >= 1 && num <= 31)) { touch('mixed'); setVialDay(val); }
                         }}
                       />
                       </View>
@@ -2824,6 +3011,26 @@ export default function ProtocolsScreen() {
             )}
           </View>
           </KeyboardAvoidingView>
+          )}
+
+          {/* "Why it does not fit" (AP-12) and the Ready-to-use syringe list (AP-21, option B). */}
+          <FitExplainer
+            visible={explainerOpen && !!fitModel}
+            model={fitModel}
+            t={t}
+            onClose={() => setExplainerOpen(false)}
+            onSplit={chooseSplit}
+            onAskAI={() => { setExplainerOpen(false); setTimeout(() => openAssistant('fit'), 450); }}
+          />
+          <SyringePickerSheet
+            visible={syrPickerOpen}
+            type={type}
+            size={syringeSize}
+            language={language}
+            t={t}
+            onPick={(sz) => { touch('syringe'); setSyringeSize(sz); }}
+            onDone={() => setSyrPickerOpen(false)}
+          />
 
           {/* Popups inside the add/edit sheet: notices, the photo choice, and the
               iPhone wheels in a DoseTrace bottom sheet. */}
@@ -2834,7 +3041,7 @@ export default function ProtocolsScreen() {
               {/* Part 18: the prototype wheel (short months, the chosen row bold on a band). */}
               <DTWheel
                 columns={dateColumns(startDate, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en)}
-                onChange={(col, i) => setStartDate(dateAfter(startDate, new Date(), col, i))}
+                onChange={(col, i) => { touch('start'); setStartDate(dateAfter(startDate, new Date(), col, i)); }}
               />
             </DTPickerSheet>
           )}
@@ -3043,6 +3250,22 @@ const protocolsGraduated = (c) => ({
   wtSub: { fontSize: 15, color: c.ink2, lineHeight: 20 },
   fld: { gap: 10 },
   fldLabel: { paddingHorizontal: 4, fontSize: 17, fontWeight: '600', color: c.ink },
+  fldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // The "?" beside the dose label (AP-12): a 22 pt outlined circle, ink2.
+  qBtn: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: c.ink2, alignItems: 'center', justifyContent: 'center' },
+  qText: { fontSize: 12, fontWeight: '700', color: c.ink2 },
+  // AP-23: the small-draw fact under the draw (a neutral note, ink2).
+  smallDraw: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  warnLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 8 },
+  warnLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32 },
+  warnLink: { fontSize: 15, fontWeight: '700', color: c.risk, textDecorationLine: 'underline' },
+  // An AI door (AP-1, approved picture .aibtn): raised card, spark in a well, title + one line.
+  aiDoor: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.raised, borderRadius: 18, padding: 14 },
+  aiDoorIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
+  aiDoorText: { flex: 1, gap: 2 },
+  aiDoorTitle: { fontSize: 16, fontWeight: '600', color: c.ink },
+  aiDoorSub: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  aiDoorOr: { textAlign: 'center', marginTop: -4 },
   fldHint: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink2 },
   footC2: { paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink2 },
   flush: { paddingHorizontal: 0 }, // a foot line straight in the step, not in a field (prototype)
