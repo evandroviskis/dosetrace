@@ -19,7 +19,7 @@ const tr = load();
 const APP = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
 
 const WANT = {
-  en: { tabbar_protocols: 'My Protocols', tabbar_settings: 'Settings' },
+  en: { tabbar_protocols: 'Protocols', tabbar_settings: 'Settings' },
   es: { tabbar_protocols: 'Protocolos', tabbar_settings: 'Ajustes' },
   pt: { tabbar_protocols: 'Protocolos', tabbar_settings: 'Ajustes' },
   fr: { tabbar_protocols: 'Protocoles', tabbar_settings: 'Réglages' },
@@ -30,7 +30,7 @@ const WANT = {
 // SF Pro 11 pt semibold widths (pt), measured with the system font on macOS (NSFont
 // systemFont 11 semibold) — the labels the tab bar shows in each language.
 const MEASURED = {
-  'Today': 32.7, 'My Protocols': 71.4, 'Journey': 44.2, 'My Body': 47.1, 'Settings': 45.7,
+  'Today': 32.7, 'Protocols': 52.1, 'Journey': 44.2, 'My Body': 47.1, 'Settings': 45.7,
   'Hoy': 21.5, 'Protocolos': 58.9, 'Progreso': 49.5, 'Mi cuerpo': 54.2, 'Ajustes': 40.8,
   'Hoje': 24.9, 'Jornada': 44.5, 'Meu corpo': 57.9,
   "Aujourd'hui": 62.9, 'Protocoles': 58.7, 'Parcours': 48.6, 'Mon corps': 57.5, 'Réglages': 50.2,
@@ -51,16 +51,16 @@ test('App.js uses the tab-bar keys; the screen-title keys stay full', () => {
   assert.doesNotMatch(APP, /label: t\('tab_protocols'\)|label: t\('tab_settings'\)/);
   assert.equal(tr.pt.tab_protocols, 'Meus protocolos', 'the full name stays for titles and back links');
   assert.equal(tr.pt.tab_settings, 'Configurações');
+  assert.equal(tr.en.tab_protocols, 'My Protocols', 'English keeps My Protocols for the screen title');
 });
 
-test('every tab label except English "My Protocols" (unchanged, founder) fits a 393 pt iPhone tab', () => {
+test('every tab label fits a 393 pt iPhone tab (English Protocols too, founder 2026-10-02)', () => {
   const tabs = ['tab_today', 'tabbar_protocols', 'tab_journey', 'tab_body', 'tabbar_settings'];
   for (const l of Object.keys(WANT)) {
     for (const k of tabs) {
       const label = tr[l][k];
       const w = MEASURED[label];
       assert.ok(w != null, `${l}.${k} "${label}" has a measured width`);
-      if (l === 'en' && k === 'tabbar_protocols') continue;
       assert.ok(w <= FIT, `${l}.${k} "${label}" is ${w} pt, over ${FIT}`);
     }
   }
