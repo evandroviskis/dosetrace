@@ -481,3 +481,7 @@ Source: the coordinator of the Premium/Auth build, applying the ledger and produ
 - **Deploy the AI assistant server parts (usage migration, protocol-assistant function, updated privacy policy page) before the build** — founder 2026-10-03 "1 sim".
 - **Old accounts whose birth year makes them under 18: a one-time "I'm 18 or older" confirmation; if not confirmed, the user can export and delete the account** — founder 2026-10-03 "2 sim".
 - **"Continue with Apple" also on Android** (accounts created with Apple must be able to sign in there) — founder 2026-10-03 "3 sim".
+
+## 18+ confirmation — decided 2026-10-03 by logic (coordinator)
+- **Confirming "I'm 18 or older" also asks for the real birth year** (the app's year wheel, this year − 18 back to 1900, nothing preselected, Confirm off until a year is picked): the stored year is wrong by definition and feeds the calorie math. adult_confirmed_at and the new birth_year are saved in one merge-only profile write. Source: docs/specs/premium-and-auth.md PA-106…PA-108.
+- **The Android Apple button keeps the drawn Apple glyph for now**; downloading Apple's official artwork is the founder's call.

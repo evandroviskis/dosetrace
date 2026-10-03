@@ -17,11 +17,12 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
-import { adultConfirmPatch, storedYear } from '../lib/adultGate';
+import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
 import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
-import { DTSheet } from './components/ProtocolParts';
+import { DTSheet, DTPickerSheet, DTWheel } from './components/ProtocolParts';
+import FoldChevron from '../components/FoldChevron';
 
 export default function AgeConfirmScreen({ session }) {
   const { t } = useLanguage();
@@ -43,16 +44,26 @@ export default function AgeConfirmScreen({ session }) {
     if (closing && closing.teardown) runTeardown();
   };
   const user = session && session.user;
-  const year = storedYear(user && user.user_metadata);
+  const storedY = storedYear(user && user.user_metadata);
+  // The real birth year (decided 2026-10-03 by logic): picked on the app's year wheel, from
+  // this year − 18 back to 1900. Nothing is preselected — the stored under-18 year is never
+  // offered — and Confirm stays off until a year is picked.
+  const years = useMemo(() => adultYears(new Date()), []);
+  const [year, setYear] = useState(null);
+  const [wheelOpen, setWheelOpen] = useState(false);
+  const [wheelIndex, setWheelIndex] = useState(0);
 
   const ok = (title, body, icon = 'alert', onPress) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary', onPress }] });
 
   async function confirmAdult() {
     if (busy) return;
+    const patch = adultConfirmPatch(new Date().toISOString(), year);
+    if (!patch) return;
     setBusy('confirm');
     let error = null;
     try {
-      ({ error } = await supabase.auth.updateUser({ data: adultConfirmPatch(new Date().toISOString()) }));
+      // One merge-only write: adult_confirmed_at + birth_year, no other key.
+      ({ error } = await supabase.auth.updateUser({ data: patch }));
     } catch (e) { error = e; }
     setBusy(null);
     if (error) {
@@ -142,8 +153,15 @@ export default function AgeConfirmScreen({ session }) {
         <View style={s.sheet} accessibilityViewIsModal>
           <View style={s.icon}><FeatureIcon name="shield" size={26} color={colors.ink} /></View>
           <Text style={s.title} accessibilityRole="header">{t('age_gate_title')}</Text>
-          <Text style={s.body}>{t('age_gate_body').replace('{year}', year != null ? String(year) : '')}</Text>
-          <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={confirmAdult} disabled={!!busy} accessibilityRole="button">
+          <Text style={s.body}>{t('age_gate_body').replace('{year}', storedY != null ? String(storedY) : '')}</Text>
+          <View style={s.field}>
+            <Text style={s.fieldLabel}>{t('profile_birth_year')}</Text>
+            <TouchableOpacity style={s.select} onPress={() => { setWheelIndex(year != null ? Math.max(0, years.indexOf(year)) : 0); setWheelOpen(true); }} disabled={!!busy} accessibilityRole="button" accessibilityLabel={t('profile_birth_year')}>
+              <Text style={[s.selectText, year == null && s.selectEmpty]}>{year != null ? String(year) : t('age_gate_year_ph')}</Text>
+              <FoldChevron open={false} color={colors.ink3} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={[s.btn, s.btnPrimary, (year == null) && s.btnDim]} onPress={confirmAdult} disabled={!!busy || year == null} accessibilityRole="button" accessibilityState={{ disabled: !!busy || year == null }}>
             {spin('confirm') || <Text style={[s.btnText, s.btnTextPrimary]}>{t('age_gate_confirm')}</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={exportData} disabled={!!busy} accessibilityRole="button">
@@ -158,6 +176,9 @@ export default function AgeConfirmScreen({ session }) {
           <Text style={s.note}>{t('age_gate_note')}</Text>
         </View>
       </ScrollView>
+      <DTPickerSheet visible={wheelOpen} title={t('profile_birth_year')} doneLabel={t('done')} onDone={() => { setYear(years[wheelIndex]); setWheelOpen(false); }}>
+        <DTWheel columns={[{ values: years.map(String), index: wheelIndex }]} onChange={(_c, i) => setWheelIndex(i)} />
+      </DTPickerSheet>
       <DTSheet config={sheet} onClose={closeSheet} />
     </SafeAreaView>
   );
@@ -174,6 +195,12 @@ const makeStyles = (c) => StyleSheet.create({
   body: { fontSize: 17, lineHeight: 22, color: c.ink2 },
   btn: { minHeight: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   btnPrimary: { backgroundColor: c.act },
+  btnDim: { opacity: 0.35 },
+  field: { gap: 8 },
+  fieldLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+  select: { minHeight: 52, borderRadius: 16, backgroundColor: c.well, borderWidth: 1, borderColor: c.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  selectText: { flex: 1, fontSize: 17, color: c.ink },
+  selectEmpty: { color: c.ink3 },
   btnSecondary: { backgroundColor: c.well },
   btnDanger: { backgroundColor: c.well },
   btnText: { fontSize: 17, fontWeight: '600', color: c.ink },

@@ -33,11 +33,8 @@ test('PA-101: no birth year (or a broken one) is not this gate — the build-49 
   assert.ok(gate > 0 && age > gate, 'the profile gate (birth year asked there) comes first, then this one');
 });
 
-test('PA-102: confirming writes ONE key, merge-only, and never anything else', () => {
-  assert.deepEqual(G.adultConfirmPatch('2026-10-03T12:00:00.000Z'), { adult_confirmed_at: '2026-10-03T12:00:00.000Z' });
-  const scr = read('screens', 'AgeConfirmScreen.js');
-  assert.match(scr, /supabase\.auth\.updateUser\(\{ data: adultConfirmPatch\(new Date\(\)\.toISOString\(\)\) \}\)/);
-  assert.equal((scr.match(/updateUser\(/g) || []).length, 1);
+test('PA-102: confirming writes only its own keys (confirmation + the real year), merge-only', () => {
+  assert.deepEqual(Object.keys(G.adultConfirmPatch('2026-10-03T12:00:00.000Z', 1990, NOW)).sort(), ['adult_confirmed_at', 'birth_year']);
 });
 
 test('PA-103: offline or a failed save keeps the account behind the sheet and says why — it can be tried again', () => {
@@ -75,4 +72,40 @@ test('PA-105: the sheet is the DoseTrace look, theme tokens only, strings in 6 l
     assert.equal((i18n.match(new RegExp(`\\n\\s+${k}: `, 'g')) || []).length, 6, k);
   }
   for (const m of i18n.matchAll(/\n\s+age_gate_body: '(.*)',/g)) assert.match(m[1], /\{year\}/);
+});
+
+// Decided 2026-10-03 by logic: confirming 18+ means the stored year is wrong, and it feeds the
+// calorie math — so the sheet also asks for the real birth year and saves both in one write.
+test('PA-106: confirming writes adult_confirmed_at AND the real birth year, in one merge-only write', () => {
+  assert.deepEqual(G.adultConfirmPatch('2026-10-03T12:00:00.000Z', 1990, NOW), { adult_confirmed_at: '2026-10-03T12:00:00.000Z', birth_year: 1990 });
+  assert.equal(G.adultConfirmPatch('X', null, NOW), null, 'no year → nothing to write');
+  assert.equal(G.adultConfirmPatch('X', 2010, NOW), null, 'an under-18 year can never be saved');
+  assert.equal(G.adultConfirmPatch('X', 1899, NOW), null, 'below the minimum');
+  assert.equal(G.adultConfirmPatch('X', 2008, NOW).birth_year, 2008, 'turns 18 this year → allowed');
+  const scr = read('screens', 'AgeConfirmScreen.js');
+  assert.match(scr, /supabase\.auth\.updateUser\(\{ data: patch \}\)/);
+  assert.equal((scr.match(/updateUser\(/g) || []).length, 1, 'one write');
+});
+
+test('PA-107: the year wheel runs from this year − 18 back to the minimum, nothing under 18, nothing preselected; Confirm waits for a year', () => {
+  const ys = G.adultYears(NOW);
+  assert.equal(ys[0], 2008);
+  assert.equal(ys[ys.length - 1], 1900);
+  assert.ok(ys.every((y) => y <= 2008 && y >= 1900));
+  assert.equal(ys.length, 2008 - 1900 + 1);
+  const scr = read('screens', 'AgeConfirmScreen.js');
+  assert.match(scr, /const \[year, setYear\] = useState\(null\);/, 'no year picked at first (the stored under-18 one is never offered)');
+  assert.match(scr, /<DTWheel/);
+  assert.match(scr, /disabled=\{!!busy \|\| year == null\}/, 'Confirm is off until a year is picked');
+  assert.match(scr, /if \(!patch\) return;/);
+});
+
+test('PA-108: after the confirmation the calorie inputs use the new year (the profile is the only age source)', () => {
+  const { profileBodyInputs } = require('../lib/bodyProfile');
+  const meta = { birth_year: 2012, gender: 'male' };
+  const before = profileBodyInputs({ meta, now: NOW });
+  assert.equal(before.age, '14');
+  const after = profileBodyInputs({ meta: { ...meta, ...G.adultConfirmPatch('X', 1990, NOW) }, now: NOW });
+  assert.equal(after.age, '36');
+  assert.equal(after.ageFromProfile, true);
 });
