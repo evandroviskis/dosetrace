@@ -35,6 +35,7 @@ import { progressTile } from '../lib/progressTile';
 import LearnBlock from './components/LearnBlock';
 import RowChevron from '../components/RowChevron';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
+import { loadCurveView } from '../lib/curveViewStore';
 import { MONO } from '../lib/fonts';
 import { displayColor } from '../lib/protocolColors';
 import FoodLogHero from './components/FoodLogHero';
@@ -100,26 +101,36 @@ export default function JourneyScreen() {
     try { if (uid) { snapshots = getCalcSnapshots(uid); checks = getRealityChecks(uid); } } catch { /* empty */ }
     setTile(progressTile({ saved, meta: user && user.user_metadata, snapshots, checks }));
   }, []);
-  // Dose accumulation tile: the compound the Curve opens on and its Est. level now —
-  // the same lib function the Curve screen uses (lib/serumModel), Premium only.
+  // Dose accumulation tile: the compound the Curve opens on — the first one the user left
+  // selected there (lib/curveView), else the first charted — and its Est. level now, the same
+  // lib function the Curve screen uses (lib/serumModel), Premium only.
   const [level, setLevel] = useState(null);
+  const loadLevel = useCallback(async (isAlive = () => true) => {
+    const user = await getCachedUser();
+    if (!isAlive() || !user) return;
+    const savedView = await loadCurveView(user.id);
+    if (!isAlive()) return;
+    try { setLevel(defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView)); } catch { setLevel(null); }
+  }, []);
   useFocusEffect(useCallback(() => {
     let alive = true;
     hasPremium().then(async (pro) => {
       if (!alive) return;
       setPremium(pro);
       if (!pro) { setLevel(null); return; }
-      const user = await getCachedUser();
-      if (!alive || !user) return;
-      try { setLevel(defaultCurveLevel(getActiveProtocols(user.id), Date.now())); } catch { setLevel(null); }
+      await loadLevel(() => alive);
     }).catch(() => {});
     loadTile().catch(() => {});
     return () => { alive = false; };
-  }, [loadTile]));
+  }, [loadTile, loadLevel]));
   // BK-19: refresh the tiles the moment the Progress page saves, without switching tabs.
   useEffect(() => addSyncListener((e) => {
     if (tilesNeedRefresh(e)) loadTile().catch(() => {});
   }), []);
+  // The Est. level follows a selection changed on the Curve page beside it (book layout).
+  useEffect(() => addSyncListener((e) => {
+    if (e && e.type === 'data_changed' && e.what === 'curve' && premium === true) loadLevel().catch(() => {});
+  }), [premium, loadLevel]);
   // Named as the Curve screen names its line (a blend component: "Blend · Component (est.)").
   const lp = level ? level.protocol : null;
   const levelName = !lp ? null

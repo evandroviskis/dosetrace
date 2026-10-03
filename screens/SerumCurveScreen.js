@@ -48,6 +48,9 @@ import CheckMark from '../components/CheckMark';
 import SegmentedBar from '../components/SegmentedBar';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
+import { restoreCurveView, FUTURE_PRESETS } from '../lib/curveView';
+import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
+import { notifyDataChanged } from '../lib/sync';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -182,7 +185,6 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 
 // The schedule → dose → level math lives in lib/serumModel.js (shared with the
 // Journey tile, so both always show the same Est. level).
-const FUTURE_PRESETS = [7, 14, 30, 60, 90];
 
 
 // Estimated level (mg or IU) from the summed dose model — not "amount in the body"
@@ -288,9 +290,12 @@ export default function SerumCurveScreen({ embedded = false }) {
     }, [navigation, embedded])
   );
 
+  const userIdRef = useRef(null);
   async function fetchData() {
     const user = await getCachedUser();
     if (!user) return;
+    userIdRef.current = user.id;
+    const savedView = await loadCurveView(user.id);
     // Blends (Wolverine/Glow/KLOW) are expanded into one virtual protocol per
     // component, its dose split from the logged blend dose by the common ratio
     // (lib/compounds BLEND_RATIOS); each component charts its own line. IU-dosed
@@ -300,13 +305,14 @@ export default function SerumCurveScreen({ embedded = false }) {
     const { active, iu, noData, noDose } = splitCurveProtocols(getActiveProtocols(user.id), t);
     setNotCharted({ iu, noData, noDose });
     setProtocols(active);
-    // Keep any still-valid selection; otherwise default to the first compound.
-    setSelectedIds(prev => {
-      const u = (id) => { const p = active.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
-      const still = prev.filter(id => active.some(p => p.id === id));
-      const kept = still.filter(id => u(id) === u(still[0])); // one unit per chart
-      return kept.length ? kept : (active[0] ? [active[0].id] : []);
-    });
+    // Opens exactly as the user left it (lib/curveView, founder 2026-10-02): the remembered
+    // compounds still on the chart (one unit per chart), Combined and the horizon; nothing
+    // remembered or valid → the first compound. Reading the view writes nothing.
+    const u = (id) => { const p = active.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
+    const view = restoreCurveView({ saved: savedView, active, unitOf: u });
+    setSelectedIds(view.selectedIds);
+    setShowCombined(view.showCombined);
+    setFutureDays(view.futureDays);
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(user.id) || [];
     const uniq = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
@@ -328,17 +334,32 @@ export default function SerumCurveScreen({ embedded = false }) {
     return p ? curveUnit(getHalfLifeEntry(matchName(p))) : 'mg';
   }
 
+  // Only a change the user makes is remembered (per user), never the opening itself.
+  function rememberView(patch) {
+    saveCurveView(userIdRef.current, patch).then(() => notifyDataChanged('curve')).catch(() => {});
+  }
+  function nextSelection(prev, id) {
+    if (prev.includes(id)) {
+      // Never allow zero selected — keep the last one.
+      return prev.length === 1 ? prev : prev.filter(x => x !== id);
+    }
+    // mg and IU can't share one axis: picking a compound in the other unit
+    // starts a new selection with it.
+    if (prev.length && unitOf(prev[0]) !== unitOf(id)) return [id];
+    return [...prev, id];
+  }
   function toggle(id) {
-    setSelectedIds(prev => {
-      if (prev.includes(id)) {
-        // Never allow zero selected — keep the last one.
-        return prev.length === 1 ? prev : prev.filter(x => x !== id);
-      }
-      // mg and IU can't share one axis: picking a compound in the other unit
-      // starts a new selection with it.
-      if (prev.length && unitOf(prev[0]) !== unitOf(id)) return [id];
-      return [...prev, id];
-    });
+    const next = nextSelection(selectedIds, id);
+    setSelectedIds(next);
+    rememberView({ selectedIds: next });
+  }
+  function changeCombined(v) {
+    setShowCombined(v);
+    rememberView({ showCombined: !!v });
+  }
+  function changeHorizon(d) {
+    setFutureDays(d);
+    rememberView({ futureDays: d });
   }
 
   const chartWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 32; // screen gutter + card padding
@@ -848,7 +869,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 accessibilityLabel={t('curve_project_ahead')}
                 items={FUTURE_PRESETS.map(d => ({ key: d, label: `+${d}d` }))}
                 value={futureDays}
-                onChange={setFutureDays}
+                onChange={changeHorizon}
               />
             </View>
           </View>
@@ -916,7 +937,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               </View>
               <GradSwitch
                 value={showCombined}
-                onValueChange={setShowCombined}
+                onValueChange={changeCombined}
               />
             </View>
           )}
