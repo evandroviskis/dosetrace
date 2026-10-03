@@ -278,6 +278,7 @@ export default function SettingsScreen({ navigation }) {
           has_provider: hasProvider || null,
         },
       });
+      setShowCountryPicker(false);
       setShowEditProfile(false);
       fetchUser();
     } catch (e) {
@@ -1006,6 +1007,7 @@ export default function SettingsScreen({ navigation }) {
         visible={showLanguagePicker}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => setShowLanguagePicker(false)}
       >
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
@@ -1077,10 +1079,15 @@ export default function SettingsScreen({ navigation }) {
       />
 
       {/* EDIT PROFILE MODAL */}
-      <Modal visible={showEditProfile} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showEditProfile}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => { setShowCountryPicker(false); setShowEditProfile(false); fetchUser(); }}
+      >
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => { setShowEditProfile(false); fetchUser(); }} style={{ minWidth: 60 }}>
+            <TouchableOpacity onPress={() => { setShowCountryPicker(false); setShowEditProfile(false); fetchUser(); }} style={{ minWidth: 60 }}>
               <Text style={s.modalCancel}>{t('cancel')}</Text>
             </TouchableOpacity>
             <Text style={s.modalTitle}>{t('profile_edit_title')}</Text>
@@ -1251,64 +1258,67 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
             <View style={{ height: 40 }} />
           </ScrollView>
+
+          {/* COUNTRY PICKER: presented FROM the Edit profile sheet (nested), never as a
+              sibling of it. iOS refuses a second sibling pageSheet ("already presenting") and
+              the stuck state then blocked every later Settings sheet (pre-build pass M1). */}
+          <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCountryPicker(false)}>
+            <SafeAreaView style={s.modal}>
+              <View style={s.modalNav}>
+                <View style={{ minWidth: 60 }} />
+                <Text style={s.modalTitle}>{t('profile_country')}</Text>
+                <TouchableOpacity
+                  onPress={() => setShowCountryPicker(false)}
+                  style={{ minWidth: 60, alignItems: 'flex-end' }}
+                >
+                  <Text style={s.modalClose}>{t('done')}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[s.centered, s.searchWrapOuter]}>
+                <View style={s.searchWrap}>
+                  <FeatureIcon name="search" size={18} color={colors.ink3} />
+                  <TextInput
+                    style={s.searchInput}
+                    placeholder={t('profile_country_search')}
+                    placeholderTextColor={colors.ink3}
+                    value={countrySearch}
+                    onChangeText={setCountrySearch}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus
+                  />
+                </View>
+              </View>
+              <FlatList
+                data={COUNTRIES.filter(c => {
+                  const q = countrySearch.toLowerCase();
+                  return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
+                })}
+                keyExtractor={item => item}
+                style={{ flex: 1 }}
+                contentContainerStyle={[s.centered, { paddingHorizontal: 20 }]}
+                keyboardShouldPersistTaps="handled"
+                ItemSeparatorComponent={() => <View style={s.sheetDivider} />}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={s.countryRow}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: country === item }}
+                    onPress={() => {
+                      setCountry(item);
+                      setShowCountryPicker(false);
+                    }}
+                  >
+                    <Text style={s.countryName}>{countryLabel(item, language)}</Text>
+                    {country === item && <CheckMark style={s.langCheck} />}
+                  </TouchableOpacity>
+                )}
+              />
+            </SafeAreaView>
+          </Modal>
         </SafeAreaView>
       </Modal>
 
-      {/* COUNTRY PICKER MODAL */}
-      <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={s.modal}>
-          <View style={s.modalNav}>
-            <View style={{ minWidth: 60 }} />
-            <Text style={s.modalTitle}>{t('profile_country')}</Text>
-            <TouchableOpacity
-              onPress={() => setShowCountryPicker(false)}
-              style={{ minWidth: 60, alignItems: 'flex-end' }}
-            >
-              <Text style={s.modalClose}>{t('done')}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[s.centered, s.searchWrapOuter]}>
-            <View style={s.searchWrap}>
-              <FeatureIcon name="search" size={18} color={colors.ink3} />
-              <TextInput
-                style={s.searchInput}
-                placeholder={t('profile_country_search')}
-                placeholderTextColor={colors.ink3}
-                value={countrySearch}
-                onChangeText={setCountrySearch}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-              />
-            </View>
-          </View>
-          <FlatList
-            data={COUNTRIES.filter(c => {
-              const q = countrySearch.toLowerCase();
-              return c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q);
-            })}
-            keyExtractor={item => item}
-            style={{ flex: 1 }}
-            contentContainerStyle={[s.centered, { paddingHorizontal: 20 }]}
-            keyboardShouldPersistTaps="handled"
-            ItemSeparatorComponent={() => <View style={s.sheetDivider} />}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={s.countryRow}
-                accessibilityRole="button"
-                accessibilityState={{ selected: country === item }}
-                onPress={() => {
-                  setCountry(item);
-                  setShowCountryPicker(false);
-                }}
-              >
-                <Text style={s.countryName}>{countryLabel(item, language)}</Text>
-                {country === item && <CheckMark style={s.langCheck} />}
-              </TouchableOpacity>
-            )}
-          />
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
