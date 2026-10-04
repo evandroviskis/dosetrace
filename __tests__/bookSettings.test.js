@@ -158,7 +158,7 @@ test('BK-10: folding opens the group the user chose without touching the other r
 
 test('BK-10/BK-11: sheets live outside both layouts, so a fold or unfold keeps them open with what was typed', () => {
   const sheets = MAIN.slice(MAIN.indexOf('{book ? renderBook() : renderPhone()}'));
-  for (const sheet of ['visible={showLanguagePicker}', 'visible={showEditProfile}', 'visible={showCountryPicker}', 'visible={showDisclaimer}', 'visible={showPrivacy}', 'visible={showTerms}']) {
+  for (const sheet of ['visible={showLanguagePicker}', 'visible={showEditProfile}', 'visible={showCountryPicker}', 'visible={showDisclaimer}', 'visible={showPrivacy}', 'visible={showTerms}', 'visible={!!reportPreview}']) {
     assert.ok(sheets.includes(sheet), `${sheet} after the layout switch`);
     assert.ok(!PHONE.includes(sheet) && !BOOK.includes(sheet), `${sheet} not inside a layout`);
   }
@@ -167,7 +167,7 @@ test('BK-10/BK-11: sheets live outside both layouts, so a fold or unfold keeps t
   assert.match(SRC, /const \[displayName, setDisplayName\] = useState\(''\);/);
   assert.match(SRC, /const \[countrySearch, setCountrySearch\] = useState\(''\);/);
   // Full-screen sheets keep one centred column (BK-11).
-  assert.equal(count(SRC, /presentationStyle="pageSheet"/g), 3);
+  assert.equal(count(SRC, /presentationStyle="pageSheet"/g), 4); // + the adherence report preview (Settings part 3)
   assert.match(GRAD, /modalBody: \{[^}]*maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center'/);
 });
 
