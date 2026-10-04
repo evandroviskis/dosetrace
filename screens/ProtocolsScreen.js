@@ -2434,6 +2434,7 @@ export default function ProtocolsScreen() {
 
         {/* At the bottom of the list; with no protocol left it sits under the empty state,
             so the last deleted protocol can still be restored. */}
+        {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && endedSection}
         {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && deletedSection}
 
         {view === 'detail' && renderDetail(openProtocol, false)}
