@@ -59,7 +59,7 @@ const makeStyles = (c) => StyleSheet.create({
   itemOnWell: { borderColor: c.ground },
   itemCompact: { minHeight: 38 },
   itemHint: { borderStyle: 'dashed', borderColor: c.ink2 },
-  itemOn: { backgroundColor: c.raised, borderColor: c.line },
+  itemOn: { backgroundColor: c.segOn, borderColor: c.segOnLine },
   text: { fontSize: 15, fontWeight: '500', color: c.ink2, textAlign: 'center' },
   textCompact: { fontSize: 14 },
   textOn: { color: c.ink, fontWeight: '700' },

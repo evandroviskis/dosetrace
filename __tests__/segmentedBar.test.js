@@ -22,7 +22,8 @@ test('Q4: components/SegmentedBar.js exists and draws the approved Settings bar 
   assert.match(src, /useTheme\(\)/, 'reads colors from the theme hook');
   assert.match(src, /track: \{[^}]*flexDirection: 'row'[^}]*gap: 2[^}]*padding: 3[^}]*borderRadius: 14[^}]*backgroundColor: c\.well/);
   assert.match(src, /item: \{[^}]*flex: 1[^}]*minHeight: 42[^}]*borderRadius: 11/);
-  assert.match(src, /itemOn: \{ backgroundColor: c\.raised, borderColor: c\.line \}/);
+  // The raised segment and its ring come from the segOn / segOnLine tokens (light = raised + line; m11).
+  assert.match(src, /itemOn: \{ backgroundColor: c\.segOn, borderColor: c\.segOnLine \}/);
   assert.match(src, /text: \{[^}]*fontSize: 15[^}]*fontWeight: '500'[^}]*color: c\.ink2/);
   assert.match(src, /textOn: \{ color: c\.ink, fontWeight: '700' \}/);
   assert.match(src, /borderWidth: 1\b/, '1 pt ring on the chosen segment (and a matching one on the others so nothing shifts)');
