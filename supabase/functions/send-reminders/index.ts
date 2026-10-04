@@ -118,7 +118,8 @@ Deno.serve(async (req) => {
       .select('id, user_id, name, dose, dose_unit, reminder_time, interval_days, schedule_total, start_date, active, deleted_at')
       .in('user_id', userIds)
       .eq('active', true)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .is('purged_at', null); // a protocol deleted forever never reminds (A-90)
     const protosByUser = new Map<string, Protocol[]>();
     for (const p of (protoRows || [])) {
       if (!protosByUser.has(p.user_id)) protosByUser.set(p.user_id, []);

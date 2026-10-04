@@ -287,11 +287,15 @@ Deno.serve(async (req) => {
     });
 
     if (!anthropicResponse.ok) {
-      // Log the provider status + body so an outage is diagnosable from function
+      // Log the provider status + error type so an outage is diagnosable from function
       // logs in minutes (the Aug-2026 lesson — never swallow the provider error).
       let providerBody = '';
       try { providerBody = await anthropicResponse.text(); } catch { /* body unavailable */ }
-      console.error('[extract] provider_error', kind, anthropicResponse.status, providerBody.slice(0, 600));
+      // Status + the provider's error TYPE (e.g. authentication_error, overloaded_error): enough to
+      // diagnose an outage, never the message, which can echo the user's lab text (privacy, 2026-10-04).
+      let providerType = '';
+      try { providerType = String(JSON.parse(providerBody)?.error?.type || ''); } catch { /* not JSON */ }
+      console.error('[extract] provider_error', kind, anthropicResponse.status, providerType);
       return jsonResponse(
         { error: 'Extraction provider returned an error', code: 'provider_error', provider_status: anthropicResponse.status },
         502,
@@ -306,7 +310,7 @@ Deno.serve(async (req) => {
     try {
       parsed = JSON.parse(clean);
     } catch {
-      console.error('[extract] non_json_output', kind, clean.slice(0, 400));
+      console.error('[extract] non_json_output', kind, clean.length); // length only: never the lab values (privacy, dt-council 2026-10-04)
       return jsonResponse({ error: 'Extraction output was not valid JSON', code: 'invalid_extraction' }, 502);
     }
 
