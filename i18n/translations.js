@@ -9,6 +9,12 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    lang_name_it: "Italian",
+    lang_name_de: "German",
+    lang_name_fr: "French",
+    lang_name_pt: "Portuguese",
+    lang_name_es: "Spanish",
+    lang_name_en: "English",
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
     age_gate_year_ph: 'Choose your birth year',
     auth_signout_unsynced: 'Some changes on this phone aren\'t backed up yet, so you\'re still signed in. Connect to the internet and try again, so nothing is lost.',
@@ -2169,6 +2175,12 @@ export const translations = {
   },
 
   'es': {
+    lang_name_it: "Italiano",
+    lang_name_de: "Alemán",
+    lang_name_fr: "Francés",
+    lang_name_pt: "Portugués",
+    lang_name_es: "Español",
+    lang_name_en: "Inglés",
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
     age_gate_year_ph: 'Elige tu año de nacimiento',
     auth_signout_unsynced: 'Algunos cambios de este teléfono aún no tienen copia de seguridad, así que sigues con la sesión iniciada. Conéctate a internet y vuelve a intentarlo para no perder nada.',
@@ -4329,6 +4341,12 @@ export const translations = {
   },
 
   'pt': {
+    lang_name_it: "Italiano",
+    lang_name_de: "Alemão",
+    lang_name_fr: "Francês",
+    lang_name_pt: "Português",
+    lang_name_es: "Espanhol",
+    lang_name_en: "Inglês",
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
     age_gate_year_ph: 'Escolha seu ano de nascimento',
     auth_signout_unsynced: 'Algumas alterações neste celular ainda não têm backup, por isso você continua conectado. Conecte-se à internet e tente de novo para não perder nada.',
@@ -6488,6 +6506,12 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    lang_name_it: "Italien",
+    lang_name_de: "Allemand",
+    lang_name_fr: "Français",
+    lang_name_pt: "Portugais",
+    lang_name_es: "Espagnol",
+    lang_name_en: "Anglais",
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
     age_gate_year_ph: 'Choisissez votre année de naissance',
     auth_signout_unsynced: 'Certaines modifications sur ce téléphone ne sont pas encore sauvegardées, vous restez donc connecté. Connectez-vous à internet et réessayez pour ne rien perdre.',
@@ -8647,6 +8671,12 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    lang_name_it: "Italienisch",
+    lang_name_de: "Deutsch",
+    lang_name_fr: "Französisch",
+    lang_name_pt: "Portugiesisch",
+    lang_name_es: "Spanisch",
+    lang_name_en: "Englisch",
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
     age_gate_year_ph: 'Wähle dein Geburtsjahr',
     auth_signout_unsynced: 'Einige Änderungen auf diesem Handy sind noch nicht gesichert, deshalb bleibst du angemeldet. Verbinde dich mit dem Internet und versuche es erneut, damit nichts verloren geht.',
@@ -10807,6 +10837,12 @@ export const translations = {
   },
 
   'it': {
+    lang_name_it: "Italiano",
+    lang_name_de: "Tedesco",
+    lang_name_fr: "Francese",
+    lang_name_pt: "Portoghese",
+    lang_name_es: "Spagnolo",
+    lang_name_en: "Inglese",
     // PREMIUM & AUTH REDESIGN (founder 2026-10-03, docs/specs/premium-and-auth.md)
     age_gate_year_ph: 'Scegli il tuo anno di nascita',
     auth_signout_unsynced: 'Alcune modifiche su questo telefono non hanno ancora un backup, quindi resti connesso. Connettiti a internet e riprova, così non perdi nulla.',

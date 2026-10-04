@@ -1063,7 +1063,10 @@ export default function SettingsScreen({ navigation }) {
                 </View>
                 <View style={s.langInfo}>
                   <Text style={s.langNative}>{lang.native}</Text>
-                  <Text style={s.langName}>{lang.name}</Text>
+                  {/* The language's name in the app's language (m9); no repeat of the main label. */}
+                  {t(`lang_name_${lang.code}`) !== lang.native ? (
+                    <Text style={s.langName}>{t(`lang_name_${lang.code}`)}</Text>
+                  ) : null}
                 </View>
                 {language === lang.code && (
                   <CheckMark style={s.langCheck} />
