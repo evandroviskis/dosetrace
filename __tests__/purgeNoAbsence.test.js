@@ -86,18 +86,7 @@ test('R-A: a pending dose pointing at a cloud protocol no local row owns is neve
   assert.equal(n(B, `SELECT COUNT(*) AS n FROM dose_logs WHERE sync_status = 'pending'`), 1);
 });
 
-test('a push that finds 0 rows still removes a protocol and its synced children (deletions win) ...', async () => {
-  const cloud = makeCloud();
-  const B = makeDb();
-  const p = await seedSynced(B, cloud, 'X');
-  await oldBuildHardDelete(cloud, p.remote);
-  B.runSync(`UPDATE protocols SET name = 'X edited', sync_status = 'pending' WHERE id = ?`, [p.pid]);
-  await pushPending(B, cloud, USER);
-  assert.equal(n(B, 'SELECT COUNT(*) AS n FROM protocols WHERE id = ?', [p.pid]), 0);
-  assert.equal(n(B, 'SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [p.pid]), 0);
-});
-
-test('... but never a pending child: the protocol stays hidden and the dose stays pending', async () => {
+test('a push that finds 0 rows never removes a protocol: it comes back soft-deleted with its history (purgeRevive.test.js)', async () => {
   const cloud = makeCloud();
   const B = makeDb();
   const p = await seedSynced(B, cloud, 'X');
@@ -105,14 +94,10 @@ test('... but never a pending child: the protocol stays hidden and the dose stay
   B.runSync(`UPDATE protocols SET name = 'X edited', sync_status = 'pending' WHERE id = ?`, [p.pid]);
   B.runSync(`INSERT INTO dose_logs (user_id, protocol_id, protocol_remote_id, outcome, logged_at, updated_at, sync_status) VALUES (?, ?, ?, 'Taken', '2026-10-04T08:00:00Z', '2026-10-04T08:00:00Z', 'pending')`, [USER, p.pid, p.remote]);
   await pushPending(B, cloud, USER);
-  await pushPending(B, cloud, USER);
-  await pullChanges(B, cloud, USER);
-  assert.equal(n(B, `SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ? AND sync_status = 'pending'`, [p.pid]), 1, 'the pending dose survives');
-  assert.equal(n(B, `SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ? AND sync_status = 'synced'`, [p.pid]), 0);
   const kept = B.getFirstSync('SELECT * FROM protocols WHERE id = ?', [p.pid]);
-  assert.ok(kept && kept.purged_at, 'kept, hidden');
-  assert.equal(B.getAllSync(E.SQL_ACTIVE, [USER]).length, 0);
-  assert.equal(cloud.rows('dose_logs', USER).length, 0, 'the dose is not pushed');
+  assert.ok(kept && kept.deleted_at && kept.active === 0 && !kept.purged_at);
+  assert.equal(n(B, 'SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [p.pid]), 3, 'synced and pending doses kept');
+  assert.equal(cloud.rows('dose_logs', USER).length, 3, 'and back in the cloud');
 });
 
 test('a 0-row answer without the same user\'s session removes nothing (it retries next sync)', async () => {

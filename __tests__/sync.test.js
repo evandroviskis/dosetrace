@@ -88,26 +88,36 @@ test('fix #3: a fresh pull does not re-import rows already at the watermark (no 
   assert.equal(countAfterPull, 1);
 });
 
-test('fix #4: delete-vs-edit does not resurrect — a locally-edited row deleted in the cloud is removed, not re-inserted', async () => {
+test('fix #4 (Final Gate B 2026-10-04): a locally-edited protocol whose cloud row vanished (no tombstone) comes back SOFT-DELETED, never active, never lost', async () => {
   const cloud = makeCloud();
   const dbA = makeDb();
-
-  // A creates + pushes so it exists in the cloud and is synced locally.
   const idA = seedLocalProtocol(dbA, USER, { name: 'doomed' });
   await pushPending(dbA, cloud, USER);
   const remoteId = getProtocol(dbA, idA).remote_id;
 
-  // Another device deletes it in the cloud.
+  // An older build deletes it in the cloud (no purged_at evidence).
   await cloud.delete('protocols', remoteId);
-  assert.equal(cloud.rows('protocols', USER).length, 0);
-
-  // A had a pending local edit to the same row, then pushes.
   editLocalProtocol(dbA, idA, { name: 'edited-after-remote-delete' });
   await pushPending(dbA, cloud, USER);
 
-  // Deletions win: the cloud is NOT repopulated and A's local row is gone.
-  assert.equal(cloud.rows('protocols', USER).length, 0, 'must not resurrect in the cloud');
-  assert.equal(getProtocol(dbA, idA), null, 'local row must be removed, not left dangling');
+  const local = getProtocol(dbA, idA);
+  assert.ok(local, 'possibly the last copy: never deleted');
+  assert.equal(local.active, 0);
+  assert.ok(local.deleted_at, 'it lands in Recently deleted');
+  const back = cloud.rows('protocols', USER);
+  assert.equal(back.length, 1);
+  assert.equal(back[0].active, false, 'never silently active in the cloud');
+});
+
+test('fix #4: another table keeps "deletions win" — an edited row deleted in the cloud is removed, not re-inserted', async () => {
+  const cloud = makeCloud();
+  const db = makeDb();
+  const bm = await cloud.insert('biomarkers', { user_id: USER, report_date: '2026-09-01', marker: 'TSH', value: 1, unit: 'mIU/L' });
+  db.runSync(`INSERT INTO biomarkers (remote_id, user_id, report_date, marker, value, unit, updated_at, sync_status) VALUES (?, ?, '2026-09-01', 'TSH', 2, 'mIU/L', 'L9', 'pending')`, [bm.data.id, USER]);
+  await cloud.delete('biomarkers', bm.data.id);
+  await pushPending(db, cloud, USER);
+  assert.equal(db.getFirstSync('SELECT COUNT(*) AS n FROM biomarkers').n, 0);
+  assert.equal(cloud.rows('biomarkers', USER).length, 0);
 });
 
 test('fix #5: the watermark is scoped by user_id — one account cannot hide another account\'s new rows', async () => {
