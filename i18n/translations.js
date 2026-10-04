@@ -238,6 +238,8 @@ export const translations = {
     notif_action_snooze_tomorrow: 'Tomorrow',
     notif_taken_nothing_body: 'That dose is already recorded, or the protocol is paused. Open DoseTrace to check.',
     notif_taken_nothing_title: 'Nothing new logged',
+    today_take_logged_body: 'That dose was already logged (from a notification or another device). It now shows on Today.',
+    today_take_inactive_body: '{name} is no longer active, so nothing was logged.',
     notif_dose_title_private: 'Dose reminder',
     notif_morning_due_private: '{n} scheduled today.',
     notif_morning_due_private_one: '{n} scheduled today.', // singular (lib/plural.js)
@@ -2444,6 +2446,8 @@ export const translations = {
     notif_action_snooze_tomorrow: 'Mañana',
     notif_taken_nothing_body: 'Esa dosis ya está registrada o el protocolo está en pausa. Abre DoseTrace para comprobarlo.',
     notif_taken_nothing_title: 'No se registró nada nuevo',
+    today_take_logged_body: 'Esa dosis ya estaba registrada (desde una notificación u otro dispositivo). Ya aparece en Hoy.',
+    today_take_inactive_body: '{name} ya no está activo, así que no se registró nada.',
     notif_dose_title_private: 'Recordatorio de dosis',
     notif_morning_due_private: '{n} programadas hoy.',
     notif_morning_due_private_one: '{n} programada hoy.', // singular (lib/plural.js)
@@ -4650,6 +4654,8 @@ export const translations = {
     notif_action_snooze_tomorrow: 'Amanhã',
     notif_taken_nothing_body: 'Essa dose já está registrada ou o protocolo está pausado. Abra o DoseTrace para conferir.',
     notif_taken_nothing_title: 'Nada novo registrado',
+    today_take_logged_body: 'Essa dose já estava registrada (por uma notificação ou outro aparelho). Já aparece em Hoje.',
+    today_take_inactive_body: '{name} não está mais ativo, então nada foi registrado.',
     notif_dose_title_private: 'Lembrete de dose',
     notif_morning_due_private: '{n} programadas hoje.',
     notif_morning_due_private_one: '{n} programada hoje.', // singular (lib/plural.js)
@@ -6855,6 +6861,8 @@ export const translations = {
     notif_action_snooze_tomorrow: 'Demain',
     notif_taken_nothing_body: 'Cette dose est déjà enregistrée ou le protocole est en pause. Ouvrez DoseTrace pour vérifier.',
     notif_taken_nothing_title: 'Rien de nouveau enregistré',
+    today_take_logged_body: 'Cette dose était déjà enregistrée (depuis une notification ou un autre appareil). Elle apparaît maintenant dans Aujourd\'hui.',
+    today_take_inactive_body: '{name} n\'est plus actif, donc rien n\'a été enregistré.',
     notif_dose_title_private: 'Rappel de dose',
     notif_morning_due_private: '{n} doses prévues aujourd’hui.',
     notif_morning_due_private_one: '{n} dose prévue aujourd’hui.', // singular (lib/plural.js)
@@ -9060,6 +9068,8 @@ export const translations = {
     notif_action_snooze_tomorrow: 'Morgen',
     notif_taken_nothing_body: 'Diese Dosis ist schon eingetragen oder das Protokoll ist pausiert. Öffne DoseTrace, um nachzusehen.',
     notif_taken_nothing_title: 'Nichts Neues eingetragen',
+    today_take_logged_body: 'Diese Dosis war schon eingetragen (über eine Benachrichtigung oder ein anderes Gerät). Sie steht jetzt unter Heute.',
+    today_take_inactive_body: '{name} ist nicht mehr aktiv, deshalb wurde nichts eingetragen.',
     notif_dose_title_private: 'Dosis-Erinnerung',
     notif_morning_due_private: '{n} heute geplant.',
     notif_morning_due_private_one: '{n} heute geplant.', // singular (lib/plural.js)
@@ -11266,6 +11276,8 @@ export const translations = {
     notif_action_snooze_tomorrow: 'Domani',
     notif_taken_nothing_body: 'Quella dose è già registrata o il protocollo è in pausa. Apri DoseTrace per controllare.',
     notif_taken_nothing_title: 'Nulla di nuovo registrato',
+    today_take_logged_body: 'Questa dose era già registrata (da una notifica o da un altro dispositivo). Ora compare in Oggi.',
+    today_take_inactive_body: '{name} non è più attivo, quindi non è stato registrato nulla.',
     notif_dose_title_private: 'Promemoria dose',
     notif_morning_due_private: '{n} programmate oggi.',
     notif_morning_due_private_one: '{n} programmata oggi.', // singular (lib/plural.js)

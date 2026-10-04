@@ -67,24 +67,49 @@ test('oral supply: units move once by the calculated units per dose', () => {
   assert.equal(p.vialUpdate, null);
 });
 
-// FX-7: both entry points go through the same function (source guard, so a
-// future edit can't quietly give Today its own write path again).
-test('FX-7: Today and the notification action both mark taken through recordDoseTaken', () => {
-  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  const body = (src, name) => {
-    const i = src.indexOf(`async function ${name}(`);
-    assert.ok(i >= 0, `${name} not found`);
-    const next = src.indexOf('\n  async function ', i + 10);
-    const nextTop = src.indexOf('\nasync function ', i + 10);
-    const ends = [next, nextTop].filter((n) => n > 0);
-    return src.slice(i, ends.length ? Math.min(...ends) : undefined);
+// FX-7: both entry points go through the same function. A-38 (c): no longer a source regex sliced
+// by indentation — the notification action runs for real with fakes (it must call recordDoseTaken
+// and write nothing itself), and Today's markTaken is cut out brace-balanced (helpers/extractFn).
+test('FX-7: the notification action marks taken through recordDoseTaken (behaviour)', async () => {
+  const { loadFn } = require('./helpers/extractFn');
+  const MT = require('../lib/markTaken');
+  const calls = [];
+  const deps = {
+    parseDoseId: () => ({ protocolId: 2, dayKey: null, ti: 0 }),
+    getProtocolById: () => ({ id: 2, type: 'oral', name: 'Zinc' }),
+    needsSiteQuestion: () => false,
+    notificationTakeTarget: MT.notificationTakeTarget,
+    recordDoseTaken: (id, o) => { calls.push(['record', id, o]); return { logId: 9, dayKey: 'x', protocol: { name: 'Zinc', type: 'oral' } }; },
+    notifyNothingLogged: async () => calls.push(['nothing']),
+    cancelTodaysDoseReminders: async () => {},
+    Analytics: { doseLogged: () => {} },
+    notifyDataChanged: () => calls.push(['changed']),
+    AppState: { currentState: 'active' },
+    requestSync: () => calls.push(['sync']),
+    syncAllNotifications: async () => {},
+    saveQuestion: async () => calls.push(['question']),
+    newQuestion: (q) => q,
+    AsyncStorage: {},
+    insertDoseLog: () => { throw new Error('no own write path'); },
+    updateVial: () => { throw new Error('no own write path'); },
   };
-  const today = body(read('screens/TodayScreen.js'), 'markTaken');
+  const markTaken = loadFn('lib/notificationActions.js', 'async function markTaken(', 'markTaken', deps);
+  await markTaken({ id: 'dose-2-x', data: { protocolId: 2 } });
+  assert.equal(calls.filter((c) => c[0] === 'record').length, 1, 'one shared write');
+  assert.ok(calls.some((c) => c[0] === 'changed'));
+  calls.length = 0;
+  deps.recordDoseTaken = (id, o) => { calls.push(['record', id, o]); return { logId: null, alreadyLogged: true }; };
+  const refused = loadFn('lib/notificationActions.js', 'async function markTaken(', 'markTaken', deps);
+  await refused({ id: 'dose-2-x', data: { protocolId: 2 } });
+  assert.deepEqual(calls.map((c) => c[0]), ['record', 'nothing'], 'a refused tap says so and stops');
+});
+
+test('FX-7: Today marks taken through recordDoseTaken and has no write path of its own', () => {
+  const { sliceBlock, read } = require('./helpers/extractFn');
+  const today = sliceBlock(read('screens/TodayScreen.js'), '  async function markTaken(');
   assert.match(today, /recordDoseTaken\(/, 'Today calls the shared function');
-  assert.doesNotMatch(today, /insertDoseLog\(|updateVial\(|units_taken/, 'Today has no write path of its own');
-  const notif = body(read('lib/notificationActions.js'), 'markTaken');
-  assert.match(notif, /recordDoseTaken\(/, 'the notification calls the shared function');
-  assert.match(read('lib/doseActions.js'), /planMarkTaken\(/, 'recordDoseTaken applies the shared plan');
+  assert.doesNotMatch(today, /insertDoseLog\(|updateVial\(|units_taken/, 'no write of its own');
+  assert.match(sliceBlock(read('lib/doseActions.js'), 'export function recordDoseTaken('), /planMarkTaken\(/, 'recordDoseTaken applies the shared plan');
 });
 
 // Review #013 item 2: Today must not use its (possibly stale) screen count to

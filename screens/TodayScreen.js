@@ -31,7 +31,7 @@ import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
-import { planUndoTake } from '../lib/markTaken';
+import { planUndoTake, takeRefusal } from '../lib/markTaken';
 import { wasDeleted } from '../lib/deleteDose';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
@@ -807,6 +807,19 @@ export default function TodayScreen() {
   // opts.deferUi (ms): let the "taken" confirmation play before the card re-sorts; the
   // dose is WRITTEN immediately regardless. opts.write: recordDoseTaken options (tap
   // time, site). opts.cancelUpTo: reminders to cancel for a banner's answer (ti + 1).
+  // A-38 (b): a refused tap is never silent — why nothing was written, in Today's sheet.
+  // Returns true when the sheet is shown.
+  function showTakeRefused(protocol, res) {
+    let fresh = null;
+    try { fresh = getProtocolById(protocol.id); } catch { fresh = null; }
+    const r = takeRefusal({ protocol: fresh, alreadyLogged: !!(res && res.alreadyLogged) });
+    if (!r) return false;
+    const src = fresh || protocol;
+    const name = src && (src.compound_id ? t(src.compound_id) : src.name);
+    showTodaySheet({ title: t(r.title), body: t(r.body).replace('{name}', name || ''), buttons: okButton() });
+    return true;
+  }
+
   async function markTaken(protocol, opts = {}) {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
@@ -817,11 +830,12 @@ export default function TodayScreen() {
       // auto-Missed row is flipped, and vial/oral counts move once.
       const res = recordDoseTaken(protocol.id, opts.write || {});
       if (!res || !res.logId) {
-        // Paused/deleted, or already logged elsewhere: show the real state.
+        // Ended/deleted, or already logged elsewhere: show the real state and say why (A-38 b).
         actionInProgressRef.current = false;
         resetTake(protocol.id);
         fetchTodayLogs();
         fetchProtocols();
+        showTakeRefused(protocol, res);
         return;
       }
       const logId = res.logId;
@@ -933,6 +947,10 @@ export default function TodayScreen() {
     if (isDoseAlreadyLogged(q.protocolId, commitOpts(q))) {
       dropQuestion(AsyncStorage, q.key);
       resetTake(q.protocolId);
+      // The user tapped Mark taken for it: say why nothing is written (A-38 b); closing the
+      // sheet opens the next question.
+      const qp = protocols.find((x) => x.id === q.protocolId) || getProtocolById(q.protocolId);
+      if (showTakeRefused(qp || { id: q.protocolId }, { alreadyLogged: true })) return;
       openNextQuestion();
       return;
     }
