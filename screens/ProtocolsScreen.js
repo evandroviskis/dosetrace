@@ -76,7 +76,7 @@ import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 import { pluralKey } from '../lib/plural';
 import {
-  isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol,
+  isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
 } from '../lib/protocolForm';
 
@@ -1210,6 +1210,28 @@ export default function ProtocolsScreen() {
   // A-83: Restart an ended protocol = a new run with the same settings, started today (the
   // ended row stays as history, so nothing is owed for the weeks it was stopped); its vial goes
   // with it. Counts against the free plan's limit like adding one.
+  // Round 4 (2026-10-03): an Ended row is deleted the way any protocol is — the same "Delete
+  // protocol" sheet, a soft delete to Recently deleted (Restore puts it back in Ended).
+  function deleteEndedProtocol(p) {
+    setScreenSheet({
+      title: t('protocols_delete_title'),
+      body: t('protocols_delete_confirm_settings'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        {
+          label: t('protocols_delete'), kind: 'danger',
+          onPress: () => {
+            softDeleteProtocol(p.id);
+            cancelDoseReminder(p.id).catch(() => {});
+            fetchProtocols();
+            notifyDataChanged('protocol');
+            requestSync();
+          },
+        },
+      ],
+    });
+  }
+
   async function restartProtocol(id) {
     if (await isOverFreeLimit()) { promptUpgrade(); return; }
     const newId = restartEndedProtocol(id);
@@ -1221,7 +1243,12 @@ export default function ProtocolsScreen() {
   }
 
   function restoreProtocol(id) {
-    restoreProtocolDB(id);
+    // A protocol ended before it was deleted goes back to Ended: no vial, no reminders (A-83).
+    if (restoreProtocolDB(id) === 'ended') {
+      fetchProtocols();
+      requestSync();
+      return;
+    }
     const newestVial = getNewestVialForProtocol(id);
     if (newestVial) updateVial(newestVial.id, { active: 1 });
     const restored = getProtocolById(id);
@@ -2065,7 +2092,7 @@ export default function ProtocolsScreen() {
     </View>
   );
   // A-83: "Ended" ("Yes, it's finished" on Today) — above Recently deleted, only when something
-  // was ended; the same row as Recently deleted: color dot, name, "Ended {date}", a Restart pill.
+  // was ended; the same row as Recently deleted: color dot, name, "Ended {date}", a Restart pill and the trash (Delete protocol → Recently deleted).
   // Its doses stay in the Dose log and the reports; nothing here deletes.
   const endedSection = endedProtocols.length > 0 ? (
     <View style={s.blk}>
@@ -2080,6 +2107,16 @@ export default function ProtocolsScreen() {
             </View>
             <TouchableOpacity onPress={() => restartProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button" accessibilityLabel={`${t('protocols_restart')} ${protocolName(p)}`}>
               <Text style={s.restoreBtnText}>{t('protocols_restart')}</Text>
+            </TouchableOpacity>
+            {/* The Recently deleted row's trash (round 4): Delete protocol → Recently deleted */}
+            <TouchableOpacity
+              onPress={() => deleteEndedProtocol(p)}
+              accessibilityRole="button"
+              accessibilityLabel={t('protocols_delete')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={s.deleteForeverBtn}
+            >
+              <FeatureIcon name="trash" size={22} color={colors.risk} />
             </TouchableOpacity>
           </View>
         ))}

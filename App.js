@@ -16,7 +16,7 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { signOutOutcome } from './lib/signOutCore';
-import { onSignedOutNow, afterSignedOut } from './lib/signedOut';
+import { onSignedOutNow, afterSignedOut, bumpSignInGeneration, signInGeneration } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -34,7 +34,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 // load, before any component renders.
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
-import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle } from './lib/sync';
+import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -634,6 +634,8 @@ export default function App() {
         setTimeout(() => { afterSignedOut(intentional, {
           stopSyncEngine,
           waitForSyncIdle,
+          runExclusive: runSyncExclusive,
+          getSignInGeneration: signInGeneration,
           clearLocalDatabase,
           cancelAllNotifications,
           dismissAllNotifications,
@@ -649,6 +651,8 @@ export default function App() {
       }
 
       if (_event === 'SIGNED_IN' && session?.user?.id) {
+        // A sign-in ends any pending wipe of the previous account (R1): plain counter write.
+        bumpSignInGeneration();
         // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
         // run inline in this callback.
         setTimeout(async () => {
