@@ -6,7 +6,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -184,6 +184,7 @@ function MainTabs() {
   ];
 
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets(); // the tab bar sits above the system's bottom bar (Android)
   return (
     <Tab.Navigator
       screenOptions={{
@@ -192,7 +193,7 @@ function MainTabs() {
         // active = ink + 600, inactive = ink3. Never blue.
         tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.ink3,
-        tabBarStyle: tabBarStyle(colors),
+        tabBarStyle: tabBarStyle(colors, insets.bottom),
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',

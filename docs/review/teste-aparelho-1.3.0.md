@@ -78,7 +78,8 @@ Adicione um protocolo com início 3 semanas atrás.
 4. O voltar do Android sai da tela, como no celular.
 5. Tome uma dose na página esquerda: o Histórico na direita atualiza na hora.
 6. TalkBack ligado: ao tocar num item da esquerda, o foco vai para a página direita e o item diz "selecionado". Ordem de leitura: esquerda, depois direita.
-7. **O mais provável de quebrar:** dose injetável, Marcar como tomada, com a pergunta do local aberta, feche ou abra o Fold. Depois de responder, o Histórico tem que ter exatamente UMA linha.
+7. **Barra de baixo (versão de teste 2):** com a barra de tarefas da Samsung visível, e também com o Fold fechado, as abas ficam inteiras acima da barra do sistema. Abra também uma folha que sobe de baixo (Excluir protocolo, escolher local, Premium) e confira que o último botão não fica atrás da barra.
+8. **O mais provável de quebrar:** dose injetável, Marcar como tomada, com a pergunta do local aberta, feche ou abra o Fold. Depois de responder, o Histórico tem que ter exatamente UMA linha.
 
 ## 10. Conta grátis (+qa1)
 1. Adicione 3 protocolos. O 4º abre a tela do Premium. Com um encerrado, Recomeçar também abre o Premium.

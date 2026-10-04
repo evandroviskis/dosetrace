@@ -16,7 +16,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { MONO } from '../lib/fonts';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser, supabase } from '../lib/supabase';
@@ -869,6 +869,7 @@ export default function ProtocolsScreen() {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets(); // the tab bar / selection bar sit above the system's bottom bar
   const route = useRoute();
   const [protocols, setProtocols] = useState([]);
   // Soft-deleted protocols still restorable (7 days): "Recently deleted" at the bottom of
@@ -1122,8 +1123,8 @@ export default function ProtocolsScreen() {
   useFocusEffect(useCallback(() => { fetchProtocols(); return () => setTrashSel(null); }, []));
   // While selecting in Recently deleted the bottom bar takes the tab bar's place.
   useEffect(() => {
-    navigation.setOptions({ tabBarStyle: trashSel ? { display: 'none' } : tabBarStyle(colors) });
-  }, [trashSel, colors]);
+    navigation.setOptions({ tabBarStyle: trashSel ? { display: 'none' } : tabBarStyle(colors, insets.bottom) });
+  }, [trashSel, colors, insets.bottom]);
   // A protocol that left Recently deleted leaves the selection; an empty section ends it.
   useEffect(() => {
     setTrashSel((cur) => (cur == null ? cur : (deletedProtocols.length ? T.prune(cur, deletedProtocols.map((p) => p.id)) : null)));

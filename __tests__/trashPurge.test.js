@@ -83,12 +83,12 @@ test('the screen: Select only with items, the check, Cancel, the bar replaces th
   assert.match(sec, /t\('protocols_select'\)/);
   assert.match(sec, /t\(T\.allLabelKey\(trashSel, deletedIds\)\)/);
   assert.match(sec, /accessibilityRole="checkbox"/);
-  assert.match(s, /navigation\.setOptions\(\{ tabBarStyle: trashSel \? \{ display: 'none' \} : tabBarStyle\(colors\) \}\)/);
+  assert.match(s, /navigation\.setOptions\(\{ tabBarStyle: trashSel \? \{ display: 'none' \} : tabBarStyle\(colors, insets\.bottom\) \}\)/);
   assert.match(s, /t\('protocols_restore_n'\)\.replace\('\{n\}', String\(bar\.n\)\)/);
   assert.match(s, /t\('protocols_delete_forever_n'\)\.replace\('\{n\}', String\(bar\.n\)\)/);
   assert.match(s, /disabled=\{!bar\.enabled\}/);
   assert.match(s, /function confirmPurge\(ids\)/);
-  assert.match(read('App.js'), /tabBarStyle: tabBarStyle\(colors\),/);
+  assert.match(read('App.js'), /tabBarStyle: tabBarStyle\(colors, insets\.bottom\),/);
 });
 
 test('the strings exist in six languages', () => {
