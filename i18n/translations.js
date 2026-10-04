@@ -9009,7 +9009,7 @@ export const translations = {
 
     // LOG
     log_title: 'Dosisprotokoll',
-    today_view_log: 'Verlauf ansehen',
+    today_view_log: 'Dosisprotokoll ansehen',
     today_due: 'Fällig',
     today_doses_taken: "{x} von {y} erledigt",
     today_dose_one: "Dosis",
