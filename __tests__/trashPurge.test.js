@@ -102,3 +102,86 @@ test('the strings exist in six languages', () => {
   assert.equal(mod.exports.translations.en.protocols_purge_title_single, 'Delete this protocol forever?');
   assert.equal(mod.exports.translations.en.protocols_purge_body_many, 'Their dose history, vials and reminders are removed from all your devices. This can’t be undone.');
 });
+
+// ── Gate B on the purge (2026-10-04) ────────────────────────────────────────────────────────
+// P1: other signed-in devices never learned of a hard delete (the pull is incremental by
+// updated_at). Each pull now asks the cloud which protocols the account still has and removes a
+// local SYNCED protocol whose cloud row vanished, with its dose logs and vials — also unsynced
+// children (the user deleted that protocol forever; a pending log would otherwise hit the foreign
+// key and stay pending, blocking sign-out). A push whose protocol update finds 0 rows does the
+// same. An empty answer is never trusted (a missing session reads as an empty list).
+// P2: purgeProtocol only purges a protocol that is still deleted (a pull may restore it while the
+// sheet is open), and its children only when it did.
+const { pullChanges } = require('../lib/syncCore');
+
+async function twoDevices() {
+  const cloud = makeCloud();
+  const A = makeDb();
+  const keep = await seedSynced(A, cloud, 'KEEP');
+  const gone = await seedSynced(A, cloud, 'GONE');
+  await pushPending(A, cloud, USER); // A's offline doses go up too
+  const B = makeDb();
+  await pullChanges(B, cloud, USER);
+  const onB = (name) => B.getFirstSync('SELECT * FROM protocols WHERE name = ?', [name]);
+  return { cloud, A, B, keep, gone, onB };
+}
+
+test('P1: Delete forever on device A removes the protocol, its doses and vials from device B at its next pull', async () => {
+  const { cloud, A, B, gone, onB } = await twoDevices();
+  const bGone = onB('GONE');
+  assert.ok(bGone, 'B has it before');
+  assert.ok(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [bGone.id]).n >= 3);
+  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
+  await pushPending(A, cloud, USER);
+  await pullChanges(B, cloud, USER);
+  assert.ok(!onB('GONE'), 'gone from B (and from its Recently deleted)');
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ? OR protocol_remote_id = ?', [bGone.id, gone.remote]).n, 0, 'no orphan doses in B\'s Dose log');
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM vials WHERE protocol_id = ? OR protocol_remote_id = ?', [bGone.id, gone.remote]).n, 0);
+  const bKeep = onB('KEEP');
+  assert.ok(bKeep);
+  assert.ok(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [bKeep.id]).n >= 3, 'the other protocol keeps its doses');
+});
+
+test('P1: an unsynced dose on B for the vanished protocol is dropped with it (never pending forever)', async () => {
+  const { cloud, A, B, gone, onB } = await twoDevices();
+  const bGone = onB('GONE');
+  B.runSync(`INSERT INTO dose_logs (user_id, protocol_id, protocol_remote_id, outcome, logged_at, sync_status) VALUES (?, ?, ?, 'Taken', '2026-10-04T08:00:00Z', 'pending')`, [USER, bGone.id, gone.remote]);
+  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
+  await pushPending(A, cloud, USER);
+  await pullChanges(B, cloud, USER);
+  assert.equal(B.getFirstSync(`SELECT COUNT(*) AS n FROM dose_logs WHERE sync_status = 'pending'`).n, 0);
+});
+
+test('P1: a pending edit on B of the vanished protocol: the push finds 0 rows and removes the protocol with its children', async () => {
+  const { cloud, A, B, gone, onB } = await twoDevices();
+  const bGone = onB('GONE');
+  B.runSync(`UPDATE protocols SET name = 'GONE edited', sync_status = 'pending' WHERE id = ?`, [bGone.id]);
+  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
+  await pushPending(A, cloud, USER);
+  await pushPending(B, cloud, USER);
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM protocols WHERE id = ?', [bGone.id]).n, 0);
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [bGone.id]).n, 0);
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM vials WHERE protocol_id = ?', [bGone.id]).n, 0);
+});
+
+test('P1: never touches a protocol not yet pushed, another user\'s rows, or anything when the cloud answers an empty list', async () => {
+  const { cloud, B, onB } = await twoDevices();
+  B.runSync(`INSERT INTO protocols (user_id, name, type, active, created_at, updated_at, sync_status) VALUES (?, 'LOCAL ONLY', 'recon', 1, '2026-10-04T00:00:00Z', '2026-10-04T00:00:00Z', 'pending')`, [USER]);
+  B.runSync(`INSERT INTO protocols (remote_id, user_id, name, type, active, created_at, updated_at, sync_status) VALUES ('other-cloud-1', 'u2', 'OTHER USER', 'recon', 1, '2026-10-04T00:00:00Z', '000001', 'synced')`);
+  await pullChanges(B, cloud, USER);
+  assert.ok(onB('LOCAL ONLY'));
+  assert.ok(onB('OTHER USER'));
+  const before = B.getFirstSync('SELECT COUNT(*) AS n FROM protocols').n;
+  const realIds = cloud.fetchIds.bind(cloud);
+  cloud.fetchIds = async () => ({ data: [], error: null }); // e.g. no session: RLS reads as empty
+  await pullChanges(B, cloud, USER);
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM protocols').n, before, 'an empty answer removes nothing');
+  cloud.fetchIds = async () => ({ data: null, error: { message: 'offline' } });
+  await pullChanges(B, cloud, USER);
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM protocols').n, before);
+  cloud.fetchIds = realIds;
+});
+
+test('the real cloud adapter lists the account\'s protocol ids (select id, paged)', () => {
+  assert.match(read('lib/sync.js'), /async fetchIds\(table, userId\) \{[\s\S]{0,400}\.select\('id'\)\.eq\('user_id', userId\)/);
+});
