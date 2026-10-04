@@ -16,7 +16,7 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { signOutOutcome, completeLocalSignOut } from './lib/signOutCore';
-import { onSignedOutNow, afterSignedOut, completePendingWipe, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
+import { onSignedOutNow, afterSignedOut, completePendingWipe, sessionAfterPendingWipe, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -599,10 +599,14 @@ export default function App() {
       .then(([seen, stash]) => setSeenOnboarding(!!seen && !hasAnswers(stash)))
       .catch(() => setSeenOnboarding(true));
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      // A wipe left pending by an intended sign-out (the app closed before it finished): complete it
-      // when nobody is signed in (Gate B round 3 N2).
-      try { await completePendingWipe(wipeDeps(), { hasSession: !!session, sessionUserId: session?.user?.id || null, localOwnerId: getLocalDataUserId() }); } catch { /* next start */ }
+    supabase.auth.getSession().then(async ({ data: { session: firstSession } }) => {
+      // A wipe left pending by an intended sign-out or a deletion (the app closed before it
+      // finished) completes first (N2/G2); then the session is READ AGAIN, because that wipe may
+      // have signed a deleted account out (G3).
+      const session = await sessionAfterPendingWipe(firstSession, {
+        completePending: (session) => completePendingWipe(wipeDeps(), { hasSession: !!session, sessionUserId: session?.user?.id || null, localOwnerId: getLocalDataUserId() }),
+        getSession: () => supabase.auth.getSession(),
+      });
       setSession(session);
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
