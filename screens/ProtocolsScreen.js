@@ -2824,7 +2824,7 @@ export default function ProtocolsScreen() {
                     }}
                   />
                   {(customIntervalOpen || intervalDays !== 1) && (
-                    <View style={s.inrow}>
+                    <View style={[s.inrow, s.inrowLead]}>
                       <Text style={s.bodyInk}>{t('protocols_every_word')}</Text>
                       <WInput
                         s={s} c={colors}
@@ -3283,6 +3283,8 @@ const protocolsGraduated = (c) => ({
   winpOn: { borderWidth: 2, borderColor: c.ink, paddingHorizontal: 13, paddingVertical: 11 },
   winpMulti: { minHeight: 88, textAlignVertical: 'top' },
   inrow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // A row that starts with words ("Every [14] days") is inset like the labels (m3).
+  inrowLead: { paddingLeft: 4 },
   inrowInput: { flex: 1, minWidth: 0 },
   intervalInput: { width: 96 }, // left-aligned like every field (part 17)
   dayInput: { flex: 1, minWidth: 0 }, // fills the row after "Day" (part 19)
