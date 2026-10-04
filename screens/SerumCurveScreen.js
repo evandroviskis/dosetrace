@@ -23,11 +23,12 @@ import { AnimatedNumber, clamp01, eOutQuad, eInOutSine, eOutCubic, invInOutSine,
 
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getActiveProtocols, getBiomarkers } from '../lib/database';
+import { getHistoryProtocols, getBiomarkers } from '../lib/database';
+import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, splitCurveProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
+  STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols } from '../lib/localeFormat';
@@ -302,7 +303,13 @@ export default function SerumCurveScreen({ embedded = false }) {
     // mass compounds, compounds without reliable half-life data and protocols with
     // no dose are NAMED on screen, never dropped silently (lib/serumModel).
     const entryOf = (p) => getHalfLifeEntry(matchName(p));
-    const { active, iu, noData, noDose } = splitCurveProtocols(getActiveProtocols(user.id), t);
+    // A-83: active protocols first, then the ones ended inside the longest past window — their
+    // past only (lib/schedule stops at the end), named "· ended".
+    const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(user.id)), t);
+    const { iu, noData, noDose } = split;
+    const active = split.active.map((p) => (isEnded(p)
+      ? { ...p, __label: `${p.__label || (p.compound_id ? t(p.compound_id) : p.name)} · ${t('curve_ended_marker')}` }
+      : p));
     setNotCharted({ iu, noData, noDose });
     setProtocols(active);
     // Opens exactly as the user left it (lib/curveView, founder 2026-10-02): the remembered
@@ -1088,7 +1095,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   >
                     <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
-                      <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
+                      <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}{isEnded(p) ? ` · ${t('curve_ended_marker')}` : ''}</Text>
                       <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours, language)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
                     </View>
                     {on ? <CheckMark size={22} color={colors.ink} /> : <View style={{ width: 22 }} />}

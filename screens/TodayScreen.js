@@ -21,7 +21,7 @@ import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
-  getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
+  getProtocolById, hardDeleteOldProtocols, endProtocol, getHistoryProtocols, deactivateVialsByProtocol,
   getBiomarkers,
   getDB, getLocalDataUserId,
 } from '../lib/database';
@@ -505,7 +505,9 @@ export default function TodayScreen() {
   async function endInactiveProtocol() {
     const p = inactiveProtocol;
     if (!p) return;
-    softDeleteProtocol(p.id);
+    // A-83: ENDED, never deleted — its doses stay in the Dose log, the report, adherence and the
+    // curve's past; it is never purged (lib/protocolEnd). Restart lives on the Protocols list.
+    endProtocol(p.id);
     deactivateVialsByProtocol(p.id);
     cancelDoseReminder(p.id).catch(() => {});
     AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
@@ -717,7 +719,7 @@ export default function TodayScreen() {
     try {
       const since = new Date();
       since.setDate(since.getDate() - 40);
-      const ps = getActiveProtocols(uid) || [];
+      const ps = getHistoryProtocols(uid) || []; // active + ended (A-83: an ended one keeps its past days)
       const ls = getLogsSince(uid, since.toISOString()) || [];
       setRings(adherenceRings({ protocols: ps, logs: ls, nowMs: Date.now() }));
     } catch { /* keep the last rings */ }
@@ -732,7 +734,8 @@ export default function TodayScreen() {
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
     const logs = getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [];
-    const activeProtocols = getActiveProtocols(user.id) || [];
+    // Active + ended (A-83): an ended protocol's past days still count, nothing after its end.
+    const activeProtocols = getHistoryProtocols(user.id) || [];
     if (activeProtocols.length === 0) {
       setStreak(0); setMonthAdherence(0); setWeekDots([]); return;
     }

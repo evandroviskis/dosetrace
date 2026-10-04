@@ -36,7 +36,7 @@ import {
   softDeleteProtocol, getProtocolById, getActiveVials, getVialById,
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
-  permanentlyDeleteProtocol,
+  permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { dueNextOrder } from '../lib/protocolSort';
@@ -871,6 +871,7 @@ export default function ProtocolsScreen() {
   // Soft-deleted protocols still restorable (7 days): "Recently deleted" at the bottom of
   // the list (prototype list(); moved here from Settings).
   const [deletedProtocols, setDeletedProtocols] = useState([]);
+  const [endedProtocols, setEndedProtocols] = useState([]); // A-83
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
   const [todayLogs, setTodayLogs] = useState([]); // today's rows: "Due next" skips a dose already complete (m12)
@@ -1203,6 +1204,20 @@ export default function ProtocolsScreen() {
     const u = await getCachedUser();
     if (!u) return;
     setDeletedProtocols(getDeletedProtocols(u.id) || []);
+    setEndedProtocols(getEndedProtocols(u.id) || []);
+  }
+
+  // A-83: Restart an ended protocol — back on Today with its reminders, its history untouched
+  // (the same steps as Restore: its newest vial comes back too).
+  function restartProtocol(id) {
+    restartEndedProtocol(id);
+    const newestVial = getNewestVialForProtocol(id);
+    if (newestVial) updateVial(newestVial.id, { active: 1 });
+    const restarted = getProtocolById(id);
+    if (restarted) scheduleDoseReminder(restarted).catch(() => {});
+    fetchProtocols();
+    notifyDataChanged('protocol');
+    requestSync();
   }
 
   function restoreProtocol(id) {
@@ -2046,6 +2061,29 @@ export default function ProtocolsScreen() {
       </TouchableOpacity>
     </View>
   );
+  // A-83: "Ended" ("Yes, it's finished" on Today) — above Recently deleted, only when something
+  // was ended; the same row as Recently deleted: color dot, name, "Ended {date}", a Restart pill.
+  // Its doses stay in the Dose log and the reports; nothing here deletes.
+  const endedSection = endedProtocols.length > 0 ? (
+    <View style={s.blk}>
+      <Text style={s.secth}>{t('protocols_ended_title')}</Text>
+      <View style={s.delList}>
+        {endedProtocols.map((p, idx) => (
+          <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
+            <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+            <View style={s.delText}>
+              <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
+              <Text style={s.delAgo}>{t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}</Text>
+            </View>
+            <TouchableOpacity onPress={() => restartProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button" accessibilityLabel={`${t('protocols_restart')} ${protocolName(p)}`}>
+              <Text style={s.restoreBtnText}>{t('protocols_restart')}</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    </View>
+  ) : null;
+
   // Prototype list(): "Recently deleted" at the bottom of the list, only when something was
   // deleted. Each row: the protocol color as a 9 pt dot, the name, "Deleted Nd ago", a
   // Restore pill and the risk-colored delete-forever trash (with its confirm).
@@ -2147,6 +2185,7 @@ export default function ProtocolsScreen() {
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
+                {endedSection}
                 {deletedSection}
                 <View style={s.bottomPad} />
               </ScrollView>
