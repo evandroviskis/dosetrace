@@ -163,28 +163,24 @@ test('L-30: the sex chosen in Journey is saved to the profile (gender), the only
   assert.match(read('lib/bodyProfile.js'), /gender/);
 });
 
-// ── L-42: notification taps → the right screen ─────────────────────────────────────────────
-test('L-42: a notification tap opens its screen (dose → Today, check-in / day-21 → Journey, food → the chat, Mark complete → Today)', () => {
+// ── L-42: notification taps → the right screen (A-44: each lands on its reason) ───────────
+test('L-42: every notification tap goes through the one router to its reason (dose → that dose on Today, vial → its protocol, weigh-in / day-21 → Progress, food → the chat)', () => {
+  const { notifTapTarget } = require('../lib/notificationPlan');
   const app = read('App.js');
   const at = app.indexOf('notifResponseSub = N.addNotificationResponseReceivedListener(response =>');
   assert.ok(at > 0, 'the tap listener');
   const fnSrc = sliceBlock(app.slice(at), 'response => {');
-  const go = []; const food = [];
+  const routed = [];
   // eslint-disable-next-line no-new-func
-  const handler = new Function('navigationRef', 'routeFoodTap', `return (${fnSrc});`)(
-    { current: { navigate: (...a) => go.push(a) } }, (r) => food.push(r),
-  );
-  const tap = (data, actionIdentifier = 'expo.modules.notifications.actions.DEFAULT') => handler({ actionIdentifier, notification: { request: { content: { data } } } });
-  tap({ type: 'dose_reminder', protocolId: 3 });
+  const handler = new Function('routeTap', `return (${fnSrc});`)((r) => routed.push(r));
+  const tap = (data, actionIdentifier = 'expo.modules.notifications.actions.DEFAULT') => handler({ actionIdentifier, notification: { date: 1, request: { identifier: 'food-log-2026-10-02', content: { data } } } });
+  tap({ type: 'dose_reminder', protocolId: 3, dayKey: '2026-10-03', ti: 0, slotMs: 5 });
   tap({ type: 'checkin_reminder' });
   tap({ type: 'reality_check' });
-  tap({ type: 'dose_reminder', protocolId: 3 }, 'MARK_TAKEN');
+  tap({ type: 'vial_low', vialId: 9, protocolId: 4 });
   tap({ type: 'food_log' });
-  tap({ type: 'food_log' }, 'FOOD_DAY_DONE'); // closes the day elsewhere, no navigation
-  tap({ type: 'dose_reminder', protocolId: 3 }, 'SNOOZE_HOUR'); // no navigation
-  const screens = go.map((a) => a[1].params.screen);
-  assert.deepEqual(screens, ['Today', 'Journey', 'Journey', 'Today']);
-  assert.equal(food.length, 1, 'the food tap goes to the chat router');
+  const where = routed.map((r) => { const t = notifTapTarget(r, 1); return t.screen === 'MainTabs' ? t.params.screen : t.screen; });
+  assert.deepEqual(where, ['Today', 'Progress', 'Progress', 'Protocols', 'FoodChat']);
 });
 
 // ── L-46: protocol delete → its reminders and snoozed copies go ────────────────────────────

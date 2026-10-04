@@ -107,7 +107,7 @@ const round5 = n => Math.round(n / 5) * 5;
 // flushRef (optional): the screen gets a function that writes any pending input now, for its
 // beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
 // page it sits on, so the chart fits the page instead of the whole unfolded window.
-export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null, focus = null }) {
+export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null, focus = null, focusKey = null }) {
   const { t, language } = useLanguage();
   // Every number typed here is read the way the app language writes it ("86,5"; review 2026-10-02).
   const num = v => { const n = parseMeasure(v, language); return Number.isFinite(n) ? n : null; }; // body numbers: in English a comma stays the decimal
@@ -1014,12 +1014,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // the reality check, one time per open.
   const [rcY, setRcY] = useState(null);
   const focusedRef = useRef(false);
+  // A new tap (Today alert, a notification: A-44) focuses again, even on an open screen.
+  const lastFocusKey = useRef(focusKey);
+  if (lastFocusKey.current !== focusKey) { lastFocusKey.current = focusKey; focusedRef.current = false; }
   const onRcLayout = (e) => setRcY(e.nativeEvent.layout.y);
   useEffect(() => {
     if (focus !== 'reality' || !loaded || rcY == null || focusedRef.current) return;
     focusedRef.current = true;
     if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, rcY - 8), animated: true });
-  }, [focus, loaded, rcY]);
+  }, [focus, focusKey, loaded, rcY]);
 
   // Warning codes from the engine → localized copy.
   const warnText = w => {
@@ -1036,6 +1039,13 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // 38 yr · Male · 21% BF · Moderate" (only the parts that exist); first use: open, no fold.
   const weighInCount = snapshots.length;
   const layout = progressLayout({ filled, hasPlan: !!plan, weighInCount });
+  // A-44: the weekly weigh-in reminder opens "Log today's weight" (weigh-ins are never
+  // paywalled). Before the card offers it (first use) the screen opens on Your numbers.
+  useEffect(() => {
+    if (focus !== 'weighin' || !loaded || focusedRef.current) return;
+    focusedRef.current = true;
+    if (layout.card.includes('logWeight')) openWeighIn();
+  }, [focus, focusKey, loaded, layout.card.includes('logWeight')]);
   const numbersFoldable = layout.numbersFoldable;
   const numbersOpenEff = !numbersFoldable ? true : (numbersOpen == null ? false : numbersOpen);
   const youNowSummary = useMemo(() => {

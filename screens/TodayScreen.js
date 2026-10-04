@@ -11,7 +11,7 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -150,6 +150,17 @@ export default function TodayScreen() {
   const { t, language, timeFormat } = useLanguage();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
+  const route = useRoute();
+  // A-44 (founder 2026-09-28): a dose reminder tap lands on that exact dose — shown highlighted
+  // at the top, its Skip / Mark complete one tap away. Cleared when the user leaves Today.
+  const [notifFocus, setNotifFocus] = useState(null);
+  useEffect(() => {
+    const f = route.params?.focusDose;
+    if (!f) return;
+    setNotifFocus(f);
+    navigation.setParams({ focusDose: undefined });
+  }, [route.params?.focusDose]); // eslint-disable-line react-hooks/exhaustive-deps
+  useFocusEffect(useCallback(() => () => setNotifFocus(null), []));
   // Next 5 days: the day + time column is as wide as its widest date in this language.
   const [upColW, onUpColLayout] = useColumnWidth(88, language);
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -1472,6 +1483,16 @@ export default function TodayScreen() {
   const pickedDose = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams && bookParams.protocolId != null
     ? bookParams : null;
   const todayKey = localDayKey(Date.now());
+  // A-44: today's dose its reminder named, while it is still open (a dose already logged, or
+  // one for another day, is not pulled up). Yesterday's pending slot is highlighted in place.
+  const focusCard = (() => {
+    if (!notifFocus || (notifFocus.dayKey && notifFocus.dayKey !== todayKey)) return null;
+    const p = todayCards.find((x) => x.id === notifFocus.protocolId);
+    if (!p) return null;
+    return cardPlan({ protocol: p, logs: todayRows, nowMs: Date.now() }).next ? p : null;
+  })();
+  const isFocusPend = (item) => !!(notifFocus && notifFocus.dayKey && notifFocus.dayKey !== todayKey
+    && item.protocolId === notifFocus.protocolId && (notifFocus.slotMs == null || item.slotMs === notifFocus.slotMs));
   const isPickedDose = (protocolId, dayKey, slotMs) => !!pickedDose
     && String(pickedDose.protocolId) === String(protocolId) && pickedDose.dayKey === dayKey
     && (slotMs === undefined || pickedDose.slotMs === slotMs);
@@ -1596,7 +1617,7 @@ export default function TodayScreen() {
   // partial lines, Day X of Y, last site, protocol streak, vial line or + Add vial).
   // In the book layout (S-26) a tap on the card opens the dose on the right page instead.
   // Rendered as a plain function so React doesn't remount the subtree on every render.
-  function renderDoseCard(p) {
+  function renderDoseCard(p, opts = {}) {
     const dosesTakenToday = takenCounts[p.id] || 0;
     const dosesNeeded = expectedDosesOn(p, new Date());
     const vial = vials[p.id];
@@ -1616,7 +1637,7 @@ export default function TodayScreen() {
     // today's dose of this protocol; yesterday's pending slot is selected on its own row.
     const picked = book && isPickedDose(p.id, todayKey);
     return (
-      <View key={p.id} style={[s.dose, picked && s.dosePicked]}>
+      <View key={p.id} style={[s.dose, (picked || opts.highlight) && s.dosePicked]}>
         {/* Today redesign part 5 (prototype card()): dot, name, the amount in Geist Mono with
             " · Daily" in ink2; the time with the drawn arrow; "Due" once due, a grey
             "reminder" tag before it (when a reminder time is set). */}
@@ -1835,6 +1856,14 @@ export default function TodayScreen() {
           <Text style={s.title}>{t('tab_today')}</Text>
         </View>
 
+        {focusCard && (
+          // A-44: the dose its reminder was about, at the top, highlighted (ink outline).
+          <View style={s.block}>
+            <View style={s.lab}><Text style={s.labText}>{t('today_notif_focus_title')}</Text></View>
+            {renderDoseCard(focusCard, { highlight: true })}
+          </View>
+        )}
+
         {alerts.length > 0 && (
           <View style={s.block}>
             <View style={s.lab}>
@@ -1893,7 +1922,7 @@ export default function TodayScreen() {
                 .replace('{name}', name)
                 .replace('{time}', formatTimeAMPM(new Date(item.slotMs).toTimeString().slice(0, 5)));
               // BK-16: in the book layout the row opens yesterday's dose on the right page.
-              const pickedPend = book && isPickedDose(item.protocolId, item.dayKey, item.slotMs);
+              const pickedPend = (book && isPickedDose(item.protocolId, item.dayKey, item.slotMs)) || isFocusPend(item);
               return (
                 <View key={`${item.protocolId}-${item.slotMs}`} style={[s.pend, pickedPend && s.pendPicked]}>
                   {book ? (
@@ -1951,7 +1980,7 @@ export default function TodayScreen() {
               <Text style={s.sectionTitle}>{t('today_doses').charAt(0).toUpperCase() + t('today_doses').slice(1)}</Text>
               {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t)}</Text>}
             </View>
-            {todayCards.map(p => renderDoseCard(p))}
+            {todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))}
             {todayCards.length === 0 && allDoneToday && (
               // Part 13 (prototype caught()): the ok check beside the line.
               <View style={s.doneCard}>

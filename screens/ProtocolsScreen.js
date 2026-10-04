@@ -33,7 +33,7 @@ import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveProtocols, insertProtocol, updateProtocol,
-  softDeleteProtocol, getProtocolById, getActiveVials,
+  softDeleteProtocol, getProtocolById, getActiveVials, getVialById,
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol,
@@ -1117,6 +1117,15 @@ export default function ProtocolsScreen() {
       navigation.setParams({ openProtocolId: undefined });
     }
   }, [route.params?.openProtocolId]);
+  // A-44: an older "Vial running low" alert names only its vial — open the vial's protocol.
+  useEffect(() => {
+    const vialId = route.params?.openVialId;
+    if (vialId == null) return;
+    let pid = null;
+    try { const v = getVialById(vialId); pid = v ? v.protocol_id : null; } catch { pid = null; }
+    if (pid != null) openProtocolById(pid);
+    navigation.setParams({ openVialId: undefined });
+  }, [route.params?.openVialId]);
 
   // A screen sheet must not be presented while the add/edit sheet is still on screen
   // or animating out (iOS drops the second presentation). iOS reports the end through

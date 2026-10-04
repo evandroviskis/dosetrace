@@ -82,7 +82,7 @@ test('BK-2/BK-3: Today renders BookPanes only under `book`; one column is the un
   const lp = varInit(todayAst, 'leftPage');
   assert.ok(lp && lp.type === 'JSXElement' && lp.openingElement.name.name === 'ScrollView', 'leftPage is the Today ScrollView');
   const leftSrc = code(TODAY, lp);
-  for (const piece of ['alerts.length > 0', 'pendingYest.length > 0', '<TodayTracker', '<FoodLogHero', 'todayCards.map(p => renderDoseCard(p))', 'takenNames.length > 0', "foldRow('tom'", "foldRow('n5'"]) {
+  for (const piece of ['alerts.length > 0', 'pendingYest.length > 0', '<TodayTracker', '<FoodLogHero', 'todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))', 'takenNames.length > 0', "foldRow('tom'", "foldRow('n5'"]) {
     assert.ok(leftSrc.includes(piece), `the left page keeps ${piece}`);
   }
   // Both pages: left = leftPage, right = the right page, keyed by the open item.
@@ -102,7 +102,7 @@ test('BK-2: every Today tap that changed for the book keeps the phone navigation
   // the protocol screen.
   assert.match(TODAY, /onPress=\{\(\) => \(book \? openUpcomingOnPage\(p, at\) : navigation\.navigate\('Protocols', \{ openProtocolId: p\.id \}\)\)\}/);
   // BK-16: yesterday's pending row is tappable only in the book; the phone keeps the plain row.
-  const pendIdx = TODAY.indexOf('const pickedPend = book && isPickedDose(item.protocolId, item.dayKey, item.slotMs);');
+  const pendIdx = TODAY.indexOf('const pickedPend = (book && isPickedDose(item.protocolId, item.dayKey, item.slotMs)) || isFocusPend(item);');
   assert.ok(pendIdx > 0);
   const pend = TODAY.slice(pendIdx, TODAY.indexOf('</View>\n                  )}', pendIdx));
   assert.match(pend, /\{book \? \(\s*<TouchableOpacity[\s\S]*onPress=\{\(\) => openDoseSlot\(item\.protocolId, item\.dayKey, item\.slotMs\)\}[\s\S]*\) : \(\s*<View style=\{s\.pendRow\}>/);
@@ -173,7 +173,7 @@ test('BK-3: the dose page draws from the same computeDraw as the Today card', ()
 });
 
 test('BK-8: the dose open on the right page has a 2 pt ink outline (book only, theme token)', () => {
-  assert.match(TODAY, /style=\{\[s\.dose, picked && s\.dosePicked\]\}/);
+  assert.match(TODAY, /style=\{\[s\.dose, \(picked \|\| opts\.highlight\) && s\.dosePicked\]\}/); // A-44 reuses the outline for a reminder tap
   assert.match(TODAY, /const picked = book && isPickedDose\(p\.id, todayKey\);/, 'the card = today\'s dose of its protocol');
   assert.match(TODAY, /style=\{\[s\.pend, pickedPend && s\.pendPicked\]\}/, 'yesterday\'s pending row');
   assert.match(TODAY, /style=\{\[s\.upRow, pickedUp && s\.upRowPicked\]\}/, 'an upcoming row');

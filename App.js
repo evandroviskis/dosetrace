@@ -22,7 +22,7 @@ import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { foodTapParams, responseKey } from './lib/notificationPlan';
+import { notifTapTarget, responseKey } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
@@ -369,24 +369,25 @@ export default function App() {
   const navigationRef = useRef(null);
   const fontsLoaded = useAppFonts();
 
-  // Food-reminder taps (FL-18/37: they open the one food chat) wait here until the signed-in app (the 'Main'
-  // route) exists — a tap that LAUNCHED the app arrives before navigation does.
+  // Notification taps (A-44: each lands on its reason; the food question opens the one food
+  // chat, FL-18/37) wait here until the signed-in app (the 'Main' route) exists — a tap that
+  // LAUNCHED the app arrives before navigation does.
   const pendingNavRef = useRef(null);
   const flushPendingNav = useCallback(() => {
     const nav = navigationRef.current;
-    const params = pendingNavRef.current;
-    if (!params || !nav || (nav.isReady && !nav.isReady())) return;
+    const target = pendingNavRef.current;
+    if (!target || !nav || (nav.isReady && !nav.isReady())) return;
     const names = (nav.getRootState && nav.getRootState()?.routeNames) || [];
     if (!names.includes('Main')) return;
     pendingNavRef.current = null;
-    nav.navigate('Main', { screen: 'FoodChat', params });
+    nav.navigate('Main', { screen: target.screen, params: target.params });
   }, []);
   // Each tap is routed once, whether it comes from the running listener or the
   // launch path (persisted, so a relaunch never replays an old tap).
   const routedRef = useRef(new Set());
-  const routeFoodTap = useCallback(async (response, maxAgeMs) => {
-    const params = foodTapParams(response, Date.now());
-    if (!params) return false;
+  const routeTap = useCallback(async (response, maxAgeMs) => {
+    const target = notifTapTarget(response, Date.now());
+    if (!target) return false;
     const key = responseKey(response);
     if (routedRef.current.has(key)) return true;
     routedRef.current.add(key);
@@ -398,7 +399,7 @@ export default function App() {
       if (Array.isArray(list) && list.includes(key)) return true;
       await AsyncStorage.setItem('dosetrace_nav_handled', JSON.stringify([...(Array.isArray(list) ? list : []), key].slice(-30)));
     } catch { /* best effort — the in-memory set still dedupes this run */ }
-    pendingNavRef.current = params;
+    pendingNavRef.current = target;
     flushPendingNav();
     return true;
   }, [flushPendingNav]);
@@ -508,34 +509,18 @@ export default function App() {
         const data = response?.notification?.request?.content?.data;
         if (!data) return;
 
-        // Action buttons (Mark as taken / snooze) are handled once, at module scope,
-        // by lib/notificationActions (works with the app killed). Here: only
-        // navigation — Mark as taken opens the app on iOS, so show Today.
-        if (response.actionIdentifier === 'MARK_TAKEN') {
-          if (navigationRef.current) navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
-          return;
-        }
-        if (response.actionIdentifier === 'SNOOZE_HOUR' || response.actionIdentifier === 'SNOOZE_TOMORROW') return;
-        // "Nothing else today" (food question) closes the day in lib/notificationActions — no navigation.
-        if (response.actionIdentifier === 'FOOD_DAY_DONE') return;
-        // Food reminder: body tap → the 3-button question; "Log it" → the composer.
-        if (data.type === 'food_log' || response.actionIdentifier === 'FOOD_LOG_IT') { routeFoodTap(response, 0); return; }
-
-        if (data.type === 'dose_reminder' && data.protocolId && navigationRef.current) {
-          navigationRef.current.navigate('Main', { screen: 'MainTabs', params: { screen: 'Today' } });
-        } else if ((data.type === 'checkin_reminder' || data.type === 'reality_check') && navigationRef.current) {
-          // Measurements / reality-check nudge — deep-link into the Journey tab.
-          navigationRef.current.navigate('Main', {
-            screen: 'MainTabs',
-            params: { screen: 'Journey', params: {} },
-          });
-        }
+        // Action buttons (Mark complete / snooze / "Nothing else today") are handled once, at
+        // module scope, by lib/notificationActions (works with the app killed). Here only the
+        // navigation: A-44 — every tap lands on its reason (lib/notificationPlan notifTapTarget):
+        // a dose on that dose at the top of Today, a vial on its protocol, the weigh-in on
+        // "Log today's weight", day 21 on the reality check, the food question on the chat.
+        routeTap(response, 0);
       });
-      // Cold start: a tap on the food reminder that LAUNCHED the app may never
+      // Cold start: a tap that LAUNCHED the app may never
       // reach the listener above — route the launch response too (deduped with
       // the listener by responseKey; older than 12 h = stale, ignored).
       if (N.getLastNotificationResponseAsync) {
-        N.getLastNotificationResponseAsync().then((last) => { if (last) routeFoodTap(last, 12 * 3600 * 1000); }).catch(() => {});
+        N.getLastNotificationResponseAsync().then((last) => { if (last) routeTap(last, 12 * 3600 * 1000); }).catch(() => {});
       }
     } catch {
       // expo-notifications not available — skip listener

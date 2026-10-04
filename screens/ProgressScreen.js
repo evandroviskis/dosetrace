@@ -61,6 +61,7 @@ export default function ProgressScreen({ embedded = false }) {
         flushRef={flushRef}
         paneWidth={embedded ? paneWidths(width).right : null}
         focus={embedded ? null : (route && route.params && route.params.focus) || null}
+        focusKey={embedded || !route || !route.params ? null : route.params.nonce || null}
       />
       <FeatureExplainerGate candidates={energyExplainers} />
     </SafeAreaView>

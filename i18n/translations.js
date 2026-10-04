@@ -9,6 +9,7 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    today_notif_focus_title: "From your reminder",
     lang_name_it: "Italian",
     lang_name_de: "German",
     lang_name_fr: "French",
@@ -2175,6 +2176,7 @@ export const translations = {
   },
 
   'es': {
+    today_notif_focus_title: "De tu recordatorio",
     lang_name_it: "Italiano",
     lang_name_de: "Alemán",
     lang_name_fr: "Francés",
@@ -4341,6 +4343,7 @@ export const translations = {
   },
 
   'pt': {
+    today_notif_focus_title: "Do seu lembrete",
     lang_name_it: "Italiano",
     lang_name_de: "Alemão",
     lang_name_fr: "Francês",
@@ -6506,6 +6509,7 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    today_notif_focus_title: "Depuis votre rappel",
     lang_name_it: "Italien",
     lang_name_de: "Allemand",
     lang_name_fr: "Français",
@@ -8671,6 +8675,7 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    today_notif_focus_title: "Aus deiner Erinnerung",
     lang_name_it: "Italienisch",
     lang_name_de: "Deutsch",
     lang_name_fr: "Französisch",
@@ -10837,6 +10842,7 @@ export const translations = {
   },
 
   'it': {
+    today_notif_focus_title: "Dal tuo promemoria",
     lang_name_it: "Italiano",
     lang_name_de: "Tedesco",
     lang_name_fr: "Francese",
