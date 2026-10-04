@@ -1493,6 +1493,22 @@ export default function TodayScreen() {
   })();
   const isFocusPend = (item) => !!(notifFocus && notifFocus.dayKey && notifFocus.dayKey !== todayKey
     && item.protocolId === notifFocus.protocolId && (notifFocus.slotMs == null || item.slotMs === notifFocus.slotMs));
+  // A-42: My Protocols' Mark complete opens Today on the dose with take: Today runs its own
+  // take once (yesterday-or-today question, the site question, the vial, Undo) — no new rules.
+  const takenFocusRef = useRef(null);
+  useEffect(() => {
+    if (!notifFocus || !notifFocus.take || takenFocusRef.current === notifFocus.nonce) return;
+    if (notifFocus.dayKey && notifFocus.dayKey !== todayKey) {
+      const item = pendingYest.find(isFocusPend);
+      if (item) { takenFocusRef.current = notifFocus.nonce; takePending(item); }
+      return;
+    }
+    if (!focusCard) return;
+    const cp = cardPlan({ protocol: focusCard, logs: todayRows, nowMs: Date.now() });
+    if (!cp.next) return;
+    takenFocusRef.current = notifFocus.nonce;
+    handleTake(focusCard, null, 0, { slot: cp.next });
+  }, [notifFocus, focusCard, pendingYest]); // eslint-disable-line react-hooks/exhaustive-deps
   const isPickedDose = (protocolId, dayKey, slotMs) => !!pickedDose
     && String(pickedDose.protocolId) === String(protocolId) && pickedDose.dayKey === dayKey
     && (slotMs === undefined || pickedDose.slotMs === slotMs);

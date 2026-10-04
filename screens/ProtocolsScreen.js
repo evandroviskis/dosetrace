@@ -40,6 +40,8 @@ import {
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { dueNextOrder } from '../lib/protocolSort';
+import { protocolTakeAction } from '../lib/protocolTake';
+import { pendingFromYesterday } from '../lib/pendingYesterday';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
 import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
 import { explainerModel } from '../lib/fitExplainer';
@@ -52,7 +54,7 @@ import { supplyState } from '../lib/supplyLow';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
-import { backfillTakenDoses } from '../lib/doseActions';
+import { backfillTakenDoses, getMissedWatermark } from '../lib/doseActions';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -592,7 +594,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
 // line with vial cells, and outline tags. The whole card opens the protocol screen.
 // Book layout (S-26 BK-8): `book` reserves a 2 pt outline on every card so selecting one
 // does not shift it; the card open on the right page draws that outline in ink.
-function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }) {
+function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, onTake = null }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -669,6 +671,12 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false }
           <View key={g} style={s.otag}><Text style={s.otagText}>{t(g) || g}</Text></View>
         )) : null}
       </View>
+      {/* A-42: only when Today would show this dose as actionable; Today runs the take. */}
+      {onTake ? (
+        <TouchableOpacity style={s.ptake} onPress={onTake} accessibilityRole="button">
+          <Text style={s.ptakeText} numberOfLines={1}>{t('today_mark_taken')}</Text>
+        </TouchableOpacity>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -866,6 +874,7 @@ export default function ProtocolsScreen() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
   const [todayLogs, setTodayLogs] = useState([]); // today's rows: "Due next" skips a dose already complete (m12)
+  const [pendingYest, setPendingYest] = useState([]); // A-42: yesterday's open slots (A-40), as Today shows them
   const [vialsByProtocol, setVialsByProtocol] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(1);
@@ -1173,6 +1182,11 @@ export default function ProtocolsScreen() {
       setLogCounts(counts);
       const day0 = new Date(); day0.setHours(0, 0, 0, 0);
       setTodayLogs(logs.filter((l) => new Date(l.logged_at) >= day0));
+      // A-42: the slots pending from yesterday, with Today's A-49 time-zone guard.
+      const since = new Date(day0); since.setDate(since.getDate() - 1); since.setHours(since.getHours() - 3);
+      let tzSinceMs = null;
+      try { tzSinceMs = (await getMissedWatermark()).tzSinceMs; } catch { /* best effort */ }
+      setPendingYest(pendingFromYesterday({ protocols: data || [], logs: logs.filter((l) => new Date(l.logged_at) >= since), nowMs: Date.now(), tzSinceMs }));
       setLastLog(lastCompleteLog(logs));
     } catch { /* keep the last counts */ }
     // Active vial per protocol (latest first from the query) for the vial-age sort.
@@ -1962,12 +1976,18 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
-  const renderCard = (p) => (
-    <ProtocolListCard
-      key={p.id} p={p} vial={vialsByProtocol[p.id]} onOpen={openProtocolById} t={t}
-      book={book} selected={book && p.id === bookOpenId}
-    />
-  );
+  const renderCard = (p) => {
+    // A-42: Mark complete only for a dose Today would offer (today's open slot or yesterday's
+    // pending one); the tap opens Today on it and runs Today's own take (A-44 focus).
+    const take = protocolTakeAction({ protocol: p, todayLogs, pending: pendingYest, nowMs: Date.now() });
+    return (
+      <ProtocolListCard
+        key={p.id} p={p} vial={vialsByProtocol[p.id]} onOpen={openProtocolById} t={t}
+        book={book} selected={book && p.id === bookOpenId}
+        onTake={take ? () => navigation.navigate('Today', { focusDose: { ...take.focus, take: true, nonce: Date.now() } }) : null}
+      />
+    );
+  };
 
   // Which view the tab shows: the two heroes, the list, or one protocol's screen.
   const openProtocol = showList && openId != null ? (protocols.find(p => p.id === openId) || null) : null;
@@ -3155,6 +3175,9 @@ const protocolsGraduated = (c) => ({
   supplyText: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'], flexShrink: 1 },
   supplyStrong: { fontWeight: '600', color: c.ink },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  // A-42: the card's Mark complete (Today's take button look, ink).
+  ptake: { marginTop: 12, minHeight: 48, borderRadius: 24, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  ptakeText: { fontSize: 17, fontWeight: '700', color: c.onAct },
   otag: { minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
   otagText: { fontSize: 12, fontWeight: '600', color: c.ink2 },
   otagAttn: { borderColor: c.attention },
