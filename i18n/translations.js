@@ -681,7 +681,7 @@ export const translations = {
           },
           {
             q: 'Is DoseTrace free?',
-            a: 'Yes! The core features are free forever — including cloud backup. Premium unlocks unlimited protocols, lab, vaccine and vial scans (the free plan includes 3 a month), the dose-accumulation curve, and PDF export.'
+            a: "Yes. The core features are free forever, including cloud backup. The free plan includes up to 3 active protocols, 3 scans a month (labs, vaccine cards and vials combined) and 7 days of the AI food log. Premium adds unlimited protocols, more scans, the AI food log every day, the dose-accumulation curve, reality-check results and PDF export."
           },
           {
             q: 'How do I add my first protocol?',
@@ -698,7 +698,7 @@ export const translations = {
           },
           {
             q: 'What syringe sizes are supported?',
-            a: 'DoseTrace supports 1ml (100 unit), 0.5ml (50 unit), and 0.3ml (30 unit) insulin syringes.'
+            a: "Insulin syringes of 1 ml (100 units), 0.5 ml (50 units) and 0.3 ml (30 units). For ready-to-use compounds there are also 2, 3 and 5 ml syringes, read in ml."
           },
           {
             q: 'How long does a reconstituted vial last?',
@@ -711,7 +711,7 @@ export const translations = {
         questions: [
           {
             q: 'How do I log a vial mix?',
-            a: 'When you create a new lyophilized protocol, you can log the mix date right away. You can also add vials anytime from the Vials tab.'
+            a: "When you create a new lyophilized protocol, you can log the mix date right away. When a vial runs out, start the next one from the protocol's page (New vial) or from Today (+ Add vial)."
           },
           {
             q: 'What happens when a vial expires?',
@@ -724,7 +724,7 @@ export const translations = {
         questions: [
           {
             q: 'How does bloodwork upload work?',
-            a: 'Upload a PDF lab report and our AI automatically extracts all biomarker values. It works with LabCorp, Quest, and most private clinic reports.'
+            a: "Take a photo of a lab report or upload a PDF or image, and the AI reads the values into your lab journal. It works with LabCorp, Quest and most clinic reports. Scans are shared by labs, vaccine cards and vials: 3 a month on the free plan, more with Premium."
           },
           {
             q: 'Is my bloodwork data private?',
@@ -737,7 +737,7 @@ export const translations = {
         questions: [
           {
             q: 'What does Premium include?',
-            a: "Unlimited protocols, lab, vaccine and vial scans (up to 20 a month in total — labs, vaccine cards and vials combined), the dose-accumulation curve, reality-check results, PDF export, and priority support. Your weigh-ins and their chart, cloud backup and sync are free for everyone."
+            a: "Unlimited protocols, the AI food log every day, the dose-accumulation curve, reality-check results, PDF export, priority support, and more lab, vaccine and vial scans: up to 20 a month in total (labs, vaccine cards and vials combined). Your weigh-ins and their chart, cloud backup and sync are free for everyone."
           },
           {
             q: 'How much does Premium cost?',
@@ -2841,7 +2841,7 @@ export const translations = {
           },
           {
             q: '¿Es DoseTrace gratis?',
-            a: 'Sí, las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. Premium desbloquea protocolos ilimitados, escaneos de análisis, vacunas y viales (el plan gratuito incluye 3 al mes), la curva de acumulación de dosis y la exportación a PDF.'
+            a: "Sí. Las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. El plan gratuito incluye hasta 3 protocolos activos, 3 escaneos al mes (análisis, cartillas de vacunas y viales juntos) y 7 días del registro con IA. Premium añade protocolos ilimitados, más escaneos, el registro con IA todos los días, la curva de acumulación de dosis, los resultados de tus cifras reales y la exportación a PDF."
           },
           {
             q: '¿Cómo añado mi primer protocolo?',
@@ -2858,7 +2858,7 @@ export const translations = {
           },
           {
             q: '¿Qué tamaños de jeringa son compatibles?',
-            a: 'DoseTrace es compatible con jeringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) y 0,3 ml (30 unidades).'
+            a: "Jeringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) y 0,3 ml (30 unidades). Para los compuestos listos para usar también hay jeringas de 2, 3 y 5 ml, que se leen en ml."
           },
           {
             q: '¿Cuánto dura un vial reconstituido?',
@@ -2871,7 +2871,7 @@ export const translations = {
         questions: [
           {
             q: '¿Cómo registro una mezcla de vial?',
-            a: 'Cuando creas un nuevo protocolo liofilizado, puedes registrar la fecha de mezcla de inmediato. También puedes añadir viales en cualquier momento desde la pestaña Viales.'
+            a: "Cuando creas un nuevo protocolo liofilizado, puedes registrar la fecha de mezcla de inmediato. Cuando se acaba un vial, empieza el siguiente desde la página del protocolo (Nuevo vial) o desde Hoy (+ Añadir vial)."
           },
           {
             q: '¿Qué pasa cuando vence un vial?',
@@ -2884,7 +2884,7 @@ export const translations = {
         questions: [
           {
             q: '¿Cómo funciona la carga de análisis de sangre?',
-            a: 'Carga un informe de laboratorio en PDF y nuestra IA extrae automáticamente todos los valores de biomarcadores. Funciona con informes de LabCorp, Quest y la mayoría de clínicas privadas.'
+            a: "Haz una foto de un informe de laboratorio o sube un PDF o una imagen, y la IA lee los valores y los guarda en tu diario de análisis. Funciona con LabCorp, Quest y la mayoría de informes de clínicas. Los escaneos se comparten entre análisis, cartillas de vacunas y viales: 3 al mes en el plan gratuito, más con Premium."
           },
           {
             q: '¿Son privados mis datos de análisis de sangre?',
@@ -2897,7 +2897,7 @@ export const translations = {
         questions: [
           {
             q: '¿Qué incluye Premium?',
-            a: "Protocolos ilimitados, escaneos de análisis, vacunas y viales (hasta 20 al mes en total, sumando análisis, cartillas de vacunas y viales), la curva de acumulación de dosis, tus cifras reales, exportación a PDF y soporte prioritario. Tus pesajes y su gráfica, la copia de seguridad en la nube y la sincronización son gratis para todos."
+            a: "Protocolos ilimitados, el registro con IA todos los días, la curva de acumulación de dosis, los resultados de tus cifras reales, la exportación a PDF, soporte prioritario y más escaneos de análisis, vacunas y viales: hasta 20 al mes en total (sumando análisis, cartillas de vacunas y viales). Tus pesajes y su gráfica, la copia de seguridad en la nube y la sincronización son gratis para todos."
           },
           {
             q: '¿Cuánto cuesta Premium?',
@@ -5001,7 +5001,7 @@ export const translations = {
           },
           {
             q: 'O DoseTrace é gratuito?',
-            a: 'Sim! Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O Premium desbloqueia protocolos ilimitados, leituras de exames, vacinas e frascos (o plano gratuito inclui 3 por mês), a curva de acúmulo de dose e a exportação em PDF.'
+            a: "Sim. Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O plano gratuito inclui até 3 protocolos ativos, 3 leituras por mês (somando exames, carteiras de vacinação e frascos) e 7 dias do registro de comida com IA. O Premium acrescenta protocolos ilimitados, mais leituras, o registro de comida com IA todos os dias, a curva de acúmulo de dose, os resultados dos seus números reais e a exportação em PDF."
           },
           {
             q: 'Como adiciono meu primeiro protocolo?',
@@ -5018,7 +5018,7 @@ export const translations = {
           },
           {
             q: 'Quais tamanhos de seringa o app aceita?',
-            a: 'O DoseTrace aceita seringas de insulina de 1ml (100 unidades), 0,5ml (50 unidades) e 0,3ml (30 unidades).'
+            a: "Seringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) e 0,3 ml (30 unidades). Para compostos prontos para uso também há seringas de 2, 3 e 5 ml, lidas em ml."
           },
           {
             q: 'Quanto tempo dura um frasco reconstituído?',
@@ -5031,7 +5031,7 @@ export const translations = {
         questions: [
           {
             q: 'Como registro a reconstituição de um frasco?',
-            a: 'Quando você cria um novo protocolo liofilizado, você pode registrar a data de reconstituição na hora. Você também pode adicionar frascos a qualquer momento na aba Frascos.'
+            a: "Quando você cria um novo protocolo liofilizado, pode registrar a data de reconstituição na hora. Quando um frasco acabar, comece o próximo na página do protocolo (Novo frasco) ou em Hoje (+ Adicionar frasco)."
           },
           {
             q: 'O que acontece quando um frasco vence?',
@@ -5044,7 +5044,7 @@ export const translations = {
         questions: [
           {
             q: 'Como funciona o envio de exame de sangue?',
-            a: 'Envie o PDF do seu exame e nossa IA extrai automaticamente todos os valores de biomarcadores. Funciona com LabCorp, Quest e a maioria dos laudos de clínicas particulares.'
+            a: "Tire uma foto de um exame ou envie um PDF ou uma imagem, e a IA lê os valores para o seu diário de exames. Funciona com LabCorp, Quest e a maioria dos laudos de clínicas. As leituras são compartilhadas entre exames, carteiras de vacinação e frascos: 3 por mês no plano gratuito, mais com o Premium."
           },
           {
             q: 'Meus dados de exame de sangue são privados?',
@@ -5057,7 +5057,7 @@ export const translations = {
         questions: [
           {
             q: 'O que o Premium inclui?',
-            a: "Protocolos ilimitados, leituras de exames, vacinas e frascos (até 20 por mês no total, somando exames, carteiras de vacinação e frascos), a curva de acúmulo de dose, seus números reais, exportação em PDF e suporte prioritário. Suas pesagens e o gráfico delas, o backup em nuvem e a sincronização são grátis para todos."
+            a: "Protocolos ilimitados, o registro de comida com IA todos os dias, a curva de acúmulo de dose, os resultados dos seus números reais, exportação em PDF, suporte prioritário e mais leituras de exames, vacinas e frascos: até 20 por mês no total (somando exames, carteiras de vacinação e frascos). Suas pesagens e o gráfico delas, o backup em nuvem e a sincronização são grátis para todos."
           },
           {
             q: 'Quanto custa o Premium?',
@@ -7160,7 +7160,7 @@ export const translations = {
           },
           {
             q: 'DoseTrace est-il gratuit ?',
-            a: 'Oui ! Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. Premium débloque les protocoles illimités, les scans d’analyses, de vaccins et de flacons (l’offre gratuite en inclut 3 par mois), la courbe d’accumulation de dose et l’export PDF.'
+            a: "Oui. Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. L’offre gratuite comprend jusqu’à 3 protocoles actifs, 3 scans par mois (analyses, carnets de vaccination et flacons confondus) et 7 jours de journal IA. Premium ajoute les protocoles illimités, plus de scans, le journal IA tous les jours, la courbe d’accumulation de dose, les résultats de vos vrais chiffres et l’export PDF."
           },
           {
             q: 'Comment ajouter mon premier protocole ?',
@@ -7177,7 +7177,7 @@ export const translations = {
           },
           {
             q: 'Quelles tailles de seringue sont prises en charge ?',
-            a: 'DoseTrace prend en charge les seringues à insuline de 1 ml (100 unités), 0,5 ml (50 unités) et 0,3 ml (30 unités).'
+            a: "Les seringues à insuline de 1 ml (100 unités), 0,5 ml (50 unités) et 0,3 ml (30 unités). Pour les composés prêts à l’emploi, il y a aussi des seringues de 2, 3 et 5 ml, graduées en ml."
           },
           {
             q: 'Combien de temps se conserve un flacon reconstitué ?',
@@ -7190,7 +7190,7 @@ export const translations = {
         questions: [
           {
             q: 'Comment enregistrer la reconstitution d\'un flacon ?',
-            a: 'Quand vous créez un nouveau protocole lyophilisé, vous pouvez enregistrer la date de reconstitution immédiatement. Vous pouvez également ajouter des flacons à tout moment depuis l\'onglet Flacons.'
+            a: "Quand vous créez un nouveau protocole lyophilisé, vous pouvez enregistrer la date de reconstitution immédiatement. Quand un flacon est terminé, commencez le suivant depuis la page du protocole (Nouveau flacon) ou depuis Aujourd’hui (+ Ajouter un flacon)."
           },
           {
             q: 'Que se passe-t-il quand un flacon est périmé ?',
@@ -7203,7 +7203,7 @@ export const translations = {
         questions: [
           {
             q: 'Comment importer un bilan sanguin ?',
-            a: 'Importez un bilan sanguin en PDF et notre IA extrait automatiquement toutes les valeurs de biomarqueurs. Cela fonctionne avec LabCorp, Quest et la plupart des comptes rendus de cliniques privées.'
+            a: "Prenez une photo d’un compte rendu d’analyses ou importez un PDF ou une image : l’IA lit les valeurs et les ajoute à votre journal d’analyses. Cela fonctionne avec LabCorp, Quest et la plupart des comptes rendus de cliniques. Les scans sont partagés entre analyses, carnets de vaccination et flacons : 3 par mois avec l’offre gratuite, plus avec Premium."
           },
           {
             q: 'Mes données de bilan sanguin sont-elles privées ?',
@@ -7216,7 +7216,7 @@ export const translations = {
         questions: [
           {
             q: 'Que comprend Premium ?',
-            a: "Protocoles illimités, scans d’analyses, de vaccins et de flacons (jusqu’à 20 par mois au total, analyses, carnets de vaccination et flacons confondus), la courbe d’accumulation de dose, vos vrais chiffres, l’export PDF et le support prioritaire. Vos pesées et leur graphique, la sauvegarde cloud et la synchronisation sont gratuits pour tous."
+            a: "Les protocoles illimités, le journal IA tous les jours, la courbe d’accumulation de dose, les résultats de vos vrais chiffres, l’export PDF, le support prioritaire et plus de scans d’analyses, de vaccins et de flacons : jusqu’à 20 par mois au total (analyses, carnets de vaccination et flacons confondus). Vos pesées et leur graphique, la sauvegarde cloud et la synchronisation sont gratuits pour tous."
           },
           {
             q: 'Combien coûte Premium ?',
@@ -9319,7 +9319,7 @@ export const translations = {
           },
           {
             q: 'Ist DoseTrace kostenlos?',
-            a: 'Ja! Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Premium schaltet unbegrenzte Protokolle, Labor-, Impf- und Fläschchen-Scans (der kostenlose Plan enthält 3 pro Monat), die Dosis-Akkumulationskurve und den PDF-Export frei.'
+            a: "Ja. Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Der kostenlose Plan enthält bis zu 3 aktive Protokolle, 3 Scans pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen) und 7 Tage KI-Essensprotokoll. Premium bietet unbegrenzte Protokolle, mehr Scans, das KI-Essensprotokoll jeden Tag, die Dosis-Akkumulationskurve, die Ergebnisse deiner echten Zahlen und den PDF-Export."
           },
           {
             q: 'Wie füge ich mein erstes Protokoll hinzu?',
@@ -9336,7 +9336,7 @@ export const translations = {
           },
           {
             q: 'Welche Spritzengrößen werden unterstützt?',
-            a: 'DoseTrace unterstützt 1 ml (100 Einheiten), 0,5 ml (50 Einheiten) und 0,3 ml (30 Einheiten) Insulinspritzen.'
+            a: "Insulinspritzen mit 1 ml (100 Einheiten), 0,5 ml (50 Einheiten) und 0,3 ml (30 Einheiten). Für gebrauchsfertige Substanzen gibt es außerdem 2-, 3- und 5-ml-Spritzen, abgelesen in ml."
           },
           {
             q: 'Wie lange hält ein rekonstituiertes Fläschchen?',
@@ -9349,7 +9349,7 @@ export const translations = {
         questions: [
           {
             q: 'Wie trage ich ein angemischtes Fläschchen ein?',
-            a: 'Wenn du ein neues gefriergetrocknetes Protokoll erstellst, kannst du das Mischdatum sofort eintragen. Du kannst Fläschchen auch jederzeit im Fläschchen-Tab hinzufügen.'
+            a: "Wenn du ein neues gefriergetrocknetes Protokoll erstellst, kannst du das Mischdatum sofort eintragen. Ist ein Fläschchen leer, beginne das nächste auf der Seite des Protokolls (Neues Fläschchen) oder unter Heute (+ Fläschchen hinzufügen)."
           },
           {
             q: 'Was passiert, wenn ein Fläschchen abläuft?',
@@ -9362,7 +9362,7 @@ export const translations = {
         questions: [
           {
             q: 'Wie funktioniert das Hochladen von Laborberichten?',
-            a: 'Lade einen PDF-Laborbericht hoch und unsere KI liest automatisch alle Biomarker-Werte aus. Es funktioniert mit LabCorp, Quest und den meisten Berichten privater Kliniken.'
+            a: "Fotografiere einen Laborbericht oder lade ein PDF oder Bild hoch – die KI liest die Werte in dein Laborwerte-Tagebuch ein. Es funktioniert mit LabCorp, Quest und den meisten Klinikberichten. Laborberichte, Impfpässe und Fläschchen teilen sich die Scans: 3 pro Monat im kostenlosen Plan, mehr mit Premium."
           },
           {
             q: 'Sind meine Blutwerte privat?',
@@ -9375,7 +9375,7 @@ export const translations = {
         questions: [
           {
             q: 'Was ist in Premium enthalten?',
-            a: "Unbegrenzte Protokolle, Labor-, Impf- und Fläschchen-Scans (insgesamt bis zu 20 pro Monat – Laborberichte, Impfpässe und Fläschchen zusammen), die Dosis-Akkumulationskurve, deine echten Zahlen, PDF-Export und bevorzugter Support. Deine Wägungen und ihr Diagramm, Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
+            a: "Unbegrenzte Protokolle, das KI-Essensprotokoll jeden Tag, die Dosis-Akkumulationskurve, die Ergebnisse deiner echten Zahlen, PDF-Export, bevorzugter Support und mehr Labor-, Impf- und Fläschchen-Scans: insgesamt bis zu 20 pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen). Deine Wägungen und ihr Diagramm, Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
           },
           {
             q: 'Wie viel kostet Premium?',
@@ -11479,7 +11479,7 @@ export const translations = {
           },
           {
             q: 'DoseTrace è gratuito?',
-            a: 'Sì! Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Premium sblocca protocolli illimitati, scansioni di analisi, vaccini e flaconi (il piano gratuito ne include 3 al mese), la curva di accumulo della dose e l’esportazione PDF.'
+            a: "Sì. Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Il piano gratuito include fino a 3 protocolli attivi, 3 scansioni al mese (analisi, tessere vaccinali e flaconi insieme) e 7 giorni di diario IA. Premium aggiunge protocolli illimitati, più scansioni, il diario IA ogni giorno, la curva di accumulo della dose, i risultati dei tuoi numeri reali e l’esportazione PDF."
           },
           {
             q: 'Come aggiungo il mio primo protocollo?',
@@ -11496,7 +11496,7 @@ export const translations = {
           },
           {
             q: 'Quali misure di siringa sono supportate?',
-            a: 'DoseTrace supporta siringhe da insulina da 1 ml (100 unità), 0,5 ml (50 unità) e 0,3 ml (30 unità).'
+            a: "Siringhe da insulina da 1 ml (100 unità), 0,5 ml (50 unità) e 0,3 ml (30 unità). Per i composti pronti all’uso ci sono anche siringhe da 2, 3 e 5 ml, lette in ml."
           },
           {
             q: 'Quanto dura un flacone ricostituito?',
@@ -11509,7 +11509,7 @@ export const translations = {
         questions: [
           {
             q: 'Come registro la ricostituzione di un flacone?',
-            a: 'Quando crei un nuovo protocollo liofilizzato, puoi registrare subito la data di ricostituzione. Puoi anche aggiungere flaconi in qualsiasi momento dalla scheda Flaconi.'
+            a: "Quando crei un nuovo protocollo liofilizzato, puoi registrare subito la data di ricostituzione. Quando un flacone finisce, inizia il successivo dalla pagina del protocollo (Nuovo flacone) o da Oggi (+ Aggiungi flacone)."
           },
           {
             q: 'Che cosa succede quando un flacone scade?',
@@ -11522,7 +11522,7 @@ export const translations = {
         questions: [
           {
             q: 'Come funziona il caricamento delle analisi?',
-            a: 'Carica un referto di laboratorio in PDF e la nostra IA estrae automaticamente tutti i valori dei biomarker. Funziona con LabCorp, Quest e la maggior parte dei referti delle cliniche private.'
+            a: "Scatta una foto di un referto o carica un PDF o un’immagine, e l’IA legge i valori nel tuo diario delle analisi. Funziona con LabCorp, Quest e la maggior parte dei referti delle cliniche. Le scansioni sono condivise tra analisi, tessere vaccinali e flaconi: 3 al mese con il piano gratuito, di più con Premium."
           },
           {
             q: 'I miei dati delle analisi sono privati?',
@@ -11535,7 +11535,7 @@ export const translations = {
         questions: [
           {
             q: 'Cosa include Premium?',
-            a: "Protocolli illimitati, scansioni di analisi, vaccini e flaconi (fino a 20 al mese in totale, sommando analisi, tessere vaccinali e flaconi), la curva di accumulo della dose, i tuoi numeri reali, esportazione PDF e supporto prioritario. Le tue pesate e il loro grafico, backup cloud e sincronizzazione sono gratuiti per tutti."
+            a: "Protocolli illimitati, il diario IA ogni giorno, la curva di accumulo della dose, i risultati dei tuoi numeri reali, l’esportazione PDF, il supporto prioritario e più scansioni di analisi, vaccini e flaconi: fino a 20 al mese in totale (sommando analisi, tessere vaccinali e flaconi). Le tue pesate e il loro grafico, backup cloud e sincronizzazione sono gratuiti per tutti."
           },
           {
             q: 'Quanto costa Premium?',
