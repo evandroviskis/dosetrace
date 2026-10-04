@@ -9,6 +9,7 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    today_alert_supply_one_one: "{name} — {n} dose left",
     today_notif_focus_title: "From your reminder",
     lang_name_it: "Italian",
     lang_name_de: "German",
@@ -2197,6 +2198,7 @@ export const translations = {
   },
 
   'es': {
+    today_alert_supply_one_one: "{name}: queda {n} dosis",
     today_notif_focus_title: "De tu recordatorio",
     lang_name_it: "Italiano",
     lang_name_de: "Alemán",
@@ -4385,6 +4387,7 @@ export const translations = {
   },
 
   'pt': {
+    today_alert_supply_one_one: "{name} — resta {n} dose",
     today_notif_focus_title: "Do seu lembrete",
     lang_name_it: "Italiano",
     lang_name_de: "Alemão",
@@ -6572,6 +6575,7 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    today_alert_supply_one_one: "{name} — {n} dose restante",
     today_notif_focus_title: "Depuis votre rappel",
     lang_name_it: "Italien",
     lang_name_de: "Allemand",
@@ -8759,6 +8763,7 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    today_alert_supply_one_one: "{name} – {n} Dosis übrig",
     today_notif_focus_title: "Aus deiner Erinnerung",
     lang_name_it: "Italienisch",
     lang_name_de: "Deutsch",
@@ -10947,6 +10952,7 @@ export const translations = {
   },
 
   'it': {
+    today_alert_supply_one_one: "{name} — {n} dose rimasta",
     today_notif_focus_title: "Dal tuo promemoria",
     lang_name_it: "Italiano",
     lang_name_de: "Tedesco",

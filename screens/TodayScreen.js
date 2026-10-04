@@ -1405,7 +1405,7 @@ export default function TodayScreen() {
           id: 'supply_low', iconName: 'syringe', due: true,
           title: t('today_alert_supply_title'),
           body: low.length === 1
-            ? t('today_alert_supply_one').replace('{name}', low[0].name).replace('{n}', String(low[0].rem))
+            ? t(pluralKey('today_alert_supply_one', low[0].rem, language)).replace('{name}', low[0].name).replace('{n}', String(low[0].rem))
             : low.length <= 3
               ? t('today_alert_supply_list').replace('{names}', low.map(x => x.name).join(', '))
               : t('today_alert_supply_many').replace('{count}', String(low.length)),
