@@ -26,6 +26,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getHistoryProtocols, getBiomarkers } from '../lib/database';
 import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
+import { sampleLevels } from '../lib/curveSampling';
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
@@ -409,20 +410,8 @@ export default function SerumCurveScreen({ embedded = false }) {
       // Dose events come from the protocol's SCHEDULE, not from hand-logged doses
       // (lib/serumModel scheduledDoses), snapped onto this 6h sample grid.
       const doses = scheduledDoses(p, entry, start, end, now);
-      const points = [];
-      const pre = [];
-      for (let i = 0; i <= nSteps; i++) {
-        const ts = start + i * stepMs;
-        let level = 0, before = 0;
-        for (const d of doses) {
-          if (d > ts) continue;
-          const c = doseMg * amountFraction(entry, (ts - d) / 3600000);
-          level += c;
-          if (d < ts) before += c;
-        }
-        points.push(level);
-        pre.push(before);
-      }
+      // A-93: sorted doses in a moving window (same numbers, far fewer calls — lib/curveSampling).
+      const { points, pre } = sampleLevels(doses, doseMg, entry, start, stepMs, nSteps, amountFraction);
       // Exact level at this moment (not the last 6h sample), for the numbers.
       const nowLevel = levelAt(doses, doseMg, entry, now);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
