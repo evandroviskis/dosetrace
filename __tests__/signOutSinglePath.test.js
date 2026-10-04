@@ -12,17 +12,33 @@ const { loadFn } = require('./helpers/extractFn');
 const { signOutOutcome } = require('../lib/signOutCore');
 
 const ROOT = path.join(__dirname, '..');
-function load(result) {
+const { orphanedSheet } = require('../lib/orphanedPending');
+function load(result, orphans = 0) {
   const shown = [];
   const calls = [];
   const signOutBusy = { current: false };
   const fn = loadFn('screens/OnboardingFlowScreen.js', '  async function handleSignOut() {', 'handleSignOut', {
-    signOutBusy, signOutOutcome, t: (k) => k,
+    signOutBusy, signOutOutcome, t: (k) => k, orphanedSheet,
+    orphanedPendingCount: async () => orphans,
+    discardOrphaned: async () => { calls.push('discard'); orphans = 0; return 1; },
     signOutIntended: async () => { calls.push('signOutIntended'); if (result instanceof Error) throw result; return result; },
     setSheet: (s) => shown.push(s),
   });
   return { fn, shown, calls, signOutBusy };
 }
+
+test('blocked by entries of a protocol deleted forever elsewhere: Keep for now or Discard (only those), then it tries again', async () => {
+  const b = load({ blocked: true, offline: false }, 2);
+  await b.fn();
+  const sheet = b.shown[0];
+  assert.equal(sheet.title, 'settings_signout');
+  assert.match(sheet.body, /^auth_signout_notbacked\n\norphaned_body_many$/);
+  assert.deepEqual(sheet.buttons.map((x) => x.label), ['orphaned_keep', 'orphaned_discard']);
+  sheet.buttons[1].onPress();
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(b.calls, ['signOutIntended', 'discard', 'signOutIntended'], 'discards only those, then signs out again (the real function)');
+  assert.equal(b.shown[1].body, 'auth_signout_notbacked', 'still blocked by something else: the plain words');
+});
 
 test('signed out: nothing shown; blocked offline: the connection words; failed or thrown: Couldn\'t sign out', async () => {
   const ok = load({ blocked: false });

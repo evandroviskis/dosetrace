@@ -13,7 +13,8 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
 import { supabase, missingProfileFields } from '../lib/supabase';
-import { signOutIntended } from '../lib/accountActions';
+import { signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
+import { orphanedSheet } from '../lib/orphanedPending';
 import { signOutOutcome } from '../lib/signOutCore';
 import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -271,7 +272,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     signOutBusy.current = true;
     try {
       const o = signOutOutcome(await signOutIntended().catch(() => ({ failed: true })));
-      if (o.kind !== 'done') setSheet({ icon: 'alert', title: t(o.title), body: t(o.body), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      // Blocked by entries of a protocol deleted forever on another device (lib/orphanedPending):
+      // no "Sign out anyway" here, so offer to discard only those, then try again.
+      const n = o.kind === 'blocked' ? await orphanedPendingCount() : 0;
+      if (n) setSheet(orphanedSheet({ t, count: n, title: t(o.title), prefix: t(o.body), onKeep: () => {}, onDiscard: () => { discardOrphaned().then(() => handleSignOut()).catch(() => {}); } }));
+      else if (o.kind !== 'done') setSheet({ icon: 'alert', title: t(o.title), body: t(o.body), buttons: [{ label: t('ok'), kind: 'primary' }] });
     } finally {
       signOutBusy.current = false;
     }

@@ -18,7 +18,8 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
+import { orphanedSheet } from '../lib/orphanedPending';
 import { signOutOutcome } from '../lib/signOutCore';
 import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
@@ -147,6 +148,13 @@ export default function AgeConfirmScreen({ session }) {
     // words for why nothing was signed out; nothing when it worked.
     const o = signOutOutcome(await signOutIntended().catch(() => ({ failed: true })));
     setBusy(null);
+    // Blocked by entries of a protocol deleted forever on another device (lib/orphanedPending): this
+    // sheet has no "Sign out anyway", so it offers to discard only those, then tries again.
+    const n = o.kind === 'blocked' ? await orphanedPendingCount() : 0;
+    if (n) {
+      setSheet(orphanedSheet({ t, count: n, title: t(o.title), prefix: t(o.body), onKeep: () => {}, onDiscard: () => { discardOrphaned().then(() => doSignOut()).catch(() => {}); } }));
+      return;
+    }
     if (o.kind !== 'done') ok(t(o.title), t(o.body));
   }
 

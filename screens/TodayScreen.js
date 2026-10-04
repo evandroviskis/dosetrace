@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
+import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orphanedPending';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
@@ -291,6 +293,7 @@ export default function TodayScreen() {
         }
       }).catch(() => {});
       cleanupOldDeletedProtocols();
+      checkOrphans();
       // Record any dose that went 12h+ unlogged as Missed (prior days only), then
       // refresh streaks/adherence so they reflect it. Best-effort, never blocks.
       scanMissedDoses().then((n) => {
@@ -934,6 +937,27 @@ export default function TodayScreen() {
     if (siteQueueRef.current.some(x => x.protocolId === q.protocolId && x.dayKey === q.dayKey)) return;
     siteQueueRef.current.push(q);
     setTimeout(openNextQuestion, 300); // after a press / an Alert has finished
+  }
+
+  // Entries of a protocol deleted forever on another device (lib/orphanedPending): they block
+  // sign-out, so the user is asked once per new count — Keep for now (remembered) or Discard
+  // (removes only those entries). Never over another of Today's popups (asked on a later focus).
+  function checkOrphans() {
+    (async () => {
+      const owner = getLocalDataUserId();
+      if (!owner) return;
+      const n = await orphanedPendingCount();
+      const key = orphanPromptKey(owner);
+      let last = null;
+      try { last = await AsyncStorage.getItem(key); } catch { /* ask */ }
+      if (!shouldPromptOrphans(n, last) || !focusedRef.current || todayPopupBusy()) return;
+      const remember = (v) => { AsyncStorage.setItem(key, String(v)).catch(() => {}); };
+      showTodaySheet(orphanedSheet({
+        t, count: n,
+        onKeep: () => remember(n),
+        onDiscard: () => { discardOrphaned().then(() => { remember(0); refreshOffline(); }).catch(() => {}); },
+      }));
+    })().catch(() => {});
   }
 
   // A popup of Today's own is open (or the vial prompt is about to open).

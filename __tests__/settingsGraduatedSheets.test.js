@@ -75,7 +75,8 @@ test('legal reader: every line of every legal text is kept, in order, in all 6 l
 
 test('Gate B: sign-out and delete account keep their confirmations (two for delete)', () => {
   const src = read('screens', 'SettingsScreen.js');
-  const so = src.slice(src.indexOf('async function handleSignOut()'), src.indexOf('function handleDeleteAccount()'));
+  const so = src.slice(src.indexOf('function startSignOut()'), src.indexOf('function handleDeleteAccount()'));
+  assert.match(so, /onPress: \(\) => startSignOut\(\)/);
   assert.match(so, /t\('settings_signout_confirm_local'\)/);
   assert.match(so, /runSignOut\(\{\s*signOut: \(opts\) => signOutIntended\(opts\)/); // the one deliberate sign-out (lib/accountActions via lib/settingsSignOut) marks it intended (A-46)
   const del = src.slice(src.indexOf('function handleDeleteAccount()'), src.indexOf('async function executeAccountDeletion()'));

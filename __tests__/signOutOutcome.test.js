@@ -30,6 +30,8 @@ test('blocked offline → the connection words; blocked online → "could not be
 
 test('the 18+ sheet and the reset link show the outcome', () => {
   const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  assert.match(read('screens/AgeConfirmScreen.js'), /const o = signOutOutcome\(await signOutIntended\(\)\.catch\(\(\) => \(\{ failed: true \}\)\)\);[\s\S]{0,80}if \(o\.kind !== 'done'\) ok\(t\(o\.title\), t\(o\.body\)\);/);
+  assert.match(read('screens/AgeConfirmScreen.js'), /const o = signOutOutcome\(await signOutIntended\(\)\.catch\(\(\) => \(\{ failed: true \}\)\)\);[\s\S]{0,700}if \(o\.kind !== 'done'\) ok\(t\(o\.title\), t\(o\.body\)\);/);
+  // blocked by entries of a protocol deleted forever elsewhere: offer to discard only those (lib/orphanedPending)
+  assert.match(read('screens/AgeConfirmScreen.js'), /const n = o\.kind === 'blocked' \? await orphanedPendingCount\(\) : 0;[\s\S]{0,300}discardOrphaned\(\)\.then\(\(\) => doSignOut\(\)\)/);
   assert.match(read('App.js'), /const o = signOutOutcome\(r\);\s*if \(o\.kind !== 'done'\) \{ setLinkFailed\(o\.link\); return; \}\s*setRecovery\(p\);/);
 });

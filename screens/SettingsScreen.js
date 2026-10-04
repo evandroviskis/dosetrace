@@ -51,7 +51,8 @@ import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
 import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
+import { orphanedSheet } from '../lib/orphanedPending';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -463,6 +464,31 @@ export default function SettingsScreen({ navigation }) {
     setSheet({ icon: 'warning', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] });
   }
 
+  // The one deliberate sign-out (lib/settingsSignOut → accountActions): push first; if anything
+  // is STILL not in the cloud nobody is signed out (never lose data) and the user decides. When
+  // entries of a protocol deleted forever on another device are among them (lib/orphanedPending),
+  // the sheet says so and offers to discard only those, then tries again.
+  function startSignOut() {
+    return runSignOut({
+      signOut: (opts) => signOutIntended(opts),
+      guard: signOutGuard,
+      onFailed: showSignOutFailed,
+      onBlocked: (copy, anyway) => {
+        const stay = { label: t(copy.stay), kind: 'secondary' };
+        const force = { label: t('settings_signout_anyway'), kind: 'danger', onPress: anyway };
+        const plain = { icon: 'warning', title: t('settings_signout'), body: t(copy.settingsBody), buttons: [stay, force] };
+        orphanedPendingCount().then((n) => {
+          const o = orphanedSheet({
+            t, count: n, title: t('settings_signout'), prefix: t(copy.settingsBody),
+            onKeep: () => {},
+            onDiscard: () => { discardOrphaned().then(() => startSignOut()).catch(showSignOutFailed); },
+          });
+          setSheet(o ? { ...o, buttons: [stay, o.buttons[1], force] } : plain);
+        }).catch(() => setSheet(plain));
+      },
+    });
+  }
+
   async function handleSignOut() {
     if (signOutGuard.isBusy()) return;
     setSheet({
@@ -470,22 +496,7 @@ export default function SettingsScreen({ navigation }) {
       body: t('settings_signout_confirm_local'),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
-        // The one deliberate sign-out (lib/settingsSignOut → accountActions): push first; if anything
-        // is STILL not in the cloud nobody is signed out (never lose data) and the user decides.
-        { label: t('settings_signout'), kind: 'danger', onPress: () => runSignOut({
-          signOut: (opts) => signOutIntended(opts),
-          guard: signOutGuard,
-          onFailed: showSignOutFailed,
-          onBlocked: (copy, anyway) => setSheet({
-            icon: 'warning',
-            title: t('settings_signout'),
-            body: t(copy.settingsBody),
-            buttons: [
-              { label: t(copy.stay), kind: 'secondary' },
-              { label: t('settings_signout_anyway'), kind: 'danger', onPress: anyway },
-            ],
-          }),
-        }) },
+        { label: t('settings_signout'), kind: 'danger', onPress: () => startSignOut() },
       ],
     });
   }
