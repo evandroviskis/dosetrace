@@ -57,7 +57,11 @@ export default function ProgressScreen({ embedded = false }) {
       </View>
       <Text style={s.title}>{t('cal_snap_title')}</Text>
       </View>
-      <CalculatorSection flushRef={flushRef} paneWidth={embedded ? paneWidths(width).right : null} />
+      <CalculatorSection
+        flushRef={flushRef}
+        paneWidth={embedded ? paneWidths(width).right : null}
+        focus={embedded ? null : (route && route.params && route.params.focus) || null}
+      />
       <FeatureExplainerGate candidates={energyExplainers} />
     </SafeAreaView>
   );

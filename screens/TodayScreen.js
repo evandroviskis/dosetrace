@@ -1361,7 +1361,8 @@ export default function TodayScreen() {
         title: t('today_alert_rc_title'),
         body: due ? t('today_alert_rc_due')
           : t('today_alert_rc_when').replace('{date}', formatDate(remind, language, 'dayMonth')),
-        onPress: () => navigation.navigate('Journey'),
+        // Lands on the reality check itself: Progress, scrolled to its card (pre-build pass m6).
+        onPress: () => navigation.navigate('Progress', { focus: 'reality' }),
         snoozeId: 'reality_check',
       });
     }

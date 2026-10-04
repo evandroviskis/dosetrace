@@ -106,7 +106,7 @@ const round5 = n => Math.round(n / 5) * 5;
 // flushRef (optional): the screen gets a function that writes any pending input now, for its
 // beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
 // page it sits on, so the chart fits the page instead of the whole unfolded window.
-export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null }) {
+export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null, focus = null }) {
   const { t, language } = useLanguage();
   // Every number typed here is read the way the app language writes it ("86,5"; review 2026-10-02).
   const num = v => { const n = parseMeasure(v, language); return Number.isFinite(n) ? n : null; }; // body numbers: in English a comma stays the decimal
@@ -981,6 +981,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }, [plan, scoreCheck, sex]);
 
   const scrollRef = useRef(null);
+  // focus = 'reality' (Today's reality-check alert, m6): once the card is laid out, scroll to
+  // the reality check, one time per open.
+  const [rcY, setRcY] = useState(null);
+  const focusedRef = useRef(false);
+  const onRcLayout = (e) => setRcY(e.nativeEvent.layout.y);
+  useEffect(() => {
+    if (focus !== 'reality' || !loaded || rcY == null || focusedRef.current) return;
+    focusedRef.current = true;
+    if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, rcY - 8), animated: true });
+  }, [focus, loaded, rcY]);
 
   // Warning codes from the engine → localized copy.
   const warnText = w => {
@@ -1394,7 +1404,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // The intake the newest result used; none for a result saved before sources were kept.
   const latestSource = realityLog.length ? resultSource(rcInputs, realityLog[realityLog.length - 1].date) : null;
   const rcEl = (
-    <View key="rc" style={s.card}>
+    <View key="rc" style={s.card} onLayout={onRcLayout}>
       {rcHead}
       {!rcAllowed ? (
         // Free plan (part 11): explainer first, then Unlock with Premium. A check that is
