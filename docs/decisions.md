@@ -498,3 +498,4 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 
 ## Pre-build pass — decided 2026-10-03 by the ledger (coordinator, one term per concept)
 - **German names a skipped dose with one verb: "auslassen / ausgelassen"** — the Skip button "Auslassen" (it fits Today's one-third button; "Überspringen" wrapped mid-word, M3) makes the approved status words follow: "Dosis ausgelassen", filter/count "Ausgelassen", pending "Ausgelassen", "Als ausgelassen markieren", the report line. Replaces the DE "übersprungen" of grok/032 and grok/189–191 for doses only; the site picker's "Überspringen" (grok/036) and unreadable lab/vaccine entries keep their own word. Source: __tests__/germanSkipOneTerm.test.js.
+- **Recently deleted gets a way to empty it by hand: select protocols or select all, then delete permanently (asks first)** — founder 2026-10-03; picture first, then build (automatic purge stays paused in 1.3.0).
