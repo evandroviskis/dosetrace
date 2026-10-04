@@ -54,16 +54,7 @@ test('an ended protocol is never purged with the 7-day clean-up; a deleted one s
   assert.equal(db.getFirstSync('SELECT sync_status FROM protocols WHERE id = ?', [pid]).sync_status, 'deleted');
 });
 
-test('Restart brings it back as it was, without ended_at', () => {
-  const db = makeDb();
-  const pid = seed(db);
-  E.endProtocol(db, pid, '2026-09-23T10:00:00.000Z');
-  E.restartProtocol(db, pid, '2026-09-30T10:00:00.000Z');
-  const row = db.getFirstSync('SELECT * FROM protocols WHERE id = ?', [pid]);
-  assert.equal(row.active, 1);
-  assert.equal(row.ended_at, null);
-  assert.equal(db.getAllSync(E.SQL_ACTIVE, [USER]).length, 1);
-});
+// Restart (a new run, never the same row re-activated): protocolEndFollowup.test.js F1.
 
 test('the schedule stops after the end: no slot on later days, none after the end time that day', () => {
   const p = { start_date: '2026-09-01', interval_days: 1, doses_per_day: 2, reminder_time: '08:00,20:00', created_at: '2026-09-01T07:00:00.000Z', active: 0, deleted_at: null, ended_at: new Date(2026, 8, 23, 12, 0).toISOString() };

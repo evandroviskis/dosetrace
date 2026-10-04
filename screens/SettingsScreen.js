@@ -30,10 +30,11 @@ import RowChevron from '../components/RowChevron';
 import SegmentedBar from '../components/SegmentedBar';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
-  getActiveProtocols as getLocalProtocols,
+  getHistoryProtocols,
   getLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
 import { hasPremium } from '../lib/entitlement';
+import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
@@ -344,8 +345,10 @@ export default function SettingsScreen({ navigation }) {
       // Missed rows first (the same scan Today and the Dose log run), so the report counts
       // every scheduled dose of the period. Best-effort: the rows already written still count.
       try { await scanMissedDoses(); } catch (e) { /* best effort */ }
-      const protocols = getLocalProtocols(user.id) || [];
       const logs = getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [];
+      // Active protocols and the ended ones with records in the window (A-83: ending never
+      // removes doses from the report; lib/protocolEnd reportProtocols).
+      const protocols = reportProtocols(getHistoryProtocols(user.id) || [], logs, thirtyDaysAgo.getTime(), now.getTime());
       // One definition for every protocol and the overall figure (lib/adherenceReport, M2):
       // complete ÷ (complete + skipped + missed).
       const stats = adherenceStats({ protocols, logs, sinceMs: thirtyDaysAgo.getTime(), nowMs: now.getTime() });
@@ -378,7 +381,8 @@ export default function SettingsScreen({ navigation }) {
         const vial = vials.find(v => v.protocol_id === p.id);
 
         return {
-          name: p.name,
+          // An ended protocol says so ("BPC-157 · Ended 20 Sep").
+          name: isEnded(p) ? `${p.name} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : p.name,
           dose: `${p.dose ? decimalText(p.dose, language) : '—'} ${p.dose_unit || ''}`,
           frequency: p.frequency || '—',
           taken,
@@ -403,7 +407,7 @@ export default function SettingsScreen({ navigation }) {
       report += `${t('report_user').replace('{name}', userName)}\n`;
       report += `${t('report_period').replace('{range}', dateRange)}\n`;
       report += `${fillPercent(t('report_overall'), stats.overall.adherence)}\n`;
-      report += `${t('report_active_protocols').replace('{count}', protocols.length)}\n`;
+      report += `${t('report_active_protocols').replace('{count}', protocols.filter((p) => !isEnded(p)).length)}\n`;
       report += `${t('report_total_logged').replace('{count}', totalAll)}\n`;
       report += `${'─'.repeat(40)}\n\n`;
 

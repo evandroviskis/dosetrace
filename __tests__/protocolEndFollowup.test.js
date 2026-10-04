@@ -1,0 +1,119 @@
+'use strict';
+// A-83 follow-up — journey review of the end flow (2026-10-03), each finding test-first:
+//   F1/F3 Restart re-activated the SAME row and cleared its end, so the weeks between the end and
+//         the restart became owed doses (Missed rows written by the scan, ring days due, curve
+//         doses) and "Is this protocol finished?" came straight back. Restart now starts a NEW run:
+//         a copy of the settings, started today, created now; the ended row stays as history.
+//   F2    the Settings adherence report read active protocols only (the import alias said
+//         "local"), so ending a protocol erased its doses from the 30-day report.
+//   F4    the prompt still promised "restore it from Recently Deleted".
+//   F7    a device that pulls an ended (or deleted) protocol kept its local dose reminders.
+//   F8    Restart skipped the free plan's protocol limit.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { makeDb } = require('./helpers/syncHarness');
+const E = require('../lib/protocolEnd');
+const { computeMissedDoses } = require('../lib/missedDoses');
+const { adherenceRings } = require('../lib/adherenceRings');
+const { orphanDoseIds } = require('../lib/notificationPlan');
+const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+
+const USER = 'u1';
+const DAY = 86400000;
+function seedEnded(db) {
+  db.runSync(`INSERT INTO protocols (remote_id, user_id, name, compound_id, type, color, dose, dose_unit, amount, unit, water, start_date, interval_days, doses_per_day, reminder_time, notes, active, ended_at, created_at, updated_at, sync_status) VALUES ('rem-1', ?, 'BPC-157', 'bpc157', 'recon', 'teal', '250', 'mcg', '5', 'mg', '2', '2026-08-01', 1, 1, '08:00', 'my note', 0, '2026-09-20T10:00:00.000Z', '2026-08-01T07:00:00.000Z', '2026-09-20T10:00:00.000Z', 'synced')`, [USER]);
+  const pid = db.getFirstSync('SELECT id FROM protocols').id;
+  db.runSync(`INSERT INTO vials (user_id, protocol_id, protocol_remote_id, total_doses, doses_taken, active, created_at, sync_status) VALUES (?, ?, 'rem-1', 20, 8, 0, '2026-09-01T00:00:00.000Z', 'synced')`, [USER, pid]);
+  return pid;
+}
+
+test('F1: Restart starts a new run — same settings, started today, created now; the ended row stays history', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' });
+  assert.notEqual(newId, old);
+  const n = db.getFirstSync('SELECT * FROM protocols WHERE id = ?', [newId]);
+  for (const k of ['user_id', 'name', 'compound_id', 'type', 'color', 'dose', 'dose_unit', 'amount', 'unit', 'water', 'interval_days', 'doses_per_day', 'reminder_time', 'notes']) {
+    assert.equal(n[k], db.getFirstSync(`SELECT ${k} FROM protocols WHERE id = ?`, [old])[k], k);
+  }
+  assert.equal(n.active, 1);
+  assert.equal(n.ended_at, null);
+  assert.equal(n.deleted_at, null);
+  assert.equal(n.remote_id, null, 'a new cloud row');
+  assert.equal(n.sync_status, 'pending');
+  assert.equal(n.start_date, '2026-10-03');
+  assert.equal(n.created_at, '2026-10-03T14:00:00.000Z');
+  const o = db.getFirstSync('SELECT * FROM protocols WHERE id = ?', [old]);
+  assert.equal(E.isEnded(o), true, 'the old run stays ended, with its history');
+  assert.equal(o.ended_at, '2026-09-20T10:00:00.000Z');
+  const v = db.getFirstSync('SELECT * FROM vials');
+  assert.equal(v.protocol_id, newId, 'the vial in use goes with the new run');
+  assert.equal(v.protocol_remote_id, null);
+  assert.equal(v.active, 1);
+  assert.equal(v.doses_taken, 8);
+  assert.equal(v.sync_status, 'pending');
+});
+
+test('F1: nothing is owed between the end and the restart (scan, rings)', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  const nowIso = '2026-10-03T14:00:00.000Z';
+  const newId = E.restartAsNew(db, old, { nowIso, todayKey: '2026-10-03' });
+  const ps = db.getAllSync('SELECT * FROM protocols');
+  const now = Date.parse('2026-10-05T14:00:00.000Z');
+  const missed = computeMissedDoses(ps.filter((p) => p.active === 1), [], now, Date.parse('2026-09-01T00:00:00Z'), { lookbackDays: 14 });
+  assert.ok(missed.every((m) => m.scheduledAtMs >= Date.parse(nowIso) - 3600000), 'no Missed row for the gap');
+  assert.ok(missed.length <= 2, 'only the new run\'s own days');
+  const r = adherenceRings({ protocols: ps, logs: [], nowMs: Date.parse('2026-10-03T20:00:00.000Z') });
+  assert.ok(r.week.due <= 1, `gap days not due (week due ${r.week.due})`);
+  assert.ok(newId);
+});
+
+test('F2: the 30-day report lists the ended protocols that have records in the window', () => {
+  const since = Date.parse('2026-09-03T00:00:00Z');
+  const now = Date.parse('2026-10-03T00:00:00Z');
+  const active = { id: 1, active: 1 };
+  const endedIn = { id: 2, active: 0, deleted_at: null, ended_at: '2026-09-20T00:00:00Z' };
+  const endedOld = { id: 3, active: 0, deleted_at: null, ended_at: '2026-06-01T00:00:00Z' };
+  const logs = [{ protocol_id: 2, outcome: 'Taken', logged_at: '2026-09-10T08:00:00Z' }, { protocol_id: 3, outcome: 'Taken', logged_at: '2026-05-30T08:00:00Z' }];
+  assert.deepEqual(E.reportProtocols([active, endedIn, endedOld], logs, since, now).map((p) => p.id), [1, 2]);
+  const s = read('screens/SettingsScreen.js');
+  assert.doesNotMatch(s, /getActiveProtocols as getLocalProtocols/);
+  assert.match(s, /reportProtocols\(getHistoryProtocols\(user\.id\)/);
+  assert.match(s, /protocols_ended_on/, 'an ended protocol says so in the report');
+});
+
+test('F4: the prompt points to Ended in My Protocols, in six languages', () => {
+  const src = read('i18n/translations.js');
+  const mod = { exports: {} };
+  new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    const tr = mod.exports.translations[l];
+    assert.ok(tr.today_tx_over_body.includes(tr.protocols_ended_title), `${l} names the Ended section`);
+    assert.ok(tr.today_tx_over_body.includes(tr.protocols_title), `${l} names My Protocols`);
+    assert.ok(!tr.today_tx_over_body.includes(tr.protocols_recently_deleted), `${l} no longer says Recently deleted`);
+  }
+});
+
+test('F7: reminders of a protocol that is no longer active are found and cancelled on every resync', () => {
+  const ids = ['dose-1-2026-10-03-t0', 'dose-2-2026-10-03-t0', 'dose-2-2026-10-04-t1-f1', 'snz-dose-2-2026-10-03-t0', 'vial-exp-5', 'food-x'];
+  assert.deepEqual(orphanDoseIds(ids, [1]), ['dose-2-2026-10-03-t0', 'dose-2-2026-10-04-t1-f1']);
+  assert.deepEqual(orphanDoseIds(ids, []), ['dose-1-2026-10-03-t0', 'dose-2-2026-10-03-t0', 'dose-2-2026-10-04-t1-f1'], 'also when nothing is active');
+  const n = read('lib/notifications.js');
+  const i = n.indexOf('export async function syncAllDoseReminders');
+  const body = n.slice(i, n.indexOf('\n}\n', i));
+  assert.ok(body.indexOf('orphanDoseIds(') > 0 && body.indexOf('orphanDoseIds(') < body.indexOf('if (!protocols || protocols.length === 0) return;'), 'before the early return');
+});
+
+test('F8 + Restart wiring: the free limit is checked first; the new run gets its reminders', () => {
+  const s = read('screens/ProtocolsScreen.js');
+  const i = s.indexOf('async function restartProtocol(id) {');
+  assert.ok(i > 0);
+  const body = s.slice(i, i + 900);
+  assert.match(body, /if \(await isOverFreeLimit\(\)\) \{ promptUpgrade\(\); return; \}/);
+  assert.match(body, /const newId = restartEndedProtocol\(id\);/);
+  assert.match(body, /getProtocolById\(newId\)/);
+  assert.doesNotMatch(read('lib/protocolEnd.js'), /function restartProtocol/, 'the same-row restart is gone');
+});

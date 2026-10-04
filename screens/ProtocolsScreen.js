@@ -1208,13 +1208,13 @@ export default function ProtocolsScreen() {
     setEndedProtocols(getEndedProtocols(u.id) || []);
   }
 
-  // A-83: Restart an ended protocol — back on Today with its reminders, its history untouched
-  // (the same steps as Restore: its newest vial comes back too).
-  function restartProtocol(id) {
-    restartEndedProtocol(id);
-    const newestVial = getNewestVialForProtocol(id);
-    if (newestVial) updateVial(newestVial.id, { active: 1 });
-    const restarted = getProtocolById(id);
+  // A-83: Restart an ended protocol = a new run with the same settings, started today (the
+  // ended row stays as history, so nothing is owed for the weeks it was stopped); its vial goes
+  // with it. Counts against the free plan's limit like adding one.
+  async function restartProtocol(id) {
+    if (await isOverFreeLimit()) { promptUpgrade(); return; }
+    const newId = restartEndedProtocol(id);
+    const restarted = newId ? getProtocolById(newId) : null;
     if (restarted) scheduleDoseReminder(restarted).catch(() => {});
     fetchProtocols();
     notifyDataChanged('protocol');
