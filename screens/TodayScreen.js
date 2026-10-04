@@ -37,6 +37,7 @@ import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoo
 import { dosesPerVial, computeDraw, trimZeros } from '../lib/doseMath';
 import { drawLine, exceedsMessage } from '../lib/syringes'; // ml on 2 / 3 / 5 ml syringes (AP-21)
 import { adherenceRings } from '../lib/adherenceRings';
+import { dayKeyAt, msUntilNextLocalMidnight } from '../lib/dayChange';
 import TodayTracker from './components/TodayTracker';
 import SyringeScale from './components/SyringeScale';
 import { newVialRecords } from '../lib/newVial';
@@ -315,6 +316,33 @@ export default function TodayScreen() {
       };
     }, [])
   );
+
+  // F6 (Today v2.1): a new local day re-dates Today — on return to the foreground (any layout)
+  // and at midnight while it is open: the date, doses, Pending from yesterday, the Missed scan
+  // and the tracker are read again for the new day.
+  const shownDayRef = useRef(dayKeyAt(Date.now()));
+  const [, setDayTick] = useState(0);
+  function refreshIfNewDay() {
+    if (dayKeyAt(Date.now()) === shownDayRef.current) return;
+    shownDayRef.current = dayKeyAt(Date.now());
+    setDayTick((n) => n + 1);
+    scanMissedDoses().then((n) => { if (n > 0) { requestSync(); fetchStreakData(); fetchProtocolStreaks(); } }).catch(() => {});
+    fetchProtocols();
+    fetchTodayLogs();
+    fetchPendingYesterday();
+    fetchStreakData();
+    fetchProtocolStreaks();
+    fetchAlerts();
+  }
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active' && focusedRef.current) refreshIfNewDay();
+    });
+    let timer = null;
+    const tick = () => { if (focusedRef.current) refreshIfNewDay(); timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000); };
+    timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000);
+    return () => { sub.remove(); if (timer) clearTimeout(timer); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A question saved by the notification Taken button while the app is open (S-25).
   useEffect(() => onQuestionsChanged(() => { if (focusedRef.current) askKeptQuestions(); }), []);
