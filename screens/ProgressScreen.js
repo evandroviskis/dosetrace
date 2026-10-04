@@ -20,6 +20,7 @@ import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import { getCalcInputsRow, getCalcSnapshots } from '../lib/database';
+import { backTabKey } from '../lib/navBack';
 
 // Free-feature explainer of the energy + protein calculator (Today redesign part 18), until
 // the user has entered their own numbers (synced calculator inputs or snapshots).
@@ -50,7 +51,7 @@ export default function ProgressScreen({ embedded = false }) {
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <View style={s.backRow}>
               <View style={s.backChev}><RowChevron color={colors.ink} /></View>
-              <Text style={s.back}>{t('tab_journey')}</Text>
+              <Text style={s.back}>{t(backTabKey(navigation.getState()))}</Text>
             </View>
           </TouchableOpacity>
         )}
