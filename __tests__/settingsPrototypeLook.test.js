@@ -52,7 +52,7 @@ test('Appearance and Time format are one segmented bar under their label', () =>
   // Since founder 2026-10-02 (Q4 = B) the bar is the one shared SegmentedBar, drawn the same.
   assert.equal((body.match(/<SegmentedBar\b/g) || []).length, 2);
   const BAR = read('components', 'SegmentedBar.js');
-  assert.match(BAR, /itemOn: \{ backgroundColor: c\.raised/);
+  assert.match(BAR, /itemOn: \{ backgroundColor: c\.segOn/); // light segOn = raised (m11)
   assert.match(BAR, /textOn: \{ color: c\.ink, fontWeight: '700' \}/);
 });
 
