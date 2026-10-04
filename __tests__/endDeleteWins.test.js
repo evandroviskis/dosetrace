@@ -160,3 +160,21 @@ test('a row that takes the cloud state keeps no status mark', async () => {
   assert.equal(row(B, bId).status_at, null);
 });
 
+
+// Gate B re-review, residual 4: on a cloud that still lacks ended_at, an End is pushed without it
+// (marked to re-send). A later capsule edit must neither clear that mark nor let the cloud's
+// missing end overwrite the local one: the End keeps its authority until ended_at really goes up.
+test('an End whose ended_at is still waiting for the column survives a later edit', async () => {
+  const { cloud, A, aId } = await twoPhones();
+  const real = cloud.update.bind(cloud);
+  const noColumn = { data: null, error: { code: 'PGRST204', message: "Could not find the 'ended_at' column of 'protocols' in the schema cache" } };
+  cloud.update = async (t, r, p) => (t === 'protocols' && 'ended_at' in p ? noColumn : real(t, r, p));
+  E.endProtocol(A, aId, '2026-10-04T09:00:00Z');
+  await pushPending(A, cloud, USER);
+  A.runSync(`UPDATE protocols SET units_taken = 5, updated_at = 'L9', sync_status = 'pending' WHERE id = ?`, [aId]);
+  await pushPending(A, cloud, USER);
+  const r = row(A, aId);
+  assert.equal(r.optional_pending, 'ended_at', 'still to send');
+  assert.equal(r.ended_at, '2026-10-04T09:00:00Z', 'the End is kept');
+  assert.equal(r.active, 0);
+});
