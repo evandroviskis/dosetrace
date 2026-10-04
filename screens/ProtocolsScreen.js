@@ -40,7 +40,7 @@ import {
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
-import { drawReading, smallDraw, isMlSyringe, sizeLabel as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
+import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
 import { explainerModel } from '../lib/fitExplainer';
 import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
 import { renderText } from '../lib/assistantText';
@@ -363,11 +363,11 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       <View style={s.reads}>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
-          <Text style={s.readVal}>{decimalText(trimZeros(draw.drawML), language)} ml</Text>
+          <Text style={s.readVal}>{`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`}</Text>
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
-          <Text style={s.readVal}>{decimalText(p.dose, language)} {p.dose_unit}</Text>
+          <Text style={s.readVal}>{`${decimalText(p.dose, language)}\u00A0${p.dose_unit}`}</Text>
           {alt ? <Text style={s.readAlt}>= {alt}</Text> : null}
         </View>
         <View style={s.readCell}>
