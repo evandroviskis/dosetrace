@@ -35,6 +35,7 @@ import RowChevron from '../components/RowChevron';
 import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
+import { outcomeCounts } from '../lib/declared';
 
 const WEEKDAY_KEYS = ['today_sun', 'today_mon', 'today_tue', 'today_wed', 'today_thu', 'today_fri', 'today_sat'];
 const INJECTABLE = ['recon', 'rtu'];
@@ -434,9 +435,12 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
 
   const sections = buildSections(filteredLogs);
 
-  const takenCount = logs.filter(l => l.outcome === 'Taken').length;
-  const skippedCount = logs.filter(l => l.outcome === 'Skipped').length;
-  const missedCount = logs.filter(l => l.outcome === 'Missed').length;
+  // A-30: the counts are doses logged in the app; declared history (dated before its protocol was
+  // added) stays in the list but is not counted.
+  const counted = outcomeCounts(logs);
+  const takenCount = counted.Taken;
+  const skippedCount = counted.Skipped;
+  const missedCount = counted.Missed;
 
   const filters = [
     { key: 'All', label: t('log_all') },

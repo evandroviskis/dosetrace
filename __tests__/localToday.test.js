@@ -41,9 +41,9 @@ test('the Curve\'s "today" is the local day east of UTC+12', () => {
   assert.equal(todayISO(), '2026-10-03');
 });
 
-test('the new-protocol backfill offer compares the start with the LOCAL today', () => {
+test('the new-protocol history question uses the LOCAL today (A-30: was the backfill offer)', () => {
   const src = read('screens', 'ProtocolsScreen.js');
-  assert.match(src, /const todayStr = todayISO\(\);[^\n]*\n\s*const pastCount = \(protocolData && safeStart < todayStr\)/);
+  assert.match(src, /const todayStr = todayISO\(\);[^\n]*\n\s*const hq = historyQuestion\(protocolData, Date\.now\(\)\);/);
   const { isoDay } = require('../lib/protocolForm');
   // the local day at 21:30 in New York is never "tomorrow"
   assert.equal(isoDay(new Date(2026, 9, 2, 21, 30), 0), '2026-10-02');

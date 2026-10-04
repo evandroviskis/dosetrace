@@ -28,7 +28,7 @@ import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, curveGridStart, scheduledDoses, levelAt, levelLabel,
+  STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols } from '../lib/localeFormat';
@@ -473,7 +473,9 @@ export default function SerumCurveScreen({ embedded = false }) {
     // Exact position of this moment (fractional step) — the Now marker and dots
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
-    return { series, combined, max, nowIdx, nowF, nSteps, start, now, unit: series[0] ? series[0].unit : 'mg' };
+    // A-30 (a): before this moment the lines are estimated from the start date (declared history).
+    const estBefore = estimatedBeforeMs(selected, start);
+    return { series, combined, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
   }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays]);
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
@@ -761,6 +763,11 @@ export default function SerumCurveScreen({ embedded = false }) {
               {t('curve_last_days')} {pastDays}d · +{futureDays}d {t('curve_projection')}
               {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
             </Text>
+            {/* A-30 (a): a fixed label — the part before the protocol was added is estimated from
+                the start date (the dashed line on the chart marks where it ends) */}
+            {model && model.max > 0 && model.estBefore ? (
+              <Text style={s.rangeLabel}>{t('curve_estimated_before').replace('{date}', formatDate(new Date(model.estBefore), language, 'dayMonth') || '')}</Text>
+            ) : null}
 
             {/* a touch on the chart skips the opening moment to its end */}
             <View onTouchStart={finishIntro}>
@@ -785,6 +792,10 @@ export default function SerumCurveScreen({ embedded = false }) {
                   return <Line key={`tk-${ser.id}-${ts}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={1.4} />;
                 }))}
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="start">{unitLbl}</SvgText>
+              {/* A-30 (a): where the estimate from the start date ends (the protocol was added) */}
+              {model && model.max > 0 && model.estBefore && model.estBefore > model.start ? (
+                <Line x1={xForIndex((model.estBefore - model.start) / stepMs)} x2={xForIndex((model.estBefore - model.start) / stepMs)} y1={PLOT_TOP} y2={PLOT_BOTTOM} stroke={colors.ink3} strokeWidth={1} strokeDasharray="3,3" />
+              ) : null}
               </AG>
               {/* NOW line — rises from the baseline when the pen reaches today */}
               <ALine stroke={colors.ink} strokeWidth={1.4} animatedProps={nowLineProps} />

@@ -35,6 +35,7 @@ import {
 } from '../lib/database';
 import { hasPremium } from '../lib/entitlement';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
+import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, openBatteryOptimizationSettings } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
@@ -362,7 +363,7 @@ export default function SettingsScreen({ navigation }) {
 
       // Build per-protocol stats
       const protocolStats = protocols.map(p => {
-        const pLogs = logs.filter(l => l.protocol_id === p.id);
+        const pLogs = loggedOnly(logs, [p]).filter(l => l.protocol_id === p.id); // A-30: logged doses only
         const { taken, skipped, missed, adherence } = stats.perProtocol.find(r => r.id === p.id);
 
         // Calculate streak

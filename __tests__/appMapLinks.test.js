@@ -21,35 +21,19 @@ function fakeN(ids) {
   };
 }
 
-// ── L-06: a past start date → one back-filled Taken row per elapsed slot ─────────────────
-test('L-06: backfillTakenDoses writes one Taken row per elapsed slot at the slot time and moves the vial count once per row', () => {
-  const NOW = new Date(2026, 9, 3, 12, 0).getTime();
-  const protocol = { id: 4, user_id: 'u1', remote_id: 'r4', type: 'recon', start_date: '2026-09-29', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', amount: '5', unit: 'mg', dose: '250', dose_unit: 'mcg' };
-  const rows = []; const vialUpdates = [];
-  const backfill = loadFn('lib/doseActions.js', 'export function backfillTakenDoses(', 'backfillTakenDoses', {
-    getProtocolById: () => protocol,
-    elapsedDoseSlots,
-    insertDoseLog: (r) => rows.push(r),
-    getActiveVials: () => [{ id: 9, protocol_id: 4, doses_taken: 1, total_doses: 20 }],
-    dosesPerVial,
-    updateVial: (id, patch) => vialUpdates.push({ id, ...patch }),
-    computeServings,
-    updateProtocol: () => {},
-  });
-  const n = backfill(4, NOW);
-  assert.equal(n, 5, '29, 30 Sep, 1, 2, 3 Oct at 08:00');
-  assert.equal(rows.length, 5);
-  assert.ok(rows.every((r) => r.outcome === 'Taken' && r.protocol_id === 4 && r.protocol_remote_id === 'r4'));
-  assert.equal(rows[0].logged_at, new Date(2026, 8, 29, 8, 0).toISOString());
-  assert.deepEqual(vialUpdates, [{ id: 9, doses_taken: 6 }]);
-});
-
-test('L-06: the back-fill runs only from the Yes of the back-fill question after a new protocol', () => {
+// ── L-06: a past start date → "Same dose for the last N weeks?" (A-30 option C, 2026-10-03) ───
+// The old back-fill wrote declared history as real Taken rows; now the question writes no dose
+// and moves no vial: "No" stores protocols.history_from (the curve starts that day). The question
+// itself is behaviour-tested in historyBeforeRegistration.test.js (lib/declared historyQuestion).
+test('L-06: a past start date asks the history question; only "No" writes, and only history_from', () => {
   const src = read('screens/ProtocolsScreen.js');
-  const calls = src.split('backfillTakenDoses(').length - 1;
-  assert.equal(calls, 1, 'one call site');
-  const yes = src.slice(src.indexOf("label: t(pluralKey('protocols_backfill_yes'"), src.indexOf('backfillTakenDoses(newId)') + 30);
-  assert.match(yes, /kind: 'primary',\s*onPress: \(\) => \{\s*try \{ backfillTakenDoses\(newId\); \}/);
+  assert.equal(src.split('historyQuestion(').length - 1, 1, 'one call site (the add flow)');
+  const i = src.indexOf('const hq = historyQuestion(protocolData, Date.now());');
+  assert.ok(i > 0);
+  const block = src.slice(i, src.indexOf('requestSync();\n    // Refresh every mounted screen', i));
+  assert.equal(block.split('onPress').length - 1, 1, 'only one button writes');
+  assert.match(block, /label: t\('protocols_history_no'\),\s*kind: 'secondary',\s*onPress: \(\) => \{\s*try \{ updateProtocol\(newId, \{ history_from: todayStr \}\); \}/);
+  assert.doesNotMatch(block, /insertDoseLog|updateVial|units_taken|doses_taken/);
 });
 
 // ── L-10: a dose taken today cancels that slot's pending reminders ─────────────────────────

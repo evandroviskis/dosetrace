@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { translations } = require('../i18n/translations.js');
 
 const KEYS = ['today_mark_taken', 'notif_action_complete', 'log_mark_taken', 'report_outcome_line', 'today_take_undone',
-  'today_site_back_msg', 'today_tip_2', 'protocols_backfill_msg', 'xp_remind_body', 'xp_remind_taken', 'xp_notes_taken', 'today_pending_take'];
+  'today_site_back_msg', 'today_tip_2', 'xp_remind_body', 'xp_remind_taken', 'xp_notes_taken', 'today_pending_take'];
 const OLD = { en: /\btaken\b/i, es: /\btomad[ao]s?\b/i, pt: /\btomad[ao]s?\b/i, fr: /\bpris(es?)?\b/i, de: /\b(ein)?genommen\b/i, it: /\b(assunt[aeio]|pres[ae])\b/i };
 
 test('Mark complete in 6 languages (the notification action and the dose-log choice; Today\'s button has its short verb, todayTakeButtonFit.test.js)', () => {

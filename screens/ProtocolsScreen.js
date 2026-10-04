@@ -53,8 +53,9 @@ import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker
 import { supplyState } from '../lib/supplyLow';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
-import { backfillTakenDoses, getMissedWatermark } from '../lib/doseActions';
+import { frequencyLabelFor } from '../lib/schedule';
+import { getMissedWatermark } from '../lib/doseActions';
+import { historyQuestion, outcomeCounts } from '../lib/declared';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -1177,10 +1178,8 @@ export default function ProtocolsScreen() {
     const data = getActiveProtocols(user.id);
     setProtocols(data || []);
     try {
-      const counts = { Taken: 0, Skipped: 0, Missed: 0 };
       const logs = getAllLogs(user.id) || [];
-      for (const l of logs) if (counts[l.outcome] != null) counts[l.outcome]++;
-      setLogCounts(counts);
+      setLogCounts(outcomeCounts(logs)); // A-30: logged doses only (declared history is not counted)
       const day0 = new Date(); day0.setHours(0, 0, 0, 0);
       setTodayLogs(logs.filter((l) => new Date(l.logged_at) >= day0));
       // A-42: the slots pending from yesterday, as Today builds them (A-51 zone history).
@@ -1796,28 +1795,31 @@ export default function ProtocolsScreen() {
       if (protocolData) scheduleDoseReminder(protocolData).catch(() => {});
       Analytics.protocolCreated({ name, type, dose, dose_unit: doseUnit, frequency: frequencyLabel(intervalDays), goal: goals.join(',') });
 
-      // Started before installing the app? Offer to backfill the elapsed scheduled
-      // doses as Taken so adherence + history reflect them (the curve already reads
-      // the schedule). Applies to every type. Only when the start date is in the past.
+      // A-30 (option C): started before adding it to the app? The curve already estimates that
+      // time from the start date; ask whether the dose was the same for the span that still
+      // shapes today's curve (~5 half-lives). Nothing is written to the Dose log and no vial or
+      // oral count moves (declared history is never a logged dose). "No" → the curve starts today.
       const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
-      const pastCount = (protocolData && safeStart < todayStr) ? elapsedDoseSlots(protocolData, Date.now()).length : 0;
-      if (pastCount > 0) {
+      const hq = historyQuestion(protocolData, Date.now());
+      if (hq) {
+        const title = hq.unit === 'weeks'
+          ? t(pluralKey('protocols_history_weeks', hq.n, language))
+          : t(pluralKey('protocols_history_days', hq.n, language));
         // Shown once the add sheet is gone (screenSheet waits for it).
         setScreenSheet({
-          title: t('protocols_backfill_title'),
-          body: t(pluralKey('protocols_backfill_msg', pastCount, language)).replace('{n}', String(pastCount)).replace('{date}', formatStartDate(safeStart)),
+          title: title.replace('{n}', String(hq.n)),
+          body: t('protocols_history_body'),
           buttons: [
-            { label: t('protocols_backfill_no'), kind: 'secondary' },
             {
-              label: t(pluralKey('protocols_backfill_yes', pastCount, language)).replace('{n}', String(pastCount)),
-              kind: 'primary',
+              label: t('protocols_history_no'),
+              kind: 'secondary',
               onPress: () => {
-                try { backfillTakenDoses(newId); } catch { /* best-effort */ }
+                try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
                 notifyDataChanged('protocol');
                 requestSync();
-                fetchProtocols();
               },
             },
+            { label: t('protocols_history_yes'), kind: 'primary' },
           ],
         });
       }

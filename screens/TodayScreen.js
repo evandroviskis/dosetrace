@@ -32,6 +32,7 @@ import { TABLES, getPendingChanges } from '../lib/syncCore';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake, takeRefusal } from '../lib/markTaken';
+import { loggedOnly } from '../lib/declared';
 import { wasDeleted } from '../lib/deleteDose';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
@@ -574,9 +575,9 @@ export default function TodayScreen() {
       if (!user) return;
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const logs = getTakenLogsSince(user.id, thirtyDaysAgo.toISOString());
       const activeProtocols = getActiveProtocols(user.id) || [];
-      if (!logs) return;
+      // A-30: only doses logged in the app.
+      const logs = loggedOnly(getTakenLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
       // Group by protocol_id → { dayString: count } (multi-dose aware)
       const byProtocol = {};
       logs.forEach(l => {
@@ -735,9 +736,10 @@ export default function TodayScreen() {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-    const logs = getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [];
     // Active + ended (A-83): an ended protocol's past days still count, nothing after its end.
     const activeProtocols = getHistoryProtocols(user.id) || [];
+    // A-30: only doses logged in the app (declared history before a protocol was added never counts).
+    const logs = loggedOnly(getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
     if (activeProtocols.length === 0) {
       setStreak(0); setMonthAdherence(0); setWeekDots([]); return;
     }
