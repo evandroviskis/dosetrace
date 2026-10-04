@@ -12,3 +12,9 @@ test('scripts/sim-load-main.sh exports with --reset-cache', () => {
   assert.ok(line, 'export line present');
   assert.match(line, /--reset-cache/);
 });
+
+test('scripts/sim-load-main.sh stops when the .env is missing (a worktree has none)', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../scripts/sim-load-main.sh'), 'utf8');
+  assert.match(src, /\[ -f \.env \] \|\| \{/);
+  assert.ok(src.indexOf('[ -f .env ]') < src.indexOf('expo export:embed'), 'checked before the export');
+});
