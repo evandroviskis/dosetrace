@@ -7,7 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
@@ -16,6 +16,7 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { signOutOutcome, completeLocalSignOut } from './lib/signOutCore';
+import { tabBarStyle } from './lib/tabBarStyle';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
@@ -191,16 +192,7 @@ function MainTabs() {
         // active = ink + 600, inactive = ink3. Never blue.
         tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.ink3,
-        tabBarStyle: {
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: colors.line,
-          elevation: 0,
-          shadowOpacity: 0,
-          backgroundColor: colors.ground,
-          paddingBottom: 22,
-          paddingTop: 8,
-          height: 84,
-        },
+        tabBarStyle: tabBarStyle(colors),
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',

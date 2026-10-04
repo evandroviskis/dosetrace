@@ -39,6 +39,8 @@ import {
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
+import T from '../lib/trashSelection';
+import { tabBarStyle } from '../lib/tabBarStyle';
 import { dueNextOrder } from '../lib/protocolSort';
 import { protocolTakeAction } from '../lib/protocolTake';
 import { pendingFromYesterday } from '../lib/pendingYesterday';
@@ -873,6 +875,8 @@ export default function ProtocolsScreen() {
   // the list (prototype list(); moved here from Settings).
   const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [endedProtocols, setEndedProtocols] = useState([]); // A-83
+  // Recently deleted multi-select (founder 2026-10-03): null = not selecting; else the chosen ids.
+  const [trashSel, setTrashSel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
   const [todayLogs, setTodayLogs] = useState([]); // today's rows: "Due next" skips a dose already complete (m12)
@@ -1115,7 +1119,15 @@ export default function ProtocolsScreen() {
     }
   }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useFocusEffect(useCallback(() => { fetchProtocols(); }, []));
+  useFocusEffect(useCallback(() => { fetchProtocols(); return () => setTrashSel(null); }, []));
+  // While selecting in Recently deleted the bottom bar takes the tab bar's place.
+  useEffect(() => {
+    navigation.setOptions({ tabBarStyle: trashSel ? { display: 'none' } : tabBarStyle(colors) });
+  }, [trashSel, colors]);
+  // A protocol that left Recently deleted leaves the selection; an empty section ends it.
+  useEffect(() => {
+    setTrashSel((cur) => (cur == null ? cur : (deletedProtocols.length ? T.prune(cur, deletedProtocols.map((p) => p.id)) : null)));
+  }, [deletedProtocols]);
 
   // Deep-link from the Today screen: open (expand) a specific protocol, then
   // clear the param so it doesn't re-fire. A plain effect on the param reacts
@@ -1261,22 +1273,42 @@ export default function ProtocolsScreen() {
   // Permanently remove a soft-deleted protocol before the 7-day auto-purge.
   // Irreversible, so it always goes through a confirm (main's "Delete permanently?").
   function confirmPermanentDelete(p) {
+    confirmPurge([p.id]);
+  }
+
+  // Delete forever, one or several (founder 2026-10-03): the protocol, its dose history and vials
+  // everywhere (synced tombstones, lib/protocolEnd purgeProtocol) and its reminders.
+  function confirmPurge(ids) {
+    if (!ids || !ids.length) return;
+    const k = T.confirmKeys(ids.length);
     setScreenSheet({
       icon: 'warning',
-      title: t('settings_delete_protocol_title'),
-      body: t('settings_delete_protocol_msg').replace('{name}', protocolName(p)),
+      title: t(k.title).replace('{n}', String(ids.length)),
+      body: t(k.body),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         {
           label: t('settings_delete_forever'), kind: 'danger',
           onPress: () => {
-            permanentlyDeleteProtocol(p.id);
+            T.forEachSelected(ids, (id) => {
+              permanentlyDeleteProtocol(id);
+              cancelDoseReminder(id).catch(() => {});
+              dismissDeliveredDoseReminders(id).catch(() => {});
+            });
+            setTrashSel(null);
             fetchProtocols();
+            notifyDataChanged('protocol');
             requestSync();
           },
         },
       ],
     });
+  }
+
+  // Restore several = the existing restore per item (an ended one goes back to Ended).
+  function restoreSelected(ids) {
+    T.forEachSelected(ids, (id) => restoreProtocol(id));
+    setTrashSel(null);
   }
 
   // Display name follows the user's language via the canonical compound key.
@@ -2127,32 +2159,89 @@ export default function ProtocolsScreen() {
   // Prototype list(): "Recently deleted" at the bottom of the list, only when something was
   // deleted. Each row: the protocol color as a 9 pt dot, the name, "Deleted Nd ago", a
   // Restore pill and the risk-colored delete-forever trash (with its confirm).
+  const deletedIds = deletedProtocols.map((p) => p.id);
+  const deletedAgo = (p) => t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000));
+  // Recently deleted multi-select (picture page approved 2026-10-03): "Select" beside the title
+  // (only with items); while selecting each row is a checkbox (the prototype's round check), the
+  // header offers Select all / Deselect all and Cancel, and the bottom bar replaces the tab bar.
   const deletedSection = deletedProtocols.length > 0 ? (
     <View style={s.blk}>
-      <Text style={s.secth}>{t('protocols_recently_deleted')}</Text>
-      <View style={s.delList}>
-        {deletedProtocols.map((p, idx) => (
-          <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
-            <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
-            <View style={s.delText}>
-              <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
-              <Text style={s.delAgo}>{t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000))}</Text>
-            </View>
-            <TouchableOpacity onPress={() => restoreProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button">
-              <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
+      <View style={s.delHead}>
+        <Text style={[s.secth, s.grow]}>{t('protocols_recently_deleted')}</Text>
+        {!trashSel ? (
+          <TouchableOpacity onPress={() => setTrashSel(T.start())} style={s.delHeadBtn} accessibilityRole="button">
+            <Text style={s.delHeadLink}>{t('protocols_select')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity onPress={() => setTrashSel(T.toggleAll(trashSel, deletedIds))} style={s.delHeadBtn} accessibilityRole="button">
+              <Text style={s.delHeadLink}>{t(T.allLabelKey(trashSel, deletedIds))}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => confirmPermanentDelete(p)}
-              accessibilityRole="button"
-              accessibilityLabel={t('settings_delete_forever')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={s.deleteForeverBtn}
-            >
-              <FeatureIcon name="trash" size={22} color={colors.risk} />
+            <TouchableOpacity onPress={() => setTrashSel(null)} style={s.delHeadBtn} accessibilityRole="button">
+              <Text style={s.delHeadLink}>{t('cancel')}</Text>
             </TouchableOpacity>
-          </View>
-        ))}
+          </>
+        )}
       </View>
+      <View style={s.delList}>
+        {deletedProtocols.map((p, idx) => {
+          if (trashSel) {
+            const on = trashSel.includes(p.id);
+            return (
+              <TouchableOpacity
+                key={p.id}
+                style={[s.delRow, idx > 0 && s.delRowLine]}
+                activeOpacity={0.7}
+                onPress={() => setTrashSel(T.toggle(trashSel, p.id))}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                accessibilityLabel={protocolName(p)}
+              >
+                <View style={[s.delCheck, on && s.delCheckOn]}>{on ? <CheckMark size={16} color={colors.onInk} /> : null}</View>
+                <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+                <View style={s.delText}>
+                  <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
+                  <Text style={s.delAgo}>{deletedAgo(p)}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+          return (
+            <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
+              <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+              <View style={s.delText}>
+                <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
+                <Text style={s.delAgo}>{deletedAgo(p)}</Text>
+              </View>
+              <TouchableOpacity onPress={() => restoreProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button">
+                <Text style={s.restoreBtnText}>{t('protocols_restore')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => confirmPermanentDelete(p)}
+                accessibilityRole="button"
+                accessibilityLabel={t('settings_delete_forever')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={s.deleteForeverBtn}
+              >
+                <FeatureIcon name="trash" size={22} color={colors.risk} />
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  ) : null;
+  // The selection's bottom bar (in place of the tab bar): Restore (N) and risk Delete forever (N),
+  // both off with nothing chosen.
+  const bar = T.bar(trashSel);
+  const trashBar = trashSel ? (
+    <View style={s.trashBar}>
+      <TouchableOpacity style={[s.trashBtn, s.trashBtnRestore, !bar.enabled && s.trashBtnOff]} disabled={!bar.enabled} onPress={() => restoreSelected(trashSel)} accessibilityRole="button" accessibilityState={{ disabled: !bar.enabled }}>
+        <Text style={s.trashBtnRestoreText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('protocols_restore_n').replace('{n}', String(bar.n))}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[s.trashBtn, s.trashBtnDelete, !bar.enabled && s.trashBtnOff]} disabled={!bar.enabled} onPress={() => confirmPurge(trashSel)} accessibilityRole="button" accessibilityState={{ disabled: !bar.enabled }}>
+        <Text style={s.trashBtnDeleteText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('protocols_delete_forever_n').replace('{n}', String(bar.n))}</Text>
+      </TouchableOpacity>
     </View>
   ) : null;
 
@@ -2353,6 +2442,8 @@ export default function ProtocolsScreen() {
       </ScrollView>
       </>
       )}
+
+      {trashBar}
 
       {/* Delete / limit / log past doses: held back until the add sheet is gone. */}
       <DTSheet config={wizardPresented ? null : screenSheet} onClose={() => setScreenSheet(null)} />
@@ -3240,6 +3331,20 @@ const protocolsGraduated = (c) => ({
   restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
   restoreBtnText: { fontSize: 13, fontWeight: '500', color: c.ink2 },
   deleteForeverBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  // Recently deleted multi-select (prototype: btnlink header, exbox check at radius 12, wfoot bar)
+  delHead: { flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 32, paddingRight: 4 },
+  grow: { flex: 1 },
+  delHeadBtn: { minHeight: 32, justifyContent: 'center' },
+  delHeadLink: { fontSize: 15, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
+  delCheck: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: c.tick, alignItems: 'center', justifyContent: 'center' },
+  delCheckOn: { backgroundColor: c.ink, borderColor: c.ink },
+  trashBar: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, backgroundColor: c.ground },
+  trashBtn: { minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  trashBtnRestore: { flex: 2, backgroundColor: c.well },
+  trashBtnDelete: { flex: 3, backgroundColor: c.risk },
+  trashBtnOff: { opacity: 0.35 },
+  trashBtnRestoreText: { fontSize: 17, fontWeight: '600', color: c.ink },
+  trashBtnDeleteText: { fontSize: 17, fontWeight: '600', color: c.onInk },
   pcard: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, gap: 10 },
   // Book layout (S-26 BK-8): every card keeps room for the outline; the open one is ink.
   pcardBook: { borderWidth: 2, borderColor: 'transparent' },

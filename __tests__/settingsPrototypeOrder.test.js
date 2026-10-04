@@ -173,7 +173,7 @@ test('Protocols list: a "Recently deleted" section at the bottom, only when some
     'deletedProtocols.map(',
     'backgroundColor: displayColor(p.color) || colors.ink3',
     'protocolName(p)',
-    "t('protocols_deleted_ago')",
+    'deletedAgo(p)', // t('protocols_deleted_ago') (multi-select 2026-10-03: shared by both row kinds)
     'onPress={() => restoreProtocol(p.id)}',
     "{t('protocols_restore')}",
     'onPress={() => confirmPermanentDelete(p)}',
@@ -206,25 +206,32 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
   const make = new Function(
     'restoreProtocolDB', 'getNewestVialForProtocol', 'updateVial', 'getProtocolById', 'scheduleDoseReminder',
     'fetchProtocols', 'notifyDataChanged', 'requestSync', 'permanentlyDeleteProtocol', 'setScreenSheet', 't', 'protocolName',
-    `${innerFn('restoreProtocol')}\n${innerFn('confirmPermanentDelete')}\nreturn { restoreProtocol, confirmPermanentDelete };`,
+    'T', 'cancelDoseReminder', 'dismissDeliveredDoseReminders', 'setTrashSel',
+    `${innerFn('restoreProtocol')}\n${innerFn('confirmPermanentDelete')}\n${innerFn('confirmPurge')}\nreturn { restoreProtocol, confirmPermanentDelete };`,
   );
   const f = make(
     rec('restoreDB'), (id) => (id === 7 ? { id: 70 } : null), rec('updateVial'), (id) => ({ id, name: 'BPC-157' }),
     (p) => { calls.push(['schedule', p.id]); return Promise.resolve(); },
     rec('fetchProtocols'), rec('notify'), rec('requestSync'), rec('permanentDelete'), (cfg) => { sheet = cfg; },
-    (k) => ({ settings_delete_protocol_title: 'Delete permanently?', settings_delete_protocol_msg: '"{name}" will be permanently deleted.', settings_delete_forever: 'Delete forever', cancel: 'Cancel' }[k] || k),
+    (k) => ({ protocols_purge_title_single: 'Delete this protocol forever?', protocols_purge_body_single: 'Its dose history, vials and reminders are removed from all your devices.', settings_delete_forever: 'Delete forever', cancel: 'Cancel' }[k] || k),
     (p) => p.name,
+    require('../lib/trashSelection'),
+    (id) => { calls.push(['cancelReminders', id]); return Promise.resolve(); },
+    (id) => { calls.push(['dismissBanners', id]); return Promise.resolve(); },
+    (v) => calls.push(['setTrashSel', v]),
   );
   f.restoreProtocol(7);
   assert.deepEqual(calls, [['restoreDB', 7], ['updateVial', 70, { active: 1 }], ['schedule', 7], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);
   calls.length = 0;
   f.confirmPermanentDelete({ id: 9, name: 'TB-500' });
   assert.equal(calls.length, 0, 'nothing is deleted before the confirm');
-  assert.equal(sheet.title, 'Delete permanently?');
-  assert.equal(sheet.body, '"TB-500" will be permanently deleted.');
+  // Since 2026-10-03 the single trash uses the multi-select sheet for one protocol (the purge
+  // also removes its dose history and vials everywhere — trashPurge.test.js).
+  assert.equal(sheet.title, 'Delete this protocol forever?');
+  assert.equal(sheet.body, 'Its dose history, vials and reminders are removed from all your devices.');
   assert.deepEqual(sheet.buttons.map((b) => [b.label, b.kind]), [['Cancel', 'secondary'], ['Delete forever', 'danger']]);
   sheet.buttons[1].onPress();
-  assert.deepEqual(calls, [['permanentDelete', 9], ['fetchProtocols'], ['requestSync']]);
+  assert.deepEqual(calls, [['permanentDelete', 9], ['cancelReminders', 9], ['dismissBanners', 9], ['setTrashSel', null], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);
   // The database functions come from lib/database (one implementation, now used here only).
   assert.match(PRO, /restoreProtocol as restoreProtocolDB/);
   assert.match(PRO, /\bgetDeletedProtocols\b/);

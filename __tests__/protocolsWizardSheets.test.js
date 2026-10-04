@@ -63,7 +63,9 @@ test("part 21: Let's double-check has no icon and reads OK; Missing name and not
 });
 
 test('part 4: Delete permanently? carries the warning icon (current app drawing, Q15)', () => {
-  const del = fnBody(SCREEN, 'confirmPermanentDelete');
+  // (2026-10-03) the single trash opens the multi-select purge sheet for one protocol
+  assert.match(fnBody(SCREEN, 'confirmPermanentDelete'), /confirmPurge\(\[p\.id\]\)/);
+  const del = fnBody(SCREEN, 'confirmPurge');
   assert.match(del, /icon: 'warning',/);
-  assert.match(del, /title: t\('settings_delete_protocol_title'\)/);
+  assert.match(del, /title: t\(k\.title\)\.replace\('\{n\}', String\(ids\.length\)\)/);
 });
