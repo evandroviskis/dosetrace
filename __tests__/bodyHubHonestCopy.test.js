@@ -14,7 +14,7 @@ const tr = mod.exports.translations;
 
 const NO_REMINDER = { en: /reminder/i, es: /recordatorio/i, pt: /lembrete/i, fr: /rappels d'échéance/i, de: /erinnerung/i, it: /promemoria/i };
 const NO_TYPED_HALF_LIFE = { en: /you enter/i, es: /tú introduces/i, pt: /você digita/i, fr: /vous saisissez/i, de: /du eingibst/i, it: /inserisci tu/i };
-const PUBLISHED = { en: /published half-lives/, es: /vidas medias publicadas/, pt: /meias-vidas publicadas/, fr: /demi-vies publiées/, de: /veröffentlichter Halbwertszeiten/, it: /emivite pubblicate/ };
+const PUBLISHED = { en: /published half-lives/, es: /vidas medias publicadas/, pt: /meias-vidas publicadas/, fr: /demi-vies publiées/, de: /veröffentlichte[rn] Halbwertszeiten/, it: /emivite pubblicate/ };
 
 test('the vaccine card speaks of next-due dates, never reminders', () => {
   for (const l of Object.keys(NO_REMINDER)) assert.doesNotMatch(tr[l].body_card_vax_desc, NO_REMINDER[l], l);
@@ -25,5 +25,15 @@ test('the dose-accumulation card says published half-lives, never one the user e
   for (const l of Object.keys(PUBLISHED)) {
     assert.doesNotMatch(tr[l].body_card_dosing_desc, NO_TYPED_HALF_LIFE[l], l);
     assert.match(tr[l].body_card_dosing_desc, PUBLISHED[l], l);
+  }
+});
+
+// Round 2: the curve follows the PLANNED schedule (A-07, the curve disclaimer), so the card does
+// not say "your logged doses".
+test('the dose-accumulation card says the planned schedule, not the logged doses', () => {
+  const PLANNED = { en: /planned schedule/, es: /esquema planificado/, pt: /esquema planejado/, fr: /schéma prévu/, de: /geplanten Schema/, it: /schema pianificato/ };
+  for (const l of Object.keys(PLANNED)) {
+    assert.match(tr[l].body_card_dosing_desc, PLANNED[l], l);
+    assert.doesNotMatch(tr[l].body_card_dosing_desc, /logged|registrad|enregistrées|erfassten|registri/i, l);
   }
 });
