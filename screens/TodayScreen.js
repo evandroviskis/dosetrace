@@ -23,8 +23,12 @@ import {
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, softDeleteProtocol, deactivateVialsByProtocol,
   getBiomarkers,
+  getDB, getLocalDataUserId,
 } from '../lib/database';
-import { requestSync, addSyncListener } from '../lib/sync';
+import { requestSync, addSyncListener, isOnlineNow } from '../lib/sync';
+import { offlinePendingAlert } from '../lib/offlineAlert';
+import { unsyncedCount } from '../lib/recoveryFlow';
+import { TABLES, getPendingChanges } from '../lib/syncCore';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake } from '../lib/markTaken';
@@ -342,6 +346,22 @@ export default function TodayScreen() {
     const tick = () => { if (focusedRef.current) refreshIfNewDay(); timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000); };
     timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000);
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A-46 extension: offline with changes waiting to be pushed → an entry in the alerts box.
+  // Re-checked on connectivity changes, sync results and every save; the reconnect sync
+  // (lib/sync) clears it once nothing is pending.
+  const [offlinePending, setOfflinePending] = useState(false);
+  function refreshOffline() {
+    let pending = 0;
+    try { pending = unsyncedCount(getDB(), getLocalDataUserId(), TABLES, getPendingChanges); } catch { pending = 0; }
+    setOfflinePending(offlinePendingAlert({ online: isOnlineNow(), pendingCount: pending }));
+  }
+  useEffect(() => {
+    refreshOffline();
+    return addSyncListener((e) => {
+      if (e.type === 'connectivity' || e.type === 'sync_complete' || e.type === 'sync_error' || e.type === 'data_changed') refreshOffline();
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A question saved by the notification Taken button while the app is open (S-25).
@@ -1405,6 +1425,16 @@ export default function TodayScreen() {
         snoozeId: 'reality_check',
       });
     }
+    // 0) Offline with changes not backed up yet (A-46 extension). Tapping it tries a sync.
+    if (offlinePending) {
+      list.push({
+        id: 'offline_pending', iconName: 'repeat', due: false,
+        title: t('today_alert_offline_title'),
+        body: t('today_alert_offline_body'),
+        onPress: () => requestSync(),
+        snoozeId: 'offline_pending',
+      });
+    }
     // 2) Bloodwork due (~6 months since the last logged test).
     if (latestLabDate && !(alertSnooze.bloodwork_due && nowMs < alertSnooze.bloodwork_due)) {
       const days = Math.floor((nowMs - new Date(latestLabDate + 'T12:00:00').getTime()) / 86400000);
@@ -1475,7 +1505,7 @@ export default function TodayScreen() {
       }
     }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language]);
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

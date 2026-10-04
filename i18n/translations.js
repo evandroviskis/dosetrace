@@ -9,6 +9,8 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    today_alert_offline_body: "You're offline. Your changes are saved on this phone and back up when you're online again.",
+    today_alert_offline_title: "Waiting to back up",
     settings_report_share: "Share",
     settings_report_preview_note: "This is exactly what your provider will receive.",
     settings_signout_anyway: "Sign out anyway",
@@ -2203,6 +2205,8 @@ export const translations = {
   },
 
   'es': {
+    today_alert_offline_body: "Estás sin conexión. Tus cambios se guardan en este teléfono y se copian cuando vuelvas a tener conexión.",
+    today_alert_offline_title: "Pendiente de copia de seguridad",
     settings_report_share: "Compartir",
     settings_report_preview_note: "Esto es exactamente lo que recibirá tu profesional de la salud.",
     settings_signout_anyway: "Cerrar sesión de todos modos",
@@ -4397,6 +4401,8 @@ export const translations = {
   },
 
   'pt': {
+    today_alert_offline_body: "Você está offline. Suas alterações ficam salvas neste celular e o backup é feito quando você voltar a ficar online.",
+    today_alert_offline_title: "Aguardando backup",
     settings_report_share: "Compartilhar",
     settings_report_preview_note: "É exatamente isto que o seu profissional de saúde vai receber.",
     settings_signout_anyway: "Sair mesmo assim",
@@ -6590,6 +6596,8 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    today_alert_offline_body: "Vous êtes hors ligne. Vos modifications sont enregistrées sur ce téléphone et seront sauvegardées dès que vous serez de nouveau en ligne.",
+    today_alert_offline_title: "Sauvegarde en attente",
     settings_report_share: "Partager",
     settings_report_preview_note: "Voici exactement ce que recevra votre médecin.",
     settings_signout_anyway: "Me déconnecter quand même",
@@ -8783,6 +8791,8 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    today_alert_offline_body: "Du bist offline. Deine Änderungen sind auf diesem Handy gespeichert und werden gesichert, sobald du wieder online bist.",
+    today_alert_offline_title: "Sicherung ausstehend",
     settings_report_share: "Teilen",
     settings_report_preview_note: "Genau das bekommt dein Arzt.",
     settings_signout_anyway: "Trotzdem abmelden",
@@ -10977,6 +10987,8 @@ export const translations = {
   },
 
   'it': {
+    today_alert_offline_body: "Sei offline. Le tue modifiche sono salvate su questo telefono e verranno salvate nel backup quando tornerai online.",
+    today_alert_offline_title: "Backup in attesa",
     settings_report_share: "Condividi",
     settings_report_preview_note: "Questo è esattamente ciò che riceverà il tuo medico.",
     settings_signout_anyway: "Esci comunque",
