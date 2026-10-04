@@ -46,7 +46,7 @@ import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, blockedCopy } from '../lib/accountActions';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -464,9 +464,9 @@ export default function SettingsScreen({ navigation }) {
             setSheet({
               icon: 'warning',
               title: t('settings_signout'),
-              body: t('settings_signout_unsynced_body'),
+              body: t(blockedCopy(r).settingsBody),
               buttons: [
-                { label: t('settings_signout_connect_first'), kind: 'secondary' },
+                { label: t(blockedCopy(r).stay), kind: 'secondary' },
                 { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutIntended({ force: true }).catch(() => ({ failed: true })).then((f) => { if (f && f.failed) showSignOutFailed(); }) },
               ],
             });

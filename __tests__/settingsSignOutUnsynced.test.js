@@ -21,7 +21,7 @@ test('Settings signs out through signOutIntended and asks when changes are not b
   const fn = sliceBlock(s, 'async function handleSignOut() {');
   assert.match(fn, /await signOutIntended\(\)/);
   assert.match(fn, /if \(r && r\.blocked\)/);
-  assert.match(fn, /\{ label: t\('settings_signout_connect_first'\), kind: 'secondary' \}/);
+  assert.match(fn, /\{ label: t\(blockedCopy\(r\)\.stay\), kind: 'secondary' \}/);
   assert.match(fn, /\{ label: t\('settings_signout_anyway'\), kind: 'danger', onPress: \(\) => signOutIntended\(\{ force: true \}\)/);
   assert.doesNotMatch(fn, /supabase\.auth\.signOut/, 'no second sign-out path that skips the check');
 });

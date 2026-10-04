@@ -15,6 +15,7 @@ import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendin
 import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
+import { blockedCopy } from './lib/signOutCore';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -263,7 +264,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
     : justConfirmed
       ? { icon: 'check', title: t('confirm_email_done_title'), body: t('confirm_email_done_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
       : linkFailed
-        ? { icon: 'alert', title: t(linkFailed === 'offline' ? 'reset_switch_title' : 'auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : linkFailed === 'offline' ? 'reset_switch_offline' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+        ? { icon: 'alert', title: t(linkFailed === 'offline' || linkFailed === 'notbacked' ? 'reset_switch_title' : 'auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : linkFailed === 'offline' ? 'reset_switch_offline' : linkFailed === 'notbacked' ? 'reset_switch_notbacked' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
         : null;
   // Closing a sheet only hides it; the buttons carry the actions (DTSheet runs them after).
   const closeLinkSheet = () => {
@@ -356,7 +357,7 @@ export default function App() {
   const [recovery, setRecovery] = useState(null);
   const [switchAsk, setSwitchAsk] = useState(null); // { pending, current } — a link for another account
   const [justConfirmed, setJustConfirmed] = useState(false);
-  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm' | 'offline'
+  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm' | 'offline' | 'notbacked'
   const seenLinks = useRef(new Set()); // emailed links already being handled in this run
   // How the auth screen opens: Create account (from the last onboarding step, with the
   // consent box ticked by the four confirmations just made) or Sign in (from the welcome
@@ -799,7 +800,8 @@ export default function App() {
                   .then((r) => {
                     // Not signed out (changes not backed up, or the phone could not sign out):
                     // never open the reset while the other account is still signed in (Gate B F1).
-                    if (r && (r.blocked || r.failed)) { setLinkFailed('offline'); return; }
+                    if (r && r.failed) { setLinkFailed('offline'); return; }
+                    if (r && r.blocked) { setLinkFailed(blockedCopy(r).link); return; }
                     setRecovery(p);
                   })
                   .catch(() => setLinkFailed('offline'));

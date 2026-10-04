@@ -18,7 +18,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended, blockedCopy } from '../lib/accountActions';
 import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
 import { DTSheet, DTPickerSheet, DTWheel } from './components/ProtocolParts';
@@ -143,7 +143,7 @@ export default function AgeConfirmScreen({ session }) {
     const r = await signOutIntended().catch(() => ({ failed: true }));
     setBusy(null);
     if (r && r.failed) { ok(t('settings_signout_failed_title'), t('settings_signout_failed_body')); return; }
-    if (r && r.blocked) ok(t('settings_signout'), t('auth_signout_unsynced'));
+    if (r && r.blocked) ok(t('settings_signout'), t(blockedCopy(r).sheet));
   }
 
   const spin = (k) => (busy === k ? <ActivityIndicator color={k === 'confirm' ? colors.onAct : colors.ink} /> : null);

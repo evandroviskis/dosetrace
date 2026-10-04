@@ -97,7 +97,7 @@ test('every caller handles { failed: true }: Settings, the 18+ sheet and the res
     assert.match(read(f), /r && r\.failed/, f);
     assert.match(read(f), /settings_signout_failed_body/, f);
   }
-  assert.match(read('App.js'), /if \(r && \(r\.blocked \|\| r\.failed\)\)/);
+  assert.match(read('App.js'), /if \(r && r\.failed\) \{ setLinkFailed\('offline'\); return; \}/);
   const src = read('i18n/translations.js');
   const mod = { exports: {} };
   new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);

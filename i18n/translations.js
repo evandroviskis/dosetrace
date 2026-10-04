@@ -9,6 +9,10 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    reset_switch_notbacked: "Some changes on this phone could not be backed up, so DoseTrace didn't sign you out. Try the link again later.",
+    auth_signout_notbacked: "Some changes on this phone could not be backed up, so you're still signed in. Try again later, so nothing is lost.",
+    settings_signout_stay: "Stay signed in",
+    settings_signout_notbacked_body: "Some changes could not be backed up. Signing out now removes them from this phone.",
     settings_signout_failed_body: "You're still signed in. Connect to the internet and try again.",
     settings_signout_failed_title: "Couldn't sign out",
     today_alert_offline_body: "You're offline. Your changes are saved on this phone and back up when you're online again.",
@@ -2207,6 +2211,10 @@ export const translations = {
   },
 
   'es': {
+    reset_switch_notbacked: "Algunos cambios de este teléfono no se pudieron guardar en la copia de seguridad, así que DoseTrace no cerró tu sesión. Vuelve a abrir el enlace más tarde.",
+    auth_signout_notbacked: "Algunos cambios de este teléfono no se pudieron guardar en la copia de seguridad, así que sigues con la sesión iniciada. Vuelve a intentarlo más tarde para no perder nada.",
+    settings_signout_stay: "Seguir con la sesión",
+    settings_signout_notbacked_body: "Algunos cambios no se pudieron guardar en la copia de seguridad. Si cierras sesión ahora, se borrarán de este teléfono.",
     settings_signout_failed_body: "Sigues con la sesión iniciada. Conéctate a internet y vuelve a intentarlo.",
     settings_signout_failed_title: "No se pudo cerrar sesión",
     today_alert_offline_body: "Estás sin conexión. Tus cambios se guardan en este teléfono y se copian cuando vuelvas a tener conexión.",
@@ -4405,6 +4413,10 @@ export const translations = {
   },
 
   'pt': {
+    reset_switch_notbacked: "Algumas alterações neste celular não puderam ser salvas no backup, por isso o DoseTrace não encerrou sua sessão. Abra o link de novo mais tarde.",
+    auth_signout_notbacked: "Algumas alterações neste celular não puderam ser salvas no backup, por isso você continua conectado. Tente de novo mais tarde para não perder nada.",
+    settings_signout_stay: "Continuar conectado",
+    settings_signout_notbacked_body: "Algumas alterações não puderam ser salvas no backup. Se sair agora, elas serão apagadas deste celular.",
     settings_signout_failed_body: "Você continua conectado. Conecte-se à internet e tente de novo.",
     settings_signout_failed_title: "Não foi possível sair",
     today_alert_offline_body: "Você está offline. Suas alterações ficam salvas neste celular e o backup é feito quando você voltar a ficar online.",
@@ -6602,6 +6614,10 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    reset_switch_notbacked: "Certaines modifications sur ce téléphone n'ont pas pu être sauvegardées, DoseTrace ne vous a donc pas déconnecté. Rouvrez le lien plus tard.",
+    auth_signout_notbacked: "Certaines modifications sur ce téléphone n'ont pas pu être sauvegardées, vous restez donc connecté. Réessayez plus tard pour ne rien perdre.",
+    settings_signout_stay: "Rester connecté",
+    settings_signout_notbacked_body: "Certaines modifications n'ont pas pu être sauvegardées. Si vous vous déconnectez maintenant, elles seront supprimées de ce téléphone.",
     settings_signout_failed_body: "Vous êtes toujours connecté. Connectez-vous à internet et réessayez.",
     settings_signout_failed_title: "Impossible de se déconnecter",
     today_alert_offline_body: "Vous êtes hors ligne. Vos modifications sont enregistrées sur ce téléphone et seront sauvegardées dès que vous serez de nouveau en ligne.",
@@ -8799,6 +8815,10 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    reset_switch_notbacked: "Einige Änderungen auf diesem Handy konnten nicht gesichert werden, deshalb hat DoseTrace dich nicht abgemeldet. Öffne den Link später noch einmal.",
+    auth_signout_notbacked: "Einige Änderungen auf diesem Handy konnten nicht gesichert werden, deshalb bleibst du angemeldet. Versuche es später erneut, damit nichts verloren geht.",
+    settings_signout_stay: "Angemeldet bleiben",
+    settings_signout_notbacked_body: "Einige Änderungen konnten nicht gesichert werden. Wenn du dich jetzt abmeldest, werden sie von diesem Handy gelöscht.",
     settings_signout_failed_body: "Du bist noch angemeldet. Verbinde dich mit dem Internet und versuche es erneut.",
     settings_signout_failed_title: "Abmelden nicht möglich",
     today_alert_offline_body: "Du bist offline. Deine Änderungen sind auf diesem Handy gespeichert und werden gesichert, sobald du wieder online bist.",
@@ -10997,6 +11017,10 @@ export const translations = {
   },
 
   'it': {
+    reset_switch_notbacked: "Alcune modifiche su questo telefono non sono state salvate nel backup, quindi DoseTrace non ti ha disconnesso. Riapri il link più tardi.",
+    auth_signout_notbacked: "Alcune modifiche su questo telefono non sono state salvate nel backup, quindi resti connesso. Riprova più tardi, così non perdi nulla.",
+    settings_signout_stay: "Resta connesso",
+    settings_signout_notbacked_body: "Alcune modifiche non sono state salvate nel backup. Se esci ora, verranno eliminate da questo telefono.",
     settings_signout_failed_body: "Sei ancora connesso. Connettiti a internet e riprova.",
     settings_signout_failed_title: "Impossibile uscire",
     today_alert_offline_body: "Sei offline. Le tue modifiche sono salvate su questo telefono e verranno salvate nel backup quando tornerai online.",

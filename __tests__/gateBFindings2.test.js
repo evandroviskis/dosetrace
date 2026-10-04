@@ -60,7 +60,7 @@ test('GB2-5: Continue on the other-account sheet never wipes changes that are no
   // The check-before-sign-out order is a behaviour test now (__tests__/signOutOffline.test.js,
   // Gate B 2026-10-03 F7); App never opens the reset while still signed in.
   assert.match(read('lib', 'accountActions.js'), /signOutCore\(/);
-  assert.match(read('App.js'), /if \(r && \(r\.blocked \|\| r\.failed\)\) \{ setLinkFailed\('offline'\); return; \}/);
+  assert.match(read('App.js'), /if \(r && r\.failed\) \{ setLinkFailed\('offline'\); return; \}\s*if \(r && r\.blocked\) \{ setLinkFailed\(blockedCopy\(r\)\.link\); return; \}/);
   const i18n = read('i18n', 'translations.js');
   assert.equal((i18n.match(/\n\s+reset_switch_offline: /g) || []).length, 6);
 });
