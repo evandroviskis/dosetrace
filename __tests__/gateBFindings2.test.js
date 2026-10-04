@@ -54,7 +54,7 @@ test('GB2-5: Continue on the other-account sheet never wipes changes that are no
   assert.equal(R.unsyncedCount(db, 'u1', ['protocols', 'dose_logs'], pend), 1);
   assert.equal(R.unsyncedCount(db, 'u2', ['protocols', 'dose_logs'], pend), 0);
   const broken = { getAllSync: () => { throw new Error('no such table'); } };
-  assert.equal(R.unsyncedCount(broken, 'u1', ['x'], pend), 0, 'a missing table counts nothing');
+  assert.throws(() => R.unsyncedCount(broken, 'u1', ['x'], pend), 'an unreadable table is never 0 (Gate B F6, unsyncedCheck.test.js)');
   // Since 2026-10-03 (Gate B round 3) the reset flow uses the one deliberate sign-out.
   assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(\);/);
   // The check-before-sign-out order is a behaviour test now (__tests__/signOutOffline.test.js,
