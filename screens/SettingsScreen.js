@@ -20,8 +20,7 @@ import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { supabase, getCachedUser, signOutGoogleNative } from '../lib/supabase';
-import { markIntentionalSignOut } from '../lib/authIntent';
+import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatDate, decimalText } from '../lib/localeFormat';
 import { useTheme } from '../lib/theme';
@@ -33,10 +32,9 @@ import {
   getActiveProtocols as getLocalProtocols,
   getLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
-import { forceSync } from '../lib/sync';
 import { hasPremium } from '../lib/entitlement';
 import { COUNTRIES, countryLabel } from '../lib/countries';
-import { syncAllNotifications, openBatteryOptimizationSettings, removePushToken } from '../lib/notifications';
+import { syncAllNotifications, openBatteryOptimizationSettings } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
@@ -48,7 +46,7 @@ import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -433,23 +431,21 @@ export default function SettingsScreen({ navigation }) {
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         { label: t('settings_signout'), kind: 'danger', onPress: async () => {
-          // Best-effort: push this user's pending changes before local data
-          // is wiped by the SIGNED_OUT handler.
-          try { await forceSync(); } catch (e) { /* best effort */ }
-          // Remove this device's push token WHILE still authenticated (owner RLS)
-          // so the server stops pushing reminders to a signed-out device.
-          try { await removePushToken(); } catch (e) { /* best effort */ }
-          // Mark this as a deliberate sign-out so the SIGNED_OUT handler performs
-          // the full local wipe (a spurious SIGNED_OUT would keep the data).
-          markIntentionalSignOut();
-          // Clear the native Google session too, so the account chooser shows on
-          // the next sign-in instead of silently re-using this account.
-          await signOutGoogleNative();
-          // scope:'local' clears the session on-device without a network round-trip,
-          // so sign-out never stalls on a slow/invalid token — it just fires
-          // SIGNED_OUT, which routes back to the welcome screen.
-          try { await supabase.auth.signOut({ scope: 'local' }); }
-          catch { await supabase.auth.signOut().catch(() => {}); }
+          // The one deliberate sign-out (lib/accountActions): push first; if anything is STILL
+          // not in the cloud nobody is signed out (never lose data) and the user decides
+          // (A-46, Settings part 3): connect first, or sign out anyway.
+          const r = await signOutIntended().catch(() => ({ blocked: true }));
+          if (r && r.blocked) {
+            setSheet({
+              icon: 'warning',
+              title: t('settings_signout'),
+              body: t('settings_signout_unsynced_body'),
+              buttons: [
+                { label: t('settings_signout_connect_first'), kind: 'secondary' },
+                { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutIntended({ force: true }).catch(() => {}) },
+              ],
+            });
+          }
         } },
       ],
     });

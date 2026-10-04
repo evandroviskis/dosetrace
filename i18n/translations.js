@@ -9,6 +9,9 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    settings_signout_anyway: "Sign out anyway",
+    settings_signout_connect_first: "Connect to the internet first",
+    settings_signout_unsynced_body: "Some changes on this phone aren't backed up yet. Connect to the internet first so they're saved — signing out now removes them from this phone.",
     today_alert_supply_one_one: "{name} — {n} dose left",
     today_notif_focus_title: "From your reminder",
     lang_name_it: "Italian",
@@ -2198,6 +2201,9 @@ export const translations = {
   },
 
   'es': {
+    settings_signout_anyway: "Cerrar sesión de todos modos",
+    settings_signout_connect_first: "Conectarme a internet primero",
+    settings_signout_unsynced_body: "Algunos cambios de este teléfono aún no tienen copia de seguridad. Conéctate a internet primero para que se guarden; si cierras sesión ahora, se borrarán de este teléfono.",
     today_alert_supply_one_one: "{name}: queda {n} dosis",
     today_notif_focus_title: "De tu recordatorio",
     lang_name_it: "Italiano",
@@ -4387,6 +4393,9 @@ export const translations = {
   },
 
   'pt': {
+    settings_signout_anyway: "Sair mesmo assim",
+    settings_signout_connect_first: "Conectar à internet primeiro",
+    settings_signout_unsynced_body: "Algumas alterações neste celular ainda não têm backup. Conecte-se à internet primeiro para salvá-las — se sair agora, elas serão apagadas deste celular.",
     today_alert_supply_one_one: "{name} — resta {n} dose",
     today_notif_focus_title: "Do seu lembrete",
     lang_name_it: "Italiano",
@@ -6575,6 +6584,9 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    settings_signout_anyway: "Me déconnecter quand même",
+    settings_signout_connect_first: "Me connecter à internet d'abord",
+    settings_signout_unsynced_body: "Certaines modifications sur ce téléphone ne sont pas encore sauvegardées. Connectez-vous d'abord à internet pour les enregistrer — si vous vous déconnectez maintenant, elles seront supprimées de ce téléphone.",
     today_alert_supply_one_one: "{name} — {n} dose restante",
     today_notif_focus_title: "Depuis votre rappel",
     lang_name_it: "Italien",
@@ -8763,6 +8775,9 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    settings_signout_anyway: "Trotzdem abmelden",
+    settings_signout_connect_first: "Zuerst mit dem Internet verbinden",
+    settings_signout_unsynced_body: "Einige Änderungen auf diesem Handy sind noch nicht gesichert. Verbinde dich zuerst mit dem Internet, damit sie gespeichert werden – wenn du dich jetzt abmeldest, werden sie von diesem Handy gelöscht.",
     today_alert_supply_one_one: "{name} – {n} Dosis übrig",
     today_notif_focus_title: "Aus deiner Erinnerung",
     lang_name_it: "Italienisch",
@@ -10952,6 +10967,9 @@ export const translations = {
   },
 
   'it': {
+    settings_signout_anyway: "Esci comunque",
+    settings_signout_connect_first: "Prima connettermi a internet",
+    settings_signout_unsynced_body: "Alcune modifiche su questo telefono non hanno ancora un backup. Connettiti prima a internet per salvarle: se esci ora, verranno eliminate da questo telefono.",
     today_alert_supply_one_one: "{name} — {n} dose rimasta",
     today_notif_focus_title: "Dal tuo promemoria",
     lang_name_it: "Italiano",
