@@ -22,7 +22,7 @@ const tr = load();
 const WANT = { en: 'Skip', es: 'Omitir', pt: 'Pular', fr: 'Passer', de: 'Auslassen', it: 'Salta' };
 // SF Pro 17 pt bold widths (NSFont systemFont 17 bold, same method as todayTakeButtonFit).
 const MEASURED = { Skip: 35.9, Omitir: 50.8, Pular: 42.4, Passer: 55.3, Auslassen: 83.4, Salta: 41.3,
-  Skipped: 66.8, Omitida: 64.1, Pulada: 55.7, 'Sautée': 56.8, 'Übersprungen': 111.6, Saltata: 57.4 };
+  Skipped: 66.8, Omitida: 64.1, Pulada: 55.7, 'Sautée': 56.8, Ausgelassen: 103.7, Saltata: 57.4 }; // DE pending: Ausgelassen (one term, round 2)
 const MIN_SCALE = 0.8;
 const skipRoom = (screen) => ((screen - 2 * 16 - 2 * 18) - 10) / 3 - 2 * 16;
 // "Pending from yesterday": two equal buttons in the pending card (margin 16, padding 16).

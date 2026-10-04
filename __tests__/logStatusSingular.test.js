@@ -12,7 +12,7 @@ test('singular status words for one dose, in 6 languages', () => {
   const want = {
     en: ['Dose complete', 'Dose skipped', 'Dose missed'], es: ['Dosis completada', 'Dosis omitida', 'Dosis perdida'],
     pt: ['Dose concluída', 'Dose pulada', 'Dose perdida'], fr: ['Dose effectuée', 'Dose sautée', 'Dose manquée'],
-    de: ['Dosis erledigt', 'Dosis übersprungen', 'Dosis verpasst'], it: ['Dose completata', 'Dose saltata', 'Dose mancata'],
+    de: ['Dosis erledigt', 'Dosis ausgelassen', 'Dosis verpasst'], it: ['Dose completata', 'Dose saltata', 'Dose mancata'],
   };
   for (const [l, [a, b, c]] of Object.entries(want)) {
     assert.equal(translations[l].log_status_taken, a, l);

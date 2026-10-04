@@ -495,3 +495,6 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 ## 18+ confirmation — decided 2026-10-03 by logic (coordinator)
 - **Confirming "I'm 18 or older" also asks for the real birth year** (the app's year wheel, this year − 18 back to 1900, nothing preselected, Confirm off until a year is picked): the stored year is wrong by definition and feeds the calorie math. adult_confirmed_at and the new birth_year are saved in one merge-only profile write. Source: docs/specs/premium-and-auth.md PA-106…PA-108.
 - **The Android Apple button keeps the drawn Apple glyph for now**; downloading Apple's official artwork is the founder's call.
+
+## Pre-build pass — decided 2026-10-03 by the ledger (coordinator, one term per concept)
+- **German names a skipped dose with one verb: "auslassen / ausgelassen"** — the Skip button "Auslassen" (it fits Today's one-third button; "Überspringen" wrapped mid-word, M3) makes the approved status words follow: "Dosis ausgelassen", filter/count "Ausgelassen", pending "Ausgelassen", "Als ausgelassen markieren", the report line. Replaces the DE "übersprungen" of grok/032 and grok/189–191 for doses only; the site picker's "Überspringen" (grok/036) and unreadable lab/vaccine entries keep their own word. Source: __tests__/germanSkipOneTerm.test.js.

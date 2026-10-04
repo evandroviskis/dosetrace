@@ -2,7 +2,8 @@
 // approved (prototype .segw.fill), used everywhere. A well track (padding 3, gap 2, radius 14)
 // with equal segments across the full width (minHeight 42, radius 11, 15/500 ink2); the chosen
 // segment is raised with a 1 pt line ring and ink 700 text. Labels stay on one line and shrink
-// to fit long languages (German "Eingenommen", "Übersprungen").
+// to fit long languages (German "Eingenommen", "Ausgelassen"; 3 pt side padding so the chosen
+// German "Ausgelassen" fits a four-segment bar on a 375 pt iPhone at the 0.8 shrink).
 //
 // Props:
 //   items:          [{ key, label, hint?, accessibilityLabel? }]  (key: string or number)
@@ -54,7 +55,7 @@ const makeStyles = (c) => StyleSheet.create({
   track: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 14, backgroundColor: c.well, alignSelf: 'stretch' },
   // Every segment carries the 1 pt ring (in the track colour when not chosen) so choosing
   // one never shifts the labels.
-  item: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: c.well },
+  item: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 1, borderColor: c.well },
   trackOnWell: { backgroundColor: c.ground },
   itemOnWell: { borderColor: c.ground },
   itemCompact: { minHeight: 38 },
