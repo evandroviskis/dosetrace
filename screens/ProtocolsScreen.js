@@ -39,6 +39,7 @@ import {
   permanentlyDeleteProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
+import { dueNextOrder } from '../lib/protocolSort';
 import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
 import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
 import { explainerModel } from '../lib/fitExplainer';
@@ -50,7 +51,7 @@ import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker
 import { supplyState } from '../lib/supplyLow';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { expectedDosesOn, nextDueDate, frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
+import { frequencyLabelFor, elapsedDoseSlots } from '../lib/schedule';
 import { backfillTakenDoses } from '../lib/doseActions';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
@@ -864,6 +865,7 @@ export default function ProtocolsScreen() {
   const [deletedProtocols, setDeletedProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('due');
+  const [todayLogs, setTodayLogs] = useState([]); // today's rows: "Due next" skips a dose already complete (m12)
   const [vialsByProtocol, setVialsByProtocol] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(1);
@@ -1160,6 +1162,8 @@ export default function ProtocolsScreen() {
       const logs = getAllLogs(user.id) || [];
       for (const l of logs) if (counts[l.outcome] != null) counts[l.outcome]++;
       setLogCounts(counts);
+      const day0 = new Date(); day0.setHours(0, 0, 0, 0);
+      setTodayLogs(logs.filter((l) => new Date(l.logged_at) >= day0));
       setLastLog(lastCompleteLog(logs));
     } catch { /* keep the last counts */ }
     // Active vial per protocol (latest first from the query) for the vial-age sort.
@@ -1215,21 +1219,12 @@ export default function ProtocolsScreen() {
     return p.compound_id ? t(p.compound_id) : (p.name || '');
   }
 
-  // Next scheduled dose date, counting today if a dose is expected today.
-  function nextDoseDate(p) {
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    if (expectedDosesOn(p, d) > 0) return d;
-    return nextDueDate(p, d);
-  }
-
   function sortedProtocols() {
     const arr = [...protocols];
     if (sortBy === 'az') return arr.sort((a, b) => protocolName(a).localeCompare(protocolName(b)));
     if (sortBy === 'added') return arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-    if (sortBy === 'due') return arr.sort((a, b) => {
-      const na = nextDoseDate(a), nb = nextDoseDate(b);
-      return (na ? na.getTime() : Infinity) - (nb ? nb.getTime() : Infinity);
-    });
+    // By the full next-dose moment, date and time, as Today orders its list (m12).
+    if (sortBy === 'due') return dueNextOrder(arr, todayLogs, new Date());
     if (sortBy === 'vial') return arr.sort((a, b) => {
       // Oldest mixed vial first (closest to the 30-day mark); no vial → end.
       const va = vialsByProtocol[a.id], vb = vialsByProtocol[b.id];
