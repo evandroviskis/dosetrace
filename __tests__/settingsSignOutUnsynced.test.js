@@ -26,11 +26,13 @@ test('Settings signs out through signOutIntended and asks when changes are not b
   assert.doesNotMatch(fn, /supabase\.auth\.signOut/, 'no second sign-out path that skips the check');
 });
 
-test('signOutIntended({ force: true }) skips the backed-up check (the user chose it); the default still blocks', () => {
-  const a = read('lib/accountActions.js');
-  const fn = sliceBlock(a, 'export async function signOutIntended(');
-  assert.match(fn, /export async function signOutIntended\(\{ force = false \} = \{\}\)/);
-  assert.match(fn, /if \(!force && unsyncedCount\(/);
+test('signOutIntended({ force: true }) skips the backed-up check (the user chose it); the default still blocks', async () => {
+  const { signOutCore } = require('../lib/signOutCore');
+  const intent = { mark() {}, consume() { return false; } };
+  const auth = { signOut: async () => ({ error: null }), getSession: async () => ({ data: { session: null } }) };
+  const deps = { auth, forceSync: async () => {}, pendingCount: () => 4, isOnline: () => false, removePushToken: async () => {}, signOutGoogle: async () => {}, intent };
+  assert.equal((await signOutCore(deps)).blocked, true);
+  assert.deepEqual(await signOutCore({ ...deps, force: true }), { blocked: false });
 });
 
 test('the three strings exist in six languages and say what Sign out anyway removes', () => {

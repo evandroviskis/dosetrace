@@ -9,6 +9,8 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    settings_signout_failed_body: "You're still signed in. Connect to the internet and try again.",
+    settings_signout_failed_title: "Couldn't sign out",
     today_alert_offline_body: "You're offline. Your changes are saved on this phone and back up when you're online again.",
     today_alert_offline_title: "Waiting to back up",
     settings_report_share: "Share",
@@ -2205,6 +2207,8 @@ export const translations = {
   },
 
   'es': {
+    settings_signout_failed_body: "Sigues con la sesión iniciada. Conéctate a internet y vuelve a intentarlo.",
+    settings_signout_failed_title: "No se pudo cerrar sesión",
     today_alert_offline_body: "Estás sin conexión. Tus cambios se guardan en este teléfono y se copian cuando vuelvas a tener conexión.",
     today_alert_offline_title: "Pendiente de copia de seguridad",
     settings_report_share: "Compartir",
@@ -4401,6 +4405,8 @@ export const translations = {
   },
 
   'pt': {
+    settings_signout_failed_body: "Você continua conectado. Conecte-se à internet e tente de novo.",
+    settings_signout_failed_title: "Não foi possível sair",
     today_alert_offline_body: "Você está offline. Suas alterações ficam salvas neste celular e o backup é feito quando você voltar a ficar online.",
     today_alert_offline_title: "Aguardando backup",
     settings_report_share: "Compartilhar",
@@ -6596,6 +6602,8 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    settings_signout_failed_body: "Vous êtes toujours connecté. Connectez-vous à internet et réessayez.",
+    settings_signout_failed_title: "Impossible de se déconnecter",
     today_alert_offline_body: "Vous êtes hors ligne. Vos modifications sont enregistrées sur ce téléphone et seront sauvegardées dès que vous serez de nouveau en ligne.",
     today_alert_offline_title: "Sauvegarde en attente",
     settings_report_share: "Partager",
@@ -8791,6 +8799,8 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    settings_signout_failed_body: "Du bist noch angemeldet. Verbinde dich mit dem Internet und versuche es erneut.",
+    settings_signout_failed_title: "Abmelden nicht möglich",
     today_alert_offline_body: "Du bist offline. Deine Änderungen sind auf diesem Handy gespeichert und werden gesichert, sobald du wieder online bist.",
     today_alert_offline_title: "Sicherung ausstehend",
     settings_report_share: "Teilen",
@@ -10987,6 +10997,8 @@ export const translations = {
   },
 
   'it': {
+    settings_signout_failed_body: "Sei ancora connesso. Connettiti a internet e riprova.",
+    settings_signout_failed_title: "Impossibile uscire",
     today_alert_offline_body: "Sei offline. Le tue modifiche sono salvate su questo telefono e verranno salvate nel backup quando tornerai online.",
     today_alert_offline_title: "Backup in attesa",
     settings_report_share: "Condividi",

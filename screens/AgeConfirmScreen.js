@@ -140,8 +140,9 @@ export default function AgeConfirmScreen({ session }) {
   }
   async function doSignOut() {
     setBusy('signout');
-    const r = await signOutIntended().catch(() => ({ blocked: true }));
+    const r = await signOutIntended().catch(() => ({ failed: true }));
     setBusy(null);
+    if (r && r.failed) { ok(t('settings_signout_failed_title'), t('settings_signout_failed_body')); return; }
     if (r && r.blocked) ok(t('settings_signout'), t('auth_signout_unsynced'));
   }
 

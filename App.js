@@ -795,10 +795,12 @@ export default function App() {
                 savePendingRecovery(p)
                   .then(() => signOutCurrentForRecovery())
                   .then((r) => {
-                    if (r && r.blocked) { setLinkFailed('offline'); return; }
+                    // Not signed out (changes not backed up, or the phone could not sign out):
+                    // never open the reset while the other account is still signed in (Gate B F1).
+                    if (r && (r.blocked || r.failed)) { setLinkFailed('offline'); return; }
                     setRecovery(p);
                   })
-                  .catch(() => setRecovery(p));
+                  .catch(() => setLinkFailed('offline'));
               }}
               justConfirmed={justConfirmed}
               onConfirmedShown={() => setJustConfirmed(false)}

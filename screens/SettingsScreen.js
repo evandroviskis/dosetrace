@@ -443,6 +443,11 @@ export default function SettingsScreen({ navigation }) {
     Share.share({ message, title: t('settings_report_title') }).catch(() => {});
   }
 
+  // Gate B F1: the phone is still signed in (it could not complete the sign-out): say so.
+  function showSignOutFailed() {
+    setSheet({ icon: 'warning', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+  }
+
   async function handleSignOut() {
     setSheet({
       title: t('settings_signout'),
@@ -453,7 +458,8 @@ export default function SettingsScreen({ navigation }) {
           // The one deliberate sign-out (lib/accountActions): push first; if anything is STILL
           // not in the cloud nobody is signed out (never lose data) and the user decides
           // (A-46, Settings part 3): connect first, or sign out anyway.
-          const r = await signOutIntended().catch(() => ({ blocked: true }));
+          const r = await signOutIntended().catch(() => ({ failed: true }));
+          if (r && r.failed) { showSignOutFailed(); return; }
           if (r && r.blocked) {
             setSheet({
               icon: 'warning',
@@ -461,7 +467,7 @@ export default function SettingsScreen({ navigation }) {
               body: t('settings_signout_unsynced_body'),
               buttons: [
                 { label: t('settings_signout_connect_first'), kind: 'secondary' },
-                { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutIntended({ force: true }).catch(() => {}) },
+                { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutIntended({ force: true }).catch(() => ({ failed: true })).then((f) => { if (f && f.failed) showSignOutFailed(); }) },
               ],
             });
           }

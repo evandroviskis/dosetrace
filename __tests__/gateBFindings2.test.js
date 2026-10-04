@@ -57,11 +57,10 @@ test('GB2-5: Continue on the other-account sheet never wipes changes that are no
   assert.equal(R.unsyncedCount(broken, 'u1', ['x'], pend), 0, 'a missing table counts nothing');
   // Since 2026-10-03 (Gate B round 3) the reset flow uses the one deliberate sign-out.
   assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(\);/);
-  const link = read('lib', 'accountActions.js');
-  const so = slice(link, 'export async function signOutIntended', 1200);
-  assert.ok(so.indexOf('unsyncedCount(') < so.indexOf('markIntentionalSignOut()'), 'checked before the sign-out');
-  assert.match(so, /return \{ blocked: true \};/);
-  assert.match(read('App.js'), /if \(r && r\.blocked\) \{ setLinkFailed\('offline'\); return; \}/);
+  // The check-before-sign-out order is a behaviour test now (__tests__/signOutOffline.test.js,
+  // Gate B 2026-10-03 F7); App never opens the reset while still signed in.
+  assert.match(read('lib', 'accountActions.js'), /signOutCore\(/);
+  assert.match(read('App.js'), /if \(r && \(r\.blocked \|\| r\.failed\)\) \{ setLinkFailed\('offline'\); return; \}/);
   const i18n = read('i18n', 'translations.js');
   assert.equal((i18n.match(/\n\s+reset_switch_offline: /g) || []).length, 6);
 });
