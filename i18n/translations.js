@@ -9,6 +9,8 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    settings_report_share: "Share",
+    settings_report_preview_note: "This is exactly what your provider will receive.",
     settings_signout_anyway: "Sign out anyway",
     settings_signout_connect_first: "Connect to the internet first",
     settings_signout_unsynced_body: "Some changes on this phone aren't backed up yet. Connect to the internet first so they're saved — signing out now removes them from this phone.",
@@ -2201,6 +2203,8 @@ export const translations = {
   },
 
   'es': {
+    settings_report_share: "Compartir",
+    settings_report_preview_note: "Esto es exactamente lo que recibirá tu profesional de la salud.",
     settings_signout_anyway: "Cerrar sesión de todos modos",
     settings_signout_connect_first: "Conectarme a internet primero",
     settings_signout_unsynced_body: "Algunos cambios de este teléfono aún no tienen copia de seguridad. Conéctate a internet primero para que se guarden; si cierras sesión ahora, se borrarán de este teléfono.",
@@ -4393,6 +4397,8 @@ export const translations = {
   },
 
   'pt': {
+    settings_report_share: "Compartilhar",
+    settings_report_preview_note: "É exatamente isto que o seu profissional de saúde vai receber.",
     settings_signout_anyway: "Sair mesmo assim",
     settings_signout_connect_first: "Conectar à internet primeiro",
     settings_signout_unsynced_body: "Algumas alterações neste celular ainda não têm backup. Conecte-se à internet primeiro para salvá-las — se sair agora, elas serão apagadas deste celular.",
@@ -6584,6 +6590,8 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    settings_report_share: "Partager",
+    settings_report_preview_note: "Voici exactement ce que recevra votre médecin.",
     settings_signout_anyway: "Me déconnecter quand même",
     settings_signout_connect_first: "Me connecter à internet d'abord",
     settings_signout_unsynced_body: "Certaines modifications sur ce téléphone ne sont pas encore sauvegardées. Connectez-vous d'abord à internet pour les enregistrer — si vous vous déconnectez maintenant, elles seront supprimées de ce téléphone.",
@@ -8775,6 +8783,8 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    settings_report_share: "Teilen",
+    settings_report_preview_note: "Genau das bekommt dein Arzt.",
     settings_signout_anyway: "Trotzdem abmelden",
     settings_signout_connect_first: "Zuerst mit dem Internet verbinden",
     settings_signout_unsynced_body: "Einige Änderungen auf diesem Handy sind noch nicht gesichert. Verbinde dich zuerst mit dem Internet, damit sie gespeichert werden – wenn du dich jetzt abmeldest, werden sie von diesem Handy gelöscht.",
@@ -10967,6 +10977,8 @@ export const translations = {
   },
 
   'it': {
+    settings_report_share: "Condividi",
+    settings_report_preview_note: "Questo è esattamente ciò che riceverà il tuo medico.",
     settings_signout_anyway: "Esci comunque",
     settings_signout_connect_first: "Prima connettermi a internet",
     settings_signout_unsynced_body: "Alcune modifiche su questo telefono non hanno ancora un backup. Connettiti prima a internet per salvarle: se esci ora, verranno eliminate da questo telefono.",

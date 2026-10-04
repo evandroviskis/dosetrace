@@ -134,6 +134,12 @@ export default function SettingsScreen({ navigation }) {
   // Edit profile sheet (a popup opened from a popup is rendered inside it, M1).
   const [sheet, setSheet] = useState(null);
   const [editSheet, setEditSheet] = useState(null);
+  // The adherence report preview (Settings part 3): the exact text before the share sheet.
+  const [reportPreview, setReportPreview] = useState(null);
+  const lastReport = useRef('');
+  if (reportPreview) lastReport.current = reportPreview;
+  const reportShown = reportPreview || lastReport.current;
+  const pendingShare = useRef(null);
   const tornDown = useRef(false);
   const notice = (title, body, icon) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary' }] });
   const errorSheet = (body) => notice(t('error'), body, 'warning');
@@ -414,14 +420,27 @@ export default function SettingsScreen({ navigation }) {
       report += `${t('report_footer_1')}\n`;
       report += `${t('report_footer_2')}\n`;
 
-      await Share.share({
-        message: report,
-        title: t('settings_report_title'),
-      });
+      // Shown first, exactly as it will be sent (Settings part 3); Share opens the system sheet.
+      setReportPreview(report);
     } catch (e) {
       errorSheet(friendlyError(e, t));
     }
     setExporting(false);
+  }
+
+  // The system share sheet opens only after the preview page has closed (iOS cannot present it
+  // over a page sheet). iOS reports the end through onDismiss; elsewhere a short timer.
+  function shareReport() {
+    pendingShare.current = reportPreview;
+    setReportPreview(null);
+    if (Platform.OS !== 'ios') setTimeout(runPendingShare, 0);
+    else setTimeout(runPendingShare, 900); // fallback if onDismiss never comes
+  }
+  function runPendingShare() {
+    const message = pendingShare.current;
+    pendingShare.current = null;
+    if (!message) return;
+    Share.share({ message, title: t('settings_report_title') }).catch(() => {});
   }
 
   async function handleSignOut() {
@@ -1023,6 +1042,37 @@ export default function SettingsScreen({ navigation }) {
           is the one shown, so two popups are never stacked side by side (M1). */}
       <DTSheet config={showEditProfile ? null : sheet} onClose={closeSheet} />
 
+      {/* ADHERENCE REPORT PREVIEW (Settings part 3) */}
+      <Modal
+        visible={!!reportPreview}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setReportPreview(null)}
+        onDismiss={runPendingShare}
+      >
+        <SafeAreaView style={s.modal}>
+          <View style={s.modalNav}>
+            <TouchableOpacity onPress={() => setReportPreview(null)} style={{ minWidth: 60 }} accessibilityRole="button">
+              <Text style={s.modalCancel}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle} numberOfLines={1}>{t('settings_report_title')}</Text>
+            <View style={{ minWidth: 60 }} />
+          </View>
+          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={s.sheetIntro}>{t('settings_report_preview_note')}</Text>
+            <View style={s.reportPaper}>
+              <Text style={s.reportText} selectable>{reportShown}</Text>
+            </View>
+            <View style={{ height: 24 }} />
+          </ScrollView>
+          <View style={s.reportFoot}>
+            <TouchableOpacity style={s.premiumBtn} onPress={shareReport} accessibilityRole="button">
+              <Text style={s.premiumBtnText}>{t('settings_report_share')}</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       {/* LANGUAGE PICKER MODAL */}
       <Modal
         visible={showLanguagePicker}
@@ -1460,6 +1510,10 @@ const settingsGraduated = (c) => ({
   modalCancel: { fontSize: 17, fontWeight: '400', color: c.ink },
   modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
   sheetIntro: { fontSize: 15, lineHeight: 20, color: c.ink2, marginBottom: 8 },
+  // The adherence report as it will be sent: plain text on a well "paper", mono for the columns.
+  reportPaper: { backgroundColor: c.well, borderRadius: 14, padding: 16, marginTop: 4 },
+  reportText: { fontFamily: MONO['500'], fontSize: 12, lineHeight: 18, color: c.ink },
+  reportFoot: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 12 },
   sheetDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
 
   // Language picker (prototype langSheet): plain rows with a hairline between, the
