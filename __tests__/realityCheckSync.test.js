@@ -187,8 +187,9 @@ test('FX-9 F2: one sync pass leaves the cloud with a single open check (the enfo
 
 // Finding F1: a device resumed from the background never pulls (App.js foreground
 // handler only re-plans notifications), so a Stop made on another device does not
-// reach it until a cold start or its own write.
-test('FX-9 F1: returning to the foreground requests a sync (throttled), so another device\'s Stop arrives without a cold start', { todo: 'A-47 — target 1.2.6' }, () => {
+// reach it until a cold start or its own write. A-47 (target 1.2.6, which ships inside 1.3.0):
+// built in the pre-build pass 2026-10-03, the test is a real test now.
+test('FX-9 F1: returning to the foreground requests a sync (throttled), so another device\'s Stop arrives without a cold start', () => {
   const fs = require('fs'); const path = require('path');
   const src = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
   const i = src.indexOf("AppState.addEventListener('change'");

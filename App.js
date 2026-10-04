@@ -553,7 +553,9 @@ export default function App() {
       if (nowTs - lastFgSync < 60000) return; // at most once/min
       lastFgSync = nowTs;
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user?.id) syncAllNotifications().catch(() => {});
+        // A-47: also pull, so a change made on another device (e.g. a reality-check Stop)
+        // arrives on resume, not only on a cold start or this device's own write. Same throttle.
+        if (session?.user?.id) { requestSync(); syncAllNotifications().catch(() => {}); }
       }).catch(() => {});
     });
 
