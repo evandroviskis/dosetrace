@@ -207,7 +207,7 @@ test('PA-41: Finish setup writes only the shown steps and reports a failed save 
   assert.match(ONB, /refreshForm\(cur, meta, touched\.current\)/);
   assert.match(ONB, /friendlyError\(error, t, 'error_save_failed'\)/);
   assert.match(ONB, /t\('ob_finish_setup'\)/);
-  assert.match(ONB, /handleSignOut[\s\S]{0,120}markIntentionalSignOut\(\)/, 'the sign-out escape is a real, intended sign-out');
+  assert.match(ONB, /async function handleSignOut\(\) \{[\s\S]{0,200}signOutIntended\(\)/, 'the sign-out escape is the one deliberate sign-out (behaviour: signOutSinglePath.test.js)');
 });
 
 test('PA-68: Gate B invariants kept — onAuthStateChange stays synchronous; the wipe needs an intended sign-out', () => {

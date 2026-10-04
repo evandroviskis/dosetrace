@@ -12,8 +12,9 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
-import { supabase, signOutGoogleNative, missingProfileFields } from '../lib/supabase';
-import { markIntentionalSignOut } from '../lib/authIntent';
+import { supabase, missingProfileFields } from '../lib/supabase';
+import { signOutIntended } from '../lib/accountActions';
+import { signOutOutcome } from '../lib/signOutCore';
 import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { PRIVACY_URL } from '../lib/legalLinks';
@@ -94,6 +95,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const meta = (session && session.user && session.user.user_metadata) || {};
   const [saving, setSaving] = useState(false);
   const [sheet, setSheet] = useState(null);
+  const signOutBusy = useRef(false); // one sign-out at a time (G1)
 
   // The form. Signed-in: from the account. Pre-account: from the stash (loaded below).
   const [d, setD] = useState(() => formFrom(signedIn ? meta : {}));
@@ -261,11 +263,18 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   // Escape hatch for a signed-in user who doesn't want to finish the profile —
   // otherwise they'd be trapped on the gate with no way to the app or out.
+  // Final Gate B G1: the one deliberate sign-out (lib/accountActions signOutIntended: push first,
+  // nothing signed out while changes are not backed up, the phone signs out even offline, never
+  // success while still signed in) and its words (lib/signOutCore signOutOutcome), as on the 18+ sheet.
   async function handleSignOut() {
-    markIntentionalSignOut();
-    try { await signOutGoogleNative(); } catch { /* not a Google session */ }
-    try { await supabase.auth.signOut({ scope: 'local' }); }
-    catch { await supabase.auth.signOut().catch(() => {}); }
+    if (signOutBusy.current) return;
+    signOutBusy.current = true;
+    try {
+      const o = signOutOutcome(await signOutIntended().catch(() => ({ failed: true })));
+      if (o.kind !== 'done') setSheet({ icon: 'alert', title: t(o.title), body: t(o.body), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    } finally {
+      signOutBusy.current = false;
+    }
   }
 
   // "Never miss a dose": iOS asks for notifications, then Create account (both buttons go
