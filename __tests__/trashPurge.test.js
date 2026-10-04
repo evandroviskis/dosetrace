@@ -185,3 +185,57 @@ test('P1: never touches a protocol not yet pushed, another user\'s rows, or anyt
 test('the real cloud adapter lists the account\'s protocol ids (select id, paged)', () => {
   assert.match(read('lib/sync.js'), /async fetchIds\(table, userId\) \{[\s\S]{0,400}\.select\('id'\)\.eq\('user_id', userId\)/);
 });
+
+// ── Decided by logic 2026-10-04: the "deleted every protocol" case ─────────────────────────────
+// An EMPTY id list is trusted only when the same user's session is there right before AND after
+// the fetch, it equals the local data owner and the sync user, the fetch had no error, and a
+// count (head) query under that session also says 0 with no error (lib/syncCore emptyIdsVerified,
+// run by the real adapter, which then answers { data: [], emptyVerified: true }). Otherwise an
+// empty answer removes nothing, as before.
+const { emptyIdsVerified } = require('../lib/syncCore');
+
+test('a genuinely empty account with a session: B removes the protocols deleted forever on A', async () => {
+  const { cloud, A, B, keep, gone, onB } = await twoDevices();
+  E.purgeProtocol(A, keep.pid, '2026-10-04T10:00:00Z');
+  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
+  await pushPending(A, cloud, USER);
+  assert.equal(cloud.rows('protocols', USER).length, 0);
+  const real = cloud.fetchIds.bind(cloud);
+  cloud.fetchIds = async (t, u) => ({ ...(await real(t, u)), emptyVerified: true }); // the adapter verified the session
+  await pullChanges(B, cloud, USER);
+  assert.ok(!onB('KEEP') && !onB('GONE'));
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs').n, 0);
+  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM vials').n, 0);
+});
+
+test('an empty answer that is not verified (no session, session changed mid-call) removes nothing', async () => {
+  const { cloud, A, B, keep, gone, onB } = await twoDevices();
+  E.purgeProtocol(A, keep.pid, '2026-10-04T10:00:00Z');
+  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
+  await pushPending(A, cloud, USER);
+  const real = cloud.fetchIds.bind(cloud);
+  cloud.fetchIds = async (t, u) => ({ ...(await real(t, u)), emptyVerified: false });
+  await pullChanges(B, cloud, USER);
+  assert.ok(onB('KEEP') && onB('GONE'));
+});
+
+test('emptyIdsVerified: every condition must hold', () => {
+  const ok = { userId: 'u1', beforeUid: 'u1', afterUid: 'u1', localOwner: 'u1', fetchError: null, count: 0, countError: null };
+  assert.equal(emptyIdsVerified(ok), true);
+  assert.equal(emptyIdsVerified({ ...ok, localOwner: null }), true, 'no local data owner yet is fine');
+  for (const bad of [
+    { beforeUid: null }, { afterUid: null }, { beforeUid: 'u2' }, { afterUid: 'u2' }, { localOwner: 'u2' },
+    { fetchError: { message: 'x' } }, { count: 1 }, { count: null }, { countError: { message: 'x' } }, { userId: null },
+  ]) assert.equal(emptyIdsVerified({ ...ok, ...bad }), false, JSON.stringify(bad));
+});
+
+test('the real adapter checks the session before and after, the owner, and a head count', () => {
+  const s = read('lib/sync.js');
+  const i = s.indexOf('async fetchIds(table, userId) {');
+  const body = s.slice(i, i + 1800);
+  assert.match(body, /const beforeUid = await sessionUid\(\);/);
+  assert.match(body, /const afterUid = await sessionUid\(\);/);
+  assert.match(body, /\.select\('id', \{ count: 'exact', head: true \}\)\.eq\('user_id', userId\)/);
+  assert.match(body, /emptyVerified: emptyIdsVerified\(\{/);
+  assert.match(body, /localOwner: getLocalDataUserId\(\)/);
+});
