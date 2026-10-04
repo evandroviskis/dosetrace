@@ -16,7 +16,8 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { signOutOutcome, completeLocalSignOut } from './lib/signOutCore';
-import { onSignedOutNow, afterSignedOut, completePendingWipe, sessionAfterPendingWipe, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
+import { setStrictRemoval } from './lib/secureStore';
+import { onSignedOutNow, afterSignedOut, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -386,7 +387,7 @@ export default function App() {
     getLocalOwner: () => getLocalDataUserId(),
     isWipePending: () => AsyncStorage.getItem(WIPE_PENDING_KEY), // '1' or 'deleted:<id>' (account deletion)
     // A cold start still holding a deleted account's session signs it out locally.
-    signOutLocally: async () => { const r = await completeLocalSignOut(supabase.auth); consumeIntentionalSignOut(); return r; },
+    signOutLocally: async () => { setStrictRemoval(true); try { const r = await completeLocalSignOut(supabase.auth); consumeIntentionalSignOut(); return r; } finally { setStrictRemoval(false); } },
     clearLocalDatabase,
     cancelAllNotifications,
     dismissAllNotifications,
@@ -674,8 +675,8 @@ export default function App() {
         // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
         // run inline in this callback.
         setTimeout(async () => {
-          // A sign-in owns the local data now: no older wipe marker may touch it later (G2).
-          AsyncStorage.removeItem(WIPE_PENDING_KEY).catch(() => {});
+          // Older wipe marker dropped (G2); deleted:<this account> finishes the deletion, once (H1).
+          try { if ((await markerOnSignIn(wipeDeps(), { sessionUserId: session.user.id })) === 'deleted') return; } catch { /* next start */ }
           // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
           setAuthEntry({ mode: undefined, consent: false });
           clearAuthDraft();

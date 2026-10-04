@@ -504,3 +504,6 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 - **The end of a protocol is the moment the user tapped "Yes, it's finished"** (A-83 option a, as built). No date question.
 - **Ended rows get the same delete affordance as Recently deleted** (the risk-coloured trash → the same "Delete protocol" sheet → soft delete → Recently deleted). Restoring a protocol that was ended before it was deleted puts it back in Ended, never active (its stopped weeks must not become owed doses).
 - **Never destroy on a maybe: the automatic 7-day purge of soft-deleted protocols is paused in 1.3.0.** Protocols the old "Yes, it's finished" button soft-deleted cannot be told from deliberate deletes, and the cloud's dose_logs → protocols cascade would erase their doses. Recently deleted lists every soft-deleted protocol while paused; "Delete permanently" by hand still works. Revisit in the next build (registry A-84).
+
+## Cross-account guard — decided 2026-10-03 by the ledger (coordinator, final Gate B)
+- **The cross-account guard keeps its existing policy: when a different account signs in on the phone, the previous account's local data is discarded** — privacy over keeping unsynced data that belongs to another person. Pre-existing deliberate rule (App SIGNED_IN and cold-start guards); unchanged by the 1.3.0 sign-out work.

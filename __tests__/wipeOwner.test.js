@@ -47,11 +47,11 @@ test('cold start, no session: wipes only the account the marker names, or data w
   assert.equal(await S.completePendingWipe(del.d, { hasSession: false, localOwnerId: 'user-A' }), true);
 });
 
-test('App: the marker names the owner, the cold start passes the owner, a sign-in removes the marker', () => {
+test('App: the marker names the owner, the cold start passes the owner, a sign-in handles the marker', () => {
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
   assert.match(app, /getLocalOwner: \(\) => getLocalDataUserId\(\),/);
   assert.match(app, /localOwnerId: getLocalDataUserId\(\)/);
   const i = app.indexOf("if (_event === 'SIGNED_IN' && session?.user?.id) {");
   const block = app.slice(i, i + 1600);
-  assert.match(block, /AsyncStorage\.removeItem\(WIPE_PENDING_KEY\)/);
+  assert.match(block, /markerOnSignIn\(wipeDeps\(\), \{ sessionUserId: session\.user\.id \}\)/); // drops other markers (behaviour: coldStartRace.test.js)
 });
