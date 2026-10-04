@@ -630,13 +630,15 @@ export default function TodayScreen() {
       if (!user) { setPendingYest([]); return; }
       const since = new Date();
       since.setHours(0, 0, 0, 0);
-      since.setDate(since.getDate() - 1);
+      since.setDate(since.getDate() - 2); // A-51: yesterday may lie in another zone
       since.setHours(since.getHours() - 3);
       const logs = getLogsSince(user.id, since.toISOString()) || [];
-      // A-49 guard: never offer a slot from before the last time-zone change.
+      // A-51: slots rebuilt in the zone of their own day (the device's zone history); without a
+      // zone name, A-49's guard (never a slot from before the last time-zone change).
       let tzSinceMs = null;
-      try { tzSinceMs = (await getMissedWatermark()).tzSinceMs; } catch { /* guard is best-effort */ }
-      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs }));
+      let zoneHistory = null;
+      try { ({ tzSinceMs, zoneHistory } = await getMissedWatermark()); } catch { /* best-effort */ }
+      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs, zoneHistory }));
     } catch { setPendingYest([]); }
     fetchPageLogs(); // BK-19: the dose page follows every write and undo (book layout only)
   }

@@ -1183,11 +1183,12 @@ export default function ProtocolsScreen() {
       setLogCounts(counts);
       const day0 = new Date(); day0.setHours(0, 0, 0, 0);
       setTodayLogs(logs.filter((l) => new Date(l.logged_at) >= day0));
-      // A-42: the slots pending from yesterday, with Today's A-49 time-zone guard.
-      const since = new Date(day0); since.setDate(since.getDate() - 1); since.setHours(since.getHours() - 3);
+      // A-42: the slots pending from yesterday, as Today builds them (A-51 zone history).
+      const since = new Date(day0); since.setDate(since.getDate() - 2); since.setHours(since.getHours() - 3);
       let tzSinceMs = null;
-      try { tzSinceMs = (await getMissedWatermark()).tzSinceMs; } catch { /* best effort */ }
-      setPendingYest(pendingFromYesterday({ protocols: data || [], logs: logs.filter((l) => new Date(l.logged_at) >= since), nowMs: Date.now(), tzSinceMs }));
+      let zoneHistory = null;
+      try { ({ tzSinceMs, zoneHistory } = await getMissedWatermark()); } catch { /* best effort */ }
+      setPendingYest(pendingFromYesterday({ protocols: data || [], logs: logs.filter((l) => new Date(l.logged_at) >= since), nowMs: Date.now(), tzSinceMs, zoneHistory }));
       setLastLog(lastCompleteLog(logs));
     } catch { /* keep the last counts */ }
     // Active vial per protocol (latest first from the query) for the vial-age sort.
