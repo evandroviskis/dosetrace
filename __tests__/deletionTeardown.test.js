@@ -98,5 +98,5 @@ test('the app wires it: accountActions, both screens show the failure, App passe
   }
   const app = read('App.js');
   assert.match(app, /registerWipe\(wipeDeps\)/);
-  assert.match(app, /completePendingWipe\(wipeDeps\(\), \{ hasSession: !!session, sessionUserId: session\?\.user\?\.id \|\| null \}\)/);
+  assert.match(app, /completePendingWipe\(wipeDeps\(\), \{ hasSession: !!session, sessionUserId: session\?\.user\?\.id \|\| null, localOwnerId: getLocalDataUserId\(\) \}\)/);
 });

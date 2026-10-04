@@ -381,7 +381,9 @@ export default function App() {
     waitForSyncIdle,
     runExclusive: runSyncExclusive,
     getSignInGeneration: signInGeneration,
-    setWipePending: (v) => (v ? AsyncStorage.setItem(WIPE_PENDING_KEY, '1') : AsyncStorage.removeItem(WIPE_PENDING_KEY)),
+    // 'wipe:<owner id>' (or '1' when the data has no owner); false removes it (G2).
+    setWipePending: (v) => (v ? AsyncStorage.setItem(WIPE_PENDING_KEY, v === true ? '1' : String(v)) : AsyncStorage.removeItem(WIPE_PENDING_KEY)),
+    getLocalOwner: () => getLocalDataUserId(),
     isWipePending: () => AsyncStorage.getItem(WIPE_PENDING_KEY), // '1' or 'deleted:<id>' (account deletion)
     // A cold start still holding a deleted account's session signs it out locally.
     signOutLocally: async () => { const r = await completeLocalSignOut(supabase.auth); consumeIntentionalSignOut(); return r; },
@@ -600,7 +602,7 @@ export default function App() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       // A wipe left pending by an intended sign-out (the app closed before it finished): complete it
       // when nobody is signed in (Gate B round 3 N2).
-      try { await completePendingWipe(wipeDeps(), { hasSession: !!session, sessionUserId: session?.user?.id || null }); } catch { /* next start */ }
+      try { await completePendingWipe(wipeDeps(), { hasSession: !!session, sessionUserId: session?.user?.id || null, localOwnerId: getLocalDataUserId() }); } catch { /* next start */ }
       setSession(session);
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
@@ -668,6 +670,8 @@ export default function App() {
         // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
         // run inline in this callback.
         setTimeout(async () => {
+          // A sign-in owns the local data now: no older wipe marker may touch it later (G2).
+          AsyncStorage.removeItem(WIPE_PENDING_KEY).catch(() => {});
           // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
           setAuthEntry({ mode: undefined, consent: false });
           clearAuthDraft();
