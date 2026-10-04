@@ -69,3 +69,22 @@ test('an exclusive job (the full import) never overlaps a pass, and waitIdle wai
   await imp; await shared;
   assert.deepEqual(log, ['pass', 'import-start', 'import-end']);
 });
+
+// A-93 (senior review 2026-10-04, reproduced: max concurrency 2): forceSync awaited the running
+// pass once and then started, so an exclusive job queued on that same pass (the first full import,
+// the sign-out wipe's second pass) ran alongside it, and each one's finally cleared the other's
+// `running`, so waitIdle returned while a job was still going.
+test('forceSync never overlaps an exclusive job queued on the same pass, and waitIdle waits for both', async () => {
+  let live = 0, max = 0;
+  const work = async () => { live++; max = Math.max(max, live); await tick(15); live--; };
+  const runner = createSyncRunner(work);
+  runner.run();
+  await tick(2);
+  const ex = runner.runExclusive(work);
+  const fs = runner.forceSync();
+  await tick(1);
+  const idle = runner.waitIdle().then(() => live);
+  await Promise.all([ex, fs]);
+  assert.equal(max, 1, 'never two at once');
+  assert.equal(await idle, 0, 'waitIdle resolves only when nothing runs');
+});
