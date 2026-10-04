@@ -56,7 +56,7 @@ test('PA-104: not confirmed → only export, delete (the existing two-step flow)
   assert.doesNotMatch(read('App.js'), /requestAccountDeletion|delete-user/, 'the app never deletes on its own');
   const acts = read('lib', 'accountActions.js');
   assert.match(acts, /functions\/v1\/delete-user/);
-  assert.match(acts, /markIntentionalSignOut\(\)/);
+  assert.match(acts, /intent: \{ mark: markIntentionalSignOut, consume: consumeIntentionalSignOut \}/); // the deletion marks it intended (finishDeletionCore, behaviour in deletionTeardown.test.js)
   const settings = read('screens', 'SettingsScreen.js');
   assert.match(settings, /from '\.\.\/lib\/accountActions'/, 'Settings and the sheet share one export and one delete');
   assert.equal(settings.split('async function executeAccountDeletion()').length - 1, 1);

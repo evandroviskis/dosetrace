@@ -61,5 +61,5 @@ test('cold start with no session and the marker: the wipe completes; without the
 test('App persists the marker and completes a pending wipe on a cold start', () => {
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
   assert.match(app, /setWipePending: \(v\) => \(v \? AsyncStorage\.setItem\(WIPE_PENDING_KEY, '1'\) : AsyncStorage\.removeItem\(WIPE_PENDING_KEY\)\)/);
-  assert.match(app, /completePendingWipe\(wipeDeps\(\), \{ hasSession: !!session \}\)/);
+  assert.match(app, /completePendingWipe\(wipeDeps\(\), \{ hasSession: !!session, sessionUserId: session\?\.user\?\.id \|\| null \}\)/);
 });

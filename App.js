@@ -15,11 +15,8 @@ import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendin
 import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
-import { signOutOutcome } from './lib/signOutCore';
-import { onSignedOutNow, afterSignedOut, completePendingWipe, bumpSignInGeneration, signInGeneration } from './lib/signedOut';
-
-// Gate B round 3 N2: an intended sign-out wipe not yet finished (completed on the next cold start).
-const WIPE_PENDING_KEY = 'dosetrace_wipe_pending';
+import { signOutOutcome, completeLocalSignOut } from './lib/signOutCore';
+import { onSignedOutNow, afterSignedOut, completePendingWipe, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -385,7 +382,9 @@ export default function App() {
     runExclusive: runSyncExclusive,
     getSignInGeneration: signInGeneration,
     setWipePending: (v) => (v ? AsyncStorage.setItem(WIPE_PENDING_KEY, '1') : AsyncStorage.removeItem(WIPE_PENDING_KEY)),
-    isWipePending: async () => (await AsyncStorage.getItem(WIPE_PENDING_KEY)) === '1',
+    isWipePending: () => AsyncStorage.getItem(WIPE_PENDING_KEY), // '1' or 'deleted:<id>' (account deletion)
+    // A cold start still holding a deleted account's session signs it out locally.
+    signOutLocally: async () => { const r = await completeLocalSignOut(supabase.auth); consumeIntentionalSignOut(); return r; },
     clearLocalDatabase,
     cancelAllNotifications,
     dismissAllNotifications,
@@ -399,6 +398,7 @@ export default function App() {
     clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
   });
 
+  registerWipe(wipeDeps); // account deletion wipes at once with the same steps (lib/accountActions)
   const pendingNavRef = useRef(null);
   const flushPendingNav = useCallback(() => {
     const nav = navigationRef.current;
@@ -600,7 +600,7 @@ export default function App() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       // A wipe left pending by an intended sign-out (the app closed before it finished): complete it
       // when nobody is signed in (Gate B round 3 N2).
-      try { await completePendingWipe(wipeDeps(), { hasSession: !!session }); } catch { /* next start */ }
+      try { await completePendingWipe(wipeDeps(), { hasSession: !!session, sessionUserId: session?.user?.id || null }); } catch { /* next start */ }
       setSession(session);
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});

@@ -153,7 +153,8 @@ export default function SettingsScreen({ navigation }) {
   const runTeardown = () => {
     if (tornDown.current) return;
     tornDown.current = true;
-    finishAccountDeletion().catch(() => {});
+    // The phone could not sign out (no SIGNED_OUT ran): say so with the sign-out failure sheet.
+    finishAccountDeletion().then((r) => { if (r && r.failed) showSignOutFailed(); }).catch(() => showSignOutFailed());
   };
   const closeSheet = () => {
     const closing = sheet;
@@ -544,7 +545,7 @@ export default function SettingsScreen({ navigation }) {
   // chooser + consent, making a new account a conscious choice. (Apple sign-in is
   // revoked server-side in delete-user, or via the guidance note above.)
   async function finishAccountDeletion() {
-    await teardownDeletedAccount(); // lib/accountActions: wipe, intended sign-out, Google revoke
+    return teardownDeletedAccount(); // lib/accountActions: marker, immediate wipe, sign-out (N1 guard), Google revoke
   }
 
   function handleContactSupport() {

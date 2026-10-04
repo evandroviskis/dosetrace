@@ -37,7 +37,9 @@ export default function AgeConfirmScreen({ session }) {
   const runTeardown = () => {
     if (tornDown.current) return;
     tornDown.current = true;
-    finishAccountDeletion().catch(() => {});
+    // The phone could not sign out (no SIGNED_OUT ran): the existing "Couldn't sign out" copy.
+    const failed = () => ok(t('settings_signout_failed_title'), t('settings_signout_failed_body'));
+    finishAccountDeletion().then((r) => { if (r && r.failed) failed(); }).catch(failed);
   };
   const closeSheet = () => {
     const closing = sheet;
