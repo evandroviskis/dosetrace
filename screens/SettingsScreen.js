@@ -42,7 +42,8 @@ import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { pluralKey } from '../lib/plural';
-import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity } from '../lib/activityLevels';
+import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourceKey } from '../lib/activityLevels';
+import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { scanMissedDoses } from '../lib/doseActions';
@@ -241,7 +242,9 @@ export default function SettingsScreen({ navigation }) {
       setCountry(user.user_metadata?.country || '');
       const pg = user.user_metadata?.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
-      setActivityLevel(normalizeActivityLevel(user.user_metadata?.activity_level)); // 4 → 5 levels, never lost
+      // The ONE activity answer (m14): the profile's level, or a later choice made in the
+      // calculator — the same level Journey shows. Old 4-level values map to 5 (never lost).
+      setActivityLevel(activitySourceKey(user.user_metadata, await getCalcInputs().catch(() => null)));
       setHasProvider(user.user_metadata?.has_provider || '');
     }
   }
@@ -295,6 +298,8 @@ export default function SettingsScreen({ navigation }) {
           primary_goal: primaryGoals.length > 0 ? primaryGoals.join(',') : null,
           activity_level: activityLevel || null,
           activity_scale: 5, // the 5-level scale (Gate B)
+          // A changed answer is the user's latest choice (m14): stamped, so the calculator shows it.
+          ...(activityLevel !== normalizeActivityLevel(user?.user_metadata?.activity_level) ? { activity_set_at: new Date().toISOString() } : {}),
           // An old 4-level value rewritten as its new level is kept (never lose user data).
           ...legacyActivity(user?.user_metadata?.activity_level, activityLevel),
           has_provider: hasProvider || null,

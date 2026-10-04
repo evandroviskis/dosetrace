@@ -159,7 +159,8 @@ test('PA-37: Edit profile keeps an old value it rewrites (legacyActivity) and re
   assert.deepEqual(L.legacyActivity('athlete', 'high'), {}, 'unknown values are not claimed as legacy levels');
   const fs = require('fs'); const path = require('path');
   const settings = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SettingsScreen.js'), 'utf8');
-  assert.match(settings, /setActivityLevel\(normalizeActivityLevel\(user\.user_metadata\?\.activity_level\)\)/);
+  // m14: the ONE activity answer (profile, or a later calculator choice); old keys still map (inside activitySourceKey).
+  assert.match(settings, /setActivityLevel\(activitySourceKey\(user\.user_metadata, await getCalcInputs\(\)\.catch\(\(\) => null\)\)\)/);
   assert.match(settings, /\.\.\.legacyActivity\(user\?\.user_metadata\?\.activity_level, activityLevel\)/);
   assert.match(settings, /PROFILE_ACTIVITY\.map/);
   assert.doesNotMatch(settings, /profile_activity_(sedentary|moderate|active|very_active)/, 'the 4-level list is gone');

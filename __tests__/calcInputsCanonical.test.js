@@ -26,7 +26,7 @@ test('canonicalDecimal stores a typed number as a dot-decimal string in every la
 
 test('Your numbers writes canonical numbers to calc_inputs', () => {
   // (second review: read with the body-number rule, lib/doseMath parseMeasure)
-  assert.match(CALC, /inputsSave\.current\.schedule\(\{ unit, weight: canonicalDecimal\(weight, language, parseMeasure\), bfSource, bodyFat: canonicalDecimal\(bodyFat, language, parseMeasure\), sex, age, height: canonicalDecimal\(height, language, parseMeasure\), activity, goal, waist: canonicalDecimal\(waist, language, parseMeasure\),/);
+  assert.match(CALC, /inputsSave\.current\.schedule\(\{ unit, weight: canonicalDecimal\(weight, language, parseMeasure\), bfSource, bodyFat: canonicalDecimal\(bodyFat, language, parseMeasure\), sex, age, height: canonicalDecimal\(height, language, parseMeasure\), activity, activitySetAt, goal, waist: canonicalDecimal\(waist, language, parseMeasure\),/);
 });
 
 test('Your numbers prefills a saved string in the app language too', () => {

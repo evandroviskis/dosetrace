@@ -35,6 +35,7 @@ import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasPremium } from '../../lib/entitlement';
 import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
 import { profileBodyInputs } from '../../lib/bodyProfile';
+import { activitySource, activityKeyForMultiplier, legacyActivity } from '../../lib/activityLevels';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
@@ -141,6 +142,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [ageFromProfile, setAgeFromProfile] = useState(false); // S-04: age follows the profile birth year
   const [height, setHeight] = useState('');
   const [activity, setActivity] = useState(1.375);
+  // When the user last chose the activity HERE (m14: the latest choice, here or in Edit
+  // profile, wins; lib/activityLevels activitySource). Kept in the calculator payload.
+  const [activitySetAt, setActivitySetAt] = useState(null);
+  const metaRef = useRef(null);
   const [goal, setGoal] = useState('lose');
   const [waist, setWaist] = useState('');
   const [numbersOpen, setNumbersOpen] = useState(null); // "Your numbers" collapse: null = auto (open until there is a plan)
@@ -275,6 +280,17 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       setProfileSex(body.profileSex);
       setAgeFromProfile(body.ageFromProfile);
       if (body.ageFromProfile || !loadedRef.current) setAge(body.age);
+      // m14: ONE activity answer — the profile's level unless the user chose later here. Read
+      // on every focus, so a change in Edit profile reaches the daily burn. A different old
+      // calculator answer that the profile replaces is kept in the payload (activityBefore).
+      metaRef.current = user?.user_metadata || null;
+      const act = activitySource({ meta: user?.user_metadata, saved: savedForBody });
+      if (act.multiplier != null) setActivity(act.multiplier);
+      if (savedForBody && savedForBody.activitySetAt && !loadedRef.current) setActivitySetAt(savedForBody.activitySetAt);
+      if (act.from === 'profile' && savedForBody && savedForBody.activity != null && savedForBody.activityBefore == null
+        && activityKeyForMultiplier(savedForBody.activity) !== act.key) {
+        saveCalcInputs({ activityBefore: savedForBody.activity }).catch(() => {});
+      }
     }
     if (loadedRef.current) return;
     // ── one-time seeding (open weigh-in + profile defaults + saved calc inputs) ──
@@ -295,7 +311,6 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       if (saved.bfSource) setBfSource(saved.bfSource);
       if (saved.bodyFat != null) setBodyFat(savedFieldText(saved.bodyFat, language));
       if (saved.height != null) setHeight(savedFieldText(saved.height, language));
-      if (saved.activity != null) setActivity(saved.activity);
       if (saved.goal) setGoal(saved.goal);
       if (saved.waist != null) setWaist(savedFieldText(saved.waist, language));
     }
@@ -363,8 +378,22 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload
     // without it was saved before option A); legacyBurn keeps that decision.
     // Stored canonical ("86.5", never "86,5"): the payload never depends on the typing language.
-    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language, parseMeasure), bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: canonicalDecimal(height, language, parseMeasure), activity, goal, waist: canonicalDecimal(waist, language, parseMeasure), oneCard: 1, legacyBurn });
-  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, goal, waist, legacyBurn]);
+    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language, parseMeasure), bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: canonicalDecimal(height, language, parseMeasure), activity, activitySetAt, goal, waist: canonicalDecimal(waist, language, parseMeasure), oneCard: 1, legacyBurn });
+  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, activitySetAt, goal, waist, legacyBurn]);
+
+  // A choice made here is the user's latest answer: the calculator keeps it (stamped) and the
+  // profile gets the same level, merge-only (m14), so Edit profile and Journey show it too.
+  // Offline, the profile write fails quietly and the stamp still makes this the answer.
+  function chooseActivity(value) {
+    setActivity(value);
+    const at = new Date().toISOString();
+    setActivitySetAt(at);
+    const key = activityKeyForMultiplier(value);
+    if (!key) return;
+    const old = metaRef.current ? metaRef.current.activity_level : null;
+    metaRef.current = { ...(metaRef.current || {}), activity_level: key, activity_set_at: at };
+    supabase.auth.updateUser({ data: { activity_level: key, activity_scale: 5, activity_set_at: at, ...legacyActivity(old, key) } }).catch(() => {});
+  }
   useEffect(() => () => inputsSave.current.flush(), []);
   if (flushRef) flushRef.current = () => inputsSave.current.flush();
 
@@ -1334,7 +1363,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             return (
               <View key={a.value}>
                 {i > 0 ? <View style={[s.actSep, (on || prevOn) && s.actSepHidden]} /> : null}
-                <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => setActivity(a.value)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                <TouchableOpacity style={[s.actRow, on && s.actRowOn]} onPress={() => chooseActivity(a.value)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ selected: on }}>
                   <View style={[s.grow, s.gap2]}>
                     <Text style={s.head}>{parts[0]}</Text>
                     {parts.length > 1 ? <Text style={s.sec2}>{parts[1]}</Text> : null}
