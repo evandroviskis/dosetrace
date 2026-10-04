@@ -545,3 +545,11 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 - **Privacy, by logic:** remove lab text from the extract-bloodwork logs; send-reminders skips purged protocols; ai_assistant_usage purged on every call and named in delete-user; privacy policy updated (date, "AI features", RevenueCat / Apple / Google sign-in / push service, the full deletion list) and its under-18 line aligned with the founder's 2026-10-03 decision (confirm or export and delete).
 - **Engineering, by logic:** fix the forceSync/runExclusive overlap (test first); bound the curve loop (break on sorted doses, skip doses older than ~10 half-lives); vial expiry alerts count inside the iOS 64 budget; remote_id indexes; a "cannot find name" type check becomes a permanent ship-check step.
 - **DTSheet button order stays the app-wide convention** (Cancel on top with two buttons) — one convention for every sheet.
+
+## Founder answers 2026-10-04 (dt-council round) — "1 agora, 2 Play, 3 sim, 4 anônima, 5 sim"
+- **Test build now** (block 3 of the device list in round 2); council fixes A-85…A-98 in parallel; a second test build before the store build.
+- **Android test build through the Play internal testing track** (a separate internal submit profile), not the preview APK — replaces "Android preview APK for the Fold" of 2026-10-03.
+- **Go for the production migration A-88:** no client DELETE on protocols, Delete forever blanks the tombstone's content, revoke redeem_referral_code, pin search_path.
+- **Usage analytics become truly anonymous:** a random install id, no user_id, no compound/dose/unit/frequency.
+- **Open deviations:** the founder eyeballs them on the test build and signs one list before the store build.
+- **New (founder 2026-10-04): add a reminder check in the app** — on his Play 1.2.4 Android he has had no dose reminder for over a week. Diagnose the cause and add an in-app check. Target: 1.3.0 (approved → next build).
