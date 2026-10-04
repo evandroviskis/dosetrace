@@ -507,3 +507,11 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 
 ## Cross-account guard — decided 2026-10-03 by the ledger (coordinator, final Gate B)
 - **The cross-account guard keeps its existing policy: when a different account signs in on the phone, the previous account's local data is discarded** — privacy over keeping unsynced data that belongs to another person. Pre-existing deliberate rule (App SIGNED_IN and cold-start guards); unchanged by the 1.3.0 sign-out work.
+
+## Founder answers 2026-10-03 (round before the test build) — "1 sim, 2 sim, 3 sim, 4 sim, 5 sim, 6 sim"
+- **Apply migrations protocols.ended_at and protocols.history_from.**
+- **Deploy parse-food v9 as production and remove parse-food-next (RL-1).**
+- **dt-council + ship-check, then TEST builds for the founder's devices (iOS internal TestFlight + Android preview APK for the Fold); production build and store submit only after his "clean".**
+- **Build the Recently deleted multi-select as on the picture page (Select, Select all, Restore (N), Delete forever (N), confirm).**
+- **The dashed "estimated from your start date" curve is approved as built.**
+- **RL-4/RL-5/RL-6 are verified at the 1.3.0 submit (approved deviation: cannot happen before the upload).**
