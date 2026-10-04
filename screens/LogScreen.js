@@ -14,7 +14,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getAllLogs, getLogsSince, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
-import { scanMissedDoses } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored, describeStored } from '../lib/injectionSites';
 import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
@@ -127,7 +127,31 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       setTimeout(() => openSiteEditor(log, 'ask'), 350); // after the sheet has closed
       return;
     }
+    if (outcome === 'Taken') { markRowTaken(log, null); return; }
     writeOutcome(log.id, { outcome });
+  }
+
+  // A Missed or Skipped row becomes complete (A-50): Today's own path (lib/doseActions
+  // recordDoseTaken with the row named, A-78), so it is the same row, the vial or bottle moves
+  // once and a past day keeps the row's time. A paused or deleted protocol: the plain flip.
+  function markRowTaken(row, site) {
+    const id = row.logId != null ? row.logId : row.id;
+    const protocolId = row.protocolId != null ? row.protocolId : row.protocol_id;
+    const atMs = Date.parse(row.loggedAt || row.logged_at);
+    let res = null;
+    try {
+      res = recordDoseTaken(protocolId, { dayKey: Number.isFinite(atMs) ? dayKeyOf(atMs) : undefined, slotMs: Number.isFinite(atMs) ? atMs : undefined, flipRowId: id, injectionSite: site || null });
+    } catch { res = null; }
+    if (!res) { writeOutcome(id, site ? { outcome: 'Taken', injection_site: site } : { outcome: 'Taken' }); return; }
+    syncVialAlerts().catch(() => {});
+    requestSync();
+    fetchLogs();
+    if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
+  }
+  function dayKeyOf(ms) {
+    const d = new Date(ms);
+    const p = (n) => (n < 10 ? '0' + n : '' + n);
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }
 
   function writeOutcome(logId, fields) {
@@ -173,6 +197,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     const recent = user ? (getLogsSince(user.id, since.toISOString()) || []) : [];
     setBodyMapTarget({
       logId: log.id,
+      loggedAt: log.logged_at,
       protocolName: log.protocols?.name || null,
       protocolId: log.protocol_id ?? null,
       initialStored: mode === 'ask' ? null : (log.injection_site || null),
@@ -192,7 +217,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     setBodyMapTarget(null);
     releasePopup(); // BK-20: a question of Today's that waited may open now
     if (!tgt.logId) return;
-    if (plan.commit) writeOutcome(tgt.logId, plan.writeSite ? { outcome: 'Taken', injection_site: stored } : { outcome: 'Taken' });
+    if (plan.commit) markRowTaken(tgt, plan.writeSite ? stored : null);
     else if (plan.writeSite) writeOutcome(tgt.logId, { injection_site: stored });
   }
   function handleSiteSave({ stored }) { siteAction('save', stored); }
@@ -250,6 +275,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // Change site: the existing site editor, exactly as the row tap opened it before.
   function changeSiteFromSheet(log) {
     leaveSheetThen(() => openSiteEditor(log));
+  }
+  // A-50: Skipped → complete from the dose sheet; an injectable asks its site first (S-25).
+  function takeFromSheet(log) {
+    if (needsSiteQuestion(log.protocols?.type)) leaveSheetThen(() => openSiteEditor(log, 'ask'));
+    else leaveSheetThen(() => { releasePopup(); markRowTaken(log, null); });
   }
 
   // "Delete this dose" → the Graduated confirm. The body says what really happens to the
@@ -626,6 +656,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <RowChevron color={colors.ink3} />
                 </TouchableOpacity>
               )}
+              {shownSheet.outcome === 'Skipped' && (
+                <TouchableOpacity style={s.takeBtn} onPress={() => takeFromSheet(shownSheet)} accessibilityRole="button">
+                  <Text style={s.takeBtnText}>{t('log_mark_taken')}</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={s.dangerBtn} onPress={() => askDelete(shownSheet)} accessibilityRole="button">
                 <Text style={s.dangerBtnText}>{t('log_delete_dose')}</Text>
               </TouchableOpacity>
@@ -727,5 +762,8 @@ const makeStyles = (c) => StyleSheet.create({
   changeSite: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, borderRadius: 14, backgroundColor: c.well, paddingHorizontal: 14 },
   changeSiteText: { fontSize: 16, color: c.ink },
   dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
+  // A-50: a skipped dose's "Mark complete" (the primary action, ink).
+  takeBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
+  takeBtnText: { fontSize: 17, fontWeight: '700', color: c.onAct },
   dangerBtnText: { fontSize: 17, fontWeight: '600', color: c.risk },
 });
