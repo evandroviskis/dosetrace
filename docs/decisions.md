@@ -515,3 +515,10 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 - **Build the Recently deleted multi-select as on the picture page (Select, Select all, Restore (N), Delete forever (N), confirm).**
 - **The dashed "estimated from your start date" curve is approved as built.**
 - **RL-4/RL-5/RL-6 are verified at the 1.3.0 submit (approved deviation: cannot happen before the upload).**
+
+## Delete forever = a positive tombstone — decided 2026-10-04 by the ledger (coordinator, final Gate B: never destroy on a maybe)
+- **No device removes data because a row is absent from the cloud.** reconcileVanishedProtocols, its orphan cleanup and the full-import absence delete for protocols, dose logs and vials are removed. Reasons: an older build's 30-day auto-purge leaves no trace, so absence cannot be told from a user's choice (R-C); an incomplete list removed live protocols the watermark never brought back (R-B); the orphan cleanup deleted unsynced doses (R-A).
+- **Delete forever writes purged_at on the cloud protocol row, which stays as a tombstone.** Its dose logs and vials are hard-deleted in the cloud first. Other devices remove the protocol when an ordinary pull brings purged_at, taking only its SYNCED children; an unsynced child is never deleted (the protocol stays hidden, the child pending; "Sign out anyway" still works).
+- **Before the migration 20261004000000_protocol_purged_at.sql is applied, the old hard delete is used.** The tombstone is written (re-inserted with the same id) once the column exists. The founder's go is needed to apply it (not applied).
+- **Self-heal.** A live protocol the device lacks is re-imported (read-only id list, same-session checks).
+- **A push that finds 0 rows still means deleted elsewhere.** It counts only under the same user's session, and it never takes an unsynced child.
