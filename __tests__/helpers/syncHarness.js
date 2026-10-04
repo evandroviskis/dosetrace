@@ -54,8 +54,13 @@ function makeCloud() {
       return [...store[table].values()].filter((r) => !userId || r.user_id === userId);
     },
     async delete(table, remoteId) { store[table].delete(remoteId); return { error: null }; },
-    // The account's row ids (P1: hard deletes made on another device).
-    async fetchIds(table, userId) { return { data: this.rows(table, userId).map((r) => r.id), error: null }; },
+    // The account's live row ids (a purged protocol is a tombstone, not live), read under a
+    // verified session (the self-heal).
+    async fetchIds(table, userId) { return { data: this.rows(table, userId).filter((r) => !r.purged_at).map((r) => r.id), error: null, sessionVerified: true }; },
+    async fetchIn(table, column, values, userId) {
+      const want = new Set(values);
+      return { data: this.rows(table, userId).filter((r) => want.has(r[column])), error: null };
+    },
     async update(table, remoteId, payload) {
       const existing = store[table].get(remoteId);
       if (!existing) return { data: [], error: null }; // gone → 0 rows affected
