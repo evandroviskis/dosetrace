@@ -528,3 +528,4 @@ Source: the coordinator of the AI protocol assistant build, applying product log
   - A revive caused by Restore stays restored.
   - Children of purged protocols are never imported.
   - A reinsert checks for its own id before using a new one.
+- **Migration protocols.purged_at + triggers (purge children; refuse children of a purged protocol) APPLIED on production 2026-10-04** — founder "sim, pode aplicar"; dry run in a rolled-back transaction first; verified via information_schema and pg_trigger.
