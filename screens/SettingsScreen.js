@@ -15,6 +15,7 @@ import {
   TextInput,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
@@ -44,6 +45,7 @@ import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourc
 import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
+import { createBusyGuard } from '../lib/busyGuard';
 import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, blockedCopy } from '../lib/accountActions';
@@ -443,12 +445,19 @@ export default function SettingsScreen({ navigation }) {
     Share.share({ message, title: t('settings_report_title') }).catch(() => {});
   }
 
+  // Gate B F4: one sign-out at a time; the row shows a spinner while it runs.
+  const [signingOut, setSigningOut] = useState(false);
+  const signOutGuardRef = useRef(null);
+  if (!signOutGuardRef.current) signOutGuardRef.current = createBusyGuard(setSigningOut);
+  const signOutGuard = signOutGuardRef.current;
+
   // Gate B F1: the phone is still signed in (it could not complete the sign-out): say so.
   function showSignOutFailed() {
     setSheet({ icon: 'warning', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] });
   }
 
   async function handleSignOut() {
+    if (signOutGuard.isBusy()) return;
     setSheet({
       title: t('settings_signout'),
       body: t('settings_signout_confirm_local'),
@@ -458,7 +467,8 @@ export default function SettingsScreen({ navigation }) {
           // The one deliberate sign-out (lib/accountActions): push first; if anything is STILL
           // not in the cloud nobody is signed out (never lose data) and the user decides
           // (A-46, Settings part 3): connect first, or sign out anyway.
-          const r = await signOutIntended().catch(() => ({ failed: true }));
+          const r = await signOutGuard.run(() => signOutIntended()).catch(() => ({ failed: true }));
+          if (r === undefined) return; // already signing out
           if (r && r.failed) { showSignOutFailed(); return; }
           if (r && r.blocked) {
             setSheet({
@@ -467,7 +477,7 @@ export default function SettingsScreen({ navigation }) {
               body: t(blockedCopy(r).settingsBody),
               buttons: [
                 { label: t(blockedCopy(r).stay), kind: 'secondary' },
-                { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutIntended({ force: true }).catch(() => ({ failed: true })).then((f) => { if (f && f.failed) showSignOutFailed(); }) },
+                { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutGuard.run(() => signOutIntended({ force: true })).catch(() => ({ failed: true })).then((f) => { if (f && f.failed) showSignOutFailed(); }) },
               ],
             });
           }
@@ -943,7 +953,7 @@ export default function SettingsScreen({ navigation }) {
             <FeatureIcon name="door" size={28} color={colors.ink} />
             <Text style={s.rowLabel}>{t('settings_signout')}</Text>
           </View>
-          <RowChevron color={colors.tick} />
+          {signingOut ? <ActivityIndicator color={colors.ink} /> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
         <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount} accessibilityRole="button">
           <View style={s.rowLeft}>
