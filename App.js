@@ -32,7 +32,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 // load, before any component renders.
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
-import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener } from './lib/sync';
+import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle } from './lib/sync';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -637,10 +637,12 @@ export default function App() {
         // Intentional → route to the splash (and wipe). Spurious → leave
         // seenOnboarding as-is so the returning user lands on Auth to re-sign-in.
         if (intentional) { discardStashNow(); clearAuthDraft(); setSeenOnboarding(false); }
-        setTimeout(() => {
+        setTimeout(async () => {
           // Stop sync FIRST so no final sync runs.
           stopSyncEngine();
           if (!intentional) return; // spurious: keep local data (cloud-backed, same user)
+          // Never delete rows while a push is still writing them (Gate B F2).
+          try { await waitForSyncIdle(); } catch { /* idle either way */ }
           // Intentional sign-out: full wipe. This is also the anti-cross-account-leak
           // guard — clear local health data + device-global AsyncStorage (intro-flow
           // stash, reality-check weigh-in) so nothing bleeds to the next account.
