@@ -66,7 +66,10 @@ function makeCloud() {
       if (!existing) return { data: [], error: null }; // gone → 0 rows affected
       const updated_at = stamp();
       store[table].set(remoteId, { ...existing, ...payload, id: remoteId, updated_at });
-      return { data: [{ id: remoteId, updated_at }], error: null };
+      const after = store[table].get(remoteId);
+      // lib/sync.js returns a protocol's status with the stamp (A-87).
+      const status = table === 'protocols' ? { active: after.active, deleted_at: after.deleted_at ?? null, ended_at: after.ended_at ?? null } : {};
+      return { data: [{ id: remoteId, updated_at, ...status }], error: null };
     },
     async insert(table, payload) {
       const id = payload.id || newId(); // an explicit id is kept (the purge tombstone re-insert)

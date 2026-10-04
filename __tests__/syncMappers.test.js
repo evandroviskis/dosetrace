@@ -20,8 +20,10 @@ const protocolRow = {
   sync_status: 'pending',
 };
 
+// The full row shape (a first insert or a re-insert); an ordinary edit leaves the status out (A-87,
+// endDeleteWins.test.js).
 test('protocols payload includes every expected cloud field', () => {
-  const payload = toCloudPayload('protocols', protocolRow);
+  const payload = toCloudPayload('protocols', protocolRow, { status: true });
   for (const field of CLOUD_FIELDS.protocols) {
     assert.ok(field in payload, `protocols payload is missing "${field}"`);
   }
@@ -39,9 +41,9 @@ test('protocols payload carries the drift-prone fields verbatim', () => {
 });
 
 test('protocols payload converts active 1/0 to a boolean and never leaks local-only columns', () => {
-  const payload = toCloudPayload('protocols', protocolRow);
+  const payload = toCloudPayload('protocols', protocolRow, { status: true });
   assert.equal(payload.active, true);
-  assert.equal(toCloudPayload('protocols', { ...protocolRow, active: 0 }).active, false);
+  assert.equal(toCloudPayload('protocols', { ...protocolRow, active: 0 }, { status: true }).active, false);
   // Local bookkeeping must not be sent to the cloud row shape.
   for (const local of ['id', 'remote_id', 'sync_status', 'protocol_remote_id']) {
     assert.ok(!(local in payload), `payload should not contain local column "${local}"`);
