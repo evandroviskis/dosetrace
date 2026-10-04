@@ -23,11 +23,11 @@ import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
-  getProtocolById, hardDeleteOldProtocols, endProtocol, getHistoryProtocols, deactivateVialsByProtocol,
+  getProtocolById, hardDeleteOldProtocols, endProtocol, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
   getBiomarkers,
   getDB, getLocalDataUserId,
 } from '../lib/database';
-import { requestSync, addSyncListener, isOnlineNow } from '../lib/sync';
+import { requestSync, addSyncListener, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { offlinePendingAlert } from '../lib/offlineAlert';
 import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
@@ -511,7 +511,8 @@ export default function TodayScreen() {
     if (!p) return;
     // A-83: ENDED, never deleted — its doses stay in the Dose log, the report, adherence and the
     // curve's past; it is never purged (lib/protocolEnd). Restart lives on the Protocols list.
-    endProtocol(p.id);
+    // A-86: dated at the last Taken dose (the prompt comes 7+ days after it), never the tap.
+    endProtocolAtLastDose(p.id);
     deactivateVialsByProtocol(p.id);
     cancelDoseReminder(p.id).catch(() => {});
     AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
@@ -1204,6 +1205,20 @@ export default function TodayScreen() {
     setContinuationProtocol(null);
     vialPromptOpenRef.current = false;
     setTimeout(openNextQuestion, 450); // a site question waiting behind the prompt
+  }
+
+  // A-85: "Protocol finished" on the vial-empty prompt ENDS the protocol at this moment (the button's
+  // own words; A-83 "end = the moment tapped"): Ended, history kept, reminders cancelled.
+  function finishFromVialPrompt() {
+    const p = continuationProtocol;
+    if (p) {
+      endProtocol(p.id);
+      deactivateVialsByProtocol(p.id);
+      cancelDoseReminder(p.id).catch(() => {});
+      AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
+    }
+    closeVialPrompt();
+    if (p) { fetchProtocols(); notifyDataChanged('protocol'); requestSync(); }
   }
 
   // delayMs: after a site picker, wait for it to fade out (iOS shows one modal at a time).
@@ -2293,7 +2308,7 @@ export default function TodayScreen() {
             <View style={s.promptActions}>
               <TouchableOpacity
                 style={s.promptBtnSecondary}
-                onPress={closeVialPrompt}
+                onPress={finishFromVialPrompt}
               >
                 <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
               </TouchableOpacity>

@@ -25,7 +25,9 @@ function seed(db, fields) {
   return db.getFirstSync('SELECT id FROM protocols WHERE name = ?', [fields.name]).id;
 }
 
-test('restore: a protocol ended before it was deleted goes back to Ended; a plain deleted one becomes active', () => {
+// A-89 (2026-10-04): a plain one deleted BEFORE today also goes back to Ended (dated at the delete);
+// only a same-day Restore makes it active again.
+test('restore: a protocol ended before it was deleted goes back to Ended; a plain one deleted today becomes active', () => {
   const db = makeDb();
   const ended = seed(db, { name: 'e', active: 0, ended_at: '2026-09-20T10:00:00.000Z' });
   db.runSync(`UPDATE protocols SET deleted_at = '2026-10-01T10:00:00.000Z' WHERE id = ?`, [ended]);
@@ -37,8 +39,11 @@ test('restore: a protocol ended before it was deleted goes back to Ended; a plai
   assert.equal(e.ended_at, '2026-09-20T10:00:00.000Z');
   assert.equal(E.isEnded(e), true);
   assert.equal(e.sync_status, 'pending');
-  assert.equal(E.restoreDeleted(db, plain, '2026-10-03T00:00:00.000Z'), 'active');
-  assert.equal(db.getFirstSync('SELECT active FROM protocols WHERE id = ?', [plain]).active, 1);
+  assert.equal(E.restoreDeleted(db, plain, '2026-10-03T00:00:00.000Z'), 'ended');
+  assert.equal(db.getFirstSync('SELECT ended_at FROM protocols WHERE id = ?', [plain]).ended_at, '2026-10-01T10:00:00.000Z');
+  const today = seed(db, { name: 't', active: 0, deleted_at: '2026-10-03T12:00:00.000Z' });
+  assert.equal(E.restoreDeleted(db, today, '2026-10-03T13:00:00.000Z'), 'active');
+  assert.equal(db.getFirstSync('SELECT active FROM protocols WHERE id = ?', [today]).active, 1);
 });
 
 test('the Ended row has the Recently deleted trash, opening the same Delete protocol sheet', () => {
@@ -53,6 +58,6 @@ test('the Ended row has the Recently deleted trash, opening the same Delete prot
   assert.match(fn, /title: t\('protocols_delete_title'\)/);
   assert.match(fn, /softDeleteProtocol\(p\.id\)/);
   const restore = s.slice(s.indexOf('function restoreProtocol(id) {'), s.indexOf('function restoreProtocol(id) {') + 700);
-  assert.match(restore, /if \(restoreProtocolDB\(id\) === 'ended'\)/, 'an ended one gets no vial or reminder back');
+  assert.match(restore, /if \(restoreProtocolDB\(id, \{ allowActive \}\) === 'ended'\)/, 'an ended one gets no vial or reminder back');
 });
 

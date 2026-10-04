@@ -199,14 +199,14 @@ test('Protocols list: a "Recently deleted" section at the bottom, only when some
   }
 });
 
-test('Protocols: Restore and Delete forever are the functions moved from Settings, and they still do what they did', () => {
+test('Protocols: Restore and Delete forever are the functions moved from Settings, and they still do what they did', async () => {
   const calls = [];
   const rec = (name) => (...a) => { calls.push([name, ...a]); };
   let sheet = null;
   const make = new Function(
     'restoreProtocolDB', 'getNewestVialForProtocol', 'updateVial', 'getProtocolById', 'scheduleDoseReminder',
     'fetchProtocols', 'notifyDataChanged', 'requestSync', 'permanentlyDeleteProtocol', 'setScreenSheet', 't', 'protocolName',
-    'T', 'cancelDoseReminder', 'dismissDeliveredDoseReminders', 'setTrashSel',
+    'T', 'cancelDoseReminder', 'dismissDeliveredDoseReminders', 'setTrashSel', 'isOverFreeLimit',
     `${innerFn('restoreProtocol')}\n${innerFn('confirmPermanentDelete')}\n${innerFn('confirmPurge')}\nreturn { restoreProtocol, confirmPermanentDelete };`,
   );
   const f = make(
@@ -219,9 +219,10 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
     (id) => { calls.push(['cancelReminders', id]); return Promise.resolve(); },
     (id) => { calls.push(['dismissBanners', id]); return Promise.resolve(); },
     (v) => calls.push(['setTrashSel', v]),
+    async () => false, // under the free limit (A-89)
   );
-  f.restoreProtocol(7);
-  assert.deepEqual(calls, [['restoreDB', 7], ['updateVial', 70, { active: 1 }], ['schedule', 7], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);
+  await f.restoreProtocol(7);
+  assert.deepEqual(calls, [['restoreDB', 7, { allowActive: true }], ['updateVial', 70, { active: 1 }], ['schedule', 7], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);
   calls.length = 0;
   f.confirmPermanentDelete({ id: 9, name: 'TB-500' });
   assert.equal(calls.length, 0, 'nothing is deleted before the confirm');

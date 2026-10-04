@@ -115,7 +115,7 @@ test('pull: a cloud ended_at lands locally; a cloud without the column leaves th
 test('Today\'s "Yes, it\'s finished" ends the protocol (no deletion); the Protocols list offers Restart', () => {
   const today = read('screens/TodayScreen.js');
   const fn = sliceBlock(today, 'async function endInactiveProtocol() {');
-  assert.match(fn, /endProtocol\(p\.id\)/);
+  assert.match(fn, /endProtocolAtLastDose\(p\.id\)/); // A-86: dated at the last Taken dose
   assert.doesNotMatch(fn, /softDeleteProtocol/);
   const prot = read('screens/ProtocolsScreen.js');
   assert.match(prot, /t\('protocols_ended_title'\)/);

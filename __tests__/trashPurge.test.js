@@ -51,12 +51,12 @@ test('the single "Delete permanently" path does the same (database.permanentlyDe
   assert.match(read('lib/database.js'), /export function permanentlyDeleteProtocol\(id\) \{\n\s+PE\.purgeProtocol\(getDB\(\), id\);/);
 });
 
-test('restoring several = the restore per item: an ended one goes back to Ended, another becomes active', () => {
+test('restoring several = the restore per item: an ended one goes back to Ended, so does one deleted before today (A-89)', () => {
   const db = makeDb();
   db.runSync(`INSERT INTO protocols (user_id, name, type, active, ended_at, deleted_at, created_at, updated_at, sync_status) VALUES ('u1','E','recon',0,'2026-09-20T00:00:00Z','2026-10-01T00:00:00Z','2026-09-01T00:00:00Z','2026-10-01T00:00:00Z','synced'), ('u1','P','recon',0,NULL,'2026-10-01T00:00:00Z','2026-09-01T00:00:00Z','2026-10-01T00:00:00Z','synced')`);
   const ids = db.getAllSync('SELECT id FROM protocols ORDER BY id').map((r) => r.id);
   const out = T.forEachSelected(ids, (id) => E.restoreDeleted(db, id, '2026-10-04T00:00:00Z'));
-  assert.deepEqual(out, ['ended', 'active']);
+  assert.deepEqual(out, ['ended', 'ended']);
 });
 
 test('selection: toggle, Select all / Deselect all, the bar counts and is off at 0, the sheet words by count', () => {

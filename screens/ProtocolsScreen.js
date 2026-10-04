@@ -1254,9 +1254,12 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
-  function restoreProtocol(id) {
+  async function restoreProtocol(id) {
     // A protocol ended before it was deleted goes back to Ended: no vial, no reminders (A-83).
-    if (restoreProtocolDB(id) === 'ended') {
+    // A-89: one deleted before today, or restored at the free limit, also goes to Ended (Restart
+    // makes it active and asks for Premium) — never more active protocols than the plan allows.
+    const allowActive = !(await isOverFreeLimit());
+    if (restoreProtocolDB(id, { allowActive }) === 'ended') {
       fetchProtocols();
       requestSync();
       return;
@@ -1306,9 +1309,9 @@ export default function ProtocolsScreen() {
   }
 
   // Restore several = the existing restore per item (an ended one goes back to Ended).
-  function restoreSelected(ids) {
-    T.forEachSelected(ids, (id) => restoreProtocol(id));
+  async function restoreSelected(ids) {
     setTrashSel(null);
+    for (const id of [...new Set(ids)]) await restoreProtocol(id); // one by one: the limit counts each
   }
 
   // Display name follows the user's language via the canonical compound key.

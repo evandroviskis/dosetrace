@@ -26,18 +26,20 @@ async function setup({ ended = false } = {}) {
   return { cloud, B, pid, remote: p.data.id };
 }
 
-test('Restore after an older build purged it: it comes back ACTIVE, not in Recently deleted, history and cloud back', async () => {
+// Deleted on 2026-09-01, restored weeks later: it comes back in Ended (A-89, its deleted weeks are
+// never owed) — restored, not back in Recently deleted, history and cloud back.
+test('Restore after an older build purged it: it comes back RESTORED (Ended), not in Recently deleted, history and cloud back', async () => {
   const { cloud, B, pid, remote } = await setup();
-  assert.equal(E.restoreDeleted(B, pid, '2026-10-04T09:00:00Z'), 'active');
+  assert.equal(E.restoreDeleted(B, pid, '2026-10-04T09:00:00Z'), 'ended');
   await pushPending(B, cloud, USER);
   const p = B.getFirstSync('SELECT * FROM protocols WHERE id = ?', [pid]);
-  assert.equal(p.active, 1);
+  assert.equal(p.active, 0);
   assert.equal(p.deleted_at, null);
   assert.equal(p.sync_status, 'synced');
   assert.equal(recentlyDeleted(B).length, 0, 'no double Restore');
-  assert.deepEqual(B.getAllSync(E.SQL_ACTIVE, [USER]).map((r) => r.id), [pid]);
+  assert.deepEqual(B.getAllSync(E.SQL_ENDED, [USER]).map((r) => r.id), [pid]);
   const c = cloud._store.protocols.get(remote);
-  assert.equal(c.active, true);
+  assert.equal(c.active, false);
   assert.equal(c.deleted_at, null);
   assert.equal(cloud.rows('dose_logs', USER).length, 2);
   assert.equal(n(B, 'SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [pid]), 2);
