@@ -64,7 +64,7 @@ function makeCloud() {
       return { data: [{ id: remoteId, updated_at }], error: null };
     },
     async insert(table, payload) {
-      const id = newId();
+      const id = payload.id || newId(); // an explicit id is kept (the purge tombstone re-insert)
       const updated_at = stamp();
       store[table].set(id, { ...payload, id, created_at: payload.created_at || updated_at, updated_at });
       return { data: { id, updated_at }, error: null };

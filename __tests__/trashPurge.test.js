@@ -38,7 +38,8 @@ test('Delete forever removes the protocol, its dose logs and its vials here, in 
   E.purgeProtocol(db, a.pid, '2026-10-04T10:00:00Z');
   assert.equal(db.getAllSync(E.SQL_ALL_LOGS, [USER]).filter((l) => l.protocol_id === a.pid).length, 0, 'gone from the Dose log at once');
   await pushPending(db, cloud, USER);
-  assert.deepEqual(cloud.rows('protocols', USER).map((p) => p.name), ['B']);
+  assert.deepEqual(cloud.rows('protocols', USER).filter((p) => !p.purged_at).map((p) => p.name), ['B']);
+  assert.ok(cloud.rows('protocols', USER).find((p) => p.name === 'A').purged_at, 'A stays in the cloud as a tombstone (purgeTombstone.test.js)');
   assert.equal(cloud.rows('dose_logs', USER).filter((l) => l.protocol_id === a.remote).length, 0);
   assert.equal(cloud.rows('vials', USER).filter((v) => v.protocol_id === a.remote).length, 0);
   assert.equal(db.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [a.pid]).n, 0, 'local rows purged after the push');
@@ -142,22 +143,13 @@ test('P1: Delete forever on device A removes the protocol, its doses and vials f
   assert.ok(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [bKeep.id]).n >= 3, 'the other protocol keeps its doses');
 });
 
-test('P1: an unsynced dose on B for the vanished protocol is dropped with it (never pending forever)', async () => {
-  const { cloud, A, B, gone, onB } = await twoDevices();
-  const bGone = onB('GONE');
-  B.runSync(`INSERT INTO dose_logs (user_id, protocol_id, protocol_remote_id, outcome, logged_at, sync_status) VALUES (?, ?, ?, 'Taken', '2026-10-04T08:00:00Z', 'pending')`, [USER, bGone.id, gone.remote]);
-  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
-  await pushPending(A, cloud, USER);
-  await pullChanges(B, cloud, USER);
-  assert.equal(B.getFirstSync(`SELECT COUNT(*) AS n FROM dose_logs WHERE sync_status = 'pending'`).n, 0);
-});
-
-test('P1: a pending edit on B of the vanished protocol: the push finds 0 rows and removes the protocol with its children', async () => {
+test('P1: a pending edit on B of the purged protocol: the pull hides it, the push removes it with its synced children', async () => {
   const { cloud, A, B, gone, onB } = await twoDevices();
   const bGone = onB('GONE');
   B.runSync(`UPDATE protocols SET name = 'GONE edited', sync_status = 'pending' WHERE id = ?`, [bGone.id]);
   E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
   await pushPending(A, cloud, USER);
+  await pullChanges(B, cloud, USER);
   await pushPending(B, cloud, USER);
   assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM protocols WHERE id = ?', [bGone.id]).n, 0);
   assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs WHERE protocol_id = ?', [bGone.id]).n, 0);
@@ -193,31 +185,6 @@ test('the real cloud adapter lists the account\'s protocol ids (select id, paged
 // run by the real adapter, which then answers { data: [], emptyVerified: true }). Otherwise an
 // empty answer removes nothing, as before.
 const { emptyIdsVerified } = require('../lib/syncCore');
-
-test('a genuinely empty account with a session: B removes the protocols deleted forever on A', async () => {
-  const { cloud, A, B, keep, gone, onB } = await twoDevices();
-  E.purgeProtocol(A, keep.pid, '2026-10-04T10:00:00Z');
-  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
-  await pushPending(A, cloud, USER);
-  assert.equal(cloud.rows('protocols', USER).length, 0);
-  const real = cloud.fetchIds.bind(cloud);
-  cloud.fetchIds = async (t, u) => ({ ...(await real(t, u)), emptyVerified: true }); // the adapter verified the session
-  await pullChanges(B, cloud, USER);
-  assert.ok(!onB('KEEP') && !onB('GONE'));
-  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM dose_logs').n, 0);
-  assert.equal(B.getFirstSync('SELECT COUNT(*) AS n FROM vials').n, 0);
-});
-
-test('an empty answer that is not verified (no session, session changed mid-call) removes nothing', async () => {
-  const { cloud, A, B, keep, gone, onB } = await twoDevices();
-  E.purgeProtocol(A, keep.pid, '2026-10-04T10:00:00Z');
-  E.purgeProtocol(A, gone.pid, '2026-10-04T10:00:00Z');
-  await pushPending(A, cloud, USER);
-  const real = cloud.fetchIds.bind(cloud);
-  cloud.fetchIds = async (t, u) => ({ ...(await real(t, u)), emptyVerified: false });
-  await pullChanges(B, cloud, USER);
-  assert.ok(onB('KEEP') && onB('GONE'));
-});
 
 test('emptyIdsVerified: every condition must hold', () => {
   const ok = { userId: 'u1', beforeUid: 'u1', afterUid: 'u1', localOwner: 'u1', fetchError: null, count: 0, countError: null };
