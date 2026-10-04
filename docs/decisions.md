@@ -522,3 +522,9 @@ Source: the coordinator of the AI protocol assistant build, applying product log
 - **Before the migration 20261004000000_protocol_purged_at.sql is applied, the old hard delete is used.** The tombstone is written (re-inserted with the same id) once the column exists. The founder's go is needed to apply it (not applied).
 - **Self-heal.** A live protocol the device lacks is re-imported (read-only id list, same-session checks).
 - **A push that finds 0 rows never deletes a protocol** (residual R-C closed 2026-10-04). It counts only under the same user's session. With no purged_at evidence the local copy may be the last one, so the protocol is re-inserted SOFT-DELETED (same id where possible, else a new one) and lands in Recently deleted, never silently active. Its dose logs and vials go back up (same ids where possible), and the user can then Delete forever deliberately. A dose log or vial of a protocol that exists here is re-inserted instead of dropped; other tables keep "deletions win".
+- **Gate B PASS-WITH-FIXES (2026-10-04), on the hard condition that the migration is applied before the build.**
+  - The migration also installs two server triggers (SECURITY INVOKER, fixed search_path, same user only): a purge deletes the protocol's dose logs and vials, and a dose log or vial written onto a purged protocol is refused.
+  - A delayed tombstone is written only while the cloud row is still missing; a live row means someone brought it back, so the local purge is cancelled.
+  - A revive caused by Restore stays restored.
+  - Children of purged protocols are never imported.
+  - A reinsert checks for its own id before using a new one.
