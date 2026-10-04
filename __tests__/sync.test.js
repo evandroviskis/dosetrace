@@ -147,7 +147,7 @@ test('push respects the optimistic-concurrency guard: an edit mid-push leaves th
   assert.equal(cloud._store.protocols.get(row.remote_id).name, 'v2');
 });
 
-test('full import propagates cloud deletes: a synced local row absent from the cloud is dropped', async () => {
+test('full import propagates cloud deletes for other tables, never for a protocol (Final Gate B)', async () => {
   const cloud = makeCloud();
   const dbA = makeDb();
   const id1 = seedLocalProtocol(dbA, USER, { name: 'keep' });
@@ -155,12 +155,18 @@ test('full import propagates cloud deletes: a synced local row absent from the c
   await pushPending(dbA, cloud, USER);
   const remote2 = getProtocol(dbA, id2).remote_id;
 
-  // Cloud loses one row; re-importing should drop it locally.
+  // Cloud loses one row. Since the Final Gate B (2026-10-04) a protocol, dose log or vial is never
+  // dropped because the cloud lacks it (an older build's auto-purge leaves no tombstone:
+  // purgeNoAbsence.test.js); the other tables still are.
   await cloud.delete('protocols', remote2);
+  const bm = await cloud.insert('biomarkers', { user_id: USER, report_date: '2026-09-01', marker: 'TSH', value: 1, unit: 'mIU/L' });
+  dbA.runSync(`INSERT INTO biomarkers (remote_id, user_id, report_date, marker, value, unit, updated_at, sync_status) VALUES (?, ?, '2026-09-01', 'TSH', 1, 'mIU/L', ?, 'synced')`, [bm.data.id, USER, bm.data.updated_at]);
+  await cloud.delete('biomarkers', bm.data.id);
   await fullImport(dbA, cloud, USER);
 
   assert.ok(getProtocol(dbA, id1), 'the surviving protocol stays');
-  assert.equal(getProtocol(dbA, id2), null, 'the cloud-deleted protocol is dropped locally');
+  assert.ok(getProtocol(dbA, id2), 'a protocol absent from the cloud is kept (no deletion by absence)');
+  assert.equal(dbA.getFirstSync('SELECT COUNT(*) AS n FROM biomarkers').n, 0, 'another table still drops it');
 });
 
 test('food_logs: parsed_items round-trips TEXT->JSONB->TEXT without double-encoding (the sync mapper bug guard)', async () => {

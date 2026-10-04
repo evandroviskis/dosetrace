@@ -106,11 +106,9 @@ test('the strings exist in six languages', () => {
 
 // ── Gate B on the purge (2026-10-04) ────────────────────────────────────────────────────────
 // P1: other signed-in devices never learned of a hard delete (the pull is incremental by
-// updated_at). Each pull now asks the cloud which protocols the account still has and removes a
-// local SYNCED protocol whose cloud row vanished, with its dose logs and vials — also unsynced
-// children (the user deleted that protocol forever; a pending log would otherwise hit the foreign
-// key and stay pending, blocking sign-out). A push whose protocol update finds 0 rows does the
-// same. An empty answer is never trusted (a missing session reads as an empty list).
+// updated_at). Since the Final Gate B (2026-10-04) Delete forever is a positive tombstone
+// (purged_at on the cloud row, purgeTombstone.test.js): an ordinary pull removes it with its
+// synced children; nothing is ever removed because a row is absent (purgeNoAbsence.test.js).
 // P2: purgeProtocol only purges a protocol that is still deleted (a pull may restore it while the
 // sheet is open), and its children only when it did.
 const { pullChanges } = require('../lib/syncCore');
@@ -178,31 +176,3 @@ test('the real cloud adapter lists the account\'s protocol ids (select id, paged
   assert.match(read('lib/sync.js'), /async fetchIds\(table, userId\) \{[\s\S]{0,400}\.select\('id'\)\.eq\('user_id', userId\)/);
 });
 
-// ── Decided by logic 2026-10-04: the "deleted every protocol" case ─────────────────────────────
-// An EMPTY id list is trusted only when the same user's session is there right before AND after
-// the fetch, it equals the local data owner and the sync user, the fetch had no error, and a
-// count (head) query under that session also says 0 with no error (lib/syncCore emptyIdsVerified,
-// run by the real adapter, which then answers { data: [], emptyVerified: true }). Otherwise an
-// empty answer removes nothing, as before.
-const { emptyIdsVerified } = require('../lib/syncCore');
-
-test('emptyIdsVerified: every condition must hold', () => {
-  const ok = { userId: 'u1', beforeUid: 'u1', afterUid: 'u1', localOwner: 'u1', fetchError: null, count: 0, countError: null };
-  assert.equal(emptyIdsVerified(ok), true);
-  assert.equal(emptyIdsVerified({ ...ok, localOwner: null }), true, 'no local data owner yet is fine');
-  for (const bad of [
-    { beforeUid: null }, { afterUid: null }, { beforeUid: 'u2' }, { afterUid: 'u2' }, { localOwner: 'u2' },
-    { fetchError: { message: 'x' } }, { count: 1 }, { count: null }, { countError: { message: 'x' } }, { userId: null },
-  ]) assert.equal(emptyIdsVerified({ ...ok, ...bad }), false, JSON.stringify(bad));
-});
-
-test('the real adapter checks the session before and after, the owner, and a head count', () => {
-  const s = read('lib/sync.js');
-  const i = s.indexOf('async fetchIds(table, userId) {');
-  const body = s.slice(i, i + 1800);
-  assert.match(body, /const beforeUid = await sessionUid\(\);/);
-  assert.match(body, /const afterUid = await sessionUid\(\);/);
-  assert.match(body, /\.select\('id', \{ count: 'exact', head: true \}\)\.eq\('user_id', userId\)/);
-  assert.match(body, /emptyVerified: emptyIdsVerified\(\{/);
-  assert.match(body, /localOwner: getLocalDataUserId\(\)/);
-});
