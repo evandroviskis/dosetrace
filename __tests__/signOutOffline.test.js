@@ -111,7 +111,7 @@ test('order: push, count, push token, intent flag, Google, sign-out; a block sto
   const auth = { signOut: async () => { calls.push('signOut'); return { error: null }; }, getSession: async () => ({ data: { session: null } }) };
   const deps = { auth, forceSync: async () => calls.push('sync'), isOnline: () => true, removePushToken: async () => calls.push('token'), signOutGoogle: async () => calls.push('google'), intent };
   assert.deepEqual(await signOutCore({ ...deps, pendingCount: () => { calls.push('count'); return 0; } }), { blocked: false });
-  assert.deepEqual(calls, ['sync', 'count', 'token', 'mark', 'google', 'signOut', 'consume']); // N1: the flag is checked after
+  assert.deepEqual(calls, ['sync', 'count', 'token', 'count', 'mark', 'google', 'signOut', 'consume']); // counted again before the flag // N1: the flag is checked after
   calls.length = 0;
   assert.deepEqual(await signOutCore({ ...deps, pendingCount: () => { calls.push('count'); return 2; } }), { blocked: true, offline: false });
   assert.deepEqual(calls, ['sync', 'count'], 'nothing signed out, flag never armed');
