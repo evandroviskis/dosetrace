@@ -680,79 +680,100 @@ export const translations = {
     curve_done: 'Done',
     faq_categories: [
       {
-        category: 'Getting started',
+        category: "Getting started",
         questions: [
           {
-            q: 'What is DoseTrace?',
-            a: 'DoseTrace is a personal wellness tracking app for managing compounds, doses, and vials. It includes a reconstitution calculator, syringe guide, and injection log.'
+            q: "What is DoseTrace?",
+            a: "DoseTrace is a personal wellness tracking app for managing compounds, doses, and vials. It includes a reconstitution calculator, syringe guide, and injection log."
           },
           {
-            q: 'Is DoseTrace free?',
+            q: "Is DoseTrace free?",
             a: "Yes. The core features are free forever, including cloud backup. The free plan includes up to 3 active protocols, 3 scans a month (labs, vaccine cards and vials combined) and 7 days of the AI food log. Premium adds unlimited protocols, more scans, the AI food log every day, the dose-accumulation curve, reality-check results and PDF export."
           },
           {
-            q: 'How do I add my first protocol?',
-            a: 'Go to the Protocols tab, tap "+ Add", choose your compound type, and follow the steps to set up your dose details.'
+            q: "How do I add my first protocol?",
+            a: "Go to the Protocols tab, tap \"+ Add\", choose your compound type, and follow the steps to set up your dose details."
           }
         ]
       },
       {
-        category: 'Reconstitution & dosing',
+        category: "Reconstitution & dosing",
         questions: [
           {
-            q: 'How does the reconstitution calculator work?',
-            a: 'Enter your compound amount and the volume of bacteriostatic water you added. DoseTrace calculates the concentration and shows exactly how much to draw in your syringe.'
+            q: "How does the reconstitution calculator work?",
+            a: "Enter your compound amount and the volume of bacteriostatic water you added. DoseTrace calculates the concentration and shows exactly how much to draw in your syringe."
           },
           {
-            q: 'What syringe sizes are supported?',
+            q: "What syringe sizes are supported?",
             a: "Insulin syringes of 1 ml (100 units), 0.5 ml (50 units) and 0.3 ml (30 units). For ready-to-use compounds there are also 2, 3 and 5 ml syringes, read in ml."
           },
           {
-            q: 'How long does a reconstituted vial last?',
-            a: 'Most reconstituted peptides remain stable for approximately 30 days when refrigerated with bacteriostatic water.'
+            q: "How long does a reconstituted vial last?",
+            a: "Most reconstituted peptides remain stable for approximately 30 days when refrigerated with bacteriostatic water."
           }
         ]
       },
       {
-        category: 'Vials & tracking',
+        category: "Vials & tracking",
         questions: [
           {
-            q: 'How do I log a vial mix?',
+            q: "How do I log a vial mix?",
             a: "When you create a new lyophilized protocol, you can log the mix date right away. When a vial runs out, start the next one from the protocol's page (New vial) or from Today (+ Add vial)."
           },
           {
-            q: 'What happens when a vial expires?',
-            a: 'DoseTrace will show a warning when your vial is approaching its 30-day expiry. Expired vials are marked in red.'
+            q: "What happens when a vial expires?",
+            a: "DoseTrace will show a warning when your vial is approaching its 30-day expiry. Expired vials are marked in red."
           }
         ]
       },
       {
-        category: 'Bloodwork',
+        category: "My Body",
         questions: [
           {
-            q: 'How does bloodwork upload work?',
+            q: "How does the Lab test journal read my reports?",
             a: "Take a photo of a lab report or upload a PDF or image, and the AI reads the values into your lab journal. It works with LabCorp, Quest and most clinic reports. Scans are shared by labs, vaccine cards and vials: 3 a month on the free plan, more with Premium."
           },
           {
-            q: 'Is my bloodwork data private?',
-            a: 'Your data is stored on your device and synced to our secure cloud, so it is backed up across your devices. When you scan a lab report, the file is sent once to Anthropic to read the numbers, then not kept for training — see our Privacy Policy. We never sell your data or use it for ads.'
+            q: "Is my lab data private?",
+            a: "Your data is stored on your device and synced to our secure cloud, so it is backed up across your devices. When you scan a lab report, the file is sent once to Anthropic to read the numbers, then not kept for training — see our Privacy Policy. We never sell your data or use it for ads."
+          },
+          {
+            q: "What is the Vaccine journal?",
+            a: "A record of your vaccines and boosters: the date given, the next-due date, dose number, lot, provider and notes. Type them in, or scan a photo of your vaccine card (it counts toward your monthly scans). DoseTrace never tells you which vaccines to get or when."
+          },
+          {
+            q: "What is Dose accumulation?",
+            a: "An estimate of how much of a compound may be in your body over time, worked out from your planned schedule and published half-lives. It is a math model, not a measurement of real blood levels: confirm with bloodwork. Dose accumulation is part of Premium."
           }
         ]
       },
       {
-        category: 'Premium',
+        category: "Journey",
         questions: [
           {
-            q: 'What does Premium include?',
+            q: "How does the AI food log work?",
+            a: "Tell it what you ate in your own words. The AI reads each food and logs an estimate of calories, carbs and protein, which you can fix anytime; food from up to 7 days back counts too. The free plan includes 7 days of the AI food log; Premium includes it every day. It only logs what you tell it and never gives diet advice."
+          },
+          {
+            q: "What is the reality check?",
+            a: "It measures how many calories you really burn a day, from your own numbers: a weigh-in at the start, another about three weeks later, and at least 7 days in a row of fully logged food (or your typed average calories). The result replaces the formula estimate in Your daily plan. It is math from your data, never advice."
+          }
+        ]
+      },
+      {
+        category: "Premium",
+        questions: [
+          {
+            q: "What does Premium include?",
             a: "Unlimited protocols, the AI food log every day, the dose-accumulation curve, reality-check results, PDF export, priority support, and more lab, vaccine and vial scans: up to 20 a month in total (labs, vaccine cards and vials combined). Your weigh-ins and their chart, cloud backup and sync are free for everyone."
           },
           {
-            q: 'How much does Premium cost?',
-            a: 'Current prices for Monthly and Annual Premium are shown in the app on the upgrade screen. Both plans include a 7-day free trial.'
+            q: "How much does Premium cost?",
+            a: "Current prices for Monthly and Annual Premium are shown in the app on the upgrade screen. Both plans include a 7-day free trial."
           },
           {
-            q: 'Can I cancel anytime?',
-            a: 'Yes. Cancel at least 24 hours before your renewal date in Settings → Apple ID → Subscriptions.'
+            q: "Can I cancel anytime?",
+            a: "Yes. Cancel at least 24 hours before your renewal date in Settings → Apple ID → Subscriptions."
           }
         ]
       }
@@ -2847,79 +2868,100 @@ export const translations = {
     curve_done: 'Listo',
     faq_categories: [
       {
-        category: 'Primeros pasos',
+        category: "Primeros pasos",
         questions: [
           {
-            q: '¿Qué es DoseTrace?',
-            a: 'DoseTrace es una app personal de seguimiento de bienestar para gestionar compuestos, dosis y viales. Incluye calculadora de reconstitución, guía de jeringa y registro de inyecciones.'
+            q: "¿Qué es DoseTrace?",
+            a: "DoseTrace es una app personal de seguimiento de bienestar para gestionar compuestos, dosis y viales. Incluye calculadora de reconstitución, guía de jeringa y registro de inyecciones."
           },
           {
-            q: '¿Es DoseTrace gratis?',
+            q: "¿Es DoseTrace gratis?",
             a: "Sí. Las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. El plan gratuito incluye hasta 3 protocolos activos, 3 escaneos al mes (análisis, cartillas de vacunas y viales juntos) y 7 días del registro con IA. Premium añade protocolos ilimitados, más escaneos, el registro con IA todos los días, la curva de acumulación de dosis, los resultados de tus cifras reales y la exportación a PDF."
           },
           {
-            q: '¿Cómo añado mi primer protocolo?',
-            a: 'Ve a la pestaña Protocolos, toca «+ Añadir», elige tu tipo de compuesto y sigue los pasos para configurar los detalles de tu dosis.'
+            q: "¿Cómo añado mi primer protocolo?",
+            a: "Ve a la pestaña Protocolos, toca «+ Añadir», elige tu tipo de compuesto y sigue los pasos para configurar los detalles de tu dosis."
           }
         ]
       },
       {
-        category: 'Reconstitución y dosificación',
+        category: "Reconstitución y dosificación",
         questions: [
           {
-            q: '¿Cómo funciona la calculadora de reconstitución?',
-            a: 'Introduce la cantidad de tu compuesto y el volumen de agua bacteriostática que añadiste. DoseTrace calcula la concentración y muestra exactamente cuánto cargar en tu jeringa.'
+            q: "¿Cómo funciona la calculadora de reconstitución?",
+            a: "Introduce la cantidad de tu compuesto y el volumen de agua bacteriostática que añadiste. DoseTrace calcula la concentración y muestra exactamente cuánto cargar en tu jeringa."
           },
           {
-            q: '¿Qué tamaños de jeringa son compatibles?',
+            q: "¿Qué tamaños de jeringa son compatibles?",
             a: "Jeringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) y 0,3 ml (30 unidades). Para los compuestos listos para usar también hay jeringas de 2, 3 y 5 ml, que se leen en ml."
           },
           {
-            q: '¿Cuánto dura un vial reconstituido?',
-            a: 'La mayoría de los péptidos reconstituidos permanecen estables durante aproximadamente 30 días cuando se refrigeran con agua bacteriostática.'
+            q: "¿Cuánto dura un vial reconstituido?",
+            a: "La mayoría de los péptidos reconstituidos permanecen estables durante aproximadamente 30 días cuando se refrigeran con agua bacteriostática."
           }
         ]
       },
       {
-        category: 'Viales y seguimiento',
+        category: "Viales y seguimiento",
         questions: [
           {
-            q: '¿Cómo registro una mezcla de vial?',
+            q: "¿Cómo registro una mezcla de vial?",
             a: "Cuando creas un nuevo protocolo liofilizado, puedes registrar la fecha de mezcla de inmediato. Cuando se acaba un vial, empieza el siguiente desde la página del protocolo (Nuevo vial) o desde Hoy (+ Añadir vial)."
           },
           {
-            q: '¿Qué pasa cuando vence un vial?',
-            a: 'DoseTrace te avisa cuando tu vial se acerca al final de sus 30 días de validez. Los viales vencidos se marcan en rojo.'
+            q: "¿Qué pasa cuando vence un vial?",
+            a: "DoseTrace te avisa cuando tu vial se acerca al final de sus 30 días de validez. Los viales vencidos se marcan en rojo."
           }
         ]
       },
       {
-        category: 'Análisis de sangre',
+        category: "Mi cuerpo",
         questions: [
           {
-            q: '¿Cómo funciona la carga de análisis de sangre?',
+            q: "¿Cómo lee mis informes el Diario de análisis?",
             a: "Haz una foto de un informe de laboratorio o sube un PDF o una imagen, y la IA lee los valores y los guarda en tu diario de análisis. Funciona con LabCorp, Quest y la mayoría de informes de clínicas. Los escaneos se comparten entre análisis, cartillas de vacunas y viales: 3 al mes en el plan gratuito, más con Premium."
           },
           {
-            q: '¿Son privados mis datos de análisis de sangre?',
-            a: 'Tus datos se guardan en tu dispositivo y se sincronizan con nuestra nube segura, de modo que tienen copia de seguridad en tus dispositivos. Cuando escaneas un informe de laboratorio, el archivo se envía una sola vez a Anthropic para leer los valores y no se conserva para entrenamiento; consulta nuestra Política de privacidad. Nunca vendemos tus datos ni los usamos para publicidad.'
+            q: "¿Son privados mis datos de análisis?",
+            a: "Tus datos se guardan en tu dispositivo y se sincronizan con nuestra nube segura, de modo que tienen copia de seguridad en tus dispositivos. Cuando escaneas un informe de laboratorio, el archivo se envía una sola vez a Anthropic para leer los valores y no se conserva para entrenamiento; consulta nuestra Política de privacidad. Nunca vendemos tus datos ni los usamos para publicidad."
+          },
+          {
+            q: "¿Qué es el Diario de vacunas?",
+            a: "Un registro de tus vacunas y refuerzos: la fecha de aplicación, la fecha de la próxima dosis, el número de dosis, el lote, quién la aplicó y notas. Escríbelos tú o escanea una foto de tu cartilla de vacunación (cuenta para tus escaneos del mes). DoseTrace nunca te dice qué vacunas ponerte ni cuándo."
+          },
+          {
+            q: "¿Qué es la Acumulación de dosis?",
+            a: "Una estimación de cuánto de un compuesto puede haber en tu cuerpo a lo largo del tiempo, calculada con tu esquema planificado y vidas medias publicadas. Es un modelo matemático, no una medición de tus niveles reales en sangre: confírmalo con análisis. La Acumulación de dosis forma parte de Premium."
           }
         ]
       },
       {
-        category: 'Premium',
+        category: "Progreso",
         questions: [
           {
-            q: '¿Qué incluye Premium?',
+            q: "¿Cómo funciona el Registro con IA?",
+            a: "Cuéntale lo que comiste con tus propias palabras. La IA lee cada alimento y registra una estimación de calorías, carbohidratos y proteínas, que puedes corregir cuando quieras; también cuenta lo que comiste hasta 7 días atrás. El plan gratuito incluye 7 días de Registro con IA; Premium lo incluye todos los días. Solo registra lo que le dices y nunca da consejos de dieta."
+          },
+          {
+            q: "¿Qué son Tus cifras reales?",
+            a: "Miden cuántas calorías quemas de verdad al día, con tus propios números: un pesaje al empezar, otro unas tres semanas después y al menos 7 días seguidos con toda tu comida registrada (o tu promedio de calorías escrito). El resultado sustituye la estimación por fórmula en Tu plan diario. Son cálculos con tus datos, nunca consejos."
+          }
+        ]
+      },
+      {
+        category: "Premium",
+        questions: [
+          {
+            q: "¿Qué incluye Premium?",
             a: "Protocolos ilimitados, el registro con IA todos los días, la curva de acumulación de dosis, los resultados de tus cifras reales, la exportación a PDF, soporte prioritario y más escaneos de análisis, vacunas y viales: hasta 20 al mes en total (sumando análisis, cartillas de vacunas y viales). Tus pesajes y su gráfica, la copia de seguridad en la nube y la sincronización son gratis para todos."
           },
           {
-            q: '¿Cuánto cuesta Premium?',
-            a: 'Los precios actuales de los planes mensual y anual de Premium aparecen en la app, en la pantalla de Premium. Ambos planes incluyen una prueba gratuita de 7 días.'
+            q: "¿Cuánto cuesta Premium?",
+            a: "Los precios actuales de los planes mensual y anual de Premium aparecen en la app, en la pantalla de Premium. Ambos planes incluyen una prueba gratuita de 7 días."
           },
           {
-            q: '¿Puedo cancelar en cualquier momento?',
-            a: 'Sí. Cancela al menos 24 horas antes de tu fecha de renovación en Ajustes → ID de Apple → Suscripciones.'
+            q: "¿Puedo cancelar en cualquier momento?",
+            a: "Sí. Cancela al menos 24 horas antes de tu fecha de renovación en Ajustes → ID de Apple → Suscripciones."
           }
         ]
       }
@@ -5014,79 +5056,100 @@ export const translations = {
     curve_done: 'Concluir',
     faq_categories: [
       {
-        category: 'Primeiros passos',
+        category: "Primeiros passos",
         questions: [
           {
-            q: 'O que é o DoseTrace?',
-            a: 'O DoseTrace é um app pessoal de acompanhamento de bem-estar para organizar compostos, doses e frascos. Inclui uma calculadora de reconstituição, um guia de seringa e um registro de injeções.'
+            q: "O que é o DoseTrace?",
+            a: "O DoseTrace é um app pessoal de acompanhamento de bem-estar para organizar compostos, doses e frascos. Inclui uma calculadora de reconstituição, um guia de seringa e um registro de injeções."
           },
           {
-            q: 'O DoseTrace é gratuito?',
+            q: "O DoseTrace é gratuito?",
             a: "Sim. Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O plano gratuito inclui até 3 protocolos ativos, 3 leituras por mês (somando exames, carteiras de vacinação e frascos) e 7 dias do registro de comida com IA. O Premium acrescenta protocolos ilimitados, mais leituras, o registro de comida com IA todos os dias, a curva de acúmulo de dose, os resultados dos seus números reais e a exportação em PDF."
           },
           {
-            q: 'Como adiciono meu primeiro protocolo?',
-            a: 'Vá para a aba Protocolos, toque em "+ Adicionar", escolha seu tipo de composto e siga as etapas para configurar os detalhes da dose.'
+            q: "Como adiciono meu primeiro protocolo?",
+            a: "Vá para a aba Protocolos, toque em \"+ Adicionar\", escolha seu tipo de composto e siga as etapas para configurar os detalhes da dose."
           }
         ]
       },
       {
-        category: 'Reconstituição e dosagem',
+        category: "Reconstituição e dosagem",
         questions: [
           {
-            q: 'Como funciona a calculadora de reconstituição?',
-            a: 'Digite a quantidade do seu composto e o volume de água bacteriostática que você adicionou. O DoseTrace calcula a concentração e mostra exatamente quanto aspirar na seringa.'
+            q: "Como funciona a calculadora de reconstituição?",
+            a: "Digite a quantidade do seu composto e o volume de água bacteriostática que você adicionou. O DoseTrace calcula a concentração e mostra exatamente quanto aspirar na seringa."
           },
           {
-            q: 'Quais tamanhos de seringa o app aceita?',
+            q: "Quais tamanhos de seringa o app aceita?",
             a: "Seringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) e 0,3 ml (30 unidades). Para compostos prontos para uso também há seringas de 2, 3 e 5 ml, lidas em ml."
           },
           {
-            q: 'Quanto tempo dura um frasco reconstituído?',
-            a: 'A maioria dos peptídeos reconstituídos permanece estável por aproximadamente 30 dias quando refrigerados com água bacteriostática.'
+            q: "Quanto tempo dura um frasco reconstituído?",
+            a: "A maioria dos peptídeos reconstituídos permanece estável por aproximadamente 30 dias quando refrigerados com água bacteriostática."
           }
         ]
       },
       {
-        category: 'Frascos e acompanhamento',
+        category: "Frascos e acompanhamento",
         questions: [
           {
-            q: 'Como registro a reconstituição de um frasco?',
+            q: "Como registro a reconstituição de um frasco?",
             a: "Quando você cria um novo protocolo liofilizado, pode registrar a data de reconstituição na hora. Quando um frasco acabar, comece o próximo na página do protocolo (Novo frasco) ou em Hoje (+ Adicionar frasco)."
           },
           {
-            q: 'O que acontece quando um frasco vence?',
-            a: 'O DoseTrace mostra um aviso quando seu frasco estiver se aproximando do vencimento de 30 dias. Frascos vencidos são marcados em vermelho.'
+            q: "O que acontece quando um frasco vence?",
+            a: "O DoseTrace mostra um aviso quando seu frasco estiver se aproximando do vencimento de 30 dias. Frascos vencidos são marcados em vermelho."
           }
         ]
       },
       {
-        category: 'Exame de sangue',
+        category: "Meu corpo",
         questions: [
           {
-            q: 'Como funciona o envio de exame de sangue?',
+            q: "Como o Diário de exames lê meus laudos?",
             a: "Tire uma foto de um exame ou envie um PDF ou uma imagem, e a IA lê os valores para o seu diário de exames. Funciona com LabCorp, Quest e a maioria dos laudos de clínicas. As leituras são compartilhadas entre exames, carteiras de vacinação e frascos: 3 por mês no plano gratuito, mais com o Premium."
           },
           {
-            q: 'Meus dados de exame de sangue são privados?',
-            a: 'Seus dados são salvos no seu dispositivo e sincronizados com nossa nuvem segura, de modo que têm backup em seus dispositivos. Quando você escaneia um exame, o arquivo é enviado uma única vez à Anthropic para ler os valores e não é retido para treinamento; consulte nossa Política de Privacidade. Nunca vendemos seus dados nem os usamos para publicidade.'
+            q: "Meus dados de exames são privados?",
+            a: "Seus dados são salvos no seu dispositivo e sincronizados com nossa nuvem segura, de modo que têm backup em seus dispositivos. Quando você escaneia um exame, o arquivo é enviado uma única vez à Anthropic para ler os valores e não é retido para treinamento; consulte nossa Política de Privacidade. Nunca vendemos seus dados nem os usamos para publicidade."
+          },
+          {
+            q: "O que é o Diário de vacinas?",
+            a: "Um registro das suas vacinas e reforços: a data em que tomou, a data da próxima dose, o número da dose, o lote, quem aplicou e notas. Digite você mesmo ou leia uma foto da sua carteira de vacinação (conta nas suas leituras do mês). O DoseTrace nunca diz quais vacinas tomar nem quando."
+          },
+          {
+            q: "O que é o Acúmulo de doses?",
+            a: "Uma estimativa de quanto de um composto pode estar no seu corpo ao longo do tempo, calculada a partir do seu esquema planejado e de meias-vidas publicadas. É um modelo matemático, não uma medição dos seus níveis reais no sangue: confirme com exames. O Acúmulo de doses faz parte do Premium."
           }
         ]
       },
       {
-        category: 'Premium',
+        category: "Evolução",
         questions: [
           {
-            q: 'O que o Premium inclui?',
+            q: "Como funciona o Registro de comida com IA?",
+            a: "Conte o que você comeu com suas próprias palavras. A IA lê cada alimento e registra uma estimativa de calorias, carboidratos e proteínas, que você pode corrigir quando quiser; o que você comeu até 7 dias atrás também conta. O plano gratuito inclui 7 dias do Registro de comida com IA; o Premium inclui todos os dias. Ele só registra o que você conta e nunca dá conselhos de dieta."
+          },
+          {
+            q: "O que são Seus números reais?",
+            a: "Eles medem quantas calorias você realmente gasta por dia, com os seus próprios números: uma pesagem no início, outra cerca de três semanas depois e pelo menos 7 dias seguidos com toda a comida registrada (ou a sua média de calorias digitada). O resultado substitui a estimativa por fórmula em Seu plano diário. É cálculo com os seus dados, nunca conselho."
+          }
+        ]
+      },
+      {
+        category: "Premium",
+        questions: [
+          {
+            q: "O que o Premium inclui?",
             a: "Protocolos ilimitados, o registro de comida com IA todos os dias, a curva de acúmulo de dose, os resultados dos seus números reais, exportação em PDF, suporte prioritário e mais leituras de exames, vacinas e frascos: até 20 por mês no total (somando exames, carteiras de vacinação e frascos). Suas pesagens e o gráfico delas, o backup em nuvem e a sincronização são grátis para todos."
           },
           {
-            q: 'Quanto custa o Premium?',
-            a: 'Os preços atuais do Premium Mensal e Anual aparecem no app na tela de assinatura. Ambos os planos incluem um teste grátis de 7 dias.'
+            q: "Quanto custa o Premium?",
+            a: "Os preços atuais do Premium Mensal e Anual aparecem no app na tela de assinatura. Ambos os planos incluem um teste grátis de 7 dias."
           },
           {
-            q: 'Posso cancelar a qualquer momento?',
-            a: 'Sim. Cancele pelo menos 24 horas antes da data de renovação em Ajustes → ID Apple → Assinaturas.'
+            q: "Posso cancelar a qualquer momento?",
+            a: "Sim. Cancele pelo menos 24 horas antes da data de renovação em Ajustes → ID Apple → Assinaturas."
           }
         ]
       }
@@ -7180,79 +7243,100 @@ export const translations = {
     curve_done: 'Terminé',
     faq_categories: [
       {
-        category: 'Commencer',
+        category: "Commencer",
         questions: [
           {
-            q: 'Qu\'est-ce que DoseTrace ?',
-            a: 'DoseTrace est une application personnelle de suivi du bien-être pour gérer les composés, les doses et les flacons. Elle comprend un calculateur de reconstitution, un guide de seringue et un journal d\'injection.'
+            q: "Qu'est-ce que DoseTrace ?",
+            a: "DoseTrace est une application personnelle de suivi du bien-être pour gérer les composés, les doses et les flacons. Elle comprend un calculateur de reconstitution, un guide de seringue et un journal d'injection."
           },
           {
-            q: 'DoseTrace est-il gratuit ?',
+            q: "DoseTrace est-il gratuit ?",
             a: "Oui. Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. L’offre gratuite comprend jusqu’à 3 protocoles actifs, 3 scans par mois (analyses, carnets de vaccination et flacons confondus) et 7 jours de journal IA. Premium ajoute les protocoles illimités, plus de scans, le journal IA tous les jours, la courbe d’accumulation de dose, les résultats de vos vrais chiffres et l’export PDF."
           },
           {
-            q: 'Comment ajouter mon premier protocole ?',
-            a: 'Allez dans l\'onglet Protocoles, appuyez sur « + Ajouter », choisissez votre type de composé et suivez les étapes pour renseigner les détails de votre dose.'
+            q: "Comment ajouter mon premier protocole ?",
+            a: "Allez dans l'onglet Protocoles, appuyez sur « + Ajouter », choisissez votre type de composé et suivez les étapes pour renseigner les détails de votre dose."
           }
         ]
       },
       {
-        category: 'Reconstitution et dosage',
+        category: "Reconstitution et dosage",
         questions: [
           {
-            q: 'Comment fonctionne le calculateur de reconstitution ?',
-            a: 'Saisissez la quantité de votre composé et le volume d\'eau bactériostatique que vous avez ajouté. DoseTrace calcule la concentration et vous montre exactement quel volume prélever avec votre seringue.'
+            q: "Comment fonctionne le calculateur de reconstitution ?",
+            a: "Saisissez la quantité de votre composé et le volume d'eau bactériostatique que vous avez ajouté. DoseTrace calcule la concentration et vous montre exactement quel volume prélever avec votre seringue."
           },
           {
-            q: 'Quelles tailles de seringue sont prises en charge ?',
+            q: "Quelles tailles de seringue sont prises en charge ?",
             a: "Les seringues à insuline de 1 ml (100 unités), 0,5 ml (50 unités) et 0,3 ml (30 unités). Pour les composés prêts à l’emploi, il y a aussi des seringues de 2, 3 et 5 ml, graduées en ml."
           },
           {
-            q: 'Combien de temps se conserve un flacon reconstitué ?',
-            a: 'La plupart des peptides reconstitués restent stables pendant environ 30 jours lorsqu\'ils sont réfrigérés avec de l\'eau bactériostatique.'
+            q: "Combien de temps se conserve un flacon reconstitué ?",
+            a: "La plupart des peptides reconstitués restent stables pendant environ 30 jours lorsqu'ils sont réfrigérés avec de l'eau bactériostatique."
           }
         ]
       },
       {
-        category: 'Flacons et suivi',
+        category: "Flacons et suivi",
         questions: [
           {
-            q: 'Comment enregistrer la reconstitution d\'un flacon ?',
+            q: "Comment enregistrer la reconstitution d'un flacon ?",
             a: "Quand vous créez un nouveau protocole lyophilisé, vous pouvez enregistrer la date de reconstitution immédiatement. Quand un flacon est terminé, commencez le suivant depuis la page du protocole (Nouveau flacon) ou depuis Aujourd’hui (+ Ajouter un flacon)."
           },
           {
-            q: 'Que se passe-t-il quand un flacon est périmé ?',
-            a: 'DoseTrace affiche un avertissement quand votre flacon approche de sa limite de 30 jours. Les flacons périmés sont signalés en rouge.'
+            q: "Que se passe-t-il quand un flacon est périmé ?",
+            a: "DoseTrace affiche un avertissement quand votre flacon approche de sa limite de 30 jours. Les flacons périmés sont signalés en rouge."
           }
         ]
       },
       {
-        category: 'Bilan sanguin',
+        category: "Mon corps",
         questions: [
           {
-            q: 'Comment importer un bilan sanguin ?',
+            q: "Comment le Journal d'analyses lit-il mes comptes rendus ?",
             a: "Prenez une photo d’un compte rendu d’analyses ou importez un PDF ou une image : l’IA lit les valeurs et les ajoute à votre journal d’analyses. Cela fonctionne avec LabCorp, Quest et la plupart des comptes rendus de cliniques. Les scans sont partagés entre analyses, carnets de vaccination et flacons : 3 par mois avec l’offre gratuite, plus avec Premium."
           },
           {
-            q: 'Mes données de bilan sanguin sont-elles privées ?',
-            a: 'Vos données sont enregistrées sur votre appareil et synchronisées avec notre cloud sécurisé, afin d’être sauvegardées sur vos appareils. Lorsque vous scannez un compte rendu d’analyses, le fichier est envoyé une seule fois à Anthropic pour lire les valeurs et n’est pas conservé pour l’entraînement ; voir notre Politique de confidentialité. Nous ne vendons jamais vos données et ne les utilisons pas à des fins publicitaires.'
+            q: "Mes données d'analyses sont-elles privées ?",
+            a: "Vos données sont enregistrées sur votre appareil et synchronisées avec notre cloud sécurisé, afin d’être sauvegardées sur vos appareils. Lorsque vous scannez un compte rendu d’analyses, le fichier est envoyé une seule fois à Anthropic pour lire les valeurs et n’est pas conservé pour l’entraînement ; voir notre Politique de confidentialité. Nous ne vendons jamais vos données et ne les utilisons pas à des fins publicitaires."
+          },
+          {
+            q: "Qu'est-ce que le Journal de vaccins ?",
+            a: "Un relevé de vos vaccins et rappels : la date d'injection, la date du prochain rappel, le numéro de dose, le lot, le praticien et des notes. Saisissez-les vous-même ou scannez une photo de votre carnet de vaccination (cela compte dans vos scans du mois). DoseTrace ne vous dit jamais quels vaccins faire ni quand."
+          },
+          {
+            q: "Qu'est-ce que l'Accumulation des doses ?",
+            a: "Une estimation de la quantité d'un composé qui peut se trouver dans votre corps au fil du temps, calculée à partir de votre schéma prévu et de demi-vies publiées. C'est un modèle mathématique, pas une mesure de vos taux sanguins réels : confirmez par un bilan sanguin. L'Accumulation des doses fait partie de Premium."
           }
         ]
       },
       {
-        category: 'Premium',
+        category: "Parcours",
         questions: [
           {
-            q: 'Que comprend Premium ?',
+            q: "Comment fonctionne le Journal IA ?",
+            a: "Dites-lui ce que vous avez mangé, avec vos propres mots. L'IA lit chaque aliment et enregistre une estimation des calories, des glucides et des protéines, que vous pouvez corriger à tout moment ; ce que vous avez mangé jusqu'à 7 jours avant compte aussi. L'offre gratuite comprend 7 jours de Journal IA ; Premium l'inclut tous les jours. Il n'enregistre que ce que vous lui dites et ne donne jamais de conseils alimentaires."
+          },
+          {
+            q: "Que sont Vos vrais chiffres ?",
+            a: "Ils mesurent combien de calories vous brûlez vraiment par jour, à partir de vos propres chiffres : une pesée au départ, une autre environ trois semaines plus tard et au moins 7 jours d'affilée de repas entièrement enregistrés (ou votre moyenne de calories saisie). Le résultat remplace l'estimation par formule dans Votre plan quotidien. Ce sont des calculs à partir de vos données, jamais des conseils."
+          }
+        ]
+      },
+      {
+        category: "Premium",
+        questions: [
+          {
+            q: "Que comprend Premium ?",
             a: "Les protocoles illimités, le journal IA tous les jours, la courbe d’accumulation de dose, les résultats de vos vrais chiffres, l’export PDF, le support prioritaire et plus de scans d’analyses, de vaccins et de flacons : jusqu’à 20 par mois au total (analyses, carnets de vaccination et flacons confondus). Vos pesées et leur graphique, la sauvegarde cloud et la synchronisation sont gratuits pour tous."
           },
           {
-            q: 'Combien coûte Premium ?',
-            a: 'Les prix actuels des formules Premium mensuelle et annuelle sont affichés dans l\'app, sur l\'écran Premium. Les deux formules incluent un essai gratuit de 7 jours.'
+            q: "Combien coûte Premium ?",
+            a: "Les prix actuels des formules Premium mensuelle et annuelle sont affichés dans l'app, sur l'écran Premium. Les deux formules incluent un essai gratuit de 7 jours."
           },
           {
-            q: 'Puis-je résilier à tout moment ?',
-            a: 'Oui. Résiliez au moins 24 heures avant la date de renouvellement dans Réglages → Identifiant Apple → Abonnements.'
+            q: "Puis-je résilier à tout moment ?",
+            a: "Oui. Résiliez au moins 24 heures avant la date de renouvellement dans Réglages → Identifiant Apple → Abonnements."
           }
         ]
       }
@@ -9346,79 +9430,100 @@ export const translations = {
     curve_done: 'Fertig',
     faq_categories: [
       {
-        category: 'Erste Schritte',
+        category: "Erste Schritte",
         questions: [
           {
-            q: 'Was ist DoseTrace?',
-            a: 'DoseTrace ist eine Wellness-Tracking-App zur Verwaltung von Substanzen, Dosen und Fläschchen. Sie enthält einen Rekonstitutionsrechner, eine Spritzenhilfe und ein Injektionsprotokoll.'
+            q: "Was ist DoseTrace?",
+            a: "DoseTrace ist eine Wellness-Tracking-App zur Verwaltung von Substanzen, Dosen und Fläschchen. Sie enthält einen Rekonstitutionsrechner, eine Spritzenhilfe und ein Injektionsprotokoll."
           },
           {
-            q: 'Ist DoseTrace kostenlos?',
+            q: "Ist DoseTrace kostenlos?",
             a: "Ja. Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Der kostenlose Plan enthält bis zu 3 aktive Protokolle, 3 Scans pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen) und 7 Tage KI-Essensprotokoll. Premium bietet unbegrenzte Protokolle, mehr Scans, das KI-Essensprotokoll jeden Tag, die Dosis-Akkumulationskurve, die Ergebnisse deiner echten Zahlen und den PDF-Export."
           },
           {
-            q: 'Wie füge ich mein erstes Protokoll hinzu?',
-            a: 'Geh zum Tab Protokolle, tippe auf „+ Hinzufügen“, wähle deinen Substanztyp und folge den Schritten, um deine Dosisangaben festzulegen.'
+            q: "Wie füge ich mein erstes Protokoll hinzu?",
+            a: "Geh zum Tab Protokolle, tippe auf „+ Hinzufügen“, wähle deinen Substanztyp und folge den Schritten, um deine Dosisangaben festzulegen."
           }
         ]
       },
       {
-        category: 'Rekonstitution & Dosierung',
+        category: "Rekonstitution & Dosierung",
         questions: [
           {
-            q: 'Wie funktioniert der Rekonstitutionsrechner?',
-            a: 'Gib deine Substanzmenge und das Volumen des hinzugefügten bakteriostatischen Wassers ein. DoseTrace berechnet die Konzentration und zeigt genau, wie viel du in deiner Spritze aufziehen musst.'
+            q: "Wie funktioniert der Rekonstitutionsrechner?",
+            a: "Gib deine Substanzmenge und das Volumen des hinzugefügten bakteriostatischen Wassers ein. DoseTrace berechnet die Konzentration und zeigt genau, wie viel du in deiner Spritze aufziehen musst."
           },
           {
-            q: 'Welche Spritzengrößen werden unterstützt?',
+            q: "Welche Spritzengrößen werden unterstützt?",
             a: "Insulinspritzen mit 1 ml (100 Einheiten), 0,5 ml (50 Einheiten) und 0,3 ml (30 Einheiten). Für gebrauchsfertige Substanzen gibt es außerdem 2-, 3- und 5-ml-Spritzen, abgelesen in ml."
           },
           {
-            q: 'Wie lange hält ein rekonstituiertes Fläschchen?',
-            a: 'Die meisten rekonstituierten Peptide bleiben etwa 30 Tage lang stabil, wenn sie im Kühlschrank mit bakteriostatischem Wasser gelagert werden.'
+            q: "Wie lange hält ein rekonstituiertes Fläschchen?",
+            a: "Die meisten rekonstituierten Peptide bleiben etwa 30 Tage lang stabil, wenn sie im Kühlschrank mit bakteriostatischem Wasser gelagert werden."
           }
         ]
       },
       {
-        category: 'Fläschchen & Erfassung',
+        category: "Fläschchen & Erfassung",
         questions: [
           {
-            q: 'Wie trage ich ein angemischtes Fläschchen ein?',
+            q: "Wie trage ich ein angemischtes Fläschchen ein?",
             a: "Wenn du ein neues gefriergetrocknetes Protokoll erstellst, kannst du das Mischdatum sofort eintragen. Ist ein Fläschchen leer, beginne das nächste auf der Seite des Protokolls (Neues Fläschchen) oder unter Heute (+ Fläschchen hinzufügen)."
           },
           {
-            q: 'Was passiert, wenn ein Fläschchen abläuft?',
-            a: 'DoseTrace zeigt eine Warnung an, wenn sich dein Fläschchen seinem 30-Tage-Ablaufdatum nähert. Abgelaufene Fläschchen werden rot markiert.'
+            q: "Was passiert, wenn ein Fläschchen abläuft?",
+            a: "DoseTrace zeigt eine Warnung an, wenn sich dein Fläschchen seinem 30-Tage-Ablaufdatum nähert. Abgelaufene Fläschchen werden rot markiert."
           }
         ]
       },
       {
-        category: 'Blutwerte',
+        category: "Mein Körper",
         questions: [
           {
-            q: 'Wie funktioniert das Hochladen von Laborberichten?',
+            q: "Wie liest das Laborwerte-Tagebuch meine Berichte?",
             a: "Fotografiere einen Laborbericht oder lade ein PDF oder Bild hoch – die KI liest die Werte in dein Laborwerte-Tagebuch ein. Es funktioniert mit LabCorp, Quest und den meisten Klinikberichten. Laborberichte, Impfpässe und Fläschchen teilen sich die Scans: 3 pro Monat im kostenlosen Plan, mehr mit Premium."
           },
           {
-            q: 'Sind meine Blutwerte privat?',
-            a: 'Deine Daten werden auf deinem Gerät gespeichert und mit unserer sicheren Cloud synchronisiert, sodass sie auf deinen Geräten gesichert sind. Wenn du einen Laborbericht scannst, wird die Datei einmalig an Anthropic gesendet, um die Werte auszulesen, und nicht zum Training gespeichert – siehe unsere Datenschutzrichtlinie. Wir verkaufen deine Daten niemals und nutzen sie nicht für Werbung.'
+            q: "Sind meine Laborwerte privat?",
+            a: "Deine Daten werden auf deinem Gerät gespeichert und mit unserer sicheren Cloud synchronisiert, sodass sie auf deinen Geräten gesichert sind. Wenn du einen Laborbericht scannst, wird die Datei einmalig an Anthropic gesendet, um die Werte auszulesen, und nicht zum Training gespeichert – siehe unsere Datenschutzrichtlinie. Wir verkaufen deine Daten niemals und nutzen sie nicht für Werbung."
+          },
+          {
+            q: "Was ist das Impf-Tagebuch?",
+            a: "Eine Übersicht deiner Impfungen und Auffrischungen: das Impfdatum, der nächste Termin, die Dosisnummer, die Charge, wer geimpft hat und Notizen. Trag sie selbst ein oder scanne ein Foto deines Impfpasses (das zählt zu deinen Scans im Monat). DoseTrace sagt dir nie, welche Impfungen du wann brauchst."
+          },
+          {
+            q: "Was ist die Dosis-Akkumulation?",
+            a: "Eine Schätzung, wie viel einer Substanz im Lauf der Zeit in deinem Körper sein kann – berechnet aus deinem geplanten Schema und veröffentlichten Halbwertszeiten. Das ist ein Rechenmodell, keine Messung deiner echten Blutwerte: Bestätige es mit Bluttests. Die Dosis-Akkumulation gehört zu Premium."
           }
         ]
       },
       {
-        category: 'Premium',
+        category: "Verlauf",
         questions: [
           {
-            q: 'Was ist in Premium enthalten?',
+            q: "Wie funktioniert das KI-Essensprotokoll?",
+            a: "Schreib in deinen eigenen Worten, was du gegessen hast. Die KI liest jedes Lebensmittel und trägt eine Schätzung für Kalorien, Kohlenhydrate und Eiweiß ein, die du jederzeit korrigieren kannst; auch Essen von bis zu 7 Tagen zuvor zählt. Der kostenlose Plan enthält 7 Tage KI-Essensprotokoll, Premium jeden Tag. Es trägt nur ein, was du ihm sagst, und gibt nie Ernährungsratschläge."
+          },
+          {
+            q: "Was sind Deine echten Zahlen?",
+            a: "Sie messen, wie viele Kalorien du wirklich am Tag verbrauchst – aus deinen eigenen Zahlen: eine Wägung am Anfang, eine zweite etwa drei Wochen später und mindestens 7 Tage in Folge mit vollständig eingetragenem Essen (oder deinem eingegebenen Kaloriendurchschnitt). Das Ergebnis ersetzt die Formelschätzung in Dein Tagesplan. Das ist Rechnung aus deinen Daten, nie ein Rat."
+          }
+        ]
+      },
+      {
+        category: "Premium",
+        questions: [
+          {
+            q: "Was ist in Premium enthalten?",
             a: "Unbegrenzte Protokolle, das KI-Essensprotokoll jeden Tag, die Dosis-Akkumulationskurve, die Ergebnisse deiner echten Zahlen, PDF-Export, bevorzugter Support und mehr Labor-, Impf- und Fläschchen-Scans: insgesamt bis zu 20 pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen). Deine Wägungen und ihr Diagramm, Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
           },
           {
-            q: 'Wie viel kostet Premium?',
-            a: 'Die aktuellen Preise für Premium (monatlich und jährlich) werden in der App auf dem Upgrade-Bildschirm angezeigt. Bei beiden Plänen kannst du Premium 7 Tage kostenlos testen.'
+            q: "Wie viel kostet Premium?",
+            a: "Die aktuellen Preise für Premium (monatlich und jährlich) werden in der App auf dem Upgrade-Bildschirm angezeigt. Bei beiden Plänen kannst du Premium 7 Tage kostenlos testen."
           },
           {
-            q: 'Kann ich jederzeit kündigen?',
-            a: 'Ja. Kündige mindestens 24 Stunden vor deinem Verlängerungsdatum in Einstellungen → Apple ID → Abonnements.'
+            q: "Kann ich jederzeit kündigen?",
+            a: "Ja. Kündige mindestens 24 Stunden vor deinem Verlängerungsdatum in Einstellungen → Apple ID → Abonnements."
           }
         ]
       }
@@ -11513,79 +11618,100 @@ export const translations = {
     curve_done: 'Fine',
     faq_categories: [
       {
-        category: 'Primi passi',
+        category: "Primi passi",
         questions: [
           {
-            q: 'Che cos\'è DoseTrace?',
-            a: 'DoseTrace è un\'app di monitoraggio del benessere personale per gestire composti, dosi e flaconi. Include un calcolatore di ricostituzione, una guida alla siringa e un registro di iniezioni.'
+            q: "Che cos'è DoseTrace?",
+            a: "DoseTrace è un'app di monitoraggio del benessere personale per gestire composti, dosi e flaconi. Include un calcolatore di ricostituzione, una guida alla siringa e un registro di iniezioni."
           },
           {
-            q: 'DoseTrace è gratuito?',
+            q: "DoseTrace è gratuito?",
             a: "Sì. Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Il piano gratuito include fino a 3 protocolli attivi, 3 scansioni al mese (analisi, tessere vaccinali e flaconi insieme) e 7 giorni di diario IA. Premium aggiunge protocolli illimitati, più scansioni, il diario IA ogni giorno, la curva di accumulo della dose, i risultati dei tuoi numeri reali e l’esportazione PDF."
           },
           {
-            q: 'Come aggiungo il mio primo protocollo?',
-            a: 'Vai alla scheda Protocolli, tocca «+ Aggiungi», scegli il tipo di composto e segui i passaggi per configurare i dettagli della tua dose.'
+            q: "Come aggiungo il mio primo protocollo?",
+            a: "Vai alla scheda Protocolli, tocca «+ Aggiungi», scegli il tipo di composto e segui i passaggi per configurare i dettagli della tua dose."
           }
         ]
       },
       {
-        category: 'Ricostituzione e dosaggio',
+        category: "Ricostituzione e dosaggio",
         questions: [
           {
-            q: 'Come funziona il calcolatore di ricostituzione?',
-            a: 'Inserisci la tua quantità di composto e il volume di acqua batteriostatica che hai aggiunto. DoseTrace calcola la concentrazione e ti mostra esattamente quanto prelevare nella tua siringa.'
+            q: "Come funziona il calcolatore di ricostituzione?",
+            a: "Inserisci la tua quantità di composto e il volume di acqua batteriostatica che hai aggiunto. DoseTrace calcola la concentrazione e ti mostra esattamente quanto prelevare nella tua siringa."
           },
           {
-            q: 'Quali misure di siringa sono supportate?',
+            q: "Quali misure di siringa sono supportate?",
             a: "Siringhe da insulina da 1 ml (100 unità), 0,5 ml (50 unità) e 0,3 ml (30 unità). Per i composti pronti all’uso ci sono anche siringhe da 2, 3 e 5 ml, lette in ml."
           },
           {
-            q: 'Quanto dura un flacone ricostituito?',
-            a: 'La maggior parte dei peptidi ricostituiti rimane stabile per circa 30 giorni se conservati in frigorifero con acqua batteriostatica.'
+            q: "Quanto dura un flacone ricostituito?",
+            a: "La maggior parte dei peptidi ricostituiti rimane stabile per circa 30 giorni se conservati in frigorifero con acqua batteriostatica."
           }
         ]
       },
       {
-        category: 'Flaconi e monitoraggio',
+        category: "Flaconi e monitoraggio",
         questions: [
           {
-            q: 'Come registro la ricostituzione di un flacone?',
+            q: "Come registro la ricostituzione di un flacone?",
             a: "Quando crei un nuovo protocollo liofilizzato, puoi registrare subito la data di ricostituzione. Quando un flacone finisce, inizia il successivo dalla pagina del protocollo (Nuovo flacone) o da Oggi (+ Aggiungi flacone)."
           },
           {
-            q: 'Che cosa succede quando un flacone scade?',
-            a: 'DoseTrace mostrerà un avviso quando il tuo flacone si avvicina alla scadenza di 30 giorni. I flaconi scaduti sono segnati in rosso.'
+            q: "Che cosa succede quando un flacone scade?",
+            a: "DoseTrace mostrerà un avviso quando il tuo flacone si avvicina alla scadenza di 30 giorni. I flaconi scaduti sono segnati in rosso."
           }
         ]
       },
       {
-        category: 'Analisi',
+        category: "Il mio corpo",
         questions: [
           {
-            q: 'Come funziona il caricamento delle analisi?',
+            q: "Come legge i miei referti il Diario delle analisi?",
             a: "Scatta una foto di un referto o carica un PDF o un’immagine, e l’IA legge i valori nel tuo diario delle analisi. Funziona con LabCorp, Quest e la maggior parte dei referti delle cliniche. Le scansioni sono condivise tra analisi, tessere vaccinali e flaconi: 3 al mese con il piano gratuito, di più con Premium."
           },
           {
-            q: 'I miei dati delle analisi sono privati?',
-            a: 'I tuoi dati sono salvati sul tuo dispositivo e sincronizzati con il nostro cloud sicuro, così hanno un backup sui tuoi dispositivi. Quando scansioni un referto, il file viene inviato una sola volta ad Anthropic per leggere i valori e non viene conservato per l’addestramento; vedi la nostra Informativa sulla privacy. Non vendiamo mai i tuoi dati né li usiamo per pubblicità.'
+            q: "I miei dati delle analisi sono privati?",
+            a: "I tuoi dati sono salvati sul tuo dispositivo e sincronizzati con il nostro cloud sicuro, così hanno un backup sui tuoi dispositivi. Quando scansioni un referto, il file viene inviato una sola volta ad Anthropic per leggere i valori e non viene conservato per l’addestramento; vedi la nostra Informativa sulla privacy. Non vendiamo mai i tuoi dati né li usiamo per pubblicità."
+          },
+          {
+            q: "Che cos'è il Diario dei vaccini?",
+            a: "Un registro dei tuoi vaccini e richiami: la data di somministrazione, la data della prossima dose, il numero di dose, il lotto, chi l'ha somministrato e le note. Inseriscili tu o scansiona una foto del tuo libretto vaccinale (conta nelle scansioni del mese). DoseTrace non ti dice mai quali vaccini fare né quando."
+          },
+          {
+            q: "Che cos'è l'Accumulo delle dosi?",
+            a: "Una stima di quanto di un composto può essere nel tuo corpo nel tempo, calcolata dal tuo schema pianificato e dalle emivite pubblicate. È un modello matematico, non una misura dei tuoi livelli reali nel sangue: confermalo con le analisi. L'Accumulo delle dosi fa parte di Premium."
           }
         ]
       },
       {
-        category: 'Premium',
+        category: "Percorso",
         questions: [
           {
-            q: 'Cosa include Premium?',
+            q: "Come funziona il Diario IA?",
+            a: "Raccontagli cosa hai mangiato con parole tue. L'IA legge ogni alimento e registra una stima di calorie, carboidrati e proteine, che puoi correggere quando vuoi; vale anche il cibo fino a 7 giorni prima. Il piano gratuito include 7 giorni di Diario IA; Premium lo include ogni giorno. Registra solo ciò che gli dici e non dà mai consigli alimentari."
+          },
+          {
+            q: "Che cosa sono I tuoi numeri reali?",
+            a: "Misurano quante calorie bruci davvero al giorno, dai tuoi numeri: una pesata all'inizio, un'altra circa tre settimane dopo e almeno 7 giorni di fila con tutto il cibo registrato (o la tua media di calorie inserita). Il risultato sostituisce la stima con la formula in Il tuo piano giornaliero. Sono calcoli dai tuoi dati, mai consigli."
+          }
+        ]
+      },
+      {
+        category: "Premium",
+        questions: [
+          {
+            q: "Cosa include Premium?",
             a: "Protocolli illimitati, il diario IA ogni giorno, la curva di accumulo della dose, i risultati dei tuoi numeri reali, l’esportazione PDF, il supporto prioritario e più scansioni di analisi, vaccini e flaconi: fino a 20 al mese in totale (sommando analisi, tessere vaccinali e flaconi). Le tue pesate e il loro grafico, backup cloud e sincronizzazione sono gratuiti per tutti."
           },
           {
-            q: 'Quanto costa Premium?',
-            a: 'I prezzi attuali di Premium mensile e annuale sono indicati nell\'app, nella schermata Premium. Entrambi i piani includono una prova gratuita di 7 giorni.'
+            q: "Quanto costa Premium?",
+            a: "I prezzi attuali di Premium mensile e annuale sono indicati nell'app, nella schermata Premium. Entrambi i piani includono una prova gratuita di 7 giorni."
           },
           {
-            q: 'Posso disdire in qualsiasi momento?',
-            a: 'Sì. Disdici almeno 24 ore prima della data di rinnovo in Impostazioni → Apple ID → Abbonamenti.'
+            q: "Posso disdire in qualsiasi momento?",
+            a: "Sì. Disdici almeno 24 ore prima della data di rinnovo in Impostazioni → Apple ID → Abbonamenti."
           }
         ]
       }

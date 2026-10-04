@@ -16,6 +16,8 @@ const tr = mod.exports.translations;
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 const answers = (l) => tr[l].faq_categories.flatMap((c) => c.questions.map((q) => q.a));
 const qa = (l, ci, qi) => tr[l].faq_categories[ci].questions[qi].a;
+// The Premium section is the last one (round 2 added a Journey section before it).
+const premiumA = (l) => tr[l].faq_categories[tr[l].faq_categories.length - 1].questions[0].a;
 const UNLIMITED = /unlimited|ilimitad|illimit|unbegrenzt/i;
 const SCAN = /scan|escane|leitura|lecture/i;
 
@@ -32,7 +34,7 @@ test('"unlimited" only ever describes protocols, never scans', () => {
 
 test('the scan number 20 appears only in "What does Premium include?"', () => {
   for (const l of LANGS) {
-    const premium = qa(l, 4, 0);
+    const premium = premiumA(l);
     assert.match(premium, /20/, l);
     for (const a of answers(l)) if (a !== premium) assert.doesNotMatch(a, /\b20\b/, `${l}: ${a}`);
   }
@@ -60,7 +62,7 @@ test('no answer points to a Vials tab', () => {
 });
 
 test('scans are said to be shared by labs, vaccine cards and vials wherever the FAQ counts them', () => {
-  for (const l of LANGS) for (const a of [qa(l, 0, 1), qa(l, 3, 0), qa(l, 4, 0)]) assert.match(a, SCAN, l);
+  for (const l of LANGS) for (const a of [qa(l, 0, 1), qa(l, 3, 0), premiumA(l)]) assert.match(a, SCAN, l);
 });
 
 test('a sentence that says "unlimited" calls the Premium scans "more", so "unlimited" can never be read onto them', () => {
