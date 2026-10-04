@@ -43,7 +43,7 @@ test('the online wording never mentions the internet, in six languages', () => {
 
 test('the screens use blockedCopy', () => {
   const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  assert.match(read('screens/SettingsScreen.js'), /blockedCopy\(r\)/);
-  assert.match(read('screens/AgeConfirmScreen.js'), /blockedCopy\(r\)\.sheet/);
-  assert.match(read('App.js'), /blockedCopy\(r\)\.link/);
+  assert.match(read('lib/settingsSignOut.js'), /onBlocked\(blockedCopy\(r\), anyway\)/); // Settings (behaviour: settingsSignOutUnsynced.test.js)
+  // The 18+ sheet and the reset link go through signOutOutcome (behaviour: signOutOutcome.test.js).
+  assert.match(read('lib/signOutCore.js'), /const c = blockedCopy\(r\);/);
 });

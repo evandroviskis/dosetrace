@@ -15,7 +15,7 @@ import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendin
 import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
-import { blockedCopy } from './lib/signOutCore';
+import { signOutOutcome } from './lib/signOutCore';
 import { onSignedOutNow, afterSignedOut } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
@@ -788,8 +788,8 @@ export default function App() {
                   .then((r) => {
                     // Not signed out (changes not backed up, or the phone could not sign out):
                     // never open the reset while the other account is still signed in (Gate B F1).
-                    if (r && r.failed) { setLinkFailed('offline'); return; }
-                    if (r && r.blocked) { setLinkFailed(blockedCopy(r).link); return; }
+                    const o = signOutOutcome(r);
+                    if (o.kind !== 'done') { setLinkFailed(o.link); return; }
                     setRecovery(p);
                   })
                   .catch(() => setLinkFailed('offline'));

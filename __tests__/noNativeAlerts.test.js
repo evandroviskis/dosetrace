@@ -78,7 +78,7 @@ test('a sheet closed without a button runs onDismiss (the alert\'s cancelable on
 test('Settings: sign out and both delete steps ask with Cancel first and the action in the risk colour', () => {
   const src = read('screens/SettingsScreen.js');
   const so = src.slice(src.indexOf('async function handleSignOut'), src.indexOf('function handleDeleteAccount'));
-  assert.match(so, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*\{ label: t\('settings_signout'\), kind: 'danger'/);
+  assert.match(so, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*(\/\/[^\n]*\n\s*)*\{ label: t\('settings_signout'\), kind: 'danger'/);
   const del = src.slice(src.indexOf('function handleDeleteAccount'), src.indexOf('async function executeAccountDeletion'));
   assert.match(del, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*\/\/[^\n]*\n[^\n]*\n\s*\{ label: t\('settings_delete_confirm'\), kind: 'danger'/);
   assert.match(del, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*\{ label: t\('settings_delete_final_confirm'\), kind: 'danger', onPress: \(\) => executeAccountDeletion\(\) \}/);

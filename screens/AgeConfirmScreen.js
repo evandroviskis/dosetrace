@@ -18,7 +18,8 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended, blockedCopy } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
+import { signOutOutcome } from '../lib/signOutCore';
 import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
 import { DTSheet, DTPickerSheet, DTWheel } from './components/ProtocolParts';
@@ -140,10 +141,11 @@ export default function AgeConfirmScreen({ session }) {
   }
   async function doSignOut() {
     setBusy('signout');
-    const r = await signOutIntended().catch(() => ({ failed: true }));
+    // lib/signOutCore signOutOutcome: "Couldn't sign out" (settings_signout_failed_body) or the
+    // words for why nothing was signed out; nothing when it worked.
+    const o = signOutOutcome(await signOutIntended().catch(() => ({ failed: true })));
     setBusy(null);
-    if (r && r.failed) { ok(t('settings_signout_failed_title'), t('settings_signout_failed_body')); return; }
-    if (r && r.blocked) ok(t('settings_signout'), t(blockedCopy(r).sheet));
+    if (o.kind !== 'done') ok(t(o.title), t(o.body));
   }
 
   const spin = (k) => (busy === k ? <ActivityIndicator color={k === 'confirm' ? colors.onAct : colors.ink} /> : null);

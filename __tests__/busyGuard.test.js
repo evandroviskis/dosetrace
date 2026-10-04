@@ -27,9 +27,8 @@ test('a failing run frees the guard and passes the error on', async () => {
   assert.equal(await g.run(async () => 7), 7);
 });
 
-test('Settings runs both sign-out buttons through the guard and shows a spinner while busy', () => {
+test('Settings shows a spinner on the Sign out row while the guard runs', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/SettingsScreen.js'), 'utf8');
-  assert.match(src, /signOutGuard\.run\(\(\) => signOutIntended\(\)\)/);
-  assert.match(src, /signOutGuard\.run\(\(\) => signOutIntended\(\{ force: true \}\)\)/);
+  assert.match(src, /createBusyGuard\(setSigningOut\)/);
   assert.match(src, /signingOut \? <ActivityIndicator/);
 });

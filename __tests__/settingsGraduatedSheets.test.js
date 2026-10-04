@@ -77,7 +77,7 @@ test('Gate B: sign-out and delete account keep their confirmations (two for dele
   const src = read('screens', 'SettingsScreen.js');
   const so = src.slice(src.indexOf('async function handleSignOut()'), src.indexOf('function handleDeleteAccount()'));
   assert.match(so, /t\('settings_signout_confirm_local'\)/);
-  assert.match(so, /signOutIntended\(\)/); // the one deliberate sign-out (lib/accountActions) marks it intended (A-46)
+  assert.match(so, /runSignOut\(\{\s*signOut: \(opts\) => signOutIntended\(opts\)/); // the one deliberate sign-out (lib/accountActions via lib/settingsSignOut) marks it intended (A-46)
   const del = src.slice(src.indexOf('function handleDeleteAccount()'), src.indexOf('async function executeAccountDeletion()'));
   assert.match(del, /t\('settings_delete_permanent_msg'\)/);
   assert.match(del, /t\('settings_delete_final_msg'\)/);

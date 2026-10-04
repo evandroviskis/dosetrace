@@ -93,11 +93,12 @@ test('signOutCore offline with the real client and "Sign out anyway": signed out
 test('every caller handles { failed: true }: Settings, the 18+ sheet and the reset link', () => {
   const fs = require('node:fs'); const path = require('node:path');
   const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  for (const f of ['screens/SettingsScreen.js', 'screens/AgeConfirmScreen.js']) {
-    assert.match(read(f), /r && r\.failed/, f);
-    assert.match(read(f), /settings_signout_failed_body/, f);
-  }
-  assert.match(read('App.js'), /if \(r && r\.failed\) \{ setLinkFailed\('offline'\); return; \}/);
+  // Settings: lib/settingsSignOut (behaviour-tested in settingsSignOutUnsynced.test.js) → showSignOutFailed.
+  assert.match(read('screens/SettingsScreen.js'), /onFailed: showSignOutFailed/);
+  assert.match(read('screens/SettingsScreen.js'), /settings_signout_failed_body/);
+  // The 18+ sheet and the reset link: signOutOutcome (behaviour in signOutOutcome.test.js).
+  assert.match(read('screens/AgeConfirmScreen.js'), /signOutOutcome\(/);
+  assert.match(read('App.js'), /signOutOutcome\(r\)/);
   const src = read('i18n/translations.js');
   const mod = { exports: {} };
   new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);

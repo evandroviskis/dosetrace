@@ -1,46 +1,84 @@
 'use strict';
-// A-46 extension (founder 2026-09-28, target 1.2.6 → 1.3.0) and Settings part 3 (approved
-// 2026-09-29): "signing out offline with unsynced changes warns first ('Some changes aren't
-// backed up yet … Connect to the internet first', 'Sign out anyway')". Settings' own Sign out
-// still pushed and then wiped the phone whatever was left. It now goes through the one deliberate
-// sign-out (lib/accountActions signOutIntended): pushed first; if anything is still not in the
-// cloud, nobody is signed out and the sheet asks — Connect to the internet first (stay) or Sign
-// out anyway (the user's explicit choice, in the risk colour, saying what it removes).
+// A-46 extension / Settings part 3 and Gate B 2026-10-03 (F1, F3, F4, F7): Settings' Sign out,
+// as behaviour (lib/settingsSignOut with fakes; no source pins). Pushed first; if anything is still
+// not in the cloud nobody is signed out and the sheet offers the two choices with the words for
+// the cause; "Sign out anyway" signs out on the user's explicit choice; a sign-out the phone could
+// not complete says so; a second tap while one runs does nothing.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { read, sliceBlock } = require('./helpers/extractFn');
+const { runSignOut } = require('../lib/settingsSignOut');
+const { createBusyGuard } = require('../lib/busyGuard');
 const src = fs.readFileSync(path.join(__dirname, '../i18n/translations.js'), 'utf8');
 const mod = { exports: {} };
 new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);
 const tr = mod.exports.translations;
 
-test('Settings signs out through signOutIntended and asks when changes are not backed up', () => {
-  const s = read('screens/SettingsScreen.js');
-  const fn = sliceBlock(s, 'async function handleSignOut() {');
-  assert.match(fn, /signOutGuard\.run\(\(\) => signOutIntended\(\)\)/);
-  assert.match(fn, /if \(r && r\.blocked\)/);
-  assert.match(fn, /\{ label: t\(blockedCopy\(r\)\.stay\), kind: 'secondary' \}/);
-  assert.match(fn, /\{ label: t\('settings_signout_anyway'\), kind: 'danger', onPress: \(\) => signOutIntended\(\{ force: true \}\)/);
-  assert.doesNotMatch(fn, /supabase\.auth\.signOut/, 'no second sign-out path that skips the check');
+function harness(results) {
+  const calls = []; const shown = [];
+  const signOut = async (opts) => { calls.push(opts || {}); return results.shift(); };
+  return { calls, shown, deps: { signOut, guard: createBusyGuard(), onFailed: () => shown.push('failed'), onBlocked: (copy, anyway) => shown.push({ copy, anyway }) } };
+}
+
+test('everything backed up: one sign-out, nothing shown', async () => {
+  const h = harness([{ blocked: false }]);
+  assert.equal(await runSignOut(h.deps), 'done');
+  assert.deepEqual(h.calls, [{}]);
+  assert.deepEqual(h.shown, []);
 });
 
-test('signOutIntended({ force: true }) skips the backed-up check (the user chose it); the default still blocks', async () => {
-  const { signOutCore } = require('../lib/signOutCore');
-  const intent = { mark() {}, consume() { return false; } };
-  const auth = { signOut: async () => ({ error: null }), getSession: async () => ({ data: { session: null } }) };
-  const deps = { auth, forceSync: async () => {}, pendingCount: () => 4, isOnline: () => false, removePushToken: async () => {}, signOutGoogle: async () => {}, intent };
-  assert.equal((await signOutCore(deps)).blocked, true);
-  assert.deepEqual(await signOutCore({ ...deps, force: true }), { blocked: false });
+test('offline with changes not backed up: the connect-first sheet; Sign out anyway forces it', async () => {
+  const h = harness([{ blocked: true, offline: true }, { blocked: false }]);
+  assert.equal(await runSignOut(h.deps), 'blocked');
+  const { copy, anyway } = h.shown[0];
+  assert.equal(copy.settingsBody, 'settings_signout_unsynced_body');
+  assert.equal(copy.stay, 'settings_signout_connect_first');
+  assert.deepEqual(await anyway(), { blocked: false });
+  assert.deepEqual(h.calls, [{}, { force: true }]);
 });
 
-test('the three strings exist in six languages and say what Sign out anyway removes', () => {
+test('online but a change could not be backed up: no internet wording', async () => {
+  const h = harness([{ blocked: true, offline: false }]);
+  await runSignOut(h.deps);
+  assert.equal(h.shown[0].copy.settingsBody, 'settings_signout_notbacked_body');
+  assert.equal(h.shown[0].copy.stay, 'settings_signout_stay');
+});
+
+test('the phone could not sign out (first try or Sign out anyway): "Couldn\'t sign out"', async () => {
+  const h = harness([{ failed: true }]);
+  assert.equal(await runSignOut(h.deps), 'failed');
+  assert.deepEqual(h.shown, ['failed']);
+  const h2 = harness([{ blocked: true, offline: true }, { failed: true }]);
+  await runSignOut(h2.deps);
+  await h2.shown[0].anyway();
+  assert.deepEqual(h2.shown.slice(1), ['failed']);
+  const h3 = harness([]);
+  h3.deps.signOut = async () => { throw new Error('boom'); };
+  assert.equal(await runSignOut(h3.deps), 'failed', 'an exception is never success');
+});
+
+test('a second tap while signing out does nothing', async () => {
+  let release;
+  const h = harness([]);
+  h.deps.signOut = () => new Promise((r) => { release = () => r({ blocked: false }); });
+  const first = runSignOut(h.deps);
+  assert.equal(await runSignOut(h.deps), 'busy');
+  release();
+  assert.equal(await first, 'done');
+});
+
+test('Settings uses the flow', () => {
+  const s = fs.readFileSync(path.join(__dirname, '../screens/SettingsScreen.js'), 'utf8');
+  assert.match(s, /runSignOut\(\{/);
+});
+
+test('the strings exist in six languages and Sign out anyway says what it removes', () => {
   const removes = { en: /removes them/, es: /se borrarán/, pt: /serão apagadas/, fr: /seront supprimées/, de: /gelöscht/, it: /verranno eliminate/ };
   for (const l of Object.keys(removes)) {
     assert.match(tr[l].settings_signout_unsynced_body, removes[l], l);
-    assert.ok(tr[l].settings_signout_connect_first && tr[l].settings_signout_anyway, l);
+    assert.match(tr[l].settings_signout_notbacked_body, removes[l], l);
+    for (const k of ['settings_signout_connect_first', 'settings_signout_anyway', 'settings_signout_stay']) assert.ok(tr[l][k], `${l} ${k}`);
   }
   assert.equal(tr.en.settings_signout_anyway, 'Sign out anyway');
-  assert.equal(tr.en.settings_signout_connect_first, 'Connect to the internet first');
 });

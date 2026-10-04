@@ -46,9 +46,10 @@ import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { createBusyGuard } from '../lib/busyGuard';
+import { runSignOut } from '../lib/settingsSignOut';
 import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, blockedCopy } from '../lib/accountActions';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
@@ -463,25 +464,22 @@ export default function SettingsScreen({ navigation }) {
       body: t('settings_signout_confirm_local'),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
-        { label: t('settings_signout'), kind: 'danger', onPress: async () => {
-          // The one deliberate sign-out (lib/accountActions): push first; if anything is STILL
-          // not in the cloud nobody is signed out (never lose data) and the user decides
-          // (A-46, Settings part 3): connect first, or sign out anyway.
-          const r = await signOutGuard.run(() => signOutIntended()).catch(() => ({ failed: true }));
-          if (r === undefined) return; // already signing out
-          if (r && r.failed) { showSignOutFailed(); return; }
-          if (r && r.blocked) {
-            setSheet({
-              icon: 'warning',
-              title: t('settings_signout'),
-              body: t(blockedCopy(r).settingsBody),
-              buttons: [
-                { label: t(blockedCopy(r).stay), kind: 'secondary' },
-                { label: t('settings_signout_anyway'), kind: 'danger', onPress: () => signOutGuard.run(() => signOutIntended({ force: true })).catch(() => ({ failed: true })).then((f) => { if (f && f.failed) showSignOutFailed(); }) },
-              ],
-            });
-          }
-        } },
+        // The one deliberate sign-out (lib/settingsSignOut → accountActions): push first; if anything
+        // is STILL not in the cloud nobody is signed out (never lose data) and the user decides.
+        { label: t('settings_signout'), kind: 'danger', onPress: () => runSignOut({
+          signOut: (opts) => signOutIntended(opts),
+          guard: signOutGuard,
+          onFailed: showSignOutFailed,
+          onBlocked: (copy, anyway) => setSheet({
+            icon: 'warning',
+            title: t('settings_signout'),
+            body: t(copy.settingsBody),
+            buttons: [
+              { label: t(copy.stay), kind: 'secondary' },
+              { label: t('settings_signout_anyway'), kind: 'danger', onPress: anyway },
+            ],
+          }),
+        }) },
       ],
     });
   }

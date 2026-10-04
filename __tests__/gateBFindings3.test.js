@@ -31,7 +31,7 @@ test('GB3-2: after a deletion, closing the Apple note any way still runs the loc
 test('GB3-3: Sign out on the 18+ sheet asks first and never wipes changes that are not backed up', () => {
   const scr = read('screens', 'AgeConfirmScreen.js');
   assert.match(scr, /settings_signout_confirm_local/);
-  assert.match(scr, /if \(r && r\.blocked\)/);
+  assert.match(scr, /const o = signOutOutcome\(/); // blocked → nothing signed out (signOutOutcome.test.js)
   // Order (check, then push token, then the intent flag, then sign-out): behaviour-tested in
   // __tests__/signOutOffline.test.js (Gate B 2026-10-03 F7).
   assert.match(read('lib', 'accountActions.js'), /signOutCore\(/);
