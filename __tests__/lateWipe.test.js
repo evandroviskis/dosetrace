@@ -25,19 +25,23 @@ function deps(order, runner) {
   };
 }
 
-test('a stuck pass outlives the next sign-in: the old wipe is skipped', async () => {
+test('a stuck pass outlives the next sign-in: the old account was wiped at SIGNED_OUT, the late second pass is skipped', async () => {
   const order = [];
   let release;
   const runner = createSyncRunner(() => new Promise((r) => { release = r; }));
   runner.run();
   const wipe = S.afterSignedOut(true, deps(order, runner));
   await sleep(10);
+  const wipedBefore = order.filter((o) => o.startsWith('wipe:')).length;
+  assert.ok(wipedBefore > 0, 'wiped at SIGNED_OUT, before anyone else signs in (N2)');
+  order.push('B:signed-in');
   S.bumpSignInGeneration(); // B signs in (App SIGNED_IN, inline)
   const imp = runner.runExclusive(async () => { order.push('B:import'); });
   release();
   assert.equal(await wipe, 'skipped');
   await imp;
-  assert.ok(!order.some((o) => o.startsWith('wipe:')), order.join(','));
+  const after = order.slice(order.indexOf('B:signed-in'));
+  assert.ok(!after.some((o) => o.startsWith('wipe:')), order.join(','));
   assert.ok(order.includes('B:import'));
 });
 

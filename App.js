@@ -16,7 +16,10 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { signOutOutcome } from './lib/signOutCore';
-import { onSignedOutNow, afterSignedOut, bumpSignInGeneration, signInGeneration } from './lib/signedOut';
+import { onSignedOutNow, afterSignedOut, completePendingWipe, bumpSignInGeneration, signInGeneration } from './lib/signedOut';
+
+// Gate B round 3 N2: an intended sign-out wipe not yet finished (completed on the next cold start).
+const WIPE_PENDING_KEY = 'dosetrace_wipe_pending';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
@@ -374,6 +377,28 @@ export default function App() {
   // Notification taps (A-44: each lands on its reason; the food question opens the one food
   // chat, FL-18/37) wait here until the signed-in app (the 'Main' route) exists — a tap that
   // LAUNCHED the app arrives before navigation does.
+  // Everything the intended sign-out wipe touches (lib/signedOut), shared by the SIGNED_OUT path
+  // and a cold start that finds a wipe left pending (Gate B round 3 N2).
+  const wipeDeps = () => ({
+    stopSyncEngine,
+    waitForSyncIdle,
+    runExclusive: runSyncExclusive,
+    getSignInGeneration: signInGeneration,
+    setWipePending: (v) => (v ? AsyncStorage.setItem(WIPE_PENDING_KEY, '1') : AsyncStorage.removeItem(WIPE_PENDING_KEY)),
+    isWipePending: async () => (await AsyncStorage.getItem(WIPE_PENDING_KEY)) === '1',
+    clearLocalDatabase,
+    cancelAllNotifications,
+    dismissAllNotifications,
+    logOutPurchases,
+    clearOnboarding,
+    removeRcStart: () => AsyncStorage.removeItem(RC_START_KEY),
+    clearRealityDeviceFlags, // S-03 per-device flags
+    clearSeenOnboarding,
+    removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
+    resetAllSelections, // S-26: the next account starts with no open right-page items
+    clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
+  });
+
   const pendingNavRef = useRef(null);
   const flushPendingNav = useCallback(() => {
     const nav = navigationRef.current;
@@ -573,6 +598,9 @@ export default function App() {
       .catch(() => setSeenOnboarding(true));
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      // A wipe left pending by an intended sign-out (the app closed before it finished): complete it
+      // when nobody is signed in (Gate B round 3 N2).
+      try { await completePendingWipe(wipeDeps(), { hasSession: !!session }); } catch { /* next start */ }
       setSession(session);
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
@@ -631,23 +659,7 @@ export default function App() {
         });
         // Deferred: stop sync; intentional → wait for a running sync, then the full wipe (the
         // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user).
-        setTimeout(() => { afterSignedOut(intentional, {
-          stopSyncEngine,
-          waitForSyncIdle,
-          runExclusive: runSyncExclusive,
-          getSignInGeneration: signInGeneration,
-          clearLocalDatabase,
-          cancelAllNotifications,
-          dismissAllNotifications,
-          logOutPurchases,
-          clearOnboarding,
-          removeRcStart: () => AsyncStorage.removeItem(RC_START_KEY),
-          clearRealityDeviceFlags, // S-03 per-device flags
-          clearSeenOnboarding,
-          removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
-          resetAllSelections, // S-26: the next account starts with no open right-page items
-          clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
-        }).catch(() => {}); }, 0);
+        setTimeout(() => { afterSignedOut(intentional, wipeDeps()).catch(() => {}); }, 0);
       }
 
       if (_event === 'SIGNED_IN' && session?.user?.id) {

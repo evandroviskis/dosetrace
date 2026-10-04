@@ -73,16 +73,16 @@ function wipeDeps({ busy = false } = {}) {
   };
 }
 
-test('intentional: scheduled AND delivered notifications are removed, after the running sync ends', async () => {
+test('intentional: scheduled AND delivered notifications are removed at once; the database again after a running sync ends', async () => {
+  // Gate B round 3 N2: the wipe no longer waits (a stuck sync could delay it forever); the
+  // database is cleared once more after the running pass, in case it wrote rows meanwhile.
   const w = wipeDeps({ busy: true });
   const p = afterSignedOut(true, w.d);
   await new Promise((r) => setTimeout(r, 5));
-  assert.deepEqual(w.calls, ['stop'], 'nothing deleted while a sync writes');
+  assert.ok(w.calls.includes('db') && w.calls.includes('cancel') && w.calls.includes('dismiss'), 'wiped at once');
   w.release();
   assert.equal(await p, true);
-  assert.ok(w.calls.includes('cancel'));
-  assert.ok(w.calls.includes('dismiss'));
-  assert.ok(w.calls.indexOf('db') > w.calls.indexOf('idle'));
+  assert.ok(w.calls.lastIndexOf('db') > w.calls.indexOf('idle'), 'second pass after the sync');
 });
 
 test('spurious: nothing is wiped and the delivered notifications stay', async () => {
@@ -102,7 +102,7 @@ test('a failing step never stops the rest of the wipe', async () => {
 test('App runs both parts and lib/notifications dismisses delivered notifications', () => {
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
   assert.match(app, /const intentional = onSignedOutNow\(\{/);
-  assert.match(app, /setTimeout\(\(\) => \{ afterSignedOut\(intentional, \{/);
+  assert.match(app, /setTimeout\(\(\) => \{ afterSignedOut\(intentional, wipeDeps\(\)\)/);
   assert.match(app, /dismissAllNotifications,/);
   const n = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
   assert.match(n, /export async function dismissAllNotifications\(\) \{[\s\S]{0,200}dismissAllNotificationsAsync\(\)/);
