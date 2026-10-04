@@ -210,7 +210,7 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
     `${innerFn('restoreProtocol')}\n${innerFn('confirmPermanentDelete')}\n${innerFn('confirmPurge')}\nreturn { restoreProtocol, confirmPermanentDelete };`,
   );
   const f = make(
-    rec('restoreDB'), (id) => (id === 7 ? { id: 70 } : null), rec('updateVial'), (id) => ({ id, name: 'BPC-157' }),
+    (...a) => { calls.push(['restoreDB', ...a]); return 'active'; }, (id) => (id === 7 ? { id: 70 } : null), rec('updateVial'), (id) => ({ id, name: 'BPC-157' }),
     (p) => { calls.push(['schedule', p.id]); return Promise.resolve(); },
     rec('fetchProtocols'), rec('notify'), rec('requestSync'), rec('permanentDelete'), (cfg) => { sheet = cfg; },
     (k) => ({ protocols_purge_title_single: 'Delete this protocol forever?', protocols_purge_body_single: 'Its dose history, vials and reminders are removed from all your devices.', settings_delete_forever: 'Delete forever', cancel: 'Cancel' }[k] || k),

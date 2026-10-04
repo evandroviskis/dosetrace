@@ -85,14 +85,25 @@ test('A-89: one that was ended before the delete still goes back to Ended with i
   assert.equal(prot(db, id).ended_at, '2026-09-10T00:00:00Z');
 });
 
-test('A-85 on Today: "Protocol finished" calls the end, the inactivity prompt the last-dose end', () => {
+// Gate B review of 3ff3cd6, finding 1: a second Restore (double tap during the free-limit check,
+// the multi-select bar pressed twice, a pull that restored it meanwhile) changes nothing.
+test('A-89: Restore twice — the second does nothing, the protocol stays as the first left it', () => {
+  const db = makeDb();
+  const id = seed(db, { active: 0, deletedAt: '2026-10-04T12:00:00Z' });
+  assert.equal(E.restoreDeleted(db, id, '2026-10-04T13:00:00Z', { allowActive: true }), 'active');
+  assert.equal(E.restoreDeleted(db, id, '2026-10-04T13:00:01Z', { allowActive: true }), null);
+  const p = prot(db, id);
+  assert.equal(p.active, 1);
+  assert.equal(p.ended_at, null);
+});
+
+// Finding 2: the empty-vial prompt has only "Protocol finished" and "Add vial" — and "I'll mix the
+// next one tomorrow" is the common case. Until a picture with a way out is approved, its button
+// only closes the prompt (never ends the protocol and its reminders).
+test('the vial prompt\'s "Protocol finished" only closes it (no end until the approved picture)', () => {
   const s = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/TodayScreen.js'), 'utf8');
   const btn = s.slice(s.indexOf("{t('today_vial_finished')}") - 260, s.indexOf("{t('today_vial_finished')}"));
-  assert.match(btn, /onPress=\{finishFromVialPrompt\}/);
-  const fn = s.slice(s.indexOf('function finishFromVialPrompt() {'), s.indexOf('function finishFromVialPrompt() {') + 600);
-  assert.match(fn, /endProtocol\(p\.id\)/);
-  assert.match(fn, /deactivateVialsByProtocol\(p\.id\)/);
-  assert.match(fn, /cancelDoseReminder\(p\.id\)/);
+  assert.match(btn, /onPress=\{closeVialPrompt\}/);
   const inactive = s.slice(s.indexOf('async function endInactiveProtocol() {'), s.indexOf('async function endInactiveProtocol() {') + 700);
   assert.match(inactive, /endProtocolAtLastDose\(p\.id\)/);
 });

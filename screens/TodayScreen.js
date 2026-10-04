@@ -1207,20 +1207,6 @@ export default function TodayScreen() {
     setTimeout(openNextQuestion, 450); // a site question waiting behind the prompt
   }
 
-  // A-85: "Protocol finished" on the vial-empty prompt ENDS the protocol at this moment (the button's
-  // own words; A-83 "end = the moment tapped"): Ended, history kept, reminders cancelled.
-  function finishFromVialPrompt() {
-    const p = continuationProtocol;
-    if (p) {
-      endProtocol(p.id);
-      deactivateVialsByProtocol(p.id);
-      cancelDoseReminder(p.id).catch(() => {});
-      AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
-    }
-    closeVialPrompt();
-    if (p) { fetchProtocols(); notifyDataChanged('protocol'); requestSync(); }
-  }
-
   // delayMs: after a site picker, wait for it to fade out (iOS shows one modal at a time).
   function showVialPromptFor(protocol, delayMs) {
     vialPromptOpenRef.current = true;
@@ -2308,7 +2294,7 @@ export default function TodayScreen() {
             <View style={s.promptActions}>
               <TouchableOpacity
                 style={s.promptBtnSecondary}
-                onPress={finishFromVialPrompt}
+                onPress={closeVialPrompt}
               >
                 <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
               </TouchableOpacity>

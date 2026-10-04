@@ -58,6 +58,8 @@ test('the Ended row has the Recently deleted trash, opening the same Delete prot
   assert.match(fn, /title: t\('protocols_delete_title'\)/);
   assert.match(fn, /softDeleteProtocol\(p\.id\)/);
   const restore = s.slice(s.indexOf('function restoreProtocol(id) {'), s.indexOf('function restoreProtocol(id) {') + 700);
-  assert.match(restore, /if \(restoreProtocolDB\(id, \{ allowActive \}\) === 'ended'\)/, 'an ended one gets no vial or reminder back');
+  assert.match(restore, /const outcome = restoreProtocolDB\(id, \{ allowActive \}\);/);
+  assert.match(restore, /if \(outcome == null\) \{ fetchProtocols\(\); return; \}/, 'a second tap changes nothing');
+  assert.match(restore, /if \(outcome === 'ended'\)/, 'an ended one gets no vial or reminder back');
 });
 

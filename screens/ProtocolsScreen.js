@@ -1259,7 +1259,9 @@ export default function ProtocolsScreen() {
     // A-89: one deleted before today, or restored at the free limit, also goes to Ended (Restart
     // makes it active and asks for Premium) — never more active protocols than the plan allows.
     const allowActive = !(await isOverFreeLimit());
-    if (restoreProtocolDB(id, { allowActive }) === 'ended') {
+    const outcome = restoreProtocolDB(id, { allowActive });
+    if (outcome == null) { fetchProtocols(); return; } // already restored (a second tap): nothing to do
+    if (outcome === 'ended') {
       fetchProtocols();
       requestSync();
       return;
