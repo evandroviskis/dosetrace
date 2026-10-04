@@ -50,10 +50,10 @@ test('GB-3 (major): an email link that was already handled, or arrives while sig
 });
 
 test('GB-4 (minor): the typed email and the stash never outlive a real sign-out', () => {
-  const app = read('App.js');
-  const cb = app.slice(app.indexOf('supabase.auth.onAuthStateChange('), app.indexOf('// Sign in with Apple: if the user revokes'));
-  const intended = cb.slice(cb.indexOf('const intentional = consumeIntentionalSignOut();'), cb.indexOf('setTimeout('));
-  assert.match(intended, /if \(intentional\) \{ discardStashNow\(\); clearAuthDraft\(\); setSeenOnboarding\(false\); \}/, 'synchronously, before the welcome screen mounts');
+  // Since Gate B 2026-10-03 F5 the inline part lives in lib/signedOut (behaviour: signedOutHandler.test.js).
+  const intended = read('lib', 'signedOut.js');
+  assert.match(read('App.js'), /const intentional = onSignedOutNow\(\{/);
+  assert.match(intended, /if \(intentional\) \{ d\.discardStashNow\(\); d\.clearAuthDraft\(\); d\.setSeenOnboarding\(false\); \}/, 'synchronously, before the welcome screen mounts');
   assert.match(read('lib', 'onboardingStore.js'), /export function discardStashNow\(\)/);
   assert.match(read('screens', 'AuthScreen.js'), /from '\.\.\/lib\/authDraft'/);
 });

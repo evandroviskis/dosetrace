@@ -54,7 +54,8 @@ test('lib/sync uses the runner and the SIGNED_OUT wipe waits for it', () => {
   assert.match(sync, /createSyncRunner\(/);
   assert.match(sync, /export function waitForSyncIdle\(\)/);
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
-  assert.match(app, /await waitForSyncIdle\(\)/);
+  assert.match(app, /\n\s+waitForSyncIdle,\n/); // handed to lib/signedOut
+  assert.match(fs.readFileSync(path.join(__dirname, '../lib/signedOut.js'), 'utf8'), /await d\.waitForSyncIdle\(\)/); // behaviour: signedOutHandler.test.js
 });
 
 test('an exclusive job (the full import) never overlaps a pass, and waitIdle waits for it', async () => {

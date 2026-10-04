@@ -105,6 +105,7 @@ test('GB2-12: any sign-out ends the answers\' freshness (another account signing
   const app = read('App.js');
   const cb = app.slice(app.indexOf('supabase.auth.onAuthStateChange('), app.indexOf('// Sign in with Apple: if the user revokes'));
   const signedOut = cb.slice(cb.indexOf("if (_event === 'SIGNED_OUT') {"), cb.indexOf('setTimeout('));
-  assert.match(signedOut, /endStashFreshness\(\);/);
+  assert.match(signedOut, /onSignedOutNow\(\{[\s\S]{0,120}endStashFreshness/); // lib/signedOut runs it first (signedOutHandler.test.js)
+  assert.match(read('lib', 'signedOut.js'), /d\.endStashFreshness\(\);/);
   assert.match(read('lib', 'onboardingStore.js'), /export function endStashFreshness\(\) \{ fresh = false; \}/);
 });

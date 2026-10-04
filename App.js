@@ -16,12 +16,13 @@ import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { blockedCopy } from './lib/signOutCore';
+import { onSignedOutNow, afterSignedOut } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
 import { notifTapTarget, responseKey } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
@@ -623,41 +624,28 @@ export default function App() {
       setSession(session); // drives the navigator (null → Onboarding) immediately
 
       if (_event === 'SIGNED_OUT') {
-        // Any sign-out ends the onboarding answers' freshness: a different account signing in
-        // later in this run never receives them (pure, synchronous — safe here).
-        endStashFreshness();
-        // WIPE only on an INTENTIONAL sign-out (user tapped Sign Out / Delete). A
-        // SPURIOUS SIGNED_OUT (token-refresh failure / expired session) must NOT
-        // wipe — that destructive wipe on a mere session hiccup is what erased an
-        // in-progress reality-check. All user data is cloud-backed now, so keeping
-        // it is safe: the same user re-auths and their data is intact (no re-import
-        // churn). Cross-account safety on a shared device is handled by the sign-in
-        // user-switch guard below. consumeIntentionalSignOut() is a pure, synchronous
-        // read — safe inside the auth callback (never touches supabase).
-        const intentional = consumeIntentionalSignOut();
-        // Intentional → route to the splash (and wipe). Spurious → leave
-        // seenOnboarding as-is so the returning user lands on Auth to re-sign-in.
-        if (intentional) { discardStashNow(); clearAuthDraft(); setSeenOnboarding(false); }
-        setTimeout(async () => {
-          // Stop sync FIRST so no final sync runs.
-          stopSyncEngine();
-          if (!intentional) return; // spurious: keep local data (cloud-backed, same user)
-          // Never delete rows while a push is still writing them (Gate B F2).
-          try { await waitForSyncIdle(); } catch { /* idle either way */ }
-          // Intentional sign-out: full wipe. This is also the anti-cross-account-leak
-          // guard — clear local health data + device-global AsyncStorage (intro-flow
-          // stash, reality-check weigh-in) so nothing bleeds to the next account.
-          try { clearLocalDatabase(); } catch { /* ignore */ }
-          cancelAllNotifications().catch(() => {});
-          logOutPurchases().catch(() => {});
-          clearOnboarding().catch(() => {});
-          AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
-          clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
-          clearSeenOnboarding().catch(() => {});
-          AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
-          resetAllSelections(); // S-26: the next account starts with no open right-page items
-          clearAllDrafts(); // S-26 BK-14: typed-but-unsaved drafts stay with their account
-        }, 0);
+        // lib/signedOut: the inline part is ref writes / pure reads only (safe in this callback);
+        // it clears a queued notification tap and, only on an INTENTIONAL sign-out, the answers.
+        const intentional = onSignedOutNow({
+          pendingNavRef, endStashFreshness, consumeIntentionalSignOut, discardStashNow, clearAuthDraft, setSeenOnboarding,
+        });
+        // Deferred: stop sync; intentional → wait for a running sync, then the full wipe (the
+        // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user).
+        setTimeout(() => { afterSignedOut(intentional, {
+          stopSyncEngine,
+          waitForSyncIdle,
+          clearLocalDatabase,
+          cancelAllNotifications,
+          dismissAllNotifications,
+          logOutPurchases,
+          clearOnboarding,
+          removeRcStart: () => AsyncStorage.removeItem(RC_START_KEY),
+          clearRealityDeviceFlags, // S-03 per-device flags
+          clearSeenOnboarding,
+          removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
+          resetAllSelections, // S-26: the next account starts with no open right-page items
+          clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
+        }).catch(() => {}); }, 0);
       }
 
       if (_event === 'SIGNED_IN' && session?.user?.id) {

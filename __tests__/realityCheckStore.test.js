@@ -222,7 +222,8 @@ test('sign-out: the per-device S-03 flags are selected for removal (all users on
 test('sign-out: every App.js wipe path that clears RC_START_KEY also clears the S-03 device flags', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'App.js'), 'utf8');
   const wipes = src.split('AsyncStorage.removeItem(RC_START_KEY)').length - 1;
-  const flagClears = src.split('clearRealityDeviceFlags()').length - 1;
+  // A path may hand the step to lib/signedOut ('clearRealityDeviceFlags,') instead of calling it.
+  const flagClears = (src.match(/clearRealityDeviceFlags(\(\)|,)/g) || []).length;
   assert.ok(wipes >= 3, 'three wipe paths expected');
   assert.equal(flagClears, wipes, 'one flag clear per wipe path');
 });

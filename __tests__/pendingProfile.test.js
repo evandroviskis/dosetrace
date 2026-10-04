@@ -56,8 +56,8 @@ test('PA-73: the answers leave the device once written into an account and on an
   assert.match(read('screens', 'AuthScreen.js'), /if \(fresh\) \{ usedFreshRef\.current = true; clearOnboarding\(\)\.catch/, 'email sign-up: cleared right after the account has them');
   assert.match(read('screens', 'OnboardingFlowScreen.js'), /clearOnboarding\(\)\.catch\(\(\) => \{\}\); \/\/ written into the account/, 'Finish setup: cleared after the save');
   const app = read('App.js');
-  const wipe = app.slice(app.indexOf("if (!intentional) return; // spurious"), app.indexOf("if (_event === 'SIGNED_IN'"));
-  assert.match(wipe, /clearOnboarding\(\)/, 'a real sign-out clears them');
+  const wipe = app.slice(app.indexOf("afterSignedOut(intentional, {"), app.indexOf("if (_event === 'SIGNED_IN'"));
+  assert.match(wipe, /\n\s+clearOnboarding,\n/, 'a real sign-out clears them (lib/signedOut runs every step)');
   assert.equal(P.hasAnswers({ consent_accepted: true }), false);
   assert.equal(P.hasAnswers({ country: 'Peru' }), true);
 });

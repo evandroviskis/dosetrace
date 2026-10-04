@@ -215,8 +215,10 @@ test('PA-68: Gate B invariants kept — onAuthStateChange stays synchronous; the
   assert.match(cb, /onAuthStateChange\(\(_event, session\) => \{/, 'not async');
   const body = cb.slice(cb.indexOf('=> {') + 4).split('setTimeout(')[0];
   assert.doesNotMatch(body.replace(/\/\/[^\n]*/g, ''), /await|supabase\./, 'nothing awaited or called on supabase before deferring');
-  assert.match(cb, /const intentional = consumeIntentionalSignOut\(\);/);
-  assert.match(cb, /if \(!intentional\) return; \/\/ spurious: keep local data/);
+  // The SIGNED_OUT steps live in lib/signedOut (Gate B 2026-10-03 F5, behaviour-tested there).
+  assert.match(cb, /const intentional = onSignedOutNow\(\{/);
+  assert.match(read('lib', 'signedOut.js'), /const intentional = d\.consumeIntentionalSignOut\(\);/);
+  assert.match(read('lib', 'signedOut.js'), /if \(!intentional\) return false;/);
 });
 
 test('PA-69: no raw colours in the redesigned screens except the Google brand button', () => {
