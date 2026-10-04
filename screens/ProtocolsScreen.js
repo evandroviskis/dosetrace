@@ -76,7 +76,7 @@ import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 import { pluralKey } from '../lib/plural';
 import {
-  isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol,
+  isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
 } from '../lib/protocolForm';
 
