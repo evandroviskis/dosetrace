@@ -37,7 +37,8 @@ import { hasPremium } from '../lib/entitlement';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
-import { syncAllNotifications, openBatteryOptimizationSettings } from '../lib/notifications';
+import { syncAllNotifications, readReminderHealth } from '../lib/notifications';
+import { reminderChecks, scheduleState, blockingCount } from '../lib/reminderHealth';
 import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
@@ -224,9 +225,12 @@ export default function SettingsScreen({ navigation }) {
     if (foldTarget.current === key) scrollToSection(key);
   }
 
+  // RC-1: how many readable phone settings block reminders (lib/reminderHealth).
+  const [reminderBlocks, setReminderBlocks] = useState(0);
   useFocusEffect(
     useCallback(() => {
       fetchUser();
+      readReminderHealth().then((h) => setReminderBlocks(blockingCount(reminderChecks(h), scheduleState(h)))).catch(() => {});
     }, [])
   );
 
@@ -744,26 +748,22 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
           />
         </View>
-        {/* Android only: battery optimization silently drops scheduled reminders
-            while the app is closed. Guide the user to set the app to Unrestricted. */}
-        {Platform.OS === 'android' && (
-          <TouchableOpacity
-            style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-            onPress={async () => {
-              const ok = await openBatteryOptimizationSettings();
-              if (!ok) notice(t('settings_reliable_reminders'), t('settings_reliable_reminders_sub'));
-            }}
-          >
-            <View style={s.rowLeft}>
-              <FeatureIcon name="help" size={28} color={colors.ink} />
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.rowLabel}>{t('settings_reliable_reminders')}</Text>
-                <Text style={s.rowSub}>{t('settings_reliable_reminders_sub')}</Text>
-              </View>
+        {/* RC-1 (founder 2026-10-05 "1 B"): the Reminder check, on both platforms. Replaces the
+            Android-only "Reminders not arriving?" row. */}
+        <TouchableOpacity
+          style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+          onPress={() => navigation.navigate('ReminderCheck')}
+          accessibilityRole="button"
+        >
+          <View style={s.rowLeft}>
+            <FeatureIcon name={reminderBlocks > 0 ? 'warning' : 'check'} size={28} color={reminderBlocks > 0 ? colors.risk : colors.ink} />
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_rc_title')}</Text>
+              <Text style={[s.rowSub, reminderBlocks > 0 && { color: colors.risk }]}>{t(reminderBlocks > 0 ? 'settings_rc_sub_block' : 'settings_rc_sub_ok')}</Text>
             </View>
-            <RowChevron color={colors.tick} />
-          </TouchableOpacity>
-        )}
+          </View>
+          <RowChevron color={colors.tick} />
+        </TouchableOpacity>
       </>
     );
   }

@@ -18,7 +18,8 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth } from '../lib/notifications';
+import { reminderChecks, scheduleState, shouldWarnToday } from '../lib/reminderHealth';
 import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
@@ -169,6 +170,13 @@ export default function TodayScreen() {
     navigation.setParams({ focusDose: undefined });
   }, [route.params?.focusDose]); // eslint-disable-line react-hooks/exhaustive-deps
   useFocusEffect(useCallback(() => () => setNotifFocus(null), []));
+  // RC-6: Today warns when something the app can read blocks dose reminders (lib/reminderHealth).
+  const [remindersBlocked, setRemindersBlocked] = useState(false);
+  useFocusEffect(useCallback(() => {
+    readReminderHealth()
+      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); })
+      .catch(() => {});
+  }, []));
   // Next 5 days: the day + time column is as wide as its widest date in this language.
   const [upColW, onUpColLayout] = useColumnWidth(88, language);
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -1554,8 +1562,18 @@ export default function TodayScreen() {
         });
       }
     }
+    // 5) Reminders blocked (RC-6, founder 2026-10-05 "1 B"): a readable phone setting stops them.
+    if (remindersBlocked && !(alertSnooze.reminders_blocked && nowMs < alertSnooze.reminders_blocked)) {
+      list.push({
+        id: 'reminders_blocked', iconName: 'warning', due: true,
+        title: t('today_alert_reminders_title'),
+        body: t('today_alert_reminders_body'),
+        onPress: () => navigation.navigate('ReminderCheck'),
+        snoozeId: 'reminders_blocked',
+      });
+    }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending]);
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

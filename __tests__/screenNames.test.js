@@ -29,7 +29,7 @@ test('Settings has one name in Portuguese, Spanish and French', () => {
   for (const [k, v] of all('pt')) assert.doesNotMatch(v, /Configurações/, `pt.${k}`);
   for (const [k, v] of all('es')) assert.doesNotMatch(v, /Configuración/, `es.${k}`);
   // French: "Réglages" only where it names the phone's own Settings app.
-  const frOk = new Set(['settings_reliable_reminders_sub', 'settings_terms_body', 'blood_camera_denied', 'paywall_legal', 'paywall_legal_no_trial', 'settings_delete_apple_revoke_note', 'faq_categories', 'paywall_cancel_sub_msg']);
+  const frOk = new Set(['rc_channel_block', 'settings_terms_body', 'blood_camera_denied', 'paywall_legal', 'paywall_legal_no_trial', 'settings_delete_apple_revoke_note', 'faq_categories', 'paywall_cancel_sub_msg']);
   for (const [k, v] of all('fr')) if (/Réglages|réglages/.test(v)) assert.ok(frOk.has(k), `fr.${k} names Réglages: ${v.slice(0, 80)}`);
   assert.match(tr.fr.consent_footer, /Paramètres > Données et confidentialité/);
   assert.match(tr.pt.consent_footer, /Ajustes > Dados e privacidade/);

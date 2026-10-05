@@ -93,6 +93,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import AuthScreen from './screens/AuthScreen';
 import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import FAQScreen from './screens/FAQScreen';
+import ReminderCheckScreen from './screens/ReminderCheckScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
@@ -226,6 +227,7 @@ function MainStack() {
       <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
+      <Stack.Screen name="ReminderCheck" component={ReminderCheckScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
       {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
           reminder all open it. Journey redesign part 21 (founder 2026-10-02): full screen,
