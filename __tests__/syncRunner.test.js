@@ -88,3 +88,13 @@ test('forceSync never overlaps an exclusive job queued on the same pass, and wai
   assert.equal(max, 1, 'never two at once');
   assert.equal(await idle, 0, 'waitIdle resolves only when nothing runs');
 });
+
+// Council 2 senior review #5: a job that throws synchronously left `running` stuck on a rejected
+// promise (the finally read the job's promise before it existed), so forceSync / runExclusive
+// would loop forever. The runner must stay usable.
+test('a job that throws synchronously never leaves the runner stuck', async () => {
+  const runner = createSyncRunner(async () => {});
+  await runner.runExclusive(() => { throw new Error('sync throw'); }).catch(() => {});
+  assert.equal(runner.isRunning(), false);
+  await Promise.race([runner.forceSync(), new Promise((_, rej) => setTimeout(() => rej(new Error('stuck')), 200))]);
+});

@@ -18,7 +18,7 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday } from '../lib/reminderHealth';
 import { getRealityStart } from '../lib/realityCheck';
 import {
@@ -173,11 +173,14 @@ export default function TodayScreen() {
   useFocusEffect(useCallback(() => () => setNotifFocus(null), []));
   // RC-6: Today warns when something the app can read blocks dose reminders (lib/reminderHealth).
   const [remindersBlocked, setRemindersBlocked] = useState(false);
-  useFocusEffect(useCallback(() => {
+  const readReminders = useCallback(() => {
     readReminderHealth()
       .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); })
       .catch(() => {});
-  }, []));
+  }, []);
+  useFocusEffect(readReminders);
+  // …and again when a reminder resync finishes (the first open of a build reads before it).
+  useEffect(() => addNotificationsSyncedListener(readReminders), [readReminders]);
   // Next 5 days: the day + time column is as wide as its widest date in this language.
   const [upColW, onUpColLayout] = useColumnWidth(88, language);
   const s = useMemo(() => makeStyles(colors), [colors]);
