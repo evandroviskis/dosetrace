@@ -26,3 +26,19 @@ test('lib/analytics sends rows built here and never the user id', () => {
   assert.match(src, /buildRow\(/);
   assert.doesNotMatch(src, /user_id:\s*user\.id/);
 });
+
+// Regulatory review 2026-10-05: the onboarding event carried the class of substance used.
+test('onboarding sends no tracking types (the kind of substance is health data)', () => {
+  const row = buildRow('onboarding_completed', { tracking_types: ['peptides', 'glp1'], language: 'pt', region: 'BR' }, 'i', 'ios', 'T');
+  assert.ok(!('tracking_types' in row.properties));
+  assert.equal(row.properties.language, 'pt');
+});
+
+// Regulatory review 2026-10-05 (product guardrail: DoseTrace is never linked to a commercial
+// business): the in-app privacy policy never says user data develops partnerships.
+test('the privacy policy promises no partnerships, in any language', () => {
+  const { translations } = require('../i18n/translations');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    assert.doesNotMatch(translations[l].settings_privacy_body, /partnership|colaboraciones de bienestar|parcerias|partenariats|Partnerschaften|collaborazioni nel campo/i, l);
+  }
+});
