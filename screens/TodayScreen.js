@@ -57,6 +57,7 @@ import useColumnWidth from '../components/useColumnWidth';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import { doseStreak, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
@@ -585,8 +586,9 @@ export default function TodayScreen() {
     try {
       const user = await getCachedUser();
       if (!user) return;
+      // A year back: a weekly protocol's dose streak keeps counting past 30 days (founder 2026-10-05).
       const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - STREAK_LOOKBACK_DAYS);
       const activeProtocols = getActiveProtocols(user.id) || [];
       // A-30: only doses logged in the app.
       const logs = loggedOnly(getTakenLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
@@ -597,23 +599,10 @@ export default function TodayScreen() {
         if (!byProtocol[l.protocol_id]) byProtocol[l.protocol_id] = {};
         byProtocol[l.protocol_id][day] = (byProtocol[l.protocol_id][day] || 0) + 1;
       });
+      // Doses taken in a row, never days (founder 2026-10-05: a weekly protocol said "2 days").
       const streaks = {};
       const now = new Date();
-      activeProtocols.forEach(p => {
-        const dayCounts = byProtocol[p.id] || {};
-        const satisfied = d => (dayCounts[d.toDateString()] || 0) >= expectedDosesOn(p, d);
-        let count = 0;
-        if (expectedDosesOn(p, now) > 0 && satisfied(now)) count++;
-        for (let i = 1; i <= 30; i++) {
-          const d = new Date(now);
-          d.setDate(d.getDate() - i);
-          if (!existedOn(p, d)) break;
-          if (expectedDosesOn(p, d) === 0) continue; // rest day
-          if (satisfied(d)) count++;
-          else break;
-        }
-        streaks[p.id] = count;
-      });
+      activeProtocols.forEach(p => { streaks[p.id] = doseStreak(p, byProtocol[p.id] || {}, now); });
       setProtocolStreaks(streaks);
     } catch { /* ignore */ }
   }
@@ -1865,7 +1854,7 @@ export default function TodayScreen() {
             {pStreak > 0 && (
               <View style={s.dmetaRow}>
                 <FeatureIcon name="flame" size={14} color={colors.attention} />
-                <Text style={s.dmetaText}>{pStreak} {pStreak === 1 ? t('today_streak_day') : t('today_streak_days')}</Text>
+                <Text style={s.dmetaText}>{pStreak} {t(pluralKey('today_streak_doses', pStreak, language))}</Text>
               </View>
             )}
           </View>
