@@ -42,3 +42,29 @@ test('RC-6 Today warns only for a readable block, with reminders on and a protoc
   assert.equal(R.shouldWarnToday({ remindersOn: true, activeWithTime: 2, checks: R.reminderChecks(androidOk), schedule: 'block' }), true, 'nothing scheduled');
   assert.equal(R.blockingCount(blocked, 'block'), 2);
 });
+
+// Council 2 QA (2026-10-05): nothing scheduled is a block ONLY when a reminder is due inside the
+// scheduling window — an every-14-days protocol on iPhone (10-day window) or a monthly one on
+// Android (21 days) correctly has none yet, and must not read as "blocked".
+test('RC-4/RC-6: no reminder due inside the window → not a block', () => {
+  assert.equal(R.scheduleState({ remindersOn: true, activeWithTime: 1, scheduledCount: 0, dueInWindow: 0 }), 'none_needed');
+  assert.equal(R.scheduleState({ remindersOn: true, activeWithTime: 1, scheduledCount: 0, dueInWindow: 2 }), 'block');
+  const checks = R.reminderChecks({ os: 'ios', permission: 'granted' });
+  const sched = R.scheduleState({ remindersOn: true, activeWithTime: 1, scheduledCount: 0, dueInWindow: 0 });
+  assert.equal(R.shouldWarnToday({ remindersOn: true, activeWithTime: 1, checks, schedule: sched }), false);
+});
+
+test('RC-4: upcoming due slots inside the window are counted from the schedule', () => {
+  const now = new Date('2026-10-05T10:00:00');
+  const biweekly = { interval_days: 14, doses_per_day: 1, start_date: '2026-10-05', reminder_time: '08:00', created_at: '2026-09-01T08:00:00Z' };
+  assert.equal(R.dueInWindow([biweekly], now, 10), 0, 'today 08:00 passed, next in 14 days: none in a 10-day window');
+  const daily = { ...biweekly, interval_days: 1 };
+  assert.ok(R.dueInWindow([daily], now, 10) > 0);
+});
+
+test('RC-4: a dose already taken today is not owed (a biweekly taken this morning before its time)', () => {
+  const now = new Date('2026-10-05T10:00:00');
+  const p = { id: 7, interval_days: 14, doses_per_day: 1, start_date: '2026-10-05', reminder_time: '20:00', created_at: '2026-09-01T08:00:00Z' };
+  assert.equal(R.dueInWindow([p], now, 10), 1);
+  assert.equal(R.dueInWindow([p], now, 10, { 7: 1 }), 0);
+});

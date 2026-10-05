@@ -20,14 +20,13 @@ Lista do conselho (QA, 2026-10-04). Mais importante primeiro. Anote o número do
 3. Modo avião, registre uma dose, depois Sair. Tem que aparecer um aviso de que há mudanças sem backup, com Ficar / Sair mesmo assim. Toque Ficar: continua conectado, a dose continua lá. Fique online, espere, Sair: agora sai limpo.
 4. Feche o app à força e reabra. Continua conectado.
 
-## 3. Encerrar / Recomeçar / Apagar para sempre em dois aparelhos — **RODADA 2**
-Estes passos esbarram em defeitos já achados pelo conselho (A-85…A-89), que estou corrigindo. Faça na segunda versão de teste.
+## 3. Encerrar / Recomeçar / Apagar para sempre em dois aparelhos (versão de teste 2)
 1. iPhone: crie "QA Delete" e registre 2 doses. Abra o Fold e confirme que está lá.
 2. iPhone: "Sim, terminei". Vai para Encerrados e o histórico fica no Histórico de doses. Toque Recomeçar: nova rodada a partir de hoje, histórico antigo continua.
 3. Fold: modo avião, registre uma dose no QA Delete.
 4. iPhone: encerre e Apague para sempre (vários de uma vez pela lixeira também). Some da lista, do histórico e dos lembretes.
 5. Fold: desligue o modo avião e abra Hoje. Tem que aparecer UM aviso: 1 registro não pôde ser salvo, com Descartar / Manter por enquanto. Toque Manter, depois Ajustes > Sair: o aviso de bloqueio oferece Descartar. Toque Descartar: só esse registro sai, nada mais muda.
-6. No frasco que acaba: toque "Protocolo terminado". Tem que ir para Encerrados.
+6. No frasco que acaba: "Protocolo terminado" agora só FECHA o aviso. O protocolo continua ativo e os lembretes continuam. Se ele for para Encerrados, é falha.
 
 ## 4. Entrar (desconectado, nos dois temas)
 1. iPhone: Continuar com a Apple usa a janela nativa da Apple e entra na sua conta.
@@ -104,3 +103,29 @@ Adicione um protocolo com início 3 semanas atrás.
 1. Mude o fuso do celular em 5 horas. Hoje mantém os horários das doses, sem linhas Perdida falsas e sem doses duplicadas.
 2. Deixe o app aberto na virada da meia-noite: Hoje muda para o novo dia.
 3. Jornada: curva com data 365 dias atrás e 4 ou mais protocolos — não pode travar.
+
+## Versão de teste 2: o que mudou (2026-10-05)
+
+### Bloco 3, passos novos
+7. Fold em modo avião: renomeie o QA Delete. iPhone: encerre o protocolo. Fold online, abra Hoje: ele continua Encerrado nos dois aparelhos e não volta a ficar ativo.
+8. Apagados recentemente: apague um protocolo hoje e toque Restaurar: ele volta ativo, com lembretes. Um apagado ontem ou antes: Restaurar leva para Encerrados, com o histórico intacto. Toque Restaurar duas vezes rápido: o resultado é o da primeira vez.
+9. Conta +qa1 com 3 ativos: apague um, crie outro (3 ativos de novo) e restaure o apagado: ele vai para Encerrados (limite do plano grátis), não para ativos.
+10. Protocolo sem dose há 7+ dias, responda "Sim, terminei": em Encerrados, a data de fim é a da ÚLTIMA dose tomada, não hoje. No Histórico somem as "Perdida" depois dessa data; Tomada e Pulada ficam.
+
+### 13. Lembretes (o motivo desta versão)
+1. Antes de tudo, no Fold: eu rodo a prova pelo cabo (alarmes do DoseTrace > 0). Durante os testes, não use "Forçar parada" no Fold (isso apaga os alarmes). Para fechar o app, deslize-o para fora dos recentes.
+2. Ajustes > Verificar lembretes, no tema claro E no escuro, no iPhone e no Fold. iPhone: Notificações. Fold: Notificações, Dose Reminders, Bateria, Alarmes e lembretes, Apps em suspensão profunda. Cada botão abre a tela certa do sistema; ao voltar, a tela se atualiza.
+3. "Enviar um lembrete de teste", feche o app (deslizando): o aviso chega em 10 segundos. Toque nele: abre Verificar lembretes. Nenhuma dose é registrada.
+4. Fold: desligue a categoria "Dose Reminders" nas configurações do Android e volte. A linha fica vermelha, Ajustes mostra "Algo está bloqueando seus lembretes" e Hoje mostra "Seus lembretes estão bloqueados" (troque de aba para atualizar). Religue: tudo some. No iPhone, faça o mesmo desligando as notificações do app.
+5. Refaça o bloco 6 inteiro no Fold com o app fechado (era o que falhava).
+6. Deixe o Fold a noite toda sem abrir o app: os lembretes da manhã chegam. Reinicie o Fold e não abra o app: o próximo lembrete chega mesmo assim.
+7. Abra o app e marque uma dose como tomada nos primeiros 10 segundos: o lembrete dessa dose não toca depois.
+8. Um protocolo a cada 14 dias (iPhone) ou a cada 28+ dias (Fold), depois da dose de hoje: NÃO pode aparecer "Seus lembretes estão bloqueados".
+
+### 14. Outras mudanças
+1. Cartão do protocolo: um semanal com 2 doses seguidas mostra "2 doses sem falhar" (nunca "dias"). Tome uma dose semanal um dia atrasado e anote o número.
+2. Pesagem: Fold em modo avião, edite a pesagem de hoje. iPhone: apague essa pesagem. Fold online: a pesagem volta nos dois aparelhos, com o valor do Fold.
+3. Atualize por cima da versão de teste 1, sem apagar o app: tudo continua lá. Um protocolo encerrado em modo avião antes de atualizar continua Encerrado depois.
+4. A leitura de exame ainda funciona.
+5. Jornada: compare a curva com um print da versão de teste 1. Os números são os mesmos.
+6. Fold: refaça o 9.7 (barra de baixo) com a barra de tarefas aparecendo E escondida.
