@@ -48,12 +48,48 @@ test('F1: Restart starts a new run — same settings, started today, created now
   const o = db.getFirstSync('SELECT * FROM protocols WHERE id = ?', [old]);
   assert.equal(E.isEnded(o), true, 'the old run stays ended, with its history');
   assert.equal(o.ended_at, '2026-09-20T10:00:00.000Z');
-  const v = db.getFirstSync('SELECT * FROM vials');
-  assert.equal(v.protocol_id, newId, 'the vial in use goes with the new run');
-  assert.equal(v.protocol_remote_id, null);
-  assert.equal(v.active, 1);
-  assert.equal(v.doses_taken, 8);
-  assert.equal(v.sync_status, 'pending');
+});
+
+// Founder 2026-10-06 (device test, build 47): Restart must start TODAY with zero doses taken.
+// The new run used to take the old vial along ("Mixed Sep 23 · 15 of 20 doses left"), so a
+// restart looked like it began on the first run's date. Now the new run gets a FULL vial of the
+// same size, mixed today; the old vial stays with the ended run as its history (never lost).
+test('Restart: the new run starts with a full vial mixed today; the old vial stays with the ended run', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  db.runSync(`UPDATE vials SET mixed_on = '2026-09-01', water_ml = 2 WHERE protocol_id = ?`, [old]);
+  const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' });
+  const ov = db.getAllSync('SELECT * FROM vials WHERE protocol_id = ?', [old]);
+  assert.equal(ov.length, 1, 'the old vial stays with the first run');
+  assert.equal(ov[0].doses_taken, 8, 'its history is kept');
+  assert.equal(ov[0].active, 0);
+  const nv = db.getAllSync('SELECT * FROM vials WHERE protocol_id = ?', [newId]);
+  assert.equal(nv.length, 1, 'the new run has its own vial');
+  assert.equal(nv[0].doses_taken, 0, 'zero doses taken');
+  assert.equal(nv[0].total_doses, 20, 'same size');
+  assert.equal(nv[0].water_ml, 2);
+  assert.equal(nv[0].mixed_on, '2026-10-03', 'mixed today');
+  assert.equal(nv[0].active, 1);
+  assert.equal(nv[0].remote_id, null);
+  assert.equal(nv[0].protocol_remote_id, null);
+  assert.equal(nv[0].sync_status, 'pending');
+  assert.equal(nv[0].created_at, '2026-10-03T14:00:00.000Z');
+});
+
+test('Restart: a ready-to-use vial keeps its box expiry and has no mix date; no vial → none created', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  db.runSync(`UPDATE vials SET mixed_on = NULL, expires_on = '2027-03-31' WHERE protocol_id = ?`, [old]);
+  const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' });
+  const nv = db.getFirstSync('SELECT * FROM vials WHERE protocol_id = ?', [newId]);
+  assert.equal(nv.mixed_on, null);
+  assert.equal(nv.expires_on, '2027-03-31');
+  assert.equal(nv.doses_taken, 0);
+  const db2 = makeDb();
+  const o2 = seedEnded(db2);
+  db2.runSync('DELETE FROM vials');
+  const n2 = E.restartAsNew(db2, o2, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' });
+  assert.equal(db2.getAllSync('SELECT * FROM vials WHERE protocol_id = ?', [n2]).length, 0);
 });
 
 test('F1: nothing is owed between the end and the restart (scan, rings)', () => {

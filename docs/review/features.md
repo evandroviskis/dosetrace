@@ -237,6 +237,7 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 | A-96 | **Presentation (pictures first)** — PK: lasting "doses before {date} not included", "Doses counted" mismatch, ml small-dose fact, dashed-line labels, hero wording, "0.0 mg" hero for short half-lives; Ended trash icon style; Restart confirm. | pharmacometrician / UI / UX 2026-10-04 | **Target: 1.3.0 store build** | Not started | |
 | A-97 | **Evidence + deviations** — move spec screenshots into the repo; both-theme render pass of Auth/Paywall on a second simulator (no sign-out of Test03); behaviour tests MB-8/MB-14; founder signs the open deviations (AP, MB open points 1–3, PA-4/6/16/37/39/56/90/113/128) and the premium-and-auth checklist. | spec-auditors 2026-10-04 | **Target: before the 1.3.0 store build** | Not started | |
 | A-98 | **Store assets** — screenshots reshoot, What's New x6, IAP review screenshot, Android internal submit profile, Play-signed AAB smoke test, Journey-curve analytics event. | release / growth / PM 2026-10-04 | **Target: 1.3.0 store build** | Not started | |
+| A-99 | **Restart starts at zero** — Restart of an ended protocol carried the old vial (mixed date + count), so the new run looked like it began on the first run date (founder device test, build 47, 2026-10-06). Now the new run gets a full vial of the same size mixed today, 0 doses taken; the old vial stays with the ended run as history. Test first: __tests__/protocolEndFollowup.test.js (2 new tests). | founder 2026-10-06 | **1.3.0** | Built — device check pending | |
 
 ---
 
