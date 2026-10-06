@@ -33,8 +33,8 @@ test('3-day window: picking an earlier date still works — the chart reaches ba
   assert.match(src, /const pastDays = curveWindowDays\(readoutDate, todayISO\(\)\);/);
   assert.match(src, /const start = curveGridStart\(now, pastDays\);/);
   assert.match(src, /\[protocols, selectedIds, t, colors\.data, showCombined, futureDays, pastDays\]/, 'the model follows the window');
-  assert.match(src, /t\('curve_last_days'\)\} \{pastDays\}d/, 'the range line names the real window');
-  assert.match(src, /−\{pastDays\}d/, 'the axis names the real window');
+  assert.match(src, /t\('curve_last_days'\)\} \{pastDays\}\{du\}/, 'the range line names the real window (day letter per language: curveDayUnit)');
+  assert.match(src, /−\{pastDays\}\{du\}/, 'the axis names the real window');
 });
 
 test('3-day window: the estimate itself never changes — doses before the window still count', () => {

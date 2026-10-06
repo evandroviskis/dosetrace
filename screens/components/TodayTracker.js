@@ -109,8 +109,8 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
             ) : (
               <>
                 <Text style={s.bigNum}>{todayPct}<Text style={s.bigNumSign}>%</Text></Text>
-                <Text style={s.bigCap} numberOfLines={1}>{ofText(rings.today)}</Text>
-                <Text style={s.bigCapDay} numberOfLines={1}>{t('today_section_today').toLowerCase()}</Text>
+                <Text style={s.bigCap} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{ofText(rings.today)}</Text>
+                <Text style={s.bigCapDay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('today_section_today').toLowerCase()}</Text>
               </>
             )}
           </View>
@@ -149,13 +149,15 @@ const makeStyles = (c, slab) => StyleSheet.create({
   slab: { backgroundColor: slab, borderRadius: 28, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, gap: 18, marginHorizontal: 16, marginBottom: 26 },
   gauges: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   big: { width: 132, height: 132 },
-  bigIn: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  bigIn: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 1, paddingHorizontal: 22 },
   bigNum: { fontSize: 32, fontWeight: '500', color: c.ink, letterSpacing: -1.28, fontVariant: ['tabular-nums'] },
   bigNumSign: { fontSize: 16, color: c.ink2 },
   bigNothing: { fontSize: 15, fontWeight: '600', color: c.ink, textAlign: 'center' },
-  bigCap: { fontSize: 12, fontWeight: '600', color: c.ink2, lineHeight: 14.4, fontVariant: ['tabular-nums'] },
+  bigCap: { fontSize: 12, fontWeight: '600', color: c.ink2, lineHeight: 14.4, fontVariant: ['tabular-nums'], maxWidth: 58 },
   // A-79: the count and 'today' on two lines inside the 88 pt ring opening (prototype .gcap 12/600).
-  bigCapDay: { fontSize: 12, fontWeight: '600', color: c.ink2, lineHeight: 14.4 },
+  // The lower line sits ~33 pt below the centre, where the opening is only ~58 pt wide: the captions
+  // are capped there and shrink to fit ("aujourd'hui" ran into the arc, store prints 2026-10-06).
+  bigCapDay: { fontSize: 12, fontWeight: '600', color: c.ink2, lineHeight: 14.4, maxWidth: 58 },
   side: { flex: 1, gap: 14, minWidth: 0 },
   sideRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sideText: { flex: 1, minWidth: 0, gap: 2 },
@@ -168,7 +170,8 @@ const makeStyles = (c, slab) => StyleSheet.create({
   wdLabel: { fontSize: 12, fontWeight: '500', color: c.ink3 },
   wdLabelToday: { color: c.ink, fontWeight: '700' },
   streak: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.line },
-  streakText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
+  // Grows to fill the row but never below 110 pt: a long history link wraps to its own line.
+  streakText: { flexGrow: 1, flexShrink: 1, minWidth: 110, fontSize: 17, fontWeight: '600', color: c.ink },
   fire: { borderWidth: 1, borderColor: c.attention, color: c.attention, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 2, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
   history: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   historyText: { fontSize: 15, color: c.ink2 },

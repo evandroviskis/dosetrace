@@ -31,7 +31,7 @@ const WANT = {
 // systemFont 11 semibold) — the labels the tab bar shows in each language.
 const MEASURED = {
   'Today': 32.7, 'Protocols': 52.1, 'Journey': 44.2, 'My Body': 47.1, 'Settings': 45.7,
-  'Hoy': 21.5, 'Protocolos': 58.9, 'Progreso': 49.5, 'Mi cuerpo': 54.2, 'Ajustes': 40.8,
+  'Hoy': 21.5, 'Protocolos': 58.9, 'Progreso': 49.5, 'Evolución': 52.6, 'Mi cuerpo': 54.2, 'Ajustes': 40.8,
   'Hoje': 24.9, 'Evolução': 49.1, 'Meu corpo': 57.9,
   "Aujourd'hui": 62.9, 'Protocoles': 58.7, 'Parcours': 48.6, 'Mon corps': 57.5, 'Paramètres': 62.7,
   'Heute': 32.8, 'Protokolle': 55.4, 'Verlauf': 39.2, 'Mein Körper': 66.2, 'Optionen': 50.0,

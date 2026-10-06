@@ -576,3 +576,8 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 
 ## Founder 2026-10-06 — Restart
 - **Restart of an ended protocol starts today with zero doses taken**: a new full vial of the same size, mixed today; the old vial stays with the ended run as its history (replaces the A-83 "the same physical vial goes with the new run, its count kept"). Someone still using the old vial taps New vial / edits the count. Source: founder device test of build 47, A-99.
+
+## By logic 2026-10-06 — store prints
+- **Spanish Journey tab = "Evolución"** (was "Progreso", the same word as the Progress screen inside it; one term per concept; matches PT "Evolução"). A-102.
+- **Short day unit per language on the curve**: d (EN/ES/PT), j (FR), T (DE), gg (IT — a lone "g" reads as grams). A-104.
+- **Store print demo data per language**: the demo food entries and the lab marker name were translated in the store simulator's LOCAL database only for each language's prints (never synced), then put back to English.
