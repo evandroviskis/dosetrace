@@ -1,0 +1,58 @@
+{
+  "_note": "Store screenshot captions, style A (founder 2026-10-06). h = headline (*word* = the one cobalt word/phrase), s = subline. Same order as raw/<lang>/0N_*.png. Written natively per language with the app's own terms; never a promise of results or advice.",
+  "langs_line": "English · Español · Português · Français · Deutsch · Italiano",
+  "en": [
+    { "file": "01_curve", "h": "See how your doses *add up*", "s": "An estimated curve from published half-lives, built from the doses you log. A learning model, never a blood test." },
+    { "file": "02_today", "h": "Every dose today, *at a glance*", "s": "Mark it complete, skip it or undo it, and see how many doses you took without a miss." },
+    { "file": "03_doses", "h": "Syringe math, *done for you*", "s": "From your own numbers, in units and ml, with your vial counted down for you." },
+    { "file": "04_progress", "h": "Your *real* numbers", "s": "Weigh-ins plus a daily energy and protein estimate, measured from 7 days of your own data." },
+    { "file": "05_labs", "h": "Every lab result *on one chart*", "s": "Snap or upload a report from any lab, in any language. You check the values before they are saved." },
+    { "file": "06_food", "h": "Log meals *in your own words*", "s": "Say what you ate and AI writes down the calories and protein. You can fix any number." },
+    { "file": "07_reminders", "h": "Reminders that *actually arrive*", "s": "A built-in check tells you if your phone is blocking them." }
+  ],
+  "pt": [
+    { "file": "01_curve", "h": "Veja suas doses *se somarem*", "s": "Uma curva estimada a partir de meias-vidas publicadas, feita com as doses que você registra. Um modelo educativo, nunca um exame de sangue." },
+    { "file": "02_today", "h": "As doses do dia *num relance*", "s": "Marque como concluída, pule ou desfaça, e veja quantas doses você tomou sem falhar." },
+    { "file": "03_doses", "h": "A conta da seringa, *já feita*", "s": "Com os seus próprios números, em unidades e ml, e o frasco descontado para você." },
+    { "file": "04_progress", "h": "Seus números *reais*", "s": "Pesagens e uma estimativa diária de energia e proteína, medida com 7 dias dos seus próprios dados." },
+    { "file": "05_labs", "h": "Todos os exames *num só gráfico*", "s": "Tire uma foto ou envie o laudo de qualquer laboratório, em qualquer idioma. Você confere os valores antes de salvar." },
+    { "file": "06_food", "h": "Registre refeições *com suas palavras*", "s": "Conte o que comeu e a IA anota as calorias e a proteína. Você corrige qualquer número." },
+    { "file": "07_reminders", "h": "Lembretes que *chegam de verdade*", "s": "Uma verificação no app avisa se o celular está bloqueando seus lembretes." }
+  ],
+  "es": [
+    { "file": "01_curve", "h": "Mira cómo *se suman* tus dosis", "s": "Una curva estimada con vidas medias publicadas, a partir de las dosis que registras. Un modelo educativo, nunca un análisis de sangre." },
+    { "file": "02_today", "h": "Las dosis del día *de un vistazo*", "s": "Márcala como completada, sáltala o deshazla, y mira cuántas dosis llevas sin fallar." },
+    { "file": "03_doses", "h": "La cuenta de la jeringa, *ya hecha*", "s": "Con tus propios números, en unidades y ml, y el vial descontado por ti." },
+    { "file": "04_progress", "h": "Tus cifras *reales*", "s": "Pesajes y una estimación diaria de energía y proteína, medida con 7 días de tus propios datos." },
+    { "file": "05_labs", "h": "Todos tus análisis *en un gráfico*", "s": "Haz una foto o sube el informe de cualquier laboratorio, en cualquier idioma. Revisas los valores antes de guardar." },
+    { "file": "06_food", "h": "Registra comidas *con tus palabras*", "s": "Cuenta lo que comiste y la IA anota las calorías y la proteína. Puedes corregir cualquier número." },
+    { "file": "07_reminders", "h": "Recordatorios que *sí llegan*", "s": "Una comprobación en la app te avisa si el móvil está bloqueando tus recordatorios." }
+  ],
+  "fr": [
+    { "file": "01_curve", "h": "Voyez vos doses *s'additionner*", "s": "Une courbe estimée à partir des demi-vies publiées, construite avec les doses que vous enregistrez. Un modèle pédagogique, jamais une prise de sang." },
+    { "file": "02_today", "h": "Les doses du jour *en un coup d'œil*", "s": "Marquez-la comme effectuée, sautez-la ou annulez, et voyez combien de doses vous avez prises sans oubli." },
+    { "file": "03_doses", "h": "Le calcul de la seringue, *déjà fait*", "s": "À partir de vos propres chiffres, en unités et en ml, avec le flacon décompté pour vous." },
+    { "file": "04_progress", "h": "Vos *vrais* chiffres", "s": "Pesées et une estimation de l'énergie et des protéines du jour, mesurée sur 7 jours de vos propres données." },
+    { "file": "05_labs", "h": "Toutes vos analyses *sur un graphique*", "s": "Photographiez ou importez le compte rendu de n'importe quel laboratoire, dans n'importe quelle langue. Vous vérifiez les valeurs avant d'enregistrer." },
+    { "file": "06_food", "h": "Notez vos repas *avec vos mots*", "s": "Dites ce que vous avez mangé et l'IA note les calories et les protéines. Vous corrigez n'importe quel chiffre." },
+    { "file": "07_reminders", "h": "Des rappels qui *arrivent vraiment*", "s": "Une vérification intégrée vous prévient si votre téléphone bloque vos rappels." }
+  ],
+  "de": [
+    { "file": "01_curve", "h": "Sieh, wie sich deine Dosen *summieren*", "s": "Eine geschätzte Kurve aus veröffentlichten Halbwertszeiten, berechnet aus deinen eingetragenen Dosen. Ein Lernmodell, nie eine Blutmessung." },
+    { "file": "02_today", "h": "Alle Dosen des Tages *auf einen Blick*", "s": "Als erledigt markieren, auslassen oder rückgängig machen – und sehen, wie viele Dosen du ohne Auslassen genommen hast." },
+    { "file": "03_doses", "h": "Die Spritzenrechnung, *schon erledigt*", "s": "Aus deinen eigenen Zahlen, in Einheiten und ml – das Fläschchen wird für dich mitgezählt." },
+    { "file": "04_progress", "h": "Deine *echten* Zahlen", "s": "Wägungen und eine Schätzung von Tagesenergie und Protein, gemessen an 7 Tagen deiner eigenen Daten." },
+    { "file": "05_labs", "h": "Alle Laborwerte *in einem Diagramm*", "s": "Fotografiere einen Befund oder lade ihn hoch – aus jedem Labor, in jeder Sprache. Du prüfst die Werte vor dem Speichern." },
+    { "file": "06_food", "h": "Mahlzeiten *in deinen Worten*", "s": "Sag, was du gegessen hast, und die KI notiert Kalorien und Protein. Jede Zahl kannst du korrigieren." },
+    { "file": "07_reminders", "h": "Erinnerungen, die *wirklich ankommen*", "s": "Ein eingebauter Check zeigt dir, ob dein Handy sie blockiert." }
+  ],
+  "it": [
+    { "file": "01_curve", "h": "Guarda come le dosi *si sommano*", "s": "Una curva stimata dalle emivite pubblicate, costruita con le dosi che registri. Un modello educativo, mai un esame del sangue." },
+    { "file": "02_today", "h": "Le dosi del giorno *a colpo d'occhio*", "s": "Segnala come completata, saltala o annulla, e guarda quante dosi hai preso senza saltare." },
+    { "file": "03_doses", "h": "Il calcolo della siringa, *già fatto*", "s": "Dai tuoi numeri, in unità e ml, con il flacone scalato per te." },
+    { "file": "04_progress", "h": "I tuoi numeri *reali*", "s": "Pesate e una stima giornaliera di energia e proteine, misurata su 7 giorni dei tuoi dati." },
+    { "file": "05_labs", "h": "Tutti gli esami *in un grafico*", "s": "Fotografa o carica il referto di qualsiasi laboratorio, in qualsiasi lingua. Controlli i valori prima di salvare." },
+    { "file": "06_food", "h": "Registra i pasti *con parole tue*", "s": "Racconta cosa hai mangiato e l'IA annota calorie e proteine. Puoi correggere ogni numero." },
+    { "file": "07_reminders", "h": "Promemoria che *arrivano davvero*", "s": "Una verifica integrata ti avvisa se il telefono li sta bloccando." }
+  ]
+}
