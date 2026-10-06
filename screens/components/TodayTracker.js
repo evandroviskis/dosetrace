@@ -132,7 +132,7 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
       )}
       <TouchableOpacity style={s.streak} onPress={onHistory} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('today_view_log')}>
         <FeatureIcon name="flame" size={20} color={inv.attention} />
-        <Text style={s.streakText} numberOfLines={1}>
+        <Text style={s.streakText} numberOfLines={2}>
           {streak > 0 ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}` : t('today_streak_none')}
         </Text>
         {streak >= 7 && <Text style={s.fire}>{t('today_streak_fire')}</Text>}
