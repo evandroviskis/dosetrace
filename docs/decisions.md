@@ -581,3 +581,6 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 - **Spanish Journey tab = "Evolución"** (was "Progreso", the same word as the Progress screen inside it; one term per concept; matches PT "Evolução"). A-102.
 - **Short day unit per language on the curve**: d (EN/ES/PT), j (FR), T (DE), gg (IT — a lone "g" reads as grams). A-104.
 - **Store print demo data per language**: the demo food entries and the lab marker name were translated in the store simulator's LOCAL database only for each language's prints (never synced), then put back to English.
+
+## Founder 2026-10-07 — store prints
+- **Store screenshots approved** ("Aprovado"): store/screenshots/apple|play/<lang>/ (style A, 7 screens x 6 languages, captions in store/screenshots/captions.json). Uploaded to both stores together with 1.3.0, with the approved store/listing texts.
