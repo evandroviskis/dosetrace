@@ -8,7 +8,8 @@ const androidOk = { os: 'android', manufacturer: 'samsung', permission: 'granted
 
 test('RC-3 Android: every readable check, plus the two the app can only open (Samsung adds deep sleep)', () => {
   const c = R.reminderChecks(androidOk);
-  assert.deepEqual(c.map((x) => [x.id, x.state]), [['notifications', 'ok'], ['channel', 'ok'], ['battery', 'ok'], ['alarms', 'open'], ['deep_sleep', 'open']]);
+  // A-110 adds Pause app activity (unread here → open) and the automatic refresh (never ran → OK, pending).
+  assert.deepEqual(c.map((x) => [x.id, x.state]), [['notifications', 'ok'], ['channel', 'ok'], ['battery', 'ok'], ['alarms', 'open'], ['hibernation', 'open'], ['refresh', 'ok'], ['deep_sleep', 'open']]);
   const pixel = R.reminderChecks({ ...androidOk, manufacturer: 'Google' });
   assert.ok(!pixel.some((x) => x.id === 'deep_sleep'));
 });

@@ -31,7 +31,9 @@ test('L-06: a past start date asks the history question; only "No" writes, and o
   const i = src.indexOf('const hq = historyQuestion(protocolData, Date.now());');
   assert.ok(i > 0);
   const block = src.slice(i, src.indexOf('requestSync();\n    // Refresh every mounted screen', i));
-  assert.equal(block.split('onPress').length - 1, 1, 'only one button writes');
+  assert.equal(block.split('updateProtocol(').length - 1, 1, 'only one button writes');
+  // A-110: both buttons then open the reminder setup step (Android, once) — it writes nothing.
+  assert.match(block, /\{ label: t\('protocols_history_yes'\), kind: 'primary', onPress: openSetup \}/);
   assert.match(block, /label: t\('protocols_history_no'\),\s*kind: 'secondary',\s*onPress: \(\) => \{\s*try \{ updateProtocol\(newId, \{ history_from: todayStr \}\); \}/);
   assert.doesNotMatch(block, /insertDoseLog|updateVial|units_taken|doses_taken/);
 });

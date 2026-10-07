@@ -18,5 +18,13 @@ class DtExactAlarmModule : Module() {
       val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return@Function true
       am.canScheduleExactAlarms()
     }
+
+    // A-110 RG-3: "Pause app activity if unused" (app hibernation, Android 11+). Exempt = Android will
+    // not freeze DoseTrace after months without opening it. Android 10 and older have no hibernation.
+    Function("isExemptFromHibernation") {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return@Function true
+      val context = appContext.reactContext ?: return@Function true
+      context.packageManager.isAutoRevokeWhitelisted()
+    }
   }
 }

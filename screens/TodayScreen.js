@@ -19,7 +19,7 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
-import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays } from '../lib/reminderHealth';
 import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
@@ -174,9 +174,11 @@ export default function TodayScreen() {
   // RC-6: Today warns when something the app can read blocks dose reminders (lib/reminderHealth).
   const [remindersBlocked, setRemindersBlocked] = useState(false);
   const [remindersLate, setRemindersLate] = useState(false); // A-106: Alarms & reminders off (Android)
+  const [remindersStop, setRemindersStop] = useState(false); // A-110: Pause app activity if unused is on
+  const [refreshStale, setRefreshStale] = useState(0); // A-110: days the background refresh is late
   const readReminders = useCallback(() => {
     readReminderHealth()
-      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); })
+      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); })
       .catch(() => {});
   }, []);
   useFocusEffect(readReminders);
@@ -1576,8 +1578,29 @@ export default function TodayScreen() {
         snoozeId: 'reminders_late',
       });
     }
+    // 7) Reminders may stop (A-110 RG-5): "Pause app activity if unused" is on, so after months without
+    // opening the app Android can freeze it and drop its reminders. Opens the setup step.
+    if (remindersStop && !(alertSnooze.reminders_stop && nowMs < alertSnooze.reminders_stop)) {
+      list.push({
+        id: 'reminders_stop', iconName: 'pause', due: true,
+        title: t('today_alert_stop_title'),
+        body: t('today_alert_stop_body'),
+        onPress: () => navigation.navigate('ReminderCheck', { mode: 'setup', focus: 'hibernation' }),
+        snoozeId: 'reminders_stop',
+      });
+    }
+    // 8) The background refresh is more than 2 days late (A-110 RG-5): Android is holding DoseTrace.
+    if (refreshStale > 0 && !(alertSnooze.reminders_stale && nowMs < alertSnooze.reminders_stale)) {
+      list.push({
+        id: 'reminders_stale', iconName: 'refresh', due: true,
+        title: t('today_alert_stale_title').replace('{n}', String(refreshStale)),
+        body: t('today_alert_stale_body'),
+        onPress: () => navigation.navigate('ReminderCheck', { mode: 'setup', focus: 'battery' }),
+        snoozeId: 'reminders_stale',
+      });
+    }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate]);
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import { readReminderHealth, sendTestReminder, openReminderFix } from '../lib/notifications';
-import { reminderChecks, scheduleState } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, setupSteps } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
@@ -23,7 +23,10 @@ const ROW = {
   battery: { icon: 'calc_bolt', title: 'rc_battery', ok: 'rc_battery_ok', warn: 'rc_battery_warn', fix: 'rc_fix_adjust' },
   // A-106: readable on Android 12+; 'open' (cannot be read) keeps the old text and Open button.
   alarms: { icon: 'clock', title: 'rc_alarms', ok: 'rc_alarms_ok', warn: 'rc_alarms_warn', open: 'rc_alarms_sub', fix: 'rc_fix_turn_on' },
-  deep_sleep: { icon: 'snooze', title: 'rc_deep_sleep', open: 'rc_deep_sleep_sub', fix: 'rc_fix_open' },
+  // A-110 (picture approved 2026-10-07): Pause app activity if unused, and the automatic refresh.
+  hibernation: { icon: 'pause', title: 'rc_hibernation', ok: 'rc_hibernation_ok', warn: 'rc_hibernation_warn', open: 'rc_hibernation_open', fix: 'rc_fix_turn_off' },
+  refresh: { icon: 'refresh', title: 'rc_refresh', ok: 'rc_refresh_ok', warn: 'rc_refresh_warn', fix: 'rc_fix_adjust' },
+  deep_sleep: { icon: 'moon', title: 'rc_deep_sleep', open: 'rc_deep_sleep_sub', fix: 'rc_fix_open' },
 };
 
 function Back({ color }) {
@@ -34,7 +37,10 @@ function Back({ color }) {
   );
 }
 
-export default function ReminderCheckScreen({ navigation }) {
+// route.params.mode 'setup' (A-110 RG-1/RG-2): the "Make sure your reminders arrive" step — the same
+// rows the app can fix, a ready count, and Continue later / Done instead of the schedule and test.
+export default function ReminderCheckScreen({ navigation, route }) {
+  const setup = route?.params?.mode === 'setup';
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -49,11 +55,18 @@ export default function ReminderCheckScreen({ navigation }) {
     return () => sub.remove();
   }, [load]);
 
-  const checks = health ? reminderChecks(health) : [];
+  const steps = health && setup ? setupSteps(health) : null;
+  const checks = health ? (setup ? steps.rows : reminderChecks(health)) : [];
   const sched = health ? scheduleState(health) : null;
 
   function stateText(c) {
     const r = ROW[c.id];
+    if (c.id === 'refresh') {
+      if (c.pending) return t('rc_refresh_pending');
+      if (c.state === 'warn') return t('rc_refresh_warn').replace('{n}', String(c.days));
+      const d = new Date(c.at);
+      return t('rc_refresh_ok').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
+    }
     if (c.state === 'open') return t(r.open);
     return t(r[c.state] || r.ok);
   }
@@ -76,14 +89,26 @@ export default function ReminderCheckScreen({ navigation }) {
   return (
     <SafeAreaView style={s.container}>
       <View style={[s.centered, s.navRow]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <Back color={colors.ink} />
-          <Text style={s.backText}>{t('back')}</Text>
-        </TouchableOpacity>
+        {setup ? (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" accessibilityLabel={t('ap_close')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <FeatureIcon name="close" size={22} color={colors.ink} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            <Back color={colors.ink} />
+            <Text style={s.backText}>{t('back')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.pad]}>
-        <Text style={s.title} accessibilityRole="header">{t('settings_rc_title')}</Text>
-        <Text style={s.intro}>{t('rc_intro')}</Text>
+        <Text style={s.title} accessibilityRole="header">{t(setup ? 'rc_setup_title' : 'settings_rc_title')}</Text>
+        <Text style={s.intro}>{t(setup ? 'rc_setup_intro' : 'rc_intro')}</Text>
+        {setup && steps ? (
+          <View style={s.progress} accessible accessibilityLabel={t('rc_setup_progress').replace('{n}', String(steps.ready)).replace('{total}', String(steps.total))}>
+            <Text style={s.progressText}>{t('rc_setup_progress').replace('{n}', String(steps.ready)).replace('{total}', String(steps.total))}</Text>
+            <View style={s.bar}><View style={[s.barFill, { width: `${(steps.ready / steps.total) * 100}%` }]} /></View>
+          </View>
+        ) : null}
 
         <View style={s.group}>
           {checks.map((c, i) => {
@@ -109,6 +134,12 @@ export default function ReminderCheckScreen({ navigation }) {
           })}
         </View>
 
+        {setup ? (
+          <TouchableOpacity style={s.testBtn} onPress={() => navigation.goBack()} accessibilityRole="button">
+            <Text style={s.testText}>{t(steps && steps.done ? 'rc_setup_done' : 'rc_setup_later')}</Text>
+          </TouchableOpacity>
+        ) : (
+        <>
         <Text style={s.section}>{t('rc_sched_title')}</Text>
         <View style={s.card}>
           {sched === 'silent' ? (
@@ -137,6 +168,8 @@ export default function ReminderCheckScreen({ navigation }) {
           <Text style={s.testText}>{t('rc_test_btn')}</Text>
         </TouchableOpacity>
         <Text style={s.hint}>{sent ? t('rc_test_sent') : t('rc_test_hint')}</Text>
+        </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -167,5 +200,9 @@ const makeStyles = (c) => StyleSheet.create({
   cardSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
   testBtn: { marginHorizontal: 16, marginTop: 16, minHeight: 50, borderRadius: 25, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   testText: { fontSize: 16, fontWeight: '600', color: c.onAct },
+  progress: { marginHorizontal: 20, marginBottom: 12 },
+  progressText: { fontSize: 13, color: c.ink2 },
+  bar: { height: 6, borderRadius: 3, backgroundColor: c.well, marginTop: 6, overflow: 'hidden' },
+  barFill: { height: 6, borderRadius: 3, backgroundColor: c.ok },
   hint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginHorizontal: 32, marginTop: 10 },
 });

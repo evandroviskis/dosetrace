@@ -25,6 +25,7 @@ import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
+import { maybeOpenReminderSetup } from '../lib/reminderSetup';
 import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
@@ -1866,6 +1867,10 @@ export default function ProtocolsScreen() {
       // oral count moves (declared history is never a logged dose). "No" → the curve starts today.
       const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
       const hq = historyQuestion(protocolData, Date.now());
+      // A-110 RG-1: Android, the first protocol with a reminder time → the "Make sure your reminders
+      // arrive" step, once. After the start-date question when there is one, never over it.
+      const openSetup = () => { maybeOpenReminderSetup(navigation, protocolData).catch(() => {}); };
+      if (!hq) setTimeout(openSetup, 450);
       if (hq) {
         const title = hq.unit === 'weeks'
           ? t(pluralKey('protocols_history_weeks', hq.n, language))
@@ -1882,9 +1887,10 @@ export default function ProtocolsScreen() {
                 try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
                 notifyDataChanged('protocol');
                 requestSync();
+                openSetup();
               },
             },
-            { label: t('protocols_history_yes'), kind: 'primary' },
+            { label: t('protocols_history_yes'), kind: 'primary', onPress: openSetup },
           ],
         });
       }
