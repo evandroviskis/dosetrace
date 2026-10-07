@@ -446,3 +446,19 @@ test('intakeRun: offline-pending entries do not make a day complete', () => {
   e.push({ entry_date: D(7), kcal: null, parse_status: 'pending', source: 'ai', raw_text: 'x' });
   assert.equal(intakeRun(e, D(1), D(8)).ok, false);
 });
+
+// A-100 (2026-10-06, store prints): a one- or two-letter measure matched any food containing that
+// letter — unit "g" + "grilled chicken breast" read "180 × grilled chicken breast". A unit counts as
+// "the food itself" only when a word of the food starts with it (egg → eggs, bar → BUILT bar) and
+// it is not a measure.
+test('itemLabel: a measure unit is never taken for the food (A-100)', () => {
+  assert.equal(itemLabel({ food: 'grilled chicken breast', qty: 180, unit: 'g' }), '180 g grilled chicken breast');
+  assert.equal(itemLabel({ food: 'salmon fillet', qty: 170, unit: 'g' }), '170 g salmon fillet');
+  assert.equal(itemLabel({ food: 'almond milk', qty: 300, unit: 'ml' }), '300 ml almond milk');
+  assert.equal(itemLabel({ food: 'gummy bears', qty: 2, unit: 'g' }), '2 g gummy bears');
+  assert.equal(itemLabel({ food: 'cupcakes', qty: 1, unit: 'cup' }), '1 cup cupcakes', 'a measure stays a measure');
+  assert.equal(itemLabel({ food: 'peito de frango grelhado', qty: 180, unit: 'g' }, 'pt'), '180 g peito de frango grelhado');
+  assert.equal(itemLabel({ food: 'eggs', qty: 3, unit: 'egg' }), '3 × eggs', 'still a count');
+  assert.equal(itemLabel({ food: 'BUILT Puff bar', qty: 2, unit: 'bars' }), '2 × BUILT Puff bar');
+  assert.equal(itemLabel({ food: 'bananas', qty: 2, unit: 'banana' }), '2 × bananas');
+});
