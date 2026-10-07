@@ -147,11 +147,11 @@ test('F7: reminders of a protocol that is no longer active are found and cancell
 
 test('F8 + Restart wiring: the free limit is checked first; the new run gets its reminders', () => {
   const s = read('screens/ProtocolsScreen.js');
-  const i = s.indexOf('async function restartProtocol(id) {');
+  const i = s.indexOf('async function restartProtocol(id, opts = {}) {');
   assert.ok(i > 0);
   const body = s.slice(i, i + 900);
   assert.match(body, /if \(await isOverFreeLimit\(\)\) \{ promptUpgrade\(\); return; \}/);
-  assert.match(body, /try \{ newId = restartEndedProtocol\(id\); \} catch \(err\) \{/, "a failed restart shows an error and changes nothing");
+  assert.match(body, /try \{ newId = restartEndedProtocol\(id, opts\); \} catch \(err\) \{/, "a failed restart shows an error and changes nothing");
   assert.match(body, /getProtocolById\(newId\)/);
   assert.doesNotMatch(read('lib/protocolEnd.js'), /function restartProtocol/, 'the same-row restart is gone');
 });
@@ -186,8 +186,50 @@ test('Restart: an oral protocol starts with zero units taken', () => {
 // Council 3 journey F1: a double tap on Restart created two identical active runs.
 test('Restart: a second tap while the first restart runs does nothing', () => {
   const s = read('screens/ProtocolsScreen.js');
-  const i = s.indexOf('async function restartProtocol(id) {');
+  const i = s.indexOf('async function restartProtocol(id, opts = {}) {');
   const body = s.slice(i, i + 900);
   assert.match(body, /if \(restartingRef\.current\) return;\s*restartingRef\.current = true;/);
   assert.match(body, /finally \{ restartingRef\.current = false; \}/);
+});
+
+// Founder 2026-10-07 (council 3 decision 1): Restart asks which container. "Continue the same vial"
+// moves the old vial to the new run UNCHANGED (its mix date and count are the truth); orals keep
+// the bottle's units. "New vial" (default) is the full vial mixed today.
+test('Restart with the same vial: the old vial moves to the new run unchanged, no new vial', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  db.runSync(`UPDATE vials SET mixed_on = '2026-09-01' WHERE protocol_id = ?`, [old]);
+  const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03', sameContainer: true });
+  const all = db.getAllSync('SELECT * FROM vials');
+  assert.equal(all.length, 1, 'no new vial');
+  assert.equal(all[0].protocol_id, newId);
+  assert.equal(all[0].doses_taken, 8);
+  assert.equal(all[0].mixed_on, '2026-09-01');
+  assert.equal(all[0].active, 1);
+  assert.equal(all[0].protocol_remote_id, null, 'relinked to the new run on its push');
+  assert.equal(all[0].sync_status, 'pending');
+});
+
+test('Restart with the same bottle (oral): the units taken carry over', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  db.runSync(`UPDATE protocols SET type = 'oral', container_units = 180, units_taken = 30 WHERE id = ?`, [old]);
+  db.runSync('DELETE FROM vials');
+  const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03', sameContainer: true });
+  assert.equal(db.getFirstSync('SELECT units_taken FROM protocols WHERE id = ?', [newId]).units_taken, 30);
+});
+
+test('Restart asks first: the container question, and a warning when the same protocol is already active', () => {
+  const s = read('screens/ProtocolsScreen.js');
+  const i = s.indexOf('function askRestart(p) {');
+  assert.ok(i > 0);
+  const body = s.slice(i, i + 3200);
+  assert.match(body, /protocols_restart_new_vial_btn/);
+  assert.match(body, /protocols_restart_same_vial/);
+  assert.match(body, /protocols_restart_same_bottle/);
+  assert.match(body, /protocols_restart_dup_title/);
+  assert.match(body, /restartProtocol\(p\.id, \{ sameContainer: true \}\)/);
+  assert.match(s, /onPress=\{\(\) => askRestart\(p\)\}/, 'the Restart pill asks first');
+  const T = require('../i18n/translations.js').translations || require('../i18n/translations.js');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['protocols_restart_title', 'protocols_restart_body', 'protocols_restart_body_plain', 'protocols_restart_new_vial_btn', 'protocols_restart_same_vial', 'protocols_restart_new_bottle_btn', 'protocols_restart_same_bottle', 'protocols_restart_confirm', 'protocols_restart_dup_title', 'protocols_restart_dup_body', 'protocols_restart_dup_go']) assert.ok(T[l][k], `${l} ${k}`);
 });

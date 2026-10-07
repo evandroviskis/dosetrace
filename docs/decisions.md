@@ -609,3 +609,12 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 ## Founder 2026-10-07 — "assino, pode aplicar o C, e pode iniciar o council"
 - A-110 checklist signed; go for the 3 production changes of part C (wake-up function, schedule); go to run dt-council for test build 3.
 - **Part C applied 2026-10-07, without a secret** (the tools here cannot create function secrets): wake-refresh runs at most once per 20 hours, enforced in the database (claim_wake_refresh, service role only), so an outside call can at most bring the silent wake-up forward. Verified: 13 Android devices sent, the next call refused.
+
+## Founder 2026-10-07 — council 3 decisions "1 a 7 sim, pode implementar"
+1. Restart asks the container: "New vial / Continue the same vial" (orals: bottle); same = the old container moves to the new run unchanged (mix date, count). A same-name active protocol is warned about before restarting.
+2. Today alert "Silent mode is on — no dose reminder will arrive" (Android and iPhone) for a user with a protocol that has a reminder time.
+3. Two or more reminder warnings at once show as ONE card "N fixes for your reminders" that opens the setup step.
+4. Check reminders (Android) ends with a "See step by step (N of M ready)" button into the setup step.
+5. Android users who already have a protocol with a reminder time see the setup step once after updating.
+6. RG-2 deviation accepted: Battery and Samsung deep sleep open the app's own Android page (no direct link to Samsung's list).
+7. BR-12: protocols with a total number of doses end their reminders when that course ends (the user set it).

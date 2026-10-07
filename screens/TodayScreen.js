@@ -19,7 +19,8 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
-import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings } from '../lib/reminderHealth';
+import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
@@ -176,9 +177,13 @@ export default function TodayScreen() {
   const [remindersLate, setRemindersLate] = useState(false); // A-106: Alarms & reminders off (Android)
   const [remindersStop, setRemindersStop] = useState(false); // A-110: Pause app activity if unused is on
   const [refreshStale, setRefreshStale] = useState(0); // A-110: days the background refresh is late
+  const [remindersSilent, setRemindersSilent] = useState(false); // council 3 decision 2
   const readReminders = useCallback(() => {
     readReminderHealth()
-      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); })
+      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h));
+        // Decision 5: Android users who already have a reminder time see the setup step once.
+        setTimeout(() => { maybeOpenSetupForExisting(navigation, h.activeWithTime).catch(() => {}); }, 600);
+      })
       .catch(() => {});
   }, []);
   useFocusEffect(readReminders);
@@ -1557,6 +1562,28 @@ export default function TodayScreen() {
         });
       }
     }
+    // Founder 2026-10-07 (council 3 decision 2): Silent mode is on — nothing else will arrive.
+    if (remindersSilent && !(alertSnooze.reminders_silent && nowMs < alertSnooze.reminders_silent)) {
+      list.push({
+        id: 'reminders_silent', iconName: 'mute', due: true,
+        title: t('today_alert_silent_title'),
+        body: t('today_alert_silent_body'),
+        onPress: () => navigation.navigate('ReminderCheck'),
+        snoozeId: 'reminders_silent',
+      });
+    }
+    // Decision 3: two or more reminder warnings at once are ONE card that opens the setup step.
+    const warnings = reminderWarnings({ blocked: remindersBlocked, late: remindersLate, stop: remindersStop, stale: refreshStale });
+    if (warnings.length >= 2 && !(alertSnooze.reminders_combined && nowMs < alertSnooze.reminders_combined)) {
+      list.push({
+        id: 'reminders_combined', iconName: 'warning', due: true,
+        title: t('today_alert_combined_title').replace('{n}', String(warnings.length)),
+        body: t('today_alert_combined_body'),
+        onPress: () => navigation.navigate('ReminderCheck', { mode: 'setup' }),
+        snoozeId: 'reminders_combined',
+      });
+    }
+    if (warnings.length < 2) {
     // 5) Reminders blocked (RC-6, founder 2026-10-05 "1 B"): a readable phone setting stops them.
     if (remindersBlocked && !(alertSnooze.reminders_blocked && nowMs < alertSnooze.reminders_blocked)) {
       list.push({
@@ -1599,8 +1626,9 @@ export default function TodayScreen() {
         snoozeId: 'reminders_stale',
       });
     }
+    }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale]);
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

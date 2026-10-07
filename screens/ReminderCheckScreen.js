@@ -136,6 +136,15 @@ export default function ReminderCheckScreen({ navigation, route }) {
           })}
         </View>
 
+        {/* Founder 2026-10-07 (council 3 decision 4): the step by step, from Check reminders (Android). */}
+        {!setup && health && health.os === 'android' ? (() => {
+          const st = setupSteps(health);
+          return (
+            <TouchableOpacity style={s.stepLink} onPress={() => navigation.push('ReminderCheck', { mode: 'setup' })} accessibilityRole="button">
+              <Text style={s.stepLinkText}>{t('rc_setup_open').replace('{n}', String(st.ready)).replace('{total}', String(st.total))}</Text>
+            </TouchableOpacity>
+          );
+        })() : null}
         {setup ? (
           <TouchableOpacity style={s.testBtn} onPress={() => navigation.goBack()} accessibilityRole="button">
             <Text style={s.testText}>{t(steps && steps.done ? 'rc_setup_done' : 'rc_setup_later')}</Text>
@@ -204,6 +213,8 @@ const makeStyles = (c) => StyleSheet.create({
   cardSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
   testBtn: { marginHorizontal: 16, marginTop: 16, minHeight: 50, borderRadius: 25, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   testText: { fontSize: 16, fontWeight: '600', color: c.onAct },
+  stepLink: { marginHorizontal: 16, marginTop: 12, minHeight: 46, borderRadius: 23, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  stepLinkText: { fontSize: 15, color: c.ink },
   progress: { marginHorizontal: 20, marginBottom: 12 },
   progressText: { fontSize: 13, color: c.ink2 },
   bar: { height: 6, borderRadius: 3, backgroundColor: c.well, marginTop: 6, overflow: 'hidden' },

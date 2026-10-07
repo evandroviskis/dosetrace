@@ -119,8 +119,8 @@ test('Today\'s "Yes, it\'s finished" ends the protocol (no deletion); the Protoc
   assert.doesNotMatch(fn, /softDeleteProtocol/);
   const prot = read('screens/ProtocolsScreen.js');
   assert.match(prot, /t\('protocols_ended_title'\)/);
-  assert.match(prot, /onPress=\{\(\) => restartProtocol\(p\.id\)\}/);
-  assert.match(prot, /restartEndedProtocol\(id\);/);
+  assert.match(prot, /onPress=\{\(\) => askRestart\(p\)\}/); // council 3 decision 1: it asks first
+  assert.match(prot, /restartEndedProtocol\(id, opts\);/);
   assert.match(read('lib/database.js'), /SQL_ALL_LOGS/);
 });
 

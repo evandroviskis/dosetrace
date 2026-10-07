@@ -1246,16 +1246,49 @@ export default function ProtocolsScreen() {
     });
   }
 
+  // Founder 2026-10-07 (council 3 decision 1): Retomar asks which container — a new vial/bottle (full,
+  // mixed today) or the same one (moved to the new run unchanged) — and warns first when the same
+  // protocol is already active (a second run would double its reminders).
+  function askRestart(p) {
+    const name = protocolName(p);
+    let container = null;
+    try { if (getNewestVialForProtocol(p.id)) container = 'vial'; } catch { /* none */ }
+    if (!container && Number(p.container_units) > 0) container = 'bottle';
+    const ask = () => setScreenSheet({
+      title: t('protocols_restart_title').replace('{name}', name),
+      body: t(container ? 'protocols_restart_body' : 'protocols_restart_body_plain'),
+      buttons: container ? [
+        { label: t(container === 'vial' ? 'protocols_restart_new_vial_btn' : 'protocols_restart_new_bottle_btn'), kind: 'primary', onPress: () => restartProtocol(p.id) },
+        { label: t(container === 'vial' ? 'protocols_restart_same_vial' : 'protocols_restart_same_bottle'), kind: 'secondary', onPress: () => restartProtocol(p.id, { sameContainer: true }) },
+        { label: t('cancel'), kind: 'secondary' },
+      ] : [
+        { label: t('protocols_restart_confirm'), kind: 'primary', onPress: () => restartProtocol(p.id) },
+        { label: t('cancel'), kind: 'secondary' },
+      ],
+    });
+    const norm = (x) => String(x || '').trim().toLowerCase();
+    const dup = (protocols || []).some((a) => a.id !== p.id && ((p.compound_id && a.compound_id === p.compound_id) || norm(a.name) === norm(p.name)));
+    if (!dup) { ask(); return; }
+    setScreenSheet({
+      title: t('protocols_restart_dup_title').replace('{name}', name),
+      body: t('protocols_restart_dup_body').replace('{name}', name),
+      buttons: [
+        { label: t('protocols_restart_dup_go'), kind: 'primary', onPress: () => setTimeout(ask, 350) },
+        { label: t('cancel'), kind: 'secondary' },
+      ],
+    });
+  }
+
   // One restart at a time (council 3 F1): a double tap used to create two identical active runs.
   const restartingRef = useRef(false);
-  async function restartProtocol(id) {
+  async function restartProtocol(id, opts = {}) {
     if (restartingRef.current) return;
     restartingRef.current = true;
     try {
     if (await isOverFreeLimit()) { promptUpgrade(); return; }
     // All or nothing (lib/protocolEnd restartAsNew): a failed write changes nothing and says so.
     let newId = null;
-    try { newId = restartEndedProtocol(id); } catch (err) {
+    try { newId = restartEndedProtocol(id, opts); } catch (err) {
       setScreenSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
@@ -2161,7 +2194,7 @@ export default function ProtocolsScreen() {
               <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
               <Text style={s.delAgo}>{t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}</Text>
             </View>
-            <TouchableOpacity onPress={() => restartProtocol(p.id)} style={s.restoreBtn} accessibilityRole="button" accessibilityLabel={`${t('protocols_restart')} ${protocolName(p)}`}>
+            <TouchableOpacity onPress={() => askRestart(p)} style={s.restoreBtn} accessibilityRole="button" accessibilityLabel={`${t('protocols_restart')} ${protocolName(p)}`}>
               <Text style={s.restoreBtnText}>{t('protocols_restart')}</Text>
             </TouchableOpacity>
             {/* The Recently deleted row's trash (round 4): Delete protocol → Recently deleted */}
