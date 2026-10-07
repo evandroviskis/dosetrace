@@ -156,3 +156,6 @@ Adicione um protocolo com início 3 semanas atrás.
 ### 18. Entrar e sair (portão B, os dois aparelhos)
 1. E-mail, Google e Apple entram. Editar perfil > Salvar fecha a tela. Sair volta para boas-vindas.
 2. Deixe o app aberto por mais de 1 hora e use de novo: continua conectado (a renovação da sessão agora só roda com o app na frente).
+
+## Resultados do fundador
+- 2026-10-07, Fold, versão 47: 4.2 (Continuar com a Apple pelo navegador) e 4.3 (Google) entraram. Falta: mesma conta do iPhone com o mesmo Apple ID, cancelar no meio, e repetir na 48.
