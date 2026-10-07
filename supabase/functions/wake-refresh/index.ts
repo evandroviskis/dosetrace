@@ -4,22 +4,21 @@
 // (lib/reminderRefresh.js). The reminders' text, buttons and privacy stay on the phone; a failed or
 // missing wake-up changes nothing (the 6-hourly Android task still runs).
 //
-// Protected like send-reminders: the service-role key or CRON_SECRET in the Authorization header.
+// No secret: the database function claim_wake_refresh() lets it run at most once per 20 hours, so a
+// call from anyone who finds the URL does nothing (it can only bring the day's silent wake-up forward).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { wakeMessages, deadTokens } from './plan.js';
 
 const EXPO_BATCH = 100;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-Deno.serve(async (req) => {
-  const auth = req.headers.get('Authorization') || '';
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const cronSecret = Deno.env.get('CRON_SECRET') || '';
-  const ok = auth === `Bearer ${serviceKey}` || (cronSecret && auth === `Bearer ${cronSecret}`);
-  if (!ok) return json({ error: 'unauthorized' }, 401);
-
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey);
+Deno.serve(async (_req) => {
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   try {
+    const { data: claimed, error: claimErr } = await admin.rpc('claim_wake_refresh');
+    if (claimErr) throw claimErr;
+    if (!claimed) return json({ ok: true, skipped: 'too_soon' });
+
     const { data: tokens, error } = await admin.from('push_tokens').select('expo_token, platform').eq('platform', 'android');
     if (error) throw error;
     const msgs = wakeMessages(tokens || []);

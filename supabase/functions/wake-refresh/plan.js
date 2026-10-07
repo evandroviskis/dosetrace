@@ -27,3 +27,10 @@ export function deadTokens(slice, receipts) {
   }
   return dead;
 }
+
+// At most one wake-up per 20 hours (the database decides with claim_wake_refresh; this mirrors the
+// rule for the tests). The function needs no secret: anyone calling it early gets nothing.
+export const MIN_GAP_MS = 20 * 3600e3;
+export function mayRun(lastRunMs, nowMs) {
+  return !Number.isFinite(lastRunMs) || nowMs - lastRunMs >= MIN_GAP_MS;
+}

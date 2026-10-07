@@ -130,9 +130,22 @@ test('RG-6: the app turns a wake-up into the reminder refresh — and nothing el
   assert.match(a, /if \(isWakePayload\(data\)\) \{ await refreshNow\(\)\.catch\(\(\) => \{\}\); return; \}/);
 });
 
-test('RG-6: the server function is protected and the schedule is a reviewed migration (not applied without the founder)', () => {
+test('RG-6: the server function runs at most once per 20 h (no secret needed) and the schedule is a migration', async () => {
   const fn = read('supabase/functions/wake-refresh/index.ts');
-  assert.match(fn, /unauthorized/);
+  assert.match(fn, /claim_wake_refresh/, 'the database decides whether this call may run');
+  assert.match(fn, /too_soon/);
+  const { pathToFileURL } = require('node:url');
+  const P = await import(pathToFileURL(require('node:path').join(__dirname, '../supabase/functions/wake-refresh/plan.js')).href);
+  const H = 3600e3;
+  assert.equal(P.mayRun(null, 100 * H), true, 'first run ever');
+  assert.equal(P.mayRun(80 * H, 100 * H), true, '20 h later');
+  assert.equal(P.mayRun(81 * H, 100 * H), false, 'an early call (anyone who finds the URL) does nothing');
+  const sql = read('supabase/migrations/' + require('node:fs').readdirSync(require('node:path').join(__dirname, '../supabase/migrations')).find((x) => /wake_refresh/.test(x)));
+  assert.match(sql, /create or replace function public\.claim_wake_refresh/);
+  assert.match(sql, /interval '20 hours'/);
+  assert.match(sql, /revoke all on function public\.claim_wake_refresh\(\) from public, anon, authenticated/);
+  assert.match(sql, /alter table public\.wake_refresh_runs enable row level security/);
+  assert.doesNotMatch(sql, /vault|Authorization|Bearer/i, 'no secret is stored or sent');
   assert.match(fn, /eq\('platform', 'android'\)/);
   assert.match(fn, /wakeMessages\(/);
   const fs = require('node:fs');

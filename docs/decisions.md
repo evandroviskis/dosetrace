@@ -605,3 +605,7 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 - **BR-5 deviation accepted:** changes made on another device reach this Android phone's reminders when the app is opened here (or via the A-110 server wake-up), not from the background run.
 - **The Apple review account's Silent mode is switched off** (with A-108 the reviewer would get no notification).
 - **Checklists signed:** docs/specs/exact-alarms.md (A-106) and docs/specs/background-refresh.md (A-107).
+
+## Founder 2026-10-07 — "assino, pode aplicar o C, e pode iniciar o council"
+- A-110 checklist signed; go for the 3 production changes of part C (wake-up function, schedule); go to run dt-council for test build 3.
+- **Part C applied 2026-10-07, without a secret** (the tools here cannot create function secrets): wake-refresh runs at most once per 20 hours, enforced in the database (claim_wake_refresh, service role only), so an outside call can at most bring the silent wake-up forward. Verified: 13 Android devices sent, the next call refused.
