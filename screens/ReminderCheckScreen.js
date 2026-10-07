@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
 import { readReminderHealth, sendTestReminder, openReminderFix } from '../lib/notifications';
-import { reminderChecks, scheduleState, setupSteps } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, setupSteps, rowTitleKey } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
@@ -117,15 +117,16 @@ export default function ReminderCheckScreen({ navigation, route }) {
             const r = ROW[c.id];
             const needsFix = c.state !== 'ok';
             const fixKey = c.state === 'open' ? 'rc_fix_open' : r.fix; // a row it cannot read only opens
+            const title = t(rowTitleKey(c.id, health.manufacturer) || r.title);
             return (
               <View key={c.id} style={[s.row, i === checks.length - 1 && s.rowLast, c.id === focus && s.rowFocus]}>
                 <FeatureIcon name={c.state === 'block' ? 'warning' : r.icon} size={24} color={c.state === 'block' ? colors.risk : colors.ink} />
                 <View style={s.rowText}>
-                  <Text style={s.rowLabel}>{t(r.title)}</Text>
+                  <Text style={s.rowLabel}>{title}</Text>
                   <Text style={[s.rowSub, { color: stateColor(c) }]}>{stateText(c)}</Text>
                 </View>
                 {needsFix ? (
-                  <TouchableOpacity style={s.fixBtn} onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t(fixKey)}: ${t(r.title)}`}>
+                  <TouchableOpacity style={s.fixBtn} onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t(fixKey)}: ${title}`}>
                     <Text style={s.fixText}>{t(fixKey)}</Text>
                   </TouchableOpacity>
                 ) : (
