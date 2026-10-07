@@ -65,7 +65,8 @@ export default function ReminderCheckScreen({ navigation, route }) {
       if (c.pending) return t('rc_refresh_pending');
       if (c.state === 'warn') return t('rc_refresh_warn').replace('{n}', String(c.days));
       const d = new Date(c.at);
-      return t('rc_refresh_ok').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
+      const when = t('rc_refresh_ok').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
+      return c.until ? `${when} · ${t('rc_refresh_until').replace('{date}', formatDate(new Date(c.until), language, 'dayMonth'))}` : when;
     }
     if (c.state === 'open') return t(r.open);
     return t(r[c.state] || r.ok);

@@ -139,3 +139,11 @@ test('RG-6: the server function is protected and the schedule is a reviewed migr
   const mig = fs.readdirSync(require('node:path').join(__dirname, '../supabase/migrations')).find((f) => /wake_refresh/.test(f));
   assert.ok(mig, 'a migration schedules it');
 });
+
+test('RG-4: the refresh row also says until when reminders are scheduled (the latest dose reminder)', () => {
+  const c = R.reminderChecks({ ...base, lastScheduledMs: NOW + 20 * DAY }).find((x) => x.id === 'refresh');
+  assert.equal(c.until, NOW + 20 * DAY);
+  assert.match(read('lib/notifications.js'), /out\.lastScheduledMs = /);
+  assert.match(read('screens/ReminderCheckScreen.js'), /rc_refresh_until/);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].rc_refresh_until && T[l].rc_refresh_until.includes('{date}'), l);
+});
