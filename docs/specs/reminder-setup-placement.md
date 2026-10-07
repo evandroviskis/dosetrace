@@ -5,7 +5,7 @@
 - decided by logic (docs/decisions.md 2026-10-07 evening): Android only (iPhone has only Notifications, already asked in onboarding; its Settings row stays "Check reminders"); shown in onboarding only after "Turn on notifications" (someone who said "Not now" to notifications is not asked for more); "every item OK" counts only what the app can read (Samsung deep sleep never blocks it); the automatic opening after the first protocol (RG-1) goes away — no double showing; the once-after-update opening for existing users (council 3 decision 5) stays and opens the single screen.
 - replaces: the separate setup mode of screens/ReminderCheckScreen.js and its "See step by step (N of M ready)" button (council 3 decision 4) — rebuild = replace.
 - code: screens/SettingsScreen.js, screens/ReminderCheckScreen.js, screens/OnboardingFlowScreen.js, lib/reminderHealth.js, lib/reminderSetup.js, lib/notifications.js (openReminderFix deepSleep), i18n.
-- checklist-signed:
+- checklist-signed: 2026-10-07 by the founder ("assino")
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist
