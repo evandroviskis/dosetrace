@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alarmes e lembretes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Geist,-apple-system,Roboto,sans-serif}
+header,section{max-width:1240px;margin:0 auto;padding:0 16px}
+header{padding-top:28px}
+h1{font-size:24px;margin:0 0 6px;letter-spacing:-.3px}
+header p{margin:0;color:var(--pink2);max-width:78ch}
+h2{font-size:17px;margin:30px 0 4px}
+.lead{color:var(--pink2);margin:0 0 14px;max-width:78ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.col h3{font-size:13px;font-weight:600;margin:0 0 8px;color:var(--pink2);text-transform:uppercase;letter-spacing:.06em}
+/* phone surfaces: the app's own tokens (lib/theme.js), fixed per theme */
+.ph{border-radius:22px;padding:16px;border:1px solid var(--pline)}
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--act:#111315;--onAct:#FFFFFF;--attention:#7E4A00;--ok:#17623F}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--act:#EEEFEB;--onAct:#121416;--attention:#E3A54E;--ok:#62C597}
+.ph{background:var(--ground);color:var(--ink)}
+.tag{font-size:12px;color:var(--ink2);margin:0 0 8px}
+.secrow{display:flex;justify-content:space-between;font-weight:600;font-size:16px;margin:2px 4px 8px}
+.secrow span:last-child{font-weight:400;color:var(--ink2)}
+.card{background:var(--raised);border-radius:22px;overflow:hidden}
+.alert{display:flex;gap:12px;align-items:center;padding:14px 12px 14px 16px;border-bottom:1px solid var(--line)}
+.alert:last-child{border-bottom:0}
+.alert .t{flex:1;min-width:0}
+.alert b{display:block;font-size:16px;font-weight:600}
+.alert b i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--attention);margin-left:6px;vertical-align:middle}
+.alert small{display:block;font-size:14px;color:var(--ink2);margin-top:1px}
+.snz{width:40px;height:40px;border-radius:50%;background:var(--well);display:grid;place-items:center;flex:none}
+.row{display:flex;gap:12px;align-items:center;margin:0 16px;padding:12px 0;min-height:60px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .t{flex:1;min-width:0}
+.row b{display:block;font-size:17px;font-weight:400}
+.row small{display:block;font-size:13px;line-height:18px;margin-top:2px;color:var(--ink2)}
+.row small.att{color:var(--attention)}
+.fix{min-height:36px;padding:0 14px;border-radius:18px;background:var(--act);color:var(--onAct);font-size:14px;font-weight:600;display:grid;place-items:center;flex:none}
+.okp{font-size:12px;font-weight:600;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:3px 9px;flex:none}
+svg{display:block}
+.notes{margin:28px auto 48px}
+.notes ol{max-width:80ch;padding-left:20px;margin:6px 0}
+.notes li{margin:6px 0}
+.ask{font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>A-106 · Alarmes e lembretes (Android)</h1>
+  <p>Quando a permissão está desligada, o Android pode atrasar cada lembrete em até 1 hora (foi o que o seu Fold mostrou: todos os 248 alarmes com janela de +1 h). Proposta: o app passa a <b>ler</b> essa permissão, avisa na tela Hoje e leva direto à tela do Android. Só aparece no Android; o iPhone não tem essa permissão.</p>
+</header>
+
+<section>
+  <h2>1 · Aviso na tela Hoje</h2>
+  <p class="lead">Mesmo lugar e mesmo formato dos outros avisos (com o botão de adiar). Aparece só com a permissão desligada e algum protocolo com horário de lembrete. Tocar abre direto a tela "Alarmes e lembretes" do Android.</p>
+  <div class="grid">
+    <div class="col"><h3>App hoje · claro</h3>
+      <div class="ph light"><div class="secrow"><span>Alertas</span><span>1</span></div>
+        <div class="card">
+          <div class="alert"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Frasco vencendo<i></i></b><small>Tirzepatida — vence em 7 dias</small></div><div class="snz"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2 1.5M16 4h4v4" stroke-linecap="round"/></svg></div></div>
+        </div>
+        <p class="tag" style="margin:10px 4px 0">Nenhum aviso: o usuário não sabe que os lembretes atrasam.</p>
+      </div></div>
+    <div class="col"><h3>Proposta · claro</h3>
+      <div class="ph light"><div class="secrow"><span>Alertas</span><span>2</span></div>
+        <div class="card">
+          <div class="alert"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M5 4 3 6M19 4l2 2" stroke-linecap="round"/></svg><div class="t"><b>Lembretes podem atrasar<i></i></b><small>Ligue "Alarmes e lembretes" para chegarem na hora.</small></div><div class="snz"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2 1.5M16 4h4v4" stroke-linecap="round"/></svg></div></div>
+          <div class="alert"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Frasco vencendo<i></i></b><small>Tirzepatida — vence em 7 dias</small></div><div class="snz"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2 1.5M16 4h4v4" stroke-linecap="round"/></svg></div></div>
+        </div></div></div>
+    <div class="col"><h3>Proposta · escuro</h3>
+      <div class="ph dark"><div class="secrow"><span>Alertas</span><span>2</span></div>
+        <div class="card">
+          <div class="alert"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M5 4 3 6M19 4l2 2" stroke-linecap="round"/></svg><div class="t"><b>Lembretes podem atrasar<i></i></b><small>Ligue "Alarmes e lembretes" para chegarem na hora.</small></div><div class="snz"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2 1.5M16 4h4v4" stroke-linecap="round"/></svg></div></div>
+          <div class="alert"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Frasco vencendo<i></i></b><small>Tirzepatida — vence em 7 dias</small></div><div class="snz"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2 1.5M16 4h4v4" stroke-linecap="round"/></svg></div></div>
+        </div></div></div>
+  </div>
+
+  <h2>2 · Linha em Ajustes → Verificar lembretes</h2>
+  <p class="lead">Hoje a linha só diz "o app não consegue ler isso". Com a leitura, ela mostra o estado real: desligado (cor de atenção + botão Ligar) ou ligado (OK). Não é "bloqueado" em vermelho: os lembretes chegam, só que atrasados.</p>
+  <div class="grid">
+    <div class="col"><h3>App hoje · claro</h3>
+      <div class="ph light"><div class="card">
+        <div class="row"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Alarmes e lembretes</b><small>Precisa estar ligado para os lembretes chegarem na hora. O app não consegue ler isso: confira lá.</small></div><div class="fix">Abrir</div></div>
+      </div></div></div>
+    <div class="col"><h3>Proposta · desligado · claro</h3>
+      <div class="ph light"><div class="card">
+        <div class="row"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Alarmes e lembretes</b><small class="att">Desligado: os lembretes podem chegar até 1 hora atrasados</small></div><div class="fix">Ligar</div></div>
+      </div></div></div>
+    <div class="col"><h3>Proposta · ligado · claro</h3>
+      <div class="ph light"><div class="card">
+        <div class="row"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Alarmes e lembretes</b><small>Ligado: os lembretes chegam na hora</small></div><div class="okp">OK</div></div>
+      </div></div></div>
+    <div class="col"><h3>Proposta · desligado · escuro</h3>
+      <div class="ph dark"><div class="card">
+        <div class="row"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Alarmes e lembretes</b><small class="att">Desligado: os lembretes podem chegar até 1 hora atrasados</small></div><div class="fix">Ligar</div></div>
+      </div></div></div>
+    <div class="col"><h3>Proposta · ligado · escuro</h3>
+      <div class="ph dark"><div class="card">
+        <div class="row"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/></svg><div class="t"><b>Alarmes e lembretes</b><small>Ligado: os lembretes chegam na hora</small></div><div class="okp">OK</div></div>
+      </div></div></div>
+  </div>
+</section>
+
+<section class="notes">
+  <h2>O que acontece por trás</h2>
+  <ol>
+    <li>Ao voltar da tela do Android com a permissão ligada, o app reagenda todos os lembretes já no modo exato (os antigos ficariam aproximados).</li>
+    <li>O aviso some sozinho quando a permissão é ligada; "adiar" funciona como nos outros avisos.</li>
+    <li>Android 12 ou mais antigo, ou permissão já ligada: nada aparece.</li>
+    <li>Textos nos 6 idiomas com o nome que o Android usa em cada um ("Alarmes e lembretes", "Alarmas y recordatorios", "Alarmes et rappels", "Wecker und Erinnerungen", "Sveglie e promemoria").</li>
+  </ol>
+  <p class="ask">Aprova assim? Se quiser outro texto ou sem o aviso na tela Hoje (só a linha), me diga.</p>
+</section>
+</body>
+</html>

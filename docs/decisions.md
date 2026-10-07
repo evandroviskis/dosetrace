@@ -584,3 +584,8 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 
 ## Founder 2026-10-07 — store prints
 - **Store screenshots approved** ("Aprovado"): store/screenshots/apple|play/<lang>/ (style A, 7 screens x 6 languages, captions in store/screenshots/captions.json). Uploaded to both stores together with 1.3.0, with the approved store/listing texts.
+
+## Founder 2026-10-07 — reminders on Android
+- **A-107 = option B**: reminders stay scheduled on the phone; a daily background refresh (expo-background-task) rolls the dose reminders, morning summary and food nudge forward without the app being opened. Server push (send-reminders) stays OFF (it lacked Mark-as-taken, Show-names, Silent mode, repeats, and ran every 15 min). Target 1.3.0.
+- **A-106 in 1.3.0**: tell Android users when "Alarms & reminders" is off (reminders then arrive up to 1 h late) and open the system screen. Picture before code.
+- Verified on the Fold (adb, build 47): 248 alarms scheduled after opening; all 248 back after a reboot without opening the app.
