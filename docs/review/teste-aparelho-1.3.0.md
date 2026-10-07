@@ -129,3 +129,30 @@ Adicione um protocolo com início 3 semanas atrás.
 4. A leitura de exame ainda funciona.
 5. Jornada: compare a curva com um print da versão de teste 1. Os números são os mesmos.
 6. Fold: refaça o 9.7 (barra de baixo) com a barra de tarefas aparecendo E escondida.
+
+## Versão de teste 3: o que mudou (2026-10-07)
+
+### 15. Hoje, ainda na versão 47 do Fold
+1. O lembrete das 20h chega em ponto (os alarmes já são exatos, prova pelo cabo às 16h35).
+
+### 16. Lembretes garantidos no Android (A-106, A-107, A-110) — Fold
+1. Instale a 48 por cima da 47. Na primeira vez em Hoje, o passo a passo "Garanta que seus lembretes chegam" abre UMA vez (você já tem protocolos). Feche e reabra o app: não abre de novo.
+2. No passo a passo, no claro E no escuro: cada linha mostra o estado real e cada botão abre a tela certa do Android. Ao voltar, a linha e a barra "N de 4 prontos" se atualizam. O nome de cada opção tem que ser o que a Samsung mostra (ex.: "Manage app if unused"). Anote qualquer nome diferente.
+3. Desligue "Alarmes e lembretes" no Android: Hoje mostra "Os lembretes podem atrasar"; a linha fica em atenção. Religue e volte ao app: o aviso some sozinho e eu confiro pelo cabo que os alarmes voltaram a ser exatos.
+4. Ligue "Manage app if unused": Hoje mostra "Seus lembretes podem parar". Desligue: some. (Prova de que o app lê a chave da Samsung.)
+5. Com 2 ou mais desses avisos ao mesmo tempo, Hoje mostra UM cartão só, que abre o passo a passo.
+6. Ajustes > Modo silencioso ligado: Hoje mostra o aviso do modo silencioso, nenhum lembrete chega, e Verificar lembretes diz "modo silencioso", nunca "bloqueado". Desligue: os lembretes voltam.
+7. Ajustes > Verificar lembretes (Android) tem o botão que abre o passo a passo.
+8. Sem abrir o app por 7 dias: o resumo da manhã continua chegando todo dia. Eu confiro pelo cabo que a renovação automática rodou e que o despertar do servidor (8h UTC = 4h aqui) acionou ela.
+9. Depois desses dias, abra o app: continua conectado, nada sumiu, e Verificar lembretes mostra "Renovação automática" com a hora da última vez.
+
+### 17. Recomeçar um protocolo (A-99 + decisões do conselho 3)
+1. Encerrado com frasco: Recomeçar pergunta "Frasco novo / Continuar o mesmo frasco". Novo: frasco cheio, misturado hoje. Mesmo: o frasco antigo continua com o que sobrou.
+2. Oral: a pergunta fala de pote, e "Continuar o mesmo" mantém as unidades.
+3. Se já existe um ativo igual, aparece o aviso de duplicado antes.
+4. Começa hoje, com zero doses tomadas; o histórico antigo continua no Histórico de doses.
+5. Toque duas vezes rápido em Recomeçar: só um protocolo novo.
+
+### 18. Entrar e sair (portão B, os dois aparelhos)
+1. E-mail, Google e Apple entram. Editar perfil > Salvar fecha a tela. Sair volta para boas-vindas.
+2. Deixe o app aberto por mais de 1 hora e use de novo: continua conectado (a renovação da sessão agora só roda com o app na frente).
