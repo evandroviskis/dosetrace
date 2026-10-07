@@ -94,3 +94,25 @@ test('AC5: in the background the food access read writes nothing and pushes noth
   assert.match(f, /if \(a\.persist && persist\)/);
   assert.match(read('lib/notifications.js'), /loadFoodAccess\(user\?\.id \|\| null, \{ persist: !_background \}\)/);
 });
+
+// AC11: iOS keeps no background mode (plugins/withoutIosBackgroundFetch.js). expo-background-task's
+// iOS side registers its BGTask identifier at launch — on a real iPhone, without the Info.plist entry
+// its plugin adds, that is a crash on open (the simulator skips it). So the package is Android only:
+// excluded from iOS autolinking, its plugin not applied, and required only on Android.
+test('AC11: the background task is Android only — never linked, configured or loaded on iOS', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.ok(pkg.expo && pkg.expo.autolinking && pkg.expo.autolinking.ios && pkg.expo.autolinking.ios.exclude.includes('expo-background-task'), 'excluded from iOS autolinking');
+  assert.ok(!read('app.json').includes('"expo-background-task"'), 'its iOS-only plugin is not applied');
+  const bt = read('lib/backgroundTasks.js');
+  assert.match(bt, /Platform\.OS !== 'android'/);
+  assert.doesNotMatch(bt, /^import .*expo-background-task/m, 'never imported at the top (it would load the native module on iOS)');
+  assert.match(bt, /require\('expo-background-task'\)/);
+});
+
+test('A-107: the refresh task is defined at startup and registered from the app (Android)', () => {
+  assert.match(read('index.js'), /defineReminderRefreshTask\(\)/);
+  assert.match(read('App.js'), /registerReminderRefresh\(\)/);
+  const bt = read('lib/backgroundTasks.js');
+  assert.match(bt, /minimumInterval: REFRESH_MINUTES/);
+  assert.match(bt, /runReminderRefresh\(/);
+});

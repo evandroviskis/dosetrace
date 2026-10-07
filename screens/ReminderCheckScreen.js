@@ -111,7 +111,9 @@ export default function ReminderCheckScreen({ navigation }) {
 
         <Text style={s.section}>{t('rc_sched_title')}</Text>
         <View style={s.card}>
-          {sched === 'off' ? (
+          {sched === 'silent' ? (
+            <Text style={s.cardMain}>{t('rc_silent_on')}</Text>
+          ) : sched === 'off' ? (
             <Text style={s.cardMain}>{t('rc_reminders_off')}</Text>
           ) : sched === 'block' ? (
             <>

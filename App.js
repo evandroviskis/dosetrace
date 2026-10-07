@@ -24,6 +24,7 @@ import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
+import { registerReminderRefresh } from './lib/backgroundTasks';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
 import { notifTapTarget, responseKey } from './lib/notificationPlan';
@@ -571,6 +572,8 @@ export default function App() {
 
     // A-106: "Alarms & reminders" turned on in Android settings → reschedule as exact alarms.
     const stopExactWatch = watchExactAlarms();
+    // A-107: the Android background refresh keeps reminders coming without the app being opened.
+    registerReminderRefresh().catch(() => {});
 
     // A sync can bring in food logs from another device — re-plan the 20:00
     // food nudge so a day logged on the iPad doesn't still ping the phone, and so

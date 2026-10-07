@@ -105,3 +105,23 @@ test('A-108: every schedule call is refused while Silent mode is on (except the 
   await on(N, { identifier: 'dose-2', content: { data: { type: 'dose_reminder' } } });
   assert.equal(N.added.length, 2);
 });
+
+// A-108 follow-up (seen on the store simulator 2026-10-07, the demo account has Silent mode on):
+// Silent mode cancels every reminder, so the check read "nothing scheduled" and Today said "Your
+// reminders are blocked" — but the user paused them on purpose. Silent mode is its own state: the
+// Reminder check says it is on, and nothing warns on Today or in the Settings line.
+test('A-108: Silent mode is its own state — never "blocked", never a Today warning', () => {
+  const R = require('../lib/reminderHealth');
+  const h = { os: 'android', permission: 'granted', doseChannelImportance: 5, batteryOptimized: false, exactAlarms: false,
+    remindersOn: true, silent: true, activeWithTime: 3, scheduledCount: 0, dueInWindow: 12, syncedOnce: true };
+  assert.equal(R.scheduleState(h), 'silent');
+  const checks = R.reminderChecks(h);
+  assert.equal(R.blockingCount(checks, R.scheduleState(h)), 0);
+  assert.equal(R.shouldWarnToday({ ...h, checks, schedule: R.scheduleState(h) }), false);
+  assert.equal(R.shouldWarnLate(h), false, 'nothing is late while everything is paused');
+  const { read } = require('./helpers/extractFn');
+  assert.match(read('lib/notifications.js'), /out\.silent = user\.user_metadata\?\.silent_mode === true;/);
+  assert.match(read('screens/ReminderCheckScreen.js'), /sched === 'silent' \? \(\s*<Text style=\{s\.cardMain\}>\{t\('rc_silent_on'\)\}<\/Text>/);
+  const T = require('../i18n/translations.js').translations || require('../i18n/translations.js');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].rc_silent_on, l);
+});

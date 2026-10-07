@@ -24,6 +24,7 @@
     "expo": "~54.0.33",
     "expo-apple-authentication": "~8.0.8",
     "expo-auth-session": "~7.0.10",
+    "expo-background-task": "~1.0.10",
     "expo-battery": "~10.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-clipboard": "~8.0.8",
@@ -61,5 +62,14 @@
     "@types/react": "~19.1.10",
     "better-sqlite3": "^12.11.1",
     "typescript": "~5.9.2"
+  },
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "exclude": [
+          "expo-background-task"
+        ]
+      }
+    }
   }
 }
