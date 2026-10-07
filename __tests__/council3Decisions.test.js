@@ -48,3 +48,24 @@ test('texts in all 6 languages', () => {
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['today_alert_silent_title', 'today_alert_silent_body', 'today_alert_combined_title', 'today_alert_combined_body', 'rc_setup_open']) assert.ok(T[l][k], `${l} ${k}`);
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].today_alert_combined_title.includes('{n}') && T[l].rc_setup_open.includes('{n}'), l);
 });
+
+// Ship-check review (2026-10-07): the once-only step must never pull the user off another screen —
+// Today's reminder read also runs after every background resync, with Today hidden behind it.
+test('5: the step opens only while Today is the screen in front', () => {
+  const t = read('screens/TodayScreen.js');
+  assert.match(t, /if \(!navigation\.isFocused\(\)\) return;[^\n]*\n\s*maybeOpenSetupForExisting\(navigation, h\.activeWithTime\)/);
+});
+
+// Ship-check review: a foreground resync that ran with no user known (offline, token expired)
+// scheduled nothing, yet marked "the app refreshed" and hid the stale alert for 2 days.
+test('the app-refresh mark is written only when a user was known for that resync', () => {
+  const n = read('lib/notifications.js');
+  assert.match(n, /run\.then\(async \(\) => \{ if \(_background\) return; const u = await getCachedUser\(\)\.catch\(\(\) => null\); if \(u\) await AsyncStorage\.setItem\(FG_SYNC_KEY/);
+});
+
+// Ship-check review: the Retomar question looked at vials including deleted ones.
+test('1: the container question ignores deleted vials', () => {
+  const p = read('screens/ProtocolsScreen.js');
+  const i = p.indexOf('function askRestart(p) {');
+  assert.match(p.slice(i, i + 600), /getVialsForProtocol\(p\.id\)\.length > 0/);
+});

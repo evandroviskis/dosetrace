@@ -182,7 +182,10 @@ export default function TodayScreen() {
     readReminderHealth()
       .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h));
         // Decision 5: Android users who already have a reminder time see the setup step once.
-        setTimeout(() => { maybeOpenSetupForExisting(navigation, h.activeWithTime).catch(() => {}); }, 600);
+        setTimeout(() => {
+          if (!navigation.isFocused()) return; // never pull the user off another screen (ship-check)
+          maybeOpenSetupForExisting(navigation, h.activeWithTime).catch(() => {});
+        }, 600);
       })
       .catch(() => {});
   }, []);

@@ -37,7 +37,7 @@ import {
   softDeleteProtocol, getProtocolById, getActiveVials, getVialById,
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
-  permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol,
+  permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import T from '../lib/trashSelection';
@@ -1252,7 +1252,7 @@ export default function ProtocolsScreen() {
   function askRestart(p) {
     const name = protocolName(p);
     let container = null;
-    try { if (getNewestVialForProtocol(p.id)) container = 'vial'; } catch { /* none */ }
+    try { if (getVialsForProtocol(p.id).length > 0) container = 'vial'; } catch { /* none */ } // deleted vials ignored
     if (!container && Number(p.container_units) > 0) container = 'bottle';
     const ask = () => setScreenSheet({
       title: t('protocols_restart_title').replace('{name}', name),
