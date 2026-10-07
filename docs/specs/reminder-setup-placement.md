@@ -1,0 +1,23 @@
+# Make sure your reminders arrive — in onboarding and in Settings (A-112, A-113)
+
+- source: founder 2026-10-07 — "essa tela poderia ter opcional lá na hora de fazer um onboarding, e depois ela poderia estar lá no settings… para que a pessoa possa a qualquer momento entrar e mudar as configurações"; picture docs/design/a112-reminder-setup-placement.html (claude.ai/artifact/Ga5gyj1a97s2sRhKkHeRHL) — founder 2026-10-07: "B, e o onboarding está bom assim". A-113 from the founder's Fold screenshots the same evening (the deep-sleep text did not match the screen its button opened).
+- purpose: Android can silently stop a reminder app; the person must be able to set the phone right once (while installing) and come back any time. One screen, not two near-identical ones.
+- decided by logic (docs/decisions.md 2026-10-07 evening): Android only (iPhone has only Notifications, already asked in onboarding; its Settings row stays "Check reminders"); shown in onboarding only after "Turn on notifications" (someone who said "Not now" to notifications is not asked for more); "every item OK" counts only what the app can read (Samsung deep sleep never blocks it); the automatic opening after the first protocol (RG-1) goes away — no double showing; the once-after-update opening for existing users (council 3 decision 5) stays and opens the single screen.
+- replaces: the separate setup mode of screens/ReminderCheckScreen.js and its "See step by step (N of M ready)" button (council 3 decision 4) — rebuild = replace.
+- code: screens/SettingsScreen.js, screens/ReminderCheckScreen.js, screens/OnboardingFlowScreen.js, lib/reminderHealth.js, lib/reminderSetup.js, lib/notifications.js (openReminderFix deepSleep), i18n.
+- checklist-signed:
+- committed-to: 1.3.0 (approved → next build)
+
+## Acceptance checklist
+
+| ID | Criterion | Status | Evidence | Deviation |
+|---|---|---|---|---|
+| SP-1 | Android, Settings → Notifications: the FIRST row is "Make sure your reminders arrive", with its state — "N of M ready" in the attention color with a dot while a readable item is not OK; "All set · next reminder <day, time>" when all are OK (no next reminder: "All set"). The old "Check reminders" row is gone on Android. iPhone keeps its "Check reminders" row unchanged. | missing |  |  |
+| SP-2 | That row opens ONE screen titled "Make sure your reminders arrive": the intro, the bar "N of M ready", each item with its real state and the button that opens the right Android screen (Notifications, Dose Reminders category when blocked, Alarms & reminders, Battery, the hibernation switch under the phone's own name, Automatic refresh, Samsung deep sleep), then "Next reminder" with the scheduled count and "Send a test reminder". The separate setup mode and the "See step by step" button no longer exist. | missing |  |  |
+| SP-3 | Coming back from an Android settings screen updates every row, the bar, and the Settings row state, without reopening the screen. | missing |  |  |
+| SP-4 | Android onboarding: right after "Turn on notifications" is answered, the step "Make sure your reminders arrive" shows the same items and bar, with "Continue" (reads "Done" when all readable items are OK) and "Set up later"; both go on with the onboarding exactly as before. After "Not now" on notifications the step is skipped. The step never shows on iPhone. | missing |  |  |
+| SP-5 | No automatic opening after the first protocol any more; an Android user who already finished onboarding before this version sees the screen once after updating (Today in front, a protocol with a reminder time). Never opened automatically again. | missing |  |  |
+| SP-6 | While a readable item is not OK and a protocol has a reminder time, Today keeps showing the reminder card (one card for two or more) until they are OK; Samsung deep sleep never counts. | missing |  |  |
+| SP-7 | Samsung deep sleep: "Open" opens Samsung's Battery screen; if that screen cannot open, the app's own Android page. The text names the taps from there with Samsung's own words in 6 languages ("In Battery, tap Background usage limits › Deep sleeping apps. DoseTrace must not be on that list."). | missing |  |  |
+| SP-8 | All new text in 6 languages, natural, one term per concept; theme tokens only, readable in light and dark; no emoji (icons from the app set). | missing |  |  |
+| SP-9 | Device proof on the Fold, light and dark: the onboarding step with a new test account (+qa), the Settings row in both states, the single screen with every button, and the deep-sleep button landing on Samsung's Battery. | missing |  |  |
