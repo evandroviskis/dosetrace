@@ -589,3 +589,7 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 - **A-107 = option B**: reminders stay scheduled on the phone; a daily background refresh (expo-background-task) rolls the dose reminders, morning summary and food nudge forward without the app being opened. Server push (send-reminders) stays OFF (it lacked Mark-as-taken, Show-names, Silent mode, repeats, and ran every 15 min). Target 1.3.0.
 - **A-106 in 1.3.0**: tell Android users when "Alarms & reminders" is off (reminders then arrive up to 1 h late) and open the system screen. Picture before code.
 - Verified on the Fold (adb, build 47): 248 alarms scheduled after opening; all 248 back after a reboot without opening the app.
+
+## Founder 2026-10-07 — A-107 stop point
+- **Reminders keep being renewed until the user deletes (or ends) the protocol** — no stop point for users who never open the app ("Avisar até o user apagar os protocolos").
+- **Founder wants prevention against Android stopping the app in the background** ("Eu preciso evitar que o Android nos boicote") — layered plan proposed 2026-10-07 (A-110).
