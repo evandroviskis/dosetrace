@@ -618,3 +618,7 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 5. Android users who already have a protocol with a reminder time see the setup step once after updating.
 6. RG-2 deviation accepted: Battery and Samsung deep sleep open the app's own Android page (no direct link to Samsung's list).
 7. BR-12: protocols with a total number of doses end their reminders when that course ends (the user set it).
+
+## 2026-10-07 (evening) — test build 3 on the Fold
+1. Founder: the "Make sure your reminders arrive" step belongs in ONBOARDING, while the app is being set up, with a skip ("set up later"); the app keeps reminding until every item is OK. Logic applied: Android only (iPhone has only Notifications, already asked in onboarding); "every item" = the readable ones (Samsung deep sleep cannot be read, so it never blocks); it replaces the automatic opening after the first protocol (RG-1), no double showing; picture before code. Target: 1.3.0 (approved → next build; production is blocked anyway by A-111).
+2. Founder 2026-10-07: the deep-sleep row's text did not match the screen its button opened (the app's own Battery page). Fix: open Samsung's Battery screen (com.samsung.android.sm.ACTION_BATTERY, verified on the Fold) and name the taps from there; Samsung blocks a direct link to the deep-sleep list (system permission READ_SEARCH_INDEXABLES, verified by adb).
