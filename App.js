@@ -24,7 +24,7 @@ import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
+import { initNotifications, requestNotificationPermissions, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
 import { notifTapTarget, responseKey } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
@@ -569,6 +569,9 @@ export default function App() {
       }).catch(() => {});
     });
 
+    // A-106: "Alarms & reminders" turned on in Android settings → reschedule as exact alarms.
+    const stopExactWatch = watchExactAlarms();
+
     // A sync can bring in food logs from another device — re-plan the 20:00
     // food nudge so a day logged on the iPad doesn't still ping the phone, and so
     // the backoff doesn't count it as ignored (journey-review F7). Throttled.
@@ -751,6 +754,7 @@ export default function App() {
       if (notifResponseSub) notifResponseSub.remove();
       if (appleRevokeSub) appleRevokeSub.remove();
       if (appStateSub) appStateSub.remove();
+      stopExactWatch();
       if (unsubSyncForFood) unsubSyncForFood();
     };
   }, []);

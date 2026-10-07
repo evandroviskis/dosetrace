@@ -21,7 +21,8 @@ const ROW = {
   notifications: { icon: 'bell', title: 'rc_notif', ok: 'rc_notif_ok', block: 'rc_notif_block', fix: 'rc_fix_turn_on' },
   channel: { icon: 'bell', title: 'rc_channel', ok: 'rc_channel_ok', block: 'rc_channel_block', fix: 'rc_fix_turn_on' },
   battery: { icon: 'calc_bolt', title: 'rc_battery', ok: 'rc_battery_ok', warn: 'rc_battery_warn', fix: 'rc_fix_adjust' },
-  alarms: { icon: 'clock', title: 'rc_alarms', open: 'rc_alarms_sub', fix: 'rc_fix_open' },
+  // A-106: readable on Android 12+; 'open' (cannot be read) keeps the old text and Open button.
+  alarms: { icon: 'clock', title: 'rc_alarms', ok: 'rc_alarms_ok', warn: 'rc_alarms_warn', open: 'rc_alarms_sub', fix: 'rc_fix_turn_on' },
   deep_sleep: { icon: 'snooze', title: 'rc_deep_sleep', open: 'rc_deep_sleep_sub', fix: 'rc_fix_open' },
 };
 
@@ -88,6 +89,7 @@ export default function ReminderCheckScreen({ navigation }) {
           {checks.map((c, i) => {
             const r = ROW[c.id];
             const needsFix = c.state !== 'ok';
+            const fixKey = c.state === 'open' ? 'rc_fix_open' : r.fix; // a row it cannot read only opens
             return (
               <View key={c.id} style={[s.row, i === checks.length - 1 && s.rowLast]}>
                 <FeatureIcon name={c.state === 'block' ? 'warning' : r.icon} size={24} color={c.state === 'block' ? colors.risk : colors.ink} />
@@ -96,8 +98,8 @@ export default function ReminderCheckScreen({ navigation }) {
                   <Text style={[s.rowSub, { color: stateColor(c) }]}>{stateText(c)}</Text>
                 </View>
                 {needsFix ? (
-                  <TouchableOpacity style={s.fixBtn} onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t(r.fix)}: ${t(r.title)}`}>
-                    <Text style={s.fixText}>{t(r.fix)}</Text>
+                  <TouchableOpacity style={s.fixBtn} onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t(fixKey)}: ${t(r.title)}`}>
+                    <Text style={s.fixText}>{t(fixKey)}</Text>
                   </TouchableOpacity>
                 ) : (
                   <Text style={s.okPill}>OK</Text>

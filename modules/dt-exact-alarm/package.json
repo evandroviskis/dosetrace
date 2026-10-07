@@ -1,0 +1,7 @@
+{
+  "name": "dt-exact-alarm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DoseTrace local module: reads Android's Alarms & reminders (exact alarm) permission (A-106).",
+  "main": "index.js"
+}

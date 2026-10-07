@@ -18,8 +18,8 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
-import { reminderChecks, scheduleState, shouldWarnToday } from '../lib/reminderHealth';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
+import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate } from '../lib/reminderHealth';
 import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
@@ -173,9 +173,10 @@ export default function TodayScreen() {
   useFocusEffect(useCallback(() => () => setNotifFocus(null), []));
   // RC-6: Today warns when something the app can read blocks dose reminders (lib/reminderHealth).
   const [remindersBlocked, setRemindersBlocked] = useState(false);
+  const [remindersLate, setRemindersLate] = useState(false); // A-106: Alarms & reminders off (Android)
   const readReminders = useCallback(() => {
     readReminderHealth()
-      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); })
+      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); })
       .catch(() => {});
   }, []);
   useFocusEffect(readReminders);
@@ -1564,8 +1565,19 @@ export default function TodayScreen() {
         snoozeId: 'reminders_blocked',
       });
     }
+    // 6) Reminders may be late (A-106, founder 2026-10-07): Android "Alarms & reminders" is off, so
+    // every reminder can arrive up to 1 h late. Tapping opens that Android screen directly.
+    if (remindersLate && !(alertSnooze.reminders_late && nowMs < alertSnooze.reminders_late)) {
+      list.push({
+        id: 'reminders_late', iconName: 'clock', due: true,
+        title: t('today_alert_late_title'),
+        body: t('today_alert_late_body'),
+        onPress: () => { openReminderFix('alarms').catch(() => {}); },
+        snoozeId: 'reminders_late',
+      });
+    }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked]);
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);
