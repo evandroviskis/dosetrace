@@ -100,3 +100,42 @@ test('RG-7: new text in all 6 languages; icons from the app set (no emoji)', () 
   const icons = read('components/featureIconsData.js');
   for (const n of ['pause', 'refresh', 'moon', 'close']) assert.match(icons, new RegExp(`\\n  ${n}: \``));
 });
+
+// ── RG-6: the daily silent wake-up ─────────────────────────────────────────────────────────
+test('RG-6: the server sends one silent, data-only wake-up per Android device (never iOS, never text)', async () => {
+  const { pathToFileURL } = require('node:url');
+  const path = require('node:path');
+  const P = await import(pathToFileURL(path.join(__dirname, '../supabase/functions/wake-refresh/plan.js')).href);
+  const msgs = P.wakeMessages([
+    { expo_token: 'ExponentPushToken[a]', platform: 'android' },
+    { expo_token: 'ExponentPushToken[a]', platform: 'android' },
+    { expo_token: 'ExponentPushToken[i]', platform: 'ios' },
+    { expo_token: null, platform: 'android' },
+  ]);
+  assert.equal(msgs.length, 1, 'one per Android token, duplicates and iOS dropped');
+  assert.deepEqual(msgs[0], { to: 'ExponentPushToken[a]', data: { type: 'refresh_wake' }, priority: 'high', _contentAvailable: true });
+  assert.ok(!('title' in msgs[0]) && !('body' in msgs[0]) && !('sound' in msgs[0]), 'nothing visible, nothing private');
+  assert.deepEqual(P.deadTokens([{ to: 'x' }, { to: 'y' }], [{ status: 'ok' }, { status: 'error', details: { error: 'DeviceNotRegistered' } }]), ['y']);
+});
+
+test('RG-6: the app turns a wake-up into the reminder refresh — and nothing else', () => {
+  const R = require('../lib/reminderRefresh');
+  assert.equal(R.isWakePayload({ data: { type: 'refresh_wake' } }), true);
+  assert.equal(R.isWakePayload({ notification: { request: { content: { data: { type: 'refresh_wake' } } } } }), true);
+  assert.equal(R.isWakePayload({ data: { dataString: JSON.stringify({ type: 'refresh_wake' }) } }), true);
+  assert.equal(R.isWakePayload({ data: { body: JSON.stringify({ type: 'refresh_wake' }) } }), true);
+  assert.equal(R.isWakePayload({ actionIdentifier: 'MARK_TAKEN', notification: { request: { content: { data: { type: 'dose_reminder' } } } } }), false);
+  assert.equal(R.isWakePayload(null), false);
+  const a = read('lib/notificationActions.js');
+  assert.match(a, /if \(isWakePayload\(data\)\) \{ await refreshNow\(\)\.catch\(\(\) => \{\}\); return; \}/);
+});
+
+test('RG-6: the server function is protected and the schedule is a reviewed migration (not applied without the founder)', () => {
+  const fn = read('supabase/functions/wake-refresh/index.ts');
+  assert.match(fn, /unauthorized/);
+  assert.match(fn, /eq\('platform', 'android'\)/);
+  assert.match(fn, /wakeMessages\(/);
+  const fs = require('node:fs');
+  const mig = fs.readdirSync(require('node:path').join(__dirname, '../supabase/migrations')).find((f) => /wake_refresh/.test(f));
+  assert.ok(mig, 'a migration schedules it');
+});
