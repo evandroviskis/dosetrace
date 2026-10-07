@@ -51,17 +51,19 @@ test('EA-1: readReminderHealth reads the native check; EA-4: turning it on resch
 });
 
 test('EA-2: the Reminder check row has on / off texts and a Turn on button', () => {
-  const s = read('screens/ReminderCheckScreen.js');
+  const s = read('components/ReminderSetupList.js'); // A-112: the rows live in the shared list
   assert.match(s, /alarms: \{ icon: 'clock', title: 'rc_alarms', ok: 'rc_alarms_ok', warn: 'rc_alarms_warn', open: 'rc_alarms_sub', fix: 'rc_fix_turn_on' \}/);
 });
 
-test('EA-3: Today adds the "may be late" alert, snoozable, opening Android\'s screen directly', () => {
+// A-112 SP-6 (signed 2026-10-07) supersedes the direct open: the card opens "Make sure your reminders
+// arrive" at Alarms & reminders, whose Turn on button opens Android's screen.
+test('EA-3: Today adds the "may be late" alert, snoozable, opening the screen at Alarms & reminders', () => {
   const s = read('screens/TodayScreen.js');
   const i = s.indexOf("id: 'reminders_late'");
   assert.ok(i > 0);
   const block = s.slice(i - 200, i + 400);
   assert.match(block, /snoozeId: 'reminders_late'/);
-  assert.match(block, /openReminderFix\('alarms'\)/);
+  assert.match(block, /navigation\.navigate\('ReminderCheck', \{ focus: 'alarms' \}\)/);
   assert.match(block, /today_alert_late_title/);
 });
 

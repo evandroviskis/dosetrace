@@ -36,6 +36,6 @@ test('RG-7 Samsung: deep sleeping apps and its path use Samsung\'s own names in 
 });
 
 test('RG-7 Samsung: Check reminders and the setup step title rows through rowTitleKey', () => {
-  const src = read('screens/ReminderCheckScreen.js');
+  const src = read('components/ReminderSetupList.js'); // A-112: the rows live in the shared list
   assert.match(src, /rowTitleKey\(c\.id, health\.manufacturer\)/);
 });

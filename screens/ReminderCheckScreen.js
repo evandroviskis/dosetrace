@@ -10,24 +10,12 @@ import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import FeatureIcon from '../components/FeatureIcon';
-import { readReminderHealth, sendTestReminder, openReminderFix } from '../lib/notifications';
-import { reminderChecks, scheduleState, setupSteps, rowTitleKey } from '../lib/reminderHealth';
+import ReminderSetupList from '../components/ReminderSetupList';
+import { readReminderHealth, sendTestReminder } from '../lib/notifications';
+import { scheduleState } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
-
-const ROW = {
-  notifications: { icon: 'bell', title: 'rc_notif', ok: 'rc_notif_ok', block: 'rc_notif_block', fix: 'rc_fix_turn_on' },
-  channel: { icon: 'bell', title: 'rc_channel', ok: 'rc_channel_ok', block: 'rc_channel_block', fix: 'rc_fix_turn_on' },
-  battery: { icon: 'calc_bolt', title: 'rc_battery', ok: 'rc_battery_ok', warn: 'rc_battery_warn', fix: 'rc_fix_adjust' },
-  // A-106: readable on Android 12+; 'open' (cannot be read) keeps the old text and Open button.
-  alarms: { icon: 'clock', title: 'rc_alarms', ok: 'rc_alarms_ok', warn: 'rc_alarms_warn', open: 'rc_alarms_sub', fix: 'rc_fix_turn_on' },
-  // A-110 (picture approved 2026-10-07): Pause app activity if unused, and the automatic refresh.
-  hibernation: { icon: 'pause', title: 'rc_hibernation', ok: 'rc_hibernation_ok', warn: 'rc_hibernation_warn', open: 'rc_hibernation_open', fix: 'rc_fix_turn_off' },
-  refresh: { icon: 'refresh', title: 'rc_refresh', ok: 'rc_refresh_ok', warn: 'rc_refresh_warn', fix: 'rc_fix_adjust' },
-  deep_sleep: { icon: 'moon', title: 'rc_deep_sleep', open: 'rc_deep_sleep_sub', fix: 'rc_fix_open' },
-};
 
 function Back({ color }) {
   return (
@@ -37,11 +25,11 @@ function Back({ color }) {
   );
 }
 
-// route.params.mode 'setup' (A-110 RG-1/RG-2): the "Make sure your reminders arrive" step — the same
-// rows the app can fix, a ready count, and Continue later / Done instead of the schedule and test.
+// A-112 (founder 2026-10-07, picture B): on Android this is THE "Make sure your reminders arrive"
+// screen — the ready bar, every item with its button, the automatic refresh, then the schedule and the
+// test reminder (the separate setup mode is gone). iPhone keeps "Check reminders".
 export default function ReminderCheckScreen({ navigation, route }) {
-  const setup = route?.params?.mode === 'setup';
-  const focus = route?.params?.focus; // A-110 RG-5: the row a Today alert pointed at
+  const focus = route?.params?.focus; // the row a Today alert pointed at
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -56,27 +44,8 @@ export default function ReminderCheckScreen({ navigation, route }) {
     return () => sub.remove();
   }, [load]);
 
-  const steps = health && setup ? setupSteps(health) : null;
-  const checks = health ? (setup ? steps.rows : reminderChecks(health)) : [];
+  const android = health ? health.os === 'android' : false;
   const sched = health ? scheduleState(health) : null;
-
-  function stateText(c) {
-    const r = ROW[c.id];
-    if (c.id === 'refresh') {
-      if (c.pending) return t('rc_refresh_pending');
-      if (c.state === 'warn') return t('rc_refresh_warn').replace('{n}', String(c.days));
-      const d = new Date(c.at);
-      const when = t('rc_refresh_ok').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
-      return c.until ? `${when} · ${t('rc_refresh_until').replace('{date}', formatDate(new Date(c.until), language, 'dayMonth'))}` : when;
-    }
-    if (c.state === 'open') return t(r.open);
-    return t(r[c.state] || r.ok);
-  }
-  function stateColor(c) {
-    if (c.state === 'block') return colors.risk;
-    if (c.state === 'warn') return colors.attention;
-    return colors.ink2;
-  }
 
   async function test() {
     const ok = await sendTestReminder();
@@ -91,67 +60,16 @@ export default function ReminderCheckScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container}>
       <View style={[s.centered, s.navRow]}>
-        {setup ? (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" accessibilityLabel={t('ap_close')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <FeatureIcon name="close" size={22} color={colors.ink} />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-            <Back color={colors.ink} />
-            <Text style={s.backText}>{t('back')}</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+          <Back color={colors.ink} />
+          <Text style={s.backText}>{t('back')}</Text>
+        </TouchableOpacity>
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.pad]}>
-        <Text style={s.title} accessibilityRole="header">{t(setup ? 'rc_setup_title' : 'settings_rc_title')}</Text>
-        <Text style={s.intro}>{t(setup ? 'rc_setup_intro' : 'rc_intro')}</Text>
-        {setup && steps ? (
-          <View style={s.progress} accessible accessibilityLabel={t('rc_setup_progress').replace('{n}', String(steps.ready)).replace('{total}', String(steps.total))}>
-            <Text style={s.progressText}>{t('rc_setup_progress').replace('{n}', String(steps.ready)).replace('{total}', String(steps.total))}</Text>
-            <View style={s.bar}><View style={[s.barFill, { width: `${(steps.ready / steps.total) * 100}%` }]} /></View>
-          </View>
-        ) : null}
+        <Text style={s.title} accessibilityRole="header">{t(android ? 'rc_setup_title' : 'settings_rc_title')}</Text>
+        <Text style={s.intro}>{t(android ? 'rc_setup_intro' : 'rc_intro')}</Text>
+        <ReminderSetupList health={health} setup={android} withRefresh focus={focus} />
 
-        <View style={s.group}>
-          {checks.map((c, i) => {
-            const r = ROW[c.id];
-            const needsFix = c.state !== 'ok';
-            const fixKey = c.state === 'open' ? 'rc_fix_open' : r.fix; // a row it cannot read only opens
-            const title = t(rowTitleKey(c.id, health.manufacturer) || r.title);
-            return (
-              <View key={c.id} style={[s.row, i === checks.length - 1 && s.rowLast, c.id === focus && s.rowFocus]}>
-                <FeatureIcon name={c.state === 'block' ? 'warning' : r.icon} size={24} color={c.state === 'block' ? colors.risk : colors.ink} />
-                <View style={s.rowText}>
-                  <Text style={s.rowLabel}>{title}</Text>
-                  <Text style={[s.rowSub, { color: stateColor(c) }]}>{stateText(c)}</Text>
-                </View>
-                {needsFix ? (
-                  <TouchableOpacity style={s.fixBtn} onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t(fixKey)}: ${title}`}>
-                    <Text style={s.fixText}>{t(fixKey)}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={s.okPill}>OK</Text>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Founder 2026-10-07 (council 3 decision 4): the step by step, from Check reminders (Android). */}
-        {!setup && health && health.os === 'android' ? (() => {
-          const st = setupSteps(health);
-          return (
-            <TouchableOpacity style={s.stepLink} onPress={() => navigation.push('ReminderCheck', { mode: 'setup' })} accessibilityRole="button">
-              <Text style={s.stepLinkText}>{t('rc_setup_open').replace('{n}', String(st.ready)).replace('{total}', String(st.total))}</Text>
-            </TouchableOpacity>
-          );
-        })() : null}
-        {setup ? (
-          <TouchableOpacity style={s.testBtn} onPress={() => navigation.goBack()} accessibilityRole="button">
-            <Text style={s.testText}>{t(steps && steps.done ? 'rc_setup_done' : 'rc_setup_later')}</Text>
-          </TouchableOpacity>
-        ) : (
-        <>
         <Text style={s.section}>{t('rc_sched_title')}</Text>
         <View style={s.card}>
           {sched === 'silent' ? (
@@ -180,8 +98,6 @@ export default function ReminderCheckScreen({ navigation, route }) {
           <Text style={s.testText}>{t('rc_test_btn')}</Text>
         </TouchableOpacity>
         <Text style={s.hint}>{sent ? t('rc_test_sent') : t('rc_test_hint')}</Text>
-        </>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -196,17 +112,6 @@ const makeStyles = (c) => StyleSheet.create({
   pad: { paddingBottom: 40 },
   title: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, paddingHorizontal: 20, paddingTop: 4 },
   intro: { fontSize: 15, lineHeight: 20, color: c.ink2, marginHorizontal: 20, marginTop: 4, marginBottom: 14 },
-  group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, minHeight: 60, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line },
-  rowLast: { borderBottomWidth: 0 },
-  // The row a Today alert pointed at (A-110 RG-5): the well tone across the card, the same as a pressed row.
-  rowFocus: { backgroundColor: c.well, marginHorizontal: 0, paddingHorizontal: 16 },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 17, color: c.ink },
-  rowSub: { fontSize: 13, marginTop: 2, lineHeight: 18 },
-  fixBtn: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
-  fixText: { fontSize: 14, fontWeight: '600', color: c.onAct },
-  okPill: { fontSize: 12, fontWeight: '600', color: c.ok, borderWidth: 1, borderColor: c.ok, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, overflow: 'hidden' },
   section: { fontSize: 13, color: c.ink2, marginHorizontal: 32, marginTop: 22, marginBottom: 8 },
   card: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, padding: 16 },
   cardKey: { fontSize: 13, color: c.ink2 },
@@ -214,11 +119,5 @@ const makeStyles = (c) => StyleSheet.create({
   cardSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
   testBtn: { marginHorizontal: 16, marginTop: 16, minHeight: 50, borderRadius: 25, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   testText: { fontSize: 16, fontWeight: '600', color: c.onAct },
-  stepLink: { marginHorizontal: 16, marginTop: 12, minHeight: 46, borderRadius: 23, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  stepLinkText: { fontSize: 15, color: c.ink },
-  progress: { marginHorizontal: 20, marginBottom: 12 },
-  progressText: { fontSize: 13, color: c.ink2 },
-  bar: { height: 6, borderRadius: 3, backgroundColor: c.well, marginTop: 6, overflow: 'hidden' },
-  barFill: { height: 6, borderRadius: 3, backgroundColor: c.ok },
   hint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginHorizontal: 32, marginTop: 10 },
 });

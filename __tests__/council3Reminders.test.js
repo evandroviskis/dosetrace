@@ -89,14 +89,18 @@ test('UX: "not refreshed" opens the full Check reminders at the refresh row (the
 test('RG-5: the screen opens at the item that needs attention (focus is read and the row is marked)', () => {
   const s = read('screens/ReminderCheckScreen.js');
   assert.match(s, /const focus = route\?\.params\?\.focus;/);
-  assert.match(s, /c\.id === focus && s\.rowFocus/);
-  assert.match(s, /rowFocus: \{ backgroundColor: c\.well/);
+  assert.match(s, /<ReminderSetupList [^>]*focus=\{focus\}/);
+  const l = read('components/ReminderSetupList.js'); // A-112: the rows live in the shared list
+  assert.match(l, /c\.id === focus && s\.rowFocus/);
+  assert.match(l, /rowFocus: \{ backgroundColor: c\.well/);
 });
 
-test('journey F6: closing the start-date question without a button still opens the setup step', () => {
+// A-112 SP-5 (signed 2026-10-07): the protocol save no longer opens the step (Today does, once per
+// phone), so the start-date question carries no setup opening at all.
+test('journey F6: the start-date question opens nothing after it (Today offers the step once per phone)', () => {
   const p = read('screens/ProtocolsScreen.js');
   const i = p.indexOf("label: t('protocols_history_no')");
-  assert.match(p.slice(i - 400, i + 900), /onDismiss: openSetup/);
+  assert.doesNotMatch(p.slice(i - 400, i + 900), /openSetup|onDismiss/);
 });
 
 test('refresh records the last successful run (kept across failed runs)', async () => {

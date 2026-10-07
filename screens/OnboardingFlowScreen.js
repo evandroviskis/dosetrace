@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image,
-  StyleSheet, useWindowDimensions, Modal, BackHandler, Linking,
+  StyleSheet, useWindowDimensions, Modal, BackHandler, Linking, Platform, AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
@@ -28,6 +28,10 @@ import {
 } from '../lib/onboardingSteps';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
+import ReminderSetupList from '../components/ReminderSetupList';
+import { readReminderHealth } from '../lib/notifications';
+import { setupSteps } from '../lib/reminderHealth';
+import { markSetupSeen } from '../lib/reminderSetup';
 import CheckMark from '../components/CheckMark';
 import SegmentedBar from '../components/SegmentedBar';
 import LegalModal from '../components/LegalModal';
@@ -143,6 +147,19 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const [showCountry, setShowCountry] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [legal, setLegal] = useState(false);
+  // A-112 SP-4 (founder 2026-10-07): Android — after "Turn on notifications", "Make sure your reminders
+  // arrive" (items only; there are no protocols yet). Showing it marks it seen on this phone
+  // (lib/reminderSetup markSetupSeen), so Today never opens it again.
+  const [showSetup, setShowSetup] = useState(false);
+  const [setupHealth, setSetupHealth] = useState(null);
+  useEffect(() => {
+    if (!showSetup) return undefined;
+    const load = () => { readReminderHealth().then(setSetupHealth).catch(() => {}); };
+    load();
+    // Back from an Android settings screen: read the phone again.
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
+    return () => sub.remove();
+  }, [showSetup]);
 
   // The steps to show (lib/onboardingSteps activeSteps).
   const missingKey = signedIn ? missingProfileFields(session.user).join(',') : '';
@@ -180,13 +197,14 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   // screen let the OS handle it (exit). There must always be a way back.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showSetup) { setShowSetup(false); return true; }
       if (showLang) { setShowLang(false); return true; }
       if (showCountry) { setShowCountry(false); return true; }
       if (step > 0) { back(); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [step, showLang, showCountry]);
+  }, [step, showLang, showCountry, showSetup]);
 
   // Full goal set, shared with the Settings profile editor, alphabetized.
   const GOALS = goalOptions(t);
@@ -237,7 +255,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     if (step < steps.length - 1) setStep(step + 1);
     else finish();
   }
-  function back() { if (step > 0) setStep(step - 1); }
+  function back() { if (showSetup) { setShowSetup(false); return; } if (step > 0) setStep(step - 1); }
 
   async function toAuth(mode) {
     await persist();
@@ -286,6 +304,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   // there — the "You're all set" step is gone, founder 2026-09-29).
   async function enableNotifications() {
     try { await Notifications.requestPermissionsAsync(); } catch (e) { /* later */ }
+    if (Platform.OS === 'android') { await markSetupSeen(); setShowSetup(true); return; } // A-112 SP-4
     toAuth('create');
   }
 
@@ -542,7 +561,20 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             </>
           )}
 
-          {cur === 'reminders' && (
+          {cur === 'reminders' && showSetup && (
+            <View style={{ gap: 14 }}>
+              <View style={{ alignItems: 'center', gap: 10, paddingHorizontal: 8 }}>
+                <FeatureIcon name="shield" size={56} color={colors.data} />
+                <Text style={[s.title, s.textCenter]}>{t('rc_setup_title')}</Text>
+                <Text style={[s.sub, s.textCenter]}>{t('rc_setup_intro')}</Text>
+              </View>
+              <View style={{ marginHorizontal: -16 }}>
+                <ReminderSetupList health={setupHealth} />
+              </View>
+            </View>
+          )}
+
+          {cur === 'reminders' && !showSetup && (
             <View style={s.centerStep}>
               <FeatureIcon name="bell" size={76} color={colors.data} />
               <Text style={[s.title, s.textCenter]}>{t('ob_reminders_title')}</Text>
@@ -572,7 +604,17 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             </TouchableOpacity>
           </>
         )}
-        {cur === 'reminders' && (
+        {cur === 'reminders' && showSetup && (
+          <>
+            <TouchableOpacity style={s.primaryBtn} onPress={() => toAuth('create')} accessibilityRole="button">
+              <Text style={s.primaryBtnText}>{t(setupHealth && setupSteps(setupHealth).done ? 'rc_setup_done' : 'ob_continue')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.linkBtn} onPress={() => toAuth('create')} accessibilityRole="button">
+              <Text style={s.linkText}>{t('ob_setup_later')}</Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {cur === 'reminders' && !showSetup && (
           <>
             <TouchableOpacity style={s.primaryBtn} onPress={enableNotifications} accessibilityRole="button">
               <Text style={s.primaryBtnText}>{t('ob_enable_notifs')}</Text>

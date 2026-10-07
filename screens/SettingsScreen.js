@@ -38,7 +38,8 @@ import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, readReminderHealth } from '../lib/notifications';
-import { reminderChecks, scheduleState, blockingCount } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, blockingCount, setupRowState } from '../lib/reminderHealth';
+import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
@@ -227,12 +228,25 @@ export default function SettingsScreen({ navigation }) {
 
   // RC-1: how many readable phone settings block reminders (lib/reminderHealth).
   const [reminderBlocks, setReminderBlocks] = useState(0);
+  // A-112 SP-1: Android's "Make sure your reminders arrive" row state (block / N of M ready / all set).
+  const [setupRow, setSetupRow] = useState(null);
   useFocusEffect(
     useCallback(() => {
       fetchUser();
-      readReminderHealth().then((h) => setReminderBlocks(blockingCount(reminderChecks(h), scheduleState(h)))).catch(() => {});
+      readReminderHealth().then((h) => {
+        setReminderBlocks(blockingCount(reminderChecks(h), scheduleState(h)));
+        setSetupRow({ ...setupRowState(h), nextAtMs: h.next ? h.next.atMs : null });
+      }).catch(() => {});
     }, [])
   );
+  function setupRowSub() {
+    if (!setupRow) return '';
+    if (setupRow.kind === 'block') return t('settings_rc_sub_block');
+    if (setupRow.kind === 'warn') return t('rc_setup_progress').replace('{n}', String(setupRow.ready)).replace('{total}', String(setupRow.total));
+    if (!setupRow.nextAtMs) return t('settings_setup_all');
+    const d = new Date(setupRow.nextAtMs);
+    return t('settings_setup_all_next').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
+  }
 
   async function fetchUser() {
     const user = await getCachedUser();
@@ -655,8 +669,26 @@ export default function SettingsScreen({ navigation }) {
   }
 
   function renderNotificationsBody() {
+    const setupColor = setupRow && setupRow.kind === 'block' ? colors.risk : setupRow && setupRow.kind === 'warn' ? colors.attention : null;
     return (
       <>
+        {/* A-112 SP-1 (founder 2026-10-07, picture B): Android — the first row of Notifications opens
+            "Make sure your reminders arrive", with its state. */}
+        {Platform.OS === 'android' ? (
+          <TouchableOpacity style={s.row} onPress={() => navigation.navigate('ReminderCheck')} accessibilityRole="button">
+            <View style={s.rowLeft}>
+              <FeatureIcon name={setupRow && setupRow.kind === 'block' ? 'warning' : 'check'} size={28} color={setupRow && setupRow.kind === 'block' ? colors.risk : colors.ink} />
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[s.rowLabel, { flexShrink: 1 }]}>{t('settings_setup_title')}</Text>
+                  {setupRow && setupRow.kind !== 'ok' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: setupColor }} /> : null}
+                </View>
+                <Text style={[s.rowSub, setupColor && { color: setupColor }]}>{setupRowSub()}</Text>
+              </View>
+            </View>
+            <RowChevron color={colors.tick} />
+          </TouchableOpacity>
+        ) : null}
         <View style={s.row}>
           <View style={s.rowLeft}>
             <FeatureIcon name="bell" size={28} color={colors.text} />
@@ -748,8 +780,9 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
           />
         </View>
-        {/* RC-1 (founder 2026-10-05 "1 B"): the Reminder check, on both platforms. Replaces the
-            Android-only "Reminders not arriving?" row. */}
+        {/* RC-1 (founder 2026-10-05 "1 B"): the Reminder check — iPhone. On Android the first row of
+            this section replaces it (A-112 SP-1). */}
+        {Platform.OS !== 'android' ? (
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
           onPress={() => navigation.navigate('ReminderCheck')}
@@ -764,6 +797,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <RowChevron color={colors.tick} />
         </TouchableOpacity>
+        ) : null}
       </>
     );
   }

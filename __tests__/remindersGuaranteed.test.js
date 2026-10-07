@@ -56,9 +56,11 @@ test('RG-2: setup step rows and the "N of 4 ready" count (Samsung deep sleep is 
   assert.ok(!R.setupSteps({ ...base, manufacturer: 'Google' }).rows.some((r) => r.id === 'deep_sleep'));
 });
 
-test('RG-1: the first protocol with a reminder time opens the step once, Android only', () => {
+// A-112 SP-5 (signed 2026-10-07) replaces the first-protocol opening: onboarding offers the step and
+// Today opens it once per phone; the once-only rule is unchanged.
+test('RG-1: the step opens once per phone, Android only (no longer from the protocol save)', () => {
   const p = read('screens/ProtocolsScreen.js');
-  assert.match(p, /maybeOpenReminderSetup\(/);
+  assert.doesNotMatch(p, /maybeOpenReminderSetup\(/);
   const n = read('lib/reminderSetup.js');
   assert.match(n, /Platform\.OS !== 'android'/);
   assert.match(n, /SETUP_SEEN_KEY/);
@@ -69,16 +71,15 @@ test('RG-1: the first protocol with a reminder time opens the step once, Android
   assert.equal(shouldOpenSetup({ os: 'ios', seen: false, activeWithTime: 1 }), false);
 });
 
-test('RG-2/RG-5: the screen has a setup mode; Today\'s alerts open it at the missing item', () => {
+test('RG-2/RG-5: one screen (A-112: no setup mode); Today\'s alerts open it at the missing item', () => {
   const s = read('screens/ReminderCheckScreen.js');
-  assert.match(s, /route\?\.params\?\.mode === 'setup'/);
+  assert.doesNotMatch(s, /mode === 'setup'/);
   assert.match(s, /rc_setup_title/);
-  assert.match(s, /rc_setup_progress/);
+  assert.match(read('components/ReminderSetupList.js'), /rc_setup_progress/);
   const t = read('screens/TodayScreen.js');
-  // "may stop" opens the step at Pause app activity; "not refreshed" opens the full check at the
-  // refresh row (council 3: the step has no refresh row).
+  // "may stop" opens the screen at the hibernation switch; "not refreshed" at the refresh row.
   const stop = t.slice(t.indexOf("id: 'reminders_stop'"), t.indexOf("id: 'reminders_stop'") + 500);
-  assert.match(stop, /navigation\.navigate\('ReminderCheck', \{ mode: 'setup', focus: 'hibernation' \}\)/);
+  assert.match(stop, /navigation\.navigate\('ReminderCheck', \{ focus: 'hibernation' \}\)/);
   assert.match(stop, /snoozeId: 'reminders_stop'/);
   const stale = t.slice(t.indexOf("id: 'reminders_stale'"), t.indexOf("id: 'reminders_stale'") + 500);
   assert.match(stale, /snoozeId: 'reminders_stale'/);
@@ -158,7 +159,7 @@ test('RG-4: the refresh row also says until when reminders are scheduled (the la
   const c = R.reminderChecks({ ...base, lastScheduledMs: NOW + 20 * DAY }).find((x) => x.id === 'refresh');
   assert.equal(c.until, NOW + 20 * DAY);
   assert.match(read('lib/notifications.js'), /out\.lastScheduledMs = /);
-  assert.match(read('screens/ReminderCheckScreen.js'), /rc_refresh_until/);
+  assert.match(read('components/ReminderSetupList.js'), /rc_refresh_until/);
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].rc_refresh_until && T[l].rc_refresh_until.includes('{date}'), l);
 });
 

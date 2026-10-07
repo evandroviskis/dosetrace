@@ -18,8 +18,8 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
-import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings } from '../lib/reminderHealth';
+import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
+import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import { getRealityStart } from '../lib/realityCheck';
 import {
@@ -178,9 +178,10 @@ export default function TodayScreen() {
   const [remindersStop, setRemindersStop] = useState(false); // A-110: Pause app activity if unused is on
   const [refreshStale, setRefreshStale] = useState(0); // A-110: days the background refresh is late
   const [remindersSilent, setRemindersSilent] = useState(false); // council 3 decision 2
+  const [remindersBattery, setRemindersBattery] = useState(false); // A-112 SP-6: battery optimized (Android)
   const readReminders = useCallback(() => {
     readReminderHealth()
-      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h));
+      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h));
         // Decision 5: Android users who already have a reminder time see the setup step once.
         setTimeout(() => {
           if (!navigation.isFocused()) return; // never pull the user off another screen (ship-check)
@@ -1575,14 +1576,15 @@ export default function TodayScreen() {
         snoozeId: 'reminders_silent',
       });
     }
-    // Decision 3: two or more reminder warnings at once are ONE card that opens the setup step.
-    const warnings = reminderWarnings({ blocked: remindersBlocked, late: remindersLate, stop: remindersStop, stale: refreshStale });
+    // Decision 3: two or more reminder warnings at once are ONE card. A-112 SP-6: every card opens
+    // "Make sure your reminders arrive" (at its item); Battery optimized joins them.
+    const warnings = reminderWarnings({ blocked: remindersBlocked, late: remindersLate, stop: remindersStop, stale: refreshStale, battery: remindersBattery });
     if (warnings.length >= 2 && !(alertSnooze.reminders_combined && nowMs < alertSnooze.reminders_combined)) {
       list.push({
         id: 'reminders_combined', iconName: 'warning', due: true,
         title: t('today_alert_combined_title').replace('{n}', String(warnings.length)),
         body: t('today_alert_combined_body'),
-        onPress: () => navigation.navigate('ReminderCheck', { mode: 'setup' }),
+        onPress: () => navigation.navigate('ReminderCheck'),
         snoozeId: 'reminders_combined',
       });
     }
@@ -1598,24 +1600,35 @@ export default function TodayScreen() {
       });
     }
     // 6) Reminders may be late (A-106, founder 2026-10-07): Android "Alarms & reminders" is off, so
-    // every reminder can arrive up to 1 h late. Tapping opens that Android screen directly.
+    // every reminder can arrive up to 1 h late. Opens the screen at that item (A-112 SP-6).
     if (remindersLate && !(alertSnooze.reminders_late && nowMs < alertSnooze.reminders_late)) {
       list.push({
         id: 'reminders_late', iconName: 'clock', due: true,
         title: t('today_alert_late_title'),
         body: t('today_alert_late_body'),
-        onPress: () => { openReminderFix('alarms').catch(() => {}); },
+        onPress: () => navigation.navigate('ReminderCheck', { focus: 'alarms' }),
         snoozeId: 'reminders_late',
       });
     }
+    // A-112 SP-6 (founder: "até todos os campos OK"): DoseTrace's battery is optimized, so Android can
+    // delay reminders. Opens the screen at the Battery item.
+    if (remindersBattery && !(alertSnooze.reminders_battery && nowMs < alertSnooze.reminders_battery)) {
+      list.push({
+        id: 'reminders_battery', iconName: 'calc_bolt', due: true,
+        title: t('today_alert_battery_title'),
+        body: t('today_alert_battery_body'),
+        onPress: () => navigation.navigate('ReminderCheck', { focus: 'battery' }),
+        snoozeId: 'reminders_battery',
+      });
+    }
     // 7) Reminders may stop (A-110 RG-5): "Pause app activity if unused" is on, so after months without
-    // opening the app Android can freeze it and drop its reminders. Opens the setup step.
+    // opening the app Android can freeze it and drop its reminders. Opens the screen at that item.
     if (remindersStop && !(alertSnooze.reminders_stop && nowMs < alertSnooze.reminders_stop)) {
       list.push({
         id: 'reminders_stop', iconName: 'pause', due: true,
         title: t('today_alert_stop_title'),
         body: t('today_alert_stop_body'),
-        onPress: () => navigation.navigate('ReminderCheck', { mode: 'setup', focus: 'hibernation' }),
+        onPress: () => navigation.navigate('ReminderCheck', { focus: 'hibernation' }),
         snoozeId: 'reminders_stop',
       });
     }
@@ -1631,7 +1644,7 @@ export default function TodayScreen() {
     }
     }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent]);
+  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

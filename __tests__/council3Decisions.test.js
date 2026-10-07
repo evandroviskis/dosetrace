@@ -25,15 +25,15 @@ test('3: two or more reminder warnings become ONE card that opens the step; one 
   assert.ok(i > 0);
   const block = t.slice(i - 400, i + 600);
   assert.match(block, /if \(warnings\.length >= 2/);
-  assert.match(block, /navigation\.navigate\('ReminderCheck', \{ mode: 'setup' \}\)/);
+  assert.match(block, /navigation\.navigate\('ReminderCheck'\)/); // A-112: the one screen
   assert.match(block, /snoozeId: 'reminders_combined'/);
 });
 
-test('4: Check reminders (Android) ends with "See step by step (N of M ready)" into the step', () => {
+// A-112 (founder 2026-10-07 "B") replaces decision 4: one screen, so there is no "See step by step".
+test('4: no "See step by step" button any more — Check reminders and the step are one screen (A-112)', () => {
   const s = read('screens/ReminderCheckScreen.js');
-  assert.match(s, /rc_setup_open/);
-  assert.match(s, /!setup && health && health\.os === 'android'/);
-  assert.match(s, /navigation\.push\('ReminderCheck', \{ mode: 'setup' \}\)/);
+  assert.doesNotMatch(s, /rc_setup_open/);
+  assert.doesNotMatch(s, /navigation\.push\('ReminderCheck'/);
 });
 
 test('5: Android users who already have a protocol with a reminder time see the step once after updating', () => {
