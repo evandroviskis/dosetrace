@@ -41,6 +41,7 @@ function Back({ color }) {
 // rows the app can fix, a ready count, and Continue later / Done instead of the schedule and test.
 export default function ReminderCheckScreen({ navigation, route }) {
   const setup = route?.params?.mode === 'setup';
+  const focus = route?.params?.focus; // A-110 RG-5: the row a Today alert pointed at
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -117,7 +118,7 @@ export default function ReminderCheckScreen({ navigation, route }) {
             const needsFix = c.state !== 'ok';
             const fixKey = c.state === 'open' ? 'rc_fix_open' : r.fix; // a row it cannot read only opens
             return (
-              <View key={c.id} style={[s.row, i === checks.length - 1 && s.rowLast]}>
+              <View key={c.id} style={[s.row, i === checks.length - 1 && s.rowLast, c.id === focus && s.rowFocus]}>
                 <FeatureIcon name={c.state === 'block' ? 'warning' : r.icon} size={24} color={c.state === 'block' ? colors.risk : colors.ink} />
                 <View style={s.rowText}>
                   <Text style={s.rowLabel}>{t(r.title)}</Text>
@@ -188,6 +189,8 @@ const makeStyles = (c) => StyleSheet.create({
   group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, minHeight: 60, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line },
   rowLast: { borderBottomWidth: 0 },
+  // The row a Today alert pointed at (A-110 RG-5): the well tone across the card, the same as a pressed row.
+  rowFocus: { backgroundColor: c.well, marginHorizontal: 0, paddingHorizontal: 16 },
   rowText: { flex: 1 },
   rowLabel: { fontSize: 17, color: c.ink },
   rowSub: { fontSize: 13, marginTop: 2, lineHeight: 18 },

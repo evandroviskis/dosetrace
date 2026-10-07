@@ -1595,7 +1595,7 @@ export default function TodayScreen() {
         id: 'reminders_stale', iconName: 'refresh', due: true,
         title: t('today_alert_stale_title').replace('{n}', String(refreshStale)),
         body: t('today_alert_stale_body'),
-        onPress: () => navigation.navigate('ReminderCheck', { mode: 'setup', focus: 'battery' }),
+        onPress: () => navigation.navigate('ReminderCheck', { focus: 'refresh' }), // the full check has the refresh row (council 3)
         snoozeId: 'reminders_stale',
       });
     }

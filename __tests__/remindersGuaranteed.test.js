@@ -41,10 +41,10 @@ test('RG-5: Today alerts — may stop / not refreshed — only when it matters',
   assert.equal(R.shouldWarnStop({ ...base, hibernationExempt: false, remindersOn: false }), false);
   assert.equal(R.shouldWarnStop({ ...base, hibernationExempt: false, activeWithTime: 0 }), false);
   assert.equal(R.shouldWarnStop({ ...base, hibernationExempt: false, os: 'ios' }), false);
-  assert.equal(R.staleRefreshDays({ ...base, lastRefresh: { at: NOW - 3 * DAY } }), 3);
+  assert.equal(R.staleRefreshDays({ ...base, lastRefresh: { at: NOW - 3 * DAY, ok: true } }), 3);
   assert.equal(R.staleRefreshDays(base), 0);
   assert.equal(R.staleRefreshDays({ ...base, lastRefresh: null }), 0, 'never ran yet is not late');
-  assert.equal(R.staleRefreshDays({ ...base, lastRefresh: { at: NOW - 3 * DAY }, silent: true }), 0);
+  assert.equal(R.staleRefreshDays({ ...base, lastRefresh: { at: NOW - 3 * DAY, ok: true }, silent: true }), 0);
 });
 
 test('RG-2: setup step rows and the "N of 4 ready" count (Samsung deep sleep is listed but never counted)', () => {
@@ -75,12 +75,13 @@ test('RG-2/RG-5: the screen has a setup mode; Today\'s alerts open it at the mis
   assert.match(s, /rc_setup_title/);
   assert.match(s, /rc_setup_progress/);
   const t = read('screens/TodayScreen.js');
-  for (const id of ['reminders_stop', 'reminders_stale']) {
-    const i = t.indexOf(`id: '${id}'`);
-    assert.ok(i > 0, id);
-    assert.match(t.slice(i, i + 500), /navigation\.navigate\('ReminderCheck', \{ mode: 'setup'/);
-    assert.match(t.slice(i, i + 500), new RegExp(`snoozeId: '${id}'`));
-  }
+  // "may stop" opens the step at Pause app activity; "not refreshed" opens the full check at the
+  // refresh row (council 3: the step has no refresh row).
+  const stop = t.slice(t.indexOf("id: 'reminders_stop'"), t.indexOf("id: 'reminders_stop'") + 500);
+  assert.match(stop, /navigation\.navigate\('ReminderCheck', \{ mode: 'setup', focus: 'hibernation' \}\)/);
+  assert.match(stop, /snoozeId: 'reminders_stop'/);
+  const stale = t.slice(t.indexOf("id: 'reminders_stale'"), t.indexOf("id: 'reminders_stale'") + 500);
+  assert.match(stale, /snoozeId: 'reminders_stale'/);
 });
 
 test('RG-3: the native module reads the hibernation exemption (Android 11+)', () => {
@@ -159,4 +160,10 @@ test('RG-4: the refresh row also says until when reminders are scheduled (the la
   assert.match(read('lib/notifications.js'), /out\.lastScheduledMs = /);
   assert.match(read('screens/ReminderCheckScreen.js'), /rc_refresh_until/);
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].rc_refresh_until && T[l].rc_refresh_until.includes('{date}'), l);
+});
+
+test('RG-6: the server reads every Android token, 1000 at a time', () => {
+  const fn = read('supabase/functions/wake-refresh/index.ts');
+  assert.match(fn, /\.range\(from, from \+ 999\)/);
+  assert.match(fn, /if \(!data \|\| data\.length < 1000\) break;/);
 });

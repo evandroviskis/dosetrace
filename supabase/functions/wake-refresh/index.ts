@@ -19,8 +19,14 @@ Deno.serve(async (_req) => {
     if (claimErr) throw claimErr;
     if (!claimed) return json({ ok: true, skipped: 'too_soon' });
 
-    const { data: tokens, error } = await admin.from('push_tokens').select('expo_token, platform').eq('platform', 'android');
-    if (error) throw error;
+    // Paged (council 3): the API returns at most 1000 rows per read.
+    const tokens: { expo_token: string; platform: string }[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await admin.from('push_tokens').select('expo_token, platform').eq('platform', 'android').order('expo_token').range(from, from + 999);
+      if (error) throw error;
+      tokens.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
     const msgs = wakeMessages(tokens || []);
     let sent = 0;
     const dead: string[] = [];

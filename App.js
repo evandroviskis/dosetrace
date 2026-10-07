@@ -557,8 +557,12 @@ export default function App() {
     // so a warm-resumed process would never re-arm the tail of a rolling window
     // (e.g. the 7-day food-log nudge set under a 21-day reality-check — journey F2).
     // Throttled so rapid foreground/background toggles don't thrash.
+    // Token auto-refresh only while the app is in the foreground (lib/supabase.js: off at creation
+    // so a headless start never refreshes). A cold start in the foreground starts it at once.
+    if (AppState.currentState === 'active') supabase.auth.startAutoRefresh();
     let lastFgSync = 0;
     const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') supabase.auth.startAutoRefresh(); else supabase.auth.stopAutoRefresh();
       if (state !== 'active') return;
       const nowTs = Date.now();
       if (nowTs - lastFgSync < 60000) return; // at most once/min

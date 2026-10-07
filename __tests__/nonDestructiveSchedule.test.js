@@ -169,3 +169,25 @@ test('AC2: the morning summary schedules first and only then drops days no longe
   assert.ok(!N.scheduled.has(stale) && !N.scheduled.has('morning-summary'), 'a full run drops what is no longer wanted');
   assert.ok([...N.scheduled.keys()].filter((k) => k.startsWith('summary-')).length >= 6, 'the week is scheduled');
 });
+
+// Council 3 spec audit BR-1 (2026-10-07): the real getRealityStart swallowed every error and
+// returned null, so a failed database read looked like "no open check" and the scheduler cancelled
+// the weigh-in and every 20:00 question. The schedulers now ask strictly: a failed read throws
+// (unknown → keep), only a real "no open check" is null.
+test('BR-1: a failed reality-check read is "unknown" for the schedulers, never "no open check"', async () => {
+  const deps = (rowsThrow) => ({
+    getCachedUser: async () => ({ id: 'u1', user_metadata: {} }),
+    AsyncStorage: { getItem: async () => null },
+    RC_START_KEY: 'k', PULLED_KEY: (id) => 'p' + id,
+    getRealityCheckRows: () => { if (rowsThrow) throw new Error('database not ready'); return []; },
+    isMigrated: async () => true,
+    displayOpenCheck: () => null,
+  });
+  const strictFail = loadFn('lib/realityCheck.js', 'export async function getRealityStart(', 'getRealityStart', deps(true));
+  await assert.rejects(() => strictFail({ strict: true }), 'strict: the failure surfaces');
+  assert.equal(await strictFail(), null, 'screens keep the lenient answer');
+  const ok = loadFn('lib/realityCheck.js', 'export async function getRealityStart(', 'getRealityStart', deps(false));
+  assert.equal(await ok({ strict: true }), null, 'a real "no open check" is still null');
+  const n = require('node:fs').readFileSync(require('node:path').join(__dirname, '../lib/notifications.js'), 'utf8');
+  assert.equal((n.match(/getRealityStart\(\{ strict: true \}\)/g) || []).length, 2, 'both schedulers ask strictly');
+});

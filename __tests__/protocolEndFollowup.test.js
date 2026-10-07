@@ -76,14 +76,16 @@ test('Restart: the new run starts with a full vial mixed today; the old vial sta
   assert.equal(nv[0].created_at, '2026-10-03T14:00:00.000Z');
 });
 
-test('Restart: a ready-to-use vial keeps its box expiry and has no mix date; no vial → none created', () => {
+// Council 3 (senior/QA): the old box date may already be past, so the restarted run would show
+// "expired" on day 0 — a ready-to-use vial restarts with no expiry (the user enters the new box's).
+test('Restart: a ready-to-use vial restarts with no mix date and no expiry; no vial → none created', () => {
   const db = makeDb();
   const old = seedEnded(db);
   db.runSync(`UPDATE vials SET mixed_on = NULL, expires_on = '2027-03-31' WHERE protocol_id = ?`, [old]);
   const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' });
   const nv = db.getFirstSync('SELECT * FROM vials WHERE protocol_id = ?', [newId]);
   assert.equal(nv.mixed_on, null);
-  assert.equal(nv.expires_on, '2027-03-31');
+  assert.equal(nv.expires_on, null, 'the new box date is unknown');
   assert.equal(nv.doses_taken, 0);
   const db2 = makeDb();
   const o2 = seedEnded(db2);
@@ -149,7 +151,43 @@ test('F8 + Restart wiring: the free limit is checked first; the new run gets its
   assert.ok(i > 0);
   const body = s.slice(i, i + 900);
   assert.match(body, /if \(await isOverFreeLimit\(\)\) \{ promptUpgrade\(\); return; \}/);
-  assert.match(body, /const newId = restartEndedProtocol\(id\);/);
+  assert.match(body, /try \{ newId = restartEndedProtocol\(id\); \} catch \(err\) \{/, "a failed restart shows an error and changes nothing");
   assert.match(body, /getProtocolById\(newId\)/);
   assert.doesNotMatch(read('lib/protocolEnd.js'), /function restartProtocol/, 'the same-row restart is gone');
+});
+
+// Council 3 backend: Restart made three writes with no transaction; a crash in between left a new
+// run without its vial. All or nothing now.
+test('Restart is all or nothing: a failing vial write leaves no half-made run', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  const before = db.getAllSync('SELECT id FROM protocols').length;
+  const run = db.runSync.bind(db);
+  db.runSync = (sql, params) => { if (/^INSERT INTO vials/.test(sql)) throw new Error('disk full'); return run(sql, params); };
+  assert.throws(() => E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' }));
+  db.runSync = run;
+  assert.equal(db.getAllSync('SELECT id FROM protocols').length, before, 'no new protocol');
+  assert.equal(db.getFirstSync('SELECT doses_taken FROM vials WHERE protocol_id = ?', [old]).doses_taken, 8, 'old vial untouched');
+});
+
+// Council 3 journey F3 (2026-10-07): an oral / capsule protocol carried the first run's bottle count
+// (units_taken) into the restarted run — the same "zero taken" rule as vials applies.
+test('Restart: an oral protocol starts with zero units taken', () => {
+  const db = makeDb();
+  const old = seedEnded(db);
+  db.runSync(`UPDATE protocols SET type = 'oral', container_units = 180, units_taken = 30 WHERE id = ?`, [old]);
+  const newId = E.restartAsNew(db, old, { nowIso: '2026-10-03T14:00:00.000Z', todayKey: '2026-10-03' });
+  const n = db.getFirstSync('SELECT container_units, units_taken FROM protocols WHERE id = ?', [newId]);
+  assert.equal(n.container_units, 180, 'same bottle size');
+  assert.equal(n.units_taken, 0, 'zero taken');
+  assert.equal(db.getFirstSync('SELECT units_taken FROM protocols WHERE id = ?', [old]).units_taken, 30, 'the first run keeps its count');
+});
+
+// Council 3 journey F1: a double tap on Restart created two identical active runs.
+test('Restart: a second tap while the first restart runs does nothing', () => {
+  const s = read('screens/ProtocolsScreen.js');
+  const i = s.indexOf('async function restartProtocol(id) {');
+  const body = s.slice(i, i + 900);
+  assert.match(body, /if \(restartingRef\.current\) return;\s*restartingRef\.current = true;/);
+  assert.match(body, /finally \{ restartingRef\.current = false; \}/);
 });

@@ -1246,14 +1246,25 @@ export default function ProtocolsScreen() {
     });
   }
 
+  // One restart at a time (council 3 F1): a double tap used to create two identical active runs.
+  const restartingRef = useRef(false);
   async function restartProtocol(id) {
+    if (restartingRef.current) return;
+    restartingRef.current = true;
+    try {
     if (await isOverFreeLimit()) { promptUpgrade(); return; }
-    const newId = restartEndedProtocol(id);
+    // All or nothing (lib/protocolEnd restartAsNew): a failed write changes nothing and says so.
+    let newId = null;
+    try { newId = restartEndedProtocol(id); } catch (err) {
+      setScreenSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      return;
+    }
     const restarted = newId ? getProtocolById(newId) : null;
     if (restarted) scheduleDoseReminder(restarted).catch(() => {});
     fetchProtocols();
     notifyDataChanged('protocol');
     requestSync();
+    } finally { restartingRef.current = false; }
   }
 
   async function restoreProtocol(id) {
@@ -1892,6 +1903,7 @@ export default function ProtocolsScreen() {
             },
             { label: t('protocols_history_yes'), kind: 'primary', onPress: openSetup },
           ],
+          onDismiss: openSetup, // closed without a button: still offer the step (council 3 F6)
         });
       }
     }

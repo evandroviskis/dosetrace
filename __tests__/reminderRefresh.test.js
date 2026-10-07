@@ -116,3 +116,23 @@ test('A-107: the refresh task is defined at startup and registered from the app 
   assert.match(bt, /minimumInterval: REFRESH_MINUTES/);
   assert.match(bt, /runReminderRefresh\(/);
 });
+
+// Council 3 QA P1 (2026-10-07): a run with no stored session returned from inside the try without
+// leaving background mode — the vial-low alert, food access and the user lookup stayed in background
+// mode for the rest of that JS process. Every exit leaves background mode.
+test('AC8: every exit leaves background mode (no session, error, normal)', async () => {
+  for (const over of [{ readStoredUser: async () => null }, { syncAllNotifications: async () => { throw new Error('x'); } }, {}]) {
+    const d = deps(over);
+    await R.runReminderRefresh(d);
+    const on = d.log.filter((x) => x === 'bg:true').length;
+    const off = d.log.filter((x) => x === 'bg:false').length;
+    assert.equal(on, 1);
+    assert.equal(off, 1, JSON.stringify(d.log));
+    assert.ok(d.log.lastIndexOf('bg:false') > d.log.indexOf('bg:true'));
+  }
+});
+
+test('AC8: the database is marked ready only when it opened', () => {
+  const bt = read('lib/backgroundTasks.js');
+  assert.match(bt, /try \{ initDatabase\(\); dbReady = true; \} catch/);
+});
