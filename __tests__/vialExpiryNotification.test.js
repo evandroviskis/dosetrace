@@ -48,7 +48,8 @@ test('scheduled behind the vial alerts switch with Today\'s words; the tap opens
   assert.match(fn, /type: 'vial_expiry'/);
   assert.match(fn, /today_alert_vial_expired_one/);
   assert.match(fn, /today_alert_vial_expiry_one/);
-  assert.match(fn, /if \(user\.user_metadata\?\.vial_alerts === false\) return;/);
+  // A-109: switching it off also cancels the vial alerts already scheduled.
+  assert.match(fn, /if \(user\.user_metadata\?\.vial_alerts === false\) \{ await cancelByPrefix\(N, 'vial-'\); return; \}/);
   const t = notifTapTarget({ actionIdentifier: 'x', notification: { request: { content: { data: { type: 'vial_expiry', vialId: 7, protocolId: 1 } } } } }, 1);
   assert.deepEqual(t.params, { screen: 'Protocols', params: { openProtocolId: 1 } });
 });

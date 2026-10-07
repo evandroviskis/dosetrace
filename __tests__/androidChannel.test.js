@@ -29,7 +29,8 @@ test('iPhone: nothing changes, and a content channel is dropped', () => {
 test('lib/notifications schedules only through the channel helper', () => {
   const s = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
   assert.doesNotMatch(s, /N\.scheduleNotificationAsync\(\{/, 'no direct schedule call');
-  assert.match(s, /function scheduleReq\(N, req\) \{\s*return N\.scheduleNotificationAsync\(androidChannelRequest\(req, Platform\.OS\)\);/);
+  // A-108 adds the Silent mode check first; the one scheduling call still goes through the channel helper.
+  assert.match(s, /async function scheduleReq\(N, req\) \{[\s\S]{0,240}?return N\.scheduleNotificationAsync\(androidChannelRequest\(req, Platform\.OS\)\);/);
 });
 
 // Council 2 senior review B2: Mark as taken with the app closed must not rebuild the whole queue in
