@@ -4,7 +4,7 @@
 - purpose: on Android 14+ "Alarms & reminders" is off by default for apps; expo-notifications then schedules inexact alarms and every reminder can arrive up to 1 hour late (adb on the founder's Fold, build 47: all 248 alarms with window +1h). The user never knows. The app reads the permission, says so on Today and in the Reminder check, and opens the system screen.
 - what changes from reminder-check.md: the "Alarms & reminders" row (RC-3) becomes readable on Android 12+ (a small native check, modules/dt-exact-alarm), so it gets real states instead of "open only".
 - code: modules/dt-exact-alarm (Kotlin: AlarmManager.canScheduleExactAlarms), lib/notifications.js (readReminderHealth.exactAlarms, resync when it turns on), lib/reminderHealth.js (rules), screens/ReminderCheckScreen.js, screens/TodayScreen.js (alert), i18n.
-- checklist-signed: pending (picture approved 2026-10-07)
+- checklist-signed: 2026-10-07 by the founder ("assino as duas"; picture approved the same day)
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist
