@@ -624,3 +624,9 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 2. Founder 2026-10-07: the deep-sleep row's text did not match the screen its button opened (the app's own Battery page). Fix: open Samsung's Battery screen (com.samsung.android.sm.ACTION_BATTERY, verified on the Fold) and name the taps from there; Samsung blocks a direct link to the deep-sleep list (system permission READ_SEARCH_INDEXABLES, verified by adb).
 3. Founder 2026-10-07: "B, e o onboarding está bom assim" — Settings gets ONE top row "Make sure your reminders arrive" (state shown) opening ONE merged screen (setup rows + next reminder + test reminder); the separate setup mode and the "See step by step" button go (replaces council 3 decision 4). Onboarding step after "Turn on notifications" with "Set up later". Checklist docs/specs/reminder-setup-placement.md.
 4. Journey review of A-112 (2026-10-07), decided by logic: a block (notifications denied, category off, nothing scheduled) is risk color and never "All set"; showing the onboarding step marks it seen; Today opens the screen once per phone for anyone with a reminder time who has not seen it here (incl. "Not now" in onboarding, sign-in on a new install) — a reminder time means they asked for reminders; Battery joins the Today reminder card (founder: "até todos os campos OK"), snooze stays; onboarding shows only the items (no protocols yet).
+
+## 2026-10-07 (night) — council 4 answers
+1. Samsung deep sleep: B — a "Já conferi / I checked" confirmation saved on the phone turns the row OK and counts it (picture before code).
+2. The reminders screen keeps the large title + intro (not the compact header of the picture).
+3. After A-111 is proven on the Fold, Android reminder work is frozen until 1.3.0 is in the stores.
+4. "Pode gerar" the test build 4 — after the deep-sleep picture is approved and built (approved → this build).
