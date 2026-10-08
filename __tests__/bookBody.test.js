@@ -44,7 +44,7 @@ const isIdent = (n, name) => n && n.type === 'Identifier' && n.name === name;
 
 // The pure rules, run as written in BodyScreen.js.
 const pure = new Function(
-  ['newestReportKey', 'buildReport', 'bodyRightPage', 'bodyFoldPlan', 'bodyUnfoldSel', 'staleVaccineSel'].map((f) => findFn(BODY, f).code).join('\n')
+  ['reportCards', 'newestReportKey', 'buildReport', 'bodyRightPage', 'bodyFoldPlan', 'bodyUnfoldSel', 'staleVaccineSel'].map((f) => findFn(BODY, f).code).join('\n')
   + '\nreturn { newestReportKey, buildReport, bodyRightPage, bodyFoldPlan, bodyUnfoldSel, staleVaccineSel };',
 )();
 // The vaccine read page's row rule, run as written in VaccinePage.js.
@@ -70,7 +70,7 @@ test('BK-6: the default right page is the newest upload (the first By date card,
   // Wired through the shared default rule, with the same per-upload key the cards use.
   assert.match(BODY, /useBookSelection\('Body', defaultSelection\('Body', \{ newestReportKey: newestKey \}\)\)/);
   assert.match(BODY, /const newestKey = useMemo\(\(\) => newestReportKey\(rows\), \[rows\]\)/);
-  assert.match(BODY, /const reportKeys = useMemo\(\(\) => new Set\(rows\.map\(r => r\.report_date \+ '\|' \+ \(r\.created_at \|\| ''\)\)\), \[rows\]\)/);
+  assert.match(BODY, /const reportKeys = useMemo\(\(\) => new Set\(reportCards\(rows\)\.map\(c => c\.key\)\), \[rows\]\)/); // A-101d: one key per lab card
 });
 
 test('BK-6: the right page shows the tapped test, the tapped marker, or the Curve for Premium', () => {

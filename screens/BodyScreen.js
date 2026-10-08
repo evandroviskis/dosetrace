@@ -92,20 +92,45 @@ const TEST_DATE_RANGE = { back: 30, ahead: 0 };
 // 'marker:' + its canonical key, a vaccine = 'vax:' + its id (BK-18), Dose accumulation = 'curve'.
 
 // The newest test = the first card of the By date list, newest first (the default page).
-function newestReportKey(rows) {
-  let best = null;
+// A-101d: one card per lab test. Every insert batch (created_at) is an upload or one typed marker;
+// batches of the same date join one card, unless a batch repeats a marker the card already has —
+// that is a second (duplicate) upload, kept as its own card so it can be deleted alone.
+// key = date + '|' + the card's first batch; batches = every created_at in the card.
+function reportCards(rows) {
+  const byDate = {};
   for (const r of rows || []) {
     const c = r.created_at || '';
-    if (!best || r.report_date > best.d || (r.report_date === best.d && c > best.c)) best = { d: r.report_date, c };
+    const d = (byDate[r.report_date] = byDate[r.report_date] || {});
+    (d[c] = d[c] || []).push(r);
   }
-  return best ? best.d + '|' + best.c : null;
+  const cards = [];
+  for (const date of Object.keys(byDate)) {
+    const dateCards = [];
+    for (const c of Object.keys(byDate[date]).sort()) {
+      const batch = byDate[date][c];
+      const names = new Set(batch.map(r => String(r.marker || '').toLowerCase()));
+      let card = dateCards.find(k => !k.markers.some(m => names.has(String(m.marker || '').toLowerCase())));
+      if (!card) { card = { key: date + '|' + c, date, createdAt: c, latest: c, batches: [], markers: [] }; dateCards.push(card); }
+      card.batches.push(c);
+      card.markers.push(...batch);
+      card.latest = c;
+    }
+    cards.push(...dateCards);
+  }
+  return cards;
 }
 
-// Every value of one upload, from ALL rows (not the search-filtered list).
+function newestReportKey(rows) {
+  let best = null;
+  for (const card of reportCards(rows)) {
+    if (!best || card.date > best.date || (card.date === best.date && card.latest > best.latest)) best = card;
+  }
+  return best ? best.key : null;
+}
+
+// Every value of one lab test (card), from ALL rows (not the search-filtered list).
 function buildReport(rows, key) {
-  const markers = (rows || []).filter(r => r.report_date + '|' + (r.created_at || '') === key);
-  if (!markers.length) return null;
-  return { key, date: markers[0].report_date, createdAt: markers[0].created_at || '', markers };
+  return reportCards(rows).find(c => c.key === key) || null;
 }
 
 // What the right page shows. A chosen test, marker or vaccine that no longer exists
@@ -232,17 +257,13 @@ export default function BodyScreen({ navigation, route }) {
   // marker search, sorted by the chosen order. Reports with no matching marker are
   // dropped. `key` is the stable instance id used for expand + delete.
   const reports = useMemo(() => {
-    const grouped = {};
-    for (const row of rows) {
-      if (q && !row.marker.toLowerCase().includes(q)) continue;
-      const createdAt = row.created_at || '';
-      const key = row.report_date + '|' + createdAt;
-      (grouped[key] ||= { key, date: row.report_date, createdAt, markers: [] }).markers.push(row);
-    }
-    const entries = Object.values(grouped);
+    // A-101d: one card per lab test (reportCards), then the marker search.
+    const entries = reportCards(rows)
+      .map(c => (q ? { ...c, markers: c.markers.filter(m => String(m.marker || '').toLowerCase().includes(q)) } : c))
+      .filter(c => c.markers.length > 0);
     entries.sort((a, b) => {
       if (a.date !== b.date) return (a.date < b.date ? 1 : -1) * (newestFirst ? 1 : -1);
-      return (a.createdAt < b.createdAt ? 1 : -1) * (newestFirst ? 1 : -1);
+      return (a.latest < b.latest ? 1 : -1) * (newestFirst ? 1 : -1);
     });
     return entries;
   }, [rows, q, newestFirst]);
@@ -297,7 +318,7 @@ export default function BodyScreen({ navigation, route }) {
   const book = useBook();
   const newestKey = useMemo(() => newestReportKey(rows), [rows]);
   const { sel, explicit, select } = useBookSelection('Body', defaultSelection('Body', { newestReportKey: newestKey }));
-  const reportKeys = useMemo(() => new Set(rows.map(r => r.report_date + '|' + (r.created_at || ''))), [rows]);
+  const reportKeys = useMemo(() => new Set(reportCards(rows).map(c => c.key)), [rows]);
   const markerKeys = useMemo(() => new Set(allMarkerSeries.map(x => x.key)), [allMarkerSeries]);
   const vaxKeys = useMemo(() => new Set(vaccineList.map(v => String(v.id))), [vaccineList]);
   const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium, newestKey }) : null;
@@ -681,11 +702,13 @@ export default function BodyScreen({ navigation, route }) {
   // the user can re-upload. Scoped to the upload instance (date + created_at), so
   // a second report on the same date is untouched. The confirm count is the TRUE
   // instance size from `rows` (not the search-filtered on-screen markers).
-  function deleteReport(date, createdAt) {
-    const count = rows.filter(r => r.report_date === date && (r.created_at || '') === createdAt).length;
+  // A-101d: a card can hold several batches (markers typed one at a time): Delete removes them all.
+  function deleteReport(card) {
+    const { date } = card;
+    const count = card.markers.length;
     setSheet({
       title: t('blood_report_delete'),
-      body: `${formatDate(date)} · ${count} ${t('blood_markers')}\n\n${t('blood_report_delete_msg')}`,
+      body: `${formatDate(date)} · ${count} ${t(pluralKey('blood_markers', count, language))}\n\n${t('blood_report_delete_msg')}`,
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         {
@@ -694,7 +717,7 @@ export default function BodyScreen({ navigation, route }) {
           onPress: async () => {
             const user = await getCachedUser();
             if (!user) return;
-            deleteBiomarkerReport(user.id, date, createdAt);
+            for (const c of card.batches) deleteBiomarkerReport(user.id, card.date, c);
             // Clear this date's tags ONLY if no report remains for the date
             // (another same-date upload keeps its labels).
             const remains = (getBiomarkers(user.id) || []).some(r => r.report_date === date);
@@ -706,7 +729,7 @@ export default function BodyScreen({ navigation, route }) {
             requestSync();
             setDetail(null);
             // Book layout: the right page goes back to the newest test.
-            if (sel === date + '|' + createdAt) clearSelection('Body');
+            if (sel === card.key) clearSelection('Body');
             fetchReports();
           },
         },
@@ -955,7 +978,7 @@ export default function BodyScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.screenTitle} accessibilityRole={inBook ? 'header' : undefined}>{formatDate(reportDetail.date)}</Text>
-          <Text style={[s.sec, s.tnum]}>{reportDetail.markers.length} {t('blood_markers')}</Text>
+          <Text style={[s.sec, s.tnum]}>{reportDetail.markers.length} {t(pluralKey('blood_markers', reportDetail.markers.length, language))}</Text>
         </View>
 
         <View style={s.card}>
@@ -997,7 +1020,7 @@ export default function BodyScreen({ navigation, route }) {
           ))}
         </View>
 
-        <TouchableOpacity style={s.dangerBtn} onPress={() => deleteReport(reportDetail.date, reportDetail.createdAt)}>
+        <TouchableOpacity style={s.dangerBtn} onPress={() => deleteReport(reportDetail)}>
           <Text style={s.dangerText}>{t('blood_report_delete')}</Text>
         </TouchableOpacity>
         <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
@@ -1164,7 +1187,7 @@ export default function BodyScreen({ navigation, route }) {
                 <View style={s.cardRow}>
                   <View style={[s.grow, s.col6]}>
                     <Text style={s.title}>{formatDate(date)}</Text>
-                    <Text style={[s.sec, s.tnum]}>{markers.length} {t('blood_markers')}</Text>
+                    <Text style={[s.sec, s.tnum]}>{markers.length} {t(pluralKey('blood_markers', markers.length, language))}</Text>
                     {(reportTags[date] || []).length > 0 && (
                       <View style={s.chips}>
                         {(reportTags[date] || []).map((tg, k) => (

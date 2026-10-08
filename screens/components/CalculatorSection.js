@@ -28,6 +28,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { numbersWeight } from '../../lib/numbersWeight';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -122,6 +123,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
 
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
   const [weight, setWeight] = useState('');         // the weight the math uses (saved)
+  // A-101e: when the weight was last typed / weighed (saved with the inputs); a newer weigh-in wins.
+  const [weightAt, setWeightAt] = useState(null);
+  const setWeightNow = (v, at) => { setWeight(v); setWeightAt(at || todayISO()); };
   // The Your numbers weight field. Before any weigh-in it IS the weight (saved as typed);
   // once weigh-ins exist a change is decided when the field is left (ask first, PO-14), and
   // until then it is kept in lib/draftStore like the other forms' typed text.
@@ -308,6 +312,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
       if (saved.weight != null) setWeight(savedFieldText(saved.weight, language));
+      if (saved.weightAt) setWeightAt(saved.weightAt);
       if (saved.bfSource) setBfSource(saved.bfSource);
       if (saved.bodyFat != null) setBodyFat(savedFieldText(saved.bodyFat, language));
       if (saved.height != null) setHeight(savedFieldText(saved.height, language));
@@ -378,8 +383,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload
     // without it was saved before option A); legacyBurn keeps that decision.
     // Stored canonical ("86.5", never "86,5"): the payload never depends on the typing language.
-    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language, parseMeasure), bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: canonicalDecimal(height, language, parseMeasure), activity, activitySetAt, goal, waist: canonicalDecimal(waist, language, parseMeasure), oneCard: 1, legacyBurn });
-  }, [unit, weight, bfSource, bodyFat, sex, age, height, activity, activitySetAt, goal, waist, legacyBurn]);
+    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language, parseMeasure), bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: canonicalDecimal(height, language, parseMeasure), activity, activitySetAt, goal, waist: canonicalDecimal(waist, language, parseMeasure), oneCard: 1, legacyBurn, weightAt, });
+  }, [unit, weight, weightAt, bfSource, bodyFat, sex, age, height, activity, activitySetAt, goal, waist, legacyBurn]);
+
+  // A-101e: a newer weigh-in (edited, backfilled or from another phone) becomes the Your numbers weight.
+  useEffect(() => {
+    if (!loaded) return;
+    const adopt = numbersWeight({ weightAt, snapshots });
+    if (!adopt) return;
+    const v = inputNumber(unit === 'imperial' ? kgToLb(adopt.weightKg) : adopt.weightKg, language);
+    setWeight(v);
+    setWeightField(v);
+    setWeightAt(adopt.date);
+  }, [loaded, snapshots, weightAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A choice made here is the user's latest answer: the calculator keeps it (stamped) and the
   // profile gets the same level, merge-only (m14), so Edit profile and Journey show it too.
@@ -457,7 +473,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const weightFocusRef = useRef(null); // the field's text when it was entered
   function onWeightChange(v) {
     setWeightField(v);
-    if (!hasWeighIns) setWeight(v);
+    if (!hasWeighIns) setWeightNow(v);
   }
   function revertWeightField() { setWeightField(weight); }
   // The DoseTrace sheet closes first and runs the chosen button after it fades; a question
@@ -482,7 +498,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (d.kind === 'first') {
       // PO-17: no weigh-in yet — a weight the user changed here becomes the first one.
       if (kg == null || (entered != null && entered === text)) return;
-      setWeight(text);
+      setWeightNow(text);
       const wc = num(waist);
       applyWeightEdit('first', kg, text, {
         bodyFatPct: isUnknown ? null : num(bodyFat),
@@ -492,7 +508,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     }
     if (weightField === weight) return;
     if (kg == null) { revertWeightField(); return; }
-    if (d.kind !== 'ask') { setWeight(text); return; }
+    if (d.kind !== 'ask') { setWeightNow(text); return; }
     setConfirm({
       title: t('cal_wedit_title'),
       body: t('cal_wedit_body'),
@@ -512,7 +528,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertCalcSnapshot(uid, row);
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
-    setWeight(text);
+    setWeightNow(text);
     setWeightField(text);
     clearDraft('progress:numbersWeight');
     calcChanged();
@@ -564,7 +580,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg, bodyFatPct: bfv, waistCm: waistCmNew }));
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
-    setWeight(inputNumber(w, language));
+    setWeightNow(inputNumber(w, language), date);
     setWeightField(inputNumber(w, language));
     clearDraft('progress:numbersWeight');
     if (bfv != null && !isUnknown) setBodyFat(inputNumber(bfv, language));

@@ -58,7 +58,7 @@ test('lab value edit and Your numbers: a prefilled number saves back the same va
   assert.match(body, /setMValue\(obj\.value != null \? inputNumber\(obj\.value, language\) : ''\)/);
   assert.match(read('screens', 'ProtocolsScreen.js'), /formFromProtocol\(p, vialsByProtocol\[p\.id\], new Date\(\), language\)/);
   const calc = read('screens', 'components', 'CalculatorSection.js');
-  assert.match(calc, /setWeight\(inputNumber\(w, language\)\)/);
+  assert.match(calc, /setWeightNow\(inputNumber\(w, language\), date\)/); // A-101e: the weigh-in also stamps weightAt
   assert.match(calc, /setTgtWeight\(target\.target_weight_kg != null \? inputNumber\(/);
 });
 
