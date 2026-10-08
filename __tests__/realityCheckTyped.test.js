@@ -204,5 +204,5 @@ test('FL-48 wording: "Informar minha média de calorias por dia" and the same li
   for (const [l, v] of Object.entries(link)) assert.equal(T2[l].cal_rc_kcal_link, v, l);
   assert.equal(T2.pt.cal_rc_kcal_change, 'Mudar a média informada');
   assert.equal(T2.pt.cal_rc_kcal_clear, 'Apagar a média informada');
-  for (const k of ['cal_rc_kcal_change', 'cal_rc_kcal_clear', 'cal_rc_kcal_typed', 'cal_rc_kcal_both']) assert.doesNotMatch(T2.en[k], /typed/i, `en ${k}`);
+  for (const k of ['cal_rc_kcal_change', 'cal_rc_kcal_clear', 'cal_rc_kcal_typed', 'cal_rc_kcal_both', 'cal_rc_src_typed']) assert.doesNotMatch(T2.en[k], /typed/i, `en ${k}`);
 });
