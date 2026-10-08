@@ -12,7 +12,8 @@ const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 const NOW = Date.UTC(2026, 9, 7, 12);
 const ok = { os: 'android', manufacturer: 'samsung', permission: 'granted', doseChannelImportance: 5, batteryOptimized: false,
   exactAlarms: true, hibernationExempt: true, remindersOn: true, silent: false, activeWithTime: 2,
-  lastRefresh: { at: NOW - 3600e3, ok: true }, nowMs: NOW, scheduledCount: 40, dueInWindow: 40, syncedOnce: true };
+  lastRefresh: { at: NOW - 3600e3, ok: true }, nowMs: NOW, scheduledCount: 40, dueInWindow: 40, syncedOnce: true,
+  deepSleepCheckedAt: NOW - 86400000 * 2 }; // SP-10: confirmed, so a Samsung phone can be "All set"
 const between = (src, a, b) => { const i = src.indexOf(a); assert.ok(i >= 0, a); const j = src.indexOf(b, i + a.length); return src.slice(i, j < 0 ? undefined : j); };
 
 // ── SP-1: the Settings row and its three states ───────────────────────────────────────────────
@@ -22,9 +23,9 @@ test('SP-1: the Settings row state — a block is risk and never "All set"; atte
     assert.equal(R.setupRowState(h).kind, 'block', JSON.stringify(h).slice(0, 60));
   }
   const w = R.setupRowState({ ...ok, exactAlarms: false, batteryOptimized: true });
-  assert.equal(w.kind, 'warn'); assert.equal(w.ready, 2); assert.equal(w.total, 4);
-  // Samsung deep sleep cannot be read: it never keeps the row from "All set".
-  assert.equal(R.setupRowState({ ...ok, manufacturer: 'samsung' }).kind, 'ok');
+  assert.equal(w.kind, 'warn'); assert.equal(w.ready, 3); assert.equal(w.total, 5); // Samsung: 5 items (SP-10)
+  // SP-10: Samsung deep sleep counts — unconfirmed it keeps the row from "All set".
+  assert.equal(R.setupRowState({ ...ok, deepSleepCheckedAt: null }).kind, 'warn');
 });
 
 test('SP-1: Android Settings opens Notifications with the row (state shown); iPhone keeps "Check reminders"', () => {
@@ -56,7 +57,7 @@ test('SP-2: one screen — no setup mode, no "See step by step"; Android shows t
   const rows = R.setupSteps(ok, { withRefresh: true }).rows.map((r) => r.id);
   assert.deepEqual(rows, ['notifications', 'alarms', 'battery', 'hibernation', 'refresh', 'deep_sleep']);
   assert.ok(!R.setupSteps(ok).rows.some((r) => r.id === 'refresh'), 'onboarding: items only');
-  assert.equal(R.setupSteps(ok, { withRefresh: true }).total, 4, 'the refresh row is shown, never counted');
+  assert.equal(R.setupSteps(ok, { withRefresh: true }).total, 5, 'the refresh row is shown, never counted (Samsung: 5 items with deep sleep, SP-10)');
 });
 
 test('SP-3: the screen and the onboarding step read the phone again on return from Android settings', () => {
@@ -186,4 +187,37 @@ test('council 4: the test reminder is a secondary (outlined) button, as in the a
 
 test('council 4: replaced strings are gone (rebuild = replace)', () => {
   for (const l of LANGS) { assert.equal(T[l].rc_setup_open, undefined, l); assert.equal(T[l].rc_setup_later, undefined, l); }
+});
+
+// ── SP-10: Samsung deep sleep "I checked" ────────────────────────────────────────────────────
+test('SP-10: Samsung deep sleep counts; "I checked" turns it OK; Settings reads All set only after it', () => {
+  const unc = { ...ok, deepSleepCheckedAt: null };
+  const unchecked = R.setupSteps(unc);
+  assert.equal(unchecked.total, 5); assert.equal(unchecked.ready, 4); assert.equal(unchecked.done, false);
+  assert.equal(R.setupRowState(unc).kind, 'warn');
+  const checked = { ...unc, deepSleepCheckedAt: NOW - DAY };
+  const row = R.reminderChecks(checked).find((c) => c.id === 'deep_sleep');
+  assert.equal(row.state, 'ok'); assert.equal(row.at, NOW - DAY);
+  assert.equal(R.setupSteps(checked).done, true);
+  assert.equal(R.setupRowState(checked).kind, 'ok');
+  // Other phones: no such row, 4 items.
+  assert.equal(R.setupSteps({ ...unc, manufacturer: 'Google' }).total, 4);
+  // Today's reminder card never counts it.
+  assert.deepEqual(R.reminderWarnings({ blocked: false, late: false, stop: false, stale: 0, battery: R.shouldWarnBattery(ok) }), []);
+});
+
+test('SP-10: the phone remembers the confirmation; the row shows Open + I checked, then the date and an Open link', () => {
+  const n = read('lib/notifications.js');
+  assert.match(n, /DEEP_SLEEP_CHECKED_KEY = 'dosetrace_deep_sleep_checked'/);
+  assert.match(n, /export async function markDeepSleepChecked\(/);
+  assert.match(between(n, 'export async function readReminderHealth()', '\n}\n'), /deepSleepCheckedAt/);
+  const l = read('components/ReminderSetupList.js');
+  assert.match(l, /rc_deep_sleep_checked_btn/);
+  assert.match(l, /rc_deep_sleep_checked/);
+  assert.match(l, /markDeepSleepChecked\(\)/);
+  assert.match(l, /onChange/);
+  assert.match(read('screens/ReminderCheckScreen.js'), /<ReminderSetupList [^>]*onChange=\{load\}/);
+  assert.match(read('screens/OnboardingFlowScreen.js'), /<ReminderSetupList [^>]*onChange=/);
+  for (const k of ['rc_deep_sleep_checked_btn', 'rc_deep_sleep_checked']) for (const lg of LANGS) assert.ok(T[lg][k], `${lg} ${k}`);
+  for (const lg of LANGS) assert.ok(T[lg].rc_deep_sleep_checked.includes('{date}'), lg);
 });

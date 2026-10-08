@@ -71,7 +71,7 @@ export default function ReminderCheckScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.pad]}>
         <Text style={s.title} accessibilityRole="header">{t(android ? 'rc_setup_title' : 'settings_rc_title')}</Text>
         <Text style={s.intro}>{t(android ? 'rc_setup_intro' : 'rc_intro')}</Text>
-        <ReminderSetupList health={health} setup={android} withRefresh focus={focus} />
+        <ReminderSetupList health={health} setup={android} withRefresh focus={focus} onChange={load} />
 
         {health ? (
         <>

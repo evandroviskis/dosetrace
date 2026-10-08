@@ -569,7 +569,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 <Text style={[s.sub, s.textCenter]}>{t('rc_setup_intro')}</Text>
               </View>
               <View style={{ marginHorizontal: -16 }}>
-                <ReminderSetupList health={setupHealth} />
+                <ReminderSetupList health={setupHealth} onChange={() => { readReminderHealth().then(setSetupHealth).catch(() => {}); }} />
               </View>
             </View>
           )}

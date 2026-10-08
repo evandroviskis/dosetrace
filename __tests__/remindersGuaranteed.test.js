@@ -47,10 +47,12 @@ test('RG-5: Today alerts — may stop / not refreshed — only when it matters',
   assert.equal(R.staleRefreshDays({ ...base, lastRefresh: { at: NOW - 3 * DAY, ok: true }, silent: true }), 0);
 });
 
-test('RG-2: setup step rows and the "N of 4 ready" count (Samsung deep sleep is listed but never counted)', () => {
+// SP-10 (founder 2026-10-07 "1 B") amends RG-2: Samsung deep sleep counts once the person confirms it.
+test('RG-2: setup step rows and the ready count (Samsung: deep sleep counts, OK after "I checked")', () => {
   const s = R.setupSteps(base);
   assert.deepEqual(s.rows.map((r) => r.id), ['notifications', 'alarms', 'battery', 'hibernation', 'deep_sleep']);
-  assert.equal(s.ready, 4); assert.equal(s.total, 4); assert.equal(s.done, true);
+  assert.equal(s.ready, 4); assert.equal(s.total, 5); assert.equal(s.done, false);
+  assert.equal(R.setupSteps({ ...base, deepSleepCheckedAt: NOW }).done, true);
   const s2 = R.setupSteps({ ...base, exactAlarms: false, batteryOptimized: true, hibernationExempt: false });
   assert.equal(s2.ready, 1); assert.equal(s2.done, false);
   assert.ok(!R.setupSteps({ ...base, manufacturer: 'Google' }).rows.some((r) => r.id === 'deep_sleep'));

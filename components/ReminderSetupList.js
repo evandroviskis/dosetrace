@@ -7,7 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from './FeatureIcon';
-import { openReminderFix } from '../lib/notifications';
+import { openReminderFix, markDeepSleepChecked } from '../lib/notifications';
 import { reminderChecks, setupSteps, rowTitleKey } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
@@ -25,8 +25,8 @@ export const ROW = {
 };
 
 // health: lib/notifications readReminderHealth(); setup: Android lists (setupSteps), iPhone the
-// plain checks; focus: the row a Today alert pointed at.
-export default function ReminderSetupList({ health, setup = true, withRefresh = false, focus = null }) {
+// plain checks; focus: the row a Today alert pointed at; onChange: read the phone again (SP-10).
+export default function ReminderSetupList({ health, setup = true, withRefresh = false, focus = null, onChange }) {
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -44,6 +44,7 @@ export default function ReminderSetupList({ health, setup = true, withRefresh = 
       const when = t('rc_refresh_ok').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
       return c.until ? `${when} · ${t('rc_refresh_until').replace('{date}', formatDate(new Date(c.until), language, 'dayMonth'))}` : when;
     }
+    if (c.id === 'deep_sleep' && c.state === 'ok' && c.at) return t('rc_deep_sleep_checked').replace('{date}', formatDate(new Date(c.at), language, 'dayMonth'));
     if (c.state === 'open') return t(r.open);
     return t(r[c.state] || r.ok);
   }
@@ -67,6 +68,37 @@ export default function ReminderSetupList({ health, setup = true, withRefresh = 
           const needsFix = c.state !== 'ok';
           const fixKey = c.state === 'open' ? 'rc_fix_open' : r.fix; // a row it cannot read only opens
           const title = t(rowTitleKey(c.id, health.manufacturer) || r.title);
+          // SP-10 (picture a114): Samsung deep sleep — "Open" + "I checked" under the text; once
+          // confirmed, OK with the date and "Open" as a link.
+          if (c.id === 'deep_sleep') {
+            const confirmed = c.state === 'ok';
+            return (
+              <View key={c.id} style={[s.row, s.rowTop, i === checks.length - 1 && s.rowLast, c.id === focus && s.rowFocus]}>
+                <FeatureIcon name={r.icon} size={24} color={colors.ink} />
+                <View style={s.rowText}>
+                  <Text style={s.rowLabel}>{title}</Text>
+                  <Text style={[s.rowSub, { color: colors.ink2 }]}>{stateText(c)}</Text>
+                  <View style={s.acts}>
+                    {confirmed ? (
+                      <TouchableOpacity onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t('rc_fix_open')}: ${title}`} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={s.link}>{t('rc_fix_open')}</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <>
+                        <TouchableOpacity style={s.fixBtn} onPress={() => openReminderFix(c.fix)} accessibilityRole="button" accessibilityLabel={`${t('rc_fix_open')}: ${title}`}>
+                          <Text style={s.fixText}>{t('rc_fix_open')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={s.secBtn} onPress={() => { markDeepSleepChecked().then(() => onChange && onChange()).catch(() => {}); }} accessibilityRole="button">
+                          <Text style={s.secText}>{t('rc_deep_sleep_checked_btn')}</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                </View>
+                {confirmed ? <Text style={s.okPill}>OK</Text> : null}
+              </View>
+            );
+          }
           return (
             <View key={c.id} style={[s.row, i === checks.length - 1 && s.rowLast, c.id === focus && s.rowFocus]}>
               <FeatureIcon name={c.state === 'block' ? 'warning' : r.icon} size={24} color={c.state === 'block' ? colors.risk : colors.ink} />
@@ -93,6 +125,11 @@ const makeStyles = (c) => StyleSheet.create({
   group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, minHeight: 60, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line },
   rowLast: { borderBottomWidth: 0 },
+  rowTop: { alignItems: 'flex-start' },
+  acts: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  secBtn: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
+  secText: { fontSize: 14, fontWeight: '600', color: c.ink },
+  link: { fontSize: 14, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
   // The row a Today alert pointed at (A-110 RG-5): the well tone across the card, the same as a pressed row.
   rowFocus: { backgroundColor: c.well, marginHorizontal: 0, paddingHorizontal: 16 },
   rowText: { flex: 1 },
