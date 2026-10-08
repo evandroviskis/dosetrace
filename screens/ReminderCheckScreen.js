@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import ReminderSetupList from '../components/ReminderSetupList';
 import { readReminderHealth, sendTestReminder } from '../lib/notifications';
-import { scheduleState, reminderChecks, blockingCount } from '../lib/reminderHealth';
+import { scheduleState, reminderChecks } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
@@ -47,8 +47,9 @@ export default function ReminderCheckScreen({ navigation, route }) {
   // Council 4: the platform decides the title at once (no iPhone title flashing on Android).
   const android = Platform.OS === 'android';
   const sched = health ? scheduleState(health) : null;
-  // A red item means the test reminder cannot arrive yet: say so instead of "it arrives in 10 seconds".
-  const blocked = health ? blockingCount(reminderChecks(health), sched) > 0 : false;
+  // A red ROW (notifications or the Dose reminders category off) means the test cannot arrive: say so.
+  // An empty schedule does not stop it — the test schedules its own (ship-check review).
+  const blocked = health ? reminderChecks(health).some((c) => c.state === 'block') : false;
 
   async function test() {
     const ok = await sendTestReminder();

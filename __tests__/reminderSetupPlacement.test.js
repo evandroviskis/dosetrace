@@ -168,7 +168,9 @@ test('council 4: the screen never shows the iPhone title or "0 reminders" before
 
 test('council 4: with a red item the test reminder says it cannot arrive yet', () => {
   const s = read('screens/ReminderCheckScreen.js');
-  assert.match(s, /blockingCount\(reminderChecks\(health\), sched\) > 0/);
+  // Ship-check: only a red ROW stops the test (an empty schedule does not: the test schedules its own).
+  assert.match(s, /reminderChecks\(health\)\.some\(\(c\) => c\.state === 'block'\)/);
+  assert.doesNotMatch(s, /blockingCount/);
   assert.match(s, /rc_test_blocked/);
   for (const l of LANGS) assert.ok(T[l].rc_test_blocked, l);
 });
