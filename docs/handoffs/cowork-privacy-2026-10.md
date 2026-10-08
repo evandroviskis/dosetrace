@@ -20,7 +20,7 @@ Data used to track you: **none**. All items below: **linked to the user**, **not
 - Identifiers: User ID.
 - Purchases: Purchase History.
 - Usage Data: Product Interaction — mark **not linked** to the user (random installation ID), purpose Analytics.
-- Photos or Videos: photos sent to the AI scan are processed for the single request and not kept — ask the founder whether to declare them (conservative choice: declare, App Functionality).
+- Photos or Videos: Photos — **declare** (founder 2026-10-08): linked to the user, App Functionality (photos sent to the AI scan are processed for that request and not kept).
 
 ## Task 3 — Google Play Console › App content › Data safety (same rule: only if asked)
 - Collected and shared: data is encrypted in transit: **yes**; users can request deletion: **yes** (in-app account deletion + hello@dosetrace.io).
