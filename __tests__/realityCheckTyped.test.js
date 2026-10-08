@@ -193,3 +193,16 @@ test('new strings exist in all 6 languages', () => {
     assert.ok(translations[lang].cal_rc_kcal_both.includes('{kcal}'), `${lang} both note has {kcal}`);
   }
 });
+
+// Founder 2026-10-08: the link reads "Informar minha média de calorias por dia" — the same line in
+// every language (first person, "enter/inform", per day); the change / clear / typed lines use the
+// same word ("informada" / "entered"), never "digitada" / "typed".
+test('FL-48 wording: "Informar minha média de calorias por dia" and the same line in all 6 languages', () => {
+  const T2 = require('../i18n/translations.js').translations || require('../i18n/translations.js');
+  const link = { pt: 'Informar minha média de calorias por dia', en: 'Enter my average calories per day', es: 'Indicar mi media de calorías por día',
+    fr: 'Indiquer ma moyenne de calories par jour', de: 'Meinen Kalorien-Durchschnitt pro Tag angeben', it: 'Indicare la mia media di calorie al giorno' };
+  for (const [l, v] of Object.entries(link)) assert.equal(T2[l].cal_rc_kcal_link, v, l);
+  assert.equal(T2.pt.cal_rc_kcal_change, 'Mudar a média informada');
+  assert.equal(T2.pt.cal_rc_kcal_clear, 'Apagar a média informada');
+  for (const k of ['cal_rc_kcal_change', 'cal_rc_kcal_clear', 'cal_rc_kcal_typed', 'cal_rc_kcal_both']) assert.doesNotMatch(T2.en[k], /typed/i, `en ${k}`);
+});
