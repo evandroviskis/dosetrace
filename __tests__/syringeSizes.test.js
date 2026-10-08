@@ -89,7 +89,7 @@ test('AP-21 / AP-23 wiring: the wizard, Today, the dose page and the protocol pa
   assert.match(ps, /SyringePickerSheet/, 'option B: one row that opens a grouped list');
   assert.match(ps, /protocols_small_draw/, 'AP-23 fact next to the draw in the wizard');
   assert.match(ps, /drawReading\(/, 'the wizard and the protocol page read the draw through drawReading');
-  for (const f of [['screens', 'TodayScreen.js'], ['screens', 'components', 'DosePage.js']]) {
+  for (const f of [['screens', 'TodayScreen.js']]) { // A-115: the dose page is gone (the right page shows the protocol page)
     const src = read(...f);
     assert.match(src, /drawLine\(/, `${f.join('/')} shows the draw through drawLine (ml on ml syringes)`);
     assert.match(src, /exceedsMessage\(/, `${f.join('/')} says what does not fit in ml on an ml syringe`);

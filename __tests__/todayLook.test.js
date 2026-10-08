@@ -16,7 +16,6 @@ const exists = (...p) => fs.existsSync(path.join(ROOT, ...p));
 const TODAY = read('screens', 'TodayScreen.js');
 const TRACK = read('screens', 'components', 'TodayTracker.js');
 const FOOD = read('screens', 'components', 'FoodLogHero.js');
-const PAGE = read('screens', 'components', 'DosePage.js');
 const style = (src, name) => {
   const m = src.match(new RegExp(`\\n  ${name}: \\{[^\\n]*\\}`, 'g'));
   assert.ok(m && m.length, `style ${name} not found`);
@@ -28,7 +27,7 @@ const noRawColour = (src, name) => {
 };
 
 test('the changed files parse', () => {
-  for (const src of [TODAY, TRACK, FOOD, PAGE]) assert.doesNotThrow(() => parse(src, { sourceType: 'module', plugins: ['jsx'] }));
+  for (const src of [TODAY, TRACK, FOOD]) assert.doesNotThrow(() => parse(src, { sourceType: 'module', plugins: ['jsx'] }));
 });
 
 // ── part 2: alerts ────────────────────────────────────────────────
@@ -139,8 +138,8 @@ test('part 10: Taken — a visible ok check, ink title, fold arrow; opened: dot 
 });
 
 // ── part 11: skipped / missed ─────────────────────────────────────
-test('part 11: Skipped neutral (ink2), Missed red (risk) on the dose page too', () => {
-  assert.match(PAGE, /kind === 'taken' \? colors\.ok : kind === 'skipped' \? colors\.ink2 : colors\.risk/);
+// A-115: the dose page is gone (the right page shows the protocol page), so part 11 is the card's line.
+test('part 11: Skipped neutral (ink2) on the Today card', () => {
   assert.match(style(TODAY, 'skipLineText'), /fontSize: 15, color: c\.ink2/);
 });
 

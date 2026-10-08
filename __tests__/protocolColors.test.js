@@ -147,7 +147,6 @@ const RENDER_SITES = {
     's.heroDot, { backgroundColor: displayColor(p.color) || colors.data }', // hero
   ],
   'screens/TodayScreen.js': [
-    'color={displayColor(p.color)}',                               // dose page
     's.ddot, { backgroundColor: displayColor(p.color) || colors.data }',
   ],
   'screens/JourneyScreen.js': ['backgroundColor: displayColor(level.protocol.color) || colors.data'],
@@ -155,7 +154,6 @@ const RENDER_SITES = {
     'color: displayColor(p.color) || colors.data',                 // curve series (line, legend, drops)
     's.dot, { backgroundColor: displayColor(p.color) || colors.data }',
   ],
-  'screens/components/DosePage.js': ['backgroundColor: displayColor(color) || colors.data'],
   'lib/serumModel.js': ["paletteHex('lavender'), paletteHex('coral'), paletteHex('teal'), paletteHex('amber')"],
   'components/FeaturePreviews.js': ["['forest', 'coral', 'lavender', 'sky', 'amber', 'rose'].map(paletteHex)"],
 };

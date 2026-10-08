@@ -326,6 +326,8 @@ export const translations = {
     today_vial_new_capacity_one: 'New vial: ~{n} dose (from your vial size and dose).', // singular (lib/plural.js)
     today_vial_add: 'Log new vial',
     today_add_vial: '+ Add vial',
+    today_novial_title: "No mixed vial right now",
+    today_novial_body: "Without a vial the app doesn't know the concentration, so it can't show the syringe or what's left. Add the vial you're going to use.",
     today_taken_partial: "complete today",
     today_skip_title: 'Skip dose?',
     today_skip_confirm: 'Skip today\'s dose of {name}?',
@@ -2630,6 +2632,8 @@ export const translations = {
     today_vial_new_capacity_one: 'Nuevo vial: ~{n} dosis (según el tamaño del vial y la dosis).', // singular (lib/plural.js)
     today_vial_add: 'Registrar nuevo vial',
     today_add_vial: '+ Añadir vial',
+    today_novial_title: "Ningún vial reconstituido ahora",
+    today_novial_body: "Sin un vial, la app no conoce la concentración: por eso no muestra la jeringa ni cuánto queda. Añade el vial que vas a usar.",
     today_taken_partial: "completadas hoy",
     today_skip_title: '¿Omitir dosis?',
     today_skip_confirm: '¿Omitir la dosis de hoy de {name}?',
@@ -4934,6 +4938,8 @@ export const translations = {
     today_vial_new_capacity_one: 'Novo frasco: ~{n} dose (com base no tamanho do frasco e na dose).', // singular (lib/plural.js)
     today_vial_add: 'Registrar novo frasco',
     today_add_vial: '+ Adicionar frasco',
+    today_novial_title: "Nenhum frasco reconstituído agora",
+    today_novial_body: "Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.",
     today_taken_partial: "concluídas hoje",
     today_skip_title: 'Pular dose?',
     today_skip_confirm: 'Pular a dose de hoje de {name}?',
@@ -7237,6 +7243,8 @@ export const translations = {
     today_vial_new_capacity_one: 'Nouveau flacon : ~{n} dose (selon la taille du flacon et la dose).', // singular (lib/plural.js)
     today_vial_add: 'Enregistrer un nouveau flacon',
     today_add_vial: '+ Ajouter un flacon',
+    today_novial_title: "Aucun flacon reconstitué pour l'instant",
+    today_novial_body: "Sans flacon, l'app ne connaît pas la concentration : elle ne peut afficher ni la seringue ni ce qu'il reste. Ajoutez le flacon que vous allez utiliser.",
     today_taken_partial: "effectuées aujourd'hui",
     today_skip_title: 'Passer la dose ?',
     today_skip_confirm: 'Passer la dose du jour de {name} ?',
@@ -9540,6 +9548,8 @@ export const translations = {
     today_vial_new_capacity_one: 'Neues Fläschchen: ~{n} Dosis (aus Fläschchengröße und Dosis).', // singular (lib/plural.js)
     today_vial_add: 'Neues Fläschchen erfassen',
     today_add_vial: '+ Fläschchen hinzufügen',
+    today_novial_title: "Gerade kein angemischtes Fläschchen",
+    today_novial_body: "Ohne Fläschchen kennt die App die Konzentration nicht und kann weder die Spritze noch den Rest zeigen. Füge das Fläschchen hinzu, das du verwenden wirst.",
     today_taken_partial: "heute erledigt",
     today_skip_title: 'Dosis auslassen?',
     today_skip_confirm: 'Die heutige Dosis von {name} auslassen?',
@@ -11844,6 +11854,8 @@ export const translations = {
     today_vial_new_capacity_one: 'Nuovo flacone: ~{n} dose (in base alla dimensione del flacone e alla dose).', // singular (lib/plural.js)
     today_vial_add: 'Registra nuovo flacone',
     today_add_vial: '+ Aggiungi flacone',
+    today_novial_title: "Nessun flacone ricostituito al momento",
+    today_novial_body: "Senza un flacone l'app non conosce la concentrazione, quindi non può mostrare la siringa né quanto resta. Aggiungi il flacone che userai.",
     today_taken_partial: "completate oggi",
     today_skip_title: 'Saltare la dose?',
     today_skip_confirm: 'Saltare la dose di oggi di {name}?',

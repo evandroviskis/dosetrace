@@ -81,9 +81,8 @@ test('part 6: SyringeScale draws the geometry in the 330 x 46 viewBox from theme
 
 test('part 6: over capacity the syringe is drawn (not hidden) on Today, the dose page, the protocol and the wizard', () => {
   const today = read('screens', 'TodayScreen.js');
-  const page = read('screens', 'components', 'DosePage.js');
   const proto = read('screens', 'ProtocolsScreen.js');
-  for (const [name, src] of [['Today', today], ['DosePage', page]]) {
+  for (const [name, src] of [['Today', today]]) { // A-115: the dose page is gone
     assert.doesNotMatch(src, /draw\.exceedsSyringe \? \(/, `${name} still swaps the syringe for the warning`);
     assert.match(src, /<SyringeScale units=\{Number\(draw\.drawUnits\)\}/, name);
   }

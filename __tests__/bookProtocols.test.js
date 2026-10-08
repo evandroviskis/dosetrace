@@ -25,7 +25,8 @@ function walk(node, fn) {
     else if (v && typeof v.type === 'string') walk(v, fn);
   }
 }
-const topFn = (name) => ast.program.body.find((n) => n.type === 'FunctionDeclaration' && n.id.name === name);
+// A-115: ProtocolDetail and noteDraftKey are exported (Today's right page uses them) — unwrap exports.
+const topFn = (name) => ast.program.body.map((n) => (n.type === 'ExportNamedDeclaration' && n.declaration ? n.declaration : n)).find((n) => n.type === 'FunctionDeclaration' && n.id && n.id.name === name);
 const jsxName = (n) => n.openingElement && n.openingElement.name && n.openingElement.name.name;
 
 // The pure rules, loaded from the screen source.

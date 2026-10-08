@@ -17,10 +17,8 @@ const parse = (src) => parser.parse(src, { sourceType: 'module', plugins: ['jsx'
 
 const TODAY = read('screens/TodayScreen.js');
 const LOG = read('screens/LogScreen.js');
-const DOSE = read('screens/components/DosePage.js');
 const todayAst = parse(TODAY);
 const logAst = parse(LOG);
-const doseAst = parse(DOSE);
 
 // Visit every node with its ancestor chain.
 function walk(ast, fn) {
@@ -116,8 +114,9 @@ test('BK-3: the right page is the Dose log by default and the tapped dose otherw
   assert.ok(right, 'renderRightPage exists');
   const rsrc = code(TODAY, right);
   assert.match(rsrc, /<LogScreen embedded refreshKey=\{logRev\} onChanged=\{afterLogChange\} popupGate=\{logPopupGate\} \/>/, 'the default right page is the embedded Dose log');
-  assert.match(rsrc, /if \(!p \|\| plan\.kind === 'none'\) \{/, 'a dose no longer in the schedule falls back to the Dose log');
-  assert.match(rsrc, /<DosePage/);
+  // A-115 (founder 2026-10-07): the tapped dose opens its protocol's page (no copy of the card).
+  assert.match(rsrc, /if \(!p\) \{/, 'nothing tapped: the Dose log');
+  assert.match(rsrc, /<ProtocolDetail/);
   // BK-16: a tapped dose is ONE slot — protocol, day and scheduled time (lib/dosePageState.js).
   const slotOpen = code(TODAY, fnDecl(todayAst, 'openDoseSlot'));
   assert.match(slotOpen, /bookSelect\(dosePageKey\(protocolId, dayKey, slotMs, ti\), \{ protocolId, dayKey, slotMs, ti \}\)/);
@@ -128,48 +127,14 @@ test('BK-3: the right page is the Dose log by default and the tapped dose otherw
   assert.equal(fnDecl(todayAst, 'doseSlotState'), null, 'the old count-based state is gone');
 });
 
-test('BK-3 / BK-16 / S-25: the dose page uses Today\'s own write paths — today: handleTake / skipDose; yesterday\'s pending: takePending / skipPending (writePending); site question first', () => {
-  const [{ n }] = jsx(todayAst, 'DosePage');
-  const val = (name) => code(TODAY, attr(n, name).value.expression);
-  // A-78: today's write carries the page's slot (plan.write: slotMs, ti, and flipRowId for a
-  // skipped slot), so it lands on THAT slot.
-  assert.equal(val('onTake'), 'pending ? () => takePending(item) : (rect) => handleTake(p, rect, 0, { slot: plan.write })',
-    'today\'s due dose = the Today card\'s TakeButton call; yesterday\'s pending dose = the Pending block\'s Taken');
-  assert.equal(val('onSkip'), 'pending ? () => skipPending(item) : () => skipDose(p, plan.write)',
-    'today\'s due dose = the Today card\'s Skip; yesterday\'s pending dose = the Pending block\'s Skipped');
-  assert.equal(val('askFirst'), 'needsSiteQuestion(p.type)', 'the same site-first rule as the Today card');
-  // The pending item carries yesterday's day and slot from the planner, never today's.
-  const rsrc = code(TODAY, fnDecl(todayAst, 'renderRightPage'));
-  assert.match(rsrc, /const pending = plan\.kind === 'pending';/);
-  assert.match(rsrc, /const item = \{ protocolId: p\.id, dayKey: plan\.dayKey, slotMs: plan\.slotMs \};/);
-  // takePending asks the site first for an injectable (S-25) and else writes through writePending.
-  const tp = code(TODAY, fnDecl(todayAst, 'takePending'));
-  assert.ok(tp.indexOf('askSite(') > 0 && tp.indexOf('askSite(') < tp.indexOf('writePending('));
-  assert.match(code(TODAY, fnDecl(todayAst, 'writePending')), /recordDoseTaken\(protocolId, write\)/);
-  // No new write path on the page: the page code calls no database / dose-action writer.
-  for (const id of ['insertDoseLog', 'updateDoseLog', 'deleteDoseLog', 'recordDoseTaken', 'recordSkipPending']) {
-    assert.ok(!rsrc.includes(id), `renderRightPage mentions ${id}`);
-  }
-  // The Today card uses exactly these calls too (one path, two places).
-  assert.match(TODAY, /onTake=\{\(rect\) => handleTake\(p, rect, 0, \{ slot: cp\.next \}\)\}\s*\n\s*askFirst=\{needsSiteQuestion\(p\.type\)\}/);
-  assert.match(TODAY, /onPress=\{\(\) => skipDose\(p, cp\.next\)\}/);
-  // handleTake still asks the site BEFORE any write for an injectable (S-25 unchanged).
-  const ht = code(TODAY, fnDecl(todayAst, 'handleTake'));
-  const ask = ht.indexOf('askSite(newQuestion(');
-  const write = ht.indexOf('markTaken(p');
-  assert.ok(ask > 0 && write > ask, 'askSite comes before markTaken in handleTake');
-});
 
-test('BK-3: the dose page draws from the same computeDraw as the Today card', () => {
+test('BK-3: the Today card draws from computeDraw (A-115: the right page shows the protocol page\'s own syringe)', () => {
   assert.equal(calls(todayAst, 'computeDraw').length, 1, 'computeDraw is called once, inside doseDraw');
   const dd = code(TODAY, fnDecl(todayAst, 'doseDraw'));
   assert.match(dd, /computeDraw\(/);
   assert.match(dd, /syr: p\.syringe_size \|\| 100/);
   assert.match(code(TODAY, fnDecl(todayAst, 'renderDoseCard')), /const \{ draw, syr \} = doseDraw\(p\);/);
-  assert.match(code(TODAY, fnDecl(todayAst, 'renderRightPage')), /const \{ draw, syr \} = doseDraw\(p\);/);
-  const [{ n }] = jsx(todayAst, 'DosePage');
-  assert.equal(code(TODAY, attr(n, 'draw').value.expression), 'draw');
-  assert.equal(code(TODAY, attr(n, 'syringeSize').value.expression), 'syr');
+
 });
 
 test('BK-8: the dose open on the right page has a 2 pt ink outline (book only, theme token)', () => {
@@ -201,53 +166,8 @@ test('BK-10: Today pushes an opened Dose log as the Log screen when the device f
 
 // ── BK-16: one slot per dose, the planner, Undo ────────────────
 
-test('BK-16: the dose page is planned by lib/dosePageState.js for the tapped slot (day + time), with Today\'s Pending list', () => {
-  const rsrc = code(TODAY, fnDecl(todayAst, 'renderRightPage'));
-  assert.match(rsrc, /planDosePage\(\{\s*protocol: p, logs: pageLogs, dayKey: pickedDose\.dayKey, slotMs: pickedDose\.slotMs, ti: pickedDose\.ti,\s*nowMs: Date\.now\(\), pending: pendingYest,\s*\}\)/);
-  const [{ n }] = jsx(todayAst, 'DosePage');
-  const val = (name) => code(TODAY, attr(n, name).value.expression);
-  assert.equal(val('kind'), 'plan.kind');
-  assert.equal(val('canTake'), 'plan.canTake', 'Mark taken only when the planner allows (due / pending, earliest open slot)');
-  assert.equal(val('canSkip'), 'plan.canSkip');
-  assert.equal(val('canUndo'), 'canUndo');
-  assert.equal(val('onUndo'), '() => undoFromPage(record)');
-  assert.equal(val('onOpenLog'), "() => bookSelect('log')", 'a row Today cannot undo links to the Dose log');
-  // Undo only with THIS row's own record, never twice.
-  assert.match(rsrc, /const record = plan\.logId != null \? undoRecordsRef\.current\.get\(plan\.logId\) : null;/);
-  assert.match(rsrc, /const canUndo = plan\.canUndo && !!record && !undoneIdsRef\.current\.has\(plan\.logId\);/);
-});
 
-test('BK-16: Undo on the dose page is the app\'s own undo (applyUndo → planUndoTake) with the record of that row', () => {
-  const u = code(TODAY, fnDecl(todayAst, 'undoFromPage'));
-  assert.match(u, /applyUndo\(record\);/);
-  assert.match(u, /fetchTodayLogs\(\);/);
-  // Every dose Today writes keeps its undo record: the card / site answer (markTaken), the
-  // pending Taken (writePending), the pending Skipped (skipPending) and the card's Skip.
-  const mt = TODAY.slice(TODAY.indexOf('async function markTaken('), TODAY.indexOf('async function askSite('));
-  assert.match(mt, /setUndoData\(record\);\s*\n\s*keepUndo\(record\);/);
-  assert.match(code(TODAY, fnDecl(todayAst, 'writePending')), /setUndoData\(record\);\s*\n\s*keepUndo\(record\);/);
-  assert.match(code(TODAY, fnDecl(todayAst, 'skipPending')), /setUndoData\(record\);\s*\n\s*keepUndo\(record\);/);
-  // The card's Skip: a Skipped row's undo deletes that row only — no Taken count, no supply.
-  const sk = code(TODAY, fnDecl(todayAst, 'skipDose'));
-  // A-78: the Skipped row is written for the card's slot, at that slot's time.
-  assert.match(sk, /const res = recordSkipToday\(protocol\.id, \{ slotMs: slot \? slot\.slotMs : null \}\);/);
-  assert.match(sk, /const logId = res\.logId;/);
-  assert.match(sk, /keepUndo\(\{ logId, flipped: false, protocolId: protocol\.id, pending: true, extraDeleteIds: \[\], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null \}\);/);
-  assert.doesNotMatch(sk, /setUndoData\(/, 'the phone Undo bar is unchanged for a Skip (BK-2)');
-  const { planUndoTake } = require('../lib/markTaken');
-  const plan = planUndoTake({ logId: 5, flipped: false, protocolId: 1, pending: true, vialId: null, oralPrevUnitsTaken: null, fx: null });
-  assert.deepEqual(plan.deleteIds, [5]);
-  assert.equal(plan.todayCount, 'none');
-  assert.equal(plan.vialRestore, null);
-  assert.equal(plan.oralRestore, null);
-});
 
-test('BK-16: a logged dose\'s state label uses existing strings; pending and upcoming have their own labels', () => {
-  const rsrc = code(TODAY, fnDecl(todayAst, 'renderRightPage'));
-  assert.match(rsrc, /const stateLabel = plan\.kind === 'taken' \? takenLabel : plan\.kind === 'skipped' \? t\('today_pending_skip'\) : t\('log_missed'\);/);
-  assert.match(rsrc, /sub=\{pending \? t\('today_pending_title'\) : partial\}/);
-  assert.match(code(TODAY, fnDecl(todayAst, 'slotTimeLabel')), /t\('today_yesterday'\)[\s\S]*t\('today_section_tomorrow'\)[\s\S]*WEEKDAY_KEYS/);
-});
 
 // ── BK-19: the two pages update each other ─────────────────────
 
@@ -330,79 +250,11 @@ test('BK-21: the selected dose card, pending row and upcoming row report themsel
   assert.match(TODAY, /accessibilityState=\{book \? \{ selected: pickedUp \} : undefined\}/);
 });
 
-test('BK-21: DosePage\'s title is the first element a screen reader reaches on the page', () => {
-  const fn = doseAst.program.body.find((s) => s.type === 'ExportDefaultDeclaration').declaration;
-  const focusable = [];
-  walk({ program: fn }, (node, anc) => {
-    if (node.type !== 'JSXElement') return;
-    const hidden = anc.some((a) => a.type === 'JSXElement' && attr(a, 'importantForAccessibility'));
-    if (hidden) return;
-    const nm = node.openingElement.name.name;
-    if (attr(node, 'accessible') || nm === 'TouchableOpacity' || nm === 'TakeAction') focusable.push(node);
-  });
-  const first = focusable[0];
-  assert.equal(first.openingElement.name.name, 'Text');
-  assert.equal(attr(first, 'accessibilityRole').value.value, 'header');
-  assert.equal(code(DOSE, attr(first, 'accessibilityLabel').value.expression), 'titleA11y');
-  assert.match(DOSE, /const titleA11y = \[name, time, due \? t\('today_due'\) : null\]\.filter\(Boolean\)\.join\(', '\);/);
-  // The time / Due row above the title is read with the title, not before it.
-  assert.match(DOSE, /<View style=\{s\.when\} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">/);
-});
 
 // ── DosePage ───────────────────────────────────────────────────
 
-test('BK-3: DosePage never writes — no database, dose-action, sync or storage imports', () => {
-  const sources = doseAst.program.body.filter((s) => s.type === 'ImportDeclaration').map((s) => s.source.value);
-  for (const src of sources) {
-    assert.doesNotMatch(src, /database|doseActions|markTaken|siteQuestion|sync|supabase|async-storage|notifications/, `DosePage imports ${src}`);
-  }
-  for (const id of ['insertDoseLog', 'updateDoseLog', 'deleteDoseLog', 'recordDoseTaken', 'recordSkipPending', 'AsyncStorage', 'requestSync', 'saveQuestion']) {
-    assert.ok(!DOSE.includes(id), `DosePage mentions ${id}`);
-  }
-});
 
-test('BK-3: DosePage Mark taken and Skip call the passed-in handlers; an injectable only opens the site question', () => {
-  // Skip button → the onSkip prop, as is.
-  assert.match(DOSE, /onPress=\{onSkip\}/);
-  // Mark taken → onTake(null); for an injectable the button does not turn into "Taken"
-  // (the answer writes the dose; Cancel leaves it as it was).
-  const ta = code(DOSE, fnDecl(doseAst, 'TakeAction'));
-  assert.match(ta, /if \(!askFirst\) setOk\(true\);\s*\n\s*onTake\(null\);/);
-  // BK-16: a Taken / Skipped / Missed dose offers no Skip — its state and Undo (when Today can
-  // undo that row), else a Dose log link. A-78 (amends BK-16, founder 2026-10-01): only a
-  // Skipped slot the planner allows (today) adds Mark taken; a Taken slot never does.
-  assert.match(DOSE, /const logged = kind === 'taken' \|\| kind === 'skipped' \|\| kind === 'missed';/);
-  const start = DOSE.indexOf('{logged ? (');
-  assert.ok(start > 0);
-  const loggedBranch = DOSE.slice(start, DOSE.indexOf(') : null}', start));
-  assert.ok(!loggedBranch.includes('TakeAction') && !loggedBranch.includes('onSkip') && !loggedBranch.includes('onTake'), 'the logged state row has no Mark taken / Skip');
-  assert.match(loggedBranch, /\{canUndo && onUndo \? \(/);
-  assert.match(loggedBranch, /onPress=\{onUndo\}/);
-  assert.match(loggedBranch, /t\('today_undo'\)/);
-  assert.match(loggedBranch, /onPress=\{onOpenLog\}/);
-  assert.match(loggedBranch, /t\('log_title'\)/);
-  const skipTake = DOSE.slice(DOSE.indexOf("{kind === 'skipped' && canTake && ("), DOSE.indexOf('{logged ? null : (canTake || canSkip) ? ('));
-  assert.ok(skipTake.length > 0 && skipTake.includes('<TakeAction') && skipTake.includes('onTake={onTake}'), 'a skipped slot today: Mark taken');
-  assert.ok(!skipTake.includes('onSkip'), 'a skipped slot has no second Skip');
-  // Upcoming (canTake / canSkip false): no actions at all; each button only when allowed.
-  const actsAt = DOSE.indexOf('{logged ? null : (canTake || canSkip) ? (');
-  assert.ok(actsAt > 0);
-  const acts = DOSE.slice(actsAt, DOSE.indexOf(') : null}', actsAt));
-  assert.match(acts, /\{canSkip && \(/);
-  assert.match(acts, /\{canTake && \(/);
-});
 
-test('BK-3: DosePage draws the same SyringeScale as the Today card', () => {
-  assert.match(DOSE, /import SyringeScale from '\.\/SyringeScale';/);
-  const [{ n }] = jsx(doseAst, 'SyringeScale');
-  assert.equal(code(DOSE, attr(n, 'units').value.expression), 'Number(draw.drawUnits)');
-  assert.equal(code(DOSE, attr(n, 'size').value.expression), 'syringeSize');
-  // Same guards as the card: only with a draw, no unit mismatch; over capacity the syringe
-  // stays drawn (in risk, Today redesign part 6) and the warning follows it.
-  assert.match(DOSE, /draw && draw\.drawUnits && !draw\.unitMismatch/);
-  assert.match(DOSE, /\{draw\.exceedsSyringe && \(/);
-  assert.match(DOSE, /t\('protocols_syringe_draw_to'\)/);
-});
 
 // ── LogScreen ──────────────────────────────────────────────────
 
@@ -438,16 +290,3 @@ function loadTranslations() {
   return mod.exports.translations;
 }
 
-test('BK-12: DosePage uses theme tokens only, no emoji, and only existing strings in all 6 languages', () => {
-  assert.doesNotMatch(DOSE, /#[0-9a-fA-F]{3,8}\b|'white'|'black'|rgba?\(|'transparent'/, 'no hardcoded color');
-  assert.doesNotMatch(DOSE, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'no emoji');
-  const tr = loadTranslations();
-  const keys = [...new Set([...DOSE.matchAll(/\bt\('([a-z0-9_]+)'\)/g)].map((m) => m[1]))];
-  assert.ok(keys.length >= 5);
-  for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
-    for (const k of keys) assert.ok(tr[lang][k], `${lang} has ${k}`);
-  }
-  // The Today additions use tokens only as well.
-  const todayBook = code(TODAY, fnDecl(todayAst, 'renderRightPage'));
-  assert.doesNotMatch(todayBook, /#[0-9a-fA-F]{3,8}\b|'white'|'black'|rgba?\(/);
-});

@@ -14,7 +14,6 @@ const ROOT = path.join(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const PROTOCOLS = read('screens', 'ProtocolsScreen.js');
 const TODAY = read('screens', 'TodayScreen.js');
-const DOSE_PAGE = read('screens', 'components', 'DosePage.js');
 
 test('trimZeros strips trailing zeros and a dangling point, nothing else', () => {
   assert.equal(trimZeros('1.00'), '1');
@@ -79,7 +78,7 @@ test('Protocols volume and concentration render sites go through trimZeros', () 
 });
 
 test('the draw units are never trimmed anywhere', () => {
-  for (const [name, src] of [['ProtocolsScreen', PROTOCOLS], ['TodayScreen', TODAY], ['DosePage', DOSE_PAGE]]) {
+  for (const [name, src] of [['ProtocolsScreen', PROTOCOLS], ['TodayScreen', TODAY]]) {
     assert.doesNotMatch(src, /trimZeros\((draw\.)?drawUnits\)/, `${name} must keep the units decimal`);
   }
   // AP-21 (2026-10-03): through drawReading — units as computed, ml (trimmed) only on an ml syringe
@@ -91,7 +90,7 @@ test('the draw units are never trimmed anywhere', () => {
 
 test('Today and the dose page trim only the ml part of "50.0 u · 0.5 ml"', () => {
   // AP-21 (2026-10-03): both read the line from lib/syringes drawLine (ml alone on an ml syringe)
-  for (const [name, src] of [['TodayScreen', TODAY], ['DosePage', DOSE_PAGE]]) {
+  for (const [name, src] of [['TodayScreen', TODAY]]) {
     assert.match(src, /\{drawLine\(draw, (syr|syringeSize), language\)\.big\}<Text style=\{s\.drawUnit\}>\{drawLine\(draw, (syr|syringeSize), language\)\.small\}<\/Text>/, name);
     assert.doesNotMatch(src, /\{draw\.drawML\} ml/, name);
   }

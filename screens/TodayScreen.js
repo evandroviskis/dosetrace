@@ -66,9 +66,10 @@ import FoodLogHero from './components/FoodLogHero';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
-import DosePage from './components/DosePage';
+import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
+import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells } from './components/ProtocolParts';
-import { planDosePage, cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
+import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { displayColor } from '../lib/protocolColors';
 import { undoBarRuns } from '../lib/undoBar';
 import LogScreen from './LogScreen';
@@ -289,6 +290,7 @@ export default function TodayScreen() {
   const [pageLogs, setPageLogs] = useState([]);
   const [dataRev, setDataRev] = useState(0);
   const [, setPageTick] = useState(0);
+  const [, setNoteTick] = useState(0); // A-115: a note draft typed on the right page re-renders it
   const undoRecordsRef = useRef(new Map()); // logId → the undo record of a dose written here
   const logPopupOpenRef = useRef(false); // the embedded Dose log's site editor is open
   const logPopupWaiterRef = useRef(null); // the embedded Log's editor, waiting for Today's popup
@@ -1728,14 +1730,19 @@ export default function TodayScreen() {
     openDoseSlot(p.id, localDayKey(atMs), timed ? atMs : null, timed ? null : 0);
   }
 
-  // BK-16 Undo: the app's own undo (applyUndo, the Undo bar's) with the record of THAT row.
-  function undoFromPage(record) {
-    applyUndo(record);
-    fetchTodayLogs(); // the Skipped / Taken counts, the rings and the page, read back
-  }
-
   // BK-19: the embedded Dose log changed a row (Missed → Taken / Skipped, a site): Today's
   // cards, rings, Pending block and the dose page follow without switching tabs.
+  // A-115: a note typed on the right page saves exactly like My Protocols does.
+  function saveProtocolNote(id, note) {
+    const trimmed = (note || '').trim();
+    updateProtocol(id, { note: trimmed ? trimmed : null });
+    clearDraft(noteDraftKey(id));
+    setNoteTick((n) => n + 1);
+    notifyDataChanged('protocol');
+    requestSync();
+    fetchProtocols();
+  }
+
   function afterLogChange() {
     setUndoData(prev => (prev && wasDeleted(prev.logId) ? null : prev)); // a dose deleted there: no Undo bar for it
     fetchProtocols(); // a delete gave a dose back to the vial / bottle
@@ -1746,69 +1753,49 @@ export default function TodayScreen() {
     fetchLastSites();
   }
 
-  // "Yesterday 20:00", "Tomorrow 08:00", "Fri 08:00", or just "20:00" today.
-  function slotTimeLabel(dayKey, slotMs) {
-    const time = Number.isFinite(slotMs) ? formatTimeAMPM(new Date(slotMs).toTimeString().slice(0, 5)) : null;
-    if (dayKey === todayKey) return time;
-    const [y, m, d] = dayKey.split('-').map(Number);
-    const day = new Date(y, m - 1, d);
-    const diff = Math.round((day - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);
-    const prefix = diff === -1 ? t('today_yesterday') : diff === 1 ? t('today_section_tomorrow') : t(WEEKDAY_KEYS[day.getDay()]);
-    return time ? `${prefix} ${time}` : prefix;
-  }
 
-  // The right page: the tapped dose, else the Dose log (the default, BK-3).
+  // A-115 (founder 2026-10-07, picture a115): the right page ADDS to the left, never repeats. A tapped
+  // dose opens its protocol's page — everything My Protocols shows, with the app's own syringe; with no
+  // mixed vial it says why and offers + Add vial. Skip / Mark taken stay on the left card; Delete is
+  // not offered here; Edit and the refill sheets open in My Protocols. Nothing tapped: the Dose log.
   function renderRightPage() {
     const p = pickedDose ? protocols.find(x => String(x.id) === String(pickedDose.protocolId)) : null;
-    const plan = p ? planDosePage({
-      protocol: p, logs: pageLogs, dayKey: pickedDose.dayKey, slotMs: pickedDose.slotMs, ti: pickedDose.ti,
-      nowMs: Date.now(), pending: pendingYest,
-    }) : null;
-    if (!p || plan.kind === 'none') {
+    if (!p) {
       // A dose written, skipped or undone on the left page refreshes the embedded log (BK-19).
       const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length, dataRev]);
       return <LogScreen embedded refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} />;
     }
-    const pending = plan.kind === 'pending';
-    const item = { protocolId: p.id, dayKey: plan.dayKey, slotMs: plan.slotMs };
-    // Undo only with the record of that row (a dose written here this session); a row logged
-    // elsewhere (notification, other device, an earlier session) links to the Dose log.
-    const record = plan.logId != null ? undoRecordsRef.current.get(plan.logId) : null;
-    const canUndo = plan.canUndo && !!record && !undoneIdsRef.current.has(plan.logId);
-    const dpd = p.doses_per_day || 1;
-    const time = plan.dayKey === todayKey && Number.isFinite(plan.slotMs) ? formatTimeAMPM(new Date(plan.slotMs).toTimeString().slice(0, 5)) : null;
-    const partial = plan.dayKey === todayKey && dpd > 1 && (takenCounts[p.id] || 0) > 0
-      ? `${takenCounts[p.id] || 0}/${expectedDosesOn(p, new Date())} ${t('today_taken_partial')}` : null;
-    const stateLabel = plan.kind === 'taken' ? takenLabel : plan.kind === 'skipped' ? t('today_pending_skip') : t('log_missed');
-    const { draw, syr } = doseDraw(p);
+    const vial = vials[p.id];
+    const toProtocol = () => navigation.navigate('Protocols', { openProtocolId: p.id });
     return (
-      <DosePage
-        language={language}
-        t={t}
-        name={p.compound_id ? t(p.compound_id) : p.name}
-        color={displayColor(p.color)}
-        time={slotTimeLabel(plan.dayKey, plan.slotMs)}
-        due={plan.kind === 'due' && Number.isFinite(plan.slotMs)}
-        doseLine={`${decimalText(p.dose, language)} ${p.dose_unit} · ${frequencyLabelFor(p.interval_days, t)}`}
-        draw={draw}
-        syringeSize={syr}
-        kind={plan.kind}
-        canTake={plan.canTake}
-        canSkip={plan.canSkip}
-        canUndo={canUndo}
-        sub={pending ? t('today_pending_title') : partial}
-        stateLabel={stateLabel}
-        takeLabel={pending ? t('today_pending_take') : (dpd > 1 && time ? t('today_take_time').replace('{time}', time) : t('today_mark_taken'))}
-        takenLabel={takenLabel}
-        skipLabel={pending ? t('today_pending_skip') : t('today_skip')}
-        askFirst={needsSiteQuestion(p.type)}
-        resetKey={`${p.id}-${takenCounts[p.id] || 0}-${takeReset[p.id] || 0}-${plan.kind}`}
-        onTake={pending ? () => takePending(item) : (rect) => handleTake(p, rect, 0, { slot: plan.write })}
-        onSkip={pending ? () => skipPending(item) : () => skipDose(p, plan.write)}
-        onUndo={() => undoFromPage(record)}
-        onOpenLog={() => bookSelect('log')}
-        onOpenProtocol={() => navigation.navigate('Protocols', { openProtocolId: p.id })}
-      />
+      <>
+        <View style={s.pageHead}>
+          <TouchableOpacity style={s.pageEdit} onPress={toProtocol} accessibilityRole="button">
+            <Text style={s.pageEditText}>{t('protocols_edit')}</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.pageScroll}>
+          {p.type === 'recon' && !vial ? (
+            <View style={s.noVial}>
+              <Text style={s.noVialTitle}>{t('today_novial_title')}</Text>
+              <Text style={s.noVialBody}>{t('today_novial_body')}</Text>
+              <TouchableOpacity style={s.noVialBtn} onPress={() => showVialPromptFor(p)} accessibilityRole="button">
+                <Text style={s.noVialBtnText}>{t('today_add_vial')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          <ProtocolDetail
+            key={p.id}
+            p={p} vial={vial}
+            openEdit={toProtocol}
+            deleteProtocol={null}
+            onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={toProtocol} onZoom={toProtocol}
+            draft={getDraft(noteDraftKey(p.id))}
+            onDraft={(id, text) => { if (text == null) clearDraft(noteDraftKey(id)); else setDraft(noteDraftKey(id), text); setNoteTick((n) => n + 1); }}
+            t={t}
+          />
+        </ScrollView>
+      </>
     );
   }
 
@@ -2656,6 +2643,16 @@ const todayV21Styles = (c) => ({
   vialRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.line },
   vialText: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
   // prototype btnlink r-body: 17 ink, underline in tick, 32 pt row
+  // A-115 right page: Edit on top, the no-vial explanation, the protocol page below.
+  pageHead: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 8, minHeight: 44 },
+  pageEdit: { minHeight: 36, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
+  pageEditText: { fontSize: 15, fontWeight: '600', color: c.ink },
+  pageScroll: { paddingBottom: 32 },
+  noVial: { marginHorizontal: 16, marginTop: 8, marginBottom: 4, padding: 16, borderRadius: 22, backgroundColor: c.well, gap: 6 },
+  noVialTitle: { fontSize: 16, fontWeight: '600', color: c.ink },
+  noVialBody: { fontSize: 14, lineHeight: 20, color: c.ink2 },
+  noVialBtn: { alignSelf: 'flex-start', marginTop: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
+  noVialBtnText: { fontSize: 14, fontWeight: '600', color: c.onAct },
   addVialText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, minHeight: 32, textAlignVertical: 'center' },
   acts: { flexDirection: 'row', gap: 10 },
   // A-78: a skipped slot's "you can still log it" line and its Mark taken.

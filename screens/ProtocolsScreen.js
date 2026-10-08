@@ -687,14 +687,15 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, 
 // The protocol screen (prototype protocol()): title block, the calculator, the vial,
 // schedule rows + "+ Reminder", dose details, the note, and Delete at the bottom.
 // The draft store key of a protocol's unsaved note (BK-14, A-77).
-function noteDraftKey(id) {
+export function noteDraftKey(id) {
   return 'protocolNote:' + id;
 }
 
 // The typed note lives outside this view (`draft` / `onDraft`, kept per protocol in
 // lib/draftStore), so it survives this view moving between the phone column and the book's
 // right page (S-26 BK-10), opening another protocol and leaving the tab (BK-14, A-77).
-function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t }) {
+// Also Today's right page on the Fold (A-115), with deleteProtocol null (no Delete next to the doses).
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -811,9 +812,11 @@ function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefil
         )}
       </View>
 
-      <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id)} accessibilityRole="button">
-        <Text style={s.dangerText}>{t('protocols_delete_title')}</Text>
-      </TouchableOpacity>
+      {deleteProtocol ? (
+        <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id)} accessibilityRole="button">
+          <Text style={s.dangerText}>{t('protocols_delete_title')}</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
