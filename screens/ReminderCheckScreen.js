@@ -3,7 +3,7 @@
 // check with a way to fix it, what is scheduled, and a test reminder. The rules live in
 // lib/reminderHealth (pure); the phone is read by lib/notifications readReminderHealth.
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, AppState } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, AppState, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import ReminderSetupList from '../components/ReminderSetupList';
 import { readReminderHealth, sendTestReminder } from '../lib/notifications';
-import { scheduleState } from '../lib/reminderHealth';
+import { scheduleState, reminderChecks, blockingCount } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
@@ -44,8 +44,11 @@ export default function ReminderCheckScreen({ navigation, route }) {
     return () => sub.remove();
   }, [load]);
 
-  const android = health ? health.os === 'android' : false;
+  // Council 4: the platform decides the title at once (no iPhone title flashing on Android).
+  const android = Platform.OS === 'android';
   const sched = health ? scheduleState(health) : null;
+  // A red item means the test reminder cannot arrive yet: say so instead of "it arrives in 10 seconds".
+  const blocked = health ? blockingCount(reminderChecks(health), sched) > 0 : false;
 
   async function test() {
     const ok = await sendTestReminder();
@@ -70,6 +73,8 @@ export default function ReminderCheckScreen({ navigation, route }) {
         <Text style={s.intro}>{t(android ? 'rc_setup_intro' : 'rc_intro')}</Text>
         <ReminderSetupList health={health} setup={android} withRefresh focus={focus} />
 
+        {health ? (
+        <>
         <Text style={s.section}>{t('rc_sched_title')}</Text>
         <View style={s.card}>
           {sched === 'silent' ? (
@@ -97,7 +102,9 @@ export default function ReminderCheckScreen({ navigation, route }) {
         <TouchableOpacity style={s.testBtn} onPress={test} accessibilityRole="button">
           <Text style={s.testText}>{t('rc_test_btn')}</Text>
         </TouchableOpacity>
-        <Text style={s.hint}>{sent ? t('rc_test_sent') : t('rc_test_hint')}</Text>
+        <Text style={s.hint}>{blocked ? t('rc_test_blocked') : sent ? t('rc_test_sent') : t('rc_test_hint')}</Text>
+        </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -117,7 +124,8 @@ const makeStyles = (c) => StyleSheet.create({
   cardKey: { fontSize: 13, color: c.ink2 },
   cardMain: { fontSize: 20, fontWeight: '600', color: c.ink, marginTop: 2, fontVariant: ['tabular-nums'] },
   cardSub: { fontSize: 13, color: c.ink2, marginTop: 2 },
-  testBtn: { marginHorizontal: 16, marginTop: 16, minHeight: 50, borderRadius: 25, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
-  testText: { fontSize: 16, fontWeight: '600', color: c.onAct },
+  // The approved picture (A-112 B): the test reminder is a secondary, outlined button.
+  testBtn: { marginHorizontal: 16, marginTop: 16, minHeight: 46, borderRadius: 23, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
+  testText: { fontSize: 15, fontWeight: '500', color: c.ink },
   hint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginHorizontal: 32, marginTop: 10 },
 });

@@ -42,3 +42,16 @@ test('A-111: the refresh task the worker runs is the reminder refresh, registere
 test('A-111: release builds keep the worker class the receiver starts by name', () => {
   assert.match(read('app.json'), /-keep class expo\.modules\.backgroundtask\.\*\* \{ \*; \}/);
 });
+
+// Council 4: the receiver depends on expo-background-task's class name and input key; an SDK bump
+// that renames either would silently bring back 8 of 245 — this test fails first.
+test('A-111: expo-background-task still has the worker class and the input key the receiver uses', () => {
+  const w = read('node_modules/expo-background-task/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskWork.kt');
+  assert.match(w, /package expo\.modules\.backgroundtask/);
+  assert.match(w, /class BackgroundTaskWork\(/);
+  assert.match(w, /inputData\.getString\("appScopeKey"\)/);
+});
+
+test('A-111: the module declares the boot permission itself (not only through expo-notifications)', () => {
+  assert.match(read('modules/dt-exact-alarm/android/src/main/AndroidManifest.xml'), /android\.permission\.RECEIVE_BOOT_COMPLETED/);
+});

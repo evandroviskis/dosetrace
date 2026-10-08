@@ -94,7 +94,7 @@ test('RG-3: the native module reads the hibernation exemption (Android 11+)', ()
 });
 
 test('RG-7: new text in all 6 languages; icons from the app set (no emoji)', () => {
-  const keys = ['rc_setup_title', 'rc_setup_intro', 'rc_setup_progress', 'rc_setup_later', 'rc_setup_done',
+  const keys = ['rc_setup_title', 'rc_setup_intro', 'rc_setup_progress', 'rc_setup_done', 'ob_setup_later', // A-112: "Continue later" became onboarding's "Set up later"
     'rc_hibernation', 'rc_hibernation_ok', 'rc_hibernation_warn', 'rc_fix_turn_off',
     'rc_refresh', 'rc_refresh_ok', 'rc_refresh_pending', 'rc_refresh_warn',
     'today_alert_stop_title', 'today_alert_stop_body', 'today_alert_stale_title', 'today_alert_stale_body'];

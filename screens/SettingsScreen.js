@@ -242,6 +242,7 @@ export default function SettingsScreen({ navigation }) {
   function setupRowSub() {
     if (!setupRow) return '';
     if (setupRow.kind === 'block') return t('settings_rc_sub_block');
+    if (setupRow.kind === 'warn' && setupRow.ready === setupRow.total && setupRow.staleDays) return t('today_alert_stale_title').replace('{n}', String(setupRow.staleDays));
     if (setupRow.kind === 'warn') return t('rc_setup_progress').replace('{n}', String(setupRow.ready)).replace('{total}', String(setupRow.total));
     if (!setupRow.nextAtMs) return t('settings_setup_all');
     const d = new Date(setupRow.nextAtMs);
@@ -677,7 +678,7 @@ export default function SettingsScreen({ navigation }) {
         {Platform.OS === 'android' ? (
           <TouchableOpacity style={s.row} onPress={() => navigation.navigate('ReminderCheck')} accessibilityRole="button">
             <View style={s.rowLeft}>
-              <FeatureIcon name={setupRow && setupRow.kind === 'block' ? 'warning' : 'check'} size={28} color={setupRow && setupRow.kind === 'block' ? colors.risk : colors.ink} />
+              <FeatureIcon name={setupRow && setupRow.kind === 'block' ? 'warning' : 'shield'} size={28} color={setupRow && setupRow.kind === 'block' ? colors.risk : colors.ink} />
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={[s.rowLabel, { flexShrink: 1 }]}>{t('settings_setup_title')}</Text>

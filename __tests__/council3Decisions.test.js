@@ -45,8 +45,8 @@ test('5: Android users who already have a protocol with a reminder time see the 
 });
 
 test('texts in all 6 languages', () => {
-  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['today_alert_silent_title', 'today_alert_silent_body', 'today_alert_combined_title', 'today_alert_combined_body', 'rc_setup_open']) assert.ok(T[l][k], `${l} ${k}`);
-  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].today_alert_combined_title.includes('{n}') && T[l].rc_setup_open.includes('{n}'), l);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['today_alert_silent_title', 'today_alert_silent_body', 'today_alert_combined_title', 'today_alert_combined_body']) assert.ok(T[l][k], `${l} ${k}`);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].today_alert_combined_title.includes('{n}'), l); // A-112: rc_setup_open is gone (one screen)
 });
 
 // Ship-check review (2026-10-07): the once-only step must never pull the user off another screen —

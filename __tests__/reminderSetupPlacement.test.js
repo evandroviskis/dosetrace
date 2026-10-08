@@ -140,3 +140,50 @@ test('SP-8: new text in all 6 languages', () => {
     assert.equal(T[l].settings_setup_title, T[l].rc_setup_title, `${l}: one name for the screen and its row`);
   }
 });
+
+// ── Council 4 (2026-10-07) fixes ─────────────────────────────────────────────────────────────
+const DAY = 86400000;
+test('council 4 / SP-1: a late automatic refresh never reads "All set"; the screen, Settings and Today agree', () => {
+  const late = { ...ok, lastRefresh: { at: NOW - 5 * DAY, ok: true, lastOkAt: NOW - 5 * DAY } };
+  const row = R.setupRowState(late);
+  assert.equal(row.kind, 'warn');
+  assert.equal(row.staleDays, 5);
+  assert.equal(R.reminderChecks(late).find((c) => c.id === 'refresh').state, 'warn');
+  assert.equal(R.staleRefreshDays(late), 5);
+  // The app itself refreshed the reminders on open in the last 2 days: fresh everywhere.
+  const fresh = { ...late, foregroundSyncAt: NOW - 3 * 3600e3 };
+  assert.equal(R.setupRowState(fresh).kind, 'ok');
+  assert.equal(R.reminderChecks(fresh).find((c) => c.id === 'refresh').state, 'ok');
+  assert.equal(R.staleRefreshDays(fresh), 0);
+  const s = read('screens/SettingsScreen.js');
+  assert.match(between(s, 'function setupRowSub()', '\n  }\n'), /today_alert_stale_title/);
+});
+
+test('council 4: the screen never shows the iPhone title or "0 reminders" before the phone is read', () => {
+  const s = read('screens/ReminderCheckScreen.js');
+  assert.match(s, /const android = Platform\.OS === 'android';/);
+  assert.match(s, /\{health \? \(/, 'schedule card waits for the first read');
+});
+
+test('council 4: with a red item the test reminder says it cannot arrive yet', () => {
+  const s = read('screens/ReminderCheckScreen.js');
+  assert.match(s, /blockingCount\(reminderChecks\(health\), sched\) > 0/);
+  assert.match(s, /rc_test_blocked/);
+  for (const l of LANGS) assert.ok(T[l].rc_test_blocked, l);
+});
+
+test('council 4: the Settings row icon is the feature\'s shield (warning only when blocked); onboarding shield in ink', () => {
+  const body = between(read('screens/SettingsScreen.js'), 'function renderNotificationsBody()', 'function renderPrivacyBody()');
+  assert.match(body, /setupRow && setupRow\.kind === 'block' \? 'warning' : 'shield'/);
+  assert.match(read('screens/OnboardingFlowScreen.js'), /<FeatureIcon name="shield" size=\{56\} color=\{colors\.ink\} \/>/);
+});
+
+test('council 4: the test reminder is a secondary (outlined) button, as in the approved picture', () => {
+  const s = read('screens/ReminderCheckScreen.js');
+  assert.match(s, /testBtn: \{[^}]*borderWidth: 1, borderColor: c\.line[^}]*\}/);
+  assert.match(s, /testText: \{[^}]*color: c\.ink[^}]*\}/);
+});
+
+test('council 4: replaced strings are gone (rebuild = replace)', () => {
+  for (const l of LANGS) { assert.equal(T[l].rc_setup_open, undefined, l); assert.equal(T[l].rc_setup_later, undefined, l); }
+});

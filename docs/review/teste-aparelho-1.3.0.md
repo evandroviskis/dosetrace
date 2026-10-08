@@ -159,3 +159,27 @@ Adicione um protocolo com início 3 semanas atrás.
 
 ## Resultados do fundador
 - 2026-10-07, Fold, versão 47: 4.2 (Continuar com a Apple pelo navegador) e 4.3 (Google) entraram. Falta: mesma conta do iPhone com o mesmo Apple ID, cancelar no meio, e repetir na 48.
+
+## Versão de teste 4: o que mudou (2026-10-07)
+
+Mudou desde a versão 3: os passos 16.1, 16.5 e 16.7 não valem mais (a tela agora é uma só, "Garanta que seus lembretes cheguem", e não abre depois do primeiro protocolo).
+
+### 19. Lembretes depois de uma atualização (A-111) — Fold, com o cabo
+1. Antes de atualizar: eu conto os lembretes pelo cabo (devem ser uns 240).
+2. Atualize da 48 para a 49 pela Play Store e NÃO abra o app. Espere 2 minutos.
+3. Eu confiro pelo cabo: o Android rodou a renovação do DoseTrace (registro "BackgroundTaskWork doWork") e os lembretes continuam uns 240, não 8.
+4. Ainda sem abrir o app: o próximo lembrete de dose chega na hora e só uma vez.
+5. Reinicie e não abra o app: a contagem continua igual e nada chega em dobro.
+
+### 20. Garanta que seus lembretes cheguem (A-112, A-113) — claro E escuro
+1. Abra o app: Hoje NÃO abre a tela sozinho (você já viu na 48). Isso é o certo.
+2. Ajustes → Notificações, primeira linha "Garanta que seus lembretes cheguem" (a antiga "Verificar lembretes" sumiu):
+   - com algo faltando: "N de M prontos" em laranja, com um ponto;
+   - desligue as notificações do DoseTrace: a linha fica vermelha;
+   - tudo certo: "Tudo pronto · próximo lembrete …".
+3. A tela: cada botão abre a tela certa do Android e, ao voltar, as linhas se atualizam. "Abrir" da suspensão profunda abre a tela Bateria da Samsung, e os toques do texto batem com o que aparece.
+4. Com um item em vermelho, o texto do lembrete de teste avisa que ele não vai chegar.
+5. Hoje: cada aviso (atrasar, bateria, parar, o cartão combinado) abre a tela com o item certo destacado. Adie um: ele volta depois.
+6. Onboarding com uma conta nova +qa: toque "Ativar notificações", a tela aparece; "Continuar"/"Pronto" e "Configurar depois" seguem para criar a conta; o voltar do Android volta para as notificações. Abra uma tela do Android, feche o app deslizando e reabra: você cai em "Antes de começar" com as respostas guardadas (só a caixa de consentimento desmarcada).
+7. Outra conta nova +qa: toque "Agora não" (a tela não aparece). Crie um protocolo com horário: Hoje abre a tela uma vez, e nunca mais.
+8. iPhone: Ajustes continua com "Verificar lembretes", sem barra e sem passo no onboarding.

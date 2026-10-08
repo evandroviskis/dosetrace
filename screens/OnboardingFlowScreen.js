@@ -564,7 +564,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
           {cur === 'reminders' && showSetup && (
             <View style={{ gap: 14 }}>
               <View style={{ alignItems: 'center', gap: 10, paddingHorizontal: 8 }}>
-                <FeatureIcon name="shield" size={56} color={colors.data} />
+                <FeatureIcon name="shield" size={56} color={colors.ink} />
                 <Text style={[s.title, s.textCenter]}>{t('rc_setup_title')}</Text>
                 <Text style={[s.sub, s.textCenter]}>{t('rc_setup_intro')}</Text>
               </View>

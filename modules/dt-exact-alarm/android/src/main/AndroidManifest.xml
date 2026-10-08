@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <application>
     <!-- A-111: after an app update (and a reboot) run the app's own reminder refresh headless, so every
          reminder is rebuilt from the app's data without the app being opened. -->
