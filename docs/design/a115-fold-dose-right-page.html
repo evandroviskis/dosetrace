@@ -1,0 +1,84 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fold: dose na página direita</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"><style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Geist,-apple-system,Roboto,sans-serif}
+header,section{max-width:1240px;margin:0 auto;padding:0 16px}
+header{padding-top:28px}
+h1{font-size:24px;margin:0 0 6px;letter-spacing:-.3px}
+header p{margin:0;color:var(--pink2);max-width:78ch}
+h2{font-size:17px;margin:30px 0 4px}
+.lead{color:var(--pink2);margin:0 0 14px;max-width:78ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.col h3{font-size:13px;font-weight:600;margin:0 0 8px;color:var(--pink2);text-transform:uppercase;letter-spacing:.06em}
+/* phone surfaces: the app's own tokens (lib/theme.js), fixed per theme */
+.ph{border-radius:22px;padding:16px;border:1px solid var(--pline)}
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--act:#111315;--onAct:#FFFFFF;--attention:#7E4A00;--ok:#17623F}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--act:#EEEFEB;--onAct:#121416;--attention:#E3A54E;--ok:#62C597}
+.ph{background:var(--ground);color:var(--ink)}
+.tag{font-size:12px;color:var(--ink2);margin:0 0 8px}
+.secrow{display:flex;justify-content:space-between;font-weight:600;font-size:16px;margin:2px 4px 8px}
+.secrow span:last-child{font-weight:400;color:var(--ink2)}
+.card{background:var(--raised);border-radius:22px;overflow:hidden}
+.alert{display:flex;gap:12px;align-items:center;padding:14px 12px 14px 16px;border-bottom:1px solid var(--line)}
+.alert:last-child{border-bottom:0}
+.alert .t{flex:1;min-width:0}
+.alert b{display:block;font-size:16px;font-weight:600}
+.alert b i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--attention);margin-left:6px;vertical-align:middle}
+.alert small{display:block;font-size:14px;color:var(--ink2);margin-top:1px}
+.snz{width:40px;height:40px;border-radius:50%;background:var(--well);display:grid;place-items:center;flex:none}
+.row{display:flex;gap:12px;align-items:center;margin:0 16px;padding:12px 0;min-height:60px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .t{flex:1;min-width:0}
+.row b{display:block;font-size:17px;font-weight:400}
+.row small{display:block;font-size:13px;line-height:18px;margin-top:2px;color:var(--ink2)}
+.row small.att{color:var(--attention)}
+.fix{min-height:36px;padding:0 14px;border-radius:18px;background:var(--act);color:var(--onAct);font-size:14px;font-weight:600;display:grid;place-items:center;flex:none}
+.okp{font-size:12px;font-weight:600;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:3px 9px;flex:none}
+svg{display:block}
+.notes{margin:28px auto 48px}
+.notes ol{max-width:80ch;padding-left:20px;margin:6px 0}
+.notes li{margin:6px 0}
+.ask{font-weight:600}
+
+
+.sheet{background:var(--raised);border-radius:22px;padding:20px 18px 14px}
+.sheet h4{margin:0 0 6px;font-size:18px}
+.sheet p{margin:0 0 14px;font-size:14px;color:var(--ink2);line-height:1.4}
+.sbtn{min-height:46px;border-radius:23px;display:grid;place-items:center;font-weight:600;font-size:15px;margin-top:8px}
+.sbtn.p{background:var(--act);color:var(--onAct)}.sbtn.s{background:var(--well);color:var(--ink)}.sbtn.g{color:var(--ink2);font-weight:500}
+.link{margin:12px 16px 0;min-height:44px;border-radius:22px;border:1px solid var(--line);display:grid;place-items:center;font-size:15px;color:var(--ink)}
+.opt{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--ink2);margin:0 0 6px}
+</style><style>
+.fold{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:22px;overflow:hidden;border:1px solid var(--pline)}
+.pg{background:var(--ground);color:var(--ink);padding:14px;min-width:0}.pg+.pg{border-left:1px solid var(--line)}
+.dcard{background:var(--raised);border-radius:22px;padding:14px;margin-bottom:10px}.dcard.sel{outline:2px solid var(--ink)}
+.dtop{display:flex;justify-content:space-between;align-items:baseline}.dname{font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px}.cdot{width:9px;height:9px;border-radius:50%;background:#3B6FD8;display:inline-block}
+.dtime{font-size:15px;font-weight:600}.dsub{font-size:13px;color:var(--ink2);margin-top:4px}.due{font-size:11px;font-weight:600;color:var(--attention);border:1px solid var(--attention);border-radius:999px;padding:2px 8px}
+.btns{display:grid;grid-template-columns:1fr 1.6fr;gap:8px;margin-top:12px}.b2{min-height:38px;border-radius:19px;display:grid;place-items:center;font-size:14px;font-weight:600}.b2.s{background:var(--well)}.b2.p{background:var(--act);color:var(--onAct)}
+.meta{font-size:12px;color:var(--ink2)}.pname{font-size:24px;font-weight:700;letter-spacing:-.4px;margin:2px 0 6px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tag{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--ink2)}
+.blk{background:var(--raised);border-radius:18px;padding:12px 14px;margin-bottom:10px}.blk h5{margin:0 0 6px;font-size:12px;color:var(--ink2);font-weight:600}.kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}.kv:last-child{border-bottom:0}.kv span:last-child{font-variant-numeric:tabular-nums}
+.notice{background:var(--well);border-radius:18px;padding:12px 14px;margin-bottom:10px}.notice b{display:block;font-size:14px;margin-bottom:4px}.notice p{margin:0 0 10px;font-size:13px;color:var(--ink2)}.notice .fix{display:inline-grid}
+.syr{height:34px;border-radius:8px;background:var(--well);position:relative;margin:6px 0 4px}.syr i{position:absolute;left:0;top:0;bottom:0;width:15%;background:#8AA8FF;border-radius:8px 0 0 8px}
+.dupe{opacity:.95}</style></head><body><header><h1>Fold aberto · a dose tocada na página direita</h1><p>Sua regra: o lado direito sempre acrescenta ao esquerdo, nunca repete. Ao tocar numa dose, a direita abre a página do protocolo (tudo o que Meus Protocolos mostra). Pular e Concluir ficam só no cartão da esquerda. Exemplo com os seus protocolos; números ilustrativos.</p></header><section>
+<h2>App hoje (repete o cartão)</h2><div class="grid" style="grid-template-columns:1fr"><div class="ph dark" style="padding:0;border:0;background:none"><div class="fold"><div class="pg"><div class="secrow"><span>Doses</span><span>0 de 4</span></div><div class="dcard sel"><div class="dtop"><span class="dname"><i class="cdot"></i>MOTS-c</span><span class="dtime">13:00 ›</span></div><div class="dtop"><span class="dsub">8 mg · A cada 3 dias</span><span class="due">● Agora</span></div><div class="dsub">Último: Flanco, esquerdo · há 9d</div><div class="btns"><div class="b2 s">Pular</div><div class="b2 p">Concluir</div></div></div><div class="dcard"><div class="dtop"><span class="dname"><i class="cdot"></i>AOD-9604</span><span class="dtime">20:00 ›</span></div><div class="dtop"><span class="dsub">500 mcg · Diariamente</span><span class="due">● Agora</span></div></div></div><div class="pg dupe"><div class="dtop"><span class="dtime">13:00</span><span class="due">● Agora</span></div><div class="pname">MOTS-c</div><div class="dsub">8 mg · A cada 3 dias</div><div class="btns"><div class="b2 s">Pular</div><div class="b2 p">Concluir</div></div><div class="dsub" style="margin-top:12px;text-decoration:underline">Meus protocolos ›</div></div></div></div></div>
+<h2>Proposta · sem frasco (seu MOTS-c)</h2><p class="lead">No topo da direita, a explicação de por que falta a seringa e o frasco, com o botão para adicionar. Em comprimidos/cápsulas o texto fala do pote.</p><div class="grid" style="grid-template-columns:1fr"><div class="ph light" style="padding:0;border:0;background:none"><div class="fold"><div class="pg"><div class="secrow"><span>Doses</span><span>0 de 4</span></div><div class="dcard sel"><div class="dtop"><span class="dname"><i class="cdot"></i>MOTS-c</span><span class="dtime">13:00 ›</span></div><div class="dtop"><span class="dsub">8 mg · A cada 3 dias</span><span class="due">● Agora</span></div><div class="dsub">Último: Flanco, esquerdo · há 9d</div><div class="btns"><div class="b2 s">Pular</div><div class="b2 p">Concluir</div></div></div><div class="dcard"><div class="dtop"><span class="dname"><i class="cdot"></i>AOD-9604</span><span class="dtime">20:00 ›</span></div><div class="dtop"><span class="dsub">500 mcg · Diariamente</span><span class="due">● Agora</span></div></div></div><div class="pg"><div class="meta">8 mg dose</div><div class="pname">MOTS-c</div><div class="tags"><span class="tag">Liofilizado</span><span class="tag">Energia</span></div>
+<div class="notice"><b>Nenhum frasco reconstituído agora</b><p>Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</p><div class="fix">+ Adicionar frasco</div></div>
+<div class="blk"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>A cada 3 dias</span></div><div class="kv"><span>Lembrete</span><span>13:00</span></div><div class="kv"><span>Objetivo</span><span>Energia</span></div></div>
+<div class="blk"><h5>Detalhes da dose</h5><div class="kv"><span>Quantidade de composto</span><span>10 mg</span></div><div class="kv"><span>Quantidade de diluente</span><span>2 ml</span></div><div class="kv"><span>Concentração</span><span>5 mg/ml</span></div><div class="kv"><span>Dose desejada</span><span>8 mg</span></div></div>
+<div class="blk"><h5>Notas</h5><div class="dsub">ex.: alternar os locais de injeção</div></div></div></div></div><div class="ph dark" style="padding:0;border:0;background:none"><div class="fold"><div class="pg"><div class="secrow"><span>Doses</span><span>0 de 4</span></div><div class="dcard sel"><div class="dtop"><span class="dname"><i class="cdot"></i>MOTS-c</span><span class="dtime">13:00 ›</span></div><div class="dtop"><span class="dsub">8 mg · A cada 3 dias</span><span class="due">● Agora</span></div><div class="dsub">Último: Flanco, esquerdo · há 9d</div><div class="btns"><div class="b2 s">Pular</div><div class="b2 p">Concluir</div></div></div><div class="dcard"><div class="dtop"><span class="dname"><i class="cdot"></i>AOD-9604</span><span class="dtime">20:00 ›</span></div><div class="dtop"><span class="dsub">500 mcg · Diariamente</span><span class="due">● Agora</span></div></div></div><div class="pg"><div class="meta">8 mg dose</div><div class="pname">MOTS-c</div><div class="tags"><span class="tag">Liofilizado</span><span class="tag">Energia</span></div>
+<div class="notice"><b>Nenhum frasco reconstituído agora</b><p>Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</p><div class="fix">+ Adicionar frasco</div></div>
+<div class="blk"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>A cada 3 dias</span></div><div class="kv"><span>Lembrete</span><span>13:00</span></div><div class="kv"><span>Objetivo</span><span>Energia</span></div></div>
+<div class="blk"><h5>Detalhes da dose</h5><div class="kv"><span>Quantidade de composto</span><span>10 mg</span></div><div class="kv"><span>Quantidade de diluente</span><span>2 ml</span></div><div class="kv"><span>Concentração</span><span>5 mg/ml</span></div><div class="kv"><span>Dose desejada</span><span>8 mg</span></div></div>
+<div class="blk"><h5>Notas</h5><div class="dsub">ex.: alternar os locais de injeção</div></div></div></div></div></div>
+<h2>Proposta · com frasco</h2><p class="lead">A seringa desenhada, o frasco (quanto resta, quando foi misturado, validade), horários, detalhes da dose e notas.</p><div class="grid" style="grid-template-columns:1fr"><div class="ph light" style="padding:0;border:0;background:none"><div class="fold"><div class="pg"><div class="secrow"><span>Doses</span><span>0 de 4</span></div><div class="dcard sel"><div class="dtop"><span class="dname"><i class="cdot"></i>MOTS-c</span><span class="dtime">13:00 ›</span></div><div class="dtop"><span class="dsub">8 mg · A cada 3 dias</span><span class="due">● Agora</span></div><div class="dsub">Último: Flanco, esquerdo · há 9d</div><div class="btns"><div class="b2 s">Pular</div><div class="b2 p">Concluir</div></div></div><div class="dcard"><div class="dtop"><span class="dname"><i class="cdot"></i>AOD-9604</span><span class="dtime">20:00 ›</span></div><div class="dtop"><span class="dsub">500 mcg · Diariamente</span><span class="due">● Agora</span></div></div></div><div class="pg"><div class="meta">8 mg dose</div><div class="pname">MOTS-c</div><div class="tags"><span class="tag">Liofilizado</span><span class="tag">Energia</span></div>
+<div class="blk"><h5>Aspirar até</h5><div class="syr"><i></i></div><div class="kv"><span>Seringa</span><span>15,0 u · 0,15 ml</span></div></div><div class="blk"><h5>Frasco</h5><div class="kv"><span>Restam</span><span>7 doses</span></div><div class="kv"><span>Misturado em</span><span>1 out</span></div><div class="kv"><span>Validade</span><span>29 out</span></div></div>
+<div class="blk"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>A cada 3 dias</span></div><div class="kv"><span>Lembrete</span><span>13:00</span></div><div class="kv"><span>Objetivo</span><span>Energia</span></div></div>
+<div class="blk"><h5>Detalhes da dose</h5><div class="kv"><span>Quantidade de composto</span><span>10 mg</span></div><div class="kv"><span>Quantidade de diluente</span><span>2 ml</span></div><div class="kv"><span>Concentração</span><span>5 mg/ml</span></div><div class="kv"><span>Dose desejada</span><span>8 mg</span></div></div>
+<div class="blk"><h5>Notas</h5><div class="dsub">ex.: alternar os locais de injeção</div></div></div></div></div><div class="ph dark" style="padding:0;border:0;background:none"><div class="fold"><div class="pg"><div class="secrow"><span>Doses</span><span>0 de 4</span></div><div class="dcard sel"><div class="dtop"><span class="dname"><i class="cdot"></i>MOTS-c</span><span class="dtime">13:00 ›</span></div><div class="dtop"><span class="dsub">8 mg · A cada 3 dias</span><span class="due">● Agora</span></div><div class="dsub">Último: Flanco, esquerdo · há 9d</div><div class="btns"><div class="b2 s">Pular</div><div class="b2 p">Concluir</div></div></div><div class="dcard"><div class="dtop"><span class="dname"><i class="cdot"></i>AOD-9604</span><span class="dtime">20:00 ›</span></div><div class="dtop"><span class="dsub">500 mcg · Diariamente</span><span class="due">● Agora</span></div></div></div><div class="pg"><div class="meta">8 mg dose</div><div class="pname">MOTS-c</div><div class="tags"><span class="tag">Liofilizado</span><span class="tag">Energia</span></div>
+<div class="blk"><h5>Aspirar até</h5><div class="syr"><i></i></div><div class="kv"><span>Seringa</span><span>15,0 u · 0,15 ml</span></div></div><div class="blk"><h5>Frasco</h5><div class="kv"><span>Restam</span><span>7 doses</span></div><div class="kv"><span>Misturado em</span><span>1 out</span></div><div class="kv"><span>Validade</span><span>29 out</span></div></div>
+<div class="blk"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>A cada 3 dias</span></div><div class="kv"><span>Lembrete</span><span>13:00</span></div><div class="kv"><span>Objetivo</span><span>Energia</span></div></div>
+<div class="blk"><h5>Detalhes da dose</h5><div class="kv"><span>Quantidade de composto</span><span>10 mg</span></div><div class="kv"><span>Quantidade de diluente</span><span>2 ml</span></div><div class="kv"><span>Concentração</span><span>5 mg/ml</span></div><div class="kv"><span>Dose desejada</span><span>8 mg</span></div></div>
+<div class="blk"><h5>Notas</h5><div class="dsub">ex.: alternar os locais de injeção</div></div></div></div></div></div>
+</section><section class="notes"><h2>A mesma regra no resto do app</h2><ol><li>Conferi as outras abas no livro: Protocolos (lista → página completa), Evolução (painel → Seu progresso), Meu corpo (lista → detalhe do exame/vacina) e Ajustes (grupos → conteúdo) já acrescentam. A única que repetia era a dose em Hoje.</li><li>"Excluir protocolo" não aparece nessa página dentro de Hoje (só em Meus Protocolos), para não apagar nada por engano ao lado das doses.</li></ol><h2>Para decidir</h2><ol><li class="ask">Está bom assim?</li></ol></section></body></html>
