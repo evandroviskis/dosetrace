@@ -9,6 +9,7 @@ import {
   Pressable,
   PixelRatio,
 } from 'react-native';
+import { axisLabels } from '../lib/curveAxis';
 import { useWindowSize } from '../lib/windowSize';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -254,6 +255,10 @@ export default function SerumCurveScreen({ embedded = false }) {
   const navigation = useNavigation();
   const route = useRoute();
   const { width: rawWindowWidth } = useWindowSize();
+  const [axisW, setAxisW] = useState(0);
+  const [axisNowW, setAxisNowW] = useState(0);
+  const [axisLeftW, setAxisLeftW] = useState(0);
+  const [axisRightW, setAxisRightW] = useState(0);
   const windowWidth = embedded ? paneWidths(rawWindowWidth).right : rawWindowWidth;
   useUnfoldToPage('SerumCurve', { embedded, params: embedded ? null : (route && route.params) || null });
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -475,6 +480,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   if (model && model.max > 0) plotMax = ticksY.top;
 
   const nowX = model ? xForIndex(model.nowF) : plotLeft;
+  // A-101a: the x-axis labels never overlap (measured widths; lib/curveAxis).
+  const nowLabelLeft = Math.max(0, (nowX - AXIS_W) - 14);
+  const axisShow = axisLabels({ plotW: axisW, nowLeft: nowLabelLeft, nowW: axisNowW, leftW: axisLeftW, rightW: axisRightW });
   const single = model && model.series.length === 1 ? model.series[0] : null;
   // One compound draws in data blue (prototype curveScreen); several keep their protocol colors.
   const lineColor = (ser) => (single ? colors.data : ser.color);
@@ -857,11 +865,16 @@ export default function SerumCurveScreen({ embedded = false }) {
             </Svg>
             </View>
 
-            <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]}>
-              <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]}>−{pastDays}{du}</Text>
-              <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]}>+{futureDays}{du}</Text>
+            <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]} onLayout={(e) => setAxisW(e.nativeEvent.layout.width)}>
+              {/* A-101a: an end label that would touch "Now" is left out (lib/curveAxis). */}
+              {axisShow.showLeft ? (
+                <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]} onLayout={(e) => setAxisLeftW(e.nativeEvent.layout.width)}>−{pastDays}{du}</Text>
+              ) : null}
+              {axisShow.showRight ? (
+                <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]} onLayout={(e) => setAxisRightW(e.nativeEvent.layout.width)}>+{futureDays}{du}</Text>
+              ) : null}
               {model && (
-                <Text style={[s.axisNow, { position: 'absolute', left: Math.max(0, (nowX - AXIS_W) - 14) }]}>
+                <Text style={[s.axisNow, { position: 'absolute', left: nowLabelLeft }]} onLayout={(e) => setAxisNowW(e.nativeEvent.layout.width)}>
                   {t('curve_now')}
                 </Text>
               )}

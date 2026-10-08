@@ -73,3 +73,18 @@ test('A-101e: Your numbers adopts the newest weigh-in unless the weight was type
   assert.match(c, /weightAt,/, 'the stamp is saved with the inputs');
   assert.match(c, /if \(saved\.weightAt\) setWeightAt\(saved\.weightAt\);/);
 });
+
+// (a) Curve: at +30d the "−3d" and "Now" labels overlapped (Now sits about 9% in). An end label that
+// would touch "Now" is left out; "Now" always shows.
+test('A-101a: an end label that would overlap "Now" is hidden; Now always shows', () => {
+  const { axisLabels } = require('../lib/curveAxis');
+  // plot 320 wide; "−3d" 22 wide; "Now" 30 wide; "+30d" 32 wide.
+  assert.deepEqual(axisLabels({ plotW: 320, nowLeft: 15, nowW: 30, leftW: 22, rightW: 32 }), { showLeft: false, showRight: true });
+  assert.deepEqual(axisLabels({ plotW: 320, nowLeft: 140, nowW: 30, leftW: 22, rightW: 32 }), { showLeft: true, showRight: true });
+  assert.deepEqual(axisLabels({ plotW: 320, nowLeft: 270, nowW: 30, leftW: 22, rightW: 32 }), { showLeft: true, showRight: false });
+  assert.deepEqual(axisLabels({ plotW: 320, nowLeft: 15, nowW: 0, leftW: 0, rightW: 0 }), { showLeft: true, showRight: true }, 'before measuring: everything');
+  const c = read('screens/SerumCurveScreen.js');
+  assert.match(c, /axisLabels\(\{ plotW: /);
+  assert.match(c, /\{axisShow\.showLeft \? \(/);
+  assert.match(c, /\{axisShow\.showRight \? \(/);
+});

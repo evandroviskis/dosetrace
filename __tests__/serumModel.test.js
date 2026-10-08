@@ -74,8 +74,11 @@ function oldSeries(p, now, futureDays) {
   const scanStartDay = new Date(scanStart); scanStartDay.setHours(0, 0, 0, 0);
   const snap = (ts) => start + Math.round((ts - start) / stepMs) * stepMs;
   const doses = [];
-  for (let dts = scanStartDay.getTime(); dts <= end; dts += DAY_MS) {
-    const day = new Date(dts);
+  // A-101b: the old 24 h step visited a 25 h fall-back day twice (double dose); the reference
+  // now steps by calendar day too (__tests__/curveDstDoses.test.js proves the bug and the fix).
+  for (let i = 0; ; i++) {
+    const day = new Date(scanStartDay.getFullYear(), scanStartDay.getMonth(), scanStartDay.getDate() + i);
+    if (day.getTime() > end) break;
     const cnt = expectedDosesOn(p, day);
     const slots = DOSE_SLOTS[cnt] || DOSE_SLOTS[4];
     for (let k = 0; k < cnt; k++) {
