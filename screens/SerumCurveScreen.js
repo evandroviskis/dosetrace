@@ -8,8 +8,8 @@ import {
   Modal,
   Pressable,
   PixelRatio,
-  useWindowDimensions,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -253,7 +253,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
-  const { width: rawWindowWidth } = useWindowDimensions();
+  const { width: rawWindowWidth } = useWindowSize();
   const windowWidth = embedded ? paneWidths(rawWindowWidth).right : rawWindowWidth;
   useUnfoldToPage('SerumCurve', { embedded, params: embedded ? null : (route && route.params) || null });
   const s = useMemo(() => makeStyles(colors), [colors]);

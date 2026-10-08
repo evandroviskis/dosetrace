@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WindowSizeRoot } from './lib/windowSize';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -784,6 +785,7 @@ export default function App() {
   // then reflows into Plus Jakarta Sans.
   if (loading || !fontsLoaded || seenOnboarding === null) {
     return (
+      <WindowSizeRoot>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <LanguageProvider>
           <ThemeProvider>
@@ -791,10 +793,12 @@ export default function App() {
           </ThemeProvider>
         </LanguageProvider>
       </SafeAreaProvider>
+      </WindowSizeRoot>
     );
   }
 
   return (
+    <WindowSizeRoot>
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ErrorBoundary>
         <LanguageProvider>
@@ -838,5 +842,6 @@ export default function App() {
         </LanguageProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
+    </WindowSizeRoot>
   );
 }

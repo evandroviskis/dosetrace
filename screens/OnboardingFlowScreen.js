@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image,
-  StyleSheet, useWindowDimensions, Modal, BackHandler, Linking, Platform, AppState,
+  StyleSheet, Modal, BackHandler, Linking, Platform, AppState,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
 } from 'react-native-reanimated';
@@ -92,7 +93,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const { width: winW } = useWindowDimensions();
+  const { width: winW } = useWindowSize();
   const heroW = Math.min(420, winW - 32); // 16 pt screen gutter each side
   const thisYear = new Date().getFullYear();
 

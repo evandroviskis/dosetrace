@@ -1,7 +1,8 @@
 // Book layout (S-26, docs/specs/book-layout.md): the two pages and the hooks the screens use.
 // Rules live in lib/bookLayout.js (tested); the open item per tab in lib/bookSelection.js.
 import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, useWindowDimensions, Platform, AccessibilityInfo, findNodeHandle, Dimensions } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
+import { View, StyleSheet, Platform, AccessibilityInfo, findNodeHandle, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../lib/theme';
 import { isBook, GUTTER, foldPlan, unfoldPlan } from '../lib/bookLayout';
@@ -9,8 +10,8 @@ import { getSelection, setSelection, onSelectionChange } from '../lib/bookSelect
 
 // BK-1: true when the window is wide and tall enough for two pages.
 export function useBook() {
-  const { width, height } = useWindowDimensions();
-  // useWindowDimensions re-renders on every fold, rotation and resize; the screen gives the posture.
+  const { width, height } = useWindowSize(); // the measured window (lib/windowSize): folding updates it
+  // The measured window (lib/windowSize) follows every fold, rotation and resize; the screen gives the posture.
   return isBook(width, height, Platform.OS, Dimensions.get('screen'));
 }
 

@@ -13,8 +13,8 @@ import {
   Linking,
   KeyboardAvoidingView,
   ActivityIndicator,
-  useWindowDimensions,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { MONO } from '../lib/fonts';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -393,7 +393,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowSize();
   const draw = p ? computeDraw({
     type: p.type,
     amount: p.amount, water: p.water,

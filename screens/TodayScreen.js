@@ -7,9 +7,9 @@ import {
   StyleSheet,
   Modal,
   TextInput,
-  useWindowDimensions,
   AppState,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -202,7 +202,7 @@ export default function TodayScreen() {
   const book = useBook();
   const { sel: bookSel, params: bookParams, select: bookSelect } = useBookSelection('Today', 'log');
   useFoldPush('Today'); // BK-10: an opened Dose log becomes the pushed Log screen on fold
-  const { width: winW } = useWindowDimensions();
+  const { width: winW } = useWindowSize();
   const [protocols, setProtocols] = useState([]);
   const [vials, setVials] = useState({}); // keyed by protocol_id
   const [takenCounts, setTakenCounts] = useState({}); // { protocol_id: count } — outcome 'Taken' only

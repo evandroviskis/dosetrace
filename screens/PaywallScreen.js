@@ -9,8 +9,8 @@ import {
   Platform,
   Linking,
   BackHandler,
-  useWindowDimensions,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -60,7 +60,7 @@ export default function PaywallScreen({ navigation, route }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const { width: winW } = useWindowDimensions();
+  const { width: winW } = useWindowSize();
   // The hero card is the content width (screen gutter 16) — its curve is 28 narrower.
   const heroW = Math.min(CONTENT_MAX_WIDTH, winW) - 32 - 28;
   const scrollRef = useRef(null);

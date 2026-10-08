@@ -8,8 +8,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
-  useWindowDimensions,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -167,7 +167,7 @@ function labExplainers(userId) {
 export default function BodyScreen({ navigation, route }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowSize();
   // Chart width: screen minus the scroll gutter (16×2) and the card padding (18×2).
   const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 36;
   // Book layout: the marker chart sized on the right page (BK-9: two equal pages).

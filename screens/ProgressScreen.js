@@ -8,7 +8,8 @@
  * page when the window unfolds, flushing anything typed first (BK-10).
  */
 import { useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -35,7 +36,7 @@ export default function ProgressScreen({ embedded = false }) {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
-  const { width } = useWindowDimensions();
+  const { width } = useWindowSize();
   const s = makeStyles(colors, embedded);
   const flushRef = useRef(null);
   useUnfoldToPage('Progress', {
