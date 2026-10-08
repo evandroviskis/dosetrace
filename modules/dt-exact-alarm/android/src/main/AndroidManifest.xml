@@ -1,2 +1,15 @@
-<manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- A-111: after an app update (and a reboot) run the app's own reminder refresh headless, so every
+         reminder is rebuilt from the app's data without the app being opened. -->
+    <receiver
+      android:name="expo.modules.dtexactalarm.RefreshOnUpdateReceiver"
+      android:enabled="true"
+      android:exported="false">
+      <intent-filter>
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+      </intent-filter>
+    </receiver>
+  </application>
 </manifest>

@@ -13,3 +13,8 @@ android {
     versionName '1.0.0'
   }
 }
+
+dependencies {
+  // A-111: RefreshOnUpdateReceiver enqueues expo-background-task's worker (same WorkManager version).
+  implementation 'androidx.work:work-runtime-ktx:2.9.1'
+}
