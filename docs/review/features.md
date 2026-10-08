@@ -254,6 +254,7 @@ These appear in specs, STATE.md, the handoff, CLAUDE.md or commit messages as ap
 | A-113 | **Deep-sleep row opens Samsung Battery**, text names the taps from there (was: the app battery page, text did not match). Test first. | founder 2026-10-07 | **1.3.0** | Built (SP-7) | |
 | A-115 | **Fold: the right page adds, never repeats** — a tapped dose on Today opens the protocol page on the right (no-vial explanation + Add vial); buttons only on the left card; supersedes BK-3 dose page. | founder 2026-10-07 | **1.3.0** | Built, tests first (docs/specs/fold-right-page.md FR-1..FR-5); FR-6 device proof | |
 | A-116 | **Fold: every tap and every notification opens its item on the right page** (food reminder → AI food chat right; weigh-in / reality check → Progress right; vial → protocol right; dose → its protocol right), most information the app already has, nothing invented. | founder 2026-10-07 | **1.3.0** | Not started | |
+| A-117 | **Privacy policy for 1.3.0** — website text (docs/legal/privacy-policy-2026-10.md, Cowork handoff docs/handoffs/cowork-privacy-2026-10.md + Google Doc), store privacy answers, and the in-app policy x6 to the same content. | Claude 2026-10-07 (founder: "escreva e me dê um handoff para cowork") | **1.3.0** | Website text + handoff written; in-app x6 to do | |
 
 ---
 
