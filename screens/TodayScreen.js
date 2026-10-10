@@ -9,6 +9,8 @@ import {
   TextInput,
   AppState,
 } from 'react-native';
+import { readCheckNow } from '../lib/realityCheckNow';
+import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -21,7 +23,6 @@ import { Analytics } from '../lib/analytics';
 import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
-import { getRealityStart } from '../lib/realityCheck';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
@@ -216,6 +217,7 @@ export default function TodayScreen() {
   const [monthConsistency, setMonthAdherence] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
   const [rcStart, setRcStart] = useState(null); // open reality-check weigh-in → an alert
+  const [rcNow, setRcNow] = useState(null); // where that check stands (lib/realityCheckNow)
   const [latestLabDate, setLatestLabDate] = useState(null); // most recent bloodwork report_date
   const [alertSnooze, setAlertSnooze] = useState({}); // { alertId: untilTimestamp } — dismissed derived alerts
   const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
@@ -465,8 +467,10 @@ export default function TodayScreen() {
   // Load the open reality-check weigh-in (if any) — surfaced as a Today alert.
   async function fetchAlerts() {
     // Open reality-check weigh-in.
-    const rcs = await getRealityStart();
-    setRcStart(rcs || null);
+    // Founder 2026-10-09: the alert follows the check's real state (weighed in, food missing, ready).
+    const now = await readCheckNow().catch(() => null);
+    setRcStart(now && now.start ? now.start : null);
+    setRcNow(now);
     // Latest bloodwork date (biomarkers are ordered report_date DESC).
     try {
       const user = await getCachedUser();
@@ -1478,12 +1482,18 @@ export default function TodayScreen() {
     if (rcStart && !(alertSnooze.reality_check && nowMs < alertSnooze.reality_check)) {
       const remind = new Date(rcStart.date + 'T12:00:00');
       remind.setDate(remind.getDate() + REALITY_CHECK_DAYS);
-      const due = nowMs >= remind.getTime();
+      const dateDue = nowMs >= remind.getTime();
+      // The real state when known (lib/realityCheckRules checkAlert); the date alone otherwise.
+      const a = rcNow ? checkAlert(rcNow.outcome, rcNow.run) : null;
+      const kind = a ? a.body : (dateDue ? 'due' : 'when');
+      const body = kind === 'due' ? t('today_alert_rc_due')
+        : kind === 'needs_food' ? t(pluralKey('today_alert_rc_needs_food', a.left, language)).replace('{n}', String(a.left))
+        : kind === 'ready' ? t('today_alert_rc_ready')
+        : t('today_alert_rc_when').replace('{date}', formatDate(remind, language, 'dayMonth'));
       list.push({
-        id: 'reality_check', iconName: 'type_glp1', due,
+        id: 'reality_check', iconName: 'type_glp1', due: kind !== 'when',
         title: t('today_alert_rc_title'),
-        body: due ? t('today_alert_rc_due')
-          : t('today_alert_rc_when').replace('{date}', formatDate(remind, language, 'dayMonth')),
+        body,
         // Lands on the reality check itself: Progress, scrolled to its card (pre-build pass m6).
         onPress: () => navigation.navigate('Progress', { focus: 'reality' }),
         snoozeId: 'reality_check',
@@ -1646,7 +1656,7 @@ export default function TodayScreen() {
     }
     }
     return list;
-  }, [rcStart, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery]);
+  }, [rcStart, rcNow, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

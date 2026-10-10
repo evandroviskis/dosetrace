@@ -16,6 +16,7 @@ import { getFoodLogsSince } from '../../lib/database';
 import { todayFoodHeroPolicy, todaySummary } from '../../lib/foodThread';
 import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { catchUpFood, loadFoodAccess } from '../../lib/foodLogActions';
+import { readCheckNow } from '../../lib/realityCheckNow';
 import FoodGraceNote from './FoodGraceNote';
 import { localISO } from '../../lib/localDate';
 import FeatureIcon from '../../components/FeatureIcon';
@@ -42,7 +43,9 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
         const { access, rcStart } = await loadFoodAccess(uid);
         const since = [today, rcStart && rcStart.date ? String(rcStart.date).slice(0, 10) : null, access.freeFrom].filter(Boolean).sort()[0];
         const rows = uid ? (getFoodLogsSince(uid, since) || []) : [];
-        if (alive) setState({ access, rcStart, today, rows, sum: todaySummary(rows, today) });
+        // Founder 2026-10-09: after the weigh-in the line says so (never "time to weigh in" again).
+        const now = await readCheckNow().catch(() => null);
+        if (alive) setState({ access, rcStart, today, rows, sum: todaySummary(rows, today), checkState: now ? now.outcome.state : null });
       };
       await read();
       // Offline entries / follow-up answers are parsed once back online, even if
@@ -67,7 +70,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
   // Journey (redesign part 1, founder 2026-10-02): only the 7-day run; the day of the check
   // lives on the Progress screen. Today keeps the day of the check + the run.
   const checkLine = variant === 'journey' ? runShort : policy.show
-    ? [policy.weighInDue ? t('nutri_hero_weigh') : t('nutri_hero_day').replace('{n}', String(policy.day)).replace('{total}', String(policy.of)), runShort].filter(Boolean).join(' · ')
+    ? [policy.weighInDue ? t(state.checkState === 'needs_food' || state.checkState === 'ready' ? 'nutri_hero_weighed' : 'nutri_hero_weigh') : t('nutri_hero_day').replace('{n}', String(policy.day)).replace('{total}', String(policy.of)), runShort].filter(Boolean).join(' · ')
     : null;
   const { items, kcal, closed } = state.sum;
   const todayLine = closed

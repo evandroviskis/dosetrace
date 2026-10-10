@@ -16,7 +16,8 @@ test('Part 1: on Journey the food card bottom line is only the 7-day run ("0 of 
   // The Journey variant never prefixes "Reality check · day n of 21".
   assert.match(src, /variant === 'journey'\s*\?\s*runShort/, 'journey shows the run line alone');
   // Today keeps its approved line (day of the check + run).
-  assert.match(src, /policy\.weighInDue \? t\('nutri_hero_weigh'\)/);
+  // Founder 2026-10-09: once weighed in, the line says so (rcWeighInAlert.test.js).
+  assert.match(src, /policy\.weighInDue \? t\(state\.checkState === 'needs_food' \|\| state\.checkState === 'ready' \? 'nutri_hero_weighed' : 'nutri_hero_weigh'\)/);
 });
 
 test('Part 1: the Journey card headline is 19 pt semibold (prototype r-title, 600), drawn chevron', () => {
