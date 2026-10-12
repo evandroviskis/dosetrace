@@ -1,5 +1,14 @@
 # 07 — Onboarding, account and Premium: product + technical dossier
 
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section C, ACCT, of that report covers this dossier.)
+>
+> Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
+> 1. **"Continue with Apple" on Android IS live** (§8 row, §9 item 13 were wrong). `STATE.md:17` records the Apple and Supabase setup as done by the founder on 2026-10-03 with the redirect `dosetrace://auth-callback` added; a live probe on 2026-10-12 of `/auth/v1/authorize?provider=apple` returned 302 to `appleid.apple.com` with the Services ID, so `appleWebReady` is true and the button shows; the founder signed in with Apple on his Android Fold on 2026-10-07 (build 47). The stale source was `docs/specs/premium-and-auth.md` Manual setup step 7. Still true: the ship-check Gate B allow-list text lacks `dosetrace://auth-callback`.
+> 2. **New risk:** the Apple web client secret expires **2027-04-04** (`STATE.md:17`; spec PA-123). When it lapses every Android Apple sign-in fails (the probe hides the button or the flow errors). Because Android Apple accounts are now real, the Android deletion path (manual-revoke note, no `apple-link`) and the never-saved Android Apple name (D-20) are live behaviour, not hypotheses.
+> 3. **D-9 (subscription management) impact.** RevenueCat uses `appUserID` = the Supabase uid (`lib/purchases.js:68`), so after a reinstall + sign-in Premium comes back with no Restore; anyone the app shows as free reaches Restore through the Settings Premium card → paywall (`SettingsScreen.js:655`, `PaywallScreen.js:376`). The real gap: no in-app Manage / cancel, and no trial-end or billing-problem state.
+> 4. **Account deletion leaves the RevenueCat customer** (app user id = Supabase uid, purchase history): `delete-user` makes no RevenueCat call — a privacy / deletion item for counsel, next to the "store subscription keeps billing" row.
+> 5. **Cross-account keys (D-17, §6 table):** the curve view and the food draft are per-user keys — residue that the same user gets back, never inherited by another account; the real cross-account leaks are the device-global keys (`dosetrace_missed_since` / `_tz` / zone history, `dosetrace_vial_low_sent`, alert snoozes, `dosetrace_entitlement_last_uid`) and AI consent (D-18).
+
 Branch `redesign/graduated`, read 2026-10-12 (HEAD 4dade55). Feeds the PRD, TRD and state-flow diagrams.
 Every statement cites `path:line`. **CONFIRMED** = read in code. **SUSPECTED** = follows from code but needs a
 device or runtime check. Nothing here was changed in code.
@@ -275,7 +284,7 @@ stateDiagram-v2
     [*] --> Loading
     Loading --> PendingWipeCheck: getSession()
     PendingWipeCheck --> Loading: completePendingWipe + re-read session (G3)
-    Loading --> ResetPassword: recovery pending (<1h)
+    Loading --> ResetPassword: recovery pending (under 1 h)
     Loading --> Onboarding: no session and (not seen or stash has answers)
     Loading --> Auth: no session and seen and stash empty
     Loading --> CompleteProfile: session and missingProfileFields != []
@@ -295,13 +304,13 @@ stateDiagram-v2
     CompleteProfile --> SigningOut: corner Sign out
     AgeConfirm --> SigningOut: Sign out
     SigningOut --> Main: blocked (unsynced / unknown) or failed
-    SigningOut --> PendingWipe: SIGNED_OUT (intended), marker wipe:<owner>
+    SigningOut --> PendingWipe: SIGNED_OUT (intended), marker wipe-owner
     PendingWipe --> Onboarding: wipe done, marker cleared, seenOnboarding=false
     Main --> Auth: spurious SIGNED_OUT (token refresh fail, Apple revoke) - data kept
     Main --> Deleting: Delete account x2
     AgeConfirm --> Deleting: Delete account x2
     Deleting --> Main: offline / server error (nothing changed)
-    Deleting --> Deleted: server ok -> marker deleted:<id>, wipe, local sign-out
+    Deleting --> Deleted: server ok -> marker deleted-id, wipe, local sign-out
     Deleted --> Onboarding: SIGNED_OUT consumed
     Deleted --> PendingWipe: local sign-out failed -> next cold start finishes
     Main --> ResetPassword: reset link, same account
@@ -374,8 +383,8 @@ stateDiagram-v2
     routine --> consent: activity(5-level)+provider
     consent --> reminders: 4 boxes ticked -> markStashFresh
     reminders --> AuthCreate: Not now
-    reminders --> AuthCreate: Enable notifications (iOS: OS prompt)
-    reminders --> setup: Enable notifications (Android: OS prompt + markSetupSeen)
+    reminders --> AuthCreate: Enable notifications (iOS, OS prompt)
+    reminders --> setup: Enable notifications (Android, OS prompt + markSetupSeen)
     setup --> AuthCreate: Continue / Set up later
     setup --> reminders: Back
     goal --> features: Back
@@ -423,7 +432,7 @@ Divergences:
 - **CONFIRMED D-6 (naming):** `foodLogAccess.mode === 'trial'` means the 7 free food-log days, not a store free trial; the paywall's "trial" is the store intro offer (`lib/paywallPlans.js:68-90`). Same word, two concepts.
 - **SUSPECTED D-7 (cross-account cache window):** `logOutPurchases` nulls `_currentUserId` (`lib/purchases.js:99-101`) but the wipe never removes `dosetrace_entitlement_v1:<uid>` or `dosetrace_entitlement_last_uid` (`lib/signedOut.js:158-163`). On a new `SIGNED_IN`, `initPurchases` runs only after `await markerOnSignIn(...)` inside the deferred block (`App.js:685`, `:693`). A screen that calls `getEntitlement()` in that window uses `lastUid` = the previous account: online, the anonymous RevenueCat answer (`premium:false`) is written into the previous account's cache; offline, the previous account's cached Premium is shown to the new account. Window is milliseconds on the normal path; needs a device check.
 - **CONFIRMED D-8 (store trial / billing grace invisible):** no code reads `periodType` or billing-issue state, so the app cannot say "trial ends on…" or "payment problem" (Settings only shows Premium / Free, `SettingsScreen.js:617`).
-- **CONFIRMED D-9 (no subscription management in Settings):** Settings has no Restore or Manage subscription row (grep `restore|manage|subscription` in `SettingsScreen.js` → only a comment at :255); Restore exists only on the Paywall, which a Premium user is sent away from ("You already have Premium", `PaywallScreen.js:131`).
+- **CONFIRMED D-9 (no subscription management in Settings):** Settings has no Restore or Manage subscription row (grep `restore|manage|subscription` in `SettingsScreen.js` → only a comment at :255); Restore exists only on the Paywall, which a Premium user is sent away from ("You already have Premium", `PaywallScreen.js:131`). [Corrected 2026-10-12: a reinstall restores Premium on sign-in through RevenueCat `appUserID` = uid, and anyone shown as free reaches Restore via the Settings Premium card; the real gap is Manage / cancel and trial / billing state.]
 - Reality-check result rule matches the ledger: free days count from the start tap (`CalculatorSection.js:889-890`), so by day 21 a free user is locked; a lapsed payer in the check week keeps it (`lib/foodThread.js:257-263`). No divergence found.
 
 ### 6.2 Profile complete / missing fields
@@ -580,7 +589,7 @@ Spurious `SIGNED_OUT` (token refresh failure, Apple revoke): nothing above is wi
 | Apple private relay email | Account email is the relay address; a person who earlier signed up with their real email gets a separate account via Apple "Hide my email"; developer-email Premium never matches a relay address | Inferred from platform behaviour + `lib/purchases.js:35-38`; not tested |
 | Apple name only once | Saved on first authorization only (iOS); Android web flow never saves it (D-20) | CONFIRMED |
 | Apple account deleted on Android | No `apple-link` call in the web flow (`lib/appleWeb.js`), so no stored token → `appleManualRevokeNeeded` → Android note pointing to account.apple.com (PA-126) | CONFIRMED |
-| Apple on Android not configured | Button hidden (probe) — spec says server side is not configured today (docs/specs/premium-and-auth.md:104); Gate B allow-list in ship-check does not list `dosetrace://auth-callback` | CONFIRMED |
+| Apple on Android not configured | [Corrected 2026-10-12: **WRONG — live since 2026-10-03** (`STATE.md:17`; probe 302 on 2026-10-12; founder signed in on the Fold 2026-10-07). The spec line cited (docs/specs/premium-and-auth.md:104) is stale. Still true: the Gate B allow-list in ship-check does not list `dosetrace://auth-callback`. New risk: the client secret expires 2027-04-04.] | WRONG (was CONFIRMED) |
 | Google re-login after sign-out/delete | Native signOut (+ revoke on delete) forces the chooser | CONFIRMED (`lib/supabase.js:250-264`) |
 | iOS reinstall | SecureStore has no first-run clear (`lib/secureStore.js`), and the iOS Keychain normally survives uninstall, so the session returns while AsyncStorage (seen flag, AI consent, language, entitlement cache) is empty: user goes straight to Main (or a gate), DB re-imported | SUSPECTED (platform behaviour; device check) |
 | Android reinstall | Keystore data removed with the app; Android Auto Backup could restore AsyncStorage files (not configured or checked here) | UNVERIFIED |
@@ -592,7 +601,7 @@ Spurious `SIGNED_OUT` (token refresh failure, Apple revoke): nothing above is wi
 | Lifetime bought over a renewing subscription | Sheet: cancel the subscription in the store | CONFIRMED (PA-74) |
 | Ask to Buy | "Purchase pending" sheet, never "failed" | CONFIRMED (PA-12) |
 | Paying user offline | Cache with future expiry keeps Premium | CONFIRMED (`lib/entitlement.js:33-37`) |
-| Account deleted while subscribed | Store subscription keeps billing; nothing tells the user | CONFIRMED (no RevenueCat/store call in `delete-user`, no copy found) |
+| Account deleted while subscribed | Store subscription keeps billing; nothing tells the user; the RevenueCat customer (uid + purchase history) is also left behind [added 2026-10-12] | CONFIRMED (no RevenueCat/store call in `delete-user`, no copy found) |
 | Analytics before sign-in | Dropped: `logEvent` needs a signed-in user (`lib/analytics.js:35-36`); `onboarding_completed` after a sign-up with email confirmation therefore never logs | CONFIRMED |
 
 ---
@@ -611,7 +620,7 @@ Spurious `SIGNED_OUT` (token refresh failure, Apple revoke): nothing above is wi
 10. **Display name from Google / Apple-on-Android never used** (D-20); Apple iOS can overwrite an existing name.
 11. **Two privacy-policy texts** (D-21).
 12. **Store trial vs food "trial" naming** (D-6) — the PRD needs one vocabulary.
-13. **Android "Continue with Apple" is not live**: server setup steps 1-5 pending (docs/specs/premium-and-auth.md:104, :121-128); `dosetrace://auth-callback` missing from the Gate B allow-list text.
+13. ~~**Android "Continue with Apple" is not live**: server setup steps 1-5 pending (docs/specs/premium-and-auth.md:104, :121-128)~~ [Corrected 2026-10-12: it **is** live since 2026-10-03 (`STATE.md:17`); the remaining items are the Apple web client secret expiring **2027-04-04** and] `dosetrace://auth-callback` missing from the Gate B allow-list text.
 14. **`premium-and-auth.md` checklist is "checklist-signed: pending"** (line 10); device checks still open for PA-36/73-76/90/105/107/112 and the A-97 deviations list.
 15. **features.md is stale** for F-014 (`requestAIConsent` no longer exists; the API is `hasAIConsent`/`grantAIConsent`) and F-072/F-084 (export now covers every synced table).
 16. **Dead code/props**: `authEntry.consent` (D-15), `BIRTH_YEARS` (D-13), double `markSeenOnboarding` (§6.3).

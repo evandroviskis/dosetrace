@@ -1,5 +1,17 @@
 # 02 — Doses and the Today screen: product + technical dossier
 
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/02; where this dossier and the verification disagree, the verification wins.**
+>
+> Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
+> 1. **D6 / G2 (late dose in the rings).** The example dose is 13 h late, which is outside decisions.md:144's "± half the interval" (12 h), so it cannot "match its own slot" under :144 — the code applies :144 literally (nearest slot within ± half; the defect is the unbounded matching pool, `adherenceRings.js:45-66`). The real conflict is with the Missed scan's same-day rule (`lib/missedDoses.js:149-155`): rings and the Missed scan assign the same row to different days.
+> 2. **Last-site recall (§ "Last: {site}").** CONFIRMED by code, not suspected: the UI never says "0d ago"; a dose logged 23:00 yesterday reads "Last: {site} · today" the next morning (`TodayScreen.js:588-590, 1930`; test `todayCopy.test.js`). Also new: Today passes only the last 30 days of logs to the site picker, so its "Longest unused in your log" calls a site used 40 days ago "not in your log yet" (`TodayScreen.js:1000-1003`, `lib/bodySites.js:155-170`).
+> 3. **D16 (watermark survives an account switch)** is code-confirmed: the watermark key is not uid-scoped and is in no wipe list (`doseActions.js:123-212`).
+> 4. **D20 (ring animation).** Whether the ring loads from zero is not settled: the ledger keeps it as open Conflict 40 (`decisions.md:441`), `STATE.md:68` quotes the founder "ring loads from zero"; AD-44 cannot be cited as decided.
+> 5. **Tracker streak (R22, G11).** The code counts days; the unit change to "doses in a row" (DL-03) was sent back to the founder by verification/07 — **OPEN-17** (was DL-03). Only the 365-day look-back is logic.
+> 6. **Notification "Mark complete" for today's slot writes the tap time**, not the slot time (`markTaken.js:101-104`; `notificationActions.js:91-93` passes no slot); only a previous day's slot inside slot + 12 h is written at the slot. On iOS an oral dose from the notification is written directly with no site question (`notificationActions.js:83-93`).
+> 7. **New defects found by the verification:** the "Still going?" prompt checks only the site picker, queue and Log editor (`TodayScreen.js:530`), so it can open together with the orphan sheet, vial prompt, Skip sheet or Today sheet; the streak and week circles update at once while the card and rings wait for the drop landing (`TodayScreen.js:885` vs `:1395-1400`); the disclaimer renders only when at least one protocol exists (`TodayScreen.js:2241`); "Draw to {n} units" shows only for a powder (recon) dose with a mixed vial (`TodayScreen.js:1810-1817`), never for rtu; the Dose log falls back to a plain `writeOutcome` flip (no cap, no supply) for a paused/deleted protocol (`LogScreen.js:145`).
+> 8. **Unsynced count owner** already exists: `lib/recoveryFlow.js:89-95 unsyncedCount`, called by Today (`TodayScreen.js:389`); sign-out sums it over owner + session user (`pendingForSignOut`).
+
 - Scope: marking doses (Taken / Skipped / Missed), multi-dose days and slots, Undo, the injection-site question (S-25), yesterday's pending block (A-40), the Missed scan, the Dose log (LogScreen) and its edits, the tracker (rings, week, streak), "all caught up", Tomorrow / Next 5 days, every Today alert, the food-log card on Today, notification taps that land on Today (A-44 `focusDose`), the Fold book layout of Today (A-115), time zone / midnight / creation-day behaviour.
 - Read on branch `redesign/graduated`, HEAD `3100161` (2026-10-12). Nothing in the code was changed.
 - Evidence types: `path:line` = read in the code. "Script-verified" = I ran the real `lib/` function under Node with the stated input (scripts kept in the session scratchpad, not in the repo). "Unverified" = I could not prove it from code or a run.
@@ -344,7 +356,7 @@ stateDiagram-v2
     MissedRow --> TakenAtSlot: Dose log Mark complete (flip, site first for injectables)
     MissedRow --> SkippedAtSlot: Dose log Mark skipped
     SkippedAtSlot --> TakenAtSlot: Dose log dose sheet Mark complete (A-50)
-    TakenAtSlot --> MissedRow: Dose log Delete, next scan (decisions.md:191)
+    TakenAtSlot --> MissedRow: Dose log Delete, next scan (decisions.md line 191)
     SkippedAtSlot --> MissedRow: Dose log Delete, next scan
     TakenAtSlot --> Pending: Undo within 4 s (row deleted / Missed restored)
 ```
@@ -407,7 +419,7 @@ stateDiagram-v2
     [*] --> Hidden: condition false
     Hidden --> Visible: condition true (on focus / sync event / reminder-health read)
     Visible --> SnoozeStrip: snooze round tapped
-    SnoozeStrip --> Snoozed: Tomorrow / In 3 days (until 09:00 that day)
+    SnoozeStrip --> Snoozed: Tomorrow / In 3 days (until 09h00 that day)
     SnoozeStrip --> Visible: round tapped again
     Snoozed --> Visible: now >= until AND alerts recomputed (deps change or refocus)
     Visible --> Hidden: condition false
@@ -473,7 +485,7 @@ Divergences:
 | j | send-reminders (dormant) | ANY Taken today suppresses ALL slots |
 
 Divergences:
-- **D6 CONFIRMED (script-verified): a late dose is counted for the next day's ring.** Daily 08:00 dose taken yesterday at 21:00, now 07:00: `today: {taken:1, due:1}` (ring 100 %), `week: {taken:0, due:6}`. The card still offers "Mark complete" and the header says "0 of 1". The pool in (h) includes yesterday's log and today's slot is 11 h away (< 12 h half-interval) while yesterday's own slot is 13 h away. Contradicts decisions.md:144 ("a late dose matches its own slot").
+- **D6 CONFIRMED (script-verified): a late dose is counted for the next day's ring.** Daily 08:00 dose taken yesterday at 21:00, now 07:00: `today: {taken:1, due:1}` (ring 100 %), `week: {taken:0, due:6}`. The card still offers "Mark complete" and the header says "0 of 1". The pool in (h) includes yesterday's log and today's slot is 11 h away (< 12 h half-interval) while yesterday's own slot is 13 h away. Contradicts decisions.md:144 ("a late dose matches its own slot"). [Corrected 2026-10-12: 13 h late is outside :144's ± half window, so :144 does not give "its own slot" here; the conflict is with the Missed scan's same-day rule, `missedDoses.js:149-155` — see note 1.]
 - **D7 CONFIRMED (script-verified): twice-daily 08:00 / 20:00, yesterday's 20:00 dose counts for today's 08:00** in the today ring at 07:00 (`today: {taken:1, due:2}`) — gap exactly 12 h ≤ half.
 - **D8 CONFIRMED (code):** header count (a) vs today ring (h) differ by: active-only vs active + ended; declared included vs excluded; Taken counted by calendar day vs matched by proximity; protocols without times / with fewer times than dpd (D1, D2).
 - **D9 CONFIRMED (code): reminders ignore Skipped.** (e)/(g) count only Taken. `skipDose` (`TodayScreen.js:1163–1184`) never cancels reminders. A slot skipped BEFORE its time (e.g. 20:00 skipped at 12:00 after 08:00 was taken) keeps its 20:00 reminder and follow-ups; a snoozed copy of a skipped slot is not resolved. No founder decision found either way (searched decisions.md for skip + reminder).
@@ -508,7 +520,7 @@ Divergences:
 - **D13 CONFIRMED (code):** the scan runs on ACTIVE protocols only (`doseActions.js:186`) while the rings, streak and week circles include ENDED protocols (`TodayScreen.js:747, 762`). An unlogged slot before an end never becomes a Missed row, so the report (d) and the Dose log never show it, while rings show it as not taken.
 - **D14 CONFIRMED (code):** "missed" in the week circles (b) means "no dose at all that day", while a day where some but not all due doses were taken is "partial"; the report (d) counts per-slot Missed rows. Two meanings of "missed" on Today vs the report.
 - **D15 SUSPECTED: two devices can each write a Missed row for the same slot** before either syncs (per-device watermark in AsyncStorage, no unique constraint on `dose_logs` in `supabase/migrations`, no dedupe in `lib/syncCore.js`). A duplicate Missed row would be counted twice in the report and, on a twice-daily day, `assignRows` would hand the duplicate to the next slot (`dosePageState.js:79–85`). Founder parked concurrent multi-device use (A-48, decisions.md:199).
-- **D16 SUSPECTED: watermark survives an account switch.** `dosetrace_missed_since` / zone keys are not in the sign-out wipe list (`lib/signedOut.js:101–103` lists `removeQuestions`, drafts, onboarding, rc start…). A second account on the same phone is scanned from the first account's watermark (still bounded by 14 days and created − 1 h).
+- **D16 CONFIRMED by code [Corrected 2026-10-12; was SUSPECTED]: watermark survives an account switch.** `dosetrace_missed_since` / zone keys are not in the sign-out wipe list (`lib/signedOut.js:101–103` lists `removeQuestions`, drafts, onboarding, rc start…). A second account on the same phone is scanned from the first account's watermark (still bounded by 14 days and created − 1 h).
 
 ### 6.5 Pending from yesterday
 
@@ -538,7 +550,7 @@ Divergences:
 - **D17 CONFIRMED (code): three different "streaks".** Today tracker = days where ALL due protocols were complete (30-day cap); card = doses in a row per protocol (365 days); adherence report = calendar days with any Taken, no schedule awareness (a weekly protocol's report streak is 0 or 1 most of the week; a partial day counts). The report goes to health providers (`adherenceReport.js:2`).
 - **D18 CONFIRMED (code): three different "adherence" numbers.** Rings (slot matching, includes unlogged slots with no row), report (rows only, a slot with no Missed row is invisible — e.g. D1, D13), and the unused day-based monthly figure.
 - **D19 CONFIRMED (code): tracker streak cap.** The loop stops at 30 days back (`TodayScreen.js:798`), logs fetched from 30 days ago (`:757–759`), so "{n} days" can never exceed 31.
-- **D20 CONFIRMED (code): the ring never animates any more.** `playRingIntro` / the sweep effect drive invisible shared values; `TodayTracker` draws a static `Gauge` (`TodayTracker.js:20–44`). The founder quote "the ring loads from zero every visit" (`TodayScreen.js:1318`) and the day-complete pulse (decisions.md:164) have no visible effect; the flying drop still targets the tracker (`ringRef`, `TodayTracker.js:101`).
+- **D20 CONFIRMED (code): the ring never animates any more.** `playRingIntro` / the sweep effect drive invisible shared values; `TodayTracker` draws a static `Gauge` (`TodayTracker.js:20–44`). The founder quote "the ring loads from zero every visit" (`TodayScreen.js:1318`) and the day-complete pulse (decisions.md:164) have no visible effect [Corrected 2026-10-12: whether it should animate is open Conflict 40, decisions.md:441 — not decided by AD-44]; the flying drop still targets the tracker (`ringRef`, `TodayTracker.js:101`).
 
 ### 6.7 "All caught up"
 
@@ -591,7 +603,7 @@ D25 CONFIRMED (code): the focus `slotMs` / `ti` is ignored for today (the card a
 
 ### 6.12 Last site recall
 
-`TodayScreen.js:569–594`: newest row with a site in the last 30 days per protocol, "Last: {site} · {n}d ago" (`today_last_site`), `daysAgo` = floor of elapsed ms / 24 h (not calendar days). The site picker's own "longest unused" uses `recentLogs` (30 days) inside `BodyMapModal` (out of scope). A dose logged at 23:00 yesterday shows "0d ago" → "Last: … today"-style key (`today_last_site_today`) the next morning before 23:00 — SUSPECTED wording mismatch (elapsed hours vs calendar day); unverified on screen.
+`TodayScreen.js:569–594`: newest row with a site in the last 30 days per protocol, "Last: {site} · {n}d ago" (`today_last_site`), `daysAgo` = floor of elapsed ms / 24 h (not calendar days). The site picker's own "longest unused" uses `recentLogs` (30 days) inside `BodyMapModal` (out of scope). A dose logged at 23:00 yesterday shows "0d ago" → "Last: … today"-style key (`today_last_site_today`) the next morning before 23:00 — [Corrected 2026-10-12: CONFIRMED by code; the visible text is "Last: {site} · today", never "0d ago" (`TodayScreen.js:588-590, 1930`). The 30-day window also makes "Longest unused in your log" wrong for older sites.]
 
 ### 6.13 Names shown for a protocol
 
@@ -672,7 +684,7 @@ Reads: `getTodayLogs` (since local midnight), `getLogsSince`, `getTakenLogsSince
 
 G1. **Site-question age limit — three sources disagree.** decisions.md:459 (resolved 2026-10-03): "Site questions older than 7 days are let go (FX-25 as built)". `docs/specs/fixes-1.2.5.md:38` FX-25 evidence cites a test "a question older than 7 days is let go". Code: `lib/siteQuestion.js:47–51` "Never dropped for its age"; test `__tests__/siteBeforeTaken.test.js:109` asserts the opposite of the ledger. Founder must pick one; then fix the ledger, the spec row and code/test to match.
 
-G2. **Ring "late dose matches its own slot".** decisions.md:144 vs `adherenceRings.js:49–62` (pool not limited to the slot's window): a dose late by more than half the interval is credited to the NEXT slot (D6, D7; script-verified). Also contradicts "an extra log never adds" in spirit (today shows 100 % with nothing taken today).
+G2. **Ring "late dose matches its own slot".** decisions.md:144 vs `adherenceRings.js:49–62` (pool not limited to the slot's window): a dose late by more than half the interval is credited to the NEXT slot (D6, D7; script-verified). [Corrected 2026-10-12: such a dose is outside :144's window, so the code follows :144's wording; the defect is the unbounded pool and the clash with the Missed scan's same-day rule.] Also contradicts "an extra log never adds" in spirit (today shows 100 % with nothing taken today).
 
 G3. **"An alert that names one protocol opens that protocol"** (decisions.md:146) — supply-low and vial-expiry alerts open the Protocols list only (`TodayScreen.js:1544, 1576`) (D23).
 
@@ -690,7 +702,7 @@ G9. **"reminder" tag before Due** — built (`TodayScreen.js:1878–1882`) but c
 
 G10. **Three streak definitions and three adherence definitions** (D17, D18). The report (to health providers) uses a schedule-blind calendar-day streak (`SettingsScreen.js:390–401`) while Today's card uses doses in a row (founder 2026-10-05, `doseStreak.js:2`). No decision says the report's streak should differ.
 
-G11. **Tracker streak cap 31 days** (D19) — no decision sets a cap; the protocol streak looks back a year "so a weekly protocol keeps counting past 30 days" (founder 2026-10-05, `TodayScreen.js:610`), but the all-protocol streak was not given the same treatment.
+G11. **Tracker streak cap 31 days** (D19) — [Corrected 2026-10-12: DL-03 sets 365 days by logic; the unit (days vs doses) is **OPEN-17** (was DL-03)] no decision sets a cap; the protocol streak looks back a year "so a weekly protocol keeps counting past 30 days" (founder 2026-10-05, `TodayScreen.js:610`), but the all-protocol streak was not given the same treatment.
 
 G12. **Dose log Missed → Complete misses the vial-finished prompt** (§3.9). Today's takes open it (FX-22); the Dose log path silently deactivates the vial.
 

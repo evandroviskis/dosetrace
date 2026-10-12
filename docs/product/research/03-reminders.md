@@ -1,5 +1,20 @@
 # 03 — Reminders & notifications
 
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/03; where this dossier and the verification disagree, the verification wins.**
+>
+> Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
+> 1. **Paths.** The elided Kotlin paths are now full: `modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/RefreshOnUpdateReceiver.kt`, `modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/DtExactAlarmModule.kt`, `node_modules/expo-background-task/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskScheduler.kt` (verification/06 "Missing files").
+> 2. **G24 already has its guard test:** `__tests__/updateRestore.test.js:45-53` ("expo-background-task still has the worker class and the input key the receiver uses") pins `BackgroundTaskWork` + `appScopeKey` against `node_modules` and passes. Only the device proof of the update path (A-111) is open.
+> 3. **G23 has no mitigation today.** The daily wake-up push also travels over FCM, so an offline phone receives neither it nor the WorkManager run; offline Android is covered only by the update/reboot receiver and the 21-day window.
+> 4. **iPhone 64-cap thresholds (G18, §8 "Many protocols").** Node table: 20 protocols / 0 vials = 60 pending; 22 / 0 = 64; **≥ 23 protocols with no vials**, **≥ 21 with ≥ 3 vials**, or **≥ 14–15 active vials** breach 64 (14 with the test reminder, 15 without). The vial deduction counts **all** active vials (`getActiveVials().length`), not vials with an expiry. "Above 20 protocols / 8 vials" was wrong.
+> 5. **Notification language (§2 "Language", §4 P13).** `getT()` reads `dosetrace_language` or falls back to **English**; `LanguageContext.js:33-39` shows the device language when nothing is stored but never stores it — a Portuguese phone that never picked a language gets English reminders, buttons and "Nothing new logged" (NEW-1).
+> 6. **G33 resolved:** on 0.32.16 `shouldShowAlert` still works (iOS maps it to `.alert`, `node_modules/expo-notifications/ios/EXNotifications/Notifications/Handler/HandlerModule.swift:79-82`; Android counts it, `node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/model/NotificationBehaviorRecord.kt:24`). Banners show; only a deprecation warning remains (hygiene).
+> 7. **G26 is not a divergence:** signed SP-4 says the step shows "right after 'Turn on notifications' is answered"; a denial is an answer, so code = spec.
+> 8. **Reboot proof (§8 "Reboot").** The Fold's 238/248 was a reboot handled by expo's own restore **before** the receiver existed; the update path is unproven on a device.
+> 9. **G25 / "Not now".** `requestNotificationPermissions` runs at every cold start / sign-in, but the OS dialog appears only while the status is undetermined (iOS asks once). Onboarding asks on Android too.
+> 10. **Smaller corrections:** a reminder tapped after slot + 12 h logs at the tap time only if it is a **snoozed** copy whose slot day is before today; the cancel-up-to runs only when both days are today (PRD-REM-30). The refresh row's "Adjust" opens the app's Android page (`fix:'battery'`), not the screen at the refresh row. Standalone schedulers' cached Silent is doubly stale: `getCachedUser` metadata changes only on a token refresh (DV-047). The Android "Nothing new logged" body is "That dose is already recorded, or the protocol is paused. Open DoseTrace to check." (the "It now shows on Today" text is Today's in-app message).
+> 11. **New findings:** "Log it" carries no day (`foodTapParams` → `{ logIt: nowMs }`, `notificationPlan.js:153`), so after midnight it logs onto **today** — only the body tap carries `eveningDay` (NEW-2); an unreadable permission (`null`) counts as "blocked" (`reminderHealth.js:56`, NEW-3); the day-21 weigh-in reminder has no switch of its own — only Silent stops it (NEW-4); PT copy uses "avisos de dose" in `today_alert_reminders_body` and "lembretes garantidos" in `rc_refresh_until` (NEW-5).
+
 Research dossier for the PRD / TRD / state-flow diagrams. Branch `redesign/graduated`, read 2026-10-12.
 Every claim cites `path:line`. Nothing was changed in code. Where the code cannot prove a point it says
 **unverified**. Library behaviour quoted from `node_modules` is the installed version (expo-notifications
@@ -54,7 +69,7 @@ F-083, A-04, A-24, A-36, A-44, A-45, A-62, A-66, A-106…A-113, A-116 (`docs/rev
 | E6 | Settings → Notifications group (7 switches + the check row) | `screens/SettingsScreen.js:672-803` | Settings tab |
 | E7 | Targets of notification taps | Today (`focusDose`), Protocols (`openProtocolId`/`openVialId`), Progress (`focus: weighin/reality`), FoodChat (`eveningDay`/`logIt`), ReminderCheck | `lib/notificationPlan.js:161-193`, routed by `App.js:415-432` |
 | E8 | Food log off-switch duplicated in Progress | `screens/components/NutritionLogger.js:107` (re-plans) ; shared switch per `docs/decisions.md:249` | Progress / Journey |
-| E9 | Headless (no UI): Android notification-action task, Android background refresh task, update/reboot receiver, server wake push | `lib/notificationActions.js:197-210`, `lib/backgroundTasks.js:56-81`, `modules/dt-exact-alarm/android/.../RefreshOnUpdateReceiver.kt:18-33`, `supabase/functions/wake-refresh/index.ts` | OS-started |
+| E9 | Headless (no UI): Android notification-action task, Android background refresh task, update/reboot receiver, server wake push | `lib/notificationActions.js:197-210`, `lib/backgroundTasks.js:56-81`, `modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/RefreshOnUpdateReceiver.kt:18-33`, `supabase/functions/wake-refresh/index.ts` | OS-started |
 
 Boot order: `index.js:4` imports `lib/notificationActions` at module scope (registers the action task, the response
 listener, a drain of the last response, and an AppState listener) **before** the app mounts; `index.js:7-8`
@@ -69,9 +84,9 @@ Common machinery:
   Silent mode is on, except `data.type === 'reminder_test'`; then `androidChannelRequest` moves `content.channelId`
   into the trigger because expo-notifications 0.32 reads the Android channel only from the trigger
   (`lib/notificationPlan.js:314-321`; an immediate notification gets a channel-only trigger `:319`).
-- Language: read from AsyncStorage `dosetrace_language` at schedule time (`lib/notifications.js:18-24`).
+- Language: read from AsyncStorage `dosetrace_language` at schedule time (`lib/notifications.js:18-24`). [Corrected 2026-10-12: falls back to English; the device language shown by the UI is never stored — note 5.]
 - Foreground presentation: every notification shows alert + sound, no badge (`lib/notifications.js:81-87`).
-  `shouldShowAlert` is the pre-SDK-53 key; whether 0.32 maps it to banner+list is **unverified**.
+  `shouldShowAlert` is the pre-SDK-53 key; whether 0.32 maps it to banner+list is **unverified**. [Corrected 2026-10-12: verified — banners show; only a deprecation warning.]
 - Android channels created at app mount only (`lib/notifications.js:88-103`): `dose-reminders` "Dose Reminders"
   importance MAX, vibration, light `#185FA5`; `vial-alerts` "Vial Alerts" HIGH; `checkin-reminders`
   "Check-in Reminders" DEFAULT. Channel names are English-only literals.
@@ -459,9 +474,9 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> NoCheck
     NoCheck --> Planned: reality check open, food reminder on, logging allowed
-    Planned --> Scheduled: day within 7-day window and 20:00 still ahead
+    Planned --> Scheduled: day within 7-day window and 20h still ahead
     Scheduled --> Closed: Nothing else today (notification, chat, or that's it typed)
-    Scheduled --> Delivered: 20:00
+    Scheduled --> Delivered: 20h
     Delivered --> Closed: Nothing else today
     Delivered --> Chat: body tap or Log it
     Planned --> NoCheck: check stopped or weighed in, switch off, access lost
@@ -508,7 +523,7 @@ each derived state, and every divergence found.
 
 | Where | What |
 |---|---|
-| `modules/dt-exact-alarm/.../DtExactAlarmModule.kt:15-20` | native read: Android < 12 → true; no context → true; else `AlarmManager.canScheduleExactAlarms()` |
+| `modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/DtExactAlarmModule.kt:15-20` | native read: Android < 12 → true; no context → true; else `AlarmManager.canScheduleExactAlarms()` |
 | `modules/dt-exact-alarm/index.js:14-17` | JS wrapper; null when module missing (iPhone, Expo Go) |
 | `lib/notifications.js:1139` | `readReminderHealth.exactAlarms` |
 | `lib/notifications.js:822-834` | `watchExactAlarms`: its own read on every foreground; false→true triggers resync + snooze re-arm |
@@ -724,7 +739,7 @@ Session tokens: SecureStore (read raw by `readStoredUser`, `lib/supabase.js:52-5
   `package.json:67-71`; iOS `fetch` background mode removed `plugins/withoutIosBackgroundFetch.js`).
 - WorkManager unique works: `EXPO_BACKGROUND_WORKER` (library: one-time chain with initial delay = interval, network
   **CONNECTED** constraint, re-enqueued after each run, deferred ≤ 60 min if the app is in front —
-  `node_modules/expo-background-task/android/.../BackgroundTaskScheduler.kt:76-130, 191-235`) and
+  `node_modules/expo-background-task/android/src/main/java/expo/modules/backgroundtask/BackgroundTaskScheduler.kt:76-130, 191-235`) and
   `DOSETRACE_REFRESH_AFTER_UPDATE` (receiver, no constraint, `RefreshOnUpdateReceiver.kt:24-28`).
 - Manifest: `SCHEDULE_EXACT_ALARM` (`app.json:45-47`), `RECEIVE_BOOT_COMPLETED` + receiver for
   `MY_PACKAGE_REPLACED`/`BOOT_COMPLETED` (module manifest `:2-14`). `USE_EXACT_ALARM` is not requested. R8 keep rules
@@ -751,9 +766,9 @@ Push tokens are registered on iPhone too (`lib/notifications.js:1029-1055`) thou
 |---|---|---|
 | App installed, never opened after onboarding | Nothing is scheduled until the first signed-in start (`App.js:650-653`); Android background task registered only from App mount (`App.js:581`). | |
 | App never opened again (iPhone) | No background mode: dose reminders end after ≤ 10 days (budget may cut sooner), morning summary 7 days, food 7 days; weekly check-in repeats forever. **Founder principle not met on iPhone** (G1). | `lib/notificationPlan.js:307-308`; `lib/notifications.js:179, 663`; `docs/specs/background-refresh.md:5` |
-| App never opened again (Android) | 6-hourly WorkManager refresh + daily wake push re-plan everything from local data; needs network for the WorkManager run (library constraint); after ~3 months unused Android hibernation can stop the app unless exempt (warned only when the app is opened). | §7.4; `lib/reminderHealth.js:68-70` |
+| App never opened again (Android) | 6-hourly WorkManager refresh + daily wake push re-plan everything from local data; needs network for the WorkManager run (library constraint) [Corrected 2026-10-12: the wake push needs network too (FCM) — an offline phone gets neither]; after ~3 months unused Android hibernation can stop the app unless exempt (warned only when the app is opened). | §7.4; `lib/reminderHealth.js:68-70` |
 | Play update (Android) | Receiver runs the refresh once headless; expo's own restore also runs; non-destructive so both are harmless. Device proof pending (A-111, `docs/review/features.md:252`). | `RefreshOnUpdateReceiver.kt` |
-| Reboot (Android) | Same receiver + expo restore; Fold check 2026-10-07: 238/248 restored without opening (`docs/review/features.md:252`; `docs/decisions.md:591`). Receivers do not fire for a force-stopped app (Android rule, **unverified** here). | |
+| Reboot (Android) | Same receiver + expo restore; Fold check 2026-10-07: 238/248 restored without opening [Corrected 2026-10-12: that was expo's own restore before the receiver existed; the update path is unproven] (`docs/review/features.md:252`; `docs/decisions.md:591`). Receivers do not fire for a force-stopped app (Android rule, **unverified** here). | |
 | iPhone update / reboot | iOS keeps pending local notifications (OS behaviour, **unverified** in repo). | |
 | Doze / battery saver | One-shot dated alarms; exact only with "Alarms & reminders" on (EA-7 adb: window=0 after allow). Repeating weekly check-in is inexact (G31). | `docs/specs/exact-alarms.md:20` |
 | Samsung deep sleep | Cannot be read; row is Open + "I checked". | `lib/reminderHealth.js:79-81` |
@@ -772,7 +787,7 @@ Push tokens are registered on iPhone too (`lib/notifications.js:1029-1055`) thou
 | Mark complete on an already-complete or paused protocol | Android: "Nothing new logged" notification; iOS: the app opens, nothing logged. | `lib/notificationActions.js:94, 132-145` |
 | Undo on Today after Mark complete | Today's reminder stays cancelled until the next full resync re-arms it (if the slot is still ahead). A-36 open (`docs/review/features.md:176`); `applyUndo` has no reminder call (`screens/TodayScreen.js:1095-1150`). | |
 | Language change | Scheduled notifications keep the old language until the next full resync; no resync on language change (`i18n/LanguageContext.js:51`). G6. | |
-| Many protocols on iPhone | Per-protocol floor 2 → more than 20 protocols exceed the 40 budget (e.g. 25 → 50 dose + up to 7 summary + 7 food + 1 check-in + 1 weigh-in + 4 snoozes + 1 test + vial expiry); more than 8 active vials with an expiry adds uncapped expiry alerts. iOS then keeps only the soonest 64 (Apple behaviour, **unverified** here). G20. | `lib/notificationPlan.js:301-309`; `lib/notifications.js:461-466, 541` |
+| Many protocols on iPhone | [Corrected 2026-10-12: the 64 cap is breached at ≥ 23 protocols with no vials, ≥ 21 with ≥ 3 vials, or ≥ 14–15 active vials — note 4.] Per-protocol floor 2 → more than 20 protocols exceed the 40 budget (e.g. 25 → 50 dose + up to 7 summary + 7 food + 1 check-in + 1 weigh-in + 4 snoozes + 1 test + vial expiry); more than 8 active vials with an expiry adds uncapped expiry alerts. iOS then keeps only the soonest 64 (Apple behaviour, **unverified** here). G20. | `lib/notificationPlan.js:301-309`; `lib/notifications.js:461-466, 541` |
 | 5th snooze | Oldest snooze silently dropped. | `lib/notificationPlan.js:230-236` |
 | Snooze in Silent mode | Record saved, copy not scheduled; it comes back when Silent ends if still in the future. | `lib/notifications.js:68-71, 1019` |
 | Tap older than 12 h that launched the app | Ignored. | `App.js:421-422, 550` |
@@ -801,22 +816,22 @@ Push tokens are registered on iPhone too (`lib/notifications.js:1029-1055`) thou
 | G15 | A never-successful refresh is never flagged; the stale signal is masked by any foreground resync (D-8, D-9). | rule | §6.5 |
 | G16 | Only the `dose-reminders` channel is checked. The 20:00 food question and the weigh-in use `checkin-reminders` (DEFAULT importance): turning that category off silently kills them; `vial-alerts` is not checked either. | code | `lib/notifications.js:635, 719, 1137` |
 | G17 | Android channel names are English literals ("Dose Reminders", "Vial Alerts", "Check-in Reminders") although the app ships 6 languages (rc_channel text names the category). | i18n | `lib/notifications.js:89-102` |
-| G18 | iPhone budget overflow above 20 protocols / 8 vials (§8). | code | `lib/notificationPlan.js:301-309` |
+| G18 | iPhone budget overflow above 20 protocols / 8 vials (§8). [Corrected 2026-10-12: ≥ 23 protocols (no vials), ≥ 21 with ≥ 3 vials, or ≥ 14–15 vials.] | code | `lib/notificationPlan.js:301-309` |
 | G19 | A snoozed vial-expiry copy goes to `checkin-reminders` and keeps the compound name after names are turned off. | code | `lib/notifications.js:903, 1003-1009` |
 | G20 | "Nothing new logged" has no channel and bypasses Silent. | code | `lib/notificationActions.js:134-145` |
 | G21 | Server sender dormant and incomplete (no Silent, names, actions, repeats) — kept OFF by decision; push tokens registered on iPhone for nothing. | decision | §3.13 |
 | G22 | Device proofs open: EA-7 (row/alert on Fold), BR-5/9/10, RG-6 phone side, RG-8 (missing), SP-9 (missing), A-111 update proof. | spec status | spec files cited in §1 |
-| G23 | The 6-hourly refresh only runs with network (library CONNECTED constraint) — BR-1 proves the run is offline-safe, but WorkManager will not start it offline. The update/reboot run has no such constraint. | library vs spec | §7.4 |
-| G24 | `RefreshOnUpdateReceiver` depends on expo-background-task's internal class name and input key (`expo.modules.backgroundtask.BackgroundTaskWork`, `appScopeKey`) — breaks silently on a library change (logged only). Whether the post-update run re-chains the periodic worker in a fresh process (`numberOfRegisteredTasksOfThisType`) is **unverified**. | fragility | `RefreshOnUpdateReceiver.kt:24-25`; `BackgroundTaskScheduler.kt:76-80` |
+| G23 | The 6-hourly refresh only runs with network (library CONNECTED constraint) — BR-1 proves the run is offline-safe, but WorkManager will not start it offline. The update/reboot run has no such constraint. [Corrected 2026-10-12: the wake push does not cover this — it needs network too; no mitigation exists today.] | library vs spec | §7.4 |
+| G24 | `RefreshOnUpdateReceiver` depends on expo-background-task's internal class name and input key (`expo.modules.backgroundtask.BackgroundTaskWork`, `appScopeKey`) — breaks silently on a library change (logged only). [Corrected 2026-10-12: a guard test already pins both names, `__tests__/updateRestore.test.js:45-53`; only the device proof is open.] Whether the post-update run re-chains the periodic worker in a fresh process (`numberOfRegisteredTasksOfThisType`) is **unverified**. | fragility | `RefreshOnUpdateReceiver.kt:24-25`; `BackgroundTaskScheduler.kt:76-80` |
 | G25 | Permission requested at every signed-in cold start regardless of "Not now". | code vs onboarding intent | `App.js:650, 730` |
-| G26 | Android onboarding shows the setup step after a denied dialog. | code vs SP-4 wording ("answered") | `OnboardingFlowScreen.js:306-308` |
+| G26 | Android onboarding shows the setup step after a denied dialog. [Corrected 2026-10-12: not a divergence — a denial is an answer, so the code matches signed SP-4.] | code vs SP-4 wording ("answered") | `OnboardingFlowScreen.js:306-308` |
 | G27 | Weekly check-in uses a repeating trigger, which the file itself says is inexact and dropped under Doze on Android. | code | `lib/notifications.js:586-591` vs `:651-656` |
 | G28 | `dosetrace_vial_low_sent` and `dosetrace_alert_snooze` survive an intended sign-out (account-scoped content kept per phone). | code | §7.3 |
 | G29 | A-24 (does saving a reality check early end the 8 PM reminder?) still an open founder decision. | decision | `docs/review/features.md:164` |
 | G30 | A-116 (on the Fold every notification opens its item on the right page) not started. | registry | `docs/review/features.md:256` |
 | G31 | Notification registry rows F-067/F-068/F-081 say "No test"; tests now exist (`__tests__/notificationSwitches.test.js`, `nonDestructiveSchedule.test.js`, `vialExpiryNotification.test.js`, `notificationTapTarget.test.js`). | doc | `docs/review/features.md:100-117` |
 | G32 | Unused string `notif_morning_body` (no code reference). | i18n hygiene | grep of `lib/ screens/ components/ App.js` |
-| G33 | `shouldShowAlert` is the legacy handler key; behaviour on expo-notifications 0.32 **unverified**. | library | `lib/notifications.js:82-86` |
+| G33 | `shouldShowAlert` is the legacy handler key; behaviour on expo-notifications 0.32 **unverified**. [Corrected 2026-10-12: verified working; deprecation warning only.] | library | `lib/notifications.js:82-86` |
 
 Tests covering this domain (for the TRD ownership sweep): `__tests__/notificationPlan.test.js`, `doseBudget.test.js`,
 `nonDestructiveSchedule.test.js`, `notificationSwitches.test.js`, `notificationTapTarget.test.js`,

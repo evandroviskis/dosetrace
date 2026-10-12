@@ -34,17 +34,18 @@ Let the user leave the phone or the service safely: a **sign-out** never loses d
 | P3 | Token refresh failed in the background (spurious SIGNED_OUT) | Nothing wiped; user lands on Auth; signing back in finds everything. |
 | P4 | Apple credential revoked in iOS Settings | Local sign-out, not intended → data kept. |
 | P5 | Killed mid-wipe | Marker `wipe:<owner>` finishes the wipe on the next cold start (owner match only). |
-| P6 | Server deleted the account, response lost | **SUSPECTED (07 §8):** "can't delete offline" shown while the account is gone; next refresh fails → spurious sign-out → local data kept, no wipe. |
+| P6 | Server deleted the account, response lost | **Confirmed in code (07 §8; DV-009):** `requestAccountDeletion` returns `{offline}` on any fetch rejection (and `res.json()` throws on a non-JSON body), so "can't delete offline" is shown while the account is gone; next refresh fails → spurious sign-out → local data kept, no wipe. |
 | P7 | Active App Store / Play subscription | Deleting the account does not cancel billing; **no warning today** (07 Gap 4). |
 | P8 | Another person will use the phone next | Intended sign-out wipes data, drafts, stash, site questions; **AI consent and entitlement cache stay today** (07 D-7, D-18). |
-| P9 | Offline at the profile gate with unsynced rows | **Intended:** "Sign out anyway" on the gates (decision 2026-10-04); today blocked with no force (A-94). |
+| P9 | Offline at the profile gate with unsynced rows | **Intended:** "Sign out anyway" on the gates (AD-29, decisions.md:542, a 2026-10-04 ledger/logic line, not a founder answer); today blocked with no force (A-94). |
+| P11 | Account created with Apple on Android (real since Android Apple sign-in went live on 2026-10-03) | Delete: the Android web flow never calls `apple-link` (only the native iOS path does, `lib/supabase.js:348`), so unless the same account also signed in with Apple on an iPhone there is no stored Apple token to revoke; `delete-user` returns `appleManualRevokeNeeded` and the Android note tells the user to remove access at account.apple.com. This is live behaviour, not a hypothesis. |
 | P10 | Reset link for another account | "Reset the password of another account?" → sign out (no force) then reset (flow 01). |
 
 ## 5. Happy path
 
 ```mermaid
 flowchart TD
-  A["Settings, Sign out"] --> B["Are you sure? Signing out will remove DoseTrace data stored on this device. We'll try to sync any unsynced changes first."]
+  A["Settings, Sign out"] --> B["Are you sure you want to sign out? Signing out will remove DoseTrace data stored on this device. We'll try to sync any unsynced changes first. Sign out?"]
   B -->|Sign out| C["forceSync"]
   C --> D{"Pending rows for this owner or user?"}
   D -->|yes| E["Some changes aren't backed up yet: Connect to the internet first / Sign out anyway"]
@@ -103,7 +104,7 @@ stateDiagram-v2
     Ask2 --> Requesting: Yes, delete everything
     Requesting --> SignedIn: offline or server error, nothing changed
     Requesting --> ServerDeleted: 200
-    ServerDeleted --> Teardown: marker deleted:id, wipe, revoke Google, local sign-out (retry once)
+    ServerDeleted --> Teardown: marker deleted id, wipe, revoke Google, local sign-out (retry once)
     Teardown --> Onboarding: SIGNED_OUT consumed (Apple note shown once)
     Teardown --> PendingTeardown: local sign-out failed
     PendingTeardown --> Onboarding: next cold start or SIGNED_IN finishes once
@@ -133,25 +134,29 @@ stateDiagram-v2
 ### 7.2 Offline
 - Sign-out with nothing pending offline: local sign-out (`_removeSession` under the auth lock) → wipe.
 - Sign-out with pending rows offline: blocked; Settings offers "Sign out anyway" (with its confirmation).
-- **Intended (decision 2026-10-04):** Finish setup and the 18+ sheet offer the same "Sign out anyway".
+- **Intended (AD-29, decisions.md:542 — a 2026-10-04 ledger/logic line, not a founder answer):** Finish setup and the 18+ sheet offer the same "Sign out anyway".
   - **Divergence today (07 Gap 6; A-94):** no force there.
 - Delete offline: "You must be connected to the internet to delete your account." Nothing changes.
-- **Divergence today (07 D-16, SUSPECTED):** offline cold start with an expired token routes to Auth while the session is stored.
+- **Divergence today (07 D-16, confirmed in code):** offline cold start with an expired token routes to Auth while the session is stored (`App.js:609-617` ignores the `getSession` error).
 
 ### 7.3 Killed / interrupted
 - Mid intended wipe → completed on next cold start only for the data's own owner.
 - After server delete, before local sign-out → marker `deleted:<id>` completes wipe + sign-out once.
-- **SUSPECTED (07 §8):** delete response lost → reported as offline although the account is gone; no wipe follows (spurious sign-out). Intended: the app re-checks the account on the next start and finishes the teardown.
+- **Confirmed in code (07 §8; DV-009):** delete response lost → reported as offline although the account is gone (any fetch rejection returns `{offline}`); no wipe follows (spurious sign-out). Intended: the app re-checks the account on the next start and finishes the teardown.
 
 ### 7.4 What the wipe removes / keeps
 | Removed on intended sign-out | Kept (device-level) |
 |---|---|
 | 11 SQLite tables, scheduled + delivered notifications, snooze records, RevenueCat identity, stash `dt_onboarding_data`, `dt_seen_onboarding`, `dosetrace_rc_start`, rc migration flags, site questions, Fold selections, in-memory drafts, this device's push token | language, time format, theme, install id, reminder-setup-seen, deep-sleep-checked, settings folds, sort, handled ids, missed-scan watermark + zone history, alert snoozes, `dosetrace_vial_low_sent`, **AI consent**, **entitlement cache**, curve view / explainers / food draft keyed by uid |
-- **Divergence today (07 D-7, D-17, D-18; 03 G28; 02 D16):** AI consent, entitlement cache, food chat draft, vial-low-sent map, alert snoozes and the missed-scan watermark survive and can carry into another account. AI consent per account → DL-55; the other keys → AD-05, DL-52, DL-53.
+- **Divergence today (07 D-7, D-17, D-18; 03 G28; 02 D16):** two different problems.
+  - **Inherited by the next account (device-global keys):** AI consent (`lib/aiConsent.js`, not in `runWipeSteps`), `dosetrace_entitlement_last_uid` (never cleared; the SIGNED_IN window before `initPurchases`, DV-082), `dosetrace_vial_low_sent`, alert snoozes, and the missed-scan watermark + zone history (`dosetrace_missed_since` / `_tz` / zone history, `lib/doseActions.js:123-127`).
+  - **Residue only, never inherited:** the curve view (`dosetrace_curve_view_{userId}`), the food chat draft (`dosetrace_food_draft:<uid>`) and the explainer flags are per-user keys; they stay on the phone but another account never reads them.
+  - AI consent per account → DL-55 (target build still to be set, wording through counsel AD-51); the other keys → AD-05, DL-52, DL-53.
 
 ### 7.5 Delete account details
 - Server deletes by user id: dose_logs, vials, protocols, biomarkers, vaccines, food_logs, reality_checks, calc_snapshots, calc_targets, reality_check_open, calc_inputs, ai_food_usage, ai_scan_usage, reminders, notification_preferences, analytics_events (none linked — anonymous), referral_codes, apple_tokens, push_tokens, notification_sends + referrals; `ai_assistant_usage` cascades; then the auth user. Apple refresh token revoked best effort (delete always wins).
-- Apple note after delete: iOS "…You can also remove DoseTrace's Sign in with Apple access anytime in the Settings app, under your Apple ID."; Android "…at account.apple.com, under Sign-In and Security."
+- Apple note after delete (shown when `delete-user` reports `appleManualRevokeNeeded`): iOS "…You can also remove DoseTrace's Sign in with Apple access anytime in the Settings app, under your Apple ID."; Android "…at account.apple.com, under Sign-In and Security." Android Apple sign-in is live (since 2026-10-03), so the Android note is a live path: an account that only ever signed in with Apple on Android has no stored Apple token (the web flow does not call `apple-link`) and always gets the note.
+- **Not covered by any register (verification 05 O-6):** `delete-user` makes no RevenueCat call, so the RevenueCat customer (app user id = the Supabase user id, with its purchase history) stays after the account is deleted. A counsel / DL note next to DL-60 is needed.
 - **Divergence today (07 Gap 4):** nothing warns that an App Store / Play subscription keeps billing. Intended (by logic, App Store practice): the delete sheet says so with a link to manage subscriptions.
 - **Divergence today (08 Gap 9):** list relies on cascades for `ai_assistant_usage` and `profiles` (unverified for profiles).
 
@@ -167,7 +172,8 @@ stateDiagram-v2
 
 ### 7.8 Second device
 - Signing out on phone A does not sign out phone B. Deleting the account: phone B's next token refresh fails → spurious sign-out → data kept on B.
-- **Intended (decision 2026-10-07 by logic):** when the server confirms deletion or revocation, B cancels its scheduled reminders. **Divergence today (03 G2):** not built.
+- **Intended (AD-04, decisions.md:599 — "by logic from that principle (founder may override)", a ledger/logic line, not a founder answer):** when the server confirms deletion or revocation, B cancels its scheduled reminders. **Divergence today (03 G2):** not built.
+- **Not decided:** the residual local data left on phone B after the account is deleted (PRD OPEN-54, "Apple delete: residual data on a second device"). AD-04 covers only reminders; decisions.md:417 still lists "Apple delete second-device residual data (F6)" as a founder item. It needs its own DL or OPEN (07 A-06).
 
 ### 7.9 Timezone / DST
 - Not applicable.
@@ -179,7 +185,7 @@ stateDiagram-v2
 - Settings book: left = profile card + groups + Sign out / Delete card; right = chosen group (Preferences default) (BK-7). Sheets are one centred column.
 
 ### 7.12 Free vs Premium
-- Same flow for both; Premium status is per RevenueCat customer (logged out on sign-out; not cancelled on delete).
+- Same flow for both; Premium status is per RevenueCat customer (logged out on sign-out; not cancelled on delete, and the customer record itself is not deleted — O-6 above).
 
 ## 8. What every surface shows
 
@@ -217,13 +223,13 @@ R27 intended sign-out sequence (`lib/signOutCore.js:59-92`). R28 only Settings f
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
 | D12-1 | Gates offer "Sign out anyway" / work offline | No | `07 Gap 6` (A-94) | DV-114 |
-| D12-2 | Account-scoped device keys cleared on sign-out | AI consent, entitlement cache, food draft, vial-low map, snoozes, watermark survive | `07 D-7, D-17, D-18`; `03 G28`; `02 D16` | DV-081, DV-082, DV-007 |
+| D12-2 | Account-scoped device keys cleared on sign-out | Inherited by the next account: AI consent, entitlement last-uid, vial-low map, snoozes, missed-scan watermark + zone history. Residue only (per-user keys, never inherited): curve view, food draft, explainer flags | `07 D-7, D-17, D-18`; `03 G28`; `02 D16`; verification 05 DV-081 / 07 K-06 | DV-081 (narrow the list), DV-082, DV-007 |
 | D12-3 | Delete warns about store subscriptions | Silent | `07 Gap 4` | DV-087 |
-| D12-4 | Lost delete response finishes the teardown | Shows offline, no wipe | `07 §8` (SUSPECTED) | DV-009 |
+| D12-4 | Lost delete response finishes the teardown | Shows offline, no wipe | `07 §8` (confirmed in code) | DV-009 |
 | D12-5 | Profile save errors shown | Swallowed | `07 D-22` | DV-008 |
 | D12-6 | Export includes profile / preferences and imports first | Neither | `07 D-23, D-24` | DV-086 |
 | D12-7 | Other devices cancel reminders after a confirmed deletion | Not built | `03 G2` | DV-009 |
-| D12-8 | Offline cold start keeps a stored session | May route to Auth | `07 D-16` (SUSPECTED) | DV-083 |
+| D12-8 | Offline cold start keeps a stored session | Routes to Auth | `07 D-16` (confirmed in code) | DV-083 |
 | D12-9 | "What you track" editable in Settings | Not | `07 D-10` | DV-113 |
 | D12-10 | Two privacy texts identical | In-app vs website differ | `07 D-21` (A-117 waits) | DV-085 |
 
@@ -270,7 +276,7 @@ Account: a `+qa` throwaway account created for these checks (never Test03's real
 
 **F12-08 — Delete account**
 - Do: online → Delete account → "This will permanently delete your account. All your data will be lost and this cannot be undone." → "Delete my account" / "Excluir minha conta" → "Are you absolutely sure?" / "Você tem certeza absoluta?" → "Yes, delete everything" / "Sim, excluir tudo".
-- Expect: (Apple account) "Account deleted" / "Conta excluída" note; Onboarding; the auth user no longer exists; rows of every table gone (read-only check); signing in with the old credentials fails.
+- Expect: (Apple account) "Account deleted" / "Conta excluída" note — on iPhone the Settings-app wording, on Android the account.apple.com wording (run it once with an account that only ever signed in with Apple on Android: the note must appear, since no Apple token is stored for it); Onboarding; the auth user no longer exists; rows of every table gone (read-only check); signing in with the old credentials fails.
 - Intended: subscription warning present (D12-3) — record.
 
 **F12-09 — Edit profile merge**

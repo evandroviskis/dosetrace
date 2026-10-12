@@ -1,5 +1,16 @@
 # 06 — My Body (lab tests, vaccines, hub, book layout)
 
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section B, BODY, of that report covers this dossier.)
+>
+> Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
+> 1. **D-11 (lab value parsing) is CONFIRMED**, not suspected: in node `validateExtraction({markers:[{value:'1,025'}]})` gives **1025** while `parseMeasure('1,025','en')` gives **1.025**.
+> 2. **Future-dated report is CONFIRMED:** `report_date '2099-01-01'` passes `validateExtraction` with `dateFallback: false` (§ latest-date note).
+> 3. **G-9 / scan budget.** The **limit** is visible to free users — the empty state and the free card say "3 free scans a month … · More with Premium" (`BodyScreen.js:1100-1110`). What is never shown is how many scans were **used / are left**; users discover running out only on a refusal. My Body has no Premium scan line at all (the line renders only for free users, `{!premium && …}`), and the free card heading "Bloodwork scan — Premium feature" sits above "3 free scans a month" (`:1102`).
+> 4. **D-8 (lab charts):** not gated on any path — `MarkerChart` renders with 2+ readings (`BodyScreen.js:1067-1068`), and neither `openMarker` (`:313`) nor the Fold right page (`:142-144`) checks Premium. Gating them would take a working feature away from current free users (picture first; verification/07 X-11).
+> 5. **My Body never reloads on a sync pull** (no `addSyncListener` at all), not only on a curve change.
+> 6. **G-1:** registry row F-070 (`docs/review/features.md:107`) "Labs: manual entry … Shipped" is false — no manual lab entry ever existed in the code or the git history of `BodyScreen.js`.
+> 7. "Latest lab date" (S-70a): the three computations were seen, but their equivalence was not proven by the verification (UNVERIFIABLE).
+
 Research dossier for the PRD / TRD / state-flow diagrams. Branch `redesign/graduated`, read 2026-10-12.
 Every claim cites `path:line`. Nothing here was changed in code. Where the code could not prove a point it says
 **unverified**. The cloud column list was read once, read-only, from the live Supabase project
@@ -306,7 +317,7 @@ Each derived value, every place that computes it, and whether they agree.
 
 Verdict: **consistent** (ISO strings sort the same as the SQL order). Note: none of them clamps a future `report_date`.
 The AI date is never checked against today (`bodyScan.js:26-31` only checks the format), so a future-dated report hides
-the Today alert (negative days) and becomes the hub's "latest test". **SUSPECTED** edge, not a divergence.
+the Today alert (negative days) and becomes the hub's "latest test". **SUSPECTED** edge, not a divergence. [Corrected 2026-10-12: CONFIRMED — `report_date '2099-01-01'` passes `validateExtraction`.]
 
 ### D-2 "Labs due" (Bloodwork due)
 
@@ -396,7 +407,7 @@ the hub star row and another as "Latest" on the marker screen and in the export.
 ### D-8 "Lab charts are Premium"  — **DIVERGENCE CONFIRMED (decision vs code)**
 
 The ledger says charts are Premium (`docs/decisions.md:268`; `DESIGN.md:44`). The marker chart renders for every user
-with 2+ readings. There is no `premium` check around `MarkerChart` (`BodyScreen.js:1067-1068`). The free card even
+with 2+ readings. There is no `premium` check around `MarkerChart` (`BodyScreen.js:1067-1068`) [Corrected 2026-10-12: nor in `openMarker` (`:313`) or the Fold right page (`:142-144`)]. The free card even
 says "Premium charts every one over time" (MB-10, `my-body.md:24`), which implies charts are gated. Either the
 decision or the code must change. This is a founder question, not decided here.
 
@@ -421,7 +432,7 @@ It is a presentation difference to state in the PRD: a past due date silently dr
 - Export markers: `exportMarkers = buildMarkerSeries(rows)` (`:407`) and the export file (`exportRecords.js:58`, `:110`)
   use the same function. **Consistent.** It differs from the journal's marker list only in ordering (A–Z vs favourites first).
 
-### D-11 Number parsing of lab values  — **DIVERGENCE SUSPECTED**
+### D-11 Number parsing of lab values  — **DIVERGENCE CONFIRMED** [Corrected 2026-10-12; was SUSPECTED — node: scan path 1025, edit path 1.025]
 
 - Scan path: a string value from the model is read by `parseDecimal(value)` with no language
   (`bodyScan.js:22`). "1,025" counts as grouped thousands, so it becomes **1025** (`doseMath.js:38-47`).
@@ -564,7 +575,7 @@ everything in Notes. The read page shows the details as separate rows only when 
 - **G-6 Vaccine scan never fills the detail fields** (D-12).
 - **G-7 Export omits the vaccine detail fields** (§7.5).
 - **G-8 No "change this test's date" action.** Fixing a wrong DD/MM read means editing every value.
-- **G-9 No visible scan budget** (remaining scans). The user meets the limit only by being refused.
+- **G-9 No visible scan budget** (remaining scans). The user meets the limit only by being refused. [Corrected 2026-10-12: the limit "3 free scans a month" is visible to free users (`BodyScreen.js:1100-1110`); what is missing is the used / left count.]
 - **G-10 A counted scan with nothing saved** (E-3). Decision text: "failed extractions are not counted"
   (`decisions.md:275`). A 200 with zero usable values is a failure to the user but counted by the server.
 - **G-11 No vaccine due reminder or Today alert.** Not promised anywhere in the files read. The PRD should state

@@ -35,7 +35,7 @@
 | P3 | Already weighed today | A second save merges into today's row (weight wins; BF / waist kept unless given) — one row per day (A-53). |
 | P4 | Typed a weight in Your numbers before ever weighing in | That weight becomes the first weigh-in on a user save (PO-17), never on open or migration. |
 | P5 | Weighed on another phone this morning | After the pull, the newest weigh-in is the current weight (unless a weight was typed later — A-101e). |
-| P6 | Started losing weight before installing | "+ Add a past weigh-in" (any past date) so the pace shows sooner. |
+| P6 | Started losing weight before installing | "+ Add a past weigh-in" (any past date the wheel offers — up to 10 years back) so the pace shows sooner. |
 | P7 | Weigh-in is the start of an open reality check | Can be fixed, not deleted (PO-24); a fix moves the check's start weight. |
 | P8 | Mistyped 860 instead of 86.0 | Fix sheet validates 25–300 kg; **other entry points must too** (04 G-7). |
 | P9 | Profile has no sex | "Set your sex to continue" gate; no sex-dependent math runs (2026-09-09). |
@@ -119,14 +119,15 @@ stateDiagram-v2
 ### 7.1 Which weight is "current" (A-54 / A-101e)
 - **Intended:** the latest weigh-in by date is the current weight everywhere (hero, Your numbers, daily burn, Journey tile, target), unless the user typed a weight in Your numbers on that day or later (then that typed weight, which also became a weigh-in through PO-14/PO-17).
 - **Divergence today (04 D-10):** after a same-day **fix** or a **delete**, the hero follows the weigh-ins while Your numbers and the daily burn keep the old weight (e.g. fix today 85 → 84: hero 84, burn from 85; delete today's 85: hero falls back, numbers keep 85).
-- **Divergence today (04 D-11; 08 D1):** the Journey tile shows the latest weigh-in but computes its daily burn from the saved (old) weight until Progress is opened and re-saves.
+- **Divergence today (04 D-11; 08 D1):** the Journey tile shows the latest weigh-in but computes its daily burn from the saved Your-numbers weight. The two differ only when that saved weight is dated before the newest weigh-in (`weightAt` < newest; e.g. saved 86, newest weigh-in 80 → tile 2780 vs hero 2680); when the saved weight is dated on or after the newest weigh-in they agree.
+- **Divergence today (DV-149):** the measured burn is shown only when the formula gate passes (weight + height + age + sex); without it the hero hides a measured number that exists. Not settled by the ledger: decisions.md:240 ("a measured maintenance becomes the hero number once it exists") and PO-12 (about the estimate) conflict here, so AD-45's "already decided" does not hold for the measured number.
 - **Divergence today (04 D-12, low):** legacy snapshot rows without a weight: hero uses the typed weight, the tile the previous weigh-in; the "Since" line picks first/last of all rows vs weighed rows.
 - **Divergence today (05 D8, SUSPECTED minor):** the tile ignores a check whose tdee is not a number; the hero uses it as is.
 
 ### 7.2 Validation
 - **Intended (by logic, one rule — PO-21 range):** weight 25–300 kg (55–660 lb), body fat 3–70 %, waist 30–250 cm everywhere a weigh-in is written; comma decimals read per app language; imperial shows lb / in and stores kg / cm.
 - **Divergence today (04 G-7, §8.12):** only the fix sheet validates; Log today's weight, + Add a past weigh-in and the reality-check start sheet accept any number (0.8 or 900 kg is saved as a weigh-in); the engine then marks the card invalid.
-- Past weigh-in date: ≤ today; **no lower bound** today (any past date).
+- Past weigh-in date: ≤ today (future clamped by `clampPast`); the date wheel's year column runs from 10 years back (`lib/wheelPick.js:16`), so today's floor is **10 years back**.
 
 ### 7.3 Fix and delete (PO-19…PO-25)
 - Weigh-ins table: every row with a chevron + hint "Tap a weigh-in to fix or delete it." → sheet "Weigh-in" (date fixed text; weight, body fat, waist prefilled; note "Changes here update your progress, your target and your reality check."; Save; red "Delete weigh-in").
@@ -136,7 +137,7 @@ stateDiagram-v2
 
 ### 7.4 Your numbers form (PO-11)
 - Metric / Imperial; Weight; Height; Age (locked while the profile has a birth year); Sex (Male / Female bar, neither preselected; saved to the profile); Body fat (%) optional + source pills (DEXA scan / Gym scan / Calipers / Home scale / I don't know) with error hints; Waist optional with its hint; Activity level (5 levels). Prompt until a burn exists: "Weight, height, age and sex give your daily burn. Body fat and waist make it sharper."
-- Summary line when folded: "84.6 kg · 181 cm · 38 yr · Male · 21% BF · Moderate" (only the parts that exist; age unit a full word ×6).
+- Summary line when folded: "84.6 kg · 181 cm · 38 yr · Male · 21% BF · Moderate" (only the parts that exist; age unit `cal_yr`: EN "yr", PT "anos").
 - Saved through a 0.9 s debounced merge into `calc_inputs` (+ mirror), flushed on fold/unfold (BK-10).
 
 ### 7.5 Target
@@ -156,7 +157,7 @@ stateDiagram-v2
 - **Divergence today (04 D-4, G-6):** Progress has no sync listener; a weigh-in arriving from another device appears on next focus only.
 
 ### 7.8 Timezone / DST / midnight
-- Weigh-in rows are keyed by the local day at write time; the date never moves after a zone change. **Divergence today (04 D-5):** Progress left open across midnight still writes "today" as the old day until refocus? (SUSPECTED — `todayISO()` is called at save time; verify.)
+- Weigh-in rows are keyed by the local day at write time; the date never moves after a zone change. Progress left open across midnight writes a new weigh-in on the **new** day (`saveTodayWeighIn` calls `todayISO()` at save time, `CalculatorSection.js:575`). **Divergence today (04 D-5, DV-148):** only the displays are stale (no midnight tick on Progress) until refocus.
 
 ### 7.9 Fold
 - Journey right page = Progress by default; a weigh-in on the right page updates the Journey tiles on the left at once (BK-19, `data_changed 'calc'`); sheets stay open across fold/unfold with typed values (BK-10/BK-14).
@@ -173,7 +174,7 @@ stateDiagram-v2
 | Burn estimated | hero weight + "Daily burn (TDEE)" + chip "Estimated"; formula line "Mifflin-St Jeor" or "Katch-McArdle · lean mass" + BMR; daily plan Lose / Maintain / Gain | weight · burn rounded to 10 · "Estimated" | — | — |
 | Legacy burn | burn kept + "Complete your numbers" | same rule | — | — |
 | Sex missing | "Set your sex to continue" gate + "Set sex at birth" | prompt | — | — |
-| 2+ weigh-ins | "Since {first date}: ±Δ"; Weigh-ins "{n} · last {date} · {w}"; trend chart | "Since …" | — | — |
+| 2+ weigh-ins (on 2+ different days) | "Since {first date}: Weight ±Δ" (+ " · Waist ±Δ" when both ends have a waist); Weigh-ins "{n} · last {date} · {w}"; trend chart | "Since {date}: ±Δ" | — | — |
 | Measured | chip "Measured"; "Measured from your reality check · estimate N" | "Measured" | saved | — |
 | Input out of range | "One of the inputs is out of range — check the values below." | — | — | — |
 | Target set | "Your target" block with ETA / reached / moving away / locked line | — | — | — |
@@ -202,19 +203,19 @@ R-P1 daily burn needs weight + height + age + profile sex; BF sharpens (option A
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
 | D09-1 | Current weight = latest weigh-in everywhere after fix / delete | Hero vs numbers / burn differ | `04 D-10`, `G-5` | DV-062 |
-| D09-2 | Journey tile burn from the adopted weight | From the saved weight | `04 D-11`, `08 D1` | DV-063 |
+| D09-2 | Journey tile burn from the adopted weight | From the saved weight (differs only when that weight is dated before the newest weigh-in) | `04 D-11`, `08 D1` | DV-063 |
 | D09-3 | One validation for every weigh-in entry | Only the fix sheet | `04 G-7` | DV-065 |
 | D09-4 | Progress refreshes on sync and midnight | Focus only | `04 D-4, D-5, G-6` | DV-059, DV-148 |
 | D09-5 | Weekly check-in exact | Repeating trigger | `03 G27` | DV-055 |
 | D09-6 | `calc_inputs` merges per field across devices | Whole payload last writer | `04 §7` (SUSPECTED) | DV-010 |
 | D09-7 | Tile and hero agree on a non-numeric tdee | Differ | `05 D8` (SUSPECTED) | DV-063 |
-| D09-8 | Past weigh-in has a sensible lower date bound | None | `04 §3.3` | DV-194 |
+| D09-8 | Past weigh-in has a sensible lower date bound | 10 years back (date wheel) — the "no bound" premise of DV-194 is wrong | `04 §3.3`; 04 verification DV-194 | DV-194 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **DL-73 — Lower date bound for "+ Add a past weigh-in".** Decided by logic: any past date back to the profile's birth year, never a future date (past weigh-ins were approved with no limit, decisions.md:241; only impossible dates are refused). → DV-194.
+- **DL-73 — Lower date bound for "+ Add a past weigh-in".** Under review — its premise is wrong: the wheel already stops 10 years back (`lib/wheelPick.js:16`), and decisions.md:241 only says past weigh-ins can be backfilled (it sets no limit either way). "Back to the birth year" would widen the range for nearly every adult, not close a hole. Re-decide or drop. → DV-194.
 - No OPEN question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
@@ -239,8 +240,9 @@ Account Test03. Light and dark; PT via Settings → Preferências → Idioma. Sc
 - Expect: "Set your sex to continue" / "Defina seu sexo para continuar" + "Set sex at birth"; no burn.
 
 **F09-05 — Log today's weight**
+- Setup: the 86.0 weigh-in from F09-02 must be on an **earlier day** — move the clock forward one day after F09-02 (or add 86.0 for yesterday with "+ Add a past weigh-in"). Two saves on the same day merge into one row (`mergeWeighIn`), and the "Since" line needs weigh-ins on at least 2 days.
 - Do: "Log today's weight" / "Registrar o peso de hoje" → 85.4 → Save.
-- Expect: note "Saved as today's weigh-in. It updates your progress, your target and your reality check."; hero 85.4; "Since {first}: −0.6 kg"; Your numbers weight 85.4; burn recomputed; Journey tile 85.4 (on the Fold without switching tabs).
+- Expect: note "Saved as today's weigh-in. It updates your progress, your target and your reality check." / "Fica salvo como a pesagem de hoje e atualiza seu progresso, sua meta e seus números reais."; hero 85.4; "Since {first}: Weight −0.6 kg" (Journey tile "Since {first}: −0.6 kg"); Your numbers weight 85.4; burn recomputed; Journey tile 85.4 (on the Fold without switching tabs).
 
 **F09-06 — Same day merges**
 - Do: Log today's weight again with only waist 88.
@@ -289,7 +291,7 @@ Account Test03. Light and dark; PT via Settings → Preferências → Idioma. Sc
 
 **F09-17 — Second device**
 - Do: phone A logs 84.8 today; phone B opens Journey.
-- Expect: B tile 84.8 after the pull; intended burn from 84.8 (D09-2 record); Progress on B after focus shows 84.8.
+- Expect: B tile 84.8 after the pull; Progress on B after focus shows 84.8. Burn: record tile vs Progress hero. "Log today's weight" also saves the weight with `weightAt` = today, so tile = hero is expected once `calc_inputs` has synced; D09-2 shows only when the saved Your-numbers weight is dated before the newest weigh-in (04 verification S4).
 
 **F09-18 — Both themes**
 - Hero, chips, folds, table chevrons, sheets (Log today, Weigh-in fix, Delete, Update your weight, target), chart: readable in light and dark.

@@ -1,5 +1,16 @@
 # 05 — Dose accumulation curve + Journey dashboard (research dossier)
 
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section A, CURVE, of that report covers this dossier.)
+>
+> Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
+> 1. **Look-back (R15, E8).** The middle term is the days of the **shown window** + 2 (`shown = floor((now − gridStart)/day) + 2`), not days since the protocol start (`lib/curveSampling.js:8`).
+> 2. **"Logged" copy (G8).** Two more live strings say the curve comes "from your own log" in all 6 languages: `paywall_hero_sub` (`PaywallScreen.js:278`) and `settings_premium_feat_1` (`SettingsScreen.js:642`). Both contradict AD-19 / FX-13 (the curve follows the planned schedule).
+> 3. **Dates > 365 days back.** "—" is shown only on per-compound rows; the **Combined** row still prints a computed number (`SerumCurveScreen.js:1021` vs `:1031`).
+> 4. **D1 numbers.** The mechanism reproduces (fixture 2026-10-12, New York: curve on ended id 10 at 154.63 mg, tile on restarted id 11 at 73.53 mg); the 68.53 / 10.04 mg figures came from another fixture — illustrative, not wrong.
+> 5. **D2 also runs the other way:** at 11:30 the tile can show a dose the curve does not have yet (250 mcg: 0.125 vs 0.0 mg). The 0.0625 / 0.25 mg figures hold for 0.5 mg (for 250 mcg they are 0.031 / 0.125). Tile and curve agree again about 14 days after the change.
+> 6. **Excluded half-life entries** stay in the table except GDF-8 / Dermorphin, which were deleted (`halfLives.js:141-145`).
+> 7. **My Body** never reloads on a sync pull at all (no `addSyncListener`), not only on `data_changed:'curve'` (D3).
+
 Branch `redesign/graduated` @ 4dade55, read 2026-10-12. Factual only: every claim cites `path:line`.
 "CONFIRMED" = reproduced by code reading plus a script or test run; "SUSPECTED" = follows from the
 code but not reproduced on a device. Nothing in the app was changed. Scratch scripts used for the
@@ -163,7 +174,7 @@ tap Progress tile (JourneyScreen.js:166), tap Dose accumulation tile (:204-208),
 - R13. Calendar-day stepping (A-101b): `day_i = new Date(Y, M, D + i)` so a 25 h fall-back day is
   visited once (lib/serumModel.js:115-119; __tests__/curveDstDoses.test.js:15-24).
 - R14. Snap to the 6 h sample grid: `snap(ts) = start + round((ts − start)/6h)·6h` (lib/serumModel.js:111-113).
-- R15. Look-back: `lookbackDays = min(600, max(PAST_DAYS + 2 = 16, floor((now − start)/day) + 2, ceil(6·t½h/24)))`;
+- R15. Look-back: `lookbackDays = min(600, max(PAST_DAYS + 2 = 16, floor((now − start)/day) + 2, ceil(6·t½h/24)))` [Corrected 2026-10-12: `start` here is the grid start of the shown window, so the middle term is "days in the shown window + 2", not days since the protocol started];
   `scanStart = max(now − lookbackDays·day, start_date 00:00, history_from 00:00)` (lib/serumModel.js:98-110).
   Testosterone Undecanoate (t½ 2160 h) → 540 days.
 - R16. `history_from` (A-30 "No, the dose was different") → nothing before that day (lib/serumModel.js:105-109).
@@ -316,7 +327,7 @@ tap Progress tile (JourneyScreen.js:166), tap Dose accumulation tile (:204-208),
 ```mermaid
 stateDiagram-v2
   [*] --> CheckingPremium: focus
-  CheckingPremium --> Paywall: hasPremium() false\n(stack: replace, embedded: navigate)
+  CheckingPremium --> Paywall: hasPremium() false\n(stack = replace, embedded = navigate)
   CheckingPremium --> Loading: true → fetchData()
   Loading --> Empty: no charted protocol\n(protocols.length === 0)
   Loading --> Chart: ≥1 charted
@@ -335,9 +346,9 @@ stateDiagram-v2
 stateDiagram-v2
   [*] --> Restore: loadCurveView(uid)
   Restore --> Remembered: ≥1 saved id still charted\n(first unit only)
-  Restore --> Default: nothing valid → [active[0]]\nCombined on, +7 d
+  Restore --> DefaultView: nothing valid → [active[0]]\nCombined on, +7 d
   Remembered --> Single
-  Default --> Single
+  DefaultView --> Single
   Single --> Multi: add same-unit compound
   Multi --> Single: remove until one left
   Single --> Single: remove last → ignored
@@ -362,7 +373,7 @@ stateDiagram-v2
   Wheel --> CustomDate: Done (no change → today)
   CustomDate --> Extended: date > 3 d back\npastDays = min(365, back+1)
   ChipDate --> Extended: lab date > 3 d back
-  Extended --> Before365: date > 365 d back\nrow shows "—"
+  Extended --> Before365: date > 365 d back\ncompound rows show "—" (Combined row still a number)
   CustomDate --> Future: date after +horizon\nvalue from own schedule, no marker
 ```
 
@@ -415,7 +426,7 @@ stateDiagram-v2
   ended.** Screen list includes ended protocols (SerumCurveScreen.js:316); tile/Body pass active only
   (JourneyScreen.js:109, BodyScreen.js:402). Script (scratchpad `endeddiv.cjs`): saved `[10]` = an ended
   Testosterone Cypionate run, Restarted as id 11 → screen opens on id 10 at 68.53 mg, tile shows id 11 at
-  10.04 mg. Same after any "Yes, it's finished" + Restart (restart creates a new row,
+  10.04 mg [Corrected 2026-10-12: numbers depend on the fixture; the verification's run gives 154.63 vs 73.53 mg — same mechanism]. Same after any "Yes, it's finished" + Restart (restart creates a new row,
   lib/protocolEnd.js:141-174). Contradicts MB-4 / docs/decisions.md:209 "same compound and number".
   Mixed-unit corner: saved `[endedMg, hghIU]` → screen keeps the mg one, tile drops it and shows HGH.
   Not covered by __tests__/curveRemembers.test.js (no ended fixture).
@@ -517,7 +528,7 @@ Events: `notifyDataChanged('curve')` after a view change (SerumCurveScreen.js:35
   total of two Boldenone protocols would render the raw key (t() falls back to the key,
   i18n/LanguageContext.js:59-61).
 - **G8** Copy still says "logged": `curve_empty_sub` "…log doses to see your curve" and calls it "the serum
-  curve"; `curve_combined_hint` "…compound amounts you logged" — the model is schedule-driven (A-07 intent).
+  curve"; `curve_combined_hint` "…compound amounts you logged" — the model is schedule-driven (A-07 intent). [Corrected 2026-10-12: also `paywall_hero_sub` and `settings_premium_feat_1` ("from your own log", ×6).]
 - **G9 (D6)** The fixed 12:00/06-18 dose hours are not disclosed anywhere on screen.
 - **G10** Blend lines: decisions.md:205 says "dashed (est.) component lines"; code draws them like any compound
   (solid past, dashed future, SerumCurveScreen.js:117-133). Possibly superseded by the 2026-09-29 Curve

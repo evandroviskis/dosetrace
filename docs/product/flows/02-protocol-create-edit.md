@@ -2,6 +2,7 @@
 
 > Draft for founder review, written 2026-10-12 from `docs/product/research/01-protocols.md` (main source), `02-doses-today.md`, `03-reminders.md`, `05-curve-journey.md`, `docs/decisions.md` (Protocols & dose math; AI rules; AI protocol assistant 2026-10-03; dt-council 2026-10-04) and `docs/specs/ai-protocol-assistant.md` (AP-0…AP-35). Code @ 4dade55.
 > Shows the **intended** behaviour. **Divergence today** notes cite the dossier (`01 G-5` = research/01 §9 G-5; `01 D-13` = §6 D-13).
+> Corrected 2026-10-12 against `docs/product/verification/01-protocols.md` §7 (code @ 897f01d, same code as 4dade55). "OPEN-xx (was <id>)" marks a choice that is not decided yet, with its canonical id in OPEN-DECISIONS.md.
 
 ---
 
@@ -42,7 +43,7 @@ Let a user record **what** they take, **how much**, **how often** and **from whi
 | P9 | Wizard interrupted (call, iOS memory, kill) | **Intended (AD-35; BK-14, decisions.md:378):** unsaved drafts are kept until saved or the app closes; a kill loses the form (accepted, like the assistant conversation, AP-33). The form lives in screen state today, which matches. |
 | P10 | Assistant budget used up this week | Assistant says when it resets; manual form keeps working. |
 | P11 | Scan pool used up this month | "Monthly scan limit reached" with the server's number; manual entry keeps working. |
-| P12 | Offline | Manual form works fully; assistant and scan hand back to the form with answers kept (AP-16). |
+| P12 | Offline | Manual form works fully. The assistant shows "I can't connect right now. You can continue in the form — everything you answered is kept." and stays open; closing it returns to the form with every answer already given kept (AP-16). The step-3 scan shows its error sheet; the form is untouched. |
 | P13 | Language is pt/es/fr/de/it | Typed "0,5" = 0.5; "1.250" = 1250 (app language parse); prefilled values never grouped. |
 
 ## 5. Happy path (manual, lyophilized, started today)
@@ -84,7 +85,10 @@ flowchart TD
   K --> L["Review card: every field, draw units and ml, vial lasts N doses, Change / Save / Fill the form"]
   L -->|Save| M["Same saveProtocol as the manual form: checks, vial, reminders, history question"]
   L -->|Fill the form| N["Form on its last step"]
-  D -->|offline, error, budget| O["Back to the form, every answer kept"]
+  D -->|offline or server error| O["Notice in the window, it stays open, typed text kept in the box"]
+  O -->|close or Continue in the form| Q["Back to the form, every answer already given kept"]
+  D -->|budget used up| P["Budget notice with when it resets, only Continue in the form"]
+  P --> Q
 ```
 
 ## 6. States and transitions
@@ -107,8 +111,13 @@ stateDiagram-v2
     Draft_Step4 --> Saving: Save, rtu or oral or edit
     Draft_Step5 --> Saving: Save or skip vial
     Draft_Step1 --> Assistant: Build or Finish with AI
+    Draft_Step2 --> Assistant: Finish with AI, new protocol only
     Draft_Step3 --> Assistant: dose door or Ask AI for help
-    Assistant --> Draft_Step1: handback, first missing step
+    Draft_Step4 --> Assistant: Finish with AI, new protocol only
+    Draft_Step5 --> Assistant: Finish with AI, new protocol only
+    Assistant --> Draft_Step1: handback, no name yet
+    Assistant --> Draft_Step3: handback, dose fields missing
+    Assistant --> Draft_Step4: handback, name and dose fields filled
     Assistant --> Draft_Last: Fill the form
     Assistant --> Saving: Save on the review card
     Draft_Last --> Saving: Save
@@ -125,6 +134,8 @@ stateDiagram-v2
     Active_Estimated --> [*]
     Active_FromToday --> [*]
 ```
+
+Handback (`stepForHandback`, `lib/protocolAssistant.js:949-956`): step 1 when there is no name; step 3 when the dose fields of the chosen form are missing (powder: amount or dose; ready to use: dose or concentration; pill: dose or strength per serving); otherwise step 4.
 
 ### 6.2 Edit
 
@@ -146,7 +157,7 @@ stateDiagram-v2
     Patched --> [*]
 ```
 
-### 6.3 Vial-label scan (inside step 3 or the assistant)
+### 6.3 Vial-label scan (inside step 3)
 
 ```mermaid
 stateDiagram-v2
@@ -156,30 +167,38 @@ stateDiagram-v2
     ConsentSheet --> SourceChoice: Agree and continue
     ConsentCheck --> SourceChoice: consent stored
     SourceChoice --> [*]: Cancel
+    SourceChoice --> DeniedSheet: camera permission denied
     SourceChoice --> Reading: photo or camera (size ok)
+    SourceChoice --> SizeSheet: photo over about 10 MB
     Reading --> QuotaSheet: 429, server limit n
     Reading --> ServiceSheet: provider or config error
     Reading --> NothingSheet: nothing readable
+    Reading --> CouldntReadSheet: any other error
     Reading --> Applied: values read
     Applied --> ReviewWarning: fields filled, compound only if unambiguous and not chosen
     ReviewWarning --> Draft: user checks values, nothing saved until Save
     QuotaSheet --> Draft
     ServiceSheet --> Draft
     NothingSheet --> Draft
+    CouldntReadSheet --> Draft
+    SizeSheet --> Draft
+    DeniedSheet --> Draft
 ```
+
+Inside the assistant the label photo is not applied as review drafts: the values are read back and used only after Yes (`labelRead` / `answerLabel`, `lib/protocolAssistant.js:814-857`); a quota or unreadable result becomes an in-chat notice (`ap_label_quota` / `ap_label_none`), not a sheet.
 
 ## 7. Alternative and exception paths
 
 ### 7.1 Past start and the history question (A-30 option C)
 - Start date: any past or future date; stored as local `YYYY-MM-DD`; default **Today** for a new protocol (decision 2026-10-02); "Tomorrow" bar; date wheel (DTWheel on iOS, native on Android).
-- Hint under the bar: "Starting today: only dose times from now on count today. Earlier times begin tomorrow." (creation-day rule, flow 03).
+- Hint under the bar, only when Today is chosen with 2–3 doses a day (`ProtocolsScreen.js:3043`): "Starting today: only dose times from now on count today. Earlier times begin tomorrow." (creation-day rule, flow 03).
 - After Save, when the start is before today AND the compound's t½ ≥ 24 h: sheet "Same dose for the last {n} weeks?" (≥ 14 days, rounded) or "…{n} days?" with body "The curve estimates the time before today from your start date and this dose. If the dose was different, it starts from today instead. Nothing is added to your dose log." → **Yes, same dose** (nothing written) / **No, it changed** (`history_from = today`).
 - N = min(5 × t½, days since start). Example: Testosterone Cypionate (t½ 192 h) started 42 days ago → N = 40 days → "6 weeks".
 - **Intended (decision 2026-10-04, copy must be true):** the question names the compound ("Same {compound} dose for the last 6 weeks?") and is asked again when an Edit moves the start date earlier; "Yes" then clears `history_from`.
   - **Divergence today (01 G-5; registry A-94 "Not started"):** no compound name; Edit never re-asks.
 - Dismissing the sheet = Yes (no write). Compounds without a half-life entry, insulin, or t½ < 24 h get no question.
 - Adherence, streaks and the Dose log counts start at creation; doses before `created_at − 1 h` are "declared", never counted (flow 03).
-- **Divergence today (01 D-20 / G-27):** `created_at` is not in the sync payload; on a second device the creation moment becomes the first-push time, moving the declared/Missed/estimated boundaries.
+- **Divergence today (DV-001 residual; 01 D-20 / G-27 are out of date):** protocols send `created_at` since e85519c (`lib/syncMappers.js:101-103`). Two residuals remain: a pull never rewrites a local `created_at` (`lib/syncCore.js:405-415`), so a device that pulled the protocol before its creator's first push keeps the server time and its declared/Missed/estimated boundaries move; and vials do not send `created_at` at all.
 
 ### 7.2 Dose step guards and the explainer
 - Recon: compound amount + unit (mg/mcg/IU), diluent pills (none preselected: Bacteriostatic / Sterile / NaCl 0.9 % / Other), water stepper ±0.5 ml (min 0.5), "Dose per injection" + hint "How much you inject each time — not your weekly total.", IU→mass converter (mg/mcg vials only), syringe 0.3 / 0.5 / 1 ml.
@@ -187,6 +206,7 @@ stateDiagram-v2
 - Oral: dose + unit (mg/mcg/IU/g), form, "Can it be divided?", strength per serving, units per serving, units per container (optional).
 - Live result: "Draw to N units" (ml on ml syringes), drawn syringe numbered every 10, small-draw fact under 10 units ("This dose is {u} units — small marks are harder to read accurately."), red full syringe over capacity.
 - Over capacity: recon blocks Next and Save ("Let's double-check"); rtu shows red but does not block (AP-21). IU with mg/mcg blocks ("Cannot mix IU with mg/mcg…").
+  - **Divergence today (D02-12, new):** an oral dose in IU is blocked too — at Next and at Save — by a spurious unit mismatch against the hidden concentration unit (`unitsOk` compares `concentrationUnit || 'mg'` with the dose unit for every non-recon type; orals never set a concentration unit; `ProtocolsScreen.js:1793-1795, :1810`).
 - "?" on the field, the red warning and the red syringe open the 4-step "Why it does not fit" explainer (your vial · your syringe · {dose} does not fit · is it what you take in a whole week? with split buttons "2 × 120 mg") — never a water amount (decision 2026-10-02).
 
 ### 7.3 AI assistant exceptions
@@ -195,7 +215,7 @@ stateDiagram-v2
 | No consent | DoseTrace consent sheet; Cancel returns to the form (AP-15). |
 | Advice-shaped answer ("is that ok?", 6 languages) | Fixed deflection card, nothing taken (AP-3). |
 | Plain number typed | Read on the phone, never sent (local understand). |
-| Offline / server error | "can't connect" + back to the form with every answer kept (AP-16). |
+| Offline / server error | Notice in the window ("I can't connect right now. You can continue in the form — everything you answered is kept." / "The AI isn't available right now. …"); the window stays open and the typed text stays in the box. Closing it (or "Continue in the form") returns to the form with every answer already given kept (AP-16). No use counted when the start itself fails. |
 | Budget (10 / 7 days) reached | App-written message with when it resets; manual form works (AP-18). A use counts at the first answer to the AI or the label-photo start — never on open. |
 | "Finish with AI" | Reads the form, says it back, asks only what is missing; never changes filled fields (AP-10). |
 | Doesn't fit | Explains with the user's numbers, asks per injection / day / week / month, divides the user's number; if it really is one injection: facts only (larger syringe for rtu; "the amount of water decides how much is in each ml"; ask your healthcare provider) (AP-11, AP-22, AP-35). |
@@ -205,7 +225,7 @@ stateDiagram-v2
 | **Divergence today (01 G-13):** spec text AP-27 still mentions the old "log the past doses" backfill; the code asks the A-30 history question. Spec text stale. |
 
 ### 7.4 Vial-label scan exceptions
-- Cancelled → nothing. Too big (> ~10 MB) → size sheet. Service down → "The scan service is temporarily unavailable. Your photo is fine…". Nothing readable → "Nothing readable on that label…". Quota → "Monthly scan limit reached" + "You've used your {n} scans for this month (labs, vaccine cards, and vials combined)…".
+- Cancelled → nothing. Camera permission denied → permission sheet. Too big (> ~10 MB) → size sheet (copy bug today: its body reuses "This file is too large. Please choose a PDF under 10 MB.", the wrong word for a photo — NEW-D). Any other error → "Couldn't read that label". Service down → "The scan service is temporarily unavailable. Your photo is fine…". Nothing readable → "Nothing readable on that label…". Quota → "Monthly scan limit reached" + "You've used your {n} scans for this month (labs, vaccine cards, and vials combined)…".
 - Applied values: form type (solution → rtu, powder → recon, only when unambiguous); compound resolved deterministically (exact → alias → preferred; ambiguous → none) and only when the user has not chosen one, else the printed name (≤ 60 chars) seeds the name; rtu concentration only for a clean per-ml unit; vial ml; recon amount + unit. Warning "We filled these in from your vial label. Check every value before you save…". Nothing saved until Save.
 - **Copy note (decision 2026-10-04 "copy must be true"):** "supplier" → "the product label or manufacturer"; assistant limit says "in the last 7 days". Verify on device.
 
@@ -229,7 +249,7 @@ stateDiagram-v2
 ### 7.10 Free vs Premium
 - Free: 3 active protocols (decision 2026-10-03 "3 mantém"); + Add at the limit → "Protocol limit reached" / "The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days." → **Start free trial** → Paywall (`source: protocol_limit`). Trial claim verified true on iOS and Play (decisions 2026-10-03).
 - Assistant: same budget on every plan. Vial scan: free for everyone, counts in the shared pool.
-- **Divergence today (01 D-22; 07 D-3):** limit is client-only; protocols synced from another device, created while Premium or revived by sync are never counted; a lapsed Premium user keeps all active protocols (as decided by logic, DL-24; server enforcement is OPEN-05).
+- **Divergence today (01 D-22; 07 D-3):** limit is client-only; protocols synced from another device, created while Premium or revived by sync are never counted; a lapsed Premium user keeps all active protocols today. **OPEN-05** (was DL-24) Whether a lapsed Premium user keeps them or gets a downgrade rule is a money call folded into OPEN-05 (with server enforcement of the limit); the recommendation stays "keep them".
 
 ### 7.11 Edit specifics
 - Edit opens with stored numbers in the app language; rtu vial ml from the active vial or amount ÷ concentration; 4 steps (no vial step); writes only changed columns (decision 2026-10-02; a Save with no change alters nothing).
@@ -256,9 +276,9 @@ stateDiagram-v2
 |---|---|---|---|
 | Wizard typing | screen state only | form | no (lost on kill — 01 G-18) |
 | Note typed on a saved page | memory `draftStore` `protocolNote:<id>` | text | no (lost on app close; cleared on sign-out) |
-| Save (new) | `protocols` | name, compound_id, type, color, amount (rtu: conc × vial ml), unit, water, diluent, dose, dose_unit, syringe_size, concentration, concentration_unit, frequency (label words), reminder_time "HH:MM,…", interval_days, doses_per_day, start_date, schedule_total NULL, vial_valid_days, goal (csv), notes (oral form), note, composition (blends), serving fields, units_taken 0, divisible, active 1, created_at now, sync_status pending | yes (except created_at — D-20) |
-| Save recon, not skipped | `vials` | mixed_on (past occurrence), water_ml, total_doses = floor(amount ÷ dose), doses_taken 0, active 1 | yes |
-| Save rtu with ml + conc + dose | `vials` | water_ml = bottle ml, total_doses, expires_on = last day of chosen month | yes |
+| Save (new) | `protocols` | name, compound_id, type, color, amount (rtu: conc × vial ml), unit, water, diluent, dose, dose_unit, syringe_size, concentration, concentration_unit, frequency (label words), reminder_time "HH:MM,…", interval_days, doses_per_day, start_date, schedule_total NULL, vial_valid_days, goal (csv), notes (oral form), note, composition (blends), serving fields, units_taken 0, divisible, active 1, created_at now, sync_status pending | yes (created_at included since e85519c; a pull does not rewrite it — DV-001 residual) |
+| Save recon, not skipped | `vials` | mixed_on (past occurrence), water_ml, total_doses = floor(amount ÷ dose), doses_taken 0, active 1 | yes (except created_at — not sent for vials, DV-001) |
+| Save rtu with ml + conc + dose | `vials` | water_ml = bottle ml, total_doses, expires_on = last day of chosen month | yes (except created_at, DV-001) |
 | Save | OS queue | dose reminders via `scheduleDoseReminder` (shares the budget) | — |
 | History "No" | `protocols.history_from` | today | yes (optional column) |
 | Edit | `protocols` | only changed columns, `updated_at`; `status_at` only if status changed | yes |
@@ -270,7 +290,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R-01 name required ("Missing name"); typed text equal to a listed compound selects it; else own label (2026-10-02). R-02 suggestions after 2 letters. R-05 blends show the common composition "varies by source"; vial label is journaling only. R-06 new protocol first dose Today, default time now rounded to 5 min. R-07 any past/future start. R-08 interval presets 1–7, 10, 14 + custom; doses per day 1–3 only when interval ≤ 2. R-09 times array length = doses per day. R-10 no numeric presets. R-11 diluent none preselected. R-13 "Dose per injection". R-14 recon over syringe / unit mismatch blocks; rtu warns. R-15 2/3/5 ml syringes rtu only. R-16 never a water amount. R-17 small-draw fact under 10 units. R-18 Edit writes only changes. R-19 Discard question for new only. R-20 vial step new recon only, skippable. R-23/R-24 number parsing per app language. R-35/R-36 history question and estimated curve. R-59 free = 3 active. R-69/R-70 AI rails (all from `01 §4`).
+R-01 name required ("Missing name"); typed text equal to a listed compound selects it; else own label (2026-10-02). R-02 suggestions after 2 letters. R-05 blends show the common composition "varies by source"; vial label is journaling only. R-06 new protocol first dose Today, default time now rounded to 5 min. R-07 any past/future start. R-08 "How often?" shows only Every day / Custom with a typed N (digits only, max 3 → 1–999); there are no 1–7, 10, 14 preset buttons (`PRESET_INTERVALS` only decides whether a stored value opens on Custom; this differs from decisions.md:200, which no later ledger line replaces); doses per day 1–3 only when interval ≤ 2. R-09 times array length = doses per day. R-10 no numeric presets. R-11 diluent none preselected. R-13 "Dose per injection". R-14 recon over syringe / unit mismatch blocks; rtu warns. R-15 2/3/5 ml syringes rtu only. R-16 never a water amount. R-17 small-draw fact under 10 units. R-18 Edit writes only changes. R-19 Discard question for new only. R-20 vial step new recon only, skippable. R-23/R-24 number parsing per app language. R-35/R-36 history question and estimated curve. R-59 free = 3 active. R-69/R-70 AI rails (all from `01 §4`).
 
 ## 11. Divergences today (summary)
 
@@ -280,13 +300,14 @@ R-01 name required ("Missing name"); typed text equal to a listed compound selec
 | D02-2 | Drafts kept until saved or the app closes (AD-35) | Lost on a kill — as decided; recorded only | `01 G-18` (no decision) | DV-127 |
 | D02-3 | Recon dose edit recomputes vial capacity | Stale stored `total_doses` | `01 D-13` | DV-015 |
 | D02-4 | Free limit counted the same on every device | Local only | `01 D-22`, `07 D-3` | DV-095 |
-| D02-5 | `created_at` identical on every device | Not synced | `01 D-20 / G-27` | DV-001 |
+| D02-5 | `created_at` identical on every device | Protocols send it since e85519c; a pull never updates a local `created_at` (`syncCore.js:405-415`), so an early-imported copy keeps the server time; vials do not send it | `01 D-20 / G-27` (out of date); `syncMappers.js:101-103` | DV-001 (residual) |
 | D02-6 | Mix date "Feb 31" handled the same everywhere | Wizard clamps, Today refuses, assistant refuses > 1 year | `01 D-14b` | DV-019 |
 | D02-7 | Custom interval bound the same in form and assistant | 1–999 vs 1–365 | `01 D-16` | DV-123 |
 | D02-8 | Recon mix date / validity / capacity editable | Not editable after create | `01 G-9` | DV-094 |
 | D02-9 | Delete sheet / scan copy true | "recoverable for 7 days"; "supplier" | `01 G-4`, decision 2026-10-04 | DV-023, DV-192 |
 | D02-10 | Today empty-state "Add a protocol" opens the wizard | Opens the tab only | `01 G-24` (observation) | DV-124 |
 | D02-11 | AP-27 spec text matches the A-30 question | Spec still says "log the past doses" | `01 G-13` | DV-179 |
+| D02-12 | Oral dose in IU saves like any oral unit (PRD-PROT-15) | Blocked at step 3 and Save by a spurious unit mismatch against the hidden concentration unit | verification/01 SD-6.1c, NEW-A; `ProtocolsScreen.js:1793-1795, :1810` | — (no DV row yet) |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
@@ -295,7 +316,7 @@ Reconciled 2026-10-12: every question this flow raised has one canonical ID in `
 - **OPEN-01 — Doses already used from a vial (A-08 / F7)** — waits for the founder (with the vial edit). → DV-094.
 - **AD-35 — Half-filled wizard after a kill.** Already decided: unsaved drafts are kept until saved or the app closes (BK-14, decisions.md:378; the assistant's conversation lost on a kill is accepted, AP-33). This flow had recommended keeping the draft; the ledger answers it — the founder may reopen it. → DV-127.
 - **DL-15 — Recon dose changed mid-vial.** Decided by logic: recompute the vial's remaining doses from the mass left (one capacity rule, FX-11). → DV-015.
-- **DL-24 — Lapsed Premium with more than 3 active protocols.** Decided by logic: they stay active (ending them would stop their reminders); only new adds hit the limit. Server enforcement of the limit is OPEN-05. → DV-095.
+- ****OPEN-05** (was DL-24) — Lapsed Premium with more than 3 active protocols.** Not decided: it is a money call, folded into OPEN-05 (keep them all, or a downgrade rule for lapsed Premium), together with server enforcement of the limit. Today they stay active (ending them would stop their reminders) and only new adds hit the limit; the recommendation stays "keep them". → DV-095.
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -312,8 +333,8 @@ Account: Test03 (free tier; Premium only via a temporary RevenueCat promo the fo
 - Expect: "Missing name" / "Nome ausente" + "Please enter a compound name." / "Digite o nome do composto."; stays on step 1.
 
 **F02-03 — Search after 2 letters, custom name**
-- Do: type "B" → no suggestions; type "BP" → list including "BPC-157" (max 8 + "N more — keep typing to narrow down").
-- Then: type "My blend X" → row "Add "My blend X"" / "Adicionar "My blend X"" + hint "Saved as your own label — not from the list." / "Salvo com o nome que você digitou — não vem da lista."
+- Do: type "B" → no suggestions; type "BP" → list including "BPC-157" (max 8 + "+N more — keep typing to narrow down").
+- Then: type "My blend X" → row "Add "My blend X"" / "Adicionar "My blend X""; tap it → hint "Saved as your own label — not from the list." / "Salvo com o nome que você digitou — não vem da lista."
 
 **F02-04 — Colour step**
 - Expect title "Pick a color" / "Escolha uma cor"; 20 swatches; a dot on colours used by other active protocols; picking one shows "This color is already used by another protocol. That's fine if you're grouping them on purpose." Readable in both themes.
@@ -321,18 +342,18 @@ Account: Test03 (free tier; Premium only via a temporary RevenueCat promo the fo
 **F02-05 — Recon draw math**
 - Do: BPC-157 · compound 5 mg · diluent Bacteriostatic water · water 2 ml · Dose per injection 250 mcg · syringe 1 ml.
 - Expect: label "Dose per injection" / "Dose por injeção" with hint "How much you inject each time — not your weekly total."; result "Draw to" "10.0" units ("Aspirar até"); syringe drawn to 10 with numbers every 10. No small-draw fact (10.0 is not under 10).
-- Change dose to 200 mcg → "8.0" units and "This dose is 8 units — small marks are harder to read accurately." / "Esta dose é de 8 unidades…".
+- Change dose to 200 mcg → "8.0" units and "This dose is 8.0 units — small marks are harder to read accurately." / "Esta dose é de 8,0 unidades — marcas pequenas são mais difíceis de ler com precisão."
 
 **F02-06 — Recon over capacity blocks**
 - Do: dose 6 mg on 1 ml syringe (5 mg in 2 ml).
-- Expect: red full syringe; warning "This dose needs {units}u, more than your 100u syringe holds…"; Next blocked → "Let's double-check" / "Vamos conferir". "?" opens "Why it does not fit" / "Por que não cabe" 4-step explainer with "mg = how much of the compound" / "mg = quanto de composto" and "ml = how much liquid".
+- Expect: red full syringe; warning "This dose needs 240.0u, more than your 100u syringe holds…"; Next blocked → "Let's double-check" / "Vamos conferir". "?" opens "Why it does not fit" / "Por que não cabe" 4-step explainer with "mg = how much of the compound" / "mg = quanto de composto" and "ml = how much liquid".
 
 **F02-07 — RTU over syringe warns but does not block**
 - Do: Ready to use → Testosterone Cypionate · 100 mg · concentration 200 mg/ml · syringe 0.3 ml.
-- Expect: red warning in ml terms; **Next works** (AP-21). Syringe picker shows insulin sizes and 2 / 3 / 5 ml; the 2 / 3 / 5 ml are absent on a Lyophilized protocol.
+- Expect: red warning "This dose needs 50.0u, more than your 30u syringe holds…" (a 0.3 ml syringe is an insulin syringe, so the wording is in units; ml wording only on a 2 / 3 / 5 ml syringe); **Next works** (AP-21). Syringe picker shows insulin sizes and 2 / 3 / 5 ml; the 2 / 3 / 5 ml are absent on a Lyophilized protocol.
 
 **F02-08 — Schedule step defaults**
-- Expect: "When is your first dose?" / "Quando é sua primeira dose?" with **Today** selected; hint "Starting today: only dose times from now on count today…"; "How often?" Every day / Custom; "How many doses per day?" visible only for interval ≤ 2; one time picker per dose; default time = now rounded to 5 min.
+- Expect: "When is your first dose?" / "Quando é sua primeira dose?" with **Today** selected; "How often?" Every day / Custom (Custom = a typed number of days, 1–999; no preset buttons); "How many doses per day?" visible only for interval ≤ 2; one time picker per dose; default time = now rounded to 5 min. The hint "Starting today: only dose times from now on count today…" is not shown on the defaults; it appears once 2 or 3 doses a day are chosen with Today.
 
 **F02-09 — Vial step and skip**
 - Expect title "Vial mix date" / "Data de reconstituição do frasco"; month + day, "Days the vial stays good" default 30; link "I haven't mixed this vial yet — skip" / "Ainda não reconstituí este frasco — pular" → "No problem — you can log your vial mix anytime from Today (+ Add vial)."; summary rows Compound / Amount / Water / Dose / Draw / Frequency.
@@ -372,7 +393,7 @@ Account: Test03 (free tier; Premium only via a temporary RevenueCat promo the fo
 **F02-17 — Assistant: consent then one question at a time**
 - Do: + Add → **Build it with AI** / "Montar com IA" on the empty step 1.
 - Expect (consent not given on this phone): "Send to AI for extraction?" / "Enviar para a IA extrair?" with "View privacy policy" and **Agree & continue** / "Aceitar e continuar". Then "Which compound do you want to set up? Type its name, or take a photo of the label." / "Qual composto você quer configurar?…".
-- Answer "bpc 157" → "Got it: BPC-157. Is it a powder you mix, ready to use, or a pill?"; continue to the review card "Your protocol. Check it before it is saved." / "Seu protocolo. Confira antes de salvar." with draw units and ml.
+- Answer "bpc 157" → "Got it: bpc 157. Is it a powder you mix, ready to use, or a pill?" (the user's own characters are kept); after Powder the name becomes BPC-157; continue to the review card "Your protocol. Check it before it is saved." / "Seu protocolo. Confira antes de salvar." with draw units and ml.
 
 **F02-18 — Assistant: weekly total split**
 - Do: in the dose question answer "240 mg a week".
@@ -384,7 +405,7 @@ Account: Test03 (free tier; Premium only via a temporary RevenueCat promo the fo
 
 **F02-20 — Assistant offline hand-back**
 - Do: airplane mode → Build it with AI → answer the compound.
-- Expect: "can't connect" message; back to the form with the compound filled; no use counted.
+- Expect: "I can't connect right now. You can continue in the form — everything you answered is kept." / "Não consigo me conectar agora. Você pode continuar no formulário — tudo o que você respondeu fica guardado." in the window; the window stays open and the typed text stays in the box; closing it returns to the form (no compound filled, since it was never understood); no use counted.
 
 **F02-21 — Assistant: Finish with AI never changes filled fields**
 - Do: fill name + dose manually → step 4 → **Finish with AI** / "Terminar com IA".

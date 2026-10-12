@@ -147,13 +147,13 @@ stateDiagram-v2
 
 ### 7.1 Manual lab entry
 - **Intended (decision 2026-09-30 "The lab journal typed by hand is free"; registry "Labs: manual entry"; the approved explainer "Type in values from any lab report…"; the quota message "You can still enter everything by hand"):** a user can add a lab value by hand (marker, value, unit, test date).
-  - **Divergence today (06 G-1):** no UI inserts a lab value by hand — the only insert is the scan. Approved behaviour with no build → under "approved → next build" this needs a founder-visible decision (OPEN-12).
+  - **Divergence today (06 G-1):** no UI inserts a lab value by hand — the only insert is the scan. Approved behaviour with no build → under "approved → next build" the default is to build it in the next open build; the only founder question is whether he defers it, with the reason stated (OPEN-12).
 
 ### 7.2 Charts and Premium
 - **Decision 2026-09-30:** lab charts are Premium; the free card even says "Premium charts every one over time".
-  - **Divergence today (06 D-8, G-2):** the marker chart renders for every user with 2+ readings. Already decided → AD-24: the chart is Premium.
+  - **Divergence today (06 D-8, G-2):** the marker chart renders for every user with 2+ readings. Already decided → AD-24: the chart is Premium. Gating it takes away a feature free users see today, so the locked marker screen is shown to the founder as a picture first and named in the deviation/picture round (07 X-11).
 - Scans: decision A (2026-10-03) — 3 free scans a month for every kind; no client gate; every scan asks the server; refused scan shows the server's limit. PDF export Premium (checked at the action with a fresh `hasPremium()`), CSV free.
-- **Divergence today (06 G-9):** the remaining scans are never shown; the user meets the limit only by being refused.
+- **Divergence today (06 G-9; corrected by verification 05 B.5 / 07 P-04):** free users do see the limit ("3 free scans a month (labs, vaccine cards and vials combined) · More with Premium" on the free card, and the empty state), but the number of scans **used / left** is never shown; the user learns the month is used up only when a scan is refused.
 - **Divergence today (06 G-10):** a 200 with zero usable values is counted although "failed extractions are not counted" (decision 2026-09-30).
 
 ### 7.3 Grouping and counts
@@ -170,8 +170,8 @@ stateDiagram-v2
 
 ### 7.5 Values and dates
 - Edit value: marker, value + unit, test date (≤ today, 30 years back); value read with `parseMeasure` (comma = decimal for lab values in every language).
-- **Divergence today (06 D-11, SUSPECTED):** a scan string "1,025" is read as 1025 (English grouping rule) while the edit sheet reads 1.025.
-- **Divergence today (06 §8 E-6, D-1 note):** a future report date from the document is accepted and hides the Bloodwork due alert.
+- **Divergence today (06 D-11, CONFIRMED by verification 05 in node):** a scan string "1,025" is read as 1025 (`validateExtraction`, English grouping rule) while the edit sheet reads 1.025 (`parseMeasure`).
+- **Divergence today (06 §8 E-6, D-1 note; CONFIRMED by verification 05: report_date 2099-01-01 passes `validateExtraction` with no fallback flag):** a future report date from the document is accepted and hides the Bloodwork due alert.
 - **Divergence today (06 G-8):** no "change this test's date" — fixing a wrong DD/MM means editing every value.
 - **Divergence today (06 §8 E-7, E-8):** mixed units for one marker plotted on one axis; the chart's x-axis is by index, not time (neutral, no bands, by the hard line).
 
@@ -185,7 +185,7 @@ stateDiagram-v2
 
 ### 7.7 Bloodwork due
 - Shown when the newest report date is ≥ 182 days old: "Bloodwork due" / "It's been {months} months since your last panel" (months = max(6, round(days / 30))); tap → Lab test journal; snooze Tomorrow / In 3 days. None when no lab was ever logged.
-- **OPEN-13 (06 G-13):** a fixed 6-month interval chosen by the app — not interpretation, but a schedule the user did not set; regulatory-reviewer look recommended (OPEN-13).
+- **OPEN-13 (06 G-13):** a fixed 6-month interval chosen by the app — not interpretation, but a schedule the user did not set; regulatory-reviewer look recommended (OPEN-13). Keeping it as is keeps an app-chosen timing recommendation the user never set (regulatory risk) — not a neutral option (07 Q-04).
 
 ### 7.8 Offline / killed / second device
 - Scans need the network; values edited offline save locally and sync. Killed during a scan: nothing saved (server may have counted it).
@@ -252,7 +252,7 @@ R1 AI transcribes only (hard line; `decisions.md:317`). R2 consent first, one sh
 | D11-3 | Hub count = journal cards on every device | Per batch; per row after a pull | `06 D-3, G-3` | DV-073 |
 | D11-4 | Favourites / labels durable, merged | `user_metadata`, stale whole writes, unclearable star | `06 D-5, D-6, G-4, G-5` (A-14 deferred) | DV-006, DV-075 |
 | D11-5 | Vaccine scan fills details; export includes them | Notes only; export omits | `06 D-12, G-6, G-7` | DV-109, DV-079 |
-| D11-6 | Remaining scans visible | Never | `06 G-9` | DV-110 |
+| D11-6 | Scans used / left visible | Never (the limit itself, 3 a month, is shown to free users) | `06 G-9`; verification 05 DV-110 | DV-110 |
 | D11-7 | Unusable 200 not counted | Counted | `06 G-10` | DV-078 |
 | D11-8 | One number parse for lab values | Scan vs edit differ | `06 D-11` | DV-076 |
 | D11-9 | Future report dates refused or flagged | Accepted | `06 D-1 note, E-6` | DV-077 |
@@ -263,10 +263,10 @@ R1 AI transcribes only (hard line; `decisions.md:317`). R2 consent first, one sh
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **OPEN-12 — Manual lab entry** (D11-1). Waits for the founder. → DV-107.
-- **AD-24 — Lab charts.** Already decided: lab charts are Premium; the hand-typed journal is free (decisions.md:268). → DV-108.
-- **OPEN-13 — Bloodwork due.** Waits for the founder. → DV-111.
-- **OPEN-14 — Remaining scans** (D11-6, with "change this test's date", D11-10). Waits for the founder. → DV-110.
+- **OPEN-12 — Manual lab entry** (D11-1). Approved (decisions.md:268), so the default is to build it in the next open build; the founder is asked only whether to defer it, with the reason it could not be built well in time (07 Q-03). → DV-107.
+- **AD-24 — Lab charts.** Already decided: lab charts are Premium; the hand-typed journal is free (decisions.md:268). Picture first: free users lose a chart they have today, so the locked screen is shown in the deviation/picture round (07 X-11). → DV-108.
+- **OPEN-13 — Bloodwork due.** Waits for the founder; "keep as is" keeps an app-chosen recommendation (regulatory risk). → DV-111.
+- **OPEN-14 — Scans used / left** (D11-6, with "change this test's date", D11-10). Waits for the founder. Premise corrected: people see the limit (3 a month) but not how many scans they have already used — they learn it ran out only when a scan is refused (verification 05 B.5 Q14(a) WRONG; 07 P-04). → DV-110.
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -324,7 +324,7 @@ Account Test03 (free; Premium via promo where stated). Use a sample lab PDF with
 
 **F11-14 — Vaccine scan**
 - Do: "Scan / upload" / "Escanear / enviar" → a vaccine card photo.
-- Expect: "Vaccines imported" / "Vacinas importadas" + "{count} vaccines saved" (+ "{n} entries without a readable date were skipped."); records dated from the card; details in Notes (D11-5 record).
+- Expect: "Vaccines imported" / "Vacinas importadas" + "{count} vaccines saved" (+ "{count} entries without a readable date were skipped."); records dated from the card; details in Notes (D11-5 record).
 
 **F11-15 — Export**
 - Do: Export → "Choose what to export" / "Escolha o que exportar" → CSV → share sheet. PDF on free → "PDF export is Premium" / "A exportação em PDF é Premium" with Cancel first, "Go Premium" second.

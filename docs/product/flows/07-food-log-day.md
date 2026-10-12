@@ -35,7 +35,7 @@ The food log is a **retention engine** (founder 2026-09-27): a friendly daily ch
 | P3 | Typed food from 9 days ago | Not logged; "I can log food from the last 7 days…" and the typed text comes back (FL-45). |
 | P4 | Typed offline yesterday | Row saved `pending`; read on the next chat open / hero focus / reconnect, by this device only (FL-19). |
 | P5 | Closed yesterday with nothing logged | Asked "Did you really eat nothing?" at that time; if "Just close the day", yesterday breaks the run (FL-47). |
-| P6 | Tapped last night's 20:00 reminder this morning | The chat asks about yesterday, not "today" (FL-40). |
+| P6 | Tapped last night's 20:00 reminder this morning | Body tap: the chat asks about yesterday, not "today" (FL-40). The **Log it** button carries no day, so a meal sent from it logs onto today (D07-10). |
 | P7 | Reached the 25 AI reads today | "You've reached today's logging limit — it resets tomorrow."; text kept (FL-20). |
 | P8 | Free days ended | Hero locked → Paywall; chat shows the locked card; no 20:00 questions (FL-41). |
 | P9 | Premium ended during a running check | Grace to the end of the current check week; note explains with the user's numbers. |
@@ -77,8 +77,8 @@ stateDiagram-v2
     Pending --> Partial: catch-up read ok
     Pending --> NotFood: refused, unreadable or older than 7 days
     Empty --> Partial: message read (done)
-    Partial --> Closed: That's all for today, Day done chip, 20:00 Nothing else today
-    Empty --> ClosedEmpty: Just close the day, or 20:00 Nothing else today
+    Partial --> Closed: That's all for today, Day done chip, 20h Nothing else today
+    Empty --> ClosedEmpty: Just close the day, or 20h Nothing else today
     Empty --> ClosedAteNothing: close then I ate nothing
     NotFood --> ClosedEmptyNoQuestion: close (the ate-nothing question is not asked today)
     ClosedEmpty --> Closed: food logged later for d
@@ -136,11 +136,12 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> NoCheck
     NoCheck --> Planned: reality check open, switch on, can log
-    Planned --> Scheduled: day inside the 7-day window and 20:00 ahead
-    Scheduled --> Cancelled: day closed before 20:00
-    Scheduled --> Delivered: 20:00
+    Planned --> Scheduled: day inside the 7-day window and 20h ahead
+    Scheduled --> Cancelled: day closed before 20h
+    Scheduled --> Delivered: 20h
     Delivered --> Closed: Nothing else today (closes that evening's day, also after midnight)
-    Delivered --> Chat: body tap or Log it (logs onto that day)
+    Delivered --> Chat: body tap (asks about that evening's day)
+    Delivered --> ChatNoDay: Log it (carries no day, after midnight it logs onto today, D07-10)
     Planned --> NoCheck: check stopped or finished, switch off, access lost
 ```
 
@@ -149,7 +150,7 @@ stateDiagram-v2
 ### 7.1 Catch-ups and dates
 - Up to 7 days back, the item's own `days_ago` wins; one message eaten on several days = one bubble with one entry card per day (FL-38). Older than 7 days → refused kindly, text kept (FL-45).
 - "Fix this entry": items, kcal / carbs / protein editable, day bar Today / Yesterday / Earlier day (2–7 days ago); category set by the AI, not editable ("Categoria não importa, as calorias sim").
-- **Divergence today (04 G-16):** "Remove entry" in the fix sheet deletes without asking (every other delete asks first — decision 2026-10-03). Intended: ask first.
+- **Divergence today (04 G-16):** "Remove entry" in the fix sheet deletes without asking (every other delete asks first — decision 2026-10-03). Saving "Fix this entry" with every item cleared also deletes the entry without asking (`FoodEntryEditor.js:86`). Intended: ask first in both cases.
 
 ### 7.2 Questions and closing
 - After each entry dated today: ONE question per missing category (meal → snack → drink → supplement → "anything else"), past tense from 19:00; none once the day is closed (FL-4/FL-5).
@@ -157,11 +158,11 @@ stateDiagram-v2
 - Closing a day with no food → "Nothing logged for this day" / "Did you really eat nothing? Your reality check measures your real daily calories… Only a day you confirm as "nothing eaten" counts toward your 7 days in a row." → Cancel / **Just close the day** / **I ate nothing** (FL-47).
 - The 20:00 "Nothing else today" closes without asking (accepted FL-47 deviation) → an empty day closed there breaks the run.
 - **Divergence today (04 D-16):** closing a day whose only rows are refused / unreadable / too old / pending does not ask "I ate nothing" (the check counts any non-marker row) → the day silently breaks the run.
-- **Divergence today (04 G-4):** "Not recorded" day marks: the rule says a manual mark breaks the run, but no UI writes it any more (legacy read only). Strings `nutri_mark_not_recorded`, `nutri_unlogged_*` are unused.
+- **Divergence today (04 G-4):** "Not recorded" day marks: the signed rule (FL-3) says a manual mark breaks the run, but no UI writes it any more (legacy read only). Strings `nutri_mark_not_recorded`, `nutri_unlogged_*` are unused. **OPEN-18 (2)** (was DL-66) whether the mark is retired (FL-3 amended — a signed-row change that belongs on the founder's deviation list) or brought back in the UI.
 
 ### 7.3 Offline
 - Row saved `pending` before the call; "Saved — I'll estimate the calories when you're back online." only when NetInfo says offline (FL-46); otherwise "Saved — the AI couldn't be reached just now. I'll try again in a moment, and each time you open the log."; retried after 20 s, on reconnect, on each chat open and hero focus — by the typing device only (FL-19).
-- **SUSPECTED (04 §8.5):** a quota hit on a retry keeps the row pending forever (retried every open).
+- **Divergence today (04 §8.5; CONFIRMED by reading, 04 verification DV-066):** a quota hit on a retry keeps the row `pending` forever (retried on every open). The fix proposed in DL-28 ("retry after local midnight") cannot work: `parse-food` counts the cap per `entry_date` (`index.ts:161-171`) and the row's date never changes, so once that date has 25 reads every retry is refused. The fix needs one of: re-date and ask the user, a server exemption for re-parses, or a permanent "not read — limit reached, tap to remove / retype" state.
 
 ### 7.4 App killed / chat closed
 - Draft per user survives closing (`dosetrace_food_draft:<uid>`), also text put back after a failed send (FL-36). Auto-close after 30 s idle with the keyboard down or on background — never with text in the box, while sending, with a sheet open, or with a screen reader on; never when embedded on the Fold (FL-32, BK-17).
@@ -173,11 +174,12 @@ stateDiagram-v2
 
 ### 7.6 Timezone / DST / midnight
 - A food day runs local midnight to midnight (FL-24); stored `entry_date` is the local day at write time and never moves; thread dividers may shift after a zone change.
-- The 25-read quota bucket is the `entry_date` sent (logging for yesterday counts against yesterday's 25); resets at local midnight (FL-22).
+- The 25-read quota bucket is the `entry_date` sent (logging for yesterday counts against yesterday's 25) (FL-22). A **new** date starts at 0 at local midnight, but a given date's counter never resets — a date that is already full stays full.
 - **Divergence today (04 D-5, SUSPECTED):** the Today/Journey hero and Progress compute on focus only — after midnight "Today: N items" can show yesterday until refocus.
 
 ### 7.7 Notification tap
-- 20:00 body → FoodChat with the evening question for that day; **Log it** → FoodChat logging onto that day ("Logging for {day}"); **Nothing else today** → no navigation, closes that day (headless on Android, opens the app on iOS).
+- 20:00 body → FoodChat with the evening question for that day (the tap carries `eveningDay`); **Nothing else today** → no navigation, closes that day (headless on Android, opens the app on iOS).
+- **Log it** → FoodChat with the composer focused. **Divergence today (03 §F, NEW-2):** the button carries no day — `foodTapParams` returns only `{ logIt }` (`notificationPlan.js:153`) and `FoodChatScreen.js:185-189` only focuses the composer — so after midnight, "Log it" on last night's question logs onto **today**, not the evening's day. Intended: it logs onto the day the question was about (as the body tap does). FL-40's "Log it for an earlier day" is the in-chat bubble, not this button.
 - The evening bubble in the chat offers Log it / Nothing else today / I'll eat later.
 
 ### 7.8 Fold
@@ -187,7 +189,7 @@ stateDiagram-v2
 - 7 free days from the first use; last 2 days: note "Your 7 free days end on {until} — food logged on {logged} days so far…" + See Premium; then locked: hero "Your free days are used — Premium keeps the log going." → Paywall; chat locked card "Log your day in a sentence" + Unlock Premium; no 20:00 questions.
 - Lapsed payer: grace to the end of the current check week, never "free days" wording.
 - **Divergence today (04 D-15, 07 D-2, G-1):** `parse-food` never checks access on the server (ledger: "the server stays authoritative for paid AI calls") — an old or modified client can log while locked.
-- **Divergence today (04 D-9, presentation):** the status line, the "so far" footer and the grace note can show three different day counts on one screen.
+- **Divergence today (04 D-9, presentation):** on a phone, Progress shows two day counts (the status line and the "so far" footer), identical until a run of 7 or more exists, then different; all three (with the grace note, which renders only in the food card and the chat) appear side by side only in the Fold book layout (Journey + Progress).
 
 ### 7.10 AI hard line
 - The AI never writes a sentence shown to the user (FL-16); advice-shaped requests ("what should I eat to lose weight?") → fixed card "I don't give diet advice" / "DoseTrace logs and totals what you eat — it doesn't recommend what to eat. For guidance, talk to a doctor or registered dietitian." (FL-15). Fat stored, not shown (FL-17). Raw text never logged on the server.
@@ -198,7 +200,7 @@ stateDiagram-v2
 |---|---|---|---|---|---|
 | No check, nothing today | hidden | "AI food log" · "Nothing logged yet today" · Log food | intro + composer | none | — |
 | No check, food today | hidden | "Today: {n} items · ~{kcal} kcal" | thread of the last 7 typed days | none | — |
-| Check running, day n | "AI food log" · "Reality check · day {n} of 21" · "{n} of 7 in a row" · today's line | today's line + "{n} of 7 days in a row" | as above | 20:00 daily unless closed | "{n} of 7 so far" |
+| Check running, day n | "AI food log" · "Reality check · day {n} of 21 · {n} of 7 days in a row" (PT "… · {n} de 7 seguidos") · today's line | today's line + "{n} of 7 days in a row" | as above | 20:00 daily unless closed | "{n} of 7 so far" |
 | Today closed | "Today is closed · ~{kcal} kcal" | same | "All set for today — thanks. See you tomorrow." | cancelled for today | run +1 tomorrow |
 | Offline entry | line counts done rows only | same | entry card "Saved — I'll estimate…" | — | not counted until read |
 | Free days ending (2 left) | + note | + note "Your 7 free days end on {until}…" + See Premium | caveat line | — | — |
@@ -224,7 +226,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble (FL-38). R-F3 catch-ups ≤ 7 days (FL-2/45). R-F4 one question per missing category (FL-4/5). R-F5 only explicit phrases close (FL-6/29). R-F6 empty closed day breaks unless "I ate nothing" (FL-47). R-F7 AI writes no sentences (FL-16). R-F8 refusal → fixed deflection (FL-15). R-F9 quotas 25 parses + 25 follow-ups per entry_date, 60 / 24 h ceiling, reserved before the call (FL-20/21/22). R-F10 offline-first, re-parse by the typing device only (FL-19). R-F11 fat stored, not shown (FL-17). R-F12 auto-close rules (FL-32/36). R-A1…A5 access (FL-41). R-R11 20:00 question (FL-18/42). (`04 §4`.)
+R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble (FL-38). R-F3 catch-ups ≤ 7 days (FL-2/45). R-F4 one question per missing category (FL-4/5). R-F5 only explicit phrases close (FL-6/29). R-F6 empty closed day breaks unless "I ate nothing" (FL-47). R-F7 AI writes no sentences (FL-16). R-F8 refusal → fixed deflection (FL-15). R-F9 quota 25 AI parses per entry_date, reserved before the call; answering a follow-up never uses one of the 25 (decisions.md:251, FL-20/21/22). As built the server also caps 25 follow-up answers per entry_date and 60 calls per rolling 24 h — builder choices with no ledger line; pending the deviation list (A-97, consistency X-09), not decided. R-F10 offline-first, re-parse by the typing device only (FL-19). R-F11 fat stored, not shown (FL-17). R-F12 auto-close rules (FL-32/36). R-A1…A5 access (FL-41). R-R11 20:00 question (FL-18/42). (`04 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -234,19 +236,21 @@ R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble
 | D07-2 | Closing a not-food-only day asks "I ate nothing" | Not asked | `04 D-16` | DV-064 |
 | D07-3 | Remove entry asks first | No confirm | `04 G-16` | DV-003 |
 | D07-4 | Hero / Progress re-date at midnight | Focus only | `04 D-5` | DV-148 |
-| D07-5 | One day count per screen | Three | `04 D-9` | DV-146 |
+| D07-5 | One day count per screen | Two on a phone (Progress); three only on the Fold book layout | `04 D-9` | DV-146 |
 | D07-6 | Sign-out clears the chat draft | Survives | `07 D-17` | DV-081 |
-| D07-7 | "Not recorded" mark exists in UI (FL-3) or rule dropped | No UI; strings dead | `04 G-4`, `G-11` | DV-151, DV-181 |
-| D07-8 | Quota hit on retry handled | Pending forever (SUSPECTED) | `04 §8.5` | DV-066 |
+| D07-7 | **OPEN-18 (2)** (was DL-66) "Not recorded" mark exists in UI (FL-3) or rule dropped (deviation list) | No UI; strings dead | `04 G-4`, `G-11` | DV-151, DV-181 |
+| D07-8 | Quota hit on retry handled (fix needs DL-28's correction — the cap is per `entry_date`) | Pending forever (CONFIRMED by reading) | `04 §8.5` | DV-066 |
 | D07-9 | 20:00 copy identical in server push | Dormant server copy differs | `04 G-12` | DV-145 |
+| D07-10 | Notification "Log it" logs onto the evening's day | Carries no day; after midnight logs onto today | `03 verification §F` (NEW-2) | — (new, S2) |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **DL-66 — The "not recorded" mark (FL-3).** Decided by logic: retired (legacy rows still read); FL-47's "Just close the day" is the way to break a run on purpose; FL-3 amended. → DV-151.
+- **OPEN-18 (2)** (was DL-66) — The "not recorded" mark (FL-3).** Proposed: retire it (legacy rows still read); FL-47's "Just close the day" is the way to break a run on purpose. Not decided: it amends the signed row FL-3, so it goes on the founder's deviation list (A-97) for a written OK — keep the mark (bring the UI back) or accept the retirement. → DV-151.
+- **OPEN-07** (was DL-51) — Does finishing a check end the 20:00 question (A-24).** DL-51 calls A-24 closed ("the 20:00 question follows the open check, and a check cannot be saved early any more"), but that rests on the self-finishing check, which OPEN-07 still asks the founder to confirm (option B brings back early result buttons). Open until OPEN-07 is answered. → DV-144.
 - **AD-01 — Remove entry asks first** (D07-3). Already decided: every delete asks first (decisions.md:46). → DV-003.
-- No OPEN question remains in this flow.
+- No other OPEN question remains in this flow; D07-10 ("Log it" carries no day) is a new divergence with no register row yet.
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -303,6 +307,7 @@ Account Test03 (AI consent may be accepted on this account for tests; delete tes
 - Setup: reality check open (flow 08); day not closed; clock 20:00.
 - Expect: notification "Anything else today?" / "Mais alguma coisa hoje?" + "Anything you ate today that isn't logged yet — and will you eat again today?" with **Log it** / "Registrar" and **Nothing else today** / "Nada mais hoje". Nothing else today → day closed without opening the app (Android) and no "I ate nothing" question.
 - Tap the body the next morning → the chat asks "Anything you ate yesterday that isn't logged yet?" / "Comeu algo ontem que ainda não registrou?".
+- Tap **Log it** the next morning and send a meal without a day → intended: logged onto yesterday. **Today:** logged onto today — record D07-10.
 
 **F07-14 — No 20:00 without a check**
 - Setup: no open check.
@@ -311,6 +316,7 @@ Account Test03 (AI consent may be accepted on this account for tests; delete tes
 **F07-15 — Daily limit**
 - Setup: 25 AI reads today (test account).
 - Expect: "You've reached today's logging limit — it resets tomorrow." / "Você atingiu o limite de registros de hoje — amanhã ele é renovado."; text kept; nothing half-saved.
+- Note: "it resets tomorrow" is true for today's date only. For an entry dated an earlier day whose 25 reads are already used (a catch-up such as "yesterday I had…"), it never resets (low priority; see §7.6).
 
 **F07-16 — Free days ending and locked**
 - Setup: free account, first use 5 days ago → 2 left.

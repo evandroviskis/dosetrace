@@ -31,6 +31,9 @@
     --div-ink: #5c3a0c;
     --chip-bg: #eceae3;
     --chip-ink: #3c3a34;
+    --pend-bg: #e7ebf5;
+    --pend-line: #4b5f99;
+    --pend-ink: #24335c;
     --shadow: 0 1px 2px rgba(20, 18, 14, 0.06);
   }
   @media (prefers-color-scheme: dark) {
@@ -49,6 +52,9 @@
       --div-ink: #f6dcb2;
       --chip-bg: #2a2c2a;
       --chip-ink: #dcd9d1;
+      --pend-bg: #1c2233;
+      --pend-line: #8fa3dd;
+      --pend-ink: #d4dcf4;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     }
   }
@@ -67,6 +73,9 @@
     --div-ink: #f6dcb2;
     --chip-bg: #2a2c2a;
     --chip-ink: #dcd9d1;
+    --pend-bg: #1c2233;
+    --pend-line: #8fa3dd;
+    --pend-ink: #d4dcf4;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 
@@ -154,6 +163,13 @@
   }
   .div-tag { display: block; font-weight: 700; font-size: 12px; letter-spacing: 0.01em; color: var(--div-ink); margin-bottom: 2px; }
   .muted { color: var(--ink-3); }
+  td.pend, .pend-box {
+    background: var(--pend-bg); color: var(--pend-ink);
+    box-shadow: inset 3px 0 0 var(--pend-line);
+  }
+  .pend-tag { display: block; font-weight: 700; font-size: 12px; letter-spacing: 0.01em; color: var(--pend-ink); margin-bottom: 2px; }
+  .pend-box { border-radius: 10px; padding: 10px 14px; font-size: 14px; margin: 12px 0 0; max-width: 860px; }
+  .sample-pend { display: inline-block; background: var(--pend-bg); color: var(--pend-ink); box-shadow: inset 3px 0 0 var(--pend-line); padding: 2px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; }
   .sample-div { display: inline-block; background: var(--div-bg); color: var(--div-ink); box-shadow: inset 3px 0 0 var(--div-line); padding: 2px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; }
 
   footer { padding: 40px 0 60px; color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line); margin-top: 40px; }
@@ -201,11 +217,12 @@
 
 <header class="top">
   <h1>Os 14 fluxos do DoseTrace</h1>
-  <p class="sub">Cada fluxo mostra como o app deve se comportar (o comportamento aprovado), em quais situações a pessoa pode estar quando chega, e o que cada tela mostra em cada momento. Onde o app de hoje faz diferente, a célula vem destacada para você ver o que precisa ser corrigido.</p>
+  <p class="sub">Cada fluxo mostra como o app deve se comportar (o comportamento aprovado), em quais situações a pessoa pode estar quando chega, e o que cada tela mostra em cada momento. Onde o app de hoje faz diferente, a célula vem destacada para você ver o que precisa ser corrigido. Corrigido em 12/10 depois da conferência independente (docs/product/verification): o que antes aparecia como decidido por lógica, mas é escolha sua, agora aparece como “Falta sua decisão”.</p>
   <div class="legend">
     <div><strong>Mapa de estados</strong>Cada caixa é uma situação em que a pessoa (ou um dado) pode estar. Cada seta diz o que faz mudar de uma situação para a outra. O ponto preto é o começo.</div>
     <div><strong>O que cada tela mostra</strong>Uma linha por situação, uma coluna por tela. Todas as telas precisam concordar entre si: se uma mostra algo diferente, é defeito.</div>
     <div><strong>Destaque</strong><span class="sample-div">Hoje está diferente:</span><br>a célula descreve o comportamento aprovado, e a linha em destaque diz o que o app faz hoje.</div>
+    <div><strong>Ainda não decidido</strong><span class="sample-pend">Falta sua decisão (DL-03):</span><br>algo que antes aparecia como “aprovado por lógica”, mas a conferência de 12/10 mostrou que é escolha sua (gosto, dinheiro, risco ou escopo). A célula diz o que o app faz hoje; a escolha espera você.</div>
   </div>
 </header>
 
@@ -355,7 +372,8 @@ stateDiagram-v2
   ResetPassword --> Auth: Agora não, ou link<br>expirado
 </pre>
   </div>
-  <p class="caption">Os 8 passos do primeiro acesso: abertura, recursos, objetivo, o que acompanhar, sobre você, rotina, Antes de começar (4 caixas de consentimento) e Nunca perca uma dose. No Android vem depois o passo Garanta que seus lembretes cheguem.</p>
+  <p class="caption">Os 8 passos do primeiro acesso: abertura, recursos, objetivo, o que acompanhar, sobre você, rotina, Antes de começar (4 caixas de consentimento) e Nunca perca uma dose. No Android vem depois o passo Garanta que seus lembretes cheguem, assim que a pessoa responde ao pedido do sistema (permitindo ou negando), como diz a regra assinada SP-4.</p>
+  <p class="pend-box"><span class="pend-tag">Falta sua decisão (DL-50):</span>o app já faz o que a SP-4 pede; a proposta só muda a redação da regra assinada, então vai para a lista de diferenças para você aceitar.</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -366,7 +384,7 @@ stateDiagram-v2
         <tr><td>No meio do primeiro acesso</td><td>Barra de progresso, Voltar, <b>Continuar</b> apagado até responder</td><td>—</td><td>—</td><td>nenhuma</td><td>respostas guardadas</td></tr>
         <tr><td>Sobre você, ano fora do limite</td><td>“O DoseTrace é para adultos: informe um ano de nascimento entre 1900 e {máx}.” Continuar apagado</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Nunca perca uma dose</td><td><b>Ativar notificações</b> / <b>Agora não</b></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Passo de lembretes (Android)</td><td>“Garanta que seus lembretes cheguem”, barra “N de M prontos”, linhas com Ligar / Ajustar / Abrir, <b>Continuar</b> ou <b>Concluído</b>, <b>Configurar depois</b></td><td>—</td><td>—</td><td>—</td><td>marca “passo visto”</td></tr>
+        <tr><td>Passo de lembretes (Android)</td><td>“Garanta que seus lembretes cheguem”, barra “{n} de {total} prontos”, linhas com Ligar / Ajustar / Abrir, <b>Continuar</b> ou <b>Concluído</b>, <b>Configurar depois</b></td><td>—</td><td>—</td><td>—</td><td>marca “passo visto”</td></tr>
         <tr><td>Criar conta</td><td>Apple (primeiro), Google, e-mail e senha, “Concordo com os Termos de uso e a Política de privacidade” (já marcado só se o consentimento foi dado agora)</td><td>—</td><td>—</td><td>—</td><td>e-mail só na memória</td></tr>
         <tr><td>Conta criada, falta confirmar</td><td>“Conta criada” + “Enviamos um link de confirmação para {e-mail}…”, Abrir app de e-mail, Reenviar link (30 s), Endereço errado? Voltar</td><td>—</td><td>—</td><td>—</td><td>respostas apagadas se eram desta pessoa</td></tr>
         <tr><td>Entrou, perfil incompleto</td><td>Concluir configuração: só os passos que faltam + Sair no canto</td><td>não acessível</td><td>não acessível</td><td>lembretes de sessões antigas podem tocar</td><td>sessão + dados baixados</td></tr>
@@ -389,7 +407,7 @@ stateDiagram-v2
         <tr><td>Cadastrou por e-mail e não abriu o link</td><td>Ao entrar: “Confirme seu e-mail antes de entrar…” com Reenviar link.</td></tr>
         <tr><td>Abriu o link de confirmação em outro celular</td><td>“Este link não funcionou” com “Seu e-mail talvez já esteja confirmado. Entre com seu e-mail e sua senha.”</td></tr>
         <tr><td>Já tem conta (outro celular, versão antiga)</td><td>“Já tem uma conta? Entrar” na abertura e os dados descem da nuvem.</td></tr>
-        <tr><td>Conta criada com Apple, agora no Android</td><td>Mostra “Continuar com Apple” no Android (quando o servidor confirma que funciona).</td></tr>
+        <tr><td>Conta criada com Apple, agora no Android</td><td>Mostra “Continuar com a Apple” no Android, que já funciona (desde 03/10; você entrou assim no Fold em 07/10). A chave da Apple no servidor vence em 04/04/2027: se não for renovada antes, toda entrada com Apple no Android falha.</td></tr>
         <tr><td>Conta antiga com dados faltando</td><td>Concluir configuração só com os passos que faltam.</td></tr>
         <tr><td>Ano de nascimento antigo indica menos de 18</td><td>Confirme sua idade, depois do perfil.</td></tr>
         <tr><td>Outra pessoa usou este celular e deixou respostas</td><td>Nunca grava essas respostas nesta conta; são descartadas ao entrar.</td></tr>
@@ -397,6 +415,7 @@ stateDiagram-v2
         <tr><td>Reinstalou no iPhone</td><td>Pode entrar direto (a sessão às vezes sobrevive) e os dados descem da nuvem. Suspeito, não confirmado.</td></tr>
         <tr><td>Sem internet na primeira abertura</td><td>O primeiro acesso funciona; Criar conta e Entrar avisam da rede; nada se perde.</td></tr>
         <tr><td>Notificações já negadas no sistema</td><td>“Ativar notificações” não mostra pedido; segue para Criar conta.</td></tr>
+        <tr><td>Disse “Agora não” às notificações</td><td>O pedido do sistema não aparece ao abrir o app; ele vem quando a pessoa salva o primeiro protocolo com horário de lembrete, e no Android a tela “Garanta que seus lembretes cheguem” abre uma vez (regra SP-5; decidido pelo registro, por lógica).</td></tr>
       </tbody>
     </table>
   </div>
@@ -439,13 +458,20 @@ stateDiagram-v2
   S1 --> S1: Próximo sem nome,<br>aviso de nome<br>faltando
   S2 --> S3: Próximo
   S3 --> S3: Próximo bloqueado,<br>pó acima da<br>seringa ou unidade<br>errada
+  S3 --> S3: leitura do rótulo<br>falhou (permissão,<br>foto grande ou não<br>leu), aviso
   S3 --> S4: Próximo, aspiração<br>válida (pronto<br>para uso acima da<br>seringa só avisa)
   S4 --> S5: Próximo, frasco<br>novo de pó
   S4 --> Saving: Salvar (pronto<br>para uso, oral ou<br>edição)
   S5 --> Saving: Salvar ou pular o<br>frasco
   S1 --> Assistant: Montar ou Terminar<br>com IA
   S3 --> Assistant: Pedir ajuda à IA
-  Assistant --> S1: devolve ao<br>primeiro passo que<br>falta
+  S2 --> Assistant: Terminar com IA<br>(só protocolo novo)
+  S4 --> Assistant: Terminar com IA<br>(só protocolo novo)
+  S5 --> Assistant: Terminar com IA<br>(só protocolo novo)
+  Assistant --> Assistant: sem internet ou<br>erro, aviso na<br>janela, que fica<br>aberta
+  Assistant --> S1: devolve ao passo 1<br>(sem nome)
+  Assistant --> S3: devolve ao passo 3<br>(faltam campos da<br>dose)
+  Assistant --> S4: devolve ao passo 4<br>(nome e dose<br>prontos)
   Assistant --> Last: Preencher o<br>formulário
   Assistant --> Saving: Salvar no cartão<br>de revisão
   Last --> Saving: Salvar
@@ -463,7 +489,7 @@ stateDiagram-v2
   ActiveToday --> [*]
 </pre>
   </div>
-  <p class="caption">“Perdido (aceito)”: se o app é fechado à força no meio do assistente, o formulário some. Já decidido: o rascunho vale até salvar ou fechar o app, como a conversa do assistente de IA.</p>
+  <p class="caption">“Perdido (aceito)”: se o app é fechado à força no meio do assistente, o formulário some. Já decidido: o rascunho vale até salvar ou fechar o app, como a conversa do assistente de IA. O assistente devolve a pessoa ao passo 1 se falta o nome, ao passo 3 se faltam campos da dose, e ao passo 4 no resto. A data de criação do protocolo já vai para a nuvem; o que falta: baixar da nuvem nunca corrige a data guardada no celular, e o frasco não envia a sua.</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -493,13 +519,16 @@ stateDiagram-v2
         <tr><td>Frasco já pela metade</td><td>Não há campo “doses já usadas”; o frasco novo começa em 0. Pendente de decisão sua.</td></tr>
         <tr><td>Ainda não reconstituiu</td><td>“Ainda não reconstituí este frasco — pular”; Hoje mostra “+ Adicionar frasco” depois.</td></tr>
         <tr><td>Digitou o total da semana como dose</td><td>Rótulo “Dose por aplicação” + dica; aviso de passar da seringa com “Por quê” e “Pedir ajuda à IA”.</td></tr>
-        <tr><td>Intervalo longo (a cada 12 semanas)</td><td>Intervalo personalizado; os lembretes continuam sendo renovados na janela.</td></tr>
+        <tr><td>Intervalo longo (a cada 12 semanas)</td><td>“Personalizado” com o número de dias digitado (1 a 999); o passo 4 mostra só “Todo dia” e “Personalizado”, sem botões prontos de 1 a 7, 10 ou 14. Os lembretes continuam sendo renovados na janela.</td></tr>
         <tr><td>Já tem 3 protocolos ativos (grátis)</td><td>Aviso de limite antes de abrir o assistente; conferido de novo ao salvar.</td></tr>
+        <tr><td>Premium venceu com mais de 3 ativos</td><td class="pend"><span class="pend-tag">Falta sua decisão (DL-24, junto com OPEN-05):</span>hoje a pessoa continua com todos os protocolos ativos. Manter assim ou criar uma regra para quando o Premium vence é escolha de dinheiro, sua. A recomendação continua “manter”.</td></tr>
         <tr><td>O mesmo composto já está ativo</td><td>Permitido ao criar (o aviso existe só em Retomar).</td></tr>
         <tr><td>Foi interrompido no meio (ligação, app fechado)</td><td>Já decidido: o rascunho fica guardado até salvar ou fechar o app; se o app é fechado à força, o formulário se perde (aceito, igual à conversa do assistente). Hoje já é assim.</td></tr>
         <tr><td>Esgotou o assistente na semana</td><td>O assistente diz quando renova; o formulário manual segue funcionando.</td></tr>
         <tr><td>Esgotou as leituras do mês</td><td>“Limite mensal de leituras atingido” com o número do servidor; digitar à mão continua funcionando.</td></tr>
-        <tr><td>Sem internet</td><td>Formulário manual funciona inteiro; assistente e leitura devolvem ao formulário com as respostas.</td></tr>
+        <tr><td>Sem internet</td><td>Formulário manual funciona inteiro. O assistente mostra “Não consigo me conectar agora. Você pode continuar no formulário — tudo o que você respondeu fica guardado.” e continua aberto, com o texto na caixa; ao fechar, volta ao formulário com as respostas (nenhum composto preenchido, nenhum uso contado). A leitura do rótulo mostra o aviso de erro.</td></tr>
+        <tr><td>Comprimido com dose em UI</td><td class="div"><span class="div-tag">Hoje está diferente:</span>o app bloqueia o Próximo do passo 3 e o Salvar com “unidade errada”, embora UI seja uma unidade aceita para comprimidos. Defeito novo, ainda sem linha no registro.</td></tr>
+        <tr><td>Foto do rótulo grande demais</td><td class="div"><span class="div-tag">Hoje está diferente:</span>o aviso reaproveita o texto dos exames e pede “um PDF com menos de 10 MB”, palavra errada para uma foto.</td></tr>
         <tr><td>App em português ou outro idioma com vírgula</td><td>“0,5” = 0,5; “1.250” = 1250; campos preenchidos nunca vêm com separador de milhar.</td></tr>
       </tbody>
     </table>
@@ -551,7 +580,7 @@ stateDiagram-v2
         <tr><td>Agora (5 min antes ou já passou)</td><td>etiqueta <b>Agora</b>, <b>Pular</b> · <b>Concluir</b>, “Aspirar até N unidades” + seringa, dia X de Y · último local · sequência</td><td>entregue (+5 e +10 min se persistente)</td><td>—</td><td>—</td><td>o cartão mostra <b>Concluir</b></td><td>—</td><td>—</td></tr>
         <tr><td>Pergunta do local aberta</td><td>—</td><td>no Android a notificação fica até responder</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Concluída</td><td>o cartão sai para “Concluídas”; barra “Dose registrada” ou “Local salvo · {local}” com Desfazer por 4 s</td><td>avisos deste horário somem; os próximos de hoje continuam</td><td>contagem +1, anel enche, círculo da semana</td><td>“Dose concluída” com hora e local</td><td>estoque −1, “N de M doses restantes”</td><td>não muda (segue o esquema)</td><td>+1 dose usada; termina ao chegar na capacidade</td></tr>
-        <tr><td>Pulada</td><td>linha “Pulada — você ainda pode registrá-la” + Concluir</td><td class="div">Previsto: cancelada, com os repetidos e os adiados (sem barra de Desfazer: a linha da pulada já permite concluir).<span class="div-tag">Hoje está diferente:</span>a notificação ainda toca.</td><td>não conta (anel não muda)</td><td>“Dose pulada” (cor neutra)</td><td>—</td><td>não muda</td><td>não muda</td></tr>
+        <tr><td>Pulada</td><td class="pend">linha “Pulada — você ainda pode registrá-la” + Concluir.<span class="pend-tag">Falta sua decisão (DL-08, a barra de Desfazer):</span>hoje o Pular do cartão não mostra Desfazer, mas “Pulada” no bloco Pendente de ontem mostra. Ter ou não a barra para o Pular é escolha sua.</td><td class="div">Previsto (por lógica): cancelada, com os repetidos e os adiados.<span class="div-tag">Hoje está diferente:</span>a notificação ainda toca.</td><td>não conta (anel não muda)</td><td>“Dose pulada” (cor neutra)</td><td>—</td><td>não muda</td><td>não muda</td></tr>
         <tr><td>Pendente de ontem</td><td>bloco “Pendente de ontem”, linha “{nome} · ontem, {hora}” com <b>Pulada</b> / <b>Concluída</b></td><td>um toque até 12 h depois registra no horário</td><td>o anel de ontem conta ao gravar</td><td>—</td><td>o cartão mostra Concluir para o horário pendente</td><td>—</td><td>—</td></tr>
         <tr><td>Perdida (registro gravado)</td><td>some de Hoje</td><td>—</td><td>anéis de 7 e 30 dias contam como não tomada</td><td>“Dose perdida” (vermelho), abre “Atualizar esta dose”</td><td>contagem de perdidas no Registro de doses</td><td>—</td><td>—</td></tr>
         <tr><td>Tudo feito (cada dose concluída ou pulada)</td><td class="div">Previsto: “Tudo em dia por hoje”, com a linha da pulada ainda visível acima.<span class="div-tag">Hoje está diferente:</span>um dia com qualquer dose pulada nunca chega a “Tudo em dia”.</td><td>—</td><td>cabeçalho y de y</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -571,11 +600,15 @@ stateDiagram-v2
         <tr><td>Já pulou o horário de hoje</td><td>“Pulada — você ainda pode registrá-la”; Concluir transforma o mesmo registro.</td></tr>
         <tr><td>Criou o protocolo às 21h com horário das 08h</td><td>No dia da criação só contam horários a partir de 1 h antes de criar; uma dose recém-tomada continua registrável.</td></tr>
         <tr><td>Começou semanas atrás (histórico declarado)</td><td>Doses antes da criação nunca contam em anéis, sequências ou totais.</td></tr>
-        <tr><td>Adiou o lembrete há uma hora</td><td>A cópia adiada toca; Concluir nela registra no horário, dentro das 12 h.</td></tr>
+        <tr><td>Adiou o lembrete há uma hora</td><td>A cópia adiada toca. Concluir nela grava a hora do toque para o horário de hoje; para o horário de ontem, dentro das 12 h, grava a hora da dose.</td></tr>
+        <tr><td>Tocou a cópia adiada mais de 12 h depois do horário</td><td class="pend"><span class="pend-tag">Falta sua decisão (DL-67):</span>hoje é registrada agora, como dose de hoje. A regra proposta (“no máximo as doses esperadas naquele dia”) se contradiz em protocolos que não são diários: o adiamento “Amanhã” toca num dia de descanso, onde o esperado é zero, e recusaria uma dose real. Até você decidir, vale o limite de doses por dia de hoje.</td></tr>
+        <tr><td>Tocou Concluir na notificação de um oral</td><td>Android: grava sem abrir o app, na hora do toque. iPhone: o app abre em Hoje com a dose já concluída na hora do toque, sem pergunta do local (a pergunta é só para injetáveis).</td></tr>
         <tr><td>Tocou Concluir na notificação de injetável com o app fechado</td><td>A pergunta do local fica guardada; Hoje pergunta ao abrir.</td></tr>
         <tr><td>Viajou e mudou de fuso</td><td>Horários passados no fuso do próprio dia; os de hoje no fuso novo.</td></tr>
         <tr><td>Última dose do frasco</td><td>Registrar desativa o frasco e abre “Todas as doses registradas” (fluxo 04).</td></tr>
-        <tr><td>Protocolo sem horário de lembrete (antigo ou importado)</td><td class="div">Previsto: sem horário, sem “Agora” e sem “perdida”.<span class="div-tag">Hoje está diferente:</span>os anéis esperam a dose às 12h, o lembrete toca às 08h e os avisos de saúde contam esse protocolo.</td></tr>
+        <tr><td>Protocolo sem horário de lembrete (antigo ou importado)</td><td class="pend">Hoje: o lembrete toca às 08h e os avisos de saúde contam o protocolo (correto, porque ele é lembrado); o cartão não mostra horário nem “Agora”, não há pendente nem “perdida”, o cabeçalho conta a dose e os anéis a esperam às 12h.<span class="pend-tag">Falta sua decisão (DL-06, o horário padrão):</span>um horário só para todas as telas, mas qual: as 08h que o celular já usa, ou o padrão do formulário (agora arredondado, 14h, 21h)?</td></tr>
+        <tr><td>Tomou a dose das 08h só às 21h, no mesmo dia</td><td class="div">Previsto: a dose conta para o horário do próprio dia, como já faz a regra das perdidas.<span class="div-tag">Hoje está diferente:</span>os anéis creditam a dose ao horário seguinte (21h fica a 13 h das 08h, fora da metade do intervalo). Precisa de uma regra explícita que estenda a da metade do intervalo.</td></tr>
+        <tr><td>Sequência no acompanhamento</td><td class="pend"><span class="pend-tag">Falta sua decisão (DL-03):</span>hoje conta “dias sem falhar” (limitada a 31 dias; o previsto é olhar 365 dias). Contar dias ou doses muda o texto e o sentido; fica “dias” até você escolher, com imagem. A sequência do relatório usa a mesma regra do cartão do protocolo (doses).</td></tr>
         <tr><td>Protocolo encerrado em outro aparelho</td><td>Sai de Hoje depois de sincronizar; lembretes cancelados na próxima sincronização.</td></tr>
       </tbody>
     </table>
@@ -634,11 +667,11 @@ stateDiagram-v2
     <table>
       <thead><tr><th>Estado</th><th>Hoje</th><th>Meus protocolos (cartão e página)</th><th>Notificações</th><th>Relatório em Ajustes</th></tr></thead>
       <tbody>
-        <tr><td>Ok</td><td>quadradinhos do frasco no cartão, “N doses restantes”, dias restantes na cor normal</td><td>quadradinhos + “N de M doses restantes” · “{n} dias restantes”</td><td>—</td><td>doses restantes</td></tr>
+        <tr><td>Ok</td><td class="pend">quadradinhos do frasco no cartão, “N doses restantes”, dias restantes.<span class="pend-tag">Falta sua decisão (DL-16):</span>acima de 7 dias, Hoje pinta os dias de verde e Meus protocolos deixa em cinza. Sua escolha de “dias coloridos” (Q9 = B) foi feita para Hoje; qual das duas cores vale para as duas telas ainda é escolha sua.</td><td>quadradinhos + “N de M doses restantes” · “{n} dias restantes”</td><td>—</td><td>doses restantes</td></tr>
         <tr><td>Acabando (1 a 3)</td><td>aviso “Estoque baixo · {nome} — restam {n} doses” (âmbar)</td><td>âmbar “Baixo · {n} restantes”; linha no topo</td><td>um “Frasco acabando” (com o app rodando)</td><td>—</td></tr>
         <tr><td>Vencendo (7 dias ou menos)</td><td>aviso “Frasco vencendo · {nome} — vence em {n} dias”</td><td>dias em cor de atenção / risco</td><td>às 09h, 7 dias antes</td><td>—</td></tr>
-        <tr><td>Fora do prazo</td><td>aviso “{nome} — vencido”</td><td>etiqueta “Fora do prazo”, cor de risco</td><td>às 09h no dia</td><td>—</td></tr>
-        <tr><td>Terminado (pó)</td><td>aviso “Todas as doses registradas”</td><td>“M doses por frasco” (sem quadradinhos)</td><td>—</td><td>—</td></tr>
+        <tr><td>Fora do prazo</td><td>aviso “{nome} — vencido”</td><td class="div">etiqueta “Fora do prazo”, cor de risco, a partir do dia seguinte ao último dia válido.<span class="div-tag">Hoje está diferente:</span>o frasco pronto para uso já aparece “Fora do prazo” desde 00h do último dia do mês da caixa.</td><td>às 09h no dia</td><td>—</td></tr>
+        <tr><td>Terminado (pó)</td><td class="div">aviso “Todas as doses registradas” com só dois botões: <b>Registrar novo frasco</b> e <b>Protocolo concluído</b> (não existe “Agora não”).<span class="div-tag">Hoje está diferente:</span>“Protocolo concluído” só fecha o aviso.</td><td>“M doses por frasco” (sem quadradinhos)</td><td>—</td><td>—</td></tr>
         <tr><td>Terminado (pronto para uso)</td><td class="div">Previsto: “+ Adicionar frasco”.<span class="div-tag">Hoje está diferente:</span>não aparece nada.</td><td class="div">Previsto: botão Novo frasco.<span class="div-tag">Hoje está diferente:</span>só “M doses por frasco”, sem como começar outro frasco.</td><td>—</td><td>—</td></tr>
         <tr><td>Sem frasco (pó, passo pulado)</td><td>cartão “+ Adicionar frasco”; no Fold, página direita “Nenhum frasco reconstituído agora”</td><td>“M doses por frasco”</td><td>—</td><td>—</td></tr>
         <tr><td>Pote em uso (oral)</td><td>—</td><td>“Tomar N”, “Restante”, “Dias restantes”, <b>Novo frasco</b> quando já houve doses</td><td>—</td><td>—</td></tr>
@@ -660,6 +693,8 @@ stateDiagram-v2
         <tr><td>Frasco pronto para uso acabou na semana passada</td><td class="div">Previsto: começar um frasco novo por Meus protocolos (um registro novo, que pergunta a data da caixa).<span class="div-tag">Hoje está diferente:</span>não há como.</td></tr>
         <tr><td>Frasco de pó fora do prazo mas não vazio</td><td class="div">Previsto: “Novo frasco” na página do protocolo a qualquer momento (pergunta a data da reconstituição).<span class="div-tag">Hoje está diferente:</span>só quando está vazio ou não existe.</td></tr>
         <tr><td>Pote sem tamanho informado</td><td>Não é controlado; sem linha de estoque.</td></tr>
+        <tr><td>Desligou os avisos de estoque em Ajustes</td><td>A chave para só os avisos no celular; os avisos de estoque e de validade dentro do app continuam aparecendo.</td></tr>
+        <tr><td>Frasco pronto para uso renovado com “Novo frasco”</td><td class="div">Previsto: o aviso “Frasco acabando” volta a valer para o frasco novo.<span class="div-tag">Hoje está diferente:</span>o app reaproveita o mesmo registro, então esse aviso nunca mais toca para ele.</td></tr>
         <tr><td>Oral em dias alternados</td><td>Os dias de estoque devem usar o intervalo.</td></tr>
         <tr><td>Protocolo retomado</td><td>Pergunta Frasco novo / Continuar o mesmo frasco (fluxo 05).</td></tr>
         <tr><td>Outro aparelho registrou a última dose</td><td>O frasco chega inativo ao sincronizar; este celular ainda pode avisar “acabando” uma vez.</td></tr>
@@ -693,14 +728,16 @@ stateDiagram-v2
   Active --> Ended: Ainda em<br>andamento, Sim<br>terminou (data da<br>última dose<br>concluída)
   Active --> Ended: Encerrar protocolo<br>na página<br>(previsto, data do<br>toque)
   Active --> Ended: aviso do frasco<br>Protocolo<br>concluído<br>(previsto, depois<br>da imagem)
-  Active --> Ended: total do ciclo<br>atingido (previsto<br>pela lógica)
+  Active --> Ended: total do ciclo<br>atingido (falta sua<br>decisão, OPEN-03)
   Active --> Deleted: Excluir na página
   Ended --> Deleted: lixeira em<br>Encerrados
   Ended --> Ended: Retomar cria um<br>NOVO protocolo<br>ativo, o antigo<br>fica
   Deleted --> Active: Restaurar no mesmo<br>dia, abaixo do<br>limite, não estava<br>encerrado
   Deleted --> Ended: Restaurar quando<br>estava encerrado,<br>foi excluído antes<br>de hoje, ou no<br>limite
   Deleted --> Purged: Excluir para<br>sempre
-  Purged --> Deleted: registro voltou a<br>existir na nuvem
+  Purged --> Active: registro voltou<br>na nuvem, ativo
+  Purged --> Ended: registro voltou<br>na nuvem,<br>encerrado
+  Purged --> Deleted: registro voltou<br>na nuvem, excluído
   Active --> Deleted: envio não acha o<br>registro na nuvem
   Ended --> Deleted: envio não acha o<br>registro na nuvem
   Active --> Ended: outro aparelho<br>encerrou
@@ -710,7 +747,7 @@ stateDiagram-v2
   Purged --> [*]
 </pre>
   </div>
-  <p class="caption">“Previsto” marca caminhos aprovados que ainda não existem no app: o botão Encerrar protocolo na página e o aviso “Protocolo concluído” que encerra de verdade (os dois esperam a imagem para você escolher).</p>
+  <p class="caption">“Previsto” marca caminhos aprovados que ainda não existem no app: o botão Encerrar protocolo na página e o aviso “Protocolo concluído” que encerra de verdade (os dois esperam a imagem para você escolher). O fim pelo total do ciclo não está decidido (OPEN-03). Quando um registro excluído para sempre volta a existir na nuvem, ele volta no estado da nuvem (ativo, encerrado ou excluído). O botão de confirmação é “Excluir para sempre”.</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -736,13 +773,14 @@ stateDiagram-v2
         <tr><td>Terminou o último frasco e não vai comprar outro</td><td class="div">Previsto: o aviso “Protocolo concluído” encerra o protocolo (com “Depois”, quando a imagem for aprovada).<span class="div-tag">Hoje está diferente:</span>o aviso só fecha.</td></tr>
         <tr><td>Excluiu por engano hoje</td><td>Restaurar no mesmo dia volta a Ativo (abaixo do limite).</td></tr>
         <tr><td>Excluiu por engano semana passada</td><td>Restaurar leva a Encerrado (os dias excluídos não ficam devendo); depois Retomar.</td></tr>
-        <tr><td>Protocolos “Sim, terminou” de versões antigas</td><td>Não dá para separar das exclusões de propósito; a limpeza automática está pausada e todos aparecem em Excluídos recentemente.</td></tr>
+        <tr><td>Protocolos “Sim, terminou” de versões antigas</td><td>Não dá para separar das exclusões de propósito; a limpeza automática está pausada e todos aparecem em Excluídos recentemente. A pausa foi decidida pelo registro de decisões, por lógica (não foi você que aprovou); você aprovou só o Selecionar para excluir para sempre à mão. Retomar a limpeza é a pergunta OPEN-04.</td></tr>
         <tr><td>Encerrou no celular A, o celular B tem uma edição sem internet</td><td>O encerramento vence nos dois.</td></tr>
         <tr><td>Retomar com o mesmo composto já ativo</td><td>Avisa “{nome} já está ativo” antes.</td></tr>
-        <tr><td>Grátis com 3 ativos quer retomar ou restaurar um quarto</td><td>Retomar mostra o limite; Restaurar leva a Encerrado.</td></tr>
+        <tr><td>Grátis com 3 ativos quer retomar ou restaurar um quarto</td><td>Retomar mostra “Limite de protocolos atingido”, mas só por último: primeiro vem o aviso de composto já ativo (se houver), depois a pergunta do frasco; o limite é conferido no toque do botão do frasco e nada é gravado. Ou seja, a pessoa escolhe o frasco antes de ver o limite. Restaurar leva a Encerrado.</td></tr>
         <tr><td>Retomar ainda usando o frasco antigo</td><td>Pergunta Frasco novo / Continuar o mesmo frasco.</td></tr>
         <tr><td>Excluído para sempre em outro aparelho</td><td>O que já sincronizou some aqui; o que não sincronizou fica pendente, com o aviso de registros não salvos.</td></tr>
-        <tr><td>Protocolo com ciclo de duração fixa (antigo)</td><td>Os lembretes param no fim do ciclo; o que mais acontece é decisão sua.</td></tr>
+        <tr><td>Protocolo com ciclo de duração fixa (antigo)</td><td class="pend"><span class="pend-tag">Falta sua decisão (OPEN-03):</span>os lembretes param no fim do ciclo e o cartão fica em “Dia Y de Y” para sempre. Encerrar sozinho, perguntar “Ciclo concluído, encerrar {nome}?” ou outra opção: ainda não decidido.</td></tr>
+        <tr><td>Excluiu pela lixeira em Encerrados</td><td class="div">Previsto: igual a excluir pela página (lembretes cancelados, frascos guardados, avisos já entregues apagados).<span class="div-tag">Hoje está diferente:</span>a lixeira em Encerrados só cancela os lembretes.</td></tr>
       </tbody>
     </table>
   </div>
@@ -782,15 +820,15 @@ stateDiagram-v2
     <table>
       <thead><tr><th>Estado</th><th>Hoje</th><th>Garanta que seus lembretes cheguem (Android) / Verificar lembretes (iPhone)</th><th>Ajustes → Notificações</th><th>Notificações</th></tr></thead>
       <tbody>
-        <tr><td>Tudo certo</td><td>nenhum aviso</td><td>barra “N de N prontos”, tudo OK, “Próximo lembrete {dia, hora} · {nome}”, “{n} lembretes de dose agendados”, <b>Enviar um lembrete de teste</b></td><td>Android “Tudo pronto · próximo lembrete {quando}” / iPhone “Verificar lembretes · Nada está bloqueando”</td><td>na hora exata</td></tr>
+        <tr><td>Tudo certo</td><td>nenhum aviso</td><td>barra “{n} de {total} prontos”, tudo OK, “Próximo lembrete {dia, hora} · {nome}”, “{n} lembretes de dose agendados”, <b>Enviar um lembrete de teste</b></td><td>Android “Tudo pronto · próximo lembrete {quando}” / iPhone “Verificar lembretes · Nada está bloqueando”</td><td>na hora exata</td></tr>
         <tr><td>Permissão negada</td><td>“Seus lembretes estão bloqueados · Os avisos de dose não conseguem chegar até você. Toque para ver o porquê.”</td><td>linha vermelha “Desligadas para o DoseTrace” + Ligar</td><td>risco “Algo está bloqueando seus lembretes”</td><td>nenhuma</td></tr>
-        <tr><td>Alarmes exatos desligados</td><td>“Lembretes podem atrasar · Ligue “Alarmes e lembretes” para chegarem na hora.”</td><td>linha de atenção “Desligado: os lembretes podem chegar até 1 hora atrasados” + Ligar</td><td>“N de M prontos” (atenção)</td><td>até 1 h de atraso</td></tr>
-        <tr><td>Bateria otimizada</td><td>“A bateria pode atrasar os lembretes”</td><td>“Otimizada: o Android pode atrasar os lembretes” + Ajustar</td><td>“N de M prontos”</td><td>podem atrasar</td></tr>
-        <tr><td>Hibernação ligada</td><td>“Seus lembretes podem parar · O Android pode pausar o DoseTrace se você não abrir o app.”</td><td>“Ligada: depois de meses sem abrir o app, o Android pode parar os lembretes” + Desligar</td><td>“N de M prontos”</td><td>param depois de uns 3 meses sem uso</td></tr>
+        <tr><td>Alarmes exatos desligados</td><td>“Lembretes podem atrasar · Ligue “Alarmes e lembretes” para chegarem na hora.”</td><td>linha de atenção “Desligado: os lembretes podem chegar até 1 hora atrasados” + Ligar</td><td>“{n} de {total} prontos” (atenção)</td><td>até 1 h de atraso</td></tr>
+        <tr><td>Bateria otimizada</td><td>“A bateria pode atrasar os lembretes”</td><td>“Otimizada: o Android pode atrasar os lembretes” + Ajustar</td><td>“{n} de {total} prontos”</td><td>podem atrasar</td></tr>
+        <tr><td>Hibernação ligada</td><td>“Seus lembretes podem parar · O Android pode pausar o DoseTrace se você não abrir o app.”</td><td>“Ligada: depois de meses sem abrir o app, o Android pode parar os lembretes” + Desligar</td><td>“{n} de {total} prontos”</td><td>param depois de uns 3 meses sem uso</td></tr>
         <tr><td>Renovação atrasada</td><td>“Lembretes sem renovar há {n} dias”</td><td>linha de renovação “não roda há {n} dias” + Ajustar</td><td>“Lembretes sem renovar há {n} dias”</td><td>a janela não avança</td></tr>
-        <tr><td>2 ou mais avisos</td><td>um aviso só: “{n} ajustes para seus lembretes”</td><td>cada linha</td><td>“N de M prontos”</td><td>—</td></tr>
-        <tr><td>Modo silencioso</td><td>“Modo silencioso ligado · Nenhum lembrete de dose vai chegar.”</td><td>“O Modo silencioso está ligado nos Ajustes: nenhuma notificação é enviada”</td><td>interruptor ligado</td><td>nenhuma (só o teste)</td></tr>
-        <tr><td>Lembretes de dose desligados</td><td class="div">Previsto: nada.<span class="div-tag">Hoje está diferente:</span>a linha em Ajustes ainda pode aparecer vermelha.</td><td>“Os lembretes de dose estão desligados nos Ajustes”</td><td>interruptor desligado</td><td>nenhuma</td></tr>
+        <tr><td>2 ou mais avisos</td><td class="div">um aviso só: “{n} ajustes para seus lembretes”; cada aviso abre a tela no seu item.<span class="div-tag">Hoje está diferente:</span>os avisos de bloqueado, o combinado e o do Modo silencioso abrem a tela sem ir ao item.</td><td>cada linha</td><td>“{n} de {total} prontos”, ou o risco “Algo está bloqueando seus lembretes” quando um dos avisos é bloqueio</td><td>—</td></tr>
+        <tr><td>Modo silencioso</td><td>“Modo silencioso ligado · Nenhum lembrete de dose vai chegar.”</td><td>“O Modo silencioso está ligado nos Ajustes: nenhuma notificação é enviada”</td><td class="div">interruptor ligado; o Modo silencioso nunca deixa a linha vermelha.<span class="div-tag">Hoje está diferente:</span>com o Modo silencioso ligado e um bloqueio, a linha fica vermelha.</td><td>nenhuma (só o teste)</td></tr>
+        <tr><td>Lembretes de dose desligados</td><td>nada</td><td>“Os lembretes de dose estão desligados nos Ajustes”</td><td>interruptor desligado; a linha fica vermelha enquanto outro tipo de aviso ligado estiver bloqueado (correto, segue as regras assinadas RC-1 e SP-1)</td><td>nenhuma</td></tr>
         <tr><td>Nenhum agendado</td><td>aviso de bloqueado</td><td>“Nenhum agendado · Seus protocolos têm horário de lembrete, mas nenhum está agendado neste celular.”</td><td>risco</td><td>nenhuma</td></tr>
         <tr><td>Sono profundo da Samsung não conferido</td><td>nada (nunca levanta o aviso)</td><td>linha Abrir + <b>Já conferi</b></td><td>não fica “Tudo pronto” até conferir</td><td>—</td></tr>
       </tbody>
@@ -809,12 +847,15 @@ stateDiagram-v2
         <tr><td>Bateria “otimizada” (padrão em muitos celulares)</td><td>Linha de atenção + aviso em Hoje.</td></tr>
         <tr><td>Não abre o app há uns 3 meses</td><td>O Android pode congelar o app e perder os alarmes; aviso “Seus lembretes podem parar”.</td></tr>
         <tr><td>DoseTrace na lista de sono profundo da Samsung</td><td>Não dá para ler; linha Abrir + “Já conferi”.</td></tr>
-        <tr><td>Atualização pela Play Store ou celular reiniciado</td><td>Os lembretes são refeitos sem abrir o app.</td></tr>
+        <tr><td>Atualização pela Play Store ou celular reiniciado</td><td class="div">Previsto: os lembretes são refeitos sem abrir o app.<span class="div-tag">Hoje está diferente:</span>a reconstrução depois de uma atualização ainda não foi provada no aparelho (na atualização 47 → 48 os alarmes caíram de 245 para 8). Os 238 lembretes restaurados num reinício do Fold, sem abrir o app, foram obra do próprio sistema de notificações, antes do receptor do app existir.</td></tr>
         <tr><td>Ligou o Modo silencioso há semanas e esqueceu</td><td>Hoje: “Modo silencioso ligado — Nenhum lembrete de dose vai chegar.”</td></tr>
         <tr><td>Usuário de iPhone que nunca abre o app</td><td class="div">Previsto: lembretes enquanto durar o protocolo.<span class="div-tag">Hoje está diferente:</span>no iPhone os lembretes acabam em até 10 dias (decisão sua pendente).</td></tr>
         <tr><td>Versão antiga do Android (1.2.4 ou anterior)</td><td>Nenhum lembrete era agendado; corrigido, com prova no aparelho.</td></tr>
         <tr><td>Dois aparelhos, dose registrada no outro</td><td>Este celular continua lembrando até sincronizar com o app aberto (aceito).</td></tr>
         <tr><td>Mudou o idioma</td><td>Notificações já agendadas ficam no idioma antigo até a próxima sincronização completa.</td></tr>
+        <tr><td>Nunca escolheu um idioma (usa o do celular)</td><td class="div">Previsto: notificações no idioma do celular.<span class="div-tag">Hoje está diferente:</span>o idioma do celular nunca é guardado, então lembretes, botões e “Nada novo registrado” chegam em inglês.</td></tr>
+        <tr><td>Protocolo sem horário de lembrete</td><td class="pend">Ele é lembrado às 08h, então os avisos que o contam estão certos; a falta está em Hoje (fluxo 03).<span class="pend-tag">Falta sua decisão (DL-06):</span>o horário padrão é as 08h do celular ou a lista do formulário (agora arredondado, 14h, 21h)?</td></tr>
+        <tr><td>O app não consegue ler a permissão</td><td class="div">Previsto: linha “abrir e conferir”.<span class="div-tag">Hoje está diferente:</span>aparece como bloqueado (vermelho).</td></tr>
         <tr><td>Sessão perdida em silêncio</td><td>Os lembretes ficam, mas param de ser renovados e acabam no fim da janela.</td></tr>
       </tbody>
     </table>
@@ -858,6 +899,7 @@ stateDiagram-v2
 </pre>
   </div>
   <p class="caption">Para a sequência de 7 dias, conta como completo: um dia passado com comida, um dia fechado com comida, ou fechado com “Não comi nada”. Quebra a sequência: dia vazio, fechado vazio, ou só com mensagens que não eram comida.</p>
+  <p class="pend-box"><span class="pend-tag">Falta sua decisão (DL-66):</span>a regra assinada FL-3 também previa marcar um dia como “não registrado”, que quebra a sequência. A proposta de tirar essa marca muda uma regra assinada, então vai para a lista de diferenças para você aceitar ou não.</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -886,8 +928,9 @@ stateDiagram-v2
         <tr><td>Digitou comida de 9 dias atrás</td><td>Não registra: “Consigo registrar comida dos últimos 7 dias…” e o texto volta ao campo.</td></tr>
         <tr><td>Digitou sem internet ontem</td><td>Fica guardado e é lido na próxima abertura ou quando a internet volta, só por este aparelho.</td></tr>
         <tr><td>Fechou ontem sem registrar nada</td><td>Perguntou “Você realmente não comeu nada?”; com “Só fechar o dia”, ontem quebra a sequência.</td></tr>
-        <tr><td>Tocou hoje de manhã no lembrete das 20h de ontem</td><td>A conversa pergunta sobre ontem, não sobre hoje.</td></tr>
-        <tr><td>Chegou às 25 leituras do dia</td><td>“Você atingiu o limite de registros de hoje — amanhã ele é renovado.”; o texto é mantido.</td></tr>
+        <tr><td>Tocou hoje de manhã no lembrete das 20h de ontem</td><td class="div">Tocar na notificação abre a conversa sobre ontem, não sobre hoje. Previsto: o botão “Registrar” da notificação também registra no dia daquela noite.<span class="div-tag">Hoje está diferente:</span>o botão “Registrar” não leva o dia: só abre o campo de texto, e depois da meia-noite a comida entra em hoje.</td></tr>
+        <tr><td>Chegou às 25 leituras do dia</td><td class="div">“Você atingiu o limite de registros de hoje — amanhã ele é renovado.”; o texto é mantido. O registro de decisões fixa 25 leituras por dia, e as perguntas de acompanhamento nunca contam; os limites extras do servidor (25 acompanhamentos, 60 em 24 h) foram escolha de quem construiu e vão para a lista de diferenças.<span class="div-tag">Hoje está diferente:</span>o limite conta por data da comida: uma data nova começa em 0, mas uma data passada que encheu nunca é renovada, e a mensagem que ficou esperando leitura fica presa.</td></tr>
+        <tr><td>Corrigiu uma entrada e apagou todos os itens</td><td class="div">Previsto: toda exclusão pergunta antes.<span class="div-tag">Hoje está diferente:</span>salvar “Corrigir esta entrada” sem nenhum item exclui a entrada sem perguntar.</td></tr>
         <tr><td>Os dias grátis acabaram</td><td>Destaque bloqueado → Premium; conversa mostra o cartão bloqueado; sem perguntas das 20h.</td></tr>
         <tr><td>O Premium acabou durante uma medição</td><td>Carência até o fim da semana da medição; uma nota explica com os números da pessoa.</td></tr>
         <tr><td>Uma pergunta ficou aberta ontem</td><td>Volta ao reabrir, só se ainda fizer sentido.</td></tr>
@@ -940,7 +983,8 @@ stateDiagram-v2
   None --> Running: Pesar novamente em<br>21 dias (próxima<br>medição)
 </pre>
   </div>
-  <p class="caption">A medição termina sozinha quando o resultado fica pronto e a pessoa tem acesso (sem botão “Ver meu gasto calórico real”), pendente da sua confirmação. Se o dia 21 passou sem pesagem, a medição continua aberta: “Hora de se pesar”.</p>
+  <p class="caption">A medição termina sozinha quando o resultado fica pronto e a pessoa tem acesso (sem botão “Ver meu gasto calórico real”), pendente da sua confirmação (OPEN-07). Hoje isso só acontece quando a pessoa abre Progresso: Hoje e Evolução podem dizer “prontos” por dias sem nada salvo. Se o dia 21 passou sem pesagem, a medição continua aberta: “Hora de se pesar”. O campo do começo se chama “Peso (kg)”; ele e a pesagem do dia de início podem ser dois pesos diferentes, o que também é a pergunta OPEN-07.</p>
+  <p class="pend-box"><span class="pend-tag">Falta sua decisão (DL-51, depende de OPEN-07):</span>a proposta de dar por encerrado o item A-24 (“não dá mais para salvar a medição antes do fim”) parte da medição que termina sozinha, que você ainda não confirmou. Se você escolher resultados a partir do dia 14, o salvar antes volta.</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -949,10 +993,10 @@ stateDiagram-v2
       <tbody>
         <tr><td>Nenhuma medição</td><td>—</td><td>escondido</td><td>só a linha de hoje</td><td>“Seus números reais” + apresentação + Começar (ou explicação de bloqueio)</td><td>nenhuma</td></tr>
         <tr><td>Em andamento</td><td>“Pese-se em {data}”</td><td>“Seus números reais · dia {n} de 21 · {n} de 7 seguidos”</td><td>“{n} de 7 dias seguidos”</td><td>“Em andamento · pese-se em {data}”; progresso da sequência; link da média digitada (Premium); Parar / Começar de novo</td><td>20h todo dia; dia 21 às 10h agendado</td></tr>
-        <tr><td>Hora de se pesar</td><td>“Chegou a hora — toque para registrar seu peso”</td><td>“Seus números reais · hora de se pesar”</td><td>sequência</td><td>“Hora de se pesar…” + Registrar o peso de hoje</td><td>o do dia 21 já tocou; 20h continua</td></tr>
+        <tr><td>Hora de se pesar</td><td>“Chegou a hora — toque para registrar seu peso”</td><td>“Seus números reais · hora de se pesar”</td><td>sequência</td><td>“Hora de se pesar…” + Registrar o peso de hoje</td><td class="div">o do dia 21 já tocou; 20h continua. Previsto: tocar no lembrete do dia 21 abre o registro de peso.<span class="div-tag">Hoje está diferente:</span>tocar só rola Progresso até o cartão.</td></tr>
         <tr><td>Peso registrado, falta comida</td><td>“Peso registrado — faltam {n} dias seguidos de comida para o resultado”</td><td>“Seus números reais · peso registrado”</td><td>sequência</td><td class="div">Previsto: “Peso registrado — faltam {n} dias…”.<span class="div-tag">Hoje está diferente:</span>mostra “Em andamento · pese-se em {data passada}”.</td><td class="div">Previsto: 20h continua, o lembrete do dia 21 é cancelado pela pesagem.<span class="div-tag">Hoje está diferente:</span>o lembrete do dia 21 toca mesmo assim.</td></tr>
         <tr><td>Pronto (válido, com acesso)</td><td>“Seus números reais estão prontos — toque para ver”</td><td>“peso registrado”</td><td>“{d} dias completos”</td><td>o resultado aparece ao abrir (termina sozinho)</td><td>cancelados ao terminar</td></tr>
-        <tr><td>Resultado salvo</td><td>some</td><td>escondido (sem medição aberta)</td><td>linha de hoje</td><td>“Seu gasto diário real fica em torno de…”, destaque Medido, “Pesar novamente em 21 dias”</td><td>nenhuma</td></tr>
+        <tr><td>Resultado salvo</td><td>some</td><td>escondido (sem medição aberta)</td><td>linha de hoje</td><td class="div">“Seu gasto diário real fica em torno de…”, a linha da origem, “Histórico das suas medições”, destaque Medido, “Pesar novamente em 21 dias” e o link “Parar a medição”.<span class="div-tag">Hoje está diferente:</span>faltam a frase de quanto mudou por semana e a lista “O que provavelmente está acontecendo”. Além disso, “Parar a medição” aparece nesta tela sem medição aberta e apaga todos os resultados salvos (OPEN-08; o texto de confirmação nunca foi aprovado).</td><td>nenhuma</td></tr>
         <tr><td>Pronto, mas precisa do Premium</td><td class="div">Previsto: um texto dizendo que o resultado precisa do Premium.<span class="div-tag">Hoje está diferente:</span>diz “prontos — toque para ver” como se houvesse um número esperando.</td><td>“peso registrado”</td><td>destaque bloqueado se a comida está bloqueada</td><td>explicação de bloqueio + Seja Premium</td><td>sem 20h (acesso perdido)</td></tr>
         <tr><td>Pronto, sem resultado válido</td><td class="div">Previsto: aponta para Progresso, que explica.<span class="div-tag">Hoje está diferente:</span>diz “prontos”.</td><td>“peso registrado”</td><td>—</td><td>mensagem de manutenção / implausível / curto demais</td><td>continuam até Parar</td></tr>
         <tr><td>Parado</td><td>some</td><td>escondido</td><td>linha de hoje</td><td>Começar de novo</td><td>todas canceladas</td></tr>
@@ -974,7 +1018,7 @@ stateDiagram-v2
         <tr><td>Começou no celular A, parou no B</td><td>Parar vence nos dois.</td></tr>
         <tr><td>Começou sem internet em dois celulares</td><td>Vale o começo mais recente; o mais antigo para no próximo Parar.</td></tr>
         <tr><td>Terminou uma medição hoje e quer a próxima</td><td class="div">Previsto: “Pesar novamente em 21 dias” começa a próxima e o resultado salvo não a esconde.<span class="div-tag">Hoje está diferente:</span>o último resultado esconde a nova medição, que nunca termina.</td></tr>
-        <tr><td>Resultado implausível, de manutenção ou curto demais</td><td>Não é salvo; Progresso explica; Hoje não pode dizer “prontos — toque para ver”.</td></tr>
+        <tr><td>Resultado implausível, de manutenção ou curto demais</td><td class="div">Não é salvo; Progresso explica; Hoje não pode dizer “prontos — toque para ver”.<span class="div-tag">Hoje está diferente:</span>o texto de implausível sempre diz “baixo”, mesmo acima de 5.000 kcal; o de curto demais fala em “14 dias de intervalo”, o que nunca acontece (a medição tem pelo menos 21 dias; só uma média 0 chega lá).</td></tr>
         <tr><td>Digitou uma média e depois completou 7 dias</td><td>Usa a comida registrada; a média digitada fica guardada com uma nota.</td></tr>
         <tr><td>O dia 21 passou há semanas sem pesagem</td><td>A medição fica aberta: “Hora de se pesar”; as 20h continuam.</td></tr>
       </tbody>
@@ -1026,7 +1070,7 @@ stateDiagram-v2
         <tr><td>Gasto estimado</td><td>peso + “Gasto diário (TDEE)” + selo “Estimado”; linha da fórmula + taxa basal; plano diário Perder / Manter / Ganhar</td><td>peso · gasto arredondado de 10 em 10 · “Estimado”</td><td>—</td><td>—</td></tr>
         <tr><td>Gasto antigo (conta antiga)</td><td>gasto mantido + “Complete seus números”</td><td>mesma regra</td><td>—</td><td>—</td></tr>
         <tr><td>Falta o sexo</td><td>“Defina seu sexo para continuar” + “Definir sexo ao nascer”</td><td>pedido para completar</td><td>—</td><td>—</td></tr>
-        <tr><td>2 ou mais pesagens</td><td>“Desde {primeira data}: ±Δ”; Pesagens “{n} · última {data} · {peso}”; gráfico</td><td>“Desde …”</td><td>—</td><td>—</td></tr>
+        <tr><td>Pesagens em 2 ou mais dias diferentes</td><td>“Desde {primeira data}: Peso ±Δ” (+ “· Cintura ±Δ” quando as duas pontas têm cintura); Pesagens “{n} · última {data} · {peso}”; gráfico</td><td>“Desde {data}: ±Δ”</td><td>—</td><td>—</td></tr>
         <tr><td>Medido</td><td>selo “Medido”; “Pelos seus números reais · estimativa N”</td><td>“Medido”</td><td>salvo</td><td>—</td></tr>
         <tr><td>Dado fora da faixa</td><td>“Um dos dados está fora da faixa: confira os valores abaixo.”</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Meta definida</td><td>bloco “Sua meta” com previsão / atingida / se afastando / bloqueada</td><td>—</td><td>—</td><td>—</td></tr>
@@ -1044,7 +1088,8 @@ stateDiagram-v2
         <tr><td>Já se pesou hoje</td><td>A segunda pesagem se junta à de hoje: uma por dia.</td></tr>
         <tr><td>Digitou o peso em Seus números antes de qualquer pesagem</td><td>Esse peso vira a primeira pesagem quando a pessoa salva (nunca sozinho ao abrir).</td></tr>
         <tr><td>Pesou em outro celular hoje de manhã</td><td>Depois de sincronizar, a pesagem mais nova é o peso atual.</td></tr>
-        <tr><td>Começou a perder peso antes de instalar</td><td>“+ Adicionar pesagem anterior” (qualquer data passada).</td></tr>
+        <tr><td>Começou a perder peso antes de instalar</td><td>“+ Adicionar pesagem anterior”, hoje até 10 anos atrás. A regra proposta (até o ano de nascimento) partiu de uma premissa errada: o registro de decisões não põe limite, e ela alargaria o intervalo. Precisa ser decidida de novo ou retirada.</td></tr>
+        <tr><td>Uma medição terminou, mas falta altura, idade ou sexo</td><td class="div">Previsto: o gasto Medido aparece.<span class="div-tag">Hoje está diferente:</span>o gasto medido some quando a conta da fórmula não fecha (o registro de decisões e a regra PO-12 discordam aqui).</td></tr>
         <tr><td>A pesagem é o início de uma medição aberta</td><td>Pode ser corrigida, não excluída; corrigir muda o peso inicial da medição.</td></tr>
         <tr><td>Digitou 860 em vez de 86,0</td><td class="div">Previsto: toda entrada valida 25 a 300 kg.<span class="div-tag">Hoje está diferente:</span>só a correção valida; as outras entradas aceitam.</td></tr>
         <tr><td>Perfil sem sexo</td><td>“Defina seu sexo para continuar”; nenhuma conta que dependa do sexo roda.</td></tr>
@@ -1097,9 +1142,11 @@ stateDiagram-v2
         <tr><td>Premium, nada com curva</td><td>“Nenhum protocolo compatível” + motivos</td><td>seta + descrição</td><td>descrição</td><td>→ curva (vazia)</td></tr>
         <tr><td>Premium, um composto</td><td>destaque “Nível est. · agora” + “Estimado”; Nível est. / Meia-vida / Doses contadas; gráfico com passado cheio e futuro tracejado, marcas das doses; aviso</td><td>nome + nível estimado</td><td>igual ao cartão de Evolução (previsto)</td><td>→ curva</td></tr>
         <tr><td>Vários compostos</td><td>uma linha de destaque por série; legenda com nível e meia-vida; Total combinado se for a mesma substância</td><td>o primeiro composto da última seleção</td><td>igual</td><td>—</td></tr>
+        <tr><td>Mistura (blend)</td><td class="pend">hoje as linhas dos componentes são desenhadas como qualquer composto (passado cheio, futuro tracejado).<span class="pend-tag">Falta sua decisão (DL-32):</span>você tinha decidido em 18/09 linhas tracejadas “(est.)” para os componentes. Manter o que foi construído ou voltar ao tracejado vai para a lista de diferenças, com imagem das duas opções.</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Protocolo encerrado escolhido</td><td>rótulo “· encerrado”; a curva cai</td><td class="div">Previsto: o mesmo da curva.<span class="div-tag">Hoje está diferente:</span>não aparece, e a curva pode abrir o ciclo encerrado enquanto o cartão mostra outro.</td><td>—</td><td>—</td></tr>
         <tr><td>Histórico declarado na janela</td><td>marca tracejada “Antes de {data}: estimado a partir da data de início”</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Data de leitura escolhida</td><td>marca tracejada + data + pontos; cartão “Estimativa em uma data” com os valores lado a lado (nunca comparados a um exame)</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Data de leitura mais de 365 dias atrás</td><td class="div">Previsto: “—” em todas as linhas, com uma explicação.<span class="div-tag">Hoje está diferente:</span>as linhas dos compostos mostram “—” sem explicação, e a linha Total combinado ainda mostra um número calculado.</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Início no futuro</td><td>nível 0; projeção só se estiver dentro do horizonte</td><td>0</td><td>—</td><td>—</td></tr>
       </tbody>
     </table>
@@ -1120,7 +1167,9 @@ stateDiagram-v2
         <tr><td>Dose em UI de um composto medido em massa</td><td>“Sem curva: {nomes}. Mude a dose para mg para ver a curva…”</td></tr>
         <tr><td>Da última vez escolheu só testosterona</td><td>Reabre exatamente assim; um protocolo novo não entra sozinho.</td></tr>
         <tr><td>Premium acabou</td><td>A curva leva à tela do Premium; o cartão mostra a etiqueta Premium.</td></tr>
-        <tr><td>Mudança de horário de verão nos últimos 14 dias</td><td class="div">Previsto: cartão e curva concordam.<span class="div-tag">Hoje está diferente:</span>usam grades de tempo diferentes e podem dar números diferentes.</td></tr>
+        <tr><td>Mudança de horário de verão nos últimos 14 dias</td><td class="div">Previsto: cartão e curva concordam.<span class="div-tag">Hoje está diferente:</span>usam grades de tempo diferentes e podem dar números diferentes (exemplo com 250 mcg: 0,031 no cartão e 0,125 na curva; meia hora antes, o inverso: 0,125 no cartão e 0 na curva). Voltam a coincidir uns 14 dias depois da mudança.</td></tr>
+        <tr><td>Dados novos chegam da nuvem com Meu corpo aberto</td><td class="div">Previsto: o cartão de Meu corpo se atualiza.<span class="div-tag">Hoje está diferente:</span>Meu corpo não recarrega numa sincronização (e no Fold não acompanha a mudança feita na curva até voltar à tela).</td></tr>
+        <tr><td>Textos de venda do Premium</td><td class="div">Previsto: a curva é descrita como estimativa a partir do esquema planejado.<span class="div-tag">Hoje está diferente:</span>dois textos (na tela do Premium e nos Ajustes), nos 6 idiomas, dizem que ela vem “do seu próprio registro”.</td></tr>
         <tr><td>Saiu e entrou de novo no mesmo celular</td><td>A seleção lembrada pode se perder e voltar ao protocolo mais novo (suspeito).</td></tr>
       </tbody>
     </table>
@@ -1169,7 +1218,7 @@ stateDiagram-v2
   Unread --> Idle: OK
 </pre>
   </div>
-  <p class="caption">Exame de sangue pendente em Hoje: aparece quando o exame mais recente tem 182 dias ou mais, pode ser adiado (Amanhã / Em 3 dias) e some quando um exame mais novo é salvo. Vacinas com próxima dose só aparecem numa linha de Meu corpo, sem aviso nem notificação.</p>
+  <p class="caption">Exame de sangue pendente em Hoje: aparece quando o exame mais recente tem 182 dias ou mais, pode ser adiado (Amanhã / Em 3 dias) e some quando um exame mais novo é salvo. Vacinas com próxima dose só aparecem numa linha de Meu corpo, sem aviso nem notificação. O aviso de exame pendente é a pergunta OPEN-13: “manter como está” mantém uma recomendação de prazo escolhida pelo app, que a pessoa nunca definiu (risco regulatório, não é opção neutra).</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -1179,7 +1228,7 @@ stateDiagram-v2
         <tr><td>Vazio</td><td>três cartões; “Nada registrado ainda”</td><td>“Nenhum exame enviado ainda” + enviar + texto das 3 leituras grátis por mês (exames, carteiras de vacinação e frascos somados) · mais com Premium</td><td>“Nenhuma vacina registrada” + Adicionar vacina</td><td>—</td></tr>
         <tr><td>Lendo</td><td>—</td><td>um cartão “Lendo seu exame...”</td><td>“Lendo seu registro…”</td><td>—</td></tr>
         <tr><td>Importado</td><td>contagem + marcadores favoritos “Marcadores favoritos · último exame em {data}”</td><td>cartões por data / por marcador; Exportar + Enviar</td><td>—</td><td>Exame pendente escondido por 182 dias</td></tr>
-        <tr><td>Grátis com marcadores</td><td>—</td><td>“Você escaneou {n} marcadores. O Premium mostra cada um em gráfico ao longo do tempo…”</td><td>—</td><td>—</td></tr>
+        <tr><td>Grátis com marcadores</td><td>—</td><td class="div">“Você escaneou {n} marcadores. O Premium mostra cada um em gráfico ao longo do tempo…” (já decidido: gráficos são Premium; como hoje o grátis vê o gráfico, travar tira algo que ele já tem, então a tela travada precisa de imagem antes).<span class="div-tag">Hoje está diferente:</span>o gráfico aparece para quem é grátis a partir de 2 leituras.</td><td>—</td><td>—</td></tr>
         <tr><td>Limite</td><td>—</td><td>aviso “Limite mensal de leituras atingido”</td><td>igual</td><td>—</td></tr>
         <tr><td>Serviço fora</td><td>—</td><td>“Serviço de leitura indisponível · tente de novo daqui a pouco”</td><td>igual</td><td>—</td></tr>
         <tr><td>Vacina com próxima dose no futuro</td><td>“Próxima: {nome} · {data}”</td><td>—</td><td>o cartão mostra a próxima dose</td><td>—</td></tr>
@@ -1198,7 +1247,9 @@ stateDiagram-v2
         <tr><td>Escaneou o mesmo exame duas vezes</td><td>Cartão duplicado (pode ser excluído sozinho); vacinas duplicadas.</td></tr>
         <tr><td>Data do exame ilegível</td><td>Usa a data de hoje e avisa: “A data do exame não pôde ser lida, então usamos a de hoje…”</td></tr>
         <tr><td>A IA leu dia e mês trocados</td><td>Salva sem avisar; a pessoa corrige a data de cada valor (não há ação para mudar a data do exame inteiro).</td></tr>
-        <tr><td>Usou as 3 leituras grátis do mês</td><td>“Limite mensal de leituras atingido” com o número do servidor; digitar à mão está previsto.</td></tr>
+        <tr><td>Usou as 3 leituras grátis do mês</td><td>“Limite mensal de leituras atingido” com o número do servidor. A pessoa vê o limite (3 por mês), mas nunca quantas já usou; mostrar isso é a pergunta OPEN-14. Digitar à mão foi aprovado: o padrão é construir no próximo build; você só decide se quer adiar (OPEN-12).</td></tr>
+        <tr><td>Valor com vírgula no documento (“1,025”)</td><td class="div">Previsto: uma só regra de leitura de números.<span class="div-tag">Hoje está diferente:</span>a leitura com IA grava 1025, e a tela de editar lê 1,025.</td></tr>
+        <tr><td>Data do exame no futuro (ex.: 2099)</td><td class="div">Previsto: recusada ou marcada para conferir.<span class="div-tag">Hoje está diferente:</span>é aceita e esconde o aviso de exame pendente.</td></tr>
         <tr><td>Premium acabou com 10 leituras usadas</td><td>Próxima leitura volta ao limite grátis de 3 e é recusada.</td></tr>
         <tr><td>Celular novo ou reinstalação</td><td>Os registros descem da nuvem; a contagem pode inflar; o consentimento da IA é pedido de novo.</td></tr>
         <tr><td>Último exame há 7 meses</td><td>Hoje: “Exame de sangue pendente · Já se passaram 7 meses desde seu último exame”.</td></tr>
@@ -1267,7 +1318,7 @@ stateDiagram-v2
         <tr><td>Saída acidental</td><td>—</td><td>Entrar</td><td>continuam agendadas</td><td>mantidos</td></tr>
         <tr><td>Confirmações de excluir</td><td>“Excluir conta” → “Isso vai excluir permanentemente sua conta…” → “Você tem certeza absoluta?” → “Sim, excluir tudo”</td><td>app aberto</td><td>—</td><td>—</td></tr>
         <tr><td>Excluir sem internet</td><td>“Você precisa estar conectado à internet para excluir sua conta.”</td><td>app aberto</td><td>—</td><td>—</td></tr>
-        <tr><td>Conta excluída</td><td>nota da Apple (se entrou com Apple)</td><td>primeiro acesso</td><td>todas canceladas</td><td>apagados</td></tr>
+        <tr><td>Conta excluída</td><td>nota da Apple (se entrou com Apple); no Android, uma conta Apple sempre recebe a nota para revogar em account.apple.com</td><td>primeiro acesso</td><td>todas canceladas</td><td>apagados</td></tr>
       </tbody>
     </table>
   </div>
@@ -1282,9 +1333,11 @@ stateDiagram-v2
         <tr><td>A renovação da sessão falhou em segundo plano</td><td>Nada é apagado; a pessoa cai em Entrar e encontra tudo ao voltar.</td></tr>
         <tr><td>Apple revogada nos Ajustes do iPhone</td><td>Saída local, não intencional: dados mantidos.</td></tr>
         <tr><td>App fechado no meio da limpeza</td><td>A limpeza termina na próxima abertura (só se for a mesma conta).</td></tr>
-        <tr><td>O servidor excluiu a conta, mas a resposta se perdeu</td><td>Suspeito: aparece “sem internet” com a conta já apagada; os dados locais ficam.</td></tr>
+        <tr><td>O servidor excluiu a conta, mas a resposta se perdeu</td><td class="div">Previsto: o app reconhece que a conta foi apagada e limpa o celular.<span class="div-tag">Hoje está diferente (confirmado no código):</span>aparece “sem internet” com a conta já apagada; os dados locais ficam.</td></tr>
+        <tr><td>Excluiu a conta com assinatura ou compras</td><td class="div">Previsto: o que sobra fora do app fica dito com clareza.<span class="div-tag">Hoje está diferente:</span>o cliente no serviço de assinaturas e o histórico de compras continuam lá (precisa de uma nota jurídica junto da decisão DL-60).</td></tr>
+        <tr><td>Excluiu a conta com um segundo aparelho conectado</td><td class="pend"><span class="pend-tag">Falta decidir (ainda sem número):</span>o que acontece com os dados que ficaram no outro aparelho não foi decidido; o registro só cobre os lembretes.</td></tr>
         <tr><td>Assinatura ativa na App Store ou Play</td><td class="div">Excluir a conta não cancela a cobrança. Previsto: quem tem Premium é avisado de que a assinatura da loja continua cobrando, com o link para cancelar.<span class="div-tag">Hoje está diferente:</span>não há nenhum aviso.</td></tr>
-        <tr><td>Outra pessoa vai usar o celular</td><td class="div">Previsto: sair apaga dados, rascunhos, respostas e perguntas guardadas.<span class="div-tag">Hoje está diferente:</span>o consentimento da IA e o Premium guardado ficam para a próxima pessoa.</td></tr>
+        <tr><td>Outra pessoa vai usar o celular</td><td class="div">Previsto: sair apaga dados, rascunhos, respostas e perguntas guardadas.<span class="div-tag">Hoje está diferente:</span>ficam para a próxima pessoa: o consentimento da IA, o Premium guardado, a marca de “frasco acabando” já avisado, os adiamentos de avisos, a marca das doses perdidas e o histórico de zonas. (A seleção da curva, o rascunho de comida e as explicações já são guardados por pessoa e não passam para a próxima.)</td></tr>
         <tr><td>Sem internet na tela de perfil incompleto, com registros sem backup</td><td class="div">Previsto: “Sair mesmo assim” também ali.<span class="div-tag">Hoje está diferente:</span>fica bloqueado, sem como forçar.</td></tr>
         <tr><td>Link de nova senha de outra conta</td><td>“Redefinir a senha de outra conta?” → sair e redefinir (fluxo 01).</td></tr>
       </tbody>
@@ -1343,7 +1396,7 @@ stateDiagram-v2
       <tbody>
         <tr><td>Grátis</td><td>“Plano gratuito” + cartão Premium (5 linhas de recursos, Ver planos)</td><td>etiqueta Premium + descrição</td><td>aviso de limite com 3</td><td>texto das 3 leituras grátis; PDF → aviso Premium; cartão da curva com etiqueta e cadeado</td><td>7 dias grátis, depois bloqueado</td><td>começa nos dias grátis; resultado e previsão bloqueados</td></tr>
         <tr><td>Grátis, dias de comida acabando</td><td>—</td><td>—</td><td>—</td><td>—</td><td>nota com as datas + Ver Premium</td><td>—</td></tr>
-        <tr><td>Premium</td><td>selo “Premium”, sem cartão</td><td>nível estimado</td><td>ilimitado</td><td>20 leituras (o número só aparece na mensagem de limite)</td><td>todo dia</td><td>resultado, previsão medida, média digitada</td></tr>
+        <tr><td>Premium</td><td>selo “Premium”, sem cartão</td><td>nível estimado</td><td>ilimitado</td><td class="pend">20 leituras; hoje nenhuma linha de leituras aparece para quem é Premium.<span class="pend-tag">Falta sua decisão (AD-56 contra MB-10):</span>o registro diz para mostrar o número, e sua regra assinada MB-10 diz “nenhum número na linha do Premium”.</td><td>todo dia</td><td>resultado, previsão medida, média digitada</td></tr>
         <tr><td>Premium sem internet</td><td>igual (guardado)</td><td>igual</td><td>igual</td><td>leituras precisam de internet de qualquer forma</td><td>registra sem internet</td><td>igual</td></tr>
         <tr><td>Saiu do Premium (carência)</td><td>Grátis</td><td>etiqueta</td><td>limite para novos</td><td>3 leituras</td><td>“Seu Premium terminou. Você pode continuar registrando até {data}…”</td><td>resultado bloqueado</td></tr>
         <tr><td>Compra pendente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>tela do Premium: “Compra pendente”</td></tr>
@@ -1356,7 +1409,9 @@ stateDiagram-v2
     <table class="narrow">
       <thead><tr><th>Situação</th><th>O que o app faz</th></tr></thead>
       <tbody>
-        <tr><td>Comprou em outro celular ou sistema (mesma conta)</td><td>Reconhecido pela conta: vira Premium ao entrar; Restaurar compras na tela do Premium.</td></tr>
+        <tr><td>Comprou em outro celular ou sistema (mesma conta)</td><td>Reconhecido pela conta: vira Premium ao entrar, sem precisar de Restaurar (vale também ao reinstalar). Restaurar compras aparece para quem está como grátis.</td></tr>
+        <tr><td>Quer cancelar ou ver o teste grátis</td><td class="div">Previsto: um caminho para gerenciar a assinatura.<span class="div-tag">Hoje está diferente:</span>não existe “Gerenciar assinatura” em lugar nenhum, nem o estado do teste ou da cobrança (pergunta OPEN-15).</td></tr>
+        <tr><td>Lê os textos de venda do Premium</td><td class="div">Previsto: a curva é uma estimativa a partir do esquema.<span class="div-tag">Hoje está diferente:</span>dois textos dizem que ela vem “do seu próprio registro”.</td></tr>
         <tr><td>Comprou e depois entrou com outra conta</td><td>O Premium pertence ao cliente da loja (regra de transferência definida no serviço de assinaturas).</td></tr>
         <tr><td>Premium acabou durante uma medição</td><td>Carência do registro de comida até o fim da semana da medição; o resultado precisa do Premium.</td></tr>
         <tr><td>Dias sem internet com assinatura ativa</td><td>Validade guardada no futuro = Premium; nunca bloqueia sem internet.</td></tr>
@@ -1364,7 +1419,7 @@ stateDiagram-v2
         <tr><td>Comprou o Vitalício com assinatura ainda renovando</td><td>Aviso: cancele a assinatura na loja (o app não consegue).</td></tr>
         <tr><td>Já é Premium e abre a tela do Premium</td><td>“Você já tem o Premium”, sem botão de compra.</td></tr>
         <tr><td>Conta de desenvolvedor ou de revisão da Apple</td><td>Premium pela lista de e-mails (a mesma no app e no servidor).</td></tr>
-        <tr><td>Saiu do Premium com 4 ou mais protocolos ativos</td><td>Continuam ativos (decidido pela lógica: encerrar pararia os lembretes); + Adicionar mostra o limite.</td></tr>
+        <tr><td>Saiu do Premium com 4 ou mais protocolos ativos</td><td class="pend">Hoje continuam ativos; + Adicionar mostra o limite.<span class="pend-tag">Falta sua decisão (DL-24, junto com OPEN-05):</span>é uma escolha de dinheiro. A recomendação continua “manter” (encerrar pararia os lembretes).</td></tr>
         <tr><td>Serviço de assinaturas fora do ar</td><td>O app usa o que tem guardado; o servidor dá o limite Premium de leituras (escolha deliberada).</td></tr>
       </tbody>
     </table>
@@ -1396,7 +1451,7 @@ stateDiagram-v2
   Book --> OneColumn: dobrar, deitar o<br>celular, ou janela<br>menor (tela<br>dividida)
 </pre>
   </div>
-  <p class="caption">Página da direita padrão por aba: Hoje → Registro de doses; Meus protocolos → o primeiro da lista (ou o aberto a partir de Hoje); Evolução → Progresso; Meu corpo → o exame mais recente; Ajustes → Preferências.</p>
+  <p class="caption">Página da direita padrão por aba: Hoje → Registro de doses; Meus protocolos → o primeiro da lista (ou o aberto a partir de Hoje); Evolução → Progresso; Meu corpo → o exame mais recente; Ajustes → Preferências. A lista de aceitação da página da direita ainda não foi assinada por você.</p>
 
   <h3>O que cada tela mostra em cada estado (Fold aberto)</h3>
   <div class="table-wrap">
@@ -1407,7 +1462,7 @@ stateDiagram-v2
         <tr><td>Hoje, tocou BPC-157</td><td>cartão contornado, Concluir / Pular no cartão</td><td>página do protocolo BPC-157 (sem ações, sem Excluir)</td><td>largura total</td></tr>
         <tr><td>Hoje, tocou um pó sem frasco</td><td>cartão “+ Adicionar frasco”</td><td>“Nenhum frasco reconstituído agora” + motivo + “+ Adicionar frasco”</td><td>—</td></tr>
         <tr><td>Meus protocolos, primeira abertura</td><td>lista</td><td>o primeiro protocolo (ou o vindo de Hoje)</td><td>—</td></tr>
-        <tr><td>Excluídos recentemente, modo Selecionar</td><td>caixas de seleção</td><td>página do protocolo escolhido</td><td>trocada pela barra Restaurar (N) / Excluir para sempre (N)</td></tr>
+        <tr><td>Excluídos recentemente, modo Selecionar</td><td>caixas de seleção</td><td>página do protocolo escolhido</td><td>trocada pela barra “Restaurar ({n})” / “Excluir para sempre ({n})”</td></tr>
         <tr><td>Evolução, nada tocado</td><td>painel</td><td>Progresso</td><td>—</td></tr>
         <tr><td>Evolução, cartão de comida</td><td>painel</td><td>conversa da comida (sem Concluído)</td><td>—</td></tr>
         <tr><td>Evolução, cartão da curva (grátis)</td><td>—</td><td>— (tela do Premium em tela cheia)</td><td>—</td></tr>
@@ -1431,6 +1486,8 @@ stateDiagram-v2
         <tr><td>Perdeu o Premium com a curva aberta à direita</td><td>A seleção é limpa (Evolução).</td></tr>
         <tr><td>Abriu por uma notificação</td><td>Previsto: o item abre na página da direita; em espera por sua instrução.</td></tr>
         <tr><td>Texto em 130% ou mais</td><td>Os cartões de Evolução se empilham; continuam duas páginas.</td></tr>
+        <tr><td>Dados novos chegam da nuvem com Meu corpo aberto</td><td class="div">Previsto: as duas páginas se atualizam.<span class="div-tag">Hoje está diferente:</span>Meu corpo não recarrega numa sincronização.</td></tr>
+        <tr><td>Exame com 2 ou mais leituras à direita (grátis)</td><td class="div">Previsto: o gráfico é Premium também na página da direita.<span class="div-tag">Hoje está diferente:</span>o gráfico aparece para quem é grátis.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1439,7 +1496,7 @@ stateDiagram-v2
 </main>
 
 <footer>
-  <div class="wrap">Fonte: docs/product/flows (01 a 14, README) e docs/product/PRD.md, capítulo 5 (regras entre recursos). Rascunho para sua revisão e assinatura: mostra o comportamento aprovado; as células em destaque mostram onde o app de hoje é diferente.</div>
+  <div class="wrap">Fonte: docs/product/flows (01 a 14, README), docs/product/PRD.md, capítulo 5 (regras entre recursos), e as correções da conferência de 12/10 (docs/product/verification). Rascunho para sua revisão e assinatura: mostra o comportamento aprovado; as células em destaque mostram onde o app de hoje é diferente.</div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>

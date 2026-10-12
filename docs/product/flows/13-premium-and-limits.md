@@ -31,7 +31,7 @@ One honest plan, **Premium** (Monthly, Annual "Best value", Lifetime), real stor
 | Vial-label scan | free, in the pool | in the pool | server |
 | AI protocol assistant | 10 conversations / rolling 7 days | same | server |
 | AI food log | 7 days from first use | every day | client — **intended also server (04 D-15)** |
-| AI food parses | 25 / local day + 25 follow-ups, 60 / 24 h | same | server |
+| AI food parses | 25 / local day; answering a follow-up never uses one (decisions.md:251, signed FL-21). Today the server also caps 25 follow-ups / local day and 60 / rolling 24 h — builder choices the ledger does not have (X-09: deviation list or record them) | same | server |
 | Reality check start | inside free days | yes | client |
 | Reality check result (measured burn) | no (free days end before day 21) | yes | client |
 | Typed average calories | no (decision 2026-10-08 "A") | yes | client — **today shown to free days (04 D-14)** |
@@ -48,7 +48,7 @@ One honest plan, **Premium** (Monthly, Annual "Best value", Lifetime), real stor
 
 | # | Prior state | What the flow must do |
 |---|---|---|
-| P1 | Bought on another phone / platform (same account) | RevenueCat identifies by user id → Premium after `initPurchases`; Restore available on the Paywall. |
+| P1 | Bought on another phone / platform, or reinstalled (same account) | RevenueCat identifies by user id (`appUserID` = Supabase uid, `lib/purchases.js:68`) → Premium after sign-in and `initPurchases`, with no Restore needed; Restore stays reachable for anyone the app shows as free (Settings Premium card → Paywall). |
 | P2 | Bought, then signed in with a different account | Entitlement belongs to the RevenueCat customer (restore/transfer = RevenueCat project setting). |
 | P3 | Premium lapsed during an open reality check | Food-log grace to the end of that check week (logging only); results need Premium. |
 | P4 | Offline for days with an active subscription | Cache with future expiry = Premium (never locked out offline). |
@@ -56,7 +56,7 @@ One honest plan, **Premium** (Monthly, Annual "Best value", Lifetime), real stor
 | P6 | Bought Lifetime while a subscription renews | Sheet: cancel the subscription in the store (the app cannot). |
 | P7 | Already Premium and opens the Paywall | "You already have Premium" — no buy button. |
 | P8 | Developer / review account | Premium by the e-mail allow-list (client and server lists identical). |
-| P9 | Premium lapsed with 4+ active protocols | Keeps them active (DL-24: they stay active); + Add shows the limit. |
+| P9 | Premium lapsed with 4+ active protocols | Today: they all stay active; + Add shows the limit. **OPEN-05** (was DL-24) whether a lapsed payer keeps every active protocol or a downgrade rule applies is a money call, folded into OPEN-05 (the recommendation can stay "keep them"). |
 | P10 | RevenueCat unreachable | Client uses its cache; server gives the Premium scan cap (07 D-1, deliberate). |
 
 ## 5. Happy path
@@ -145,10 +145,11 @@ stateDiagram-v2
 ## 7. Alternative and exception paths
 
 ### 7.1 Paywall details (PA-5…PA-16; decisions 2026-09-30, 2026-10-03)
-- Prices only from the store at runtime; "Save N%" only from real store prices; billed amount biggest; length next to every price; Annual preselected ("Best value"); trial button only when the store says eligible and the length is known ("Start 7-day free trial" + Apple billing text); Restore purchases; Terms of Use (EULA) (iOS) / in-app Terms (Android) + Privacy under Restore; Free vs Premium table (dashes on the free side); animated example previews with an "Example" tag.
+- Prices only from the store at runtime; "Save {pct}%" only from real store prices; billed amount biggest; length next to every price; Annual preselected ("Best value"); trial button only when the store says eligible and the length is known ("Start {days}-day free trial", 7 days on both stores today, + Apple billing text); Restore purchases; Terms of Use (EULA) (iOS) / in-app Terms (Android) + Privacy under Restore; Free vs Premium table (dashes on the free side); animated example previews with an "Example" tag.
 - Back blocked while the store is busy.
 - BR prices: R$19,90 / month, R$199,90 / year on both stores (founder 2026-10-03). US: $2.99 / $28.99 / Lifetime $69.99 (read from ASC 2026-10-03).
-- **Divergence today (07 D-9, Gap 4):** no Restore or Manage subscription in Settings; a Premium user is sent away from the Paywall, so Restore is unreachable for them; no trial / billing-issue state shown ("Premium" or "Free" only). → OPEN-15.
+- **Divergence today (07 D-9, Gap 4):** there is no in-app way to manage or cancel the subscription, and no trial / billing-issue state is shown ("Premium" or "Free" only). → OPEN-15. Restore itself is not lost: anyone the app shows as free reaches it through the Settings Premium card → Paywall → "Restore purchases", and a payer who reinstalls gets Premium back on sign-in with no Restore at all (RevenueCat `appUserID` = Supabase uid, `lib/purchases.js:68`). A user the app already sees as Premium is sent away from the Paywall ("You already have Premium"), but has nothing to restore.
+- **Divergence today (verification 05 O-2; extends DV-071):** two live strings say the curve comes from the user's log, which contradicts AD-19 / FX-13 (the curve follows the PLANNED schedule): the Paywall hero "Dose-accumulation curves from your own log, unlimited protocols, more scans, and PDF export." (`paywall_hero_sub`, `PaywallScreen.js:278`) and the Settings Premium card line "Dose accumulation curve from your own log" (`settings_premium_feat_1`, `SettingsScreen.js:642`), in all 6 languages.
 - **Divergence today (07 D-6, Gap 12):** "trial" means two things (store intro trial vs the 7 free food-log days) — one vocabulary needed in the PRD.
 
 ### 7.2 Gates by surface (where the Paywall opens from)
@@ -172,12 +173,12 @@ stateDiagram-v2
 
 ### 7.4 Account switch
 - `logOutPurchases` on intended sign-out; RevenueCat logs in with the new user id at SIGNED_IN.
-- **Divergence today (07 D-7, SUSPECTED):** entitlement cache keys survive sign-out; a screen reading the entitlement in the short window before `initPurchases` can use the previous account's cache.
+- **Divergence today (07 D-7, confirmed in code):** entitlement cache keys survive sign-out; `cacheUid` uses `dosetrace_entitlement_last_uid` until `initPurchases` runs, so a screen reading the entitlement in that short window can use the previous account's cache.
 
 ### 7.5 Server vs client
 - **Intended (decision 2026-10-01 FX-16: "the server stays authoritative for paid AI calls"):** paid AI paths check access on the server.
   - **Divergence today (04 D-15; 07 D-2):** `parse-food` has no entitlement / free-days check.
-  - **Divergence today (07 D-3; 01 D-22):** the 3-protocol limit has no server rule; another device or an old build can exceed it.
+  - **Divergence today (07 D-3; 01 D-22):** the 3-protocol limit is checked only on this phone, at add / restart / restore (plus the save safety net), and has no server rule; another device or an old build can exceed it. A row that arrives by pull, was created while Premium, or is revived by sync is never checked when it arrives; it only counts against this phone's next add / restart / restore.
   - **Divergence today (07 D-4):** the dormant `send-reminders` would send the 20:00 food question to locked users (inactive while server push is off).
   - **Deliberate (07 D-1):** RevenueCat unreachable → server gives 20 scans to everyone past 3, while the client shows the cache.
 
@@ -185,8 +186,8 @@ stateDiagram-v2
 - Food log: grace to the end of the current check week (only if the end day ≥ check start), else remaining free days, else locked; never "free days" wording for a lapsed payer.
 - Reality check: grace allows logging only; starting a new check and seeing results need Premium (intended — **04 D-13: today grace can start and see results**).
 - Curve: Paywall on next focus; Journey tile tag; right page cleared on the Fold.
-- Protocols: existing active ones kept; + Add limited.
-- Scans: next scan at ≥ 3 asks RevenueCat → free cap 3 ("your 3 scans").
+- Protocols: today existing active ones are kept; + Add limited. **OPEN-05** (was DL-24) keep them all vs a downgrade rule for lapsed Premium — folded into OPEN-05.
+- Scans: next scan at ≥ 3 asks RevenueCat → free cap 3 ("You've used your {n} scans for this month (labs, vaccine cards, and vials combined). You can still enter everything by hand.").
 
 ### 7.7 Delete account while subscribed
 - **Divergence today (07 Gap 4):** no warning that billing continues (flow 12).
@@ -209,7 +210,7 @@ stateDiagram-v2
 |---|---|---|---|---|---|---|
 | Free | profile "Free plan" / "Plano gratuito" + Premium card (5 feature lines, See plans) | Premium tag + description | limit sheet at 3 | "3 free scans a month…"; PDF → Premium sheet; curve card tag + lock | 7 free days then locked | start inside free days; result locked; ETA locked |
 | Free, food days ending | — | — | — | — | note with dates + See Premium | — |
-| Premium | badge "Premium", no card | Est. level | unlimited | 20 scans (number only in the limit message / FAQ) | every day | result, measured ETA, typed average |
+| Premium | badge "Premium", no card | Est. level | unlimited | 20 scans; today no Premium scan line renders on My Body (the only line is the free one). Whether a Premium line shows "20" is unresolved: AD-56 (a coordinator line, decisions.md:544) says each plan's number, but the founder line decisions.md:104 and signed MB-10 say no number in Premium copy (20 only in the FAQ and the limit message) — waits for the founder (07 X-02) | every day | result, measured ETA, typed average |
 | Premium offline | same (cache) | same | same | scans need network anyway | logging offline-first | same |
 | Lapsed (grace) | Free | tag | limit for new adds | 3 scans | grace note "Your Premium has ended. You can keep logging until {until}…" | result locked |
 | Pending purchase | — | — | — | — | — | — (Paywall "Purchase pending") |
@@ -236,21 +237,23 @@ R40 entitlement id / products / app user id (`lib/purchases.js`). R41 developer 
 |---|---|---|---|---|
 | D13-1 | Server authoritative for paid AI (food) | Client only | `04 D-15`, `07 D-2` | DV-103 |
 | D13-2 | Protocol limit consistent across devices | Client only | `07 D-3`, `01 D-22` | DV-095 |
-| D13-3 | Restore / Manage reachable for Premium users | Only on the Paywall | `07 D-9` (OPEN-15) | DV-112 |
+| D13-3 | Manage / cancel subscription reachable in the app | Not anywhere (Restore is reachable for anyone shown as free; a reinstall restores Premium on sign-in) | `07 D-9` (OPEN-15) | DV-112 (impact to restate) |
 | D13-4 | Typed average Premium-only | Free days see it | `04 D-14` | DV-102 |
 | D13-5 | Grace = logging only | Start + result allowed | `04 D-13` | DV-101 |
 | D13-6 | Lab charts Premium | Free | `06 D-8` (AD-24) | DV-108 |
 | D13-7 | One meaning of "trial" | Two | `07 D-6` | DV-164 |
-| D13-8 | Entitlement cache per account cleared on sign-out | Survives | `07 D-7` | DV-082 |
+| D13-8 | Entitlement cache per account cleared on sign-out | Survives (confirmed in code: `cacheUid` uses the last uid until `initPurchases`) | `07 D-7` | DV-082 |
 | D13-9 | Every Paywall entry carries its source | Two without | `07 §2.2` | DV-195 |
 | D13-10 | Trial / billing state visible | Not read | `07 D-8` | DV-112 |
+| D13-11 | Premium copy says the curve follows the planned schedule (AD-19) | `paywall_hero_sub` and `settings_premium_feat_1` say "from your own log" (×6 languages) | verification 05 O-2 | DV-071 (to extend) |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **OPEN-15 — Settings subscription row** (D13-3). Waits for the founder. → DV-112.
-- **DL-24 — Downgrade rule.** Decided by logic: a lapsed payer keeps every active protocol. → DV-095.
+- **OPEN-15 — Settings subscription row** (D13-3). Waits for the founder. The real gap is managing / cancelling the subscription and seeing the trial or billing state; a reinstall does not lose Premium (RevenueCat `appUserID` = uid) and Restore is reachable for anyone shown as free. → DV-112.
+- ****OPEN-05** (was DL-24) — Downgrade rule.** Not decided: whether a lapsed payer keeps every active protocol (today's behaviour) or a downgrade rule applies is a money call, folded into OPEN-05 (07 D-02; the recommendation can stay "keep them"). → DV-095.
+- **Premium scan number** (§8 My Body). Not decided: AD-56 (coordinator line) vs the founder line decisions.md:104 and signed MB-10 (07 X-02 / Q-07). Waits for the founder.
 - **AD-24 — Lab charts** (D13-6). Already decided: Premium. → DV-108.
 
 ## 13. Acceptance checks (agent-device QA script)
@@ -259,9 +262,10 @@ Account Test03 (free); Premium only via a temporary RevenueCat promo the founder
 
 **F13-01 — Settings Premium card (free)**
 - Expect: "Upgrade to Premium" / "Assine o Premium" + "Unlock all features and get the most out of DoseTrace." + five lines (incl. "AI food log, every day" / "Registro de comida com IA, todos os dias") + **See plans** / "Ver planos" → Paywall.
+- Record D13-11: the first line today reads "Dose accumulation curve from your own log" / "Curva de acúmulo de dose a partir do seu próprio registro" (contradicts AD-19).
 
 **F13-02 — Paywall contents**
-- Expect: no buy button until prices load; Annual ("Anual") preselected with "Best value" / "Mais vantajoso"; Monthly; Lifetime; prices from the store in the store currency; trial button only when eligible ("Start 7-day free trial" / "Começar teste grátis de 7 dias"); "Restore purchases" / "Restaurar compras"; "Terms of Use (EULA)" (iOS) and Privacy policy under Restore; Free vs Premium table with dashes on the free side.
+- Expect: no buy button until prices load; Annual ("Anual") preselected with "Best value" / "Mais vantajoso"; Monthly; Lifetime; prices from the store in the store currency; trial button only when eligible ("Start {days}-day free trial" / "Começar teste grátis de {days} dias", {days} = 7 today); "Restore purchases" / "Restaurar compras"; "Terms of Use (EULA)" (iOS) and Privacy policy under Restore; Free vs Premium table with dashes on the free side.
 
 **F13-03 — Offline Paywall**
 - Expect: "Plans are currently unavailable. Please check your connection and try again later." + Try again.
@@ -278,7 +282,9 @@ Account Test03 (free); Premium only via a temporary RevenueCat promo the founder
 - Expect: "Purchase pending" / "Compra pendente" — never "Purchase failed".
 
 **F13-07 — Restore**
-- Do: reinstall, sign in, Paywall → Restore purchases.
+- Do: with Premium active (sandbox or promo), reinstall and sign in.
+- Expect: Premium returns on sign-in with no Restore (RevenueCat `appUserID` = uid); opening the Paywall shows "You already have Premium".
+- Then, on an account the app shows as free: Settings Premium card → Paywall → "Restore purchases" / "Restaurar compras".
 - Expect: "Purchases restored" / "Compras restauradas" or "No purchases found" / "Nenhuma compra encontrada".
 
 **F13-08 — Offline Premium**

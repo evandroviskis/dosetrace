@@ -39,10 +39,10 @@ A protocol is a durable health record. When the user stops taking something, its
 | P5 | 1.2.x "Yes, it's finished" soft-deleted protocols (old builds) | Cannot be told from deliberate deletes → automatic purge PAUSED in 1.3.0; all listed in Recently deleted (A-84 revisit next build). |
 | P6 | Ended on phone A, phone B still has an offline edit | End wins across devices (A-87). |
 | P7 | Restarting while the same compound is already active (duplicate) | Warn "{name} is already active" first (council 3). |
-| P8 | Free user at 3 active wants to restart / restore a 4th | Restart → limit sheet; Restore → Ended (A-89). |
+| P8 | Free user at 3 active wants to restart / restore a 4th | Restart → limit sheet, shown only after the duplicate warning and the container question; Restore → Ended (A-89). |
 | P9 | Restarting while still using the old vial | Ask New vial / Keep using the same vial (council 3 #1). |
 | P10 | Delete forever on another device | Synced children removed here; unsynced children stay pending ("Entries not saved" orphan sheet). |
-| P11 | Protocol with a finite course (legacy `schedule_total`) | Reminders stop at the course end (BR-12); see §7.6 for the intended end. |
+| P11 | Protocol with a finite course (legacy `schedule_total`) | Reminders stop at the course end (BR-12); what else stops is OPEN-03 (see §7.6). |
 
 ## 5. Happy path (end → restart, and delete → restore)
 
@@ -55,11 +55,11 @@ flowchart TD
   C --> D["My Protocols, Ended section: name, Ended date, Restart, trash"]
   D -->|Restart| E{"Same compound active?"}
   E -->|yes| F["name is already active, Resume anyway / Cancel"]
-  E -->|no| G{"Free limit ok?"}
-  F -->|Resume anyway| G
-  G -->|no| H["Protocol limit reached, Paywall"]
-  G -->|yes| I["Resume name? New vial / Keep using the same vial / Cancel"]
-  I --> J["NEW active row: same settings, start today, created now, old run stays Ended"]
+  E -->|no| I["Resume name? New vial / Keep using the same vial / Cancel"]
+  F -->|Resume anyway| I
+  I -->|"New vial / Keep / Resume"| G{"Free limit ok?"}
+  G -->|no| H["Protocol limit reached, Paywall, nothing written"]
+  G -->|yes| J["NEW active row: same settings, start today, created now, old run stays Ended"]
   J --> K["Reminders armed, Today shows it"]
   A -->|"Delete (page bottom)"| L["Delete protocol sheet"]
   L --> M["Soft-deleted: active 0, deleted_at now, reminders cancelled, leaves Today, Dose log, report, curve"]
@@ -82,14 +82,16 @@ stateDiagram-v2
     Active --> Ended: Still going, Yes it's finished (ended_at = last Taken)
     Active --> Ended: End protocol on the page (intended, ended_at = tap)
     Active --> Ended: vial prompt Protocol finished (intended after picture)
-    Active --> Ended: course total reached (intended by logic, see 7.6)
+    Active --> Ended: course total reached (pending OPEN-03, not built)
     Active --> Deleted: Delete on the page
     Ended --> Deleted: Ended row trash
     Ended --> Ended: Restart creates a NEW Active row, old row stays
     Deleted --> Active: Restore same local day, under limit, was not Ended
     Deleted --> Ended: Restore when it was Ended, deleted before today, or at the limit
     Deleted --> Purged: Delete forever
-    Purged --> Deleted: cloud row live again (local purge cancelled)
+    Purged --> Active: cloud row live again and active (local purge cancelled, takes the cloud state)
+    Purged --> Ended: cloud row live again and ended (local purge cancelled)
+    Purged --> Deleted: cloud row live again and deleted (local purge cancelled)
     Active --> Deleted: push finds no cloud row (revived soft-deleted)
     Ended --> Deleted: push finds no cloud row (revived soft-deleted)
     Active --> Ended: pull of another device's end (local has no status change)
@@ -108,7 +110,7 @@ stateDiagram-v2
     Selecting --> Selecting: tap rows, Select all, Deselect all
     Selecting --> ConfirmPurge: Delete forever (N), N above 0
     ConfirmPurge --> Selecting: Cancel
-    ConfirmPurge --> NotSelecting: Delete, each id purged
+    ConfirmPurge --> NotSelecting: Delete forever, each id purged
     Selecting --> NotSelecting: Restore (N), each restored one by one (limit counts each)
     Selecting --> NotSelecting: Cancel, leave the tab, list empty
 ```
@@ -120,10 +122,10 @@ stateDiagram-v2
 | Active → Ended | "Yes, it's finished" | prompt conditions | `ended_at = MAX(Taken.logged_at)` else created_at; `active 0`; `status_at` | app-written Missed rows after the end removed (unsynced deleted, synced tombstoned); vials deactivated; reminders cancelled; snooze key cleared |
 | Active → Ended | End protocol (intended) | confirm | `ended_at = now`, `active 0`, `status_at` | as above (no Missed cleanup needed) |
 | Active → Deleted | Delete | confirm sheet | `active 0`, `deleted_at now`, `restored_at NULL`, `status_at` | vials deactivated, reminders cancelled, delivered banners dismissed, back to list |
-| Ended → Deleted | trash | confirm sheet | `ended_at` kept (or = updated_at), `deleted_at`, `status_at` | reminders cancelled |
-| Ended → new Active | Restart | duplicate warning, limit, container question | new `protocols` row (copy except identity/status/start/units); `start_date = today`, `created_at = now`, `units_taken = same ? old : 0`; vial moved (same) or new vial (mixed today if it had a mix date, same water/total, 0 taken, expiry blank) — one SQL transaction | reminders scheduled, refresh, sync |
-| Deleted → Active | Restore | same local day, under limit, not Ended before | `deleted_at NULL`, `restored_at`, `status_at` | newest vial active, reminders scheduled |
-| Deleted → Ended | Restore | Ended before, or deleted before today, or at limit | `ended_at` kept or = `deleted_at` | none |
+| Ended → Deleted | trash | confirm sheet | `ended_at` kept (or = updated_at), `deleted_at`, `status_at` | reminders cancelled only — no vial deactivation, no delivered-banner dismissal (divergence, see §7.3) |
+| Ended → new Active | Restart | duplicate warning, container question, then free limit (checked on the button tap, before anything is written) | new `protocols` row (copy except identity/status/start/units); `start_date = today`, `created_at = now`, `units_taken = same ? old : 0`; vial moved (same) or new vial (mixed today if it had a mix date, same water/total, 0 taken, expiry blank) — one SQL transaction | reminders scheduled, refresh, sync |
+| Deleted → Active | Restore | same local day, under limit, not Ended before | `active 1`, `ended_at NULL`, `deleted_at NULL`, `restored_at`, `status_at` | newest vial active, reminders scheduled |
+| Deleted → Ended | Restore | Ended before, or deleted before today, or at limit | `active 0`, `ended_at` kept or = `deleted_at`, `deleted_at NULL`, `restored_at`, `status_at` | none |
 | Deleted → Purged | Delete forever | confirm | `purged_at`, pending; children `sync_status 'deleted'` | reminders + banners cancelled; server blanks the row, deletes children |
 
 ## 7. Alternative and exception paths
@@ -138,12 +140,13 @@ stateDiagram-v2
 - **Divergence today (01 D-21, SUSPECTED, legacy rows):** with only old backfilled Taken rows, the prompt can fire early and date the end before the protocol existed.
 
 ### 7.2 Restart
+- Order (ProtocolsScreen.js:1253-1290): duplicate warning → container question → free-limit check last, inside `restartProtocol`, after a container button is tapped (the user picks a container before seeing "Protocol limit reached"; nothing is written).
 - Duplicate warning first: "{name} is already active" / "You already have an active {name} protocol. Resuming creates another one, with duplicate reminders." → **Resume anyway** / Cancel.
 - Container question: vial protocols "Resume {name}?" / "A new run starts today with zero doses taken; the previous run stays in your history. Will you use a new one or keep going with the same?" → **New vial** / **Keep using the same vial** / Cancel; orals "New bottle" / "Keep using the same bottle"; no container → plain confirm "Resume".
-- New container: a full vial mixed today (only if the old one had a mix date), same water and capacity, 0 taken, **expiry blank** (user enters the new box date). Same container: the old vial moves to the new run unchanged (mix date, count); oral keeps `units_taken`.
+- New container: a full vial mixed today (only if the old one had a mix date), same water and capacity, 0 taken, **expiry blank** (user enters the new box date). Same container: the old vial moves to the new run with its mix date and count, and is set active again (even if it was empty); oral keeps `units_taken`.
 - **Divergence today (01 G-20):** the body says "zero doses taken" even when "Keep using the same vial" keeps the count. Intended copy names what really happens (needs 6-language approval).
 - Copied to the new run: history_from, schedule_total, reminder_time, colour, note, goals. The ended row stays as the first run's history.
-- Restart is one at a time (guard) and fails atomically ("Couldn't save", nothing written).
+- Restart is one at a time (guard) and fails atomically (sheet "Error" / "Couldn’t save your changes. Please try again."; nothing written).
 - **Curve after restart:** two lines (old run decays, new run builds); same-substance runs can form a Combined total.
   - **Divergence today (05 D1):** the curve may reopen on the ENDED run (remembered id) while the Journey / My Body tile shows the new run → different compound and number (MB-4 says they must match). See flow 10.
 
@@ -152,25 +155,26 @@ stateDiagram-v2
 - **Intended (decision 2026-10-04 "copy must be true"):** the body no longer promises "7 days" while the purge is paused, and says the doses leave the Dose log while the protocol is deleted.
   - **Divergence today (01 G-4):** "This protocol will be recoverable for 7 days from Recently deleted, at the bottom of your list."
 - Effects: leaves Today, the Dose log (its logs hidden), hero counts, the report and the curve; reminders cancelled.
+- **Divergence today (verification 01 PRD-PROT-100):** only the protocol-page Delete also deactivates the vials and dismisses delivered banners (ProtocolsScreen.js:2016-2019). The Ended-row trash only soft-deletes and cancels reminders (:1240-1241) — no vial deactivation, no banner dismissal (its vials were normally already deactivated at the end).
 
 ### 7.4 Recently deleted
 - Lists every soft-deleted, non-purged protocol while the purge is paused, newest delete first: dot, name, "Deleted {days}d ago", **Restore**, trash.
   - **Divergence today (01 D-19, G-22):** `Math.ceil` shows "Deleted 1d ago" one minute after deleting; the app counts whole local days elsewhere.
 - Restore rules (A-89): Ended before delete → Ended; deleted before today → Ended (dated at the delete); same-day → Active when under the free limit, else Ended. Only a still-deleted, unpurged row is restored. Restore N runs one by one so the limit counts each.
   - **Divergence today (01 D-18, G-21):** a same-day Restore re-activates the newest vial even when it was finished by doses.
-- Delete forever: "Delete this protocol forever?" / "Delete {n} protocols forever?" + "Its dose history, vials and reminders are removed from all your devices. This can't be undone." → positive tombstone.
-- Automatic 7-day purge: **paused** in 1.3.0 by founder-approved deferral (A-84, revisit next build).
+- Delete forever: "Delete this protocol forever?" / "Delete {n} protocols forever?" + "Its dose history, vials and reminders are removed from all your devices. This can’t be undone." → **Delete forever** / "Excluir para sempre" → positive tombstone.
+- Automatic 7-day purge: **paused** in 1.3.0 by a ledger/logic decision, not founder-approved (decisions.md:506, "decided 2026-10-03 by the ledger / logic (coordinator, round 4)"; A-84, revisit next build). The founder approved only the hand-delete multi-select (decisions.md:501, :515).
 
 ### 7.5 Second device
 - End / Delete wins: status fields are pushed only by the device that changed them (`status_at`); a pull never overwrites a local status change; another phone's pending edit cannot bring an ended or deleted protocol back to active.
 - A push that finds 0 cloud rows never deletes: the protocol is re-inserted **soft-deleted** (lands in Recently deleted), children re-inserted; a pending Restore stays restored.
-- Delete forever reaches others via `purged_at`; their synced children are removed; an unsynced child stays pending and Today asks "Entries not saved" / "{n} entries couldn't be saved: their protocol was deleted forever on another device…" → Keep for now / Discard.
+- Delete forever reaches others via `purged_at`; their synced children are removed; an unsynced child stays pending and Today asks "Entries not saved" / "{n} entries couldn’t be saved: their protocol was deleted forever on another device…" → Keep for now / Discard.
 - **Divergence today (01 G-3, A-87b):** vial status has no such rule — another phone's offline dose can push `active = 1` on a vial an end deactivated; Undo on this phone can reopen it too (01 D-17).
 - Restart on two phones creates two runs (duplicate check is local) — A-48 parked.
 
 ### 7.6 Course total (legacy `schedule_total`)
 - **Decided (BR-12, 2026-10-07):** protocols with a total number of doses end their reminders when that course ends.
-- **Intended by logic (one schedule owner; founder may override):** when the course's last dose is due-and-past, Today, the Missed scan, rings and the curve stop expecting doses too, and the protocol is offered as finished (Ended at the last Taken dose, like the inactivity prompt).
+- **OPEN-03** what happens beyond reminders is not decided: end the protocol automatically, ask "Course complete — end {name}?", or another option (OPEN-03 waits for the founder; BR-12 only covers reminders).
 - **Divergence today (01 D-08, D-11, G-6; 02 D4):** only reminders honour it; Today says "Day Y of Y" forever and Missed rows accumulate; no UI can set a course (the total-doses question was removed).
 
 ### 7.7 Offline / killed
@@ -178,7 +182,7 @@ stateDiagram-v2
 - Delete forever offline: hidden locally at once; the cloud tombstone written on reconnect.
 
 ### 7.8 Timezone / DST
-- "Same local day" (Restore → Active) and "Deleted Nd ago" use local days (intended); the end moment is an instant; the curve stops after the end day (on the end day only slots ≤ end).
+- "Same local day" (Restore → Active) and "Deleted {days}d ago" use local days (intended); the end moment is an instant; the curve stops after the end day (on the end day only slots ≤ end).
 
 ### 7.9 Notification tap
 - A reminder for an ended/deleted protocol should never exist (cancelled at end, orphan sweep at every resync). If a stale one is tapped: Today shows nothing; the notification button → "Nothing new logged" (Android) / nothing (iOS).
@@ -195,7 +199,7 @@ stateDiagram-v2
 |---|---|---|---|---|---|
 | Active | cards, alerts | list card; page with End (intended) and Delete | logs counted | charted; tile if first remembered | armed |
 | Ended | gone (rings and week circles keep its past days; streak per protocol gone) | Ended section "Ended {date}", Restart, trash | logs visible; report includes it with records in the window | offered "· ended" for 365 days after the end; tile never shows ended (05 D1) | none |
-| Deleted | gone | Recently deleted "Deleted Nd ago", Restore, trash; Select mode | logs hidden while deleted | not offered | none |
+| Deleted | gone | Recently deleted "Deleted {days}d ago", Restore, trash; Select mode | logs hidden while deleted | not offered | none |
 | Purged | gone | gone | gone on every device | gone | none |
 | Restarted (new run) | new card from today | new active card; old row still in Ended | new run's logs separate | two runs | armed for the new run |
 | Still going? shown | modal (one popup at a time) | — | — | — | — |
@@ -211,7 +215,7 @@ stateDiagram-v2
 | Still going | AsyncStorage `dosetrace_tx_check_<id>` | snooze until | no |
 | Delete | `protocols` | active 0, deleted_at, restored_at NULL, status_at (ended_at kept if Ended) | yes |
 | Restore | `protocols` | deleted_at NULL, restored_at (local), status_at; or ended_at | yes |
-| Restart | `protocols` | new row; `vials` moved or new | yes (new row; created_at not synced — 01 D-20) |
+| Restart | `protocols` | new row; `vials` moved or new | yes (the new row sends its `created_at` since e85519c, syncMappers.js:101-103; residuals: a pull never rewrites a local `created_at`, and vials do not send `created_at`) |
 | Delete forever | `protocols.purged_at`; children `sync_status 'deleted'` | yes; server blanks the row |
 | Orphans | AsyncStorage `orphanedPromptShown:<uid>` | last count asked | no |
 
@@ -231,9 +235,10 @@ R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity en
 | D05-6 | Restart copy true for "same vial" | Says zero doses | `01 G-20` | DV-024 |
 | D05-7 | Restore never re-activates an empty vial | Does | `01 D-18, G-21` | DV-022 |
 | D05-8 | "Deleted Nd ago" in local days | ceil of hours | `01 D-19, G-22` | DV-023 |
-| D05-9 | Course end honoured everywhere | Reminders only | `01 D-08, D-11, G-6` | DV-012 |
+| D05-9 | OPEN-03 what stops at the course end beyond reminders | Reminders only; "Day Y of Y" forever | `01 D-08, D-11, G-6` | DV-012 |
 | D05-10 | Curve and tile on the same run after restart | Can differ | `05 D1` | DV-067 |
 | D05-11 | Registry rows A-86/87/89 marked built | "Not started" | `01 G-15` (doc) | DV-176 |
+| D05-12 | Ended-row delete has the same effects as the page delete (vials off, delivered banners dismissed) | Only cancels reminders | verification 01 PRD-PROT-100 | — (new, no DV yet) |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
@@ -272,7 +277,7 @@ Account Test03; protocols created for the test only. Light and dark; PT via Sett
 
 **F05-06 — Restart at the free limit**
 - Setup: 3 active, free.
-- Expect: Restart → "Protocol limit reached" sheet; nothing written.
+- Expect: Restart → "Resume {name}?" (after the duplicate warning, if any) → tap New vial / Keep using the same vial / Resume → "Protocol limit reached" / "Limite de protocolos atingido" sheet; nothing written.
 
 **F05-07 — Delete from the page**
 - Do: open an active protocol → scroll to the bottom → **Delete** / "Excluir".
@@ -293,7 +298,7 @@ Account Test03; protocols created for the test only. Light and dark; PT via Sett
 
 **F05-11 — Delete forever**
 - Do: select 2 → Delete forever (2).
-- Expect: "Delete 2 protocols forever?" / "Excluir 2 protocolos para sempre?" + "Their dose history, vials and reminders are removed from all your devices. This can't be undone." → Delete → rows gone.
+- Expect: "Delete 2 protocols forever?" / "Excluir 2 protocolos para sempre?" + "Their dose history, vials and reminders are removed from all your devices. This can’t be undone." → **Delete forever** / "Excluir para sempre" → rows gone.
 - Second device: after its pull both protocols and their dose rows are gone; an unsynced dose there → "Entries not saved" / "Registros não salvos" with **Keep for now** / **Discard**.
 
 **F05-12 — End wins across devices**

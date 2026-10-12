@@ -22,7 +22,7 @@ Other actors: Today (alerts, dose card vial cells, "+ Add vial", vial prompt), M
 ## 3. Preconditions
 
 - An active injectable protocol (recon / rtu) or an oral protocol with a container size.
-- Supply alerts: "Vial expiry alerts" switch on (it also gates "Vial running low" — 03 G4).
+- Supply **pushes**: "Vial expiry alerts" switch on (it also gates "Vial running low" — 03 G4). Today's in-app supply and expiry alerts ignore the switch.
 
 ## 4. What may already have happened before
 
@@ -101,7 +101,7 @@ stateDiagram-v2
     [*] --> Tracking: container units set
     NotTracked --> Tracking: Edit sets container units
     Tracking --> Tracking: Mark complete +units, Undo or Delete -units
-    Tracking --> Low: units left cover 1 to 3 doses (intended, by logic)
+    Tracking --> Low: units left cover 1 to 3 doses (pending OPEN-02 option A, not built today)
     Low --> Tracking: units given back
     Low --> Empty: units left 0
     Tracking --> Empty: units left 0
@@ -118,7 +118,7 @@ stateDiagram-v2
     [*] --> Hidden: no active vial with 1 to 3 left
     Hidden --> Visible: a take brings a vial to 3, 2 or 1
     Visible --> SnoozeStrip: snooze round tapped
-    SnoozeStrip --> Snoozed: Tomorrow or In 3 days (until 09:00)
+    SnoozeStrip --> Snoozed: Tomorrow or In 3 days (until 09h00)
     Snoozed --> Visible: time reached and Today refetches
     Visible --> Hidden: vial empty (0 is not low) or new vial or undo
     Visible --> ProtocolPage: tap, one protocol named (intended)
@@ -141,12 +141,12 @@ stateDiagram-v2
 - Recon: `mixed_on + vial_valid_days` (default 30, "Days the vial stays good", hint "A general reference (~30 days). Adjust it to match your storage — this is your own tracking, not medical advice."). RTU: `expires_on` from the box month + year (last day of that month).
 - Today alert ≤ 7 days: "Vial expiring soon" / "{name} — {n} days left" / "{name} — expired" / "{count} vials expiring soon". Protocols: days coloured attention (≤ 7) and risk (≤ 3); "Past window" tag at ≤ 0.
 - Push (A-45, behind the vial switch): 09:00 local, 7 days before and on the day, only the next one per vial, counted inside the iPhone budget.
-- **Divergence today (01 D-06):** days-left colour differs: Today card ok-green above 7, Protocols plain ink2. Decision Q9 = B ("days coloured by deadline") does not say which → DL-16 (one function, the Protocols style).
-- **Divergence today (01 D-06b, 08 D6):** three copies of the rtu days-left rule (ceil from now vs whole days) can differ by one day near midnight; push at 09:00 while "Past window" shows from 00:00.
+- **Divergence today (01 D-06):** days-left colour differs: Today card ok-green above 7, Protocols plain ink2. Decided: AD-65 (the founder's Q9 = B, decisions.md:147) — one colouring everywhere in the Today style (green above 7); the Protocols grey is the divergence.
+- **Divergence today (01 D-06b, 08 D6):** three copies of the rtu days-left rule (ceil from now vs whole days) can differ by one day near midnight; push at 09:00 while "Past window" shows from 00:00. An rtu vial already reads "Past window" / "expired" from 00:00 of the box month's **last** day (`Math.ceil` gives -0, counted as ≤ 0 — verification 01 NEW-C).
 - **Divergence today (03 G19):** a snoozed expiry push moves to the check-in channel and keeps the compound name with names off.
 
 ### 7.3 Empty / finished
-- Recon: the take that reaches capacity deactivates the vial and opens **All doses logged** / "All doses from this vial have been logged. Would you like to log a new vial?" with mix date and "New vial: ~{n} doses (from your vial size and dose)." → **Log new vial** / **Protocol finished** / Not now.
+- Recon: the take that reaches capacity deactivates the vial and opens **All doses logged** / "All doses from this vial have been logged. Would you like to log a new vial?" with mix date and "New vial: ~{n} doses (from your vial size and dose)." → **Log new vial** / "Registrar novo frasco" and **Protocol finished** / "Protocolo concluído" — only these two buttons (TodayScreen.js:2380-2393; decisions.md:558). "Protocol finished" only closes the prompt today.
   - **Intended (decision 2026-10-04 + correction):** "Protocol finished" ends the protocol, but only once a picture with a "Later" way out is approved ("I'll mix the next vial tomorrow" is the common case). Until then it only closes the prompt.
   - **Divergence today (02 G12):** finishing a vial from the Dose log (Missed → Complete) deactivates it silently, no prompt.
 - RTU empty:
@@ -160,6 +160,7 @@ stateDiagram-v2
 - Recon new vial: only through Today's prompt (after the last dose) or "+ Add vial" (no active vial) — mix date "Yesterday / Today" pills or month + day; capacity derived; water read with comma decimals.
   - **Divergence today (01 D-12b, G-7; A-08 "needs a founder decision"):** no recon "New vial" on My Protocols, and none while a vial is still active (e.g. past window). → DL-22 (decided by logic).
 - RTU New vial today resets the **same** row (`doses_taken 0`, expiry and size kept).
+  - **Divergence today (verification 01 NEW-B):** because the row id stays the same and stays active, the once-per-vial memory (`dosetrace_vial_low_sent`) keeps it marked as sent, so this vial's "Vial running low" push never fires again after the refill (notificationPlan.js:246).
   - **Intended (by logic):** a new rtu vial is a new row with its own box date (asked), so the old vial stays as history and expiry alerts follow the new box. → DL-22.
 - Oral New bottle: `units_taken = 0` on the protocol.
 
@@ -232,13 +233,15 @@ R-38 one low rule 1–3 (2026-10-01). R-39 low push once per vial, app running o
 | D04-6 | One capacity rule (supplyLow) everywhere | 3 inline copies + report negative | `01 D-02, D-03` | DV-017, DV-121 |
 | D04-7 | Push and screens look at the same vial | Push = all active vials | `01 D-04` | DV-016 |
 | D04-8 | One name per protocol in pushes | stored name vs translated | `01 D-05`, `03 D-19` | DV-013 |
-| D04-9 | One days-left colour and formula | Two colours, three formulas | `01 D-06, D-06b`, `08 D6` | DV-018 |
+| D04-9 | One days-left colour and formula | Two colours, three copies, two methods | `01 D-06, D-06b`, `08 D6` | DV-018 |
 | D04-10 | Vial switch label matches what it silences | Also silences low | `03 G4` | DV-140 |
 | D04-11 | Dose log finishing a vial shows the prompt | Silent | `02 G12` | DV-038 |
 | D04-12 | Undo and Delete give doses back by one rule | Two rules | `01 D-17` | DV-021 |
 | D04-13 | Restore does not reactivate an empty vial | It does | `01 D-18`, `G-21` | DV-022 |
 | D04-14 | "Protocol finished" ends with a Later way out | Only closes (picture pending) | decision 2026-10-04 correction | DV-090 |
 | D04-15 | "Vial age" sort uses the user's window and rtu box dates | mixed_on only | `01 D-07` | DV-122 |
+| D04-16 | An rtu refill re-arms the "running low" push | Never fires again for that vial | verification 01 NEW-B | — (new, no DV yet) |
+| D04-17 | "Past window" only after the box month's last day | From 00:00 of the last day | verification 01 NEW-C | — (new, no DV yet) |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
@@ -248,7 +251,7 @@ Reconciled 2026-10-12: every question this flow raised has one canonical ID in `
 - **OPEN-01 — Doses already used on a vial** (same question as flow 02). → DV-094.
 - **OPEN-02 — Oral low supply.** Waits for the founder (option A there applies the 1–3 rule to bottles in the alert, the push and the badge). The interval-aware days of supply is a plain bug, fixed regardless. → DV-092, DV-020.
 - **AD-11 — "Protocol finished" with "Later" and the deliberate End.** Already approved (A-85); the picture comes before code (CLAUDE.md). → DV-090.
-- **DL-16 — Days-left colour above 7 days.** Decided by logic: one days-left function and one colouring, the Protocols style (Q9 = B colours by deadline). → DV-018.
+- **AD-65 — Days-left colour above 7 days.** Decided by the founder (Q9 = B, decisions.md:147): one days-left function and one colouring everywhere, in the Today card's style (≤ 3 risk, ≤ 7 attention, above 7 ok green), My Protocols included. → DV-018, DV-200.
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -298,7 +301,7 @@ Account Test03. Protocols: **BPC-157** recon 5 mg / 2 ml, dose 250 mcg (20 doses
 
 **F04-11 — RTU box expiry**
 - Setup: Test Cyp box expiry = this month.
-- Expect: days left counts to the last day of this month; "Past window" from 00:00 of the first day after.
+- Expect: days left counts to the last day of this month. **Today:** "Past window" (and Today's "expired") from 00:00 of the LAST day of the box month — the printed month's last day already counts as past; record (D04-9 / D-06b, D04-17).
 
 **F04-12 — RTU New vial**
 - Setup: Test Cyp with 3 taken.

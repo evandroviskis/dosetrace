@@ -19,7 +19,7 @@ Turn a first-time install into a signed-in account with a complete profile, in t
 | Under-18 legacy user | Old account whose stored birth year makes them under 18. |
 | Shared-device second person | Uses the same phone after someone else typed onboarding answers. |
 | Supabase Auth | Sign-up, sign-in, email confirmation, password reset, `user_metadata`. |
-| Apple / Google | Native ID token (iOS Apple, Google both); Android Apple = web OAuth (probe-gated). |
+| Apple / Google | Native ID token (iOS Apple, Google both); Android Apple = web OAuth, **live since 2026-10-03** (server setup done, `STATE.md:17`; button shown while the server probe passes; web client secret expires **2027-04-04**). |
 | OS | Notification permission prompt (iOS / Android 13+). |
 | Sync engine | Import from cloud after SIGNED_IN (`fullImportFromCloud` when local DB empty). |
 
@@ -39,7 +39,7 @@ Turn a first-time install into a signed-in account with a complete profile, in t
 | P4 | Signed up by email, never opened the confirmation link | Account exists, unconfirmed | Sign in shows "Please confirm your email…" sheet with **Resend** (30 s cooldown). |
 | P5 | Opens the confirmation link on a different phone | No PKCE verifier there | Sheet "This link didn't work" variant: "Your email may already be confirmed. Sign in with your email and password." |
 | P6 | Already has an account (other phone, older version) | Session absent; cloud data exists | "Already have an account? Sign in" from splash → Auth (Sign in) → import from cloud. |
-| P7 | Account created with Apple, now on Android | Apple button on Android only if the server probe passes | Show "Continue with Apple" on Android (founder 2026-10-03 "3 sim"). |
+| P7 | Account created with Apple, now on Android | Apple button on Android shows: the server probe passes (live since 2026-10-03; the founder signed in with Apple on his Android Fold on 2026-10-07, build 47) | Show "Continue with Apple" on Android (founder 2026-10-03 "3 sim"). If the web client secret lapses (2027-04-04) every Android Apple sign-in fails — regenerate it before then. |
 | P8 | Account older than build 49 with missing fields (e.g. no country, no tracking types) | `missingProfileFields != []` | Route to **Finish setup** showing only the missing steps. |
 | P9 | Account with a birth year under 18 (old data) | `needsAdultConfirmation` | Route to **Please confirm your age** after the profile gate. |
 | P10 | Another person used this phone and left a stash | Stash exists, not fresh | Never written into this person's account; cleared unwritten on SIGNED_IN (PA-71…PA-73). |
@@ -184,10 +184,10 @@ stateDiagram-v2
 ### 7.1 Offline
 - Onboarding steps: work fully offline; stash persists every Continue.
 - Create account / Sign in / Apple / Google offline: DoseTrace sheet "Connection problem. Check your internet and try again." (`error_network`); typed answers kept; password field cleared on errors.
-- **Intended:** Finish setup and the 18+ confirmation may be answered offline — answers are kept on the phone and written when back online; both gates also offer **Sign out anyway** with its confirmation (decision 2026-10-04, dt-council 1.3.0).
+- **Intended:** Finish setup and the 18+ confirmation may be answered offline — answers are kept on the phone and written when back online; both gates also offer **Sign out anyway** with its confirmation (AD-29, decisions.md:542, 2026-10-04 — a ledger/logic line from the dt-council synthesis, not a founder answer).
   - **Divergence today (07 D-22 area; 07 Gap 6; registry A-94 "Not started"):** both gates show an error sheet and stay locked offline; neither offers "Sign out anyway". An offline user with unsynced rows can be trapped.
 - Offline cold start with an expired access token: **intended** the stored session is still the user's; the app must not route to Auth.
-  - **Divergence today (07 D-16, SUSPECTED):** `getSession()` may return `{session:null, error}` and App routes to Onboarding/Auth until a later refresh event. Needs a device check (airplane mode, token > 1 h old).
+  - **Divergence today (07 D-16, confirmed in code):** `App.js:609-617` ignores the `getSession()` error, so `{session:null, error}` routes to Onboarding/Auth until a later refresh event (commit 495ebab confirms the auth-js behaviour). Still worth a device check (airplane mode, token > 1 h old).
 
 ### 7.2 App killed
 | Killed during | Next launch |
@@ -204,7 +204,7 @@ stateDiagram-v2
 - **A different account signs in on a phone holding another account's local data:** the previous account's local data is discarded (cross-account guard, decision 2026-10-03 privacy over unsynced data). Reminders of the previous account cancelled before import.
 - Shared phone, stash typed by person A, person B signs up with Apple: stash not fresh for B → never written to B (PA-71…73).
 - **Divergence today (07 D-18; 08 Gap 1):** AI consent (`dosetrace_ai_extraction_consent_v4`) is per device and survives sign-out, so person B inherits person A's AI consent. Ledger rule: "AI consent before every AI call". Decided by logic → DL-55 (consent per account, withdrawable).
-- **Divergence today (07 D-7, SUSPECTED):** entitlement cache keys survive sign-out; a short window on SIGNED_IN can read the previous account's cached Premium before `initPurchases` runs.
+- **Divergence today (07 D-7, confirmed in code):** entitlement cache keys survive sign-out; `cacheUid` uses `dosetrace_entitlement_last_uid` until `initPurchases` runs, so a short window on SIGNED_IN can read the previous account's cached Premium.
 
 ### 7.4 Timezone / DST / midnight
 - Birth year/month only; no time-of-day logic. 18+ test is **year only** (someone born in December of this year − 18 passes while 17; accepted in spec notes; flagged for counsel, `07 Gap 19`).
@@ -224,9 +224,9 @@ stateDiagram-v2
 - iOS "Enable notifications" → OS prompt → Create account.
 - Android "Enable notifications" → OS prompt → **Make sure your reminders arrive** (items + bar only; no schedule or test; "Continue" reads "Done" when all readable items are OK; "Set up later"). Marks setup seen on this phone (SP-4).
 - "Not now" → straight to Create account; the setup step is skipped.
-- **Intended (SP-4 / SP-5 spirit):** a user who said "Not now" is not asked again until they actually set a reminder time.
-  - **Divergence today (03 G25; 07 §8 row "Not now"):** `requestNotificationPermissions()` runs at every signed-in cold start and on SIGNED_IN while not granted, so the OS prompt appears right after sign-in anyway. Already decided → AD-27 ("Not now" respected).
-  - **Divergence today (03 G26):** Android shows the setup step even after the user denied the OS dialog.
+- **Intended (SP-4 / SP-5 spirit; AD-27 as reworded):** no OS prompt at boot after "Not now"; the OS prompt comes when the first protocol with a reminder time is saved (and, on Android, through the SP-5 setup screen, which Today opens once per phone for anyone with a reminder time — "Not now" users included).
+  - **Divergence today (03 G25; 07 §8 row "Not now"):** `requestNotificationPermissions()` runs at every signed-in cold start and on SIGNED_IN while not granted, so the OS prompt appears right after sign-in anyway (the OS shows its dialog only while the status is undetermined, which it still is after "Not now"). AD-27 is a ledger/logic line, not a founder answer: decisions.md:623 does not say it; the "Not now" wording comes from the `reminder-setup-placement.md` header (setup step only), and asking at the first timed protocol is new design in SP-5's spirit (X-06).
+  - **Not a divergence (X-05):** Android shows the setup step after any answer to the OS dialog, a denial included. Signed SP-4 says the step comes "right after 'Turn on notifications' is answered", and a denial is an answer, so the code matches SP-4. DL-50 was withdrawn (moot) and DV-142 closed by the verification; the behaviour stays.
 
 ### 7.9 Email confirmation and links
 | Link | Behaviour |
@@ -249,7 +249,7 @@ Email already registered; incorrect email or password; email not confirmed (+ Re
 | Mid-onboarding | Progress bar, Back, one **Continue** dimmed until answered | — | — | none | stash `dt_onboarding_data` |
 | About you, year < 1900 or > now − 18 | Note "DoseTrace is for adults: enter a year of birth between 1900 and {max}."; Continue dim | — | — | — | — |
 | Never miss a dose | **Enable notifications** / **Not now** | — | — | — | — |
-| Android setup step | "Make sure your reminders arrive", intro, bar "N of M ready", rows with Turn on / Adjust / Open, **Continue** or **Done**, **Set up later** | — | — | — | `dosetrace_reminder_setup_seen` |
+| Android setup step | "Make sure your reminders arrive", intro, bar "{n} of {total} ready", rows with Turn on / Adjust / Open, **Continue** or **Done**, **Set up later** | — | — | — | `dosetrace_reminder_setup_seen` |
 | Create account | Apple (first), Google, email + password, consent row "I agree to the Terms of service and Privacy policy" (ticked only for a fresh stash with consent) | — | — | — | email in memory only |
 | Account created (confirm pending) | "Account created" + "We sent a confirmation link to {email}…", Open email app, Resend link (30 s), Wrong address? Go back | — | — | — | stash cleared if fresh |
 | Signed in, incomplete profile | Finish setup: only missing steps + "Finish setup" + corner Sign out | not reachable | not reachable | reminders may still fire from earlier sessions | session + imported DB |
@@ -294,21 +294,21 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 10. Profile gate: 8 required fields (name, birth month + year, sex male/female, country, goal, activity, tracking, provider); PROFILE_GATE_SINCE 2020-01-01 — "I need the data" (decision 2026-09-09, do not re-litigate).
 11. 18+ confirmation asks the real birth year; export and delete stay available (decisions 2026-10-03).
 12. `onAuthStateChange` stays synchronous (CLAUDE.md).
-13. Google always shows the account chooser; Apple on Android only when the server probe passes; "Continue with Apple" on Android is a founder decision (2026-10-03).
+13. Google always shows the account chooser; Apple on Android only when the server probe passes; "Continue with Apple" on Android is a founder decision (2026-10-03) and is **live** since the server setup of 2026-10-03 (`STATE.md:17`). The Apple web client secret expires **2027-04-04**: regenerate it before then with `scripts/apple-client-secret.cjs` and paste it into Supabase → Auth → Apple, or every Android Apple sign-in fails. The ship-check Gate B allow-list text still lacks `dosetrace://auth-callback` (doc fix only).
 14. Password trimmed on sign-up, sign-in and reset alike (PA-86).
 
 ## 11. Divergences today (summary)
 
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
-| D01-1 | Gates answerable offline + "Sign out anyway" | Error sheet, no force | decision 2026-10-04; `07 Gap 6` (A-94) | DV-114 |
-| D01-2 | Offline cold start keeps a stored session | May route to Auth | `07 D-16` (SUSPECTED) | DV-083 |
+| D01-1 | Gates answerable offline + "Sign out anyway" | Error sheet, no force | AD-29 (decisions.md:542, ledger/logic 2026-10-04, not a founder answer); `07 Gap 6` (A-94) | DV-114 |
+| D01-2 | Offline cold start keeps a stored session | Routes to Auth (the `getSession` error is ignored, `App.js:609-617`) | `07 D-16` (confirmed in code) | DV-083 |
 | D01-3 | AI consent belongs to the person who gave it | Device-wide, survives sign-out | `07 D-18`, `08 Gap 1` | DV-007 |
-| D01-4 | "Not now" respected | OS prompt at first signed-in start | `03 G25`, `07 §8` | DV-054 |
-| D01-5 | Android setup step only after the permission was granted (SP-4 "answered") | Shown after a denial too | `03 G26` | DV-142 |
-| D01-6 | Google / Apple-on-Android display name used to prefill "About you" | Never read; the `about` step always shows if the stash was not fresh; Apple iOS may overwrite an existing name | `07 D-20` | DV-084 |
+| D01-4 | No OS prompt at boot after "Not now"; prompt at the first protocol with a reminder time (and the SP-5 screen on Android) | OS prompt at first signed-in start | `03 G25`, `07 §8`; AD-27 is ledger/logic (X-06) | DV-054 |
+| D01-5 | *Withdrawn — not a divergence (X-05).* The setup step after any answer, a denial included, is what signed SP-4 says | Same | `03 G26`; DL-50 withdrawn | DV-142 (closed) |
+| D01-6 | Google / Apple-on-Android display name used to prefill "About you" | Never read; the `about` step always shows if the stash was not fresh; Apple iOS may overwrite an existing name. Live for Android Apple accounts too (Android Apple sign-in is live) | `07 D-20` | DV-084 |
 | D01-7 | Settings and onboarding validate the same profile rules | Gate checks presence only (a bad stored year or 4-level activity passes) | `07 D-11` | DV-162 |
-| D01-8 | Android Apple sign-in live (founder 2026-10-03) | Server setup pending; button hidden by probe | `07 Gap 13`; premium-and-auth.md:104 | DV-115 |
+| D01-8 | Android Apple sign-in live (founder 2026-10-03) and kept live | **Live — no behaviour divergence.** Server setup done 2026-10-03 (`STATE.md:17`); probe 2026-10-12 → 302 to Apple, button shown; founder signed in on his Fold 2026-10-07 (build 47). Remaining: the web client secret expires 2027-04-04 (no register tracks it) and the ship-check Gate B allow-list text lacks `dosetrace://auth-callback`. The old "setup pending" line (premium-and-auth.md Manual setup step 7) is stale | `STATE.md:17`; verification 05 PRD-AUTH-7 / O-1 | DV-115 (narrow to the allow-list text + secret expiry) |
 | D01-9 | Onboarding analytics funnel complete | `onboarding_completed` dropped for email sign-ups that need confirmation (no user yet) | `07 Gap 18` | DV-167 |
 | D01-10 | Restart after typing answers then "Sign in" lands on Sign in | Lands back on onboarding (stash has answers) | `07 D-14` (by design today — confirm) | DV-163 |
 
@@ -316,9 +316,9 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **DL-55 — AI consent scope** (`07 D-18`). Decided by logic: consent belongs to the account (version and date recorded), is cleared on the intended sign-out and the cross-account guard, and can be withdrawn in Settings (picture first); proof on the server stays a counsel item (AD-51). → DV-007.
-- **AD-27 — Notification prompt after "Not now"** (`03 G25`). Already decided (decisions.md:623): someone who said "Not now" is not asked at boot; the OS prompt comes when the first protocol with a reminder time is saved, or from the reminder screen. → DV-054.
-- **AD-43 — Year-only 18+ test.** Already decided: birth year only; the GDPR / counsel flag stands (AD-51). → DV-168.
+- **DL-55 — AI consent scope** (`07 D-18`). Decided by logic: consent belongs to the account (version and date recorded), is cleared on the intended sign-out and the cross-account guard, and can be withdrawn in Settings (picture first); proof on the server stays a counsel item (AD-51). The per-account part is logic; the new Settings control and the consent-model change are scope, so DL-55 still needs a target build (founder's scope call) and its wording goes through counsel (AD-51). → DV-007.
+- **AD-27 — Notification prompt after "Not now"** (`03 G25`). A ledger/logic line, not a founder answer (to be re-classified as DL, X-06 / A-02): decisions.md:623 does not say it. Wording that matches SP-5: no OS prompt at boot after "Not now"; the OS prompt comes when the first protocol with a reminder time is saved (and, on Android, through the SP-5 setup screen). → DV-054.
+- **AD-43 — Year-only 18+ test.** Already decided (decisions.md:300, age floor 18 for the typed birth year, 2026-09-15): birth year only; the GDPR / counsel flag stands (AD-51). → DV-168.
 - No OPEN question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
@@ -357,7 +357,7 @@ Conventions for every check: fresh install unless stated; screenshot before ever
 
 **F01-09 — Android: setup step after Enable**
 - Do (Android): Enable notifications → allow.
-- Expect: "Make sure your reminders arrive" / "Garanta que seus lembretes cheguem"; bar "N of M ready" / "N de M prontos"; rows Notifications, Alarms & reminders, Battery, Pause app activity if unused (Samsung: "Manage app if unused", plus Deep sleeping apps with **Open** and **I checked**); buttons **Continue** (reads **Done** when all readable rows OK) and **Set up later** / "Configurar depois". No "Next reminder" and no test button.
+- Expect: "Make sure your reminders arrive" / "Garanta que seus lembretes cheguem"; bar "{n} of {total} ready" / "{n} de {total} prontos"; rows Notifications, Alarms & reminders, Battery, Pause app activity if unused (Samsung: "Manage app if unused", plus Deep sleeping apps with **Open** and **I checked**); buttons **Continue** (reads **Done** when all readable rows OK) and **Set up later** / "Configurar depois". No "Next reminder" and no test button.
 - Then: tap Alarms & reminders → Turn on → Android screen → enable → Back. Expect the row OK and the bar +1 without reopening.
 
 **F01-10 — Android: Not now skips setup**
@@ -423,3 +423,7 @@ Conventions for every check: fresh install unless stated; screenshot before ever
 
 **F01-25 — Both themes on every sheet**
 - For each sheet raised in F01-11…F01-21: text readable in light and dark (no white-on-white); Apple button black-on-white in light / white-on-black in dark per HIG.
+
+**F01-26 — Android: full "Continue with Apple" sign-in (live since 2026-10-03)**
+- Do (Android, signed out): Auth → "Continue with Apple" / "Continuar com a Apple" → complete the Apple web sign-in with the test account's Apple ID → return to the app through `dosetrace://auth-callback`.
+- Expect: the button is visible (probe passes); the browser returns to DoseTrace and the account is signed in (Today, or a gate if the profile is incomplete); no "This link didn't work" sheet. Record the date: the web client secret expires 2027-04-04, and after that this check fails until it is regenerated.

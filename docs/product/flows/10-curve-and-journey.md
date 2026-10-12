@@ -87,9 +87,9 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> Restore: load view for this user
     Restore --> Remembered: saved ids still charted (first unit only)
-    Restore --> Default: nothing valid, newest protocol, Combined on, +7 d
+    Restore --> DefaultView: nothing valid, newest protocol, Combined on, +7 d
     Remembered --> Single
-    Default --> Single
+    DefaultView --> Single
     Single --> Multi: add a same-unit compound
     Multi --> Single: remove until one left
     Single --> Single: remove the last, ignored
@@ -109,7 +109,7 @@ stateDiagram-v2
     Wheel --> CustomDate: Done
     CustomDate --> Extended: more than 3 days back, window min(365, back + 1)
     ChipDate --> Extended: bloodwork date more than 3 days back
-    Extended --> Before365: more than 365 days back, row shows a dash
+    Extended --> Before365: more than 365 days back, compound rows show a dash, Combined row still a number
     CustomDate --> Future: after the horizon, value from its own schedule, no marker
 ```
 
@@ -132,21 +132,21 @@ stateDiagram-v2
 ### 7.1 Math (published, honest)
 - Charted only recon / rtu with a half-life entry and a convertible dose; blends split by their common ratio into "Blend · Component (est.)" lines (KLOW 50/10/10/10, GLOW 50/10/10, Wolverine 1/1).
 - Doses from the schedule (`expectedDosesOn`), placed at fixed local hours (1/day at 12:00; 2/day 06 and 18; 3/day 06, 12, 18), snapped to a 6 h grid; calendar-day stepping (A-101b, the 25 h fall-back day counted once).
-- Level = Σ dose × f(Δt): exponential, or Bateman with Tmax for Semaglutide, Testosterone Cypionate, Testosterone Undecanoate, Sustanon 250. Look-back max(16 days, 6 × t½) capped 600 days.
+- Level = Σ dose × f(Δt): exponential, or Bateman with Tmax for Semaglutide, Testosterone Cypionate, Testosterone Undecanoate, Sustanon 250. Look-back max(16 days, days in the shown window + 2, 6 × t½) capped 600 days (`serumModel.js:94-99`; an earlier readout date widens the shown window and so the look-back).
 - Units: mg except IU-native (HGH, HCG, HMG, FSH; HGH mg→IU × 3); one unit per chart.
 - Sex-neutral: no sex / weight / body-fat input (decision 2026-09-09; never a global sex fudge).
 - **Divergence today (05 D6, G9):** the fixed 12:00 dose hour is never disclosed; a 22:00 dose counts 10 h early in "Est. level · now" (decisive for t½ < 6 h compounds). → DL-31 (doses at the user's times; pharmacometrician check).
 - **Divergence today (05 D5, G5; A-96):** "Doses counted" counts only the visible window while the level uses doses back to 6 half-lives.
-- **Divergence today (05 G8):** copy still says "log doses to see your curve" / "compound amounts you logged" although the model is schedule-driven.
+- **Divergence today (05 G8; verification 05 O-2):** copy still says "log doses to see your curve" / "compound amounts you logged" although the model is schedule-driven. Two more live strings say the same in all 6 languages: `paywall_hero_sub` ("Dose-accumulation curves from your own log…", `PaywallScreen.js:278`) and `settings_premium_feat_1` ("Dose accumulation curve from your own log", `SettingsScreen.js:642`) — contradicts AD-19 (planned schedule).
 - **Divergence today (05 G6):** orals are dropped before the "not charted" reasons, so they are silently absent although the screen promises compounds are "named on screen, never dropped silently".
 - **Divergence today (05 G7):** `substance_boldenone` missing in all 6 languages (a Boldenone Combined total would show the raw key).
-- **Divergence today (05 G10):** decision 2026-09-18 says blend components are dashed "(est.)" lines; the code draws them like any compound (probably superseded by the 2026-09-29 curve approval — not recorded).
+- **Divergence today (05 G10):** decision 2026-09-18 / 2026-09-24 (decisions.md:205) says blend components are dashed "(est.)" lines; the code draws them like any compound (solid past, dashed future). **OPEN-18 (1)** (was DL-32) whether the as-built style replaces the founder's dashed-line decision is not decided: it overrides his own visual line, so it goes on the A-97 deviation list with a picture (as built vs dashed) for his pick — not a logic decision.
 
 ### 7.2 Tile = curve (MB-4)
 - **Intended:** tile, My Body card and the curve show the same compound and number.
   - **Divergence today (05 D1, script-verified):** the curve offers active + ended protocols, the tile/My Body only active → after End/Restart the curve can open on the ended run (68.53 mg) while the tile shows the new run (10.04 mg).
-  - **Divergence today (05 D2, script-verified):** for up to 14 days after a DST change the tile (14-day grid) and the curve (3-day grid) snap doses 1 h apart → BPC-157 daily: tile 0.0625 mg vs curve 0.25 mg; 2027-03-19 tile 0.0 mg.
-  - **Divergence today (05 D3):** on the Fold, My Body's left card does not follow a curve change on its right page until refocus (no 'curve' listener).
+  - **Divergence today (05 D2, script-verified):** for up to 14 days after a DST change the tile (14-day grid) and the curve (3-day grid) snap doses 1 h apart → BPC-157 0.5 mg daily, New York 2026-11-06 12:30: tile 0.0625 mg vs curve 0.25 mg; 2027-03-19 tile 0.0 mg (at 250 mcg the same moment gives 0.031 vs 0.125). It also runs the other way: at 11:30 the tile shows a dose the curve does not have yet (250 mcg: tile 0.125 vs curve 0.0 mg). Equal again about 14 days after the change (verification 05, D2 table).
+  - **Divergence today (05 D3):** on the Fold, My Body's left card does not follow a curve change on its right page until refocus (no 'curve' listener). My Body also never reloads on a sync pull (no `addSyncListener`; verification 05 O-4).
   - **Divergence today (05 D4):** picker rows name blend components without the blend ("BPC-157" vs "Wolverine · BPC-157 (est.)").
   - **Divergence today (05 G11):** the planned second fallback "compound of the most recent Taken dose" before the newest protocol was not built (no decision dropping it).
 
@@ -221,9 +221,9 @@ R1–R6 which protocols are charted (recon/rtu, blends, exclusions, ended ≤ 36
 | D10-6 | Fixed dose hour disclosed | Not disclosed | `05 D6, G9` (DL-31) | DV-069 |
 | D10-7 | Orals named as not charted | Silent | `05 G6` | DV-155 |
 | D10-8 | Boldenone substance name ×6 | Missing key | `05 G7` | DV-070 |
-| D10-9 | Copy says "planned schedule" everywhere | "log doses", "you logged" | `05 G8` | DV-071 |
+| D10-9 | Copy says "planned schedule" everywhere | "log doses", "you logged"; Paywall hero and Settings Premium line "from your own log" | `05 G8`; verification 05 O-2 | DV-071 |
 | D10-10 | Journey tile tap counted | No event | `05 G12` (A-98) | DV-105 |
-| D10-11 | Readout > 365 days back explained | Dash, no explanation | `05 G16` | DV-158 |
+| D10-11 | Readout > 365 days back explained, every row the same | Dash, no explanation; the Combined row still prints a computed number | `05 G16`; verification 05 O-3 (`SerumCurveScreen.js:1021` vs `:1031`) | DV-158 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
@@ -232,7 +232,7 @@ Reconciled 2026-10-12: every question this flow raised has one canonical ID in `
 - **DL-31 — Fixed dose hour** (D10-6). Decided by logic: the curve places doses at the user's own reminder times (fixed hours only without times), with a pharmacometrician check. → DV-069.
 - **OPEN-10 — Dose edits apply forward only (F2).** Waits for the founder. → DV-005.
 - **OPEN-11 — Missed / skipped doses lower the curve (A-31).** Waits for the founder. → DV-072.
-- **DL-32 — Blend lines.** Decided by logic: solid past / dashed future like any compound (the later approval wins over 2026-09-18). → DV-156.
+- **OPEN-18 (1)** (was DL-32) — Blend lines.** Not decided: the as-built style (solid past / dashed future like any compound) versus the founder's own line decisions.md:205 (dashed "(est.)" component lines). decisions.md:209 does not mention blends, so it cannot override :205; the item goes on the A-97 deviation list with a picture (as built | dashed) for the founder's pick. → DV-156.
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -262,27 +262,30 @@ Account Test03 with a temporary Premium promo; protocols **Testosterone Cypionat
 
 **F10-07 — Not charted lines**
 - Setup: an IU dose on a mass compound; an Insulin protocol.
-- Expect: "Not charted: {name}. Edit the dose to mg to chart it…" and "Not charted: Insulin… There is no reliable half-life data for these compounds."; Zinc (oral): intended named; today silent — record D10-7.
+- Expect: "Not charted: {names}. Edit the dose to mg to chart it (IU for HGH, HCG, HMG and FSH)." and "Not charted: Insulin… There is no reliable half-life data for these compounds."; Zinc (oral): intended named; today silent — record D10-7.
 
 **F10-08 — Combined total**
 - Setup: two testosterone esters.
 - Expect: toggle "Show combined total" / "Mostrar total combinado"; an ink line "Combined total" / "Total combinado"; hint says it is a rough sum, not active-hormone mass.
 
 **F10-09 — Estimate on a date**
-- Do: "Estimate on a date" / "Estimativa em uma data" → a bloodwork chip "{date} · bloodwork" (requires a lab in My Body) → marker on the chart and values side by side; tap again → cleared. "Other date" / "Outra data" → wheel → a date 400 days back → row "—".
+- Do: "Estimate on a date" / "Estimativa em uma data" → a bloodwork chip "{date} · bloodwork" (requires a lab in My Body) → marker on the chart and values side by side; tap again → cleared. "Other date" / "Outra data" → wheel → a date 400 days back → every compound row "—".
+- Also (Combined, verification 05 O-3): with two testosterone esters and "Show combined total" on, pick a date 400 days back. Expect (intended): the Combined row also shows "—". Today it prints a computed number (`SerumCurveScreen.js:1031`) — record (D10-11).
 
 **F10-10 — Declared history marker**
 - Setup: Testosterone Cypionate created today with start 42 days ago and "Yes, same dose" (flow 02).
-- Do: Estimate on a date → a date 2 days before today (window widens).
-- Expect: dashed marker + "Before {today}: estimated from your start date" / "Antes de {date}: estimado a partir da data de início".
+- Do: Estimate on a date → a date 2 days before today (still inside the default 3-day window; the marker already shows without it).
+- Expect: dashed marker + "Before {date}: estimated from your start date" ({date} = the creation day, today) / "Antes de {date}: estimado a partir da data de início".
 
 **F10-11 — End and restart (D1 check)**
 - Do: End Testosterone (flow 05), Restart (New vial), open the curve.
 - Expect (intended): curve and tile on the same run. Record today's values for both.
 
 **F10-12 — DST (D2 check)**
-- Setup: device zone America/New_York; date 2026-11-06 12:30; BPC-157 daily.
-- Expect (intended): tile = curve. Today: tile 0.0625 vs curve 0.25 mg — record.
+- Setup: device zone America/New_York; date 2026-11-06 12:30; BPC-157 daily 250 mcg (the account fixture above).
+- Expect (intended): tile = curve. Today: tile 0.031 vs curve 0.125 mg (labels "0.0" / "0.1") — record. (With a 0.5 mg fixture: 0.0625 vs 0.25.)
+- Also (reverse gap): same zone and date at 11:30. Expect (intended): tile = curve. Today: tile 0.125 vs curve 0.0 mg (the tile counts a dose the curve does not have yet) — record.
+- Also (end of the gap): 2026-11-15 12:30. Expect: tile = curve = 0.125 mg.
 
 **F10-13 — Premium lost**
 - Do: end the promo; open Journey; tap the tile.

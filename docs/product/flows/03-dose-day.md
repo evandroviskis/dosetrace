@@ -15,7 +15,7 @@ On every scheduled dose the user is reminded at their time, records what really 
 | Actor | Role |
 |---|---|
 | User | Takes or skips a dose; answers the site question for injectables. |
-| OS notification + action buttons | "Mark complete", "In 1 hour", "Tomorrow" (interval > 1). Android orals log headless; iOS and injectables open the app. |
+| OS notification + action buttons | "Mark complete", "In 1 hour", "Tomorrow" (interval > 1). Android orals log headless; iOS and injectables open the app. An iPhone oral dose is written at the tap with no site question; only injectables get the site question. |
 | Today screen | Dose cards, Pending from yesterday, tracker, Undo bar, sheets (one popup at a time). |
 | Site picker (`BodyMapModal`) | Injection site BEFORE the write (S-25). |
 | `recordDoseTaken` / `planMarkTaken` | The ONE mark-complete path for every entry point. |
@@ -33,17 +33,17 @@ On every scheduled dose the user is reminded at their time, records what really 
 
 | # | Prior state | What the flow must do |
 |---|---|---|
-| P1 | The dose was already logged on another device or from the notification | Today refreshes on `data_changed`; a second tap shows "Nothing new logged" with the reason ("That dose was already logged (from a notification or another device). It now shows on Today."). |
+| P1 | The dose was already logged on another device or from the notification | Today refreshes on `data_changed`; a second tap on Today shows the sheet "Nothing new logged" with the reason ("That dose was already logged (from a notification or another device). It now shows on Today."). A second tap on the Android notification button posts a notification "Nothing new logged" / "That dose is already recorded, or the protocol is paused. Open DoseTrace to check." |
 | P2 | Yesterday's 20:00 dose not logged, now 00:30 | "Pending from yesterday" block until slot + 12 h; marking it logs at 20:00 yesterday. |
 | P3 | Took it early (before the slot time) | Early same-day dose covers its slot (A-43); card stops offering it. |
 | P4 | Already skipped today's slot | Line "Skipped — you can still log it"; Mark complete turns the same row into Complete (A-78). |
 | P5 | Protocol created tonight at 21:00 with an 08:00 time | Creation-day rule: only slots from created − 1 h count; floor of 1 so a dose just taken stays loggable (R14). |
 | P6 | Started weeks ago (declared history) | Doses before `created_at − 1 h` never count in rings, streaks, counts (A-30). |
-| P7 | Snoozed the reminder an hour ago | The snoozed copy fires; "Mark complete" on it logs to the slot while inside slot + 12 h. |
-| P8 | Injectable "Mark complete" tapped on the notification while the app was killed | A site question was saved at the tap time; Today asks it on the next focus (never dropped while the dose window is open). |
+| P7 | Snoozed the reminder an hour ago | The snoozed copy fires; "Mark complete" on it logs to the reminder's slot while inside slot + 12 h (today's slot at the tap time, yesterday's slot at the slot time). A snoozed copy tapped later than slot + 12 h is logged now — whether a cap may refuse it on a rest day is **OPEN-19 (b)** (was DL-67) (see §7.2). |
+| P8 | Injectable "Mark complete" tapped on the notification while the app was killed | A site question was saved at the tap time; Today asks it on the next focus (never dropped for its age, DL-01). |
 | P9 | Travelled across time zones | Past slots rebuilt in the zone of their own day (A-51); today's slots in the new zone. |
 | P10 | Vial is on its last dose | Taking it deactivates the vial → recon: "All doses logged" prompt (flow 04). |
-| P11 | Protocol has no reminder time (legacy/imported) | Intended: no slot time → no Due, no Missed; reminders none. **Divergence (02 D1, D22):** rings expect it at 12:00; reminders fire at 08:00; health warnings count it. |
+| P11 | Protocol has no reminder time (legacy/imported) | Today: the phone reminds at 08:00 (`notificationPlan.js:55-58`); the card shows no time and never "Due"; no pending row and never a Missed row; the header counts it (`expectedDosesOn` = doses per day); the rings expect it at 12:00; reminder health warnings count it (02 D1, D22). **OPEN-19 (c)** (was DL-06) DL-06 says one slot list everywhere (Due, pending, Missed, rings, reminders), but names two defaults: the phone's 08:00 vs the form's default (now rounded to 5 min, then 14:00, 21:00 — `protocolForm.js:102-105`). Which default slot applies is not decided. |
 | P12 | Ended protocol on another device | Today drops it after the pull; its reminders cancelled at the next resync. |
 
 ## 5. Happy path
@@ -51,8 +51,9 @@ On every scheduled dose the user is reminded at their time, records what really 
 ```mermaid
 flowchart TD
   A["Reminder fires at the slot time: title = protocol name, body Time for your 250 mcg dose"] --> B{"User action"}
-  B -->|Mark complete, oral, Android| C["Headless write at the slot, today's slots up to this one cancelled"]
-  B -->|Mark complete, injectable or iOS| D["App opens on Today, site question saved at the tap time"]
+  B -->|Mark complete, oral, Android| C["Headless write at the tap time (yesterday's slot inside 12 h at the slot time), today's slots up to this one cancelled"]
+  B -->|Mark complete, oral, iOS| R["App opens on Today, dose written at the tap time, no site question"]
+  B -->|Mark complete, injectable| D["App opens on Today, site question saved at the tap time"]
   B -->|Tap body| E["Today, From your reminder card highlighted"]
   B -->|In 1 hour / Tomorrow| F["Snoozed copy scheduled, follow-ups of this slot cancelled"]
   D --> G["Site picker: Save with site / Skip without site / Cancel writes nothing"]
@@ -67,7 +68,7 @@ flowchart TD
   L --> N{"Vial now empty and recon?"}
   N -->|yes| O["All doses logged prompt (flow 04)"]
   M --> P{"All protocols due today done?"}
-  P -->|yes| Q["You're all caught up for today card"]
+  P -->|yes| Q["You’re all caught up for today card"]
   F --> A
 ```
 
@@ -165,20 +166,22 @@ stateDiagram-v2
 ## 7. Alternative and exception paths
 
 ### 7.1 Time written (honest journal)
-- Today's Complete = **tap time** (S-25), even when the site question is answered later or after midnight.
+- Today's Complete = **tap time** (S-25), even when the site question is answered later or after midnight. The notification "Mark complete" for today's slot also writes the **tap time** (`markTaken.js:101-104`); only yesterday's slot tapped inside slot + 12 h keeps the slot time.
 - A flipped Missed row and any past-day write keep the **slot time** (noon of that day without a slot).
 - Pending from yesterday = slot time (a 00:30 tap is recorded as 20:00 yesterday).
 - Skip = slot time (tap time only without reminder times) (A-78).
 
 ### 7.2 Multi-dose days
 - Doses per day 2–3: one card, the earliest open slot; rows at a slot's exact time belong to it; Skipped counts as filled; never more Taken rows than `doses_per_day` (R2).
+  - **OPEN-19 (b)** (was DL-67) DL-67 proposes one cap on every path = the doses expected **that day**, and a snoozed dose tapped after slot + 12 h logged as today. As written it contradicts itself for less-than-daily protocols: the "Tomorrow" snooze exists only for them, its copy fires on a rest day where expected = 0, so the cap would refuse the very dose the second clause logs (verification 02 R5) — and it would refuse any real dose recorded on a rest day, which `markTaken.js:53` accepts today. Refusing a dose the user says they took is a founder risk call. Until answered the `doses_per_day` cap stays.
 - A notification for the 20:00 slot tapped (body) while 08:00 is still open: the card logs the earliest open slot (A-43 "early logs count by number").
-  - **Divergence today (02 D12):** the body tap cancels only the 08:00 reminders while the 20:00 follow-ups keep firing; the notification **button** cancels both. Intended: both entry points cancel every reminder of slots now covered by count.
+  - **Divergence today (02 D12):** the body tap cancels only the 08:00 reminders while the 20:00 follow-ups keep firing; the notification **button** cancels both (every slot of today up to and including the tapped one). Intended (DL-10): the body tap cancels what the button cancels. **Not aligned yet:** DL-10 also says the tap "acts on the reminder's own slot", while the card model (A-43/A-78, `dosePageState.js:79-85`) fills the earliest open slot by count — a tap-time row cannot belong to the 20:00 slot. One model must be chosen and DV-036's fix must say the same thing as this section.
 
 ### 7.3 Skip
 - Today card **Skip** → "Skip dose?" / "Skip today's dose of {name}?" (Cancel / Skip) → Skipped at the slot; never moves supply.
-- **Intended (by logic — a skipped dose needs no reminder; founder may override):** the skipped slot's reminder, follow-ups and snoozed copy are cancelled (DL-08). No Undo bar: the skipped line keeps "Mark complete" and the Dose log can delete the row.
+- **Intended (by logic, DL-08 — a skipped dose needs no reminder; founder may override):** the skipped slot's reminder, follow-ups and snoozed copy are cancelled.
   - **Divergence today (02 D9, G8; 03 §6.10):** no reminder cancel; a slot skipped before its time still fires.
+- **OPEN-19 (d)** (was DL-08) Undo bar for Skip. DL-08 also says "no Undo bar for Skip" (the skipped line keeps "Mark complete" and the Dose log can delete the row), but that is a UX preference, not logic: Today has an Undo bar for every take (decisions.md:152). Today's behaviour: Today's card Skip shows no Undo bar; "Skipped" on a pending-from-yesterday row **does** show one (`TodayScreen.js:710-717`). The founder chooses whether Skip gets an Undo bar, and whether the pending "Skipped" keeps its own.
 
 ### 7.4 Undo
 - 4 s Undo bar after a take (paused while any popup covers it). Undo: tombstone the row (or restore a flipped Missed/Skipped row with its old time and site), give back the vial dose (reopening a vial this dose closed, if no other is active) or the bottle units, revert the count, close the vial prompt of that dose.
@@ -197,14 +200,15 @@ stateDiagram-v2
 
 ### 7.7 Rings, week circles, streaks (counting rules)
 - **Rings (decision 2026-09-29):** doses not days; today = all slots of today; 7 / 30 days = passed slots, rolling; nothing due → "Nothing due", never 0 %; a late dose matches **its own slot** within ± half the interval; a skip is not taken; never above 100 %; declared history excluded.
-  - **Divergence today (02 D6, D7, G2, script-verified):** the matching pool is not limited to the slot's own window — a daily 08:00 dose taken yesterday at 21:00 fills TODAY's ring at 07:00 (100 % with nothing taken today) while the header says "0 of 1" and the card still offers Mark complete.
+  - **Divergence today (02 D6, D7, G2, script-verified):** a daily 08:00 dose taken yesterday at 21:00 fills TODAY's ring at 07:00 (100 % with nothing taken today) while the header says "0 of 1" and the card still offers Mark complete. 21:00 is 13 h after the 08:00 slot — outside "± half the interval" (decisions.md:144) — so the rings apply :144 literally (nearest slot). The real conflict is with the Missed scan's same-local-day rule (`lib/missedDoses.js:149-155`, F1: a later log on the slot's own day covers it), which counts that dose for yesterday. The fix needs an explicit rule ("a log on the slot's own local day belongs to that day") — an extension of :144, not :144 alone.
   - **Divergence today (02 D3):** protocol created at 21:00 with an 08:00 time — card "Due", header "0 of 1", tracker "Nothing due", streak counts the day: three surfaces disagree.
 - **Header** "{x} of {y} complete" = Σ min(Taken today, expected) ÷ Σ expected over active protocols due today.
   - **Divergence today (02 D8):** header (active only, calendar day, includes declared) and today ring (active + ended, proximity, excludes declared) are different definitions.
-- **Tracker streak (days):** consecutive days where every due protocol had all its doses; rest days neutral; "On fire!" ≥ 7.
-  - **Divergence today (02 D19, G11):** capped at 31 days (loop stops at 30) — no decision sets a cap; the per-protocol streak looks back 365 days.
-- **Protocol streak (doses in a row, founder 2026-10-05):** "Day X of Y · Last: {site} · {n} doses without a miss" on the card.
-- **Report streak (Settings → Adherence report):** **Intended:** the same "doses, never days" rule. **Divergence today (02 D17; 08 D2):** calendar days with any Taken, schedule-blind (a weekly protocol reads 0 or 1).
+- **Tracker streak (days — today's copy "days without a miss"):** consecutive days where every due protocol had all its doses; rest days neutral; "On fire!" ≥ 7.
+  - **OPEN-17** (was DL-03) Unit of the tracker streak: keep days ("days without a miss", as the binding prototype and today's copy show) or switch to doses in a row like the card streak. The founder's 2026-10-05 doses rule (AD-07, commit b215b32) was scoped to the protocol card; extending it to the tracker changes visible copy ×6 and needs a picture and the founder's choice.
+  - **Divergence today (02 D19, G11):** capped at 31 days (loop stops at 30) — no decision sets a cap; the per-protocol streak looks back 365 days. Intended (by logic, DL-03 look-back part): 365 days, no 31-day cap.
+- **Protocol streak (doses in a row, founder 2026-10-05):** "Day {current} of {total}" · "Last: {site} · {days}d ago" · {n} "doses without a miss" on the card.
+- **Report streak (Settings → Adherence report):** **Intended (by logic, DL-02):** the report uses the card's `doseStreak` (doses in a row). **Divergence today (02 D17; 08 D2):** calendar days with any Taken, schedule-blind (a weekly protocol reads 0 or 1).
 - **Week circles:** rest / complete / partial / missed per day.
   - **Divergence today (02 D14):** "missed" in the circles = no dose at all that day; the report counts per-slot Missed rows — two meanings.
 
@@ -214,7 +218,7 @@ stateDiagram-v2
 
 ### 7.9 Offline
 - Every write is local first (`pending`), sync on reconnect. Today shows the alert "Waiting to back up" / "You're offline. Your changes are saved on this phone…" only when offline is known AND something is unsynced (A-46).
-- Notification "Mark complete" headless: writes locally, cancels today's slots up to the tapped one, defers sync and the full resync to the next foreground.
+- Notification "Mark complete" headless: writes locally at the tap time (yesterday's slot inside slot + 12 h: at the slot), cancels today's slots up to the tapped one, defers sync and the full resync to the next foreground.
 
 ### 7.10 App killed
 - Killed with the site question open → asked again on next Today focus, written at the original tap time.
@@ -251,13 +255,13 @@ stateDiagram-v2
 | State | Today card / block | Notification | Tracker / header | Dose log | My Protocols | Curve | Vial |
 |---|---|---|---|---|---|---|---|
 | Upcoming (slot later today) | Card in Doses with time, grey "reminder" tag (AD-38: only "Due" — the tag goes) | scheduled | header counts it in y | — | "Due next" sort | schedule-driven projection (dashed) | unchanged |
-| Due (≤ 5 min or past) | outline **Due** tag ("Agora" in PT), **Skip** · **Mark complete** ("Pular" · "Concluir"), "Draw to N units" + syringe, Day X of Y · Last site · streak | delivered (+5/+10 if persistent) | — | — | card shows **Mark complete** (A-42) | — | — |
+| Due (≤ 5 min or past) | outline **Due** tag ("Agora" in PT), **Skip** · **Mark complete** ("Pular" · "Concluir"), "Draw to" N units + syringe, Day X of Y · Last site · streak | delivered (+5/+10 if persistent) | — | — | card shows **Mark complete** (A-42) | — | — |
 | Site question open | — | Android banner kept for injectables until answered | — | — | — | — | — |
 | Complete | card leaves Doses into the "Complete" fold; Undo bar "Dose logged" / "Site saved · {site}" 4 s | banners of this slot dismissed; future slots of today still armed | count +1, ring fills, week circle done/partial | row "Dose complete" ✓ with time and site | supply −1, "N of M doses left" | unchanged (schedule-driven) | doses_taken +1; finished at capacity |
-| Skipped | line "Skipped — you can still log it" + Mark complete | intended: cancelled; today: still fires | not taken (ring unchanged) | "Dose skipped" (neutral colour) | — | unchanged | unchanged |
+| Skipped | line "Skipped — you can still log it" + Mark complete; Undo bar **OPEN-19 (d)** (was DL-08) | intended (DL-08 logic): cancelled; today: still fires | not taken (ring unchanged) | "Dose skipped" (neutral colour) | — | unchanged | unchanged |
 | Pending from yesterday | block "Pending from yesterday" row "{name} · yesterday, {time}" with **Skipped** / **Complete** | a tap inside slot + 12 h logs to the slot | yesterday's ring counts it when written | — | card shows Mark complete for the pending slot | — | — |
 | Missed (row written) | gone from Today | — | 7/30-day rings count it as not taken; week circle | "Dose missed" (red) → "Update this dose" | Dose log hero Missed count | — | — |
-| All done | "You're all caught up for today" | — | header y of y | — | — | — | — |
+| All done | "You’re all caught up for today" | — | header y of y | — | — | — | — |
 | Offline with unsynced rows | Alert "Waiting to back up" | — | — | — | — | — | — |
 
 ## 9. Data written at each step
@@ -286,13 +290,13 @@ R1 one mark-complete path (S-02/FX-2/FX-7). R2 never more Taken than doses/day. 
 
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
-| D03-1 | Late dose matches its own slot in the rings | Credited to the next slot | `02 D6, D7, G2` (script-verified) | DV-030 |
+| D03-1 | A log on the slot's own local day counts for that slot in the rings, as in the Missed scan (`missedDoses.js:149-155`) — needs an explicit rule extending decisions.md:144 | Credited to the nearer next slot (a 21:00 log is 13 h after an 08:00 slot, outside ± half) | `02 D6, D7, G2` (script-verified) | DV-030 |
 | D03-2 | One "expected today" for header, ring, card, streak | Creation-day / no-time / dpd>times disagree | `02 D1, D2, D3, D8` | DV-028, DV-029 |
-| D03-3 | Skip cancels its reminders (no Undo bar, DL-08) | Not cancelled | `02 D9, G8` (by logic) | DV-035 |
+| D03-3 | Skip cancels its reminders (DL-08, logic); Undo bar for Skip **OPEN-19 (d)** (was DL-08) | Not cancelled | `02 D9, G8` (by logic) | DV-035 |
 | D03-4 | Undo re-arms a future slot's reminder | Not re-armed | `02 §3.6`, `03 G9` (A-36) | DV-040 |
 | D03-5 | Site questions never dropped for age (DL-01; S-25 "kept until answered", decisions.md:379) | Code and test match; decisions.md:459 and the FX-25 evidence still say 7 days (documentation fix) | `02 G1`; ledger "Resolved 2026-10-03" | DV-175 |
 | D03-6 | Missed rows for ended protocols up to the end | Scan skips ended | `02 D13` | DV-031 |
-| D03-7 | One streak rule ("doses, never days") incl. the report | Three streaks; report schedule-blind; tracker capped 31 | `02 D17, D19`, `08 D2` | DV-032, DV-034 |
+| D03-7 | Report streak = the card's `doseStreak` (DL-02); tracker looks back 365 days (DL-03); tracker unit days vs doses **OPEN-17** (was DL-03) | Three streaks; report schedule-blind; tracker capped 31 | `02 D17, D19`, `08 D2` | DV-032, DV-034 |
 | D03-8 | Body tap and button cancel the same reminders | Different | `02 D12` | DV-036 |
 | D03-9 | Dose log Missed → Complete that empties a recon vial shows the vial prompt | No prompt | `02 G12` | DV-038 |
 | D03-10 | One name per protocol in every sheet | Card translated, sheets use stored name | `02 D26, G20` | DV-013 |
@@ -305,12 +309,15 @@ R1 one mark-complete path (S-02/FX-2/FX-7). R2 never more Taken than doses/day. 
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **DL-08 — Skip and reminders** (D03-3). Decided by logic: a skip cancels that slot's remaining reminders and snoozed copies; **no Undo bar** — a skip is already recoverable ("you can still log it", Dose-log delete). → DV-035, DV-130.
+- **DL-08 — Skip and reminders** (D03-3). Decided by logic: a skip cancels that slot's remaining reminders and snoozed copies. → DV-035. ****OPEN-19 (d)** (was DL-08)** "No Undo bar for Skip" is a UX preference, not logic (Today has Undo for every take; the pending "Skipped" shows one today) — founder to choose. → DV-130.
 - **DL-12 — "All caught up" with a skip.** Decided by logic: a day where every due dose is complete or skipped is caught up; the skipped line stays visible above the card (picture first). → DV-129.
 - **AD-38 — Grey "reminder" tag before Due** (`02 G9`, conflict #22). Already decided: Today's only tag is "Due" (decisions.md:133); the grey tag goes. → DV-131.
-- **DL-03 — Tracker streak.** Decided by logic: the same rule as the cards (doses in a row, AD-07), looking back 365 days — no 31-day cap. → DV-034.
+- **DL-03 — Tracker streak.** Decided by logic: look back 365 days — no 31-day cap. ****OPEN-17** (was DL-03)** the unit: today's copy "days without a miss" stays until the founder chooses days or doses in a row (AD-07's founder line covers the protocol card only; a picture with both options first). → DV-034.
 - **DL-02 — Report streak and adherence.** Decided by logic: the provider report uses `doseStreak` and the rings' slots, so it matches Today. → DV-032, DV-033.
-- No OPEN question remains in this flow.
+- ****OPEN-19 (c)** (was DL-06)** — default slot of a protocol with no reminder time (P11): the phone's 08:00 vs the form's default (now rounded / 14:00 / 21:00). → DV-028.
+- ****OPEN-19 (b)** (was DL-67)** — daily cap = expected that day vs `doses_per_day`; a snoozed dose after slot + 12 h on a rest day (§7.2). → DV-029.
+- **Not aligned:** DL-10 (a reminder tap acts on its own slot) vs the card model that fills the earliest open slot (§7.2). → DV-036.
+- The OPEN items above (OPEN-17, OPEN-19) and the DL-10 alignment wait for the founder; no other question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -347,7 +354,9 @@ Account Test03. Test protocols: **Zinc** (oral, daily, 1 capsule, time T), **BPC
 **F03-07 — Notification Mark complete (oral, Android, app killed)**
 - Setup: Zinc time = now + 1 min; kill the app.
 - Do: on the banner tap **Mark complete** / **Marcar como concluída**.
-- Expect: no app opens; banner dismissed; open the app → Zinc complete at the slot time; reminders of today's Zinc slot gone. Tap Mark complete again on an old copy → Android notification "Nothing new logged" / "Nada novo registrado".
+- Expect: no app opens; banner dismissed; open the app → Zinc complete at the tap time (not the slot time); reminders of today's Zinc slot gone. Tap Mark complete again on an old copy → Android notification "Nothing new logged" / "Nada novo registrado" with "That dose is already recorded, or the protocol is paused. Open DoseTrace to check."
+- Do (iPhone): same setup, tap **Mark complete** on the banner.
+- Expect: the app opens on Today; Zinc already complete at the tap time; no site picker (oral).
 
 **F03-08 — Notification Mark complete (injectable)**
 - Expect: the app opens on Today with the site picker; time shown = the tap time; answering after a minute still writes the tap time.
@@ -363,7 +372,8 @@ Account Test03. Test protocols: **Zinc** (oral, daily, 1 capsule, time T), **BPC
 **F03-11 — Pending from yesterday**
 - Setup: Twice with 20:00 unlogged yesterday; set clock to 00:30.
 - Expect: block "Pending from yesterday" / "Pendente de ontem", row "Twice · yesterday, 20:00" / "Twice · ontem, 20:00" with **Skipped** / **Pulada** and **Complete** / **Concluída**.
-- Complete → Dose log row at 20:00 yesterday. Clock 08:31 next day (> slot + 12 h) → block gone, Missed row written on Today focus.
+- Complete → Dose log row at 20:00 yesterday; block gone.
+- Fresh run (same setup, yesterday's 20:00 unlogged, nothing tapped): clock 08:31 (> slot + 12 h) → block gone, Missed row for yesterday's 20:00 written on Today focus.
 
 **F03-12 — Yesterday or today prompt**
 - Setup: as F03-11 at 07:00; Twice 08:00 slot today.
@@ -371,7 +381,7 @@ Account Test03. Test protocols: **Zinc** (oral, daily, 1 capsule, time T), **BPC
 - Expect: "Yesterday's dose isn't logged" / "A dose de ontem não foi registrada"; buttons **Log for yesterday** / "Registrar para ontem" and **Today's dose — skip yesterday** / "Dose de hoje — pular a de ontem". The second writes Today Complete + yesterday Skipped; Undo removes both.
 
 **F03-13 — Missed row edit in the Dose log**
-- Do: Today tracker "View history ›" / "Ver histórico" → tap a "Dose missed" row.
+- Do: Today tracker "View history" › / "Ver histórico" → tap a "Dose missed" row.
 - Expect: "Update this dose" / "Atualizar esta dose" with the 12-hour explanation; **Mark complete** / **Mark as skipped**; complete keeps the slot time; for an injectable the site picker opens first.
 
 **F03-14 — Delete a dose**
@@ -382,9 +392,9 @@ Account Test03. Test protocols: **Zinc** (oral, daily, 1 capsule, time T), **BPC
 - Setup: only a weekly protocol, not due today.
 - Expect: Today ring "Nothing due" / "Nada pendente" (never 0 %).
 
-**F03-16 — Rings: late dose matches its own slot (intended)**
+**F03-16 — Rings: late dose on the slot's own day**
 - Setup: daily 08:00 protocol; log yesterday's dose at 21:00; clock today 07:00.
-- Expect (intended): Today ring 0 %, 7-day ring counts yesterday as taken. **Today (D03-1): Today ring shows 100 %** — record.
+- Expect (only if the Missed scan's same-local-day rule, `missedDoses.js:149-155`, is adopted for the rings — the rule chosen for DV-030): Today ring 0 %, 7-day ring counts yesterday as taken. 21:00 is outside ± half the interval of 08:00, so decisions.md:144 alone does not give this result. **Today (D03-1): Today ring shows 100 %** — record.
 
 **F03-17 — Creation-day rule**
 - Setup: create a daily 08:00 protocol at 21:00.
@@ -392,7 +402,7 @@ Account Test03. Test protocols: **Zinc** (oral, daily, 1 capsule, time T), **BPC
 
 **F03-18 — All caught up**
 - Do: complete every due dose today.
-- Expect: "You're all caught up for today" / "Tudo em dia por hoje"; no duplicate text.
+- Expect: "You’re all caught up for today" / "Tudo em dia por hoje"; no duplicate text.
 
 **F03-19 — Last dose of a recon vial**
 - Setup: BPC-157 vial with 1 dose left (Protocols shows "Low · 1 left").

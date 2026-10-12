@@ -106,7 +106,7 @@ stateDiagram-v2
 
 ### 7.3 Pages update each other (BK-19)
 - A dose taken / skipped / undone on the left shows in the embedded Dose log on the right at once; a weigh-in on Progress updates the Journey tiles; a curve change updates the Journey tile.
-- **Divergence today (05 D3):** My Body's left card does not follow a curve change on its right page (no 'curve' listener).
+- **Divergence today (05 D3):** My Body's left card does not follow a curve change on its right page (no 'curve' listener). Wider than that: `BodyScreen` has no `addSyncListener` at all, so My Body never reloads on a sync pull while it is open, on either page (verification 05 O-4; extend DV-152).
 - **Divergence today (04 D-4):** Progress on the right page loads the open reality check once; a Stop pulled from another device is not reflected until remount.
 
 ### 7.4 Accessibility (BK-21)
@@ -133,9 +133,11 @@ stateDiagram-v2
 
 ### 7.11 Free vs Premium
 - Curve on the right only for Premium (Journey, My Body); free → full-screen Paywall / preview sheet.
+- Lab marker charts are Premium by decision (AD-24) but not gated anywhere today, including the My Body right page (`BodyScreen.js:142-144`, no gate in `openMarker`): a free user sees them on the Fold too (DV-108, 07 K-04).
 
 ### 7.12 Device evidence
 - **Divergence today (08 §9; spec-audit 2026-10-12 FAIL):** BK-1…BK-22 are `partial` (two-page look and real fold/unfold not yet seen on the founder's Z Fold 7 in light + dark); FR-6 `missing`. A build cannot pass Gate S until this walk is recorded.
+- **Not signed:** `docs/specs/fold-right-page.md` has an empty `checklist-signed:` line, so the A-115 checklist (FR-1…FR-6) still needs the founder's signature; this is a separate item from the AD-52 deviation list (07 A-04 / Q-08).
 
 ## 8. What every surface shows (unfolded)
 
@@ -145,7 +147,7 @@ stateDiagram-v2
 | Today, tapped BPC-157 | card outlined, Mark complete / Skip on the card | BPC-157 protocol page (no actions, no Delete) | full width |
 | Today, tapped recon with no vial | card "+ Add vial" | "No mixed vial right now" + why + "+ Add vial" | — |
 | Protocols, first open | list | first protocol (or the one from Today) | — |
-| Protocols, Recently deleted Select mode | checkboxes | selected protocol page | replaced by Restore (N) / Delete forever (N) bar |
+| Protocols, Recently deleted Select mode | checkboxes | selected protocol page | replaced by "Restore ({n})" / "Delete forever ({n})" bar (PT "Restaurar ({n})" / "Excluir para sempre ({n})") |
 | Journey, nothing tapped | dashboard | Progress | — |
 | Journey, food card | dashboard | food chat (no Done) | — |
 | Journey, curve tile (free) | — | — (full-screen Paywall) | — |
@@ -171,8 +173,8 @@ BK-1 thresholds; BK-2 one column = today's app; BK-3 (superseded by A-115 FR-1/F
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
 | D14-1 | Notifications open on the right page | Left page / pushed | A-116 (waiting), `02 G15` | DV-117 |
-| D14-2 | Every BK row device-proven light + dark | Partial; FR-6 missing | spec-audit, `08 §9` | DV-118 |
-| D14-3 | My Body card follows the curve | Stale | `05 D3` | DV-152 |
+| D14-2 | Every BK row device-proven light + dark; FR checklist signed | Partial; FR-6 missing; fold-right-page checklist unsigned | spec-audit, `08 §9`; 07 A-04 / Q-08 | DV-118 |
+| D14-3 | My Body follows the curve and sync pulls | Stale (no sync listener at all) | `05 D3`; verification 05 O-4 | DV-152 (to extend) |
 | D14-4 | Progress on the right follows sync | Loads once | `04 D-4` | DV-059 |
 | D14-5 | Rebuild = replace complete | Dead dose-page code; BK-3/BK-16 text not marked superseded | `02 G14` | DV-181, DV-179 |
 

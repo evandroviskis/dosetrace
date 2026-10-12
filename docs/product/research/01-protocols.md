@@ -1,5 +1,18 @@
 # 01 — Protocols & supply: product + technical dossier
 
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/01; where this dossier and the verification disagree, the verification wins.**
+>
+> Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
+> 1. **D-20 / G-27 are stale.** Protocols send `created_at` since commit `e85519c` (`lib/syncMappers.js:101-103`). Two residuals remain: a pull never rewrites an existing local `created_at` (`lib/syncCore.js:405-415`), and vials (like 7 other tables) still do not send it (TRD H-4).
+> 2. **Interval presets (R-08, ledger row :200).** The wizard does not show presets 1–7, 10, 14: step 4 has only Every day / Custom plus a typed field (digits only, 1–999). `PRESET_INTERVALS` only decides whether a stored value opens Custom (`screens/ProtocolsScreen.js:3062-3088`, `lib/protocolForm.js:16`). The code differs from decisions.md:200 and no later ledger line replaces it.
+> 3. **Restart order (§ Restart, R-51/R-52).** The free limit is not checked first from the user's point of view: `askRestart` shows the duplicate warning, then the container question, and only then `restartProtocol` checks the limit — the user picks a container before seeing "Protocol limit reached" (`screens/ProtocolsScreen.js:1253-1285`, `:1288-1290`).
+> 4. **Purge blanking (R-55, Delete forever).** The server trigger also keeps `type`, colour and `deleted_at`, and leaves `interval_days`, `doses_per_day`, `concentration_unit` and `divisible` unblanked — narrower than ledger :540 promises (`supabase/migrations/20261004010000_protocol_delete_guard.sql:8-9, 31-41`).
+> 5. **D-01 equivalence.** `notifications.js:424, 925` skip the `sync_status` test (harmless: soft delete sets `active = 0`); `adherenceRings.js:70-71` is a different "active **or ended**" predicate, not a copy of "is active".
+> 6. **G-9 (recon vial edit).** The capacity recompute on a dose edit is decided by logic (DL-15, decisions.md:660); only the manual mix-date / window / doses-used edit waits for the founder (OPEN-01).
+> 7. **Offline assistant (§13 item 13).** Offline, the assistant stays open with a notice; it does not hand back to the form with the compound filled (`screens/components/ProtocolAssistant.js:111-120`). The handback after a conversation goes to step 1, 3 or 4 through `stepForHandback` (`lib/protocolAssistant.js:949-956`), not always step 1.
+> 8. **Report supply line.** The Settings report computes `total_doses − doses_taken` inline (`SettingsScreen.js:415`), a fourth copy next to D-03's three.
+> 9. **New defects found by the verification (not in this dossier):** an oral protocol dosed in IU is blocked at step 3 / Save by a unit mismatch (`ProtocolsScreen.js:1793-1795, 1804, 1810`); after a ready-to-use "New vial" (same row id reset) that vial's "running low" push never fires again (`notificationPlan.js:243-255`); a ready-to-use vial shows "Past window" from 00:00 on the last day of its box month (`Math.ceil` of a negative fraction gives -0, `ProtocolsScreen.js:194`); the oversized vial-photo notice reuses "Please choose a PDF under 10 MB."; Today's vial prompt has a dead "doses already used" state (`TodayScreen.js:257`); the vial prompt has two buttons, no "Not now" (`TodayScreen.js:2380-2393`).
+
 - Scope: create (wizard, compound search, blends, recon / rtu / oral, schedule, start date incl. past start and the A-30 history question, total doses / course), AI protocol assistant, vial-label scan, edit, end, restart, delete + Recently deleted, vials (mix date, expiry, doses left, new vial, refill bottle, supply low), the My Protocols page (heroes, list, sort, detail), the free plan limit, protocol colours.
 - Code state read: branch `redesign/graduated`, HEAD `4dade55` (2026-10-12). Read-only research, no code changed.
 - Citation format: `path:line`. "CONFIRMED" = both sides read and they differ. "SUSPECTED" = reasoning from code, not reproduced. "unverified" = could not be checked from the repo (device, cloud, or founder intent).
@@ -28,7 +41,7 @@
 **Key dated decisions that shape the domain** (all from docs/decisions.md):
 | Date | Decision | Line |
 |---|---|---|
-| 2026-09-04 | Start date any past/future date (default today); custom interval presets 1–7, 10, 14 + custom days | :200 |
+| 2026-09-04 | Start date any past/future date (default today); custom interval presets 1–7, 10, 14 + custom days. [Corrected 2026-10-12: the wizard does not show these presets — only Every day / Custom + a typed 1–999 field; see note 2] | :200 |
 | 2026-09-18 / 09-24 | Blends: picker shows common composition + "varies by source"; curve splits blends by common ratio; per-vial composition label is journaling only | :205 |
 | 2026-09-27 | A new vial never rewrites start_date (S-01) | :181 |
 | 2026-09-27 (option C) | A-30 history before registration = declared, never logged; "Same dose for the last N weeks?" | :198 |
@@ -175,7 +188,7 @@ There is ONE end path in the UI today:
 - Entry: Ended row "Restart" pill (screens/ProtocolsScreen.js:2195-2197).
 - Duplicate warning first: if an ACTIVE protocol has the same compound_id or the same name (trim, lower-case) → "{name} is already active … duplicate reminders" (Resume anyway / Cancel) (:1271-1281).
 - Container question: `getVialsForProtocol(id)` non-deleted vials → "vial"; else `container_units > 0` → "bottle"; else plain confirm (:1255-1270). Buttons: New vial/bottle (primary), Keep using the same vial/bottle, Cancel.
-- `restartProtocol` (:1286-1303): one at a time (`restartingRef`); free limit first (`isOverFreeLimit` → limit sheet); `restartEndedProtocol(id, { sameContainer })` (lib/database.js:109-113 → lib/protocolEnd.js:141-169), in one SQL transaction:
+- `restartProtocol` (:1286-1303): one at a time (`restartingRef`); free limit first inside this function (`isOverFreeLimit` → limit sheet) — [Corrected 2026-10-12: but it runs only after `askRestart` has shown the duplicate warning and the container question (:1253-1285), so the user picks a container before seeing the limit]; `restartEndedProtocol(id, { sameContainer })` (lib/database.js:109-113 → lib/protocolEnd.js:141-169), in one SQL transaction:
   - New protocol row copying every column except `id, remote_id, active, deleted_at, ended_at, purged_at, optional_pending, restored_at, status_at, created_at, updated_at, sync_status, start_date, units_taken`; `start_date = today (local)`, `active = 1`, `created_at = now`, `units_taken = sameContainer ? old : 0` (lib/protocolEnd.js:138-151). Note: `history_from`, `schedule_total`, `reminder_time`, colour, note, goals are copied.
   - Newest non-deleted vial: same container → moved to the new run unchanged (`protocol_id = new`, `protocol_remote_id = NULL`, active 1). New container → old run's active vials set inactive; a new vial row: `mixed_on = today` (only if the old one had a mix date), same `water_ml` and `total_doses`, `doses_taken 0`, `expires_on NULL` (user must enter the new box date) (:153-162).
   - The ended row stays as history of the first run.
@@ -226,7 +239,7 @@ Numbering R-xx. Source = decision date (docs/decisions.md line), spec row id, or
 5. R-05 Blends (Glow, KLOW, Wolverine) show the common composition with "varies by source"; the "what's in the vial" label is journaling only, never parsed, never feeds the curve — 2026-09-18/24 (docs/decisions.md:205); lib/protocolForm.js:146-147.
 6. R-06 A NEW protocol's first dose is Today; the default time is now rounded to 5 min — 2026-10-02 (docs/decisions.md:178); lib/protocolForm.js:33-56.
 7. R-07 Start date may be any past or future date; stored as local `YYYY-MM-DD`; an invalid value falls back to today — 2026-09-04 (docs/decisions.md:200); lib/protocolForm.js:19-24, :142; screens/ProtocolsScreen.js:1842.
-8. R-08 Interval presets 1–7, 10, 14 + custom days; the form accepts 1–999 (3 digits); doses per day 1–3 only when interval ≤ 2, otherwise forced to 1 with one time — lib/protocolForm.js:16; screens/ProtocolsScreen.js:1033-1042, :3083-3091, :3099.
+8. R-08 Interval presets 1–7, 10, 14 + custom days [Corrected 2026-10-12: the wizard shows only Every day / Custom; `PRESET_INTERVALS` only decides whether a stored value opens Custom]; the form accepts 1–999 (3 digits); doses per day 1–3 only when interval ≤ 2, otherwise forced to 1 with one time — lib/protocolForm.js:16; screens/ProtocolsScreen.js:1033-1042, :3083-3091, :3099.
 9. R-09 Reminder times array length always equals doses per day (defaults now, 14:00, 21:00, then 12:00); a stale index can never add a phantom dose — screens/ProtocolsScreen.js:1006-1019, :1045-1056; lib/protocolForm.js:102-105.
 10. R-10 No numeric presets (no prefilled doses, no auto goals) — 2026-07-03 (docs/decisions.md:170).
 11. R-11 Diluent: Bacteriostatic / Sterile / NaCl 0.9 % / Other (own text), nothing selected by default; stored as a token or the trimmed text; recon only — 2026-07-03 (docs/decisions.md:171); lib/protocolForm.js:118-121.
@@ -277,11 +290,11 @@ Numbering R-xx. Source = decision date (docs/decisions.md line), spec row id, or
 48. R-48 Inactivity end is dated at the last Taken dose; app-written Missed rows after it are removed; user rows kept — A-86, 2026-10-04 (docs/decisions.md:536); lib/protocolEnd.js:52-69.
 49. R-49 A deliberate end = moment tapped — 2026-10-03 (docs/decisions.md:504); lib/protocolEnd.js:45-50 (no UI caller).
 50. R-50 Restart = a NEW run: same settings, start today, created now; ended row stays — journey F1/F3 2026-10-03; lib/protocolEnd.js:130-137.
-51. R-51 Restart asks New vs Same container; New = full vial mixed today, 0 taken, expiry blank; Same = old vial moves unchanged (oral keeps units); duplicate active compound/name warned first — 2026-10-06/07 (docs/decisions.md:578, :614).
+51. R-51 Restart asks New vs Same container; New = full vial mixed today, 0 taken, expiry blank; Same = old vial moves unchanged (oral keeps units); duplicate active compound/name warned first — 2026-10-06/07 (docs/decisions.md:578, :614). [Corrected 2026-10-12: order in code = duplicate warning → container question → free-limit check.]
 52. R-52 Restart and Restore respect the free limit — A-89 (docs/decisions.md:538); screens/ProtocolsScreen.js:1290, :1309.
 53. R-53 Restore: an Ended-before-delete row returns to Ended; a row deleted before today returns to Ended dated at the delete; same-day restore is an undo (active under the limit, else Ended); only a still-deleted, unpurged row is restored — A-89 + Gate B (docs/decisions.md:505, :538); lib/protocolEnd.js:100-121.
 54. R-54 Automatic 7-day purge of soft-deleted protocols PAUSED in 1.3.0; Recently deleted lists all soft-deleted while paused — 2026-10-03 (docs/decisions.md:506); lib/protocolEnd.js:183-215; registry A-84 (next build after 1.3.0).
-55. R-55 Delete forever = positive tombstone: local purged_at + children tombstoned; cloud purge writes purged_at, server triggers delete children and blank the row's content; a dose log/vial on a purged protocol is refused — 2026-10-04 (docs/decisions.md:521-531, :540, :556).
+55. R-55 Delete forever = positive tombstone: local purged_at + children tombstoned; cloud purge writes purged_at, server triggers delete children and blank the row's content [Corrected 2026-10-12: they keep type, colour, deleted_at and leave interval_days, doses_per_day, concentration_unit, divisible unblanked]; a dose log/vial on a purged protocol is refused — 2026-10-04 (docs/decisions.md:521-531, :540, :556).
 56. R-56 No device removes data because a row is absent from the cloud; a protocol push that finds 0 rows re-inserts it SOFT-DELETED — 2026-10-04 (docs/decisions.md:520, :524); lib/syncCore.js:140-158.
 57. R-57 End / Delete wins across devices: status fields (active, deleted_at, ended_at) are pushed only by the device that changed them (`status_at`) — A-87 (docs/decisions.md:537); lib/syncMappers.js:53-92; lib/syncCore.js:617-636, :676-686.
 58. R-58 Reminders keep being renewed until the user deletes or ends the protocol (no stop point), except protocols with a total number of doses end their reminders when the course ends — 2026-10-07 (docs/decisions.md:594, :601, :620; BR-12).
@@ -464,7 +477,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | screens/SettingsScreen.js:373, :432 | `reportProtocols` (active + ended with records in window) and `!isEnded` count |
 | lib/syncCore.js mergeCloudRow :628-635 | cloud status wins when local has no `status_at` |
 
-- D-01 (no divergence in effect, CONFIRMED equivalent): the JS checks omit `purged_at`, but a purge only applies to rows with `active = 0` (lib/protocolEnd.js:81), so every purged row is already "inactive" for them.
+- D-01 (no divergence in effect, CONFIRMED equivalent): the JS checks omit `purged_at`, but a purge only applies to rows with `active = 0` (lib/protocolEnd.js:81), so every purged row is already "inactive" for them. [Corrected 2026-10-12: `notifications.js:424, 925` also skip the `sync_status` test (harmless); `adherenceRings.js:70-71` is a separate "active or ended" predicate.]
 
 ### 6.2 "Doses left in the vial" / "vial capacity"
 | Where | How |
@@ -588,10 +601,10 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | lib/missedDoses.js:11-13, :104 | no Missed before created_at − 1 h |
 | lib/schedule.js:57-62, :95-106 | creation-day slots from created_at − 1 h |
 | lib/serumModel.js:225-240 | estimated before created_at (unless history_from) |
-| lib/syncMappers.js:12-19 | `created_at` is NOT in the protocols cloud payload |
+| lib/syncMappers.js:101-103 | [Corrected 2026-10-12] `created_at` IS in the protocols cloud payload since `e85519c` (it was not when this table was first written) |
 | lib/syncCore.js:491-499 (import) | local created_at taken from the cloud row (server time of the first push) |
 
-- D-20 CONFIRMED (code; impact noted in docs/review/features.md:341): `created_at` is not synced, so on a second device or after reinstall a protocol created offline and pushed later gets a later `created_at`. Every rule above then shifts: real doses logged before the first push become "declared" (dropped from adherence/streaks), Missed protection and the estimated curve boundary move.
+- D-20 **STALE** [Corrected 2026-10-12: protocols send `created_at` since `e85519c`, `lib/syncMappers.js:101-103`; residuals: a pull never rewrites an existing local `created_at` (`lib/syncCore.js:405-415`), and vials do not send it]. Original text: CONFIRMED (code; impact noted in docs/review/features.md:341): `created_at` is not synced, so on a second device or after reinstall a protocol created offline and pushed later gets a later `created_at`. Every rule above then shifts: real doses logged before the first push become "declared" (dropped from adherence/streaks), Missed protection and the estimated curve boundary move.
 - D-21 SUSPECTED (legacy rows only): `checkTreatmentStillActive` and `endAtLastDose` use the newest Taken row including declared rows (screens/TodayScreen.js:508-523; lib/protocolEnd.js:60). For a protocol whose only Taken rows are old backfill (pre-A-30 builds), the inactivity prompt can fire within 7 days of creation and the end is dated before the protocol existed.
 
 ### 6.14 Free plan count
@@ -627,7 +640,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 **protocols** (lib/schema.js:8-55): id, remote_id, user_id, name, compound_id, type ('recon'|'rtu'|'oral'), color (schema default legacy '#185FA5'; insert default palette-B Ocean, lib/database.js:134), amount (TEXT; rtu = total in vial), unit, water, diluent, dose, dose_unit, syringe_size, concentration, concentration_unit, frequency (label words), reminder_time ("HH:MM,…"), interval_days, doses_per_day, start_date, schedule_total, vial_valid_days, goal (csv), notes (oral form), note, composition, serving_strength, serving_strength_unit, serving_units, container_units, units_taken, divisible, active, deleted_at, ended_at, history_from, optional_pending, purged_at, restored_at, status_at, created_at, updated_at, sync_status.
 - Synced (CLOUD_FIELDS, lib/syncMappers.js:12-19): all content columns + `active`, `deleted_at` (status fields only when `status_at` is set, the row is new, or a re-insert/tombstone — lib/syncMappers.js:53-92).
 - Optional synced (sent only when set; retried after a missing-column error): `ended_at`, `history_from`, `purged_at` (only the purge writes it) (lib/syncMappers.js:35-41).
-- Local only: `optional_pending`, `restored_at`, `status_at` (lib/database.js:80-88). NOT synced: `created_at` (D-20).
+- Local only: `optional_pending`, `restored_at`, `status_at` (lib/database.js:80-88). NOT synced: `created_at` (D-20) [Corrected 2026-10-12: synced since `e85519c`; see note 1].
 - Migrations on start: ALTER TABLE for every added column; `addStatusAtColumn` backfills status_at for rows left pending by older builds; adding `composition` rewinds the pull watermark once (lib/database.js:40-89; lib/protocolEnd.js:37-43).
 
 **vials** (lib/schema.js:56-73): id, remote_id, user_id, protocol_id (local int), protocol_remote_id, mixed_on, water_ml, total_doses, doses_taken, expires_on, active, created_at, updated_at, sync_status. All content columns + active synced (lib/syncMappers.js:20). No status_at concept for vials (A-87b open).
@@ -650,7 +663,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 ### 7.3 Sync behaviour summary
 - Push order: tables in `TABLES` order; children (vials, dose logs) wait for the protocol's remote id; a child of a purged protocol stays pending (lib/syncCore.js:661-664).
 - Soft delete / end / restore are ordinary pending edits carrying status (status_at). A pull never overwrites a local status change (lib/syncCore.js:628-635).
-- Delete forever: local purged_at + children `sync_status='deleted'`; push writes the cloud tombstone (`purged_at`, active false) after hard-deleting children in the cloud; the server trigger blanks content and refuses new children (docs/decisions.md:521-531, :556; lib/syncCore.js:185-310).
+- Delete forever: local purged_at + children `sync_status='deleted'`; push writes the cloud tombstone (`purged_at`, active false) after hard-deleting children in the cloud; the server trigger blanks content (not all of it — see note 4) and refuses new children (docs/decisions.md:521-531, :556; lib/syncCore.js:185-310).
 - Vanished cloud row (no purged_at) → local row re-inserted soft-deleted; children re-inserted (lib/syncCore.js:140-176).
 - Self-heal: live cloud protocols the device lacks are re-imported (docs/decisions.md:523).
 - Old 1.2.x clients cannot DELETE protocols in the cloud (migration 20261004010000, docs/decisions.md:556).
@@ -661,7 +674,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | App update | kept; ALTER TABLE migrations; reminders rebuilt (A-111) | lib/database.js:40-89 |
 | Intended sign-out | local tables deleted (`clearLocalDatabase`, lib/database.js:730-742); cloud copy kept; unsynced rows → "Sign out anyway" warning | CLAUDE.md never-lose rule |
 | Token refresh / session hiccup | kept (no wipe) | docs/decisions.md:370 |
-| Reinstall / new device | full import from the cloud; purged never imported; `created_at` becomes the cloud's first-push time; local-only status markers reset | lib/syncCore.js:484-521 |
+| Reinstall / new device | full import from the cloud; purged never imported; `created_at` becomes the cloud's first-push time [Corrected 2026-10-12: for protocols it is now the device's own time, sent since `e85519c`; other tables still get the cloud's time]; local-only status markers reset | lib/syncCore.js:484-521 |
 | Other account signs in | previous account's local data discarded (privacy) | docs/decisions.md (Cross-account guard 2026-10-03) |
 | Delete forever | gone on every device (tombstone); cannot be undone | R-55 |
 
@@ -682,7 +695,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 10. **Deleted by mistake.** Same day: Restore → active (if under the limit). Next day: Restore → Ended (then Restart). Deleted protocols' doses disappear from the Dose log while deleted (copy does not say so — A-90).
 11. **Free user at 3 active, restores a 4th.** Goes to Ended, never active (A-89). Restart from Ended then shows the paywall.
 12. **Two devices.** End/Delete wins (A-87). Vial status has no such rule (A-87b): phone B's offline dose can push `active=1` on a vial A's end deactivated. Missed rows removed at an end stay on B (A-86b). Restart on both phones creates two runs (duplicate check is local). Free limit counts only local state (D-22). Concurrent multi-device use is "not a real use case" (A-48 parked, docs/decisions.md:199).
-13. **Offline.** Every write is local; the vial scan and the assistant need the network (assistant hands back to the form, AP-16); `created_at` drift when the first push is late (D-20).
+13. **Offline.** Every write is local; the vial scan and the assistant need the network (assistant hands back to the form, AP-16 [Corrected 2026-10-12: offline the assistant stays open with a notice and does not hand back, `screens/components/ProtocolAssistant.js:111-120`]); `created_at` drift when the first push is late (D-20, stale for protocols since `e85519c`).
 14. **Timezone / DST.** Start date and mix date are local calendar days (isoDay at local noon, lib/protocolForm.js:20-24); day differences use `Math.round` (DST-safe); Missed scan rebuilds slots in the zone of their day (A-51). rtu days-left uses `ceil` from now (D-06b). The vial-expiry push fires at 09:00 local on its date.
 15. **App update from 1.2.x.** New columns added; old "finished" soft-deletes are indistinguishable from deliberate deletes, hence the purge pause (R-54); rows left pending get `status_at` so their status change is still sent (lib/protocolEnd.js:33-43).
 16. **Language change.** Display names follow `t(compound_id)`, but stored `name` / `frequency` keep the creation language in notifications and the report (D-05); the frequency row on screen is re-derived from interval_days (lib/schedule.js:228-235).
@@ -707,7 +720,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | G-6 | Course (total doses): no UI to set it; Today / Missed / curve ignore it while reminders honor it | BR-12 approved 2026-10-07 (docs/decisions.md:620; docs/specs/background-refresh.md:25) | lib/protocolForm.js:143; lib/schedule.js:31-64 vs lib/notificationPlan.js:35-52 | CONFIRMED divergence (D-08, D-11) |
 | G-7 | Manual new vial for recon; new expiry for rtu New vial; "doses already used" | A-08 "needs a founder decision" (docs/review/features.md:148); journey F5–F7 | screens/ProtocolsScreen.js:585-590, :2103-2109 (same row reset, old expiry kept) | Open, undecided |
 | G-8 | Empty rtu vial cannot be replaced from the UI | (no decision; follows from F-035 "RTU New vial") | D-12 | CONFIRMED by code, device unverified |
-| G-9 | Recon mix date, validity window and vial capacity not editable after creation | none found; CLAUDE.md "enter once, used everywhere" spirit (A-54) | step 5 new-only (screens/ProtocolsScreen.js:3171) | CONFIRMED missing (no decision) |
+| G-9 | Recon mix date, validity window and vial capacity not editable after creation | none found; CLAUDE.md "enter once, used everywhere" spirit (A-54) | step 5 new-only (screens/ProtocolsScreen.js:3171) | CONFIRMED missing [Corrected 2026-10-12: capacity recompute on dose edit decided by DL-15; the manual recon edit is OPEN-01] |
 | G-10 | Today supply / expiry alerts naming one protocol do not open it | docs/decisions.md:146 (2026-09-29) | screens/TodayScreen.js:1544, :1576 | CONFIRMED (D-23) |
 | G-11 | Limit sheet claims a 7-day free trial | Open conflict #14 "confirm the iOS trial exists before shipping the claim" (docs/decisions.md:412) | i18n/translations.js:1931-1932 | Open founder item |
 | G-12 | Free limit 5 → 3 has no recorded founder statement for the change itself (later "3 mantém") ; stale code comment says "up to 5" | docs/decisions.md:410, :465 | screens/ProtocolsScreen.js:2032 comment vs :113 | Doc divergence |
@@ -725,7 +738,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | G-24 | Today empty state "Add a protocol" opens the tab, not the wizard | none | screens/TodayScreen.js:2181 | Observation |
 | G-25 | Dead code in the domain | — | `totalDoses` state (screens/ProtocolsScreen.js:1060); `endProtocol` import (screens/TodayScreen.js:29); `expiryColor` import with hard-coded hexes (screens/TodayScreen.js:55; lib/vialExpiry.js:30-35); registry F-033 names `ProtocolSyringeGuide`/`SyringeTick` which no longer exist | Cleanup |
 | G-26 | Free limit not enforced across devices / after Premium lapse | docs/decisions.md:280 (3 active) | D-22 | Open (no decision on downgrade) |
-| G-27 | created_at not synced → declared / Missed / estimated-curve boundaries move between devices | registry A-30 note, recommendation "add created_at to the protocols sync payload" (docs/review/features.md:341-344) | lib/syncMappers.js:12-19 | CONFIRMED open |
+| G-27 | created_at not synced → declared / Missed / estimated-curve boundaries move between devices | registry A-30 note, recommendation "add created_at to the protocols sync payload" (docs/review/features.md:341-344) | lib/syncMappers.js:101-103 | **STALE** for protocols [Corrected 2026-10-12: sent since `e85519c`; residual pull/vials gap only] |
 
 Things that match their decision (checked, no gap): first dose Today (R-06), Edit writes only changes (R-18), name required (R-01), one supply rule for screens and push threshold 3 (R-38), Restart new run with new or same container + duplicate warning (R-50, R-51), Restore rules A-89 (R-53), Delete forever tombstone (R-55), Recently deleted multi-select (§3.11), palette B with legacy mapping (R-67), vial scan rails (R-69), assistant rules (R-70), Mark complete on cards (R-66), book layout entry points (BK-4/BK-10).
 
