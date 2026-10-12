@@ -634,3 +634,6 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 6. Founder 2026-10-07: "Vamos resolver tudo. Sem pendência" — no production submit while any item is open; the earlier "subir direto para a loja" is withdrawn. On the Fold, every tap and every notification opens its item on the right page with the most information the app already has (food reminder → the AI food chat on the right, and so on) — A-116.
 - FL-48 wording 2026-10-08: founder chose "Informar minha média de calorias por dia", same line in all 6 languages; change/clear lines aligned to "informada"/"entered".
 - 2026-10-08: FL-48 "A" — the "Informar minha média de calorias por dia" link stays Premium-only (free users see it once they subscribe). Apple App Privacy: declare Photos (AI scans).
+
+## 2026-10-12 — PRD, TRD and flows
+- Founder: write a detailed PRD, TRD and the drawn flows before more code ("sem cortar caminhos… sem nada curto"). A-116 / A-117 wait. Work lives in docs/product/.
