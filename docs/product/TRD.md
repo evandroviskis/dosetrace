@@ -1,0 +1,1064 @@
+# DoseTrace — Technical Requirements Document (TRD)
+
+- Status: **DRAFT for founder review** — written 2026-10-12 on branch `redesign/graduated` (HEAD `976ef9e`). No code was changed to write it.
+- Founder brief (2026-10-12, `docs/decisions.md:638-639`): "sem cortar caminhos… sem nada curto" — a detailed PRD, TRD and drawn flows before more code.
+- Companion documents: `docs/product/PRD.md` (behaviour), `docs/product/flows/` (drawn journeys), `docs/product/research/01..08-*.md` (the factual dossiers this TRD consolidates).
+- Sources read for this TRD: all eight dossiers in full (incl. every STATE OWNERSHIP AUDIT and the 08 addendum on live triggers), `CLAUDE.md`, `docs/decisions.md`, `docs/specs/*.md` (README, background-refresh, reminders-guaranteed, exact-alarms; the rest through the dossiers), `.claude/skills/ship-check/SKILL.md`, and the code itself: `index.js`, `App.js`, `lib/sync.js`, `lib/syncCore.js`, `lib/syncMappers.js`, `lib/syncRunner.js`, `lib/database.js`, `lib/supabase.js`, `lib/localDate.js`, `lib/backgroundTasks.js`, `lib/reminderRefresh.js`, `lib/notificationActions.js`, `lib/notificationPlan.js`, `lib/schedule.js`, `lib/realityCheckNow.js`, `lib/featureExplainers.js`, `lib/syringes.js`, `app.json`, `eas.json`, `package.json`, `__tests__/helpers/syncHarness.js`, `__tests__/entitlementGuard.test.js`, plus targeted greps listed where used.
+- **Live evidence gathered for this TRD (2026-10-12, read-only, metadata only — no user rows read):** Supabase `list_migrations`, `list_edge_functions`, `information_schema.columns`, `information_schema.triggers`, `pg_constraint`, `pg_policies`, `cron.job` on project `mqfvnqfusqyhqhowfweh`. Test suite run (`node --test`) and `node scripts/spec-audit.cjs`.
+
+## How to read this document
+
+- `path:line` = read in the code at the HEAD above. Line numbers drift; the function name is given too so a reader can re-find it.
+- Dossier references use `NN:ID`, e.g. `02:D6` = dossier `research/02-doses-today.md`, divergence D6; `01:D-13` = dossier 01, D-13; `08:D4` = dossier 08 §8.2 row D4; `03:G16` = dossier 03 gap G16.
+- **CONFIRMED** = proven by reading code (and, where said, a run or a live query). **SUSPECTED** = follows from code but depends on runtime/device. **UNVERIFIED** = could not be checked from the repo or the read-only live queries.
+- **PROPOSED** = a single owner that does not exist yet; the code sweep (process step 4 in `docs/product/README.md`) creates it test-first. Nothing PROPOSED here is built.
+- Section 4 (State Ownership Registry) is the contract the code sweep enforces. Section 5 (Invariants) is what must hold at every build. Section 9 is the prioritized debt/risk list.
+
+## Headline findings (what this TRD adds to the dossiers)
+
+1. **Deletes of non-protocol rows never reach another device that already holds the row** (CONFIRMED in code, §3.9 H-1). Every table except protocols/vials/dose_logs-with-purge deletes by a cloud hard `DELETE`; the pull is incremental by `updated_at`, so a deleted row simply stops existing in the cloud and the other device never learns. The only absence-delete runs inside `fullImport`, which runs only when the device has **no protocol row** (`lib/syncCore.js:847-850`). A dose, weigh-in, food entry, lab value, vaccine or saved reality-check result deleted on phone A stays on phone B indefinitely.
+2. **`reality_checks` edits do not propagate** (CONFIRMED, §3.10). The client never sends `updated_at` in any payload (`lib/syncMappers.js:55-172` has no `updated_at`), and production has no `updated_at` trigger on `reality_checks` (live trigger list 2026-10-12; 08 addendum). An UPDATE leaves the cloud `updated_at` at its insert time, so `fetchSince(updated_at > watermark)` on other devices never returns the edited row, and `fullImport` skips rows a device already has. The test harness masks this because its fake cloud stamps `updated_at` on every update (`__tests__/helpers/syncHarness.js:67-68`).
+3. **Absolute counters are last-writer-wins** (CONFIRMED by design, §3.9 H-3): `vials.doses_taken` and `protocols.units_taken` are pushed as whole values with the whole row (`lib/syncMappers.js:87,109`), so two devices each logging one dose offline end at `n+1`, not `n+2`, and any whole-row push from one device reverts a field edited on the other.
+4. **`created_at` drift is fixed for protocols but not for other tables**: protocols now send `created_at` (`lib/syncMappers.js:101-103`, commit `e85519c`, so `01:D-20` is stale), but `biomarkers`, `food_logs`, `calc_snapshots`, `calc_targets`, `reality_checks`, `vaccines`, `vials` do not; the cloud stamps its own time and other devices inherit it (root cause of `06:D-3`).
+5. **Repo ↔ live schema drift is large**: production has **29** applied migrations (`list_migrations`), the repo `supabase/migrations/` has **12** files and 15 loose root `supabase_*.sql` files; the core DDL (`profiles`, `protocols`, `vials`, `dose_logs`, `biomarkers`, `reminders`, `handle_new_user`) is not in git; the repo's `notification_sends` table does not exist live; `parse-food-next` is still deployed although RL-1 (2026-10-03) said remove it (§2.3).
+6. **About 60 derived states, of which roughly half have two or more implementations** (§4). The worst clusters: the dose schedule (5 implementations), "taken today" (8+), streaks (3), adherence (3), reality-check state (2 assemblers + date-only copies in 6 places), vial days-left (3), current weight (5 rules), report grouping (2), protocol display name (2 rules on one flow).
+7. Current gates: `node --test` = **1,872 tests, 1,871 pass, 0 fail, 1 todo** (run 2026-10-12); `spec-audit` = **FAIL, 31 criteria block the build, 2 warnings**.
+
+---
+
+## 1. System architecture
+
+### 1.1 Runtime stack
+
+| Layer | Choice | Version / setting | Evidence |
+|---|---|---|---|
+| Framework | Expo SDK 54 managed + CNG (`/ios`, `/android` generated at prebuild, git-ignored) | `expo ~54.0.33` | `package.json`; 08 §1.1 |
+| JS runtime / RN | React Native 0.81.5, React 19.1.0, **New Architecture on**, Hermes | `newArchEnabled: true` | `app.json:10` |
+| Navigation | `@react-navigation/native` 7, stack + bottom-tabs | root stack → MainStack → 5 tabs | `App.js:108-341` |
+| Local DB | `expo-sqlite ~16.0.10`, file `dosetrace.db`, WAL, `foreign_keys=ON` (no FK declared, so not enforced) | `lib/database.js:23-35` | 08 §3.1 |
+| Cloud | Supabase (Postgres + Auth + Edge Functions + pg_cron + pg_net), project `mqfvnqfusqyhqhowfweh` | `@supabase/supabase-js ^2.101.1` | `lib/supabase.js:13-33` |
+| Auth token storage | `expo-secure-store` (Keychain/Keystore, `AFTER_FIRST_UNLOCK`, chunked ≤2000 B, two-slot ping-pong + `.__meta`) | `lib/secureStore.js` | 08 §5.1 |
+| Purchases | RevenueCat `react-native-purchases ^9.15.2`; entitlement id `DoseTrace Pro` | `lib/purchases.js:12-19` | 07 R40 |
+| Notifications | `expo-notifications ~0.32.16` (local one-shot dated triggers), `expo-task-manager`, `expo-background-task ~1.0.10` (Android only) | `lib/notifications.js`, `lib/backgroundTasks.js` | 03 §2 |
+| Graphics / motion | `react-native-svg 15.12.1`, `react-native-reanimated ~4.1.1`, `react-native-worklets 0.5.1`, gesture-handler | — | 08 §1.1 |
+| Fonts | Plus Jakarta Sans (every `fontWeight` mapped at module load), Geist, Geist Mono | `lib/fonts.js installFontMapping()` (`App.js:39`) | 08 §1.1 |
+| Native code | Local Expo module `modules/dt-exact-alarm` (Kotlin, Android only) | §1.6 | 03 §6.2 |
+| iOS | bundle `io.outcom.dosetrace`, deployment target 16.0, `useFrameworks: static`, `supportsTablet: false`, Sign in with Apple, 6 `CFBundleLocalizations` | `app.json:15-38`, `:72-77` | — |
+| Android | package `io.outcom.dosetrace`, `edgeToEdgeEnabled`, `SCHEDULE_EXACT_ALARM`, `google-services.json` (FCM client config), R8 minify + shrink with custom keep rules | `app.json:39-50`, `:78-83` | 03 §7.4 |
+| Tests | Node 24 `node --test`; `better-sqlite3` for the sync harness | `package.json` `"test": "node --test"` | §7 |
+
+Local native iOS builds are blocked on the founder's Mac (CocoaPods 1.11.3 / Ruby 2.6 vs RN 0.81 podspecs) — builds are EAS only (memory `ios-store-screenshots-and-build`; 08 §10).
+
+### 1.2 Process entry and app startup sequence
+
+`index.js` runs three things, in this order, before React mounts:
+
+1. `import './lib/notificationActions'` (`index.js:4`) — module scope: on Android defines the TaskManager task `dosetrace-notification-actions` and calls `N.registerTaskAsync` (`lib/notificationActions.js:197-210`); on both platforms adds a response listener, drains `getLastNotificationResponseAsync` once, and adds an AppState listener that drains again and runs a deferred sync on every return to the foreground (`:211-219`).
+2. `defineReminderRefreshTask()` (`index.js:7-8` → `lib/backgroundTasks.js:56-72`) — Android only: defines `dosetrace-reminder-refresh`. iOS returns immediately (the package is excluded from iOS autolinking, `package.json` `expo.autolinking.ios.exclude`).
+3. `registerRootComponent(App)` (`index.js:15`).
+
+`App` render tree (`App.js:800-846`): `WindowSizeRoot` → `SafeAreaProvider` → `ErrorBoundary` → `LanguageProvider` → `ThemeProvider` → `ThemedRoot` (`NavigationContainer` + root stack + one app-level `DTSheet` for email-link messages). While `loading || !fontsLoaded || seenOnboarding === null` a `ThemedLoading` spinner renders instead (`App.js:786-798`). Note: the loading tree has no `ErrorBoundary`, and the `ErrorBoundary` itself renders outside `ThemeProvider` with hard-coded white (`App.js:73-82`, 08 G10).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant OS
+  participant IDX as index.js
+  participant NA as lib/notificationActions
+  participant BG as lib/backgroundTasks
+  participant APP as App.js effect (521-768)
+  participant SB as Supabase auth
+  participant DB as SQLite
+  participant SYNC as lib/sync
+  participant NOTIF as lib/notifications
+  OS->>IDX: process start (UI or headless)
+  IDX->>NA: import (define action task Android, listener, drainLast)
+  IDX->>BG: defineReminderRefreshTask (Android)
+  IDX->>APP: registerRootComponent
+  APP->>DB: initDatabase() (createSchema + ALTER migrations)
+  APP->>NOTIF: initNotifications() (handler + 3 Android channels)
+  APP->>SYNC: startSyncEngine() (NetInfo listener)
+  APP->>APP: notification response listener + getLastNotificationResponseAsync (12 h staleness)
+  APP->>SB: startAutoRefresh if AppState active; AppState listener (fg resync, 60 s throttle)
+  APP->>NOTIF: watchExactAlarms(); registerReminderRefresh() (Android)
+  APP->>SYNC: addSyncListener -> re-plan food 20:00 + day-21 (30 s throttle)
+  APP->>APP: resolve seenOnboarding (dt_seen_onboarding && !stash answers)
+  APP->>SB: getSession()
+  APP->>APP: sessionAfterPendingWipe (finish dosetrace_wipe_pending, re-read session)
+  APP->>APP: setSession; initPurchases(uid,email)
+  APP->>DB: cross-account guard (getLocalDataUserId != uid -> clear DB, flags, notifications, drafts, selections, site questions)
+  alt isLocalDBEmpty(uid) (no protocols row)
+    APP->>SYNC: await fullImportFromCloud() (runExclusive)
+  else
+    APP->>SYNC: requestSync() (debounced 1.5 s)
+  end
+  APP->>APP: await runRealityMigration()
+  APP->>NOTIF: requestNotificationPermissions -> syncAllNotifications -> registerPushToken
+  APP->>APP: setLoading(false)
+  SB-->>APP: onAuthStateChange (synchronous: setSession first, side effects in setTimeout)
+```
+
+Line references for each step: `App.js:523` initDatabase; `:526` initNotifications; `:529` startSyncEngine; `:533-554` listener and launch response; `:563-576` auto-refresh and foreground resync; `:579-581` exact alarms and refresh registration; `:586-596` food / day-21 re-plan on sync; `:605-607` onboarding flag; `:609-658` session, wipe completion, guard, import/sync, migration, notifications; `:664-736` auth listener; `:744-757` Apple revoke listener (iOS → local sign-out, not intentional, data kept).
+
+`onAuthStateChange` (`App.js:664-736`) is synchronous: `setSession(session)` first; `SIGNED_OUT` → `onSignedOutNow(...)` (pure ref writes) + `setTimeout(afterSignedOut)`; `SIGNED_IN` → `bumpSignInGeneration()` inline, then everything else in `setTimeout(async …)`: wipe-marker check, clear auth entry/draft, consume a stale intentional flag, `initPurchases`, `startSyncEngine`, `applyPendingProfile`, cross-account guard, import or sync, reality migration, permissions + resync + push token. This matches CLAUDE.md Gate B (INV-01).
+
+### 1.3 Navigation — every route and its params
+
+**Root stack** (`App.js:290-336`), exactly one branch mounted, evaluated top-down on every render:
+
+| # | Condition (exact) | Route | Screen |
+|---|---|---|---|
+| 0 | `loading \|\| !fontsLoaded \|\| seenOnboarding === null` | (no navigator) | `ThemedLoading` |
+| 1 | `recovery` truthy (password-reset link, ≤1 h, survives kill) | `ResetPassword` | `ResetPasswordScreen` |
+| 2 | `!session && seenOnboarding` | `Auth` | `AuthScreen onBack initialMode={authEntry.mode}` |
+| 3 | `!session && !seenOnboarding` | `OnboardingFlow` | `OnboardingFlowScreen onDone` (pre-account) |
+| 4 | `session && !isProfileComplete(session.user)` (8 fields, `PROFILE_GATE_SINCE` 2020 → nobody grandfathered, `lib/supabase.js:203-236`) | `CompleteProfile` | `OnboardingFlowScreen session` (signed-in mode) |
+| 5 | `session && needsAdultConfirmation(user_metadata)` (`lib/adultGate.js:19-24`) | `AgeConfirm` | `AgeConfirmScreen` |
+| 6 | otherwise | `Main` | `MainStack` |
+
+**MainStack** (`App.js:224-241`): `MainTabs`, `Log`, `SerumCurve`, `Progress`, `FAQ`, `ReminderCheck`, `Paywall`, `FoodChat` (vertical card interpolator, swipe-down gesture).
+
+**MainTabs** (`App.js:178-222`): `Today`, `Protocols`, `Journey`, `Body`, `Settings` (labels `tab_today`, `tabbar_protocols`, `tab_journey`, `tab_body`, `tabbar_settings`; active `colors.ink`, inactive `colors.ink3`).
+
+| Route | Params read (file:line) | Navigated from |
+|---|---|---|
+| `Today` | `focusDose {protocolId, dayKey, ti, slotMs, take?, nonce}` (`screens/TodayScreen.js:171-175`) | Protocols "Mark complete" (`screens/ProtocolsScreen.js:2119`); dose notification tap / `MARK_TAKEN` / `morning_summary` (`lib/notificationPlan.js:173-187`) |
+| `Protocols` | `openProtocolId`, `openVialId` (`screens/ProtocolsScreen.js:1083-1155`) | Today cards and alerts (`TodayScreen.js:1544,1576,1779,1857,2014,2181`); `vial_low` / `vial_expiry` taps (`notificationPlan.js:179-181`) |
+| `Journey` | none | tab bar |
+| `Body` | `initialSection` (`screens/BodyScreen.js:231-237`) | Today "Bloodwork due" `{initialSection:'labs'}` (`TodayScreen.js:1520`) |
+| `Settings` | none | tab bar |
+| `Log` | none (embedded: `embedded`, `refreshKey`, `onChanged`, `popupGate` props, `LogScreen.js:43-62`) | Today tracker (`TodayScreen.js:2170`), Protocols hero (`ProtocolsScreen.js:2454`), Fold push (`components/BookPanes.js:59`) |
+| `SerumCurve` | none (embedded variant gets props) | Journey (`JourneyScreen.js:207`), Body (`BodyScreen.js:849`), Log (`LogScreen.js:522`, Premium), Fold push |
+| `Progress` | `focus` ('reality' \| 'weighin'), `nonce` (`ProgressScreen.js:65-66`; dropped on a book page) | Journey tile (`JourneyScreen.js:166`), Today reality alert (`TodayScreen.js:1498`), `checkin_reminder` / `reality_check` taps |
+| `FoodChat` | `eveningDay`, `nonce`, `logIt` (`FoodChatScreen.js:178-180`) | FoodLogHero (`FoodLogHero.js:85`), Journey (`JourneyScreen.js:75`), 8 PM `food_log` tap |
+| `FAQ` | none | Settings (`SettingsScreen.js:878`) |
+| `ReminderCheck` | `focus` ('alarms' \| 'battery' \| 'hibernation' \| 'refresh') (`ReminderCheckScreen.js:32`) | Today reminder cards (`TodayScreen.js:1587-1653`), Settings (`SettingsScreen.js:679,789`), `lib/reminderSetup.js:20` (auto-open once per phone), `reminder_test` tap |
+| `Paywall` | `source`, `onSuccess` (`PaywallScreen.js:73-74`) | 12+ sources (08 §2.2): `bloodwork_upload`, `serum_preview_sheet`, `export_pdf`, `journey_serum`, `log_serum`, `protocol_limit`, `serum_direct` (replace), `settings`, `reality_check`, `food_grace`, `food_hero`, and two calls with no source (`CalculatorSection.js:1148`, `FoodChatScreen.js:720`) |
+
+**Notification tap routing** (`App.js:402-432`): pure `notifTapTarget(response, now)` (`lib/notificationPlan.js:161-193`) → `routeTap` dedupes (in-memory `routedRef` + AsyncStorage `dosetrace_nav_handled`, last 30) → a launch response older than 12 h is ignored → target parked in `pendingNavRef` until the root route names include `Main` → `nav.navigate('Main', { screen, params })`. Action buttons `SNOOZE_HOUR`, `SNOOZE_TOMORROW`, `FOOD_DAY_DONE` never navigate (R-25 in 03).
+
+**Deep links** (`App.js:440-519`): `dosetrace://reset-password` (isolated recovery client, `lib/recoveryLink.js:43-69`; other account → `switchAsk` sheet), `dosetrace://confirm-email` (ignored with a session; else `exchangeAuthCodeFromUrl`), `…auth-callback` (Android Apple web flow after a kill). Each link handled once (in memory at once; on disk `dosetrace_links_handled`, last 20, only after success or a non-transient error). Ship-check Gate B's redirect allow-list text does not list `dosetrace://auth-callback` (07 gap 13).
+
+**Fold / book layout** (`components/BookPanes.js`, `lib/bookLayout.js`, `lib/bookSelection.js`, `lib/windowSize.js`): two pages at ≥700×560 pt (BK-1); `useFoldPush(tab)` pushes `Log` / `Progress` / `SerumCurve` / `FoodChat` when folding with an explicitly chosen right page; `useUnfoldToPage(route)` pops back with `popTo('MainTabs', { screen })` and stores the selection. MainActivity does not recreate on fold (`plugins/withFoldConfigChanges.js`).
+
+```mermaid
+flowchart LR
+  subgraph Root[Root stack: one branch at a time]
+    RP[ResetPassword]
+    OB[OnboardingFlow]
+    AU[Auth]
+    CP[CompleteProfile]
+    AG[AgeConfirm]
+    MAIN[Main]
+  end
+  OB -->|onDone create/signin| AU
+  AU -->|back| OB
+  AU -->|SIGNED_IN, profile incomplete| CP
+  AU -->|SIGNED_IN, complete| MAIN
+  CP -->|USER_UPDATED| MAIN
+  CP -->|USER_UPDATED, year under 18| AG
+  AG -->|confirm| MAIN
+  subgraph MainStack
+    TABS[MainTabs: Today Protocols Journey Body Settings]
+    LOG[Log]
+    CURVE[SerumCurve]
+    PROG[Progress]
+    FAQ[FAQ]
+    RCK[ReminderCheck]
+    PAY[Paywall]
+    CHAT[FoodChat]
+  end
+  MAIN --> TABS
+  TABS --> LOG & CURVE & PROG & FAQ & RCK & PAY & CHAT
+  N((notification tap)) -->|dose: focusDose| TABS
+  N -->|vial: openProtocolId| TABS
+  N -->|weighin / reality: focus| PROG
+  N -->|food_log: eveningDay| CHAT
+  N -->|reminder_test| RCK
+  L((email link)) -->|reset-password| RP
+```
+
+### 1.4 Headless entry points
+
+A headless start is any JS run without the UI: Android may start the JS process just for a task. Every headless path must obey INV-14…INV-19 (§5).
+
+| Entry | Platform | Trigger | What runs | Auth | DB | Writes / pushes | Evidence |
+|---|---|---|---|---|---|---|---|
+| Notification action task `dosetrace-notification-actions` | Android (headless); iOS via listener + `drainLast` on launch and on foreground | User presses an action button (Mark complete, In 1 hour, Tomorrow, Nothing else today) | `handleNotificationResponse` → claim key `id\|action\|date` in `dosetrace_notif_handled` (last 60) → `runAction`: oral Mark complete → `recordDoseTaken`; injectable → saves a site question only; snooze → `snoozeNotification`; food → `closeFoodDay` | `getCachedUser()` → `supabase.auth.getSession()`; **may refresh the token over the network** in this path (comment at `lib/supabase.js:19-25`) | `ensureDb()` — sets `dbReady = true` even when `initDatabase` throws (`lib/notificationActions.js:31-35`), unlike the refresh task which retries (`lib/backgroundTasks.js:25-29`) | Local SQLite writes; **no cloud sync while not active** (`syncWhenActive` → `requestSync` on next foreground, `:211-218`) | `lib/notificationActions.js:1-220`; 02 §3.11; 03 R-13…R-17 |
+| Silent wake-up (same task) | Android | Data-only Expo push `{type:'refresh_wake'}` from `wake-refresh` (pg_cron 08:00 UTC, ≥20 h apart) | `isWakePayload` → `refreshNow()` | stored session only | as below | none | `lib/notificationActions.js:203-206`; `lib/reminderRefresh.js:45-58` |
+| Reminder refresh task `dosetrace-reminder-refresh` | Android only (`expo-background-task`, `minimumInterval` 360 min; WorkManager decides; library adds a **network CONNECTED** constraint, 03 §7.4) | Periodic | `runReminderRefresh`: skip when `dosetrace_wipe_pending` set; `ensureDb`; `setBackgroundRun(true)` (stored-session-only, no immediate notifications); `readStoredUser`; `syncAllNotifications()`; always `setBackgroundRun(false)`; record `{at, ok, reason, lastOkAt}` in `dosetrace_refresh_last` | `readStoredUser()` raw Keychain read, never `getSession` (`lib/supabase.js:48-58`) | `initDatabase()` retried on next run if it fails | none (no push, no sync, no vial-low) | `lib/backgroundTasks.js`, `lib/reminderRefresh.js`; BR-1…BR-11 |
+| `RefreshOnUpdateReceiver` | Android (`MY_PACKAGE_REPLACED`, `BOOT_COMPLETED`) | App update / reboot | Enqueues expo-background-task's worker **by class name** (`expo.modules.backgroundtask.BackgroundTaskWork`, input key `appScopeKey`) as unique work `DOSETRACE_REFRESH_AFTER_UPDATE` (no constraint) | as refresh task | as refresh task | none | `modules/dt-exact-alarm/android/.../RefreshOnUpdateReceiver.kt:18-33`; fragility 03:G24 |
+| iOS | — | — | No background mode at all (`plugins/withoutIosBackgroundFetch.js` strips `UIBackgroundModes: fetch`); reminders are renewed only when the app is opened (window 10 days) | — | — | — | BR-11; 03:G1 |
+
+Not headless but process-wide: the AppState listener in `lib/notificationActions.js:213-218` and in `App.js:565-576` both run on foreground; the first drains a pending action and runs a deferred sync, the second resyncs (≤1/min).
+
+### 1.5 Native module and config plugins
+
+- `modules/dt-exact-alarm` (Expo module, Kotlin, Android only; JS wrapper returns `null` elsewhere, `modules/dt-exact-alarm/index.js:14-17`):
+  - `canScheduleExactAlarms()` — Android < 12 → true; else `AlarmManager.canScheduleExactAlarms()` (`DtExactAlarmModule.kt:15-20`).
+  - `isExemptFromHibernation()` — Android < 11 → true; else `packageManager.isAutoRevokeWhitelisted()` (`:24-28`; OEM equivalence UNVERIFIED, 03:D-7).
+  - `RefreshOnUpdateReceiver` + manifest (`RECEIVE_BOOT_COMPLETED`, receiver for `MY_PACKAGE_REPLACED` / `BOOT_COMPLETED`).
+- Config plugins (`plugins/`): `withAndroidBackupDisabled` (`android:allowBackup="false"`), `withFoldConfigChanges` (MainActivity `configChanges` += screenSize, smallestScreenSize, screenLayout, orientation), `withoutIosBackgroundFetch`.
+- R8 keep rules (`app.json:82`, `extraProguardRules`): `expo.modules.notifications.**`; Serializable members (`serialVersionUID`, `writeObject`, `readObject`, `writeReplace`, `readResolve`) — without them every scheduled reminder failed with `NotSerializableException` (root cause of the 2026-10-05 Android incident, `docs/decisions.md:565`); `expo.modules.adapters.react.apploader.**` (headless loader); `expo.modules.taskManager.**`; `expo.modules.backgroundtask.**` (the receiver starts the worker by class name). Guard test: `__tests__/androidKeepRules.test.js`.
+
+### 1.6 Backend (Supabase) — live as of 2026-10-12
+
+**Tables (public schema, live).** All have RLS enabled (`pg_class.relrowsecurity = true`).
+
+| Table | Role | Policies (live) | `updated_at` trigger (live) | Other triggers (live) | FK / delete (live) |
+|---|---|---|---|---|---|
+| `profiles` | one row per auth user (`plan` read by admin RPC) | ALL (own) | — | — | `id → auth.users` CASCADE |
+| `protocols` | synced | INSERT+check, SELECT, UPDATE+check — **no DELETE** (A-88) | `set_updated_at` | `protocols_blank_purged` (BEFORE INSERT/UPDATE), `protocols_purge_children` (AFTER UPDATE) | `user_id → profiles` CASCADE |
+| `vials` | synced | DELETE (guarded: live or purged parent), INSERT+check, SELECT, UPDATE+check | `set_updated_at` | `vials_refuse_purged_parent` | `protocol_id → protocols` CASCADE; `user_id → profiles` CASCADE |
+| `dose_logs` | synced | ALL (own) | `set_updated_at` | `dose_logs_refuse_purged_parent` | `protocol_id → protocols` CASCADE; `user_id → profiles` CASCADE |
+| `biomarkers` | synced | ALL (own) | `set_updated_at` | — | `user_id → profiles` CASCADE |
+| `vaccines` | synced | per command, UPDATE+check | `vaccines_set_updated_at` | — | `user_id → auth.users` CASCADE |
+| `food_logs` | synced | per command | `food_logs_set_updated_at` | — | `→ auth.users` CASCADE |
+| `reality_checks` | synced | per command | **NONE** | — | `→ auth.users` CASCADE |
+| `calc_snapshots` | synced | per command | `calc_snapshots_set_updated_at` | — | `→ auth.users` CASCADE |
+| `calc_targets` | synced | per command | `calc_targets_set_updated_at` | — | `→ auth.users` CASCADE |
+| `reality_check_open` | synced | per command | `reality_check_open_set_updated_at` | `reality_check_open_keep_stop` (BEFORE UPDATE: `stopped_at` never cleared) | `→ auth.users` CASCADE |
+| `calc_inputs` | synced, `UNIQUE(user_id)` | per command | `calc_inputs_set_updated_at` | — | `→ auth.users` CASCADE |
+| `reminders` | legacy, unused by the client | ALL | — | — | `→ profiles`, `→ protocols` CASCADE |
+| `push_tokens` | Expo tokens, `UNIQUE(user_id, expo_token)` | per command | — | — | `→ auth.users` CASCADE |
+| `analytics_events` | anonymous events (`user_id` forced NULL) | INSERT+check ×2, SELECT | — | `analytics_events_anonymize` (BEFORE INSERT/UPDATE) | `→ auth.users` CASCADE |
+| `ai_food_usage`, `ai_scan_usage`, `ai_assistant_usage`, `apple_tokens`, `wake_refresh_runs` | server-only ledgers | none (service role only) | — | — | `→ auth.users` CASCADE |
+| `referral_codes`, `referrals` | unwired feature | own-only | — | — | `→ auth.users` CASCADE |
+
+Server functions (repo + 08 §3.2; existence of each live function body is UNVERIFIED except where a migration applied it): `set_updated_at()`, `protocols_purge_children()`, `refuse_child_of_purged_protocol()`, `protocols_blank_purged()`, `reality_check_open_keep_stop()`, `analytics_events_anonymize()`, `claim_wake_refresh()` (SECURITY DEFINER, service_role only, advisory lock, ≥20 h), `redeem_referral_code(text)` (execute revoked), `admin_metrics()` / `admin_activity()` / `admin_feature_adoption()` (service_role, web admin panel), `handle_new_user()` (body not in repo).
+
+**Cron (live):** `dosetrace-wake-refresh`, `0 8 * * *`, active → `net.http_post` to `/functions/v1/wake-refresh` (migration `20261007000000`).
+
+**Edge functions (live versions 2026-10-12):**
+
+| Function | Live version | verify_jwt | Purpose | External |
+|---|---|---|---|---|
+| `delete-user` | v17 | on | Apple revoke (best effort) → delete rows of 20 tables + referrals → `auth.admin.deleteUser` | Apple |
+| `extract-bloodwork` | v20 | on | lab / vaccine / vial image or PDF → values (transcription only); quota 3 free / 20 Premium per UTC month, reserve-then-call, fails open | Anthropic `claude-haiku-4-5-20251001`; RevenueCat REST |
+| `parse-food` | v10 | on | meal text → items + kcal/macros; 25 parses + 25 follow-ups per `entry_date`, 60 / rolling 24 h | Anthropic Haiku |
+| `parse-food-next` | v2 | on | **should be gone** (RL-1, `docs/decisions.md` 2026-10-03 "remove parse-food-next") — still ACTIVE live | Anthropic |
+| `protocol-assistant` | v1 | on | `start` / `understand`, 10 conversations / rolling 7 days | Anthropic `claude-haiku-4-5` (structured outputs) |
+| `apple-link` | v2 | on | exchange Apple code → store refresh token | Apple |
+| `wake-refresh` | v2 | **off** | daily silent data push to Android tokens, guarded by `claim_wake_refresh()` | Expo push |
+| `send-reminders` | **not deployed** (repo only; client flag `SERVER_PUSH_ACTIVE = false`, `lib/notifications.js:1079`) | — | dormant server push sender | Expo push |
+
+Repo-side deployed-code equality (does live v20 equal git?) is UNVERIFIED; the dashboards record deploy decisions (`docs/decisions.md:564` extract-bloodwork v20; parse-food v9 → live shows v10).
+
+### 1.7 Third parties
+
+| Party | Used for | Where | Data sent | Notes |
+|---|---|---|---|---|
+| Supabase | Auth, Postgres, Edge Functions, cron | everywhere | all synced user data | anon key public by design; RLS is the perimeter (`eas.json` env) |
+| Expo push service → FCM | Android silent wake-up only | `wake-refresh` | push token + `{type:'refresh_wake'}` | iOS tokens are registered (`lib/notifications.js:1029-1072`) but nothing is sent to iOS (03:G21) |
+| APNs | none (iOS reminders are local notifications) | — | — | no iOS background refresh |
+| RevenueCat | purchases, entitlement | client SDK (`lib/purchases.js`); server REST (`extract-bloodwork/quota.ts`) | app user id = Supabase uid | server treats "unreachable" as Premium for scans (07:D-1) |
+| Anthropic (Claude Haiku 4.5) | food parse, lab/vaccine/vial transcription, protocol assistant | 3 edge functions | user text / images, after AI consent | consent is per device (07:D-18); key is a Supabase secret only |
+| Apple | Sign in with Apple, token revoke on delete | `lib/supabase.js:303-360`, `apple-link`, `delete-user` | — | Android Apple web flow not configured server-side (07 gap 13) |
+| Google | Sign-in (native ID token) | `lib/supabase.js:147-190` | — | "Skip nonce check" on (decisions) |
+
+### 1.8 Component diagram
+
+```mermaid
+flowchart TB
+  subgraph Device
+    subgraph Entry
+      IDX[index.js] --> NA[notificationActions: action task, wake handler]
+      IDX --> BGT[backgroundTasks: refresh task Android]
+      IDX --> APP[App.js]
+      RCV[RefreshOnUpdateReceiver Kotlin] --> BGT
+    end
+    APP --> UI[Screens: Today Protocols Journey Body Settings + stack]
+    UI --> OWN[Owner libs: schedule, dosePageState, adherenceRings, doseStreak, missedDoses, supplyLow, protocolEnd, realityCheckRules, nutrition, foodThread, energyCalc, serumModel, entitlement, reminderHealth]
+    UI --> DBA[lib/database.js]
+    OWN --> DBA
+    DBA --> SQL[(SQLite dosetrace.db 11 tables)]
+    SYNCA[lib/sync.js adapter] --> CORE[lib/syncCore.js]
+    CORE --> SQL
+    CORE --> MAP[lib/syncMappers.js]
+    NOTIF[lib/notifications.js + notificationPlan.js] --> OSQ[(OS notification queue)]
+    NA --> DBA
+    BGT --> NOTIF
+    UI --> AS[(AsyncStorage)]
+    APP --> SS[(SecureStore session)]
+    ENT[lib/entitlement.js] --> RC[RevenueCat SDK]
+  end
+  subgraph Supabase
+    AUTH[Auth + user_metadata]
+    PG[(Postgres + RLS + triggers)]
+    EF[Edge functions]
+    CRON[pg_cron 08:00 UTC]
+  end
+  SYNCA <--> PG
+  APP <--> AUTH
+  UI --> EF
+  EF --> ANTH[Anthropic]
+  EF --> RCREST[RevenueCat REST]
+  CRON --> EF
+  EF -. data-only push .-> NA
+```
+
+---
+## 2. Data model
+
+### 2.1 Local SQLite (`lib/schema.js` canonical DDL; `lib/database.js initDatabase` additive migrations)
+
+Common columns on every table: `id INTEGER PRIMARY KEY AUTOINCREMENT` (local, restarts after a wipe), `remote_id TEXT` (cloud uuid, null until first push), `user_id TEXT`, `updated_at TEXT DEFAULT datetime('now')` (device clock while pending; the **cloud** `updated_at` once synced, `lib/syncCore.js:47-65`), `sync_status TEXT DEFAULT 'pending'` ∈ `pending | synced | deleted`. No FOREIGN KEY is declared, so `PRAGMA foreign_keys = ON` (`lib/database.js:35`) enforces nothing; children link by local `protocol_id` and by `protocol_remote_id`.
+
+Migrations: `ALTER TABLE … ADD COLUMN` in try/catch, no version table (`lib/database.js:31-89`); one one-time watermark rewind when `composition` is added (`:52-60`); `PE.addStatusAtColumn(db)` backfills `status_at` for rows left pending by older builds (`lib/protocolEnd.js:37-43`).
+
+| Table | Columns beyond the common ones | Synced columns (`CLOUD_FIELDS`, `lib/syncMappers.js:11-32`) | Local-only columns | `created_at` sent? | Delete model | Writers (owner functions) |
+|---|---|---|---|---|---|---|
+| `protocols` | name, compound_id, type, color, amount, unit, water, diluent, dose, dose_unit, syringe_size, concentration, concentration_unit, frequency, reminder_time, interval_days, doses_per_day, start_date, schedule_total, vial_valid_days, goal, notes, note, composition, serving_*, container_units, units_taken, divisible, active, deleted_at, ended_at, history_from, purged_at, created_at + local-only | all content + `active`, `deleted_at` (status only when `status_at` set, first insert, or re-send — A-87, `:89-99`); optional `ended_at`, `history_from`, `purged_at` (`OPTIONAL_COLUMNS`, `:39-41`) | `optional_pending`, `restored_at`, `status_at` | **yes** (`:101-103`, since `e85519c`) | soft delete (`deleted_at`) → Recently deleted; Delete forever = positive tombstone `purged_at`; never deleted by absence | `insertProtocol`, `updateProtocol` (sets `status_at` on status change), `lib/protocolEnd.js` (`endProtocol`, `endAtLastDose`, `softDeleteRow`, `restoreDeleted`, `purgeProtocol`, `restartAsNew`) |
+| `vials` | protocol_id (local), protocol_remote_id, mixed_on, water_ml, total_doses, doses_taken, expires_on, active, created_at | protocol_id ← protocol_remote_id, mixed_on, water_ml, total_doses, doses_taken, expires_on, active | — | no | tombstone (`sync_status='deleted'`) only via Delete forever; otherwise `active=0` | `insertVial`, `updateVial`, `deactivateVialsByProtocol`, `lib/markTaken.js` (counter), `lib/deleteDose.js`, `lib/newVial.js` |
+| `dose_logs` | protocol_id, protocol_remote_id, outcome (`Taken`/`Skipped`/`Missed`), injection_site (JSON or text), logged_at (ISO UTC) | protocol_id, outcome, injection_site, logged_at | — | n/a (no local column; live has one, default now) | tombstone → cloud DELETE | `insertDoseLog`, `updateDoseLog` (never touches a tombstone), `deleteDoseLog`; `recordDoseTaken`, `recordSkip*`, `scanMissedDoses` |
+| `biomarkers` | report_date, marker, value REAL, unit, created_at (one upload = same report_date + created_at) | report_date, marker, value, unit | — | **no** (06:D-3) | tombstone → cloud DELETE | `insertBiomarkers`, `updateBiomarker`, `deleteBiomarker`, `deleteBiomarkerReport` |
+| `vaccines` | name, date_given, next_due, notes, manufacturer, batch_lot, dose_number, provider, location, created_at | 9 content fields | — | no | tombstone → cloud DELETE | `insertVaccine`, `updateVaccine`, `deleteVaccine` |
+| `food_logs` | entry_date, raw_text, parsed_items (JSON TEXT ↔ JSONB), kcal, protein_g, carb_g, fat_g, source (`ai`/`day_closed`/`ate_nothing`/`free_start`/legacy `not_recorded`), parse_status (`pending`/`done`/`refused`/`unparsed`/`too_old`), created_at | 9 fields | — | **no** (thread grouping `typedDay` and free-days anchor read `created_at`, `lib/foodThread.js:22-34`, `lib/database.js:441-448`) | tombstone → cloud DELETE | `insertFoodLog`, `updateFoodLog`, `insertFoodDayMarker` (idempotent per device/day/source), `deleteFoodLog`; `lib/foodLogActions.js` |
+| `reality_checks` | entry_date (weigh-in date), tdee, rate_per_week_kg, created_at | entry_date, tdee, rate_per_week_kg | — | no | tombstone (Stop tombstones **all**, `clearRealityChecks`) → cloud DELETE | `upsertRealityCheck` (UPDATE when a row exists for that date), `clearRealityChecks` |
+| `calc_snapshots` (weigh-ins) | entry_date, weight_kg, waist_cm, body_fat_pct, lbm, bmr, tdee, created_at | 7 fields | — | no | tombstone; a deleted-elsewhere row edited here is re-inserted (A-92, `lib/syncCore.js:699-702`) | `upsertCalcSnapshot`, `correctCalcSnapshot`, `deleteCalcSnapshot` (`lib/weighInEdit.js`) |
+| `calc_targets` | entry_date, target_weight_kg, target_body_fat_pct, target_date, start_date, start_weight_kg, start_body_fat_pct, created_at | 7 fields | — | no | tombstone | `upsertCalcTarget`, `clearCalcTarget` |
+| `reality_check_open` | start_date, start_weight_kg, stopped_at (set once, never cleared), created_at | start_date, start_weight_kg, stopped_at (only when set), created_at | — | **yes** (tie-break, `:166`) | no delete: Stop (`stopped_at`) is the tombstone; always pulled in full (`FULL_PULL`) | `insertRealityCheckOpen`, `updateRealityCheckWeight`, `stopOpenRealityChecks`, `commitRealityMigration`, `enforceSingleOpenCheck` |
+| `calc_inputs` | payload (JSON TEXT ↔ JSONB), created_at — one row per user | payload | — | no | none; insert = upsert on `user_id` (`lib/sync.js:135-137`) | `upsertCalcInputs` via `lib/realityCheckStore.js mergeCalcInputs` / `lib/realityCheck.js saveCalcInputs` |
+
+Indexes (`lib/schema.js:238-261`): `idx_protocols_active(active,user_id)`, `idx_vials_protocol(protocol_id,active)`, `idx_dose_logs_date(logged_at,protocol_id)`, partial pending index on protocols, `idx_food_logs_date(user_id,entry_date)`, date indexes on reality/snapshot tables, per-user indexes on targets/open/inputs, one `remote_id` index per table (A-93).
+
+Local integrity gaps (CONFIRMED): no unique key on `(user_id, entry_date)` for `calc_snapshots` / `reality_checks` (one-row-per-day is enforced by upsert + read dedupe, `lib/database.js:539-552`); no unique slot key on `dose_logs` (duplicate Missed rows possible across devices, `02:D15`); no guard against two active vials per protocol (`01:D-04`).
+
+### 2.2 Cloud tables — live column lists (information_schema, 2026-10-12)
+
+| Table | Live columns (type = default) | Notes for the client |
+|---|---|---|
+| `protocols` | id uuid=gen_random_uuid(), user_id, name, type, color, unit, **amount numeric**, **water numeric**, **dose numeric**, dose_unit, **syringe_size integer**, concentration numeric, frequency, reminder_time, goal, notes, active bool=true, created_at=utc now, interval_days int=1, doses_per_day int=1, **start_date date**, schedule_total int, deleted_at, concentration_unit='mg', updated_at=now, diluent, compound_id, vial_valid_days int, note, serving_strength float8, serving_strength_unit, serving_units float8, container_units float8, units_taken float8=0, divisible bool, composition, ended_at timestamptz, history_from date, purged_at timestamptz | Local `amount`/`water`/`dose` are TEXT: a legacy comma value ("0,5") would fail the numeric cast and stay pending forever (SUSPECTED; `canonicalDecimal` writes dot-decimals today, 08 §7.2). `syringe_size` is an integer on the U-100 scale (30…500, `lib/syringes.js:3-15`), consistent. |
+| `vials` | id, user_id, protocol_id uuid, mixed_on **date**, water_ml numeric, total_doses int, doses_taken int=0, **expiry_alert_days int=5 (unused)**, active, created_at, updated_at, expires_on text | `expiry_alert_days` is never read or written by the app. |
+| `dose_logs` | id, user_id, protocol_id, logged_at=utc now, outcome, injection_site, **notes, pre_tags[], checkin_scheduled_at, checkin_completed, checkin_tags[], checkin_notes (all unused)**, updated_at, **created_at** (live-only migration `add_created_at_to_dose_logs`) | LogScreen still renders `log.notes` / `log.pre_tags` that never exist locally (02:G19). |
+| `biomarkers` | id, user_id, **report_date date**, marker, value numeric, unit, **reference_min, reference_max, status (unused — must never be filled: AI hard line)**, created_at=utc now, updated_at | created_at is server time of each row's own insert (06:D-3). |
+| `vaccines` | id, user_id, name, date_given text, next_due text, notes, provider, location, manufacturer, batch_lot, dose_number int, created_at, updated_at | Repo DDL `supabase_vaccines_table.sql:9-18` lacks the five detail columns (drift). |
+| `food_logs` | id, user_id, entry_date text, raw_text, parsed_items jsonb, kcal/protein_g/carb_g/fat_g numeric, source='ai', parse_status='pending', created_at, updated_at | — |
+| `reality_checks` | id, user_id, entry_date text, tdee real, rate_per_week_kg real, created_at, updated_at | **no updated_at trigger** |
+| `calc_snapshots` | id, user_id, entry_date text, weight_kg/body_fat_pct/lbm/bmr/tdee real, created_at, updated_at, waist_cm real | no unique `(user_id, entry_date)` |
+| `calc_targets` | id, user_id, entry_date, target_weight_kg, target_body_fat_pct, target_date, start_date, start_weight_kg, start_body_fat_pct, created_at, updated_at | — |
+| `reality_check_open` | id, user_id, start_date text, start_weight_kg float8, stopped_at timestamptz, created_at, updated_at | — |
+| `calc_inputs` | id, user_id, payload jsonb, created_at, updated_at; `UNIQUE calc_inputs_one_per_user(user_id)` | — |
+| `profiles` | id, email, name, plan='free', created_at | Every `protocols`/`vials`/`dose_logs`/`biomarkers` insert requires a `profiles` row (FK). It is created by `handle_new_user` (body not in repo, UNVERIFIED). |
+| `push_tokens` | id, user_id, expo_token, platform, updated_at, timezone | — |
+| `reminders` | legacy (time, frequency, days[], …) | No client code; still deleted by `delete-user`. |
+
+### 2.3 Repo ↔ live drift (must be closed; §8.4)
+
+| # | Drift | Evidence | Risk |
+|---|---|---|---|
+| DR-1 | 29 migrations applied live vs 12 files in `supabase/migrations/` + 15 root `supabase_*.sql` applied by hand. Live-only migrations include `add_created_at_to_dose_logs`, `admin_metrics_*`, `create_ai_scan_usage`, `create_food_logs_table`, `create_ai_food_usage_table`, `add_reality_checks_and_calc_snapshots_tables`, `add_waist_cm_to_calc_snapshots`, `create_calc_targets_table`, `add_updated_at_triggers_calc_tables`, `create_apple_tokens_table`, `rls_harden_referral_and_vaccines`, `create_push_tokens_table`, `add_timezone_to_push_tokens` | `list_migrations` 2026-10-12 vs `ls supabase/migrations` | The repo cannot recreate production; schema review happens against memory, not code (08 G3). |
+| DR-2 | Core DDL absent from git: `profiles`, `protocols`, `vials`, `dose_logs`, `biomarkers`, `reminders`, `handle_new_user`, `set_updated_at` attachment on the four core tables | 08 §3.2; live triggers exist (08 addendum) | Same as DR-1. |
+| DR-3 | `notification_sends` exists in repo SQL, **not live**; `delete-user` lists it and `notification_preferences` (also absent), tolerated | live table list; `supabase/functions/delete-user/index.ts:113-164` | Dormant sender would fail if activated. |
+| DR-4 | `parse-food-next` v2 still ACTIVE live; RL-1 (2026-10-03) said remove it | `list_edge_functions` | An undocumented AI endpoint with its own limits (UNVERIFIED which). |
+| DR-5 | `vaccines` five detail columns live, not in repo DDL | 06 §7.2 | — |
+| DR-6 | Unused live columns: `dose_logs.notes/pre_tags/checkin_*`, `vials.expiry_alert_days`, `biomarkers.reference_min/max/status` | live columns | `reference_*`/`status` must never be written (AI hard line). |
+| DR-7 | Type mismatch local TEXT ↔ cloud numeric/date for protocol numbers and dates | §2.2 | Pending-forever row on a bad value (SUSPECTED). |
+| DR-8 | `reality_checks` lacks the `updated_at` trigger every other synced table has | live triggers | §3.10. |
+| DR-9 | `send-reminders` in repo, never deployed; header says "NOT ACTIVE YET" | `list_edge_functions`; `docs/decisions.md:564` | Its port of the schedule (`plan.ts`) drifts (03 §3.13; 08 G15). |
+
+### 2.4 AsyncStorage inventory (device; consolidated from 08 §5.2, 03 §7.3, 07 §7.2)
+
+Classes: **PREF** = device preference (correctly kept); **DEVICE** = per-phone technical state (correctly kept); **ACCOUNT** = belongs to one account (must not leak to another account on the phone); **USERDATA** = something the user entered (CLAUDE.md says it must be in synced storage).
+
+| Key | Owner | Class | Wiped on intended sign-out | Wiped by cross-account guard | Issue |
+|---|---|---|---|---|---|
+| `dosetrace_wipe_pending` | `lib/signedOut.js`, `App.js`, `lib/accountActions.js`, `lib/backgroundTasks.js` | DEVICE | managed | — | — |
+| `dt_onboarding_data` (stash) | `lib/onboardingStore.js` | USERDATA pre-account | yes | — | by design (pre-account) |
+| `dt_seen_onboarding` | `lib/onboardingStore.js` | DEVICE | yes | — | — |
+| `dosetrace_rc_start` | `lib/notifications.js:608`, `lib/realityCheck.js` | legacy USERDATA (migrated to `reality_check_open`) | yes | yes | — |
+| `dosetrace_rc_pulled_<uid>`, `dosetrace_rc_store_migrated_<uid>` | `lib/realityCheck.js` | DEVICE flags | yes | yes | — |
+| `dosetrace_site_questions` | `lib/siteQuestion.js` | **USERDATA** ("I took it" taps for injectables) | yes | yes | Device-only by decision S-25 (`docs/decisions.md:379`) — lost on reinstall (02:G18) |
+| `dosetrace_snoozes` | `lib/notifications.js:902` | ACCOUNT | yes (inside `cancelAllNotifications`) | via cancel | — |
+| `dosetrace_language`, `dosetrace_time_format`, `dosetrace_theme_mode` | i18n / theme | PREF | no | no | — |
+| `dosetrace_install_id` | `lib/analytics.js` | DEVICE (pseudonymous id) | no | no | — |
+| `dosetrace_ai_extraction_consent_v4` | `lib/aiConsent.js:19` | **ACCOUNT (consent)** | **no** | **no** | 07:D-18 / 08 G1 — second account inherits consent |
+| `dosetrace_entitlement_v1:<uid>`, `dosetrace_entitlement_last_uid` | `lib/entitlement.js:43-44` | ACCOUNT | no | no | 07:D-7 cross-account window (SUSPECTED) |
+| `dosetrace_curve_view_<uid>` | `lib/curveViewStore.js` | ACCOUNT pref (keyed by local ids) | no | no | lost meaning after a wipe (05:D10) |
+| `dosetrace_explainers_v1:<uid>` | `lib/featureExplainers.js` | ACCOUNT ("shown" only; "used" derives from synced data, `:6-11`) | no | no | consistent with decision `docs/decisions.md:381` |
+| `dosetrace_food_draft:<uid>` | `screens/FoodChatScreen.js:55` | USERDATA (draft) | **no** | no | conflicts with BK-14 "a real sign-out clears drafts" (07:D-17) |
+| `orphanedPromptShown:<uid>` | `lib/orphanedPending.js` | ACCOUNT | no | no | — |
+| `dosetrace_food_local_pending` | `lib/foodLogActions.js:20` | DEVICE (rows typed here) | no | no | — |
+| `dosetrace_food_followups` | `lib/foodLogActions.js` | legacy | no | no | migrated then removed |
+| `dosetrace_food_asked` | `FoodChatScreen.js:54` | ACCOUNT | no | no | — |
+| `dosetrace_calc_history_migrated_v55` | `CalculatorSection.js:66` | DEVICE flag | no | no | not per uid |
+| `dosetrace_missed_since`, `dosetrace_missed_tz`, `dosetrace_missed_tz_since`, `dosetrace_zone_history` | `lib/doseActions.js:123-129` | ACCOUNT-ish (scan watermark) | **no** | **no** | 02:D16 — account B scanned from A's watermark |
+| `dosetrace_vial_low_sent` | `lib/notifications.js:474` | ACCOUNT (keyed by local vial id) | **no** | **no** | 03:G28/G32 — after a wipe, local ids restart, a new vial may be suppressed |
+| `dosetrace_alert_snooze` | `TodayScreen.js:155` | ACCOUNT | **no** | **no** | 03:G28 |
+| `dosetrace_tx_check_<localProtocolId>` | `TodayScreen.js:526-559` | ACCOUNT (local id) | no | no | stale ids after wipe |
+| `dosetrace_fg_sync_at`, `dosetrace_refresh_last`, `dosetrace_deep_sleep_checked`, `dosetrace_reminder_setup_seen` | notifications / refresh / setup | DEVICE | no | no | per phone by spec (SP-5) |
+| `dosetrace_notif_handled`, `dosetrace_nav_handled`, `dosetrace_links_handled` | action / nav / link dedupe | DEVICE | no | no | — |
+| `dosetrace_settings_collapsed`, `dosetrace_protocols_sort`, `dosetrace_paywall_views` | Settings / Protocols / Paywall | PREF | no | no | — |
+
+**Requirement (TR-STORE-1):** every ACCOUNT key is either keyed by the remote user id and removed by `runWipeSteps` + the cross-account guard, or documented here as intentionally per phone. The key list lives in one module (PROPOSED `lib/deviceKeys.js` exporting `ACCOUNT_KEYS`, used by `lib/signedOut.js` and both guards in `App.js:621-634, 701-716`), with a guard test that fails when an `AsyncStorage.setItem` key outside the list appears in `lib/`, `screens/`, `components/`.
+
+### 2.5 SecureStore
+
+| Key | Owner | Content | On intended sign-out |
+|---|---|---|---|
+| auth-js `storageKey` (default `sb-mqfvnqfusqyhqhowfweh-auth-token`, exact name UNVERIFIED) + `.a.N` / `.b.N` / `.__meta` | `lib/supabase.js` via `SecureStoreAdapter` | session (access + refresh token, user) | removed by auth-js; strict removal verified (`setStrictRemoval`) |
+| `<storageKey>-code-verifier` | auth-js PKCE; `lib/appleWeb.js`, `lib/recoveryLink.js` | PKCE verifier | removed after use; restored by the Apple Android flow if it replaced a pending one |
+| `dosetrace_pending_recovery` | `lib/recoveryLink.js` | pending password reset (≤1 h) | not wiped; cleared by the reset flow |
+| fallback | if SecureStore throws, the session goes to AsyncStorage under the same key | — | — |
+
+iOS Keychain normally survives an uninstall, so after an iOS reinstall the session can come back while AsyncStorage is empty (07 §8 "iOS reinstall", SUSPECTED): the user lands in Main (or a gate) without onboarding and with an empty DB that is then fully imported.
+
+### 2.6 `user_metadata` (Supabase Auth; not a table, no history, no tombstones)
+
+| Key(s) | Writers | Readers | Merge discipline |
+|---|---|---|---|
+| `display_name`, `birth_year`, `birth_month`, `gender`, `country`, `primary_goal`, `tracking_types`, `has_provider`, `activity_level`, `activity_scale`, `activity_set_at`, `activity_level_legacy`, `consent_accepted`, `consent_date`, `onboarded_at`, `adult_confirmed_at` | sign-up (`lib/authFlow.js`), `applyPendingProfile` (`lib/pendingProfile.js`), Finish setup (`lib/onboardingSteps.js accountPatch`), Settings `saveProfile` (`SettingsScreen.js:303-344`), Calculator `saveProfileSex` / `chooseActivity` (`CalculatorSection.js:403-463`), Apple iOS name (`lib/supabase.js:333-340`), 18+ confirm | profile gate, 18+ gate, BMR, Settings | top-level key merge (`updateUser({data})` merges keys). Settings `saveProfile` and `toggleAnalytics` ignore `{error}` (07:D-22). Apple iOS overwrites an existing name (07:D-20). |
+| `dose_reminders`, `vial_alerts`, `checkin_reminders`, `food_reminders`, `persistent_reminders`, `notif_show_names`, `silent_mode` | Settings `toggleNotificationPref` (reverts + sheet on error, `SettingsScreen.js:282-296`), `NutritionLogger.js:98-107` | `lib/notifications.js` (cached `_silent` per full resync, 03:D-12) | per key |
+| `analytics_opt_in` | Settings | `lib/analytics.js:39` | per key, errors ignored |
+| `favorite_markers` (array), `report_tags` (`{date:[labels]}`) | `BodyScreen.js:411-441` | BodyScreen | **whole array/object written from the session's cached copy** — stale-read clobber across devices (06:D-5, D-6); conflicts with CLAUDE.md "never write back an array computed from a stale read". Registry A-14 (deferred) moves them to tables. |
+| `calc_inputs`, `calc_reality_open` (mirrors), `calc_snapshots`, `calc_reality_checks` (legacy arrays, kept as backup), flags `rc_store_migrated`, `calc_history_migrated_v55` | `lib/realityCheck.js`, `CalculatorSection.js` | migration only (and the dormant server sender reads `calc_reality_open`) | write-only mirrors after migration |
+
+**Requirement (TR-META-1):** no new user data goes into `user_metadata`. Every writer goes through one PROPOSED helper `lib/accountMeta.js updateMeta(patch)` that (a) merges per key, (b) reads `{error}` and returns it, (c) refuses array/object values computed from a cached read unless the caller passes the server's current value (fresh `getUser()`). A guard test fails on any `auth.updateUser(` outside that helper.
+
+### 2.7 In-memory only
+
+`lib/draftStore.js` (`protocolNote:<id>`, `progress:*`, `foodChat:*`), `lib/bookSelection.js` (right-page selections), `lib/authDraft.js` (typed email), `lib/authIntent.js` (intentional sign-out flag), `lib/onboardingStore.js` (`fresh`, `discarded`), `lib/signedOut.js` (sign-in generation), screen state (protocol wizard form — lost on kill, 01:G-18; assistant conversation — AP-33 accepted).
+
+### 2.8 Survival matrix
+
+| Event | Synced rows (`synced`) | Unsynced rows (`pending`/`deleted`) | AsyncStorage ACCOUNT keys | Scheduled notifications | Session |
+|---|---|---|---|---|---|
+| App update (store) | kept; ALTER migrations run on next start | kept (queue survives) | kept | iOS keeps; Android: receiver + expo restore re-plan (A-111, device proof pending) | kept |
+| Token refresh failure / spurious `SIGNED_OUT` / Apple revoke | kept | kept (pushed after next sign-in of the same user) | kept | kept; the Android refresh records `signed_out` and stops renewing (03 §8) | gone |
+| Intended sign-out | wiped locally (cloud copy kept) after `forceSync` | **blocked** unless "Sign out anyway" (Settings only), then lost | only the wipe list (§2.4) | cancelled + dismissed; push token removed | removed (strict) |
+| Different account signs in (cross-account guard) | wiped | **discarded** (decision `docs/decisions.md:509`) | only partially (§2.4) | cancelled | new |
+| Account delete | wiped locally; server deletes 20 tables + cascades | lost | wipe list | cancelled | removed |
+| Reinstall, iOS | re-imported from cloud | lost | lost (AsyncStorage) — session may survive in Keychain | rebuilt after first start | may survive |
+| Reinstall, Android | re-imported | lost | lost (`allowBackup=false`) | rebuilt | lost |
+| New second device | imported (protocols, children of live protocols, all other tables) | n/a | n/a | rebuilt from its own DB | new |
+| Row deleted on device A, device B already holds it | **B keeps it** (H-1) except protocols (tombstone) | — | — | — | — |
+
+---
+## 3. Sync engine
+
+Files: `lib/sync.js` (Supabase adapter, NetInfo, debounce, listeners, `forceSync`, `fullImportFromCloud`), `lib/syncCore.js` (pure algorithm over an injected `db` and `cloud`), `lib/syncMappers.js` (payloads, `CLOUD_FIELDS`, `OPTIONAL_COLUMNS`), `lib/syncRunner.js` (single flight). Design principle: **SQLite is the source of truth; the queue is the set of `pending`/`deleted` rows** (no separate outbox).
+
+### 3.1 Triggers
+
+| Trigger | Code | Notes |
+|---|---|---|
+| `requestSync()` after a local write | `lib/sync.js:82-85` (debounce 1.5 s) | called from Today (11×), Protocols (11×), Log (4×), Body (4×), VaccinesSection (3×), `lib/realityCheck.js` (4×), `lib/notificationActions.js` (foreground only), CalculatorSection, FoodChat, `lib/foodLogActions.js` (08 §4.1) |
+| Cold start | `App.js:637-642` | `fullImportFromCloud()` if `isLocalDBEmpty`, else `requestSync()` |
+| `SIGNED_IN` | `App.js:719-723` | same rule, deferred |
+| Foreground | `App.js:565-576` | ≤1/min: `requestSync()` **and** `syncAllNotifications()` concurrently (03:G8) |
+| Offline → online | `lib/sync.js:57-67` | NetInfo transition; `_isOnline` starts `true` |
+| Today focus | `TodayScreen.js:323 → 597-602` | **implicit**: `cleanupOldDeletedProtocols` calls `requestSync` on every focus while the purge itself is paused (08:D9) |
+| Notification action handled while not active | `lib/notificationActions.js:213-218` | sync deferred to the next foreground |
+| Intended sign-out | `forceSync()` (`lib/sync.js:106-109`) | waits for the running pass, then a fresh one, before counting unsynced rows |
+| Reality-check migration | `pullRealityCheckTable()` (`lib/sync.js:250-255`) | pulls `reality_check_open` in full and reports success |
+
+### 3.2 One pass
+
+```mermaid
+flowchart TD
+  A[requestSync / forceSync / reconnect] --> B{runner.run: pass already running?}
+  B -- yes --> B1[share the running promise; no follow-up pass is queued]
+  B -- no --> C{_isOnline?}
+  C -- no --> Z[return: nothing]
+  C -- yes --> D[getCachedUser]
+  D --> E[pushPending: for table in TABLES order]
+  E --> E1[deleted rows: cloud DELETE by remote_id, then local hard delete]
+  E --> E2[protocol with purged_at: pushPurge children then tombstone]
+  E --> E3[children without protocol_remote_id or with purged parent: wait]
+  E --> E4[remote_id: UPDATE whole payload; 0 rows + same session: revive / reinsert / delete local]
+  E --> E5[no remote_id: INSERT; protocols re-point children]
+  E --> E6[markSynced only if local updated_at unchanged; stamp cloud updated_at]
+  E --> F[resendOptional: one probe per sync]
+  F --> G[pullChanges: per table, watermark = max synced updated_at of this user]
+  G --> G1[fetchSince updated_at > watermark, 500/page, ascending; reality_check_open in full]
+  G1 --> G2[childGate: unknown parent protocols looked up once]
+  G2 --> G3[mergeCloudRow per row]
+  G3 --> G4[enforceSingleOpenCheck after reality_check_open]
+  G --> H[selfHealProtocols: re-import live cloud protocols this device lacks]
+  H --> I[notify sync_complete]
+```
+
+- **Order** `TABLES = protocols, vials, dose_logs, biomarkers, vaccines, food_logs, reality_checks, calc_snapshots, calc_targets, reality_check_open, calc_inputs` (`lib/syncCore.js:25`) — parents before children on push and pull.
+- **Single flight** (`lib/syncRunner.js:6-40`): `run()` starts a pass or returns the running one; `forceSync()` waits until idle and starts a fresh pass; `runExclusive(job)` waits until idle and runs alone (full import, the sign-out wipe's second clear); a job clears `running` only if it is still its own promise (A-93).
+- **Exceptions are swallowed per row and per table** (`lib/syncCore.js:717-719`, `:742-744`): a failing row is retried next pass; nothing surfaces to the UI except the offline alert's unsynced count.
+
+### 3.3 Push rules per row state (`pushPending`, `lib/syncCore.js:638-724`)
+
+| Local row | Action | On success | On 0 rows updated (same session, `sameSession` `:179-182`) | On error |
+|---|---|---|---|---|
+| `deleted` | `cloud.delete(table, remote_id)` (skipped if no remote_id) | `hardDeleteSynced` | — | retried |
+| protocol `pending` with `purged_at` | `pushPurge` (`:289-312`): DELETE its tombstoned vials/dose_logs in the cloud, then `writeTombstone` (UPDATE `purged_at`, `active:false`; row gone → INSERT tombstone with same id); cloud without the column → legacy hard DELETE + `optional_pending='purged_at'` | `finishLocalPurge` (synced children dropped; pending children kept, protocol stays hidden) | n/a | retried |
+| vials / dose_logs without `protocol_remote_id`, or with a purged parent | skipped | — | — | stays pending (blocks sign-out; "Sign out anyway" exists) |
+| `pending` with `remote_id` | `writeWithOptionalRetry(UPDATE)` (drops a missing optional column up to 4×) | `markSynced`; protocols: clear `restored_at`/`status_at`, adopt the cloud's status if this edit had no `status_at` (A-87, `:676-686`) | protocols → `reviveProtocol` (re-insert SOFT-DELETED with children; a pending Restore stays restored; a cloud tombstone wins) · vials/dose_logs with a live local parent → `reinsertRow` · `calc_snapshots` → `reinsertRow` (A-92) · **every other table → local row deleted ("deletions win")** | retried |
+| `pending` without `remote_id` | INSERT (`calc_inputs`: upsert on `user_id`) | `markSynced(remote id)`; protocols → `updateChildRemoteIds` | n/a | retried |
+
+`markSynced` (`:47-65`) flips to `synced` only if the row's `updated_at` still equals the value read before the request (an edit during the request stays pending) and stamps the **cloud** `updated_at` locally so the pull watermark compares cloud time to cloud time.
+
+### 3.4 Pull rules (`pullChanges`, `:726-747`; `mergeCloudRow`, `:617-636`)
+
+| Local row for that `remote_id` | Result |
+|---|---|
+| none | import (`importSingleRow`); children only if their protocol is known here or live in the cloud (`childGate`/`childAllowed`, `:586-600`); purged protocols and their children never imported |
+| `synced` | overwritten by the cloud (`updateLocalFromCloud`, `:401-482`); protocols then `applyOptionalColumns` (merge-only: a cloud NULL never clears a local value); cloud `purged_at` → `finishLocalPurge` |
+| `pending`, `reality_check_open` and cloud has `stopped_at` | **Stop wins**: `stopped_at = COALESCE(local, cloud)`, row stays pending |
+| `pending` protocol, cloud has `purged_at` | tombstone adopted (`purged_at` set), leaves on next push |
+| `pending` protocol without `status_at` | takes the cloud's `active`, `deleted_at`, `ended_at` (A-87 End/Delete wins); the content edit stays pending |
+| any other `pending` | local wins (cloud row ignored this pass) |
+
+After `reality_check_open`: `enforceSingleOpenCheck` (`:789-799`) stops every open row but the newest (`start_date DESC, created_at DESC, remote_id DESC`) and queues the stop. After all tables: `selfHealProtocols` (`:755-783`) re-imports live cloud protocols this device lacks, with their children, only under a verified same-user session before and after (`lib/sync.js:167-195`), never deletes.
+
+### 3.5 Full import (`fullImport`, `:819-845`; `isLocalDBEmpty`, `:847-850`)
+
+- Runs on cold start / `SIGNED_IN` when the device has **no `protocols` row for the user**, and in `AgeConfirmScreen.js:85` before an export.
+- Per table: fetch all rows (500/page, ordered by `created_at`), insert the ones not present (existing `remote_id` skipped — **never updated**), then, only if the fetch succeeded and the table is not in `NO_ABSENCE_DELETE = {protocols, dose_logs, vials}`, delete local **synced** rows whose `remote_id` is absent from the cloud.
+- Consequence (CONFIRMED, 08 G5): a user with food logs / weigh-ins but no protocol runs the full import on **every** cold start and sign-in; edits to rows the device already has arrive only through the later `requestSync`.
+
+### 3.6 Conflict rules per table
+
+Base rule (all tables): **row-level, device-first** — a pending local row beats the cloud; a synced local row is replaced by the cloud; between two devices the later push overwrites the whole row in the cloud (no field merge, no timestamp comparison).
+
+| Table | Extra rule | Where | Gap |
+|---|---|---|---|
+| `protocols` | Status (active / deleted_at / ended_at) only from the device that changed it (`status_at`); End/Delete wins; tombstone `purged_at` wins; vanished row revived soft-deleted; self-heal; `created_at` sent | `syncMappers.js:89-103`; `syncCore.js:140-175, 625-635, 676-693` | whole-row LWW for content incl. `units_taken` counter (H-3) |
+| `vials` | revived with a live parent; refused child of purged parent stays pending | `:692-698`; server trigger | no status rule (A-87b, 01:G-3): an offline dose on B can push `active=1` onto a vial A's end deactivated; `doses_taken` absolute (H-3) |
+| `dose_logs` | as vials | same | duplicate Missed rows (no unique slot key, 02:D15); deletes do not propagate (H-1); Missed rows removed by an end reach only this phone (A-86b, 01:G-2) |
+| `biomarkers`, `vaccines`, `food_logs`, `calc_targets` | deletions win on push | `:703` | deletes do not propagate (H-1); `created_at` not sent (H-4) |
+| `calc_snapshots` | a deleted-elsewhere row edited here is re-inserted (A-92) | `:699-702` | deletes do not propagate (H-1) |
+| `reality_checks` | deletions win | `:703` | **edits do not propagate** (§3.10); Stop's "delete all results" does not propagate (H-1) |
+| `reality_check_open` | Stop wins (client + `reality_check_open_keep_stop` trigger); full pull every pass; one open check | `:470-474, 623-624, 789-799` | — |
+| `calc_inputs` | one row per user (upsert); whole payload LWW | `lib/sync.js:135-137` | concurrent devices overwrite each other's `rcTypedKcal`, `rcResultSources`, `legacyBurn` (04 §7, SUSPECTED) |
+
+### 3.7 Tombstones and purge
+
+- Local soft delete = `sync_status='deleted'` (all tables) → pushed as cloud DELETE → local hard delete. **Only the deleting device and devices that later full-import learn of it** (H-1).
+- Protocols: never hard-deleted by absence (decision 2026-10-04, `docs/decisions.md:520`); Recently deleted = `deleted_at` set; Delete forever = positive tombstone `purged_at` (`lib/protocolEnd.js:79-88`), server blanks content and deletes children (`protocols_blank_purged`, `protocols_purge_children`), refuses new children (`refuse_child_of_purged_protocol`), no client DELETE policy on protocols (A-88).
+- Automatic 7-day purge of soft-deleted protocols: **paused** (`AUTO_PURGE_PAUSED = true`, `lib/protocolEnd.js:188`), registry A-84.
+- `reality_check_open`: `stopped_at` is the tombstone, never cleared.
+
+### 3.8 Failure modes
+
+| # | Failure | Behaviour | Status |
+|---|---|---|---|
+| F-1 | Offline | `syncPass` returns at once; rows stay pending; Today shows "Waiting to back up" only when NetInfo says offline and unsynced > 0 (`lib/offlineAlert.js:4-6`) | CONFIRMED |
+| F-2 | No session / RLS returns 0 rows | 0 rows only counts under the same user's session; otherwise kept pending | CONFIRMED (`:688`, `:704`) |
+| F-3 | Cloud lacks an optional column (PGRST204) | column dropped from the payload, remembered in `optional_pending`, re-sent once accepted | CONFIRMED |
+| F-4 | Child before parent | waits for `protocol_remote_id`; pull `childGate` waits a whole table when the parent lookup fails | CONFIRMED |
+| F-5 | Purged parent | child stays pending forever (blocks intended sign-out; "Sign out anyway" in Settings only) | CONFIRMED, by decision |
+| F-6 | Bad value for a cloud type (e.g. comma text into `numeric`) | row errors every pass, stays pending, blocks sign-out | SUSPECTED (no current writer produces it) |
+| F-7 | Write during a running pass | the 1.5 s debounced `requestSync` calls `run()`, which returns the running pass; **no follow-up pass is queued**, so the row waits for the next trigger (next write, foreground ≥60 s, reconnect, Today focus) | CONFIRMED (`lib/syncRunner.js:23`, `lib/sync.js:82-102`) |
+| F-8 | App killed mid-pass | rows not yet marked stay pending; a row pushed but not marked is pushed again: UPDATE is idempotent; an INSERT whose response was lost creates a **duplicate** cloud row (no client-generated id on first insert) | SUSPECTED (insert has no idempotency key) |
+| F-9 | Exception inside a row / table | swallowed; retried next pass; no telemetry | CONFIRMED |
+| F-10 | Clock skew | pending rows use device time but never feed the watermark; `markSynced` stamps cloud time; a row marked synced **without** a cloud stamp keeps device time (`:58`, `:62-63`) and can move the watermark | CONFIRMED path, rare |
+| F-11 | Pagination by offset while rows change | `fetchSince` pages by offset over `updated_at > since` ascending; a row updated between pages can be skipped this pass (picked up next pass since its `updated_at` is newer) | SUSPECTED, benign |
+| F-12 | Duplicate open checks from two offline devices | `enforceSingleOpenCheck` stops all but the newest; the stop is pushed in the **next** pass (FX-9 F2 `todo`, A-48 parked) | CONFIRMED |
+
+### 3.9 Multi-device guarantees and known holes
+
+**Guaranteed today (with tests):** a created row reaches the cloud and a second device (`__tests__/sync.test.js`); remote edits fetched by cloud-time watermark (fix #3/#4); watermark scoped by user (fix #5); optimistic concurrency (edit mid-push stays pending); full import absence-delete for non-protocol tables, never protocols (Final Gate B); Stop wins in both orders (`__tests__/realityCheckSync.test.js`); positive tombstones, self-heal, revive (`__tests__/purge*.test.js`); single open check.
+
+**Holes** (decision context: "concurrent multi-device use is not a real use case", A-48 parked 2026-09-28 — but *sequential* multi-device use, phone + tablet or an old phone kept signed in, is real; the founder's own Fold + iPhone is that case):
+
+| # | Hole | Evidence | Effect | Severity |
+|---|---|---|---|---|
+| H-1 | **Deletes of non-protocol rows never propagate** to a device that already holds the row | push = hard DELETE (`:648-654`); pull = `updated_at > watermark` only; absence delete only in `fullImport`, which runs only with no protocol row (`:847-850`); no test covers it (`grep` of `__tests__/sync.test.js`) | a dose deleted in the Dose log on A still counts on B (rings, report, supply already moved on A only); a deleted weigh-in, food entry, lab value, vaccine or Stop-cleared reality-check result stays on B; B's next edit of that row deletes it locally (deletions win) or re-inserts it (`calc_snapshots`) | **P0** (health record diverges silently) |
+| H-2 | **`reality_checks` edits invisible to other devices** | §3.10 | a re-computed result for the same weigh-in date stays old elsewhere | P1 (rare path) |
+| H-3 | Whole-row last-writer-wins and absolute counters | payload = all `CLOUD_FIELDS` (`lib/syncMappers.js:55-172`); `doses_taken`, `units_taken` absolute | two devices each logging one oral dose offline → `units_taken` +1 not +2; a vial count lost; a note edited on A reverted by B's dose push | P1 |
+| H-4 | `created_at` not sent for biomarkers, food_logs, calc_*, reality_checks, vaccines, vials | `CLOUD_FIELDS` | hub test count = one per marker on every non-scanning device (06:D-3); food thread grouping and free-days anchor by typed day may shift (SUSPECTED); report card keys differ by device | P1 (biomarkers), P2 others |
+| H-5 | `isLocalDBEmpty` = no protocols | `:847-850` | full import every launch for protocol-less users (bandwidth, absence deletes each time) | P2 |
+| H-6 | Write during a running pass waits for the next trigger (F-7) | `lib/syncRunner.js:23` | delayed backup; offline alert / sign-out check may count it | P2 |
+| H-7 | Duplicate Missed rows (per-device watermark, no unique key) | 02:D15 | double-counted Missed in the report; slot assignment shifts | P2 (A-48 parked) |
+| H-8 | Vial status has no device-of-origin rule | 01:G-3 (A-87b) | an ended protocol's vial re-activated by another phone | P1 |
+| H-9 | Pull completion does not re-plan dose reminders | `App.js:586-596` re-plans only food + day-21 | a dose logged / protocol ended on A keeps reminding on B until B's next full resync (03:G8) | P1 |
+| H-10 | `getLocalDataUserId` skips `vials` | `lib/database.js:820-829` | a device holding only another user's vials does not trigger the guard (edge) | P3 |
+| H-11 | First INSERT not idempotent (F-8) | `cloud.insert` without client id | duplicate cloud rows after a lost response | P2 (SUSPECTED) |
+| H-12 | The test harness models a trigger on every table and never models delete propagation | `__tests__/helpers/syncHarness.js:67-68` | H-1 and H-2 cannot fail a test today | P1 (test debt) |
+
+### 3.10 Conclusion on `reality_checks` without an `updated_at` trigger
+
+Question from the 08 addendum: does the client send `updated_at` on push, making the missing trigger harmless? **No.**
+
+1. `toCloudPayload('reality_checks', row)` sends only `entry_date`, `tdee`, `rate_per_week_kg` (`lib/syncMappers.js:142-145`); `pushPending` adds only `user_id` (`lib/syncCore.js:667-668`). No table's payload carries `updated_at`.
+2. The UPDATE path is real: `upsertRealityCheck` updates the existing row when one exists for that `entry_date` (`lib/database.js:555-577`), setting `sync_status='pending'`.
+3. On push, `cloud.update(...).select('id, updated_at')` returns the **unchanged** insert-time `updated_at` (no trigger), and `markSynced` stamps that old value locally (`lib/syncCore.js:675`).
+4. Other devices pull with `updated_at > watermark` (`lib/sync.js:147`); the row's `updated_at` never moves past their watermark, so they never fetch the new `tdee`. `fullImport` skips rows that already exist. Only a device that wipes or reinstalls sees the new value.
+5. Inserts and deletes are unaffected (insert sets `updated_at = now()` by default; deletes are hard deletes — but see H-1).
+
+**Required fix (TR-SYNC-1):** a migration adding `reality_checks_set_updated_at BEFORE UPDATE … EXECUTE FUNCTION set_updated_at()` (same pattern as `add_updated_at_triggers_calc_tables`), applied with the founder's go after a rolled-back dry run; plus a harness change so the fake cloud stamps `updated_at` **only for tables listed in a live-schema snapshot** (§7.3), and a test "an edited reality check reaches device B" that fails before the migration snapshot is updated.
+
+### 3.11 Sync requirements (target)
+
+| ID | Requirement | Closes |
+|---|---|---|
+| TR-SYNC-1 | `updated_at` trigger on `reality_checks`; a schema-check (§8.4) asserts every synced table has one | H-2 |
+| TR-SYNC-2 | Positive tombstones for every synced table: a `deleted_at` column (or a shared `sync_tombstones(table, row_id, user_id, deleted_at)` table) written instead of a hard DELETE; pull applies tombstones; server purges tombstones older than N days only after every device of the user has pulled past them (or never). Must be shown to the founder as a decision (it changes delete semantics on the server) | H-1 |
+| TR-SYNC-3 | Counters become events: `doses_taken` / `units_taken` derived from dose rows (or pushed as increments through an RPC) instead of absolute values | H-3 |
+| TR-SYNC-4 | `created_at` (device time) sent for every table that keeps one locally | H-4 |
+| TR-SYNC-5 | `isLocalDBEmpty` = "this device has never completed a full import for this user" (a per-user flag), not "no protocols" | H-5 |
+| TR-SYNC-6 | `requestSync` during a running pass marks `again = true`; the runner runs one follow-up pass (same pattern as the notification resync, BR-6) | H-6 |
+| TR-SYNC-7 | Client-generated uuid for first insert (`id` in payload) so a retried insert is idempotent | H-11 |
+| TR-SYNC-8 | Vial status carries `status_at` like protocols (A-87b) | H-8 |
+| TR-SYNC-9 | A `sync_complete` that changed `protocols` / `dose_logs` / `vials` rows triggers one dose-reminder re-plan (throttled), and the resume path runs resync **after** the pull | H-9 |
+| TR-SYNC-10 | Harness reads the live-schema snapshot for triggers/uniques and models delete propagation | H-12 |
+
+---
+## 4. STATE OWNERSHIP REGISTRY
+
+### 4.0 The contract
+
+1. Every **derived state** below has exactly **one owner**: a pure function in `lib/` (no React, no Expo, CommonJS or plain ESM so `node --test` can run it), fed by explicit inputs. Reads of storage happen in a thin **assembler** next to it (one per state that needs storage), never inside a screen.
+2. Every consumer listed — screen, component, notification planner, report, server function — **calls the owner** (or receives its result as a prop). A consumer may format the result (words, colour token, number format) but never re-decide it.
+3. A second implementation is a bug, even if it agrees today (A-118 was two agreeing copies until one changed). The sweep removes it test-first: a failing test that shows the divergence, then the switch to the owner.
+4. A server-side copy (edge function, dormant `send-reminders/plan.ts`) is allowed only as a declared **port** with a parity test (pattern: `__tests__/serverPlanParity.test.js`).
+5. The guard test (§7.2 L2) encodes this table: each row lists "signatures" (function names, constants, SQL fragments) that may appear only in the owner's file.
+
+Columns: **Owner** = file + function that must decide it (PROPOSED when it does not exist). **Inputs** = what the owner needs. **Consumers** = every surface that shows or acts on it. **Divergent today** = other places that compute it now, with dossier IDs. **Sweep** = what changes.
+
+### 4.1 Schedule and doses
+
+| ID | Derived state | Owner | Inputs | Consumers (must read the owner) | Divergent implementations today | Sweep |
+|---|---|---|---|---|---|---|
+| S-01 | **Dose slots of a protocol on a local day** (count + times; creation-day rule; end rule; interval from `start_date`; course total; policy for "no reminder time" and "fewer times than doses/day") | PROPOSED `lib/schedule.js doseSlotsOn(p, dayKey)` → `[{ti, hhmm, slotMs \| null}]`; `expectedDosesOn` / `expectedSlotTimesOn` become thin wrappers | protocol row (`start_date`, `interval_days`, `doses_per_day`, `reminder_time`, `created_at`, `ended_at`, `schedule_total`), local day | Today cards / header / rings / streaks / week circles, Missed scan, pending-from-yesterday, Protocols sort and Mark complete, reminders (`dueDateKeys`), morning summary, reminder health `dueInWindow`, curve (`scheduledDoses`), adherence report, `send-reminders/plan.ts` (port) | `lib/schedule.js:31-108` ignores `schedule_total` (02:D4, 01:D-08a, 08:D4); `lib/notificationPlan.js:35-53 dueDateKeys` honours it, anchors on today without `start_date`, no creation/end rule (01:D-08b, 02:D5); no-time protocol: count = dpd but 0 slots (02:D1, 01:D-09), rings at 12:00 (`adherenceRings.js:22-40`), reminders at 08:00 (`notificationPlan.js:57-58`, 03:D-18); dpd > times (02:D2); creation-day floor of 1 vs rings dropping the slot (02:D3); curve uses fixed hours `DOSE_SLOTS` (05:D6, R12) | One function; `dueDateKeys` = keys of days where `doseSlotsOn` is non-empty; a single declared policy for no-time / fewer-times rows (founder question: §9 R-04); curve keeps its fixed hours only as a disclosed display rule fed by the same day counts |
+| S-02 | Reminder due days / budgeted reminder slots | `lib/notificationPlan.js dueDateKeys` + `doseBudget` — **derived from S-01** | S-01, window, budget | `lib/notifications.js scheduleDoseReminder`, `morningSummaryPlan`, `reminderHealth.dueInWindow`, `send-reminders` (port) | see S-01 | becomes a projection of S-01 |
+| S-03 | **Slot state today** (upcoming / due ≤5 min / taken / skipped; "next open slot") | `lib/dosePageState.js cardPlan` | protocol, today's logs, now | Today dose card, focused card (A-44), Protocols "Mark complete" (`lib/protocolTake.js:9-18`), Fold right page slot pick, notification focus | `cardSlot` treats Missed as filled, `cardPlan` as open (02:D11); `planDosePage` dead since A-115 (02:G14); list placement uses Taken-only `nextDoseAt` while the card uses Taken+Skipped (02:D10); focus `slotMs`/`ti` ignored for today (02:D12, D25); "Due" tag not re-rendered on time without a re-render (02 §8, SUSPECTED) | one function returns `{slots, next, due}`; delete `planDosePage`/`cardSlot` or derive them; a 60 s tick drives "Due" |
+| S-04 | **Taken count for a protocol on a day** | PROPOSED `lib/doseDay.js takenOn(p, logs, dayKey)` (logged rows, Taken only, slot-assigned per S-01) | dose_logs, S-01 | Today header, Today card, reminders skip-first-N (`notifications.js:244-248`), `readReminderHealth` (`:1165-1167`), `doseSlotResolved` snooze drop (`:922-932`), notification action cancel-up-to (`notificationActions.js:99-103`), `markTaken` cap (`markTaken.js:52`), send-reminders (port) | 8+ copies (02 §6.2 a–j): calendar-day count incl. declared (`TodayScreen.js:722-740`), `res.takenAfter`, `dosePageState.takenOn`, proximity matching in rings (`adherenceRings.js:42-65`), `toDateString` keys (`TodayScreen.js:770-776`), server "any Taken suppresses all" | one function; reminders resolve by slot, not by count (out-of-order taking, 03 §6.10 SUSPECTED) |
+| S-05 | **Skipped slot resolves its reminder** | owner of S-04 extended: `resolvedOn(p, logs, dayKey)` (Taken **or** Skipped) | as S-04 | reminder scheduler, snooze resolution, `cancelTodaysDoseReminders` on Skip | Skip never cancels reminders; reminders count Taken only (02:D9, G8) | **founder decision needed** (logic says a skipped slot's reminders stop); then one function |
+| S-06 | Header "{x} of {y} complete" | PROPOSED `lib/todayModel.js todayCounts(protocols, logs, now)` = Σ min(takenOn, slot count) ÷ Σ slot count | S-01, S-04 | Today header | inline `TodayScreen.js:1280-1286`; differs from the ring on active-only vs active+ended, declared included, calendar vs proximity (02:D8) | move into the Today view-model |
+| S-07 | **Adherence rings** (today / 7 d / 30 d %, "Nothing due") | `lib/adherenceRings.js adherenceRings` — must consume S-01 slots and match a dose **only within its own slot window** | S-01, logged Taken rows (A-30), protocols active+ended | `TodayTracker` | late dose credited to the next slot (02:D6, D7, script-verified; contradicts `docs/decisions.md:144`); creation day (02:D3); no-time noon slots (02:D1) | fix matching window; consume S-01 |
+| S-08 | Adherence % in the 30-day report | `lib/adherenceReport.js adherenceStats` | rows (Taken+Skipped+Missed), `reportProtocols` | Settings report (to providers) | rows-only, misses unrecorded slots (02:D18); "monthly consistency" computed and never rendered (`TodayScreen.js:807-819`) | **founder decision**: report = rings definition or rows definition (they must say the same number for the same window); delete the dead day-based figure |
+| S-09 | **Protocol streak** (doses in a row) | `lib/doseStreak.js doseStreak` | S-01, logged Taken per day, 365-day lookback | Today card streak, **Settings report streak** | report computes calendar days with any Taken (`SettingsScreen.js:390-401`; 08:D2, 02:D17) | report calls `doseStreak` |
+| S-10 | Tracker streak (days all due protocols complete) + week circles | PROPOSED `lib/trackerStreak.js trackerStreak(protocols, logs, now)` + `weekCircles(...)` | S-01, S-04 | `TodayTracker` | inline `TodayScreen.js:753-805, 821-830`; capped at 31 days (02:D19); "missed" circle ≠ Missed rows (02:D14) | extract; lookback 365 like S-09 (founder line for the cap) |
+| S-11 | **Missed rows** (which past slots become `Missed`) | `lib/missedDoses.js computeMissedDoses` via `lib/doseActions.js scanMissedDoses` (writer) + `missedScanWatermark` | S-01 slot times, logs, watermark, zone history | Today focus, new day, Log focus, Settings report (writers); Log / report / Protocols hero counts (readers) | active protocols only, while rings include ended (02:D13); no slot for no-time rows (02:D1); per-device watermark → duplicate rows (02:D15); watermark survives account switch (02:D16) | consume S-01; scan ended protocols up to their end; watermark keyed by uid |
+| S-12 | Pending from yesterday | `lib/pendingYesterday.js pendingFromYesterday` (+ `pendingPromptFor`) | S-01 slot times, logs, zone history, now | Today pending block, Today "yesterday or today" sheet, Protocols Mark complete | dead fallback in `dosePageState.js:133-137` (02 §6.5c) | delete dead copy |
+| S-13 | Next dose moment / Today list membership / Tomorrow / Next 5 days / "N more later" | `lib/schedule.js nextDoseAt` (+ PROPOSED `upcomingByDay(protocols, logs, now, 6)`) | S-01, S-04 | Today lists, Protocols "Due next" sort (`lib/protocolSort.js`), morning summary | morning summary uses `dueDateKeys` (02 §6.8b); Tomorrow shows only the first time and counts protocols as doses (02:D21) | one upcoming list from S-01 (count doses, not protocols) |
+| S-14 | "All caught up" | PROPOSED `lib/todayModel.js caughtUp` | S-13 + S-06 | Today | inline `TodayScreen.js:1471-1473` (02 §6.7) | move; define with S-05 (a skipped slot) |
+| S-15 | **Course state** ("Day X of Y", course complete) | PROPOSED `lib/schedule.js courseState(p, now)` | `schedule_total`, S-01 | Today card "Day X of Y", reminders stop (BR-12), Missed scan stop, curve, Protocols detail "Total doses" | `TodayScreen.js:1674-1684 getProgress` (calendar index, no test), `dueDateKeys` total (01:D-11, 08:D4); no UI sets `schedule_total` (01:G-6) | one function; product decision on whether courses exist at all (founder) |
+| S-16 | Declared vs logged dose | `lib/declared.js isDeclared / loggedOnly / outcomeCounts` | log, protocol `created_at` | rings, streaks, report, Protocols hero, Dose log counts | `created_at` drift between devices **fixed** for protocols (`lib/syncMappers.js:101-103`; 01:D-20 stale); legacy declared rows still feed the inactivity prompt (01:D-21, SUSPECTED) | inactivity reference uses logged rows only |
+| S-17 | Last injection site recall ("Last: {site} · {n}d ago") | PROPOSED `lib/bodySites.js lastSiteFor(protocol, logs, now)` (calendar days) | logs 30 days | Today card, site picker (`BodyMapModal`) "longest unused" | inline `TodayScreen.js:569-594` uses elapsed 24 h, not calendar days (02 §6.12, SUSPECTED wording) | one function in local days |
+
+### 4.2 Supply and vials
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-20 | **Vial capacity / doses left** | `lib/supplyLow.js vialCapacity / supplyState` | vial, protocol | Today alert + dose card, Protocols card/detail/hero, vial-low push, Settings report, vial-finished decision (`markTaken`), give-back (`deleteDose`) | inline copies `TodayScreen.js:1941-1945`, `lib/markTaken.js:121-126`, `lib/deleteDose.js:60-66` (01:D-03); report `total_doses − doses_taken` can go negative (01:D-02, 08:D3); recon `total_doses` stale after a dose edit (01:D-13) | all call `supplyState`; capacity recomputed on dose edit (founder: recon vial edit, 01:G-9) |
+| S-21 | **Supply low** (1–3 doses left) | `lib/supplyLow.js supplyState().low` | S-20 | Today alert, Protocols badge/hero, vial-low push | push evaluates every active vial, screens only the newest per protocol (01:D-04); orals have no low rule (01:D-15, 02 alert table) | one "active vial of a protocol" resolver (S-23); oral rule needs a founder line |
+| S-22 | **Vial days left / expiry / past window / tone** | PROPOSED `lib/vialExpiry.js vialDaysLeft(vial, protocol, now)` + `expiryTone(days)` (theme token names, not hex) | `mixed_on` + `vial_valid_days` (recon) or `expires_on` (rtu), local midnight | Today alert + card colour, Protocols card/detail, "Vial age" sort, expiry push plan | `ProtocolsScreen.js:191-195`, `TodayScreen.js:1553-1560, 1946-1960`, `notificationPlan.js:261-283` (01:D-06, D-06b, 08:D6); `expiryColor` raw hex unused (01:G-25); colours differ (01:D-06); sort ignores validity and rtu (01:D-07) | one function in whole local days; push uses its date |
+| S-23 | **Active vial of a protocol; vial finished; reactivation** | PROPOSED `lib/vialState.js activeVialFor(protocolId, vials)` + `giveDoseBack(...)` | vials, protocol status | Today, Protocols, Undo, Dose-log delete, Restore, vial-low push | "newest active" per screen vs every active vial in push (01:D-04); Undo reopens a vial an end deactivated, delete does not (01:D-17); Restore reactivates an empty vial (01:D-18); empty rtu vial cannot be replaced (01:D-12); recon new vial only from Today (01:D-12b); Dose-log Missed→Complete misses the vial-finished prompt (02:G12) | one resolver + one give-back rule |
+| S-24 | Oral bottle units left / days left / low | `lib/oralMath.js` (`supplyDaysLeft` must take `interval_days`) | protocol `container_units`, `units_taken`, dose, interval | Protocols serving hero | divides by doses/day only (01:D-14); no low rule (01:D-15) | fix + founder line on oral low |
+
+### 4.3 Protocol lifecycle
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-30 | **Protocol status** (active / not started / ended / deleted / purged) | `lib/protocolEnd.js` (`SQL_ACTIVE`, `SQL_ENDED`, `SQL_HISTORY`, `isEnded`, `endedAtMs`) | row | every list and query; schedule end rule; curve; report; rings; sync merge | JS checks repeated in `doseActions.js:15,30,56,112`, `markTaken.js:257`, `pendingYesterday.js:44,96`, `notifications.js:424,925`, `adherenceRings.js:70-71` — equivalent today (01:D-01) | PROPOSED `isActiveRow(p)` in `protocolEnd.js`; copies replaced |
+| S-31 | Free-plan active-protocol count / over limit | PROPOSED `lib/freeLimit.js overFreeLimit({activeCount, premium})` | active count, S-60 | + Add, save, restart, restore | inline `ProtocolsScreen.js:1879-1885, 2046-2050`; client only, not across devices or after a lapse (01:D-22, 07:D-3) | one function; server rule = founder decision |
+| S-32 | Recently deleted age ("Deleted Nd ago") | PROPOSED `lib/protocolEnd.js deletedDaysAgo(deleted_at, now)` (local days) | `deleted_at` | Recently deleted list | `Math.ceil` of elapsed ms → "1d" one minute after delete (01:D-19) | local days |
+| S-33 | Inactivity prompt ("Still going?") eligibility + end date | PROPOSED `lib/protocolEnd.js inactivityDue(p, loggedTaken, now)` | logged Taken (not declared), interval, snooze | Today | inline `TodayScreen.js:497-537`; uses declared rows (01:D-21, SUSPECTED) | extract; logged rows only |
+| S-34 | **Protocol display name** | PROPOSED `lib/protocolName.js displayName(p, t)` = `compound_id ? t(compound_id) : name`, blend component label | protocol, language | every screen, sheet, notification title/body, report, curve picker, export | stored `name` used in Skip sheet, site picker title, vial prompt, Dose log rows, supply push, dose reminder title, morning summary, report (01:D-05, 02:D26, 03:D-19); curve picker drops the blend name (05:D4) | one function; notification texts re-planned on language change (03:G6) |
+
+### 4.4 Reminders and notification health
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-40 | **"Protocol with a reminder time"** | PROPOSED `lib/reminderHealth.js hasReminderTime(p)` = `sortedDoseTimes(p).length > 0` | protocol | `activeWithTime`, Today warnings, `scheduleState`, setup auto-open | `readReminderHealth` filters with `reminderTimes()`, which returns 08:00 for null → always true (02:D22, 03 §6.10, D-18) | depends on S-01 policy |
+| S-41 | **Schedule state** (silent / off / none_needed / pending / ok / block) | `lib/reminderHealth.js scheduleState` | switches, `activeWithTime`, scheduled count, `dueInWindow`, `syncedOnce` | Reminder check screen, Settings row, Today blocked card | "ok" as soon as ONE dose reminder exists (03:D-4); morning/food/weigh-in never checked | per-protocol coverage (founder line) |
+| S-42 | **Reminder check rows + blocking count + Today warnings** (blocked, late, battery, stop, stale, silent, combined) | `lib/reminderHealth.js` (`reminderChecks`, `blockingCount`, `shouldWarn*`, `staleRefreshDays`, `reminderWarnings`) fed by one reader `lib/notifications.js readReminderHealth` | OS reads (permission, channel importance, battery, exact alarms, hibernation), `dosetrace_refresh_last`, `dosetrace_fg_sync_at`, switches, S-40, S-41 | Today alerts, Settings row (both platforms), ReminderCheck screen, onboarding setup step | Settings "blocked" ignores the "reminders matter" gate that Today applies (03:D-1); Today Blocked ignores Silent (03:D-2); `shouldWarnLate` re-implements `remindersMatter` (03:D-5); never-successful refresh never "late" (03:D-8); stale masked by any foreground resync (03:D-9); `ok:true` even if nothing rescheduled (03:D-10); scheduled count dropped (03:D-11); only `dose-reminders` channel checked (03:G16) | single `remindersMatter` gate used by all; founder lines for D-1/D-2 |
+| S-43 | **"N of M ready" / "All set"** | `lib/reminderHealth.js setupSteps` + `setupRowState` | S-42 | Setup list (screen + onboarding), Settings row | bar ignores `scheduleState` (03:D-14); SP-1/RG-2 text stale vs SP-10 (03:D-15) | bar includes the schedule state |
+| S-44 | Scheduled count / next reminder / "scheduled until" | `lib/notifications.js readReminderHealth` (one OS-queue read) | OS queue | ReminderCheck, Settings "All set · next", ReminderSetupList | two counts (03:D-16); snoozed copy keyed by its past slot never "next" (03:D-17) | one count definition |
+| S-45 | Dose slot resolved (drop a snooze, skip a reminder) | `lib/notifications.js doseSlotResolved` → must call S-04/S-05 | as S-04 | snooze restore, resync | Taken-only (02:D9) | via S-05 |
+| S-46 | Notification tap target | `lib/notificationPlan.js notifTapTarget` | response, now | `App.js routeTap` | none (single) | keep; A-116 Fold right page extends it |
+| S-47 | Food 20:00 days / day-21 reminder plan | `lib/notificationPlan.js foodNudgeDays` + `remindersForAccess`; `lib/notifications.js syncRealityCheckReminder` | open check (S-50), closed days, S-56 access | OS queue, `send-reminders` (port) | day-21 fires after the weigh-in (04:D-2) — must read S-50 | planners read S-50 |
+
+### 4.5 Reality check, food log, Progress
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-50 | **Reality-check state** (none / running / due / needs_food / ready{ok,maintenance,implausible,too_short} / ready_locked / saved / stopped) | `lib/realityCheckRules.js checkOutcome` (pure) + **one assembler** `lib/realityCheckNow.js readCheckNow` (extended with `canSeeResult` and `checkSaved` per check) | open check (`reality_check_open` via `getRealityStart`), weigh-ins, food run (S-53), typed kcal, saved results, access (S-58), local today | Today alert (`checkAlert`), FoodLogHero line, Progress status line + result branch + auto-finish, day-21 reminder, 20:00 planner, Journey food card | Progress assembles its own inputs once per mount (`CalculatorSection.js:299-304, 816-842`; 04:D-4, 08:D5); Progress status line ignores "weighed in" (04:D-1); Today says "ready" when Progress will not show a result (04:D-3); `checkSaved` makes the next check invisible (04:D-7); notifications read `getRealityStart({strict:true})` vs UI non-strict (08:D5) | Progress, notifications and hero all call the assembler; Progress subscribes to sync events and re-reads on focus and day change |
+| S-51 | Weigh-in due date (start + 21) and its flip time | PROPOSED `lib/realityCheckRules.js dueDateFor(startISO)` + `REALITY_CHECK_DAYS` exported from `realityCheckRules.js` (not from `notifications.js`) | start date | checkOutcome, Today, Progress `rcRemindOn`, day-21 reminder, FoodGraceNote `weighInDay`, hero policy | 6 computations, constant 21 duplicated (`FoodLogHero.js:27`, `foodThread.js:297,307`) (04 §6.2); flips at 00:00 / 10:00 / 12:00 (04:D-6) | one function; flip rule = local 00:00 (notification time stays 10:00 as a delivery time, not a state) |
+| S-52 | Weighed in (a weigh-in ≥ due) | inside `checkOutcome` | weigh-ins, due | Today, hero, Progress line, day-21 reminder | not read by Progress line (04:D-1) or day-21 (04:D-2) | via S-50 |
+| S-53 | **Intake run** ("n of 7 in a row", avg kcal) | `lib/nutrition.js intakeRun` | food rows (done), markers (`day_closed`, `ate_nothing`), start, today | checkOutcome, Today hero, Progress status + "so far" footer, FoodGraceNote | `checkSoFar` re-derives its own trailing average (04:D-9); FoodGraceNote counts days with kcal > 0 (04 §6.3); closing a day with only unparsed rows breaks the run silently (04:D-16) | one run object `{ok, avgKcal, current, days}` shown everywhere |
+| S-54 | **Current weight / Your-numbers weight** | `lib/numbersWeight.js numbersWeight` extended to `currentWeight({weightAt, savedWeight, snapshots})` | `calc_inputs.weight`, `weightAt`, weigh-ins | Progress hero, Your numbers, TDEE input, Journey Progress tile, target "current", start-sheet prefill, Weigh-ins summary | 5 rules (04 §6.5): hero = latest snapshot even weightless (04:D-12); tile = latest weighed snapshot ignoring `weightAt` (08:D1, 04:D-11); fix/delete paths do not refresh the weight (04:D-10) | one function used by tile and Progress |
+| S-55 | **Daily burn (TDEE) estimated vs measured, goals** | `lib/energyCalc.js energyPlan` + PROPOSED `lib/progressModel.js dailyBurn({inputs, profile, checks})` | S-54, height, profile age/sex (S-71), activity (newest stamp, `lib/activityLevels.js`), saved results | Progress hero + "Your daily plan", Journey tile | tile uses saved weight while showing the adopted one (04:D-11, 08:D1); tile ignores a non-number `tdee`, hero does not (05:D8) | tile and hero share `dailyBurn` |
+| S-56 | **Food access** (premium / trial(free days) / grace / locked, `canLog`, `until`, `reason`) | `lib/foodThread.js foodLogAccess` via `lib/foodLogActions.js loadFoodAccess` | S-60 premium + `endedOn`, free-start marker, open check, today | FoodChat, FoodLogHero, Progress (`rcFree`), 20:00 planner, **parse-food (server)** | server never checks (04:D-15, 07:D-2); grace grants a new check + result (04:D-13); typed-kcal link audience (04:D-14); free-days anchor from typed day (`created_at` not synced, H-4, SUSPECTED) | server port of the access rule (founder: enforcement scope) |
+| S-57 | Today food summary / day closed | `lib/foodThread.js todaySummary` + `lib/nutrition.js` markers | food rows, today | FoodLogHero (Today + Journey), FoodChat | midnight staleness of the hero (04:D-5) | re-read on day change |
+| S-58 | **Reality-check access** (can start / can see result) | `lib/weighInAccess.js realityCheckAccess` | S-60, S-56 | Progress start sheet, result, typed-kcal link, S-50 `ready_locked` | Today does not use it → D-3 | S-50 consumes it |
+
+### 4.6 Dose accumulation curve and Journey
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-60 | **Premium / entitlement** (`premium`, `known`, `expiresAt`, `endedOn`) | `lib/entitlement.js getEntitlement / hasPremium` (guard test `entitlementGuard`) | RevenueCat live answer, per-uid cache | every gate: curve, PDF export, reality-check result, target ETA, protocol limit, food access, Paywall, Settings badge | server scan quota treats RevenueCat-unreachable as Premium (07:D-1, by decision); purchase result vs entitlement (07:D-5); cache window across accounts (07:D-7, SUSPECTED); Journey `premium === null` reads as free and a tap goes to the Paywall (05:D7) | keep; add `known` handling on Journey (wait, do not route) |
+| S-61 | **Charted protocol list + default / remembered compound** | PROPOSED `lib/curveView.js curveSelection({saved, history, now})` over `serumModel.curveHistoryProtocols` + `splitCurveProtocols` | protocols active + ended ≤365 d, saved view | SerumCurve, Journey tile, My Body card | screen uses history, tile/Body use active only → different compound after End/Restart (05:D1) | tile and Body call `curveSelection` |
+| S-62 | **Est. level now** | `lib/serumModel.js estimatedLevelNow` | S-61 selection, schedule (S-01 day counts), half-lives | Journey tile, My Body card, curve hero / stats | grid start 14 d vs 3 d → different number for up to 14 days after DST (05:D2, script-verified 0.0 vs 0.25 mg); My Body has no `data_changed:'curve'` listener (05:D3) | grid anchored to a fixed epoch (not the window); Body listens |
+| S-63 | Doses counted (curve stat) | PROPOSED `serumModel.dosesInEstimate` | doses used by the level | curve stats | counts only the visible window (05:D5, A-96) | count what the level uses or relabel (founder copy) |
+
+### 4.7 My Body
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-70a | Latest lab date | PROPOSED `lib/bodyHub.js latestLabDate(rows, today)` (ignores future dates) | biomarkers | Today bloodwork alert, hub card, curve lab chips | three equivalent computations (06:D-1); future-dated report suppresses the alert (06 E-6) | one function |
+| S-70b | Labs due ("Bloodwork due", 182 days) | PROPOSED `lib/bodyHub.js labsDue(latest, today)` | S-70a | Today alert | inline `TodayScreen.js:153, 1512-1524` (06:D-2); app-chosen interval (06:G-13, regulatory review) | extract; founder/regulatory line |
+| S-70c | **Report grouping / test count** | PROPOSED `lib/bodyHub.js reportCards(rows)` + `testCount(rows)` = number of cards | biomarkers (`report_date`, batch `created_at`) | Lab journal cards, hub count, Export visibility, book selection keys | hub count per batch (`BodyScreen.js:824`, `bodyHub.js:8,30`) vs merged cards (`BodyScreen.js:99-121`) (06:D-3); per-row `created_at` on pulled devices (H-4) | count = cards; send `created_at` |
+| S-70d | Marker series latest value / favourite state | PROPOSED `lib/bodyHub.js markerSeries(rows)` with one tie-break (date, then batch) | biomarkers, favourites | marker list, marker detail, hub star rows, export | tie-break differs (06:D-4); favourites by raw label, cannot clear (06:D-5) | one series function; favourites keyed canonical (and moved to a table, A-14) |
+| S-70e | Vaccine next due (hub) | `lib/bodyHub.js nextDueVaccine` | vaccines, local today | hub | presentation-only difference with cards (06:D-9) | keep; PRD states it |
+| S-70f | Scan quota left | server `extract-bloodwork/quota.ts` (UTC month) | `ai_scan_usage` | refusal message only | none client-side (06:D-7) | product decision (show "x of 3") |
+
+### 4.8 Account, onboarding, platform
+
+| ID | Derived state | Owner | Inputs | Consumers | Divergent today | Sweep |
+|---|---|---|---|---|---|---|
+| S-71 | **Profile complete / missing fields** | `lib/supabase.js missingProfileFields / isProfileComplete` | `user_metadata` | App root gate, signed-in onboarding steps, **Settings Edit profile validation** | Settings keeps its own 8-check list without `tracking` (07:D-10); gate checks presence, onboarding checks validity (07:D-11) | Settings calls the owner + a PROPOSED `validProfileField` |
+| S-72 | Adult confirmation needed | `lib/adultGate.js needsAdultConfirmation` | `birth_year`, `adult_confirmed_at` | App root gate | year-only test (07 gap 19, counsel) | keep |
+| S-73 | Onboarding seen / entry step | `lib/onboardingStore.js` + `lib/onboardingSteps.js entryStep` | `dt_seen_onboarding`, stash, freshness | App root (`App.js:605-607`), onboarding | persisted flag vs routing state by design (07:D-14); double `markSeenOnboarding` | keep; dead `authEntry.consent` removed (07:D-15) |
+| S-74 | Signed-in user / session valid | `lib/supabase.js getCachedUser` (UI) / `readStoredUser` (headless) | SecureStore | every reader | `getSession()` error = signed out in `App.js:609-617` but = still signed in in `signOutCore.hasSession` (07:D-16, SUSPECTED offline expired token routes to Auth) | one `sessionState()` with an explicit `unknown` |
+| S-75 | Local data owner | `lib/database.js getLocalDataUserId` | 10 tables (not `vials`) | cross-account guards, wipe marker, unsynced count | skips `vials` (H-10) | include vials |
+| S-76 | AI consent | `lib/aiConsent.js hasAIConsent / grantAIConsent` | device key | every AI entry (lab, vaccine, vial, food, assistant) | per device, not per account, not wiped (07:D-18) | per-account key wiped with the account keys (and server proof, A-95: founder/counsel) |
+| S-77 | Online / unsynced count ("Waiting to back up") | `lib/sync.js isOnlineNow` + `lib/offlineAlert.js offlinePendingAlert` + count of pending rows (PROPOSED `lib/database.js unsyncedCount(uid)`) | NetInfo, pending rows | Today alert, Settings sign-out check | the sign-out check counts by owner + session (`lib/accountActions.js:122-128`), Today by its own query (`TodayScreen.js:386-397`) | one count |
+| S-78 | **Local day key / start of day / days between** | `lib/localDate.js` (extended API, §6) | `Date`, device zone | everything dated by the user's day | ~25 copies (§6.3; 08:D7) | one module |
+| S-79 | Alert snooze state | `lib/todayFormat.js snoozeUntil` + PROPOSED `isSnoozed(id, map, now)` | `dosetrace_alert_snooze` | Today alerts | `offline_pending` ignores its snooze (02 alert table); snooze expiry needs a re-render (02:D24) | one `isSnoozed`; key per uid |
+| S-80 | Book layout mode / right-page default | `lib/bookLayout.js`, `lib/bookSelection.js`, `lib/windowSize.js` | window size, hinge, selection | every tab + pushed screen | none found (dossiers) | keep |
+
+### 4.9 Ownership rules for derived values on the server
+
+| Server value | Owner | Client consumers | Rule |
+|---|---|---|---|
+| AI scan quota (3 free / 20 Premium, UTC month) | `supabase/functions/extract-bloodwork/quota.ts` | refusal message (`lib/scanQuotaMessage.js`) | client never hard-codes the number (A-60) |
+| Food parse limits (25 + 25 per `entry_date`, 60 / 24 h) | `parse-food/index.ts:27-30,155-183` | `nutri_quota` notice | `entry_date` is the client's local day (S-78) |
+| Assistant budget (10 / rolling 7 days) | `protocol-assistant/budget.ts:8` | assistant limit sheet | copy says "in the last 7 days" (decision 2026-10-04) |
+| Wake-refresh claim (≥20 h) | `claim_wake_refresh()` | none | — |
+| Purge semantics | triggers `protocols_blank_purged`, `protocols_purge_children`, `refuse_child_of_purged_protocol` | `lib/syncCore.js` | client treats "was deleted forever" as stay-pending |
+| Stop wins | trigger `reality_check_open_keep_stop` | `lib/syncCore.js` | — |
+| Analytics anonymity | trigger `analytics_events_anonymize` | `lib/analyticsEvent.js` | `user_id` always NULL |
+| Food access (missing) | PROPOSED port of S-56 in `parse-food` | — | founder decision on enforcement |
+
+---
+## 5. Invariants
+
+Each invariant must hold at every build. "Tested now" = the existing evidence; "Must be tested by" = the target (§7). An invariant without an automated test is checked by a named device step in the build report.
+
+### 5.1 Auth and session
+
+| ID | Invariant | Source | Tested now | Must be tested by |
+|---|---|---|---|---|
+| INV-01 | `onAuthStateChange` is synchronous: `setSession` first; no `await` and no `supabase.*` call inline; every side effect inside `setTimeout` | CLAUDE.md Gate B; `App.js:664-736` | `__tests__/signedOutHandler.test.js` ("the synchronous part returns no promise"); Gate B review | an AST test over `App.js`: the callback body contains no `await`, no `supabase.` member call outside `setTimeout` |
+| INV-02 | The local wipe runs **only** on an intended sign-out or an account deletion of the local owner, never on a token refresh, a session hiccup, an Apple revoke, or a re-auth of the same user | CLAUDE.md never-destroy; `lib/signedOut.js`, `lib/authIntent.js` | `__tests__/wipeOwner.test.js`, `wipePending.test.js`, `signOutNoEvent.test.js`, `signOutOffline.test.js`, `signOutStorage.test.js`, `coldStartRace.test.js` | + device: airplane-mode cold start with an expired token keeps data (07:D-16) |
+| INV-03 | An intended sign-out pushes first and refuses while rows are unsynced, except an explicit "Sign out anyway" (Settings only) | A-46; `lib/signOutCore.js:59-92` | `__tests__/unsyncedCheck.test.js`, `settingsSignOutUnsynced.test.js`, `unsyncedOwner.test.js` | + the gates (Finish setup, 18+) get "Sign out anyway" (A-94, decided 2026-10-04, not built) |
+| INV-04 | A different account never sees the previous account's data: cross-account guard on cold start and `SIGNED_IN` clears DB, reminders, drafts, selections, site questions **and every ACCOUNT key of §2.4** | decision 2026-10-03 (`docs/decisions.md:509`) | `__tests__/foldAndAccountGuards.test.js` (partial) | guard test over the ACCOUNT key list (TR-STORE-1); AI consent and entitlement cache included (07:D-7, D-18) |
+| INV-05 | An interrupted wipe completes on the next cold start only for the data's own owner (`wipe:<owner>` / `deleted:<id>`) | `lib/signedOut.js:72-116` | `wipePending.test.js`, `deletionTeardown.test.js` | keep |
+| INV-06 | Headless code never refreshes or rotates the auth token: client created with `autoRefreshToken:false`; auto refresh only while `AppState === 'active'`; background refresh reads the stored user only | BR-9; `lib/supabase.js:13-32, 40-58`; `App.js:563-566` | `__tests__/headlessAuthRefresh.test.js` | + the notification action path stops calling `getSession()` headless (it can still refresh, `lib/supabase.js:19-25`) |
+| INV-07 | Account deletion removes every synced table server-side (`delete-user` table list ⊇ `syncCore.TABLES`) | S-07/FX-12 | `__tests__/deleteUserCoverage.test.js` | + live check that each listed table exists (DR-3) |
+| INV-08 | Every auth write is proven to resolve (profile Save closes, delete returns to welcome, sign-out returns to welcome) | Gate B | device smoke test per build | + Settings `saveProfile` reads `{error}` (07:D-22) |
+
+### 5.2 Never lose user-entered data
+
+| ID | Invariant | Source | Tested now | Must be tested by |
+|---|---|---|---|---|
+| INV-10 | Every user write goes to SQLite first as `pending`; the queue is the pending rows; nothing user-entered lives only in AsyncStorage or `user_metadata` (exceptions recorded: S-25 site questions, curve view, explainer "shown", drafts) | CLAUDE.md 2026-09-12 | per-table tests; `__tests__/sync.test.js` | guard test: `AsyncStorage.setItem` keys and `auth.updateUser` calls only through the allowed lists (TR-STORE-1, TR-META-1); `favorite_markers` / `report_tags` moved to tables (A-14) |
+| INV-11 | No device deletes a protocol, dose log or vial because it is absent from the cloud; Delete forever is a positive tombstone | decision 2026-10-04 (`docs/decisions.md:520-531`) | `__tests__/purgeNoAbsence.test.js`, `purgeTombstone.test.js`, `purgeSelfHeal.test.js`, `purgeRevive.test.js` | keep |
+| INV-12 | A pending local edit is never overwritten by a pull, except the declared winners: Stop (reality check), tombstone (protocol), status from the device that changed it (A-87) | `lib/syncCore.js:617-636` | `realityCheckSync.test.js`, A-87 tests | keep |
+| INV-13 | Writes merge, never clobber: `calc_inputs` via `mergeCalcInputs`; metadata per key; no array/object written back from a stale read | CLAUDE.md | partial | TR-META-1; `favorite_markers` fix |
+| INV-14 | When a screen/flow is replaced, its data is migrated in the same change; every storage/auth/sync change is proven by update-over-old-version + re-auth on device | CLAUDE.md | device step | build report lists the update-over-old-version run |
+| INV-15 | A deleted row is deleted on every device of the user (not only the deleting one) | this TRD H-1 | **none — violated today** | TR-SYNC-2 + harness test |
+| INV-16 | An edited row reaches every device of the user | this TRD H-2/H-3 | `sync.test.js` (harness masks triggers) | TR-SYNC-1, TR-SYNC-10 |
+
+### 5.3 Scheduling and headless safety
+
+| ID | Invariant | Source | Tested now | Must be tested by |
+|---|---|---|---|---|
+| INV-20 | Scheduling is non-destructive: schedule wanted ids first (fixed ids replace), then cancel only ids of that kind no longer wanted; an unknown state (DB not ready, failed read, no user) cancels nothing | BR-1/BR-2; `lib/notifications.js:228-231, 311-318, 390-399` | `__tests__/nonDestructiveSchedule.test.js` | keep |
+| INV-21 | One full resync at a time; calls during a run share one follow-up | BR-6; `lib/notifications.js:837-857` | `reminderRefresh.test.js` "AC6" | keep; same pattern for sync (TR-SYNC-6) |
+| INV-22 | Switches are respected: Silent mode schedules nothing except the user's test reminder; a kind switched off cancels its scheduled items | BR-4, A-108/A-109 | `notificationSwitches.test.js` | + `notifyNothingLogged` goes through `scheduleReq` (03:D-13) |
+| INV-23 | A headless run opens the DB first, does nothing when a wipe is pending or no user is stored, sends no immediate notification, writes nothing that would be pushed, never runs a cloud sync, always leaves background mode | BR-7/BR-8; `lib/reminderRefresh.js:14-40`; `lib/notificationActions.js:99-113` | `reminderRefresh.test.js` AC5/AC7/AC8 | + `notificationActions.ensureDb` retries on failure like the refresh task |
+| INV-24 | Each notification response is handled at most once (in-flight set + persisted key) | R-15; `lib/notificationActions.js:51-60, 147-167` | notification action tests | keep |
+| INV-25 | iOS never links, configures or loads the background task | BR-11; `package.json` autolinking exclude; `plugins/withoutIosBackgroundFetch.js` | `reminderRefresh.test.js` "AC11" | keep |
+| INV-26 | Android release keeps the R8 rules for notifications serialization, headless loader, task manager, background task | incident 2026-10-05 | `__tests__/androidKeepRules.test.js` | + device: adb shows scheduled alarms after install |
+| INV-27 | Reminders keep being renewed until the protocol is ended or deleted (course total excepted, BR-12) | founder 2026-10-07 | design + BR tests | iPhone: founder decision (03:G1) |
+
+### 5.4 i18n, theme, emoji, AI line
+
+| ID | Invariant | Source | Tested now | Must be tested by |
+|---|---|---|---|---|
+| INV-30 | 6 languages (en, es, pt, fr, de, it) with identical key sets, no empty values, matching `{placeholders}`, every static `t('…')` key exists | CLAUDE.md | `__tests__/i18n.test.js` | + every `t(` with a dynamic key resolves for the known values (e.g. `substance_boldenone` missing ×6, 05:G7); Android channel names localized (03:G17) |
+| INV-31 | Translations are natural, one term per concept | CLAUDE.md 2026-10-02 | not testable | human review per string (founder) |
+| INV-32 | Colours come from `lib/theme.js` tokens (LIGHT and DARK have identical keys); hard-coded colour only on declared fixed surfaces (toast, share/export paper, brand marks, protocol palette, store-owned sign-in buttons) | CLAUDE.md 2026-09-11/18 | `protocolColors.test.js`; partial source tests | a guard test listing allowed files/lines for raw hex, `'white'`, `'black'`, literal `rgba(`; known offenders: `App.js:73-82` ErrorBoundary, `BodyMapModal.js:96`, `FeatureIcon.js:10` default `#000000`, `SettingsScreen.js:1480-1492` (`settingsLegacy`), `lib/vialExpiry.js:30-35` (08 §7.3) |
+| INV-33 | Both themes checked per screen, incl. every modal/sheet/picker | CLAUDE.md hard line | manual | agent-device journey run in light and dark (§7.4) |
+| INV-34 | No emoji in any UI string or notification title | CLAUDE.md | partial grep tests | guard test over `screens/`, `components/`, `App.js`, `i18n/translations.js` values, notification titles |
+| INV-35 | AI only transcribes or surfaces the user's data: JSON-only responses, no model prose to the screen, app-written sentences ×6, advice-shaped requests deflected, raw text not logged, `reference_min/max/status` never written | CLAUDE.md AI HARD LINE | `assistantAdviceGuard`, `assistantSchema`, `serverPrivacyLogs`, `scanCopy` tests | + a test that no client payload or mapper writes `reference_min`, `reference_max`, `status` to biomarkers |
+| INV-36 | AI consent is asked before every AI call for **the signed-in account** | ledger AI rules | consent gate tests (device key) | per-account consent (07:D-18) |
+
+### 5.5 Time and dates
+
+| ID | Invariant | Source | Tested now | Must be tested by |
+|---|---|---|---|---|
+| INV-40 | Anything dated by the user's day uses the **local** calendar day (never `toISOString().split('T')[0]`) | `docs/decisions.md` 2026-10-03; `lib/localDate.js:1-7` | `__tests__/localToday.test.js` ("no screen or lib builds a day from a UTC date string") | + guard: day keys only from `lib/localDate.js` (§6) |
+| INV-41 | Day stepping is calendar stepping (`new Date(y, m, d + i)` / `setDate`), never `+ 86400000` | A-101b (curve 25 h day) | `__tests__/curveDstDoses.test.js` | guard test for `86400000` / `864e5` arithmetic outside `lib/localDate.js` and declared duration math |
+| INV-42 | Whole-day differences are noon-anchored or `Math.round` of local midnights | `lib/schedule.js:41-42`, `CalculatorSection.js:94-97`, `notificationPlan.js:29-31` | partial | `daysBetween` in one module |
+| INV-43 | Instants are stored as ISO UTC (`logged_at`, `created_at`, `deleted_at`, `ended_at`, `stopped_at`); local days as `YYYY-MM-DD` strings (`start_date`, `entry_date`, `report_date`, `mixed_on`, `expires_on`, `date_given`) | schema | — | schema-check of column types (§8.4) |
+| INV-44 | A slot belongs to the zone of its own day (zone history), so travel never rewrites past slots | A-51; `lib/zoneHistory.js`, `lib/missedDoses.js:186-208` | missed-dose tests | keep |
+| INV-45 | Values that span a DST change are identical regardless of the visible window (curve level, tile) | 05:D2 | **violated** (script-verified) | test with a transition inside the window (TZ America/New_York, Europe/Berlin) |
+
+### 5.6 Ownership
+
+| ID | Invariant | Tested now | Must be tested by |
+|---|---|---|---|
+| INV-50 | No screen or component computes a state listed in §4; it calls the owner | `entitlementGuard` (premium only) | `__tests__/ownershipGuard.test.js` (§7.2 L2) |
+| INV-51 | A server port of an owner rule has a parity test | `serverPlanParity` | + parse-food access port |
+
+---
+
+## 6. Time and dates
+
+### 6.1 Concepts
+
+| Concept | Meaning | Storage | Example |
+|---|---|---|---|
+| Instant | a moment, zone-free | ISO UTC string | `logged_at`, `created_at`, `ended_at`, `stopped_at` |
+| Local day key | the user's calendar day in the device zone at the moment of writing | `YYYY-MM-DD` | `start_date`, `entry_date`, `report_date`, `mixed_on`, `expires_on`, food `entry_date` |
+| Wall time | `HH:MM` in the device zone on a given day | text list | `reminder_time` "08:00,20:00" |
+| Server month / day | UTC-based buckets on the server | — | scan quota month (`extract-bloodwork/index.ts:159-160`); food quota uses the client's `entry_date` |
+
+### 6.2 The one helper (PROPOSED API of `lib/localDate.js`, CommonJS-compatible)
+
+| Function | Returns | Replaces |
+|---|---|---|
+| `localISO(d = new Date())` (exists) | local `YYYY-MM-DD` | every inline `getFullYear()-getMonth()-getDate()` formatter |
+| `dayKeyAt(ms)` | local key of an instant | `lib/dayChange.js:5-8`, `TodayScreen.js:142`, `LogScreen.js:155`, `siteQuestion.js:12`, `markTaken.js:19`, `pendingYesterday.js:17`, `dosePageState.js:35` |
+| `parseDayKey(key)` | local-midnight `Date` | `notificationPlan.js:17-20 parseYmd`, `new Date(key + 'T00:00:00')` (`schedule.js:41`) |
+| `startOfLocalDay(ms)` / `endOfLocalDay(ms)` | ms | `adherenceRings.js:19`, `missedDoses.js:162-165`, `deleteDose.js:124-126`, `bodySites.js:131`, `protocolsHero.js:24-25`, `schedule.js:17` |
+| `addLocalDays(key, n)` | key (calendar stepping) | `notificationPlan.js:22-26`, `realityCheckRules.js:8-12 shift`, `foodThread.js:223 shiftDay`, `nutrition.js:117-121 nextDay`, `localDaysAgoISO` |
+| `daysBetween(aKey, bKey)` | integer (noon-anchored) | `CalculatorSection.js:94-97`, `notificationPlan.js:29-31 dayDiff`, `foodThread.js:217 daysFrom`, `energyCalc.js:328 daysBetweenISO`, `protocolEnd.js:124-128 localDay` comparisons, `ProtocolsScreen.js:2218` ceil |
+| `wallTimeOn(key, 'HH:MM')` | ms (DST gap normalized by JS `Date`, documented) | `dosePageState.js:57`, `notificationPlan.js` slot builders, `todayFormat.js:38`, `notificationPlan.js:210, 278` |
+| `msUntilNextLocalMidnight(ms)` | ms | `lib/dayChange.js:11-14` |
+| `sameLocalDay(a, b)` | bool | `protocolSort.js:7-9`, `toDateString()` comparisons (`schedule.js:59, 97`) |
+
+### 6.3 Copies to consolidate (grep 2026-10-12)
+
+Day-key formatters: `lib/realityCheckRules.js:12`, `lib/database.js:112`, `lib/foodThread.js:12`, `lib/entitlement.js:20`, `lib/featureExplainers.js:28`, `lib/purchases.js:89`, `lib/protocolEnd.js:127`, `lib/notificationPlan.js:13`, `lib/pendingYesterday.js:17`, `lib/notificationActions.js:72, 98, 122`, `lib/serumModel.js:206`, `lib/siteQuestion.js:12`, `lib/dayChange.js:7`, `lib/nutrition.js:121, 153`, `lib/markTaken.js:19`, `lib/assistantClient.js:36`, `lib/dosePageState.js:35`, `screens/TodayScreen.js:142`, `screens/LogScreen.js:155` (and `:379`, an unpadded 0-based grouping key), `screens/components/CalculatorSection.js:92-97`, `lib/protocolAssistant.js:36-38`, `lib/protocolForm.js:21-23`, `screens/ProtocolsScreen.js:1503, 1514`. Day-identity by `toDateString()`: `lib/doseStreak.js:11`, `lib/schedule.js:59, 97`, `screens/TodayScreen.js:619, 773, 786, 790`, `screens/SettingsScreen.js:393, 399`. Plus the server side: `parse-food` buckets by the client's `entry_date`; `extract-bloodwork` by UTC month.
+
+Formulas are identical today (08:D7); the requirement is one implementation so a future rule (e.g. a stored protocol zone, A-51 full fix) changes in one place.
+
+### 6.4 Rules
+
+1. **Local day everywhere the user thinks in days** (INV-40): food entry day, reality-check start and due date, weigh-in day, start date, mix date, expiry day, lab date, vaccine dates, "today" on every screen (`docs/decisions.md` 2026-10-03).
+2. **DST:** day arithmetic by calendar stepping; differences noon-anchored; a wall time inside the spring-forward gap resolves to what JS `Date` produces (02:03 → 03:03 local; UNVERIFIED on device, 02 §8, 03 §8); the 25 h fall-back day must count once (A-101b, fixed in the curve). **Open:** the curve's 6-hour grid snap is anchored to the window start, so the same moment snaps differently on each side of a transition (05:D2) — anchor the grid to a fixed local origin (e.g. local midnight of 2000-01-01 stepped in 6-hour wall slots) or compute the level at exact dose times.
+3. **Time-zone change (travel):** past slots use the zone of their own day (zone history, A-51); today's slots use the current zone; scheduled one-shot reminders keep firing at the old zone's absolute time until the next resync re-plans in the new zone (03 §8); the Missed scan never scans the day of a zone-name change without history (S-19). Push token timezone refreshes on cold start / sign-in only.
+4. **Midnight rollover:** Today re-dates on foreground and with a timer at the next local midnight (`TodayScreen.js:356-381`, `lib/dayChange.js`). **Gaps:** Progress / CalculatorSection memos and `FoodLogHero` do not re-date while mounted (04:D-5); the curve's `now` is frozen in its memo (05 E19); the "Due" tag has no tick in one-column Today (02 §8). Requirement: one app-level `useLocalDay()` hook (PROPOSED `lib/useLocalDay.js`, driven by `msUntilNextLocalMidnight` + AppState) that every screen showing day-dependent state subscribes to.
+5. **Server buckets:** scan quota month is UTC (a 21:00 New York scan on Oct 31 counts for November, 06:D-7) — accepted or changed by founder decision; food quota is per client local day.
+6. **Never parse a display string** back into a date or number (`lib/localeFormat.js`, CLAUDE.md "Numbers").
+
+---
+## 7. Testing strategy
+
+### 7.1 Current state (run 2026-10-12)
+
+- `node --test`: **1,872 tests — 1,871 pass, 0 fail, 1 todo** (`__tests__/realityCheckSync.test.js:175` "FX-9 F2 … syncOnce not built yet", A-48 parked). ~1.7 s. The runner also picks up `docs/research/bmr-calculator/reference/energy.test.ts`.
+- 256 entries in `__tests__/` (255 test files + `helpers/`: `extractFn.js` cuts one real function out of an app file and runs it with fakes; `syncHarness.js` = real SQLite via better-sqlite3 + in-memory cloud; `modalStacking.js` = Babel AST check for sibling modals; `localISO.cjs`).
+- Kinds (08 §9): 184 of 255 files read app **source text** (`readFileSync` + regex) — many assert code shape, not behaviour, and pass when the text exists even if unreachable; 28 use the sync harness; the rest test pure lib functions.
+- Guard-style tests that already enforce single ownership: `entitlementGuard.test.js` (no Premium decision outside `lib/entitlement.js` / `lib/purchases.js`), `deleteUserCoverage.test.js`, `localToday.test.js` (no UTC day strings), `i18n.test.js`, `androidKeepRules.test.js`, `serverPlanParity.test.js`.
+- **Harness blind spots:** the fake cloud stamps `updated_at` on every update for every table (`__tests__/helpers/syncHarness.js:67-68`), so a missing live trigger (H-2) cannot fail; it never models that a hard delete is invisible to another device's incremental pull (H-1); no RLS, no type casts (DR-7), no triggers other than what the harness hand-codes.
+- `node scripts/spec-audit.cjs`: **FAIL — 31 criteria block the build, 2 warnings**: book-layout BK-1…BK-22 partial (22), background-refresh BR-9/BR-10 partial, exact-alarms EA-7 partial, fold-right-page FR-6 missing, release-1.2.5 RL-1 partial, reminder-setup-placement SP-9 missing, reminders-guaranteed RG-6/RG-7 partial + RG-8 missing; admin-panel and premium-and-auth checklists not signed (08 §9; rerun 2026-10-12 same result).
+- **No test renders a screen or drives the app.** Screen wiring (focus re-reads, params, both themes, Fold layout) is verified only by manual simulator/device passes. Live Supabase (RLS, triggers, applied migrations, deployed functions) is not exercised by any test. Native pieces (Kotlin module, R8 output, notification delivery, WorkManager timing) only by device checks.
+- Device tooling present: `scripts/sim-load-main.sh` (embedded Hermes bundle into the iOS simulator, account Test03); `agent-device` CLI 0.21.24 (`~/.nvm/versions/node/v24.20.0/bin/agent-device`) with the `dogfood` skill; no repo script uses agent-device yet.
+
+### 7.2 Target test layers
+
+| Layer | What | Where | Blocks a build when |
+|---|---|---|---|
+| **L1 Owner unit tests** | Every owner in §4 has behaviour tests on its inputs, including the edge cases the dossiers found: no reminder time, dpd > times, creation day after the slot, course total, ended mid-day, late dose across midnight, twice-daily 12 h gap, DST spring/fall in America/New_York and Europe/Berlin, time-zone change, account switch | `__tests__/owners/*.test.js` (one file per owner) | any fails |
+| **L2 Ownership guard** | `__tests__/ownershipGuard.test.js` reads a registry (PROPOSED `docs/product/ownership.json` generated from §4: `{id, owner: "lib/x.js", signatures: [regex…], allow: [files]}`) and fails when a signature appears outside its owner/allowed files. Initial signatures: `doses_per_day` arithmetic + `reminder_time.split` outside `lib/schedule.js`; `total_doses -` / `doses_taken` arithmetic outside `lib/supplyLow.js`/`lib/vialState.js`; `expires_on` / `vial_valid_days` date math outside `lib/vialExpiry.js`; `REALITY_CHECK_DAYS` / literal `21` with `start` outside `lib/realityCheckRules.js`; `checkOutcome(` outside `lib/realityCheckNow.js` and the rules file; `estimatedLevelNow(` / `getActiveProtocols` in curve consumers; `toDateString()` and inline day-key formatters outside `lib/localDate.js`; `AsyncStorage.setItem(` with a key not in `lib/deviceKeys.js`; `auth.updateUser(` outside `lib/accountMeta.js`; `compound_id ? t(` outside `lib/protocolName.js`; raw colour literals outside the fixed-surface allow-list. Pattern = `entitlementGuard.test.js` (comments skipped, file allow-list) | any offender not in the declared temporary allow-list; the allow-list may only shrink |
+| **L3 Sync harness, realistic** | Harness cloud configured from a committed live-schema snapshot (`supabase/schema.snapshot.json`, §8.4): per-table triggers (stamp `updated_at` only where a trigger exists), unique keys, numeric/date columns reject bad values, delete invisibility. New tests: delete on A disappears on B (fails until TR-SYNC-2); edited reality check reaches B (fails until TR-SYNC-1); two offline oral doses on A and B give +2 (fails until TR-SYNC-3); biomarkers keep one card on B (fails until TR-SYNC-4) | `__tests__/sync*.test.js` | any fails |
+| **L4 View-model tests** | Each screen gets a pure view-model (`lib/todayModel.js`, `lib/progressModel.js`, `lib/journeyModel.js`, `lib/bodyModel.js`) assembled from owners; tests assert the same fixture gives the same state on every surface (e.g. one fixture → Today alert text key, hero line key, Progress status key all say "weighed in") | `__tests__/viewModels/*.test.js` | any fails |
+| **L5 Journey scripts on devices** | The flows in `docs/product/flows/` scripted for `agent-device`: iOS simulator (iPhone, account Test03) and Android (founder's Galaxy Z Fold folded and unfolded), each run in **light and dark**; screenshots saved under `docs/specs/evidence/<build>/<flow>/<platform>-<theme>-<step>.png`; each step asserts visible text from the accessibility tree, not pixels. Core flows: onboarding → sign-up → profile gate; create protocol (recon / rtu / oral) → Today card → Mark complete (oral; injectable with site) → Undo; skip; pending from yesterday (clock-faked); Dose log edit/delete; vial finished → new vial; End / Restart / Delete / Restore / Delete forever; reality check start → weigh-in day 21 → result (fixture data); food chat log → close day; curve open → selection remembered; labs scan (fixture) → cards → delete; vaccine add/edit/delete; reminder check rows; sign out (blocked by unsynced → sign out anyway) → sign in on second device → data present; theme switch on every modal/sheet/picker | `scripts/journeys/*.yaml` + runner `scripts/run-journeys.cjs` (PROPOSED) | any step fails or a screenshot is missing for a theme |
+| **L6 Live schema check** | `scripts/schema-check.cjs` (PROPOSED, read-only): queries `information_schema` / `pg_trigger` / `pg_policies` / `cron.job` / function list and diffs against `supabase/schema.snapshot.json` | §8.4 | drift not reflected in the snapshot + a migration file |
+| **L7 Spec audit** | `node scripts/spec-audit.cjs` (exists) + spec-auditor agent | Gate S | any blocking row |
+| **L8 Native / delivery proofs** | adb `dumpsys alarm` (exact alarms, counts), WorkManager job info, reboot/update restore; iOS pending notification count; recorded in the build report | device | proof missing for a changed native piece |
+
+Rules for every bug (CLAUDE.md evolution rule 1): the failing test is written at the lowest layer that can express it (L1 > L3 > L4 > L5); a source-text regex test is acceptable only for wiring that no higher layer can reach yet, and each such test names the L5 step that will replace it.
+
+### 7.3 What blocks a build (consolidated gate)
+
+1. `npm test` fully green (0 fail; todos must carry a founder-parked registry id).
+2. `npx expo export --platform ios` completes.
+3. i18n parity (INV-30) and the ownership guard (INV-50) pass.
+4. `node scripts/spec-audit.cjs` exits 0 (Gate S).
+5. Schema check clean (L6) for any change touching sync, storage or server code.
+6. Journey scripts (L5) pass on iOS simulator and Android Fold, light and dark, for every flow the change touches — and the **full set** before every build (CLAUDE.md evolution rule 4: every app-map link walked).
+7. Gate B (+ code review + founder device test) for auth / session / sync / delete changes.
+8. dt-council → ship-check → founder go.
+
+### 7.4 Both-theme verification
+
+Every L5 step captures light and dark. A modal, sheet, picker or dropdown counts as its own step (the ones that slip, CLAUDE.md 2026-09-11). Contrast is checked by a script over the theme tokens (`lib/theme.js` LIGHT/DARK pairs used as foreground/background) — PROPOSED `__tests__/themeContrast.test.js` asserting ≥4.5:1 for text tokens and ≥3:1 for protocol palette dots on `raised` (decision 2026-10-02: ≥3:1 on #FFFFFF and #282B30).
+
+---
+
+## 8. Release and operations
+
+### 8.1 EAS profiles (`eas.json`)
+
+| Profile | Purpose | Distribution | Env |
+|---|---|---|---|
+| `development` | dev client | internal | none in eas.json (local `.env`, UNVERIFIED) |
+| `development-sim` | iOS simulator dev client | — | Supabase URL + anon key |
+| `preview` | internal Android APK | internal | same |
+| `simulator` | iOS simulator build | — | same |
+| `production` | store builds, `autoIncrement: true` | store | same |
+
+CLI ≥ 18.5.0, `appVersionSource: "remote"` (EAS mints build numbers; `app.json` buildNumber/versionCode ignored); marketing version `app.json` 1.3.0 (`package.json` 1.0.0 is unused). The anon key is public by design; RLS is the perimeter.
+
+### 8.2 Submit and post-submit verification
+
+| Step | iOS | Android |
+|---|---|---|
+| Submit | `eas submit -p ios --profile production` → ASC app `6761788157` | `eas submit -p android --profile production` (track `production`, `releaseStatus: completed`) or `--profile internal` (track `internal`), service account `./google-play-service-account.json` (git-ignored) |
+| Make it visible | add the build to the internal group (founder) and the **Early Birds** external group; submit external beta review (CLAUDE.md "TestFlight") | confirm the internal track is Active and the tester list is saved (memory `play-internal-testing-verify-active`) |
+| Verify | `/tf-status` → `scripts/asc-tf-status.cjs`: build grouped, beta review `WAITING_FOR_REVIEW` with a real `submittedDate`; never say "on TestFlight" before that | `scripts/play-track-status.cjs` |
+| Store release | `scripts/asc-create-and-submit.cjs` (version, build, What's New ×6, submit); `scripts/asc-appstore-status.cjs` read-only | `scripts/play-upload-and-promote.cjs`, `scripts/play-promote-production.cjs` |
+
+Current release policy (latest decisions win): test builds go to iOS internal TestFlight + Play internal (`docs/decisions.md` 2026-10-04 "Android test build through the Play internal testing track"); **no production submit while any item is open** (2026-10-07 night #6 "Vamos resolver tudo. Sem pendência"); when production goes, both stores at 100% (memory `release-full-no-staging`). Stale gate text to fix: ship-check Gate C still says "straight to the stores, no TestFlight" and "Android `eas submit` is blocked (no Play service account)"; Gate R still allows "the known energy test" to fail.
+
+### 8.3 Migrations workflow (server)
+
+1. Write the SQL as `supabase/migrations/<timestamp>_<name>.sql` (never a loose root file; DR-1). Header: purpose, decision line, rollback.
+2. Make the client tolerant **before** the migration where a column is new (`OPTIONAL_COLUMNS` + PGRST204 retry, `lib/syncCore.js:380-399`) so old and new builds both work.
+3. Dry run inside a transaction that is rolled back (pattern used for A-88, `docs/decisions.md:556`), with the behavioural probes (e.g. "protocol delete 0 rows").
+4. Founder's explicit go (production change; `docs/decisions.md` Release & process).
+5. Apply via the Supabase MCP `apply_migration` with the **same name** as the file, so `list_migrations` and git agree.
+6. Verify via `information_schema` / `pg_trigger` / `pg_policies` (queries in §8.4) and record the result in `docs/decisions.md` the same day.
+7. Update `supabase/schema.snapshot.json` (L6) in the same commit.
+
+Pending server work identified here: `reality_checks` updated_at trigger (TR-SYNC-1); back-port DR-1/DR-2 into `supabase/migrations/` as a baseline (a `00000000000000_baseline.sql` generated from the live schema, applied nowhere, marked as baseline); remove `parse-food-next` (DR-4, needs the founder's go per RL-1 already given); decide `notification_sends` (DR-3).
+
+### 8.4 How to verify the live schema (read-only)
+
+```sql
+-- columns and defaults of the synced tables
+select table_name, column_name, data_type, column_default
+from information_schema.columns
+where table_schema = 'public'
+  and table_name in ('protocols','vials','dose_logs','biomarkers','vaccines','food_logs',
+                     'reality_checks','calc_snapshots','calc_targets','reality_check_open','calc_inputs')
+order by table_name, ordinal_position;
+
+-- triggers (every synced table must have a BEFORE UPDATE updated_at trigger)
+select event_object_table, trigger_name, action_timing, string_agg(event_manipulation, '/')
+from information_schema.triggers where trigger_schema = 'public'
+group by 1, 2, 3 order by 1, 2;
+
+-- RLS on and policies per command
+select c.relname, c.relrowsecurity, string_agg(p.cmd, ',' order by p.cmd)
+from pg_class c left join pg_policies p on p.tablename = c.relname and p.schemaname = 'public'
+where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+group by 1, 2 order by 1;
+
+-- foreign keys and their delete rule
+select conrelid::regclass, conname, confdeltype, confrelid::regclass
+from pg_constraint where contype = 'f' and connamespace = 'public'::regnamespace;
+
+-- cron
+select jobname, schedule, active from cron.job;
+```
+
+Plus `list_migrations` (names must match `supabase/migrations/`) and `list_edge_functions` (slug, version, `verify_jwt`; expected set: delete-user, extract-bloodwork, parse-food, protocol-assistant, apple-link, wake-refresh; `send-reminders` absent by decision). Result on 2026-10-12: §1.6 and §2.2–2.3.
+
+### 8.5 Operational runbook items
+
+- **Secrets:** Anthropic key = never-expiring workspace key in Supabase secrets only; RevenueCat secret = Edge Function secret; ASC `.p8` in `~/.appstoreconnect/private_keys` (`scripts/ascKey.cjs`); Play service account and `.env` git-ignored; `STATE.md` tracked — grep it for key patterns before every commit (08 G16).
+- **Admin panel:** view-only, `Bearer ADMIN_TOKEN` header, fails closed (`docs/specs/admin-panel.md`; checklist not signed).
+- **Wake-up:** `wake_refresh_runs` keeps 30 days; a failed or missing wake changes nothing on the phone (RG-6).
+- **Monitoring:** none automated. Function logs via Supabase dashboard / MCP `query_logs` on demand; no client error reporting (exceptions in sync are swallowed, §3.8 F-9). PROPOSED: a privacy-safe counter of sync failures per table in `dosetrace_refresh_last`-style device state, shown on the Reminder check screen for support.
+
+---
+
+## 9. Technical debt and risk register
+
+Priority: **P0** = can silently corrupt or lose a health record, or exposes another person's data, or blocks a store review; **P1** = wrong number shown or user-visible divergence; **P2** = robustness / drift; **P3** = hygiene. "Decision" = needs a founder line before code (per CLAUDE.md "ask only real questions" — each is a preference/scope/risk question, not derivable from the ledger).
+
+| ID | P | Risk / debt | Evidence | Fix (owner / requirement) | Decision? |
+|---|---|---|---|---|---|
+| R-01 | P0 | Non-protocol deletes never reach other devices | §3.9 H-1 | TR-SYNC-2 tombstones; L3 test | **yes** (server delete semantics) |
+| R-02 | P0 | AI consent per device, not per account; survives sign-out; no server proof | 07:D-18, 08 G1, A-95 | per-account key + wipe list (S-76) | counsel for server proof |
+| R-03 | P0 | Schedule has 5 implementations: `schedule_total`, no-time rows, dpd > times, creation day, curve hours | 01:D-08/D-09/D-11, 02:D1–D5, 03:D-18, 05:D6, 08:D4 | S-01 single `doseSlotsOn` | **yes**: policy for no-time rows and whether courses exist |
+| R-04 | P0 | Spec gate red (31 blocking rows) | §7.1 | close or get deviations signed | founder signs deviations |
+| R-05 | P1 | Concurrent counters and whole-row LWW (doses_taken, units_taken, notes) | §3.9 H-3 | TR-SYNC-3 | no (logic: never lose user data) |
+| R-06 | P1 | `reality_checks` edits invisible elsewhere | §3.10 | TR-SYNC-1 migration | founder go for the migration |
+| R-07 | P1 | Reality-check state still split (Progress line, day-21 after weigh-in, "ready" when unsavable/locked, next check hidden) | 04:D-1, D-2, D-3, D-7, D-4 | S-50 one assembler; S-51 | D-3 copy for locked/unsavable needs a picture |
+| R-08 | P1 | Late dose credited to the next slot in rings | 02:D6, D7 (script-verified) | S-07 | no (contradicts decision 2026-09-29) |
+| R-09 | P1 | Three streaks, three adherence numbers; provider report uses schedule-blind streak | 02:D17, D18, 08:D2 | S-08, S-09, S-10 | **yes** (report definition, tracker cap) |
+| R-10 | P1 | Biomarker `created_at` not synced → hub count inflation on other devices | 06:D-3, H-4 | TR-SYNC-4, S-70c | no |
+| R-11 | P1 | Current weight has 5 rules; tile TDEE from saved weight | 04:D-10, D-11, D-12, 08:D1 | S-54, S-55 | no (A-54 rule) |
+| R-12 | P1 | Curve tile ≠ curve after End/Restart and across DST | 05:D1, D2 | S-61, S-62 | no |
+| R-13 | P1 | Vial: empty rtu not replaceable, recon new vial only from Today, Undo reopens ended vial, Restore reactivates empty, stale recon capacity | 01:D-12, D-12b, D-13, D-17, D-18 | S-20, S-23 | **yes** (recon vial edit / manual new vial, A-08) |
+| R-14 | P1 | Reminder health: Settings vs Today "blocked", Silent ignored, "ok" with one reminder, never-run refresh never late | 03:D-1, D-2, D-4, D-8, D-9 | S-41–S-43 | yes for D-1 scope |
+| R-15 | P1 | iPhone reminders end after ~10 days without opening; founder principle not platform-scoped | 03:G1 | — | **yes** |
+| R-16 | P1 | Server does not enforce food access; protocol limit client-only | 04:D-15, 07:D-2, D-3 | S-56 server port; S-31 | **yes** (enforcement scope) |
+| R-17 | P1 | Skip does not cancel reminders and has no Undo | 02:D9, G8 | S-05 | **yes** |
+| R-18 | P1 | Pull does not re-plan dose reminders; resume runs pull and resync concurrently | 03:G8, H-9 | TR-SYNC-9 | no |
+| R-19 | P1 | `favorite_markers` / `report_tags` in `user_metadata` with whole-array writes; star cannot be cleared | 06:D-5, D-6, A-14 | tables (A-14) | A-14 deferred by founder — restate |
+| R-20 | P1 | ACCOUNT keys survive sign-out (missed watermark, vial-low sent, alert snooze, entitlement cache, food draft) | §2.4, 02:D16, 03:G28, 07:D-7, D-17 | TR-STORE-1 | no |
+| R-21 | P1 | Lab charts not Premium although decided; no manual lab entry although approved | 06:D-8, G-1 | — | **yes** (approved → next build applies) |
+| R-22 | P1 | Today alerts naming one protocol do not open it | 01:D-23, 02:D23 | Today alert tap params | no (decision 2026-09-29) |
+| R-23 | P1 | Protocol display name differs across one flow and in notifications / report | 01:D-05, 02:D26, 03:D-19, 05:D4 | S-34 | no |
+| R-24 | P2 | Repo cannot recreate production (17 live-only migrations, core DDL missing) | DR-1, DR-2 | baseline migration + snapshot | no |
+| R-25 | P2 | `parse-food-next` still deployed | DR-4 | delete function | already decided (RL-1) |
+| R-26 | P2 | Test harness masks triggers and delete propagation | H-12 | TR-SYNC-10 | no |
+| R-27 | P2 | No rendered-screen tests; 184 source-text test files | §7.1 | L4 + L5 | no |
+| R-28 | P2 | Write during a running sync waits for the next trigger | F-7 | TR-SYNC-6 | no |
+| R-29 | P2 | First insert not idempotent (duplicate cloud row on lost response) | F-8 | TR-SYNC-7 | no |
+| R-30 | P2 | `isLocalDBEmpty` = no protocols → full import every launch for protocol-less users | H-5 | TR-SYNC-5 | no |
+| R-31 | P2 | Implicit sync on every Today focus via the paused purge call | 08:D9 | explicit focus pull | no |
+| R-32 | P2 | Headless notification action may refresh the token through `getSession`; `ensureDb` never retries | §1.4 | INV-06, INV-23 | no |
+| R-33 | P2 | `RefreshOnUpdateReceiver` depends on expo-background-task internals by class name | 03:G24 | version-pinned test + device proof | no |
+| R-34 | P2 | WorkManager refresh needs network (library constraint) | 03:G23 | document; wake push covers | no |
+| R-35 | P2 | Missed scan ignores ended protocols; duplicate Missed rows across devices | 02:D13, D15 | S-11 | no / A-48 parked |
+| R-36 | P2 | Midnight/now staleness in Progress, hero, curve, "Due" tag | 04:D-5, 05 E19, 02 §8 | `useLocalDay` (§6.4) | no |
+| R-37 | P2 | Offline cold start with expired token routes to Auth | 07:D-16 (SUSPECTED) | S-74 `unknown` state | device check |
+| R-38 | P2 | Settings profile save and analytics toggle ignore write errors | 07:D-22 | TR-META-1 | no |
+| R-39 | P2 | Gates (Finish setup, 18+) cannot be answered offline, no "Sign out anyway" | A-94 (decided 2026-10-04, not built) | build | already decided |
+| R-40 | P2 | Weigh-in range validated only in the edit sheet | 04:G-7 | one validator | no |
+| R-41 | P2 | Food entry Remove has no confirm (every delete asks first) | 04:G-16 | add sheet | no (decision 2026-10-03) |
+| R-42 | P2 | Oral supply days ignore interval; no oral low rule | 01:D-14, D-15 | S-24 | oral low = yes |
+| R-43 | P2 | Vaccine scan never fills detail fields; export omits them | 06:D-12, G-7 | prompt + export | no |
+| R-44 | P2 | Two privacy-policy texts (in-app vs web) | 07:D-21, A-117 | A-117 (waits, founder) | waits |
+| R-45 | P3 | ErrorBoundary hard-coded white in dark mode | 08 G10 | tokens | no |
+| R-46 | P3 | Hard-coded colours (`BodyMapModal.js:96`, `FeatureIcon.js:10`, `settingsLegacy`, `vialExpiry.expiryColor`) | 08 §7.3 | INV-32 guard | no |
+| R-47 | P3 | Dead code: `planDosePage`, `undoRecordsRef`, Today ring animation values, `getFoodLogDayCount`, `rollingAvgKcal`, `unloggedCheckDays`, `endProtocol` import, `totalDoses` state, `authEntry.consent`, `BIRTH_YEARS`, unused strings (`today_alert_rc_remove_*`, `cal_overview_title`, `notif_morning_body`) | 02:G14, D20; 04:G-11; 01:G-25; 07:D-13, D-15; 03:G32 | delete (Rebuild = REPLACE) | no |
+| R-48 | P3 | Stale docs: app-map L-03/L-12/L-13/L-20/L-21/L-34/L-42, features.md rows, APP-HANDOFF §4, ship-check Gate C/R text, spec rows EA-3/RG-2/SP-1/FX-25/FL-3/AP-27/BK-3/BK-16 | 01:G-13…G-15, 02:G13, 03:G10–G13, 04:G-15, 05:G14, 08 G11 | doc sweep | G1 (site-question age) needs a founder pick |
+| R-49 | P3 | `getLocalDataUserId` skips vials | H-10 | include | no |
+| R-50 | P3 | `substance_boldenone` missing ×6; Android channel names English | 05:G7, 03:G17 | i18n | strings need founder approval ×6 |
+
+### 9.1 Founder questions this TRD raises (one round, per CLAUDE.md)
+
+Only questions that do not follow from the ledger or from logic:
+
+1. **Deletes across devices (R-01):** add server tombstones for every table (a deleted dose, weigh-in, food entry, lab value, vaccine or result disappears from every phone) — yes / no.
+2. **No-time and fewer-times protocols (R-03):** treat a protocol without a reminder time as due at a fixed hour everywhere (today the scheduler says 08:00, the rings say 12:00, Today shows no time), or require a time.
+3. **Courses (R-03 / BR-12):** keep `schedule_total` as a real feature with a UI (and then Today/Missed/curve stop too), or retire it (legacy rows only).
+4. **Report definitions (R-09):** the provider report uses the same streak (doses in a row) and the same adherence as Today's rings — yes / no; and lift the 31-day cap on the tracker streak.
+5. **Skip (R-17):** a skipped slot stops its reminders and gets an Undo — yes / no.
+6. **Server enforcement (R-16):** enforce food-log access (and the 3-protocol limit) on the server — yes / no.
+7. **iPhone reminders without opening the app (R-15):** accept the 10-day iPhone window, or warn on iPhone too.
+8. **Recon vial edit / manual new vial (R-13, A-08)** and **oral low supply (R-42)**.
+9. **Lab charts Premium and manual lab entry (R-21)** — both approved earlier and not built: confirm they enter the next open build.
+
+---
+
+## Appendix A — Requirement index
+
+| Prefix | Meaning | Section |
+|---|---|---|
+| TR-STORE-1 | ACCOUNT AsyncStorage keys listed, wiped and guarded | §2.4 |
+| TR-META-1 | One `user_metadata` write helper | §2.6 |
+| TR-SYNC-1…10 | Sync fixes | §3.11 |
+| S-01…S-80 | Owned derived states | §4 |
+| INV-01…INV-51 | Invariants | §5 |
+| DR-1…DR-9 | Repo ↔ live drift | §2.3 |
+| H-1…H-12 / F-1…F-12 | Sync holes / failure modes | §3.8–3.9 |
+| R-01…R-50 | Risks | §9 |
+
+## Appendix B — Corrections to the dossiers found while writing this TRD
+
+- `01:D-20` / `01:G-27` ("created_at is not synced" for protocols) is **stale**: `lib/syncMappers.js:101-103` sends `created_at` since commit `e85519c` (A-30 e). The hole remains for other tables (H-4).
+- `08 §3.2` ("`notification_sends` RLS on, 0 policies") describes the repo SQL; the table **does not exist** in production (live list 2026-10-12).
+- `08 §3.3` / `08 §3.2` "which versions are deployed is UNVERIFIED": now verified (§1.6), incl. `parse-food-next` still active and `parse-food` at v10.
+- `07 §7.3` "profiles cascade UNVERIFIED": verified — `profiles.id → auth.users ON DELETE CASCADE`, and `protocols`, `vials`, `dose_logs`, `biomarkers`, `reminders` cascade from `profiles` (live `pg_constraint`).
+- `08 §3.2` "FK dose_logs → protocols cascades (UNVERIFIED in repo SQL)": verified live (`dose_logs_protocol_id_fkey ON DELETE CASCADE`, also `vials_protocol_id_fkey`).
