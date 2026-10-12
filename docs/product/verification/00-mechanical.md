@@ -1,0 +1,95 @@
+# Mechanical check of docs/product (refs, lines, IDs)
+
+- docs scanned: 28; code/doc references: 2350; ok: 2310
+- missing files: 28
+- line numbers beyond file end: 0
+- dangling IDs: 54
+
+## Missing files
+- docs/product/DIVERGENCES.md: lib/bodyPrefs.js
+- docs/product/DIVERGENCES.md: lib/protocolName.js
+- docs/product/DIVERGENCES.md: supabase/schema.snapshot.js
+- docs/product/TRD.md: modules/dt-exact-alarm/android/.../RefreshOnUpdateReceiver.kt
+- docs/product/TRD.md: lib/deviceKeys.js
+- docs/product/TRD.md: lib/accountMeta.js
+- docs/product/TRD.md: lib/doseDay.js
+- docs/product/TRD.md: lib/todayModel.js
+- docs/product/TRD.md: lib/trackerStreak.js
+- docs/product/TRD.md: lib/vialState.js
+- docs/product/TRD.md: lib/freeLimit.js
+- docs/product/TRD.md: lib/protocolName.js
+- docs/product/TRD.md: lib/progressModel.js
+- docs/product/TRD.md: __tests__/ownershipGuard.test.js
+- docs/product/TRD.md: lib/useLocalDay.js
+- docs/product/TRD.md: i18n.test.js
+- docs/product/TRD.md: docs/product/ownership.js
+- docs/product/TRD.md: lib/x.js
+- docs/product/TRD.md: supabase/schema.snapshot.js
+- docs/product/TRD.md: lib/journeyModel.js
+- docs/product/TRD.md: lib/bodyModel.js
+- docs/product/TRD.md: scripts/run-journeys.cjs
+- docs/product/TRD.md: scripts/schema-check.cjs
+- docs/product/TRD.md: __tests__/themeContrast.test.js
+- docs/product/research/03-reminders.md: modules/dt-exact-alarm/android/.../RefreshOnUpdateReceiver.kt
+- docs/product/research/03-reminders.md: modules/dt-exact-alarm/.../DtExactAlarmModule.kt
+- docs/product/research/03-reminders.md: modules/expo-background-task/android/.../BackgroundTaskScheduler.kt
+- docs/product/research/08-platform.md: modules/dt-exact-alarm/android/.../RefreshOnUpdateReceiver.kt
+
+## Bad line numbers
+
+
+## Dangling IDs
+- OPEN-69: docs/product/OPEN-DECISIONS.md
+- OPEN-68: docs/product/OPEN-DECISIONS.md
+- OPEN-19: docs/product/OPEN-DECISIONS.md
+- OPEN-25: docs/product/OPEN-DECISIONS.md
+- OPEN-27: docs/product/OPEN-DECISIONS.md
+- OPEN-28: docs/product/OPEN-DECISIONS.md
+- OPEN-33: docs/product/OPEN-DECISIONS.md
+- OPEN-32: docs/product/OPEN-DECISIONS.md
+- OPEN-39: docs/product/OPEN-DECISIONS.md
+- OPEN-44: docs/product/OPEN-DECISIONS.md
+- OPEN-42: docs/product/OPEN-DECISIONS.md
+- OPEN-43: docs/product/OPEN-DECISIONS.md
+- OPEN-48: docs/product/OPEN-DECISIONS.md
+- OPEN-16: docs/product/OPEN-DECISIONS.md
+- OPEN-17: docs/product/OPEN-DECISIONS.md
+- OPEN-18: docs/product/OPEN-DECISIONS.md
+- OPEN-20: docs/product/OPEN-DECISIONS.md
+- OPEN-21: docs/product/OPEN-DECISIONS.md
+- OPEN-22: docs/product/OPEN-DECISIONS.md
+- OPEN-23: docs/product/OPEN-DECISIONS.md
+- OPEN-24: docs/product/OPEN-DECISIONS.md
+- OPEN-26: docs/product/OPEN-DECISIONS.md
+- OPEN-29: docs/product/OPEN-DECISIONS.md
+- OPEN-30: docs/product/OPEN-DECISIONS.md
+- OPEN-31: docs/product/OPEN-DECISIONS.md
+- OPEN-34: docs/product/OPEN-DECISIONS.md
+- OPEN-35: docs/product/OPEN-DECISIONS.md
+- OPEN-36: docs/product/OPEN-DECISIONS.md
+- OPEN-37: docs/product/OPEN-DECISIONS.md
+- OPEN-38: docs/product/OPEN-DECISIONS.md
+- OPEN-40: docs/product/OPEN-DECISIONS.md
+- OPEN-41: docs/product/OPEN-DECISIONS.md
+- OPEN-45: docs/product/OPEN-DECISIONS.md
+- OPEN-46: docs/product/OPEN-DECISIONS.md
+- OPEN-47: docs/product/OPEN-DECISIONS.md
+- OPEN-49: docs/product/OPEN-DECISIONS.md
+- OPEN-50: docs/product/OPEN-DECISIONS.md
+- OPEN-51: docs/product/OPEN-DECISIONS.md
+- OPEN-52: docs/product/OPEN-DECISIONS.md
+- OPEN-53: docs/product/OPEN-DECISIONS.md
+- OPEN-54: docs/product/OPEN-DECISIONS.md
+- OPEN-55: docs/product/OPEN-DECISIONS.md
+- OPEN-56: docs/product/OPEN-DECISIONS.md
+- OPEN-57: docs/product/OPEN-DECISIONS.md
+- OPEN-58: docs/product/OPEN-DECISIONS.md
+- OPEN-59: docs/product/OPEN-DECISIONS.md
+- OPEN-60: docs/product/OPEN-DECISIONS.md
+- OPEN-61: docs/product/OPEN-DECISIONS.md
+- OPEN-62: docs/product/OPEN-DECISIONS.md
+- OPEN-63: docs/product/OPEN-DECISIONS.md
+- OPEN-64: docs/product/OPEN-DECISIONS.md
+- OPEN-65: docs/product/OPEN-DECISIONS.md
+- OPEN-66: docs/product/OPEN-DECISIONS.md
+- OPEN-67: docs/product/OPEN-DECISIONS.md
