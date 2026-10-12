@@ -1,6 +1,6 @@
 # 05 — Dose accumulation curve + Journey dashboard (research dossier)
 
-> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section A, CURVE, of that report covers this dossier.)
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section A, CURVE, of that report covers this dossier.) **Round 2 applied (2026-10-12):** `docs/product/verification/round2/R2-04-trd-dossiers.md` found no wrong claim here (its only citation, AD-19, is in force; the wording of the four curve strings is "Approvals still owed" item 2.1); a table cell with `||` inside a code span is escaped (`R2-07-consistency.md` R2-26).
 >
 > Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
 > 1. **Look-back (R15, E8).** The middle term is the days of the **shown window** + 2 (`shown = floor((now − gridStart)/day) + 2`), not days since the protocol start (`lib/curveSampling.js:8`).
@@ -415,7 +415,7 @@ stateDiagram-v2
 | **Peak** | `model.max` :465-466 (includes projection + combined) | — |
 | **Ticks/axis** | `curveTicks` serumModel.js:188; `axisLabels` curveAxis.js:7 | — |
 | **Tile name** | Journey JourneyScreen.js:131-134; Body BodyScreen.js:833-836; screen series name SerumCurveScreen.js:428; picker row :1113 | Picker differs (D4) |
-| **Tile colour dot** | `displayColor(level.protocol.color) || colors.data` JourneyScreen.js:221, BodyScreen.js:956; screen single line uses `colors.data` (:488) but pickrow/legend dots use the protocol colour (:728) | Single compound: tile dot = protocol colour, curve line = data blue (by design, :487) |
+| **Tile colour dot** | `displayColor(level.protocol.color) \|\| colors.data` JourneyScreen.js:221, BodyScreen.js:956; screen single line uses `colors.data` (:488) but pickrow/legend dots use the protocol colour (:728) | Single compound: tile dot = protocol colour, curve line = data blue (by design, :487) |
 | **Premium** | `hasPremium` in SerumCurveScreen.js:289, JourneyScreen.js:113, BodyScreen.js:385, LogScreen.js:522 | Journey null = free (D7) |
 | **Adherence shown on Journey** | None. Journey renders no adherence (JourneyScreen.js:142-241). | n/a |
 | **Progress tile weight / TDEE** | Tile `progressTile` lib/progressTile.js:24-69; Progress hero `currentWeightKg` CalculatorSection.js:750-754 and `round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal)` :1010-1016, :1192 | Two implementations (D8) |
@@ -424,7 +424,7 @@ stateDiagram-v2
 
 - **D1 CONFIRMED — tile/My Body vs curve open on different compounds when the remembered first compound is
   ended.** Screen list includes ended protocols (SerumCurveScreen.js:316); tile/Body pass active only
-  (JourneyScreen.js:109, BodyScreen.js:402). Script (scratchpad `endeddiv.cjs`): saved `[10]` = an ended
+  (JourneyScreen.js:109, BodyScreen.js:402). Script (session scratchpad `endeddiv.cjs`, not a repo file): saved `[10]` = an ended
   Testosterone Cypionate run, Restarted as id 11 → screen opens on id 10 at 68.53 mg, tile shows id 11 at
   10.04 mg [Corrected 2026-10-12: numbers depend on the fixture; the verification's run gives 154.63 vs 73.53 mg — same mechanism]. Same after any "Yes, it's finished" + Restart (restart creates a new row,
   lib/protocolEnd.js:141-174). Contradicts MB-4 / docs/decisions.md:209 "same compound and number".
@@ -433,7 +433,7 @@ stateDiagram-v2
 - **D2 CONFIRMED — Est. level differs between tile and curve for up to 14 days after a clock change.** Both
   call `scheduledDoses` but with grid starts 14 d vs 3 d back (serumModel.js:149 vs SerumCurveScreen.js:409).
   The snap (R14) rounds local 12:00 onto a grid that is 1 h off whenever the grid start is on the other side
-  of a DST change. Script (scratchpad `dstdiv.cjs`, TZ America/New_York):
+  of a DST change. Script (session scratchpad `dstdiv.cjs`, not a repo file, TZ America/New_York):
   2026-11-06 12:30 BPC-157 0.5 mg daily → tile 0.0625 mg, curve 0.25 mg (tile's dose at 11:00, curve's at 12:00);
   Testosterone Cypionate 100 mg/7 d → 176.84 vs 177.21 mg; 2027-03-19 12:30 BPC-157 → tile **0.0 mg** (today's
   dose snapped to 13:00, after now) vs curve 0.25 mg. Same in Europe/Berlin (2026-11-06). The comment

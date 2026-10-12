@@ -1,14 +1,14 @@
 # 06 — My Body (lab tests, vaccines, hub, book layout)
 
-> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section B, BODY, of that report covers this dossier.)
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/05; where this dossier and the verification disagree, the verification wins.** (Section B, BODY, of that report covers this dossier.) **Round 2 applied (2026-10-12):** `docs/product/verification/round2/R2-04-trd-dossiers.md` found no wrong claim here; notes 3, 4 and 6 now point at the round-2 decisions (AD-69, AD-24, AD-68), and a table cell with `|` inside a code span is escaped (`R2-07-consistency.md` R2-26).
 >
 > Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
 > 1. **D-11 (lab value parsing) is CONFIRMED**, not suspected: in node `validateExtraction({markers:[{value:'1,025'}]})` gives **1025** while `parseMeasure('1,025','en')` gives **1.025**.
 > 2. **Future-dated report is CONFIRMED:** `report_date '2099-01-01'` passes `validateExtraction` with `dateFallback: false` (§ latest-date note).
-> 3. **G-9 / scan budget.** The **limit** is visible to free users — the empty state and the free card say "3 free scans a month … · More with Premium" (`BodyScreen.js:1100-1110`). What is never shown is how many scans were **used / are left**; users discover running out only on a refusal. My Body has no Premium scan line at all (the line renders only for free users, `{!premium && …}`), and the free card heading "Bloodwork scan — Premium feature" sits above "3 free scans a month" (`:1102`).
-> 4. **D-8 (lab charts):** not gated on any path — `MarkerChart` renders with 2+ readings (`BodyScreen.js:1067-1068`), and neither `openMarker` (`:313`) nor the Fold right page (`:142-144`) checks Premium. Gating them would take a working feature away from current free users (picture first; verification/07 X-11).
+> 3. **G-9 / scan budget.** The **limit** is visible to free users — the empty state and the free card say "3 free scans a month … · More with Premium" (`BodyScreen.js:1100-1110`). What is never shown is how many scans were **used / are left**; users discover running out only on a refusal. [Round 2: showing the scans used waits for the founder (OPEN-14 (b)); no scan number in Premium strings and the free number never shown to Premium are decided (AD-69).] My Body has no Premium scan line at all (the line renders only for free users, `{!premium && …}`), and the free card heading "Bloodwork scan — Premium feature" sits above "3 free scans a month" (`:1102`).
+> 4. **D-8 (lab charts):** not gated on any path — `MarkerChart` renders with 2+ readings (`BodyScreen.js:1067-1068`), and neither `openMarker` (`:313`) nor the Fold right page (`:142-144`) checks Premium. Gating them would take a working feature away from current free users (picture first; verification/07 X-11). [Round 2: lab charts Premium stays decided (AD-24); the locked-chart picture is owed before code — OPEN-DECISIONS "Approvals still owed" item 3.]
 > 5. **My Body never reloads on a sync pull** (no `addSyncListener` at all), not only on a curve change.
-> 6. **G-1:** registry row F-070 (`docs/review/features.md:107`) "Labs: manual entry … Shipped" is false — no manual lab entry ever existed in the code or the git history of `BodyScreen.js`.
+> 6. **G-1:** registry row F-070 (`docs/review/features.md:107`) "Labs: manual entry … Shipped" is false — no manual lab entry ever existed in the code or the git history of `BodyScreen.js`. [Round 2: typing lab values by hand ships in 1.3.0, picture first — AD-68 (it closed OPEN-12).]
 > 7. "Latest lab date" (S-70a): the three computations were seen, but their equivalence was not proven by the verification (UNVERIFIABLE).
 
 Research dossier for the PRD / TRD / state-flow diagrams. Branch `redesign/graduated`, read 2026-10-12.
@@ -332,7 +332,7 @@ but the only caller is the Today alert (`grep initialSection` → `TodayScreen.j
 | `BodyScreen.js:99-121` `reportCards` | date → batches by `created_at`, same-date batches **merged** unless a marker repeats (A-101d) |
 | `BodyScreen.js:123-129` `newestReportKey` | over `reportCards` |
 | `BodyScreen.js:321` `reportKeys` | over `reportCards` |
-| `BodyScreen.js:824` `testCount` (hub big number, `:866-870`; Export visibility `:828-829`) | `new Set(report_date + '|' + created_at).size`, i.e. **one per batch, never merged** |
+| `BodyScreen.js:824` `testCount` (hub big number, `:866-870`; Export visibility `:828-829`) | `new Set(report_date + '\|' + created_at).size`, i.e. **one per batch, never merged** |
 | `lib/bodyHub.js:8`, `:30` `uploadKey` / `labHubSummary.tests` | the same per-batch count (computed but **not used** by the screen; the screen keeps its own copy at `:824`) |
 | `database.js:398-406` `deleteBiomarkerReport` | deletes per `(report_date, created_at)`; the screen loops every batch of the card (`BodyScreen.js:720`) |
 | `__tests__/redesignSimFindings.test.js:102` | pins the per-batch `testCount` source line (A-74) |
@@ -521,7 +521,7 @@ everything in Notes. The read page shows the details as separate rows only when 
   invalid or missing dates). The user must notice and fix it per value. **There is no "change the date of the whole
   test" action:** Edit value changes one row (`BodyScreen.js:673`).
 - **E-6 Future report date from the document:** it is accepted (`bodyScan.js:26-31`). Today's alert is suppressed. The edit
-  wheel clamps to today the moment any column turns (`bodyDates.js:195-205`, `max: today`).
+  wheel clamps to today the moment any column turns (`lib/bodyDates.js:50-60` `wheelAfter`, called with `max: today` at `BodyScreen.js:1582`) [Corrected round 2: the earlier cite, lines 195-205 of that file, was past the end of its 62 lines].
 - **E-7 Mixed units for one canonical marker** (ng/dL and nmol/L): plotted on one axis (`MarkerChart.js:38-44`). The
   series `unit` is the latest row's (`BodyScreen.js:286`), so the hub, the marker number and the chart a11y label show
   the latest unit only. The readings list shows each row's own unit (`:1078`). No conversion (correct per the hard

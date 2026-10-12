@@ -1,12 +1,12 @@
 # 01 — Protocols & supply: product + technical dossier
 
-> **Verified 2026-10-12 — corrections applied from docs/product/verification/01; where this dossier and the verification disagree, the verification wins.**
+> **Verified 2026-10-12 — corrections applied from docs/product/verification/01; where this dossier and the verification disagree, the verification wins.** **Round 2 applied (2026-10-12):** this dossier's citations carry their final status from `docs/product/verification/round2/id-map.md` (round-2 reports `R2-04-trd-dossiers.md` Part C and `R2-07-consistency.md` R2-26, R2-33): notes 2 and 4 are resolved against the round-2 decisions, and the table cells with a `|` inside a code span are escaped.
 >
 > Corrections applied in this file (each marked "[Corrected 2026-10-12]" where it sits):
 > 1. **D-20 / G-27 are stale.** Protocols send `created_at` since commit `e85519c` (`lib/syncMappers.js:101-103`). Two residuals remain: a pull never rewrites an existing local `created_at` (`lib/syncCore.js:405-415`), and vials (like 7 other tables) still do not send it (TRD H-4).
-> 2. **Interval presets (R-08, ledger row :200).** The wizard does not show presets 1–7, 10, 14: step 4 has only Every day / Custom plus a typed field (digits only, 1–999). `PRESET_INTERVALS` only decides whether a stored value opens Custom (`screens/ProtocolsScreen.js:3062-3088`, `lib/protocolForm.js:16`). The code differs from decisions.md:200 and no later ledger line replaces it.
+> 2. **Interval presets (R-08, ledger row :200).** The wizard does not show presets 1–7, 10, 14: step 4 has only Every day / Custom plus a typed field (digits only, 1–999). `PRESET_INTERVALS` only decides whether a stored value opens Custom (`screens/ProtocolsScreen.js:3062-3088`, `lib/protocolForm.js:16`). The code differs from decisions.md:200. [Round 2: the later binding prototype (decisions.md:34, 2026-10-01; `docs/design/prototype.html:1380`) has no presets, so Every day / Custom N with no presets is decided — AD-66; the 1–365 bound is DL-19 (the code allows 1–999, DV-123); the empty interval field on Edit is DV-230.]
 > 3. **Restart order (§ Restart, R-51/R-52).** The free limit is not checked first from the user's point of view: `askRestart` shows the duplicate warning, then the container question, and only then `restartProtocol` checks the limit — the user picks a container before seeing "Protocol limit reached" (`screens/ProtocolsScreen.js:1253-1285`, `:1288-1290`).
-> 4. **Purge blanking (R-55, Delete forever).** The server trigger also keeps `type`, colour and `deleted_at`, and leaves `interval_days`, `doses_per_day`, `concentration_unit` and `divisible` unblanked — narrower than ledger :540 promises (`supabase/migrations/20261004010000_protocol_delete_guard.sql:8-9, 31-41`).
+> 4. **Purge blanking (R-55, Delete forever).** The server trigger also keeps `type`, colour and `deleted_at`, and leaves `interval_days`, `doses_per_day`, `concentration_unit` and `divisible` unblanked — narrower than ledger :540 promises (`supabase/migrations/20261004010000_protocol_delete_guard.sql:8-9, 31-41`). [Round 2: :540 is a coordinator line; the identity kept (id, user_id, type, colour, timestamps, deleted_at, purged_at) is what the founder-approved migration defines (AD-67, decisions.md:552, :556); only the four unblanked columns remain a defect (DV-221, S3).]
 > 5. **D-01 equivalence.** `notifications.js:424, 925` skip the `sync_status` test (harmless: soft delete sets `active = 0`); `adherenceRings.js:70-71` is a different "active **or ended**" predicate, not a copy of "is active".
 > 6. **G-9 (recon vial edit).** The capacity recompute on a dose edit is decided by logic (DL-15, decisions.md:660); only the manual mix-date / window / doses-used edit waits for the founder (OPEN-01).
 > 7. **Offline assistant (§13 item 13).** Offline, the assistant stays open with a notice; it does not hand back to the form with the compound filled (`screens/components/ProtocolAssistant.js:111-120`). The handback after a conversation goes to step 1, 3 or 4 through `stepForHandback` (`lib/protocolAssistant.js:949-956`), not always step 1.
@@ -468,11 +468,11 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | lib/protocolEnd.js:24 `SQL_ACTIVE` | `active = 1 AND purged_at IS NULL AND sync_status != 'deleted'` — used by getActiveProtocols (Today, Protocols, notifications, Missed scan, curve via history) |
 | lib/protocolEnd.js:12-14 `isEnded` | `active 0/false && !deleted_at` (no purged/sync check; callers pass pre-filtered lists) |
 | lib/protocolEnd.js:25 `SQL_ENDED`, :27 `SQL_HISTORY`, :28/:195 Recently deleted, :31 `SQL_ALL_LOGS` | SQL forms with purged_at / sync_status filters |
-| lib/doseActions.js:15, :30, :56, :112 | inactive = `!p || active === 0 || deleted_at || sync_status === 'deleted'` |
+| lib/doseActions.js:15, :30, :56, :112 | inactive = `!p \|\| active === 0 \|\| deleted_at \|\| sync_status === 'deleted'` |
 | lib/markTaken.js:257 `takeRefusal` | same + `active === false` |
 | lib/pendingYesterday.js:44, :96 | same as doseActions |
-| lib/notifications.js:424, :925 | `!p || active === 0 || deleted_at` |
-| lib/adherenceRings.js:70-71 | `!deleted_at && sync_status != 'deleted' && (active != 0 || endedAtMs != null)` |
+| lib/notifications.js:424, :925 | `!p \|\| active === 0 \|\| deleted_at` |
+| lib/adherenceRings.js:70-71 | `!deleted_at && sync_status != 'deleted' && (active != 0 \|\| endedAtMs != null)` |
 | lib/serumModel.js:241-244 | excludes deleted; live = !isEnded; ended within the curve window kept |
 | screens/SettingsScreen.js:373, :432 | `reportProtocols` (active + ended with records in window) and `!isEnded` count |
 | lib/syncCore.js mergeCloudRow :628-635 | cloud status wins when local has no `status_at` |
@@ -489,7 +489,7 @@ For each derived value: every place that computes or decides it, and how. Diverg
 | lib/markTaken.js:121-126 | inline copy (decides "finished") |
 | lib/deleteDose.js:60-66 `finishedByDoses` | inline copy |
 | lib/notifications.js:502 | `supplyState` per active vial |
-| screens/SettingsScreen.js:415 | `(total_doses || 0) − (doses_taken || 0)` |
+| screens/SettingsScreen.js:415 | `(total_doses \|\| 0) − (doses_taken \|\| 0)` |
 | lib/protocolAssistant.js:441-448 `planFacts` | `dosesPerVial` from the draft (vial lasts N doses / days) |
 | screens/TodayScreen.js:2368-2377 | vial prompt "new vial holds N doses" = `dosesPerVial` from the protocol |
 

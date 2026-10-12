@@ -105,14 +105,17 @@ Solid arrows = data or state that one flow produces and the next consumes. Dotte
 | Food access | `lib/foodThread.js foodLogAccess` | 07, 08, 13 | server does not check — 04 D-15 |
 | Premium | `lib/entitlement.js hasPremium` | 02, 10, 11, 13 | server only for scans — 07 D-1…D-4 |
 | Curve level | `lib/serumModel.js` | 10, 11 | tile vs screen list / grid — 05 D1, D2 |
-| Reminder health | `lib/reminderHealth.js` | 06, 03 | Settings vs Today "blocked" — 03 D-1, D-2 |
+| Reminder health | `lib/reminderHealth.js` | 06, 03 | Today's Blocked card still shows under Silent mode (03 D-2; DL-45); Settings follows the signed SP-1 / RC-1 (AD-71) |
 
 ## Conventions
 
 - **Intended behaviour is the default text.** Where the code differs today, the flow says **Divergence today** and cites the dossier finding: `01 D-13` = `docs/product/research/01-protocols.md` §6 divergence D-13; `01 G-5` = §9 gap G-5; `07 Gap 6` = `research/07` §9 item 6; `08 D5` = `research/08` §8.2 row D5. Every divergence also appears in the flow's §11 table with an ID `Dnn-k` (flow number, item) and its row `DV-xxx` in `docs/product/DIVERGENCES.md` (the one register of defects; each DV row lists the flow IDs in its Sources).
-- **Intended** comes from `docs/decisions.md`, the signed specs in `docs/specs/`, or — marked "by logic, founder may override" — from how the features connect (CLAUDE.md "decide what is already decided"). Anything that is a real preference is an OPEN-xx in `docs/product/OPEN-DECISIONS.md`, never assumed; each flow's §12 lists its questions with their canonical IDs.
+- **Intended** comes from a founder line in `docs/decisions.md` or a founder-signed row in `docs/specs/` (cited as **AD-xx** when OPEN-DECISIONS.md applies it), from the binding prototype, or — marked "by logic, founder may override" — from how the features connect (**DL-xx**, CLAUDE.md "decide what is already decided"). Lines the coordinator wrote in the ledger ("by logic", "coordinator", "resolved by the ledger", council syntheses) are never cited as founder decisions; they are cited through the AD / DL id OPEN-DECISIONS.md gives them. Anything that is a real preference is an OPEN-xx in `docs/product/OPEN-DECISIONS.md`, never assumed: the flow describes today's behaviour and says "pending OPEN-xx". Where a logic decision needs a new screen element or text, the principle is the DL and the visible part is an item of **OPEN-24** (pictures first, ×6). Founder actions that are not questions (wording approvals ×6, pictures of approved work, signatures, production go-aheads) are cited as **Approvals still owed, item N** of OPEN-DECISIONS.md. Each flow's §12 lists every OPEN item that touches it, with the Portuguese question number the founder answers with.
 - Strings are quoted from `i18n/translations.js` (EN and PT). `{name}`-style placeholders are filled by the app. New copy that does not exist yet is marked as such (needs 6-language approval).
-- **OPEN-xx (was <id>)** marks a behaviour the flows used to call "intended" (by logic) that the 2026-10-12 verification (`docs/product/verification/07-consistency.md` §2, §4; `01-protocols.md` #1; `02-doses-today.md` §C; `04-food-reality-progress.md` §3) found is NOT decided — it reverses a founder line or a signed row, or it is a taste / money / scope / risk call. Today's behaviour is still described; the choice waits for the founder. Each now carries its canonical OPEN id from OPEN-DECISIONS.md "Reclassified on 2026-10-12": DL-03 → OPEN-17; DL-06 default slot → OPEN-19 (c); DL-08 Undo bar → OPEN-19 (d); DL-24 → OPEN-05; DL-32 → OPEN-18 (1); DL-51 → OPEN-07; DL-66 → OPEN-18 (2); DL-67 → OPEN-19 (b); DL-72 / DL-74 → OPEN-16 (b); DL-16 → AD-65 (decided by the founder, Q9 = B); DL-50 withdrawn (moot); course end stays OPEN-03.
+- **OPEN-xx (was <id>)** marks a behaviour the flows used to call "intended" (by logic or "already decided") that the two 2026-10-12 verification rounds (`docs/product/verification/01…07` and `verification/round2/`) found is NOT decided — it reverses a founder line or a signed row, or it is a taste / money / scope / risk call. Today's behaviour is still described; the choice waits for the founder. The one table of every id that moved is `docs/product/verification/round2/id-map.md`; the flows use only the final ids:
+  - **Still open:** DL-03 tracker unit → OPEN-17; DL-08 Undo bar → OPEN-19 (d); DL-24 → OPEN-05; DL-32 → OPEN-18 (1); DL-51 → OPEN-07; DL-66 → OPEN-18 (2); AD-44 → OPEN-18 (4); DL-72 / DL-74 → OPEN-16 (b); DL-68 → OPEN-22 (b); AD-45 (and the withdrawn DL-75) → OPEN-22 (a); DL-71 → OPEN-23; AD-27 → OPEN-20 (b); DL-22's recon "New vial" and new-box date → OPEN-01; the cross-account guard (a coordinator line) → OPEN-21 (11); course end stays OPEN-03.
+  - **Closed in round 2 (decided, cited with the final id):** OPEN-19 (a) → AD-70 (late dose on its own day), (b) / DL-67 → DL-76 (daily cap), (c) / DL-06 default → DL-77 (08:00); OPEN-20 (a) / DL-45 Settings half → AD-71 (Settings red as signed); OPEN-14 (a) / AD-56 → AD-69 (no Premium scan number); OPEN-12 → AD-68 (manual lab entry in 1.3.0); OPEN-18 (5) → AD-60 (push at 3), (6) → AD-74 (Apple artwork on Android), (7) / (8) → Approvals still owed items 8 / 7; OPEN-21 (1)…(10) → DL-85 (was AD-04), Approvals item 2 + AD-75 (AD-09 copy; "supplier" stays), DL-86 (was AD-10), DL-87…DL-91 + Approvals item 3 (AD-11 rules: A-86, A-87, A-89, A-92, A-98; A-85 / A-96 pictures), DL-92 (was AD-29), DL-97 (was AD-35), DL-93 (was AD-46), DL-94 (was AD-50), DL-95 (was AD-54), DL-96 (AD-61 gym part). AD-12 → DL-25; AD-28 → DL-81; AD-57 → DL-84; DL-01 → AD-76; DL-16 → AD-65 (Today card, the founder's Q9 = B; My Protocols colouring = DL-80); interval presets → AD-66 (no presets, binding prototype).
+  - **Rewritten / withdrawn:** DL-10 rewritten to the founder's tap-time rule (decisions.md:153); DL-28 rewritten (the 25 reads count by the request's local day); DL-50 withdrawn (moot); DL-73 withdrawn (false premise; DV-194 closed); DL-75 withdrawn (→ OPEN-22 (a)).
 - Names: UI "Complete" = stored outcome `Taken`. "Reality check" = PT "Seus números reais".
 
 ## Using the acceptance checks as the agent-device QA script
@@ -123,50 +126,76 @@ Solid arrows = data or state that one flow produces and the next consumes. Dotte
 - iPhone checks on the simulator; Android checks (permissions, background refresh, update / reboot, Fold) on the founder's Z Fold 7 with `adb` (`dumpsys alarm`, appops).
 - A check whose result matches a **Divergence today** is recorded as the divergence (with the screenshot), not as a pass.
 - Check IDs are stable (`F03-12`) so a build report can list pass / fail / divergence per row (CLAUDE.md evolution rule 4: walk every link before every build).
+- Count: 263 acceptance checks across the 14 flows (01: 26, 02: 25, 03: 25, 04: 19, 05: 16, 06: 19, 07: 19, 08: 19, 09: 18, 10: 15, 11: 18, 12: 13, 13: 15, 14: 16), counted from the `**Fnn-mm**` headers in §13 of each flow.
 
 ## Founder questions — reconciled into OPEN-DECISIONS.md
 
-The 36 questions this round collected from the flows were reconciled on 2026-10-12 with the PRD and the TRD into the single list `docs/product/OPEN-DECISIONS.md`, under the CLAUDE.md rule "decide what is already decided". Each now has one canonical ID: **OPEN-xx** waits for the founder (bold below; asked in the one Portuguese round at the end of OPEN-DECISIONS.md), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`, 2026-10-12 section; the founder may override). Of the 36, 14 map to an OPEN question (14 distinct OPEN items; OPEN-05 comes only from the PRD and the TRD); the other 22 were answered by the ledger or by logic — after the 2026-10-12 verification, 5 of those 22 are back with the founder (DL-03 → OPEN-17, DL-08 Undo part → OPEN-19 (d), DL-24 → OPEN-05, DL-32 → OPEN-18 (1), DL-66 → OPEN-18 (2)) and DL-16 became the founder's AD-65 and AD-27 is logic, not a ledger answer.
+The 36 questions this round collected from the flows were reconciled on 2026-10-12 with the PRD and the TRD into the single list `docs/product/OPEN-DECISIONS.md`, under the CLAUDE.md rule "decide what is already decided", and verified twice the same day (round 2 final ids: `docs/product/verification/round2/id-map.md`). Each now has one canonical ID: **OPEN-xx** waits for the founder (bold below; asked in the one Portuguese round at the end of OPEN-DECISIONS.md, whose HTML comment maps each Portuguese question number to its OPEN id), **AD-xx** is already decided by a founder line or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`, 2026-10-12 section; the founder may override). This table is a copy of the "Flows" crosswalk in OPEN-DECISIONS.md ("Where every earlier question went").
+
+Of the 36, **23 rows reach an OPEN item, wholly or in part** (#1, 2, 4, 7, 8, 11, 12, 13, 15, 16, 17, 18, 21, 22, 23, 24, 25, 28, 29, 32, 33, 34, 36; three of them — #1, #15, #34 — only through the new-UI item OPEN-24), touching 19 OPEN ids (OPEN-01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 13, 14, 15, 17, 18, 19, 20, 24). The other **13** are answered by a founder line or signed row (AD-11, AD-24, AD-38, AD-43, AD-68, AD-71) or by logic (DL-12, DL-15, DL-31, DL-42, DL-48, DL-97), and #26 needs no change (DL-73 withdrawn).
 
 | Was # | Question | Flow | Canonical |
 |---|---|---|---|
-| 1 | AI consent per device (today) or per account (asked for each person, proof on the server)? | 01, 11, 12 | DL-55 (server proof: AD-51) |
-| 2 | OS notification prompt after "Not now": at first sign-in (today) or when the first timed protocol is saved? | 01, 06 | DL (listed as AD-27; the cited ledger line says nothing about "Not now" and SP-5 opens the setup screen for "Not now" users — verification 07 A-02, X-06) |
+| 1 | AI consent per device (today) or per account (asked for each person, proof on the server)? | 01, 11, 12 | DL-55 · **OPEN-24** item 1 (the Settings withdraw row) (server proof: DL-83) |
+| 2 | OS notification prompt after "Not now": at first sign-in (today) or when the first timed protocol is saved? | 01, 06 | **OPEN-20 (b)** (AD-27 withdrawn) |
 | 3 | Year-only 18+ test — keep or ask the month (counsel)? | 01 | AD-43 |
 | 4 | "Doses already taken from this vial" on create / new vial (A-08 / F7)? | 02, 04 | **OPEN-01** |
-| 5 | Keep a half-filled new protocol after an app kill? | 02 | AD-35 |
+| 5 | Keep a half-filled new protocol after an app kill? | 02 | DL-97 (was AD-35) |
 | 6 | Recon dose changed mid-vial: recompute remaining doses? | 02, 04 | DL-15 |
-| 7 | Lapsed Premium with more than 3 active protocols: keep them active? | 02, 13 | **OPEN-05** (was DL-24) — a money call, folded into **OPEN-05** (verification 07 D-02, Q-01) |
-| 8 | Skip cancels that slot's reminders and gets an Undo bar? | 03 | DL-08 (cancel the slot's reminders — logic, not built yet) · **OPEN-19 (d)** (was DL-08) the Undo bar (today "Didn't take" on a pending slot does show Undo; verification 07 D-09, K-02) |
+| 7 | Lapsed Premium with more than 3 active protocols: keep them active? | 02, 13 | **OPEN-05** (DL-24 withdrawn) |
+| 8 | Skip cancels that slot's reminders and gets an Undo bar? | 03 | DL-08 (cancel) · **OPEN-19 (d)** (Undo bar) |
 | 9 | "All caught up" when every due dose is complete-or-skipped? | 03 | DL-12 |
 | 10 | Keep the grey "reminder" tag before Due (conflict #22)? | 03 | AD-38 |
-| 11 | Tracker streak: remove the 31-day cap? Report streak: same "doses in a row" rule? | 03, 12 | **OPEN-17** (was DL-03) tracker streak (today's copy stays "days without a miss" until the founder picks, with a picture) · DL-02 report streak |
-| 12 | Manual "New vial" for recon at any time; rtu New vial as a new row with a new box date (A-08)? | 04 | DL-22 |
-| 13 | Oral bottles: same 1–3 low rule and interval-aware days left? | 04 | **OPEN-02** (days left: plain bug, DV-020) |
-| 14 | Pictures needed: "End protocol" placement; vial prompt "Protocol finished" with "Later" | 04, 05 | AD-11 (picture before code) |
-| 15 | Days-left colour above 7 days: green (Today) or plain (Protocols)? | 04 | AD-65 (the founder's Q9 = B, decisions.md:147: Today's coloured style everywhere; DL-16 had picked the grey Protocols style by mistake — verification 01 #1) |
+| 11 | Tracker streak: remove the 31-day cap? Report streak: same "doses in a row" rule? | 03, 12 | DL-03 (look-back), DL-02 · **OPEN-17** (unit) |
+| 12 | Manual "New vial" for recon at any time; rtu New vial as a new row with a new box date (A-08)? | 04 | DL-22 (rtu) · **OPEN-01** (recon, box date) |
+| 13 | Oral bottles: same 1–3 low rule and interval-aware days left? | 04 | **OPEN-02** (days left: DV-020 bug) |
+| 14 | Pictures needed: "End protocol" placement; vial prompt "Protocol finished" with "Later" | 04, 05 | AD-11 (pictures owed, Approvals item 3) |
+| 15 | Days-left colour above 7 days: green (Today) or plain (Protocols)? | 04 | AD-65 (Today) · DL-80 (My Protocols; **OPEN-24** item 11) |
 | 16 | Course total reached: ask "end it?", end automatically, or only stop reminders? | 05 | **OPEN-03** |
 | 17 | Resume the 7-day purge only for protocols deleted by 1.3.0+ (A-84)? | 05 | **OPEN-04** |
 | 18 | iPhone users who never open the app: warning line, iPhone server push, or accept? | 06 | **OPEN-06** |
-| 19 | Settings "blocked" row neutral when reminders are off / no timed protocol? | 06 | DL-45 |
+| 19 | Settings "blocked" row neutral when reminders are off / no timed protocol? | 06 | AD-71 |
 | 20 | Persistent reminders: fix the copy (two repeats) or repeat until acknowledged? | 06 | DL-48 |
-| 21 | Drop the manual "not recorded" day mark from FL-3? | 07 | **OPEN-18 (2)** (was DL-66) — amends signed FL-3, goes on the A-97 deviation list (verification 07 D-05) |
+| 21 | Drop the manual "not recorded" day mark from FL-3? | 07 | **OPEN-18 (2)** |
 | 22 | Stop reality check: keep saved measured results (recommended) or delete them (today)? | 08 | **OPEN-08** |
 | 23 | One start weight (the start-day weigh-in) instead of the start sheet's own field? | 08 | **OPEN-07** |
 | 24 | Confirm the self-finishing reality check (no "See my actual maintenance" button)? | 08 | **OPEN-07** |
-| 25 | New Today lines for a locked / unsavable reality-check result (×6, picture first) | 08 | DL-26 · **OPEN-09** |
-| 26 | Lower date bound for "+ Add a past weigh-in"? | 09 | DL-73 |
+| 25 | New Today lines for a locked / unsavable reality-check result (×6, picture first) | 08 | DL-26 · **OPEN-09** · **OPEN-24** (item 7, the texts) |
+| 26 | Lower date bound for "+ Add a past weigh-in"? | 09 | No change (DL-73 withdrawn: the wheel already stops 10 years back) |
 | 27 | Curve: place doses at the user's reminder times, or disclose the fixed 12:00 grid? | 10 | DL-31 |
 | 28 | Curve: dose edits apply forward only (history kept)? Count only logged doses (A-31)? | 10 | **OPEN-10** · **OPEN-11** |
-| 29 | Blend component lines: confirm solid past supersedes the 2026-09-18 dashed lines | 10 | **OPEN-18 (1)** (was DL-32) — overrides the founder's dashed-line decision (decisions.md:205); A-97 deviation list with a picture (verification 07 D-04) |
-| 30 | Manual lab entry (approved 2026-09-30, never built): build next or defer explicitly? | 11 | **OPEN-12** |
+| 29 | Blend component lines: confirm solid past supersedes the 2026-09-18 dashed lines | 10 | **OPEN-18 (1)** |
+| 30 | Manual lab entry (approved 2026-09-30, never built): build next or defer explicitly? | 11 | AD-68 |
 | 31 | Lab marker charts: Premium (decision) or free (code)? | 11, 13 | AD-24 |
 | 32 | Bloodwork due: fixed 6 months, user-set, or removed (regulatory look)? | 11 | **OPEN-13** |
-| 33 | Show "x of 3 scans used this month"? | 11 | **OPEN-14** |
-| 34 | Delete account: warn that the store subscription keeps billing? | 12 | DL-60 |
+| 33 | Show "x of 3 scans used this month"? | 11 | **OPEN-14 (b)** · AD-69 |
+| 34 | Delete account: warn that the store subscription keeps billing? | 12 | DL-60 · **OPEN-24** (item 6) |
 | 35 | Export: include profile and preferences? | 12 | DL-42 |
 | 36 | Settings: "Manage subscription" + "Restore purchases" for everyone? | 13 | **OPEN-15** |
 
-Flow 07 also asked whether "Remove entry" must ask first → AD-01 (every delete asks first).
+Flow 07 also asked whether "Remove entry" must ask first → AD-01 (every delete asks first). Flow 14 asked no question (A-116 waits by the founder's own instruction, AD-31).
+
+### Every open question that touches a flow
+
+The 36 above are only the questions the flows themselves raised. The single founder round has 23 questions; this table lists, per flow, every one that touches it (the flow's §12 cites each, with the Portuguese question number). `q` = the number in the Portuguese message at the end of OPEN-DECISIONS.md.
+
+| Flow | Open questions that touch it (canonical id, Portuguese question) |
+|---|---|
+| 10 | OPEN-10 q16 · OPEN-11 q17 · OPEN-18 (1) q23 (a) · OPEN-18 (4) q23 (d) |
+| 11 | OPEN-13 q19 · OPEN-14 (b) q20 (a) · OPEN-14 (c) q20 (b) · OPEN-24 items 1, 4 q2 |
+| 12 | OPEN-15 q21 · OPEN-21 (11) q22 · OPEN-24 items 1, 2, 6, 10 q2 |
+| 13 | OPEN-05 q7 · OPEN-14 (b) q20 (a) · OPEN-15 q21 · OPEN-18 (3) q23 (c) · OPEN-24 item 6 q2 |
+| 14 | none specific to the book layout (fold-right-page signature: Approvals still owed item 7) |
+| 01 | OPEN-20 (b) q11 (a) · OPEN-21 (11) q22 · OPEN-24 items 1, 10 q2 |
+| 02 | OPEN-01 q3 · OPEN-05 q7 · OPEN-10 q16 · OPEN-18 (3) q23 (c) |
+| 03 | OPEN-03 q5 · OPEN-17 q8 · OPEN-19 (d) q9 · OPEN-11 q17 · OPEN-23 q18 · OPEN-18 (4) q23 (d) · OPEN-24 items 9, 12 q2 |
+| 04 | OPEN-01 q3 · OPEN-02 q4 · OPEN-20 (c) q11 (b) · OPEN-24 item 11 q2 |
+| 05 | OPEN-03 q5 · OPEN-04 q6 · OPEN-05 q7 |
+| 06 | OPEN-06 q10 · OPEN-20 (b) q11 (a) · OPEN-20 (c) q11 (b) · OPEN-21 (11) q22 · OPEN-24 item 5 q2 |
+| 07 | OPEN-07 q12 · OPEN-18 (2) q23 (b) · OPEN-18 (3) q23 (c) · OPEN-18 (9) q23 (e) · OPEN-24 items 3, 8 q2 |
+| 08 | OPEN-07 q12 · OPEN-08 q13 · OPEN-09 q14 · OPEN-22 (a) q15 (a) · OPEN-18 (2) q23 (b) · OPEN-18 (9) q23 (e) · OPEN-24 items 3, 7 q2 |
+| 09 | OPEN-08 q13 · OPEN-22 (a) q15 (a) · OPEN-22 (b) q15 (b) |
+
+OPEN-16 (q1: the scope of 1.3.0, and when the sync hardening ships — DV-182, DV-183, DV-209, DV-210, DV-222) touches every flow: no flow item gets a build target until it is answered.
 
 Status: draft for the founder's review and signature. After sign-off, every divergence becomes a registry item fixed test-first (`docs/product/README.md` step 4), and §13 of each flow becomes the pre-build QA walk.

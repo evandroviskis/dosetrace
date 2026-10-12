@@ -7,7 +7,7 @@
 
 ## 1. Goal
 
-"Enter once, used everywhere" (A-54): the user's latest weigh-in is their current weight on every surface; sex and age come from the profile; one activity scale. From weight + height + age + sex the app shows an estimated daily burn (option A, 2026-10-02) — measured once a reality check finishes (flow 08) — and a pure-math target ETA. Weigh-ins are never paywalled and never lost.
+"Enter once, used everywhere" (A-54): the user's latest weigh-in is their current weight on every surface; sex and age come from the profile; one activity scale. From weight + height + age + sex the app shows an estimated daily burn (founder option A, signed PO-12) — measured once a reality check finishes (flow 08) — and a pure-math target ETA. Weigh-ins are never paywalled and never lost.
 
 ## 2. Actors
 
@@ -38,7 +38,7 @@
 | P6 | Started losing weight before installing | "+ Add a past weigh-in" (any past date the wheel offers — up to 10 years back) so the pace shows sooner. |
 | P7 | Weigh-in is the start of an open reality check | Can be fixed, not deleted (PO-24); a fix moves the check's start weight. |
 | P8 | Mistyped 860 instead of 86.0 | Fix sheet validates 25–300 kg; **other entry points must too** (04 G-7). |
-| P9 | Profile has no sex | "Set your sex to continue" gate; no sex-dependent math runs (2026-09-09). |
+| P9 | Profile has no sex | "Set your sex to continue" gate; no sex-dependent math runs (founder, decisions.md:224). |
 | P10 | Age locked by the profile's birth year | Age field read-only (PO-11). |
 | P11 | Activity set in onboarding (5 levels) or in Progress | The newest stamped side wins (`activity_set_at` vs `activitySetAt`). |
 | P12 | A reality check finished | Hero daily burn = Measured; formula shown as an estimate sub-line. |
@@ -95,6 +95,7 @@ stateDiagram-v2
     NoBurn --> LegacyBurn: existing user with weight + body fat (kept, Complete your numbers)
     LegacyBurn --> Estimated: height, age and sex completed
     Estimated --> Measured: reality check result saved
+    NoBurn --> Measured: result saved with height, age or sex missing (only if OPEN-22 (a) = A - today hidden, DV-149)
     Measured --> Measured: newer result replaces (latest by date)
     Measured --> Estimated: results deleted by Stop (flow 08, OPEN-08)
     Estimated --> Invalid: an input out of range (One of the inputs is out of range)
@@ -117,15 +118,15 @@ stateDiagram-v2
 ## 7. Alternative and exception paths
 
 ### 7.1 Which weight is "current" (A-54 / A-101e)
-- **Intended:** the latest weigh-in by date is the current weight everywhere (hero, Your numbers, daily burn, Journey tile, target), unless the user typed a weight in Your numbers on that day or later (then that typed weight, which also became a weigh-in through PO-14/PO-17).
+- **Intended (AD-13: A-54, decisions.md:231; signed PO-12, PO-13, PO-25):** the latest weigh-in by date is the current weight everywhere (hero, Your numbers, daily burn, Journey tile, target), unless the user typed a weight in Your numbers on that day or later (then that typed weight, which also became a weigh-in through PO-14/PO-17).
 - **Divergence today (04 D-10):** after a same-day **fix** or a **delete**, the hero follows the weigh-ins while Your numbers and the daily burn keep the old weight (e.g. fix today 85 → 84: hero 84, burn from 85; delete today's 85: hero falls back, numbers keep 85).
 - **Divergence today (04 D-11; 08 D1):** the Journey tile shows the latest weigh-in but computes its daily burn from the saved Your-numbers weight. The two differ only when that saved weight is dated before the newest weigh-in (`weightAt` < newest; e.g. saved 86, newest weigh-in 80 → tile 2780 vs hero 2680); when the saved weight is dated on or after the newest weigh-in they agree.
-- **Divergence today (DV-149):** the measured burn is shown only when the formula gate passes (weight + height + age + sex); without it the hero hides a measured number that exists. Not settled by the ledger: decisions.md:240 ("a measured maintenance becomes the hero number once it exists") and PO-12 (about the estimate) conflict here, so AD-45's "already decided" does not hold for the measured number.
+- **Waits for the founder — OPEN-22 (a) (Portuguese question 15 (a)):** today the measured burn is shown only when the formula gate passes (weight + height + age + sex); without it the Progress hero (`CalculatorSection.js:1189`, `:359`) and the Journey tile (`progressTile.js:42`, which returns before reading the checks) hide a measured number that exists, while the result view still prints it (`:1520`) — DV-149. The signed PO-12 ("Daily burn shows only when weight + height + age + sex all exist") and decisions.md:240 ("a measured maintenance becomes the hero number once it exists") read two ways for a measured number: option A shows it whenever a result exists (PO-12 amended with the founder's signature to gate only the estimate); option B keeps it hidden as built and signed. (Was AD-45, then DL-75 — withdrawn in round 2.)
 - **Divergence today (04 D-12, low):** legacy snapshot rows without a weight: hero uses the typed weight, the tile the previous weigh-in; the "Since" line picks first/last of all rows vs weighed rows.
 - **Divergence today (05 D8, SUSPECTED minor):** the tile ignores a check whose tdee is not a number; the hero uses it as is.
 
 ### 7.2 Validation
-- **Intended (by logic, one rule — PO-21 range):** weight 25–300 kg (55–660 lb), body fat 3–70 %, waist 30–250 cm everywhere a weigh-in is written; comma decimals read per app language; imperial shows lb / in and stores kg / cm.
+- **Intended (DL-27, logic — one rule, the signed PO-21 range):** weight 25–300 kg (55–660 lb), body fat 3–70 %, waist 30–250 cm everywhere a weigh-in is written; comma decimals read per app language; imperial shows lb / in and stores kg / cm.
 - **Divergence today (04 G-7, §8.12):** only the fix sheet validates; Log today's weight, + Add a past weigh-in and the reality-check start sheet accept any number (0.8 or 900 kg is saved as a weigh-in); the engine then marks the card invalid.
 - Past weigh-in date: ≤ today (future clamped by `clampPast`); the date wheel's year column runs from 10 years back (`lib/wheelPick.js:16`), so today's floor is **10 years back**.
 
@@ -133,7 +134,8 @@ stateDiagram-v2
 - Weigh-ins table: every row with a chevron + hint "Tap a weigh-in to fix or delete it." → sheet "Weigh-in" (date fixed text; weight, body fat, waist prefilled; note "Changes here update your progress, your target and your reality check."; Save; red "Delete weigh-in").
 - Delete → "Delete this weigh-in?" / "{date} · {weight}. Your progress, your target and your reality check update without it. This can't be undone." → every row of that day tombstoned; never comes back by pull or another device's push.
 - Open check's start day: no Delete; note "This weigh-in starts your reality check, so it can be fixed but not deleted." (also refused below the UI).
-- A newer weigh-in typed on another phone is never dropped because the same day was deleted elsewhere — re-inserted (A-92).
+- A newer weigh-in typed on another phone is never dropped because the same day was deleted elsewhere — re-inserted (DL-90, was A-92).
+- **Divergence today (DV-182, DV-222; when the fix ships = OPEN-16 (b), Portuguese question 1 (b)):** a weigh-in deleted on phone A stays on phone B, which already holds it (the cloud delete is a hard delete B never hears of; "never comes back" holds only for A's own pull); and once B pushes any weigh-in, weigh-ins A pushed earlier and B has not pulled yet are skipped by B's pull for good (DV-222). Intended: every weigh-in and every delete reaches every device (AD-02).
 
 ### 7.4 Your numbers form (PO-11)
 - Metric / Imperial; Weight; Height; Age (locked while the profile has a birth year); Sex (Male / Female bar, neither preselected; saved to the profile); Body fat (%) optional + source pills (DEXA scan / Gym scan / Calipers / Home scale / I don't know) with error hints; Waist optional with its hint; Activity level (5 levels). Prompt until a burn exists: "Weight, height, age and sex give your daily burn. Body fat and waist make it sharper."
@@ -142,13 +144,14 @@ stateDiagram-v2
 
 ### 7.5 Target
 - "Set a target" / Edit → weight and/or body-fat target, optional date; Remove target asks first ("Remove target? This clears your goal. Your weigh-ins and history are kept.").
-- ETA needs a weigh-in series spanning ≥ 14 days and a pace ≥ 0.1 / week: "~{weeks} weeks to go · around {when}, if this pace holds"; "Moving away from this target at your current pace — no timeline yet."; "Log two weigh-ins about two weeks apart…"; healthy-range fact line (WHO range wording per decision 2026-10-04).
+- ETA needs a weigh-in series spanning ≥ 14 days and a pace ≥ 0.1 / week: "~{weeks} weeks to go · around {when}, if this pace holds"; "Moving away from this target at your current pace — no timeline yet."; "Log two weigh-ins about two weeks apart…"; a neutral healthy-range fact line (decisions.md:241). The line for a target under that range ("This target is below the healthy range for your height ({min}–{max} {unit})." / "Esta meta está abaixo da faixa saudável…") still says "healthy range" although it states the range; rewording it without "healthy range" is wording to approve (Approvals still owed, item 2.10; DV-192).
+- The ETA is labelled with its weigh-in window (decisions.md:241) and has no staleness cutoff as built. Whether an old window should still drive the estimate is **OPEN-22 (b)** (Portuguese question 15 (b); was DL-68).
 - Measured ETA is Premium: "Unlock Premium to project a timeline from your measured pace." Setting the target and the bar are free.
 
 ### 7.6 Weekly check-in
 - Sunday 10:00 "Weekly check-in" / "Log this week's weight and waist — every entry adds to your trend chart." → tap opens Progress "Log today's weight" (`focus: 'weighin'`). Switch "Check-in reminders".
 - **Divergence today (03 G27):** a repeating trigger — inexact and dropped under Doze on Android (the file's own warning).
-- **Note (decision 2026-08-21 says "the tap opens Body"):** superseded by Journey owning progress (2026-09-10); the code opens Progress. Ledger line stale.
+- **Note (decisions.md:132, 2026-08-21, says "the tap opens Body"):** superseded by Journey owning progress (2026-09-10); the code opens Progress. Ledger line stale.
 
 ### 7.7 Offline / killed / second device
 - All weigh-in writes are local `calc_snapshots` rows (`pending`) — one row per local day by app upsert (no UNIQUE), deduped on read.
@@ -157,7 +160,7 @@ stateDiagram-v2
 - **Divergence today (04 D-4, G-6):** Progress has no sync listener; a weigh-in arriving from another device appears on next focus only.
 
 ### 7.8 Timezone / DST / midnight
-- Weigh-in rows are keyed by the local day at write time; the date never moves after a zone change. Progress left open across midnight writes a new weigh-in on the **new** day (`saveTodayWeighIn` calls `todayISO()` at save time, `CalculatorSection.js:575`). **Divergence today (04 D-5, DV-148):** only the displays are stale (no midnight tick on Progress) until refocus.
+- Weigh-in rows are keyed by the local day at write time; the date never moves after a zone change. Progress left open across midnight writes a new weigh-in on the **new** day (`saveTodayWeighIn` calls `todayISO()` at save time, `CalculatorSection.js:574`). **Divergence today (04 D-5, DV-148):** only the displays are stale (no midnight tick on Progress) until refocus.
 
 ### 7.9 Fold
 - Journey right page = Progress by default; a weigh-in on the right page updates the Journey tiles on the left at once (BK-19, `data_changed 'calc'`); sheets stay open across fold/unfold with typed values (BK-10/BK-14).
@@ -183,16 +186,16 @@ stateDiagram-v2
 
 | Step | Table | Write | Synced |
 |---|---|---|---|
-| Log today's weight | `calc_snapshots` today: weight_kg, body_fat_pct, waist_cm merged (never null over a stored value) | yes |
-| | `calc_inputs.payload` weight, `weightAt = today` (merge) + `user_metadata.calc_inputs` mirror | yes |
-| + Add a past weigh-in | `calc_snapshots` that day (merge) | yes |
-| Fix | `calc_snapshots` in place (`correctCalcSnapshot`); if open-check start day → `reality_check_open.start_weight_kg` | yes |
-| Delete | every live row of that day → tombstone | yes |
-| Your numbers (height, BF, BF source, waist, unit, goal) | `calc_inputs.payload` (debounced merge, `oneCard:1`, `legacyBurn`) | yes |
-| Sex | `user_metadata.gender` | server |
-| Activity | `calc_inputs.payload.activity`, `activitySetAt`; `user_metadata.activity_level`, `activity_scale 5`, `activity_set_at` | both |
-| Target | `calc_targets` (one active; start_* captured once) | yes |
-| Progress drafts | memory `draftStore` `progress:*` | no |
+| Log today's weight | `calc_snapshots` | today's row: weight_kg, body_fat_pct, waist_cm merged (never null over a stored value) | yes |
+| Log today's weight | `calc_inputs`; `user_metadata` | `payload` weight, `weightAt = today` (merge); `calc_inputs` mirror | yes |
+| + Add a past weigh-in | `calc_snapshots` | that day's row (merge) | yes |
+| Fix | `calc_snapshots`; `reality_check_open` | row corrected in place (`correctCalcSnapshot`); if it is the open check's start day → `start_weight_kg` | yes |
+| Delete | `calc_snapshots` | every live row of that day → tombstone | yes (today not on a phone that already holds the row — DV-182) |
+| Your numbers (height, BF, BF source, waist, unit, goal) | `calc_inputs` | `payload` (debounced merge, `oneCard:1`, `legacyBurn`) | yes |
+| Sex | `user_metadata` | `gender` | server |
+| Activity | `calc_inputs`; `user_metadata` | `payload.activity`, `activitySetAt`; `activity_level`, `activity_scale 5`, `activity_set_at` | both |
+| Target | `calc_targets` | one active; start_* captured once | yes |
+| Progress drafts | memory (`draftStore`) | `progress:*` | no |
 
 ## 10. Rules (with sources)
 
@@ -202,21 +205,35 @@ R-P1 daily burn needs weight + height + age + profile sex; BF sharpens (option A
 
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
-| D09-1 | Current weight = latest weigh-in everywhere after fix / delete | Hero vs numbers / burn differ | `04 D-10`, `G-5` | DV-062 |
-| D09-2 | Journey tile burn from the adopted weight | From the saved weight (differs only when that weight is dated before the newest weigh-in) | `04 D-11`, `08 D1` | DV-063 |
-| D09-3 | One validation for every weigh-in entry | Only the fix sheet | `04 G-7` | DV-065 |
-| D09-4 | Progress refreshes on sync and midnight | Focus only | `04 D-4, D-5, G-6` | DV-059, DV-148 |
+| D09-1 | Current weight = latest weigh-in everywhere after fix / delete (AD-13) | Hero vs numbers / burn differ | `04 D-10`, `G-5` | DV-062 |
+| D09-2 | Journey tile burn from the adopted weight (AD-13) | From the saved weight (differs only when that weight is dated before the newest weigh-in) | `04 D-11`, `08 D1` | DV-063 |
+| D09-3 | One validation for every weigh-in entry (DL-27) | Only the fix sheet | `04 G-7` | DV-065 |
+| D09-4 | Progress refreshes on sync and midnight (DL-25) | Focus only | `04 D-4, D-5, G-6` | DV-059, DV-148 |
 | D09-5 | Weekly check-in exact | Repeating trigger | `03 G27` | DV-055 |
-| D09-6 | `calc_inputs` merges per field across devices | Whole payload last writer | `04 §7` (SUSPECTED) | DV-010 |
-| D09-7 | Tile and hero agree on a non-numeric tdee | Differ | `05 D8` (SUSPECTED) | DV-063 |
-| D09-8 | Past weigh-in has a sensible lower date bound | 10 years back (date wheel) — the "no bound" premise of DV-194 is wrong | `04 §3.3`; 04 verification DV-194 | DV-194 |
+| D09-6 | `calc_inputs` merges per field across devices (DL-29) | Whole payload last writer | `04 §7` (SUSPECTED) | DV-010 |
+| D09-7 | Tile and hero agree on a non-numeric tdee (AD-13) | Differ | `05 D8` (SUSPECTED) | DV-063 |
+| D09-9 | Per OPEN-22 (a): a measured burn shows with height, age or sex missing (option A), or stays hidden (option B, as built and signed) | Hidden on the Progress hero and the Journey tile; shown in the result view | `04 §6.6` | DV-149 |
+| D09-10 | Every weigh-in and every delete reaches every device (AD-02; timing = OPEN-16 (b)) | A deleted weigh-in stays on the other phone; a weigh-in can be skipped by the other phone's pull | TRD §3.9 H-1; verification round 2 R2-06 M-1 | DV-182, DV-222 |
+| D09-11 | The below-range target line states the range without "healthy range" (wording = Approvals item 2.10) | "This target is below the healthy range for your height (…)" | decisions.md:544 (A-90) | DV-192 |
+
+(D09-8 — "past weigh-in lower date bound" — removed: DL-73 withdrawn, DV-194 closed; the wheel already stops 10 years back, `lib/wheelPick.js:16`. No divergence.)
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-- **DL-73 — Lower date bound for "+ Add a past weigh-in".** Under review — its premise is wrong: the wheel already stops 10 years back (`lib/wheelPick.js:16`), and decisions.md:241 only says past weigh-ins can be backfilled (it sets no limit either way). "Back to the birth year" would widen the range for nearly every adult, not close a hole. Re-decide or drop. → DV-194.
-- No OPEN question remains in this flow.
+Open — waiting for the founder:
+
+- **OPEN-22 (a)** — Does a MEASURED daily burn show on the Progress hero and the Journey tile when height, age or sex is missing? (Portuguese question 15 (a); was AD-45, then DL-75, withdrawn.) §7.1, §6.2, D09-9 → DV-149.
+- **OPEN-22 (b)** — Should the target's finish-date estimate stop showing when its weigh-in window is old? (Portuguese question 15 (b); was DL-68.) §7.5. No DV (as built = option A).
+- **OPEN-08** — Should Stop erase earlier results (Portuguese question 13): today Stop turns the hero back from Measured to Estimated (§6.2). Flow 08 D08-9 → DV-004.
+- **OPEN-16 (b)** — When the sync hardening ships (Portuguese question 1 (b)). D09-10 → DV-182, DV-222.
+
+Decided — what this flow relies on (moved in round 2):
+
+- **DL-90** (was A-92) — a newer weigh-in typed on another phone is re-inserted when the same day was deleted elsewhere (§7.3).
+- Wording to approve: the below-range target line without "healthy range" (Approvals still owed, item 2.10; D09-11 → DV-192).
+- **DL-73 withdrawn, DV-194 closed** — the past weigh-in wheel already stops 10 years back; no change, nothing to decide (D09-8 removed).
 
 ## 13. Acceptance checks (agent-device QA script)
 
