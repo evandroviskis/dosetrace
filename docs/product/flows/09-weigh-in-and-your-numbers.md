@@ -96,7 +96,7 @@ stateDiagram-v2
     LegacyBurn --> Estimated: height, age and sex completed
     Estimated --> Measured: reality check result saved
     Measured --> Measured: newer result replaces (latest by date)
-    Measured --> Estimated: results deleted by Stop (flow 08, OPEN)
+    Measured --> Estimated: results deleted by Stop (flow 08, OPEN-08)
     Estimated --> Invalid: an input out of range (One of the inputs is out of range)
     Invalid --> Estimated: corrected
 ```
@@ -199,20 +199,23 @@ R-P1 daily burn needs weight + height + age + profile sex; BF sharpens (option A
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D09-1 | Current weight = latest weigh-in everywhere after fix / delete | Hero vs numbers / burn differ | `04 D-10`, `G-5` |
-| D09-2 | Journey tile burn from the adopted weight | From the saved weight | `04 D-11`, `08 D1` |
-| D09-3 | One validation for every weigh-in entry | Only the fix sheet | `04 G-7` |
-| D09-4 | Progress refreshes on sync and midnight | Focus only | `04 D-4, D-5, G-6` |
-| D09-5 | Weekly check-in exact | Repeating trigger | `03 G27` |
-| D09-6 | `calc_inputs` merges per field across devices | Whole payload last writer | `04 §7` (SUSPECTED) |
-| D09-7 | Tile and hero agree on a non-numeric tdee | Differ | `05 D8` (SUSPECTED) |
-| D09-8 | Past weigh-in has a sensible lower date bound | None | `04 §3.3` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D09-1 | Current weight = latest weigh-in everywhere after fix / delete | Hero vs numbers / burn differ | `04 D-10`, `G-5` | DV-062 |
+| D09-2 | Journey tile burn from the adopted weight | From the saved weight | `04 D-11`, `08 D1` | DV-063 |
+| D09-3 | One validation for every weigh-in entry | Only the fix sheet | `04 G-7` | DV-065 |
+| D09-4 | Progress refreshes on sync and midnight | Focus only | `04 D-4, D-5, G-6` | DV-059, DV-148 |
+| D09-5 | Weekly check-in exact | Repeating trigger | `03 G27` | DV-055 |
+| D09-6 | `calc_inputs` merges per field across devices | Whole payload last writer | `04 §7` (SUSPECTED) | DV-010 |
+| D09-7 | Tile and hero agree on a non-numeric tdee | Differ | `05 D8` (SUSPECTED) | DV-063 |
+| D09-8 | Past weigh-in has a sensible lower date bound | None | `04 §3.3` | DV-194 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Lower bound for "+ Add a past weigh-in":** e.g. 5 years back (recommendation) or none?
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **DL-73 — Lower date bound for "+ Add a past weigh-in".** Decided by logic: any past date back to the profile's birth year, never a future date (past weigh-ins were approved with no limit, decisions.md:241; only impossible dates are refused). → DV-194.
+- No OPEN question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
 

@@ -1,12 +1,13 @@
 # DoseTrace — open decisions (one round)
 
 - Compiled 2026-10-12 from the 8 dossiers in `docs/product/research/`, `docs/decisions.md`, `docs/specs/*.md` and `docs/review/features.md`, together with `docs/product/DIVERGENCES.md` (the DV-xxx rows referred to below). No code was changed.
-- The CLAUDE.md rule "decide what is already decided" was applied to every question the dossiers raised:
+- **This is the single list of founder questions for the PRD / TRD / flows round.** Reconciled the same day with `PRD.md` (its former §7, OPEN-1…OPEN-69), `TRD.md` (§9.1, nine questions, and the "Decision?" column of §9) and `flows/` (the README's 36-question round and every flow's §12). Each of those questions now carries a canonical ID from this file; the crosswalk is in the section "Where every earlier question went" below. Those documents no longer keep their own question lists.
+- The CLAUDE.md rule "decide what is already decided" was applied to every question the dossiers, the PRD, the TRD and the flows raised:
   1. If `docs/decisions.md` or a signed spec answers it → **Already decided (applied)**, with the citation (AD-xx).
   2. If the answer follows from how the features connect and why they exist → **Decided by logic**, one-line reason (DL-xx). The founder may override any of them, as with every "by logic" line in the ledger.
   3. Only real preferences (taste, money, risk, scope) remain **OPEN** (OPEN-xx).
-- Counts: **15 OPEN**, **51 Already decided (applied)**, **66 Decided by logic**.
-- Every answer the founder gives goes into `docs/decisions.md` the same day. One item found here is missing from the ledger and should be added now: the founder's 2026-10-05 rule that a streak counts doses in a row, never days (cited in `lib/doseStreak.js:2` and `TodayScreen.js:610`, see AD-07).
+- Counts: **15 OPEN**, **64 Already decided (applied)**, **74 Decided by logic**. The PRD / TRD / flows reconciliation added no OPEN question: everything they asked beyond the 15 below is answered by the ledger (AD-52…AD-64) or by product logic (DL-67…DL-74).
+- Every answer the founder gives goes into `docs/decisions.md` the same day. The DL list and the missing 2026-10-05 streak line (AD-07) were added to `docs/decisions.md` on 2026-10-12 ("decided by logic during PRD/TRD").
 - A Portuguese version of the OPEN list, ready to send as one message, is at the end.
 
 ---
@@ -24,6 +25,7 @@
   - C — No change. Wrong counts stay until the next vial.
 - **Recommendation: A.** The app's own supply alerts and expiry tags are computed from these numbers; under "enter once, used everywhere" (A-54) a wrong entry has to be correctable in one place.
 - **Related:** DV-094 (also DV-093, DV-015).
+- **Also asked as:** PRD OPEN-11 (part 3) and OPEN-12 (mix date / window); TRD §9.1 Q8; flows README #4 (flow 02 §12, flow 04 §12).
 
 #### OPEN-02 — Should oral bottles warn when supply is low?
 - **Question.** Should capsule / tablet / powder bottles get the same "running low" warning as vials?
@@ -34,6 +36,7 @@
   - C — No change.
 - **Recommendation: A.** One rule for one concept (FX-11); a bottle running out matters as much as a vial. New strings ×6.
 - **Related:** DV-092, DV-020.
+- **Also asked as:** PRD OPEN-14; TRD §9.1 Q8 and R-42; flows README #13 (flow 04 §12, which suggested no push — option A here includes the push, one rule for one concept).
 
 #### OPEN-03 — What happens when a fixed course of doses ends?
 - **Question.** For protocols that have a total number of doses: should the end of the course end the protocol, and should the form offer "total doses" again?
@@ -45,6 +48,7 @@
   - Sub-question: bring "total doses" back to the form? Yes / No.
 - **Recommendation: B, and do not bring the field back for now.** It keeps BR-12, asks before ending (as the inactivity prompt does), and matches the reminder principle "remind until the user ends it".
 - **Related:** DV-012.
+- **Also asked as:** PRD OPEN-10 (it recommended "legacy totals honoured everywhere"); TRD §9.1 Q3 and R-03; flows README #16 (flow 05 §12).
 
 #### OPEN-04 — Should Recently deleted ever empty itself again?
 - **Question.** Once 1.3.0 is out, should the automatic 7-day purge of deleted protocols come back?
@@ -55,6 +59,7 @@
   - C — Purge everything after moving dose logs off the cloud cascade. Largest change, highest risk.
 - **Recommendation: A.** With "Delete forever" and multi-select already there, an automatic purge adds risk and no user value; storage is negligible ("never destroy on a maybe").
 - **Related:** DV-125, DV-023.
+- **Also asked as:** PRD OPEN-68; flows README #17 (flow 05 §12 recommended B; this list recommends A for the reason above).
 
 #### OPEN-05 — Enforce the 3-protocol free limit on the server?
 - **Question.** Should the server refuse a 4th active protocol for a free user?
@@ -65,6 +70,7 @@
   - C — B plus a downgrade rule for lapsed Premium.
 - **Recommendation: A.** No revenue need (20–50k users in 5 years); a server refusal of an offline-created protocol risks losing a health record; the bypass needs two devices or an old build.
 - **Related:** DV-095.
+- **Also asked as:** PRD OPEN-15 (limit part; the lapse part is DL-24); TRD §9.1 Q6 (protocol-limit part; the food-access part is AD-16) and R-16; flows README #7 for the lapse (DL-24).
 
 ### Reminders
 
@@ -78,6 +84,7 @@
   - D — No change.
 - **Recommendation: A now, B as its own item next.** A closes the silent failure cheaply; B is the only real guarantee and deserves its own spec.
 - **Related:** DV-097.
+- **Also asked as:** PRD OPEN-19; TRD §9.1 Q7 and R-15; flows README #18 (flow 06 §12).
 
 ### Food log, reality check, Progress
 
@@ -90,6 +97,7 @@
   - C — Finishes by itself as built, but the start sheet's weight IS that day's weigh-in (a different number updates the weigh-in after a confirm, like Your numbers).
 - **Recommendation: C.** It keeps the flow you have been testing, and one weight has one home (A-54).
 - **Related:** DV-061, DV-058.
+- **Also asked as:** PRD OPEN-25 (its judgement calls go to the deviation list, AD-52); flows README #23 and #24 (flow 08 §12).
 
 #### OPEN-08 — Should "Stop" erase earlier results?
 - **Question.** When the user stops the current reality check, should every earlier measured result be deleted too?
@@ -100,6 +108,7 @@
   - C — A, plus a separate "Delete my results" that asks first.
 - **Recommendation: A (or C if you want a way to wipe).** Never destroy on a maybe; a past measurement is user data.
 - **Related:** DV-004.
+- **Also asked as:** PRD OPEN-27; flows README #22 (flow 08 §12).
 
 #### OPEN-09 — A reality check whose math gives no number
 - **Question.** What should happen when the weigh-in and the 7 food days are complete but the math cannot give a saved result?
@@ -110,6 +119,7 @@
   - C — As built.
 - **Recommendation: A.** A weight that does not move while eating X kcal is a measurement of maintenance; a check that never ends breaks the daily loop. A changes a health number shown, so the energy-math check runs before the build.
 - **Related:** DV-104, DV-058.
+- **Also asked as:** PRD OPEN-28 (the "ready" wording itself is DL-26); flows README #25 (flow 08 §12).
 
 ### Dose accumulation curve
 
@@ -122,6 +132,7 @@
   - C — Editing the dose ends the old run and starts a new one (like Restart). Heavy for users; splits the history.
 - **Recommendation: B; A as a stop-gap if B cannot be built well in time.** An honest journal shows what was planned at the time; the edit already writes only what changed, so the moment of the change is known.
 - **Related:** DV-005.
+- **Also asked as:** PRD OPEN-33; flows README #28, first half (flow 10 §12).
 
 #### OPEN-11 — Should skipped and missed doses lower the curve?
 - **Question.** Should the curve use the doses actually logged for the past, instead of the plan?
@@ -132,6 +143,7 @@
   - C — Planned curve, but skipped / missed dose ticks are drawn differently (hollow); the number does not change.
 - **Recommendation: B after the pharmacometrics review; C until then.** The user's own log is the honest source for the past, and the curve is the flagship.
 - **Related:** DV-072.
+- **Also asked as:** PRD OPEN-32; flows README #28, second half (flow 10 §12).
 
 ### My Body
 
@@ -144,6 +156,7 @@
   - C — Drop the feature; correct the strings.
 - **Recommendation: A.** It is approved, the copy already promises it, and it is the free plan's only way to keep a lab journal after the 3 monthly scans.
 - **Related:** DV-107.
+- **Also asked as:** PRD OPEN-39; TRD §9.1 Q9 and R-21; flows README #30 (flow 11 §12).
 
 #### OPEN-13 — The "Bloodwork due" alert
 - **Question.** Should the app keep telling users their bloodwork is "due" after 6 months?
@@ -155,6 +168,7 @@
   - D — Remove the alert.
 - **Recommendation: B.** It keeps the useful nudge without the app deciding what is due; the regulatory reviewer confirms the wording.
 - **Related:** DV-111.
+- **Also asked as:** PRD OPEN-44; flows README #32 (flow 11 §12).
 
 #### OPEN-14 — Two small My Body additions (not approved anywhere)
 - **Question.** (a) Show "N of 3 scans used this month" near Upload? (b) Add "Change the date of this test" (moves every value of the test at once)?
@@ -162,6 +176,7 @@
 - **Options per item.** Yes in 1.3.0 / Yes in the next build / No.
 - **Recommendation: both yes, next build.** Neither is in 1.3.0's scope; both remove a real annoyance.
 - **Related:** DV-110.
+- **Also asked as:** PRD OPEN-42 and OPEN-43; flows README #33 (flow 11 §12).
 
 ### Account and Premium
 
@@ -174,6 +189,145 @@
   - C — No change.
 - **Recommendation: A.** Store guidance expects Restore to be easy to find and cancellation reachable. (Separately, by logic DL-60, the delete-account sheet warns that the store subscription keeps billing.)
 - **Related:** DV-112, DV-087.
+- **Also asked as:** PRD OPEN-48 (its delete-account warning part is DL-60); flows README #36 (flow 13 §12).
+
+---
+
+## Where every earlier question went (PRD, TRD, flows)
+
+The PRD, the TRD and the flows were written in parallel and each kept its own question list. Those lists are retired; every question is mapped here to its canonical ID. Where an earlier document recommended differently, the reason for the canonical answer is in the OPEN item or the AD / DL line.
+
+### PRD (former §7, OPEN-1 … OPEN-69)
+
+| Former PRD ID | Topic | Canonical |
+|---|---|---|
+| PRD OPEN-1 | Site-question age limit | DL-01 |
+| PRD OPEN-2 | Skip: reminders and Undo | DL-08 |
+| PRD OPEN-3 | Today changes built inside the approved proposal (grok/184) | AD-38 (grey tag) · AD-52 (the rest) |
+| PRD OPEN-4 | "As-needed doses are excluded" | DL-65 |
+| PRD OPEN-5 | One meaning of streak and missed | DL-02, DL-03 (AD-07) |
+| PRD OPEN-6 | Undo / Dose-log delete re-arms reminders | DL-09 |
+| PRD OPEN-7 | Tracker visual and ring animations | AD-44 · AD-52 (gauge visual) |
+| PRD OPEN-8 | Daily caps and late doses (A-35) | DL-67 |
+| PRD OPEN-9 | Open site questions device-only | AD-34 |
+| PRD OPEN-10 | Courses with a total number of doses | OPEN-03 |
+| PRD OPEN-11 | Vial lifecycle holes (A-08 F5–F7) | DL-22 (1, 2, 4) · OPEN-01 (3) |
+| PRD OPEN-12 | Editing a powder vial after creation | DL-15 (capacity) · OPEN-01 (mix date, window) |
+| PRD OPEN-13 | Deliberate End + empty-vial prompt picture | AD-11 |
+| PRD OPEN-14 | Oral supply warnings | OPEN-02 |
+| PRD OPEN-15 | Free limit after a lapse; where enforced | DL-24 · OPEN-05 |
+| PRD OPEN-16 | Half-filled wizard on a kill | AD-35 |
+| PRD OPEN-17 | Protocols judgement calls (grok/199) | AD-52 |
+| PRD OPEN-18 | Delete-a-dose layout | AD-52 |
+| PRD OPEN-19 | iPhone reminders when never opened | OPEN-06 |
+| PRD OPEN-20 | Persistent reminders copy | DL-48 |
+| PRD OPEN-21 | "Not now" for notification permission | AD-27 |
+| PRD OPEN-22 | One "blocked" rule | DL-45 |
+| PRD OPEN-23 | Does finishing a check end the 20:00 question (A-24) | DL-51 |
+| PRD OPEN-24 | "Not recorded" day | DL-66 |
+| PRD OPEN-25 | Self-finishing check and Journey part 8 | OPEN-07 · AD-52 (judgement calls) |
+| PRD OPEN-26 | Grace week | AD-14 |
+| PRD OPEN-27 | Stop deletes measured history? | OPEN-08 |
+| PRD OPEN-28 | Today wording when ready but locked / unsavable | DL-26 · OPEN-09 |
+| PRD OPEN-29 | Measured burn hidden when inputs incomplete | AD-45 |
+| PRD OPEN-30 | AI answer chips and meal slots | AD-53 |
+| PRD OPEN-31 | "Earlier day" range | AD-54 |
+| PRD OPEN-32 | Missed / skipped doses dip the curve | OPEN-11 |
+| PRD OPEN-33 | Edited dose rewrites the past curve | OPEN-10 |
+| PRD OPEN-34 | Fixed dose hours on the curve | DL-31 |
+| PRD OPEN-35 | Enanthate / Nandrolone time-to-peak | DL-37 |
+| PRD OPEN-36 | Future PK split | AD-47 |
+| PRD OPEN-37 | Blend component lines | DL-32 |
+| PRD OPEN-38 | Second curve default | DL-36 |
+| PRD OPEN-39 | Manual lab entry | OPEN-12 |
+| PRD OPEN-40 | Lab charts Premium or free | AD-24 |
+| PRD OPEN-41 | Favourites and labels to synced tables | AD-02 |
+| PRD OPEN-42 | Change a test's date | OPEN-14 (b) |
+| PRD OPEN-43 | Show the scan budget | OPEN-14 (a) |
+| PRD OPEN-44 | "Bloodwork due" after 6 months | OPEN-13 |
+| PRD OPEN-45 | Vaccine next-due reminders | DL-44 |
+| PRD OPEN-46 | Lab reference-range band | AD-55 |
+| PRD OPEN-47 | AI consent per account + withdraw | DL-55 (server proof: AD-51) |
+| PRD OPEN-48 | Subscription management in Settings | OPEN-15 · DL-60 (delete warning) |
+| PRD OPEN-49 | Display name from Google / Apple | DL-57 |
+| PRD OPEN-50 | Offline cold start, expired token | DL-54 |
+| PRD OPEN-51 | Reinstall behaviour | DL-63 |
+| PRD OPEN-52 | Lawyer items | AD-51, AD-43 |
+| PRD OPEN-53 | Analytics | DL-62 · AD-57 · AD-51 |
+| PRD OPEN-54 | Apple delete: residual data on a second device | AD-04 |
+| PRD OPEN-55 | A-116 scope | AD-31 |
+| PRD OPEN-56 | Unsigned checklists and open deviations | AD-42 · AD-52 |
+| PRD OPEN-57 | PT name of the Dose log | AD-59 |
+| PRD OPEN-58 | Language-aware number parsing | DL-69 |
+| PRD OPEN-59 | Minor confirmations (FX-11, pop-up style, A-33) | AD-60 |
+| PRD OPEN-60 | Who users are pointed to | AD-61 |
+| PRD OPEN-61 | iPad / supportsTablet | DL-70 |
+| PRD OPEN-62 | Landscape everywhere | AD-62 |
+| PRD OPEN-63 | Hard-coded Premium accounts | AD-58 |
+| PRD OPEN-64 | Target ETA staleness, body-fat targets | DL-68 |
+| PRD OPEN-65 | Existing false Missed rows | DL-71 |
+| PRD OPEN-66 | My Body small differences | AD-52 |
+| PRD OPEN-67 | Scan numbers in My Body copy | AD-56 |
+| PRD OPEN-68 | Purging soft-deleted protocols again (A-84) | OPEN-04 |
+| PRD OPEN-69 | Edit "What you track" | DL-58 |
+
+### TRD §9.1 (nine questions)
+
+| TRD Q | Topic | Canonical |
+|---|---|---|
+| 1 | Deletes across devices: server tombstones (R-01) | DL-72 (the migration itself needs the founder's go) |
+| 2 | No-time and fewer-times protocols (R-03) | DL-06 |
+| 3 | Courses: keep with a UI, or retire (R-03 / BR-12) | OPEN-03 |
+| 4 | Report streak / adherence = Today; lift the 31-day cap (R-09) | DL-02, DL-03 |
+| 5 | Skip stops reminders + Undo (R-17) | DL-08 |
+| 6 | Server enforcement of food access and the 3-protocol limit (R-16) | AD-16 (food) · OPEN-05 (limit) |
+| 7 | iPhone reminders without opening the app (R-15) | OPEN-06 |
+| 8 | Recon vial edit / manual new vial (R-13, A-08); oral low supply (R-42) | OPEN-01 · DL-22 · OPEN-02 |
+| 9 | Lab charts Premium; manual lab entry (R-21) | AD-24 · OPEN-12 |
+
+### Flows (README round of 36, plus one question asked only in a flow)
+
+| Flows # | Topic | Flow | Canonical |
+|---|---|---|---|
+| 1 | AI consent per device or per account | 01, 11, 12 | DL-55 (server proof: AD-51) |
+| 2 | OS prompt after "Not now" | 01, 06 | AD-27 |
+| 3 | Year-only 18+ test | 01 | AD-43 |
+| 4 | Doses already taken from this vial | 02, 04 | OPEN-01 |
+| 5 | Half-filled protocol after a kill | 02 | AD-35 |
+| 6 | Recon dose changed mid-vial | 02, 04 | DL-15 |
+| 7 | Lapsed Premium with more than 3 active | 02, 13 | DL-24 |
+| 8 | Skip cancels reminders + Undo bar | 03 | DL-08 (cancel yes, no Undo bar) |
+| 9 | "All caught up" with a skip | 03 | DL-12 |
+| 10 | Grey "reminder" tag before Due | 03 | AD-38 |
+| 11 | Tracker streak cap; report streak rule | 03, 12 | DL-03, DL-02 |
+| 12 | Manual recon New vial; rtu New vial as a new row | 04 | DL-22 |
+| 13 | Oral bottles: low rule, interval-aware days | 04 | OPEN-02 (days left: DV-020 bug) |
+| 14 | Pictures: End protocol; "Protocol finished" with Later | 04, 05 | AD-11 |
+| 15 | Days-left colour above 7 days | 04 | DL-16 |
+| 16 | Course total reached | 05 | OPEN-03 |
+| 17 | Resume the 7-day purge for 1.3.0+ deletes | 05 | OPEN-04 |
+| 18 | iPhone users who never open the app | 06 | OPEN-06 |
+| 19 | Settings "blocked" neutral when reminders are off | 06 | DL-45 |
+| 20 | Persistent reminders copy | 06 | DL-48 |
+| 21 | Drop the "not recorded" mark | 07 | DL-66 |
+| 22 | Stop keeps or deletes results | 08 | OPEN-08 |
+| 23 | One start weight | 08 | OPEN-07 |
+| 24 | Confirm the self-finishing check | 08 | OPEN-07 |
+| 25 | Today lines for locked / unsavable results | 08 | DL-26 · OPEN-09 |
+| 26 | Lower date bound for a past weigh-in | 09 | DL-73 |
+| 27 | Curve dose times vs the fixed grid | 10 | DL-31 |
+| 28 | Dose edits forward only; count only logged doses | 10 | OPEN-10 · OPEN-11 |
+| 29 | Blend lines solid past | 10 | DL-32 |
+| 30 | Manual lab entry | 11 | OPEN-12 |
+| 31 | Lab charts Premium or free | 11, 13 | AD-24 |
+| 32 | Bloodwork due | 11 | OPEN-13 |
+| 33 | "x of 3 scans used" | 11 | OPEN-14 |
+| 34 | Delete account warns about billing | 12 | DL-60 |
+| 35 | Export includes profile and preferences | 12 | DL-42 |
+| 36 | Manage subscription + Restore in Settings | 13 | OPEN-15 |
+| 07 §12 Q2 | Food "Remove entry" asks first | 07 | AD-01 |
+
+Flow 14 asked no question (A-116 waits by the founder's own instruction, AD-31).
 
 ---
 
@@ -189,7 +343,7 @@ Each item: the decision, its source, and the DIVERGENCES rows it settles.
 | AD-04 | When the server confirms the account was deleted or the session revoked, scheduled reminders are cancelled; a network failure never cancels anything. | decisions.md:599 (2026-10-07) | DV-009 |
 | AD-05 | A real sign-out clears unsaved drafts. | decisions.md:378 (BK-14) | DV-081 |
 | AD-06 | Rings: a late dose matches its own slot within ± half the interval; an extra log never adds. | decisions.md:144 (2026-09-29) | DV-030 |
-| AD-07 | A streak counts doses in a row, never days (founder 2026-10-05). Missing from decisions.md — add it. | lib/doseStreak.js:2; TodayScreen.js:610 | DV-032, DV-180 |
+| AD-07 | A streak counts doses in a row, never days (founder 2026-10-05). Added to decisions.md on 2026-10-12 (it was missing). | lib/doseStreak.js:2; TodayScreen.js:610; commit b215b32 | DV-032, DV-180 |
 | AD-08 | An alert that names one protocol opens that protocol. | decisions.md:146 (2026-09-29) | DV-089 |
 | AD-09 | Copy must be true: the delete sheet does not promise "7 days" and says the doses leave the Dose log while deleted; the history question names the compound; Restart with the same container moves it unchanged. | decisions.md:544 (2026-10-04); decisions.md:614 | DV-023, DV-024, DV-091 |
 | AD-10 | The "Same dose?" answer can be corrected: asked again when an edit moves the start earlier; "Yes" clears `history_from`. | decisions.md:543 (2026-10-04) | DV-091 |
@@ -213,7 +367,7 @@ Each item: the decision, its source, and the DIVERGENCES rows it settles.
 | AD-28 | The in-app privacy policy (×6) has the same content as the website. | features.md:257 (A-117) | DV-085 |
 | AD-29 | The 18+ and profile gates can be answered offline (saved later) and offer "Sign out anyway". | decisions.md:542 (A-94) | DV-114 |
 | AD-30 | "Continue with Apple" also on Android; the server setup steps are the founder's. | decisions.md:483 ("3 sim"); premium-and-auth.md manual setup | DV-115 |
-| AD-31 | A-116 (Fold: every tap and notification on the right page) waits for the PRD / TRD / flows. | decisions.md:639 (2026-10-12) | DV-117 |
+| AD-31 | A-116 (Fold: every tap and notification on the right page) waits for the PRD / TRD / flows, then resumes for 1.3.0 ("Vamos resolver tudo. Sem pendência" — no production submit while an item is open). | decisions.md:639 (2026-10-12); decisions.md:634 (2026-10-07) | DV-117 |
 | AD-32 | Concurrent multi-device use is not a real use case (A-48 parked). | decisions.md:199 | DV-041 |
 | AD-33 | The remembered curve view is device-local and not synced. | decisions.md:208, :380 | DV-159 |
 | AD-34 | Open site questions stay on the device only, kept until answered. | decisions.md:379 | DV-137 |
@@ -233,7 +387,20 @@ Each item: the decision, its source, and the DIVERGENCES rows it settles.
 | AD-48 | The vial-finished prompt follows the write on every injectable take path. | decisions.md:152–153 (S-25); fixes-1.2.5.md FX-22 | DV-038 |
 | AD-49 | iOS and Play have a configured 7-day trial; a trial is claimed only when the store says the person is eligible. | decisions.md:451, :478; premium-and-auth.md PA-9 | DV-126 |
 | AD-50 | The automatic purge stays paused in 1.3.0 (A-84, revisit after). | decisions.md:506 | DV-125 (OPEN-04 decides the "after") |
-| AD-51 | Counsel items stay with counsel: server proof of consent (A-95), GDPR Art. 9 wording, default-on analytics under ePrivacy. | decisions.md:388, :570; features.md A-95 | DV-007, DV-167, DV-168 |
+| AD-51 | Counsel items stay with counsel: server proof of consent (A-95), GDPR Art. 9 wording, the Anthropic DPA, the crisis-resource policy, default-on analytics under ePrivacy. | decisions.md:388, :570; features.md A-95 | DV-007, DV-167, DV-168 |
+| AD-52 | Builder judgement calls and small differences from an approved picture are not founder questions: they go on the one deviation list he eyeballs on the test build and signs before the store build (A-97). Carried there: the Today items built inside the approved Today proposal (alert "Remove" gone, snooze "Tomorrow / In 3 days", no "Add site" on the toast, the "Injection site" title in the Dose-log editor, dose-notes explainer hidden, notification snoozes "In 1 hour / Tomorrow"); the tracker gauge visual; the delete-a-dose layout A; the Protocols judgement calls of grok/199; the Journey part 8 judgement calls of grok/205; the My Body small differences (warning triangle, no icon on "imported", 22 pt preview title); the unsigned checklists (fold-right-page, premium-and-auth, admin-panel). | decisions.md:554 (2026-10-04 "Open deviations: the founder eyeballs them on the test build and signs one list"); decisions.md:142 (Today proposal approved as shown) | DV-118 |
+| AD-53 | AI-suggested short answer chips (≤ 40 characters) in food follow-ups are allowed and there are no strict meal slots; STATE.md's "pending" line is stale. | decisions.md:319, :245; food-log.md FL-16, FL-4 (signed 2026-09-27) | — |
+| AD-54 | "Earlier day" in Fix this entry covers 2–7 days back. | decisions.md:244 (food is logged up to 7 days back, FL-2); Today = 0, Yesterday = 1 | — |
+| AD-55 | Lab values never show a reference range, band, colour or verdict; the unused live columns `biomarkers.reference_min/max/status` are never written. | decisions.md:266; CLAUDE.md AI hard line | DV-119 |
+| AD-56 | My Body's scan line shows each plan's real number (3 free / 20 Premium); this later line replaces S-24's "no number for Premium" on that screen. | decisions.md:544 (2026-10-04) over decisions.md:104 (2026-10-01) | — |
+| AD-57 | Analytics wording becomes "not linked to your account" (the install id is pseudonymous), with the web + in-app policy rewrite and the Apple / Play labels (Device ID + Product interaction, not linked) in the store build. | decisions.md:570 (2026-10-05) | DV-190 |
+| AD-58 | The founder's own extra accounts keep Premium through `DEVELOPER_EMAILS`; Test03 gets Premium only through a temporary RevenueCat promo. No move to promotional grants is scheduled. | decisions.md:290 | — |
+| AD-59 | The PT name of the Dose log is "Histórico" (the grok/227 question "PT 'Registro'" was answered by the 2026-10-03 "Aprovado / Siga" block, grok/228). | decisions.md:88, Conflict 27; grok/227, grok/228 | DV-193 |
+| AD-60 | Already in the ledger: the supply push fires at 3 doses left (one rule, decisions.md:148); the vial-finished pop-up style is the approved Today proposal's (decisions.md:142); the A-33 energy test is closed by the fully-green-suite rule (decisions.md:341). | decisions.md:142, :148, :341 | — |
+| AD-61 | Users are pointed to "a health professional"; gym body-composition scans are a measurement source, not advice. | decisions.md:316, :458 | — |
+| AD-62 | Landscape stays on every screen (content in a centred column); no portrait revert. | decisions.md:77 (founder 2026-09-11 "do it correctly, take your time") | — |
+| AD-63 | `parse-food-next` is removed from production (founder "2 sim" 2026-10-03, RL-1). | decisions.md:513 | DV-188 |
+| AD-64 | Honest paywall: only real Premium features; the reality check is sold as "reality-check results", never "progress tracking" (weigh-ins, their chart and Progress are free). | decisions.md:283, :107, :229 | DV-186 |
 
 ## Decided by logic — no question to the founder
 
@@ -241,9 +408,9 @@ One line of reason each. The founder may override any line.
 
 | ID | Decision | Reason | Rows |
 |---|---|---|---|
-| DL-01 | Site questions are never dropped for their age (code as built); decisions.md:459 and the FX-25 evidence are corrected. | The 2026-10-03 "let go after 7 days" line misread FX-25; the standing founder rule "never lose user-entered data" (and S-25's "never lose a Taken") outranks it. | DV-175 |
-| DL-02 | The report's streak uses `doseStreak` and its adherence uses the rings' slots. | One concept, one number: the report goes to a provider and must match what the user sees (AD-07). | DV-032, DV-033 |
-| DL-03 | The Today tracker streak looks back 365 days. | The founder gave the protocol streak a year "so a weekly protocol keeps counting"; the same reason applies to the overall streak. | DV-034 |
+| DL-01 | Site questions are never dropped for their age (code as built); decisions.md:459 and the FX-25 evidence are corrected. | The founder's S-25 line says open site questions are "kept until answered" (decisions.md:379, grok/145); the later 2026-10-03 "let go after 7 days" line (decisions.md:459) was a by-logic reading of FX-25, and "never lose user-entered data" outranks it. | DV-175 |
+| DL-02 | The report's streak uses `doseStreak` and its adherence uses the rings' slots; the week circles' "missed" and the report's Missed rows are labelled by what each counts. | One concept, one number: the report goes to a provider and must match what the user sees (AD-07). | DV-032, DV-033 |
+| DL-03 | The Today tracker streak follows the same rule (doses in a row over due days) and looks back 365 days (no 31-day cap). | AD-07 is about the word "streak", not one card; the founder gave the protocol streak a year "so a weekly protocol keeps counting", and the same reason applies to the overall streak. | DV-034 |
 | DL-04 | One "due today" owner for header, card, ring and streak. | Today counts doses (2026-07-23); three answers on one screen is the A-118 class of bug. | DV-029 |
 | DL-05 | The Missed scan covers ended protocols up to their end. | Ended protocols keep their history (A-83); rings already count them. | DV-031 |
 | DL-06 | Protocols with no or fewer reminder times use one slot list everywhere (the same default the form writes). | The user already receives the 08:00 reminder; every other surface must agree with what the phone does. | DV-028 |
@@ -307,84 +474,116 @@ One line of reason each. The founder may override any line.
 | DL-64 | Add the `updated_at` trigger to `reality_checks` (production SQL with the founder's go). | The pull depends on it; every other synced table has it. | DV-088 |
 | DL-65 | "As-needed doses are excluded" is a note, no code. | The app has no as-needed protocol type. | DV-133 |
 | DL-66 | The `not_recorded` marker is retired (legacy rows still read); FL-3 amended. | FL-47's "Just close the day" is today's way to break a run on purpose. | DV-151 |
+| DL-67 | One daily cap on every path = the doses expected that day (Today, notification action, Dose log); a snoozed dose tapped after slot + 12 h is logged as today. | One owner for "due today" (DL-04); A-40 defines "yesterday" only inside slot + 12 h, and S-25 makes the dose time the tap time outside it. | DV-029 |
+| DL-68 | The target ETA has no extra staleness cutoff: it always names the weigh-in window it is computed from; body-fat-only targets are supported. | The ETA was approved "labelled with its weigh-in window" and the target as "weight and/or body-fat" (decisions.md:241): an old window is shown, never hidden or guessed. | — |
+| DL-69 | Typed numbers are parsed in the app language (pt/es/fr/de/it: comma = decimal, "5.000" = 5000; English as in CLAUDE.md), via `parseDecimal(text, language)`. | The founder approved displaying numbers in the app language (decisions.md:92) and prefilled fields must round-trip; a field that shows "86,0" must read "86,0" back. | — |
+| DL-70 | iPad stays off (`supportsTablet: false`) for 1.3.0; enabling it is a registry item for a later build. | 1.3.0's scope is closed (evolution rule 2); iPad was never approved, and the foldable book layout is the approved large-screen work. | — |
+| DL-71 | Existing false Missed rows of real users are not migrated away; users can correct or delete them in the Dose log; Test03's rows stay untouched. | They cannot be told apart from real misses safely — never destroy on a maybe (CLAUDE.md); decisions.md:197, :387. | — |
+| DL-72 | A delete reaches every device: every synced table gets a positive tombstone instead of a cloud hard DELETE (TR-SYNC-2). The production migration still needs the founder's go, as every migration does. | Every delete is a deliberate user act (AD-01) and a deleted dose that still counts on another phone is a wrong health record; the founder already chose positive tombstones for protocols (decisions.md:519-531). | DV-182 |
+| DL-73 | "+ Add a past weigh-in" accepts any past date back to the profile's birth year, never a future date. | Past weigh-ins were approved with no limit (decisions.md:241) and serve history before install; only an impossible date is refused (same rule as mix dates, DL-18). | DV-194 |
+| DL-74 | Dose counters sync as events and pushes carry only the fields changed since the last sync (TR-SYNC-3). | Never lose user-entered data: a whole-row push from a stale copy reverts another device's edit, and two offline doses must count as two. | DV-183 |
 
 ---
 
 ## Versão em português — para mandar ao fundador numa rodada só
 
-> Oi! Fechei o levantamento completo do app (8 áreas, 181 pontos). A grande maioria já está respondida pelas suas decisões anteriores ou pela lógica do produto — eu aplico sem te perguntar. Sobraram 15 perguntas que só você pode responder (gosto, dinheiro, risco ou escopo). Para cada uma deixo minha recomendação; se concordar com tudo, basta responder "siga as recomendações". Se quiser mudar alguma, responda só o número e a letra (ex.: "3 C, 7 A").
+Cobre o PRD, o TRD e os fluxos desenhados (uma rodada só, como manda o CLAUDE.md).
+
+> Oi! Terminei o levantamento completo do app para o PRD, o TRD e os 14 fluxos desenhados (8 áreas, 195 pontos registrados). Antes de te perguntar qualquer coisa, conferi tudo contra as suas decisões anteriores e a lógica do produto:
+> - **64 pontos** já estavam respondidos por você (no registro de decisões ou num checklist assinado) — eu só aplico.
+> - **74 pontos** se resolvem pela lógica do produto (por exemplo: "nunca perder dado do usuário", "um termo por conceito", "lembrete até a pessoa apagar o protocolo", "na página da direita do Fold só se acrescenta, nunca se repete"). Deixei cada um registrado em uma linha, com o motivo, no `docs/decisions.md` — se discordar de algum, é só dizer que eu mudo.
+> - Sobraram **15 perguntas** que só você pode responder, porque são de gosto, dinheiro, risco ou escopo.
+>
+> Para cada pergunta deixo o contexto, as opções e a minha recomendação. Se concordar com tudo, basta responder **"siga as recomendações"**. Se quiser mudar alguma, mande só o número e a letra (ex.: "3 C, 7 A"). Nada disso entra em código antes da sua resposta.
 >
 > **Protocolos e estoque**
 >
-> **1. Corrigir o frasco em uso.** Hoje a data em que a pessoa misturou o frasco e a validade (30 dias) são digitadas uma vez e nunca mais podem ser corrigidas. E um protocolo novo sempre começa o frasco com zero doses usadas, mesmo que a pessoa já esteja no meio dele. Um erro de digitação deixa errado o "faltam X doses", o "vence em X dias" e o alerta de estoque, até acabar o frasco.
-> A) Botão "Editar frasco" na página do protocolo (data da mistura, validade, doses já usadas). B) Só perguntar "quantas doses já usou?" quando o frasco ou o protocolo começou no passado. C) Deixar como está.
-> Minha recomendação: **A** — os alertas do próprio app dependem desses números; o que a pessoa informa tem que poder ser corrigido num lugar só.
+> **1. Corrigir o frasco que está em uso.**
+> *Contexto:* a data em que a pessoa misturou o frasco e a validade dele (30 dias, por padrão) são digitadas uma vez só e depois não dá mais para corrigir. E todo protocolo novo começa o frasco com zero doses usadas, mesmo quando a pessoa já está no meio dele. Um erro de digitação ou um frasco pela metade deixa errados o "faltam X doses", o "vence em X dias", a etiqueta "Fora da validade" e o alerta de estoque — até o frasco acabar.
+> *Opções:* **A)** botão "Editar frasco" na página do protocolo, para corrigir a data da mistura, a validade e as doses já usadas (te mostro o desenho antes). **B)** só perguntar "quantas doses você já usou deste frasco?" quando o protocolo ou o frasco começa no passado — resolve o caso mais comum, mas não corrige erro de digitação. **C)** deixar como está.
+> *Recomendação:* **A** — os alertas do próprio app saem desses números; o que a pessoa informa tem que poder ser corrigido num lugar só.
 >
-> **2. Aviso de estoque baixo para cápsulas e comprimidos.** O aviso de "acabando" (faltam 1 a 3 doses) existe só para frascos injetáveis. Um pote de cápsulas pode acabar sem nenhum aviso.
-> A) Mesma regra para potes: alerta em Hoje, notificação e selo em Protocolos. B) Só uma linha âmbar no card ("faltam N porções"), sem alerta. C) Deixar como está.
-> Minha recomendação: **A** — uma regra só para o mesmo conceito, e acabar o suplemento importa tanto quanto acabar o frasco.
+> **2. Aviso de estoque baixo para cápsulas, comprimidos e pó.**
+> *Contexto:* o aviso de "acabando" (faltam de 1 a 3 doses) existe só para frascos injetáveis — no alerta de Hoje, na notificação e no selo da tela Protocolos. Um pote de cápsulas pode acabar sem nenhum aviso. (A conta de "dias de estoque" dos potes tomados em dias alternados também está errada; isso é bug e eu corrijo de qualquer jeito.)
+> *Opções:* **A)** a mesma regra dos frascos para os potes: alerta em Hoje, notificação e selo. **B)** só uma linha âmbar no card ("faltam N porções"), sem alerta nem notificação. **C)** deixar como está.
+> *Recomendação:* **A** — uma regra só para o mesmo conceito; ficar sem o suplemento importa tanto quanto ficar sem o frasco.
 >
-> **3. Quando um ciclo com número fixo de doses termina.** Você aprovou (07/10) que protocolos com total de doses param os lembretes quando o ciclo acaba. Mas hoje ninguém consegue mais definir esse total no formulário — só protocolos antigos têm. Nesses, o lembrete para, mas a tela Hoje continua pedindo a dose, mostra "Dia 12 de 12" para sempre e vai acumulando doses "perdidas".
-> A) No fim do ciclo o protocolo encerra sozinho, sem perguntar. B) No fim do ciclo o app para de esperar doses em todo lugar e pergunta em Hoje: "Ciclo concluído — encerrar {nome}?" (Encerrar / Continuar). C) Ignorar o total em todo lugar (contradiz o que você aprovou).
-> E: quer o campo "total de doses" de volta no formulário? Sim / Não.
-> Minha recomendação: **B, sem trazer o campo de volta por enquanto** — pergunta antes de encerrar, igual ao "Ainda está usando?".
+> **3. O que acontece quando termina um ciclo com número fixo de doses.**
+> *Contexto:* você aprovou em 07/10 que protocolos com total de doses param os lembretes quando o ciclo termina. Só que o formulário não deixa mais ninguém definir esse total — só protocolos antigos têm. Nesses, o lembrete para, mas Hoje continua pedindo a dose, mostra "Dia 12 de 12" para sempre e vai acumulando doses "perdidas" até aparecer o "Ainda em andamento?".
+> *Opções:* **A)** no fim do ciclo o protocolo é encerrado sozinho, sem perguntar (quem continua além do previsto perde os lembretes sem aviso). **B)** no fim do ciclo o app para de esperar doses em todo lugar (como os lembretes) e Hoje pergunta: "Ciclo concluído — encerrar {nome}?" com Encerrar / Continuar (Continuar tira o total). **C)** ignorar o total em todo lugar e manter os lembretes (vai contra o que você aprovou em 07/10).
+> E uma pergunta junto: quer o campo "total de doses" de volta no formulário? **Sim / Não.**
+> *Recomendação:* **B, sem trazer o campo de volta por enquanto** — pergunta antes de encerrar, igual ao "Ainda em andamento?", e respeita a sua regra de lembrar até a pessoa encerrar.
 >
-> **4. Lixeira de protocolos ("Excluídos recentemente").** A limpeza automática depois de 7 dias está pausada na 1.3.0 por segurança (exclusões antigas não dão para diferenciar). Já existe "Excluir para sempre" com seleção múltipla.
-> A) Nunca limpar sozinho: fica lá até a pessoa excluir para sempre. B) Voltar a limpar depois de 7 dias só o que for excluído a partir da 1.3.0. C) Voltar a limpar tudo (maior risco de apagar doses antigas).
-> Minha recomendação: **A** — a limpeza automática só traz risco; a pessoa já tem como esvaziar quando quiser.
+> **4. "Excluídos recentemente" deve voltar a se esvaziar sozinho?**
+> *Contexto:* a limpeza automática depois de 7 dias está pausada na 1.3.0 por segurança: os protocolos apagados pelo antigo botão "Sim, terminou" não dá para diferenciar das exclusões de propósito, e a limpeza levaria junto o histórico de doses deles. Já existe "Excluir para sempre" com seleção múltipla.
+> *Opções:* **A)** nunca limpar sozinho: o protocolo fica lá até a pessoa excluir para sempre (e o aviso de exclusão diz exatamente isso). **B)** voltar a limpar depois de 7 dias só o que for excluído a partir da 1.3.0 (dá para marcar). **C)** voltar a limpar tudo, depois de tirar as doses da exclusão em cascata na nuvem — a mudança maior e mais arriscada.
+> *Recomendação:* **A** — com "Excluir para sempre" já pronto, a limpeza automática só traz risco e nenhum ganho para a pessoa; o espaço ocupado é desprezível.
 >
-> **5. Limite de 3 protocolos no plano grátis verificado no servidor?** Hoje o limite é conferido só no celular; com dois aparelhos ou uma versão antiga dá para passar de 3. (Quem deixa de pagar o Premium continua com todos os protocolos ativos — senão os lembretes parariam.)
-> A) Continuar só no celular. B) O servidor recusa o 4º protocolo — mas, como o app funciona offline, a recusa chegaria depois, com o protocolo já criado no celular (risco de perder registro). C) B + regra de rebaixamento para quem deixou de pagar.
-> Minha recomendação: **A** — não há necessidade de receita agora e o risco de perder um registro de saúde não compensa.
+> **5. Conferir no servidor o limite de 3 protocolos do plano grátis?**
+> *Contexto:* hoje o limite é conferido só no celular. Com dois aparelhos ou uma versão antiga do app dá para passar de 3. (Quem deixa de pagar o Premium continua com todos os protocolos ativos — senão os lembretes parariam; isso já decidi pela lógica.)
+> *Opções:* **A)** continuar conferindo só no celular. **B)** o servidor recusa o 4º protocolo — mas, como o app funciona offline, a recusa chegaria depois, com o protocolo já criado no celular, e um registro de saúde ficaria no limbo. **C)** B + uma regra de rebaixamento para quem deixou de pagar.
+> *Recomendação:* **A** — não há necessidade de receita agora, e o risco de perder um registro de saúde não compensa um desvio raro.
 >
 > **Lembretes**
 >
-> **6. iPhone de quem para de abrir o app.** Seu princípio (07/10): o app avisa enquanto a pessoa estiver tomando, abrindo o app ou não. No Android isso já está resolvido. No iPhone os lembretes ficam agendados por no máximo 10 dias (limite da Apple) e depois simplesmente param, sem aviso.
-> A) Manter como está, mas a última notificação do período vira um aviso "Abra o DoseTrace para continuar recebendo seus lembretes", e Hoje avisa quando estiver acabando. B) Notificações enviadas pelo servidor para iPhone (garantia real, mas é um projeto grande e com custo). C) Atualização em segundo plano do iOS (o iPhone roda raramente; sem garantia). D) Não mudar.
-> Minha recomendação: **A agora e B como projeto próprio em seguida** — A fecha a falha silenciosa barato; B é a única garantia de verdade.
+> **6. Lembretes no iPhone de quem para de abrir o app.**
+> *Contexto:* seu princípio (07/10) é que o app avisa enquanto a pessoa estiver tomando, abrindo o app ou não. No Android isso já está resolvido (renovação em segundo plano, despertar diário e reconstrução depois de atualização ou reinício). No iPhone os lembretes ficam agendados por no máximo 10 dias (limite de 64 notificações da Apple) e depois simplesmente param, sem nenhum aviso.
+> *Opções:* **A)** manter o agendamento no celular, mas a última notificação do período vira o aviso "Abra o DoseTrace para continuar recebendo seus lembretes", e Hoje avisa quando o período estiver acabando. **B)** notificações enviadas pelo servidor para o iPhone — é a única garantia de verdade, mas é um projeto grande e com custo mensal (precisa ter tudo o que os lembretes do celular têm: modo silencioso, esconder nomes, botões, repetições). **C)** atualização em segundo plano do iOS — o iPhone roda quando quer e nunca depois que a pessoa fecha o app à força; sem garantia. **D)** não mudar.
+> *Recomendação:* **A agora e B como projeto próprio logo em seguida** — A fecha a falha silenciosa gastando pouco; B é a garantia de verdade e merece a própria especificação.
 >
-> **Diário alimentar com IA, Seus números reais e Progresso**
+> **Diário alimentar com IA, "Seus números reais" e Progresso**
 >
-> **7. "Seus números reais": fechar sozinho e um peso só no início.** Em 29/09 ficou decidido: sem campo de peso próprio (usa as pesagens) e botões de resultado a partir do dia 14. O que foi construído: uma tela de início com peso próprio e, sem botões, a checagem fecha sozinha na primeira pesagem a partir do dia 21, quando há 7 dias seguidos de comida (ou calorias digitadas). Os textos que você aprovou em 09/10 já partem desse fechamento automático, mas o OK explícito nunca foi dado. Hoje o peso do início pode ser diferente da pesagem daquele dia, e aí a conta e o gráfico usam pesos diferentes.
-> A) Como está (peso próprio, fecha sozinho). B) Voltar ao combinado de 29/09 (sem peso próprio, botões a partir do dia 14). C) Fecha sozinho como está, mas o peso do início É a pesagem daquele dia (digitar outro número atualiza a pesagem, com confirmação).
-> Minha recomendação: **C** — mantém o fluxo que você já vem testando e acaba com os dois pesos.
+> **7. "Seus números reais": fechar sozinho e um peso só no início.**
+> *Contexto:* em 29/09 ficou combinado: sem campo de peso próprio (a checagem usa as pesagens) e botões de resultado a partir do dia 14. O que foi construído: uma tela de início com campo de peso próprio, sem botões, e a checagem fecha sozinha na primeira pesagem a partir do dia 21, quando há 7 dias seguidos de comida registrada (ou calorias digitadas). Os textos que você aprovou em 09/10 já partem desse fechamento automático, mas o seu OK explícito para ele nunca foi registrado. Hoje o peso do início pode ser diferente da pesagem daquele dia — e aí a conta e o gráfico usam pesos diferentes.
+> *Opções:* **A)** como está (peso próprio, fecha sozinho; os dois pesos continuam possíveis). **B)** voltar ao combinado de 29/09 (sem peso próprio, botões a partir do dia 14) — exige refazer, e resultados com menos de 14 dias são menos precisos. **C)** fecha sozinho como está, mas o peso do início É a pesagem daquele dia (digitar outro número atualiza a pesagem, com confirmação, igual em "Seus números").
+> *Recomendação:* **C** — mantém o fluxo que você já vem testando e cada peso passa a ter um lugar só.
 >
-> **8. "Parar" apaga os resultados anteriores?** Hoje, ao parar a checagem em andamento, o app apaga TODOS os resultados já medidos — o gasto diário volta a ser "Estimado". Sua decisão falava só em encerrar a checagem atual e manter a comida registrada.
-> A) Parar encerra só a checagem atual; resultados antigos ficam. B) Como está (apaga tudo). C) A + um botão separado "Apagar meus resultados", com confirmação.
-> Minha recomendação: **A** (ou **C**, se quiser dar a opção de apagar) — nunca destruir dado por tabela.
+> **8. "Parar" apaga os resultados anteriores?**
+> *Contexto:* hoje, ao parar a checagem em andamento, o app apaga TODOS os resultados já medidos e o gasto diário volta a aparecer como "Estimado". A sua decisão falava só em encerrar a checagem aberta, cancelar os lembretes e manter a comida registrada — não falava dos resultados antigos.
+> *Opções:* **A)** "Parar" encerra só a checagem atual; os resultados antigos ficam. **B)** como está (apaga tudo; o texto de confirmação já avisa). **C)** A + um botão separado "Apagar meus resultados", que pergunta antes.
+> *Recomendação:* **A** (ou **C**, se quiser dar o jeito de apagar) — nunca destruir dado por tabela; um resultado medido é dado da pessoa.
 >
-> **9. Quando a conta não gera um número.** Com pesagem e 7 dias de comida completos, a conta às vezes dá: "manutenção" (o peso mudou menos de 0,2 kg — a pessoa come no nível de manutenção), "improvável" (fora de 1.000–5.000 kcal) ou "curto demais" (menos de 14 dias, ou média zero). Hoje só o resultado normal é salvo; nesses três casos a checagem nunca termina, a pergunta das 20h continua e Hoje fica dizendo "pronto — toque para ver".
-> A) Salvar "manutenção" como resultado de verdade (gasto diário = média ingerida); nos outros dois, mostrar o motivo e encerrar depois que a pessoa vir, oferecendo recomeçar. B) Manter aberta, mas parar a pergunta das 20h e mostrar o motivo. C) Como está.
-> Minha recomendação: **A** — peso parado comendo X kcal é justamente a medida da manutenção; uma checagem que nunca termina quebra o hábito diário.
+> **9. Quando a conta não gera um número.**
+> *Contexto:* com a pesagem e os 7 dias de comida completos, às vezes a conta dá: "manutenção" (o peso mudou menos de 0,2 kg — a pessoa está comendo exatamente o que gasta), "improvável" (fora de 1.000 a 5.000 kcal) ou "curto demais" (menos de 14 dias, ou média zero). Hoje só o resultado normal é salvo: nesses três casos a checagem nunca termina, a pergunta das 20h continua chegando e Hoje fica dizendo "pronto — toque para ver" sem ter nada para ver.
+> *Opções:* **A)** salvar "manutenção" como resultado de verdade (gasto diário = média ingerida); nos outros dois casos, mostrar o motivo e encerrar a checagem depois que a pessoa vir, oferecendo recomeçar. **B)** manter a checagem aberta, mas parar a pergunta das 20h e mostrar o motivo em Hoje e em Progresso. **C)** como está.
+> *Recomendação:* **A** — peso parado comendo X kcal é justamente a medida da manutenção, e uma checagem que nunca termina quebra o hábito diário. Como muda um número de saúde exibido, a revisão da conta de energia roda antes do build.
 >
 > **Curva de acúmulo**
 >
-> **10. Mudar a dose reescreve o passado da curva?** Hoje a curva usa a dose atual para todas as doses passadas: baixou de 250 para 125 mg e meses de histórico são redesenhados em 125 mg, inclusive a estimativa ao lado de exames antigos.
-> A) Como está, com um aviso na curva quando o protocolo foi editado. B) Guardar o histórico das mudanças com a data em que valeram; o passado usa os valores antigos (mudança de dados, precisa revisão farmacológica). C) Editar a dose encerra o ciclo antigo e começa um novo.
-> Minha recomendação: **B** (e **A** como solução provisória se B não couber bem a tempo) — um diário honesto mostra o que estava planejado naquela época.
+> **10. Mudar a dose reescreve o passado da curva?**
+> *Contexto:* hoje a curva aplica a dose atual (e o intervalo, a data de início e as doses por dia) a todas as doses passadas. Baixou de 250 para 125 mg? Meses de histórico são redesenhados em 125 mg — inclusive a "estimativa numa data" ao lado de exames antigos. Está em aberto desde 13/09.
+> *Opções:* **A)** como está, com um aviso na curva quando o protocolo foi editado ("usa a dose atual para as datas passadas"). **B)** guardar o histórico das mudanças com a data em que cada uma passou a valer; o passado usa os valores antigos (muda o modelo de dados sincronizado e passa por revisão farmacológica). **C)** editar a dose encerra o ciclo antigo e começa um novo (pesado para a pessoa e divide o histórico).
+> *Recomendação:* **B** (e **A** como solução provisória se B não ficar bom a tempo do build) — um diário honesto mostra o que estava planejado em cada época, e a edição já grava só o que mudou.
 >
-> **11. Doses puladas ou perdidas devem baixar a curva?** A curva segue o planejado (o aviso na tela já diz isso). Puladas e perdidas continuam contando.
-> A) Como está. B) Para o passado, depois que o protocolo foi criado, usar o registro de doses (só as tomadas); antes da criação e o futuro seguem o planejado. C) Curva planejada, mas as doses puladas/perdidas aparecem marcadas diferente, sem mudar o número.
-> Minha recomendação: **B depois da revisão farmacológica, C até lá** — o registro da própria pessoa é a fonte honesta do passado.
+> **11. Doses puladas ou perdidas devem baixar a curva?**
+> *Contexto:* a curva segue o planejado — o aviso na tela já diz isso — e por isso as doses puladas e perdidas continuam contando. Contar só as tomadas é uma mudança de modelo que precisa de revisão farmacológica (decisão de 24/09).
+> *Opções:* **A)** como está. **B)** para o passado (depois que o protocolo foi criado), usar o registro de doses — só as tomadas; o histórico informado antes da criação e o futuro seguem o planejado. **C)** curva planejada, mas as doses puladas ou perdidas aparecem marcadas de outro jeito (vazadas), sem mudar o número.
+> *Recomendação:* **B depois da revisão farmacológica, e C até lá** — o registro da própria pessoa é a fonte honesta do passado, e a curva é o carro-chefe do app.
 >
 > **Meu corpo**
 >
-> **12. Digitar exames à mão: fazer agora ou adiar?** Foi aprovado ("o diário de exames digitado à mão é grátis"), a animação explicativa aprovada diz "digite os valores de qualquer exame" e a mensagem de limite de leituras diz "você ainda pode digitar tudo à mão" — mas essa tela nunca foi construída. Hoje o único jeito de colocar um exame é a leitura por IA (3 grátis por mês). Pela regra "aprovado → próximo build", só você pode adiar.
-> A) Construir "Adicionar valores à mão" na 1.3.0. B) Adiar para o próximo build e corrigir já os textos que prometem. C) Desistir e corrigir os textos.
-> Minha recomendação: **A** — está aprovado, os textos já prometem, e é o único caminho do plano grátis depois das 3 leituras do mês.
+> **12. Digitar exames à mão: fazer agora ou adiar?**
+> *Contexto:* foi aprovado ("o diário de exames digitado à mão é grátis", 30/09), a animação explicativa aprovada diz "digite os valores de qualquer exame" e a mensagem de limite de leituras diz "você ainda pode digitar tudo à mão" — mas essa tela nunca foi construída. Hoje o único jeito de registrar um exame é a leitura por IA (3 grátis por mês). Pela regra "aprovado → próximo build", só você pode adiar.
+> *Opções:* **A)** construir "Adicionar valores à mão" na 1.3.0 (data, marcador, valor, unidade; desenho antes). **B)** adiar para o build seguinte e corrigir já os textos que prometem. **C)** desistir e corrigir os textos.
+> *Recomendação:* **A** — está aprovado, os textos já prometem, e é o único caminho do plano grátis depois das 3 leituras do mês.
 >
-> **13. O alerta "Exames atrasados".** Quando o último exame tem mais de 6 meses, Hoje mostra "Exame de sangue pendente". Os 6 meses foram escolhidos pelo app, não pela pessoa — fica perto da linha de "nunca orientar".
-> A) Manter. B) Mesmo gatilho com texto só de fato: "Seu último exame foi há N meses" (sem "pendente"). C) A pessoa define o próprio intervalo (ou nenhum). D) Remover.
-> Minha recomendação: **B** — mantém o lembrete útil sem o app decidir o que está "atrasado".
+> **13. O alerta "Exame de sangue pendente".**
+> *Contexto:* quando o último exame tem mais de 6 meses, Hoje mostra "Exame de sangue pendente · Já se passaram N meses desde seu último exame". Os 6 meses foram escolhidos pelo app, não pela pessoa, e nenhuma decisão cobre isso — é um calendário que ela não definiu, perto da linha de "nunca orientar".
+> *Opções:* **A)** manter. **B)** mesmo gatilho, texto só de fato: "Seu último exame foi há N meses" (sem "pendente"). **C)** a pessoa define o próprio intervalo (ou nenhum) em Meu corpo; nenhum por padrão. **D)** remover o alerta.
+> *Recomendação:* **B** — mantém o lembrete útil sem o app decidir o que está "pendente"; o revisor regulatório confere a frase.
 >
-> **14. Duas melhorias pequenas no Meu corpo** (não aprovadas em lugar nenhum): (a) mostrar "N de 3 leituras usadas este mês" perto do botão de enviar; (b) "Mudar a data deste exame" de uma vez (hoje, se a IA ler a data invertida, é preciso corrigir valor por valor).
-> Para cada uma: sim na 1.3.0 / sim no próximo build / não.
-> Minha recomendação: **as duas sim, no próximo build.**
+> **14. Duas melhorias pequenas no Meu corpo** (não aprovadas em lugar nenhum):
+> *Contexto:* (a) a pessoa só descobre o limite mensal de leituras quando uma é recusada; (b) quando a IA lê a data do exame invertida (dia/mês × mês/dia), hoje é preciso corrigir valor por valor.
+> *Opções, para cada uma:* (a) mostrar "N de 3 leituras usadas este mês" perto do botão de enviar; (b) "Mudar a data deste exame", que move todos os valores de uma vez — **sim na 1.3.0 / sim no build seguinte / não**.
+> *Recomendação:* **as duas sim, no build seguinte** — nenhuma está no escopo da 1.3.0 e as duas tiram um incômodo real.
 >
 > **Conta e Premium**
 >
-> **15. Gerenciar assinatura nos Ajustes.** "Restaurar compras" só existe na tela de assinatura, que não aparece para quem já é Premium; os Ajustes só mostram Premium/Grátis. Quem paga e reinstala não acha onde restaurar.
-> A) Linhas "Gerenciar assinatura" (abre a loja) e "Restaurar compras" para todos, mais o status (teste até…, renova em…) quando a loja informar. B) Só "Restaurar compras". C) Deixar como está.
-> Minha recomendação: **A**. (À parte, por lógica, a tela de excluir conta vai avisar que a assinatura da loja continua cobrando até ser cancelada lá.)
+> **15. Gerenciar a assinatura pelos Ajustes.**
+> *Contexto:* "Restaurar compras" só existe na tela de assinatura, e quem já é Premium é mandado embora dela; os Ajustes só mostram Premium/Grátis (sem fim do teste grátis, sem problema de cobrança). Quem paga e reinstala o app não acha onde restaurar.
+> *Opções:* **A)** linhas "Gerenciar assinatura" (abre a página da loja) e "Restaurar compras" para todos, mais o status (teste grátis até…, renova em…) quando a loja informar. **B)** só "Restaurar compras". **C)** deixar como está.
+> *Recomendação:* **A** — as lojas esperam que restaurar seja fácil de achar e que cancelar esteja ao alcance. (À parte, pela lógica, a tela de excluir conta vai avisar que a assinatura da loja continua cobrando até ser cancelada lá.)
 >
-> É isso. Respondendo, eu registro tudo nas decisões no mesmo dia e sigo.
+> **Para você saber (já decidido pela lógica, sem precisar responder):** exclusões passam a chegar a todos os aparelhos (hoje uma dose apagada no celular continua contando no Fold); duas doses registradas offline em dois aparelhos passam a contar como duas; a sequência ("streak") conta doses seguidas em todo lugar, inclusive no relatório para o profissional de saúde; "Pular" cancela os lembretes daquela dose. As duas mudanças no servidor que isso exige (marcas de exclusão em todas as tabelas e o carimbo de atualização em "Seus números reais") só são aplicadas com o seu "pode aplicar", como sempre.
+>
+> É isso. Assim que você responder, registro tudo nas decisões no mesmo dia e sigo.

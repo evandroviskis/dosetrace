@@ -56,7 +56,7 @@ One honest plan, **Premium** (Monthly, Annual "Best value", Lifetime), real stor
 | P6 | Bought Lifetime while a subscription renews | Sheet: cancel the subscription in the store (the app cannot). |
 | P7 | Already Premium and opens the Paywall | "You already have Premium" — no buy button. |
 | P8 | Developer / review account | Premium by the e-mail allow-list (client and server lists identical). |
-| P9 | Premium lapsed with 4+ active protocols | Keeps them active (no downgrade rule decided — flow 02 §12 Q4); + Add shows the limit. |
+| P9 | Premium lapsed with 4+ active protocols | Keeps them active (DL-24: they stay active); + Add shows the limit. |
 | P10 | RevenueCat unreachable | Client uses its cache; server gives the Premium scan cap (07 D-1, deliberate). |
 
 ## 5. Happy path
@@ -148,7 +148,7 @@ stateDiagram-v2
 - Prices only from the store at runtime; "Save N%" only from real store prices; billed amount biggest; length next to every price; Annual preselected ("Best value"); trial button only when the store says eligible and the length is known ("Start 7-day free trial" + Apple billing text); Restore purchases; Terms of Use (EULA) (iOS) / in-app Terms (Android) + Privacy under Restore; Free vs Premium table (dashes on the free side); animated example previews with an "Example" tag.
 - Back blocked while the store is busy.
 - BR prices: R$19,90 / month, R$199,90 / year on both stores (founder 2026-10-03). US: $2.99 / $28.99 / Lifetime $69.99 (read from ASC 2026-10-03).
-- **Divergence today (07 D-9, Gap 4):** no Restore or Manage subscription in Settings; a Premium user is sent away from the Paywall, so Restore is unreachable for them; no trial / billing-issue state shown ("Premium" or "Free" only). OPEN (§12).
+- **Divergence today (07 D-9, Gap 4):** no Restore or Manage subscription in Settings; a Premium user is sent away from the Paywall, so Restore is unreachable for them; no trial / billing-issue state shown ("Premium" or "Free" only). → OPEN-15.
 - **Divergence today (07 D-6, Gap 12):** "trial" means two things (store intro trial vs the 7 free food-log days) — one vocabulary needed in the PRD.
 
 ### 7.2 Gates by surface (where the Paywall opens from)
@@ -232,24 +232,26 @@ R40 entitlement id / products / app user id (`lib/purchases.js`). R41 developer 
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D13-1 | Server authoritative for paid AI (food) | Client only | `04 D-15`, `07 D-2` |
-| D13-2 | Protocol limit consistent across devices | Client only | `07 D-3`, `01 D-22` |
-| D13-3 | Restore / Manage reachable for Premium users | Only on the Paywall | `07 D-9` (OPEN) |
-| D13-4 | Typed average Premium-only | Free days see it | `04 D-14` |
-| D13-5 | Grace = logging only | Start + result allowed | `04 D-13` |
-| D13-6 | Lab charts Premium | Free | `06 D-8` (OPEN) |
-| D13-7 | One meaning of "trial" | Two | `07 D-6` |
-| D13-8 | Entitlement cache per account cleared on sign-out | Survives | `07 D-7` |
-| D13-9 | Every Paywall entry carries its source | Two without | `07 §2.2` |
-| D13-10 | Trial / billing state visible | Not read | `07 D-8` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D13-1 | Server authoritative for paid AI (food) | Client only | `04 D-15`, `07 D-2` | DV-103 |
+| D13-2 | Protocol limit consistent across devices | Client only | `07 D-3`, `01 D-22` | DV-095 |
+| D13-3 | Restore / Manage reachable for Premium users | Only on the Paywall | `07 D-9` (OPEN-15) | DV-112 |
+| D13-4 | Typed average Premium-only | Free days see it | `04 D-14` | DV-102 |
+| D13-5 | Grace = logging only | Start + result allowed | `04 D-13` | DV-101 |
+| D13-6 | Lab charts Premium | Free | `06 D-8` (AD-24) | DV-108 |
+| D13-7 | One meaning of "trial" | Two | `07 D-6` | DV-164 |
+| D13-8 | Entitlement cache per account cleared on sign-out | Survives | `07 D-7` | DV-082 |
+| D13-9 | Every Paywall entry carries its source | Two without | `07 §2.2` | DV-195 |
+| D13-10 | Trial / billing state visible | Not read | `07 D-8` | DV-112 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Settings subscription row (D13-3):** add "Manage subscription" (store link) and "Restore purchases" for everyone? Recommendation: yes.
-2. **Downgrade rule** (flow 02 Q4): keep extra active protocols after a lapse (recommended).
-3. **Lab charts (D13-6):** Premium (decision) or free (code)?
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **OPEN-15 — Settings subscription row** (D13-3). Waits for the founder. → DV-112.
+- **DL-24 — Downgrade rule.** Decided by logic: a lapsed payer keeps every active protocol. → DV-095.
+- **AD-24 — Lab charts** (D13-6). Already decided: Premium. → DV-108.
 
 ## 13. Acceptance checks (agent-device QA script)
 

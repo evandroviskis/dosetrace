@@ -147,7 +147,7 @@ stateDiagram-v2
 | Removed on intended sign-out | Kept (device-level) |
 |---|---|
 | 11 SQLite tables, scheduled + delivered notifications, snooze records, RevenueCat identity, stash `dt_onboarding_data`, `dt_seen_onboarding`, `dosetrace_rc_start`, rc migration flags, site questions, Fold selections, in-memory drafts, this device's push token | language, time format, theme, install id, reminder-setup-seen, deep-sleep-checked, settings folds, sort, handled ids, missed-scan watermark + zone history, alert snoozes, `dosetrace_vial_low_sent`, **AI consent**, **entitlement cache**, curve view / explainers / food draft keyed by uid |
-- **Divergence today (07 D-7, D-17, D-18; 03 G28; 02 D16):** AI consent, entitlement cache, food chat draft, vial-low-sent map, alert snoozes and the missed-scan watermark survive and can carry into another account. OPEN for AI consent (flow 01 §12).
+- **Divergence today (07 D-7, D-17, D-18; 03 G28; 02 D16):** AI consent, entitlement cache, food chat draft, vial-low-sent map, alert snoozes and the missed-scan watermark survive and can carry into another account. AI consent per account → DL-55; the other keys → AD-05, DL-52, DL-53.
 
 ### 7.5 Delete account details
 - Server deletes by user id: dose_logs, vials, protocols, biomarkers, vaccines, food_logs, reality_checks, calc_snapshots, calc_targets, reality_check_open, calc_inputs, ai_food_usage, ai_scan_usage, reminders, notification_preferences, analytics_events (none linked — anonymous), referral_codes, apple_tokens, push_tokens, notification_sends + referrals; `ai_assistant_usage` cascades; then the auth user. Apple refresh token revoked best effort (delete always wins).
@@ -214,23 +214,26 @@ R27 intended sign-out sequence (`lib/signOutCore.js:59-92`). R28 only Settings f
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D12-1 | Gates offer "Sign out anyway" / work offline | No | `07 Gap 6` (A-94) |
-| D12-2 | Account-scoped device keys cleared on sign-out | AI consent, entitlement cache, food draft, vial-low map, snoozes, watermark survive | `07 D-7, D-17, D-18`; `03 G28`; `02 D16` |
-| D12-3 | Delete warns about store subscriptions | Silent | `07 Gap 4` |
-| D12-4 | Lost delete response finishes the teardown | Shows offline, no wipe | `07 §8` (SUSPECTED) |
-| D12-5 | Profile save errors shown | Swallowed | `07 D-22` |
-| D12-6 | Export includes profile / preferences and imports first | Neither | `07 D-23, D-24` |
-| D12-7 | Other devices cancel reminders after a confirmed deletion | Not built | `03 G2` |
-| D12-8 | Offline cold start keeps a stored session | May route to Auth | `07 D-16` (SUSPECTED) |
-| D12-9 | "What you track" editable in Settings | Not | `07 D-10` |
-| D12-10 | Two privacy texts identical | In-app vs website differ | `07 D-21` (A-117 waits) |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D12-1 | Gates offer "Sign out anyway" / work offline | No | `07 Gap 6` (A-94) | DV-114 |
+| D12-2 | Account-scoped device keys cleared on sign-out | AI consent, entitlement cache, food draft, vial-low map, snoozes, watermark survive | `07 D-7, D-17, D-18`; `03 G28`; `02 D16` | DV-081, DV-082, DV-007 |
+| D12-3 | Delete warns about store subscriptions | Silent | `07 Gap 4` | DV-087 |
+| D12-4 | Lost delete response finishes the teardown | Shows offline, no wipe | `07 §8` (SUSPECTED) | DV-009 |
+| D12-5 | Profile save errors shown | Swallowed | `07 D-22` | DV-008 |
+| D12-6 | Export includes profile / preferences and imports first | Neither | `07 D-23, D-24` | DV-086 |
+| D12-7 | Other devices cancel reminders after a confirmed deletion | Not built | `03 G2` | DV-009 |
+| D12-8 | Offline cold start keeps a stored session | May route to Auth | `07 D-16` (SUSPECTED) | DV-083 |
+| D12-9 | "What you track" editable in Settings | Not | `07 D-10` | DV-113 |
+| D12-10 | Two privacy texts identical | In-app vs website differ | `07 D-21` (A-117 waits) | DV-085 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Subscription warning on delete (D12-3):** add "Deleting your account does not cancel your {store} subscription — manage it in {store}." with a button? Recommendation: yes (store guideline practice).
-2. **Export scope (D12-6):** include the profile and preferences in "Download my data"? Recommendation: yes (it is the user's data).
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **DL-60 — Subscription warning on delete** (D12-3). Decided by logic: Premium users are told the store subscription keeps billing, with a link (store account-deletion guidance). → DV-087.
+- **DL-42 — Export scope** (D12-6). Decided by logic: "Download my data" includes the profile and preferences and imports first on an empty phone. → DV-086.
+- No OPEN question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
 

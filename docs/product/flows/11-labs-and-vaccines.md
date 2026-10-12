@@ -147,11 +147,11 @@ stateDiagram-v2
 
 ### 7.1 Manual lab entry
 - **Intended (decision 2026-09-30 "The lab journal typed by hand is free"; registry "Labs: manual entry"; the approved explainer "Type in values from any lab report…"; the quota message "You can still enter everything by hand"):** a user can add a lab value by hand (marker, value, unit, test date).
-  - **Divergence today (06 G-1):** no UI inserts a lab value by hand — the only insert is the scan. Approved behaviour with no build → under "approved → next build" this needs a founder-visible decision (§12).
+  - **Divergence today (06 G-1):** no UI inserts a lab value by hand — the only insert is the scan. Approved behaviour with no build → under "approved → next build" this needs a founder-visible decision (OPEN-12).
 
 ### 7.2 Charts and Premium
 - **Decision 2026-09-30:** lab charts are Premium; the free card even says "Premium charts every one over time".
-  - **Divergence today (06 D-8, G-2):** the marker chart renders for every user with 2+ readings. OPEN (§12): gate the chart, or change the decision and the copy.
+  - **Divergence today (06 D-8, G-2):** the marker chart renders for every user with 2+ readings. Already decided → AD-24: the chart is Premium.
 - Scans: decision A (2026-10-03) — 3 free scans a month for every kind; no client gate; every scan asks the server; refused scan shows the server's limit. PDF export Premium (checked at the action with a fresh `hasPremium()`), CSV free.
 - **Divergence today (06 G-9):** the remaining scans are never shown; the user meets the limit only by being refused.
 - **Divergence today (06 G-10):** a 200 with zero usable values is counted although "failed extractions are not counted" (decision 2026-09-30).
@@ -185,7 +185,7 @@ stateDiagram-v2
 
 ### 7.7 Bloodwork due
 - Shown when the newest report date is ≥ 182 days old: "Bloodwork due" / "It's been {months} months since your last panel" (months = max(6, round(days / 30))); tap → Lab test journal; snooze Tomorrow / In 3 days. None when no lab was ever logged.
-- **OPEN (06 G-13):** a fixed 6-month interval chosen by the app — not interpretation, but a schedule the user did not set; regulatory-reviewer look recommended (§12).
+- **OPEN-13 (06 G-13):** a fixed 6-month interval chosen by the app — not interpretation, but a schedule the user did not set; regulatory-reviewer look recommended (OPEN-13).
 
 ### 7.8 Offline / killed / second device
 - Scans need the network; values edited offline save locally and sync. Killed during a scan: nothing saved (server may have counted it).
@@ -206,7 +206,7 @@ stateDiagram-v2
 |---|---|---|
 | Scans (labs + vaccines + vials) | 3 / month | 20 / month |
 | Manual lab entry | intended free (not built) | — |
-| Marker chart | intended Premium (today free — OPEN) | yes |
+| Marker chart | intended Premium (today free — AD-24) | yes |
 | CSV export | yes | yes |
 | PDF export | "PDF export is Premium" | yes |
 | Vaccines by hand | yes | yes |
@@ -245,26 +245,28 @@ R1 AI transcribes only (hard line; `decisions.md:317`). R2 consent first, one sh
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D11-1 | Manual lab entry, free | Not built | `06 G-1` |
-| D11-2 | Lab charts Premium (or decision changed) | Free | `06 D-8, G-2` (OPEN) |
-| D11-3 | Hub count = journal cards on every device | Per batch; per row after a pull | `06 D-3, G-3` |
-| D11-4 | Favourites / labels durable, merged | `user_metadata`, stale whole writes, unclearable star | `06 D-5, D-6, G-4, G-5` (A-14 deferred) |
-| D11-5 | Vaccine scan fills details; export includes them | Notes only; export omits | `06 D-12, G-6, G-7` |
-| D11-6 | Remaining scans visible | Never | `06 G-9` |
-| D11-7 | Unusable 200 not counted | Counted | `06 G-10` |
-| D11-8 | One number parse for lab values | Scan vs edit differ | `06 D-11` |
-| D11-9 | Future report dates refused or flagged | Accepted | `06 D-1 note, E-6` |
-| D11-10 | "Change this test's date" | Missing | `06 G-8` |
-| D11-11 | AI consent per person | Per device | `07 D-18` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D11-1 | Manual lab entry, free | Not built | `06 G-1` | DV-107 |
+| D11-2 | Lab charts Premium (AD-24) | Free | `06 D-8, G-2` | DV-108 |
+| D11-3 | Hub count = journal cards on every device | Per batch; per row after a pull | `06 D-3, G-3` | DV-073 |
+| D11-4 | Favourites / labels durable, merged | `user_metadata`, stale whole writes, unclearable star | `06 D-5, D-6, G-4, G-5` (A-14 deferred) | DV-006, DV-075 |
+| D11-5 | Vaccine scan fills details; export includes them | Notes only; export omits | `06 D-12, G-6, G-7` | DV-109, DV-079 |
+| D11-6 | Remaining scans visible | Never | `06 G-9` | DV-110 |
+| D11-7 | Unusable 200 not counted | Counted | `06 G-10` | DV-078 |
+| D11-8 | One number parse for lab values | Scan vs edit differ | `06 D-11` | DV-076 |
+| D11-9 | Future report dates refused or flagged | Accepted | `06 D-1 note, E-6` | DV-077 |
+| D11-10 | "Change this test's date" | Missing | `06 G-8` | DV-110 |
+| D11-11 | AI consent per person | Per device | `07 D-18` | DV-007 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Manual lab entry (D11-1):** build it for the next build (approved earlier, never built) or defer explicitly? Recommendation: build — the quota message and the explainer already promise it.
-2. **Lab charts (D11-2):** gate the marker chart behind Premium (decision) or make charts free and change the copy?
-3. **Bloodwork due interval (G-13):** keep the fixed 6 months, let the user set it, or remove? Regulatory review recommended.
-4. **Remaining scans (D11-6):** show "x of 3 used this month" on the upload card?
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **OPEN-12 — Manual lab entry** (D11-1). Waits for the founder. → DV-107.
+- **AD-24 — Lab charts.** Already decided: lab charts are Premium; the hand-typed journal is free (decisions.md:268). → DV-108.
+- **OPEN-13 — Bloodwork due.** Waits for the founder. → DV-111.
+- **OPEN-14 — Remaining scans** (D11-6, with "change this test's date", D11-10). Waits for the founder. → DV-110.
 
 ## 13. Acceptance checks (agent-device QA script)
 

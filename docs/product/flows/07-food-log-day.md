@@ -228,22 +228,25 @@ R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D07-1 | Server enforces food access | Client only | `04 D-15`, `07 D-2` |
-| D07-2 | Closing a not-food-only day asks "I ate nothing" | Not asked | `04 D-16` |
-| D07-3 | Remove entry asks first | No confirm | `04 G-16` |
-| D07-4 | Hero / Progress re-date at midnight | Focus only | `04 D-5` |
-| D07-5 | One day count per screen | Three | `04 D-9` |
-| D07-6 | Sign-out clears the chat draft | Survives | `07 D-17` |
-| D07-7 | "Not recorded" mark exists in UI (FL-3) or rule dropped | No UI; strings dead | `04 G-4`, `G-11` |
-| D07-8 | Quota hit on retry handled | Pending forever (SUSPECTED) | `04 §8.5` |
-| D07-9 | 20:00 copy identical in server push | Dormant server copy differs | `04 G-12` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D07-1 | Server enforces food access | Client only | `04 D-15`, `07 D-2` | DV-103 |
+| D07-2 | Closing a not-food-only day asks "I ate nothing" | Not asked | `04 D-16` | DV-064 |
+| D07-3 | Remove entry asks first | No confirm | `04 G-16` | DV-003 |
+| D07-4 | Hero / Progress re-date at midnight | Focus only | `04 D-5` | DV-148 |
+| D07-5 | One day count per screen | Three | `04 D-9` | DV-146 |
+| D07-6 | Sign-out clears the chat draft | Survives | `07 D-17` | DV-081 |
+| D07-7 | "Not recorded" mark exists in UI (FL-3) or rule dropped | No UI; strings dead | `04 G-4`, `G-11` | DV-151, DV-181 |
+| D07-8 | Quota hit on retry handled | Pending forever (SUSPECTED) | `04 §8.5` | DV-066 |
+| D07-9 | 20:00 copy identical in server push | Dormant server copy differs | `04 G-12` | DV-145 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **"Not recorded" (FL-3):** drop the manual mark from the spec (no UI since the redesign) or bring it back? Recommendation: drop — "I ate nothing" + gaps already explain the run.
-2. **Remove entry confirm (D07-3):** confirm the app-wide "every delete asks first" applies here (logic says yes).
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **DL-66 — The "not recorded" mark (FL-3).** Decided by logic: retired (legacy rows still read); FL-47's "Just close the day" is the way to break a run on purpose; FL-3 amended. → DV-151.
+- **AD-01 — Remove entry asks first** (D07-3). Already decided: every delete asks first (decisions.md:46). → DV-003.
+- No OPEN question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
 

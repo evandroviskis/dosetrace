@@ -42,7 +42,7 @@
 | P7 | Samsung deep sleep list contains DoseTrace | Cannot be read → row Open + "I checked" (SP-10). |
 | P8 | Play update or phone reboot | Receiver rebuilds reminders without opening the app (A-111; Fold check 238/248 restored). |
 | P9 | Silent mode turned on weeks ago and forgot | Today "Silent mode is on — No dose reminder will arrive." (council 3 #2). |
-| P10 | iPhone user who never opens the app | Window: dose reminders end after ≤ 10 days. **Divergence (03 G1)**: principle not met on iPhone — OPEN. |
+| P10 | iPhone user who never opens the app | Window: dose reminders end after ≤ 10 days. **Divergence (03 G1)**: principle not met on iPhone — OPEN-06. |
 | P11 | Release build before the R8 keep-rule fix (≤ 1.2.4) | No Android reminder ever scheduled (root cause 2026-10-05); fixed by keep rules — device proof `dumpsys alarm`. |
 | P12 | Two devices, dose logged on the other | This phone keeps reminding until it pulls in the foreground (BR-5 accepted). |
 | P13 | Language changed | Pending notifications keep the old language until the next full resync (03 G6). |
@@ -164,7 +164,7 @@ stateDiagram-v2
 ### 7.2 iPhone (no background mode)
 - Reminders are rebuilt on every app open / foreground (≤ 1 / min) / Settings change.
 - **Decided earlier (BR-11):** iOS untouched (no background task; it would crash).
-- **Divergence today (03 G1) — OPEN:** a user who never opens the app on iPhone stops getting dose reminders after ≤ 10 days; nothing warns. Options in §12.
+- **Divergence today (03 G1) — OPEN-06:** a user who never opens the app on iPhone stops getting dose reminders after ≤ 10 days; nothing warns. Options in OPEN-DECISIONS.md (OPEN-06).
 
 ### 7.3 Android stop conditions and fixes
 | Item | Read | State / Today card | Fix button opens |
@@ -259,30 +259,33 @@ R-1 local one-shot dated notifications in a rolling window (A-107 option B). R-2
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D06-1 | Principle holds on iPhone | Ends after ≤ 10 days unopened, no warning | `03 G1` (OPEN) |
-| D06-2 | Cancel on confirmed deletion / revocation | Not built | `03 G2` |
-| D06-3 | Silent never shows as Blocked | Both cards | `03 D-2` |
-| D06-4 | One "blocked" rule across Settings and Today | Two | `03 D-1` |
-| D06-5 | "Protocol with a reminder time" means a real time | Every active protocol | `02 D22`, `03 D-18` |
-| D06-6 | "Never ran" turns late after 2 days | Pending forever | `03 D-8` |
-| D06-7 | "Last run OK" means something was scheduled; count stored | Not | `03 D-10, D-11` |
-| D06-8 | All channels that carry reminders checked | Only dose channel | `03 G16` |
-| D06-9 | Copy for persistent reminders true | "every 5 min until acknowledged" | `03 G3` |
-| D06-10 | Language change re-plans | Not | `03 G6` |
-| D06-11 | Create/edit/delete re-plans morning summary and vial expiry | Only dose reminders | `03 G7` |
-| D06-12 | A pull re-plans dose reminders | Only food + weigh-in | `03 G8` |
-| D06-13 | Channel names translated | English | `03 G17` |
-| D06-14 | Weekly check-in exact | Repeating trigger (inexact under Doze) | `03 G27` |
-| D06-15 | Info notification respects Silent | Bypasses | `03 G20` |
-| D06-16 | Device proofs SP-9, RG-8, BR-10, EA-7 | Missing / partial | `03 G22`; spec-audit red |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D06-1 | Principle holds on iPhone | Ends after ≤ 10 days unopened, no warning | `03 G1` (OPEN-06) | DV-097 |
+| D06-2 | Cancel on confirmed deletion / revocation | Not built | `03 G2` | DV-009 |
+| D06-3 | Silent never shows as Blocked | Both cards | `03 D-2` | DV-042 |
+| D06-4 | One "blocked" rule across Settings and Today | Two | `03 D-1` | DV-042 |
+| D06-5 | "Protocol with a reminder time" means a real time | Every active protocol | `02 D22`, `03 D-18` | DV-028 |
+| D06-6 | "Never ran" turns late after 2 days | Pending forever | `03 D-8` | DV-045 |
+| D06-7 | "Last run OK" means something was scheduled; count stored | Not | `03 D-10, D-11` | DV-046 |
+| D06-8 | All channels that carry reminders checked | Only dose channel | `03 G16` | DV-098 |
+| D06-9 | Copy for persistent reminders true | "every 5 min until acknowledged" | `03 G3` | DV-049 |
+| D06-10 | Language change re-plans | Not | `03 G6` | DV-050 |
+| D06-11 | Create/edit/delete re-plans morning summary and vial expiry | Only dose reminders | `03 G7` | DV-051 |
+| D06-12 | A pull re-plans dose reminders | Only food + weigh-in | `03 G8` | DV-052 |
+| D06-13 | Channel names translated | English | `03 G17` | DV-141 |
+| D06-14 | Weekly check-in exact | Repeating trigger (inexact under Doze) | `03 G27` | DV-055 |
+| D06-15 | Info notification respects Silent | Bypasses | `03 G20` | DV-048 |
+| D06-16 | Device proofs SP-9, RG-8, BR-10, EA-7 | Missing / partial | `03 G22`; spec-audit red | DV-118 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **iPhone without opening the app (D06-1):** (a) accept and show an iPhone-only Today line "Open DoseTrace at least every 10 days to keep reminders coming", (b) turn on the dormant server push for iPhone only (needs Mark complete / Show names / Silent parity first), or (c) iOS background app refresh (opportunistic, not guaranteed). Recommendation: (a) now, (b) as its own spec.
-2. **Settings vs Today "blocked" (D06-4):** should Settings also stay neutral when Dose reminders are off or no protocol has a time? Recommendation: yes (one rule).
-3. **Persistent reminders copy (D06-9):** change the copy to "Repeat twice, 5 and 10 minutes later" or make them repeat until acknowledged? Recommendation: copy change (6 languages).
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **OPEN-06 — iPhone users who never open the app** (D06-1). Waits for the founder. → DV-097.
+- **DL-45 — Settings vs Today "blocked"** (D06-4). Decided by logic: Settings uses Today's order (Silent, off, nothing needed first); Today's Blocked card excludes Silent. → DV-042.
+- **DL-48 — Persistent reminders copy** (D06-9). Decided by logic: the text describes the two repeats (+5, +10) ×6 (wording approved by the founder); no new behaviour. → DV-049.
+- Only OPEN-06 is a founder question.
 
 ## 13. Acceptance checks (agent-device QA script)
 

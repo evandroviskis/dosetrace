@@ -221,25 +221,27 @@ R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity en
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D05-1 | "End protocol" on the page | Missing | `01 G-1` (A-85, picture first) |
-| D05-2 | Vial prompt "Protocol finished" ends (with Later) | Only closes | decision 2026-10-04 correction |
-| D05-3 | Missed cleanup reaches every device | This phone only | `01 G-2` (A-86b) |
-| D05-4 | Vial status follows End/Delete across devices | Can be revived | `01 G-3` (A-87b), `01 D-17` |
-| D05-5 | Delete sheet copy true (no 7 days; doses leave the log) | Old copy | `01 G-4` (A-90) |
-| D05-6 | Restart copy true for "same vial" | Says zero doses | `01 G-20` |
-| D05-7 | Restore never re-activates an empty vial | Does | `01 D-18, G-21` |
-| D05-8 | "Deleted Nd ago" in local days | ceil of hours | `01 D-19, G-22` |
-| D05-9 | Course end honoured everywhere | Reminders only | `01 D-08, D-11, G-6` |
-| D05-10 | Curve and tile on the same run after restart | Can differ | `05 D1` |
-| D05-11 | Registry rows A-86/87/89 marked built | "Not started" | `01 G-15` (doc) |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D05-1 | "End protocol" on the page | Missing | `01 G-1` (A-85, picture first) | DV-090 |
+| D05-2 | Vial prompt "Protocol finished" ends (with Later) | Only closes | decision 2026-10-04 correction | DV-090 |
+| D05-3 | Missed cleanup reaches every device | This phone only | `01 G-2` (A-86b) | DV-025 |
+| D05-4 | Vial status follows End/Delete across devices | Can be revived | `01 G-3` (A-87b), `01 D-17` | DV-021 |
+| D05-5 | Delete sheet copy true (no 7 days; doses leave the log) | Old copy | `01 G-4` (A-90) | DV-023 |
+| D05-6 | Restart copy true for "same vial" | Says zero doses | `01 G-20` | DV-024 |
+| D05-7 | Restore never re-activates an empty vial | Does | `01 D-18, G-21` | DV-022 |
+| D05-8 | "Deleted Nd ago" in local days | ceil of hours | `01 D-19, G-22` | DV-023 |
+| D05-9 | Course end honoured everywhere | Reminders only | `01 D-08, D-11, G-6` | DV-012 |
+| D05-10 | Curve and tile on the same run after restart | Can differ | `05 D1` | DV-067 |
+| D05-11 | Registry rows A-86/87/89 marked built | "Not started" | `01 G-15` (doc) | DV-176 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **End protocol placement and the vial-prompt "Later"** — pictures needed (CLAUDE.md "show the layout before building").
-2. **Course end (D05-9):** should a finished course end the protocol automatically, ask "Course complete — end it?", or just stop reminders? Recommendation: ask (same sheet style as "Still going?"), so nothing ends silently.
-3. **Automatic purge after 1.3.0 (A-84):** resume the 7-day purge only for protocols deleted by 1.3.0+ (distinguishable), keep older ones until the user deletes forever? Recommendation: yes.
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **AD-11 — "End protocol" placement and the vial prompt's "Later".** Already approved (A-85, decisions.md:535, :558); pictures before code. → DV-090.
+- **OPEN-03 — Course end** (D05-9). Waits for the founder. → DV-012.
+- **OPEN-04 — Automatic purge after 1.3.0 (A-84).** Waits for the founder. This flow had recommended resuming the purge for protocols deleted from 1.3.0 on (option B there); OPEN-DECISIONS recommends never purging automatically (option A), since "Delete forever" with multi-select exists. → DV-125.
 
 ## 13. Acceptance checks (agent-device QA script)
 

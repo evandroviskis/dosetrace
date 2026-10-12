@@ -637,3 +637,83 @@ Source: dt-council 2026-10-04 (15 reviewers), journey review F1–F9, spec audit
 
 ## 2026-10-12 — PRD, TRD and flows
 - Founder: write a detailed PRD, TRD and the drawn flows before more code ("sem cortar caminhos… sem nada curto"). A-116 / A-117 wait. Work lives in docs/product/.
+
+## 2026-10-12 — founder line missing from the ledger (added during the PRD/TRD reconciliation)
+- **A streak counts doses in a row, never days: a weekly protocol taken twice is 2 doses; the streak walks back over due days (rest days skipped) until one is not fully taken, today counts only once complete, and it looks back up to a year so weekly protocols keep counting** — founder 2026-10-05 (a weekly protocol showed "2 days without a miss") — source: lib/doseStreak.js:1-5 ("founder 2026-10-05: DOSES taken in a row, never days"); screens/TodayScreen.js:610 ("A year back… founder 2026-10-05"); commit b215b32. Applies to every streak (DL-02, DL-03 below).
+
+## 2026-10-12 — decided by logic during PRD/TRD (founder may override)
+Source: docs/product/OPEN-DECISIONS.md (DL-01…DL-74), reconciled with docs/product/PRD.md, TRD.md and flows/ under the 2026-10-03 rule "decide what is already decided". One line each: the decision, then the reason; DV-xxx = the defect row in docs/product/DIVERGENCES.md. DL-01 supersedes the 2026-10-03 line "Site questions older than 7 days are let go" (above, "Resolved 2026-10-03"); DL-32 supersedes the "dashed (est.) component lines" wording of the 2026-09-18/24 blends line. Production changes that follow from a DL (DL-64, DL-72) still need the founder's explicit go before they are applied.
+- **DL-01: Site questions are never dropped for their age (code as built); decisions.md:459 and the FX-25 evidence are corrected** — reason: The founder's S-25 line says open site questions are "kept until answered" (decisions.md:379, grok/145); the later 2026-10-03 "let go after 7 days" line (decisions.md:459) was a by-logic reading of FX-25, and "never lose user-entered data" outranks it (DV-175).
+- **DL-02: The report's streak uses `doseStreak` and its adherence uses the rings' slots; the week circles' "missed" and the report's Missed rows are labelled by what each counts** — reason: One concept, one number: the report goes to a provider and must match what the user sees (AD-07) (DV-032, DV-033).
+- **DL-03: The Today tracker streak follows the same rule (doses in a row over due days) and looks back 365 days (no 31-day cap)** — reason: AD-07 is about the word "streak", not one card; the founder gave the protocol streak a year "so a weekly protocol keeps counting", and the same reason applies to the overall streak (DV-034).
+- **DL-04: One "due today" owner for header, card, ring and streak** — reason: Today counts doses (2026-07-23); three answers on one screen is the A-118 class of bug (DV-029).
+- **DL-05: The Missed scan covers ended protocols up to their end** — reason: Ended protocols keep their history (A-83); rings already count them (DV-031).
+- **DL-06: Protocols with no or fewer reminder times use one slot list everywhere (the same default the form writes)** — reason: The user already receives the 08:00 reminder; every other surface must agree with what the phone does (DV-028).
+- **DL-07: A legacy protocol without a start date is anchored on its creation day everywhere** — reason: Reminders and Today must count the same days (DV-014).
+- **DL-08: Skip cancels that slot's reminders; no Undo bar for Skip** — reason: A reminder for a dose the user declared skipped is noise; a skip is already recoverable ("you can still log it", Dose log delete) (DV-035, DV-130).
+- **DL-09: Undo and the Dose-log delete re-arm the slot's future reminders** — reason: Reminder principle 2026-10-07: a dose still owed must still be reminded (DV-040).
+- **DL-10: A reminder tap acts on the reminder's own slot and cancels what the button would cancel** — reason: Two entry points for the same notification must do the same thing (DV-036).
+- **DL-11: "Tomorrow" / "Next 5 days" count doses, not protocols** — reason: Today counts doses, not protocols (2026-07-23) (DV-037).
+- **DL-12: "All caught up" shows when no open slot remains (a skip counts as handled); the skipped line stays visible (picture first)** — reason: The card exists to say nothing is left to act on (DV-129).
+- **DL-13: One display name per protocol everywhere (translated compound, blend label), and notifications are re-planned on a language change** — reason: One term per concept; the app language rules every surface (DV-013, DV-050).
+- **DL-14: Never two active vials per protocol** — reason: S-20 rule "never two active vials"; screens already assume it (DV-016).
+- **DL-15: A dose edit recomputes the recon vial's capacity from the mass left** — reason: One capacity rule (FX-11); the vial's real content does not change with the dose (DV-015).
+- **DL-16: One days-left function and one colouring (the Protocols style)** — reason: Q9 = B colours by deadline; the same number must read the same everywhere (DV-018).
+- **DL-17: "Vial age" sort = days left** — reason: The sort exists to put the vial closest to expiry first (DV-122).
+- **DL-18: Mix dates: an impossible date is refused, never silently changed; at most 365 days back** — reason: Honest journal: never store a date the user did not type (DV-019).
+- **DL-19: Custom interval 1–365 days in the form and the assistant** — reason: The longest ester in the catalogue is ~12 weeks; one bound everywhere (DV-123).
+- **DL-20: Restore reopens a vial only if it was not finished by doses and is not a tombstone** — reason: An empty vial cannot be in use (DV-022).
+- **DL-21: "Still going?" and its end date use logged Taken doses only** — reason: Declared history never counts as logged (A-30 option C) (DV-026).
+- **DL-22: An empty rtu vial can be replaced; an rtu new vial asks for the new box date; recon gets "New vial" on the protocol page (picture first)** — reason: F-035's New vial exists to start a fresh container; a new box has a new printed date; "Past window" must offer a next step (DV-027, DV-093).
+- **DL-23: Today's empty-state "Add a protocol" opens the wizard** — reason: The button says Add (DV-124).
+- **DL-24: A lapsed Premium user keeps all active protocols** — reason: Ending them would stop their reminders (principle 2026-10-07) and hold data hostage (A-89 spirit) (DV-095).
+- **DL-25: One reality-check assembler (`readCheckNow`) for Today, the food card, Progress and the schedulers; Progress listens to sync; the day-21 reminder is re-planned on a weigh-in** — reason: A-118 showed what happens when each screen assembles the state itself (DV-059).
+- **DL-26: Today says what Progress will actually show (no "ready" when there is no result to see)** — reason: Same rule as A-118: follow the real state (DV-058).
+- **DL-27: One weigh-in validation (25–300 kg, 3–70 %, 30–250 cm) on every entry path** — reason: PO-21 limits exist for the same data from another door (DV-065).
+- **DL-28: A quota refusal on an offline re-parse marks the row, explains, keeps the text and retries after local midnight** — reason: FL-20 behaviour applies to retries; nothing stuck forever (DV-066).
+- **DL-29: `calc_inputs` is merged per key on push** — reason: `mergeCalcInputs` already exists locally; never-lose-data (DV-010).
+- **DL-30: Each "days" count on Progress is labelled by what it counts (picture first)** — reason: Three correct numbers that look contradictory are a bug (DV-146).
+- **DL-31: The curve places doses at the user's own times (fixed hours only without times); pharmacometrician check** — reason: "Planned schedule" (FX-13) includes the time the user planned (DV-069).
+- **DL-32: Blend lines stay like any compound (solid past, dashed future, "(est.)"); decisions.md:205 annotated** — reason: The later approval (2026-09-29, decisions.md:209; prototype binding 2026-10-01) wins over 2026-09-24 (DV-156).
+- **DL-33: The curve picker names blend components as the curve does** — reason: One name per series (MB-4) (DV-153).
+- **DL-34: The Journey tile waits while Premium is unknown** — reason: A paying user must not be sent to the paywall (DV-154).
+- **DL-35: The curve's date wheel goes back 365 days** — reason: The window is capped at 365 days; a pickable date must show a value (DV-158).
+- **DL-36: The curve's fallback stays the newest protocol; the design doc is amended** — reason: A-41 (2026-10-02) is later than the dashboard plan and defines the restore (DV-157).
+- **DL-37: Enanthate / Nandrolone get a time-to-peak only with a published source** — reason: PK rule: covariates only from published data (2026-09-09); evidence, not preference (DV-106).
+- **DL-38: Latest lab value: newest date, then newest batch, everywhere** — reason: One "latest" for hub, marker screen and export (DV-074).
+- **DL-39: Test labels belong to a test (card), not to a date** — reason: One card per test (A-101d) (DV-075).
+- **DL-40: Lab values are parsed with `parseMeasure` on every path** — reason: Lab numbers have always read a comma as the decimal (doseMath) (DV-076).
+- **DL-41: The vaccine scan fills manufacturer, lot, dose number, provider, location** — reason: Transcription only (AI hard line allows it); the fields exist and the app expects them (DV-109).
+- **DL-42: Exports are complete: vaccine details, the profile and preferences; Settings imports first like the 18+ sheet** — reason: Export covers the user's data (S-07); the same action must give the same file (DV-079, DV-086).
+- **DL-43: Lab charts: one series per unit; x by date (picture first)** — reason: Honesty lines: never mix scales or distort time on a health value (DV-080).
+- **DL-44: No vaccine due reminder** — reason: The next-due date is user-entered and never advice; nothing promised it (DV-161).
+- **DL-45: Settings "blocked" uses the same order as Today (Silent, off, nothing needed first); Today's blocked card excludes Silent** — reason: One concept, one rule; BR-4 says Silent is never "blocked" (DV-042).
+- **DL-46: Reminders read "OK" only when every timed protocol due in the window has its reminders; the setup bar shows "None scheduled"** — reason: "All set" must be true (DV-043, DV-044).
+- **DL-47: Refresh health is honest: never-ran warns after 2 days; OK only when reminders were rebuilt; the count is kept** — reason: A-110 exists to catch the silent failure (DV-045, DV-046).
+- **DL-48: The persistent-reminders text describes the two repeats (+5, +10)** — reason: Copy must be true; no new behaviour without approval (DV-049).
+- **DL-49: The Reminder check covers the channel of every reminder kind the user has switched on (picture first)** — reason: Its purpose: "a reminder that never arrives is invisible" — the food question included (DV-098).
+- **DL-50: The Android setup step still shows after a denied permission dialog; SP-4 wording amended** — reason: The step's first row shows the block with its fix — the app keeps reminding until items are OK (DV-142).
+- **DL-51: A-24 is closed: the 8 PM question follows the open check, and a check cannot be saved early any more** — reason: The self-finishing check removed the case (DV-144).
+- **DL-52: Account-scoped device keys are removed on the intended sign-out and the cross-account guard; per-phone keys stay** — reason: Privacy over convenience (cross-account guard, 2026-10-03) (DV-081).
+- **DL-53: The entitlement cache is bound to the session user at sign-in, before any read** — reason: One account must never see another's Premium (DV-082).
+- **DL-54: Offline with a stored session = signed in** — reason: CLAUDE.md: distinguish "signed out" from "session changed" (DV-083).
+- **DL-55: AI consent per account, recorded with version and date, cleared on sign-out, withdrawable in Settings (picture first)** — reason: "Consent before every AI call" (decisions.md:323) means the person sending; GDPR Art. 7(3) requires withdrawal (DV-007).
+- **DL-56: Profile and analytics writes report failures and keep the typed values** — reason: Never lose user-entered data; same pattern as the notification switches (DV-008).
+- **DL-57: A sign-in fills the display name only when missing (Apple or Google)** — reason: "Fill ONLY the missing fields, never overwrite" (2026-10-03, PA-71…73) (DV-084).
+- **DL-58: Settings › Edit profile can edit every field the gate requires ("what you track")** — reason: Enter once, correct anywhere; the gate cannot be the only editor (DV-113).
+- **DL-59: Someone who chose "Sign in" returns to Sign in after a restart** — reason: They told the app what they wanted (DV-163).
+- **DL-60: Deleting the account warns Premium users that the store subscription keeps billing, with a link** — reason: Apple / Google account-deletion guidance (store rules 100%) (DV-087).
+- **DL-61: The 7 free food-log days are called "free days", never "trial"** — reason: One term per concept; "trial" is the store's offer (DV-164).
+- **DL-62: No analytics before sign-in for now** — reason: Default-on install-id analytics is a counsel question (ePrivacy 5(3)) (DV-167).
+- **DL-63: Reinstall behaviour is written into the TRD and checked on a device before any change** — reason: Unspecified states are where data leaks or gets lost (DV-116).
+- **DL-64: Add the `updated_at` trigger to `reality_checks` (production SQL with the founder's go)** — reason: The pull depends on it; every other synced table has it (DV-088).
+- **DL-65: "As-needed doses are excluded" is a note, no code** — reason: The app has no as-needed protocol type (DV-133).
+- **DL-66: The `not_recorded` marker is retired (legacy rows still read); FL-3 amended** — reason: FL-47's "Just close the day" is today's way to break a run on purpose (DV-151).
+- **DL-67: One daily cap on every path = the doses expected that day (Today, notification action, Dose log); a snoozed dose tapped after slot + 12 h is logged as today** — reason: One owner for "due today" (DL-04); A-40 defines "yesterday" only inside slot + 12 h, and S-25 makes the dose time the tap time outside it (DV-029).
+- **DL-68: The target ETA has no extra staleness cutoff: it always names the weigh-in window it is computed from; body-fat-only targets are supported** — reason: The ETA was approved "labelled with its weigh-in window" and the target as "weight and/or body-fat" (decisions.md:241): an old window is shown, never hidden or guessed.
+- **DL-69: Typed numbers are parsed in the app language (pt/es/fr/de/it: comma = decimal, "5.000" = 5000; English as in CLAUDE.md), via `parseDecimal(text, language)`** — reason: The founder approved displaying numbers in the app language (decisions.md:92) and prefilled fields must round-trip; a field that shows "86,0" must read "86,0" back.
+- **DL-70: iPad stays off (`supportsTablet: false`) for 1.3.0; enabling it is a registry item for a later build** — reason: 1.3.0's scope is closed (evolution rule 2); iPad was never approved, and the foldable book layout is the approved large-screen work.
+- **DL-71: Existing false Missed rows of real users are not migrated away; users can correct or delete them in the Dose log; Test03's rows stay untouched** — reason: They cannot be told apart from real misses safely — never destroy on a maybe (CLAUDE.md); decisions.md:197, :387.
+- **DL-72: A delete reaches every device: every synced table gets a positive tombstone instead of a cloud hard DELETE (TR-SYNC-2). The production migration still needs the founder's go, as every migration does** — reason: Every delete is a deliberate user act (AD-01) and a deleted dose that still counts on another phone is a wrong health record; the founder already chose positive tombstones for protocols (decisions.md:519-531) (DV-182).
+- **DL-73: "+ Add a past weigh-in" accepts any past date back to the profile's birth year, never a future date** — reason: Past weigh-ins were approved with no limit (decisions.md:241) and serve history before install; only an impossible date is refused (same rule as mix dates, DL-18) (DV-194).
+- **DL-74: Dose counters sync as events and pushes carry only the fields changed since the last sync (TR-SYNC-3)** — reason: Never lose user-entered data: a whole-row push from a stale copy reverts another device's edit, and two offline doses must count as two (DV-183).

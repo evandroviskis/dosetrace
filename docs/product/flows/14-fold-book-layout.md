@@ -168,17 +168,19 @@ BK-1 thresholds; BK-2 one column = today's app; BK-3 (superseded by A-115 FR-1/F
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D14-1 | Notifications open on the right page | Left page / pushed | A-116 (waiting), `02 G15` |
-| D14-2 | Every BK row device-proven light + dark | Partial; FR-6 missing | spec-audit, `08 §9` |
-| D14-3 | My Body card follows the curve | Stale | `05 D3` |
-| D14-4 | Progress on the right follows sync | Loads once | `04 D-4` |
-| D14-5 | Rebuild = replace complete | Dead dose-page code; BK-3/BK-16 text not marked superseded | `02 G14` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D14-1 | Notifications open on the right page | Left page / pushed | A-116 (waiting), `02 G15` | DV-117 |
+| D14-2 | Every BK row device-proven light + dark | Partial; FR-6 missing | spec-audit, `08 §9` | DV-118 |
+| D14-3 | My Body card follows the curve | Stale | `05 D3` | DV-152 |
+| D14-4 | Progress on the right follows sync | Loads once | `04 D-4` | DV-059 |
+| D14-5 | Rebuild = replace complete | Dead dose-page code; BK-3/BK-16 text not marked superseded | `02 G14` | DV-181, DV-179 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. None new — A-116 waits by the founder's own instruction; the Fold walk (D14-2) is a process step before the next build.
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- None — A-116 waits by the founder's own instruction and resumes after the PRD / TRD / flows sign-off (AD-31); the Fold walk (D14-2) is a process step before the next build (AD-42).
 
 ## 13. Acceptance checks (agent-device QA script)
 

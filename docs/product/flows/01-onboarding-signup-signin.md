@@ -203,7 +203,7 @@ stateDiagram-v2
 - Same account on a second phone: Sign in → full import; profile already complete → Main directly; Android once-per-phone reminder setup opens from Today (flow 06).
 - **A different account signs in on a phone holding another account's local data:** the previous account's local data is discarded (cross-account guard, decision 2026-10-03 privacy over unsynced data). Reminders of the previous account cancelled before import.
 - Shared phone, stash typed by person A, person B signs up with Apple: stash not fresh for B → never written to B (PA-71…73).
-- **Divergence today (07 D-18; 08 Gap 1):** AI consent (`dosetrace_ai_extraction_consent_v4`) is per device and survives sign-out, so person B inherits person A's AI consent. Ledger rule: "AI consent before every AI call". OPEN — see §12.
+- **Divergence today (07 D-18; 08 Gap 1):** AI consent (`dosetrace_ai_extraction_consent_v4`) is per device and survives sign-out, so person B inherits person A's AI consent. Ledger rule: "AI consent before every AI call". Decided by logic → DL-55 (consent per account, withdrawable).
 - **Divergence today (07 D-7, SUSPECTED):** entitlement cache keys survive sign-out; a short window on SIGNED_IN can read the previous account's cached Premium before `initPurchases` runs.
 
 ### 7.4 Timezone / DST / midnight
@@ -225,7 +225,7 @@ stateDiagram-v2
 - Android "Enable notifications" → OS prompt → **Make sure your reminders arrive** (items + bar only; no schedule or test; "Continue" reads "Done" when all readable items are OK; "Set up later"). Marks setup seen on this phone (SP-4).
 - "Not now" → straight to Create account; the setup step is skipped.
 - **Intended (SP-4 / SP-5 spirit):** a user who said "Not now" is not asked again until they actually set a reminder time.
-  - **Divergence today (03 G25; 07 §8 row "Not now"):** `requestNotificationPermissions()` runs at every signed-in cold start and on SIGNED_IN while not granted, so the OS prompt appears right after sign-in anyway. OPEN — see §12.
+  - **Divergence today (03 G25; 07 §8 row "Not now"):** `requestNotificationPermissions()` runs at every signed-in cold start and on SIGNED_IN while not granted, so the OS prompt appears right after sign-in anyway. Already decided → AD-27 ("Not now" respected).
   - **Divergence today (03 G26):** Android shows the setup step even after the user denied the OS dialog.
 
 ### 7.9 Email confirmation and links
@@ -299,24 +299,27 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D01-1 | Gates answerable offline + "Sign out anyway" | Error sheet, no force | decision 2026-10-04; `07 Gap 6` (A-94) |
-| D01-2 | Offline cold start keeps a stored session | May route to Auth | `07 D-16` (SUSPECTED) |
-| D01-3 | AI consent belongs to the person who gave it | Device-wide, survives sign-out | `07 D-18`, `08 Gap 1` |
-| D01-4 | "Not now" respected | OS prompt at first signed-in start | `03 G25`, `07 §8` |
-| D01-5 | Android setup step only after the permission was granted (SP-4 "answered") | Shown after a denial too | `03 G26` |
-| D01-6 | Google / Apple-on-Android display name used to prefill "About you" | Never read; the `about` step always shows if the stash was not fresh; Apple iOS may overwrite an existing name | `07 D-20` |
-| D01-7 | Settings and onboarding validate the same profile rules | Gate checks presence only (a bad stored year or 4-level activity passes) | `07 D-11` |
-| D01-8 | Android Apple sign-in live (founder 2026-10-03) | Server setup pending; button hidden by probe | `07 Gap 13`; premium-and-auth.md:104 |
-| D01-9 | Onboarding analytics funnel complete | `onboarding_completed` dropped for email sign-ups that need confirmation (no user yet) | `07 Gap 18` |
-| D01-10 | Restart after typing answers then "Sign in" lands on Sign in | Lands back on onboarding (stash has answers) | `07 D-14` (by design today — confirm) |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D01-1 | Gates answerable offline + "Sign out anyway" | Error sheet, no force | decision 2026-10-04; `07 Gap 6` (A-94) | DV-114 |
+| D01-2 | Offline cold start keeps a stored session | May route to Auth | `07 D-16` (SUSPECTED) | DV-083 |
+| D01-3 | AI consent belongs to the person who gave it | Device-wide, survives sign-out | `07 D-18`, `08 Gap 1` | DV-007 |
+| D01-4 | "Not now" respected | OS prompt at first signed-in start | `03 G25`, `07 §8` | DV-054 |
+| D01-5 | Android setup step only after the permission was granted (SP-4 "answered") | Shown after a denial too | `03 G26` | DV-142 |
+| D01-6 | Google / Apple-on-Android display name used to prefill "About you" | Never read; the `about` step always shows if the stash was not fresh; Apple iOS may overwrite an existing name | `07 D-20` | DV-084 |
+| D01-7 | Settings and onboarding validate the same profile rules | Gate checks presence only (a bad stored year or 4-level activity passes) | `07 D-11` | DV-162 |
+| D01-8 | Android Apple sign-in live (founder 2026-10-03) | Server setup pending; button hidden by probe | `07 Gap 13`; premium-and-auth.md:104 | DV-115 |
+| D01-9 | Onboarding analytics funnel complete | `onboarding_completed` dropped for email sign-ups that need confirmation (no user yet) | `07 Gap 18` | DV-167 |
+| D01-10 | Restart after typing answers then "Sign in" lands on Sign in | Lands back on onboarding (stash has answers) | `07 D-14` (by design today — confirm) | DV-163 |
 
-## 12. Open founder questions (real preferences only)
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **AI consent scope** (`07 D-18`): per device (today) or per account (asked again for each person who signs in; proof stored on the server, A-95)? Recommendation: per account — the consent sends health text to Anthropic and the ledger requires it "before every AI call".
-2. **Notification prompt after "Not now"** (`03 G25`): keep the OS prompt at first sign-in, or ask only when the first protocol with a reminder time is saved? Recommendation: ask when the first timed protocol is saved (the moment a reminder means something).
-3. **Year-only 18+ test** — keep (spec note) or ask the month too? Counsel item with the GDPR Art. 9 flag.
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **DL-55 — AI consent scope** (`07 D-18`). Decided by logic: consent belongs to the account (version and date recorded), is cleared on the intended sign-out and the cross-account guard, and can be withdrawn in Settings (picture first); proof on the server stays a counsel item (AD-51). → DV-007.
+- **AD-27 — Notification prompt after "Not now"** (`03 G25`). Already decided (decisions.md:623): someone who said "Not now" is not asked at boot; the OS prompt comes when the first protocol with a reminder time is saved, or from the reminder screen. → DV-054.
+- **AD-43 — Year-only 18+ test.** Already decided: birth year only; the GDPR / counsel flag stands (AD-51). → DV-168.
+- No OPEN question remains in this flow.
 
 ## 13. Acceptance checks (agent-device QA script)
 

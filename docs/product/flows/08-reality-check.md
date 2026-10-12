@@ -146,7 +146,7 @@ stateDiagram-v2
 ### 7.1 Start
 - Start sheet: "Start weigh-in on" ‹ date › (today … 7 days back, never future; "Today, or a weigh-in from the last 7 days — not further back."), "Weight today" (prefilled from that day's weigh-in, never over a typed value), button "Log today & set my reminder", hint "We'll remind you in 21 days to weigh in again and finish your reality check."
 - Writes: `free_start` marker (the real tap day — backdating never shortens the free days), a start-day weigh-in only if that day had none, `reality_check_open` (+ mirror `calc_reality_open`).
-- **OPEN (04 D-8, G-9; conflict #25):** the ledger Q-A says the check has no weight fields of its own (uses the latest weigh-in); the code has a start weight; if the user overrides a prefilled weigh-in the check and the weigh-ins table disagree. Founder line needed (§12).
+- **OPEN-07 (04 D-8, G-9; conflict #25):** the ledger Q-A says the check has no weight fields of its own (uses the latest weigh-in); the code has a start weight; if the user overrides a prefilled weigh-in the check and the weigh-ins table disagree. Founder line needed (OPEN-08).
 - Free explainer first for a free user (Q11 = A).
 
 ### 7.2 Running
@@ -181,7 +181,7 @@ stateDiagram-v2
 ### 7.7 Stop and Start over
 - **Start over** → "Start over?" / "This clears the start weight of this check and its reminders. Your weigh-ins and logged meals are kept." → open row stopped; saved results kept.
 - **Stop** → "Stop reality check?" / "This clears your reality-check numbers and stops the daily food-log reminder. Your logged meals are kept." → open row stopped; **every saved `reality_checks` row tombstoned** (measured history gone; daily burn back to Estimated).
-  - **OPEN (04 G-8):** Stop is the one action that destroys measured history; the ledger only says Stop "clears the open check… keeps the logged food". Founder line needed (§12). Orphan `rcTypedKcal` / `rcResultSources` remain in the payload.
+  - **OPEN-08 (04 G-8):** Stop is the one action that destroys measured history; the ledger only says Stop "clears the open check… keeps the logged food". Founder line needed (OPEN-08). Orphan `rcTypedKcal` / `rcResultSources` remain in the payload.
 - Stop wins across devices (client rule + server trigger `reality_check_open_keep_stop`).
 
 ### 7.8 Next check
@@ -249,27 +249,28 @@ R-R1 start today … 7 days back (FL-44). R-R2 due = start + 21 calendar days. R
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D08-1 | Progress status follows "weighed in" | Says "weigh in {past date}" | `04 D-1` |
-| D08-2 | Day-21 reminder cancelled by the weigh-in | Fires anyway | `04 D-2` |
-| D08-3 | Today never says "ready — see it" for locked / unsavable | Says it | `04 D-3` |
-| D08-4 | Next check never hidden by the last result | Hidden, never finishes | `04 D-7, G-3` |
-| D08-5 | Typed average Premium-only | Free days / grace too | `04 D-14`; decision 2026-10-08 |
-| D08-6 | Grace week = finish logging only | Can start a new check and see results | `04 D-13` |
-| D08-7 | One assembler; Progress refreshes on sync / midnight | Loads once, no listener | `04 D-4, D-5, G-6`; `08 D5` |
-| D08-8 | One start weight | Typed vs weigh-in can differ | `04 D-8, G-9` (OPEN) |
-| D08-9 | Stop keeps or deletes results per founder | Deletes all | `04 G-8` (OPEN) |
-| D08-10 | All-"ate nothing" run explained correctly | "too short" | `04 §8.11` |
-| D08-11 | `reality_checks` edits reach other devices | No `updated_at` trigger in production | `08 Addendum` |
-| D08-12 | One "21" constant | Duplicated in hero | `04 §6.2, G-11` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D08-1 | Progress status follows "weighed in" | Says "weigh in {past date}" | `04 D-1` | DV-056 |
+| D08-2 | Day-21 reminder cancelled by the weigh-in | Fires anyway | `04 D-2` | DV-057 |
+| D08-3 | Today never says "ready — see it" for locked / unsavable | Says it | `04 D-3` | DV-058 |
+| D08-4 | Next check never hidden by the last result | Hidden, never finishes | `04 D-7, G-3` | DV-060 |
+| D08-5 | Typed average Premium-only | Free days / grace too | `04 D-14`; decision 2026-10-08 | DV-102 |
+| D08-6 | Grace week = finish logging only | Can start a new check and see results | `04 D-13` | DV-101 |
+| D08-7 | One assembler; Progress refreshes on sync / midnight | Loads once, no listener | `04 D-4, D-5, G-6`; `08 D5` | DV-059, DV-148 |
+| D08-8 | One start weight | Typed vs weigh-in can differ | `04 D-8, G-9` (OPEN-07) | DV-061 |
+| D08-9 | Stop keeps or deletes results per founder | Deletes all | `04 G-8` (OPEN-08) | DV-004 |
+| D08-10 | All-"ate nothing" run explained correctly | "too short" | `04 §8.11` | DV-150 |
+| D08-11 | `reality_checks` edits reach other devices | No `updated_at` trigger in production | `08 Addendum` | DV-088 |
+| D08-12 | One "21" constant | Duplicated in hero | `04 §6.2, G-11` | DV-147 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Stop and saved results (D08-9):** should Stop delete every saved measured result (today) or only stop the open check (Start over already exists)? Recommendation: Stop keeps saved results (never-lose-data); a separate "Delete my results" with its own confirm if wanted.
-2. **Start weight (D08-8, conflict #25):** keep the start sheet's own weight (and write it as that day's weigh-in, replacing it with a confirm), or always use the weigh-in of the start day? Recommendation: one number — the start-day weigh-in, edited through the weigh-in sheet.
-3. **Self-finishing check (conflict #25):** confirm the automatic finish (no "See my actual maintenance" button from day 14, Q-B).
-4. **Today copy for locked / unsavable** (D08-3): approve the new lines ×6 (picture first).
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **OPEN-08 — Stop and saved results** (D08-9). Waits for the founder. → DV-004.
+- **OPEN-07 — One start weight and the self-finishing check** (D08-8, conflict #25) — the two former questions are one founder question. → DV-061.
+- **DL-26 (+ OPEN-09) — Today copy for a locked or unsavable result** (D08-3). Decided by logic: Today never says "ready — tap to see it" when there is nothing to see; the new lines ×6 are shown as a picture for wording approval. What happens to an unsavable check is OPEN-09. → DV-058, DV-104.
 
 ## 13. Acceptance checks (agent-device QA script)
 

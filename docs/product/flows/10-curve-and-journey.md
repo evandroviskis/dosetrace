@@ -135,7 +135,7 @@ stateDiagram-v2
 - Level = Σ dose × f(Δt): exponential, or Bateman with Tmax for Semaglutide, Testosterone Cypionate, Testosterone Undecanoate, Sustanon 250. Look-back max(16 days, 6 × t½) capped 600 days.
 - Units: mg except IU-native (HGH, HCG, HMG, FSH; HGH mg→IU × 3); one unit per chart.
 - Sex-neutral: no sex / weight / body-fat input (decision 2026-09-09; never a global sex fudge).
-- **Divergence today (05 D6, G9):** the fixed 12:00 dose hour is never disclosed; a 22:00 dose counts 10 h early in "Est. level · now" (decisive for t½ < 6 h compounds). OPEN — §12.
+- **Divergence today (05 D6, G9):** the fixed 12:00 dose hour is never disclosed; a 22:00 dose counts 10 h early in "Est. level · now" (decisive for t½ < 6 h compounds). → DL-31 (doses at the user's times; pharmacometrician check).
 - **Divergence today (05 D5, G5; A-96):** "Doses counted" counts only the visible window while the level uses doses back to 6 half-lives.
 - **Divergence today (05 G8):** copy still says "log doses to see your curve" / "compound amounts you logged" although the model is schedule-driven.
 - **Divergence today (05 G6):** orals are dropped before the "not charted" reasons, so they are silently absent although the screen promises compounds are "named on screen, never dropped silently".
@@ -211,26 +211,28 @@ R1–R6 which protocols are charted (recon/rtu, blends, exclusions, ended ≤ 36
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D10-1 | Tile / My Body / curve same compound after end/restart | Curve may open the ended run | `05 D1, G1` |
-| D10-2 | Same number across DST | 14 d vs 3 d grid differ | `05 D2, G2` |
-| D10-3 | My Body card follows a curve change on the Fold | Stale until refocus | `05 D3, G3` |
-| D10-4 | Picker names blend components with the blend | Component only | `05 D4, G4` |
-| D10-5 | Doses counted = doses in the estimate | Window only | `05 D5` (A-96) |
-| D10-6 | Fixed dose hour disclosed | Not disclosed | `05 D6, G9` (OPEN) |
-| D10-7 | Orals named as not charted | Silent | `05 G6` |
-| D10-8 | Boldenone substance name ×6 | Missing key | `05 G7` |
-| D10-9 | Copy says "planned schedule" everywhere | "log doses", "you logged" | `05 G8` |
-| D10-10 | Journey tile tap counted | No event | `05 G12` (A-98) |
-| D10-11 | Readout > 365 days back explained | Dash, no explanation | `05 G16` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D10-1 | Tile / My Body / curve same compound after end/restart | Curve may open the ended run | `05 D1, G1` | DV-067 |
+| D10-2 | Same number across DST | 14 d vs 3 d grid differ | `05 D2, G2` | DV-068 |
+| D10-3 | My Body card follows a curve change on the Fold | Stale until refocus | `05 D3, G3` | DV-152 |
+| D10-4 | Picker names blend components with the blend | Component only | `05 D4, G4` | DV-153 |
+| D10-5 | Doses counted = doses in the estimate | Window only | `05 D5` (A-96) | DV-096 |
+| D10-6 | Fixed dose hour disclosed | Not disclosed | `05 D6, G9` (DL-31) | DV-069 |
+| D10-7 | Orals named as not charted | Silent | `05 G6` | DV-155 |
+| D10-8 | Boldenone substance name ×6 | Missing key | `05 G7` | DV-070 |
+| D10-9 | Copy says "planned schedule" everywhere | "log doses", "you logged" | `05 G8` | DV-071 |
+| D10-10 | Journey tile tap counted | No event | `05 G12` (A-98) | DV-105 |
+| D10-11 | Readout > 365 days back explained | Dash, no explanation | `05 G16` | DV-158 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Fixed dose hour (D10-6):** place doses at the user's reminder times (true to the journal) or keep the 12:00 grid and say so in the source card? Pharmacometrician review recommended; at least disclose.
-2. **Dose edits (F2):** should a dose change apply only from the edit date forward (history kept)? Recommendation: yes — the curve should not rewrite the past.
-3. **Missed / skipped doses (A-31):** keep "planned schedule" or count only logged doses (pharmacometrics review)?
-4. **Blend lines dashed (D10 G10):** confirm the current solid-past look supersedes 2026-09-18.
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **DL-31 — Fixed dose hour** (D10-6). Decided by logic: the curve places doses at the user's own reminder times (fixed hours only without times), with a pharmacometrician check. → DV-069.
+- **OPEN-10 — Dose edits apply forward only (F2).** Waits for the founder. → DV-005.
+- **OPEN-11 — Missed / skipped doses lower the curve (A-31).** Waits for the founder. → DV-072.
+- **DL-32 — Blend lines.** Decided by logic: solid past / dashed future like any compound (the later approval wins over 2026-09-18). → DV-156.
 
 ## 13. Acceptance checks (agent-device QA script)
 

@@ -3,6 +3,7 @@
 - Status: **DRAFT for founder review** — written 2026-10-12 on branch `redesign/graduated` (HEAD `976ef9e`). No code was changed to write it.
 - Founder brief (2026-10-12, `docs/decisions.md:638-639`): "sem cortar caminhos… sem nada curto" — a detailed PRD, TRD and drawn flows before more code.
 - Companion documents: `docs/product/PRD.md` (behaviour), `docs/product/flows/` (drawn journeys), `docs/product/research/01..08-*.md` (the factual dossiers this TRD consolidates).
+- Reconciled 2026-10-12 with `PRD.md`, `DIVERGENCES.md` (every TRD finding is a DV row; see its crosswalk) and `OPEN-DECISIONS.md` (the single list of founder questions; §9 uses its canonical IDs).
 - Sources read for this TRD: all eight dossiers in full (incl. every STATE OWNERSHIP AUDIT and the 08 addendum on live triggers), `CLAUDE.md`, `docs/decisions.md`, `docs/specs/*.md` (README, background-refresh, reminders-guaranteed, exact-alarms; the rest through the dossiers), `.claude/skills/ship-check/SKILL.md`, and the code itself: `index.js`, `App.js`, `lib/sync.js`, `lib/syncCore.js`, `lib/syncMappers.js`, `lib/syncRunner.js`, `lib/database.js`, `lib/supabase.js`, `lib/localDate.js`, `lib/backgroundTasks.js`, `lib/reminderRefresh.js`, `lib/notificationActions.js`, `lib/notificationPlan.js`, `lib/schedule.js`, `lib/realityCheckNow.js`, `lib/featureExplainers.js`, `lib/syringes.js`, `app.json`, `eas.json`, `package.json`, `__tests__/helpers/syncHarness.js`, `__tests__/entitlementGuard.test.js`, plus targeted greps listed where used.
 - **Live evidence gathered for this TRD (2026-10-12, read-only, metadata only — no user rows read):** Supabase `list_migrations`, `list_edge_functions`, `information_schema.columns`, `information_schema.triggers`, `pg_constraint`, `pg_policies`, `cron.job` on project `mqfvnqfusqyhqhowfweh`. Test suite run (`node --test`) and `node scripts/spec-audit.cjs`.
 
@@ -345,17 +346,17 @@ Local integrity gaps (CONFIRMED): no unique key on `(user_id, entry_date)` for `
 
 ### 2.3 Repo ↔ live drift (must be closed; §8.4)
 
-| # | Drift | Evidence | Risk |
+| # | Drift | Evidence | Risk · DV row |
 |---|---|---|---|
-| DR-1 | 29 migrations applied live vs 12 files in `supabase/migrations/` + 15 root `supabase_*.sql` applied by hand. Live-only migrations include `add_created_at_to_dose_logs`, `admin_metrics_*`, `create_ai_scan_usage`, `create_food_logs_table`, `create_ai_food_usage_table`, `add_reality_checks_and_calc_snapshots_tables`, `add_waist_cm_to_calc_snapshots`, `create_calc_targets_table`, `add_updated_at_triggers_calc_tables`, `create_apple_tokens_table`, `rls_harden_referral_and_vaccines`, `create_push_tokens_table`, `add_timezone_to_push_tokens` | `list_migrations` 2026-10-12 vs `ls supabase/migrations` | The repo cannot recreate production; schema review happens against memory, not code (08 G3). |
-| DR-2 | Core DDL absent from git: `profiles`, `protocols`, `vials`, `dose_logs`, `biomarkers`, `reminders`, `handle_new_user`, `set_updated_at` attachment on the four core tables | 08 §3.2; live triggers exist (08 addendum) | Same as DR-1. |
-| DR-3 | `notification_sends` exists in repo SQL, **not live**; `delete-user` lists it and `notification_preferences` (also absent), tolerated | live table list; `supabase/functions/delete-user/index.ts:113-164` | Dormant sender would fail if activated. |
-| DR-4 | `parse-food-next` v2 still ACTIVE live; RL-1 (2026-10-03) said remove it | `list_edge_functions` | An undocumented AI endpoint with its own limits (UNVERIFIED which). |
-| DR-5 | `vaccines` five detail columns live, not in repo DDL | 06 §7.2 | — |
-| DR-6 | Unused live columns: `dose_logs.notes/pre_tags/checkin_*`, `vials.expiry_alert_days`, `biomarkers.reference_min/max/status` | live columns | `reference_*`/`status` must never be written (AI hard line). |
-| DR-7 | Type mismatch local TEXT ↔ cloud numeric/date for protocol numbers and dates | §2.2 | Pending-forever row on a bad value (SUSPECTED). |
-| DR-8 | `reality_checks` lacks the `updated_at` trigger every other synced table has | live triggers | §3.10. |
-| DR-9 | `send-reminders` in repo, never deployed; header says "NOT ACTIVE YET" | `list_edge_functions`; `docs/decisions.md:564` | Its port of the schedule (`plan.ts`) drifts (03 §3.13; 08 G15). |
+| DR-1 | 29 migrations applied live vs 12 files in `supabase/migrations/` + 15 root `supabase_*.sql` applied by hand. Live-only migrations include `add_created_at_to_dose_logs`, `admin_metrics_*`, `create_ai_scan_usage`, `create_food_logs_table`, `create_ai_food_usage_table`, `add_reality_checks_and_calc_snapshots_tables`, `add_waist_cm_to_calc_snapshots`, `create_calc_targets_table`, `add_updated_at_triggers_calc_tables`, `create_apple_tokens_table`, `rls_harden_referral_and_vaccines`, `create_push_tokens_table`, `add_timezone_to_push_tokens` | `list_migrations` 2026-10-12 vs `ls supabase/migrations` | The repo cannot recreate production; schema review happens against memory, not code (08 G3). · DV-119 |
+| DR-2 | Core DDL absent from git: `profiles`, `protocols`, `vials`, `dose_logs`, `biomarkers`, `reminders`, `handle_new_user`, `set_updated_at` attachment on the four core tables | 08 §3.2; live triggers exist (08 addendum) | Same as DR-1. · DV-119 |
+| DR-3 | `notification_sends` exists in repo SQL, **not live**; `delete-user` lists it and `notification_preferences` (also absent), tolerated | live table list; `supabase/functions/delete-user/index.ts:113-164` | Dormant sender would fail if activated. · DV-011 |
+| DR-4 | `parse-food-next` v2 still ACTIVE live; RL-1 (2026-10-03) said remove it | `list_edge_functions` | An undocumented AI endpoint with its own limits (UNVERIFIED which). · DV-188 |
+| DR-5 | `vaccines` five detail columns live, not in repo DDL | 06 §7.2 | — · DV-119 |
+| DR-6 | Unused live columns: `dose_logs.notes/pre_tags/checkin_*`, `vials.expiry_alert_days`, `biomarkers.reference_min/max/status` | live columns | `reference_*`/`status` must never be written (AI hard line). · DV-119 (AD-55) |
+| DR-7 | Type mismatch local TEXT ↔ cloud numeric/date for protocol numbers and dates | §2.2 | Pending-forever row on a bad value (SUSPECTED). · DV-119 |
+| DR-8 | `reality_checks` lacks the `updated_at` trigger every other synced table has | live triggers | §3.10. · DV-088 |
+| DR-9 | `send-reminders` in repo, never deployed; header says "NOT ACTIVE YET" | `list_edge_functions`; `docs/decisions.md:564` | Its port of the schedule (`plan.ts`) drifts (03 §3.13; 08 G15). · DV-145 |
 
 ### 2.4 AsyncStorage inventory (device; consolidated from 08 §5.2, 03 §7.3, 07 §7.2)
 
@@ -558,20 +559,20 @@ Base rule (all tables): **row-level, device-first** — a pending local row beat
 
 **Holes** (decision context: "concurrent multi-device use is not a real use case", A-48 parked 2026-09-28 — but *sequential* multi-device use, phone + tablet or an old phone kept signed in, is real; the founder's own Fold + iPhone is that case):
 
-| # | Hole | Evidence | Effect | Severity |
+| # | Hole | Evidence | Effect | Severity · DV row |
 |---|---|---|---|---|
-| H-1 | **Deletes of non-protocol rows never propagate** to a device that already holds the row | push = hard DELETE (`:648-654`); pull = `updated_at > watermark` only; absence delete only in `fullImport`, which runs only with no protocol row (`:847-850`); no test covers it (`grep` of `__tests__/sync.test.js`) | a dose deleted in the Dose log on A still counts on B (rings, report, supply already moved on A only); a deleted weigh-in, food entry, lab value, vaccine or Stop-cleared reality-check result stays on B; B's next edit of that row deletes it locally (deletions win) or re-inserts it (`calc_snapshots`) | **P0** (health record diverges silently) |
-| H-2 | **`reality_checks` edits invisible to other devices** | §3.10 | a re-computed result for the same weigh-in date stays old elsewhere | P1 (rare path) |
-| H-3 | Whole-row last-writer-wins and absolute counters | payload = all `CLOUD_FIELDS` (`lib/syncMappers.js:55-172`); `doses_taken`, `units_taken` absolute | two devices each logging one oral dose offline → `units_taken` +1 not +2; a vial count lost; a note edited on A reverted by B's dose push | P1 |
-| H-4 | `created_at` not sent for biomarkers, food_logs, calc_*, reality_checks, vaccines, vials | `CLOUD_FIELDS` | hub test count = one per marker on every non-scanning device (06:D-3); food thread grouping and free-days anchor by typed day may shift (SUSPECTED); report card keys differ by device | P1 (biomarkers), P2 others |
-| H-5 | `isLocalDBEmpty` = no protocols | `:847-850` | full import every launch for protocol-less users (bandwidth, absence deletes each time) | P2 |
-| H-6 | Write during a running pass waits for the next trigger (F-7) | `lib/syncRunner.js:23` | delayed backup; offline alert / sign-out check may count it | P2 |
-| H-7 | Duplicate Missed rows (per-device watermark, no unique key) | 02:D15 | double-counted Missed in the report; slot assignment shifts | P2 (A-48 parked) |
-| H-8 | Vial status has no device-of-origin rule | 01:G-3 (A-87b) | an ended protocol's vial re-activated by another phone | P1 |
-| H-9 | Pull completion does not re-plan dose reminders | `App.js:586-596` re-plans only food + day-21 | a dose logged / protocol ended on A keeps reminding on B until B's next full resync (03:G8) | P1 |
-| H-10 | `getLocalDataUserId` skips `vials` | `lib/database.js:820-829` | a device holding only another user's vials does not trigger the guard (edge) | P3 |
-| H-11 | First INSERT not idempotent (F-8) | `cloud.insert` without client id | duplicate cloud rows after a lost response | P2 (SUSPECTED) |
-| H-12 | The test harness models a trigger on every table and never models delete propagation | `__tests__/helpers/syncHarness.js:67-68` | H-1 and H-2 cannot fail a test today | P1 (test debt) |
+| H-1 | **Deletes of non-protocol rows never propagate** to a device that already holds the row | push = hard DELETE (`:648-654`); pull = `updated_at > watermark` only; absence delete only in `fullImport`, which runs only with no protocol row (`:847-850`); no test covers it (`grep` of `__tests__/sync.test.js`) | a dose deleted in the Dose log on A still counts on B (rings, report, supply already moved on A only); a deleted weigh-in, food entry, lab value, vaccine or Stop-cleared reality-check result stays on B; B's next edit of that row deletes it locally (deletions win) or re-inserts it (`calc_snapshots`) | **P0** (health record diverges silently) · DV-182 |
+| H-2 | **`reality_checks` edits invisible to other devices** | §3.10 | a re-computed result for the same weigh-in date stays old elsewhere | P1 (rare path) · DV-088 |
+| H-3 | Whole-row last-writer-wins and absolute counters | payload = all `CLOUD_FIELDS` (`lib/syncMappers.js:55-172`); `doses_taken`, `units_taken` absolute | two devices each logging one oral dose offline → `units_taken` +1 not +2; a vial count lost; a note edited on A reverted by B's dose push | P1 · DV-183 |
+| H-4 | `created_at` not sent for biomarkers, food_logs, calc_*, reality_checks, vaccines, vials | `CLOUD_FIELDS` | hub test count = one per marker on every non-scanning device (06:D-3); food thread grouping and free-days anchor by typed day may shift (SUSPECTED); report card keys differ by device | P1 (biomarkers), P2 others · DV-001 |
+| H-5 | `isLocalDBEmpty` = no protocols | `:847-850` | full import every launch for protocol-less users (bandwidth, absence deletes each time) | P2 · DV-120 |
+| H-6 | Write during a running pass waits for the next trigger (F-7) | `lib/syncRunner.js:23` | delayed backup; offline alert / sign-out check may count it | P2 · DV-187 |
+| H-7 | Duplicate Missed rows (per-device watermark, no unique key) | 02:D15 | double-counted Missed in the report; slot assignment shifts | P2 (A-48 parked) · DV-041 |
+| H-8 | Vial status has no device-of-origin rule | 01:G-3 (A-87b) | an ended protocol's vial re-activated by another phone | P1 · DV-021 |
+| H-9 | Pull completion does not re-plan dose reminders | `App.js:586-596` re-plans only food + day-21 | a dose logged / protocol ended on A keeps reminding on B until B's next full resync (03:G8) | P1 · DV-052 |
+| H-10 | `getLocalDataUserId` skips `vials` | `lib/database.js:820-829` | a device holding only another user's vials does not trigger the guard (edge) | P3 · DV-169 |
+| H-11 | First INSERT not idempotent (F-8) | `cloud.insert` without client id | duplicate cloud rows after a lost response | P2 (SUSPECTED) · DV-185 |
+| H-12 | The test harness models a trigger on every table and never models delete propagation | `__tests__/helpers/syncHarness.js:67-68` | H-1 and H-2 cannot fail a test today | P1 (test debt) · DV-189 |
 
 ### 3.10 Conclusion on `reality_checks` without an `updated_at` trigger
 
@@ -590,7 +591,7 @@ Question from the 08 addendum: does the client send `updated_at` on push, making
 | ID | Requirement | Closes |
 |---|---|---|
 | TR-SYNC-1 | `updated_at` trigger on `reality_checks`; a schema-check (§8.4) asserts every synced table has one | H-2 |
-| TR-SYNC-2 | Positive tombstones for every synced table: a `deleted_at` column (or a shared `sync_tombstones(table, row_id, user_id, deleted_at)` table) written instead of a hard DELETE; pull applies tombstones; server purges tombstones older than N days only after every device of the user has pulled past them (or never). Must be shown to the founder as a decision (it changes delete semantics on the server) | H-1 |
+| TR-SYNC-2 | Positive tombstones for every synced table: a `deleted_at` column (or a shared `sync_tombstones(table, row_id, user_id, deleted_at)` table) written instead of a hard DELETE; pull applies tombstones; server purges tombstones older than N days only after every device of the user has pulled past them (or never). Decided by logic (DL-72, OPEN-DECISIONS.md); the migration changes delete semantics on the server, so it needs the founder's go before it is applied | H-1 |
 | TR-SYNC-3 | Counters become events: `doses_taken` / `units_taken` derived from dose rows (or pushed as increments through an RPC) instead of absolute values | H-3 |
 | TR-SYNC-4 | `created_at` (device time) sent for every table that keeps one locally | H-4 |
 | TR-SYNC-5 | `isLocalDBEmpty` = "this device has never completed a full import for this user" (a per-user flag), not "no protocols" | H-5 |
@@ -971,74 +972,78 @@ Plus `list_migrations` (names must match `supabase/migrations/`) and `list_edge_
 
 ## 9. Technical debt and risk register
 
-Priority: **P0** = can silently corrupt or lose a health record, or exposes another person's data, or blocks a store review; **P1** = wrong number shown or user-visible divergence; **P2** = robustness / drift; **P3** = hygiene. "Decision" = needs a founder line before code (per CLAUDE.md "ask only real questions" — each is a preference/scope/risk question, not derivable from the ledger).
+Priority: **P0** = can silently corrupt or lose a health record, or exposes another person's data, or blocks a store review; **P1** = wrong number shown or user-visible divergence; **P2** = robustness / drift; **P3** = hygiene. "Decision" = the canonical ID in `OPEN-DECISIONS.md` (OPEN-xx = waits for the founder; AD-xx = already decided by the ledger or a signed spec; DL-xx = decided by product logic, founder may override; "No (bug)" = plain defect). "DV" = the row in `DIVERGENCES.md`, the one register of defects (reconciled 2026-10-12).
 
-| ID | P | Risk / debt | Evidence | Fix (owner / requirement) | Decision? |
-|---|---|---|---|---|---|
-| R-01 | P0 | Non-protocol deletes never reach other devices | §3.9 H-1 | TR-SYNC-2 tombstones; L3 test | **yes** (server delete semantics) |
-| R-02 | P0 | AI consent per device, not per account; survives sign-out; no server proof | 07:D-18, 08 G1, A-95 | per-account key + wipe list (S-76) | counsel for server proof |
-| R-03 | P0 | Schedule has 5 implementations: `schedule_total`, no-time rows, dpd > times, creation day, curve hours | 01:D-08/D-09/D-11, 02:D1–D5, 03:D-18, 05:D6, 08:D4 | S-01 single `doseSlotsOn` | **yes**: policy for no-time rows and whether courses exist |
-| R-04 | P0 | Spec gate red (31 blocking rows) | §7.1 | close or get deviations signed | founder signs deviations |
-| R-05 | P1 | Concurrent counters and whole-row LWW (doses_taken, units_taken, notes) | §3.9 H-3 | TR-SYNC-3 | no (logic: never lose user data) |
-| R-06 | P1 | `reality_checks` edits invisible elsewhere | §3.10 | TR-SYNC-1 migration | founder go for the migration |
-| R-07 | P1 | Reality-check state still split (Progress line, day-21 after weigh-in, "ready" when unsavable/locked, next check hidden) | 04:D-1, D-2, D-3, D-7, D-4 | S-50 one assembler; S-51 | D-3 copy for locked/unsavable needs a picture |
-| R-08 | P1 | Late dose credited to the next slot in rings | 02:D6, D7 (script-verified) | S-07 | no (contradicts decision 2026-09-29) |
-| R-09 | P1 | Three streaks, three adherence numbers; provider report uses schedule-blind streak | 02:D17, D18, 08:D2 | S-08, S-09, S-10 | **yes** (report definition, tracker cap) |
-| R-10 | P1 | Biomarker `created_at` not synced → hub count inflation on other devices | 06:D-3, H-4 | TR-SYNC-4, S-70c | no |
-| R-11 | P1 | Current weight has 5 rules; tile TDEE from saved weight | 04:D-10, D-11, D-12, 08:D1 | S-54, S-55 | no (A-54 rule) |
-| R-12 | P1 | Curve tile ≠ curve after End/Restart and across DST | 05:D1, D2 | S-61, S-62 | no |
-| R-13 | P1 | Vial: empty rtu not replaceable, recon new vial only from Today, Undo reopens ended vial, Restore reactivates empty, stale recon capacity | 01:D-12, D-12b, D-13, D-17, D-18 | S-20, S-23 | **yes** (recon vial edit / manual new vial, A-08) |
-| R-14 | P1 | Reminder health: Settings vs Today "blocked", Silent ignored, "ok" with one reminder, never-run refresh never late | 03:D-1, D-2, D-4, D-8, D-9 | S-41–S-43 | yes for D-1 scope |
-| R-15 | P1 | iPhone reminders end after ~10 days without opening; founder principle not platform-scoped | 03:G1 | — | **yes** |
-| R-16 | P1 | Server does not enforce food access; protocol limit client-only | 04:D-15, 07:D-2, D-3 | S-56 server port; S-31 | **yes** (enforcement scope) |
-| R-17 | P1 | Skip does not cancel reminders and has no Undo | 02:D9, G8 | S-05 | **yes** |
-| R-18 | P1 | Pull does not re-plan dose reminders; resume runs pull and resync concurrently | 03:G8, H-9 | TR-SYNC-9 | no |
-| R-19 | P1 | `favorite_markers` / `report_tags` in `user_metadata` with whole-array writes; star cannot be cleared | 06:D-5, D-6, A-14 | tables (A-14) | A-14 deferred by founder — restate |
-| R-20 | P1 | ACCOUNT keys survive sign-out (missed watermark, vial-low sent, alert snooze, entitlement cache, food draft) | §2.4, 02:D16, 03:G28, 07:D-7, D-17 | TR-STORE-1 | no |
-| R-21 | P1 | Lab charts not Premium although decided; no manual lab entry although approved | 06:D-8, G-1 | — | **yes** (approved → next build applies) |
-| R-22 | P1 | Today alerts naming one protocol do not open it | 01:D-23, 02:D23 | Today alert tap params | no (decision 2026-09-29) |
-| R-23 | P1 | Protocol display name differs across one flow and in notifications / report | 01:D-05, 02:D26, 03:D-19, 05:D4 | S-34 | no |
-| R-24 | P2 | Repo cannot recreate production (17 live-only migrations, core DDL missing) | DR-1, DR-2 | baseline migration + snapshot | no |
-| R-25 | P2 | `parse-food-next` still deployed | DR-4 | delete function | already decided (RL-1) |
-| R-26 | P2 | Test harness masks triggers and delete propagation | H-12 | TR-SYNC-10 | no |
-| R-27 | P2 | No rendered-screen tests; 184 source-text test files | §7.1 | L4 + L5 | no |
-| R-28 | P2 | Write during a running sync waits for the next trigger | F-7 | TR-SYNC-6 | no |
-| R-29 | P2 | First insert not idempotent (duplicate cloud row on lost response) | F-8 | TR-SYNC-7 | no |
-| R-30 | P2 | `isLocalDBEmpty` = no protocols → full import every launch for protocol-less users | H-5 | TR-SYNC-5 | no |
-| R-31 | P2 | Implicit sync on every Today focus via the paused purge call | 08:D9 | explicit focus pull | no |
-| R-32 | P2 | Headless notification action may refresh the token through `getSession`; `ensureDb` never retries | §1.4 | INV-06, INV-23 | no |
-| R-33 | P2 | `RefreshOnUpdateReceiver` depends on expo-background-task internals by class name | 03:G24 | version-pinned test + device proof | no |
-| R-34 | P2 | WorkManager refresh needs network (library constraint) | 03:G23 | document; wake push covers | no |
-| R-35 | P2 | Missed scan ignores ended protocols; duplicate Missed rows across devices | 02:D13, D15 | S-11 | no / A-48 parked |
-| R-36 | P2 | Midnight/now staleness in Progress, hero, curve, "Due" tag | 04:D-5, 05 E19, 02 §8 | `useLocalDay` (§6.4) | no |
-| R-37 | P2 | Offline cold start with expired token routes to Auth | 07:D-16 (SUSPECTED) | S-74 `unknown` state | device check |
-| R-38 | P2 | Settings profile save and analytics toggle ignore write errors | 07:D-22 | TR-META-1 | no |
-| R-39 | P2 | Gates (Finish setup, 18+) cannot be answered offline, no "Sign out anyway" | A-94 (decided 2026-10-04, not built) | build | already decided |
-| R-40 | P2 | Weigh-in range validated only in the edit sheet | 04:G-7 | one validator | no |
-| R-41 | P2 | Food entry Remove has no confirm (every delete asks first) | 04:G-16 | add sheet | no (decision 2026-10-03) |
-| R-42 | P2 | Oral supply days ignore interval; no oral low rule | 01:D-14, D-15 | S-24 | oral low = yes |
-| R-43 | P2 | Vaccine scan never fills detail fields; export omits them | 06:D-12, G-7 | prompt + export | no |
-| R-44 | P2 | Two privacy-policy texts (in-app vs web) | 07:D-21, A-117 | A-117 (waits, founder) | waits |
-| R-45 | P3 | ErrorBoundary hard-coded white in dark mode | 08 G10 | tokens | no |
-| R-46 | P3 | Hard-coded colours (`BodyMapModal.js:96`, `FeatureIcon.js:10`, `settingsLegacy`, `vialExpiry.expiryColor`) | 08 §7.3 | INV-32 guard | no |
-| R-47 | P3 | Dead code: `planDosePage`, `undoRecordsRef`, Today ring animation values, `getFoodLogDayCount`, `rollingAvgKcal`, `unloggedCheckDays`, `endProtocol` import, `totalDoses` state, `authEntry.consent`, `BIRTH_YEARS`, unused strings (`today_alert_rc_remove_*`, `cal_overview_title`, `notif_morning_body`) | 02:G14, D20; 04:G-11; 01:G-25; 07:D-13, D-15; 03:G32 | delete (Rebuild = REPLACE) | no |
-| R-48 | P3 | Stale docs: app-map L-03/L-12/L-13/L-20/L-21/L-34/L-42, features.md rows, APP-HANDOFF §4, ship-check Gate C/R text, spec rows EA-3/RG-2/SP-1/FX-25/FL-3/AP-27/BK-3/BK-16 | 01:G-13…G-15, 02:G13, 03:G10–G13, 04:G-15, 05:G14, 08 G11 | doc sweep | G1 (site-question age) needs a founder pick |
-| R-49 | P3 | `getLocalDataUserId` skips vials | H-10 | include | no |
-| R-50 | P3 | `substance_boldenone` missing ×6; Android channel names English | 05:G7, 03:G17 | i18n | strings need founder approval ×6 |
+| ID | P | Risk / debt | Evidence | Fix (owner / requirement) | Decision (canonical) | DV |
+|---|---|---|---|---|---|---|
+| R-01 | P0 | Non-protocol deletes never reach other devices | §3.9 H-1 | TR-SYNC-2 tombstones; L3 test | DL-72 (the migration needs the founder's go) | DV-182 |
+| R-02 | P0 | AI consent per device, not per account; survives sign-out; no server proof | 07:D-18, 08 G1, A-95 | per-account key + wipe list (S-76) | DL-55; server proof AD-51 (counsel) | DV-007 |
+| R-03 | P0 | Schedule has 5 implementations: `schedule_total`, no-time rows, dpd > times, creation day, curve hours | 01:D-08/D-09/D-11, 02:D1–D5, 03:D-18, 05:D6, 08:D4 | S-01 single `doseSlotsOn` | DL-06, DL-04, DL-07, DL-31; courses OPEN-03 | DV-012, DV-014, DV-028, DV-029, DV-069 |
+| R-04 | P0 | Spec gate red (31 blocking rows) | §7.1 | close or get deviations signed | AD-42, AD-52 (founder signs the deviation list) | DV-118 |
+| R-05 | P1 | Concurrent counters and whole-row LWW (doses_taken, units_taken, notes) | §3.9 H-3 | TR-SYNC-3 | DL-74 | DV-183 |
+| R-06 | P1 | `reality_checks` edits invisible elsewhere | §3.10 | TR-SYNC-1 migration | DL-64 (the migration needs the founder's go) | DV-088 |
+| R-07 | P1 | Reality-check state still split (Progress line, day-21 after weigh-in, "ready" when unsavable/locked, next check hidden) | 04:D-1, D-2, D-3, D-7, D-4 | S-50 one assembler; S-51 | AD-12, DL-25, DL-26; unsavable results OPEN-09 | DV-056, DV-057, DV-058, DV-059, DV-060 |
+| R-08 | P1 | Late dose credited to the next slot in rings | 02:D6, D7 (script-verified) | S-07 | AD-06 | DV-030 |
+| R-09 | P1 | Three streaks, three adherence numbers; provider report uses schedule-blind streak | 02:D17, D18, 08:D2 | S-08, S-09, S-10 | DL-02, DL-03 | DV-032, DV-033, DV-034 |
+| R-10 | P1 | Biomarker `created_at` not synced → hub count inflation on other devices | 06:D-3, H-4 | TR-SYNC-4, S-70c | No (bug); hub count AD-21 | DV-001, DV-073 |
+| R-11 | P1 | Current weight has 5 rules; tile TDEE from saved weight | 04:D-10, D-11, D-12, 08:D1 | S-54, S-55 | AD-13 | DV-062, DV-063 |
+| R-12 | P1 | Curve tile ≠ curve after End/Restart and across DST | 05:D1, D2 | S-61, S-62 | AD-18 | DV-067, DV-068 |
+| R-13 | P1 | Vial: empty rtu not replaceable, recon new vial only from Today, Undo reopens ended vial, Restore reactivates empty, stale recon capacity | 01:D-12, D-12b, D-13, D-17, D-18 | S-20, S-23 | DL-22, DL-15, DL-20, AD-11; vial edit OPEN-01 | DV-015, DV-021, DV-022, DV-027, DV-093, DV-094 |
+| R-14 | P1 | Reminder health: Settings vs Today "blocked", Silent ignored, "ok" with one reminder, never-run refresh never late | 03:D-1, D-2, D-4, D-8, D-9 | S-41–S-43 | DL-45, DL-46, DL-47 | DV-042, DV-043, DV-045 |
+| R-15 | P1 | iPhone reminders end after ~10 days without opening; founder principle not platform-scoped | 03:G1 | — | OPEN-06 | DV-097 |
+| R-16 | P1 | Server does not enforce food access; protocol limit client-only | 04:D-15, 07:D-2, D-3 | S-56 server port; S-31 | AD-16 (food); OPEN-05 (protocol limit) | DV-103, DV-095 |
+| R-17 | P1 | Skip does not cancel reminders and has no Undo | 02:D9, G8 | S-05 | DL-08 | DV-035, DV-130 |
+| R-18 | P1 | Pull does not re-plan dose reminders; resume runs pull and resync concurrently | 03:G8, H-9 | TR-SYNC-9 | No (bug) | DV-052 |
+| R-19 | P1 | `favorite_markers` / `report_tags` in `user_metadata` with whole-array writes; star cannot be cleared | 06:D-5, D-6, A-14 | tables (A-14) | AD-02; labels DL-39 | DV-006, DV-075 |
+| R-20 | P1 | ACCOUNT keys survive sign-out (missed watermark, vial-low sent, alert snooze, entitlement cache, food draft) | §2.4, 02:D16, 03:G28, 07:D-7, D-17 | TR-STORE-1 | AD-05, DL-52, DL-53 | DV-081, DV-082 |
+| R-21 | P1 | Lab charts not Premium although decided; no manual lab entry although approved | 06:D-8, G-1 | — | AD-24 (charts); OPEN-12 (manual entry) | DV-108, DV-107 |
+| R-22 | P1 | Today alerts naming one protocol do not open it | 01:D-23, 02:D23 | Today alert tap params | AD-08 | DV-089 |
+| R-23 | P1 | Protocol display name differs across one flow and in notifications / report | 01:D-05, 02:D26, 03:D-19, 05:D4 | S-34 | DL-13 | DV-013 |
+| R-24 | P2 | Repo cannot recreate production (17 live-only migrations, core DDL missing) | DR-1, DR-2 | baseline migration + snapshot | No (bug) | DV-119 |
+| R-25 | P2 | `parse-food-next` still deployed | DR-4 | delete function | AD-63 | DV-188 |
+| R-26 | P2 | Test harness masks triggers and delete propagation | H-12 | TR-SYNC-10 | No (bug) | DV-189 |
+| R-27 | P2 | No rendered-screen tests; 184 source-text test files | §7.1 | L4 + L5 | No (bug) | DV-173 |
+| R-28 | P2 | Write during a running sync waits for the next trigger | F-7 | TR-SYNC-6 | No (bug) | DV-187 |
+| R-29 | P2 | First insert not idempotent (duplicate cloud row on lost response) | F-8 | TR-SYNC-7 | No (bug) | DV-185 |
+| R-30 | P2 | `isLocalDBEmpty` = no protocols → full import every launch for protocol-less users | H-5 | TR-SYNC-5 | No (bug) | DV-120 |
+| R-31 | P2 | Implicit sync on every Today focus via the paused purge call | 08:D9 | explicit focus pull | No (bug) | DV-172 |
+| R-32 | P2 | Headless notification action may refresh the token through `getSession`; `ensureDb` never retries | §1.4 | INV-06, INV-23 | No (bug) | DV-184 |
+| R-33 | P2 | `RefreshOnUpdateReceiver` depends on expo-background-task internals by class name | 03:G24 | version-pinned test + device proof | No (bug) | DV-100 |
+| R-34 | P2 | WorkManager refresh needs network (library constraint) | 03:G23 | document; wake push covers | No (bug) | DV-099 |
+| R-35 | P2 | Missed scan ignores ended protocols; duplicate Missed rows across devices | 02:D13, D15 | S-11 | DL-05; duplicates AD-32 | DV-031, DV-041 |
+| R-36 | P2 | Midnight/now staleness in Progress, hero, curve, "Due" tag | 04:D-5, 05 E19, 02 §8 | `useLocalDay` (§6.4) | No (bug) | DV-148 |
+| R-37 | P2 | Offline cold start with expired token routes to Auth | 07:D-16 (SUSPECTED) | S-74 `unknown` state | DL-54 (device check first) | DV-083 |
+| R-38 | P2 | Settings profile save and analytics toggle ignore write errors | 07:D-22 | TR-META-1 | DL-56 | DV-008 |
+| R-39 | P2 | Gates (Finish setup, 18+) cannot be answered offline, no "Sign out anyway" | A-94 (decided 2026-10-04, not built) | build | AD-29 | DV-114 |
+| R-40 | P2 | Weigh-in range validated only in the edit sheet | 04:G-7 | one validator | DL-27 | DV-065 |
+| R-41 | P2 | Food entry Remove has no confirm (every delete asks first) | 04:G-16 | add sheet | AD-01 | DV-003 |
+| R-42 | P2 | Oral supply days ignore interval; no oral low rule | 01:D-14, D-15 | S-24 | No (bug) for the days; OPEN-02 for the low rule | DV-020, DV-092 |
+| R-43 | P2 | Vaccine scan never fills detail fields; export omits them | 06:D-12, G-7 | prompt + export | DL-41, DL-42 | DV-109, DV-079 |
+| R-44 | P2 | Two privacy-policy texts (in-app vs web) | 07:D-21, A-117 | A-117 (waits, founder) | AD-28 | DV-085 |
+| R-45 | P3 | ErrorBoundary hard-coded white in dark mode | 08 G10 | tokens | AD-41 | DV-170 |
+| R-46 | P3 | Hard-coded colours (`BodyMapModal.js:96`, `FeatureIcon.js:10`, `settingsLegacy`, `vialExpiry.expiryColor`) | 08 §7.3 | INV-32 guard | AD-41, DL-16 | DV-170, DV-018 |
+| R-47 | P3 | Dead code: `planDosePage`, `undoRecordsRef`, Today ring animation values, `getFoodLogDayCount`, `rollingAvgKcal`, `unloggedCheckDays`, `endProtocol` import, `totalDoses` state, `authEntry.consent`, `BIRTH_YEARS`, unused strings (`today_alert_rc_remove_*`, `cal_overview_title`, `notif_morning_body`) | 02:G14, D20; 04:G-11; 01:G-25; 07:D-13, D-15; 03:G32 | delete (Rebuild = REPLACE) | No (bug) | DV-181 |
+| R-48 | P3 | Stale docs: app-map L-03/L-12/L-13/L-20/L-21/L-34/L-42, features.md rows, APP-HANDOFF §4, ship-check Gate C/R text, spec rows EA-3/RG-2/SP-1/FX-25/FL-3/AP-27/BK-3/BK-16 | 01:G-13…G-15, 02:G13, 03:G10–G13, 04:G-15, 05:G14, 08 G11 | doc sweep | DL-01 (site-question age); doc sweep | DV-175, DV-176, DV-177, DV-178, DV-179 |
+| R-49 | P3 | `getLocalDataUserId` skips vials | H-10 | include | No (bug) | DV-169 |
+| R-50 | P3 | `substance_boldenone` missing ×6; Android channel names English | 05:G7, 03:G17 | i18n | No (bug); strings ×6 need the founder's wording approval (decisions.md:85) | DV-070, DV-141 |
 
-### 9.1 Founder questions this TRD raises (one round, per CLAUDE.md)
+### 9.1 Founder questions — see OPEN-DECISIONS.md
 
-Only questions that do not follow from the ledger or from logic:
+The TRD no longer keeps its own question list. Its nine questions were reconciled on 2026-10-12 with the single list in `docs/product/OPEN-DECISIONS.md` under the CLAUDE.md rule "decide what is already decided":
 
-1. **Deletes across devices (R-01):** add server tombstones for every table (a deleted dose, weigh-in, food entry, lab value, vaccine or result disappears from every phone) — yes / no.
-2. **No-time and fewer-times protocols (R-03):** treat a protocol without a reminder time as due at a fixed hour everywhere (today the scheduler says 08:00, the rings say 12:00, Today shows no time), or require a time.
-3. **Courses (R-03 / BR-12):** keep `schedule_total` as a real feature with a UI (and then Today/Missed/curve stop too), or retire it (legacy rows only).
-4. **Report definitions (R-09):** the provider report uses the same streak (doses in a row) and the same adherence as Today's rings — yes / no; and lift the 31-day cap on the tracker streak.
-5. **Skip (R-17):** a skipped slot stops its reminders and gets an Undo — yes / no.
-6. **Server enforcement (R-16):** enforce food-log access (and the 3-protocol limit) on the server — yes / no.
-7. **iPhone reminders without opening the app (R-15):** accept the 10-day iPhone window, or warn on iPhone too.
-8. **Recon vial edit / manual new vial (R-13, A-08)** and **oral low supply (R-42)**.
-9. **Lab charts Premium and manual lab entry (R-21)** — both approved earlier and not built: confirm they enter the next open build.
+| # | Question (former §9.1) | Canonical |
+|---|---|---|
+| 1 | Server tombstones so deletes reach every device (R-01) | DL-72 — decided by logic; the production migration still needs the founder's go |
+| 2 | Protocols with no or fewer reminder times (R-03) | DL-06 |
+| 3 | Courses with a total: keep with a UI, or retire (R-03 / BR-12) | OPEN-03 |
+| 4 | Report streak / adherence = Today's; lift the 31-day tracker cap (R-09) | DL-02, DL-03 |
+| 5 | Skip stops reminders; Undo (R-17) | DL-08 |
+| 6 | Server enforcement of food access and of the 3-protocol limit (R-16) | AD-16 (food, already decided) · OPEN-05 (limit) |
+| 7 | iPhone reminders without opening the app (R-15) | OPEN-06 |
+| 8 | Recon vial edit / manual new vial (R-13, A-08); oral low supply (R-42) | OPEN-01 · DL-22 · OPEN-02 |
+| 9 | Lab charts Premium; manual lab entry (R-21) | AD-24 · OPEN-12 |
+
+Production changes that follow from a DL (the `reality_checks` trigger, DL-64; tombstones for every synced table, DL-72) are not questions, but each still needs the founder's explicit go before it is applied (§8.3 step 4).
 
 ---
 

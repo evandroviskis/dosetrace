@@ -33,13 +33,13 @@ Let a user record **what** they take, **how much**, **how often** and **from whi
 |---|---|---|
 | P1 | Started the compound weeks ago (the founder's flagship journey miss) | Start date accepts any past date; on save, compounds with t½ ≥ 24 h get "Same dose for the last N weeks?" (A-30 option C). Nothing is logged; the curve estimates the pre-install part (dashed, "estimated"). |
 | P2 | Vial already mixed days ago | Step 5 asks month + day (most recent past occurrence); assistant asks "When did you mix it?" (≤ 365 days). Validity counts from that date. |
-| P3 | Vial already half used | No "doses already used" field (A-08 / F7 open; AP-28 accepted "mirrors the form"). New vial starts at 0 taken. OPEN — §12. |
+| P3 | Vial already half used | No "doses already used" field (A-08 / F7; AP-28 accepted "mirrors the form"). New vial starts at 0 taken. → OPEN-01. |
 | P4 | Not mixed yet | "I haven't mixed this vial yet — skip"; Today shows "+ Add vial" later (flow 04). |
 | P5 | Typed a weekly total as the dose (240 mg customer case) | "Dose per injection" label + hint; over-capacity warning with "Why" explainer and "Ask AI for help" (AP-11, AP-12). |
 | P6 | Long-interval ester (e.g. every 12 weeks) | Custom interval; reminders still renewed within the rolling window (flow 06). |
 | P7 | Already at 3 active protocols (free) | Limit sheet before the wizard opens; re-checked at Save. |
 | P8 | Same compound already active (second device / duplicate) | Allowed on create (no warning today on create; warning exists on Restart only). |
-| P9 | Wizard interrupted (call, iOS memory, kill) | **Intended:** what was typed survives (never-lose-data rule). **Divergence today (01 G-18, SUSPECTED conflict, no decision):** the form lives in screen state; a kill loses it. |
+| P9 | Wizard interrupted (call, iOS memory, kill) | **Intended (AD-35; BK-14, decisions.md:378):** unsaved drafts are kept until saved or the app closes; a kill loses the form (accepted, like the assistant conversation, AP-33). The form lives in screen state today, which matches. |
 | P10 | Assistant budget used up this week | Assistant says when it resets; manual form keeps working. |
 | P11 | Scan pool used up this month | "Monthly scan limit reached" with the server's number; manual entry keeps working. |
 | P12 | Offline | Manual form works fully; assistant and scan hand back to the form with answers kept (AP-16). |
@@ -229,12 +229,12 @@ stateDiagram-v2
 ### 7.10 Free vs Premium
 - Free: 3 active protocols (decision 2026-10-03 "3 mantém"); + Add at the limit → "Protocol limit reached" / "The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days." → **Start free trial** → Paywall (`source: protocol_limit`). Trial claim verified true on iOS and Play (decisions 2026-10-03).
 - Assistant: same budget on every plan. Vial scan: free for everyone, counts in the shared pool.
-- **Divergence today (01 D-22; 07 D-3):** limit is client-only; protocols synced from another device, created while Premium or revived by sync are never counted; a lapsed Premium user keeps all active protocols (no downgrade rule decided — §12).
+- **Divergence today (01 D-22; 07 D-3):** limit is client-only; protocols synced from another device, created while Premium or revived by sync are never counted; a lapsed Premium user keeps all active protocols (as decided by logic, DL-24; server enforcement is OPEN-05).
 
 ### 7.11 Edit specifics
 - Edit opens with stored numbers in the app language; rtu vial ml from the active vial or amount ÷ concentration; 4 steps (no vial step); writes only changed columns (decision 2026-10-02; a Save with no change alters nothing).
-- **Divergence today (01 D-13):** changing a recon dose does NOT recompute the active vial's stored `total_doses` (rtu does) → stale "N of M doses left" and the vial "finishes" at the old count. **Intended (by logic, one capacity owner):** a dose edit recomputes the remaining capacity of the current vial from its amount and water. Confirm in §12.
-- **Divergence today (01 G-9):** recon mix date, validity window and vial capacity are not editable after creation (no decision).
+- **Divergence today (01 D-13):** changing a recon dose does NOT recompute the active vial's stored `total_doses` (rtu does) → stale "N of M doses left" and the vial "finishes" at the old count. **Intended (by logic, one capacity owner):** a dose edit recomputes the remaining capacity of the current vial from its amount and water (DL-15).
+- **Divergence today (01 G-9):** recon mix date, validity window and vial capacity are not editable after creation (→ OPEN-01).
 
 ## 8. What every surface shows
 
@@ -274,26 +274,28 @@ R-01 name required ("Missing name"); typed text equal to a listed compound selec
 
 ## 11. Divergences today (summary)
 
-| ID | Intended | Today | Source |
-|---|---|---|---|
-| D02-1 | History question names the compound and is re-asked when the start moves earlier | No name, no re-ask | `01 G-5`; decision 2026-10-04 |
-| D02-2 | A half-filled new protocol survives a kill | Lost | `01 G-18` (no decision) |
-| D02-3 | Recon dose edit recomputes vial capacity | Stale stored `total_doses` | `01 D-13` |
-| D02-4 | Free limit counted the same on every device | Local only | `01 D-22`, `07 D-3` |
-| D02-5 | `created_at` identical on every device | Not synced | `01 D-20 / G-27` |
-| D02-6 | Mix date "Feb 31" handled the same everywhere | Wizard clamps, Today refuses, assistant refuses > 1 year | `01 D-14b` |
-| D02-7 | Custom interval bound the same in form and assistant | 1–999 vs 1–365 | `01 D-16` |
-| D02-8 | Recon mix date / validity / capacity editable | Not editable after create | `01 G-9` |
-| D02-9 | Delete sheet / scan copy true | "recoverable for 7 days"; "supplier" | `01 G-4`, decision 2026-10-04 |
-| D02-10 | Today empty-state "Add a protocol" opens the wizard | Opens the tab only | `01 G-24` (observation) |
-| D02-11 | AP-27 spec text matches the A-30 question | Spec still says "log the past doses" | `01 G-13` |
+| ID | Intended | Today | Source | DV |
+|---|---|---|---|---|
+| D02-1 | History question names the compound and is re-asked when the start moves earlier | No name, no re-ask | `01 G-5`; decision 2026-10-04 | DV-091 |
+| D02-2 | Drafts kept until saved or the app closes (AD-35) | Lost on a kill — as decided; recorded only | `01 G-18` (no decision) | DV-127 |
+| D02-3 | Recon dose edit recomputes vial capacity | Stale stored `total_doses` | `01 D-13` | DV-015 |
+| D02-4 | Free limit counted the same on every device | Local only | `01 D-22`, `07 D-3` | DV-095 |
+| D02-5 | `created_at` identical on every device | Not synced | `01 D-20 / G-27` | DV-001 |
+| D02-6 | Mix date "Feb 31" handled the same everywhere | Wizard clamps, Today refuses, assistant refuses > 1 year | `01 D-14b` | DV-019 |
+| D02-7 | Custom interval bound the same in form and assistant | 1–999 vs 1–365 | `01 D-16` | DV-123 |
+| D02-8 | Recon mix date / validity / capacity editable | Not editable after create | `01 G-9` | DV-094 |
+| D02-9 | Delete sheet / scan copy true | "recoverable for 7 days"; "supplier" | `01 G-4`, decision 2026-10-04 | DV-023, DV-192 |
+| D02-10 | Today empty-state "Add a protocol" opens the wizard | Opens the tab only | `01 G-24` (observation) | DV-124 |
+| D02-11 | AP-27 spec text matches the A-30 question | Spec still says "log the past doses" | `01 G-13` | DV-179 |
 
-## 12. Open founder questions
+## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-1. **Doses already used from a vial (A-08 / F7):** add an optional "doses already taken from this vial" on create / new vial? Recommendation: yes, optional, recon and rtu — otherwise supply-low and "vial finished" are wrong for everyone who installs mid-vial.
-2. **Half-filled wizard on kill (G-18):** keep the draft (per user, on the phone, until Save/Discard)? Recommendation: yes — same rule the food chat draft already follows (FL-36).
-3. **Recon dose change mid-vial (D-13):** recompute the remaining doses of the current vial from its mix (recommended), or keep the count from mix time?
-4. **Lapsed Premium with more than 3 active protocols:** keep them active (today) or move extras to Ended? Recommendation: keep them (never hold data hostage); block only new adds.
+Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+
+- **OPEN-01 — Doses already used from a vial (A-08 / F7)** — waits for the founder (with the vial edit). → DV-094.
+- **AD-35 — Half-filled wizard after a kill.** Already decided: unsaved drafts are kept until saved or the app closes (BK-14, decisions.md:378; the assistant's conversation lost on a kill is accepted, AP-33). This flow had recommended keeping the draft; the ledger answers it — the founder may reopen it. → DV-127.
+- **DL-15 — Recon dose changed mid-vial.** Decided by logic: recompute the vial's remaining doses from the mass left (one capacity rule, FX-11). → DV-015.
+- **DL-24 — Lapsed Premium with more than 3 active protocols.** Decided by logic: they stay active (ending them would stop their reminders); only new adds hit the limit. Server enforcement of the limit is OPEN-05. → DV-095.
 
 ## 13. Acceptance checks (agent-device QA script)
 
