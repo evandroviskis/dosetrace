@@ -116,6 +116,7 @@ Solid arrows = data or state that one flow produces and the next consumes. Dotte
   - **Still open:** DL-03 tracker unit → OPEN-17; DL-08 Undo bar → OPEN-19 (d); DL-24 → OPEN-05; DL-32 → OPEN-18 (1); DL-51 → OPEN-07; DL-66 → OPEN-18 (2); AD-44 → OPEN-18 (4); DL-72 / DL-74 → OPEN-16 (b); DL-68 → OPEN-22 (b); AD-45 (and the withdrawn DL-75) → OPEN-22 (a); DL-71 → OPEN-23; AD-27 → OPEN-20 (b); DL-22's recon "New vial" and new-box date → OPEN-01; the cross-account guard (a coordinator line) → OPEN-21 (11); course end stays OPEN-03.
   - **Closed in round 2 (decided, cited with the final id):** OPEN-19 (a) → AD-70 (late dose on its own day), (b) / DL-67 → DL-76 (daily cap), (c) / DL-06 default → DL-77 (08:00); OPEN-20 (a) / DL-45 Settings half → AD-71 (Settings red as signed); OPEN-14 (a) / AD-56 → AD-69 (no Premium scan number); OPEN-12 → AD-68 (manual lab entry in 1.3.0); OPEN-18 (5) → AD-60 (push at 3), (6) → AD-74 (Apple artwork on Android), (7) / (8) → Approvals still owed items 8 / 7; OPEN-21 (1)…(10) → DL-85 (was AD-04), Approvals item 2 + AD-75 (AD-09 copy; "supplier" stays), DL-86 (was AD-10), DL-87…DL-91 + Approvals item 3 (AD-11 rules: A-86, A-87, A-89, A-92, A-98; A-85 / A-96 pictures), DL-92 (was AD-29), DL-97 (was AD-35), DL-93 (was AD-46), DL-94 (was AD-50), DL-95 (was AD-54), DL-96 (AD-61 gym part). AD-12 → DL-25; AD-28 → DL-81; AD-57 → DL-84; DL-01 → AD-76; DL-16 → AD-65 (Today card, the founder's Q9 = B; My Protocols colouring = DL-80); interval presets → AD-66 (no presets, binding prototype).
   - **Rewritten / withdrawn:** DL-10 rewritten to the founder's tap-time rule (decisions.md:153); DL-28 rewritten (the 25 reads count by the request's local day); DL-50 withdrawn (moot); DL-73 withdrawn (false premise; DV-194 closed); DL-75 withdrawn (→ OPEN-22 (a)).
+  - **Round 3 (final consistency pass):** DL-99 (a deliberate end is dated at the tap; was the coordinator lines decisions.md:504 / :535), DL-100 (the onboarding stash rules PA-71…PA-73), DL-101 (the real birth year at the 18+ confirmation, PA-106…PA-108); Restart checks the free limit first (DV-217, a bug; flow 05 D05-17).
 - Names: UI "Complete" = stored outcome `Taken`. "Reality check" = PT "Seus números reais".
 
 ## Using the acceptance checks as the agent-device QA script
@@ -137,7 +138,7 @@ Of the 36, **23 rows reach an OPEN item, wholly or in part** (#1, 2, 4, 7, 8, 11
 | Was # | Question | Flow | Canonical |
 |---|---|---|---|
 | 1 | AI consent per device (today) or per account (asked for each person, proof on the server)? | 01, 11, 12 | DL-55 · **OPEN-24** item 1 (the Settings withdraw row) (server proof: DL-83) |
-| 2 | OS notification prompt after "Not now": at first sign-in (today) or when the first timed protocol is saved? | 01, 06 | **OPEN-20 (b)** (AD-27 withdrawn) |
+| 2 | OS notification prompt after "Not now": at first sign-in (today) or when the first timed protocol is saved? | 01, 06 | **OPEN-20 (b)** (AD-27 moved here) |
 | 3 | Year-only 18+ test — keep or ask the month (counsel)? | 01 | AD-43 |
 | 4 | "Doses already taken from this vial" on create / new vial (A-08 / F7)? | 02, 04 | **OPEN-01** |
 | 5 | Keep a half-filled new protocol after an app kill? | 02 | DL-97 (was AD-35) |
@@ -181,11 +182,6 @@ The 36 above are only the questions the flows themselves raised. The single foun
 
 | Flow | Open questions that touch it (canonical id, Portuguese question) |
 |---|---|
-| 10 | OPEN-10 q16 · OPEN-11 q17 · OPEN-18 (1) q23 (a) · OPEN-18 (4) q23 (d) |
-| 11 | OPEN-13 q19 · OPEN-14 (b) q20 (a) · OPEN-14 (c) q20 (b) · OPEN-24 items 1, 4 q2 |
-| 12 | OPEN-15 q21 · OPEN-21 (11) q22 · OPEN-24 items 1, 2, 6, 10 q2 |
-| 13 | OPEN-05 q7 · OPEN-14 (b) q20 (a) · OPEN-15 q21 · OPEN-18 (3) q23 (c) · OPEN-24 item 6 q2 |
-| 14 | none specific to the book layout (fold-right-page signature: Approvals still owed item 7) |
 | 01 | OPEN-20 (b) q11 (a) · OPEN-21 (11) q22 · OPEN-24 items 1, 10 q2 |
 | 02 | OPEN-01 q3 · OPEN-05 q7 · OPEN-10 q16 · OPEN-18 (3) q23 (c) |
 | 03 | OPEN-03 q5 · OPEN-17 q8 · OPEN-19 (d) q9 · OPEN-11 q17 · OPEN-23 q18 · OPEN-18 (4) q23 (d) · OPEN-24 items 9, 12 q2 |
@@ -195,6 +191,11 @@ The 36 above are only the questions the flows themselves raised. The single foun
 | 07 | OPEN-07 q12 · OPEN-18 (2) q23 (b) · OPEN-18 (3) q23 (c) · OPEN-18 (9) q23 (e) · OPEN-24 items 3, 8 q2 |
 | 08 | OPEN-07 q12 · OPEN-08 q13 · OPEN-09 q14 · OPEN-22 (a) q15 (a) · OPEN-18 (2) q23 (b) · OPEN-18 (9) q23 (e) · OPEN-24 items 3, 7 q2 |
 | 09 | OPEN-08 q13 · OPEN-22 (a) q15 (a) · OPEN-22 (b) q15 (b) |
+| 10 | OPEN-10 q16 · OPEN-11 q17 · OPEN-18 (1) q23 (a) · OPEN-18 (4) q23 (d) |
+| 11 | OPEN-13 q19 · OPEN-14 (b) q20 (a) · OPEN-14 (c) q20 (b) · OPEN-24 items 1, 4 q2 |
+| 12 | OPEN-15 q21 · OPEN-21 (11) q22 · OPEN-24 items 1, 2, 6, 10 q2 |
+| 13 | OPEN-05 q7 · OPEN-14 (b) q20 (a) · OPEN-15 q21 · OPEN-18 (3) q23 (c) · OPEN-24 item 6 q2 |
+| 14 | none specific to the book layout (fold-right-page signature: Approvals still owed item 7) |
 
 OPEN-16 (q1: the scope of 1.3.0, and when the sync hardening ships — DV-182, DV-183, DV-209, DV-210, DV-222) touches every flow: no flow item gets a build target until it is answered.
 

@@ -37,7 +37,7 @@ My Body is the user's own health-record journal: lab values and vaccine records,
 | P6 | Used 3 free scans this month | "Monthly scan limit reached" with the server's number; typing by hand intended (AD-68; not built today, D11-1). |
 | P7 | Premium lapsed with 10 scans used | Next scan → free cap 3 → refused ("your 3 scans"). |
 | P8 | New phone / reinstall | Records re-imported; hub count may inflate (biomarker `created_at` not synced — D-3.2); AI consent asked again. |
-| P9 | Last panel 7 months ago | Today "Bloodwork due · It's been 7 months since your last panel". |
+| P9 | Last panel 7 months ago | Today "Bloodwork due · It's been 7 months since your last panel" (as built; whether the app keeps saying "due" is pending OPEN-13, Portuguese question 19). |
 | P10 | Vaccine with a next-due date in the past | Drops off the hub line; still on the card. |
 | P11 | Second account on the same phone | Inherits AI consent today (07 D-18). Intended (DL-55): consent per account, with version and date, cleared on sign-out (D11-11). |
 
@@ -351,7 +351,7 @@ Account Test03 (free; Premium via promo where stated). Use a sample lab PDF with
 
 **F11-16 — Bloodwork due**
 - Setup: newest test 190 days ago.
-- Expect: Today "Bloodwork due" / "Exame de sangue pendente" + "It's been 6 months since your last panel" / "Já se passaram 6 meses desde seu último exame"; tap → Lab test journal; snooze Tomorrow / In 3 days.
+- Expect: Today "Bloodwork due" / "Exame de sangue pendente" + "It's been 6 months since your last panel" / "Já se passaram 6 meses desde seu último exame"; tap → Lab test journal; snooze Tomorrow / In 3 days. (Today's words; the alert's words and trigger are pending OPEN-13 — re-write this check when it is answered.)
 
 **F11-17 — Fold**
 - Do (unfolded Fold): My Body.

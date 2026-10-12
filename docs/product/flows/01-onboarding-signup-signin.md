@@ -42,7 +42,7 @@ Turn a first-time install into a signed-in account with a complete profile, in t
 | P7 | Account created with Apple, now on Android | Apple button on Android shows: the server probe passes (live since 2026-10-03). A real Android Apple sign-in is not recorded in the repo — it is a founder device test (F01-26; AD-30 corrected round 2) | Show "Continue with Apple" on Android (founder decisions.md:483 "3 sim", AD-30). If the web client secret lapses (2027-04-04) every Android Apple sign-in fails — rotate it before then (DV-211, ops item; Approvals item 5). |
 | P8 | Account older than build 49 with missing fields (e.g. no country, no tracking types) | `missingProfileFields != []` | Route to **Finish setup** showing only the missing steps. |
 | P9 | Account with a birth year under 18 (old data) | `needsAdultConfirmation` | Route to **Please confirm your age** after the profile gate. |
-| P10 | Another person used this phone and left a stash | Stash exists, not fresh | Never written into this person's account; cleared unwritten on SIGNED_IN (PA-71…PA-73, built; a coordinator rule, decisions.md:472-473, not a founder answer — its premium-and-auth checklist awaits the founder's signature, Approvals item 7). |
+| P10 | Another person used this phone and left a stash | Stash exists, not fresh | Never written into this person's account; cleared unwritten on SIGNED_IN (DL-100; PA-71…PA-73, built — the coordinator lines decisions.md:472-473 placed as logic; its premium-and-auth checklist awaits the founder's signature, Approvals item 7). |
 | P11 | Password forgotten | — | "Forgot password?" → email → link opens Reset password inside the app (pending ≤ 1 h survives a kill). |
 | P12 | Reinstall on iPhone | Keychain session may survive, AsyncStorage empty | Goes straight to Main (or a gate); DB re-imported. (SUSPECTED platform behaviour, `07 §8`.) |
 | P13 | Offline at first launch | — | Onboarding works; Create account / Sign in show the network sheet; nothing typed is lost. |
@@ -148,7 +148,7 @@ stateDiagram-v2
     setup --> reminders: Back
 ```
 
-### 6.3 Stash freshness (shared-device rule, PA-71…73 — coordinator rule decisions.md:472-473, built; checklist signature owed, Approvals item 7)
+### 6.3 Stash freshness (shared-device rule, DL-100; PA-71…73, built; checklist signature owed, Approvals item 7)
 
 ```mermaid
 stateDiagram-v2
@@ -204,7 +204,7 @@ stateDiagram-v2
 ### 7.3 Second device / other account
 - Same account on a second phone: Sign in → full import; profile already complete → Main directly; Android once-per-phone reminder setup opens from Today (flow 06).
 - **A different account signs in on a phone holding another account's local data:** today the previous account's local data — unsynced rows included — is discarded without a warning, and its reminders are cancelled before import (cross-account guard, `App.js:621-633`). The only source is a coordinator line (decisions.md:508-509, "final Gate B"), never put to the founder, and it collides with CLAUDE.md "NEVER lose user-entered data": **pending OPEN-21 (11) (Portuguese question 22)** — keep as built, warn first ("Sign in as {previous} first" / "Discard and continue", the recommendation), or keep the rows hidden until that account returns.
-- Shared phone, stash typed by person A, person B signs up with Apple: stash not fresh for B → never written to B (PA-71…73; coordinator rule decisions.md:472, built; checklist signature owed, Approvals item 7).
+- Shared phone, stash typed by person A, person B signs up with Apple: stash not fresh for B → never written to B (DL-100; PA-71…73, built; checklist signature owed, Approvals item 7).
 - **Divergence today (07 D-18; 08 Gap 1):** AI consent (`dosetrace_ai_extraction_consent_v4`) is per device and survives sign-out, so person B inherits person A's AI consent. Ledger rule: "AI consent before every AI call" (decisions.md:323). Decided by logic → DL-55 (consent per account, version and date, cleared on sign-out); the Settings row to withdraw it is new UI, **pending OPEN-24 item 1 (Portuguese question 2)**; server proof of consent is a counsel item (DL-83). → DV-007.
 - **Divergence today (07 D-7, confirmed in code):** entitlement cache keys survive sign-out; `cacheUid` uses `dosetrace_entitlement_last_uid` until `initPurchases` runs, so a short window on SIGNED_IN can read the previous account's cached Premium. Intended (DL-53): the cache is bound to the session user at sign-in, before any read. → DV-082.
 
@@ -226,7 +226,7 @@ stateDiagram-v2
 - iOS "Enable notifications" → OS prompt → Create account.
 - Android "Enable notifications" → OS prompt → **Make sure your reminders arrive** (items + bar only; no schedule or test; "Continue" reads "Done" when all readable items are OK; "Set up later"). Marks setup seen on this phone (SP-4).
 - "Not now" → straight to Create account; the setup step is skipped.
-- **Not decided — pending OPEN-20 (b) (Portuguese question 11 (a)); AD-27 was withdrawn (moved to OPEN-20 (b)).** When the system should ask for notification permission after "Not now" is the founder's call. The recommendation (option A): no system dialog at start; ask when a protocol with a reminder time is first saved on the phone **or first arrives on it by sync** (new install, sign-in on a new phone — the iPhone case, since SP-5's screen is Android-only), and on Android through the SP-5 setup screen (which Today opens once per phone for anyone with a reminder time — "Not now" users included, decisions.md:626). Options B (ask once more at the next start) and C (as built) stay open.
+- **Not decided — pending OPEN-20 (b) (Portuguese question 11 (a)); AD-27 moved to OPEN-20 (b) in round 1.** When the system should ask for notification permission after "Not now" is the founder's call. The recommendation (option A): no system dialog at start; ask when a protocol with a reminder time is first saved on the phone **or first arrives on it by sync** (new install, sign-in on a new phone — the iPhone case, since SP-5's screen is Android-only), and on Android through the SP-5 setup screen (which Today opens once per phone for anyone with a reminder time — "Not now" users included, decisions.md:626). Options B (ask once more at the next start) and C (as built) stay open.
   - **Today (03 G25; 07 §8 row "Not now"):** `requestNotificationPermissions()` runs at every signed-in cold start and on SIGNED_IN (`App.js:650`, `:730`) and inside the push-token registration (`notifications.js:1033`), so the OS prompt appears right after sign-in anyway. The system dialog itself appears only while the status is undetermined (`notifications.js:157-160`): once on iPhone, at most twice on Android 13+. → DV-054 (S3).
   - **Not a divergence (X-05):** Android shows the setup step after any answer to the OS dialog, a denial included. Signed SP-4 says the step comes "right after 'Turn on notifications' is answered", and a denial is an answer, so the code matches SP-4. DL-50 was withdrawn (moot) and DV-142 closed by the verification; the behaviour stays.
 
@@ -290,14 +290,14 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 1. Steps exactly `splash, features, goal, tracking, about, routine, consent, reminders`; no "You're all set" (founder decisions.md:297, 2026-09-29; `lib/onboardingSteps.js:12`).
 2. Continue only when the step is answered (R2, `lib/onboardingSteps.js:44-55`; decisions.md:297 "one Continue dimmed until answered").
 3. Birth year 4 digits, 1900…this year − 18 (founder decisions.md:300, 2026-09-15; AD-43).
-4. Stash: only filled keys; fresh only after "Before we begin" in this run; a non-fresh stash is never written to any account (PA-71…73, built — a coordinator rule, decisions.md:472, not a founder answer; the premium-and-auth checklist is unsigned: signature owed, Approvals item 7, DV-229).
-5. Onboarding answers fill ONLY missing fields, never overwrite a stored value (CLAUDE.md "Writes merge, never clobber", founder 2026-09-12; applied by the coordinator line decisions.md:473 and PA-72; the display-name case is DL-57).
+4. Stash: only filled keys; fresh only after "Before we begin" in this run; a non-fresh stash is never written to any account (DL-100; PA-71…73, built; the premium-and-auth checklist is unsigned: signature owed, Approvals item 7, DV-229).
+5. Onboarding answers fill ONLY missing fields, never overwrite a stored value (CLAUDE.md "Writes merge, never clobber", founder 2026-09-12; DL-100, PA-72; the display-name case is DL-57).
 6. Create account always shows the consent row with Terms + Privacy; Apple/Google from Create need it ticked (PA-80, Gate B blocker; same unsigned checklist, Approvals item 7).
 7. Duplicate sign-up detected by `identities.length === 0` → "Email already registered".
 8. Every auth message is a DoseTrace sheet; raw server text never shown (PA-64). Error sheets use the warning triangle and a title that says what happened (decisions.md:64, :121) — today they do not (DV-233).
 9. Store buttons per Apple HIG / Google branding (founder decisions.md:40, 2026-10-02); on Android the Apple button uses Apple's official artwork (AD-74; download = Approvals item 4; today a drawn glyph, DV-239).
 10. Profile gate: 8 required fields (name, birth month + year, sex male/female, country, goal, activity, tracking, provider); PROFILE_GATE_SINCE 2020-01-01 — "I need the data" (founder decisions.md:299, 2026-09-09, do not re-litigate). The gate can be answered offline (DL-92); its "Sign out anyway" is OPEN-24 item 10.
-11. Under-18 legacy accounts get a one-time "I'm 18 or older" confirmation; if not confirmed, export and delete stay available (founder decisions.md:482, 2026-10-03 "2 sim"). The confirmation also asks the real birth year on the year wheel (this year − 18 back to 1900, nothing preselected) — a coordinator line (decisions.md:496; PA-106…PA-108, built), not a founder answer; its checklist awaits the founder's signature (Approvals item 7).
+11. Under-18 legacy accounts get a one-time "I'm 18 or older" confirmation; if not confirmed, export and delete stay available (founder decisions.md:482, 2026-10-03 "2 sim"). The confirmation also asks the real birth year on the year wheel (this year − 18 back to 1900, nothing preselected) — DL-101 (the coordinator line decisions.md:496 placed as logic; PA-106…PA-108, built); its checklist awaits the founder's signature (Approvals item 7).
 12. `onAuthStateChange` stays synchronous (CLAUDE.md).
 13. Google always shows the account chooser; Apple on Android only when the server probe passes; "Continue with Apple" on Android is a founder decision (decisions.md:483, 2026-10-03 "3 sim"; AD-30) and is **live** since the server setup of 2026-10-03 (`STATE.md:17`). The Apple web client secret expires **2027-04-04**: regenerate it before then with `scripts/apple-client-secret.cjs` and paste it into Supabase → Auth → Apple, or every Android Apple sign-in fails (DV-211, ops item; the founder's console step, Approvals item 5). The ship-check Gate B allow-list text still lacks `dosetrace://auth-callback` (doc fix only, DV-115).
 14. Password trimmed on sign-up, sign-in and reset alike (PA-86).
@@ -309,7 +309,7 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 | D01-1 | Gates answerable offline (DL-92) + "Sign out anyway" (pending OPEN-24 item 10) | Error sheet, no force | DL-92 (was AD-29 / OPEN-21 (5); decisions.md:542 is a coordinator line); `07 Gap 6` (A-94) | DV-114 |
 | D01-2 | Offline cold start keeps a stored session (DL-54) | Routes to Auth (the `getSession` error is ignored, `App.js:609-617`) | `07 D-16` (confirmed in code) | DV-083 |
 | D01-3 | AI consent belongs to the person who gave it (DL-55; the Settings withdraw row = pending OPEN-24 item 1) | Device-wide, survives sign-out | `07 D-18`, `08 Gap 1` | DV-007 |
-| D01-4 | *Pending OPEN-20 (b) (Portuguese question 11 (a)).* Recommendation A: no OS prompt at start after "Not now"; ask when a protocol with a reminder time is first saved or arrives by sync (and the SP-5 screen on Android) | OS prompt at the first signed-in start | `03 G25`, `07 §8`; AD-27 withdrawn → OPEN-20 (b) | DV-054 |
+| D01-4 | *Pending OPEN-20 (b) (Portuguese question 11 (a)).* Recommendation A: no OS prompt at start after "Not now"; ask when a protocol with a reminder time is first saved or arrives by sync (and the SP-5 screen on Android) | OS prompt at the first signed-in start | `03 G25`, `07 §8`; AD-27 moved to OPEN-20 (b) | DV-054 |
 | D01-5 | *Closed — not a divergence (X-05).* The setup step after any answer, a denial included, is what signed SP-4 says | Same | `03 G26`; DL-50 withdrawn | — (DV-142 closed) |
 | D01-6 | A sign-in fills the display name only when it is missing, from the Apple or Google profile (DL-57) | Google and Apple-on-Android never write it (the `about` step shows again if the stash was not fresh); Apple iOS overwrites an existing name when Apple returns one (first authorization only). Live for Android Apple accounts too | `07 D-20` | DV-084 |
 | D01-7 | Settings and onboarding validate the same profile rules | Gate checks presence only (a bad stored year or 4-level activity passes) | `07 D-11` | DV-162 |
@@ -324,7 +324,7 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
 **Open — waiting for the founder:**
-- **OPEN-20 (b) — System notification permission after "Not now"** (Portuguese question 11 (a)). Recommendation A: no dialog at start; ask when a protocol with a reminder time is first saved or arrives by sync, and on Android through the SP-5 screen. Was AD-27 (withdrawn). → D01-4, DV-054.
+- **OPEN-20 (b) — System notification permission after "Not now"** (Portuguese question 11 (a)). Recommendation A: no dialog at start; ask when a protocol with a reminder time is first saved or arrives by sync, and on Android through the SP-5 screen. Was AD-27 (moved to OPEN-20 (b) in round 1). → D01-4, DV-054.
 - **OPEN-21 (11) — The cross-account guard** (Portuguese question 22). Whether another account's unsynced rows are still discarded without a warning when a different account signs in (§7.3; coordinator line decisions.md:508-509). Recommendation B: warn and offer "Sign in as {previous} first" / "Discard and continue". → DV-081, DV-169.
 - **OPEN-24 — New UI from logic decisions** (Portuguese question 2): item 1 (Settings row to withdraw AI consent, DL-55 → D01-3, DV-007) and item 10 (the gates' "Sign out anyway", DL-92 → D01-1, DV-114). Pictures first.
 - **OPEN-16 (a) — Scope of 1.3.0** (Portuguese question 1): no DL or DV row of this flow has a target build yet (e.g. DL-55, DL-92, DL-54, DL-57, DL-59).
@@ -335,6 +335,8 @@ Reconciled 2026-10-12: every question this flow raised has one canonical ID in `
 - **AD-30** (corrected) — Android Apple sign-in is live; "the founder signed in on the Fold 2026-10-07" has no source and was removed. Secret rotation before 2027-04-04 = **Approvals item 5** (DV-211, ops item). → D01-8, DV-115.
 - **AD-43** (narrowed) — the 18+ floor uses the typed birth year (decisions.md:300); the counsel flag was dropped (decisions.md:388 is not about age). → DV-168.
 - **DL-50** withdrawn and DV-142 closed (the Android setup step after a denial matches signed SP-4). → D01-5.
+- **DL-100** (round 3; PA-71…73, was the coordinator lines decisions.md:472-473) — the stash belongs only to the person who passed "Before we begin" in this run, fills only missing fields and leaves the phone once written or on a real sign-out. → §6.3, P10.
+- **DL-101** (round 3; PA-106…108, was the coordinator line decisions.md:496) — the 18+ confirmation also asks the real birth year. → rule 11.
 - **Approvals still owed item 7** — the premium-and-auth checklist (PA-71…73 stash rules, PA-80 consent, PA-106…108 real-year ask) is unsigned; the build gate does not catch it today (DV-229).
 
 **Decided — unchanged, applied here:**
@@ -427,7 +429,7 @@ Conventions for every check: fresh install unless stated; screenshot before ever
 
 **F01-21 — 18+ confirmation**
 - Setup: test account with birth_year = current year − 16, no `adult_confirmed_at`.
-- Sources: the gate itself is the founder's (decisions.md:482); the real-year ask is a coordinator line (decisions.md:496, PA-106…108, checklist signature owed — Approvals item 7).
+- Sources: the gate itself is the founder's (decisions.md:482); the real-year ask is DL-101 (decisions.md:496, PA-106…108, checklist signature owed — Approvals item 7).
 - Expect: "Please confirm your age" / "Confirme sua idade"; body names the stored year; year field "Choose your birth year" / "Escolha seu ano de nascimento" with nothing chosen (wheel this year − 18 … 1900); **I'm 18 or older** / "Tenho 18 anos ou mais" disabled until a year is picked; "Download my data", "Delete account", "Sign out" present. Confirm with a valid year → Today; Settings → Edit profile shows the new year.
 
 **F01-22 — Shared device: stale stash is never written**

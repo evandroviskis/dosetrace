@@ -40,7 +40,7 @@ A protocol is a durable health record. When the user stops taking something, its
 | P5 | 1.2.x "Yes, it's finished" soft-deleted protocols (old builds) | Cannot be told from deliberate deletes → automatic purge PAUSED through 1.3.0 (DL-94); all listed in Recently deleted. What happens after 1.3.0 = pending OPEN-04 (Portuguese question 6). |
 | P6 | Ended on phone A, phone B still has an offline edit | End wins across devices (A-87, DL-88). |
 | P7 | Restarting while the same compound is already active (duplicate) | Warn "{name} is already active" first (founder, decisions.md:614). |
-| P8 | Free user at 3 active wants to restart / restore a 4th | Restart → limit sheet, shown only after the duplicate warning and the container question; Restore → Ended (A-89, DL-89). |
+| P8 | Free user at 3 active wants to restart / restore a 4th | Restart → the limit sheet first, before the duplicate warning and the container question (today it comes last — DV-217); Restore → Ended (A-89, DL-89). |
 | P9 | Restarting while still using the old vial | Ask New vial / Keep using the same vial; "same" moves the container to the new run unchanged (founder, decisions.md:614). |
 | P10 | Delete forever on another device | Synced children removed here; unsynced children stay pending ("Entries not saved" orphan sheet). |
 | P11 | Protocol with a finite course (legacy `schedule_total`) | Reminders stop at the course end (BR-12, founder decisions.md:620); what else stops is pending OPEN-03 (Portuguese question 5; see §7.6). |
@@ -50,17 +50,17 @@ A protocol is a durable health record. When the user stops taking something, its
 ```mermaid
 flowchart TD
   A["Active protocol"] -->|"Still going? Yes, it's finished"| B["Ended, ended_at = last Taken dose"]
-  A -->|"End protocol on the page (approved, picture owed)"| B2["Ended, ended_at = tap moment"]
+  A -->|"End protocol on the page (approved, picture owed)"| B2["Ended, ended_at = tap moment (DL-99)"]
   B --> C["Leaves Today, reminders cancelled, vials put away, history kept in Dose log, report, curve (365 d)"]
   B2 --> C
   C --> D["My Protocols, Ended section: name, Ended date, Restart, trash"]
-  D -->|Restart| E{"Same compound active?"}
+  D -->|Restart| G{"Free limit ok?"}
+  G -->|no| H["Protocol limit reached, Paywall, nothing written"]
+  G -->|yes| E{"Same compound active?"}
   E -->|yes| F["name is already active, Resume anyway / Cancel"]
   E -->|no| I["Resume name? New vial / Keep using the same vial / Cancel"]
   F -->|Resume anyway| I
-  I -->|"New vial / Keep / Resume"| G{"Free limit ok?"}
-  G -->|no| H["Protocol limit reached, Paywall, nothing written"]
-  G -->|yes| J["NEW active row: same settings, start today, created now, old run stays Ended"]
+  I -->|"New vial / Keep / Resume"| J["NEW active row: same settings, start today, created now, old run stays Ended"]
   J --> K["Reminders armed, Today shows it"]
   A -->|"Delete (page bottom)"| L["Delete protocol sheet"]
   L --> M["Soft-deleted: active 0, deleted_at now, reminders cancelled, leaves Today, Dose log, report, curve"]
@@ -81,7 +81,7 @@ stateDiagram-v2
         NotStarted --> Running: day reaches start date
     }
     Active --> Ended: Still going, Yes it's finished (ended_at = last Taken)
-    Active --> Ended: End protocol on the page (A-85 approved, picture owed, not built, ended_at = tap)
+    Active --> Ended: End protocol on the page (A-85 approved, picture owed, not built, ended_at = tap, DL-99)
     Active --> Ended: vial prompt Protocol finished (A-85 approved, picture owed, not built)
     Active --> Ended: course total reached (pending OPEN-03 question 5, not built)
     Active --> Deleted: Delete on the page
@@ -121,10 +121,10 @@ stateDiagram-v2
 | From → To | Trigger | Guard | Writes | Side effects |
 |---|---|---|---|---|
 | Active → Ended | "Yes, it's finished" | prompt conditions | `ended_at = MAX(Taken.logged_at)` else created_at; `active 0`; `status_at` | app-written Missed rows after the end removed (unsynced deleted, synced tombstoned); vials deactivated; reminders cancelled; snooze key cleared |
-| Active → Ended | End protocol (AD-11, A-85: approved, picture owed — not built) | confirm | `ended_at = now`, `active 0`, `status_at` | as above (no Missed cleanup needed) |
+| Active → Ended | End protocol (AD-11, A-85: approved, picture owed — not built) | confirm | `ended_at = now` (DL-99), `active 0`, `status_at` | as above (no Missed cleanup needed) |
 | Active → Deleted | Delete | confirm sheet | `active 0`, `deleted_at now`, `restored_at NULL`, `status_at` | vials deactivated, reminders cancelled, delivered banners dismissed, back to list |
 | Ended → Deleted | trash | confirm sheet | `ended_at` kept (or = updated_at), `deleted_at`, `status_at` | reminders cancelled only — no vial deactivation, no delivered-banner dismissal (divergence DV-216, see §7.3) |
-| Ended → new Active | Restart | duplicate warning, container question, then free limit (checked on the button tap, before anything is written) | new `protocols` row (copy except identity/status/start/units); `start_date = today`, `created_at = now`, `units_taken = same ? old : 0`; vial moved (same — today set `active 1` even when empty, DV-236) or new vial (mixed today if it had a mix date, same water/total, 0 taken, expiry blank) — one SQL transaction | reminders scheduled, refresh, sync |
+| Ended → new Active | Restart | free limit first, then the duplicate warning and the container question (today the limit is checked last, on the container button tap — DV-217); nothing written when refused | new `protocols` row (copy except identity/status/start/units); `start_date = today`, `created_at = now`, `units_taken = same ? old : 0`; vial moved (same — today set `active 1` even when empty, DV-236) or new vial (mixed today if it had a mix date, same water/total, 0 taken, expiry blank) — one SQL transaction | reminders scheduled, refresh, sync |
 | Deleted → Active | Restore | same local day, under limit, not Ended before | `active 1`, `ended_at NULL`, `deleted_at NULL`, `restored_at`, `status_at` | newest vial active (today even when finished by doses — DV-022; intended DL-20), reminders scheduled |
 | Deleted → Ended | Restore | Ended before, or deleted before today, or at limit | `active 0`, `ended_at` kept or = `deleted_at`, `deleted_at NULL`, `restored_at`, `status_at` | none |
 | Deleted → Purged | Delete forever | confirm | `purged_at`, pending; children `sync_status 'deleted'` | reminders + banners cancelled; server blanks the row, deletes children |
@@ -134,7 +134,7 @@ stateDiagram-v2
 ### 7.1 Ending
 - **Inactivity prompt** (today's only end path): on Today focus, the first active, started protocol with no Taken log for `max(7, 3 × interval_days)` days (reference = last Taken in 90 days, else created_at / start_date), not snoozed for that window, no other popup → "Still going?" / "No doses logged for this one in a while. Is the protocol finished? Its doses stay in your history, and you can restart it from Ended in My Protocols." → **Yes, it's finished** / **Still going**. The end is dated at the last logged Taken dose (DL-87).
   - **Divergence today (DV-202):** the prompt checks only three of Today's popup flags (`TodayScreen.js:530`), so it can open together with another Today sheet (the vial prompt, the orphan sheet, the Skip sheet) — "one popup at a time" is not kept.
-- **Deliberate end (AD-11: A-85 is in 1.3.0 by the founder, decisions.md:550; approved, picture owed — Approvals item 3):** an "End protocol" action on the protocol page; the end is the moment tapped (A-85 as registered; DV-090's test); placement shown as a picture first.
+- **Deliberate end (AD-11: A-85 is in 1.3.0 by the founder, decisions.md:550; approved, picture owed — Approvals item 3):** an "End protocol" action on the protocol page; the end is the moment tapped, no date question (DL-99 — the coordinator lines decisions.md:504 / :535 placed as logic; DV-090's test); placement shown as a picture first.
   - **Divergence today (01 G-1, DV-090):** not built (`endProtocol`, `lib/protocolEnd.js:46`, has no screen caller). Only the inactivity prompt ends a protocol.
 - **Vial prompt "Protocol finished"** (same A-85 item: approved, picture owed — Approvals item 3): ends the protocol, with a "Later" way out. Until the picture is approved it only closes the prompt (Gate B correction, decisions.md:558). → DV-090.
 - **Missed cleanup across devices (DL-87, from A-86b):** app-written Missed rows after the end disappear on every device (never a row the user entered).
@@ -142,7 +142,8 @@ stateDiagram-v2
 - **Divergence today (01 D-21, legacy rows, DV-026):** with only old backfilled Taken rows, the prompt can fire early and date the end before the protocol existed (intended: logged Taken rows only, DL-21).
 
 ### 7.2 Restart
-- Order (ProtocolsScreen.js:1253-1290): duplicate warning → container question → free-limit check last, inside `restartProtocol`, after a container button is tapped (the user picks a container before seeing "Protocol limit reached"; nothing is written).
+- Order: free-limit check first ("Protocol limit reached", nothing written) → duplicate warning → container question. A question whose answer is then refused must not be asked.
+  - **Divergence today (DV-217):** the limit is checked last, inside `restartProtocol`, after a container button is tapped (`ProtocolsScreen.js:1253-1290`): the user picks a container before seeing "Protocol limit reached" (nothing is written).
 - Duplicate warning first: "{name} is already active" / "You already have an active {name} protocol. Resuming creates another one, with duplicate reminders." → **Resume anyway** / Cancel.
 - Container question: vial protocols "Resume {name}?" / "A new run starts today with zero doses taken; the previous run stays in your history. Will you use a new one or keep going with the same?" → **New vial** / **Keep using the same vial** / Cancel; orals "New bottle" / "Keep using the same bottle"; no container → plain confirm "Resume".
 - New container: a full vial mixed today (only if the old one had a mix date), same water and capacity, 0 taken, **expiry blank** (user enters the new box date). Same container (founder, decisions.md:614): the old container moves to the new run **unchanged** — its mix date and count; oral keeps `units_taken`.
@@ -225,7 +226,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity end at the last Taken dose; app Missed rows after removed, on every phone (A-86 / A-86b, DL-87). R-49 deliberate end = moment tapped (A-85: approved, picture owed — AD-11, Approvals item 3). R-50 Restart = new run, today, created now; ended row stays. R-51 Restart asks container + duplicate warning; "same" moves the container unchanged (founder decisions.md:614; AD-09). R-52 Restart and Restore respect the free limit (A-89, DL-89). R-53 Restore rules (A-89, DL-89). R-54 purge paused through 1.3.0 (A-84, DL-94; after 1.3.0 pending OPEN-04). R-55 Delete forever = positive tombstone (founder go decisions.md:552; AD-67). R-56 no device deletes because a row is absent. R-57 End / Delete wins, vials included (A-87 / A-87b, DL-88). R-58 reminders renewed until delete/end (founder decisions.md:597-601); courses end their reminders (BR-12, decisions.md:620). (`01 §4`.)
+R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity end at the last Taken dose; app Missed rows after removed, on every phone (A-86 / A-86b, DL-87). R-49 deliberate end = moment tapped (DL-99; the End action itself: A-85, approved, picture owed — AD-11, Approvals item 3). R-50 Restart = new run, today, created now; ended row stays. R-51 Restart asks container + duplicate warning; "same" moves the container unchanged (founder decisions.md:614; AD-09). R-52 Restart and Restore respect the free limit (A-89, DL-89). R-53 Restore rules (A-89, DL-89). R-54 purge paused through 1.3.0 (A-84, DL-94; after 1.3.0 pending OPEN-04). R-55 Delete forever = positive tombstone (founder go decisions.md:552; AD-67). R-56 no device deletes because a row is absent. R-57 End / Delete wins, vials included (A-87 / A-87b, DL-88). R-58 reminders renewed until delete/end (founder decisions.md:597-601); courses end their reminders (BR-12, decisions.md:620). (`01 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -247,6 +248,7 @@ R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity en
 | D05-14 | The Restart failure sheet's title says what happened (decisions.md:121; titles to approve, Approvals item 2.16) | Generic "Error" | R2-05 (H5-F10); `ProtocolsScreen.js:1294` | DV-233 |
 | D05-15 | "Still going?" never opens over another Today sheet (one popup at a time) | Checks only three popup flags; can open over the vial prompt, orphan or Skip sheet | verification 02 (new defect 3); `TodayScreen.js:530` | DV-202 |
 | D05-16 | "Still going?" and the end date use logged Taken rows only (DL-21) | Declared (pre-creation) rows count; the end can be dated before the protocol existed | `01 D-21` | DV-026 |
+| D05-17 | Restart checks the free limit first, before any question (bug) | Duplicate warning and container question first; the limit only after a container button is tapped | verification 01 (H5-S1, F05-06); `ProtocolsScreen.js:1253-1290` | DV-217 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
@@ -261,6 +263,7 @@ Open questions that touch this flow (each waits for the founder):
 Items this flow relies on that moved in round 2 (decided — no question):
 
 - **AD-11** — the founder put A-85…A-98 in 1.3.0 (decisions.md:550). A-85 ("End protocol" on the page; the empty-vial prompt's "Protocol finished" with "Later") is approved, picture owed (Approvals item 3); the earlier citation of decisions.md:535 (a coordinator line) is replaced. → §7.1, D05-1, D05-2; DV-090.
+- **DL-99** (round 3; was the coordinator lines decisions.md:504 / :535) — a deliberate end is dated at the moment tapped; no date question. → §5, §6, §7.1; DV-090.
 - **DL-87** (A-86 / A-86b) — the inactivity end is dated at the last Taken dose; app-written Missed rows after it are removed on every phone. → §7.1, D05-3; DV-025.
 - **DL-88** (A-87 / A-87b) — End / Delete wins across devices, vials included. → §7.5, D05-4; DV-021.
 - **DL-89** (A-89) — Restore rules (before today → Ended; same day → Active under the limit, else Ended). → §7.4.
@@ -298,7 +301,7 @@ Account Test03; protocols created for the test only. Light and dark; PT via Sett
 
 **F05-06 — Restart at the free limit**
 - Setup: 3 active, free.
-- Expect: Restart → "Resume {name}?" (after the duplicate warning, if any) → tap New vial / Keep using the same vial / Resume → "Protocol limit reached" / "Limite de protocolos atingido" sheet; nothing written.
+- Expect: Restart → "Protocol limit reached" / "Limite de protocolos atingido" sheet at once, before the duplicate warning or "Resume {name}?"; nothing written. (Fails today: the sheet comes only after a container button is tapped — DV-217.)
 
 **F05-07 — Delete from the page**
 - Do: open an active protocol → scroll to the bottom → **Delete** / "Excluir".

@@ -42,7 +42,7 @@ Measure the user's **real** daily burn (maintenance) from what actually happened
 | P7 | Started on phone A, stopped on phone B | Stop wins on both (server trigger + client rule). |
 | P8 | Started offline on two phones | Two open rows; the newest start wins; older stopped on the next Stop. |
 | P9 | Finished a check today and wants the next one | "Weigh in again in 21 days" starts the next check; the saved result must not hide it (see D08-4). |
-| P10 | Result came out implausible / maintenance / too short | Not saved; Progress explains; Today must not say "ready — tap to see it" as if a number waited. |
+| P10 | Result came out implausible / maintenance / too short | Not saved; Progress explains; Today must not say "ready — tap to see it" as if a number waited (DL-26). What happens next (save maintenance, close the check) is pending OPEN-09 (Portuguese question 14). |
 | P11 | Typed an average and later completed 7 days | Food run used; typed value kept with a note. |
 | P12 | Day 21 passed weeks ago without a weigh-in | Check stays open: "Time to weigh in"; 20:00 continues while the user can still log (FL-42) — a free user after the free days gets none. |
 

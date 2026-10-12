@@ -600,7 +600,7 @@ stateDiagram-v2
     <table class="narrow">
       <thead><tr><th>Situação</th><th>O que o app faz</th></tr></thead>
       <tbody>
-        <tr><td>A dose já foi registrada em outro aparelho ou pela notificação</td><td>Hoje se atualiza; um segundo toque mostra “Nada novo registrado” com o motivo.</td></tr>
+        <tr><td>A dose já foi registrada em outro aparelho ou pela notificação</td><td class="div">Previsto: Hoje se atualiza; um segundo toque mostra “Nada novo registrado” com o motivo.<span class="div-tag">Hoje está diferente:</span>uma dose registrada no outro aparelho pode nunca chegar a este, e uma dose apagada no outro continua contando aqui (quando sai a correção é a pergunta 1 (b)).</td></tr>
         <tr><td>Dose das 20h de ontem sem registro, agora 00h30</td><td>Bloco “Pendente de ontem” até 12 h depois; registrar grava às 20h de ontem.</td></tr>
         <tr><td>Tomou antes da hora</td><td>A dose antecipada no mesmo dia cobre o horário; o cartão para de oferecer.</td></tr>
         <tr><td>Já pulou o horário de hoje</td><td>“Pulada — você ainda pode registrá-la”; Concluir transforma o mesmo registro.</td></tr>
@@ -682,7 +682,7 @@ stateDiagram-v2
         <tr><td>Acabando (1 a 3)</td><td>aviso “Estoque baixo · {nome} — restam {n} doses” (âmbar)</td><td>âmbar “Baixo · {n} restantes”; linha no topo</td><td>um “Frasco acabando” quando restam 3 doses (com o app rodando)</td><td>—</td></tr>
         <tr><td>Vencendo (7 dias ou menos)</td><td>aviso “Frasco vencendo · {nome} — vence em {n} dias”</td><td>dias em cor de atenção / risco</td><td class="pend">hoje: às 09h, 7 dias antes e no dia, com as palavras do aviso de Hoje.<span class="pend-tag">Falta sua decisão (pergunta 11 (b)):</span>a antecedência e o texto desse aviso.</td><td>—</td></tr>
         <tr><td>Fora do prazo</td><td>aviso “{nome} — vencido”</td><td class="div">etiqueta “Fora do prazo”, cor de risco, a partir do dia seguinte ao último dia válido.<span class="div-tag">Hoje está diferente:</span>o frasco pronto para uso já aparece “Fora do prazo” desde 00h do último dia do mês da caixa.</td><td>às 09h no dia</td><td>—</td></tr>
-        <tr><td>Terminado (pó)</td><td class="div">aviso “Todas as doses registradas” com <b>Registrar novo frasco</b> e <b>Protocolo concluído</b>. Previsto (você aprovou em 04/10; falta ver o desenho, item 3 da lista “O que falta você fazer”): “Protocolo concluído” encerra o protocolo, com um “Depois” para quem ainda não decidiu.<span class="div-tag">Hoje está diferente:</span>“Protocolo concluído” só fecha o aviso.</td><td>“M doses por frasco” (sem quadradinhos)</td><td>—</td><td>—</td></tr>
+        <tr><td>Terminado (pó)</td><td class="div">aviso “Todas as doses registradas” com <b>Registrar novo frasco</b> e <b>Protocolo concluído</b>. Previsto (você aprovou em 04/10; falta ver o desenho, item 3 da lista “O que falta você fazer”): “Protocolo concluído” encerra o protocolo, com um “Mais tarde” para quem ainda não decidiu.<span class="div-tag">Hoje está diferente:</span>“Protocolo concluído” só fecha o aviso.</td><td>“M doses por frasco” (sem quadradinhos)</td><td>—</td><td>—</td></tr>
         <tr><td>Terminado (pronto para uso)</td><td>nada</td><td class="pend">Hoje: só “M doses por frasco”, sem como começar outro frasco. Por lógica, um frasco pronto vazio pode ser trocado por um frasco novo (nunca o antigo zerado).<span class="pend-tag">Falta sua decisão (pergunta 3):</span>onde fica esse “Novo frasco” e se ele pergunta a validade da caixa nova.</td><td>—</td><td>—</td></tr>
         <tr><td>Sem frasco (pó, passo pulado)</td><td>cartão “+ Adicionar frasco”; no Fold, página direita “Nenhum frasco reconstituído agora”</td><td>“M doses por frasco”</td><td>—</td><td>—</td></tr>
         <tr><td>Pote em uso (oral)</td><td>—</td><td>“Com base nos números que você inseriu: N {unidade}”; “Dose”, “Restam”, “Dias restantes”; <b>Novo frasco</b> quando já houve doses</td><td>—</td><td>—</td></tr>
@@ -782,14 +782,14 @@ stateDiagram-v2
       <thead><tr><th>Situação</th><th>O que o app faz</th></tr></thead>
       <tbody>
         <tr><td>Parou de usar semanas atrás e não avisou o app</td><td>“Ainda em andamento?” depois de 7 dias (ou 3 intervalos, o que for maior) sem dose concluída; encerra na data da última dose e remove as “perdidas” que o app criou depois.</td></tr>
-        <tr><td>Terminou o último frasco e não vai comprar outro</td><td class="div">Previsto (você aprovou em 04/10; falta ver o desenho, item 3 da lista “O que falta você fazer”): o aviso “Protocolo concluído” encerra o protocolo, com um “Depois”.<span class="div-tag">Hoje está diferente:</span>o aviso só fecha.</td></tr>
+        <tr><td>Terminou o último frasco e não vai comprar outro</td><td class="div">Previsto (você aprovou em 04/10; falta ver o desenho, item 3 da lista “O que falta você fazer”): o aviso “Protocolo concluído” encerra o protocolo, com um “Mais tarde”.<span class="div-tag">Hoje está diferente:</span>o aviso só fecha.</td></tr>
         <tr><td>Excluiu por engano hoje</td><td>Restaurar no mesmo dia volta a Ativo (abaixo do limite).</td></tr>
         <tr><td>Excluiu por engano semana passada</td><td>Restaurar leva a Encerrado (os dias excluídos não ficam devendo); depois Retomar.</td></tr>
         <tr><td>Protocolos “Sim, terminou” de versões antigas</td><td class="pend">Não dá para separar das exclusões de propósito; por isso a limpeza automática de 7 dias fica pausada na 1.3.0 (decidido pela lógica do produto: nunca apagar na dúvida) e todos aparecem em Excluídos recentemente. “Excluir para sempre”, com seleção de vários, você aprovou e já existe.<span class="pend-tag">Falta sua decisão (pergunta 6):</span>se Excluídos recentemente volta a se esvaziar sozinho depois da 1.3.0.</td></tr>
         <tr><td>Encerrou no celular A, o celular B tem uma edição sem internet</td><td>O encerramento vence nos dois.</td></tr>
         <tr><td>Retomar com o mesmo composto já ativo</td><td>Avisa “{nome} já está ativo” antes.</td></tr>
         <tr><td>Premium acabou com mais de 3 protocolos ativos</td><td class="pend">Hoje continuam todos ativos; só não dá para adicionar, retomar nem restaurar acima de 3.<span class="pend-tag">Falta sua decisão (pergunta 7):</span>manter assim ou criar uma regra para quando o Premium acaba.</td></tr>
-        <tr><td>Grátis com 3 ativos quer retomar ou restaurar um quarto</td><td>Retomar mostra “Limite de protocolos atingido”, mas só por último: primeiro vem o aviso de composto já ativo (se houver), depois a pergunta do frasco; o limite é conferido no toque do botão do frasco e nada é gravado. Ou seja, a pessoa escolhe o frasco antes de ver o limite. Restaurar leva a Encerrado.</td></tr>
+        <tr><td>Grátis com 3 ativos quer retomar ou restaurar um quarto</td><td class="div">Previsto: Retomar mostra “Limite de protocolos atingido” logo de cara, antes de qualquer pergunta, e nada é gravado. Restaurar leva a Encerrado.<span class="div-tag">Hoje está diferente:</span>o limite só aparece por último — primeiro vem o aviso de composto já ativo (se houver), depois a pergunta do frasco; a pessoa escolhe o frasco e só então descobre que não pode retomar.</td></tr>
         <tr><td>Retomar ainda usando o frasco antigo</td><td>Pergunta Frasco novo / Continuar o mesmo frasco (sua decisão de 07/10: o frasco passa para o novo ciclo como está, com a data da mistura e a contagem).</td></tr>
         <tr><td>Retomar com “Continuar o mesmo frasco”, e o frasco já tinha acabado</td><td class="div">Previsto: o frasco passa como está; um frasco vazio continua terminado.<span class="div-tag">Hoje está diferente:</span>o app volta a marcar como em uso um frasco que já tinha acabado.</td></tr>
         <tr><td>Excluído para sempre em outro aparelho</td><td>O que já sincronizou some aqui; o que não sincronizou fica pendente, com o aviso de registros não salvos.</td></tr>
@@ -873,7 +873,7 @@ stateDiagram-v2
         <tr><td>Outra conta entra neste celular</td><td class="pend">Hoje os lembretes e os dados da conta anterior que não foram enviados são descartados sem aviso.<span class="pend-tag">Falta sua decisão (pergunta 22):</span>descartar sem avisar, avisar antes, ou guardar até a conta anterior voltar.</td></tr>
         <tr><td>Sessão perdida em silêncio</td><td>Os lembretes ficam, mas param de ser renovados e acabam quando terminam os dias já agendados.</td></tr>
         <tr><td>Aviso de validade do frasco</td><td class="pend">Hoje: notificação às 09h, 7 dias antes do vencimento e no dia, com as mesmas palavras do aviso de Hoje.<span class="pend-tag">Falta sua decisão (pergunta 11 (b)):</span>a antecedência e o texto.</td></tr>
-        <tr><td>A pergunta das 20h, o lembrete semanal de peso ou os alertas de frasco estão bloqueados no sistema</td><td class="pend">Hoje a verificação de lembretes só olha os lembretes de dose. Por lógica, ela olha cada tipo de aviso que a pessoa ligou.<span class="pend-tag">Falta sua decisão (pergunta 2, item 5):</span>as linhas novas na tela de verificação, com desenho.</td></tr>
+        <tr><td>A pergunta das 20h, o check-in semanal ou os alertas de frasco estão bloqueados no sistema</td><td class="pend">Hoje a verificação de lembretes só olha os lembretes de dose. Por lógica, ela olha cada tipo de aviso que a pessoa ligou.<span class="pend-tag">Falta sua decisão (pergunta 2, item 5):</span>as linhas novas na tela de verificação, com desenho.</td></tr>
       </tbody>
     </table>
   </div>
@@ -919,6 +919,7 @@ stateDiagram-v2
   <p class="pend-box"><span class="pend-tag">Falta sua decisão (pergunta 23 (b)):</span>o checklist do Registro de comida com IA que você assinou (FL-3) também previa marcar um dia como “não registrado”, o que quebra a sequência; hoje nada grava mais essa marca (“Só fechar o dia” faz o mesmo papel). Manter assim ou trazer a marca de volta.</p>
   <p class="pend-box"><span class="pend-tag">Falta sua decisão (pergunta 12):</span>com uma medição aberta, a pergunta das 20h continua até ela terminar; se “salvar a medição antes do fim” volta a existir depende da sua resposta (fluxo 08).</p>
   <p class="pend-box"><span class="pend-tag">Falta sua decisão (pergunta 23 (e)):</span>sua regra e o checklist assinado dizem totais de comida por dia, por semana e da medição inteira; hoje só aparece o total do dia.</p>
+  <p class="pend-box"><span class="pend-tag">Falta sua decisão (pergunta 2, item 3):</span>em Progresso aparecem contagens de “dias” que parecem se contradizer (duas no celular, três no Fold aberto). Por lógica, cada contagem ganha o nome do que conta; o texto novo você aprova no desenho.</p>
 
   <h3>O que cada tela mostra em cada estado</h3>
   <div class="table-wrap">
@@ -958,7 +959,7 @@ stateDiagram-v2
         <tr><td>Os dias grátis acabaram</td><td>Destaque bloqueado → Premium; conversa mostra o cartão bloqueado; sem perguntas das 20h.</td></tr>
         <tr><td>O Premium acabou durante uma medição</td><td>Carência até o fim da semana da medição; uma nota explica com os números da pessoa.</td></tr>
         <tr><td>Uma pergunta ficou aberta ontem</td><td>Volta ao reabrir, só se ainda fizer sentido.</td></tr>
-        <tr><td>Registrou o mesmo dia em outro celular</td><td>Sincroniza; a conversa mostra os dois.</td></tr>
+        <tr><td>Registrou o mesmo dia em outro celular</td><td class="div">Previsto: sincroniza; a conversa mostra os dois.<span class="div-tag">Hoje está diferente:</span>uma refeição anotada no outro celular pode nunca chegar a este, e uma refeição removida lá continua aqui (quando sai a correção é a pergunta 1 (b)).</td></tr>
         <tr><td>Passou da meia-noite com a conversa aberta</td><td>Aparece o divisor de dia; o que foi enviado entra no dia em que foi digitado.</td></tr>
       </tbody>
     </table>
@@ -1114,7 +1115,7 @@ stateDiagram-v2
         <tr><td>Conta antiga com peso e gordura, sem altura / idade / sexo</td><td>Mantém o gasto antigo + “Complete seus números”.</td></tr>
         <tr><td>Já se pesou hoje</td><td>A segunda pesagem se junta à de hoje: uma por dia.</td></tr>
         <tr><td>Digitou o peso em Seus números antes de qualquer pesagem</td><td>Esse peso vira a primeira pesagem quando a pessoa salva (nunca sozinho ao abrir).</td></tr>
-        <tr><td>Pesou em outro celular hoje de manhã</td><td>Depois de sincronizar, a pesagem mais nova é o peso atual.</td></tr>
+        <tr><td>Pesou em outro celular hoje de manhã</td><td class="div">Previsto: depois de sincronizar, a pesagem mais nova é o peso atual.<span class="div-tag">Hoje está diferente:</span>a pesagem feita no outro celular pode nunca chegar a este, e uma pesagem apagada lá continua aqui (quando sai a correção é a pergunta 1 (b)).</td></tr>
         <tr><td>Parou uma medição que já tinha resultados salvos</td><td class="pend">Hoje “Parar a medição” apaga todos os resultados medidos, e o gasto diário volta a “Estimado”.<span class="pend-tag">Falta sua decisão (pergunta 13):</span>se parar apaga os resultados anteriores.</td></tr>
         <tr><td>Começou a perder peso antes de instalar</td><td>“+ Adicionar pesagem anterior”, de hoje até 10 anos atrás. Nada a decidir: a mudança que tinha sido proposta foi retirada.</td></tr>
         <tr><td>Uma medição terminou, mas falta altura, idade ou sexo</td><td class="pend">Hoje o gasto medido some do cartão de Progresso e do cartão em Evolução (a tela do resultado ainda mostra). O checklist de Progresso que você assinou diz “o gasto diário só aparece com peso, altura, idade e sexo”; sua frase de 02/10 era sobre a fórmula.<span class="pend-tag">Falta sua decisão (pergunta 15 (a)):</span>mostrar o gasto medido sempre que existir, ou esconder até o perfil estar completo.</td></tr>

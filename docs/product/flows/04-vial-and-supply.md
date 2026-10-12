@@ -157,7 +157,7 @@ stateDiagram-v2
   - **Intended (AD-11: A-85 is in 1.3.0 by the founder, decisions.md:550; approved, picture owed — Approvals item 3):** the empty-vial prompt offers ending the protocol with a "Later" way out ("I'll mix the next vial tomorrow" is the common case). Until the picture is approved it only closes the prompt (Gate B correction, decisions.md:558). → DV-090.
   - **Divergence today (02 G12, DV-038):** finishing a vial from the Dose log (Missed → Complete) deactivates it silently, no prompt (intended: AD-48).
 - RTU empty:
-  - **Intended (DL-22, decided by logic from F-035's "New vial"):** an empty rtu vial can be replaced, and the new box is a new vial row. Where it is offered is not decided (picture first); asking the new box's printed date is pending OPEN-01 (Portuguese question 3).
+  - **Intended (DL-22, decided by logic from F-035's "New vial"):** an empty rtu vial can be replaced, and the new box is a new vial row. Where it is offered (the protocol page, OPEN-01 option A) and whether it asks the new box's printed date are pending OPEN-01 (Portuguese question 3); picture first.
   - **Divergence today (01 D-12 / G-8, device unverified, DV-027):** no prompt (Today's vial prompt and vial row are recon-only); "New vial" needs an ACTIVE vial with doses taken > 0, so an empty rtu vial cannot be replaced except by Edit → change the vial size or box date.
 - Oral empty: units left 0 shown; no flag, no prompt (pending OPEN-02, Portuguese question 4).
 
@@ -207,7 +207,7 @@ stateDiagram-v2
 | Expiring (≤ 7 days) | Alert "Vial expiring soon · {name} — {n} days left" | days in attention / risk | 09:00 at 7 days (lead time pending OPEN-20 (c)) | — |
 | Past window (≤ 0) | Alert "{name} — expired" | "Past window" tag, risk | 09:00 on the day | — |
 | Finished (recon) | Prompt "All doses logged" | "M doses per vial" (no cells) | — | — |
-| Finished (rtu) | nothing (intended DL-22: an empty rtu vial can be replaced; where = picture first, not decided) | "M doses per vial"; New vial missing (D04-2) | — | — |
+| Finished (rtu) | nothing (intended DL-22: an empty rtu vial can be replaced; where, and whether it asks the box date = pending OPEN-01) | "M doses per vial"; New vial missing (D04-2) | — | — |
 | No vial (recon skipped) | card "+ Add vial"; Fold right page "No mixed vial right now" | "M doses per vial" | — | — |
 | Bottle tracking | — | serving hero "Based on the numbers you entered:" / "Com base nos números que você inseriu:" + "{N} {unit}" ("Take" is only its accessibility label); reads "Dose", "Left" / "Restam", "Days left" / "Dias restantes"; **New bottle** / "Novo frasco" when taken > 0 (`ProtocolsScreen.js:484-521`) | — | — |
 | Bottle empty | — | Left 0 | — (no rule) | — |
@@ -336,7 +336,7 @@ Account Test03. Protocols: **BPC-157** recon 5 mg / 2 ml, dose 250 mcg (20 doses
 
 **F04-13 — RTU empty cannot be replaced (divergence check)**
 - Setup: take all 20 Test Cyp doses.
-- Expect (intended, DL-22): a way to start a new vial (where = picture first). **Today:** no prompt, no New vial button, card "20 doses per vial" — record D04-2.
+- Expect (intended, DL-22): a way to start a new vial (where, and whether it asks the box date = pending OPEN-01, Portuguese question 3). **Today:** no prompt, no New vial button, card "20 doses per vial" — record D04-2.
 
 **F04-14 — Oral New bottle**
 - Setup: Zinc with 10 taken.

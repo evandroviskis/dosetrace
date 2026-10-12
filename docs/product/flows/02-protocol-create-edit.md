@@ -311,7 +311,7 @@ R-01 name required ("Missing name"); typed text equal to a listed compound selec
 | D02-1 | History question re-asked when the start moves earlier, "Yes" clears `history_from` (DL-86); it names the compound (wording to approve, Approvals item 2.9) | No name, no re-ask | `01 G-5`; DL-86 | DV-091 |
 | D02-2 | Drafts kept until saved or the app closes (DL-97) | Lost on a kill — as decided; recorded only | `01 G-18`; DL-97 | DV-127 |
 | D02-3 | Recon dose edit recomputes vial capacity from the mass left (DL-15) | Stale stored `total_doses` | `01 D-13` | DV-015 |
-| D02-4 | Free limit counted the same on every device | Local only | `01 D-22`, `07 D-3` | DV-095 |
+| D02-4 | *Pending OPEN-05 (Portuguese question 7):* whether the limit is also enforced across devices / on the server (recommendation A: phone-only, as today) | Local only | `01 D-22`, `07 D-3` | DV-095 |
 | D02-5 | `created_at` identical on every device | Protocols send it since e85519c; a pull never updates a local `created_at` (`syncCore.js:405-415`), so an early-imported copy keeps the server time; vials do not send it | `01 D-20 / G-27` (out of date); `syncMappers.js:101-103` | DV-001 (residual) |
 | D02-6 | Mix date "Feb 31" handled the same everywhere | Wizard clamps, Today refuses, assistant refuses > 1 year | `01 D-14b` | DV-019 |
 | D02-7 | Custom interval 1–365 in form and assistant (DL-19) | 1–999 vs 1–365 | `01 D-16` | DV-123 |

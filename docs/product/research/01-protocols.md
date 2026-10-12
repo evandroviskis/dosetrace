@@ -288,7 +288,7 @@ Numbering R-xx. Source = decision date (docs/decisions.md line), spec row id, or
 ### End, restart, delete, purge
 47. R-47 Ended = `active 0 AND deleted_at IS NULL` (and not purged); ended protocols are never auto-purged — A-83 (docs/decisions.md:503-505); lib/protocolEnd.js:12-14, :201.
 48. R-48 Inactivity end is dated at the last Taken dose; app-written Missed rows after it are removed; user rows kept — A-86, 2026-10-04 (docs/decisions.md:536); lib/protocolEnd.js:52-69.
-49. R-49 A deliberate end = moment tapped — 2026-10-03 (docs/decisions.md:504); lib/protocolEnd.js:45-50 (no UI caller).
+49. R-49 A deliberate end = moment tapped — 2026-10-03 (docs/decisions.md:504, a coordinator line; now DL-99); lib/protocolEnd.js:45-50 (no UI caller).
 50. R-50 Restart = a NEW run: same settings, start today, created now; ended row stays — journey F1/F3 2026-10-03; lib/protocolEnd.js:130-137.
 51. R-51 Restart asks New vs Same container; New = full vial mixed today, 0 taken, expiry blank; Same = old vial moves unchanged (oral keeps units); duplicate active compound/name warned first — 2026-10-06/07 (docs/decisions.md:578, :614). [Corrected 2026-10-12: order in code = duplicate warning → container question → free-limit check.]
 52. R-52 Restart and Restore respect the free limit — A-89 (docs/decisions.md:538); screens/ProtocolsScreen.js:1290, :1309.

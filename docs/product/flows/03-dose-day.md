@@ -33,7 +33,7 @@ On every scheduled dose the user is reminded at their time, records what really 
 
 | # | Prior state | What the flow must do |
 |---|---|---|
-| P1 | The dose was already logged on another device or from the notification | Today refreshes on `data_changed`; a second tap on Today shows the sheet "Nothing new logged" with the reason ("That dose was already logged (from a notification or another device). It now shows on Today."). A second tap on the Android notification button posts a notification "Nothing new logged" / "That dose is already recorded, or the protocol is paused. Open DoseTrace to check." |
+| P1 | The dose was already logged on another device or from the notification | Today refreshes on `data_changed`; a second tap on Today shows the sheet "Nothing new logged" with the reason ("That dose was already logged (from a notification or another device). It now shows on Today."). A second tap on the Android notification button posts a notification "Nothing new logged" / "That dose is already recorded, or the protocol is paused. Open DoseTrace to check." (Today a dose logged on the other phone can be skipped by this phone's pull for good, and a dose deleted there stays here — D03-26; when the fix ships = OPEN-16 (b).) |
 | P2 | Yesterday's 20:00 dose not logged, now 00:30 | "Pending from yesterday" block until slot + 12 h; marking it logs at 20:00 yesterday. |
 | P3 | Took it early (before the slot time) | Early same-day dose covers its slot (A-43); card stops offering it. |
 | P4 | Already skipped today's slot | Line "Skipped — you can still log it"; Mark complete turns the same row into Complete (A-78). |
@@ -337,6 +337,7 @@ R1 one mark-complete path (S-02/FX-2/FX-7). R2 never more Taken than doses/day, 
 | D03-23 | Undo gives a dose back only to a vial that dose closed; an end or delete wins (DL-88) | Undo reopens a vial the end / delete deactivated | `01 D-17` | DV-021 |
 | D03-24 | Week circles' "missed" and the report's Missed rows labelled by what each counts (DL-02) | Two meanings of "missed" | `02 D14` | DV-033 |
 | D03-25 | A slot turns "Due" on screen when its time comes (bug) | Not re-rendered while Today stays open (SUSPECTED) | `02 §8` | DV-148 |
+| D03-26 | Every dose logged, and every Dose-log delete, reaches every device (AD-02; timing = OPEN-16 (b)) | A dose logged on phone A can be skipped by phone B's pull for good; a dose deleted on A still counts on B (rings, report, supply) and comes back on A if B edits it | TRD §3.9 H-1; verification round 2 R2-06 M-1 | DV-182, DV-222 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
@@ -350,6 +351,7 @@ Reconciled 2026-10-12 (round 2): every question this flow raised has one canonic
 - **OPEN-24 items 9 and 12 — new texts / screens a logic decision adds** (Portuguese question 2): item 9, the message when a reminder is tapped for a dose already logged (DL-10, §7.13, D03-8 → DV-036); item 12, "All caught up" on a day finished with a skip (DL-12, §7.8, D03-21 → DV-129).
 - **OPEN-23 — Missed rows the app wrote by mistake** (Portuguese question 18). §7.6 (no DV row).
 - **OPEN-11 — skipped / missed doses and the curve** (Portuguese question 17). §8 Curve column (the curve follows the planned schedule, FX-13) → DV-072.
+- **OPEN-16 (b) — When the sync hardening ships** (Portuguese question 1 (b)). §4 P1, D03-26 → DV-182, DV-222.
 
 **Decided — moved or rewritten in round 2 (no question)**
 - **AD-70** — a dose on the slot's own local day belongs to that slot (was OPEN-19 (a)); §7.7, D03-1, F03-16 → DV-030.

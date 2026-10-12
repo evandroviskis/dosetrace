@@ -290,3 +290,17 @@
 - The TRD's P-scale vs the register's S-scale disagreements (R-05 / DV-183, R-32 / DV-184, R-38 / DV-008, R-41 / DV-003, R-50 / DV-070, R-51 / DV-209, R-53 / DV-210) — phase 2 aligns the TRD to the register.
 - `docs/specs/fixes-1.2.5.md` FX-25 evidence cell and `docs/review/features.md` statuses (DV-176, DV-179) — spec / registry owners; not in this step's file list.
 - Live-state claims (the `reality_checks` trigger, deployed function versions, the assistant's server parts per STATE.md:20) — not re-checked: no network in this step.
+
+## Round 3 (2026-10-12) — additions after the final consistency pass
+
+Source: `docs/product/verification/round3/R3-consistency.md`. These supersede the "Final counts" table above where they differ.
+
+| ID | Final | Why |
+|---|---|---|
+| DL-99 | added, in force | A deliberate end (End protocol; "Protocol finished" once its picture is approved) is dated at the tap. It rested only on the coordinator lines decisions.md:504 / :535 (A-83 option a; grok/251 "decided by logic (not asked)"); genuine logic, so it is a DL. |
+| DL-100 | added, in force | The onboarding stash rules PA-71…PA-73 (coordinator lines decisions.md:472-473) had no id; genuine logic (one account never receives another's data; merge, never clobber). |
+| DL-101 | added, in force | The real birth year at the 18+ confirmation, PA-106…PA-108 (coordinator line decisions.md:496), had no id; genuine logic; the built year wheel is seen and signed with the premium-and-auth checklist (Approvals item 7). |
+| DV-217 | unchanged (S4, bug) | Restart's intended order is the register's: the free limit first, before the duplicate warning and the container question (no founder line sets an order; asking a question whose answer is refused is the defect). PRD, flow 05 (§4, §5 diagram, §6.2, §7.2, new D05-17, F05-06) and the picture now say so. |
+| AD-27 | wording only | One wording everywhere: "moved to OPEN-20 (b)" (not "withdrawn"). |
+
+Counts after round 3: **23 OPEN open · 62 AD in force · 87 DL in force (DL-01…DL-101, 14 out) · 231 DV active (15 / 103 / 44 / 69) + 3 ops, 4 merged, 3 closed (DV-001…DV-241)**.
