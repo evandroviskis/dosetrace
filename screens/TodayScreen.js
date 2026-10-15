@@ -13,6 +13,7 @@ import {
 import { readCheckNow } from '../lib/realityCheckNow';
 import { loadAlertInputs } from '../lib/todayAlertsLoad';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
+import { createFirstSyncGate } from '../lib/stillGoingGate';
 import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -158,6 +159,9 @@ const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many da
 const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
 // The Undo / notice toast stays 4 s (prototype toast(), Today redesign part 15).
 const TOAST_MS = 4000;
+// A-122: "Still going?" decides only after the session's first sync result (or when offline), so a
+// dose logged on another phone has arrived. Created at module load, before App starts the sync.
+const firstSyncGate = createFirstSyncGate({ addSyncListener, isOnlineNow });
 
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
@@ -253,6 +257,7 @@ export default function TodayScreen() {
   const vialPromptPendingRef = useRef(false); // set synchronously by markTaken when the vial prompt will show
   const vialTimerRef = useRef(null); // the delayed open of the vial prompt (cancelled when it closes)
   const inactivePromptOpenRef = useRef(false); // the "still going?" prompt is up
+  const stillGoingWaitRef = useRef(false); // A-122: a check is waiting for the first sync
   const focusedRef = useRef(false); // questions open only on Today, never over another tab
   const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
   const takeNoticeT = useRef(null);
@@ -363,7 +368,7 @@ export default function TodayScreen() {
       ];
       if (!firstLoadedRef.current) whenAllSettled(firstReads).then(() => { firstLoadedRef.current = true; setFirstLoaded(true); });
       focusedRef.current = true;
-      checkTreatmentStillActive();
+      checkStillGoingWhenSynced();
       askKeptQuestions();
       playRingIntro(); // the ring fills from zero each time Today opens
       return () => {
@@ -520,7 +525,19 @@ export default function TodayScreen() {
   // (max of 7 days or 3× its interval), gently ask whether it's finished — so
   // reminders don't nag forever for an abandoned/completed protocol. Never
   // blocks; snoozed per-protocol so it doesn't re-ask on every app open.
+  // A-122: the check waits for the session's first sync result (lib/stillGoingGate) and for Today's
+  // first screen (A-120), then reads the logs at that moment. One wait at a time; on Today only.
+  function checkStillGoingWhenSynced() {
+    if (stillGoingWaitRef.current) return;
+    stillGoingWaitRef.current = true;
+    Promise.all([firstSyncGate.whenOpen(), firstShownRef.current.p]).then(() => {
+      stillGoingWaitRef.current = false;
+      if (focusedRef.current) checkTreatmentStillActive();
+    });
+  }
+
   async function checkTreatmentStillActive() {
+    if (inactivePromptOpenRef.current) return; // one modal at a time: already asking
     try {
       const user = await getCachedUser();
       if (!user) return;
