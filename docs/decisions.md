@@ -773,3 +773,14 @@ Source: docs/product/verification/round3/R3-consistency.md. Coordinator lines th
 - **:472-473 (onboarding answers belong to the person who passed "Before we begin"; fill only missing fields)** — coordinator lines (PA-71…PA-73): DL-100.
 - **:496 (the 18+ confirmation also asks the real birth year)** — coordinator line (PA-106…PA-108): DL-101; the year wheel is seen and signed with the premium-and-auth checklist.
 - **Restart order (no line):** no founder line or signed row sets the order of Restart's sheets; :614 says only that the container is asked and a same-name active protocol is warned about. The register's DV-217 (a bug: the free limit is checked last) stands — the limit comes first.
+
+## 2026-10-15 — founder: one active device per account (question 1 (b) = D (a))
+
+- **One active device per account; signing in on another phone always works and takes over** — 2026-10-15 — source: founder in chat ("Execute a D", option D (a) of grok/293; his proposal: "permitir que a pessoa logue nesse celular novo… e avise… que esteve logada no outro aparelho e teve a última atualização tal dia e tal hora… talvez tenha essa defasagem, porque isso também não vai ser um grande problema"). Closes OPEN-16 (b) as AD-77. The rule:
+  1. Signing in on a phone never blocks. If the account was active on another device, the new phone shows a notice naming that device and the date and time it last sent data, and says that anything recorded there after that time without internet may not be here.
+  2. The phone that signs in becomes the account's only active device; the server records which device is active and each device's last successful send.
+  3. The replaced phone, the next time it reaches the server, says the account was opened on another device (with date and time), signs out and wipes its local data, so no old copy can ever come back. It wipes only on the server's confirmed answer "replaced", never on a network error or a maybe.
+  4. The server refuses writes from a device that is no longer the active one (one writer at a time). This is the fix for DV-182, DV-183, DV-209 and DV-222.
+  5. **(a) Records left unsent on the replaced phone are discarded, and that phone says how many** — the founder's explicit exception to "never lose user-entered data" for this one case (his words: "isso também não vai ser um grande problema").
+  6. Signing out is not allowed while this phone has unsent changes; it explains why and asks to connect first. Replaces "Sign out anyway" (decisions.md:309) for the intentional sign-out.
+  Picture of the screens (light and dark) before code; texts ×6; production migration only with the founder's "pode aplicar"; Gate B + code review + a two-device device test incl. update-over-old-version. Spec: docs/specs/one-active-device.md. Registry A-119, target 1.3.0 (approved → next build).
