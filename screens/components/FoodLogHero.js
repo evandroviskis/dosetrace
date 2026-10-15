@@ -26,7 +26,9 @@ import { pluralKey } from '../../lib/plural';
 
 const CHECK_DAYS = 21;
 
-export default function FoodLogHero({ variant = 'journey', onChanged }) {
+// onReady (A-120, Today): called once the card's first read is done (also when it fails), so Today
+// shows its first screen complete, with this card already in place.
+export default function FoodLogHero({ variant = 'journey', onChanged, onReady }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -47,7 +49,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged }) {
         const now = await readCheckNow().catch(() => null);
         if (alive) setState({ access, rcStart, today, rows, sum: todaySummary(rows, today), checkState: now ? now.outcome.state : null });
       };
-      await read();
+      try { await read(); } finally { if (onReady) onReady(); }
       // Offline entries / follow-up answers are parsed once back online, even if
       // the chat is never opened (FL-19/28).
       if (uid) {

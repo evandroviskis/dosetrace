@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -36,6 +37,7 @@ import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { outcomeCounts } from '../lib/declared';
+import { logListState } from '../lib/firstLoad';
 
 const WEEKDAY_KEYS = ['today_sun', 'today_mon', 'today_tue', 'today_wed', 'today_thu', 'today_fri', 'today_sat'];
 const INJECTABLE = ['recon', 'rtu'];
@@ -68,6 +70,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // lib/localeFormat): "7:20 PM" / "19:20", "Sep 3" / "3 de set.".
   const timeOf = (iso) => { const d = new Date(iso); return formatTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, language, timeFormat); };
   const [logs, setLogs] = useState([]);
+  // A-120: until the first load has finished the list is 'loading' (the app's spinner) — never
+  // "No doses yet" or 0 / 0 / 0 before the rows are read.
+  const [loaded, setLoaded] = useState(false);
+  const listState = logListState({ loaded, rows: logs });
   const [filter, setFilter] = useState('All');
 
   // Body-map editor state (tap a row to edit its injection site)
@@ -353,15 +359,17 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   }
 
   async function fetchLogs() {
-    const user = await getCachedUser();
-    if (!user) return;
-    const data = getAllLogs(user.id);
-    // Map local join fields to match expected shape: { protocols: { name, color, type } }
-    const mapped = (data || []).map(row => ({
-      ...row,
-      protocols: row.protocol_name ? { name: row.protocol_name, color: row.protocol_color, type: row.protocol_type } : null,
-    }));
-    setLogs(mapped);
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const data = getAllLogs(user.id);
+      // Map local join fields to match expected shape: { protocols: { name, color, type } }
+      const mapped = (data || []).map(row => ({
+        ...row,
+        protocols: row.protocol_name ? { name: row.protocol_name, color: row.protocol_color, type: row.protocol_type } : null,
+      }));
+      setLogs(mapped);
+    } finally { setLoaded(true); }
   }
 
   const filteredLogs = logs.filter(l => {
@@ -528,6 +536,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         </TouchableOpacity>
       </View>
 
+      {listState === 'loading' ? (
+        <View style={s.loadingBox}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      ) : (
       <SectionList
         sections={sections}
         keyExtractor={(item) => String(item.id)}
@@ -540,7 +553,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           <View style={s.emptyState}>
             <View style={s.emptyIcon}><FeatureIcon name="journal" size={44} color={colors.ink3} /></View>
             <Text style={s.emptyTitle}>
-              {filter === 'All'
+              {listState === 'empty' && filter === 'All'
                 ? t('log_empty_title')
                 : `${t('log_no_filter')} ${(filters.find(f => f.key === filter)?.label || filter).toLowerCase()}`}
             </Text>
@@ -615,6 +628,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         }}
         ListFooterComponent={<View style={{ height: 40 }} />}
       />
+      )}
 
       {/* Part 18: on the Dose log screen only — never on Today's right page (the dose-logging path). */}
       {!embedded && <FeatureExplainerGate candidates={logExplainers} />}
@@ -729,6 +743,7 @@ const makeStyles = (c) => StyleSheet.create({
   trioCap: { fontSize: 12, fontWeight: '500', color: c.ink2, flexShrink: 1 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
   emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 20 },
+  loadingBox: { flex: 1, paddingTop: 96, alignItems: 'center' }, // A-120: first load
   emptyIcon: { marginBottom: 16 },
   emptyTitle: { fontSize: 22, fontWeight: '600', color: c.ink, marginBottom: 8, textAlign: 'center' },
   emptySub: { fontSize: 15, color: c.ink2, textAlign: 'center', lineHeight: 20 },

@@ -8,8 +8,11 @@ import {
   Modal,
   TextInput,
   AppState,
+  ActivityIndicator,
 } from 'react-native';
 import { readCheckNow } from '../lib/realityCheckNow';
+import { loadAlertInputs } from '../lib/todayAlertsLoad';
+import { whenAllSettled, deferred } from '../lib/firstLoad';
 import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -181,13 +184,19 @@ export default function TodayScreen() {
   const [refreshStale, setRefreshStale] = useState(0); // A-110: days the background refresh is late
   const [remindersSilent, setRemindersSilent] = useState(false); // council 3 decision 2
   const [remindersBattery, setRemindersBattery] = useState(false); // A-112 SP-6: battery optimized (Android)
+  // A-120: resolves once Today's first screen is shown (the content appeared after the first load).
+  const firstShownRef = useRef(null);
+  if (!firstShownRef.current) firstShownRef.current = deferred();
   const readReminders = useCallback(() => {
     readReminderHealth()
       .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h));
         // Decision 5: Android users who already have a reminder time see the setup step once.
+        // A-120: never while Today is still loading its first screen.
         setTimeout(() => {
-          if (!navigation.isFocused()) return; // never pull the user off another screen (ship-check)
-          maybeOpenSetupForExisting(navigation, h.activeWithTime).catch(() => {});
+          firstShownRef.current.p.then(() => {
+            if (!navigation.isFocused()) return; // never pull the user off another screen (ship-check)
+            maybeOpenSetupForExisting(navigation, h.activeWithTime).catch(() => {});
+          });
         }, 600);
       })
       .catch(() => {});
@@ -216,10 +225,23 @@ export default function TodayScreen() {
   const [streak, setStreak] = useState(0);
   const [monthConsistency, setMonthAdherence] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
-  const [rcStart, setRcStart] = useState(null); // open reality-check weigh-in → an alert
-  const [rcNow, setRcNow] = useState(null); // where that check stands (lib/realityCheckNow)
-  const [latestLabDate, setLatestLabDate] = useState(null); // most recent bloodwork report_date
-  const [alertSnooze, setAlertSnooze] = useState({}); // { alertId: untilTimestamp } — dismissed derived alerts
+  // A-120: the alert inputs are read together (lib/todayAlertsLoad) and set in ONE update, so the
+  // alerts box is drawn once with all of them. rcNow: where the open reality check stands
+  // (lib/realityCheckNow); latestLabDate: the most recent bloodwork report_date; snooze:
+  // { alertId: untilTimestamp } — dismissed derived alerts.
+  const [alertInputs, setAlertInputs] = useState({ rcNow: null, latestLabDate: null, snooze: {} });
+  const rcNow = alertInputs.rcNow;
+  const rcStart = rcNow && rcNow.start ? rcNow.start : null; // open reality-check weigh-in → an alert
+  const latestLabDate = alertInputs.latestLabDate;
+  const alertSnooze = alertInputs.snooze;
+  // A-120 (founder 2026-10-15, Fold7 cold start): Today's first view appears once, complete. Until
+  // the first load has finished the content stays hidden behind the app's loading spinner; later
+  // updates (sync, data_changed, a dose written) update in place.
+  const [firstLoaded, setFirstLoaded] = useState(false);
+  const firstLoadedRef = useRef(false);
+  const heroReadyRef = useRef(null);
+  if (!heroReadyRef.current) heroReadyRef.current = deferred();
+  useEffect(() => { if (firstLoaded) firstShownRef.current.resolve(); }, [firstLoaded]);
   const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
   const pendingFxRef = useRef(new Set()); // deferred follow-ups of recent takes (see markTaken)
   // Site questions wait their turn (S-25): one picker at a time, and never together with
@@ -327,13 +349,19 @@ export default function TodayScreen() {
       scanMissedDoses().then((n) => {
         if (n > 0) { requestSync(); fetchStreakData(); fetchProtocolStreaks(); }
       }).catch(() => {});
-      fetchProtocols();
-      fetchTodayLogs();
-      fetchPendingYesterday();
-      fetchStreakData();
-      fetchProtocolStreaks();
-      fetchLastSites();
-      fetchAlerts();
+      // A-120: every read that fills the first screen; the first focus shows the content when all
+      // of them have finished (the food card says so through onReady).
+      const firstReads = [
+        fetchProtocols(),
+        fetchTodayLogs(),
+        fetchPendingYesterday(),
+        fetchStreakData(),
+        fetchProtocolStreaks(),
+        fetchLastSites(),
+        fetchAlerts(),
+        heroReadyRef.current.p,
+      ];
+      if (!firstLoadedRef.current) whenAllSettled(firstReads).then(() => { firstLoadedRef.current = true; setFirstLoaded(true); });
       focusedRef.current = true;
       checkTreatmentStillActive();
       askKeptQuestions();
@@ -465,23 +493,17 @@ export default function TodayScreen() {
   }
 
   // Load the open reality-check weigh-in (if any) — surfaced as a Today alert.
+  // Founder 2026-10-09: the reality-check alert follows the check's real state (weighed in, food
+  // missing, ready). A-120: the check, the latest bloodwork date and the snooze map are read at the
+  // same time and committed together.
   async function fetchAlerts() {
-    // Open reality-check weigh-in.
-    // Founder 2026-10-09: the alert follows the check's real state (weighed in, food missing, ready).
-    const now = await readCheckNow().catch(() => null);
-    setRcStart(now && now.start ? now.start : null);
-    setRcNow(now);
-    // Latest bloodwork date (biomarkers are ordered report_date DESC).
-    try {
-      const user = await getCachedUser();
-      const bm = user ? (getBiomarkers(user.id) || []) : [];
-      setLatestLabDate(bm.length ? bm[0].report_date : null);
-    } catch { /* ignore */ }
-    // Snooze map for dismissed derived alerts.
-    try {
-      const raw = await AsyncStorage.getItem(ALERT_SNOOZE_KEY);
-      setAlertSnooze(raw ? JSON.parse(raw) : {});
-    } catch { setAlertSnooze({}); }
+    const { now, latestLabDate, snooze } = await loadAlertInputs({
+      readCheckNow: () => readCheckNow(),
+      getUser: getCachedUser,
+      getBiomarkers,
+      readSnooze: () => AsyncStorage.getItem(ALERT_SNOOZE_KEY),
+    });
+    setAlertInputs({ rcNow: now, latestLabDate, snooze });
   }
 
   // Snooze an alert (Today redesign part 2, prototype strip): "Tomorrow" or "In 3 days",
@@ -490,7 +512,7 @@ export default function TodayScreen() {
     const until = snoozeUntil(kind, Date.now());
     setSnoozeOpen(null);
     const next = { ...alertSnooze, [id]: until };
-    setAlertSnooze(next);
+    setAlertInputs((prev) => ({ ...prev, snooze: { ...prev.snooze, [id]: until } }));
     try { await AsyncStorage.setItem(ALERT_SNOOZE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   }
 
@@ -1308,6 +1330,8 @@ export default function TodayScreen() {
   const ringTokenRef = useRef(0);
   const ringSafetyRef = useRef(null);
   useEffect(() => () => clearTimeout(ringSafetyRef.current), []);
+  // A-120: the content appears after the first load — the ring fills from zero there, in view.
+  useEffect(() => { if (firstLoaded) playRingIntro(); }, [firstLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
   function playRingIntro() {
     const { frac, done } = targetRef.current;
     if (reduceRef.current) { ringFrac.value = frac; doneShown.value = done; return; }
@@ -2066,6 +2090,16 @@ export default function TodayScreen() {
           <Text style={s.title}>{t('tab_today')}</Text>
         </View>
 
+        {/* A-120: until the first load has finished, the app's loading spinner (App.js
+            ThemedLoading) under the header; the content below is mounted (the food card loads
+            with it) but hidden, then shown in one go — never growing one section at a time. */}
+        {!firstLoaded && (
+          <View style={s.loadingBox}>
+            <ActivityIndicator size="large" color={colors.accent} />
+          </View>
+        )}
+        <View style={firstLoaded ? null : s.hiddenUntilLoaded}>
+
         {focusCard && (
           // A-44: the dose its reminder was about, at the top, highlighted (ink outline).
           <View style={s.block}>
@@ -2171,7 +2205,7 @@ export default function TodayScreen() {
         )}
 
         {/* AI food log while a reality check runs (FL-33) — lib/foodThread todayFoodHeroPolicy. */}
-        <FoodLogHero variant="today" />
+        <FoodLogHero variant="today" onReady={heroReadyRef.current.resolve} />
 
         {protocols.length === 0 && !loading && (
           <View style={s.empty}>
@@ -2257,6 +2291,7 @@ export default function TodayScreen() {
         )}
 
         {protocols.length > 0 && <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>}
+        </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -2442,6 +2477,8 @@ const makeStyles = (c) => StyleSheet.create({
 
 const legacyStyles = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  loadingBox: { paddingTop: 96, alignItems: 'center', justifyContent: 'center' }, // A-120: first load
+  hiddenUntilLoaded: { display: 'none' }, // A-120: mounted, not shown, until the first load finished
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, backgroundColor: c.bg },
   date: { fontSize: 13, fontWeight: '600', color: c.textMuted, letterSpacing: 0.2, marginBottom: 2 },

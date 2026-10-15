@@ -78,7 +78,11 @@ test('L-14: the curve lists each lab report date once, newest first, from My Bod
 test('L-15: Today reads the newest report date, alerts after 182 days and opens My Body on Labs', () => {
   const today = read('screens/TodayScreen.js');
   assert.match(today, /const BLOODWORK_INTERVAL_DAYS = 182;/);
-  assert.match(today, /setLatestLabDate\(bm\.length \? bm\[0\]\.report_date : null\);/);
+  // A-120: the newest date is read by lib/todayAlertsLoad (with the check and the snooze map) and set
+  // in Today's one alert-inputs update.
+  assert.match(read('lib/todayAlertsLoad.js'), /return bm\.length \? bm\[0\]\.report_date : null;/);
+  assert.match(today, /getBiomarkers,\n\s*readSnooze:/);
+  assert.match(today, /setAlertInputs\(\{ rcNow: now, latestLabDate, snooze \}\);/);
   assert.match(today, /if \(days >= BLOODWORK_INTERVAL_DAYS\) \{/);
   assert.match(today, /onPress: \(\) => navigation\.navigate\('Body', \{ initialSection: 'labs' \}\),/);
   const body = read('screens/BodyScreen.js');
