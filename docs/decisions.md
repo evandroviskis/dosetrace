@@ -832,3 +832,13 @@ Source: founder in chat 2026-10-15, answering the single question round (Portugu
 
 - **A-119 picture approved** — 2026-10-15 — source: founder in chat "Aprovado" after the 7 screens (docs/design/a119-telas/, artifact WxjwqHJR9iuYYn4dt3Ft72 v4): screens 1, 1b, 2, 2b, 3 (no internet), 3b (connected, backup not finished), 4 ("Usar sua conta neste celular?", "Sair deste celular" grey). Checklist docs/specs/one-active-device.md goes to his signature.
 - **A-119 checklist signed** — 2026-10-15 — source: founder in chat "assino" (docs/specs/one-active-device.md OD-1..OD-18).
+
+## 2026-10-15 — founder: "Still going?" with an end date (A-121)
+
+- **A-121 picture approved, option A, button rename approved** — 2026-10-15 — source: founder in chat "aprovado, A, pode" after the screens (docs/design/a121-telas/, docs/design/a121-still-going-end-date.html). The rule:
+  1. "Ainda em andamento?" offers three choices: "Sim, terminou", "Continua até uma data…" (new) and "Continua" (renamed from "Ainda em andamento", approved), plus one added sentence: "Se ele vai até uma data, escolha qual: o app não pergunta mais até lá."
+  2. "Continua até uma data…" opens "Até quando?" in the same box with the app's date wheel (from tomorrow on); "Salvar data de fim" / "Voltar".
+  3. With an end date the app stops asking "Still going?" for that protocol until that date; reminders, doses and the curve are unchanged; nothing ends by itself.
+  4. On the end date Today asks "Ciclo concluído — encerrar {name}?" (Continue removes the end date; End moves it to Ended, dated at the tap — DL-99), the course-end question of AD-82.
+  5. Option A: the protocol page shows a row "Termina em" under Schedule & reminders on every protocol ("Sem data" when none); tapping it opens the same wheel, with a way to clear the date.
+  Spec: docs/specs/still-going-end-date.md (to sign). A new protocol field → migration with the founder's "pode aplicar". Target 1.3.0 (approved → next build).
