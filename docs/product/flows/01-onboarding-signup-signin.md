@@ -22,6 +22,7 @@ Turn a first-time install into a signed-in account with a complete profile, in t
 | Apple / Google | Native ID token (iOS Apple, Google both); Android Apple = web OAuth, **live since 2026-10-03** (founder decisions.md:483, AD-30; server setup done, `STATE.md:17`; button shown while the server probe passes; web client secret expires **2027-04-04**, DV-211 ops item, rotation = Approvals item 5). |
 | OS | Notification permission prompt (iOS / Android 13+). |
 | Sync engine | Import from cloud after SIGNED_IN (`fullImportFromCloud` when local DB empty). |
+| Active-device record (server) | Intended (AD-77, decided 2026-10-15; not built → A-119): the server records the account's one active device and each device's last complete send; a sign-in the person makes on a phone with no session makes that phone the active one (DL-102); reads and writes from any other device are refused with a distinct error (DL-105); a normal sign-out releases the account (DL-108). |
 
 ## 3. Preconditions
 
@@ -38,7 +39,7 @@ Turn a first-time install into a signed-in account with a complete profile, in t
 | P3 | Finished onboarding, tapped Create account, killed before submitting | Stash complete, email draft was in memory | Reopen on "Before we begin" (PA-92); the email must be retyped (never stored). |
 | P4 | Signed up by email, never opened the confirmation link | Account exists, unconfirmed | Sign in shows "Please confirm your email…" sheet with **Resend** (30 s cooldown). |
 | P5 | Opens the confirmation link on a different phone | No PKCE verifier there | Sheet "This link didn't work" variant: "Your email may already be confirmed. Sign in with your email and password." |
-| P6 | Already has an account (other phone, older version) | Session absent; cloud data exists | "Already have an account? Sign in" from splash → Auth (Sign in) → import from cloud. |
+| P6 | Already has an account (other phone, older version) | Session absent; cloud data exists | "Already have an account? Sign in" from splash → Auth (Sign in) → import from cloud. Intended (AD-77; not built → A-119): this sign-in takes the account over — this phone becomes the only active device, and if another device was still active the one notice of P15 follows the 18+ / profile steps. |
 | P7 | Account created with Apple, now on Android | Apple button on Android shows: the server probe passes (live since 2026-10-03). A real Android Apple sign-in is not recorded in the repo — it is a founder device test (F01-26; AD-30 corrected round 2) | Show "Continue with Apple" on Android (founder decisions.md:483 "3 sim", AD-30). If the web client secret lapses (2027-04-04) every Android Apple sign-in fails — rotate it before then (DV-211, ops item; Approvals item 5). |
 | P8 | Account older than build 49 with missing fields (e.g. no country, no tracking types) | `missingProfileFields != []` | Route to **Finish setup** showing only the missing steps. |
 | P9 | Account with a birth year under 18 (old data) | `needsAdultConfirmation` | Route to **Please confirm your age** after the profile gate. |
@@ -47,6 +48,8 @@ Turn a first-time install into a signed-in account with a complete profile, in t
 | P12 | Reinstall on iPhone | Keychain session may survive, AsyncStorage empty | Goes straight to Main (or a gate); DB re-imported. (SUSPECTED platform behaviour, `07 §8`.) |
 | P13 | Offline at first launch | — | Onboarding works; Create account / Sign in show the network sheet; nothing typed is lost. |
 | P14 | Notification permission already denied at OS level | — | "Enable notifications" opens no prompt; flow continues to Create account. |
+| P15 | The account is still signed in on another phone | Server: another device is the active one (not built → A-119) | Sign-in never blocks (AD-77, OD-1). This phone takes the account over and becomes the only active device (OD-3); its local copy is rebuilt from the server (DL-104). After the 18+ / profile steps it shows one notice naming the other device and the server time that device last sent everything, in this phone's time zone, saying that later offline changes there may be missing (OD-2). No notice if that device signed out normally (DL-108) or when the same device signs in again. The replaced phone is handled in flow 12 §7.8. |
+| P16 | This phone was updated from an older version (or restored from another phone's backup) while another phone is active | Session restored at start-up; server: another device active (not built → A-119) | A restored session never takes over by itself (DL-102). Opened in the foreground, the phone asks "Your account is in use on {device}. Use it on this phone?" — **Use here** (takeover with the P15 notice) / **Sign out of this phone** (DL-103, OD-10). If no device is active yet, it becomes the active device silently with its data kept. |
 
 ## 5. Happy path
 
@@ -70,7 +73,10 @@ flowchart TD
   M -->|email confirmation on| O["Account created: Open email app / Resend / Wrong address?"]
   O -->|user opens link on this phone| P["Email confirmed sheet, signed in"]
   P --> N
-  N --> Q{"Profile complete and adult?"}
+  N --> TK{"Was another device active on this account?"}
+  TK -->|yes| TN["Notice once: the other device and its last send date and time; this phone is now the only active device"]
+  TK -->|no| Q{"Profile complete and adult?"}
+  TN --> Q
   Q -->|yes| R["Main: Today tab"]
   Q -->|missing field| S["Finish setup: only missing steps"]
   Q -->|year under 18| T["Please confirm your age"]
@@ -117,7 +123,16 @@ stateDiagram-v2
     SwitchAsk --> SigningOut: Sign out and continue
     ResetPassword --> Main: Save new password
     ResetPassword --> Auth: Not now or link expired
+    Auth --> TakeoverNotice: SIGNED_IN by the person, another device was active (AD-77, intended)
+    TakeoverNotice --> Main: notice closed
+    Loading --> UseHereAsk: updated phone, another device active (DL-103, intended)
+    UseHereAsk --> TakeoverNotice: Use here
+    UseHereAsk --> SigningOut: Sign out of this phone
+    Main --> Replaced: server confirms another device took over (AD-77, intended)
+    Replaced --> SigningOut: notice with date, time and the unsent records, then the intended wipe
 ```
+
+The last seven transitions are intended (AD-77, decided 2026-10-15; not built → A-119). The takeover notice comes after the 18+ / profile steps when those gates apply (OD-2); the diagram draws it on the direct path only.
 
 ### 6.2 Pre-account step machine
 
@@ -186,7 +201,7 @@ stateDiagram-v2
 ### 7.1 Offline
 - Onboarding steps: work fully offline; stash persists every Continue.
 - Create account / Sign in / Apple / Google offline: DoseTrace sheet "Connection problem. Check your internet and try again." (`error_network`); typed answers kept; password field cleared on errors.
-- **Intended (DL-92, decided by logic — was AD-29 / OPEN-21 (5); source decisions.md:542, a coordinator line):** Finish setup and the 18+ confirmation may be answered offline — answers are kept on the phone and written when back online. The same **Sign out anyway** (with its confirmation) as Settings on both gates is new UI: **pending OPEN-24 item 10 (Portuguese question 2)**.
+- **Intended (DL-92, decided by logic — was AD-29 / OPEN-21 (5); source decisions.md:542, a coordinator line):** Finish setup and the 18+ confirmation may be answered offline — answers are kept on the phone and written when back online. Both gates get the same **Sign out anyway** as Settings (AD-79 item 10), behind the one true sheet of AD-109 (founder, 2026-10-15: signing out is never blocked): with unsent changes the app first tries to send; if anything is still unsent, the sheet says what really happened (offline: no internet; online but the send did not go through: the send did not go through over the internet — never an invented cause), how many changes and which (kinds and dates, incl. records the server will never accept, e.g. entries of a protocol deleted forever, DL-107) are not in the account and are removed by signing out, when this phone last backed up everything (date and time), and that the person can simply sign in on the new phone instead (this one signs out by itself when back online; what was not sent will not be there). Buttons: **Sign out anyway** (destructive) / **Stay**. With nothing unsent, sign-out proceeds and releases the account on the server (DL-108). The sheet's texts ×6 come with the A-119 picture; not built → A-119.
   - **Divergence today (07 D-22 area; 07 Gap 6; registry A-94 "Not started"; DV-114):** both gates show an error sheet titled "Error" / "Erro" (offline the body is `error_network` "Connection problem. Check your internet and try again."; `OnboardingFlowScreen.js:275-277`, `AgeConfirmScreen.js:73-75`; the generic title and circle glyph = DV-233) and stay locked offline; neither offers "Sign out anyway" (they offer only to discard entries of a protocol deleted forever on another device, `OnboardingFlowScreen.js:292-294`). An offline user with unsynced rows can be trapped.
 - Offline cold start with an expired access token: **intended (DL-54)** the stored session is still the user's; the app must not route to Auth.
   - **Divergence today (07 D-16, confirmed in code):** `App.js:609-617` ignores the `getSession()` error, so `{session:null, error}` routes to Onboarding/Auth until a later refresh event (commit 495ebab confirms the auth-js behaviour). Still worth a device check (airplane mode, token > 1 h old).
@@ -203,9 +218,11 @@ stateDiagram-v2
 
 ### 7.3 Second device / other account
 - Same account on a second phone: Sign in → full import; profile already complete → Main directly; Android once-per-phone reminder setup opens from Today (flow 06).
-- **A different account signs in on a phone holding another account's local data:** today the previous account's local data — unsynced rows included — is discarded without a warning, and its reminders are cancelled before import (cross-account guard, `App.js:621-633`). The only source is a coordinator line (decisions.md:508-509, "final Gate B"), never put to the founder, and it collides with CLAUDE.md "NEVER lose user-entered data": **pending OPEN-21 (11) (Portuguese question 22)** — keep as built, warn first ("Sign in as {previous} first" / "Discard and continue", the recommendation), or keep the rows hidden until that account returns.
+  - **Intended (AD-77, decided 2026-10-15; not built → A-119):** one active device per account. The sign-in never blocks and takes the account over: this phone becomes the only active device (the server records it and each device's last complete send) and rebuilds its local copy from the server (DL-104). If the other phone was still active, this phone shows one notice after the 18+ / profile steps naming that device and the server time it last sent everything, in this phone's time zone, and says that anything recorded there later without internet may be missing; no notice when that phone signed out normally (DL-108). Only a sign-in the person makes on a phone with no session takes over — a restored session, a token refresh or a same-user re-auth never does (DL-102); an updated or backup-restored phone asks first (P16, DL-103). The replaced phone (it learns on its next server contact, never pulls again, says what unsent records are discarded and signs out with the intended wipe) is described in flow 12 §7.8.
+  - **Today:** both phones stay signed in and write to the same account; the multi-device sync defects DV-182, DV-183, DV-209, DV-222 follow (fixed by A-119, not by per-table sync hardening).
+- **A different account signs in on a phone holding another account's local data:** today the previous account's local data — unsynced rows included — is discarded without a warning, and its reminders are cancelled before import (cross-account guard, `App.js:621-633`; the coordinator line decisions.md:508-509). **Intended (AD-102, decided 2026-10-15, was OPEN-21 (11)):** before another account's unsent data is discarded, the app warns and offers **"Sign in as {previous account} first, to save"** or **"Discard and continue"**; nothing unsent leaves the phone without that choice. Texts ×6 (Approvals still owed item 2). → DV-242 (S1).
 - Shared phone, stash typed by person A, person B signs up with Apple: stash not fresh for B → never written to B (DL-100; PA-71…73, built; checklist signature owed, Approvals item 7).
-- **Divergence today (07 D-18; 08 Gap 1):** AI consent (`dosetrace_ai_extraction_consent_v4`) is per device and survives sign-out, so person B inherits person A's AI consent. Ledger rule: "AI consent before every AI call" (decisions.md:323). Decided by logic → DL-55 (consent per account, version and date, cleared on sign-out); the Settings row to withdraw it is new UI, **pending OPEN-24 item 1 (Portuguese question 2)**; server proof of consent is a counsel item (DL-83). → DV-007.
+- **Divergence today (07 D-18; 08 Gap 1):** AI consent (`dosetrace_ai_extraction_consent_v4`) is per device and survives sign-out, so person B inherits person A's AI consent. Ledger rule: "AI consent before every AI call" (decisions.md:323). Decided by logic → DL-55 (consent per account, version and date, cleared on sign-out); the Settings row to withdraw it is new UI, approved as AD-79 item 1 (decided 2026-10-15; picture first, then 1.3.0); server proof of consent is a counsel item (DL-83). → DV-007.
 - **Divergence today (07 D-7, confirmed in code):** entitlement cache keys survive sign-out; `cacheUid` uses `dosetrace_entitlement_last_uid` until `initPurchases` runs, so a short window on SIGNED_IN can read the previous account's cached Premium. Intended (DL-53): the cache is bound to the session user at sign-in, before any read. → DV-082.
 
 ### 7.4 Timezone / DST / midnight
@@ -226,7 +243,7 @@ stateDiagram-v2
 - iOS "Enable notifications" → OS prompt → Create account.
 - Android "Enable notifications" → OS prompt → **Make sure your reminders arrive** (items + bar only; no schedule or test; "Continue" reads "Done" when all readable items are OK; "Set up later"). Marks setup seen on this phone (SP-4).
 - "Not now" → straight to Create account; the setup step is skipped.
-- **Not decided — pending OPEN-20 (b) (Portuguese question 11 (a)); AD-27 moved to OPEN-20 (b) in round 1.** When the system should ask for notification permission after "Not now" is the founder's call. The recommendation (option A): no system dialog at start; ask when a protocol with a reminder time is first saved on the phone **or first arrives on it by sync** (new install, sign-in on a new phone — the iPhone case, since SP-5's screen is Android-only), and on Android through the SP-5 setup screen (which Today opens once per phone for anyone with a reminder time — "Not now" users included, decisions.md:626). Options B (ask once more at the next start) and C (as built) stay open.
+- **Intended (AD-88, decided 2026-10-15, was OPEN-20 (b); target 1.3.0):** no system permission dialog at app open after "Not now". The app asks when a protocol with a reminder time is first saved on the phone **or first arrives on it from another device** (new install, sign-in on a new phone — the iPhone case, since SP-5's screen is Android-only), and on Android also through the SP-5 setup screen (which Today opens once per phone for anyone with a reminder time — "Not now" users included, decisions.md:626).
   - **Today (03 G25; 07 §8 row "Not now"):** `requestNotificationPermissions()` runs at every signed-in cold start and on SIGNED_IN (`App.js:650`, `:730`) and inside the push-token registration (`notifications.js:1033`), so the OS prompt appears right after sign-in anyway. The system dialog itself appears only while the status is undetermined (`notifications.js:157-160`): once on iPhone, at most twice on Android 13+. → DV-054 (S3).
   - **Not a divergence (X-05):** Android shows the setup step after any answer to the OS dialog, a denial included. Signed SP-4 says the step comes "right after 'Turn on notifications' is answered", and a denial is an answer, so the code matches SP-4. DL-50 was withdrawn (moot) and DV-142 closed by the verification; the behaviour stays.
 
@@ -237,7 +254,7 @@ stateDiagram-v2
 | Confirm link while signed in | Silently remembered; never switches accounts. |
 | Confirm link on another phone | "This link didn't work" + "Your email may already be confirmed. Sign in with your email and password." |
 | Reset link, same account or nobody signed in | Reset password screen. |
-| Reset link for another account while signed in | Sheet "Reset the password of another account?" naming both; "Sign out and continue" runs an intended sign-out **without force** (blocked if unsynced). |
+| Reset link for another account while signed in | Sheet "Reset the password of another account?" naming both; "Sign out and continue" runs an intended sign-out. Intended (AD-109): never blocked — with unsent changes, the one true sheet (what happened, how many and which, last full backup, sign in on the new phone instead) with **Sign out anyway** / **Stay**. Today it runs **without force** and is blocked if unsynced. |
 | Each link | Handled once (memory + `dosetrace_links_handled`, last 20). |
 
 ### 7.10 Errors (all DoseTrace sheets, never raw server text — PA-64)
@@ -259,6 +276,7 @@ Email already registered; incorrect email or password; email not confirmed (+ Re
 | Signed in, under 18 | "Please confirm your age", year wheel (none preselected), **I'm 18 or older**, Download my data, Delete account, Sign out | not reachable | not reachable | as above | — |
 | Main | — | Today (empty state "No protocols yet" + **Add a protocol** for a new user) | Profile card filled from onboarding answers | first schedule after first protocol | full DB |
 | Reset password | "Set a new password", New / Confirm password, **Save new password**, **Not now** | — | — | — | pending recovery (SecureStore, ≤ 1 h) |
+| Signed in while another device was active (AD-77, intended; not built → A-119) | After the 18+ / profile steps: one notice naming the other device (the model name the system gives, iPhone/Android as fallback) and the server time it last sent everything, in this phone's time zone, saying later offline changes there may be missing; closed once, never again (a kill before it is seen shows it at the next open) | Today after the notice, from the rebuilt local copy | Sign out never blocked; with unsent changes the AD-109 sheet (Sign out anyway / Stay) | this phone's reminders from the imported protocols; the replaced phone gets no server push (OD-16) | local copy rebuilt from the server (DL-104) |
 
 Theme: every screen above uses theme tokens; only the Apple and Google buttons are store-owned surfaces (Apple HIG / Google branding, founder decisions.md:40, 2026-10-02). Both themes must be checked (Gate A). The Android "Continue with Apple" must use Apple's official artwork (AD-74); today it draws its own Apple glyph (`AuthScreen.js:65-73`, DV-239) — the artwork download needs the founder's go (Approvals item 4).
 
@@ -282,6 +300,7 @@ The "Privacy policy" link on Create account and the consent step opens the web p
 | Finish setup | `user_metadata` | shown steps only, consent if never recorded | server | yes |
 | 18+ confirm | `user_metadata` | `adult_confirmed_at`, `birth_year` (one merge write) | server | yes |
 | Reset password | Supabase Auth | password; pending recovery discarded | server | — |
+| Sign-in by the person on a phone with no session (intended AD-77, DL-102; not built → A-119) | Supabase active-device record + `push_tokens` device id | this device as the account's one active device; each device's last complete send; the account's other push tokens removed (OD-16); a normal sign-out releases the record (DL-108) | server | released on intended sign-out (no notice for the next phone) |
 
 Never written: the password anywhere on the phone; the typed email to storage (memory `authDraft` only).
 
@@ -296,20 +315,21 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 7. Duplicate sign-up detected by `identities.length === 0` → "Email already registered".
 8. Every auth message is a DoseTrace sheet; raw server text never shown (PA-64). Error sheets use the warning triangle and a title that says what happened (decisions.md:64, :121) — today they do not (DV-233).
 9. Store buttons per Apple HIG / Google branding (founder decisions.md:40, 2026-10-02); on Android the Apple button uses Apple's official artwork (AD-74; download = Approvals item 4; today a drawn glyph, DV-239).
-10. Profile gate: 8 required fields (name, birth month + year, sex male/female, country, goal, activity, tracking, provider); PROFILE_GATE_SINCE 2020-01-01 — "I need the data" (founder decisions.md:299, 2026-09-09, do not re-litigate). The gate can be answered offline (DL-92); its "Sign out anyway" is OPEN-24 item 10.
+10. Profile gate: 8 required fields (name, birth month + year, sex male/female, country, goal, activity, tracking, provider); PROFILE_GATE_SINCE 2020-01-01 — "I need the data" (founder decisions.md:299, 2026-09-09, do not re-litigate). The gate can be answered offline (DL-92); its sign-out is the same **Sign out anyway** as Settings, behind the one true sheet — never blocked; records the server will never accept are listed in the same sheet (AD-109, DL-107, AD-79 item 10).
 11. Under-18 legacy accounts get a one-time "I'm 18 or older" confirmation; if not confirmed, export and delete stay available (founder decisions.md:482, 2026-10-03 "2 sim"). The confirmation also asks the real birth year on the year wheel (this year − 18 back to 1900, nothing preselected) — DL-101 (the coordinator line decisions.md:496 placed as logic; PA-106…PA-108, built); its checklist awaits the founder's signature (Approvals item 7).
 12. `onAuthStateChange` stays synchronous (CLAUDE.md).
 13. Google always shows the account chooser; Apple on Android only when the server probe passes; "Continue with Apple" on Android is a founder decision (decisions.md:483, 2026-10-03 "3 sim"; AD-30) and is **live** since the server setup of 2026-10-03 (`STATE.md:17`). The Apple web client secret expires **2027-04-04**: regenerate it before then with `scripts/apple-client-secret.cjs` and paste it into Supabase → Auth → Apple, or every Android Apple sign-in fails (DV-211, ops item; the founder's console step, Approvals item 5). The ship-check Gate B allow-list text still lacks `dosetrace://auth-callback` (doc fix only, DV-115).
 14. Password trimmed on sign-up, sign-in and reset alike (PA-86).
+15. One active device per account (founder AD-77, 2026-10-15; spec docs/specs/one-active-device.md; registry A-119, 1.3.0; not built). Signing in never blocks and takes the account over; only a sign-in the person makes on a phone with no session does (DL-102); an updated or backup-restored phone asks "Your account is in use on {device}. Use it on this phone?" (DL-103); the taking-over phone rebuilds its local copy from the server (DL-104); the server refuses reads and writes from a non-active device with a distinct error, never a silent empty result (DL-105); the replaced phone's discard notice names kinds and date range, no values (DL-106); records the server will never accept are named in the same sign-out sheet and never trap sign-out at any entry point (DL-107); a normal sign-out releases the account, and "last sent" is the server's time shown in the new phone's time zone (DL-108). The intentional sign-out is never blocked (AD-109, amending AD-77 item 6 the same day): with unsent changes one true sheet says what happened (no internet, or the send did not go through over the internet), how many changes and which are removed by signing out, when this phone last backed up everything, and that the person can simply sign in on the new phone instead; **Sign out anyway** / **Stay**. AD-108 ("OK" only) was superseded the same day by AD-109.
 
 ## 11. Divergences today (summary)
 
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
-| D01-1 | Gates answerable offline (DL-92) + "Sign out anyway" (pending OPEN-24 item 10) | Error sheet, no force | DL-92 (was AD-29 / OPEN-21 (5); decisions.md:542 is a coordinator line); `07 Gap 6` (A-94) | DV-114 |
+| D01-1 | Gates answerable offline (DL-92) + the same "Sign out anyway" as Settings behind the one true sheet, never blocked (AD-79 item 10, AD-109; records the server will never accept listed in the sheet, DL-107) | Error sheet, no force | DL-92 (was AD-29 / OPEN-21 (5); decisions.md:542 is a coordinator line); `07 Gap 6` (A-94) | DV-114 |
 | D01-2 | Offline cold start keeps a stored session (DL-54) | Routes to Auth (the `getSession` error is ignored, `App.js:609-617`) | `07 D-16` (confirmed in code) | DV-083 |
-| D01-3 | AI consent belongs to the person who gave it (DL-55; the Settings withdraw row = pending OPEN-24 item 1) | Device-wide, survives sign-out | `07 D-18`, `08 Gap 1` | DV-007 |
-| D01-4 | *Pending OPEN-20 (b) (Portuguese question 11 (a)).* Recommendation A: no OS prompt at start after "Not now"; ask when a protocol with a reminder time is first saved or arrives by sync (and the SP-5 screen on Android) | OS prompt at the first signed-in start | `03 G25`, `07 §8`; AD-27 moved to OPEN-20 (b) | DV-054 |
+| D01-3 | AI consent belongs to the person who gave it (DL-55; the Settings withdraw row = AD-79 item 1, picture first) | Device-wide, survives sign-out | `07 D-18`, `08 Gap 1` | DV-007 |
+| D01-4 | No OS prompt at app open after "Not now"; ask when a protocol with a reminder time is first saved on the phone or arrives from another device (and the SP-5 screen on Android) — AD-88 (decided 2026-10-15, was OPEN-20 (b)) | OS prompt at the first signed-in start | `03 G25`, `07 §8`; AD-88 (was AD-27 → OPEN-20 (b)) | DV-054 |
 | D01-5 | *Closed — not a divergence (X-05).* The setup step after any answer, a denial included, is what signed SP-4 says | Same | `03 G26`; DL-50 withdrawn | — (DV-142 closed) |
 | D01-6 | A sign-in fills the display name only when it is missing, from the Apple or Google profile (DL-57) | Google and Apple-on-Android never write it (the `about` step shows again if the stash was not fresh); Apple iOS overwrites an existing name when Apple returns one (first authorization only). Live for Android Apple accounts too | `07 D-20` | DV-084 |
 | D01-7 | Settings and onboarding validate the same profile rules | Gate checks presence only (a bad stored year or 4-level activity passes) | `07 D-11` | DV-162 |
@@ -318,16 +338,20 @@ Never written: the password anywhere on the phone; the typed email to storage (m
 | D01-10 | Restart after typing answers then "Sign in" lands on Sign in (DL-59) | Lands back on onboarding (stash has answers) | `07 D-14` | DV-163 |
 | D01-11 | Android "Continue with Apple" uses Apple's official artwork (AD-74; download = Approvals item 4) | Drawn Apple glyph (`AuthScreen.js:65-73`) | verification round 2 R2-01 (OPEN-18 (6), closed → AD-74) | DV-239 |
 | D01-12 | Error sheets use the warning triangle and a title that says what happened (decisions.md:64, :121) | Sign-in, reset, onboarding, email-link and 18+ error sheets use the circle glyph; the gates' sheets are titled "Error" | verification round 2 R2-03 #6 | DV-233 |
+| D01-13 | One active device: sign-in takes over and shows the other device's last send (AD-77) | Not built | AD-77; spec OD-1…OD-3, OD-10, OD-14 | DV-182, DV-183, DV-209, DV-222 (A-119) |
+| D01-14 | Before another account's unsent data is discarded, warn and offer "Sign in as {previous account} first, to save" / "Discard and continue" (AD-102, was OPEN-21 (11)) | Discarded without a warning by the cross-account guard (`App.js:621-633`) | AD-102; coordinator line decisions.md:508-509 superseded for this case | DV-242 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12; closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md`. The founder answered the whole round on 2026-10-15 ("siga as recomendações"), so no question of this flow is open. **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-**Open — waiting for the founder:**
-- **OPEN-20 (b) — System notification permission after "Not now"** (Portuguese question 11 (a)). Recommendation A: no dialog at start; ask when a protocol with a reminder time is first saved or arrives by sync, and on Android through the SP-5 screen. Was AD-27 (moved to OPEN-20 (b) in round 1). → D01-4, DV-054.
-- **OPEN-21 (11) — The cross-account guard** (Portuguese question 22). Whether another account's unsynced rows are still discarded without a warning when a different account signs in (§7.3; coordinator line decisions.md:508-509). Recommendation B: warn and offer "Sign in as {previous} first" / "Discard and continue". → DV-081, DV-169.
-- **OPEN-24 — New UI from logic decisions** (Portuguese question 2): item 1 (Settings row to withdraw AI consent, DL-55 → D01-3, DV-007) and item 10 (the gates' "Sign out anyway", DL-92 → D01-1, DV-114). Pictures first.
-- **OPEN-16 (a) — Scope of 1.3.0** (Portuguese question 1): no DL or DV row of this flow has a target build yet (e.g. DL-55, DL-92, DL-54, DL-57, DL-59).
+**Decided by the founder on 2026-10-15 (all questions answered):**
+- **AD-77** (was OPEN-16 (b)) — one active device per account: sign-in never blocks and takes over; one notice with the other device and its last send; the replaced phone says what unsent records are discarded and signs out with the intended wipe. Logic DL-102…DL-108. Spec docs/specs/one-active-device.md, registry A-119 (1.3.0, not built). → §2, P6, P15, P16, §5, §6.1, §7.3, §8, §9, rule 15, D01-13, F01-27, F01-28; fixes DV-182, DV-183, DV-209, DV-222.
+- **AD-109** (founder, later on 2026-10-15; amends AD-77 item 6 and the blocking part of DL-107) — signing out is never blocked; with unsent changes one true sheet (what happened, how many and which, last full backup, sign in on the new phone instead) with **Sign out anyway** / **Stay**; decisions.md:309 "Sign out anyway" stays, with these words. → §7.1, §7.9, §8, rules 10 and 15, D01-1, F01-19, F01-20, F01-28. **AD-108** (A-119 screen 3, "OK" only) was superseded the same day by AD-109.
+- **AD-79** (was OPEN-24) — all twelve new screens/texts go ahead, each approved in its picture first; here item 1 (the Settings row to withdraw AI consent, DL-55 → D01-3, DV-007) and item 10 (the gates get the same "Sign out anyway" as Settings, behind the AD-109 sheet; its picture is the A-119 sign-out sheet → D01-1, DV-114).
+- **AD-88** (was OPEN-20 (b), earlier AD-27) — no permission dialog at app open; ask when a protocol with a reminder time is first saved or arrives from another device, Android also via SP-5. → §7.8, D01-4, DV-054.
+- **AD-102** (was OPEN-21 (11)) — warn before another account's unsent data is discarded: "Sign in as {previous account} first, to save" / "Discard and continue"; supersedes decisions.md:508-509 for this case. → §7.3, D01-14, DV-242.
+- **AD-78** (was OPEN-16 (a)) — scope rule: every DL and DV row of this flow (e.g. DL-55, DL-92, DL-54, DL-57, DL-59) has a target, 1.3.0 or 1.3.1, in DIVERGENCES.md and the registry; nothing is dropped.
 
 **Decided — moved or corrected in round 2 (final ids):**
 - **DL-92** (was AD-29 / OPEN-21 (5)) — the 18+ and profile gates can be answered offline. → D01-1, DV-114. The `CompleteProfileQueued` state in §6.1 is this intended path, not built.
@@ -340,7 +364,7 @@ Reconciled 2026-10-12: every question this flow raised has one canonical ID in `
 - **Approvals still owed item 7** — the premium-and-auth checklist (PA-71…73 stash rules, PA-80 consent, PA-106…108 real-year ask) is unsigned; the build gate does not catch it today (DV-229).
 
 **Decided — unchanged, applied here:**
-- **DL-55 — AI consent scope** (`07 D-18`). Decided by logic: consent belongs to the account (version and date recorded), is cleared on the intended sign-out, and can be withdrawn in Settings; the withdraw row is OPEN-24 item 1; server proof of consent is a counsel item (DL-83). → DV-007.
+- **DL-55 — AI consent scope** (`07 D-18`). Decided by logic: consent belongs to the account (version and date recorded), is cleared on the intended sign-out, and can be withdrawn in Settings; the withdraw row is AD-79 item 1 (was OPEN-24, picture first); server proof of consent is a counsel item (DL-83). → DV-007.
 - **DL-53** (entitlement cache bound to the session user, → DV-082), **DL-54** (offline with a stored session = signed in, → DV-083), **DL-57** (display name only when missing, → DV-084), **DL-59** (Sign in remembered, → DV-163), **DL-62** (no analytics before sign-in, counsel, → DV-167).
 
 ## 13. Acceptance checks (agent-device QA script)
@@ -420,12 +444,13 @@ Conventions for every check: fresh install unless stated; screenshot before ever
 
 **F01-19 — Reset link for another account**
 - Setup: signed in as Test03; open a reset link for the `+qa` account.
-- Expect: "Reset the password of another account?" / "Redefinir a senha de outra conta?" naming both addresses; "Sign out and continue" / "Sair e continuar"; with unsynced rows (airplane mode + a dose logged) → not signed out, sheet "Some changes on this phone aren't backed up yet, so DoseTrace didn't sign you out…".
+- Expect: "Reset the password of another account?" / "Redefinir a senha de outra conta?" naming both addresses; "Sign out and continue" / "Sair e continuar"; with unsynced rows (airplane mode + a dose logged) → intended (AD-109; not built → A-119): not blocked — the one true sheet says there is no internet, that 1 dose (with its date) is not in the account and is removed by signing out, when this phone last backed up everything, and that the person can simply sign in on the new phone instead; **Sign out anyway** / **Stay**. **Today:** not signed out, sheet "Some changes on this phone aren't backed up yet, so DoseTrace didn't sign you out…" — record it as the divergence.
 
 **F01-20 — Finish setup shows only missing steps**
 - Setup: test account with `country` removed (admin, test account only).
 - Expect after sign-in: Finish setup with only "About you" (prefilled except country) and the finish step "Finish setup" / "Concluir configuração" + "Save your details and start tracking."; corner **Sign out**. Saving → Today.
 - Intended offline (D01-1, DL-92): in airplane mode Finish setup saves locally and enters Main; reconnect → the field appears in Settings → Edit profile. **Today this fails** (sheet "Error" + "Connection problem. Check your internet and try again.") — record it as the divergence (DV-114).
+- Intended sign-out on the gate (D01-1, AD-79 item 10, AD-109): with an unsent change on the phone (airplane mode, then a change that is still pending), tap the corner **Sign out** → the one true sheet: no internet, how many changes and which (kinds and dates) signing out removes, when this phone last backed up everything, and that the person can simply sign in on the new phone instead; **Stay** keeps everything; **Sign out anyway** signs out with the intended wipe. Record today's gate behaviour as the divergence (DV-114; not built → A-119).
 
 **F01-21 — 18+ confirmation**
 - Setup: test account with birth_year = current year − 16, no `adult_confirmed_at`.
@@ -450,3 +475,16 @@ Conventions for every check: fresh install unless stated; screenshot before ever
 **F01-26 — Android: full "Continue with Apple" sign-in (live since 2026-10-03)**
 - Do (Android, signed out): Auth → "Continue with Apple" / "Continuar com a Apple" → complete the Apple web sign-in with the test account's Apple ID → return to the app through `dosetrace://auth-callback`.
 - Expect: the button is visible (probe passes); the browser returns to DoseTrace and the account is signed in (Today, or a gate if the profile is incomplete); no "This link didn't work" sheet. Record the date: the web client secret expires 2027-04-04, and after that this check fails until it is regenerated.
+
+**F01-27 — Sign in on a second phone takes over (AD-77; not built → A-119)**
+- Setup: the test account signed in and active on phone A with at least one protocol and a logged dose, all sent (A online, then switch A to airplane mode); phone B fresh install or signed out; note A's model name and the time A last sent everything.
+- Do: on B, "Already have an account? Sign in" → sign in as the test account.
+- Expect: the sign-in is never blocked; after the 18+ / profile steps (if any) B shows one notice naming phone A (its model name, or iPhone/Android) and the date and time A last sent everything, shown in B's time zone, saying that anything recorded on A later without internet may not be here; tap to close → Today with every protocol and dose from the full import. Kill and reopen B → no notice again.
+- Then: on B, Settings → Sign out with nothing unsent → signed out (the account is released, DL-108); sign in again on B → no notice.
+- Record (both themes, EN and PT): the notice text; until A-119 ships this check fails — record it as D01-13.
+
+**F01-28 — Updated phone while another is active asks first (DL-103; not built → A-119)**
+- Setup: phone A signed in on today's version (before A-119); phone B signs in on the A-119 version and becomes the active device; then A is updated to the A-119 version and opened in the foreground.
+- Expect on A: no silent takeover; the sheet "Your account is in use on {device}. Use it on this phone?" naming B, with **Use here** and **Sign out of this phone**. **Use here** → A takes over and shows the F01-27 notice for B; **Sign out of this phone** → the intended sign-out (never blocked; with unsent changes the AD-109 sheet, Sign out anyway / Stay).
+- Variant: no device active yet on the account (only A, updated) → A becomes active silently, its data kept, no sheet.
+- Record (both themes, EN and PT): the sheet text; until A-119 ships this check fails — record it as D01-13.

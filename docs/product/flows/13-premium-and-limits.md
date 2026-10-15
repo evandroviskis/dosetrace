@@ -25,13 +25,13 @@ One honest plan, **Premium** (Monthly, Annual "Best value", Lifetime), real stor
 
 | Feature | Free | Premium | Enforced where |
 |---|---|---|---|
-| Active protocols | 3 (founder "3 mantém", decisions.md:465) | unlimited | client (+ Add, Save, Restart, Restore) — **01 D-22 / 07 D-3: client only**; a server rule and the after-lapse rule are pending OPEN-05 (Portuguese question 7) |
+| Active protocols | 3 (founder "3 mantém", decisions.md:465) | unlimited | client (+ Add, Save, Restart, Restore) — a phone check only, as built (AD-84, was OPEN-05; 01 D-22 / 07 D-3); a lapsed payer keeps every active protocol but cannot add / restart / restore above 3 until subscribing again; DV-095 closed |
 | Dose accumulation curve, Journey / My Body Est. level | — (tag, preview) | yes | client |
 | AI scans (labs + vaccines + vials, one pool) | 3 / UTC month | 20 / UTC month | server (RevenueCat REST; unreachable → Premium cap) |
 | Vial-label scan | free, in the pool | in the pool | server |
-| AI protocol assistant | 10 conversations / rolling 7 days (signed AP-18). Today the server also caps 40 answers per conversation, a 24-hour conversation life and 200 answers per rolling 24 h (`protocol-assistant/budget.ts:10-12`) — builder caps AP-18 does not have: keep or change is pending OPEN-18 (3) (Portuguese question 23 (c)), DV-240 | same | server |
+| AI protocol assistant | 10 conversations / rolling 7 days (signed AP-18). Today the server also caps 40 answers per conversation, a 24-hour conversation life and 200 answers per rolling 24 h (`protocol-assistant/budget.ts:10-12`) — kept as abuse ceilings (AD-105, was OPEN-18 (3)), each with its own true message when hit (×6); today they surface as the generic "The AI isn't available right now" (DV-240) | same | server |
 | AI food log | 7 days from first use (decisions.md:274) | every day | client — **intended also server (AD-16; 04 D-15, DV-103)** |
-| AI food parses | 25 / local day; answering a follow-up never uses one (decisions.md:251, signed FL-21). Today the server also caps 25 follow-ups / local day and 60 / rolling 24 h (`parse-food/index.ts:28-30`) — builder caps the ledger does not have: keep or change is pending OPEN-18 (3) (Portuguese question 23 (c)), DV-213 | same | server |
+| AI food parses | 25 / local day; answering a follow-up never uses one (decisions.md:251, signed FL-21). Today the server also caps 25 follow-ups / local day and 60 / rolling 24 h (`parse-food/index.ts:28-30`) — kept as abuse ceilings (AD-105, was OPEN-18 (3)), each with its own true message when hit (×6); today a refusal does not say which ceiling was reached while the copy says the count resets at midnight (DV-213) | same | server |
 | Reality check start | inside free days | yes | client |
 | Reality check result (measured burn) | no (free days end before day 21; AD-14) | yes | client |
 | Typed average calories | no (AD-15, founder FL-48 "A", decisions.md:636) | yes | client — **today shown to free days (04 D-14, DV-102)** |
@@ -56,7 +56,7 @@ One honest plan, **Premium** (Monthly, Annual "Best value", Lifetime), real stor
 | P6 | Bought Lifetime while a subscription renews | Sheet: cancel the subscription in the store (the app cannot). (PA-74, built — a coordinator line, decisions.md:474; the premium-and-auth checklist awaits the founder's signature, Approvals still owed item 7.) |
 | P7 | Already Premium and opens the Paywall | "You already have Premium" — no buy button. |
 | P8 | Developer / review account | Premium by the e-mail allow-list (client and server lists identical). |
-| P9 | Premium lapsed with 4+ active protocols | Today: they all stay active; + Add shows the limit. Whether a lapsed payer keeps every active protocol or a downgrade rule applies is a money call: **pending OPEN-05 (Portuguese question 7)** (DL-24 withdrawn; recommendation A — keep them). |
+| P9 | Premium lapsed with 4+ active protocols | **Decided as built (AD-84, was OPEN-05; DL-24 withdrawn):** they all stay active; + Add, Restart and Restore above 3 show the limit until the person subscribes again. |
 | P10 | RevenueCat unreachable | Client uses its cache; server gives the Premium scan cap (AD-36, decisions.md:275; 07 D-1). |
 
 ## 5. Happy path
@@ -152,7 +152,8 @@ stateDiagram-v2
 - **Divergence today (DV-235):** `paywall_start_trial_months` uses "(s)"-style plurals in ES / PT / DE / IT ("mes(es)", "mês(es)", "Monat(e)", "mese/i"; the register row names ES / DE / IT, PT checked here in `translations.js:4670`); plural keys intended, wording ×6 = Approvals item 2.15.
 - Back blocked while the store is busy.
 - BR prices: R$19,90 / month, R$199,90 / year on both stores (founder 2026-10-03). US: $2.99 / $28.99 / Lifetime $69.99 (read from ASC 2026-10-03).
-- **Divergence today (07 D-9, Gap 4):** there is no in-app way to manage or cancel the subscription, and no trial / billing-issue state is shown ("Premium" or "Free" only). → **pending OPEN-15 (Portuguese question 21)**, DV-112. Restore itself is not lost: anyone the app shows as free reaches it through the Settings Premium card → Paywall → "Restore purchases", and a payer who reinstalls gets Premium back on sign-in with no Restore at all (RevenueCat `appUserID` = Supabase uid, `lib/purchases.js:68`). A user the app already sees as Premium is sent away from the Paywall ("You already have Premium"), but has nothing to restore.
+- **Intended (AD-101, was OPEN-15; founder 2026-10-15):** Settings gets "Manage subscription" (opens the store's subscription page), "Restore purchases", and the subscription state (trial until…, renews on…) when the store reports it; picture first, texts ×6.
+- **Divergence today (07 D-9, Gap 4):** there is no in-app way to manage or cancel the subscription, and no trial / billing-issue state is shown ("Premium" or "Free" only). → DV-112. Restore itself is not lost: anyone the app shows as free reaches it through the Settings Premium card → Paywall → "Restore purchases", and a payer who reinstalls gets Premium back on sign-in with no Restore at all (RevenueCat `appUserID` = Supabase uid, `lib/purchases.js:68`). A user the app already sees as Premium is sent away from the Paywall ("You already have Premium"), but has nothing to restore.
 - **Divergence today (verification 05 O-2):** two live strings say the curve comes from the user's log, which contradicts AD-19 / FX-13 (the curve follows the PLANNED schedule): the Paywall hero "Dose-accumulation curves from your own log, unlimited protocols, more scans, and PDF export." (`paywall_hero_sub`, `PaywallScreen.js:278`) and the Settings Premium card line "Dose accumulation curve from your own log" (`settings_premium_feat_1`, `SettingsScreen.js:642`), in all 6 languages. → DV-071 (DV-212 merged into it); wording ×6 = Approvals still owed item 2.1.
 - **Divergence today (07 D-6, Gap 12):** "trial" means two things (store intro trial vs the 7 free food-log days). Intended (DL-61): the 7 food-log days are "free days", never "trial"; wording ×6 = Approvals item 2.14. → DV-164.
 
@@ -182,7 +183,7 @@ stateDiagram-v2
 ### 7.5 Server vs client
 - **Intended (AD-16 — decisions.md:288; FX-16: "the server stays authoritative for paid AI calls"):** paid AI paths check access on the server.
   - **Divergence today (04 D-15; 07 D-2):** `parse-food` has no entitlement / free-days check. → DV-103; the function deploy needs the founder's go (Approvals still owed item 1).
-  - **Not decided — the 3-protocol limit (07 D-3; 01 D-22):** it is checked only on this phone, at add / restart / restore (plus the save safety net), and has no server rule; another device or an old build can exceed it. A row that arrives by pull, was created while Premium, or is revived by sync is never checked when it arrives; it only counts against this phone's next add / restart / restore. Whether the server refuses a 4th active protocol is **pending OPEN-05 (Portuguese question 7)** (recommendation A: phone-only, as today). → DV-095.
+  - **Decided as built — the 3-protocol limit (AD-84, was OPEN-05; 07 D-3; 01 D-22):** it is checked only on this phone, at add / restart / restore (plus the save safety net), and has no server rule; another device or an old build can exceed it. A row that arrives by pull, was created while Premium, or is revived by sync is never checked when it arrives; it only counts against this phone's next add / restart / restore. The founder keeps it a phone check with no server rule (AD-84); with one active device per account (AD-77) a second device cannot add protocols in parallel either. DV-095 closed (accepted as built).
   - **Divergence today (07 D-4):** the dormant `send-reminders` would send the 20:00 food question to locked users (inactive while server push is off).
   - **Deliberate (AD-36, decisions.md:275; 07 D-1):** RevenueCat unreachable → server gives 20 scans to everyone past 3, while the client shows the cache.
 
@@ -190,11 +191,11 @@ stateDiagram-v2
 - Food log: grace to the end of the current check week (only if the end day ≥ check start), else remaining free days, else locked; never "free days" wording for a lapsed payer.
 - Reality check: grace allows logging only; starting a new check and seeing results need Premium (intended, AD-14 — decisions.md:274, FL-41; **04 D-13: today grace can see results, and start a new check in a stale window**, DV-101).
 - Curve: Paywall on next focus; Journey tile tag; right page cleared on the Fold.
-- Protocols: today existing active ones are kept; + Add limited. Keep them all vs a downgrade rule for lapsed Premium is **pending OPEN-05 (Portuguese question 7)** (DL-24 withdrawn).
+- Protocols (AD-84, as built; DL-24 withdrawn): existing active ones are all kept; + Add, Restart and Restore are limited above 3 until the person subscribes again.
 - Scans: next scan at ≥ 3 asks RevenueCat → free cap 3 ("You've used your {n} scans for this month (labs, vaccine cards, and vials combined). You can still enter everything by hand.").
 
 ### 7.7 Delete account while subscribed
-- **Divergence today (07 Gap 4):** no warning that billing continues (flow 12). Intended (DL-60): the delete sheet tells Premium users, with a link; the line and link ×6 are **pending OPEN-24 item 6 (Portuguese question 2)**. → DV-087. The RevenueCat customer stays after the delete (DV-219, counsel item under DL-83).
+- **Divergence today (07 Gap 4):** no warning that billing continues (flow 12). Intended (DL-60): the delete sheet tells Premium users, with a link; the line and link ×6 go ahead, approved in their picture first (**AD-79 item 6**). → DV-087. The RevenueCat customer stays after the delete (DV-219, counsel item under DL-83).
 
 ### 7.8 Second device / platform
 - Same RevenueCat customer → Premium on both after `initPurchases`. iOS ↔ Android purchases depend on the RevenueCat project's restore/transfer setting (kept as is — a coordinator line, decisions.md:475, not a founder answer; it changes nothing in the app).
@@ -212,9 +213,9 @@ stateDiagram-v2
 
 | State | Settings | Journey tile | My Protocols + Add | My Body | Food log | Progress |
 |---|---|---|---|---|---|---|
-| Free | profile "Free plan" / "Plano gratuito" + Premium card (5 feature lines, See plans) | Premium tag + description | limit sheet at 3 | "3 free scans a month…" / "3 leituras grátis por mês…" only until the first lab scan with values (free card + empty journal), then "You've scanned {n} markers. Premium charts every one over time…" with no number (`BodyScreen.js:1104-1107`, `:1115-1120`); how many scans are used is never shown — pending OPEN-14 (b) (Portuguese question 20 (a)), DV-110; PDF → Premium sheet; curve card tag + lock | 7 free days then locked | start inside free days; result locked; ETA locked |
+| Free | profile "Free plan" / "Plano gratuito" + Premium card (5 feature lines, See plans) | Premium tag + description | limit sheet at 3 | "3 free scans a month…" / "3 leituras grátis por mês…" only until the first lab scan with values (free card + empty journal), then "You've scanned {n} markers. Premium charts every one over time…" with no number (`BodyScreen.js:1104-1107`, `:1115-1120`); how many scans are used is never shown today — the used count is decided, founder-deferred to 1.3.1, picture first (AD-99), DV-110; PDF → Premium sheet; curve card tag + lock | 7 free days then locked | start inside free days; result locked; ETA locked |
 | Free, food days ending | — | — | — | — | note with dates + See Premium | — |
-| Premium | badge "Premium", no card | Est. level | unlimited | 20 scans; no Premium scan line and no scan number in Premium strings (AD-69 — founder decisions.md:104, :257, signed MB-10; the 20 appears only in the FAQ and the limit message; was AD-56 / OPEN-14 (a), closed). **Divergence today (DV-237):** with an empty lab journal a Premium user sees the free text "…You get 3 free scans a month (labs, vaccine cards and vials combined)." (`blood_empty_sub`, `BodyScreen.js:1115-1120`, no Premium check); the Premium variant's wording = Approvals still owed item 2.17 | every day | result, measured ETA, typed average |
+| Premium | badge "Premium", no card; intended (AD-101) "Manage subscription", "Restore purchases" and the state line (trial until… / renews on…) when the store reports it — today none (DV-112) | Est. level | unlimited | 20 scans; no Premium scan line and no scan number in Premium strings (AD-69 — founder decisions.md:104, :257, signed MB-10; the 20 appears only in the FAQ and the limit message; was AD-56 / OPEN-14 (a), closed). **Divergence today (DV-237):** with an empty lab journal a Premium user sees the free text "…You get 3 free scans a month (labs, vaccine cards and vials combined)." (`blood_empty_sub`, `BodyScreen.js:1115-1120`, no Premium check); the Premium variant's wording = Approvals still owed item 2.17 | every day | result, measured ETA, typed average |
 | Premium offline | same (cache) | same | same | scans need network anyway | logging offline-first | same |
 | Lapsed (grace) | Free | tag | limit for new adds | 3 scans | grace note "Your Premium has ended. You can keep logging until {until}…" | result locked |
 | Pending purchase | — | — | — | — | — | — (Paywall "Purchase pending") |
@@ -240,33 +241,34 @@ R40 entitlement id / products / app user id (`lib/purchases.js`). R41 developer 
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
 | D13-1 | Server authoritative for paid AI (food) (AD-16; deploy = Approvals item 1) | Client only | `04 D-15`, `07 D-2` | DV-103 |
-| D13-2 | *Pending OPEN-05 (Portuguese question 7).* Protocol limit on the server and after a lapse (recommendation A: phone-only, keep them) | Client only | `07 D-3`, `01 D-22` | DV-095 |
-| D13-3 | *Pending OPEN-15 (Portuguese question 21).* Manage / cancel subscription reachable in the app (recommendation A) | Not anywhere (Restore is reachable for anyone shown as free; a reinstall restores Premium on sign-in) | `07 D-9` | DV-112 |
+| D13-2 | Protocol limit stays a phone check; a lapsed payer keeps every active protocol, cannot add / restart / restore above 3 (AD-84, as built) | Client only — the same; no divergence | `07 D-3`, `01 D-22`; AD-84 | DV-095 (closed) |
+| D13-3 | Settings "Manage subscription" (store page) and "Restore purchases" (AD-101) | Not anywhere (Restore is reachable for anyone shown as free; a reinstall restores Premium on sign-in) | `07 D-9` | DV-112 |
 | D13-4 | Typed average Premium-only (AD-15) | Free days see it | `04 D-14` | DV-102 |
 | D13-5 | Grace = logging only (AD-14) | Result allowed; a new start in a stale window | `04 D-13` | DV-101 |
 | D13-6 | Lab charts Premium (AD-24; locked-chart picture = Approvals item 3) | Free | `06 D-8` | DV-108 |
 | D13-7 | One meaning of "trial": the food-log days are "free days" (DL-61; wording = Approvals item 2.14) | Two | `07 D-6` | DV-164 |
 | D13-8 | Entitlement cache bound to the session user at sign-in and cleared on sign-out (DL-53) | Survives (confirmed in code: `cacheUid` uses the last uid until `initPurchases`) | `07 D-7` | DV-082 |
 | D13-9 | Every Paywall entry carries its source | Two without | `07 §2.2` | DV-195 |
-| D13-10 | *Pending OPEN-15 (Portuguese question 21).* Trial / billing state visible | Not read | `07 D-8` | DV-112 |
+| D13-10 | Subscription state in Settings (trial until…, renews on…) when the store reports it (AD-101) | Not read | `07 D-8` | DV-112 |
 | D13-11 | Premium copy says the curve follows the planned schedule (AD-19; wording = Approvals item 2.1) | `paywall_hero_sub` and `settings_premium_feat_1` say "from your own log" (×6 languages) | verification 05 O-2 | DV-071 |
 | D13-12 | Trial words only when the store says the person is eligible (AD-49 + DL-82) | The protocol-limit sheet says "Start free trial" without checking | `01 G-11` | DV-126 |
 | D13-13 | The paywall sells "Reality-check results", never "progress tracking" (AD-64; wording = Approvals item 2.5) | "Reality check & progress tracking" (`pw_prem_reality`) | PRD G-43 | DV-186 |
 | D13-14 | No free-plan scan number shown to Premium (AD-69; wording = Approvals item 2.17) | Empty lab journal tells Premium users "3 free scans a month" | verification round 2 R2-05 (13:213) | DV-237 |
-| D13-15 | *Pending OPEN-18 (3) (Portuguese question 23 (c)).* Only the approved AI limits, or keep the builder ceilings with a true message each | Food: 25 follow-ups / day + 60 calls / rolling 24 h; assistant: 40 answers / conversation, 24-h life, 200 answers / rolling 24 h | verification 07 X-09; R2-03 #13 | DV-213, DV-240 |
+| D13-15 | The builder ceilings stay as abuse ceilings, each with its own true message when hit, ×6 (AD-105) | Food: 25 follow-ups / day + 60 calls / rolling 24 h; assistant: 40 answers / conversation, 24-h life, 200 answers / rolling 24 h — refused with a generic or misleading message | verification 07 X-09; R2-03 #13; AD-105 | DV-213, DV-240 |
 | D13-16 | Error sheets: warning triangle and a title that says what happened (decisions.md:64, :121) | Paywall failure sheets titled "Error", circle glyph | verification round 2 R2-03 #6 | DV-233 |
 | D13-17 | Plurals, never "(s)" (wording = Approvals item 2.15) | `paywall_start_trial_months` "mes(es)" / "mês(es)" / "Monat(e)" / "mese/i" | verification round 2 R2-03 #52 | DV-235 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 and closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-**Open — waiting for the founder:**
-- **OPEN-15 — Settings subscription row** (Portuguese question 21; D13-3, D13-10). The real gap is managing / cancelling the subscription and seeing the trial or billing state; a reinstall does not lose Premium (RevenueCat `appUserID` = uid) and Restore is reachable for anyone shown as free. → DV-112.
-- **OPEN-05 — The 3-protocol limit on the server and after Premium ends** (Portuguese question 7; D13-2). Whether the server refuses a 4th active protocol, and whether a lapsed payer keeps every active protocol (today's behaviour) or a downgrade rule applies, is a money call (DL-24 withdrawn; recommendation A — phone-only, keep them). → DV-095.
-- **OPEN-14 (b) — Show the scans used this month** (Portuguese question 20 (a); §8 My Body). Free users see the limit only before their first scan with values; nobody sees used / left. → DV-110.
-- **OPEN-18 (3) — The AI caps the builder added** (Portuguese question 23 (c); §3, D13-15): food 25 follow-ups / day and 60 calls / rolling 24 h; assistant 40 answers / conversation, 24-h life, 200 / rolling 24 h. → DV-213, DV-240.
-- **OPEN-24 item 6 — the delete sheet's billing line + store link** (Portuguese question 2; §7.7, DL-60). → DV-087 (flow 12).
+**Decided by the founder on 2026-10-15 (all questions answered):**
+- **AD-101** (was OPEN-15, Q 21) — Settings: "Manage subscription" (store page), "Restore purchases", and the subscription state (trial until…, renews on…) when the store reports it; picture first, texts ×6. §7.1, §8, D13-3, D13-10, F13-04 → DV-112.
+- **AD-84** (was OPEN-05, Q 7; DL-24 withdrawn) — as built: the free 3-protocol limit stays a phone check; a lapsed payer keeps every active protocol but cannot add / restart / restore above 3 until subscribing again. §3, §4 P9, §7.5, §7.6, D13-2, F13-13 → DV-095 (closed, accepted as built).
+- **AD-105** (was OPEN-18 (3), Q 23 (c)) — keep the extra AI caps (food: 25 follow-ups a day, 60 calls per 24 h; assistant: 40 answers per conversation, 24 h conversation life, 200 answers per 24 h) as abuse ceilings, each with its own true message when hit (×6). §3, D13-15 → DV-213, DV-240.
+- **AD-99** (was OPEN-14 (b), Q 20 (a)) — show the scans used this month — founder-deferred to 1.3.1, picture first. §8 My Body → DV-110.
+- **AD-79 item 6** (was OPEN-24 item 6, Q 2) — the delete sheet's billing line + store link (DL-60) go ahead, approved in their picture first. §7.7 → DV-087 (flow 12).
+- **AD-78** (was OPEN-16 (a), Q 1 (a)) — every DV row of this flow has a written target (1.3.0 or 1.3.1) in `docs/review/features.md`.
 
 **Decided — moved or added in round 2 (final ids):**
 - **AD-69** (was AD-56 / OPEN-14 (a), closed) — no scan number in Premium strings, no Premium scan line, the free number never shown to Premium (decisions.md:104, :257; MB-10). → D13-14, DV-237; the Premium empty-state wording = **Approvals still owed item 2.17**.
@@ -297,6 +299,7 @@ Account Test03 (free); Premium only via a temporary RevenueCat promo the founder
 **F13-04 — Purchase (sandbox)**
 - Do: buy Monthly.
 - Expect: back to the source screen with the feature unlocked (e.g. curve opens); Settings shows Premium; the Premium card is gone.
+- Expect in Settings (intended, AD-101): "Manage subscription" opens the store's subscription page; "Restore purchases" is there; the state line reads "trial until {date}" (sandbox trial) or "renews on {date}" (×6 as approved in the picture). **Today:** none of the three — record D13-3 and D13-10 (DV-112).
 
 **F13-05 — Already Premium**
 - Do: open the Paywall again (e.g. via a deep link or the limit sheet path).
@@ -330,10 +333,11 @@ Account Test03 (free); Premium only via a temporary RevenueCat promo the founder
 **F13-13 — Lapse**
 - Setup: end the promo during an open check.
 - Expect: grace note on the food log until the end of the check week; Journey tile Premium tag; curve → Paywall; reality-check result locked; new check start refused (intended, AD-14 — record D13-5).
+- Also (AD-84): with 4 active protocols at the lapse, all 4 stay active; + Add, Restart of an ended one and Restore from Recently deleted show the limit sheet until Premium returns.
 
 **F13-14 — Fold**
 - Do (unfolded Fold, free): Journey → Dose accumulation tile.
 - Expect: full-screen Paywall in one centred column.
 
 **F13-15 — Both themes**
-- Paywall (plan cards, selected state, table, legal text, preview animations' "Example" tag), limit sheet, PDF sheet, locked cards, "You already have Premium" sheet: readable in light and dark.
+- Paywall (plan cards, selected state, table, legal text, preview animations' "Example" tag), limit sheet, PDF sheet, locked cards, "You already have Premium" sheet, the Settings subscription rows and state line (AD-101), the AI-ceiling messages (AD-105): readable in light and dark.

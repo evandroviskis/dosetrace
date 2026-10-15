@@ -2,8 +2,8 @@
 
 > Draft for founder review, written 2026-10-12 from `docs/product/research/01-protocols.md` (main source), `02-doses-today.md`, `03-reminders.md`, `05-curve-journey.md`, `docs/decisions.md` (Protocols & dose math; AI rules; AI protocol assistant 2026-10-03; dt-council 2026-10-04) and `docs/specs/ai-protocol-assistant.md` (AP-0…AP-35). Code @ 4dade55.
 > Shows the **intended** behaviour. **Divergence today** notes cite the dossier (`01 G-5` = research/01 §9 G-5; `01 D-13` = §6 D-13).
-> Corrected 2026-10-12 against `docs/product/verification/01-protocols.md` §7 (code @ 897f01d, same code as 4dade55). "OPEN-xx (was <id>)" marks a choice that is not decided yet, with its canonical id in OPEN-DECISIONS.md.
-> Corrected again 2026-10-12 after verification round 2 (`docs/product/verification/round2/R2-05-flows-picture.md`, `R2-07`); every id carries its final status from `verification/round2/id-map.md`. "Intended" is backed by a founder line (decisions.md:NNN), a signed spec row, an AD-xx or a DL-xx, or says "pending OPEN-xx (Portuguese question N)", "wording to approve (Approvals item 2.N)" or "approved, picture owed (Approvals item 3)".
+> Corrected 2026-10-12 against `docs/product/verification/01-protocols.md` §7 (code @ 897f01d, same code as 4dade55). "OPEN-xx (was <id>)" marked a choice that was not decided yet; the founder answered every one on 2026-10-15, so each now cites its AD id ("was OPEN-xx").
+> Corrected again 2026-10-12 after verification round 2 (`docs/product/verification/round2/R2-05-flows-picture.md`, `R2-07`); every id carries its final status from `verification/round2/id-map.md`. "Intended" is backed by a founder line (decisions.md:NNN), a signed spec row, an AD-xx or a DL-xx, or an AD-xx decided by the founder on 2026-10-15 (was OPEN-xx), or says "wording to approve (Approvals item 2.N)" or "approved, picture owed (Approvals item 3)".
 
 ---
 
@@ -27,7 +27,7 @@ Let a user record **what** they take, **how much**, **how often** and **from whi
 
 - Signed in (`getCachedUser`), profile complete (flow 01).
 - Free plan: fewer than 3 active protocols, or Premium (checked at + Add, at Save, at Restart, at Restore).
-- AI paths only: shared AI consent v4 granted; network; assistant budget (10 conversations / rolling 7 days, counted at the first AI answer — signed AP-18; the server also caps 40 answers per conversation, a 24-hour conversation life and 200 answers per rolling 24 h, `supabase/functions/protocol-assistant/budget.ts:10-12` — keep or change = pending OPEN-18 (3), Portuguese question 23 (c), DV-240); scan pool (3 free / 20 Premium a month, shared with labs and vaccines).
+- AI paths only: shared AI consent v4 granted; network; assistant budget (10 conversations / rolling 7 days, counted at the first AI answer — signed AP-18; the server also caps 40 answers per conversation, a 24-hour conversation life and 200 answers per rolling 24 h, `supabase/functions/protocol-assistant/budget.ts:10-12` — kept as abuse ceilings, each with its own true message when hit, ×6: AD-105, was OPEN-18 (3); today the message is generic, DV-240); scan pool (3 free / 20 Premium a month, shared with labs and vaccines).
 
 ## 4. What may already have happened before
 
@@ -35,7 +35,7 @@ Let a user record **what** they take, **how much**, **how often** and **from whi
 |---|---|---|
 | P1 | Started the compound weeks ago (the founder's flagship journey miss) | Start date accepts any past date; on save, compounds with t½ ≥ 24 h get "Same dose for the last N weeks?" (A-30 option C). Nothing is logged; the curve estimates the pre-install part (dashed, "estimated"). |
 | P2 | Vial already mixed days ago | Step 5 asks month + day (most recent past occurrence); assistant asks "When did you mix it?" (≤ 365 days). Validity counts from that date. |
-| P3 | Vial already half used | No "doses already used" field (A-08 / F7; AP-28 accepted "mirrors the form"). New vial starts at 0 taken. → pending OPEN-01 (Portuguese question 3). |
+| P3 | Vial already half used | No "doses already used" field (A-08 / F7; AP-28 accepted "mirrors the form"). New vial starts at 0 taken. → Intended (AD-80, decided 2026-10-15, was OPEN-01): the protocol page gets "Edit vial" (mix date, validity days, doses already used) and "New vial"; picture first, 1.3.0. Today not built (DV-094). |
 | P4 | Not mixed yet | "I haven't mixed this vial yet — skip"; Today shows "+ Add vial" later (flow 04). |
 | P5 | Typed a weekly total as the dose (240 mg customer case) | "Dose per injection" label + hint; over-capacity warning with "Why" explainer and "Ask AI for help" (AP-11, AP-12). |
 | P6 | Long-interval ester (e.g. every 12 weeks) | Custom interval; reminders still renewed within the rolling window (flow 06). |
@@ -221,7 +221,7 @@ Inside the assistant the label photo is not applied as review drafts: the values
 | Plain number typed | Read on the phone, never sent (local understand). |
 | Offline / server error | Notice in the window ("I can't connect right now. You can continue in the form — everything you answered is kept." / "The AI isn't available right now. …"); the window stays open and the typed text stays in the box. Closing it (or "Continue in the form") returns to the form with every answer already given kept (AP-16). No use counted when the start itself fails. |
 | Budget (10 / 7 days) reached | App-written message with when it resets; manual form works (AP-18). A use counts at the first answer to the AI or the label-photo start — never on open. Today the message says "this week" (EN "You've used AI help {limit} times this week…" / PT "Você usou a ajuda da IA {limit} vezes nesta semana…") while the limit is a rolling 7 days (DV-192) — wording to approve (Approvals item 2.10). |
-| Server caps not in AP-18 | **Divergence today (DV-240):** the server also stops a conversation at 40 answers or after 24 hours, and at 200 answers in any 24 h (`supabase/functions/protocol-assistant/budget.ts:10-12`); the user then sees only "The AI isn't available right now. You can continue in the form — everything you answered is kept." / "A IA não está disponível agora. …". Keep (with a true message) or drop = pending OPEN-18 (3) (Portuguese question 23 (c)). |
+| Server caps not in AP-18 | **Divergence today (DV-240):** the server also stops a conversation at 40 answers or after 24 hours, and at 200 answers in any 24 h (`supabase/functions/protocol-assistant/budget.ts:10-12`); the user then sees only "The AI isn't available right now. You can continue in the form — everything you answered is kept." / "A IA não está disponível agora. …". Intended (AD-105, decided 2026-10-15, was OPEN-18 (3)): the caps stay as abuse ceilings, each with its own true message when hit (×6); the generic message is the divergence. |
 | "Finish with AI" | Reads the form, says it back, asks only what is missing; never changes filled fields (AP-10). |
 | Doesn't fit | Explains with the user's numbers, asks per injection / day / week / month, divides the user's number; if it really is one injection: facts only (larger syringe for rtu; "the amount of water decides how much is in each ml"; ask your healthcare provider) (AP-11, AP-22, AP-35). |
 | Weekday schedules ("3 a week") | Only storable every-N-days spacings offered, stated honestly (AP-29). |
@@ -241,7 +241,7 @@ Inside the assistant the label photo is not applied as review drafts: the values
 - Save offline: written to SQLite `pending`, reminders armed locally, Today updated via `notifyDataChanged`; pushed on reconnect.
 - Killed after Save: protocol persists; the history sheet may not have shown → no `history_from` (= Yes). Acceptable (no write = estimate).
 - Second device: protocol arrives on next pull; reminders scheduled there on the next foreground resync (flow 06); free-limit count is local only (**Divergence today 01 D-22**: a second device can exceed 3).
-  - **Divergence today (DV-222):** an EDIT made on phone A can be skipped for good by phone B: B's pull watermark is the newest `updated_at` of its own synced rows, and B pushes before it pulls, so once B pushes any protocol change, A's earlier edit is never pulled (`lib/syncCore.js:727-733`, `lib/sync.js:92-93`, `:147`). A new protocol is protected (missing protocol ids are self-healed); an edit to an existing one is not. When the sync hardening ships = pending OPEN-16 (b) (Portuguese question 1 (b)).
+  - **Divergence today (DV-222):** an EDIT made on phone A can be skipped for good by phone B: B's pull watermark is the newest `updated_at` of its own synced rows, and B pushes before it pulls, so once B pushes any protocol change, A's earlier edit is never pulled (`lib/syncCore.js:727-733`, `lib/sync.js:92-93`, `:147`). A new protocol is protected (missing protocol ids are self-healed); an edit to an existing one is not. Fix = AD-77 / A-119 (one active device per account, decided 2026-10-15): with one writer at a time and the server refusing a non-active device, the other phone never pushes over this edit.
   - **Divergence today (DV-241, suspected):** a local protocol number or date that the cloud column type rejects leaves the row pending forever, so the edit never reaches the cloud or the other phone.
 
 ### 7.7 Timezone / DST
@@ -257,7 +257,7 @@ Inside the assistant the label photo is not applied as review drafts: the values
 - Free: 3 active protocols (founder, decisions.md:465 "3 mantém"); + Add at the limit → "Protocol limit reached" / "The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days." → **Start free trial** → Paywall (`source: protocol_limit`). The 7-day trial is the founder's (decisions.md:287, signed MB-11 — AD-49) and is configured on iOS and Play (decisions.md:451, read 2026-10-03); the app offers it only when the store says the person is eligible (DL-82).
   - **Divergence today (01 G-11, DV-126):** the limit sheet says "Start free trial" without checking store eligibility (`ProtocolsScreen.js:2035-2044`; the paywall checks), so a user who already used the trial is promised one.
 - Assistant: same budget on every plan. Vial scan: free for everyone, counts in the shared pool.
-- **Divergence today (01 D-22; 07 D-3):** limit is client-only; protocols synced from another device, created while Premium or revived by sync are never counted; a lapsed Premium user keeps all active protocols today (DV-095). Whether a lapsed Premium user keeps them or gets a downgrade rule, and whether the server enforces the limit, is a money call: pending **OPEN-05** (Portuguese question 7; was DL-24, withdrawn); the recommendation there is "keep them" (option A).
+- **Decided as built (AD-84, founder 2026-10-15, was OPEN-05; was DL-24, withdrawn; 01 D-22; 07 D-3):** the free 3-protocol limit stays a phone check (the server does not enforce it; protocols synced from another device, created while Premium or revived by sync are not counted against it); a lapsed payer keeps every active protocol but cannot add, restart or restore above 3 until subscribing again. DV-095 is closed (accepted as built).
 
 ### 7.11 Edit specifics
 - Edit opens with stored numbers in the app language; rtu vial ml from the active vial or amount ÷ concentration; 4 steps (no vial step); writes only changed columns (founder, decisions.md:179; a Save with no change alters nothing).
@@ -266,7 +266,8 @@ Inside the assistant the label photo is not applied as review drafts: the values
 - **Intended (DL-15, decided by logic, one capacity rule):** a dose edit recomputes the current vial's capacity from the mass left — new total = taken + floor((total − taken) × old dose ÷ new dose) — for recon and rtu alike.
   - **Divergence today (01 D-13, DV-015):** changing a recon dose does NOT recompute the active vial's stored `total_doses` → stale "N of M doses left" and the vial "finishes" at the old count.
   - **Divergence today (DV-223):** an rtu dose edit recomputes `total_doses = vial ÷ new dose` and ignores the doses already taken (`rtuVialFields` / `rtuVialPatch`, `lib/protocolForm.js:167-187`): a 10 mg vial at 1 mg with 4 taken, edited to 0.5 mg, shows 16 doses left instead of 12.
-- **Divergence today (01 G-9, DV-094):** recon mix date, validity window and vial capacity are not editable after creation → pending OPEN-01 (Portuguese question 3).
+- **Intended (AD-80, decided 2026-10-15, was OPEN-01; 1.3.0, picture first):** the protocol page offers "Edit vial" (mix date, validity days, doses already used) and "New vial" — recon like Today's new-vial prompt; ready-to-use asks the new box's expiry month/year (blank allowed). Flow 04.
+  - **Divergence today (01 G-9, DV-094):** recon mix date, validity window and vial capacity are not editable after creation, and there is no "doses already used" field.
 
 ## 8. What every surface shows
 
@@ -279,7 +280,7 @@ Inside the assistant the label photo is not applied as review drafts: the values
 | Saved, start in the past, "Yes" | as above | creation-day rule: only slots from created − 1 h count today | from today | dashed marker "Before {date}: estimated from your start date" when the creation day is in the window | — |
 | Saved, "No, it changed" | as above | as above | as above | nothing before today | — |
 | Edited: time changed | page Schedule row new time | card time changes | old banners dismissed, new times armed | curve unaffected (fixed slot hours, flow 10) | — |
-| Edited: dose changed | syringe hero new draw | card draw | body text new dose | whole curve re-drawn with the new dose for past AND future (flow 10; whether the past keeps the old dose = pending OPEN-10, Portuguese question 16, DV-005) | — |
+| Edited: dose changed | syringe hero new draw | card draw | body text new dose | intended (AD-95, decided 2026-10-15, was OPEN-10): the change is stored with the date it took effect and the past keeps the old dose (if that is not right in time, the interim notice on the curve "uses your current dose for past dates" ships and the founder is told); today the whole curve is re-drawn with the new dose for past AND future (flow 10, DV-005) | — |
 | Recon saved with "skip vial" | vial block: "M doses per vial" capacity, no cells | card "+ Add vial" row | reminders armed | charted | — |
 
 ## 9. Data written at each step
@@ -311,11 +312,11 @@ R-01 name required ("Missing name"); typed text equal to a listed compound selec
 | D02-1 | History question re-asked when the start moves earlier, "Yes" clears `history_from` (DL-86); it names the compound (wording to approve, Approvals item 2.9) | No name, no re-ask | `01 G-5`; DL-86 | DV-091 |
 | D02-2 | Drafts kept until saved or the app closes (DL-97) | Lost on a kill — as decided; recorded only | `01 G-18`; DL-97 | DV-127 |
 | D02-3 | Recon dose edit recomputes vial capacity from the mass left (DL-15) | Stale stored `total_doses` | `01 D-13` | DV-015 |
-| D02-4 | *Pending OPEN-05 (Portuguese question 7):* whether the limit is also enforced across devices / on the server (recommendation A: phone-only, as today) | Local only | `01 D-22`, `07 D-3` | DV-095 |
+| D02-4 | *Closed — decided as built (AD-84, was OPEN-05).* The limit stays a phone check; a lapsed payer keeps every active protocol but cannot add, restart or restore above 3 | Same (local only) | `01 D-22`, `07 D-3` | — (DV-095 closed) |
 | D02-5 | `created_at` identical on every device | Protocols send it since e85519c; a pull never updates a local `created_at` (`syncCore.js:405-415`), so an early-imported copy keeps the server time; vials do not send it | `01 D-20 / G-27` (out of date); `syncMappers.js:101-103` | DV-001 (residual) |
 | D02-6 | Mix date "Feb 31" handled the same everywhere | Wizard clamps, Today refuses, assistant refuses > 1 year | `01 D-14b` | DV-019 |
 | D02-7 | Custom interval 1–365 in form and assistant (DL-19) | 1–999 vs 1–365 | `01 D-16` | DV-123 |
-| D02-8 | Recon mix date / validity / capacity editable | Not editable after create | `01 G-9` | DV-094 |
+| D02-8 | Protocol page "Edit vial" (mix date, validity days, doses already used) and "New vial" (AD-80, was OPEN-01; picture first) | Not editable after create; no "doses already used" | `01 G-9`; AD-80 | DV-094 |
 | D02-9 | Delete sheet and assistant-limit copy true (wording to approve, Approvals items 2.8 and 2.10); "supplier" stays (AD-75) | "recoverable for 7 days"; assistant limit "this week" | `01 G-4`; Approvals item 2 | DV-023, DV-192 |
 | D02-10 | Today empty-state "Add a protocol" opens the wizard | Opens the tab only | `01 G-24` (observation) | DV-124 |
 | D02-11 | AP-27 spec text matches the A-30 question | Spec still says "log the past doses" | `01 G-13` | DV-179 |
@@ -324,23 +325,24 @@ R-01 name required ("Missing name"); typed text equal to a listed compound selec
 | D02-14 | Scan error sheets titled by what happened (founder Q4 = A, decisions.md:121; titles to approve, Approvals item 2.16) | Generic "Error" title on the camera-denied and size sheets | R2-05 (H5-F10 pattern); `ProtocolsScreen.js:1671`, `:1681` | DV-233 |
 | D02-15 | rtu dose edit recomputes capacity from the mass left (DL-15) | `total_doses` = vial ÷ new dose, doses taken ignored | R2-06 N-1; `protocolForm.js:167-187` | DV-223 |
 | D02-16 | Edit shows the stored interval N in the Custom field (AD-66) | Empty field with a grey "14" for intervals 2–7, 10, 14 | R2-03 #4; `protocolForm.js:16`, `:94` | DV-230 |
-| D02-17 | Assistant limited only by AP-18 (10 conversations / 7 days), or extra ceilings with a true message — pending OPEN-18 (3) | 40 answers per conversation, 24 h life, 200 answers / 24 h, shown as "The AI isn't available right now" | R2-03 #13; `budget.ts:10-12` | DV-240 |
+| D02-17 | AP-18 budget (10 conversations / 7 days) plus the extra ceilings kept as abuse limits, each with its own true message when hit, ×6 (AD-105, was OPEN-18 (3)) | 40 answers per conversation, 24 h life, 200 answers / 24 h, shown as "The AI isn't available right now" | R2-03 #13; `budget.ts:10-12` | DV-240 |
 | D02-18 | The review card shows the dose time with Change (signed AP-32; approved, picture owed, Approvals item 3) | No dose-time row (`reviewRows`, `lib/protocolAssistant.js:472-500`) | PRD G-133; registry A-91 | DV-191 |
-| D02-19 | An edit on one phone reaches the other (when = pending OPEN-16 (b)) | Skipped for good once the other phone pushes its own protocol change | R2-06 M-1; `syncCore.js:727-733` | DV-222 |
+| D02-19 | An edit on one phone reaches the other (fix = AD-77 / A-119, one active device per account, decided 2026-10-15) | Skipped for good once the other phone pushes its own protocol change | R2-06 M-1; `syncCore.js:727-733` | DV-222 |
 | D02-20 | A protocol edit always reaches the cloud | A value the cloud type rejects leaves the row pending forever (suspected) | R2-06 (DR-7) | DV-241 |
 | D02-21 | The limit sheet offers the trial only when the store says eligible (AD-49, DL-82) | "Start free trial" for everyone | `01 G-11` | DV-126 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12; closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md`. The founder answered the whole round on 2026-10-15 ("siga as recomendações"), so no question of this flow is open. **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open questions that touch this flow (each waits for the founder):
+**Decided by the founder on 2026-10-15 (all questions answered):**
 
-- **OPEN-01** — Correcting the vial in use (doses already used, A-08 / F7; mix date, validity, capacity after create) (Portuguese question 3). → P3, §7.11, D02-8; DV-094.
-- **OPEN-05** — The 3-protocol free limit on the server and after Premium ends (was DL-24, withdrawn) (Portuguese question 7). Today lapsed Premium users keep every active protocol; the recommendation there is "keep them". → §7.10, D02-4; DV-095.
-- **OPEN-10** — Should a dose edit rewrite the past curve? (Portuguese question 16). → §8 "Edited: dose changed"; DV-005.
-- **OPEN-16 (b)** — When the sync hardening ships (Portuguese question 1 (b)). → §7.6, D02-19; DV-222.
-- **OPEN-18 (3)** — The AI caps the builder added, here the protocol assistant's 40 answers / 24 h life / 200 a day (Portuguese question 23 (c)). → §3, §7.3, D02-17; DV-240.
+- **AD-80** (was OPEN-01) — "Edit vial" (mix date, validity days, doses already used) and "New vial" on the protocol page; ready-to-use asks the new box's expiry month/year (blank allowed); picture first, 1.3.0. → P3, §7.11, D02-8; DV-094.
+- **AD-84** (was OPEN-05; was DL-24, withdrawn) — as built: the 3-protocol limit stays a phone check; a lapsed payer keeps every active protocol but cannot add, restart or restore above 3. DV-095 closed. → §7.10, D02-4.
+- **AD-95** (was OPEN-10) — every protocol change is stored with the date it took effect and the past uses the old values (pharmacometrics review); interim A (a notice on the curve) only if B is not right in time, and the founder is told. → §8 "Edited: dose changed"; DV-005.
+- **AD-77** (was OPEN-16 (b)) — fix = AD-77 / A-119 (one active device per account, decided 2026-10-15). → §7.6, D02-19; DV-222.
+- **AD-105** (was OPEN-18 (3)) — the protocol assistant's 40 answers per conversation / 24 h conversation life / 200 answers per 24 h stay as abuse ceilings, each with its own true message when hit (×6). → §3, §7.3, D02-17; DV-240.
+- **AD-78** (was OPEN-16 (a)) — scope rule: every DL and DV row of this flow has a target, 1.3.0 or 1.3.1, in DIVERGENCES.md and the registry.
 
 Items this flow relies on that moved in round 2 (decided — no question):
 
@@ -350,7 +352,7 @@ Items this flow relies on that moved in round 2 (decided — no question):
 - **AD-75** — "Check with your supplier" stays (decisions.md:186, AP-22); the earlier "product label or manufacturer" note is withdrawn. → §7.4.
 - **DL-15** — one capacity rule from the mass left, recon and rtu alike. → §7.11, D02-3, D02-15; DV-015, DV-223.
 - **AD-49** (re-cited to the founder's decisions.md:287 + signed MB-11) and **DL-82** (new: claim the trial only when eligible). → §7.10, D02-21; DV-126.
-- **Approvals still owed** — item 2.8 (delete sheet, DV-023), 2.9 (history question names the compound, DV-091), 2.10 (assistant limit without "this week", DV-192), 2.12 (photo size message without "PDF", DV-201), 2.16 (error-sheet titles, DV-233); item 3 (picture of the dose-time row on the assistant's review card, DV-191).
+- **Approvals still owed** — item 2.8 (delete sheet, DV-023), 2.9 (history question names the compound, DV-091), 2.10 (assistant limit without "this week", DV-192), 2.12 (photo size message without "PDF", DV-201), 2.16 (error-sheet titles, DV-233); item 3 (picture of the dose-time row on the assistant's review card, DV-191; the AD-80 "Edit vial" / "New vial" picture); item 2 also holds the AD-105 cap messages.
 
 ## 13. Acceptance checks (agent-device QA script)
 

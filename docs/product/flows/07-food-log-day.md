@@ -160,12 +160,12 @@ stateDiagram-v2
 - Closing a day with no food → "Nothing logged for this day" / "Did you really eat nothing? Your reality check measures your real daily calories… Only a day you confirm as "nothing eaten" counts toward your 7 days in a row." → Cancel / **Just close the day** / **I ate nothing** (FL-47).
 - The 20:00 "Nothing else today" closes without asking (accepted FL-47 deviation) → an empty day closed there breaks the run.
 - **Divergence today (04 D-16):** closing a day whose only rows are refused / unreadable / too old / pending does not ask "I ate nothing" (the check counts any non-marker row) → the day silently breaks the run.
-- **Divergence today (04 G-4):** "Not recorded" day marks: the signed rule (FL-3) says a manual mark breaks the run, but no UI writes it any more (legacy read only). Strings `nutri_mark_not_recorded`, `nutri_unlogged_*` are unused, and so is `nutri_run_rule` ("A day counts when it has food logged or you closed it with "That's all for today"…"), which also contradicts FL-47 (dead copy, DV-181). Whether the mark is retired (FL-3 amended with the founder's signature) or brought back in the UI is **OPEN-18 (2)** (was DL-66; Portuguese question 23 (b)).
+- **Divergence today (04 G-4):** "Not recorded" day marks: the signed rule (FL-3) says a manual mark breaks the run, but no UI writes it any more (legacy read only). Strings `nutri_mark_not_recorded`, `nutri_unlogged_*` are unused, and so is `nutri_run_rule` ("A day counts when it has food logged or you closed it with "That's all for today"…"), which also contradicts FL-47 (dead copy, DV-181). **Decided (AD-104, founder 2026-10-15, was OPEN-18 (2); was DL-66):** the mark is retired — no UI writes it, legacy rows are still read, and FL-3 is amended (the founder signs the amended row, Approvals still owed item 7). DV-151 is closed; the dead strings stay DV-181.
 
 ### 7.3 Offline
 - Row saved `pending` before the call; "Saved — I'll estimate the calories when you're back online." only when NetInfo says offline (FL-46); otherwise "Saved — the AI couldn't be reached just now. I'll try again in a moment, and each time you open the log."; retried after 20 s, on reconnect, on each chat open and hero focus — by the typing device only (FL-19).
 - **Divergence today (04 §8.5; CONFIRMED by reading, DV-066):** a quota hit on a retry keeps the row `pending` forever (retried on every open; `foodLogActions.js:77`). `parse-food` counts the cap per `entry_date` (`index.ts:161-171`) and the row's date never changes, so once that date has 25 reads every retry is refused.
-- **Intended (DL-28, rewritten 2026-10-12 — logic, the founder may override):** `parse-food` counts the 25 by the user's local day of the **request**, not by the entry's date (decisions.md:251: "resets at local midnight"); a re-parse refused by the cap marks the row "not read yet — daily limit reached", keeps the text, explains, and retries the next day. The new row state and its notice are new UI (**OPEN-24 item 8**, Portuguese question 2); the server deploy waits for the founder's go (Approvals still owed, item 1).
+- **Intended (DL-28, rewritten 2026-10-12 — logic, the founder may override):** `parse-food` counts the 25 by the user's local day of the **request**, not by the entry's date (decisions.md:251: "resets at local midnight"); a re-parse refused by the cap marks the row "not read yet — daily limit reached", keeps the text, explains, and retries the next day. The new row state and its notice are new UI, approved as AD-79 item 8 (decided 2026-10-15: picture and texts ×6 first, then 1.3.0); the server deploy needs the founder's go (Approvals still owed, item 1).
 
 ### 7.4 App killed / chat closed
 - Draft per user survives closing (`dosetrace_food_draft:<uid>`), also text put back after a failed send (FL-36). Auto-close after 30 s idle with the keyboard down or on background — never with text in the box, while sending, with a sheet open, or with a screen reader on; never when embedded on the Fold (FL-32, BK-17).
@@ -174,7 +174,7 @@ stateDiagram-v2
 
 ### 7.5 Second device
 - Rows sync; markers idempotent per device per day (duplicates harmless). Re-parse only by the device that typed it. The 20:00 plan re-syncs on sync events.
-- **Divergence today (DV-222, DV-182; when the fix ships = OPEN-16 (b), Portuguese question 1 (b)):** once phone B pushes any food row, meals phone A pushed earlier and B has not pulled yet are skipped by B's pull for good (DV-222); a food entry removed on A stays on B, because the cloud delete is a hard delete the other phone never hears of (DV-182). Intended: every meal and every removal reaches every device (never lose user-entered data, AD-02).
+- **Divergence today (DV-222, DV-182; fix = AD-77 / A-119, one active device per account, decided 2026-10-15):** once phone B pushes any food row, meals phone A pushed earlier and B has not pulled yet are skipped by B's pull for good (DV-222); a food entry removed on A stays on B, because the cloud delete is a hard delete the other phone never hears of (DV-182). Intended: every meal and every removal reaches every device (never lose user-entered data, AD-02).
 
 ### 7.6 Timezone / DST / midnight
 - A food day runs local midnight to midnight (FL-24); stored `entry_date` is the local day at write time and never moves; thread dividers may shift after a zone change.
@@ -193,7 +193,7 @@ stateDiagram-v2
 ### 7.9 Free vs Premium (FL-41)
 - 7 free days from the first use; last 2 days: note "Your 7 free days end on {until} — food logged on {logged} days so far…" + See Premium; then locked: hero "Your free days are used — Premium keeps the log going." → Paywall; chat locked card "Log your day in a sentence" + Unlock Premium; no 20:00 questions.
 - Lapsed payer: grace to the end of the current check week, never "free days" wording.
-- **Divergence today (04 D-15, 07 D-2, G-1):** `parse-food` never checks access on the server (AD-16, decisions.md:288: "the server stays authoritative for paid AI calls") — an old or modified client can log while locked. The server deploy waits for the founder's go (Approvals still owed, item 1).
+- **Divergence today (04 D-15, 07 D-2, G-1):** `parse-food` never checks access on the server (AD-16, decisions.md:288: "the server stays authoritative for paid AI calls") — an old or modified client can log while locked. The server deploy needs the founder's go (Approvals still owed, item 1).
 - **Divergence today (04 D-9, presentation):** on a phone, Progress shows two day counts (the status line and the "so far" footer), identical until a run of 7 or more exists, then different; all three (with the grace note, which renders only in the food card and the chat) appear side by side only in the Fold book layout (Journey + Progress).
 
 ### 7.10 AI hard line
@@ -234,7 +234,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble (FL-38). R-F3 catch-ups ≤ 7 days (FL-2/45). R-F4 one question per missing category (FL-4/5). R-F5 only explicit phrases close (FL-6/29). R-F6 empty closed day breaks unless "I ate nothing" (FL-47). R-F7 AI writes no sentences (FL-16). R-F8 refusal → fixed deflection (FL-15). R-F9 quota 25 AI parses per user per local day, reserved before the call; answering a follow-up never uses one of the 25 (decisions.md:251, FL-20/21/22) — counted today per `entry_date` sent, intended per the request's local day (DL-28 rewritten). As built the server also caps 25 follow-up answers per entry_date and 60 calls per rolling 24 h — builder choices with no ledger line, against decisions.md:251 / FL-21: keep or change is **OPEN-18 (3)** (Portuguese question 23 (c)), DV-213. R-F10 offline-first, re-parse by the typing device only (FL-19). R-F11 fat stored, not shown (FL-17). R-F12 auto-close rules (FL-32/36). R-A1…A5 access (FL-41). R-R11 20:00 question (FL-18/42). (`04 §4`.)
+R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble (FL-38). R-F3 catch-ups ≤ 7 days (FL-2/45). R-F4 one question per missing category (FL-4/5). R-F5 only explicit phrases close (FL-6/29). R-F6 empty closed day breaks unless "I ate nothing" (FL-47). R-F7 AI writes no sentences (FL-16). R-F8 refusal → fixed deflection (FL-15). R-F9 quota 25 AI parses per user per local day, reserved before the call; answering a follow-up never uses one of the 25 (decisions.md:251, FL-20/21/22) — counted today per `entry_date` sent, intended per the request's local day (DL-28 rewritten). As built the server also caps 25 follow-up answers per entry_date and 60 calls per rolling 24 h — builder choices that had no ledger line; the founder kept them on 2026-10-15 as abuse ceilings, each with its own true message when hit, ×6 (AD-105, was OPEN-18 (3)); a true message per cap is DV-213. R-F10 offline-first, re-parse by the typing device only (FL-19). R-F11 fat stored, not shown (FL-17). R-F12 auto-close rules (FL-32/36). R-A1…A5 access (FL-41). R-R11 20:00 question (FL-18/42). (`04 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -244,31 +244,31 @@ R-F1 thread rebuilt from stored rows only (FL-35). R-F2 one message = one bubble
 | D07-2 | Closing a not-food-only day asks "I ate nothing" (AD-17) | Not asked | `04 D-16` | DV-064 |
 | D07-3 | Remove entry and an all-cleared save ask first (AD-01) | No confirm | `04 G-16`; verification 04 N-4 | DV-003 (DV-206 merged here) |
 | D07-4 | Hero / Progress re-date at midnight | Focus only | `04 D-5` | DV-148 |
-| D07-5 | Each "days" count labelled by what it counts (DL-30; the labels = OPEN-24 item 3) | Two unlabelled counts on a phone (Progress); three only on the Fold book layout | `04 D-9` | DV-146 |
+| D07-5 | Each "days" count labelled by what it counts (DL-30; the labels = AD-79 item 3, picture first) | Two unlabelled counts on a phone (Progress); three only on the Fold book layout | `04 D-9` | DV-146 |
 | D07-6 | Sign-out clears the chat draft (AD-05, DL-52) | Survives | `07 D-17` | DV-081 |
-| D07-7 | Per **OPEN-18 (2)** (was DL-66): the "Not recorded" mark comes back in the UI (FL-3), or is retired with FL-3 amended by the founder's signature | No UI; strings dead | `04 G-4`, `G-11` | DV-151, DV-181 |
-| D07-8 | DL-28 (rewritten): the 25 counted by the request's local day; a refused re-parse marked "not read yet — daily limit reached", text kept, retried next day (row state + notice = OPEN-24 item 8) | Counted per `entry_date`; a quota hit on a retry stays pending forever (CONFIRMED by reading) | `04 §8.5` | DV-066 |
+| D07-7 | The "Not recorded" mark is retired (AD-104, was OPEN-18 (2); was DL-66): FL-3 amended (the founder signs the amended row), legacy rows still read, the unused strings removed | No UI writes it (matches); strings dead | `04 G-4`, `G-11` | DV-181 (DV-151 closed) |
+| D07-8 | DL-28 (rewritten): the 25 counted by the request's local day; a refused re-parse marked "not read yet — daily limit reached", text kept, retried next day (row state + notice = AD-79 item 8, picture first) | Counted per `entry_date`; a quota hit on a retry stays pending forever (CONFIRMED by reading) | `04 §8.5` | DV-066 |
 | D07-9 | 20:00 copy identical in server push (AD-37: server push stays off until A-62) | Dormant server copy differs | `04 G-12` | DV-145 |
 | D07-10 | Notification "Log it" logs onto the evening's day (FL-40) | Carries no day; after midnight logs onto today | `03 verification §F` (NEW-2) | DV-197 |
 | D07-11 | The chat's "Remove entry" pill asks first (AD-01) | Deletes a refused / too-old row at once | verification round 2 R2-06 N-4 | DV-226 |
-| D07-12 | Totals per day, week and whole window (decisions.md:250, FL-24) — keep or change = OPEN-18 (9) | Only the day's total since Journey part 8 | verification round 2 R2-03 #7 | DV-232 |
+| D07-12 | The day's total with the week's food total under it (AD-107, was OPEN-18 (9); picture first; decisions.md:250, FL-24) | Only the day's total since Journey part 8 | verification round 2 R2-03 #7 | DV-232 |
 | D07-13 | Fold: the left Journey food hero follows a send on the right page (DL-98) | Keeps the old line until Journey is refocused | verification round 2 R2-05 (F07-18) | DV-238 |
-| D07-14 | Every meal and every removal reaches every device (AD-02; timing = OPEN-16 (b)) | A meal can be skipped by the other phone's pull; a removed entry stays on the other phone | TRD §3.9 H-1; verification round 2 R2-06 M-1 | DV-222, DV-182 |
-| D07-15 | Only the approved limits (follow-ups free, 25 reads a local day) or the builder's ceilings kept — OPEN-18 (3) | 25 follow-ups per entry_date + 60 calls per rolling 24 h | verification 07 X-09 | DV-213 |
+| D07-14 | Every meal and every removal reaches every device (AD-02; fix = AD-77 / A-119, one active device per account, decided 2026-10-15) | A meal can be skipped by the other phone's pull; a removed entry stays on the other phone | TRD §3.9 H-1; verification round 2 R2-06 M-1 | DV-222, DV-182 |
+| D07-15 | The approved 25 reads a local day plus the builder's ceilings kept as abuse limits (25 follow-ups a day, 60 calls per 24 h), each with its own true message when hit, ×6 (AD-105, was OPEN-18 (3)) | 25 follow-ups per entry_date + 60 calls per rolling 24 h | verification 07 X-09 | DV-213 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12; closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md`. The founder answered the whole round on 2026-10-15 ("siga as recomendações"), so no question of this flow is open. **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open — waiting for the founder:
+**Decided by the founder on 2026-10-15 (all questions answered):**
 
-- **OPEN-18 (2)** (was DL-66) — The "not recorded" mark (FL-3) (Portuguese question 23 (b)). Recommended: retire it (legacy rows still read; FL-47's "Just close the day" breaks a run on purpose), FL-3 amended with the founder's signature — or bring the UI back. D07-7 → DV-151, DV-181.
-- **OPEN-18 (3)** — The AI caps the builder added: 25 follow-up answers per day and 60 calls in any 24 h (Portuguese question 23 (c)). Keep as abuse ceilings, each with its own true message, or only the approved limits. D07-15, §10 R-F9 → DV-213.
-- **OPEN-18 (9)** — Week and whole-check food totals (Portuguese question 23 (e)). D07-12 → DV-232.
-- **OPEN-07** — A-24: does saving a check **early** end the 20:00 question? (Portuguese question 12; was DL-51.) Finishing already cancels it (`completeRealityCheck` → `syncFoodLogReminder` with no open check, `CalculatorSection.js:974-978`); early saving exists only if OPEN-07 brings back the day-14 result buttons (option B). → DV-144.
-- **OPEN-24 item 8** — The food-chat row "not read yet — daily limit reached" and its notice, picture first ×6 (Portuguese question 2). D07-8 → DV-066.
-- **OPEN-24 item 3** — Each "days" count on Progress labelled by what it counts, picture first ×6 (Portuguese question 2). D07-5 → DV-146.
-- **OPEN-16 (b)** — When the sync hardening ships (Portuguese question 1 (b)). D07-14 → DV-222, DV-182.
+- **AD-104** (was OPEN-18 (2); was DL-66) — retire the "not recorded" day mark (legacy rows still read; FL-47's "Just close the day" breaks a run on purpose); FL-3 amended, the founder signs the amended row (Approvals still owed item 7). D07-7 → DV-181; DV-151 closed.
+- **AD-105** (was OPEN-18 (3)) — keep the builder's food caps (25 follow-up answers a day, 60 calls per 24 h) as abuse ceilings, each with its own true message when hit (×6). D07-15, §10 R-F9 → DV-213.
+- **AD-107** (was OPEN-18 (9)) — show the week's food total under the day's total; picture first. D07-12 → DV-232.
+- **AD-90** (was OPEN-07; was DL-51) — "Seus números reais" keeps finishing by itself; registry A-24 closes with no early save, so the 20:00 question ends when the check finishes (`completeRealityCheck` → `syncFoodLogReminder` with no open check, `CalculatorSection.js:974-978`). → DV-144 (flow 08).
+- **AD-79** items 8 and 3 (was OPEN-24) — item 8, the food-chat row "not read yet — daily limit reached" and its notice (D07-8 → DV-066); item 3, each "days" count on Progress labelled by what it counts (D07-5 → DV-146). Each picture first ×6, then 1.3.0.
+- **AD-77** (was OPEN-16 (b)) — fix = AD-77 / A-119 (one active device per account, decided 2026-10-15). §7.5, D07-14 → DV-222, DV-182.
+- **AD-78** (was OPEN-16 (a)) — scope rule: every DL and DV row of this flow has a target, 1.3.0 or 1.3.1, in DIVERGENCES.md and the registry.
 
 Decided — what this flow relies on (moved or added in round 2):
 

@@ -184,9 +184,11 @@ BK-1 thresholds; BK-2 one column = today's app; BK-3 (superseded by A-115 FR-1/F
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 and closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open — waiting for the founder: no open OPEN item is specific to the book layout. (OPEN-18 (8), "sign fold-right-page", was closed in round 2 and is now an approval, below.)
+**Decided by the founder on 2026-10-15 (all questions answered):** no question was specific to the book layout (OPEN-18 (8), "sign fold-right-page", was closed in round 2 and is now an approval, below). Two answers touch it:
+- **AD-77** (was OPEN-16 (b), Q 1 (b)) — one active device per account (A-119): the folded and unfolded Fold are one device, so folding or unfolding never shows the takeover notice or a replaced wipe (spec row OD-18, proven on device); the new A-119 sheets stay one centred column (BK-11).
+- **AD-78** (was OPEN-16 (a), Q 1 (a)) — every DV row of this flow has a written target (1.3.0 or 1.3.1) in `docs/review/features.md`; A-116 (D14-1) is in 1.3.0 by AD-31.
 
 Decided or owed — what this flow relies on (round-2 final ids):
 - **Approvals still owed item 7** — the founder signs `docs/specs/fold-right-page.md` (FR-1…FR-6; its `checklist-signed:` line is empty). A signature, not a question. D14-2 → DV-118, DV-229 (spec-audit reads the empty line as signed).

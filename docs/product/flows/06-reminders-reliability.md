@@ -33,7 +33,7 @@
 
 | # | Prior state | What the flow must do |
 |---|---|---|
-| P1 | Said "Not now" to notifications in onboarding | Setup step skipped then; on Android, Today opens the setup screen once per phone when a timed protocol exists (SP-5; iPhone has no such screen). **Divergence today (DV-054):** the app calls the OS permission request at every signed-in cold start and sign-in (`App.js:650`, `:730`) and in the push-token registration; the system dialog itself shows while the answer is still undecided (once on iPhone, at most twice on Android 13+). When to ask after "Not now" — including an iPhone user whose timed protocols arrive by sync — is **OPEN-20 (b)** (Portuguese question 11 (a)). |
+| P1 | Said "Not now" to notifications in onboarding | Setup step skipped then; on Android, Today opens the setup screen once per phone when a timed protocol exists (SP-5; iPhone has no such screen). **Divergence today (DV-054):** the app calls the OS permission request at every signed-in cold start and sign-in (`App.js:650`, `:730`) and in the push-token registration; the system dialog itself shows while the answer is still undecided (once on iPhone, at most twice on Android 13+). **Intended (AD-88, decided 2026-10-15, was OPEN-20 (b)):** no permission request at app open; the app asks when a protocol with a reminder time is first saved on the phone or arrives from another device (the iPhone case included), and on Android also via the SP-5 setup screen. |
 | P2 | Finished onboarding before this version (no setup step ever seen) | Today opens the screen once after the update (council 3 #5 → SP-5). |
 | P3 | Signed in on a new install with timed protocols already synced | Same once-per-phone opening. |
 | P4 | Android 14 default: "Alarms & reminders" off | Reminders up to 1 h late; row attention + Today "Reminders may be late" (A-106). |
@@ -42,7 +42,7 @@
 | P7 | Samsung deep sleep list contains DoseTrace | Cannot be read → row Open + "I checked" (SP-10). |
 | P8 | Play update or phone reboot | Receiver rebuilds reminders without opening the app (A-111). The Fold figure "238 restored, app not opened" (2026-10-07) was a **reboot handled by expo-notifications' own restore, before the receiver existed** — not the app's receiver; the same day the 47→48 **update** dropped 245 alarms to 8. The receiver's update path is still unproven on device (D06-16). |
 | P9 | Silent mode turned on weeks ago and forgot | Today "Silent mode is on" · "No dose reminder will arrive. Tap to see." (council 3 #2). |
-| P10 | iPhone user who never opens the app | Window: dose reminders end after ≤ 10 days. **Divergence (03 G1, DV-097)**: principle not met on iPhone — **OPEN-06** (Portuguese question 10). |
+| P10 | iPhone user who never opens the app | Window: dose reminders end after ≤ 10 days. **Intended (AD-87, decided 2026-10-15, was OPEN-06):** in 1.3.0 the last notification of the window says "Open DoseTrace to keep getting your reminders" and Today warns when the window is ending; server-sent iPhone reminders are their own project, founder-deferred to 1.3.1. **Divergence (03 G1, DV-097):** nothing warns today. |
 | P11 | Release build before the R8 keep-rule fix (≤ 1.2.4) | No Android reminder ever scheduled (root cause 2026-10-05); fixed by keep rules — device proof `dumpsys alarm`. |
 | P12 | Two devices, dose logged on the other | This phone keeps reminding until it pulls in the foreground (BR-5 accepted). |
 | P13 | Language changed | Pending notifications keep the old language until the next full resync (03 G6). **Also (03 NEW-1, DV-196):** the default device language is never stored, and notifications read the stored language or English — a user who never picked a language (e.g. a Portuguese phone) sees the app in Portuguese but gets every reminder, action button and "Nothing new logged" in English (intended DL-13: the app language rules every surface). |
@@ -162,13 +162,14 @@ stateDiagram-v2
 - Android: 21 days; total 400; per protocol min(60, max(2, ⌊400 / n⌋)) (RC-7 — the 64 cap no longer cuts Android).
 - **Divergence today (03 G18, DV-053):** the iPhone dose budget plus one expiry alert per vial, up to 7 morning summaries, the weekly check-in, and during an open check up to 7 food questions and the day-21 alert, plus up to 4 snoozes, can exceed 64 pending notifications. Recomputed in round 2 with the real `doseBudget` (every protocol filling its share, at most one active vial per protocol): with an open check and 4 snoozes from 23 protocols with no vials, 19 with 8 vials, or 15 protocols each with a vial; without them from 29, 25 or 19 (the register row states both assumption sets). iOS keeps only the soonest 64 (unverified).
 - Persistent reminders: +5 and +10 min follow-ups.
-  - **Divergence today (03 G3, DV-049):** Settings copy "Repeat reminders every 5 min until acknowledged" vs exactly two repeats. Intended (DL-48): the text describes the two repeats; the new wording ×6 waits for the founder's approval (Approvals still owed item 2.2).
+  - **Divergence today (03 G3, DV-049):** Settings copy "Repeat reminders every 5 min until acknowledged" vs exactly two repeats. Intended (DL-48): the text describes the two repeats; the new wording ×6 needs the founder's approval (Approvals still owed item 2.2).
   - **Divergence today (DV-224):** a snooze cancels the slot's pending repeats (`notifications.js:969-973`), but the next resync re-adds every future repeat of that slot (`:289-307`) without reading the snooze list — the +5 / +10 repeats can still fire inside the snooze (on iPhone a snooze opens the app, so a resync follows).
 
 ### 7.2 iPhone (no background mode)
 - Reminders are rebuilt on every app open / foreground (≤ 1 / min) / Settings change.
 - **Decided earlier (signed BR-11, 2026-10-07):** iOS untouched (no background task; it would crash).
-- **Divergence today (03 G1, DV-097) — OPEN-06 (Portuguese question 10):** a user who never opens the app on iPhone stops getting dose reminders after ≤ 10 days; nothing warns. Options in OPEN-DECISIONS.md (OPEN-06).
+- **Intended (AD-87, decided 2026-10-15, was OPEN-06):** A in 1.3.0 — the last notification of the iPhone window says "Open DoseTrace to keep getting your reminders" and Today warns when the window is ending (texts ×6); B — server-sent iPhone reminders (send-reminders with everything A-62 lists) — is its own project right after, founder-deferred to 1.3.1.
+  - **Divergence today (03 G1, DV-097):** a user who never opens the app on iPhone stops getting dose reminders after ≤ 10 days; nothing warns.
 
 ### 7.3 Android stop conditions and fixes
 | Item | Read | State / Today card | Fix button opens |
@@ -189,7 +190,7 @@ stateDiagram-v2
 - **Divergence today (03 D-4, D-14; DV-043, DV-044):** schedule "ok" as soon as ONE dose reminder is scheduled; the bar can read "4 of 4 ready" above a red "None scheduled". Intended (DL-46): "OK" only when every timed protocol due in the window has its reminders.
 - **Divergence today (03 D-8, DV-045):** a refresh that never succeeded is "pending" forever ("Runs within the next few hours"), never late. Intended (DL-47): late after 2 days with no success (§6.5).
 - **Divergence today (03 D-10, D-11, G14; DV-046):** "Last run OK" is recorded even when nothing was rescheduled; the scheduled count is counted but not stored (`reminderRefresh.js:36`, `backgroundTasks.js:48-53`). Intended (DL-47): OK only when reminders were rebuilt; the count is kept.
-- **Divergence today (03 G16, DV-098):** only the dose channel is checked — turning off "Check-in Reminders" silently kills the 20:00 food question and the day-21 weigh-in. Intended (DL-49): the check covers the channel of every reminder kind the user has switched on; the new rows are **OPEN-24 item 5** (Portuguese question 2; they widen the signed RC-3, picture first).
+- **Divergence today (03 G16, DV-098):** only the dose channel is checked — turning off "Check-in Reminders" silently kills the 20:00 food question and the day-21 weigh-in. Intended (DL-49): the check covers the channel of every reminder kind the user has switched on; the new rows are AD-79 item 5 (decided 2026-10-15; they widen the signed RC-3; picture first, then 1.3.0).
 - **Divergence today (03 G17, DV-141):** Android channel names are English literals in all languages.
 - **Divergence today (03 G23, DV-099):** the 6-hourly WorkManager run needs network (library constraint); offline phones never refresh (update/reboot run has no constraint).
 
@@ -197,7 +198,7 @@ stateDiagram-v2
 - Silent on: every scheduled notification cancelled; nothing scheduled; only the user's own test reminder goes through; Today "Silent mode is on" / "No dose reminder will arrive. Tap to see."; setup screen "Silent mode is on in Settings: no notifications are sent".
 - A switch turned off cancels what is already scheduled of that kind: Dose reminders (also morning summaries and snoozes), Vial expiry alerts (also low — 03 G4; one switch for both is the founder's, AD-26; its label "Vial alerts" ×6 waits for approval, Approvals still owed item 2.4, DV-140), Check-in reminders (the weekly check-in only, `notifications.js:573`), Food-log reminder (stays off for future checks), Show names (titles become "Dose reminder").
 - The day-21 weigh-in reminder (`reality-check-weigh`) has no switch of its own: "Check-in reminders" does not stop it (`syncRealityCheckReminder`, `notifications.js:609-652`, reads no switch); only Silent mode or the end of the check does (DV-218).
-- Vial expiry push: 7 days before and on the expiry day at 09:00, only the next one per vial (`notificationPlan.js:256-283`, built 2026-10-03, A-45). The lead time and the words are **OPEN-20 (c)** (Portuguese question 11 (b)); the words are also on the test-build look list (Approvals still owed item 8).
+- Vial expiry push: 7 days before and on the expiry day at 09:00, only the next one per vial (`notificationPlan.js:256-283`, built 2026-10-03, A-45). Kept as built — 7 days before and on the day, 09:00, Today's words (AD-89, decided 2026-10-15, was OPEN-20 (c)); the words are also on the test-build look list (Approvals still owed item 8).
 - **Divergence today (DV-225):** switching off "Vial alerts" or "Check-in reminders" cancels the scheduled kind (`notifications.js:482`, `:573`) but not its already-snoozed copies (`snz-vial-…`, `snz-checkin-…`, `snz-reality-check-weigh`); the snooze restore filters only dose copies (`:996-998`) — a switched-off alert still arrives once.
 - **Divergence today (03 D-13, G20; DV-048):** the Android "Nothing new logged" info notification bypasses Silent mode and has no channel (intended AD-25: Silent silences everything but the test).
 - **Divergence today (03 D-12, SUSPECTED; DV-047):** a Silent change made on another device is picked up only at the next full resync here — and possibly not even then: the Silent flag is read from the cached session user (`notifications.js:61-66`, `getCachedUser` = `getSession().user`), whose metadata changes only on a token refresh.
@@ -209,10 +210,11 @@ stateDiagram-v2
 
 ### 7.6 Account events
 - Intended sign-out / account delete: cancel all scheduled, dismiss delivered, drop snooze records, remove this device's push token.
+- **Replaced phone (AD-77, decided 2026-10-15; not built → A-119):** when another phone takes the account over, the takeover removes the account's other push tokens (`push_tokens` gets a device id), so the replaced phone gets no server push (wake-up or reminder); its next background run with internet cancels all its reminders and stores the verdict, and its next open shows that the account was opened on another device, then signs out with the intended wipe (OD-16, OD-4; flow 12 §7.8). It acts only on the server's confirmed "replaced", never on a network error.
 - Spurious SIGNED_OUT (token refresh failure, Apple revoke): reminders stay with names; refresh records `signed_out` and stops renewing.
 - **Intended (DL-85, by logic; was AD-04):** when the server confirms the account was deleted or the session revoked, scheduled reminders are cancelled and the phone's data is wiped; a network failure never cancels anything. The same covers what stays on a second phone after an Apple-account delete.
   - **Divergence today (03 G2, DV-009):** not implemented.
-- Cross-account sign-in: previous account's reminders cancelled before import. (The same guard discards the previous account's local data, unsynced rows included — whether without a warning is **OPEN-21 (11)**, Portuguese question 22; the reminder half is not in question.) **SUSPECTED (03 G28/G32; DV-081):** `dosetrace_vial_low_sent` survives and may suppress a new account's vial alert if ids collide.
+- Cross-account sign-in: previous account's reminders cancelled before import. (The same guard discards the previous account's local data, unsynced rows included; intended AD-102 (decided 2026-10-15, was OPEN-21 (11)): it first warns and offers "Sign in as {previous account} first, to save" / "Discard and continue" — DV-242; the reminder half is unchanged.) **SUSPECTED (03 G28/G32; DV-081):** `dosetrace_vial_low_sent` survives and may suppress a new account's vial alert if ids collide.
 
 ### 7.7 Second device
 - Each phone schedules from its own DB. A dose logged on A stops B's reminders only after B pulls in the foreground; the pull completion does not re-plan dose reminders and pull + resync run concurrently (03 G8, DV-052) → B may need a second open. Delivered banners on B not dismissed.
@@ -269,13 +271,13 @@ R-1 local one-shot dated notifications in a rolling window (A-107 option B). R-2
 
 | ID | Intended | Today | Source | DV |
 |---|---|---|---|---|
-| D06-1 | Principle holds on iPhone (founder 2026-10-07); how is **OPEN-06** (Portuguese question 10) | Ends after ≤ 10 days unopened, no warning | `03 G1` | DV-097 |
+| D06-1 | Principle holds on iPhone (founder 2026-10-07): the window's last notification says "Open DoseTrace to keep getting your reminders" and Today warns when the window is ending (AD-87 A, 1.3.0); server-sent reminders 1.3.1 (AD-87 B) | Ends after ≤ 10 days unopened, no warning | `03 G1` | DV-097 |
 | D06-2 | Cancel reminders and wipe on a confirmed deletion / revocation; never on a network failure (DL-85) | Not built | `03 G2` | DV-009 |
 | D06-3 | Silent never shows as Blocked on Today (DL-45; AD-25 = BR-4) | Both cards | `03 D-2` | DV-042 |
 | D06-5 | Re-scoped to Today: a no-time protocol shows the slot it is reminded at — 08:00 — for Due, pending/Missed and rings (DL-77; DL-06 one slot list). Reminder warnings counting it are correct (it IS reminded at 08:00) | Today: no Due, no pending/Missed, rings at noon | `02 D22`, `03 D-18`; verification 03 §E | DV-028 |
 | D06-6 | "Never ran" turns late after 2 days (DL-47) | Pending forever | `03 D-8` | DV-045 |
 | D06-7 | "Last run OK" means something was scheduled; count stored (DL-47) | Not | `03 D-10, D-11` | DV-046 |
-| D06-8 | The check reads the channel of every reminder kind switched on (DL-49); the new rows are **OPEN-24 item 5** (Portuguese question 2) | Only dose channel | `03 G16` | DV-098 |
+| D06-8 | The check reads the channel of every reminder kind switched on (DL-49); the new rows are AD-79 item 5 (picture first) | Only dose channel | `03 G16` | DV-098 |
 | D06-9 | Copy for persistent reminders true: two repeats, +5 and +10 (DL-48; wording ×6 = Approvals still owed item 2.2) | "every 5 min until acknowledged" | `03 G3` | DV-049 |
 | D06-10 | Language change re-plans; the device-language default reaches notifications (DL-13) | Not; a user who never picked a language gets English notifications | `03 G6`; verification 03 NEW-1 | DV-050, DV-196 |
 | D06-11 | Create/edit/delete re-plans morning summary and vial expiry (bug) | Only dose reminders | `03 G7` | DV-051 |
@@ -289,7 +291,7 @@ R-1 local one-shot dated notifications in a rolling window (A-107 option B). R-2
 | D06-19 | A snooze also holds back the slot's persistent repeats after a resync (bug) | The resync re-adds the +5 / +10 repeats inside the snooze | round 2 (R2-06 N-2) | DV-224 |
 | D06-20 | Switching a kind off also cancels its snoozed copies (A-109) | Snoozed vial / check-in / weigh-in copies still fire once | round 2 (R2-06 N-3) | DV-225 |
 | D06-21 | A Silent change on another device applies at the next resync here (bug) | Read from the cached session; may not apply until a token refresh (SUSPECTED) | `03 D-12` | DV-047 |
-| D06-22 | When to ask for the OS permission after "Not now": pending **OPEN-20 (b)** (Portuguese question 11 (a)) | The request runs at every signed-in cold start and sign-in | `03 G25` | DV-054 |
+| D06-22 | No OS permission request at app open after "Not now"; ask when a protocol with a reminder time is first saved or arrives from another device, Android also via SP-5 (AD-88, was OPEN-20 (b)) | The request runs at every signed-in cold start and sign-in | `03 G25` | DV-054 |
 | D06-23 | Every scheduled reminder fits the iPhone's 64 pending notifications (bug) | Overflows with many protocols / vials (thresholds in the row) | `03 G18` | DV-053 |
 | D06-24 | "OK" only when every timed protocol due in the window has its reminders; the bar shows "None scheduled" (DL-46) | "ok" from one reminder; "4 of 4 ready" above "None scheduled" | `03 D-4, D-14, D-16` | DV-043, DV-044 |
 | D06-25 | The automatic refresh also runs offline (bug) | WorkManager waits for the network | `03 G23` | DV-099 |
@@ -300,14 +302,16 @@ D06-4 (Settings red with Silent on and a block) was closed in round 2: Settings 
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12 (round 2): every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 (round 2); closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md`. The founder answered the whole round on 2026-10-15 ("siga as recomendações"), so no question of this flow is open. **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-**Open — waiting for the founder**
-- **OPEN-06 — iPhone reminders for someone who stops opening the app** (Portuguese question 10). §4 P10, §7.2, D06-1 → DV-097.
-- **OPEN-20 (b) — the OS permission after "Not now"** (Portuguese question 11 (a)). §4 P1, D06-22 → DV-054.
-- **OPEN-20 (c) — the vial-expiry push: lead time and words** (Portuguese question 11 (b)). §7.4 (7 days before + the day, 09:00 as built); A-45.
-- **OPEN-24 item 5 — Reminder check rows for the food question, the weekly check-in and the vial alerts** (Portuguese question 2; DL-49, picture first). §7.3, D06-8 → DV-098.
-- **OPEN-21 (11) — the cross-account guard discards another account's unsynced data** (Portuguese question 22). §7.6 (only the data half; cancelling the previous account's reminders is not in question) → DV-081 is the related key-cleanup bug.
+**Decided by the founder on 2026-10-15 (all questions answered):**
+- **AD-87** (was OPEN-06) — iPhone: the window's last notification says "Open DoseTrace to keep getting your reminders" and Today warns when the window is ending (1.3.0); server-sent iPhone reminders founder-deferred to 1.3.1. §4 P10, §7.2, D06-1, F06-17 → DV-097.
+- **AD-88** (was OPEN-20 (b)) — no permission request at app open; ask when a protocol with a reminder time is first saved or arrives from another device; Android also via SP-5. §4 P1, D06-22, F06-13 → DV-054.
+- **AD-89** (was OPEN-20 (c)) — the vial-expiry push as built: 7 days before + on the day, 09:00, Today's words. §7.4; A-45.
+- **AD-79** item 5 (was OPEN-24) — Reminder check rows for the food question, the weekly check-in and the vial alerts (DL-49); picture first, then 1.3.0. §7.3, D06-8 → DV-098.
+- **AD-102** (was OPEN-21 (11)) — the cross-account guard warns before discarding another account's unsent data ("Sign in as {previous account} first, to save" / "Discard and continue"). §7.6 (the data half; cancelling the previous account's reminders is unchanged) → DV-242; DV-081 is the related key-cleanup bug.
+- **AD-77** (was OPEN-16 (b)) — one active device per account: a replaced phone gets no server push and cancels its reminders on the confirmed verdict (OD-16; not built → A-119). §7.6.
+- **AD-78** (was OPEN-16 (a)) — scope rule: every DL and DV row of this flow has a target, 1.3.0 or 1.3.1, in DIVERGENCES.md and the registry.
 
 **Decided — moved or rewritten in round 2 (no question)**
 - **AD-71** — Settings red on any readable block, whichever kinds are on; Silent never a block (signed SP-1 / RC-1; was OPEN-20 (a)). §7.3, §8, R-36; D06-4 closed.
@@ -315,11 +319,11 @@ Reconciled 2026-10-12 (round 2): every question this flow raised has one canonic
 - **DL-85** — cancel reminders and wipe on a confirmed delete / revoke (was AD-04). §7.6, D06-2 → DV-009.
 - **DL-77** — 08:00 for no-time protocols on every surface (was OPEN-19 (c); DL-06 = one slot list). §7.3, R-4, D06-5 → DV-028.
 - **DL-48** — the persistent-reminders text (wording ×6: Approvals still owed item 2.2). D06-9 → DV-049.
-- **DL-49** — the check covers every switched-on kind's channel (rows: OPEN-24 item 5). D06-8 → DV-098.
+- **DL-49** — the check covers every switched-on kind's channel (rows: AD-79 item 5). D06-8 → DV-098.
 - **AD-60** — the vial supply push fires at 3 doses left (was OPEN-18 (5)); R-20.
 - **AD-26** — one "Vial alerts" switch (label: Approvals still owed item 2.4). D06-26 → DV-140.
 - **DL-46, DL-47, DL-13, AD-25** — unchanged in round 2; cited in §7.3, §7.4, §11.
-- **Approvals still owed item 8** — on the test build: the "From your reminder" outline and text ×6 (A-44) and the vial-expiry alert words (A-45, with OPEN-20 (c)).
+- **Approvals still owed item 8** — on the test build: the "From your reminder" outline and text ×6 (A-44) and the vial-expiry alert words (A-45, kept as built by AD-89).
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -375,6 +379,7 @@ Android checks on the founder's Fold (or an Android 14 emulator) with `adb`; iPh
 **F06-13 — Once-per-phone opening**
 - Setup: fresh install, "Not now" in onboarding, create a protocol with a time.
 - Expect: on the next Today focus (600 ms) the setup screen opens once; never again automatically.
+- Intended (D06-22, AD-88): no OS permission dialog at app open or sign-in after "Not now"; the dialog appears when the first protocol with a reminder time is saved (iPhone: also when one arrives from another device). **Today (DV-054):** the request runs at every signed-in cold start and sign-in — record.
 
 **F06-14 — Background refresh without opening (BR-10)**
 - Setup: Android, protocol daily; do not open the app for 7+ days (or `adb shell cmd jobscheduler run` / WorkManager test hooks).
@@ -390,7 +395,7 @@ Android checks on the founder's Fold (or an Android 14 emulator) with `adb`; iPh
 
 **F06-17 — iPhone 10-day window**
 - Setup: iPhone simulator, daily protocol; do not open for 11 days (clock change).
-- Expect today: no reminder after day 10 and no warning — record D06-1.
+- Expect (intended, AD-87 A): the last notification of the window reads "Open DoseTrace to keep getting your reminders" / PT as approved, and Today (opened before the window ends) warns that it is ending. **Today:** no reminder after day 10 and no warning — record D06-1.
 
 **F06-18 — Show names off**
 - Do: Settings → "Show names in notifications" off.

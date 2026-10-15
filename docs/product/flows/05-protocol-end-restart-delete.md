@@ -2,7 +2,7 @@
 
 > Draft for founder review, written 2026-10-12 from `docs/product/research/01-protocols.md` (§3.8–3.11, §5.1, §6.16–6.17, §7.3–7.4, G-1…G-4, G-15, G-20…G-23), `02-doses-today.md` (§3.8), `03-reminders.md`, `05-curve-journey.md` (E1–E3, D1), `08-platform.md` (§4 sync), and `docs/decisions.md` (2026-10-03 rounds 4, 2026-10-04 Delete forever and dt-council, 2026-10-06 Restart, 2026-10-07 council 3). Code @ 4dade55.
 > Shows the **intended** behaviour; **Divergence today** notes cite the dossier.
-> Corrected 2026-10-12 after verification round 2 (`docs/product/verification/round2/R2-05`, `R2-07`); every id carries its final status from `verification/round2/id-map.md`. "Intended" is backed by a founder line (decisions.md:NNN), a signed spec row, an AD-xx or a DL-xx, or says "pending OPEN-xx (Portuguese question N)", "wording to approve (Approvals item 2.N)" or "approved, picture owed (Approvals item 3)".
+> Corrected 2026-10-12 after verification round 2 (`docs/product/verification/round2/R2-05`, `R2-07`); every id carries its final status from `verification/round2/id-map.md`. "Intended" is backed by a founder line (decisions.md:NNN), a signed spec row, an AD-xx or a DL-xx, or an AD-xx decided by the founder on 2026-10-15 (was OPEN-xx), or says "wording to approve (Approvals item 2.N)" or "approved, picture owed (Approvals item 3)".
 
 ---
 
@@ -37,13 +37,13 @@ A protocol is a durable health record. When the user stops taking something, its
 | P2 | Finished the last vial and won't buy another | Vial prompt "Protocol finished" — **intended** (AD-11, A-85: approved, picture owed — Approvals item 3): ends the protocol, with a "Later" way out; today it only closes the prompt. |
 | P3 | Deleted by mistake today | Restore same day → back to Active (under the limit). |
 | P4 | Deleted by mistake last week | Restore → Ended (its deleted days are never owed; DL-89); Restart to resume. |
-| P5 | 1.2.x "Yes, it's finished" soft-deleted protocols (old builds) | Cannot be told from deliberate deletes → automatic purge PAUSED through 1.3.0 (DL-94); all listed in Recently deleted. What happens after 1.3.0 = pending OPEN-04 (Portuguese question 6). |
+| P5 | 1.2.x "Yes, it's finished" soft-deleted protocols (old builds) | Cannot be told from deliberate deletes → automatic purge PAUSED through 1.3.0 (DL-94); all listed in Recently deleted. After 1.3.0 too: Recently deleted never empties itself — items stay until the person deletes them forever (AD-83, decided 2026-10-15, was OPEN-04). |
 | P6 | Ended on phone A, phone B still has an offline edit | End wins across devices (A-87, DL-88). |
 | P7 | Restarting while the same compound is already active (duplicate) | Warn "{name} is already active" first (founder, decisions.md:614). |
 | P8 | Free user at 3 active wants to restart / restore a 4th | Restart → the limit sheet first, before the duplicate warning and the container question (today it comes last — DV-217); Restore → Ended (A-89, DL-89). |
 | P9 | Restarting while still using the old vial | Ask New vial / Keep using the same vial; "same" moves the container to the new run unchanged (founder, decisions.md:614). |
 | P10 | Delete forever on another device | Synced children removed here; unsynced children stay pending ("Entries not saved" orphan sheet). |
-| P11 | Protocol with a finite course (legacy `schedule_total`) | Reminders stop at the course end (BR-12, founder decisions.md:620); what else stops is pending OPEN-03 (Portuguese question 5; see §7.6). |
+| P11 | Protocol with a finite course (legacy `schedule_total`) | Reminders stop at the course end (BR-12, founder decisions.md:620); intended (AD-82, was OPEN-03): the app stops expecting doses everywhere and Today asks "Course complete — end {name}?" (End / Continue; see §7.6). |
 
 ## 5. Happy path (end → restart, and delete → restore)
 
@@ -83,7 +83,7 @@ stateDiagram-v2
     Active --> Ended: Still going, Yes it's finished (ended_at = last Taken)
     Active --> Ended: End protocol on the page (A-85 approved, picture owed, not built, ended_at = tap, DL-99)
     Active --> Ended: vial prompt Protocol finished (A-85 approved, picture owed, not built)
-    Active --> Ended: course total reached (pending OPEN-03 question 5, not built)
+    Active --> Ended: course total reached and End tapped on Course complete (intended AD-82, not built)
     Active --> Deleted: Delete on the page
     Ended --> Deleted: Ended row trash
     Ended --> Ended: Restart creates a NEW Active row, old row stays
@@ -168,7 +168,7 @@ stateDiagram-v2
 - Restore rules (A-89, DL-89): Ended before delete → Ended; deleted before today → Ended (dated at the delete); same-day → Active when under the free limit, else Ended. Only a still-deleted, unpurged row is restored. Restore N runs one by one so the limit counts each.
   - **Divergence today (01 D-18, G-21, DV-022):** a same-day Restore re-activates the newest vial even when it was finished by doses (`ProtocolsScreen.js:1318-1319`; intended DL-20).
 - Delete forever: "Delete this protocol forever?" / "Delete {n} protocols forever?" + "Its dose history, vials and reminders are removed from all your devices. This can’t be undone." → **Delete forever** / "Excluir para sempre" → positive tombstone.
-- Automatic 7-day purge: **paused** through 1.3.0 — DL-94 (decided by logic, "never destroy on a maybe"; was AD-50, the coordinator line decisions.md:506; A-84). The founder approved the hand-delete multi-select (decisions.md:501, :515). Whether the purge ever returns after 1.3.0 = pending OPEN-04 (Portuguese question 6; DV-125).
+- Automatic 7-day purge: **paused** through 1.3.0 — DL-94 (decided by logic, "never destroy on a maybe"; was AD-50, the coordinator line decisions.md:506; A-84). The founder approved the hand-delete multi-select (decisions.md:501, :515). **Intended (AD-83, decided 2026-10-15, was OPEN-04; 1.3.0):** the purge never returns — Recently deleted never empties itself; items stay until the person deletes them forever, and the delete notice says so (DV-125; the notice text is with Approvals item 2.8).
 
 ### 7.5 Second device
 - End / Delete wins (DL-88, from A-87): status fields are pushed only by the device that changed them (`status_at`); a pull never overwrites a local status change; another phone's pending edit cannot bring an ended or deleted protocol back to active.
@@ -179,7 +179,7 @@ stateDiagram-v2
 
 ### 7.6 Course total (legacy `schedule_total`)
 - **Decided (founder decisions.md:620, BR-12):** protocols with a total number of doses end their reminders when that course ends.
-- What happens beyond reminders is not decided: end the protocol automatically, ask "Course complete — end {name}?", or another option — pending **OPEN-03** (Portuguese question 5; BR-12 only covers reminders).
+- **Intended (AD-82, decided 2026-10-15, was OPEN-03; 1.3.0):** at the end of a fixed course the app stops expecting doses everywhere — Today, the Missed scan, the curve and reminders — and Today asks **"Course complete — end {name}?"** with **End** (ends the protocol, §7.1) / **Continue** (removes the total, the protocol goes on as an open-ended one). The total-doses field does not return to the form. Texts ×6 (Approvals item 2).
 - **Divergence today (01 D-08, D-11, G-6; 02 D4; DV-012):** only reminders honour it; Today says "Day Y of Y" forever and Missed rows accumulate; no UI can set a course (the total-doses question was removed).
 
 ### 7.7 Offline / killed
@@ -197,6 +197,7 @@ stateDiagram-v2
 
 ### 7.11 Free vs Premium
 - Ending frees a slot of the 3. Restart and same-day Restore respect the limit (limit sheet / → Ended). History of ended protocols is free and kept forever.
+- **Decided as built (AD-84, founder 2026-10-15, was OPEN-05):** the limit stays a phone check; a lapsed payer keeps every active protocol but cannot add, restart or restore above 3 until subscribing again. DV-095 is closed (accepted as built).
 
 ## 8. What every surface shows
 
@@ -226,7 +227,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity end at the last Taken dose; app Missed rows after removed, on every phone (A-86 / A-86b, DL-87). R-49 deliberate end = moment tapped (DL-99; the End action itself: A-85, approved, picture owed — AD-11, Approvals item 3). R-50 Restart = new run, today, created now; ended row stays. R-51 Restart asks container + duplicate warning; "same" moves the container unchanged (founder decisions.md:614; AD-09). R-52 Restart and Restore respect the free limit (A-89, DL-89). R-53 Restore rules (A-89, DL-89). R-54 purge paused through 1.3.0 (A-84, DL-94; after 1.3.0 pending OPEN-04). R-55 Delete forever = positive tombstone (founder go decisions.md:552; AD-67). R-56 no device deletes because a row is absent. R-57 End / Delete wins, vials included (A-87 / A-87b, DL-88). R-58 reminders renewed until delete/end (founder decisions.md:597-601); courses end their reminders (BR-12, decisions.md:620). (`01 §4`.)
+R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity end at the last Taken dose; app Missed rows after removed, on every phone (A-86 / A-86b, DL-87). R-49 deliberate end = moment tapped (DL-99; the End action itself: A-85, approved, picture owed — AD-11, Approvals item 3). R-50 Restart = new run, today, created now; ended row stays. R-51 Restart asks container + duplicate warning; "same" moves the container unchanged (founder decisions.md:614; AD-09). R-52 Restart and Restore respect the free limit (A-89, DL-89). R-53 Restore rules (A-89, DL-89). R-54 purge paused through 1.3.0 (A-84, DL-94; never resumed — AD-83: items stay until deleted forever). R-55 Delete forever = positive tombstone (founder go decisions.md:552; AD-67). R-56 no device deletes because a row is absent. R-57 End / Delete wins, vials included (A-87 / A-87b, DL-88). R-58 reminders renewed until delete/end (founder decisions.md:597-601); courses end their reminders (BR-12, decisions.md:620). (`01 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -236,11 +237,11 @@ R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity en
 | D05-2 | Vial prompt "Protocol finished" ends, with a "Later" way out (AD-11, A-85: approved, picture owed — Approvals item 3) | Only closes | `01 G-1`; decisions.md:550, :558 | DV-090 |
 | D05-3 | Missed cleanup reaches every device (DL-87) | This phone only | `01 G-2` (A-86b) | DV-025 |
 | D05-4 | Vial status follows End/Delete across devices (DL-88) | Can be revived | `01 G-3` (A-87b), `01 D-17` | DV-021 |
-| D05-5 | Delete sheet copy true (no 7 days; doses leave the log) — wording to approve, Approvals item 2.8 | Old copy | `01 G-4` (A-90) | DV-023 |
+| D05-5 | Delete sheet copy true (no 7 days; doses leave the log; the item stays in Recently deleted until deleted forever, AD-83) — wording to approve, Approvals item 2.8 | Old copy | `01 G-4` (A-90) | DV-023 |
 | D05-6 | Restart copy true for "same vial" (AD-09) — wording to approve, Approvals item 2.8 | Says zero doses | `01 G-20` | DV-024 |
 | D05-7 | Restore never re-activates an empty vial (DL-20) | Does | `01 D-18, G-21` | DV-022 |
 | D05-8 | "Deleted Nd ago" in local days (copy must be true) | ceil of hours | `01 D-19, G-22` | DV-023 |
-| D05-9 | What stops at the course end beyond reminders — pending OPEN-03 (Portuguese question 5) | Reminders only; "Day Y of Y" forever | `01 D-08, D-11, G-6` | DV-012 |
+| D05-9 | At the course end the app stops expecting doses everywhere and Today asks "Course complete — end {name}?" End / Continue (Continue removes the total); the total-doses field stays out of the form (AD-82, was OPEN-03) | Reminders only; "Day Y of Y" forever | `01 D-08, D-11, G-6` | DV-012 |
 | D05-10 | Curve and tile on the same run after restart (AD-18) | Can differ | `05 D1` | DV-067 |
 | D05-11 | Registry rows A-86/87/89 marked built | "Not started" | `01 G-15` (doc) | DV-176 |
 | D05-12 | Ended-row delete has the same effects as the page delete (vials off, delivered banners dismissed) | Only cancels reminders | verification 01 PRD-PROT-100; `ProtocolsScreen.js:1231-1247` vs `:2005-2027` | DV-216 |
@@ -252,13 +253,14 @@ R-47 Ended = active 0, not deleted; never auto-purged (A-83). R-48 inactivity en
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12; closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md`. The founder answered the whole round on 2026-10-15 ("siga as recomendações"), so no question of this flow is open. **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open questions that touch this flow (each waits for the founder):
+**Decided by the founder on 2026-10-15 (all questions answered):**
 
-- **OPEN-03** — What happens when a fixed course of doses ends, and whether "total doses" comes back to the form (Portuguese question 5). → P11, §6, §7.6, D05-9; DV-012.
-- **OPEN-04** — Should Recently deleted ever empty itself again after 1.3.0? (A-84) (Portuguese question 6). This flow had recommended resuming the purge for protocols deleted from 1.3.0 on (option B there); OPEN-DECISIONS recommends never purging automatically (option A), since "Delete forever" with multi-select exists. → P5, §7.4, R-54; DV-125.
-- **OPEN-05** — The 3-protocol free limit on the server and after Premium ends; Restart and Restore check it only on this phone (Portuguese question 7). → §7.11; DV-095.
+- **AD-82** (was OPEN-03) — at the end of a fixed course the app stops expecting doses everywhere (Today, Missed scan, curve, reminders) and Today asks "Course complete — end {name}?" (End / Continue; Continue removes the total); the total-doses field does not return to the form. → P11, §6, §7.6, D05-9; DV-012.
+- **AD-83** (was OPEN-04) — Recently deleted never empties itself; items stay until deleted forever; the delete notice says so. → P5, §7.4, R-54, D05-5, F05-07; DV-125.
+- **AD-84** (was OPEN-05) — as built: the limit stays a phone check; a lapsed payer keeps every active protocol but cannot add, restart or restore above 3. DV-095 closed. → §7.11.
+- **AD-78** (was OPEN-16 (a)) — scope rule: every DL and DV row of this flow has a target, 1.3.0 or 1.3.1, in DIVERGENCES.md and the registry.
 
 Items this flow relies on that moved in round 2 (decided — no question):
 
@@ -267,10 +269,10 @@ Items this flow relies on that moved in round 2 (decided — no question):
 - **DL-87** (A-86 / A-86b) — the inactivity end is dated at the last Taken dose; app-written Missed rows after it are removed on every phone. → §7.1, D05-3; DV-025.
 - **DL-88** (A-87 / A-87b) — End / Delete wins across devices, vials included. → §7.5, D05-4; DV-021.
 - **DL-89** (A-89) — Restore rules (before today → Ended; same day → Active under the limit, else Ended). → §7.4.
-- **DL-94** (was AD-50) — the automatic purge stays paused through 1.3.0; the "after" is OPEN-04. → P5, §7.4; DV-125.
+- **DL-94** (was AD-50) — the automatic purge stays paused through 1.3.0; the "after" is AD-83 (was OPEN-04): it never resumes. → P5, §7.4; DV-125.
 - **DL-20** — an empty vial is never put back in use (Restore DV-022; Restart "same vial" DV-236). → D05-7, D05-13.
 - **AD-09** — Restart "same container" moves it unchanged (founder decisions.md:614); its copy rewording is in Approvals. → §7.2, D05-6, D05-13.
-- **Approvals still owed** — item 2.8 (the delete sheet without "7 days", saying the doses leave the Dose log while deleted, DV-023; the Restart text per choice, DV-024), item 2.16 (error-sheet titles, DV-233); item 3 (the "End protocol" / "Later" picture, DV-090).
+- **Approvals still owed** — item 2.8 (the delete sheet without "7 days", saying the doses leave the Dose log while deleted and that the item stays until deleted forever (AD-83), DV-023; the AD-82 "Course complete" texts; the Restart text per choice, DV-024), item 2.16 (error-sheet titles, DV-233); item 3 (the "End protocol" / "Later" picture, DV-090).
 
 ## 13. Acceptance checks (agent-device QA script)
 
@@ -305,7 +307,7 @@ Account Test03; protocols created for the test only. Light and dark; PT via Sett
 
 **F05-07 — Delete from the page**
 - Do: open an active protocol → scroll to the bottom → **Delete** / "Excluir".
-- Expect sheet "Delete protocol" / "Excluir protocolo". Intended body (copy must be true, DV-023; wording to approve, Approvals item 2.8): no "7 days", says doses leave the Dose log while deleted. **Today:** "…recoverable for 7 days from Recently deleted…" — record D05-5.
+- Expect sheet "Delete protocol" / "Excluir protocolo". Intended body (copy must be true, DV-023; wording to approve, Approvals item 2.8): no "7 days", says doses leave the Dose log while deleted and that it stays in Recently deleted until deleted forever (AD-83). **Today:** "…recoverable for 7 days from Recently deleted…" — record D05-5.
 - Confirm → back to the list; section "Recently deleted" / "Excluídos recentemente" row counted in local calendar days (intended, DV-023: the same day never reads "1d ago"; the same-day words are not approved yet) — today "Deleted 1d ago" / "Excluído há 1d" (D05-8); Today card gone; Dose log rows of it hidden.
 
 **F05-08 — Same-day Restore → Active**

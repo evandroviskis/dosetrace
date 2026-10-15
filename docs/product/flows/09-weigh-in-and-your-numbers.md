@@ -7,7 +7,7 @@
 
 ## 1. Goal
 
-"Enter once, used everywhere" (A-54): the user's latest weigh-in is their current weight on every surface; sex and age come from the profile; one activity scale. From weight + height + age + sex the app shows an estimated daily burn (founder option A, signed PO-12) — measured once a reality check finishes (flow 08) — and a pure-math target ETA. Weigh-ins are never paywalled and never lost.
+"Enter once, used everywhere" (A-54): the user's latest weigh-in is their current weight on every surface; sex and age come from the profile; one activity scale. From weight + height + age + sex the app shows an estimated daily burn (founder option A, signed PO-12) — measured once a reality check finishes (flow 08), and the measured number shows whenever it exists (AD-93) — and a pure-math target ETA. Weigh-ins are never paywalled and never lost.
 
 ## 2. Actors
 
@@ -72,6 +72,7 @@ stateDiagram-v2
     [*] --> none
     none --> logged: Log today's weight, + Add a past weigh-in, Your numbers first weight or Save as today, reality-check start (empty day), finish (start day empty)
     logged --> logged: same-day save merges (weight wins, BF and waist kept unless given)
+    logged --> fixed: reality-check start with another number, after a confirmation (AD-90, intended - today the check keeps its own weight, DV-061)
     logged --> fixed: fix sheet Save (25 to 300 kg, BF 3 to 70, waist 30 to 250)
     fixed --> logged
     logged --> deleted: Delete weigh-in, confirm (not the open check's start day)
@@ -95,9 +96,9 @@ stateDiagram-v2
     NoBurn --> LegacyBurn: existing user with weight + body fat (kept, Complete your numbers)
     LegacyBurn --> Estimated: height, age and sex completed
     Estimated --> Measured: reality check result saved
-    NoBurn --> Measured: result saved with height, age or sex missing (only if OPEN-22 (a) = A - today hidden, DV-149)
+    NoBurn --> Measured: result saved with height, age or sex missing (intended, AD-93 - today hidden, DV-149)
     Measured --> Measured: newer result replaces (latest by date)
-    Measured --> Estimated: results deleted by Stop (flow 08, OPEN-08)
+    Measured --> Estimated: today only, Stop deletes every result (flow 08, DV-004 - intended Stop keeps earlier results, AD-91)
     Estimated --> Invalid: an input out of range (One of the inputs is out of range)
     Invalid --> Estimated: corrected
 ```
@@ -121,7 +122,8 @@ stateDiagram-v2
 - **Intended (AD-13: A-54, decisions.md:231; signed PO-12, PO-13, PO-25):** the latest weigh-in by date is the current weight everywhere (hero, Your numbers, daily burn, Journey tile, target), unless the user typed a weight in Your numbers on that day or later (then that typed weight, which also became a weigh-in through PO-14/PO-17).
 - **Divergence today (04 D-10):** after a same-day **fix** or a **delete**, the hero follows the weigh-ins while Your numbers and the daily burn keep the old weight (e.g. fix today 85 → 84: hero 84, burn from 85; delete today's 85: hero falls back, numbers keep 85).
 - **Divergence today (04 D-11; 08 D1):** the Journey tile shows the latest weigh-in but computes its daily burn from the saved Your-numbers weight. The two differ only when that saved weight is dated before the newest weigh-in (`weightAt` < newest; e.g. saved 86, newest weigh-in 80 → tile 2780 vs hero 2680); when the saved weight is dated on or after the newest weigh-in they agree.
-- **Waits for the founder — OPEN-22 (a) (Portuguese question 15 (a)):** today the measured burn is shown only when the formula gate passes (weight + height + age + sex); without it the Progress hero (`CalculatorSection.js:1189`, `:359`) and the Journey tile (`progressTile.js:42`, which returns before reading the checks) hide a measured number that exists, while the result view still prints it (`:1520`) — DV-149. The signed PO-12 ("Daily burn shows only when weight + height + age + sex all exist") and decisions.md:240 ("a measured maintenance becomes the hero number once it exists") read two ways for a measured number: option A shows it whenever a result exists (PO-12 amended with the founder's signature to gate only the estimate); option B keeps it hidden as built and signed. (Was AD-45, then DL-75 — withdrawn in round 2.)
+- **Intended (AD-93, was OPEN-22 (a); founder 2026-10-15):** the measured daily burn shows whenever a result exists — on the Progress hero and the Journey tile — even with height, age or sex missing; the signed PO-12 ("Daily burn shows only when weight + height + age + sex all exist") is amended to gate only the formula estimate, and the founder signs the amended row (Approvals still owed, item 7). This matches decisions.md:240 ("a measured maintenance becomes the hero number once it exists"). (Was AD-45, then DL-75 — withdrawn in round 2.)
+  - **Divergence today (D09-9, DV-149):** the measured burn is shown only when the formula gate passes (weight + height + age + sex); without it the Progress hero (`CalculatorSection.js:1189`, `:359`) and the Journey tile (`progressTile.js:42`, which returns before reading the checks) hide a measured number that exists, while the result view still prints it (`:1520`).
 - **Divergence today (04 D-12, low):** legacy snapshot rows without a weight: hero uses the typed weight, the tile the previous weigh-in; the "Since" line picks first/last of all rows vs weighed rows.
 - **Divergence today (05 D8, SUSPECTED minor):** the tile ignores a check whose tdee is not a number; the hero uses it as is.
 
@@ -135,7 +137,7 @@ stateDiagram-v2
 - Delete → "Delete this weigh-in?" / "{date} · {weight}. Your progress, your target and your reality check update without it. This can't be undone." → every row of that day tombstoned; never comes back by pull or another device's push.
 - Open check's start day: no Delete; note "This weigh-in starts your reality check, so it can be fixed but not deleted." (also refused below the UI).
 - A newer weigh-in typed on another phone is never dropped because the same day was deleted elsewhere — re-inserted (DL-90, was A-92).
-- **Divergence today (DV-182, DV-222; when the fix ships = OPEN-16 (b), Portuguese question 1 (b)):** a weigh-in deleted on phone A stays on phone B, which already holds it (the cloud delete is a hard delete B never hears of; "never comes back" holds only for A's own pull); and once B pushes any weigh-in, weigh-ins A pushed earlier and B has not pulled yet are skipped by B's pull for good (DV-222). Intended: every weigh-in and every delete reaches every device (AD-02).
+- **Divergence today (DV-182, DV-222; fix = AD-77 / A-119 (one active device per account, decided 2026-10-15)):** a weigh-in deleted on phone A stays on phone B, which already holds it (the cloud delete is a hard delete B never hears of; "never comes back" holds only for A's own pull); and once B pushes any weigh-in, weigh-ins A pushed earlier and B has not pulled yet are skipped by B's pull for good (DV-222). Intended: every weigh-in and every delete reaches every device (AD-02); with one active device per account (AD-77) the replaced phone wipes its copy and the taking-over phone rebuilds from the server (DL-104), so a deleted weigh-in cannot come back and no pull skips a row.
 
 ### 7.4 Your numbers form (PO-11)
 - Metric / Imperial; Weight; Height; Age (locked while the profile has a birth year); Sex (Male / Female bar, neither preselected; saved to the profile); Body fat (%) optional + source pills (DEXA scan / Gym scan / Calipers / Home scale / I don't know) with error hints; Waist optional with its hint; Activity level (5 levels). Prompt until a burn exists: "Weight, height, age and sex give your daily burn. Body fat and waist make it sharper."
@@ -145,7 +147,7 @@ stateDiagram-v2
 ### 7.5 Target
 - "Set a target" / Edit → weight and/or body-fat target, optional date; Remove target asks first ("Remove target? This clears your goal. Your weigh-ins and history are kept.").
 - ETA needs a weigh-in series spanning ≥ 14 days and a pace ≥ 0.1 / week: "~{weeks} weeks to go · around {when}, if this pace holds"; "Moving away from this target at your current pace — no timeline yet."; "Log two weigh-ins about two weeks apart…"; a neutral healthy-range fact line (decisions.md:241). The line for a target under that range ("This target is below the healthy range for your height ({min}–{max} {unit})." / "Esta meta está abaixo da faixa saudável…") still says "healthy range" although it states the range; rewording it without "healthy range" is wording to approve (Approvals still owed, item 2.10; DV-192).
-- The ETA is labelled with its weigh-in window (decisions.md:241) and has no staleness cutoff as built. Whether an old window should still drive the estimate is **OPEN-22 (b)** (Portuguese question 15 (b); was DL-68).
+- The ETA is labelled with its weigh-in window (decisions.md:241) and has no staleness cutoff. **Decided as built (AD-94, was OPEN-22 (b); was DL-68):** the goal forecast always shows, always naming its weigh-in period.
 - Measured ETA is Premium: "Unlock Premium to project a timeline from your measured pace." Setting the target and the bar are free.
 
 ### 7.6 Weekly check-in
@@ -199,7 +201,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R-P1 daily burn needs weight + height + age + profile sex; BF sharpens (option A, PO-12). R-P2 ranges age 10–120, height 100–250, weight 25–300, BF 3–70. R-P3 age and sex from the profile only (S-04). R-P4 newest stamped activity wins. R-P5 A-101e weight adoption. R-P6 weigh-ins never paywalled; one row per local day, merged (A-53, FX-15). R-P7 target ETA ≥ 14-day series and ≥ 0.1 / week; measured ETA Premium. R-P8 weekly check-in Sunday 10:00. PO-14…PO-17 weight change asks first / first weigh-in. PO-19…PO-26 fix / delete. (`04 §4`, progress-one-card.md.)
+R-P1 the estimated daily burn needs weight + height + age + profile sex; BF sharpens (option A, PO-12); a measured burn shows whenever it exists (AD-93, PO-12 amended). R-P1b the target ETA always shows, naming its weigh-in period (AD-94). R-P2 ranges age 10–120, height 100–250, weight 25–300, BF 3–70. R-P3 age and sex from the profile only (S-04). R-P4 newest stamped activity wins. R-P5 A-101e weight adoption. R-P6 weigh-ins never paywalled; one row per local day, merged (A-53, FX-15). R-P7 target ETA ≥ 14-day series and ≥ 0.1 / week; measured ETA Premium. R-P8 weekly check-in Sunday 10:00. PO-14…PO-17 weight change asks first / first weigh-in. PO-19…PO-26 fix / delete. (`04 §4`, progress-one-card.md.)
 
 ## 11. Divergences today (summary)
 
@@ -212,24 +214,26 @@ R-P1 daily burn needs weight + height + age + profile sex; BF sharpens (option A
 | D09-5 | Weekly check-in exact | Repeating trigger | `03 G27` | DV-055 |
 | D09-6 | `calc_inputs` merges per field across devices (DL-29) | Whole payload last writer | `04 §7` (SUSPECTED) | DV-010 |
 | D09-7 | Tile and hero agree on a non-numeric tdee (AD-13) | Differ | `05 D8` (SUSPECTED) | DV-063 |
-| D09-9 | Per OPEN-22 (a): a measured burn shows with height, age or sex missing (option A), or stays hidden (option B, as built and signed) | Hidden on the Progress hero and the Journey tile; shown in the result view | `04 §6.6` | DV-149 |
-| D09-10 | Every weigh-in and every delete reaches every device (AD-02; timing = OPEN-16 (b)) | A deleted weigh-in stays on the other phone; a weigh-in can be skipped by the other phone's pull | TRD §3.9 H-1; verification round 2 R2-06 M-1 | DV-182, DV-222 |
+| D09-9 | A measured burn shows whenever it exists, also with height, age or sex missing; PO-12 gates only the estimate (AD-93; amended row signed by the founder) | Hidden on the Progress hero and the Journey tile; shown in the result view | `04 §6.6`; AD-93 | DV-149 |
+| D09-10 | Every weigh-in and every delete reaches every device (AD-02; fix = AD-77 / A-119 (one active device per account, decided 2026-10-15)) | A deleted weigh-in stays on the other phone; a weigh-in can be skipped by the other phone's pull | TRD §3.9 H-1; verification round 2 R2-06 M-1 | DV-182, DV-222 |
 | D09-11 | The below-range target line states the range without "healthy range" (wording = Approvals item 2.10) | "This target is below the healthy range for your height (…)" | decisions.md:544 (A-90) | DV-192 |
 
 (D09-8 — "past weigh-in lower date bound" — removed: DL-73 withdrawn, DV-194 closed; the wheel already stops 10 years back, `lib/wheelPick.js:16`. No divergence.)
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 and closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open — waiting for the founder:
+**Decided by the founder on 2026-10-15 (all questions answered):**
 
-- **OPEN-22 (a)** — Does a MEASURED daily burn show on the Progress hero and the Journey tile when height, age or sex is missing? (Portuguese question 15 (a); was AD-45, then DL-75, withdrawn.) §7.1, §6.2, D09-9 → DV-149.
-- **OPEN-22 (b)** — Should the target's finish-date estimate stop showing when its weigh-in window is old? (Portuguese question 15 (b); was DL-68.) §7.5. No DV (as built = option A).
-- **OPEN-08** — Should Stop erase earlier results (Portuguese question 13): today Stop turns the hero back from Measured to Estimated (§6.2). Flow 08 D08-9 → DV-004.
-- **OPEN-16 (b)** — When the sync hardening ships (Portuguese question 1 (b)). D09-10 → DV-182, DV-222.
+- **AD-93** (was OPEN-22 (a), Q 15 (a); was AD-45, then DL-75, withdrawn) — the measured daily burn shows whenever it exists (Progress hero + Journey tile); the Progress checklist row PO-12 limits only the formula estimate — amended row, the founder signs it. §1, §6.2, §7.1, R-P1, D09-9 → DV-149.
+- **AD-94** (was OPEN-22 (b), Q 15 (b); was DL-68) — as built: the goal forecast always shows, always naming its weigh-in period. §7.5, R-P1b. No DV (as built).
+- **AD-91** (was OPEN-08, Q 13) — "Stop the check" appears only while a check is running and ends only that check; earlier results stay, so Stop no longer turns the hero back from Measured to Estimated (§6.2). Flow 08 D08-9 → DV-004.
+- **AD-90** (was OPEN-07, Q 12) — the reality check's start weight IS that day's weigh-in; typing another number in the start sheet updates the weigh-in, with a confirmation (§6.1). Flow 08 D08-8 → DV-061.
+- **AD-77** (was OPEN-16 (b), Q 1 (b)) — one active device per account (A-119): fix for the weigh-in that stays or is skipped on the other phone. §7.3, D09-10 → DV-182, DV-222.
+- **AD-78** (was OPEN-16 (a), Q 1 (a)) — every DV row of this flow has a written target (1.3.0 or 1.3.1) in `docs/review/features.md`.
 
-Decided — what this flow relies on (moved in round 2):
+Decided earlier — what this flow relies on (moved in round 2):
 
 - **DL-90** (was A-92) — a newer weigh-in typed on another phone is re-inserted when the same day was deleted elsewhere (§7.3).
 - Wording to approve: the below-range target line without "healthy range" (Approvals still owed, item 2.10; D09-11 → DV-192).
@@ -251,6 +255,7 @@ Account Test03. Light and dark; PT via Settings → Preferências → Idioma. Sc
 **F09-03 — Daily burn appears (option A)**
 - Do: height 181, sex Male (age locked from profile).
 - Expect: hero "Daily burn (TDEE)" / "Gasto diário (TDEE)" number + chip "Estimated" / "Estimado"; formula line; "Your daily plan" / "Seu plano diário" appears; Journey tile shows weight + burn + Estimated.
+- Then (AD-93): with a saved reality-check result, clear height. Expect (intended): the Progress hero and the Journey tile still show the measured burn with chip "Measured" / "Medido"; only the estimate line needs the four numbers. **Today:** both hide it — record D09-9 (DV-149).
 
 **F09-04 — Sex gate**
 - Setup: profile without sex (test only).

@@ -33,8 +33,8 @@
 | P1 | Started the compound weeks before installing | Curve estimates from the start date; dashed vertical marker + "Before {date}: estimated from your start date" when the creation day is in the window (A-30 option C, decisions.md:198; the dashed curve approved as built, decisions.md:516); with `history_from` nothing before that day. Look-back before creation: **intended (DL-78)** max(180 days, 5 × t½), no extra note, pharmacometrician check; today the model looks back max(16 days, shown window + 2, 6 × t½) capped at 600 days (`serumModel.js:97-99`), which already includes every dose DL-78 asks for (Testosterone Undecanoate: 540 days ≥ 450) — no divergence. |
 | P2 | Ended a protocol last month | Offered "· ended" for 365 days after the end; decays after the end day. |
 | P3 | Ended then restarted | Two runs; same-substance runs can form a Combined total; **tile and curve must show the same run** (D1). |
-| P4 | Edited the dose mid-cycle | Today one current dose is applied to every past and future dose (history rewritten) — pending **OPEN-10** (Portuguese question 16), DV-005. |
-| P5 | Skipped or missed doses | Today still counted (schedule-driven, disclaimer says "planned schedule", AD-19) — pending **OPEN-11** (Portuguese question 17; registry A-31, pharmacometrics review), DV-072. |
+| P4 | Edited the dose mid-cycle | **Intended (AD-95, was OPEN-10):** from now on every protocol change is stored with the date it took effect, and past dates use the old values (existing protocols start as one version; pharmacometrics review). If that is not right in time for 1.3.0, the interim (A) ships — a notice on the curve that it "uses your current dose for past dates" — and the founder is told explicitly. **Today:** one current dose is applied to every past and future dose (history rewritten), with no notice — DV-005. |
+| P5 | Skipped or missed doses | **Intended (AD-96, was OPEN-11; registry A-31):** 1.3.0 — the curve stays planned (disclaimer "planned schedule", AD-19) and skipped / missed dose ticks are drawn hollow; the number does not change. After the pharmacometrics review, past = completed doses only — founder-deferred to 1.3.1. **Today:** they still count and their ticks look like any other — DV-072. |
 | P6 | Oral only | Empty state; orals never named (G6). |
 | P7 | Insulin, IGF-1 LR3, Dihexa… (excluded) | Named as "Not charted: … There is no reliable half-life data…". |
 | P8 | IU dose of a mass compound | "Not charted: {names}. Edit the dose to mg to chart it (IU for HGH, HCG, HMG and FSH)." |
@@ -56,7 +56,7 @@ flowchart TD
   E -->|yes, a charted protocol| G["Tile: dot, name, Est. level number + unit, Estimated chip"]
   G --> H["Tap: Dose accumulation screen (phone push / Fold right page)"]
   H --> I["Restore last view: remembered compounds, Combined, horizon"]
-  I --> J["Opening: 2.4 s draw of the past, Now rises, projection dashed, dose ticks (today on every open, replay rule pending OPEN-18 (4))"]
+  I --> J["Opening: 2.4 s draw of the past, Now rises, projection dashed, dose ticks, skipped / missed ticks hollow (AD-96); the draw plays once per session (AD-106; today on every open)"]
   J --> K["Hero Est. level now + Estimated chip, stats Est. level, Half-life, Doses counted"]
   K --> L["Change compounds / Combined / Project ahead +7..+90 d / Estimate on a date"]
   L --> M["Saved view, notify curve changed: Journey tile reloads the same compound"]
@@ -74,7 +74,8 @@ stateDiagram-v2
     Loading --> Empty: no charted protocol (reasons listed, orals silent today)
     Loading --> Chart: at least one charted
     state Chart {
-        [*] --> Intro: every open today, replay rule pending OPEN-18 (4)
+        [*] --> Intro: first open in this session (AD-106) - today every open, DV-132
+        [*] --> Settled: already drawn this session (AD-106, intended)
         Intro --> Settled: 4.8 s, tap, Reduce Motion, any change
         Settled --> Settled: toggle compound, horizon, combined, readout date
     }
@@ -141,8 +142,9 @@ stateDiagram-v2
 - **Divergence today (05 G8; verification 05 O-2):** copy still says "log doses to see your curve" / "compound amounts you logged" although the model is schedule-driven. Two more live strings say the same in all 6 languages: `paywall_hero_sub` ("Dose-accumulation curves from your own log…", `PaywallScreen.js:278`) and `settings_premium_feat_1` ("Dose accumulation curve from your own log", PT "a partir do seu próprio registro", `SettingsScreen.js:642`) — contradicts AD-19 (planned schedule). The four rewordings ×6 are a wording approval (Approvals still owed item 2.1). → DV-071 (the two Paywall / Settings strings were DV-212, merged into it).
 - **Divergence today (05 G6):** orals are dropped before the "not charted" reasons, so they are silently absent although the screen promises compounds are "named on screen, never dropped silently" (AD-20). → DV-155.
 - **Divergence today (05 G7):** `substance_boldenone` missing in all 6 languages (a Boldenone Combined total would show the raw key). → DV-070.
-- **Pending OPEN-18 (1) (Portuguese question 23 (a); was DL-32) — blend lines (05 G10):** the founder's line decisions.md:205 (2026-09-18 / 2026-09-24) says blend components are dashed "(est.)" lines; the code draws them like any compound (solid past, dashed future) and shows the "(est.)" label. Keep as built or change is his pick, from two pictures (as built | dashed). → DV-156.
-- **Pending OPEN-18 (4) (Portuguese question 23 (d)) — the opening draw-in:** Motion "Version B" with the serum-curve draw-in was approved (decisions.md:74); whether it plays on every open or once per session is not decided (Conflict 40, decisions.md:441). Today it plays each time the screen opens (`SerumCurveScreen.js:548-551`, `introPlayedRef` per mount), 4.8 s, skipped by a tap, any change or Reduce Motion. → DV-132.
+- **Blend lines — decided as built (AD-103, was OPEN-18 (1); was DL-32; 05 G10):** the founder's line decisions.md:205 (2026-09-18 / 2026-09-24) said blend components are dashed "(est.)" lines; the founder keeps them as built — solid past, dashed future, the "(est.)" label — with pictures to confirm (Approvals still owed, item 3). DV-156 closed (accepted as built).
+- **The opening draw-in (AD-106, was OPEN-18 (4)):** Motion "Version B" with the serum-curve draw-in was approved (decisions.md:74); the founder decided on 2026-10-15 (closing Conflict 40, decisions.md:441) that the curve draws itself once per session, numbers count up only when a value changes, and "All done for today" and the day-complete pulse stay. 4.8 s, skipped by a tap, any change or Reduce Motion.
+  - **Divergence today (DV-132):** the draw-in plays each time the screen opens (`SerumCurveScreen.js:548-551`, `introPlayedRef` per mount).
 - **"Estimate on a date" wheel:** intended (DL-35) the wheel goes back 365 days (today 10 years, DV-158); the Combined row follows the same 365-day rule (DV-207). On Android the founder's line keeps the native date dialog for the curve date (decisions.md:48); today "Other date" opens the DTWheel sheet on Android too (`SerumCurveScreen.js:1079-1084`). → DV-234.
 
 ### 7.2 Tile = curve (MB-4)
@@ -206,11 +208,11 @@ stateDiagram-v2
 | Readout date | none (never remembered) | — |
 | Change | event `notifyDataChanged('curve')` | Journey reloads |
 | Analytics | Body / Log `viewed('serum_curve')`; Journey none (G12) | anonymous |
-| Nothing else | the curve reads `protocols`, `biomarkers.report_date` (chips); never `dose_logs` | — |
+| Nothing else | the curve reads `protocols`, `biomarkers.report_date` (chips); today never `dose_logs`. Intended: the skipped / missed status of each past dose for the hollow ticks (AD-96, 1.3.0; the number still from the plan) and each protocol change's dated values (AD-95) | — |
 
 ## 10. Rules (with sources)
 
-R1–R6 which protocols are charted (recon/rtu, blends, exclusions, ended ≤ 365 d). R7–R9 units. R10–R16 schedule-driven doses, fixed slots (today; intended the user's own times, DL-31), calendar stepping, look-back (DL-78 before creation), history_from. R17–R25 math, ticks, labels. R26–R30 window (3 days default) and horizon (7 default; 7/14/30/60/90). R31–R36 styling (solid past, dashed projection, ink Combined, estimated marker, readout marker, opening motion with Reduce Motion — its replay rule pending OPEN-18 (4)). R37–R40 remembered view. R41–R43 Premium. R44–R47 disclaimers and honesty. R48–R51 PK hard lines (no interpretation, sex-neutral, insulins excluded, never "your level will be"). R52–R54 Journey tiles. (`05 §4`.)
+R1–R6 which protocols are charted (recon/rtu, blends, exclusions, ended ≤ 365 d). R7–R9 units. R10–R16 schedule-driven doses, fixed slots (today; intended the user's own times, DL-31), calendar stepping, look-back (DL-78 before creation), history_from. R17–R25 math, ticks, labels. R26–R30 window (3 days default) and horizon (7 default; 7/14/30/60/90). R31–R36 styling (solid past, dashed projection, ink Combined, estimated marker, readout marker, opening motion with Reduce Motion — once per session, AD-106). R16b each protocol change is dated and the past uses the old values (AD-95; interim notice A if needed). R17b skipped / missed ticks drawn hollow, the number unchanged (AD-96, 1.3.0; completed doses only after review, 1.3.1). R37–R40 remembered view. R41–R43 Premium. R44–R47 disclaimers and honesty. R48–R51 PK hard lines (no interpretation, sex-neutral, insulins excluded, never "your level will be"). R52–R54 Journey tiles. (`05 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -230,22 +232,23 @@ R1–R6 which protocols are charted (recon/rtu, blends, exclusions, ended ≤ 36
 | D10-12 | Journey tile waits while Premium is unknown (DL-34) | Premium tag; a tap goes to the Paywall | `05 D7` | DV-154 |
 | D10-13 | "Now" moves with the clock on an open curve | Frozen until something changes | `05 E19` | DV-148 |
 | D10-14 | Android curve date uses the native date dialog (decisions.md:48) | DTWheel sheet on Android | verification round 2 R2-03 #24 | DV-234 |
-| D10-15 | Pending OPEN-18 (1) (question 23 (a)): blend lines as built or dashed (decisions.md:205) | Drawn like any compound, "(est.)" label | `05 G10` | DV-156 |
-| D10-16 | Pending OPEN-18 (4) (question 23 (d)): curve draw-in on every open or once per session | Every open | decisions.md:74, :441 (Conflict 40) | DV-132 |
-| D10-17 | Pending OPEN-10 (question 16): a dose edit does not rewrite the past | Current dose applied to every past dose | `05 E4, G13` (F2) | DV-005 |
-| D10-18 | Pending OPEN-11 (question 17): skipped / missed doses and the curve | Schedule-driven, they still count | `05 E5, G13` (A-31) | DV-072 |
+| D10-15 | Blend lines kept as built (AD-103; pictures to confirm) | Drawn like any compound, "(est.)" label — no divergence; closed | `05 G10`; AD-103 | DV-156 (closed) |
+| D10-16 | The curve draws itself once per session; counts only when a value changes (AD-106) | Every open | decisions.md:74, :441 (Conflict 40); AD-106 | DV-132 |
+| D10-17 | Every protocol change is stored with the date it took effect; the past uses the old values (AD-95; interim A, the notice "uses your current dose for past dates", if B is not right in time) | Current dose applied to every past dose, no notice | `05 E4, G13` (F2); AD-95 | DV-005 |
+| D10-18 | 1.3.0: skipped / missed dose ticks drawn hollow, the number unchanged; 1.3.1 after the pharmacometrics review: past = completed doses only (AD-96) | Schedule-driven, they still count; ticks look like any other | `05 E5, G13` (A-31); AD-96 | DV-072 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12 (round 2): every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there; its question number is given), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 (round 2) and closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open — waiting for the founder:
-- **OPEN-10** — Should a dose change rewrite the past curve? (Portuguese question 16.) D10-17, P4 → DV-005.
-- **OPEN-11** — Should skipped and missed doses lower the curve? (Portuguese question 17.) D10-18, P5 → DV-072.
-- **OPEN-18 (1)** — Blend component lines: keep as built or dashed "(est.)" (decisions.md:205), from two pictures. (Portuguese question 23 (a); was DL-32.) D10-15 → DV-156.
-- **OPEN-18 (4)** — Ring and curve intro animation: the curve draw-in on every open or once per session. (Portuguese question 23 (d); was AD-44.) D10-16 → DV-132.
+**Decided by the founder on 2026-10-15 (all questions answered):**
+- **AD-95** (was OPEN-10, Q 16) — from now on every protocol change is stored with the date it took effect and the past uses the old values (existing protocols start as one version; pharmacometrics review); if that is not right in time, A — a notice on the curve "uses your current dose for past dates" — ships as the interim and the founder is told explicitly. P4, D10-17 → DV-005.
+- **AD-96** (was OPEN-11, Q 17; registry A-31) — 1.3.0: the curve stays planned, skipped / missed dose ticks drawn hollow (the number does not change); after the pharmacometrics review, past = completed doses only — founder-deferred to 1.3.1. P5, D10-18 → DV-072.
+- **AD-103** (was OPEN-18 (1), Q 23 (a); was DL-32) — blend component lines kept as built (solid past, dashed future, "(est.)"); pictures to confirm (Approvals still owed, item 3). D10-15 → DV-156 (closed, accepted as built).
+- **AD-106** (was OPEN-18 (4), Q 23 (d); was AD-44) — animation: count up only when a value changes; keep "All done for today" and the day-complete pulse; the curve draws itself once per session. §6.1, §7.1, D10-16 → DV-132.
+- **AD-78** (was OPEN-16 (a), Q 1 (a)) — every DV row of this flow has a written target (1.3.0 or 1.3.1) in `docs/review/features.md`.
 
-Decided — what this flow relies on (round-2 final ids):
+Decided earlier — what this flow relies on (round-2 final ids):
 - **AD-18** — tile, My Body card and curve show the same compound and number (D10-1, D10-2, D10-3).
 - **AD-19** — the curve follows the planned schedule and never says "logged" (D10-9); the four strings reworded ×6 are **Approvals still owed item 2.1** (DV-071, which absorbed DV-212).
 - **AD-20** — not-charted compounds are named (D10-7).
@@ -274,7 +277,9 @@ Account Test03 with a temporary Premium promo; protocols **Testosterone Cypionat
 - Expect: tile dot + "Testosterone Cypionate" + "Est. level" / "Nível est." + number + "mg" + "Estimated" / "Estimado". Tap → the curve hero "Est. level · now" / "Nível est. · agora" shows the same number (same decimals).
 
 **F10-04 — Opening and honesty**
-- Expect: past draws in (today on every open; the replay rule is pending OPEN-18 (4) — record what you see), "Now" / "Agora" line, dashed shaded projection, dose ticks under the axis; axis "−3d · Now · +7d" (PT "−3d · Agora · +7d"); source card with tier "Clinical data" / "Dados clínicos" and the Tmax note; disclaimer at the bottom mentions "your planned schedule". With Reduce Motion: final frame at once.
+- Expect: past draws in on the first open of the session; leave and reopen → intended (AD-106) the chart appears settled at once; **today** it draws again on every open — record D10-16 (DV-132); "Now" / "Agora" line, dashed shaded projection, dose ticks under the axis; axis "−3d · Now · +7d" (PT "−3d · Agora · +7d"); source card with tier "Clinical data" / "Dados clínicos" and the Tmax note; disclaimer at the bottom mentions "your planned schedule". With Reduce Motion: final frame at once.
+- Also (AD-96): mark one BPC-157 dose of the last 3 days Skipped (flow 03). Expect (intended, 1.3.0): its tick is hollow and "Est. level · now" is unchanged. **Today:** the tick looks like any other — record D10-18 (DV-072).
+- Also (AD-95): change BPC-157 from 250 to 500 mcg today. Expect (intended): the past 3 days still use 250 mcg; with interim A instead, the curve shows the notice that it uses the current dose for past dates. **Today:** the whole past is redrawn at 500 mcg with no notice — record D10-17 (DV-005).
 
 **F10-05 — Remembered view**
 - Do: picker "Choose compounds" / "Escolher compostos" → keep only BPC-157 → Done; horizon +30; leave; reopen.

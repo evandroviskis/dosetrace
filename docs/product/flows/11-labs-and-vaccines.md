@@ -33,11 +33,11 @@ My Body is the user's own health-record journal: lab values and vaccine records,
 | P2 | Scanned two pages of one report separately | One journal card; the hub count must match (MB-2 — D-3). |
 | P3 | Scanned the same report twice | Duplicate card (deletable alone); vaccines duplicated (no dedupe). |
 | P4 | Report date unreadable | Today's LOCAL date used and flagged ("The report date couldn't be read, so today's date was used…"). |
-| P5 | AI read DD/MM the wrong way | Saved silently; the user must fix each value's date (no "change the test date" action — G-8; whether to add one is pending OPEN-14 (c), Portuguese question 20 (b)). |
+| P5 | AI read DD/MM the wrong way | Saved silently; the user must fix each value's date (no "change the test date" action — G-8). "Change this lab's date" (moves every value of the test at once) is decided, founder-deferred to 1.3.1, picture first (AD-100). |
 | P6 | Used 3 free scans this month | "Monthly scan limit reached" with the server's number; typing by hand intended (AD-68; not built today, D11-1). |
 | P7 | Premium lapsed with 10 scans used | Next scan → free cap 3 → refused ("your 3 scans"). |
 | P8 | New phone / reinstall | Records re-imported; hub count may inflate (biomarker `created_at` not synced — D-3.2); AI consent asked again. |
-| P9 | Last panel 7 months ago | Today "Bloodwork due · It's been 7 months since your last panel" (as built; whether the app keeps saying "due" is pending OPEN-13, Portuguese question 19). |
+| P9 | Last panel 7 months ago | Intended (AD-98): the same trigger with a fact-only text "Your last lab was 7 months ago" — no "due"; the regulatory reviewer checks the wording. Today "Bloodwork due · It's been 7 months since your last panel" (DV-111). |
 | P10 | Vaccine with a next-due date in the past | Drops off the hub line; still on the card. |
 | P11 | Second account on the same phone | Inherits AI consent today (07 D-18). Intended (DL-55): consent per account, with version and date, cleared on sign-out (D11-11). |
 
@@ -57,7 +57,7 @@ flowchart TD
   G -->|200, values| J["Auto-save: one row per marker, same report date, same batch"]
   J --> K["Report imported: count markers saved, date, fallback line if date unreadable, skipped line"]
   K --> L["Card per test (By date) or per marker (By marker), marker page: Latest, 56 pt number, readings, chart with 2+"]
-  L --> M["Today Bloodwork due recomputed, curve gets a bloodwork date chip"]
+  L --> M["Today last-lab alert recomputed (AD-98), curve gets a bloodwork date chip"]
 ```
 
 ### 5.1 Vaccine by hand
@@ -152,9 +152,9 @@ stateDiagram-v2
 ### 7.2 Charts and Premium
 - **AD-24 (decisions.md:268, 2026-09-30; MB-10 copy):** lab charts are Premium; the free card even says "Premium charts every one over time".
   - **Divergence today (06 D-8, G-2):** the marker chart renders for every user with 2+ readings. Gating it takes away a feature free users see today, so the locked marker screen is an approved picture still owed (Approvals still owed item 3; 07 X-11); the signed MB-16 is amended with the founder's signature in the same change. → DV-108.
-- **The chart itself (06 §8 E-7, E-8):** decided by logic DL-43 — one line per unit, points spaced by date; the new chart is OPEN-24 item 4 (Portuguese question 2), picture first. → DV-080.
+- **The chart itself (06 §8 E-7, E-8):** decided by logic DL-43 — one line per unit, points spaced by date; the new chart goes ahead, approved in its picture first (AD-79 item 4, was OPEN-24 item 4). → DV-080.
 - Scans: decision A (founder, decisions.md:276, 2026-10-03) — 3 free scans a month for every kind; no client gate; every scan asks the server; refused scan shows the server's limit (A-60, decisions.md:105). The free card says the 3 free scans until there are markers, then "You've scanned {n} markers. Premium charts every one over time…" (decisions.md:276; MB-10). Premium strings carry no scan number (AD-69, decisions.md:104). PDF export Premium (checked at the action with a fresh `hasPremium()`), CSV free.
-- **Today (06 G-9; corrected in round 2, R2-05):** free users see the limit (3 a month) only until their first lab scan that yields values — on the empty journal (`blood_empty_sub`, only while there are no rows, `BodyScreen.js:1115-1120`) and on the free card (`blood_first_free`, only while there are no markers, `:1104-1107`); after that the lab journal shows no limit and never the used / left count, and the limit appears only on the paywall and in the FAQ. The user learns the month is used up only when a scan is refused. Whether to show the scans used this month is pending **OPEN-14 (b)** (Portuguese question 20 (a)). → DV-110.
+- **Today (06 G-9; corrected in round 2, R2-05):** free users see the limit (3 a month) only until their first lab scan that yields values — on the empty journal (`blood_empty_sub`, only while there are no rows, `BodyScreen.js:1115-1120`) and on the free card (`blood_first_free`, only while there are no markers, `:1104-1107`); after that the lab journal shows no limit and never the used / left count, and the limit appears only on the paywall and in the FAQ. The user learns the month is used up only when a scan is refused. **Decided (AD-99, was OPEN-14 (b)):** show the scans used this month — founder-deferred to 1.3.1, picture first (for Premium without the limit number, AD-69). → DV-110.
 - **Divergence today (DV-237):** a Premium user with an empty lab journal sees the free plan's line "…You get 3 free scans a month (labs, vaccine cards and vials combined)." (`BodyScreen.js:1115-1120`, no Premium check) — against AD-69 (the free number is never shown to Premium). The Premium line without a number is a wording approval (Approvals still owed item 2.17).
 - **Divergence today (06 G-10):** a 200 with zero usable values is counted although "failed extractions are not counted" (AD-23, decisions.md:275). → DV-078.
 
@@ -175,8 +175,8 @@ stateDiagram-v2
 - Edit value: marker, value + unit, test date (≤ today, 30 years back); value read with `parseMeasure` (comma = decimal for lab values in every language).
 - **Divergence today (06 D-11, CONFIRMED by verification 05 in node):** a scan string "1,025" is read as 1025 (`validateExtraction`, English grouping rule) while the edit sheet reads 1.025 (`parseMeasure`). Intended: DL-40 (`parseMeasure` on every path). → DV-076.
 - **Divergence today (06 §8 E-6, D-1 note; CONFIRMED by verification 05: report_date 2099-01-01 passes `validateExtraction` with no fallback flag):** a future report date from the document is accepted and hides the Bloodwork due alert. Intended: AD-22 (test dates cannot be in the future). → DV-077.
-- **Not built (06 G-8):** no "change this test's date" — fixing a wrong DD/MM means editing every value (`BodyScreen.js:673`). Whether to add it is pending **OPEN-14 (c)** (Portuguese question 20 (b)). → DV-110.
-- **Divergence today (06 §8 E-7, E-8):** mixed units for one marker plotted on one axis; the chart's x-axis is by index, not time (neutral, no bands, by the hard line). Intended: DL-43; the chart = OPEN-24 item 4 (§7.2). → DV-080.
+- **Not built (06 G-8):** no "change this test's date" — fixing a wrong DD/MM means editing every value (`BodyScreen.js:673`). **Decided (AD-100, was OPEN-14 (c)):** "Change this lab's date", moving every value of the test at once — founder-deferred to 1.3.1, picture first. → DV-110.
+- **Divergence today (06 §8 E-7, E-8):** mixed units for one marker plotted on one axis; the chart's x-axis is by index, not time (neutral, no bands, by the hard line). Intended: DL-43; the chart = AD-79 item 4, picture first (§7.2). → DV-080.
 - **Divergence today (DV-235):** the summary's skipped line uses "(s)": "value(s) couldn't be read as numbers and were skipped." / PT "valor(es) não puderam ser lidos como números e foram ignorados." (`blood_dropped_sub`); plurals instead of "(s)" are a wording approval (Approvals still owed item 2.15).
 
 ### 7.6 Vaccines
@@ -188,8 +188,9 @@ stateDiagram-v2
 - No vaccine due alert or notification (out of scope — never advice; G-11).
 
 ### 7.7 Bloodwork due
-- Shown when the newest report date is ≥ 182 days old: "Bloodwork due" / "It's been {months} months since your last panel" (months = max(6, round(days / 30))); tap → Lab test journal; snooze Tomorrow / In 3 days. None when no lab was ever logged.
-- **Pending OPEN-13 (Portuguese question 19; 06 G-13):** a fixed 6-month interval chosen by the app — not interpretation, but a schedule the user did not set; regulatory-reviewer look recommended. Keeping it as is keeps an app-chosen timing recommendation the user never set (regulatory risk) — not a neutral option (07 Q-04). → DV-111.
+- Shown when the newest report date is ≥ 182 days old (months = max(6, round(days / 30))); tap → Lab test journal; snooze Tomorrow / In 3 days. None when no lab was ever logged.
+- **Intended (AD-98, was OPEN-13; 06 G-13):** the alert keeps its trigger with a fact-only text "Your last lab was {months} months ago" — no "due", nothing the app decided is owed; the regulatory reviewer checks the wording; texts ×6 (Approvals still owed, item 2).
+  - **Divergence today (D11-17, DV-111):** "Bloodwork due" / "It's been {months} months since your last panel" (PT "Exame de sangue pendente") — an app-chosen schedule the user never set (07 Q-04).
 
 ### 7.8 Offline / killed / second device
 - Scans need the network; values edited offline save locally and sync. Killed during a scan: nothing saved (server may have counted it).
@@ -227,7 +228,7 @@ stateDiagram-v2
 | Limit | — | "Monthly scan limit reached" sheet | same | — |
 | Service down | — | "Scan service unavailable · …please try again in a little while." | same | — |
 | Vaccine with future due | "Next due: {name} · {date}" | — | card shows Next due | — |
-| Newest test ≥ 182 days | — | — | — | "Bloodwork due · It's been {months} months since your last panel" |
+| Newest test ≥ 182 days | — | — | — | intended (AD-98) "Your last lab was {months} months ago" (no "due"); today "Bloodwork due · It's been {months} months since your last panel" (DV-111) |
 
 ## 9. Data written at each step
 
@@ -245,7 +246,7 @@ stateDiagram-v2
 
 ## 10. Rules (with sources)
 
-R1 AI transcribes only (hard line; `decisions.md:317`). R2 consent first, one shared key. R3 one monthly pool 3 / 20, UTC month, server decides Premium. R5 budget reserved before the call; failures release. R7 the limit message shows the server's limit (A-60). R8 no client gate (decision A). R11 date order from the document, language only as a tiebreak. R12 lab auto-save (no review gate). R13 unreadable date → local today, flagged (MB-27). R14 vaccine auto-save needs a name and a valid date. R15 a service failure is never blamed on the file. R16 one test = one card (A-101d). R20 chart needs 2+ readings, neutral. R22 every delete asks first + tombstone. R23 vaccine date ranges. R24 hub next due = nearest ≥ today. R26 PDF Premium at the action point. R27 Bloodwork due ≥ 182 days. (`06 §4`.)
+R1 AI transcribes only (hard line; `decisions.md:317`). R2 consent first, one shared key. R3 one monthly pool 3 / 20, UTC month, server decides Premium. R5 budget reserved before the call; failures release. R7 the limit message shows the server's limit (A-60). R8 no client gate (decision A). R11 date order from the document, language only as a tiebreak. R12 lab auto-save (no review gate). R13 unreadable date → local today, flagged (MB-27). R14 vaccine auto-save needs a name and a valid date. R15 a service failure is never blamed on the file. R16 one test = one card (A-101d). R20 chart needs 2+ readings, neutral. R22 every delete asks first + tombstone. R23 vaccine date ranges. R24 hub next due = nearest ≥ today. R26 PDF Premium at the action point. R27 last-lab alert ≥ 182 days, fact-only words, no "due" (AD-98). (`06 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -256,31 +257,32 @@ R1 AI transcribes only (hard line; `decisions.md:317`). R2 consent first, one sh
 | D11-3 | Hub count = journal cards on every device (AD-21) | Per batch; per row after a pull | `06 D-3, G-3` | DV-073 |
 | D11-4 | Favourites / labels durable, merged, labels per test (AD-02, DL-39) | `user_metadata`, stale whole writes, unclearable star | `06 D-5, D-6, G-4, G-5` (registry A-14) | DV-006, DV-075 |
 | D11-5 | Vaccine scan fills details; export includes them (DL-41, DL-42) | Notes only; export omits | `06 D-12, G-6, G-7` | DV-109, DV-079 |
-| D11-6 | Pending OPEN-14 (b) (question 20 (a)): show the scans used this month | Free users see the limit (3 a month) only until their first lab scan with values; the used / left count never | `06 G-9`; R2-05 (11:156) | DV-110 |
+| D11-6 | Show the scans used this month — founder-deferred to 1.3.1, picture first (AD-99) | Free users see the limit (3 a month) only until their first lab scan with values; the used / left count never | `06 G-9`; R2-05 (11:156) | DV-110 |
 | D11-7 | Unusable 200 not counted (AD-23) | Counted | `06 G-10` | DV-078 |
 | D11-8 | One number parse for lab values (DL-40) | Scan vs edit differ | `06 D-11` | DV-076 |
 | D11-9 | Future report dates refused or flagged (AD-22) | Accepted | `06 D-1 note, E-6` | DV-077 |
-| D11-10 | Pending OPEN-14 (c) (question 20 (b)): "Change this test's date" | Missing | `06 G-8` | DV-110 |
-| D11-11 | AI consent per account, version and date, cleared on sign-out, withdrawable (DL-55; the Settings row = OPEN-24 item 1) | Per device, no withdraw | `07 D-18` | DV-007 |
-| D11-12 | Lab chart: one line per unit, x by date (DL-43; the chart = OPEN-24 item 4) | Mixed units on one axis; x by index | `06 E-7, E-8` | DV-080 |
+| D11-10 | "Change this lab's date" moves every value of the test at once — founder-deferred to 1.3.1, picture first (AD-100) | Missing | `06 G-8`; AD-100 | DV-110 |
+| D11-11 | AI consent per account, version and date, cleared on sign-out, withdrawable (DL-55; the Settings row = AD-79 item 1, picture first) | Per device, no withdraw | `07 D-18` | DV-007 |
+| D11-12 | Lab chart: one line per unit, x by date (DL-43; the chart = AD-79 item 4, picture first) | Mixed units on one axis; x by index | `06 E-7, E-8` | DV-080 |
 | D11-13 | No scan number shown to Premium (AD-69; wording = Approvals item 2.17) | Premium empty journal shows "3 free scans a month" | R2-05 (13:213); R2-03 #9 | DV-237 |
 | D11-14 | Plurals instead of "(s)" (wording = Approvals item 2.15) | "value(s) couldn't be read…" | R2-03 #52 | DV-235 |
 | D11-15 | Untouched wheel writes nothing; size check before reading; a photo error never says "PDF" (wording = Approvals item 2.12) | Next due set to today; PDF read first; "PDF" for photos | `06 E-13…E-16, E-22` | DV-160, DV-201 |
 | D11-16 | One "latest" rule for hub, marker page and export | Hub newest batch; marker page / export SQL order (SUSPECTED) | `06 D-4` | DV-074 |
-| D11-17 | Pending OPEN-13 (question 19): the "Bloodwork due" alert | Fixed 6 months chosen by the app, "due" | `06 G-13` | DV-111 |
+| D11-17 | Same trigger, fact-only words "Your last lab was N months ago", no "due"; wording checked by the regulatory reviewer (AD-98) | Fixed 6 months chosen by the app, "Bloodwork due" | `06 G-13`; AD-98 | DV-111 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12 (round 2): every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there; its question number is given), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 (round 2) and closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open — waiting for the founder:
-- **OPEN-13** — the "Bloodwork due" alert after 6 months (keep / factual words / user-set interval / remove). (Portuguese question 19.) "Keep as is" keeps an app-chosen recommendation (regulatory risk). D11-17 → DV-111.
-- **OPEN-14 (b)** — show how many AI scans were used this month. (Portuguese question 20 (a).) Premise corrected in round 2: free users see the limit (3 a month) only until their first lab scan with values, then neither the limit nor the count; they learn the month is used up when a scan is refused. D11-6 → DV-110.
-- **OPEN-14 (c)** — add "Change the date of this test". (Portuguese question 20 (b).) D11-10 → DV-110.
-- **OPEN-24 item 1** — the Settings › Data & privacy row to withdraw AI consent (DL-55). (Portuguese question 2.) D11-11 → DV-007.
-- **OPEN-24 item 4** — the lab chart with one line per unit and points spaced by date (DL-43). (Portuguese question 2.) D11-12 → DV-080.
+**Decided by the founder on 2026-10-15 (all questions answered):**
+- **AD-98** (was OPEN-13, Q 19) — the bloodwork alert keeps its trigger with a fact-only text "Your last lab was N months ago" (no "due"); the regulatory reviewer checks the wording. §4 P9, §7.7, §8, R27, D11-17 → DV-111.
+- **AD-99** (was OPEN-14 (b), Q 20 (a)) — show the AI scans used this month — founder-deferred to 1.3.1, picture first. §7.2, D11-6 → DV-110.
+- **AD-100** (was OPEN-14 (c), Q 20 (b)) — "Change this lab's date" (moves every value of the test at once) — founder-deferred to 1.3.1, picture first. §4 P5, §7.5, D11-10 → DV-110.
+- **AD-79 item 1** (was OPEN-24 item 1, Q 2) — the Settings › Data & privacy row to withdraw AI consent (DL-55) goes ahead, approved in its picture first. D11-11 → DV-007.
+- **AD-79 item 4** (was OPEN-24 item 4, Q 2) — the lab chart with one line per unit and points spaced by date (DL-43) goes ahead, approved in its picture first. §7.2, §7.5, D11-12 → DV-080.
+- **AD-78** (was OPEN-16 (a), Q 1 (a)) — every DV row of this flow has a written target (1.3.0 or 1.3.1) in `docs/review/features.md`; DV-110 carries both 1.3.1 items.
 
-Decided — what this flow relies on (round-2 final ids):
+Decided earlier — what this flow relies on (round-2 final ids):
 - **AD-68** — typing lab values by hand ships in 1.3.0 (was OPEN-12, closed in round 2); the "Add values by hand" picture is owed (**Approvals still owed item 3**). D11-1 → DV-107.
 - **AD-24** — lab charts are Premium; the hand-typed journal is free; the locked chart for free users is a picture still owed (**Approvals still owed item 3**) because it takes a feature away from today's free users. D11-2 → DV-108.
 - **AD-69** — Premium strings carry no scan number, no Premium scan line is added, the free number is never shown to Premium (was OPEN-14 (a), closed in round 2); the Premium empty-journal line is **Approvals still owed item 2.17**. D11-13 → DV-237.
@@ -301,7 +303,7 @@ Account Test03 (free; Premium via promo where stated). Use a sample lab PDF with
 
 **F11-03 — Import**
 - Do: PDF file → sample.
-- Expect: "Reading your lab report..." / "Lendo seu exame..."; then "Report imported" / "Exame importado" + "4 markers saved · {date}" / "4 marcadores salvos · {date}" + "Tap any marker to edit it anytime."; one card dated from the document; hub count 1. Free account: the free card now reads "You've scanned 4 markers. Premium charts every one over time…" / "Você escaneou 4 marcadores. O Premium mostra cada um em gráfico…" with no scan number (decision A, decisions.md:276) — the limit is no longer shown on My Body (D11-6). Premium account with an empty journal before the import: record whether the "3 free scans a month" line shows (D11-13).
+- Expect: "Reading your lab report..." / "Lendo seu exame..."; then "Report imported" / "Exame importado" + "4 markers saved · {date}" / "4 marcadores salvos · {date}" + "Tap any marker to edit it anytime."; one card dated from the document; hub count 1. Free account: the free card now reads "You've scanned 4 markers. Premium charts every one over time…" / "Você escaneou 4 marcadores. O Premium mostra cada um em gráfico…" with no scan number (decision A, decisions.md:276) — the limit is no longer shown on My Body (D11-6). Premium account with an empty journal before the import: intended (AD-69) no scan number; **today** the "3 free scans a month" line shows — record D11-13 (DV-237).
 
 **F11-04 — Unreadable date**
 - Do: upload a report without a date.
@@ -351,7 +353,7 @@ Account Test03 (free; Premium via promo where stated). Use a sample lab PDF with
 
 **F11-16 — Bloodwork due**
 - Setup: newest test 190 days ago.
-- Expect: Today "Bloodwork due" / "Exame de sangue pendente" + "It's been 6 months since your last panel" / "Já se passaram 6 meses desde seu último exame"; tap → Lab test journal; snooze Tomorrow / In 3 days. (Today's words; the alert's words and trigger are pending OPEN-13 — re-write this check when it is answered.)
+- Expect (intended, AD-98): Today shows the alert with the fact-only text "Your last lab was 6 months ago" (×6 as approved; no "due" in any language); tap → Lab test journal; snooze Tomorrow / In 3 days. **Today:** "Bloodwork due" / "Exame de sangue pendente" + "It's been 6 months since your last panel" / "Já se passaram 6 meses desde seu último exame" — record D11-17 (DV-111).
 
 **F11-17 — Fold**
 - Do (unfolded Fold): My Body.

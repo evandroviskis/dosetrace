@@ -42,7 +42,7 @@ Measure the user's **real** daily burn (maintenance) from what actually happened
 | P7 | Started on phone A, stopped on phone B | Stop wins on both (server trigger + client rule). |
 | P8 | Started offline on two phones | Two open rows; the newest start wins; older stopped on the next Stop. |
 | P9 | Finished a check today and wants the next one | "Weigh in again in 21 days" starts the next check; the saved result must not hide it (see D08-4). |
-| P10 | Result came out implausible / maintenance / too short | Not saved; Progress explains; Today must not say "ready — tap to see it" as if a number waited (DL-26). What happens next (save maintenance, close the check) is pending OPEN-09 (Portuguese question 14). |
+| P10 | Result came out implausible / maintenance / too short | Intended (AD-92, was OPEN-09): "maintenance" is saved as a real result (daily burn = the average eaten); "unlikely" (implausible) and "too short" show the reason, and the check closes once the person has seen it, offering Start over. Today must not say "ready — tap to see it" as if a number waited (DL-26). Today no status but ok is saved and the check stays open (DV-104). |
 | P11 | Typed an average and later completed 7 days | Food run used; typed value kept with a note. |
 | P12 | Day 21 passed weeks ago without a weigh-in | Check stays open: "Time to weigh in"; 20:00 continues while the user can still log (FL-42) — a free user after the free days gets none. |
 
@@ -68,7 +68,8 @@ flowchart TD
   M --> N{"Status ok and user may see the result?"}
   N -->|yes| O["Progress opened: result saved automatically, check closed (only when Progress is opened)"]
   N -->|locked| P["READY_LOCKED: result needs Premium"]
-  N -->|maintenance / implausible / too short| Q["READY_UNSAVABLE: explanation, Stop or Start over"]
+  N -->|"maintenance (AD-92)"| O
+  N -->|"unlikely / too short (AD-92)"| Q["READY_UNSAVABLE: the reason shown, check closed once seen, Start over offered"]
   O --> R["Hero Daily burn = measured, chip Measured, daily plan rebased"]
   R --> S["Weigh in again in 21 days starts the next check"]
 ```
@@ -84,10 +85,10 @@ flowchart TD
 | due | open, no weigh-in ≥ due, today ≥ due (stays open indefinitely) |
 | needs_food | a weigh-in ≥ due exists, no 7-day run, no valid typed average for this start |
 | ready | a weigh-in ≥ due exists and (7-day run or typed average); sub-status ok / maintenance / implausible / too_short |
-| ready_locked | ready + ok, but the user may not see results: not Premium and outside the 7 free days (grace included — AD-14; today the grace week still sees the result, D08-6) |
-| ready_unsavable | ready with status ≠ ok |
-| saved | a `reality_checks` row written and the open row stopped (→ none, result shown) |
-| stopped | open row has `stopped_at` (Stop: results deleted today — see G-8; Start over: results kept) |
+| ready_locked | ready + ok (or maintenance, AD-92), but the user may not see results: not Premium and outside the 7 free days (grace included — AD-14; today the grace week still sees the result, D08-6) |
+| ready_unsavable | ready with status implausible ("unlikely") or too_short (intended, AD-92: the reason is shown, the check closes once seen, Start over offered); today also maintenance, and it never closes (DV-104) |
+| saved | a `reality_checks` row written and the open row stopped (→ none, result shown); intended also for maintenance (daily burn = the average eaten, AD-92) |
+| stopped | open row has `stopped_at` (Stop and Start over both keep earlier results — intended, AD-91; today Stop deletes them all, G-8, DV-004) |
 
 ```mermaid
 stateDiagram-v2
@@ -100,12 +101,14 @@ stateDiagram-v2
     due --> ready: weigh-in on or after due and (run ok or typed average)
     needs_food --> ready: 7th complete day or typed average saved
     needs_food --> due: that weigh-in deleted
-    ready --> needs_food: typed average cleared and no 7-day run in the check (a run is lost only if its entries are deleted or a legacy not-recorded mark applies)
-    ready --> saved: status ok and allowed (automatic on Progress)
-    ready --> ready_locked: status ok, not allowed
-    ready --> ready_unsavable: maintenance, implausible or too short
+    ready --> needs_food: typed average cleared and no 7-day run in the check (a run is lost only if its entries are deleted or a legacy not-recorded mark applies - that mark is retired by AD-104)
+    ready --> saved: status ok or maintenance (AD-92) and allowed (automatic on Progress)
+    ready --> ready_locked: status ok or maintenance, not allowed
+    ready --> ready_unsavable: implausible or too short (today also maintenance, DV-104)
     ready_locked --> saved: buys Premium, opens Progress
     ready_unsavable --> stopped: Stop or Start over
+    ready_unsavable --> none: the person has seen the reason, check closed, Start over offered (AD-92, intended)
+    none --> none: Stop on the result screen with no check running deletes every result (today only, removed by AD-91)
     due --> stopped
     needs_food --> stopped
     ready_locked --> stopped
@@ -148,7 +151,8 @@ The day-21 weigh-in reminder has no switch of its own: "Check-in reminders" does
 ### 7.1 Start
 - Start sheet (title "Reality check" + the card's intro line `cal_rc_sub`): "Start weigh-in on" ‹ date › (today … 7 days back, never future; "Today, or a weigh-in from the last 7 days — not further back."), field "Weight (kg)" / "Peso (kg)" (lb in imperial; `cal_snap_weight` + unit — the key `cal_rc_start_weight` "Weight today" is unused), prefilled from that day's weigh-in, never over a typed value; button "Log today & set my reminder"; hint "We'll remind you in 21 days to weigh in again and finish your reality check."
 - Writes: `free_start` marker (the real tap day — backdating never shortens the free days), a start-day weigh-in only if that day had none, `reality_check_open` (+ mirror `calc_reality_open`).
-- **OPEN-07 (04 D-8, G-9; conflict #25):** the ledger Q-A says the check has no weight fields of its own (uses the latest weigh-in); the code has a start weight; if the user overrides a prefilled weigh-in the check and the weigh-ins table disagree (CONFIRMED by reading: `startRealityCheck` writes the weigh-in only when the day has none). Founder line needed (OPEN-07).
+- **Intended (AD-90, was OPEN-07; 04 D-8, G-9; conflict #25):** the start weight IS that day's weigh-in — one number. Typing another number in the start sheet updates that day's weigh-in, after a confirmation; with no weigh-in that day, the typed weight becomes the day's weigh-in.
+  - **Divergence today (D08-8, DV-061):** the check keeps its own start weight; if the user overrides a prefilled weigh-in, the check and the weigh-ins table disagree (CONFIRMED by reading: `startRealityCheck` writes the weigh-in only when the day has none). The confirmation is a new text (×6, picture first).
 - Free explainer first for a free user (Q11 = A, decisions.md:234): the locked card shows the intro line, "See how it works" / "Ver como funciona" → preview sheet "What your body actually burns" with "Unlock with Premium" / "Desbloquear com Premium" (`CalculatorSection.js:1464-1476`, `:1870`).
 
 ### 7.2 Running
@@ -167,13 +171,13 @@ The day-21 weigh-in reminder has no switch of its own: "Check-in reminders" does
   - **Divergence today (04 D-2):** the day-21 notification still fires at 10:00 after an earlier weigh-in that day ("Time to log your weight…").
 
 ### 7.5 Ready → result
-- Finish is automatic **only when Progress is opened** (a `useEffect` in `CalculatorSection`, which only Progress mounts — Today and Journey can say "ready" for days and nothing is saved until then) and only for a user who may see results, when ready + ok + allowed + no result dated ≥ start. The self-finishing check itself is as built and not yet confirmed by the founder (OPEN-07). It writes `reality_checks` (entry_date = the weigh-in date, tdee, rate), the source (`rcResultSources[date] = food / typed`), stops the open row, cancels reminders.
+- Finish is automatic **only when Progress is opened** (a `useEffect` in `CalculatorSection`, which only Progress mounts — Today and Journey can say "ready" for days and nothing is saved until then) and only for a user who may see results, when ready + ok + allowed + no result dated ≥ start. The self-finishing check is confirmed by the founder (AD-90, 2026-10-15; was OPEN-07); there is no early save, so registry A-24 closes (DV-144). Intended (AD-92), "maintenance" finishes the same way. It writes `reality_checks` (entry_date = the weigh-in date, tdee, rate), the source (`rcResultSources[date] = food / typed`), stops the open row, cancels reminders.
 - Result as built (`CalculatorSection.js:1517-1542`): "Your actual maintenance looks like about {kcal} kcal/day." (`cal_rc_result_prefix` + number), the source line ("From your food log" / "From the average calories you entered"), "Your checks over time" (one row per result: date, rate per week, kcal), "Weigh in again in 21 days", and the "Stop reality check" link; hero chip Measured; daily plan rebased via `goalsForTdee` (floor = max(BMR, 1200 F / 1500 M)).
   - **Divergence today (04 verification §5, N-7):** the per-week sentence ("That's about {x} lost / gained per week", `cal_rc_rate_*`) and the comparison with the generic estimate plus the "why" list (`cal_rc_why_*`) are not rendered by any screen (strings unused). No founder line approves them, so they are dead copy to delete (DV-181); the per-week rate does show on each row of "Your checks over time".
 - Today alert while waiting: "Your reality check is ready — tap to see it".
-- **Intended (DL-26, logic — Today never promises what Progress won't show):** locked → Today says the result needs Premium; unsavable → Today says the check needs attention on Progress. The new texts are new UI, picture first ×6 (**OPEN-24 item 7**, Portuguese question 2); what then happens to an unsavable check is **OPEN-09** (Portuguese question 14).
+- **Intended (DL-26, logic — Today never promises what Progress won't show):** locked → Today says the result needs Premium; unsavable → Today says the check needs attention on Progress. The new texts are new UI, approved in their picture first ×6 (AD-79 item 7, was OPEN-24 item 7); an unsavable check ("unlikely" / "too short") shows its reason on Progress and closes once seen, offering Start over (AD-92).
   - **Divergence today (04 D-3):** Today says "ready — tap to see it" for locked and unsavable results; the alert stays until Stop / Start over.
-- Math: `tdee = avgKcal + (startKg − weighInKg) × 7700 / days`; maintenance (|Δ| < 0.2 kg, tested first), too_short (< 14 days or avg ≤ 0), implausible (outside 1000–5000), else ok. Only ok is saved. The "< 14 days" branch cannot happen: the result weigh-in is always on or after day 21, so only an average of 0 reaches too_short.
+- Math: `tdee = avgKcal + (startKg − weighInKg) × 7700 / days`; maintenance (|Δ| < 0.2 kg, tested first), too_short (< 14 days or avg ≤ 0), implausible (outside 1000–5000), else ok. Today only ok is saved; intended (AD-92) maintenance is saved too, with daily burn = the average eaten, and the energy-math review runs before the build. The "< 14 days" branch cannot happen: the result weigh-in is always on or after day 21, so only an average of 0 reaches too_short.
 - **Divergence today (04 §8.11):** an all-"I ate nothing" run (avg 0) reports "too short" — misleading copy (with |Δ| < 0.2 kg it reports maintenance instead). The `cal_rc_too_short` copy ("Use weigh-ins at least 14 days apart…") names a cause that cannot occur (N-3).
 - **Divergence today (N-2, DV-205):** `cal_rc_implausible` says "implausibly low … log intake more carefully" for every implausible result, including a burn above 5,000 kcal. A plain bug; the two messages (too low / too high) and the nothing-eaten message (DV-150) are wording to approve (Approvals still owed, item 2.11).
 
@@ -184,9 +188,9 @@ The day-21 weigh-in reminder has no switch of its own: "Check-in reminders" does
 
 ### 7.7 Stop and Start over
 - **Start over** → "Start over?" / "This clears the start weight of this check and its reminders. Your weigh-ins and logged meals are kept." → open row stopped; saved results kept.
-- **Stop** → "Stop reality check?" / "This clears your reality-check numbers and stops the daily food-log reminder. Your logged meals are kept." → open row stopped; **every saved `reality_checks` row tombstoned** (measured history gone; daily burn back to Estimated).
-  - **OPEN-08 (04 G-8):** Stop is the one action that destroys measured history; the ledger only says Stop "clears the open check… keeps the logged food". Founder line needed (OPEN-08). Orphan `rcTypedKcal` / `rcResultSources` remain in the payload.
-  - **Wider than "stop the current check" (04 verification DV-004, N-1):** the same "Stop reality check" / "Parar a medição" link is shown on the **finished-result screen with no check running** (`CalculatorSection.js:1541`) and in the locked branch when results exist (`:1475`); one confirm there also tombstones every saved result. The confirm copy was never recorded as founder-approved, and PT "Isso apaga seus números reais" reads as the feature name, not as "deletes every earlier result".
+- **Stop** → "Stop reality check?" / "This clears your reality-check numbers and stops the daily food-log reminder. Your logged meals are kept." → open row stopped.
+  - **Intended (AD-91, was OPEN-08):** "Stop the check" appears only while a check is running and ends only that check; earlier saved results stay (the hero keeps the latest Measured burn). The confirm copy says it ends the current check (new wording ×6).
+  - **Divergence today (D08-9, DV-004 — S1; 04 G-8):** Stop tombstones **every saved `reality_checks` row** (measured history gone; daily burn back to Estimated); orphan `rcTypedKcal` / `rcResultSources` remain in the payload. The same "Stop reality check" / "Parar a medição" link is also shown on the **finished-result screen with no check running** (`CalculatorSection.js:1541`) and in the locked branch when results exist (`:1475`); one confirm there also tombstones every saved result (04 verification N-1). PT "Isso apaga seus números reais" reads as the feature name, not as "deletes every earlier result".
 - Stop wins across devices (client rule + server trigger `reality_check_open_keep_stop`).
 
 ### 7.8 Next check
@@ -199,7 +203,7 @@ The day-21 weigh-in reminder has no switch of its own: "Check-in reminders" does
 - **Divergence today (04 D-4; the once-per-mount read is CONFIRMED, the impact on other devices SUSPECTED):** Progress loads `rcStart` once per mount and has no sync listener → a Stop / new check pulled from another device is not reflected while Progress stays mounted (e.g. on the Fold right page); Today re-reads and can disagree.
 - **SUSPECTED (04 §7):** a cross-device `calc_inputs` race can overwrite `rcTypedKcal` / `rcResultSources` (last writer wins on the whole payload).
 - Two completions on two devices may save two results (different weigh-in dates). SUSPECTED.
-- **Divergence today (DV-182; when the fix ships = OPEN-16 (b), Portuguese question 1 (b)):** results cleared by Stop on phone A stay on phone B (the cloud delete is a hard delete the other phone never hears of); and a result edited on one phone never reaches the other while `reality_checks` has no `updated_at` trigger (DV-088; the migration = DL-64, production go in Approvals still owed, item 1).
+- **Divergence today (DV-182; fix = AD-77 / A-119 (one active device per account, decided 2026-10-15)):** results cleared by today's Stop on phone A stay on phone B (the cloud delete is a hard delete the other phone never hears of); and a result edited on one phone never reaches the other while `reality_checks` has no `updated_at` trigger (DV-088; the migration = DL-64, production go in Approvals still owed, item 1).
 
 ### 7.10 Timezone / DST / midnight
 - Start and due are calendar dates (noon-anchored → DST-safe). Food days are local (flow 07). **Divergence today (04 D-5):** Progress and heroes left open across midnight keep yesterday's state until refocus.
@@ -229,9 +233,9 @@ The day-21 weigh-in reminder has no switch of its own: "Check-in reminders" does
 | due | "Ready now — tap to log your weight" | "Reality check · time to weigh in · {n} of 7 days in a row" | run | "Time to weigh in — log today's weight…" (the "Log today's weight" button is the one in the card above, `CalculatorSection.js:1613`; only the locked branch has its own) | day-21 fired; 20:00 continues |
 | needs_food | "Weight logged — {n} more days in a row of food logs for your result" | "Reality check · weight logged · {n} of 7 days in a row" | run | intended (DL-25, logic) "Weight logged — {n} more days…"; today "In progress · weigh in {due date}" — today's date on the due day, a past date after (D08-1) | 20:00 continues; day-21 should be cancelled (DL-25; today not, D08-2) |
 | ready (ok, allowed) | "Your reality check is ready — tap to see it" | "Reality check · weight logged · intake ready ({d} days)" (or the typed-average case: "· {n} of 7 days in a row") | "intake ready ({d} days)" | result appears on open (auto-finish) | cancelled on finish |
-| saved | gone | hidden (no open check) | today line | result: "Your actual maintenance looks like about…", source line, "Your checks over time", hero Measured, "Weigh in again in 21 days", "Stop reality check" link (wipes every result — N-1) | none |
-| ready_locked | intended (DL-26; texts = OPEN-24 item 7): "result needs Premium"; today "ready — tap to see it" (D08-3) | "weight logged · …" (locked line if food is locked) | locked hero if food locked | tag "Premium", status lines ("In progress · weigh in {date}", start weight, run / typed line), "See how it works" → preview sheet with "Unlock with Premium", "Stop reality check" (`CalculatorSection.js:1464-1476`) | 20:00 none (access lost) |
-| ready_unsavable | intended (DL-26 + OPEN-09): points to Progress; today "ready" (D08-3) | "weight logged · …" | — | "cal_rc_maintenance / implausible / too_short" message | continue until Stop |
+| saved | gone | hidden (no open check) | today line | result: "Your actual maintenance looks like about…", source line, "Your checks over time", hero Measured, "Weigh in again in 21 days"; intended no Stop link here (AD-91); today a "Stop reality check" link that wipes every result (N-1, DV-004) | none |
+| ready_locked | intended (DL-26; texts approved in the picture, AD-79 item 7): "result needs Premium"; today "ready — tap to see it" (D08-3) | "weight logged · …" (locked line if food is locked) | locked hero if food locked | tag "Premium", status lines ("In progress · weigh in {date}", start weight, run / typed line), "See how it works" → preview sheet with "Unlock with Premium", "Stop reality check" (`CalculatorSection.js:1464-1476`) | 20:00 none (access lost) |
+| ready_unsavable | intended (DL-26 + AD-92): points to Progress; today "ready" (D08-3) | "weight logged · …" | — | intended (AD-92): the "unlikely" / "too short" reason, the check closes once seen, Start over offered (maintenance is saved instead); today the "cal_rc_maintenance / implausible / too_short" message and the check stays open (DV-104) | intended cancelled when the check closes; today continue until Stop |
 | stopped | gone | hidden | today line | Start again | all cancelled |
 
 ## 9. Data written at each step
@@ -239,19 +243,19 @@ The day-21 weigh-in reminder has no switch of its own: "Check-in reminders" does
 | Step | Table | Write | Synced |
 |---|---|---|---|
 | Start | `food_logs` | marker `free_start` (if none) | yes |
-| Start | `calc_snapshots` | start-day row (only if that day had no weight) | yes |
+| Start | `calc_snapshots` | start-day row; intended (AD-90) a different typed number updates that day's weigh-in after a confirmation; today written only if that day had no weight (DV-061) | yes |
 | Start | `reality_check_open` | start_date, start_weight_kg (same start day → weight updated; a different day stops the old row first) | yes (Stop wins) |
 | Start | `user_metadata` | `calc_reality_open` mirror | server |
 | Typed average | `calc_inputs` | `payload.rcTypedKcal = {start, kcal}` (merge) | yes (whole-payload last writer) |
 | Weigh-in | `calc_snapshots` | weigh-in row (flow 09) | yes |
 | Finish | `reality_checks`; `calc_inputs`; `reality_check_open` | result row (entry_date = weigh-in date, tdee, rate_per_week_kg); `payload.rcResultSources[date]`; `stopped_at` | yes (no `updated_at` trigger on `reality_checks` in production — 08 Addendum, DV-088) |
 | Start over | `reality_check_open` | `stopped_at` | yes |
-| Stop | `reality_check_open`; `reality_checks` | `stopped_at`; every result row tombstoned | yes |
+| Stop | `reality_check_open`; `reality_checks` | `stopped_at`; intended nothing else (AD-91 — earlier results stay); today every result row tombstoned (DV-004) | yes |
 | Reminders | OS notification queue | `reality-check-weigh`, `food-log-{day}` | — |
 
 ## 10. Rules (with sources)
 
-R-R1 start today … 7 days back (FL-44). R-R2 due = start + 21 calendar days. R-R3 first weigh-in on/after due. R-R4 intake = most recent ≥ 7-day complete run, else typed 500–10,000 (FL-3, FL-48). R-R5 math and statuses. R-R6 automatic finish on Progress. R-R7 one result per weigh-in date; latest = Measured; goals floored. R-R8 Stop wins across devices. R-R9 start / see result = Premium or free days; weigh-in always (FX-15). R-R10 typed link Premium-only (AD-15, decisions.md:636). R-R11 20:00 while open, no day-21 cut (FL-42). R-R12 day-21 reminder 10:00. A-118: the Today alert and the food card follow the real state (the founder's bug report, features.md:258); the other surfaces follow by logic (DL-25). (`04 §4`.)
+R-R1 start today … 7 days back (FL-44). R-R2 due = start + 21 calendar days. R-R3 first weigh-in on/after due. R-R4 intake = most recent ≥ 7-day complete run, else typed 500–10,000 (FL-3, FL-48). R-R5 math and statuses; maintenance is saved as a result (daily burn = average eaten), "unlikely" and "too short" show the reason and close the check once seen, offering Start over (AD-92). R-R6 automatic finish on Progress (confirmed, AD-90); the start weight is that day's weigh-in (AD-90). R-R6b Stop appears only while a check runs and ends only that check (AD-91). R-R7 one result per weigh-in date; latest = Measured; goals floored. R-R8 Stop wins across devices. R-R9 start / see result = Premium or free days; weigh-in always (FX-15). R-R10 typed link Premium-only (AD-15, decisions.md:636). R-R11 20:00 while open, no day-21 cut (FL-42). R-R12 day-21 reminder 10:00. A-118: the Today alert and the food card follow the real state (the founder's bug report, features.md:258); the other surfaces follow by logic (DL-25). (`04 §4`.)
 
 ## 11. Divergences today (summary)
 
@@ -259,40 +263,41 @@ R-R1 start today … 7 days back (FL-44). R-R2 due = start + 21 calendar days. R
 |---|---|---|---|---|
 | D08-1 | Progress status follows "weighed in" (DL-25) | Says "In progress · weigh in {due date}" (a past date from due + 1) | `04 D-1` | DV-056 |
 | D08-2 | Day-21 reminder cancelled by the weigh-in (DL-25) | Fires anyway | `04 D-2` | DV-057 |
-| D08-3 | Today never says "ready — see it" for locked / unsavable (DL-26; texts = OPEN-24 item 7) | Says it | `04 D-3` | DV-058 |
+| D08-3 | Today never says "ready — see it" for locked / unsavable (DL-26; texts approved in the picture, AD-79 item 7) | Says it | `04 D-3` | DV-058 |
 | D08-4 | Next check never hidden by the last result (plain bug) | Hidden, never finishes | `04 D-7, G-3` | DV-060 |
 | D08-5 | Typed average Premium-only (AD-15) | Free days / grace too | `04 D-14`; decisions.md:636 | DV-102 |
 | D08-6 | Grace week = finish logging only (AD-14) | Can start a new check and see results | `04 D-13` | DV-101 |
 | D08-7 | One assembler; Progress refreshes on sync / midnight (DL-25) | Loads once, no listener | `04 D-4, D-5, G-6`; `08 D5` | DV-059, DV-148 |
-| D08-8 | One start weight | Typed vs weigh-in can differ | `04 D-8, G-9` (OPEN-07) | DV-061 |
-| D08-9 | Stop keeps or deletes results per founder | Deletes all — also from the result screen with no check running | `04 G-8` (OPEN-08), N-1 | DV-004 |
+| D08-8 | One start weight: the start weight IS that day's weigh-in; typing another number updates the weigh-in after a confirmation (AD-90) | Typed vs weigh-in can differ | `04 D-8, G-9`; AD-90 | DV-061 |
+| D08-9 | Stop appears only while a check is running and ends only that check; earlier results stay (AD-91) | Deletes all — also from the result screen with no check running | `04 G-8`, N-1; AD-91 | DV-004 |
 | D08-10 | All-"ate nothing" run explained correctly (wording = Approvals item 2.11) | "too short" | `04 §8.11` | DV-150 |
 | D08-11 | `reality_checks` edits reach other devices (DL-64; production go = Approvals item 1) | No `updated_at` trigger in production | `08 Addendum` | DV-088 |
 | D08-12 | One "21" constant | Duplicated in hero | `04 §6.2, G-11` | DV-147 |
 | D08-13 | No dead result copy: the unused per-week sentence and comparison / "why" strings are deleted (no founder line approves them) | Strings `cal_rc_rate_*`, `cal_rc_why_*` unused | 04 verification §5, N-7 | DV-181 |
-| D08-14 | Unsavable copy matches its cause (wording = Approvals item 2.11; what happens next = OPEN-09) | too_short names "14 days apart" (cannot occur); implausible always says "low" | N-2, N-3 | DV-150, DV-205 |
-| D08-15 | Results cleared by Stop leave every device (timing = OPEN-16 (b)) | Stay on the other phone (cloud hard delete) | TRD §3.9 H-1 | DV-182 |
+| D08-14 | Unsavable copy matches its cause (wording = Approvals item 2.11); maintenance is saved as a result (daily burn = average eaten); "unlikely" / "too short" show the reason and close the check once seen, offering Start over (AD-92) | too_short names "14 days apart" (cannot occur); implausible always says "low"; nothing but ok is saved and the check never closes | N-2, N-3; AD-92 | DV-150, DV-205, DV-104 |
+| D08-15 | Results cleared on one phone can never come back on another (fix = AD-77 / A-119 (one active device per account, decided 2026-10-15)) | Stay on the other phone (cloud hard delete) | TRD §3.9 H-1; AD-77 | DV-182 |
 
 ## 12. Founder questions (canonical IDs — `docs/product/OPEN-DECISIONS.md`)
 
-Reconciled 2026-10-12: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **OPEN-xx** waits for the founder (asked in the one Portuguese round there), **AD-xx** is already decided by the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
+Reconciled 2026-10-12 and closed 2026-10-15: every question this flow raised has one canonical ID in `OPEN-DECISIONS.md` — **AD-xx** is decided by the founder, the ledger or a signed spec, **DL-xx** is decided by product logic (recorded in `docs/decisions.md`; the founder may override). DV-xxx is the defect row in `DIVERGENCES.md`.
 
-Open — waiting for the founder:
+**Decided by the founder on 2026-10-15 (all questions answered):**
 
-- **OPEN-07** — "Seus números reais": confirm the self-finishing check and one start weight (Portuguese question 12; conflict #25). Note for the question: the finish runs only when Progress is opened, and only for users who may see results. The same answer settles A-24 — does saving a check **early** end the 20:00 question? (was DL-51): with options A or C there is no early save and A-24 closes; with B (day-14 result buttons) it reopens. D08-8 → DV-061; A-24 → DV-144.
-- **OPEN-08** — Should Stop erase earlier results (Portuguese question 13). D08-9 → DV-004.
-- **OPEN-09** — A check whose math gives no number (Portuguese question 14). D08-3, D08-10, D08-14 → DV-104, DV-058, DV-150, DV-205.
-- **OPEN-24 item 7** — What the Today alert says for a locked or no-number result, picture first ×6 (Portuguese question 2; the principle is DL-26). D08-3 → DV-058.
-- **OPEN-24 item 3** — Each "days" count on Progress labelled by what it counts (Portuguese question 2; DL-30). Flow 07 D07-5 → DV-146.
-- **OPEN-18 (2)** — The "not recorded" mark that FL-3 (and R-R4) still counts as breaking the run (Portuguese question 23 (b)). Flow 07 D07-7 → DV-151.
-- **OPEN-18 (9)** — The whole-check (and week) food totals (Portuguese question 23 (e)). Flow 07 D07-12 → DV-232.
-- **OPEN-22 (a)** — Does the measured daily burn show on the Progress hero and the Journey tile when height, age or sex is missing (Portuguese question 15 (a)). Flow 09 D09-9 → DV-149.
-- **OPEN-16 (b)** — When the sync hardening ships (Portuguese question 1 (b)). D08-15 → DV-182.
+- **AD-90** (was OPEN-07, Q 12) — "Seus números reais" keeps finishing by itself (day-21+ weigh-in after 7 food days in a row; the founder's OK is now written); the start weight IS that day's weigh-in (typing another number updates the weigh-in, with a confirmation). No early save, so registry A-24 closes. §7.1, §7.5, D08-8 → DV-061; A-24 → DV-144.
+- **AD-91** (was OPEN-08, Q 13) — "Stop the check" appears only while a check is running and ends only that check; earlier results stay. §7.7, D08-9 → DV-004 (now S1).
+- **AD-92** (was OPEN-09, Q 14) — "maintenance" is saved as a real result (daily burn = average eaten); "unlikely" and "too short" show the reason and close the check once seen, offering Start over; the energy-math review runs before the build. §4 P10, §6.1, §7.5, D08-3, D08-10, D08-14 → DV-104, DV-058, DV-150, DV-205.
+- **AD-79 item 7** (was OPEN-24 item 7, Q 2) — the Today alert's texts for a locked or no-number result go ahead, approved in their picture first ×6 (the principle is DL-26). D08-3 → DV-058.
+- **AD-79 item 3** (was OPEN-24 item 3, Q 2) — each "days" count on Progress labelled by what it counts, picture first (DL-30). Flow 07 D07-5 → DV-146.
+- **AD-104** (was OPEN-18 (2), Q 23 (b)) — the "not recorded" day mark is retired; FL-3 is amended (and R-R4 with it), the founder signs the amended row. Flow 07 D07-7 → DV-151 (closed; the signature is in Approvals still owed).
+- **AD-107** (was OPEN-18 (9), Q 23 (e)) — the week's food total shows under the day's total, picture first. Flow 07 D07-12 → DV-232.
+- **AD-93** (was OPEN-22 (a), Q 15 (a)) — the measured daily burn shows whenever it exists (Progress hero + Journey tile); PO-12 limits only the formula estimate (amended row, the founder signs it). Flow 09 D09-9 → DV-149.
+- **AD-77** (was OPEN-16 (b), Q 1 (b)) — one active device per account (A-119); it is the fix for results that come back on another phone. D08-15 → DV-182.
+- **AD-78** (was OPEN-16 (a), Q 1 (a)) — every DV row of this flow has a written target (1.3.0 or 1.3.1) in `docs/review/features.md`.
 
-Decided — what this flow relies on (moved or added in round 2):
+Decided earlier — what this flow relies on (moved or added in round 2):
 
 - **DL-25** (absorbs AD-12) — one assembler; every surface follows the check's real state (A-118 covers the Today alert and the food card; the rest is logic). D08-1, D08-2, D08-7.
-- **DL-26** — Today says what Progress will show; the new texts = OPEN-24 item 7. D08-3.
+- **DL-26** — Today says what Progress will show; the new texts = AD-79 item 7 (was OPEN-24 item 7), picture first. D08-3.
 - **AD-14** — no result in the grace week; the day-21 result needs Premium. D08-6, §6.1 ready_locked.
 - **AD-15** — the typed-average link is Premium-only. D08-5.
 - **AD-73** (new) — one off switch for the 8 PM question, no backoff (§6.3).
@@ -316,10 +321,11 @@ Account Test03; Premium via temporary RevenueCat promo where stated. Clock moves
 - Setup: weigh-in 3 days ago 86.0 kg.
 - Do: move the start date to that day.
 - Expect "Weight (kg)" / "Peso (kg)" prefilled 86 (86 in PT — no forced decimal, `CalculatorSection.js:876-877`); a weigh-in of 85.4 prefills "85.4" / "85,4".
+- Do: change the prefilled 86 to 85 and start. Expect (intended, AD-90): a confirmation that this updates that day's weigh-in; after OK the day's weigh-in reads 85 and the check uses 85 (one number). **Today:** no confirmation; the check keeps 85 while the weigh-in stays 86 — record D08-8 (DV-061).
 
 **F08-04 — Free user start inside free days**
 - Setup: free account, food log never used.
-- Expect: Start allowed; first use writes free_start = today; the "Enter my average calories per day" link is hidden (intended). **Today: shown** — record D08-5.
+- Expect: Start allowed; first use writes free_start = today; the "Enter my average calories per day" link is hidden (intended, AD-15). **Today: shown** — record D08-5.
 
 **F08-05 — Run progress**
 - Do: log food 3 days in a row, close each day (flow 07).
@@ -350,23 +356,24 @@ Account Test03; Premium via temporary RevenueCat promo where stated. Clock moves
 
 **F08-11 — Locked result**
 - Setup: free account at day 21 with a run and a weigh-in.
-- Expect Progress: header tag "Premium"; the status lines ("In progress · weigh in {date}" / "Em andamento · pese-se em {date}", start weight, run or typed line); "Log today's weight"; "See how it works" / "Ver como funciona" → preview sheet "What your body actually burns" / "O que o seu corpo realmente gasta" with "Unlock with Premium" / "Desbloquear com Premium"; "Stop reality check". (`cal_rc_locked_intro` "Generic calculators…" is rendered nowhere.) Intended Today (DL-26; the text = OPEN-24 item 7, not approved ×6; OPEN-09 for no-number results): says the result needs Premium. **Today:** "Your reality check is ready — tap to see it" — record D08-3.
+- Expect Progress: header tag "Premium"; the status lines ("In progress · weigh in {date}" / "Em andamento · pese-se em {date}", start weight, run or typed line); "Log today's weight"; "See how it works" / "Ver como funciona" → preview sheet "What your body actually burns" / "O que o seu corpo realmente gasta" with "Unlock with Premium" / "Desbloquear com Premium"; "Stop reality check". (`cal_rc_locked_intro` "Generic calculators…" is rendered nowhere.) Intended Today (DL-26; the text = AD-79 item 7, approved in its picture ×6 before code): says the result needs Premium. **Today:** "Your reality check is ready — tap to see it" — record D08-3.
 - Buy Premium (promo) → open Progress → result saved.
 
 **F08-12 — Unsavable result**
 - Setup: weight change < 0.2 kg.
-- Expect Progress: "Your weight barely changed — that's essentially maintenance, too small a change to compute a reliable burn."; check stays open; Stop / Start over available. Today: record what it says (D08-3).
+- Expect (intended, AD-92): the maintenance result is saved like any result — daily burn = the average eaten, hero chip "Measured", the check closes, Today alert gone, reminders cancelled. **Today:** Progress "Your weight barely changed — that's essentially maintenance, too small a change to compute a reliable burn."; the check stays open; Stop / Start over available; Today says "ready — tap to see it" — record D08-14 (DV-104) and D08-3.
+- Setup 2: an implausible result (burn outside 1000–5000) or an all-"I ate nothing" run. Expect (intended, AD-92): Progress shows the reason ("unlikely" / "too short", wording = Approvals item 2.11); after the person has seen it the check closes and Start over is offered; Today points to Progress (DL-26), never "ready — tap to see it". **Today:** the check stays open until Stop — record D08-14 (DV-104).
 
 **F08-13 — Start over**
 - Expect sheet "Start over?" / "Começar de novo?" + "This clears the start weight of this check and its reminders. Your weigh-ins and logged meals are kept." → open check gone, saved results still listed, reminders cancelled.
 
 **F08-14 — Stop**
-- Expect sheet "Stop reality check?" / "Parar de medir seus números reais?" + "This clears your reality-check numbers and stops the daily food-log reminder. Your logged meals are kept." → Stop / "Parar". After: Today alert and hero gone; 20:00 and day-21 cancelled; hero chip back to "Estimated" (today all results deleted — D08-9 record).
-- Also: with a saved result and no check running, the result screen still shows "Stop reality check" / "Parar a medição"; confirming deletes every saved result there too — record under D08-9 (N-1).
+- Expect sheet "Stop reality check?" / "Parar de medir seus números reais?" + "This clears your reality-check numbers and stops the daily food-log reminder. Your logged meals are kept." → Stop / "Parar". After: Today alert and hero gone; 20:00 and day-21 cancelled; intended (AD-91) earlier saved results still listed and the hero keeps the latest Measured burn (with no earlier result: "Estimated"). **Today:** all results deleted, hero back to "Estimated" — record D08-9 (DV-004).
+- Also: with a saved result and no check running, intended (AD-91) no Stop link on the result screen. **Today:** "Stop reality check" / "Parar a medição" is shown and confirming deletes every saved result — record under D08-9 (N-1).
 
 **F08-15 — Stop wins across devices**
 - Do: phone A Stop; phone B (offline, still running) goes online.
-- Expect B: no open check after the pull; Today alert gone after focus. Progress left open on B (Fold right page): record whether it updates (D08-7).
+- Expect B: no open check after the pull; Today alert gone after focus. Progress left open on B (Fold right page): intended (DL-25) it updates after the pull; **today** it keeps the old check — record D08-7.
 
 **F08-16 — Next check not hidden**
 - Setup: the last saved result's weigh-in is dated today (or start the new check on or before that date — `checkSaved` hides the new check only when that weigh-in date ≥ the new start, `CalculatorSection.js:853`).
