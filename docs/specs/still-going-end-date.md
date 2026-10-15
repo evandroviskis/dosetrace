@@ -16,7 +16,7 @@
 | SG-4 | Reminders, Missed rows, the rings, the curve and every count are unchanged by an end date; nothing ends by itself. | missing | | |
 | SG-5 | On the end date (local day), Today asks once "Ciclo concluído — encerrar {name}?": "Encerrar" ends the protocol (Ended, dated at the tap, DL-99; doses kept; reminders cancelled); "Continuar" removes the end date and the normal "Still going?" rule applies again. A missed day (app not opened) asks on the next open. | missing | | |
 | SG-6 | The protocol page (option A) shows "Termina em" under Schedule & reminders on every active protocol — the date in the app's format, or "Sem data"; tapping opens the wheel with "Salvar data de fim" and a way to clear it ("Sem data de fim"). | missing | | |
-| SG-7 | The end date is stored on the protocol, syncs to the other phone and the cloud, survives an app update and re-auth, and is kept by Restart only if the founder's Restart rule says so (default: a restarted run has no end date). | missing | | |
+| SG-7 | The end date is stored on the protocol, syncs to the other phone and the cloud, survives an app update and re-auth, and a restarted run (Restart) starts with no end date — the date belonged to the earlier run (founder confirmed 2026-10-15). | missing | | |
 | SG-8 | The date wheel reaches far enough for an end date (at least 5 years ahead); its other uses keep their current range. | missing | | |
 | SG-9 | All new texts in the 6 languages, written natively, approved; dates in the phone's locale; both themes checked on every new box and row. | missing | | |
 | SG-10 | The "Still going?" check runs only after the session's first completed download from the cloud (A-122), so a dose logged on another phone is never missed. | missing | | |

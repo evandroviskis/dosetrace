@@ -842,3 +842,4 @@ Source: founder in chat 2026-10-15, answering the single question round (Portugu
   4. On the end date Today asks "Ciclo concluído — encerrar {name}?" (Continue removes the end date; End moves it to Ended, dated at the tap — DL-99), the course-end question of AD-82.
   5. Option A: the protocol page shows a row "Termina em" under Schedule & reminders on every protocol ("Sem data" when none); tapping it opens the same wheel, with a way to clear the date.
   Spec: docs/specs/still-going-end-date.md (to sign). A new protocol field → migration with the founder's "pode aplicar". Target 1.3.0 (approved → next build).
+- **A restarted run has no end date** — 2026-10-15 — source: founder in chat ("sua decisão faz sentido em relação à data do protocolo que se iniciou"): Restart starts a new run without the earlier run's end date (A-121 SG-7).
