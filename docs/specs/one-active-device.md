@@ -7,7 +7,7 @@
 - journey review 2026-10-15 (F1–F18, grok/295) folded in; logic decisions DL-102…DL-108 (docs/decisions.md 2026-10-15).
 - picture: docs/design/a119-one-active-device.html (claude.ai/artifact/WxjwqHJR9iuYYn4dt3Ft72, version 4; captures in docs/design/a119-telas/) — founder 2026-10-15: "Aprovado" (screens 1, 1b, 2, 2b, 3, 3b, 4; "Sair deste celular" grey). Strings pt/en as drawn; the other 4 languages written natively from them and approved with the texts round.
 - code (expected): lib/ (active-device state + server check), App.js / auth flow (sign-in takeover, replaced handling — onAuthStateChange stays synchronous), lib/sync.js / lib/syncCore.js (refused-write handling), screens/SettingsScreen.js (sign-out), i18n ×6, a Supabase migration (active device + last send per device + write guard on every synced table).
-- checklist-signed:
+- checklist-signed: founder 2026-10-15 ("assino", after the Portuguese summary of OD-1..OD-18)
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist

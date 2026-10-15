@@ -831,3 +831,4 @@ Source: founder in chat 2026-10-15, answering the single question round (Portugu
   5. Offers "Sign out anyway" (destructive) and a way to stay. Records the server will never accept (e.g. entries of a protocol deleted forever) are listed in the same sheet — no separate discard screen.
 
 - **A-119 picture approved** — 2026-10-15 — source: founder in chat "Aprovado" after the 7 screens (docs/design/a119-telas/, artifact WxjwqHJR9iuYYn4dt3Ft72 v4): screens 1, 1b, 2, 2b, 3 (no internet), 3b (connected, backup not finished), 4 ("Usar sua conta neste celular?", "Sair deste celular" grey). Checklist docs/specs/one-active-device.md goes to his signature.
+- **A-119 checklist signed** — 2026-10-15 — source: founder in chat "assino" (docs/specs/one-active-device.md OD-1..OD-18).
