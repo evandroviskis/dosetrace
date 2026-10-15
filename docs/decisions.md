@@ -820,3 +820,12 @@ Source: founder in chat 2026-10-15, answering the single question round (Portugu
 - **Q22 / OPEN-21 (11) = B:** before another account's unsent data on a phone is discarded, the app warns and offers "Sign in as {previous account} first, to save" or "Discard and continue". Supersedes the coordinator line decisions.md:508 for this case.
 - **Q23 / OPEN-18:** (a) blend lines: keep as built (solid past / dashed future, "(est.)"), pictures to confirm; (b) retire the "not recorded" day mark — FL-3 amended, the founder signs the amended row; (c) keep the extra AI caps, each with a true message when hit (×6); (d) animation: count only when the value changes, keep "All done for today" and the full-day pulse, the curve draws once per session; (e) change: show the week total under the day total (picture first).
 - **A-119 screen 3 = A:** the blocked sign-out sheet has only "OK" (no "Back up now" button).
+
+## 2026-10-15 — founder: signing out is never blocked; say the truth (amends AD-77 item 6 and DL-107)
+
+- **Sign-out with unsent changes is allowed, with a true warning** — 2026-10-15 — source: founder in chat ("se faltou internet, tem que dizer que faltou internet… tem que dar uma opção do cara deslogar mesmo sem fazer o backup, porque ele pode… estar vendendo o telefone ou ter um prazo para entregar o aparelho… avisar a pessoa que ele pode fazer o login… no novo aparelho… e avisar qual foi o horário que o último backup foi feito"). Replaces AD-77 item 6 ("sign-out not allowed while unsent") and the blocking part of DL-107. The sheet:
+  1. Says what really happened: no internet when the phone is offline; when the phone has a connection but the send did not go through, that the send did not go through over the internet (never "backup refused" or any invented cause).
+  2. Says how many changes (and what, kinds and dates) are not in the account yet and that signing out removes them from this phone.
+  3. Shows when this phone last backed up everything (date and time).
+  4. Says the person can also simply sign in on the new phone; this one signs out by itself when it is back online, and what was not sent will not be there.
+  5. Offers "Sign out anyway" (destructive) and a way to stay. Records the server will never accept (e.g. entries of a protocol deleted forever) are listed in the same sheet — no separate discard screen.
