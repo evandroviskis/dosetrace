@@ -1,0 +1,237 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aviso sem frasco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@500&family=Roboto:wght@400;500;600;700&display=swap">
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--pcard:#FFFFFF;--pacc:#2350D8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B;--pacc:#8AA8FF}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B;--pacc:#8AA8FF}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Roboto,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1400px;margin:0 auto;padding:24px 16px 56px}
+h1{font:700 26px/1.2 Geist,Roboto,sans-serif;letter-spacing:-.4px;margin:0 0 8px}
+h2{font:700 19px/1.3 Geist,Roboto,sans-serif;margin:40px 0 6px}
+.lead{color:var(--pink2);max-width:86ch;margin:0 0 14px}
+.lead b{color:var(--pink)}
+.rowlab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pink2);margin:18px 0 8px}
+.scrollx{overflow-x:auto;padding-bottom:6px}
+.cmp3{display:grid;grid-template-columns:repeat(3,429px);gap:22px;width:max-content;padding:14px;border-radius:18px;background:transparent}
+.cmp2{display:grid;grid-template-columns:repeat(2,652px);gap:28px;width:max-content}
+.cell,.cell2{min-width:0}
+.clab{font-size:14px;font-weight:600;color:var(--pink);margin:0 0 8px;min-height:22px;display:flex;align-items:center;gap:8px}
+.dev .clab{color:var(--ink)}
+.letter{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:13px;background:var(--pacc);color:var(--page);font-size:14px;font-weight:700;flex:none}
+.dev .letter{background:var(--data);color:var(--onData)}
+.cap{font-size:13px;line-height:18px;color:var(--ink2);margin-top:8px}
+.arrow{font-size:12px;color:var(--ink2);text-align:center;margin:8px 0}
+.box{background:var(--pcard);border:1px solid var(--pline);border-radius:16px;padding:14px 16px;margin:14px 0;max-width:86ch}
+.box ol,.box ul{margin:6px 0;padding-left:20px}.box li{margin:4px 0}
+.box h3{margin:0 0 4px;font-size:15px}
+.answer{font-weight:600}
+.k{font-family:"Geist Mono",ui-monospace,monospace;font-size:13px}
+
+/* device palettes: lib/theme.js LIGHT / DARK */
+.dev.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--act:#111315;--onAct:#FFFFFF;--data:#2350D8;--onData:#FFFFFF;--attention:#7E4A00}
+.dev.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--act:#EEEFEB;--onAct:#121416;--data:#8AA8FF;--onData:#0F1114;--attention:#E3A54E}
+.cmp3.dev{background:var(--ground);border:1px solid var(--pline)}
+
+/* right page (TodayScreen pageHead / pageScroll + ProtocolsScreen ProtocolDetail) */
+.rp{width:429px;background:var(--ground);color:var(--ink);position:relative;overflow:hidden;border-radius:4px;outline:1px dashed var(--line);outline-offset:0}
+.rp::after,.rp-in::after{content:"";position:absolute;left:0;right:0;bottom:0;height:56px;background:linear-gradient(to bottom,transparent,var(--ground))}
+.phead{display:flex;justify-content:flex-end;padding:8px 16px 0;min-height:44px}
+.pedit{min-height:36px;padding:0 16px;border-radius:18px;border:1px solid var(--line);display:inline-flex;align-items:center;font-size:15px;font-weight:600;color:var(--ink)}
+.pscroll{padding:0 16px 32px}
+.detail{display:flex;flex-direction:column;gap:14px}
+.ptitle{display:flex;flex-direction:column;gap:6px;padding:4px 4px 0}
+.ptrow{display:flex;align-items:center;gap:10px}
+.pdot{width:12px;height:12px;border-radius:6px;flex:none}
+.pmeta{font-size:15px;line-height:20px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.pname{font:700 30px/36px Geist,Roboto,sans-serif;letter-spacing:-.6px;color:var(--ink)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.otag{min-height:24px;padding:0 9px;border-radius:12px;border:1px solid var(--line);display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:var(--ink2)}
+/* the notice: today */
+.nt-app{display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:22px;background:var(--well)}
+.nt-app .ntt{font-size:16px;line-height:21px;font-weight:600;color:var(--ink)}
+.nt-app .ntb{font-size:14px;line-height:20px;color:var(--ink2)}
+.nt-app .ntbtn{font-size:14px}
+/* the notice: proposal */
+.nt-new{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:18px;background:var(--well);border:1px solid var(--line)}
+.nt-new .ntt{font-size:17px;line-height:22px;font-weight:600;color:var(--ink)}
+.nt-new .ntb{font-size:15px;line-height:20px;color:var(--ink2)}
+.nt-new .ntbtn{font-size:15px}
+.ntbtn{align-self:flex-start;margin-top:6px;min-height:36px;padding:0 14px;border-radius:18px;background:var(--act);color:var(--onAct);font-weight:600;display:inline-flex;align-items:center}
+.blkD{display:flex;flex-direction:column;gap:10px}
+.secth{padding:0 4px;font-size:15px;font-weight:600;color:var(--ink2)}
+.rows{background:var(--raised);border-radius:22px;padding:0 16px}
+.rw{display:flex;justify-content:space-between;align-items:baseline;gap:16px;min-height:50px;padding:13px 0}
+.rw.sep{border-top:1px solid var(--line)}
+.rk{font-size:17px;color:var(--ink2)}
+.rv{font-size:17px;font-weight:600;color:var(--ink);text-align:right}
+.rv.mono{font-family:"Geist Mono",ui-monospace,monospace;font-weight:500}
+.obtn2{min-height:50px;border-radius:25px;background:var(--well);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:var(--ink)}
+
+/* prototype column: its own CSS from a115-fold-dose-right-page.html, zoomed 1.25 */
+.proto{font-family:Geist,Roboto,sans-serif;line-height:1.45}
+.pz{zoom:1.25;width:343.2px;padding:14px}
+.pmeta-p{font-size:12px;color:var(--ink2)}
+.pname-p{font-size:24px;font-weight:700;letter-spacing:-.4px;margin:2px 0 6px}
+.tags-p{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tag-p{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--ink2)}
+.notice-p{background:var(--well);border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.notice-p b{display:block;font-size:14px;margin-bottom:4px}
+.notice-p p{margin:0 0 10px;font-size:13px;color:var(--ink2)}
+.fix-p{display:inline-grid;place-items:center;min-height:36px;padding:0 14px;border-radius:18px;background:var(--act);color:var(--onAct);font-size:14px;font-weight:600}
+.blk-p{background:var(--raised);border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.blk-p h5{margin:0 0 6px;font-size:12px;color:var(--ink2);font-weight:600}
+.kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}
+
+/* edit form, step 3 (Fld / WInput) */
+.form{width:429px;background:var(--ground);color:var(--ink);padding:14px 16px 16px;display:flex;flex-direction:column;gap:18px;outline:1px dashed var(--line)}
+.fhead{font-size:13px;color:var(--ink2)}
+.fgap{font-size:13px;color:var(--ink3);font-style:italic}
+.fld{display:flex;flex-direction:column;gap:10px}
+.flab{padding:0 4px;font-size:17px;font-weight:600;color:var(--ink)}
+.fhint{padding:0 4px;font-size:13px;line-height:18px;color:var(--ink2)}
+.winp{font-size:17px;color:var(--ink);background:var(--raised);border-radius:14px;min-height:50px;padding:12px 14px;border:1px solid var(--line);display:flex;align-items:center}
+.winp.on{border:2px solid var(--ink);padding:11px 13px}
+.winp .ph{color:var(--ink3)}
+.caret{display:inline-block;width:2px;height:22px;background:var(--data);margin-right:2px}
+.form.off .fold-line ~ .fld{opacity:.4}
+.fold-line{border-top:2px dashed var(--attention);position:relative;height:18px}
+.fold-line span{position:absolute;right:0;top:3px;font-size:12px;font-weight:600;color:var(--attention)}
+.form.off{position:relative}
+.form.off .fold-line{margin:0 0 4px}
+
+/* full spread (≈ 880 pt Fold7 window), shown at 0.6 */
+.spreadwrap{width:652px;height:482px;overflow:hidden;border-radius:14px;border:1px solid var(--pline);margin-bottom:14px}
+.spread{zoom:.74;width:880px;height:650px;display:grid;grid-template-columns:429px 22px 429px;background:var(--ground);color:var(--ink);overflow:hidden}
+.gut{display:flex;justify-content:center;padding:8px 0}.gut i{width:1px;background:var(--line);opacity:.7}
+.rp-in{position:relative;overflow:hidden}
+.lp-page{overflow:hidden}
+.thead{padding:8px 20px 18px;display:flex;flex-direction:column;gap:2px}
+.tdate{font-size:15px;color:var(--ink2)}
+.ttitle{font:700 34px/40px Geist,Roboto,sans-serif;letter-spacing:-.8px}
+.block{padding:0 16px;display:flex;flex-direction:column;gap:10px}
+.lab{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px}
+.labText{font-size:17px;font-weight:600}.labCount{font-size:15px;font-weight:500;color:var(--ink3)}
+.dose{background:var(--raised);border-radius:24px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px}
+.dose.picked{border:2px solid var(--ink);padding:16px 16px 14px}
+.dtop{display:flex;align-items:flex-start;gap:12px}
+.ddot{width:10px;height:10px;border-radius:5px;margin-top:8px;flex:none}
+.dinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.dname{font-size:20px;font-weight:700;letter-spacing:-.2px}
+.damt{font-family:"Geist Mono",ui-monospace,monospace;font-weight:500;font-size:16px;letter-spacing:-.32px}
+.dfreq{font-size:15px;color:var(--ink2)}
+.dright{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.dtime{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.dueTag{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:0 9px;border-radius:12px;border:1px solid var(--attention);font-size:12px;font-weight:700;color:var(--attention)}
+.dueTag i{width:6px;height:6px;border-radius:3px;background:var(--attention)}
+.tagLater{display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:12px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--ink3)}
+.dmeta{font-size:13px;line-height:18px;color:var(--ink2)}
+.vialRow{padding-top:14px;border-top:1px solid var(--line);display:flex;align-items:center}
+.addVialText{font-size:17px;color:var(--ink);text-decoration:underline;text-decoration-color:var(--tick);min-height:32px;display:inline-flex;align-items:center}
+.ntbtn.lp{margin-top:0;font-size:15px}
+.acts{display:flex;gap:10px}
+.btnSkip,.btnAct{flex:1;min-height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;padding:0 16px;text-align:center}
+.btnSkip{background:var(--well);color:var(--ink)}.btnAct{background:var(--act);color:var(--onAct);flex:2}
+@media (max-width:700px){h1{font-size:22px}}
+</style></head><body><div class="wrap">
+<h1>Fold aberto · o aviso “sem frasco” na página direita</h1>
+<p class="lead">Nada foi construído ainda. Aqui está o que o conselho achou, desenhado com as cores, fontes e tamanhos reais do app (1 px = 1 pt). A página direita do Fold7 aberto tem cerca de 429 pt de largura (janela de ≈ 880 pt; valor aproximado). Textos do app em português, exemplo com o seu MOTS-c sem frasco.</p>
+<p class="lead"><b>Para responder:</b> “1 sim/não”, “A ou B” e “C ou D”.</p>
+
+<h2 id="s1">1 · Tamanhos e contorno do aviso</h2>
+<p class="lead">O conselho viu duas coisas. <b>Tamanhos:</b> o aviso de hoje usa 16 e 14, fora da escala do app (o resto da página usa 15 e 17). A proposta: título 17, texto 15, botão 15, cantos 18, margem interna 14. <b>Escuro:</b> o aviso usa a cor “well” sem borda; no tema escuro ele é a superfície mais apagada da página (quase some no fundo). A proposta põe um contorno fino na cor das linhas do app, sem mudar o fundo para a cor dos cartões. Como é um estilo só, o contorno aparece também no claro (veja abaixo).</p>
+<div class="rowlab">Tema claro</div><div class="scrollx"><div class="cmp3 dev light">
+  <div class="cell"><div class="clab">Protótipo aprovado</div><div class="rp proto" style="height:560px"><div class="pz"><div class="pmeta-p">8 mg dose</div><div class="pname-p">MOTS-c</div><div class="tags-p"><span class="tag-p">Liofilizado</span><span class="tag-p">Energia</span></div><div class="notice-p"><b>Nenhum frasco reconstituído agora</b><p>Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</p><div class="fix-p">+ Adicionar frasco</div></div><div class="blk-p"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>A cada 3 dias</span></div><div class="kv"><span>Lembrete</span><span>13:00</span></div><div class="kv"><span>Objetivo</span><span>Energia</span></div></div><div class="blk-p"><h5>Detalhes da dose</h5><div class="kv"><span>Quantidade de composto</span><span>10 mg</span></div><div class="kv"><span>Quantidade de diluente</span><span>2 ml</span></div></div></div></div></div>
+  <div class="cell"><div class="clab">App hoje</div><div class="rp" style="height:560px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-app"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div>
+  <div class="cell"><div class="clab">Proposta</div><div class="rp" style="height:560px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div>
+  </div></div>
+<div class="rowlab">Tema escuro</div><div class="scrollx"><div class="cmp3 dev dark">
+  <div class="cell"><div class="clab">Protótipo aprovado</div><div class="rp proto" style="height:560px"><div class="pz"><div class="pmeta-p">8 mg dose</div><div class="pname-p">MOTS-c</div><div class="tags-p"><span class="tag-p">Liofilizado</span><span class="tag-p">Energia</span></div><div class="notice-p"><b>Nenhum frasco reconstituído agora</b><p>Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</p><div class="fix-p">+ Adicionar frasco</div></div><div class="blk-p"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>A cada 3 dias</span></div><div class="kv"><span>Lembrete</span><span>13:00</span></div><div class="kv"><span>Objetivo</span><span>Energia</span></div></div><div class="blk-p"><h5>Detalhes da dose</h5><div class="kv"><span>Quantidade de composto</span><span>10 mg</span></div><div class="kv"><span>Quantidade de diluente</span><span>2 ml</span></div></div></div></div></div>
+  <div class="cell"><div class="clab">App hoje</div><div class="rp" style="height:560px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-app"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div>
+  <div class="cell"><div class="clab">Proposta</div><div class="rp" style="height:560px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div>
+  </div></div>
+<div class="box"><h3>Números (só de apoio, a decisão é pela imagem)</h3>Contraste da caixa com o fundo da página: escuro 1,13 (hoje) → contorno 1,79 com o fundo; claro 1,16 (hoje) → contorno 1,49 com a caixa. Os cartões brancos/cinza da página ficam em 1,30–1,33. O protótipo foi desenhado a ~0,8×; aqui está ampliado 1,25× para ficar no tamanho real.</div>
+
+<h2 id="s2">2 · Comprimidos e cápsulas: “+ Adicionar frasco”</h2>
+<p class="lead">O botão leva ao formulário Editar, passo 3. Lá o campo certo é o <b>último</b> e se chama “Unidades por embalagem — opcional”, enquanto o aviso fala em “frasco”. Nos dois jeitos novos, o botão <b>rola a tela até esse campo e já deixa o cursor nele</b>. Exemplo: Magnésio em cápsula, sem tamanho de frasco. O aviso já está desenhado no visual da proposta 1 nas três colunas, para comparar só as palavras e o destino do botão.</p>
+<div class="rowlab">Tema claro</div><div class="scrollx"><div class="cmp3 dev light">
+  <div class="cell"><div class="clab">App hoje</div><div class="rp" style="height:420px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#2E9E6A"></i><span class="pmeta">200 mg · 400 mg</span></div><div class="pname">Magnésio</div><div class="tags"><span class="otag">Oral</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco informado</div><div class="ntb">Sem saber quantas unidades vêm no frasco, o app não mostra quanto resta nem para quantos dias dá. Informe o frasco que você está usando.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">Diariamente</span></div></div></div></div></div></div><div class="arrow">toca no botão ↓</div><div class="form off">
+  <div class="fhead">Editar · passo 3 · Detalhes da dose</div>
+  <div class="fgap">… Quantidade por dose, Forma, Concentração por porção …</div>
+  <div class="fld"><div class="flab">Unidades por porção</div><div class="winp">2</div><div class="fhint">Quantas cápsulas, medidas, ml, etc. formam uma porção</div></div>
+  <div class="fold-line"><span>fim da tela ao abrir (estimado)</span></div><div class="fld"><div class="flab">Unidades por embalagem — opcional</div><div class="winp "><span class="ph">ex. 60</span></div><div class="fhint">Total no frasco, para acompanhar o estoque</div></div>
+  </div><div class="cap">Abre o passo 3 no topo, sem cursor. O campo é o último do passo, então deve ficar abaixo da tela (posição estimada, não medida no Fold). O botão diz “frasco”, o campo diz “embalagem”.</div></div>
+  <div class="cell"><div class="clab"><b class="letter">A</b> Botão diz o que falta</div><div class="rp" style="height:420px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#2E9E6A"></i><span class="pmeta">200 mg · 400 mg</span></div><div class="pname">Magnésio</div><div class="tags"><span class="otag">Oral</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco informado</div><div class="ntb">Sem saber quantas unidades vêm no frasco, o app não mostra quanto resta nem para quantos dias dá. Informe o frasco que você está usando.</div><span class="ntbtn">+ Adicionar tamanho do frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">Diariamente</span></div></div></div></div></div></div><div class="arrow">toca no botão ↓</div><div class="form ">
+  <div class="fhead">Editar · passo 3 · Detalhes da dose</div>
+  
+  <div class="fld"><div class="flab">Unidades por porção</div><div class="winp">2</div><div class="fhint">Quantas cápsulas, medidas, ml, etc. formam uma porção</div></div>
+  <div class="fld"><div class="flab">Tamanho do frasco (unidades) — opcional</div><div class="winp on"><i class="caret"></i><span class="ph">ex. 60</span></div><div class="fhint">Total no frasco, para acompanhar o estoque</div></div>
+  </div><div class="cap">Botão e campo usam a mesma frase. A tela rola até o campo e já abre o teclado.</div></div>
+  <div class="cell"><div class="clab"><b class="letter">B</b> Botão igual, campo renomeado</div><div class="rp" style="height:420px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#2E9E6A"></i><span class="pmeta">200 mg · 400 mg</span></div><div class="pname">Magnésio</div><div class="tags"><span class="otag">Oral</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco informado</div><div class="ntb">Sem saber quantas unidades vêm no frasco, o app não mostra quanto resta nem para quantos dias dá. Informe o frasco que você está usando.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">Diariamente</span></div></div></div></div></div></div><div class="arrow">toca no botão ↓</div><div class="form ">
+  <div class="fhead">Editar · passo 3 · Detalhes da dose</div>
+  
+  <div class="fld"><div class="flab">Unidades por porção</div><div class="winp">2</div><div class="fhint">Quantas cápsulas, medidas, ml, etc. formam uma porção</div></div>
+  <div class="fld"><div class="flab">Unidades por frasco — opcional</div><div class="winp on"><i class="caret"></i><span class="ph">ex. 60</span></div><div class="fhint">Total no frasco, para acompanhar o estoque</div></div>
+  </div><div class="cap">Botão fica como está; o campo passa a dizer “frasco”. A tela rola até o campo e já abre o teclado.</div></div>
+  </div></div>
+<div class="rowlab">Tema escuro</div><div class="scrollx"><div class="cmp3 dev dark">
+  <div class="cell"><div class="clab">App hoje</div><div class="rp" style="height:420px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#2E9E6A"></i><span class="pmeta">200 mg · 400 mg</span></div><div class="pname">Magnésio</div><div class="tags"><span class="otag">Oral</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco informado</div><div class="ntb">Sem saber quantas unidades vêm no frasco, o app não mostra quanto resta nem para quantos dias dá. Informe o frasco que você está usando.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">Diariamente</span></div></div></div></div></div></div><div class="arrow">toca no botão ↓</div><div class="form off">
+  <div class="fhead">Editar · passo 3 · Detalhes da dose</div>
+  <div class="fgap">… Quantidade por dose, Forma, Concentração por porção …</div>
+  <div class="fld"><div class="flab">Unidades por porção</div><div class="winp">2</div><div class="fhint">Quantas cápsulas, medidas, ml, etc. formam uma porção</div></div>
+  <div class="fold-line"><span>fim da tela ao abrir (estimado)</span></div><div class="fld"><div class="flab">Unidades por embalagem — opcional</div><div class="winp "><span class="ph">ex. 60</span></div><div class="fhint">Total no frasco, para acompanhar o estoque</div></div>
+  </div><div class="cap">Abre o passo 3 no topo, sem cursor. O campo é o último do passo, então deve ficar abaixo da tela (posição estimada, não medida no Fold). O botão diz “frasco”, o campo diz “embalagem”.</div></div>
+  <div class="cell"><div class="clab"><b class="letter">A</b> Botão diz o que falta</div><div class="rp" style="height:420px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#2E9E6A"></i><span class="pmeta">200 mg · 400 mg</span></div><div class="pname">Magnésio</div><div class="tags"><span class="otag">Oral</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco informado</div><div class="ntb">Sem saber quantas unidades vêm no frasco, o app não mostra quanto resta nem para quantos dias dá. Informe o frasco que você está usando.</div><span class="ntbtn">+ Adicionar tamanho do frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">Diariamente</span></div></div></div></div></div></div><div class="arrow">toca no botão ↓</div><div class="form ">
+  <div class="fhead">Editar · passo 3 · Detalhes da dose</div>
+  
+  <div class="fld"><div class="flab">Unidades por porção</div><div class="winp">2</div><div class="fhint">Quantas cápsulas, medidas, ml, etc. formam uma porção</div></div>
+  <div class="fld"><div class="flab">Tamanho do frasco (unidades) — opcional</div><div class="winp on"><i class="caret"></i><span class="ph">ex. 60</span></div><div class="fhint">Total no frasco, para acompanhar o estoque</div></div>
+  </div><div class="cap">Botão e campo usam a mesma frase. A tela rola até o campo e já abre o teclado.</div></div>
+  <div class="cell"><div class="clab"><b class="letter">B</b> Botão igual, campo renomeado</div><div class="rp" style="height:420px"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#2E9E6A"></i><span class="pmeta">200 mg · 400 mg</span></div><div class="pname">Magnésio</div><div class="tags"><span class="otag">Oral</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco informado</div><div class="ntb">Sem saber quantas unidades vêm no frasco, o app não mostra quanto resta nem para quantos dias dá. Informe o frasco que você está usando.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">Diariamente</span></div></div></div></div></div></div><div class="arrow">toca no botão ↓</div><div class="form ">
+  <div class="fhead">Editar · passo 3 · Detalhes da dose</div>
+  
+  <div class="fld"><div class="flab">Unidades por porção</div><div class="winp">2</div><div class="fhint">Quantas cápsulas, medidas, ml, etc. formam uma porção</div></div>
+  <div class="fld"><div class="flab">Unidades por frasco — opcional</div><div class="winp on"><i class="caret"></i><span class="ph">ex. 60</span></div><div class="fhint">Total no frasco, para acompanhar o estoque</div></div>
+  </div><div class="cap">Botão fica como está; o campo passa a dizer “frasco”. A tela rola até o campo e já abre o teclado.</div></div>
+  </div></div>
+<div class="box">Nas outras línguas: em inglês (“container” × “bottle”) e francês (“contenant” × “flacon”) o campo também não bate com o aviso; espanhol (envase), alemão (Packung) e italiano (confezione) já batem. A sua escolha vira o mesmo ajuste, escrito de forma natural, nas 6 línguas.</div>
+
+<h2 id="s3">3 · Uma ação, dois visuais na mesma tela</h2>
+<p class="lead">Com o Fold aberto, “+ Adicionar frasco” aparece duas vezes: como link sublinhado no cartão da esquerda e como botão na página da direita. Abaixo, a tela inteira em tamanho reduzido (0,74×), com o aviso já na versão da proposta 1.</p>
+<div class="scrollx"><div class="cmp2">
+  <div class="cell2"><div class="clab"><b class="letter">C</b> Como está: link no cartão, botão na página</div><div class="spreadwrap"><div class="spread dev light"><div class="lp-page"><div class="thead"><div class="tdate">quinta-feira, 16 de outubro</div><div class="ttitle">Hoje</div></div>
+  <div class="block"><div class="lab"><span class="labText">Doses</span><span class="labCount">0 de 2</span></div>
+  <div class="dose picked"><div class="dtop"><i class="ddot" style="background:#3B6FD8"></i><div class="dinfo"><div class="dname">MOTS-c</div><div class="damt">8 mg</div><div class="dfreq">A cada 3 dias</div></div><div class="dright"><span class="dtime">13:00</span><span class="dueTag"><i></i>Agora</span></div></div>
+  <div class="dmeta">Último: Flanco, esquerdo · há 9d</div><div class="vialRow"><span class="addVialText">+ Adicionar frasco</span></div>
+  <div class="acts"><span class="btnSkip">Pular</span><span class="btnAct">Tomar dose de 13:00</span></div></div>
+  <div class="dose"><div class="dtop"><i class="ddot" style="background:#C2410C"></i><div class="dinfo"><div class="dname">AOD-9604</div><div class="damt">500 mcg</div><div class="dfreq">Diariamente</div></div><div class="dright"><span class="dtime">20:00</span><span class="tagLater">lembrete</span></div></div></div>
+  </div></div><div class="gut"><i></i></div><div class="rp-in"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div></div><div class="spreadwrap"><div class="spread dev dark"><div class="lp-page"><div class="thead"><div class="tdate">quinta-feira, 16 de outubro</div><div class="ttitle">Hoje</div></div>
+  <div class="block"><div class="lab"><span class="labText">Doses</span><span class="labCount">0 de 2</span></div>
+  <div class="dose picked"><div class="dtop"><i class="ddot" style="background:#3B6FD8"></i><div class="dinfo"><div class="dname">MOTS-c</div><div class="damt">8 mg</div><div class="dfreq">A cada 3 dias</div></div><div class="dright"><span class="dtime">13:00</span><span class="dueTag"><i></i>Agora</span></div></div>
+  <div class="dmeta">Último: Flanco, esquerdo · há 9d</div><div class="vialRow"><span class="addVialText">+ Adicionar frasco</span></div>
+  <div class="acts"><span class="btnSkip">Pular</span><span class="btnAct">Tomar dose de 13:00</span></div></div>
+  <div class="dose"><div class="dtop"><i class="ddot" style="background:#C2410C"></i><div class="dinfo"><div class="dname">AOD-9604</div><div class="damt">500 mcg</div><div class="dfreq">Diariamente</div></div><div class="dright"><span class="dtime">20:00</span><span class="tagLater">lembrete</span></div></div></div>
+  </div></div><div class="gut"><i></i></div><div class="rp-in"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div></div></div>
+  <div class="cell2"><div class="clab"><b class="letter">D</b> Os dois como botão</div><div class="spreadwrap"><div class="spread dev light"><div class="lp-page"><div class="thead"><div class="tdate">quinta-feira, 16 de outubro</div><div class="ttitle">Hoje</div></div>
+  <div class="block"><div class="lab"><span class="labText">Doses</span><span class="labCount">0 de 2</span></div>
+  <div class="dose picked"><div class="dtop"><i class="ddot" style="background:#3B6FD8"></i><div class="dinfo"><div class="dname">MOTS-c</div><div class="damt">8 mg</div><div class="dfreq">A cada 3 dias</div></div><div class="dright"><span class="dtime">13:00</span><span class="dueTag"><i></i>Agora</span></div></div>
+  <div class="dmeta">Último: Flanco, esquerdo · há 9d</div><div class="vialRow"><span class="ntbtn lp">+ Adicionar frasco</span></div>
+  <div class="acts"><span class="btnSkip">Pular</span><span class="btnAct">Tomar dose de 13:00</span></div></div>
+  <div class="dose"><div class="dtop"><i class="ddot" style="background:#C2410C"></i><div class="dinfo"><div class="dname">AOD-9604</div><div class="damt">500 mcg</div><div class="dfreq">Diariamente</div></div><div class="dright"><span class="dtime">20:00</span><span class="tagLater">lembrete</span></div></div></div>
+  </div></div><div class="gut"><i></i></div><div class="rp-in"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div></div><div class="spreadwrap"><div class="spread dev dark"><div class="lp-page"><div class="thead"><div class="tdate">quinta-feira, 16 de outubro</div><div class="ttitle">Hoje</div></div>
+  <div class="block"><div class="lab"><span class="labText">Doses</span><span class="labCount">0 de 2</span></div>
+  <div class="dose picked"><div class="dtop"><i class="ddot" style="background:#3B6FD8"></i><div class="dinfo"><div class="dname">MOTS-c</div><div class="damt">8 mg</div><div class="dfreq">A cada 3 dias</div></div><div class="dright"><span class="dtime">13:00</span><span class="dueTag"><i></i>Agora</span></div></div>
+  <div class="dmeta">Último: Flanco, esquerdo · há 9d</div><div class="vialRow"><span class="ntbtn lp">+ Adicionar frasco</span></div>
+  <div class="acts"><span class="btnSkip">Pular</span><span class="btnAct">Tomar dose de 13:00</span></div></div>
+  <div class="dose"><div class="dtop"><i class="ddot" style="background:#C2410C"></i><div class="dinfo"><div class="dname">AOD-9604</div><div class="damt">500 mcg</div><div class="dfreq">Diariamente</div></div><div class="dright"><span class="dtime">20:00</span><span class="tagLater">lembrete</span></div></div></div>
+  </div></div><div class="gut"><i></i></div><div class="rp-in"><div class="phead"><span class="pedit">Editar</span></div><div class="pscroll"><div class="detail"><div class="ptitle"><div class="ptrow"><i class="pdot" style="background:#3B6FD8"></i><span class="pmeta">10 mg frasco · 8 mg dose</span></div><div class="pname">MOTS-c</div><div class="tags"><span class="otag">Liofilizado</span><span class="otag">Energia</span></div></div><div class="nt-new"><div class="ntt">Nenhum frasco reconstituído agora</div><div class="ntb">Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.</div><span class="ntbtn">+ Adicionar frasco</span></div><div class="blkD"><div class="secth">Horários e lembretes</div><div class="rows"><div class="rw"><span class="rk">Frequência</span><span class="rv">A cada 3 dias</span></div><div class="rw sep"><span class="rk">Lembrete</span><span class="rv mono">13:00</span></div><div class="rw sep"><span class="rk">Objetivo</span><span class="rv">Energia</span></div></div></div><div class="obtn2">+ Lembrete</div></div></div></div></div></div></div>
+  </div></div>
+<div class="box"><b>Atenção no D:</b> o cartão da esquerda passa a ter dois botões cheios (pretos no claro, claros no escuro): “+ Adicionar frasco” e “Tomar dose de 13:00”, e o do frasco compete com a ação principal da dose. No C os dois visuais são diferentes, mas o cartão continua com um só botão cheio.</div>
+
+<div class="box"><h3>Visto no código, fora deste pedido (não confirmado no aparelho)</h3>A página direita do Hoje não tem margem lateral no código (a rolagem só tem margem embaixo), enquanto a de Meus Protocolos tem 16 pt. Aqui desenhei as três colunas com 16 pt para comparar só o aviso. Se no Fold o conteúdo encostar nas bordas, é isso.</div>
+
+<div class="box answer">Responda: 1 sim / não (ou “só os tamanhos”) · A ou B · C ou D</div>
+</div></body></html>
