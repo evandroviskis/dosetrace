@@ -162,6 +162,13 @@ Before any build, submit, delete, migration, or "it's done" claim:
 
 If you catch yourself about to do a second thing before the first is verified, stop and verify the first.
 
+## Files: replace, never pile up (2026-10-15, founder directive)
+
+When a file is redone (screenshots, pictures, previews, reports, captures), overwrite it in
+place under the same name. Never add a "-v2"/"-new"/dated copy next to the old one. New
+files only for genuinely new things; scratch work goes in the scratchpad, never the repo
+folder. (Exists because the folder filled with hundreds of stale files.)
+
 ## Rebuild means REPLACE, not bolt-on
 
 When replacing a screen/module/flow: delete the old one in the same change. Never leave the old version alive "as a fallback" — it resurfaces (e.g., the legacy `OnboardingScreen` leaking on sign-out). "I rebuilt X" is false if the old X still ships.
