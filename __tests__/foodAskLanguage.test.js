@@ -22,3 +22,10 @@ test('A-128: the follow-up answer path keeps the same language line', () => {
   const j = src.indexOf('The user writes in language code');
   assert.ok(i > 0 && j > i && j - i < 200, 'the language line is appended right after the shared system prompt');
 });
+
+test('A-128: the language code is checked against the app languages before it reaches the prompt', () => {
+  const langLine = src.split('\n').find((l) => /const lang\s*=/.test(l));
+  assert.ok(langLine, 'lang is derived in one line');
+  for (const code of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(src.includes(`'${code}'`), `allow-list names ${code}`);
+  assert.match(src, /LANGS\.has\(/, 'an allow-list check exists');
+});

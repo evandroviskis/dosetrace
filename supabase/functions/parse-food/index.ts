@@ -29,6 +29,7 @@ const DAILY_FOOD_LIMIT = 25;       // parses per user per LOCAL day (FL-20, FL-2
 const DAILY_FOLLOWUP_LIMIT = 25;   // follow-up answers are free of the parse limit (FL-21) but capped
 const HARD_24H_CEILING = 60;       // abuse ceiling across any clock games (rolling 24h, all kinds)
 const CATEGORIES = new Set(['meal', 'snack', 'drink', 'supplement']);
+const LANGS = new Set(['en', 'es', 'pt', 'fr', 'de', 'it']);
 const ASK_KINDS = new Set(['amount', 'brand', 'size', 'preparation', 'identity']);
 
 const FOOD_SYSTEM = `You convert a person's description of food, drink and supplements THEY consumed into structured nutrition estimates for a personal intake log. You are a parser, not an assistant.
@@ -130,7 +131,8 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { return jsonResponse({ error: 'Invalid JSON body', code: 'bad_request' }, 400); }
 
     const entryDate = isoDay(body?.entry_date);
-    const lang = typeof body?.lang === 'string' ? body.lang.slice(0, 2).toLowerCase() : 'en';
+    const rawLang = typeof body?.lang === 'string' ? body.lang.slice(0, 2).toLowerCase() : 'en';
+    const lang = LANGS.has(rawLang) ? rawLang : 'en'; // only the app's languages reach the prompt
     const followup = body?.followup && typeof body.followup === 'object' ? body.followup as Record<string, unknown> : null;
     const kind = followup ? 'followup' : 'parse';
 
