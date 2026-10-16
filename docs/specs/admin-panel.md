@@ -67,7 +67,7 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 - [x] Spec "Phase 2 — Management view" (section below) reviewed and approved by the founder.
   - Evidence: founder approval 2026-09-28 17:50 ET (Panel #006) of commit 910e4ef, with 3 fixes applied in the next commit: the platform rule, the MV audit source for `last_sign_in_at`, and the note 008 correction.
   - Still no panel code until the founder's go.
-- [~] **Phase 2 first-phase build (Panel #007, founder go 2026-09-28 18:02 ET).** Code done; not verified live.
+- [~] **Phase 2 first-phase build (Panel #007, founder go 2026-09-28 18:02 ET).** Code done. **SQL applied 2026-10-16 ~20:55 UTC (Panel #010, founder confirmation 16 Oct; go of 28 Sep 18:46 ET, Panel #008).** Live checks in note 012: ACL service_role only, RLS on, anon → 401/42501 on all three RPCs and the table, seed = 7, `admin_accounts` returns 116 rows. Not yet verified through the deployed panel (no push to main, no deploy).
   - **In scope:** MV-0, H1–H4, W1–W5, X2–X6, G1–G2, the Details tab, MV-5 and MV-7.
   - **Shown as "not measured" with the reason:** W0, X1, W6 and G3.
   - **Tests:** `__tests__/admManagement.test.js` (21 tests, red → green).
@@ -265,7 +265,8 @@ Unknown (mixed) and unknown (no signal) are always shown as their own number, ne
 | A1 | Activation rate | Supabase `auth.users` (registration) + `dose_logs` (doses), via `admin_accounts` | real accounts registered in the window with ≥1 `dose_logs` row of any date ÷ real accounts registered in the window, × 100, one decimal. Test accounts excluded on both sides by `admin_is_test`. No first-dose marker exists in `dose_logs` (`dose_number` belongs to `vaccines`), so any row counts | registration day between today and 30 days ago, inclusive (31 UTC calendar days); doses with no date limit | SQL by hand over the same window; test "A1 activation…" in `__tests__/admManagement.test.js` | not yet proven |
 
 - The card shows, top to bottom: the rate, the definition, the window, the source (with "test accounts excluded"), and a "how we calculate it" link that opens the A1 definition.
-- **Limitation:** the card depends on `admin_accounts` (Phase 2 SQL). Until that is applied it shows "unavailable". The test marker exists in the codebase (`admin_test_accounts` + `admin_is_test` in `supabase_admin_rpcs.sql`) but not yet in the live database.
+- **Live since 2026-10-16:** the Phase 2 SQL is applied, so `admin_accounts`, `admin_test_accounts` and `admin_is_test` exist in the live database. A1 by hand on 2026-10-16 (window 09-16 → 10-16): 5 / 29 = 17.2%, equal to the card computed by the tested code on the same rows (note 012). Still **not yet proven** by the founder.
+- The visible window line says "31 UTC calendar days, today included" (Panel #010, item 6; test-first, 6 languages).
 
 ### MV-2 Funnel (one cohort, one window)
 

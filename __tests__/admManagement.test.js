@@ -296,3 +296,9 @@ test('A1 activation: present in the management payload', () => {
   const m = adm.buildManagement({ accounts: FIX }, { status: 'not_configured' }, NOW);
   assert.ok(m.activation && typeof m.activation.den === 'number');
 });
+test('A1 activation: the visible window text says 31 UTC calendar days (today included) in all 6 languages', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+  const T = (0, eval)('(' + html.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.match(T[l].act_window, /31/, `${l} act_window names the 31 days`);
+  assert.match(T.pt.act_window, /31 dias/);
+});
