@@ -49,3 +49,26 @@ test('spec-audit: existing criterion ids still match and the header/separator ro
   ].join('\n');
   assert.deepEqual(criterionRows(text).map((l) => l.split('|')[1].trim()), ['SG-1', 'OD-12', 'FR-6']);
 });
+
+// Gate S blocked every build on specs the founder had moved to a later release
+// (A-119, A-121, A-127 — decisions.md 2026-10-15). A spec is deferred only when its
+// committed-to line names a LATER release AND cites the founder; anything else blocks.
+const { isDeferred } = require('../scripts/spec-audit.cjs');
+
+test('spec-audit: a founder deferral to the release after the current one does not block', () => {
+  assert.equal(isDeferred('- committed-to: the release after 1.3.0 (founder deferral 2026-10-15)\n', '1.3.0'), true);
+  assert.equal(isDeferred('- committed-to: 1.3.1 (founder deferral 2026-10-15)\n', '1.3.0'), true);
+});
+
+test('spec-audit: the current release, "next build", no line, or a deferral without the founder all block', () => {
+  assert.equal(isDeferred('- committed-to: 1.3.0 (approved → next build)\n', '1.3.0'), false);
+  assert.equal(isDeferred('- committed-to: next build (founder "approved → next build" rule)\n', '1.3.0'), false);
+  assert.equal(isDeferred('# no committed-to line\n', '1.3.0'), false);
+  assert.equal(isDeferred('- committed-to: the release after 1.3.0\n', '1.3.0'), false);
+  assert.equal(isDeferred('- committed-to: 1.3.1\n', '1.3.0'), false);
+});
+
+test('spec-audit: once the app reaches the deferred release, the spec blocks again', () => {
+  assert.equal(isDeferred('- committed-to: the release after 1.3.0 (founder deferral 2026-10-15)\n', '1.3.1'), false);
+  assert.equal(isDeferred('- committed-to: 1.3.1 (founder deferral 2026-10-15)\n', '1.3.1'), false);
+});
