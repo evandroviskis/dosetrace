@@ -36,6 +36,7 @@ function load(N, { persistent = false, scheduleReq } = {}) {
     parseReminderTimes, fill,
     isPersistentEnabled: async () => persistent,
     showNamesInNotifications: async () => true,
+    protocolDisplayName: require('../lib/protocolName').protocolDisplayName, // A-134
     decimalText: (x) => String(x),
     ymd: plan.ymd, parseYmd: plan.parseYmd, dueDateKeys: plan.dueDateKeys,
     getTodayLogs: () => [],
@@ -160,6 +161,7 @@ test('AC2: the morning summary schedules first and only then drops days no longe
     usesServerPush: () => false, ymd: plan.ymd, parseYmd: plan.parseYmd, morningSummaryPlan: plan.morningSummaryPlan,
     SUMMARY_WINDOW_DAYS: 7, SUMMARY_HORIZON_DAYS: 45, MORNING_HOUR: 7, MORNING_MIN: 0,
     showNamesInNotifications: async () => true, fill: (s) => s, formatList: (l) => l.join(', '), pluralKey: (k) => k, Platform: { OS: 'android' },
+    protocolDisplayName: require('../lib/protocolName').protocolDisplayName, // A-134
     scheduleReq,
   });
   // killed after the 2nd summary: the stale ones are still there (nothing cancelled first)

@@ -16,6 +16,7 @@ import { scheduleState, reminderChecks } from '../lib/reminderHealth';
 import { formatDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
+import { protocolDisplayName } from '../lib/protocolName';
 
 function Back({ color }) {
   return (
@@ -91,8 +92,9 @@ export default function ReminderCheckScreen({ navigation, route }) {
             <>
               <Text style={s.cardKey}>{t('rc_next')}</Text>
               <Text style={s.cardMain}>{nextLine}</Text>
+              {/* A-134: the protocol's display name (as on Today), not the stored notification title */}
               <Text style={s.cardSub}>
-                {[health.next.title, t(pluralKey('rc_count', health.scheduledCount, language)).replace('{n}', String(health.scheduledCount))].filter(Boolean).join(' · ')}
+                {[(health.next.protocol ? protocolDisplayName(health.next.protocol, t) : health.next.title), t(pluralKey('rc_count', health.scheduledCount, language)).replace('{n}', String(health.scheduledCount))].filter(Boolean).join(' · ')}
               </Text>
             </>
           ) : (
