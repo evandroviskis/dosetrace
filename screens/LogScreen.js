@@ -103,12 +103,13 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
 
   useFocusEffect(
     useCallback(() => {
-      // Materialize any newly-missed doses (12h+ unlogged) before listing, so
-      // they appear in history; then load. scanMissedDoses is best-effort.
+      // Load now; the Missed scan (12h+ unlogged doses) waits for the session's first sync
+      // (A-123), then the list is read again with its rows and the downloaded doses. Best-effort.
+      fetchLogs();
       scanMissedDoses().then((n) => {
         if (n > 0) requestSync();
         fetchLogs();
-      }).catch(() => fetchLogs());
+      }).catch(() => {});
     }, [])
   );
 

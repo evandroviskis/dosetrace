@@ -56,6 +56,11 @@ import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
 import { orphanedSheet } from '../lib/orphanedPending';
 
+// A-123: the report's Missed scan waits for the session's first sync result at most this long, then
+// the report is made from the rows already on the phone (no scan from a half-synced phone). The
+// button shows its spinner meanwhile; a first sync normally ends within a couple of seconds, and
+// without a cap a stalled network (no answer, no error) would hang the export.
+const REPORT_SCAN_WAIT_MS = 5000;
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
 
@@ -366,7 +371,8 @@ export default function SettingsScreen({ navigation }) {
 
       // Missed rows first (the same scan Today and the Dose log run), so the report counts
       // every scheduled dose of the period. Best-effort: the rows already written still count.
-      try { await scanMissedDoses(); } catch (e) { /* best effort */ }
+      // A-123: after the first sync only, waiting at most REPORT_SCAN_WAIT_MS.
+      try { await scanMissedDoses({ maxWaitMs: REPORT_SCAN_WAIT_MS }); } catch (e) { /* best effort */ }
       const logs = getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [];
       // Active protocols and the ended ones with records in the window (A-83: ending never
       // removes doses from the report; lib/protocolEnd reportProtocols).

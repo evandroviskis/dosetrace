@@ -230,12 +230,12 @@ test('A-122 (3): one wait at a time, never over another tab, never before the fi
 // ── (4) source guards ──────────────────────────────────────────────────────────────────────────
 test('A-122 (4): Today runs "Still going?" only through the first-sync gate', () => {
   const today = read('screens/TodayScreen.js');
-  assert.match(today, /import \{ createFirstSyncGate \} from '\.\.\/lib\/stillGoingGate';/);
-  // One gate for the app session, created when the module loads (before App starts the sync), so
-  // the first pass's result is never missed by a Today that mounts later.
-  const gateAt = today.indexOf('const firstSyncGate = createFirstSyncGate({ addSyncListener, isOnlineNow });');
-  assert.ok(gateAt >= 0, 'module-scope gate');
-  assert.ok(gateAt < today.indexOf('export default function'), 'outside the component');
+  // One gate for the app session, created when a module loads (before App starts the sync), so
+  // the first pass's result is never missed by a Today that mounts later. A-123: it lives in
+  // lib/firstSyncGate.js, shared with the Missed scan (missedScanGate.test.js).
+  assert.match(today, /import \{ firstSyncGate \} from '\.\.\/lib\/firstSyncGate';/);
+  assert.match(read('lib/firstSyncGate.js'), /^export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow \}\);/m, 'module-scope gate');
+  assert.doesNotMatch(today, /createFirstSyncGate\(/, 'Today makes no gate of its own');
   // checkTreatmentStillActive( is called in exactly one place: inside the gate wrapper.
   const calls = [...today.matchAll(/(?<!function )checkTreatmentStillActive\(/g)].map((m) => m.index);
   assert.equal(calls.length, 1, 'one call site');

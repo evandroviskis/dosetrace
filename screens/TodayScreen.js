@@ -13,7 +13,7 @@ import {
 import { readCheckNow } from '../lib/realityCheckNow';
 import { loadAlertInputs } from '../lib/todayAlertsLoad';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
-import { createFirstSyncGate } from '../lib/stillGoingGate';
+import { firstSyncGate } from '../lib/firstSyncGate';
 import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -160,8 +160,8 @@ const ALERT_SNOOZE_KEY = 'dosetrace_alert_snooze';
 // The Undo / notice toast stays 4 s (prototype toast(), Today redesign part 15).
 const TOAST_MS = 4000;
 // A-122: "Still going?" decides only after the session's first sync result (or when offline), so a
-// dose logged on another phone has arrived. Created at module load, before App starts the sync.
-const firstSyncGate = createFirstSyncGate({ addSyncListener, isOnlineNow });
+// dose logged on another phone has arrived: the session's one gate, lib/firstSyncGate (A-123: the
+// Missed scan waits on the same one).
 
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.

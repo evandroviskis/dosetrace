@@ -73,7 +73,8 @@ test('the Settings report uses lib/adherenceReport, scans for missed doses first
   const src = fs.readFileSync(path.join(__dirname, '../screens/SettingsScreen.js'), 'utf8');
   const fn = src.slice(src.indexOf('async function handleAdherenceReport'), src.indexOf('async function handleSignOut'));
   assert.match(fn, /adherenceStats\(/);
-  assert.match(fn, /await scanMissedDoses\(\)/);
+  // A-123: the scan waits for the first sync, capped so the export never hangs.
+  assert.match(fn, /await scanMissedDoses\(\{ maxWaitMs: REPORT_SCAN_WAIT_MS \}\)/);
   assert.doesNotMatch(fn, /taken \/ total/, 'the old taken ÷ (taken + skipped) formula is gone');
   assert.match(fn, /\{missed\}/);
 });
