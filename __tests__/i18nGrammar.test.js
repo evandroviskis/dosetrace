@@ -155,14 +155,17 @@ test('English lists use the serial comma ("labs, vaccine cards, and vials")', ()
   assert.deepEqual(bad, []);
 });
 
-test('Terms and the FAQ "Can I cancel anytime?" also explain cancelling on Android (Google Play), in 6 languages', () => {
+// Council fix 4 (2026-10-16, Apple 2.3.10): each platform reads only its own store
+// (lib/storeText.js; __tests__/storeSpecificCancel.test.js). On Android both still explain Google Play.
+test('Terms and the FAQ "Can I cancel anytime?" explain cancelling on Android (Google Play), in 6 languages', () => {
+  const { fillStoreText } = require('../lib/storeText');
   for (const l of LANGS) {
-    assert.match(tr[l].settings_terms_body, /Google Play/, `${l} terms`);
+    const tt = (k) => tr[l][k];
+    assert.match(fillStoreText(tr[l].settings_terms_body, tt, 'android'), /Google Play/, `${l} terms`);
     const faq = tr[l].faq_categories.flatMap((c) => c.questions);
     const cancelIdx = tr.en.faq_categories.flatMap((c) => c.questions).findIndex((q) => /cancel anytime/i.test(q.q));
     assert.ok(cancelIdx >= 0);
-    assert.match(faq[cancelIdx].a, /Google Play/, `${l} FAQ cancel answer`);
-    assert.match(faq[cancelIdx].a, /Android/, `${l} FAQ cancel answer names Android`);
+    assert.match(fillStoreText(faq[cancelIdx].a, tt, 'android'), /Google Play/, `${l} FAQ cancel answer`);
   }
 });
 

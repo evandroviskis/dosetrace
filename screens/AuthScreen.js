@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, signInWithGoogle, signInWithApple, sendPasswordReset, emailConfirmRedirectUrl } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
+import { fillStoreText } from '../lib/storeText';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { Analytics } from '../lib/analytics';
@@ -315,7 +316,7 @@ export default function AuthScreen({ onBack, initialMode }) {
   const sheets = (
     <>
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
-      <LegalModal visible={showTerms} onClose={() => setShowTerms(false)} title={t('settings_terms')} content={t('settings_terms_body')} doneLabel={t('done')} />
+      <LegalModal visible={showTerms} onClose={() => setShowTerms(false)} title={t('settings_terms')} content={fillStoreText(t('settings_terms_body'), t, Platform.OS)} doneLabel={t('done')} />
     </>
   );
 

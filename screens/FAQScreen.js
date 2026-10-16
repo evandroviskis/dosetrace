@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
+import { fillStoreText } from '../lib/storeText';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
@@ -87,7 +89,7 @@ export default function FAQScreen({ navigation }) {
                       </View>
                     </View>
                     {isOpen && (
-                      <Text style={s.itemA}>{item.a}</Text>
+                      <Text style={s.itemA}>{fillStoreText(item.a, t, Platform.OS)}</Text>
                     )}
                   </TouchableOpacity>
                 );

@@ -199,7 +199,7 @@ test('PA-39 / PA-63: Terms of service AND Privacy policy linked on the consent s
   const consent = ONB.slice(ONB.indexOf("cur === 'consent'"), ONB.indexOf("cur === 'reminders'"));
   assert.match(consent, /settings_terms/);
   assert.match(consent, /settings_privacy_policy/);
-  assert.match(ONB, /content=\{t\('settings_terms_body'\)\}/);
+  assert.match(ONB, /content=\{fillStoreText\(t\('settings_terms_body'\), t, Platform\.OS\)\}/); // council fix 4
 });
 
 test('PA-41: Finish setup writes only the shown steps and reports a failed save in a sheet', () => {

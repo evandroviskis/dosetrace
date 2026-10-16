@@ -14,6 +14,7 @@ import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
+import { fillStoreText } from '../lib/storeText';
 import {
   getOfferings,
   purchasePackage,
@@ -445,7 +446,7 @@ export default function PaywallScreen({ navigation, route }) {
           visible={showTerms}
           onClose={() => setShowTerms(false)}
           title={t(terms.titleKey)}
-          content={t(terms.bodyKey)}
+          content={fillStoreText(t(terms.bodyKey), t, Platform.OS)}
           doneLabel={t('done')}
         />
       )}

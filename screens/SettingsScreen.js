@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
+import { fillStoreText } from '../lib/storeText';
 import { formatDate, decimalText } from '../lib/localeFormat';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
@@ -1220,7 +1221,7 @@ export default function SettingsScreen({ navigation }) {
         visible={showTerms}
         onClose={() => setShowTerms(false)}
         title={t('settings_terms')}
-        content={t('settings_terms_body')}
+        content={fillStoreText(t('settings_terms_body'), t, Platform.OS)}
         doneLabel={t('done')}
       />
 

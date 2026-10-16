@@ -10,6 +10,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
+import { fillStoreText } from '../lib/storeText';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
@@ -715,7 +716,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
         </View>
       </BottomSheet>
 
-      <LegalModal visible={legal} onClose={() => setLegal(false)} title={t('settings_terms')} content={t('settings_terms_body')} doneLabel={t('done')} />
+      <LegalModal visible={legal} onClose={() => setLegal(false)} title={t('settings_terms')} content={fillStoreText(t('settings_terms_body'), t, Platform.OS)} doneLabel={t('done')} />
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
     </SafeAreaView>
   );
