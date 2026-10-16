@@ -53,15 +53,14 @@ async function fetchSupabase() {
   const base = url.replace(/\/$/, '');
   const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   try {
-    const [mr, ar, fr, acr] = await Promise.all([
+    // admin_activity is no longer called: analytics have no user_id since 2026-10-04.
+    const [mr, fr, acr] = await Promise.all([
       fetch(`${base}/rest/v1/rpc/admin_metrics`, { method: 'POST', headers, body: '{}' }),
-      fetch(`${base}/rest/v1/rpc/admin_activity`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_feature_adoption`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_accounts`, { method: 'POST', headers, body: '{}' }),
     ]);
     if (!mr.ok) return { status: 'error', message: `Supabase ${mr.status}: ${(await mr.text()).slice(0, 200)}` };
     const data = await mr.json();
-    if (ar.ok) { try { data.activity_events = await ar.json(); } catch (e) { /* optional */ } }
     if (fr.ok) { try { data.feature_adoption = await fr.json(); } catch (e) { /* optional */ } }
     // Management view rows (admin_accounts). Missing until the Phase 2 SQL is applied.
     if (acr && acr.ok) { try { const j = await acr.json(); data.accounts = j.accounts; data.protocols_live = j.protocols_live; } catch (e) { /* optional */ } }
@@ -388,6 +387,7 @@ function buildManagement(sb, rc, nowMs) {
   return {
     headline: headlineCards(accounts, nowMs),
     activation: activationRate(accounts, nowMs),
+    test_count: accounts.filter((a) => a.t).length,
     real_all_time: accounts.filter((a) => !a.t).length,
     protocols_live: sb.protocols_live == null ? null : Number(sb.protocols_live),
     windows,

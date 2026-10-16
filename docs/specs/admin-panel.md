@@ -75,6 +75,18 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
   - **Every H/W/X/G row stays "not yet proven"** until the founder checks it.
   - **Deviation for founder acceptance:** S1, S2 and S6 stay visible in Details, flagged "different window", instead of disappearing until W0/X1 are measurable.
 
+### Phase 2c — Test accounts never appear (Panel #011, founder decision 2026-10-16)
+
+- [x] **Step 1 candidate list** (note 013). Evidence: read-only SQL 2026-10-16.
+- [x] **Step 2 list applied live 2026-10-16:** 4 founder-marked rows + the `@cloudtestlabaccounts.com` domain rule in `admin_is_test`; 11 of 116 accounts are test. Evidence: ACL service_role only, anon → 401/42501, seed count 11, rule check true/true/false (note 013).
+- [~] **Step 3 every number excludes test accounts.** Code and SQL written, tests first (6 new tests red → green); **SQL v2 not applied** (stop point).
+  - `admin_metrics` v2: one `real` set (`not admin_is_test`) drives signups, doses, protocols (deleted rows excluded), audience, funnel, totals, adherence, top biomarkers; returns `test_excluded`.
+  - `admin_feature_adoption` v2: events only; total_users excludes test.
+  - `admin_accounts`: `protocols_live` excludes test.
+  - Page: "N test accounts excluded" line under the headline cards; RevenueCat and store rows say "includes test purchases, IDs and installs"; no toggle, no raw view.
+  - **Removed because analytics are anonymous since 2026-10-04 (founder regulatory decision; user_id is null on every event):** O5–O7 DAU/WAU/MAU, C2 active users, F1 and the Users/Reach columns of F2, P1–P3 compounds/searches/types, G2 cohorts, `admin_activity` is no longer called. Event counts (F2 Uses, C5 scans, E3 doses chart) stay and are labelled events, not people.
+  - Before/after numbers (with tests / without) go in note 013 only, never on the page.
+
 ### Phase 3 — not specced yet (founder specs first)
 
 - [ ] 3.1 Login/password for the panel.
@@ -315,7 +327,7 @@ Unknown (mixed) and unknown (no signal) are always shown as their own number, ne
 | ID | Chart | Question it answers (shown as the subtitle) | Source | Definition | Window (UTC) | How it is proven | Proven |
 |---|---|---|---|---|---|---|---|
 | G1 | New customers per day, stacked by platform | "Is acquisition growing, and on which platform?" | Supabase | the daily count of H-definition accounts, stacked iOS / Android / unknown | last 90 full days | daily sums add up to H3 | not yet proven |
-| G2 | Weekly signup cohorts, retention | "Do new customers keep using the app week after week?" | Supabase `auth.users` + `analytics_events` | cohort = real accounts by signup ISO week; cell W*n* = share with ≥1 analytics event in week *n*. **Marked as a floor** until an app-open event exists (A-6, MV-8 D3) | last 8 signup weeks | SQL per cohort cell | not yet proven |
+| ~~G2~~ | ~~Weekly signup cohorts, retention~~ (removed 2026-10-16: analytics anonymous, no event per account) | "Do new customers keep using the app week after week?" | Supabase `auth.users` + `analytics_events` | cohort = real accounts by signup ISO week; cell W*n* = share with ≥1 analytics event in week *n*. **Marked as a floor** until an app-open event exists (A-6, MV-8 D3) | last 8 signup weeks | SQL per cohort cell | not yet proven |
 | G3 | Premium conversion by signup week | "What share of each signup week becomes paid Premium, and how fast?" | Supabase + RevenueCat | for each signup week, the share of the cohort reaching W6 (store purchase) by week 0/1/2/4 | last 12 signup weeks | RC customer pages for the converted ids | not yet proven |
 
 **Details tab (secondary, collapsed by default).** It holds everything without a stated management question: the feature adoption table, audience, searches and top compounds, protocol types, top biomarkers, adherence, the WAU/DAU/MAU floors, the compare tool, and raw totals.

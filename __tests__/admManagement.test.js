@@ -311,3 +311,63 @@ test('A1 activation: the visible window text says 31 UTC calendar days (today in
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.match(T[l].act_window, /31/, `${l} act_window names the 31 days`);
   assert.match(T.pt.act_window, /31 dias/);
 });
+
+// ---------------------------------------------------------------- step 3: test accounts never appear in any number (Panel #011)
+// Management numbers are computed in JS from admin_accounts rows that carry the test flag,
+// so a fixture can prove it. Details numbers are computed inside the SQL functions; for
+// those the test is static (every counting CTE applies admin_is_test) and the live
+// before/after proof is in the note.
+const HEAVY_TEST = A('2026-09-20', { t: true, d: true, pr: true, o: true, apple: true, w: [0, 1] });
+test('Step 3: a test account with many rows changes no Management number (H, W, A1, G1)', () => {
+  const base = adm.buildManagement({ accounts: FIX, protocols_live: 1 }, { status: 'not_configured' }, NOW);
+  const withTest = adm.buildManagement({ accounts: FIX.concat([HEAVY_TEST, HEAVY_TEST, HEAVY_TEST]), protocols_live: 1 }, { status: 'not_configured' }, NOW);
+  assert.deepEqual(withTest.headline, base.headline);
+  assert.deepEqual(withTest.windows['7'].funnel, base.windows['7'].funnel);
+  assert.deepEqual(withTest.activation, base.activation);
+  assert.deepEqual(withTest.g1, base.g1);
+  assert.equal(withTest.real_all_time, base.real_all_time);
+  assert.equal(withTest.test_count, base.test_count + 3, 'only the excluded-count changes');
+});
+function sqlFn(name) {
+  const m = SQL.match(new RegExp(`create or replace function public\\.${name}\\([^)]*\\)[\\s\\S]*?\\n\\$(?:function|)\\$;`, 'i'));
+  assert.ok(m, `${name} defined`);
+  return m[0];
+}
+test('Step 3 SQL: admin_metrics counts only non-test accounts in every group (totals, adherence, funnel, audience, signups, doses, top biomarkers)', () => {
+  const fn = sqlFn('admin_metrics');
+  for (const cte of ['sg as', 'dl as', 'pcr as', 'udim as', 'funnel as', 'totals as', 'adherence as', 'top_biomarkers as']) {
+    const idx = fn.indexOf(cte);
+    assert.ok(idx > 0, `${cte} present`);
+    const body = fn.slice(idx, fn.indexOf('\n  ', idx + 1) > 0 ? fn.indexOf(')\n', idx) + 1 : fn.length);
+    assert.match(fn.slice(idx, idx + 1600), /real/, `${cte} uses the real-accounts set`);
+  }
+  assert.match(fn, /real as \(select id, email from auth\.users where not public\.admin_is_test\(email\)\)/, 'one real-accounts CTE drives every count');
+  assert.ok(!/select count\(\*\) from protocols\)/.test(fn), 'no unfiltered protocols total');
+  assert.ok(!/select count\(\*\) from dose_logs\)/.test(fn), 'no unfiltered dose_logs total');
+  assert.ok(!/select count\(\*\) from biomarkers\)/.test(fn), 'no unfiltered biomarkers total');
+});
+test('Step 3 SQL: event-based account metrics are gone (analytics are anonymous since 2026-10-04): no dau, retention, searches or protocol events', () => {
+  const fn = sqlFn('admin_metrics');
+  for (const dead of ["'dau'", "'retention'", "'searches'", "'protocols_created_events'", 'cohort_users', 'uaw as']) assert.ok(!fn.includes(dead), `${dead} removed`);
+});
+test('Step 3 SQL: admin_feature_adoption counts events only, with total_users excluding test accounts', () => {
+  const fn = sqlFn('admin_feature_adoption');
+  assert.match(fn, /not public\.admin_is_test/);
+  assert.ok(!fn.includes("'active_users_30d'") && !fn.includes("'users'"), 'no per-user event counts');
+});
+test('Step 3 SQL: admin_accounts protocols_live excludes test accounts', () => {
+  const fn = sqlFn('admin_accounts');
+  assert.match(fn, /'protocols_live', \(select count\(\*\) from public\.protocols p join auth\.users u on u\.id = p\.user_id where p\.deleted_at is null and not public\.admin_is_test\(u\.email\)\)/);
+});
+test('Step 3 page: removed metrics are gone from DEFS, kept ones say test accounts are excluded, RC/store rows say they include test IDs/installs', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+  const ids = [...html.matchAll(/\{id:"([A-Z]+\d+)"/g)].map((m) => m[1]);
+  for (const gone of ['O5', 'O6', 'O7', 'C2', 'F1', 'P1', 'P2', 'P3', 'G2']) assert.ok(!ids.includes(gone), `${gone} removed`);
+  for (const kept of ['O2', 'O11', 'O12', 'O13', 'C3', 'C4', 'E1', 'E3', 'F2', 'P4', 'U1']) {
+    assert.ok(ids.includes(kept), `${kept} kept`);
+    const row = html.match(new RegExp(`\\{id:"${kept}",[^\\n]*`))[0];
+    assert.match(row, /[Tt]est accounts excluded/, `${kept} says test accounts excluded`);
+  }
+  for (const ext of ['V1', 'S1', 'S4']) assert.match(html.match(new RegExp(`\\{id:"${ext}",[^\\n]*`))[0], /includes test/i, `${ext} says it includes test purchases/IDs/installs`);
+  assert.match(html, /excluded_n:/, 'label for the excluded count exists');
+});
