@@ -121,7 +121,7 @@ test('example values in empty fields use the language decimal', () => {
 });
 
 test('food quantities use the language decimal', () => {
-  assert.equal(itemLabel({ food: 'aveia', qty: 0.5, unit: 'xícara' }, 'pt'), '0,5 xícara aveia');
+  assert.equal(itemLabel({ food: 'aveia', qty: 0.5, unit: 'xícara' }, 'pt'), '0,5 xícara de aveia', 'A-133: pt joins a measure with de');
   assert.equal(itemLabel({ food: 'oats', qty: 0.5, unit: 'cup' }), '0.5 cup oats');
 });
 

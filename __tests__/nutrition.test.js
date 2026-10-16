@@ -457,7 +457,7 @@ test('itemLabel: a measure unit is never taken for the food (A-100)', () => {
   assert.equal(itemLabel({ food: 'almond milk', qty: 300, unit: 'ml' }), '300 ml almond milk');
   assert.equal(itemLabel({ food: 'gummy bears', qty: 2, unit: 'g' }), '2 g gummy bears');
   assert.equal(itemLabel({ food: 'cupcakes', qty: 1, unit: 'cup' }), '1 cup cupcakes', 'a measure stays a measure');
-  assert.equal(itemLabel({ food: 'peito de frango grelhado', qty: 180, unit: 'g' }, 'pt'), '180 g peito de frango grelhado');
+  assert.equal(itemLabel({ food: 'peito de frango grelhado', qty: 180, unit: 'g' }, 'pt'), '180 g de peito de frango grelhado', 'A-133: pt joins a measure with de');
   assert.equal(itemLabel({ food: 'eggs', qty: 3, unit: 'egg' }), '3 × eggs', 'still a count');
   assert.equal(itemLabel({ food: 'BUILT Puff bar', qty: 2, unit: 'bars' }), '2 × BUILT Puff bar');
   assert.equal(itemLabel({ food: 'bananas', qty: 2, unit: 'banana' }), '2 × bananas');
