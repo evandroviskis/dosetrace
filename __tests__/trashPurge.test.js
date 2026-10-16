@@ -101,7 +101,7 @@ test('the strings exist in six languages', () => {
     assert.match(tr.protocols_purge_title_many, /\{n\}/, l);
   }
   assert.equal(mod.exports.translations.en.protocols_purge_title_single, 'Delete this protocol forever?');
-  assert.equal(mod.exports.translations.en.protocols_purge_body_many, 'Their dose history, vials and reminders are removed from all your devices. This can’t be undone.');
+  assert.equal(mod.exports.translations.en.protocols_purge_body_many, 'Their dose history, vials, and reminders are removed from all your devices. This can’t be undone.');
 });
 
 // ── Gate B on the purge (2026-10-04) ────────────────────────────────────────────────────────

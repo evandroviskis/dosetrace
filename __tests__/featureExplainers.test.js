@@ -30,12 +30,12 @@ test('part 18: the eight explainers in the prototype order, with the approved co
   assert.deepEqual(EXPLAINERS.map((x) => x.key), KEYS);
   const en = translations.en;
   const want = {
-    recon: ['Never guess the draw', 'Enter your vial, the water you add and your dose. DoseTrace works out how many units to draw on your syringe, so the math is done for you.'],
+    recon: ['Never guess the draw', 'Enter your vial, the water you add, and your dose. DoseTrace works out how many units to draw on your syringe, so the math is done for you.'],
     vial: ['Know when a vial runs low', 'Every dose you log comes off the vial. DoseTrace shows the doses and days left and warns you before you run out.'],
     remind: ['A reminder at the right time', 'Get a reminder when a dose is due and mark it complete right from the notification.'],
     sites: ['Rotate your injection sites', 'Log where you injected and see your own rotation at a glance, with the spot you have not used the longest.'],
     log: ['Keep your streak', 'Every dose you log fills your week and your streak, so you see at a glance how consistent you have been.'],
-    energy: ['Your daily numbers', 'From your weight, height, age and activity, DoseTrace estimates your resting burn, your daily burn and a protein range, using standard formulas.'],
+    energy: ['Your daily numbers', 'From your weight, height, age, and activity, DoseTrace estimates your resting burn, your daily burn, and a protein range, using standard formulas.'],
     labsman: ['All your lab values in one place', 'Type in values from any lab report and keep them together by date, with the units on your report.'],
     notes: ['Notes on your doses', 'Add a note when you log a dose, like how you felt or when you took it, and find it later in your dose log.'],
   };

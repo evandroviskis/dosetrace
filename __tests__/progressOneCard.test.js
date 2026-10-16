@@ -269,7 +269,7 @@ test('PO-18: cal_yr is the full word (founder 2026-10-02) and the tile prompt na
   assert.deepEqual(['en', 'es', 'pt', 'fr', 'de', 'it'].map(l => tr[l].cal_yr), ['yr', 'años', 'anos', 'ans', 'J.', 'anni']);
   const { numbersLine } = P();
   assert.equal(numbersLine({ weight: '86', wUnit: 'kg', height: '177', hUnit: 'cm', age: '41', yr: tr.pt.cal_yr, sexLabel: 'Homem', bodyFat: '23', bfShort: tr.pt.cal_bf_short, activityLabel: 'Leve' }), '86 kg · 177 cm · 41 anos · Homem · 23% GC · Leve');
-  assert.equal(tr.en.cal_need_inputs, 'Enter your weight, height, age and sex to see your daily burn.');
+  assert.equal(tr.en.cal_need_inputs, 'Enter your weight, height, age, and sex to see your daily burn.');
   for (const l of ['es', 'pt', 'fr', 'de', 'it']) assert.doesNotMatch(tr[l].cal_need_inputs, /\(/, `${l}: no "(or …)" body-fat path any more`);
 });
 
@@ -281,6 +281,6 @@ test('PO-16: every new string exists in all 6 languages', () => {
   const keys = ['cal_fill_numbers', 'cal_numbers_prompt', 'cal_weighins_none', 'cal_complete_numbers', 'cal_wedit_title', 'cal_wedit_body', 'cal_wedit_update', 'cal_wedit_today'];
   for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of keys) assert.ok(translations[lang][k], `${lang}.${k}`);
   assert.equal(translations.en.cal_fill_numbers, 'Fill in your numbers below to see your daily burn.');
-  assert.equal(translations.en.cal_numbers_prompt, 'Weight, height, age and sex give your daily burn. Body fat and waist make it sharper.');
+  assert.equal(translations.en.cal_numbers_prompt, 'Weight, height, age, and sex give your daily burn. Body fat and waist make it sharper.');
   assert.match(translations.en.cal_wedit_update, /\{date\}/);
 });

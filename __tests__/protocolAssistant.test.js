@@ -116,7 +116,7 @@ test('AP-0: blends and unlisted compounds are kept as typed; the form stays free
 // ── AP-4 / AP-22: a total is split by the user's own count ─────────────────
 test('AP-4: an amount without its spread asks one neutral question: per injection, per day, per week or per month', () => {
   const c = nadBuild().say('240 mg').step('period');
-  assert.equal(c.lastApp(), 'Is the 240 mg for one injection, or a total per day, per week or per month?');
+  assert.equal(c.lastApp(), 'Is the 240 mg for one injection, or a total per day, per week, or per month?');
   assert.deepEqual(c.options(), ['One injection', 'Per day', 'Per week', 'Per month']);
 });
 

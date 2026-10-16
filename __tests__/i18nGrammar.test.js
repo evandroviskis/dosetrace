@@ -133,3 +133,74 @@ test('the screens pick the new singulars with pluralKey', () => {
   assert.match(read('screens/TodayScreen.js'), /dosesTakenLabel\(doneDoses, totalDoses, t, language\)/);
   assert.match(read('screens/PaywallScreen.js'), /ctaModel\(\{[^}]*language[^}]*\}\)/);
 });
+
+// ── Follow-up decisions 2026-10-15 (ledger/logic) ─────────────────────────────
+// English uses the serial (Oxford) comma, like the US spelling and Apple's style.
+// A short list "A, B and C" (one- or two-word items) needs the comma before and/or.
+const OXFORD_OK = new Set([
+  'nutri_demo_meal', 'nutri_input_placeholder', // the food-chat example is what a user types; the demo splits it on ", " and " and "
+]);
+// Not lists: the pattern matches, but the words after the comma are one phrase.
+const NOT_A_LIST = ['account.apple.com, under Sign-In and Security', 'longer, with letters and numbers', 'Name, birth month and year',
+  'math estimates, not measurements or dosing', 'Desk job, little or no', 'any language, photo or PDF'];
+test('English lists use the serial comma ("labs, vaccine cards, and vials")', () => {
+  const bad = [];
+  for (const [k, v] of strings('en')) {
+    if (OXFORD_OK.has(k)) continue;
+    let text = noPh(v);
+    for (const n of NOT_A_LIST) text = text.split(n).join('~');
+    const m = text.match(/(^|[\s(])[\w./-]+(?: [\w./-]+)?, [\w./-]+(?: [\w./-]+)? (and|or) [\w(-]+/);
+    if (m) bad.push(`${k}: «${m[0].trim()}»`);
+  }
+  assert.deepEqual(bad, []);
+});
+
+test('Terms and the FAQ "Can I cancel anytime?" also explain cancelling on Android (Google Play), in 6 languages', () => {
+  for (const l of LANGS) {
+    assert.match(tr[l].settings_terms_body, /Google Play/, `${l} terms`);
+    const faq = tr[l].faq_categories.flatMap((c) => c.questions);
+    const cancelIdx = tr.en.faq_categories.flatMap((c) => c.questions).findIndex((q) => /cancel anytime/i.test(q.q));
+    assert.ok(cancelIdx >= 0);
+    assert.match(faq[cancelIdx].a, /Google Play/, `${l} FAQ cancel answer`);
+    assert.match(faq[cancelIdx].a, /Android/, `${l} FAQ cancel answer names Android`);
+  }
+});
+
+test('the reality check names three numbers everywhere (start weight, weight now, daily intake)', () => {
+  const three = { en: /\bthree\b/i, es: /\btres\b/i, pt: /\btrês\b/i, fr: /\btrois\b/i, de: /\bdrei\b/i, it: /\btre\b/i };
+  const four = /\b(four|cuatro|quatro|quatre|vier|quattro)\b/i;
+  for (const l of LANGS) for (const k of ['cal_rc_sub', 'cal_rc_locked_lead']) {
+    assert.match(tr[l][k], three[l], `${l}.${k}`);
+    assert.doesNotMatch(tr[l][k], four, `${l}.${k}`);
+  }
+});
+
+test('German says "Fachperson" for a healthcare professional everywhere (one term)', () => {
+  assert.deepEqual(offenders(['de'], /Fachkr(a|ä)ft/), []);
+  assert.deepEqual(offenders(['de'], /Apple ID/), []); // German writes Apple-ID
+});
+
+// {store} is "Apple ID" or "Google Play": no article may sit right before it, since it would
+// have to agree with whichever name comes in.
+test('no article right before {store} (it is "Apple ID" or "Google Play")', () => {
+  assert.deepEqual(offenders(['es', 'pt', 'fr', 'it'], /(^|[^\p{L}])(do|da|dos|das|no|na|o|a|el|la|del|al|le|du|au|il|lo|dello|della|nel|nella|sul) \{store\}/iu, { strip: false }), []);
+});
+
+test('the vial-low notification uses the singular for 1 (and French 0), with the count filled in', () => {
+  for (const l of LANGS) assert.match(tr[l].notif_vial_body_one, /\{n\}/, l);
+  const notif = read('lib/notifications.js');
+  assert.doesNotMatch(notif, /remaining === 1 \? 'notif_vial_body_one'/);
+  assert.equal((notif.match(/isOne\([^)]*remaining[^)]*\) \? 'notif_vial_body_one' : 'notif_vial_body_other'/g) || []).length, 2);
+});
+
+test('a vial that lasts about 1 day says "1 day", in the assistant fact and the review row', () => {
+  for (const l of LANGS) for (const k of ['ap_fact_vial_day', 'ap_row_lasts_value_day']) {
+    assert.ok(tr[l][k], `${l}.${k}`);
+    const base = k === 'ap_fact_vial_day' ? 'ap_fact_vial' : 'ap_row_lasts_value';
+    assert.equal(ph(tr[l][k]), ph(tr.en[base]), `${l}.${k} placeholders`);
+    assert.doesNotMatch(tr[l][k].replace('{days}', '1'), /\b1 (days|días|dias|jours|Tage|giorni)\b/, `${l}.${k}`);
+  }
+  const pa = read('lib/protocolAssistant.js');
+  assert.match(pa, /days === 1 \? 'ap_fact_vial_day'/);
+  assert.match(pa, /'ap_row_lasts_value_day'/);
+});

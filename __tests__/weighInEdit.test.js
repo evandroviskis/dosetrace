@@ -181,5 +181,5 @@ test('PO-26: the new strings exist in all 6 languages', () => {
   const keys = ['cal_wedit_hint', 'cal_wi_title', 'cal_wi_note', 'cal_wi_delete', 'cal_wi_del_title', 'cal_wi_del_body', 'cal_wi_rc_start', 'cal_wi_invalid'];
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of keys) assert.ok(tr[l][k], `${l}.${k}`);
   assert.equal(tr.en.cal_wedit_hint, 'Tap a weigh-in to fix or delete it.');
-  assert.equal(tr.en.cal_wi_del_body, '{date} · {weight}. Your progress, your target and your reality check update without it. This can\'t be undone.');
+  assert.equal(tr.en.cal_wi_del_body, '{date} · {weight}. Your progress, your target, and your reality check update without it. This can\'t be undone.');
 });
