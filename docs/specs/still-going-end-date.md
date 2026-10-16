@@ -5,7 +5,7 @@
 - journey review + wiring map folded in (research/09): 2026-10-15 — journey review findings F1–F15 (grok/306 item 4) and docs/product/research/09-protocol-dates-wiring.md (60 consumers, owners, SG-11…SG-27, DV-244…DV-250). F11, F12, F13 → SG-28, SG-29, SG-30. One founder question open: F5 (open-ended protocols, see the end of this file).
 - naming: the column is `protocols.ends_on`, the **planned end** (a local day `YYYY-MM-DD`). "End date" in this checklist means the planned end, never `ended_at` (the day a protocol was ended).
 - code (expected): screens/TodayScreen.js (prompt, end-date step, course-end question), screens/ProtocolsScreen.js (ProtocolDetail row), screens/components/ProtocolParts.js (DTWheel range), lib/schedule.js (`courseState`, S-15, the only reader of `ends_on`), lib/protocolEnd.js (`setPlannedEnd`, `inactivityDue`, `endNow`, Restart allow-list), lib/wheelPick.js (range option), lib/schema.js + lib/database.js + lib/syncMappers.js + lib/syncCore.js / lib/sync.js (new regular synced column), a Supabase migration (column + `protocols_blank_purged` trigger), i18n ×6.
-- checklist-signed:
+- checklist-signed: founder 2026-10-15 ("assino os três", after the Portuguese summary)
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist

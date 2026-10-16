@@ -2,7 +2,7 @@
 
 - source: founder 2026-10-15 — "o registro de comida com IA… não se destaca… tudo da mesma cor… não consigo olhar para a tela e lembrar: preciso marcar o que eu comi hoje"; picks: option A ("mantenha ele abaixo dos anéis… botão azul… uma borda azul") and A1 ("Comida: A1"). Pictures: docs/design/a124-food-log-emphasis.html (captures docs/design/a124-telas/). Ledger: docs/decisions.md 2026-10-15.
 - code (expected): screens/components/FoodLogHero.js, screens/TodayScreen.js, screens/JourneyScreen.js, lib/theme.js (emph / onEmph tokens = the existing Cobalt values in both palettes).
-- checklist-signed:
+- checklist-signed: founder 2026-10-15 ("assino os três", after the Portuguese summary)
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist

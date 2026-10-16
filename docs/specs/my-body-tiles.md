@@ -2,7 +2,7 @@
 
 - source: founder 2026-10-15 — "os exames e as vacinas já iniciam todos abertos… quanto mais exames eu tenho, mais eu tenho que enrolar… fazer alguma coisa parecida com o Journey… Vaccine Journal e o Lab Test Journal em cima, os dois retângulos… Dose Accumulation embaixo… um pequeno resumo"; pick "Meu corpo: A". Pictures: docs/design/a125-mybody-closed.html (captures docs/design/a125-telas/). Ledger: docs/decisions.md 2026-10-15. Includes the lab-cards bug found the same day (one upload shown as many cards).
 - code (expected): screens/BodyScreen.js (hub layout, reportCards), screens/JourneyScreen.js tile component (reused), screens/components/VaccinesSection.js, i18n ×6.
-- checklist-signed:
+- checklist-signed: founder 2026-10-15 ("assino os três", after the Portuguese summary)
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist
