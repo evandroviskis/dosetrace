@@ -78,6 +78,7 @@ import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 import { pluralKey } from '../lib/plural';
+import { editStepLinkAction } from '../lib/editStepLink';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
@@ -887,6 +888,9 @@ export default function ProtocolsScreen() {
   // Recently deleted multi-select (founder 2026-10-03): null = not selecting; else the chosen ids.
   const [trashSel, setTrashSel] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Council fix 2: counts finished protocol fetches, so a deep link knows the list was loaded after it arrived.
+  const [fetchGen, setFetchGen] = useState(0);
+  const editStepGenRef = useRef(null);
   const [sortBy, setSortBy] = useState('due');
   const [todayLogs, setTodayLogs] = useState([]); // today's rows: "Due next" skips a dose already complete (m12)
   const [pendingYest, setPendingYest] = useState([]); // A-42: yesterday's open slots (A-40), as Today shows them
@@ -1151,15 +1155,19 @@ export default function ProtocolsScreen() {
   }, [route.params?.openProtocolId]);
   // A-115 FR-3: Today's "+ Add bottle" (an oral protocol with no bottle size) opens the protocol's
   // edit sheet at the dose step, once the protocol is loaded; the param is then cleared.
+  // Council fix 2 (2026-10-16): a protocol missing from a list loaded after the link arrived (ended
+  // or deleted meanwhile) clears the param too — left in place it opened another protocol's sheet.
   useEffect(() => {
     const step = route.params?.editStep;
+    if (step == null) { editStepGenRef.current = null; return; }
+    if (editStepGenRef.current == null) editStepGenRef.current = fetchGen;
     const id = route.params?.openProtocolId ?? openId;
-    if (step == null) return;
-    const ep = (protocols || []).find((x) => String(x.id) === String(id));
-    if (!ep) return;
+    const decision = editStepLinkAction({ step, id, protocols, loaded: fetchGen > editStepGenRef.current });
+    if (decision.action === 'wait') return;
+    editStepGenRef.current = null;
     navigation.setParams({ editStep: undefined });
-    openEdit(ep, route.params.editStep);
-  }, [route.params?.editStep, protocols]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (decision.action === 'open') openEdit(decision.protocol, step);
+  }, [route.params?.editStep, protocols, fetchGen]); // eslint-disable-line react-hooks/exhaustive-deps
   // A-44: an older "Vial running low" alert names only its vial — open the vial's protocol.
   useEffect(() => {
     const vialId = route.params?.openVialId;
@@ -1206,7 +1214,7 @@ export default function ProtocolsScreen() {
 
   async function fetchProtocols() {
     const user = await getCachedUser();
-    if (!user) { setLoading(false); return; }
+    if (!user) { setLoading(false); setFetchGen((g) => g + 1); return; }
     const data = getActiveProtocols(user.id);
     setProtocols(data || []);
     try {
@@ -1229,6 +1237,7 @@ export default function ProtocolsScreen() {
     setVialsByProtocol(byProtocol);
     fetchDeletedProtocols();
     setLoading(false);
+    setFetchGen((g) => g + 1);
   }
 
   // Recently deleted (moved from Settings with the founder-approved prototype, 2026-10-01).

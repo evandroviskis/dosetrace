@@ -101,7 +101,7 @@ test('A-115 FR-3: the vial notice offers + Add vial (Today\'s own prompt); the b
   assert.match(right, /navigation\.navigate\('Protocols', \{ openProtocolId: p\.id, editStep: 3 \}\)/, 'the bottle size lives on the dose step');
   // My Protocols opens the edit sheet at that step once the protocol is loaded, then clears the param.
   assert.match(PROT, /route\.params\?\.editStep/);
-  assert.match(PROT, /openEdit\(ep, route\.params\.editStep\)/);
+  assert.match(PROT, /openEdit\(decision\.protocol, step\)/); // council fix 2: __tests__/editStepLink.test.js
   assert.match(PROT, /navigation\.setParams\(\{ editStep: undefined \}\)/);
 });
 
