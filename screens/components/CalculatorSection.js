@@ -1203,7 +1203,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.gap6}>
         {progressSummary ? (
           <Text style={[s.sec2, s.tnum]}>
-            {t('cal_since')} {fmtShort(progressSummary.firstDate)}: {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}</Text>
+            {t('cal_since_date').replace('{date}', fmtShort(progressSummary.firstDate))} {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}</Text>
             {progressSummary.waistDelta != null ? <>{' · '}{t('cal_snap_waist')} <Text style={s.mono}>{signed(progressSummary.waistDelta)} {hUnit}</Text></> : null}
           </Text>
         ) : null}

@@ -217,7 +217,7 @@ test('PO-2 / PO-3: the hero keeps weight, daily burn with Estimated / Measured, 
   const src = calc();
   const hero = src.match(/const heroPart = \(([\s\S]*?)\n  \);\n/);
   assert.ok(hero, 'heroPart');
-  for (const k of ["t('cal_weight')", "t('cal_tdee')", "t('hy_rc_measured_chip')", "t('hy_estimated')", "t('cal_since')", 'cal_eq_', "t('cal_fill_numbers')", "t('cal_complete_numbers')"]) assert.ok(hero[1].includes(k), k);
+  for (const k of ["t('cal_weight')", "t('cal_tdee')", "t('hy_rc_measured_chip')", "t('hy_estimated')", "t('cal_since_date')", 'cal_eq_', "t('cal_fill_numbers')", "t('cal_complete_numbers')"]) assert.ok(hero[1].includes(k), k);
   assert.match(hero[1], /s\.displayEmpty/);
 });
 

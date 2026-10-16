@@ -104,7 +104,9 @@ test('the new count strings read right with 1 (and French with 0)', () => {
   assert.match(fill('en', 'cal_tgt_eta', 1, { weeks: 1, when: 'Nov 12' }), /^~1 week to go/);
   assert.match(fill('fr', 'nutri_free_ending_note', 0, { logged: 0, day: 2, until: 'x', weighin: 'y' }), /sur 0 jour\./);
   assert.match(fill('pt', 'today_alert_vial_expiry_days', 1, { n: 1, name: 'BPC' }), /vence em 1 dia$/);
-  assert.equal(fill('fr', 'today_doses_taken', 0, { x: 0, y: 3 }), '0 sur 3 effectuée');
+  // A-133: the count word agrees with the total y (lib/todayFormat dosesTakenLabel).
+  assert.equal(fill('fr', 'today_doses_taken', 3, { x: 0, y: 3 }), '0 sur 3 effectuées');
+  assert.equal(fill('fr', 'today_doses_taken', 1, { x: 0, y: 1 }), '0 sur 1 effectuée');
   assert.equal(fill('es', 'rc_setup_progress', 1, { n: 1, total: 4 }), '1 de 4 listo');
 });
 

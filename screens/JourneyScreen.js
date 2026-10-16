@@ -177,7 +177,7 @@ export default function JourneyScreen() {
                   <Text style={s.big}>{formatNumber(tile.weight, language)}<Text style={s.unit}> {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text></Text>
                   {tile.since ? (
                     <Text style={s.foot}>
-                      {t('cal_since')} {shortDate(tile.since.date)}: <Text style={s.vin}>{signedDelta(tile.since.delta)} {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text>
+                      {t('cal_since_date').replace('{date}', shortDate(tile.since.date))} <Text style={s.vin}>{signedDelta(tile.since.delta)} {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text>
                     </Text>
                   ) : null}
                 </View>

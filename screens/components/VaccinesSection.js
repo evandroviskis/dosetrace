@@ -32,7 +32,7 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getVaccines, insertVaccine, updateVaccine, deleteVaccine } from '../../lib/database';
 import { requestSync } from '../../lib/sync';
 import { hasNativeModule } from '../../lib/nativeModule';
-import { formatDate as localeDate, MONTHS_SHORT } from '../../lib/localeFormat';
+import { formatDate as localeDate, MONTHS_SHORT, labelColon } from '../../lib/localeFormat';
 import { pluralKey } from '../../lib/plural';
 import { validateVaccine, scanErrorKind, scanErrorSheet } from '../../lib/bodyScan';
 import { vaccineNameMissing, deleteVaccineCopy } from '../../lib/bodyHub';
@@ -426,7 +426,7 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
                   {v.next_due ? (
                     <View style={s.dueRow}>
                       <FeatureIcon name="calendar" size={16} color={colors.ink2} />
-                      <Text style={[s.secInk, s.tnum, s.grow]}>{t('vax_next_due')}: {formatDate(v.next_due)}</Text>
+                      <Text style={[s.secInk, s.tnum, s.grow]}>{t('vax_next_due')}{labelColon(language)} {formatDate(v.next_due)}</Text>
                     </View>
                   ) : null}
                   {v.notes ? <Text style={s.foot}>{v.notes}</Text> : null}

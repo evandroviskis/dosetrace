@@ -78,6 +78,7 @@ import {
 import CheckMark, { CrossMark } from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 import { pluralKey } from '../../lib/plural';
+import { labelColon } from '../../lib/localeFormat';
 
 // The founder's images (assets/body, @2x 600 x 750 and @3x 768 x 960).
 const BODY_IMAGES = {
@@ -405,7 +406,7 @@ export default function BodyMapModal({
 
             <Text style={s.summary}>
               {selected.length
-                ? <><Text style={{ fontWeight: '600' }}>{t(pluralKey('bodymap_n_selected', selected.length, language)).replace('{count}', String(selected.length))}:</Text> {selectedNames.join(' · ')}</>
+                ? <><Text style={{ fontWeight: '600' }}>{t(pluralKey('bodymap_n_selected', selected.length, language)).replace('{count}', String(selected.length))}{labelColon(language)}</Text> {selectedNames.join(' · ')}</>
                 : <Text style={{ color: colors.ink2 }}>{t('bodymap_no_selection')}</Text>}
             </Text>
           </ScrollView>
