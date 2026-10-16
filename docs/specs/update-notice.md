@@ -3,8 +3,8 @@
 - source: founder 2026-10-15 — "só avisar que tem um update e convidar a pessoa… não precisa ser obrigatório… a não ser que a gente mude os termos de serviço ou privacy policy"; "o aplicativo também pode enviar uma notificação… a pessoa pode dismiss". Picture docs/design/a127-update-notice.html — "aprovo os três". Ledger: docs/decisions.md 2026-10-15 (A-127).
 - merges: A-119's "update required" text (DL-105 minimum version).
 - code (expected): a pure lib for the version rule, the sheet / full screen, Settings › Notificações switch, push registration (app version on the device row), a server field (latest / minimum version, release notes per language) and a sender, Android Play in-app update native module (next native build), i18n ×6.
-- checklist-signed:
-- committed-to: 1.3.0 (approved → next build)
+- checklist-signed: founder 2026-10-16 ("4 assino")
+- committed-to: the release after 1.3.0 (founder deferral 2026-10-15, docs/decisions.md "Ship this version to both stores for review now")
 
 ## Acceptance checklist
 

@@ -898,3 +898,10 @@ Pending — founder question (not decided by logic):
 - Every screenshot must look like the app in real use: doses already taken today, a 7/30-day history, no expired-vial alert, a food-log conversation typed in each language (with a follow-up question answered), and the same for every feature. Data goes on the review account appreview@dosetrace.io through the app.
 - Redone files replace the old ones in place (no extra copies).
 - French register: the app keeps "vous" everywhere, captions included (founder 2026-10-15: "Pode deixar vous").
+
+## 2026-10-16 — founder answers (store prep, A-132, privacy pt, A-127, What's New)
+- **New Tirzepatide vial written to the review account** — source: founder "1 pode gravar". Done in Supabase on appreview@dosetrace.io only: old vial 29ceaf33 (mixed 2026-09-13, expired) set inactive and kept as history; new vial mixed 2026-10-16, 2 ml, 4 doses, 0 taken, active — the same row the app's new-vial step writes (lib/newVial.js).
+- **A-132 (expired lyophilized vial with doses left has no way to start a new vial) ships in the next build after 1.3.0** — source: founder "2 sim". Picture first.
+- **Portuguese privacy policy approved** — source: founder "3 aprovo" (docs/legal/privacy-policy-2026-10.pt.md; the in-app pt copy matches).
+- **A-127 checklist UN-1..UN-7 signed** — source: founder "4 assino". Builds in the release after 1.3.0 (deferral already accepted 2026-10-15).
+- **What's New 1.3.0 approved, 6 languages** — source: founder "5 aprovo" (store/whats-new-1.3.0.json).
