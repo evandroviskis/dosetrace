@@ -905,3 +905,10 @@ Pending — founder question (not decided by logic):
 - **Portuguese privacy policy approved** — source: founder "3 aprovo" (docs/legal/privacy-policy-2026-10.pt.md; the in-app pt copy matches).
 - **A-127 checklist UN-1..UN-7 signed** — source: founder "4 assino". Builds in the release after 1.3.0 (deferral already accepted 2026-10-15).
 - **What's New 1.3.0 approved, 6 languages** — source: founder "5 aprovo" (store/whats-new-1.3.0.json).
+
+## 2026-10-16 — founder answers to the council delta (1.3.0)
+- **Council fixes 1–7 enter 1.3.0** — source: founder "Aprova as correções de 1 a 7": first-sync gate never stays closed (clock back / no session), "+ Add bottle" editStep cleared when the protocol is missing, rc_count_one carries {n} + key/key_one placeholder-parity guard, store-specific cancel text per platform (no "Google Play" on iOS, Apple 2.3.10), text accuracy ×6 (reality check estimates, trial only for eligible, Apple Account, Terms date, Anthropic deletes within 30 days in app + website, no Face ID text), Gate S deferral must match a dated founder entry, iOS What's New without the Android line, captions "Describe what you ate".
+- **Nothing is left out of 1.3.0** — source: founder "Não precisa deixar nada fora do build… pode executar": the Fold no-vial notice (type scale + dark contrast) and "+ Add bottle" landing on the right field with matching words are built in 1.3.0, picture first ("Faça o desenho que mostra o contraste do aviso sem frasco no fold").
+- **Website privacy policy publish and the store privacy labels go to Cowork** — source: founder "a gente pode pedir para o cowork fazer. Mesma coisa com rótulos de privacidade."
+- **No notice to 1.2.4 users** — source: founder ("tenho pouquíssimos usuários… não tenho usuários que estão usando a curva ainda").
+- Claude checks the Supabase backup (PITR) status.
