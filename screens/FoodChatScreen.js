@@ -33,7 +33,7 @@ import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse, isMarker,
 } from '../lib/nutrition';
-import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
+import { buildThread, withNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
@@ -482,9 +482,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     // Today starts with the app's invitation (FL-1) until something is typed.
     const lastDiv = th.map((x) => x.type).lastIndexOf('divider');
     if (lastDiv >= 0 && th[lastDiv].day === today && !th.slice(lastDiv).some((x) => x.type === 'user')) th.splice(lastDiv + 1, 0, { type: 'intro', key: 'intro:' + today });
-    if (notice) th.push({ type: 'notice', key: 'notice', ...notice });
-    if (busy || fuBusy) th.push({ type: 'typing', key: 'typing' });
-    return th;
+    // A-133: the notice goes before the next prompt (live order = the order on reopen).
+    const live = withNotice(th, notice ? { type: 'notice', key: 'notice', ...notice } : null);
+    if (busy || fuBusy) live.push({ type: 'typing', key: 'typing' });
+    return live;
   }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
   const data = useMemo(() => thread.slice().reverse(), [thread]); // inverted list opens at the latest (FL-39)
 
