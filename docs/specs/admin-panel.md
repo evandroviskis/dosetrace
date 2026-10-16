@@ -56,11 +56,11 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 ### Phase 2 — needs the founder's go
 
-- [ ] **2.1 Push + deploy together**, only after the founder rotates ADMIN_TOKEN in Vercel (founder decision 2026-09-27 19:53 ET). A push triggers a Vercel preview deploy.
+- [x] **2.1 Push + deploy together.** Done twice: 2026-09-28 (1023661, main fast-forward) and **2026-10-16 (branch rebased onto origin/main b05621f, main fast-forwarded to 08b2809; Vercel Production deployment 7130782298 success; live /adm sha = commit sha).**
 - [x] **2.2 Apply the A-1 lockdown** (`supabase_admin_rpcs.sql`), then re-read `proacl`.
   - Evidence: applied 2026-09-27 23:42 UTC on founder go (Panel #002), with only the six REVOKE/GRANT statements run. After: `proacl` = `{postgres=X/postgres,service_role=X/postgres}` for all three, and the body md5s are unchanged. `has_function_privilege`: anon/authenticated false, service_role true. Live `POST /rest/v1/rpc/admin_*` with the anon key → HTTP 401, code 42501, for all three. As service_role (SQL role switch; the service key isn't on this machine): all three return data, 1 row.
-- [ ] **2.3 Post-deploy live test** (curl checks below) on the live URL: token in the URL → 401, header only → 200.
-- [ ] **2.4 Merge to main:** rebase on the latest main, full suite green, founder go.
+- [~] **2.3 Post-deploy live test.** Verified 2026-10-16 without the token: `?t=x`, `?token=x`, `?admin_token=x`, no token and a wrong header → 401. The header → 200 check (and the RevenueCat X3–X6 rows through the Vercel key) needs the founder's token: **not verified**.
+- [x] **2.4 Merge to main:** rebased onto origin/main b05621f (no conflicts), suite 511 tests / 506 pass (only `energy.test.ts` fails: it imports a file that is not in git), founder go 2026-10-16, fast-forward only.
 
 ### Phase 2b — Management view
 
