@@ -258,6 +258,15 @@ Unknown (mixed) and unknown (no signal) are always shown as their own number, ne
 | H3 | New customers · 90 days | same | same, 90 days | last 90 vs previous 90 | same | not yet proven |
 | H4 | Platform split (on H1–H3) | Supabase (MV-0 platform rule) | the H1–H3 count split into iOS / Android / unknown; the three always add up to the total | same as the card | per-platform SQL; sum check iOS + Android + unknown = total | not yet proven |
 
+### MV-1b Activation card (Panel #009, view-only)
+
+| ID | Metric | Source | Definition | Window (UTC) | How it is proven | Proven |
+|---|---|---|---|---|---|---|
+| A1 | Activation rate | Supabase `auth.users` (registration) + `dose_logs` (doses), via `admin_accounts` | real accounts registered in the window with ≥1 `dose_logs` row of any date ÷ real accounts registered in the window, × 100, one decimal. Test accounts excluded on both sides by `admin_is_test`. No first-dose marker exists in `dose_logs` (`dose_number` belongs to `vaccines`), so any row counts | registration day between today and 30 days ago, inclusive (31 UTC calendar days); doses with no date limit | SQL by hand over the same window; test "A1 activation…" in `__tests__/admManagement.test.js` | not yet proven |
+
+- The card shows, top to bottom: the rate, the definition, the window, the source (with "test accounts excluded"), and a "how we calculate it" link that opens the A1 definition.
+- **Limitation:** the card depends on `admin_accounts` (Phase 2 SQL). Until that is applied it shows "unavailable". The test marker exists in the codebase (`admin_test_accounts` + `admin_is_test` in `supabase_admin_rpcs.sql`) but not yet in the live database.
+
 ### MV-2 Funnel (one cohort, one window)
 
 **Cohort:** the real accounts created in the chosen window (7, 30 or 90 days). Every step counts accounts **from that cohort** that reached the step at any time up to page load. Late conversions are counted, and the page says so.

@@ -366,6 +366,18 @@ function weeklyCohorts(accounts, nowMs, weeks = 8) {
   return cohorts;
 }
 
+// A1 activation (Panel #009): among real accounts registered in the last 30 days
+// (today included, UTC calendar days), the share with >=1 dose_logs row of any date.
+// Same window on both sides; test accounts excluded on both sides (admin_is_test).
+function activationRate(accounts, nowMs) {
+  const today = utcDay(nowMs);
+  const window = { start: addDaysStr(today, -30), end: addDaysStr(today, 1) };
+  const cohort = accounts.filter((a) => !a.t && inWindow(a.c, window));
+  const num = cohort.filter((a) => !!a.d).length;
+  const den = cohort.length;
+  return { window, num, den, rate: den ? Math.round((num / den) * 1000) / 10 : null, filtered: true };
+}
+
 function buildManagement(sb, rc, nowMs) {
   const accounts = Array.isArray(sb.accounts) ? sb.accounts : [];
   const windows = {};
@@ -375,6 +387,7 @@ function buildManagement(sb, rc, nowMs) {
   }
   return {
     headline: headlineCards(accounts, nowMs),
+    activation: activationRate(accounts, nowMs),
     real_all_time: accounts.filter((a) => !a.t).length,
     protocols_live: sb.protocols_live == null ? null : Number(sb.protocols_live),
     windows,
@@ -475,6 +488,6 @@ module.exports = async (req, res) => {
 };
 
 Object.assign(module.exports, {
-  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation,
+  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate,
   isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
 });

@@ -271,3 +271,28 @@ test('Page: the 6 languages of web/adm.html have exactly the same keys, includin
   for (const l of langs) assert.deepEqual(Object.keys(T[l]).sort(), en, `${l} key parity`);
   for (const k of ['tab_mgmt', 'tab_details', 'x3', 'nm_stores', 'nm_premium', 'nm_rc_perm', 'g1_q', 'g2_q', 'rule_rcids']) assert.ok(T.en[k], `en has ${k}`);
 });
+
+// ---------------------------------------------------------------- activation card (Panel #009)
+test('A1 activation: real accounts registered in the last 30 days (today included) with >=1 dose_logs row, one decimal', () => {
+  const rows = [
+    A('2026-09-28', { d: true }),            // today: inside the window
+    A('2026-09-10', { d: false }),
+    A('2026-08-29', { d: true }),            // exactly 30 days back: inside
+    A('2026-08-28', { d: true }),            // 31 days back: outside
+    A('2026-09-20', { t: true, d: true }),   // test account: excluded from both sides
+  ];
+  const r = adm.activationRate(rows, NOW);
+  assert.deepEqual(r.window, { start: '2026-08-29', end: '2026-09-29' });
+  assert.equal(r.den, 3);
+  assert.equal(r.num, 2);
+  assert.equal(r.rate, 66.7);
+  assert.equal(r.filtered, true);
+});
+test('A1 activation: no registrations in the window gives rate null, never a division by zero', () => {
+  const r = adm.activationRate([A('2026-07-01', { d: true })], NOW);
+  assert.deepEqual({ num: r.num, den: r.den, rate: r.rate }, { num: 0, den: 0, rate: null });
+});
+test('A1 activation: present in the management payload', () => {
+  const m = adm.buildManagement({ accounts: FIX }, { status: 'not_configured' }, NOW);
+  assert.ok(m.activation && typeof m.activation.den === 'number');
+});
