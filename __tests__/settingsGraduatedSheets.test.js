@@ -55,7 +55,8 @@ test('sub-screens and sheets: no emoji and no hardcoded colors (theme tokens onl
 });
 
 test('legal reader: every line of every legal text is kept, in order, in all 6 languages', () => {
-  const expectHeadings = { settings_privacy_body: 9, settings_terms_body: 9, settings_disclaimer_body: 1 };
+  // Privacy: the title + the 14 numbered sections of the website policy (A-117, privacyPolicyInApp.test.js).
+  const expectHeadings = { settings_privacy_body: 15, settings_terms_body: 9, settings_disclaimer_body: 1 };
   for (const [key, n] of Object.entries(expectHeadings)) {
     for (const lang of Object.keys(translations)) {
       const body = translations[lang][key];
