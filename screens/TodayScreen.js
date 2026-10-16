@@ -138,7 +138,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
   );
 }
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor, upcomingAgenda,
 } from '../lib/schedule';
 import CheckMark from '../components/CheckMark';
 import { pluralKey } from '../lib/plural';
@@ -1495,10 +1495,9 @@ export default function TodayScreen() {
   const dailyOrder = [...protocols].sort((a, b) =>
     nextDoseAt(a, takenCounts[a.id] || 0, new Date()) - nextDoseAt(b, takenCounts[b.id] || 0, new Date())
   );
-  // Near-term agenda, bucketed by the NEXT dose moment. nextDoseAt already
-  // accounts for doses taken today, so once you take today's dose the protocol
-  // advances to its next dose (tomorrow, etc.) instead of lingering as "taken".
-  // Anything past 5 days isn't shown here (it lives in the Protocols tab).
+  // Today's cards, bucketed by the NEXT dose moment. nextDoseAt already accounts for doses
+  // taken today, so once you take today's dose the protocol advances to its next dose
+  // instead of lingering as "taken".
   const startOfToday = new Date(todayDate); startOfToday.setHours(0, 0, 0, 0);
   const bucketDay = (p) => {
     const at = nextDoseAt(p, takenCounts[p.id] || 0, todayDate);
@@ -1507,9 +1506,13 @@ export default function TodayScreen() {
     return Math.round((d - startOfToday) / 86400000);
   };
   const todayCards = dailyOrder.filter(p => bucketDay(p) <= 0);
-  const tomorrowCards = dailyOrder.filter(p => bucketDay(p) === 1);
-  const next5Cards = dailyOrder.filter(p => { const d = bucketDay(p); return d >= 2 && d <= 6; });
-  const laterCount = dailyOrder.filter(p => bucketDay(p) > 6).length;
+  // A-134: Tomorrow / Next 5 days are dose slots (lib/schedule upcomingAgenda): Tomorrow lists
+  // every dose due tomorrow, also a daily dose still open today (prototype foldRow 'tom'), and
+  // the counts are doses (DL-11, DV-037). Past day 6 only "N more later" (the Protocols tab).
+  const agenda = upcomingAgenda(protocols, todayDate);
+  const tomorrowCards = agenda.tomorrow;
+  const next5Cards = agenda.next5;
+  const laterCount = agenda.laterCount;
   // Doses were due today and all handled → show a positive "all done" note
   // instead of an empty Today section.
   const allDoneToday = todayCards.length === 0 && totalCount > 0;
@@ -2055,15 +2058,14 @@ export default function TodayScreen() {
           <Text style={s.foldCount}>{doseCountLabel(items.length, t)}</Text>
           <FoldChevron open={open} color={colors.ink3} />
         </TouchableOpacity>
-        {open && items.map(p => {
-          const at = nextDoseAt(p, takenCounts[p.id] || 0, new Date());
+        {open && items.map(({ p, at }) => {
           const d = new Date(at);
           const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
           // BK-16: in the book layout an upcoming dose opens on the right page, info only.
           const pickedUp = book && isPickedDose(p.id, localDayKey(at));
           return (
             <TouchableOpacity
-              key={p.id}
+              key={`${p.id}-${at}`}
               style={[s.upRow, pickedUp && s.upRowPicked]}
               onPress={() => (book ? openUpcomingOnPage(p, at) : navigation.navigate('Protocols', { openProtocolId: p.id }))}
               accessibilityRole="button"
