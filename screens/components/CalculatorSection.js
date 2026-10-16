@@ -712,7 +712,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }
   function confirmDeleteWeighIn() {
     if (!weEdit) return;
-    const w = weEdit.original && weEdit.original.weight_kg != null ? `${fmtW(weEdit.original.weight_kg)} ${wUnit}` : '—';
+    const w = weEdit.original && weEdit.original.weight_kg != null ? `${fmtW(weEdit.original.weight_kg)}\u00A0${wUnit}` : '—';
     setConfirm({
       title: t('cal_wi_del_title'),
       body: t('cal_wi_del_body').replace('{date}', fmtShort(weEdit.date)).replace('{weight}', w),
@@ -1128,7 +1128,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.tgtMetric} key={kind}>
         <View style={s.rowCenter}>
           <Text style={[s.sec2, s.grow]}>{isW ? t('cal_snap_weight') : t('cal_snap_bodyfat')}</Text>
-          <Text style={s.val15}>{one(cur)} → {one(tgt)} {unitLabel}</Text>
+          <Text style={s.val15}>{one(cur)} → {one(tgt)}{'\u00A0'}{unitLabel}</Text>
         </View>
         {frac != null ? (
           <TargetScale start={disp(startCanon)} goal={tgt} frac={frac} colors={colors} width={CHART_WIDTH} label={one} />
@@ -1166,7 +1166,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // Weigh-ins (PO-6): "5 · last Sep 28 · 84.6 kg · 21% BF", or "None yet".
   const weighSummary = weighInsLine({
     rows: snapshots, template: t('cal_weighins_summary'), none: t('cal_weighins_none'),
-    fmtDate: fmtShort, fmtWeight: kg => `${fmtW(kg)} ${wUnit}`, bfShort: t('cal_bf_short'), language,
+    fmtDate: fmtShort, fmtWeight: kg => `${fmtW(kg)}\u00A0${wUnit}`, bfShort: t('cal_bf_short'), language,
   });
 
   // ── The one card (PO-1..PO-11, founder 2026-10-02; docs/specs/progress-one-card.md) ──
@@ -1203,7 +1203,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.gap6}>
         {progressSummary ? (
           <Text style={[s.sec2, s.tnum]}>
-            {t('cal_since_date').replace('{date}', fmtShort(progressSummary.firstDate))} {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)} ${wUnit}` : '—'}</Text>
+            {t('cal_since_date').replace('{date}', fmtShort(progressSummary.firstDate))} {t('cal_snap_weight')} <Text style={s.mono}>{progressSummary.wDelta != null ? `${signed(progressSummary.wDelta)}\u00A0${wUnit}` : '—'}</Text>
             {progressSummary.waistDelta != null ? <>{' · '}{t('cal_snap_waist')} <Text style={s.mono}>{signed(progressSummary.waistDelta)} {hUnit}</Text></> : null}
           </Text>
         ) : null}
@@ -1289,7 +1289,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {/* Context chips — BMI + macros */}
       <View style={s.chips}>
         {plan.bmi != null && plan.healthyRange && (
-          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_bmi')} {formatNumber(Math.round(plan.bmi * 10) / 10, language, { digits: 1 })} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))} {wUnit}</Text></View>
+          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_bmi')} {formatNumber(Math.round(plan.bmi * 10) / 10, language, { digits: 1 })} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))}{'\u00A0'}{wUnit}</Text></View>
         )}
         {plan.macros && (
           <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
@@ -1441,7 +1441,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         {outcome.state === 'due' ? t('cal_rc_due') : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}
       </Text>
       <Text style={[s.sec2, s.tnum]}>
-        ①  <Text style={s.mono}>{fmtW(rcStart.weightKg)} {wUnit}</Text> · {fmtShort(rcStart.date)}
+        ①  <Text style={s.mono}>{fmtW(rcStart.weightKg)}{'\u00A0'}{wUnit}</Text> · {fmtShort(rcStart.date)}
       </Text>
       {outcomeResult && outcomeResult.status !== 'ok' ? (
         <Text style={s.sec2}>{t(`cal_rc_${outcomeResult.status}`)}</Text>
@@ -1530,7 +1530,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
                 <Text style={[s.sec, s.tnum, s.grow]}>{fmtShort(c.date)}</Text>
                 <Text style={[s.val15, s.ink2Text]}>
                   {c.ratePerWeekKg != null
-                    ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${decimalText(rateDisplay(c.ratePerWeekKg), language)} ${wUnit}/${t('cal_week')}`
+                    ? `${c.ratePerWeekKg >= 0 ? '−' : '+'}${decimalText(rateDisplay(c.ratePerWeekKg), language)}\u00A0${wUnit}/${t('cal_week')}`
                     : '—'}
                 </Text>
                 <Text style={s.val15}>{fmtInt(round10(c.tdee))} {t('cal_kcal')}</Text>
@@ -1580,9 +1580,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
               </View>
               {/* PO-19: every row opens "Weigh-in" (fix or delete), a chevron at its end. */}
               {histRows.map(r => (
-                <TouchableOpacity key={r.date} style={s.histRow} onPress={() => openWeighInEdit(r.date)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${fmtShort(r.date)} · ${r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}`}>
+                <TouchableOpacity key={r.date} style={s.histRow} onPress={() => openWeighInEdit(r.date)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${fmtShort(r.date)} · ${r.weightKg != null ? `${fmtW(r.weightKg)}\u00A0${wUnit}` : '—'}`}>
                   <Text style={[s.sec, s.tnum, s.histDate]}>{fmtShort(r.date)}</Text>
-                  <Text style={[s.val15, s.histW]}>{r.weightKg != null ? `${fmtW(r.weightKg)} ${wUnit}` : '—'}</Text>
+                  <Text style={[s.val15, s.histW]}>{r.weightKg != null ? `${fmtW(r.weightKg)}\u00A0${wUnit}` : '—'}</Text>
                   <Text style={[s.val15, s.histB]}>{r.bodyFatPct != null ? `${decimalText(Math.round(r.bodyFatPct * 10) / 10, language)}%` : '—'}</Text>
                   <Text style={[s.val15, s.histC]}>{r.waistCm != null ? `${decimalText(Math.round((unit === 'imperial' ? cmToIn(r.waistCm) : r.waistCm) * 10) / 10, language)} ${hUnit}` : '—'}</Text>
                   <View style={s.histCv}><RowChevron color={colors.ink3} /></View>

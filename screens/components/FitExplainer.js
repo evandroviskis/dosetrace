@@ -66,7 +66,7 @@ export default function FitExplainer({ visible, model, t, onClose, onSplit, onAs
   if (step === 0) {
     stage = (
       <>
-        <Vial pct={vialPct * 0.8} c={c} amountLabel={model.type === 'recon' ? `${p.amount} ${p.unit}` : ''} waterLabel={model.type === 'recon' ? `${p.water} ml` : ''} />
+        <Vial pct={vialPct * 0.8} c={c} amountLabel={model.type === 'recon' ? `${p.amount}\u00A0${p.unit}` : ''} waterLabel={model.type === 'recon' ? `${p.water} ml` : ''} />
         <Text style={s.big}>{t('fx_s1_title')}</Text>
         <Text style={s.sub}>{tr(model.type === 'recon' ? 'fx_s1_powder' : 'fx_s1_ready')}</Text>
       </>

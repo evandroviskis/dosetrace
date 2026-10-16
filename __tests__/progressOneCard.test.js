@@ -93,10 +93,10 @@ test('PO-13: the Journey Progress tile follows the same rule (the same number as
 test('PO-7: the Your numbers line repeats the numbers used in the math, only the parts that exist', () => {
   const { numbersLine } = P();
   const full = { weight: '84.6', wUnit: 'kg', height: '181', hUnit: 'cm', age: '38', yr: 'yr', sexLabel: 'Male', bodyFat: '21', bfShort: 'BF', activityLabel: 'Moderate' };
-  assert.equal(numbersLine(full), '84.6 kg · 181 cm · 38 yr · Male · 21% BF · Moderate');
-  assert.equal(numbersLine({ ...full, height: '', age: null, sexLabel: null }), '84.6 kg · 21% BF · Moderate');
-  assert.equal(numbersLine({ ...full, bodyFat: null }), '84.6 kg · 181 cm · 38 yr · Male · Moderate');
-  assert.equal(numbersLine({ ...full, weight: 'abc' }), '181 cm · 38 yr · Male · 21% BF · Moderate', 'a non-number is not a number');
+  assert.equal(numbersLine(full), '84.6\u00A0kg · 181\u00A0cm · 38\u00A0yr · Male · 21%\u00A0BF · Moderate');
+  assert.equal(numbersLine({ ...full, height: '', age: null, sexLabel: null }), '84.6\u00A0kg · 21%\u00A0BF · Moderate');
+  assert.equal(numbersLine({ ...full, bodyFat: null }), '84.6\u00A0kg · 181\u00A0cm · 38\u00A0yr · Male · Moderate');
+  assert.equal(numbersLine({ ...full, weight: 'abc' }), '181\u00A0cm · 38\u00A0yr · Male · 21%\u00A0BF · Moderate', 'a non-number is not a number');
 });
 
 // ── PO-6: the Weigh-ins summary ──
@@ -268,7 +268,7 @@ test('PO-18: cal_yr is the full word (founder 2026-10-02) and the tile prompt na
   const { translations: tr } = mod.exports;
   assert.deepEqual(['en', 'es', 'pt', 'fr', 'de', 'it'].map(l => tr[l].cal_yr), ['yr', 'años', 'anos', 'ans', 'J.', 'anni']);
   const { numbersLine } = P();
-  assert.equal(numbersLine({ weight: '86', wUnit: 'kg', height: '177', hUnit: 'cm', age: '41', yr: tr.pt.cal_yr, sexLabel: 'Homem', bodyFat: '23', bfShort: tr.pt.cal_bf_short, activityLabel: 'Leve' }), '86 kg · 177 cm · 41 anos · Homem · 23% GC · Leve');
+  assert.equal(numbersLine({ weight: '86', wUnit: 'kg', height: '177', hUnit: 'cm', age: '41', yr: tr.pt.cal_yr, sexLabel: 'Homem', bodyFat: '23', bfShort: tr.pt.cal_bf_short, activityLabel: 'Leve' }), '86\u00A0kg · 177\u00A0cm · 41\u00A0anos · Homem · 23%\u00A0GC · Leve');
   assert.equal(tr.en.cal_need_inputs, 'Enter your weight, height, age, and sex to see your daily burn.');
   for (const l of ['es', 'pt', 'fr', 'de', 'it']) assert.doesNotMatch(tr[l].cal_need_inputs, /\(/, `${l}: no "(or …)" body-fat path any more`);
 });

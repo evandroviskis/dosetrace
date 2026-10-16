@@ -153,19 +153,19 @@ function trimNum(n) {
 function sizeLabel(p, vial, t, language = 'en') {
   if (p.type === 'recon') {
     if (p.amount == null || p.amount === '') return null;
-    return `${decimalText(p.amount, language)} ${p.unit || 'mg'} ${t('protocols_vial_noun')}`;
+    return `${decimalText(p.amount, language)}\u00A0${p.unit || 'mg'} ${t('protocols_vial_noun')}`;
   }
   if (p.type === 'rtu') {
     if (p.concentration == null || p.concentration === '') return null;
     const ml = vial && vial.water_ml != null ? parseDecimal(vial.water_ml) : null;
     const total = ml ? trimNum(parseDecimal(p.concentration) * ml)
       : (p.amount != null && p.amount !== '' ? trimNum(parseDecimal(p.amount)) : null);
-    if (total) return `${decimalText(total, language)} ${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
-    return `${decimalText(trimZeros(p.concentration), language)} ${p.concentration_unit || 'mg'}/ml`;
+    if (total) return `${decimalText(total, language)}\u00A0${p.concentration_unit || 'mg'} ${t('protocols_vial_noun')}`;
+    return `${decimalText(trimZeros(p.concentration), language)}\u00A0${p.concentration_unit || 'mg'}/ml`;
   }
   if (p.type === 'oral') {
     if (p.serving_strength == null || p.serving_strength === '') return null;
-    return `${decimalText(p.serving_strength, language)} ${p.serving_strength_unit || 'mg'}`;
+    return `${decimalText(p.serving_strength, language)}\u00A0${p.serving_strength_unit || 'mg'}`;
   }
   return null;
 }
@@ -486,8 +486,8 @@ function ProtocolServingHero({ p, t, onRefill }) {
   const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
   const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
   const reads = [
-    { label: t('protocols_serving_dose'), value: `${decimalText(p.dose, language)} ${p.dose_unit}` },
-    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)} ${unitLabel}` } : null,
+    { label: t('protocols_serving_dose'), value: `${decimalText(p.dose, language)}\u00A0${p.dose_unit}` },
+    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)}\u00A0${unitLabel}` } : null,
     daysLeft != null ? { label: t('protocols_serving_days_left'), value: String(daysLeft) } : null,
   ].filter(Boolean);
   while (reads.length < 3) reads.push(null);
@@ -498,7 +498,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
       {canShowAmount ? (
         <View style={[s.drawWell, s.drawWellServing]}>
           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
-          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded, language)} ${unitLabel}`}>
+          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded, language)}\u00A0${unitLabel}`}>
             <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
             <Text style={s.drawBigUnit}>{unitLabel}</Text>
           </View>
@@ -508,7 +508,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
       )}
       {r.nearest && (
         <Text style={s.nearest}>
-          {fmtServing(r.nearest.lowUnits, language)} {unitLabel} = {decimalText(r.nearest.lowDose, language)} {p.dose_unit} · {fmtServing(r.nearest.highUnits, language)} {unitLabel} = {decimalText(r.nearest.highDose, language)} {p.dose_unit}
+          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{p.dose_unit} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{p.dose_unit}
         </Text>
       )}
       <View style={s.reads}>
@@ -637,7 +637,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, 
           <Text style={s.pname}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.pmeta}>
             {sz ? `${sz} · ` : ''}
-            {decimalText(p.dose, language)} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+            {decimalText(p.dose, language)}{'\u00A0'}{p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
           </Text>
         </View>
         <View style={s.pchev}><RowChevron color={c.tick} /></View>
@@ -740,27 +740,27 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   let doseRows = [];
   if (p.type === 'recon') {
     doseRows = [
-      { label: t('protocols_compound_amount'), value: `${decimalText(p.amount, language)} ${p.unit}`, mono: true },
+      { label: t('protocols_compound_amount'), value: `${decimalText(p.amount, language)}\u00A0${p.unit}`, mono: true },
       p.diluent ? { label: t('protocols_diluent'), value: diluentLabel(p.diluent, t) } : null,
       { label: t('protocols_diluent_amount'), value: `${decimalText(trimZeros(p.water), language)} ml`, mono: true },
       {
         label: t('protocols_concentration'),
-        value: `${p.amount && p.water ? decimalText(trimZeros((parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)), language) : '—'} ${p.unit}/ml`,
+        value: `${p.amount && p.water ? decimalText(trimZeros((parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)), language) : '—'}\u00A0${p.unit}/ml`,
         mono: true,
       },
-      { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)} ${p.dose_unit}`, mono: true },
+      { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)}\u00A0${p.dose_unit}`, mono: true },
     ];
   } else if (p.type === 'rtu') {
     doseRows = [
-      { label: t('protocols_dose_per_injection'), value: `${decimalText(p.dose, language)} ${p.dose_unit}`, mono: true },
-      p.concentration ? { label: t('protocols_concentration'), value: `${decimalText(trimZeros(p.concentration), language)} ${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
+      { label: t('protocols_dose_per_injection'), value: `${decimalText(p.dose, language)}\u00A0${p.dose_unit}`, mono: true },
+      p.concentration ? { label: t('protocols_concentration'), value: `${decimalText(trimZeros(p.concentration), language)}\u00A0${p.concentration_unit || 'mg'}/ml`, mono: true } : null,
       vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${decimalText(trimZeros(vial.water_ml), language)} ml`, mono: true } : null,
     ];
   } else if (p.type === 'oral') {
     doseRows = [
-      { label: t('protocols_dose_amount'), value: `${decimalText(p.dose, language)} ${p.dose_unit}`, mono: true },
+      { label: t('protocols_dose_amount'), value: `${decimalText(p.dose, language)}\u00A0${p.dose_unit}`, mono: true },
       p.notes ? { label: t('protocols_form'), value: oralFormLabel(p.notes, t) } : null,
-      p.serving_strength != null ? { label: t('protocols_serving_strength'), value: `${decimalText(p.serving_strength, language)} ${p.serving_strength_unit || 'mg'}`, mono: true } : null,
+      p.serving_strength != null ? { label: t('protocols_serving_strength'), value: `${decimalText(p.serving_strength, language)}\u00A0${p.serving_strength_unit || 'mg'}`, mono: true } : null,
       p.serving_units != null ? { label: t('protocols_serving_units'), value: String(p.serving_units), mono: true } : null,
       p.container_units != null ? { label: t('protocols_container_units'), value: String(p.container_units), mono: true } : null,
     ];
@@ -772,7 +772,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
         <View style={s.ptitleRow}>
           <View style={[s.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }]} />
           <Text style={s.ptitleMeta}>
-            {sz ? `${sz} · ` : ''}{decimalText(p.dose, language)} {p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
+            {sz ? `${sz} · ` : ''}{decimalText(p.dose, language)}{'\u00A0'}{p.dose_unit}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
           </Text>
         </View>
         <Text style={s.ptitleName} accessibilityRole="header">{name}</Text>
@@ -3061,7 +3061,7 @@ export default function ProtocolsScreen() {
                       )}
                       {r.nearest && (
                         <Text style={s.nearest}>
-                          {fmtServing(r.nearest.lowUnits, language)} {unitLabel} = {decimalText(r.nearest.lowDose, language)} {doseUnit} · {fmtServing(r.nearest.highUnits, language)} {unitLabel} = {decimalText(r.nearest.highDose, language)} {doseUnit}
+                          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{doseUnit} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{doseUnit}
                         </Text>
                       )}
                     </View>
@@ -3279,9 +3279,9 @@ export default function ProtocolsScreen() {
                   title={sentenceCase(t('protocols_summary'))}
                   rows={[
                     { label: t('protocols_compound_label'), value: name || '—' },
-                    { label: t('protocols_amount_label'), value: amount ? `${decimalText(parseDecimal(amount, language), language)} ${unit}` : '—' }, // as read and saved
+                    { label: t('protocols_amount_label'), value: amount ? `${decimalText(parseDecimal(amount, language), language)}\u00A0${unit}` : '—' }, // as read and saved
                     { label: t('protocols_water_label'), value: water ? `${decimalText(trimZeros(water), language)} ml` : '—' },
-                    { label: t('protocols_dose_label'), value: dose ? `${decimalText(parseDecimal(dose, language), language)} ${doseUnit}` : '—' },
+                    { label: t('protocols_dose_label'), value: dose ? `${decimalText(parseDecimal(dose, language), language)}\u00A0${doseUnit}` : '—' },
                     drawML && drawValid ? { label: t('protocols_draw_label'), value: `${decimalText(trimZeros(drawML), language)} ml (${decimalText(drawUnits, language)} ${t('protocols_units')})` } : null,
                     { label: t('protocols_frequency_label'), value: frequencyLabel(intervalDays) },
                   ]}

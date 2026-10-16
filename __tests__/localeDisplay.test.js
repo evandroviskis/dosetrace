@@ -88,9 +88,9 @@ test('weigh-in sheet round trip in every language: untouched keeps the stored va
 
 test('Your numbers line and Weigh-ins line show the language decimal', () => {
   const full = { weight: '84.6', wUnit: 'kg', height: '181', hUnit: 'cm', age: '38', yr: 'anos', sexLabel: 'Homem', bodyFat: '21.5', bfShort: 'GC', activityLabel: 'Moderado' };
-  assert.equal(numbersLine({ ...full, language: 'pt' }), '84,6 kg · 181 cm · 38 anos · Homem · 21,5% GC · Moderado');
-  assert.equal(numbersLine({ ...full, weight: '84,6', language: 'pt' }), '84,6 kg · 181 cm · 38 anos · Homem · 21,5% GC · Moderado', 'a comma typed stays');
-  assert.equal(numbersLine(full), '84.6 kg · 181 cm · 38 anos · Homem · 21.5% GC · Moderado', 'English by default');
+  assert.equal(numbersLine({ ...full, language: 'pt' }), '84,6\u00A0kg · 181\u00A0cm · 38\u00A0anos · Homem · 21,5%\u00A0GC · Moderado');
+  assert.equal(numbersLine({ ...full, weight: '84,6', language: 'pt' }), '84,6\u00A0kg · 181\u00A0cm · 38\u00A0anos · Homem · 21,5%\u00A0GC · Moderado', 'a comma typed stays');
+  assert.equal(numbersLine(full), '84.6\u00A0kg · 181\u00A0cm · 38\u00A0anos · Homem · 21.5%\u00A0GC · Moderado', 'English by default');
   const rows = [{ date: '2026-09-28', weightKg: 84.6, bodyFatPct: 21.5 }];
   const line = weighInsLine({ rows, template: '{n} · último {date} · {w}', none: '—', fmtDate: (d) => d.slice(5), fmtWeight: (kg) => `${kg} kg`, bfShort: 'GC', language: 'pt' });
   assert.equal(line, '1 · último 09-28 · 84.6 kg · 21,5% GC');

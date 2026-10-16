@@ -752,7 +752,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <View key={`h-${ser.id}`} style={s.heroMultiRow}>
                     <View style={[s.dot, { backgroundColor: ser.color }]} />
                     <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
-                    <Text style={s.readoutVal}>{mgLabel(ser.nowLevel)} {unitLbl}</Text>
+                    <Text style={s.readoutVal}>{mgLabel(ser.nowLevel)}{'\u00A0'}{unitLbl}</Text>
                   </View>
                 ))}
                 <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
@@ -760,7 +760,7 @@ export default function SerumCurveScreen({ embedded = false }) {
             )}
             <Text style={s.rangeLabel}>
               {t('curve_last_days')} {pastDays}{du} · +{futureDays}{du} {t('curve_projection')}
-              {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)} ${unitLbl}` : ''}
+              {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)}\u00A0${unitLbl}` : ''}
             </Text>
             {/* A-30 (a): a fixed label — the part before the protocol was added is estimated from
                 the start date (the dashed line on the chart marks where it ends) */}
@@ -1018,7 +1018,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <View key={`ro-${ser.id}`} style={s.readoutRow}>
                     <View style={[s.dot, { backgroundColor: ser.color }]} />
                     <Text style={s.readoutName} numberOfLines={2}>{ser.name} · {readoutShort}</Text>
-                    <Text style={s.readoutVal}>{readoutT < model.start ? '—' : mgLabel(readoutLevel(ser, readoutT))} {unitLbl}</Text>
+                    <Text style={s.readoutVal}>{readoutT < model.start ? '—' : mgLabel(readoutLevel(ser, readoutT))}{'\u00A0'}{unitLbl}</Text>
                   </View>
                 ))}
                 {showCombined && model && model.combined.map(c => (
@@ -1028,7 +1028,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                       {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
                     </Text>
                     <Text style={s.readoutVal}>
-                      {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))} {unitLbl}
+                      {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))}{'\u00A0'}{unitLbl}
                     </Text>
                   </View>
                 ))}

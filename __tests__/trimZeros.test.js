@@ -63,10 +63,10 @@ test('Protocols volume and concentration render sites go through trimZeros', () 
   assert.match(PROTOCOLS, /value: `\$\{decimalText\(trimZeros\(p\.water\), language\)\} ml`/);
   assert.match(PROTOCOLS, /trimZeros\(\(parseDecimal\(p\.amount\) \/ parseDecimal\(p\.water\)\)\.toFixed\(2\)\)/);
   // dose details (rtu): concentration and vial size
-  assert.match(PROTOCOLS, /value: `\$\{decimalText\(trimZeros\(p\.concentration\), language\)\} \$\{p\.concentration_unit \|\| 'mg'\}\/ml`/);
+  assert.match(PROTOCOLS, /value: `\$\{decimalText\(trimZeros\(p\.concentration\), language\)\}\\u00A0\$\{p\.concentration_unit \|\| 'mg'\}\/ml`/);
   assert.match(PROTOCOLS, /value: `\$\{decimalText\(trimZeros\(vial\.water_ml\), language\)\} ml`/);
   // collapsed card size fallback (rtu concentration)
-  assert.match(PROTOCOLS, /return `\$\{decimalText\(trimZeros\(p\.concentration\), language\)\} \$\{p\.concentration_unit \|\| 'mg'\}\/ml`;/);
+  assert.match(PROTOCOLS, /return `\$\{decimalText\(trimZeros\(p\.concentration\), language\)\}\\u00A0\$\{p\.concentration_unit \|\| 'mg'\}\/ml`;/);
   // wizard dose step live result and summary
   assert.match(PROTOCOLS, /<Text style=\{s\.liveMl\}>\{decimalText\(trimZeros\(drawML\), language\)\} ml<\/Text>/);
   assert.match(PROTOCOLS, /value: water \? `\$\{decimalText\(trimZeros\(water\), language\)\} ml` : '—'/);

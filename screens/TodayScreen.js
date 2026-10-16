@@ -1915,7 +1915,7 @@ export default function TodayScreen() {
           <View style={[s.ddot, { backgroundColor: displayColor(p.color) || colors.data }]} />
           <View style={s.dinfo}>
             <Text style={s.dname}>{name}</Text>
-            <Text style={s.dfreq}><Text style={s.damt}>{decimalText(p.dose, language)} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
+            <Text style={s.dfreq}><Text style={s.damt}>{decimalText(p.dose, language)}{'\u00A0'}{p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
           </View>
           <View style={s.dright}>
             <View style={s.dtimeRow}>
@@ -2076,7 +2076,7 @@ export default function TodayScreen() {
               <View style={[s.updot, { backgroundColor: displayColor(p.color) || colors.data }]} />
               <View style={s.upMain}>
                 <Text style={s.upName}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
-                <Text style={s.upAmt}><Text style={s.upAmtVal}>{decimalText(p.dose, language)} {p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
+                <Text style={s.upAmt}><Text style={s.upAmtVal}>{decimalText(p.dose, language)}{'\u00A0'}{p.dose_unit}</Text> · {frequencyLabelFor(p.interval_days, t)}</Text>
               </View>
               <RowChevron color={colors.tick} />
             </TouchableOpacity>

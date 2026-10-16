@@ -43,5 +43,5 @@ test('the Journey tile and the Progress card read the same saved number', () => 
   const tile = progressTile({ saved, meta: { sex: 'male', birth_year: 1985 }, snapshots: [], checks: [], now: new Date(2026, 9, 2) });
   assert.ok(tile, 'the tile has numbers');
   assert.equal(tile.weight, '72.5');
-  assert.equal(numbersLine({ weight: savedFieldText(saved.weight, 'en'), wUnit: 'kg' }), '72.5 kg');
+  assert.equal(numbersLine({ weight: savedFieldText(saved.weight, 'en'), wUnit: 'kg' }), '72.5\u00A0kg');
 });

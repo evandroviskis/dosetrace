@@ -960,7 +960,7 @@ export default function BodyScreen({ navigation, route }) {
           {reportDetail.markers.map((m, j) => (
             <TouchableOpacity key={m.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(m)}>
               <Text style={[s.body, s.grow]}>{m.marker}</Text>
-              <Text style={s.value}>{decimalText(m.value, language)} {m.unit}</Text>
+              <Text style={s.value}>{decimalText(m.value, language)}{'\u00A0'}{m.unit}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
           ))}
@@ -975,7 +975,7 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   function renderMarkerDetail(markerDetail, chartWidth, withStar) {
-    const latestText = `${decimalText(markerDetail.latest.value, language)} ${markerDetail.unit}`;
+    const latestText = `${decimalText(markerDetail.latest.value, language)}\u00A0${markerDetail.unit}`;
     return (
       /* ONE MARKER (prototype markerScreen): the latest value as the number, the
          user's readings charted (no ranges, no good/bad colors), every reading. */
@@ -1021,7 +1021,7 @@ export default function BodyScreen({ navigation, route }) {
           {markerDetail.points.slice().reverse().map((p, j) => (
             <TouchableOpacity key={p.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(p)}>
               <Text style={[s.body, s.grow, s.tnum]}>{formatDate(p.date)}</Text>
-              <Text style={s.value}>{decimalText(p.value, language)} {p.unit}</Text>
+              <Text style={s.value}>{decimalText(p.value, language)}{'\u00A0'}{p.unit}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
           ))}
@@ -1170,7 +1170,7 @@ export default function BodyScreen({ navigation, route }) {
                         {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
                       </Text>
                     </View>
-                    <Text style={s.value}>{decimalText(mk.latest.value, language)} {mk.unit}</Text>
+                    <Text style={s.value}>{decimalText(mk.latest.value, language)}{'\u00A0'}{mk.unit}</Text>
                     <Chevron color={colors.tick} />
                   </TouchableOpacity>
                 ))}

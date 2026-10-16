@@ -412,7 +412,7 @@ export default function SettingsScreen({ navigation }) {
         return {
           // An ended protocol says so ("BPC-157 · Ended 20 Sep").
           name: isEnded(p) ? `${p.name} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : p.name,
-          dose: `${p.dose ? decimalText(p.dose, language) : '—'} ${p.dose_unit || ''}`,
+          dose: `${p.dose ? decimalText(p.dose, language) : '—'}\u00A0${p.dose_unit || ''}`,
           frequency: p.frequency || '—',
           taken,
           skipped,
