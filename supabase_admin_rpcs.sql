@@ -120,7 +120,7 @@ GRANT EXECUTE ON FUNCTION public.admin_feature_adoption() TO service_role;
 
 -- ===========================================================================
 -- Phase 2 — Management view (docs/specs/admin-panel.md "Phase 2 — Management view")
--- STATUS: NOT APPLIED. Apply only on the founder's explicit go (Panel #007 stop point 1).
+-- STATUS: APPLIED 2026-10-16 ~20:55 UTC (Panel #010; founder go of 28 Sep 18:46 ET).
 -- Same ACL pattern as the A-1 lockdown: REVOKE from PUBLIC, anon, authenticated;
 -- GRANT to service_role only. Supabase's default privileges grant new objects to
 -- anon/authenticated, so the REVOKEs are required, not decorative.
