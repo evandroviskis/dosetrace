@@ -30,7 +30,7 @@
     {
       "file": "06_food",
       "h": "Log meals *in your own words*",
-      "s": "Say what you ate and AI writes down the calories and protein. You can fix any number."
+      "s": "Describe what you ate and AI writes down the calories and protein. You can fix any number."
     },
     {
       "file": "07_reminders",
@@ -141,7 +141,7 @@
     {
       "file": "06_food",
       "h": "Notez vos repas *avec vos mots*",
-      "s": "Dites ce que vous avez mangé et l'IA note les calories et les protéines. Vous corrigez n'importe quel chiffre."
+      "s": "Décrivez ce que vous avez mangé et l'IA note les calories et les protéines. Vous corrigez n'importe quel chiffre."
     },
     {
       "file": "07_reminders",
@@ -178,7 +178,7 @@
     {
       "file": "06_food",
       "h": "Mahlzeiten *in deinen Worten*",
-      "s": "Sag, was du gegessen hast, und die KI notiert Kalorien und Protein. Jede Zahl kannst du korrigieren."
+      "s": "Beschreib, was du gegessen hast, und die KI notiert Kalorien und Protein. Jede Zahl kannst du korrigieren."
     },
     {
       "file": "07_reminders",
