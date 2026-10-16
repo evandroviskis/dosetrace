@@ -12,43 +12,41 @@ test('A-101c: the lab marker count has a singular in all 6 languages and every c
   for (const l of LANGS) assert.equal(T[l].blood_markers_one, one[l], l);
   const b = read('screens/BodyScreen.js');
   assert.doesNotMatch(b, /t\('blood_markers'\)/, 'no bare plural after a count');
-  assert.equal((b.match(/t\(pluralKey\('blood_markers', /g) || []).length, 3);
+  // the journal card, the test page, the delete question and (A-125) the My Body Labs tile
+  assert.equal((b.match(/t\(pluralKey\('blood_markers', /g) || []).length, 4);
 });
 
-// (d) Lab "By date" repeated one date per marker for markers typed one at a time (each typed marker
-// is its own insert batch). One lab test = one card; a second upload that REPEATS a marker of that
-// date stays its own card, so a duplicate upload can still be deleted alone.
+// (d) Lab "By date" repeated one date per marker for markers entered one at a time (each value
+// its own created_at). One lab test = one card; a second upload of the same markers stays its own
+// card, so a duplicate upload can still be deleted alone. A-125 (docs/specs/my-body-tiles.md MB2-5)
+// moved the rule to lib/labReports.js and replaced "a repeated marker opens a new card" (it split
+// one report that lists a marker twice) with the upload's timing: values stamped seconds apart are
+// one upload, minutes apart are two (myBodyTiles.test.js runs the real cloud shapes).
 const BODY = read('screens/BodyScreen.js');
-const { parse } = require('@babel/parser');
-const fnSrc = (src, name) => {
-  const ast = parse(src, { sourceType: 'module', plugins: ['jsx'] });
-  const n = ast.program.body.find((x) => x.type === 'FunctionDeclaration' && x.id.name === name);
-  assert.ok(n, `${name} exists`);
-  return src.slice(n.start, n.end);
-};
-const cardsFn = new Function(`${fnSrc(BODY, 'reportCards')}\n${fnSrc(BODY, 'newestReportKey')}\n${fnSrc(BODY, 'buildReport')}\nreturn { reportCards, newestReportKey, buildReport };`)();
+const cardsFn = require('../lib/labReports');
 
-test('A-101d: markers typed one at a time on the same date are ONE lab card; a repeated marker is a second card', () => {
+test('A-101d: values of one upload stamped one by one are ONE lab card; a later duplicate upload is a second card', () => {
   const rows = [
-    { id: 1, report_date: '2026-10-01', created_at: '2026-10-01T10:00:00Z', marker: 'Testosterone' },
-    { id: 2, report_date: '2026-10-01', created_at: '2026-10-01T10:01:00Z', marker: 'Estradiol' },
-    { id: 3, report_date: '2026-10-01', created_at: '2026-10-01T10:02:00Z', marker: 'Hematocrit' },
+    { id: 1, report_date: '2026-10-01', created_at: '2026-10-01T10:00:00.000Z', marker: 'Testosterone' },
+    { id: 2, report_date: '2026-10-01', created_at: '2026-10-01T10:00:00.400Z', marker: 'Estradiol' },
+    { id: 3, report_date: '2026-10-01', created_at: '2026-10-01T10:00:01.100Z', marker: 'Hematocrit' },
     { id: 4, report_date: '2026-10-01', created_at: '2026-10-02T09:00:00Z', marker: 'Estradiol' }, // duplicate upload
     { id: 5, report_date: '2026-09-01', created_at: '2026-09-01T08:00:00Z', marker: 'Hematocrit' },
   ];
   const cards = cardsFn.reportCards(rows);
-  const oct = cards.filter((c) => c.date === '2026-10-01');
+  const oct = cardsFn.orderCards(cards.filter((c) => c.date === '2026-10-01'), false);
   assert.equal(oct.length, 2);
   assert.deepEqual(oct[0].markers.map((m) => m.id), [1, 2, 3]);
-  assert.deepEqual(oct[0].batches, ['2026-10-01T10:00:00Z', '2026-10-01T10:01:00Z', '2026-10-01T10:02:00Z']);
-  assert.equal(oct[0].key, '2026-10-01|2026-10-01T10:00:00Z');
+  assert.deepEqual(oct[0].batches, ['2026-10-01T10:00:00.000Z', '2026-10-01T10:00:00.400Z', '2026-10-01T10:00:01.100Z']);
+  assert.equal(oct[0].key, '2026-10-01|2026-10-01T10:00:00.000Z');
   assert.deepEqual(oct[1].markers.map((m) => m.id), [4]);
-  assert.equal(cardsFn.newestReportKey(rows), '2026-10-01|2026-10-02T09:00:00Z');
-  assert.deepEqual(cardsFn.buildReport(rows, '2026-10-01|2026-10-01T10:00:00Z').markers.map((m) => m.id), [1, 2, 3]);
+  assert.equal(cardsFn.orderCards(cards, true)[0].key, '2026-10-01|2026-10-02T09:00:00Z', 'the newest card first');
+  assert.deepEqual(cardsFn.buildReport(rows, '2026-10-01|2026-10-01T10:00:00.000Z').markers.map((m) => m.id), [1, 2, 3]);
 });
 
 test('A-101d: the list, the right page keys and Delete all use the cards (Delete removes every batch of the card)', () => {
-  assert.match(BODY, /const reportKeys = useMemo\(\(\) => new Set\(reportCards\(rows\)\.map\(c => c\.key\)\), \[rows\]\)/);
+  assert.match(BODY, /const cards = useMemo\(\(\) => reportCards\(rows\), \[rows\]\);/);
+  assert.match(BODY, /const reportKeys = useMemo\(\(\) => new Set\(cards\.map\(c => c\.key\)\), \[cards\]\);/);
   const i = BODY.indexOf("  function deleteReport(card)");
   assert.ok(i > 0, "deleteReport takes the card");
   const del = BODY.slice(i, BODY.indexOf("\n  }\n", i));

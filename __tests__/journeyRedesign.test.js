@@ -30,7 +30,8 @@ test('Part 1: the Journey card headline is 19 pt semibold (prototype r-title, 60
 
 test('Part 2: the tile is called "Progress", with the prompt sentence when there are no numbers', () => {
   const src = read('screens/JourneyScreen.js');
-  assert.match(src, /<Text style=\{s\.tileTitle\}>\{t\('cal_snap_title'\)\}<\/Text>/, 'Progress (not "Your progress")');
+  // A-125: the tile is the shared DashTile (myBodyTiles.test.js MB2-1 checks it draws the title as before).
+  assert.match(src, /title=\{t\('cal_snap_title'\)\}/, 'Progress (not "Your progress")');
   assert.match(src, /t\('cal_need_inputs'\)/, 'the prompt sentence instead of "Weight —"');
   assert.doesNotMatch(src, /<Text style=\{s\.foot\}>\{t\('cal_rc_title'\)\}<\/Text>/, 'no loose "Reality check" footer');
   assert.doesNotMatch(src, /\{weight \|\| '—'\}/, 'no "Weight —" placeholder');
@@ -41,8 +42,8 @@ test('Part 2: with numbers the tile shows Weight + "Since …" and Daily burn (T
   assert.match(src, /tile\.since \?/, 'the since line when two weigh-ins exist');
   assert.match(src, /t\('cal_tdee'\)/);
   assert.match(src, /tile\.measured \? t\('hy_rc_measured_chip'\) : t\('hy_estimated'\)/);
-  assert.match(src, /<FeatureIcon name="curve_loose" size=\{22\} color=\{colors\.data\} \/>/, 'the prototype\'s loose curve (founder 2026-10-02), data blue like its number');
-  assert.match(src, /<RowChevron color=\{colors\.tick\} \/>/, 'drawn chevron, not a "›" glyph');
+  assert.match(src, /icon="curve_loose"\s+iconColor=\{colors\.data\}/, 'the prototype\'s loose curve (founder 2026-10-02), data blue like its number');
+  assert.match(read('screens/components/DashTile.js'), /<RowChevron color=\{colors\.tick\} \/>/, 'drawn chevron, not a "›" glyph');
   assert.doesNotMatch(src, /'›'|>›</);
 });
 

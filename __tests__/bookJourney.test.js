@@ -150,9 +150,13 @@ test('BK-5: the food log card opens the chat on the right page; other routes (Pa
 
 test('BK-8: the open card or tile has a 2 pt ink outline, only on a book', () => {
   const src = journey();
-  assert.match(src, /selected: \{ borderWidth: 2, borderColor: c\.ink, borderRadius: 24 \}/);
-  assert.match(src, /\{book && page === 'progress' \? outline : null\}/);
-  assert.match(src, /\{book && page === 'curve' \? outline : null\}/);
+  // A-125: the tiles are the shared DashTile, which draws the same outline from `book` + `selected`.
+  const tile = read('screens/components/DashTile.js');
+  assert.match(tile, /selected: \{ borderWidth: 2, borderColor: c\.ink, borderRadius: 24 \}/);
+  assert.match(tile, /\{book && selected \? <View pointerEvents="none" style=\{\[StyleSheet\.absoluteFill, s\.selected\]\} \/> : null\}/);
+  assert.match(src, /\.\.\.dashTileStyles\(c\)/, 'the food card outline uses the same style');
+  assert.match(src, /book=\{book\}\s+selected=\{page === 'progress'\}/);
+  assert.match(src, /book=\{book\}\s+selected=\{page === 'curve'\}/);
   assert.match(src, /\{page === 'food' && heroH > 0 \? outline : null\}/);
   assert.match(src, /pointerEvents="none" style=\{\[StyleSheet\.absoluteFill, s\.selected\]\}/, 'the outline never takes a tap or moves the layout');
 });

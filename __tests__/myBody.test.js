@@ -44,69 +44,23 @@ const styleOf = (src, name) => {
 
 // ── Part 1: the hub ─────────────────────────────────────────────────────────────────────────
 
-test('MB-1: the hub is three hero cards in order — Lab test journal, Vaccine journal, Dose accumulation — then a left-aligned footnote', () => {
-  const hub = BODY.slice(BODY.indexOf('<View style={s.hubBody}>'), BODY.indexOf('<Text style={s.hubFootnote}>', BODY.indexOf('<View style={s.hubBody}>')));
-  const order = ['{renderLabCard()}', '{renderVaxCard()}', '{renderDoseCard(false)}'].map((x) => hub.indexOf(x));
+// MB-1 … MB-3 (the three open hero cards) were replaced on 2026-10-15 by A-125 (docs/specs/
+// my-body-tiles.md, founder-signed): two of Evolução's tiles side by side and Dose accumulation
+// full width below. The tiles' rules are tested in myBodyTiles.test.js (MB2-1 … MB2-6); here
+// only what MB-1 still promises: the order and the left-aligned footnote.
+test('MB-1 (A-125): the hub is Lab test journal, Vaccine journal, Dose accumulation — then a left-aligned footnote', () => {
+  const hub = fnCode(BODY, 'renderHubItems');
+  const order = ['{renderLabTile()}', '{renderVaxTile()}', '{renderDoseCard('].map((x) => hub.indexOf(x));
   assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'Lab, Vaccine, Dose in order');
-  const hero = styleOf(BODY, 'hero');
-  assert.match(hero, /borderRadius: 26/);
-  assert.match(hero, /padding: 20/);
-  assert.match(styleOf(BODY, 'heroTop'), /flexDirection: 'row'/);
-  for (const f of ['renderLabCard', 'renderVaxCard']) {
-    const code = fnCode(BODY, f);
-    assert.match(code, /size=\{24\}/, `${f}: 24-pt icon beside the title`);
-    assert.match(code, /<Chevron color=\{colors\.tick\} \/>/, `${f}: chevron at the top right`);
-    assert.ok(code.indexOf('_desc\')}') > code.indexOf('countRow'), `${f}: the description comes last`);
-  }
+  assert.ok(hub.indexOf('<Text style={s.hubFootnote}>') > order[2], 'the footnote last');
   const foot = styleOf(BODY, 'hubFootnote');
   assert.doesNotMatch(foot, /textAlign: 'center'/, 'left-aligned (prototype B6)');
   assert.match(foot, /color: c\.ink2/);
   assert.doesNotMatch(BODY, /hubBadge|hubCardStat|LabsGlyph|VaccinesGlyph|AccumGlyph/, 'the old row cards and glyphs are gone');
-});
-
-test('MB-2: the Lab card counts uploads in a big light number, lists the starred markers\' latest values and names the latest test', () => {
-  const { labHubSummary } = require('../lib/bodyHub');
-  const rows = [
-    { report_date: '2026-05-12', created_at: 'a', marker: 'Hematocrit', value: 44.1, unit: '%' },
-    { report_date: '2026-08-20', created_at: 'b', marker: 'Hematocrit', value: 47.6, unit: '%' },
-    { report_date: '2026-08-20', created_at: 'b', marker: 'Total Testosterone', value: 986, unit: 'ng/dL' },
-    { report_date: '2026-05-12', created_at: 'a', marker: 'Total testosterone', value: 512, unit: 'ng/dL' },
-    { report_date: '2026-08-20', created_at: 'b', marker: 'Glucose', value: 91, unit: 'mg/dL' },
-  ];
-  const sum = labHubSummary(rows, ['Total testosterone', 'Hematocrit']);
-  assert.equal(sum.tests, 2, 'one per upload');
-  assert.equal(sum.latestDate, '2026-08-20');
-  assert.deepEqual(sum.starred.map((m) => [m.marker, m.value, m.unit]), [['Hematocrit', 47.6, '%'], ['Total Testosterone', 986, 'ng/dL']],
-    'each starred marker\'s latest reading (naming variants merged), A–Z');
-  assert.deepEqual(labHubSummary(rows, []).starred, [], 'nothing starred: no rows');
-  assert.deepEqual(labHubSummary([], ['x']), { tests: 0, starred: [], latestDate: null });
-
-  const count = styleOf(BODY, 'count');
-  assert.match(count, /fontSize: 56/);
-  assert.match(count, /fontWeight: '300'/);
-  const card = fnCode(BODY, 'renderLabCard');
-  assert.match(card, /t\('body_starred_latest'\)\.replace\('\{date\}', localeDate\(labHub\.latestDate, language, 'dayMonthAuto'\)\)/);
-  assert.match(card, /<StarGlyph color=\{colors\.ink2\} size=\{16\} \/>/);
-  assert.match(card, /<Text style=\{s\.bodyMuted\}>\{t\('body_stat_none'\)\}<\/Text>/, '"Nothing logged yet" in regular ink2');
-  assert.doesNotMatch(styleOf(BODY, 'bodyMuted'), /fontWeight/);
-});
-
-test('MB-3: the Vaccine card shows the nearest next-due date the user typed (today or later), never a past one', () => {
-  const { nextDueVaccine } = require('../lib/bodyHub');
-  const list = [
-    { name: 'Td', next_due: '2029-03-14' },
-    { name: 'Influenza (flu)', next_due: '2026-10-05' },
-    { name: 'Hep A', next_due: '2026-09-01' }, // already past
-    { name: 'COVID-19', next_due: null },
-  ];
-  assert.deepEqual(nextDueVaccine(list, '2026-10-03'), { name: 'Influenza (flu)', due: '2026-10-05' });
-  assert.deepEqual(nextDueVaccine(list, '2026-10-05'), { name: 'Influenza (flu)', due: '2026-10-05' }, 'today counts');
-  assert.equal(nextDueVaccine([{ name: 'Hep A', next_due: '2026-09-01' }], '2026-10-03'), null);
-  assert.equal(nextDueVaccine([], '2026-10-03'), null);
-  const card = fnCode(BODY, 'renderVaxCard');
-  assert.match(card, /t\('body_next_due'\)\.replace\('\{name\}', nextDue\.name\)\.replace\('\{date\}', localeDate\(nextDue\.due, language, 'dayMonthAuto'\)\)/);
-  assert.match(card, /<FeatureIcon name="calendar" size=\{16\} color=\{colors\.ink2\} \/>/);
-  assert.match(BODY, /const nextDue = nextDueVaccine\(vaccineList, todayLocal\(\)\);/);
+  // Rebuild = replace: the hero cards' helpers left lib/bodyHub with them.
+  const hubLib = require('../lib/bodyHub');
+  assert.equal(hubLib.labHubSummary, undefined);
+  assert.equal(hubLib.nextDueVaccine, undefined);
 });
 
 test('MB-4: Dose accumulation shows the Curve\'s compound and Est. level for Premium (remembered view, palette B); free shows Premium + lock, no number', () => {
@@ -136,8 +90,9 @@ test('MB-5: the prototype icons — lab frame with a drop, the syringe tilted �
     assert.ok(fs.existsSync(path.join(__dirname, '..', 'assets', 'feature-icons', `${n}.svg`)), `${n}.svg in the set`);
   }
   assert.match(data.match(/syringe_tilt: `([\s\S]*?)`/)[1], /rotate\(-45 512 512\)/);
-  assert.match(fnCode(BODY, 'renderLabCard'), /<FeatureIcon name="lab_frame" size=\{24\}/);
-  assert.match(fnCode(BODY, 'renderVaxCard'), /<FeatureIcon name="syringe_tilt" size=\{24\}/);
+  // A-125: on Evolução's tile (22 pt, drawn by screens/components/DashTile).
+  assert.match(fnCode(BODY, 'renderLabTile'), /icon="lab_frame"/);
+  assert.match(fnCode(BODY, 'renderVaxTile'), /icon="syringe_tilt"/);
   assert.match(fnCode(BODY, 'renderDoseCard'), /<FeatureIcon name="curve_loose" size=\{22\} color=\{colors\.data\} \/>/);
   assert.match(VAX, /<FeatureIcon name="syringe_tilt" size=\{44\} color=\{colors\.ink3\} \/>/, 'the empty Vaccine journal');
   assert.match(VAX, /<FeatureIcon name="lab_frame" size=\{18\} color=\{colors\.ink\} \/>/, 'Scan / upload');
@@ -168,7 +123,7 @@ test('MB-9: Export shows only when there is something to export', () => {
   assert.equal(exportVisible('vaccines', { tests: 3, vaccines: 0 }), false, 'Vaccine journal: only with vaccines (prototype)');
   assert.equal(exportVisible('vaccines', { tests: 0, vaccines: 1 }), true);
   assert.match(BODY, /\{!detail && \(\(section === 'labs' && canExportLabs\) \|\| \(section === 'vaccines' && canExportVax\)\) && renderExportButton\(\)\}/);
-  assert.match(fnCode(BODY, 'renderBookLeft'), /\{canExportLabs && \(/);
+  assert.match(fnCode(BODY, 'renderBookJournal'), /\{canExportLabs && renderExportButton\(\)\}/, 'A-125: the lab journal is the right page');
 });
 
 test('MB-10 / MB-11: the S-24 copy — the free budget is 3 a month, the Premium lines carry no number', () => {
@@ -352,7 +307,7 @@ test('MB-28: every delete in My Body is the synced tombstone; nothing stored is 
 
 test('MB-29: the new strings exist in all 6 languages with their placeholders', () => {
   const keys = {
-    body_starred_latest: ['{date}'], body_next_due: ['{name}', '{date}'], blood_latest_on: ['{date}'],
+    body_tile_lab_latest: ['{date}'], body_tile_vax_latest: [], blood_latest_on: ['{date}'],
     blood_value_delete_title: [], blood_value_delete_body: ['{marker}', '{date}'],
     vax_delete_title: [], vax_delete_body: ['{name}'], vax_name_first: [], blood_error_service_sub: [],
   };

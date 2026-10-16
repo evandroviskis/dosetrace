@@ -41,13 +41,15 @@ import { BottomSheet, SheetBar, CloseBar } from './components/BodySheets';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection, paneWidths } from '../lib/bookLayout';
-import { clearSelection } from '../lib/bookSelection';
+import { setSelection } from '../lib/bookSelection';
+import DashTile, { dashTileStyles } from './components/DashTile';
+import { reportCards, buildReport, orderCards, labTileSummary } from '../lib/labReports';
 import SerumCurveScreen from './SerumCurveScreen';
 import { pluralKey } from '../lib/plural';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
 import { loadCurveView } from '../lib/curveViewStore';
 import { displayColor } from '../lib/protocolColors';
-import { labHubSummary, nextDueVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
+import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
 
@@ -86,97 +88,63 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 // The Test date wheel (MB-17): a lab test is never in the future.
 const TEST_DATE_RANGE = { back: 30, ahead: 0 };
 
-// S-26 book layout, My Body (docs/specs/book-layout.md BK-6, BK-10). Pure and self-contained
-// so __tests__/bookBody.test.js can run them. Right-page ids: a lab test = its upload key
-// (report_date + '|' + created_at, the same key as the journal cards), a marker =
-// 'marker:' + its canonical key, a vaccine = 'vax:' + its id (BK-18), Dose accumulation = 'curve'.
+// S-26 book layout, My Body (docs/specs/book-layout.md BK-6, BK-10), rebuilt for A-125
+// (docs/specs/my-body-tiles.md MB2-4): the left page is the hub (two tiles, Dose accumulation,
+// the footnote) and the right page the open journal. Pure and self-contained so the tests can
+// run them. Right-page ids: 'labs' (the lab journal, the default) and 'vaccines' (the vaccine
+// journal); inside them a lab test = its card key (lib/labReports), a marker = 'marker:' + its
+// canonical key, a vaccine's read page = 'vax:' + its id (BK-18); Dose accumulation = 'curve'.
+// `group` names the journal a page belongs to: its tile carries the outline (BK-8).
 
-// The newest test = the first card of the By date list, newest first (the default page).
-// A-101d: one card per lab test. Every insert batch (created_at) is an upload or one typed marker;
-// batches of the same date join one card, unless a batch repeats a marker the card already has —
-// that is a second (duplicate) upload, kept as its own card so it can be deleted alone.
-// key = date + '|' + the card's first batch; batches = every created_at in the card.
-function reportCards(rows) {
-  const byDate = {};
-  for (const r of rows || []) {
-    const c = r.created_at || '';
-    const d = (byDate[r.report_date] = byDate[r.report_date] || {});
-    (d[c] = d[c] || []).push(r);
-  }
-  const cards = [];
-  for (const date of Object.keys(byDate)) {
-    const dateCards = [];
-    for (const c of Object.keys(byDate[date]).sort()) {
-      const batch = byDate[date][c];
-      const names = new Set(batch.map(r => String(r.marker || '').toLowerCase()));
-      let card = dateCards.find(k => !k.markers.some(m => names.has(String(m.marker || '').toLowerCase())));
-      if (!card) { card = { key: date + '|' + c, date, createdAt: c, latest: c, batches: [], markers: [] }; dateCards.push(card); }
-      card.batches.push(c);
-      card.markers.push(...batch);
-      card.latest = c;
-    }
-    cards.push(...dateCards);
-  }
-  return cards;
-}
-
-function newestReportKey(rows) {
-  let best = null;
-  for (const card of reportCards(rows)) {
-    if (!best || card.date > best.date || (card.date === best.date && card.latest > best.latest)) best = card;
-  }
-  return best ? best.key : null;
-}
-
-// Every value of one lab test (card), from ALL rows (not the search-filtered list).
-function buildReport(rows, key) {
-  return reportCards(rows).find(c => c.key === key) || null;
-}
-
-// What the right page shows. A chosen test, marker or vaccine that no longer exists
-// (deleted, renamed) falls back to the newest test; Dose accumulation only for Premium.
-// `vaxKeys`: the ids of the user's vaccines, as strings (BK-18).
-function bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium, newestKey }) {
+// What the right page shows. A chosen test or marker that no longer exists (deleted, renamed)
+// falls back to the lab journal, a deleted vaccine to the vaccine journal; Dose accumulation only
+// for Premium. Never blank. `vaxKeys`: the ids of the user's vaccines, as strings (BK-18).
+function bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium }) {
   const has = (keys, k) => (keys && typeof keys.has === 'function' ? keys.has(k) : Array.isArray(keys) && keys.includes(k));
-  if (sel === 'curve') {
-    if (premium) return { type: 'curve', id: 'curve' };
-  } else if (typeof sel === 'string' && sel.indexOf('marker:') === 0) {
-    const key = sel.slice('marker:'.length);
-    if (has(markerKeys, key)) return { type: 'marker', key, id: sel };
-  } else if (typeof sel === 'string' && sel.indexOf('vax:') === 0) {
+  const labs = { type: 'labs', id: 'labs', group: 'labs' };
+  const vaccines = { type: 'vaccines', id: 'vaccines', group: 'vaccines' };
+  if (sel === 'curve') return premium ? { type: 'curve', id: 'curve', group: 'curve' } : labs;
+  if (sel === 'vaccines') return vaccines;
+  if (typeof sel === 'string' && sel.indexOf('vax:') === 0) {
     const key = sel.slice('vax:'.length);
-    if (has(vaxKeys, key)) return { type: 'vaccine', key, id: sel };
-  } else if (sel && has(reportKeys, sel)) {
-    return { type: 'report', key: sel, id: sel };
+    return has(vaxKeys, key) ? { type: 'vaccine', key, id: sel, group: 'vaccines' } : vaccines;
   }
-  if (newestKey && has(reportKeys, newestKey)) return { type: 'report', key: newestKey, id: newestKey };
-  return null;
+  if (typeof sel === 'string' && sel.indexOf('marker:') === 0) {
+    const key = sel.slice('marker:'.length);
+    if (has(markerKeys, key)) return { type: 'marker', key, id: sel, group: 'labs' };
+  } else if (sel && sel !== 'labs' && has(reportKeys, sel)) {
+    return { type: 'report', key: sel, id: sel, group: 'labs' };
+  }
+  return labs;
 }
 
 // BK-10, folding: what the one-column My Body shows. An open add/edit vaccine sheet wins
-// (its typed values are carried over); then the item the user chose on the right page:
-// a test or marker opens its detail with "‹ back", Dose accumulation is pushed as today.
-// A default nobody chose changes nothing. A vaccine opens the vaccine journal with "‹ back"
-// (the phone has no read page; a tap there opens the sheet, as today).
+// (its typed values are carried over); then what the user opened on the right page: a journal
+// opens as its phone screen, a test or marker as its detail with "‹ back", a vaccine's read page
+// as the vaccine journal (the phone has no read page; a tap there opens the sheet, as today),
+// Dose accumulation is pushed as today. A default nobody chose changes nothing (the hub stays).
 function bodyFoldPlan({ sel, explicit, vaxSheetOpen }) {
   if (vaxSheetOpen) return { section: 'vaccines', detail: null };
   if (!explicit || !sel) return null;
   if (sel === 'curve') return { section: null, detail: null, push: 'SerumCurve' };
-  if (sel.indexOf('vax:') === 0) return { section: 'vaccines', detail: null };
+  if (sel === 'labs') return { section: 'labs', detail: null };
+  if (sel === 'vaccines' || sel.indexOf('vax:') === 0) return { section: 'vaccines', detail: null };
   if (sel.indexOf('marker:') === 0) return { section: 'labs', detail: { type: 'marker', key: sel.slice('marker:'.length) } };
   return { section: 'labs', detail: { type: 'report', key: sel } };
 }
 
-// BK-10, unfolding: a test or marker open in the one-column journal moves onto the right page.
+// BK-10, unfolding: the journal, test or marker open in the one-column screen moves onto the
+// right page; from the hub the right page keeps its default (the lab journal).
 function bodyUnfoldSel({ section, detail }) {
-  if (section !== 'labs' || !detail) return null;
-  if (detail.type === 'report') return detail.key;
-  if (detail.type === 'marker') return 'marker:' + detail.key;
-  return null;
+  if (section === 'vaccines') return 'vaccines';
+  if (section !== 'labs') return null;
+  if (detail && detail.type === 'report') return detail.key;
+  if (detail && detail.type === 'marker') return 'marker:' + detail.key;
+  return 'labs';
 }
 
 // BK-18: the chosen vaccine is gone from a fresh list (deleted from its sheet, or by sync), so
-// the choice is dropped and the right page goes back to the default (the newest test).
+// the right page goes back to the vaccine journal.
 function staleVaccineSel(sel, list) {
   if (typeof sel !== 'string' || sel.indexOf('vax:') !== 0) return false;
   const id = sel.slice('vax:'.length);
@@ -192,7 +160,7 @@ function labExplainers(userId) {
 export default function BodyScreen({ navigation, route }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
-  const { width: windowWidth } = useWindowSize();
+  const { width: windowWidth, fontScale } = useWindowSize();
   // Chart width: screen minus the scroll gutter (16×2) and the card padding (18×2).
   const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 36;
   // Book layout: the marker chart sized on the right page (BK-9: two equal pages).
@@ -224,17 +192,6 @@ export default function BodyScreen({ navigation, route }) {
   const [tagDraft, setTagDraft] = useState('');
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
 
-  // Deep link from notifications (e.g. an upload reminder → 'labs'). Param is
-  // consumed after use so backing out to the hub isn't re-hijacked. (The
-  // calculator/reality-check now lives in the Journey tab, not here.)
-  useEffect(() => {
-    const target = route?.params?.initialSection;
-    if (target === 'labs' || target === 'vaccines') {
-      setSection(target);
-      setDetail(null);
-      navigation.setParams({ initialSection: undefined });
-    }
-  }, [route?.params?.initialSection]);
   const [exporting, setExporting] = useState(false);
   const [vaccineList, setVaccineList] = useState([]);
   // Export selection
@@ -251,22 +208,17 @@ export default function BodyScreen({ navigation, route }) {
 
   const q = search.trim().toLowerCase();
 
-  // Date view: reports grouped by UPLOAD INSTANCE (report_date + created_at), so a
-  // duplicate or mistaken second upload on the same date shows as its own card and
-  // can be deleted on its own without touching the other. Each filtered by the
-  // marker search, sorted by the chosen order. Reports with no matching marker are
-  // dropped. `key` is the stable instance id used for expand + delete.
+  // Date view: one card per upload (A-125 MB2-5, lib/labReports), so a duplicate or mistaken
+  // second upload on the same date shows as its own card and can be deleted on its own. Each
+  // filtered by the marker search, sorted by the chosen order; cards with no matching marker
+  // are dropped. `key` is the card's stable id (open, right page, delete).
+  const cards = useMemo(() => reportCards(rows), [rows]);
   const reports = useMemo(() => {
-    // A-101d: one card per lab test (reportCards), then the marker search.
-    const entries = reportCards(rows)
+    const entries = cards
       .map(c => (q ? { ...c, markers: c.markers.filter(m => String(m.marker || '').toLowerCase().includes(q)) } : c))
       .filter(c => c.markers.length > 0);
-    entries.sort((a, b) => {
-      if (a.date !== b.date) return (a.date < b.date ? 1 : -1) * (newestFirst ? 1 : -1);
-      return (a.latest < b.latest ? 1 : -1) * (newestFirst ? 1 : -1);
-    });
-    return entries;
-  }, [rows, q, newestFirst]);
+    return orderCards(entries, newestFirst);
+  }, [cards, q, newestFirst]);
 
   // Marker view: one entry per distinct marker name, with its full value
   // history (oldest → newest for the chart) and the latest reading.
@@ -312,33 +264,49 @@ export default function BodyScreen({ navigation, route }) {
   function openReport(key) { setTagDraft(''); setDetail({ type: 'report', key }); }
   function openMarker(key) { setDetail({ type: 'marker', key }); }
 
-  // S-26 book layout (BK-6): on an unfolded foldable the journal is the left page and the
-  // tapped test, marker or Dose accumulation opens on the right page. One column (phone,
-  // folded) is exactly the hub → journal → detail flow above (BK-2).
+  // S-26 book layout (BK-6), A-125 (MB2-4): on an unfolded foldable the hub is the left page
+  // and the tapped tile's journal opens on the right page (the lab journal by default, never
+  // blank); a test, marker or vaccine opens in place there with "‹ back" to its journal, Dose
+  // accumulation shows the Curve. One column (phone, folded) is exactly the hub → journal →
+  // detail flow above (BK-2).
   const book = useBook();
-  const newestKey = useMemo(() => newestReportKey(rows), [rows]);
-  const { sel, explicit, select } = useBookSelection('Body', defaultSelection('Body', { newestReportKey: newestKey }));
-  const reportKeys = useMemo(() => new Set(reportCards(rows).map(c => c.key)), [rows]);
+  const { sel, explicit, select } = useBookSelection('Body', defaultSelection('Body'));
+  const reportKeys = useMemo(() => new Set(cards.map(c => c.key)), [cards]);
   const markerKeys = useMemo(() => new Set(allMarkerSeries.map(x => x.key)), [allMarkerSeries]);
   const vaxKeys = useMemo(() => new Set(vaccineList.map(v => String(v.id))), [vaccineList]);
-  const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium, newestKey }) : null;
+  const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium }) : null;
   const bookReport = rightPage?.type === 'report' ? buildReport(rows, rightPage.key) : null;
   const bookMarker = rightPage?.type === 'marker' ? allMarkerSeries.find(x => x.key === rightPage.key) || null : null;
   const bookVaccine = rightPage?.type === 'vaccine' ? vaccineList.find(v => String(v.id) === rightPage.key) || null : null;
   function selectReport(key) { if (key !== rightPage?.id) setTagDraft(''); select(key); }
   function selectMarker(key) { select('marker:' + key); }
-  // BK-18: a vaccine tapped on the left page opens its read page on the right.
+  // BK-18: a vaccine tapped in the journal on the right page opens its read page there.
   function selectVaccine(v) { select('vax:' + v.id); }
+
+  // Deep link from notifications or Today (e.g. the bloodwork alert → 'labs'). The param is
+  // consumed after use so backing out to the hub isn't re-hijacked; on a book the journal opens
+  // on the right page. (The calculator/reality-check lives in the Journey tab, not here.)
+  useEffect(() => {
+    const target = route?.params?.initialSection;
+    if (target === 'labs' || target === 'vaccines') {
+      setSection(target);
+      setDetail(null);
+      if (book) select(target);
+      navigation.setParams({ initialSection: undefined });
+    }
+  }, [route?.params?.initialSection]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // VaccinesSection hands over every fresh list (after an add, edit, delete or sync), so the
-  // book's right page shows the saved values (a deleted vaccine falls back) and the hub card,
-  // the Export button and the export sheet always count the vaccines that exist.
+  // book's right page shows the saved values (a deleted vaccine falls back to its journal) and
+  // the hub tile, the Export button and the export sheet always count the vaccines that exist.
   const selRef = useRef(sel);
   selRef.current = sel;
   const onVaxList = useCallback((list) => {
     setVaccineList(list);
-    if (staleVaccineSel(selRef.current, list)) clearSelection('Body');
+    if (staleVaccineSel(selRef.current, list)) setSelection('Body', 'vaccines', { explicit: true });
   }, []);
-  // The right page's Edit opens today's add/edit sheet, in the left page's VaccinesSection.
+  // The read page's Edit opens today's add/edit sheet, in the VaccinesSection kept mounted
+  // under it on the right page.
   const vaxControl = useRef(null);
   function editVaccine(v) { if (vaxControl.current) vaxControl.current.openEdit(v); }
 
@@ -699,10 +667,10 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   // Delete a whole uploaded blood-test report (a mistaken or duplicate upload) so
-  // the user can re-upload. Scoped to the upload instance (date + created_at), so
-  // a second report on the same date is untouched. The confirm count is the TRUE
-  // instance size from `rows` (not the search-filtered on-screen markers).
-  // A-101d: a card can hold several batches (markers typed one at a time): Delete removes them all.
+  // the user can re-upload. Scoped to the card (one upload, lib/labReports), so a second
+  // report on the same date is untouched. The confirm count is the TRUE card size from
+  // `rows` (not the search-filtered on-screen markers). A card pulled from the cloud holds
+  // one created_at per value (A-125 MB2-5): Delete removes every batch of the card.
   function deleteReport(card) {
     const { date } = card;
     const count = card.markers.length;
@@ -728,8 +696,8 @@ export default function BodyScreen({ navigation, route }) {
             }
             requestSync();
             setDetail(null);
-            // Book layout: the right page goes back to the newest test.
-            if (sel === card.key) clearSelection('Body');
+            // Book layout: the right page goes back to the lab journal.
+            if (sel === card.key) select('labs');
             fetchReports();
           },
         },
@@ -820,11 +788,10 @@ export default function BodyScreen({ navigation, route }) {
     return localeDate(String(dateStr).slice(0, 10), language, 'long') || String(dateStr);
   }
 
-  // One per upload, the same key as the journal's date cards (A-74).
-  const testCount = new Set(rows.map(r => r.report_date + '|' + (r.created_at || ''))).size;
-  // MB-2 / MB-3: the starred markers' latest values and the nearest next-due date.
-  const labHub = useMemo(() => labHubSummary(rows, favorites), [rows, favorites]);
-  const nextDue = nextDueVaccine(vaccineList, todayLocal());
+  // One per upload: the journal's cards (A-74, A-125 MB2-5).
+  const testCount = cards.length;
+  // MB2-2: what the Labs tile shows (tests, the latest test's day and its markers).
+  const labTile = useMemo(() => labTileSummary(cards), [cards]);
   const canExportLabs = exportVisible('labs', { tests: testCount, vaccines: vaccineList.length });
   const canExportVax = exportVisible('vaccines', { tests: testCount, vaccines: vaccineList.length });
   // The level line names the compound as the Curve names its line (a blend component:
@@ -834,8 +801,11 @@ export default function BodyScreen({ navigation, route }) {
     : lp.__blend ? `${t(lp.__blend)} · ${t(lp.compound_id)} ${t('blend_est_marker')}`
       : (lp.compound_id ? t(lp.compound_id) : lp.name);
 
+  // A tile opens its journal: on a phone the journal screen, as today; on a book the right
+  // page (MB2-4).
   function openSection(key) {
     Analytics.viewed({ labs: 'labs', vaccines: 'vaccines' }[key] || key);
+    if (book) { select(key); return; }
     setSection(key);
   }
 
@@ -854,75 +824,83 @@ export default function BodyScreen({ navigation, route }) {
     setShowSerumPreview(true);
   }
 
-  // MB-1 / MB-2: the Lab test journal hero card (prototype bodyHub B3).
-  function renderLabCard() {
+  // A-125 (docs/specs/my-body-tiles.md, picture a125-mybody-closed.html option A): the hub in
+  // Evolução's layout — the two journals as Evolução's tiles side by side (stacked from ~130 %
+  // text size, as on Evolução), Dose accumulation full width below, then the footnote. Phone
+  // hub and the book's left page.
+  function renderHubItems(inBook) {
     return (
-      <TouchableOpacity style={s.hero} activeOpacity={0.7} onPress={() => openSection('labs')} accessibilityRole="button">
-        <View style={s.heroTop}>
-          <FeatureIcon name="lab_frame" size={24} color={colors.ink} />
-          <Text style={[s.title, s.grow]}>{t('body_card_labs_title')}</Text>
-          <Chevron color={colors.tick} />
+      <>
+        <View style={[s.duo, fontScale >= 1.3 && s.duoStack]}>
+          {renderLabTile()}
+          {renderVaxTile()}
         </View>
-        {testCount > 0 ? (
-          <>
-            <View style={s.countRow}>
-              <Text style={s.count}>{testCount}</Text>
-              <Text style={s.countLabel}>{testCount === 1 ? t('body_stat_test') : t('body_stat_tests')}</Text>
-            </View>
-            {labHub.starred.length > 0 && (
-              <>
-                <View style={s.names}>
-                  {labHub.starred.map(m => (
-                    <View key={m.key} style={s.starRow}>
-                      <StarGlyph color={colors.ink2} size={16} />
-                      <Text style={[s.body, s.grow]} numberOfLines={1}>{m.marker}</Text>
-                      <Text style={s.value}>{decimalText(m.value, language)}{m.unit ? ` ${m.unit}` : ''}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={[s.foot, s.tnum]}>{t('body_starred_latest').replace('{date}', localeDate(labHub.latestDate, language, 'dayMonthAuto'))}</Text>
-              </>
-            )}
-          </>
-        ) : (
-          <Text style={s.bodyMuted}>{t('body_stat_none')}</Text>
-        )}
-        <Text style={s.sec}>{t('body_card_labs_desc')}</Text>
-      </TouchableOpacity>
+        {renderDoseCard(inBook && rightPage?.type === 'curve')}
+        <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
+      </>
     );
   }
 
-  // MB-1 / MB-3: the Vaccine journal hero card (prototype bodyHub B4). The next-due date is
-  // the one the user typed — never a schedule or advice.
-  function renderVaxCard() {
-    const n = vaccineList.length;
+  // MB2-2: how many tests, "latest {date}" (the app's short date) and how many markers the
+  // latest test holds — no value, no colour, no high/low. MB2-3: empty, "Nothing logged yet"
+  // and the journal's own description.
+  function renderLabTile() {
     return (
-      <TouchableOpacity style={s.hero} activeOpacity={0.7} onPress={() => openSection('vaccines')} accessibilityRole="button">
-        <View style={s.heroTop}>
-          <FeatureIcon name="syringe_tilt" size={24} color={colors.ink} />
-          <Text style={[s.title, s.grow]}>{t('body_card_vax_title')}</Text>
-          <Chevron color={colors.tick} />
-        </View>
+      <DashTile
+        icon="lab_frame"
+        title={t('body_card_labs_title')}
+        onPress={() => openSection('labs')}
+        book={book}
+        selected={rightPage?.group === 'labs'}
+      >
+        {labTile.tests > 0 ? (
+          <View style={s.num}>
+            <Text style={s.big}>{labTile.tests}<Text style={s.unit}> {labTile.tests === 1 ? t('body_stat_test') : t('body_stat_tests')}</Text></Text>
+            <Text style={s.foot}>{t('body_tile_lab_latest').replace('{date}', localeDate(labTile.latestDate, language, 'dayMonthAuto'))}</Text>
+            <Text style={[s.foot, s.tnum]}>{labTile.latestMarkers} {t(pluralKey('blood_markers', labTile.latestMarkers, language))}</Text>
+          </View>
+        ) : renderEmptyTile('body_card_labs_desc')}
+      </DashTile>
+    );
+  }
+
+  // MB2-2: how many vaccines, and the latest one's name and the date the user typed — never a
+  // schedule or advice.
+  function renderVaxTile() {
+    const n = vaccineList.length;
+    const lastVax = latestVaccine(vaccineList);
+    return (
+      <DashTile
+        icon="syringe_tilt"
+        title={t('body_card_vax_title')}
+        onPress={() => openSection('vaccines')}
+        book={book}
+        selected={rightPage?.group === 'vaccines'}
+      >
         {n > 0 ? (
           <>
-            <View style={s.countRow}>
-              <Text style={s.count}>{n}</Text>
-              <Text style={s.countLabel}>{n === 1 ? t('body_stat_vaccine') : t('body_stat_vaccines')}</Text>
+            <View style={s.num}>
+              <Text style={s.big}>{n}<Text style={s.unit}> {n === 1 ? t('body_stat_vaccine') : t('body_stat_vaccines')}</Text></Text>
             </View>
-            {nextDue ? (
-              <View style={s.dueRow}>
-                <FeatureIcon name="calendar" size={16} color={colors.ink2} />
-                <Text style={[s.body, s.grow, s.tnum]}>
-                  {t('body_next_due').replace('{name}', nextDue.name).replace('{date}', localeDate(nextDue.due, language, 'dayMonthAuto'))}
-                </Text>
+            {lastVax ? (
+              <View style={[s.num, s.numSep]}>
+                <Text style={s.cap}>{t('body_tile_vax_latest')}</Text>
+                <Text style={s.tileName} numberOfLines={1}>{lastVax.name}</Text>
+                {lastVax.date ? <Text style={s.foot}>{localeDate(lastVax.date, language, 'dayMonthAuto')}</Text> : null}
               </View>
             ) : null}
           </>
-        ) : (
-          <Text style={s.bodyMuted}>{t('body_stat_none')}</Text>
-        )}
-        <Text style={s.sec}>{t('body_card_vax_desc')}</Text>
-      </TouchableOpacity>
+        ) : renderEmptyTile('body_card_vax_desc')}
+      </DashTile>
+    );
+  }
+
+  function renderEmptyTile(descKey) {
+    return (
+      <>
+        <Text style={[s.desc, s.descInk]}>{t('body_stat_none')}</Text>
+        <Text style={s.desc}>{t(descKey)}</Text>
+      </>
     );
   }
 
@@ -1086,7 +1064,7 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   // The Lab test journal under its title: on the phone's journal screen, and on the book's
-  // left page (`inBook`: a tap opens the right page and the open item has an ink outline).
+  // right page (`inBook`: a tapped test or marker opens in place there, with "‹ back").
   function renderJournalBody(inBook) {
     return (
       <>
@@ -1122,7 +1100,7 @@ export default function BodyScreen({ navigation, route }) {
                 <Text style={s.btnPText}>{t('blood_upload_report')}</Text>
               </TouchableOpacity>
             </View>
-            {!inBook && renderTips()}
+            {renderTips()}
           </>
         )}
 
@@ -1179,10 +1157,9 @@ export default function BodyScreen({ navigation, route }) {
             {viewMode === 'date' && reports.map(({ key, date, markers }) => (
               <TouchableOpacity
                 key={key}
-                style={[s.card, inBook && rightPage?.type === 'report' && rightPage.key === key && s.selCard]}
+                style={s.card}
                 activeOpacity={0.7}
                 onPress={() => (inBook ? selectReport(key) : openReport(key))}
-                accessibilityState={inBook ? { selected: rightPage?.type === 'report' && rightPage.key === key } : undefined}
               >
                 <View style={s.cardRow}>
                   <View style={[s.grow, s.col6]}>
@@ -1206,9 +1183,8 @@ export default function BodyScreen({ navigation, route }) {
                 {markerSeries.map((mk, i) => (
                   <TouchableOpacity
                     key={mk.key}
-                    style={[s.li, i > 0 && s.liLine, inBook && rightPage?.type === 'marker' && rightPage.key === mk.key && s.selLi]}
+                    style={[s.li, i > 0 && s.liLine]}
                     onPress={() => (inBook ? selectMarker(mk.key) : openMarker(mk.key))}
-                    accessibilityState={inBook ? { selected: rightPage?.type === 'marker' && rightPage.key === mk.key } : undefined}
                   >
                     <TouchableOpacity
                       style={s.starBtn}
@@ -1270,71 +1246,105 @@ export default function BodyScreen({ navigation, route }) {
     );
   }
 
-  // BOOK (S-26 BK-6): left page = the hub's title, the Lab test journal (+ Upload, Export,
-  // By date / By marker, search, sort), the Vaccine journal and the Dose accumulation row;
-  // right page = the open test, marker or the Curve. Each page scrolls on its own.
+  // BOOK (S-26 BK-6, A-125 MB2-4): left page = the hub (title, the two tiles, Dose
+  // accumulation, the footnote); right page = the open journal — the lab journal unless the
+  // user opened another — then, in place, a test, a marker or a vaccine's read page with
+  // "‹ back" to its journal, or the Curve. Each page scrolls on its own.
   function renderBookLeft() {
     return (
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
         <View style={s.bookHero}>
           <Text style={s.hubGreeting}>{t('tab_body')}</Text>
           <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
         </View>
+        {renderHubItems(true)}
+      </ScrollView>
+    );
+  }
 
-        <View style={s.titleBlock}>
-          <Text style={s.screenTitle}>{t('body_card_labs_title')}</Text>
+  // The right page's "‹ Lab test journal" / "‹ Vaccine journal" row (the phone's back row).
+  function renderPageBack(label, onPress) {
+    return (
+      <View style={s.navRow}>
+        <TouchableOpacity
+          onPress={onPress}
+          hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+          style={s.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t('back')}
+        >
+          <Chevron color={colors.ink} flip />
+          <Text style={s.backText} numberOfLines={1}>{label}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // The lab journal on the right page (picture Afold): title, + Upload and Export, then the
+  // journal (By date / By marker, search, sort; the tips while there is no test).
+  function renderBookJournal() {
+    return (
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+        <View style={[s.titleBlock, s.pageTop]}>
+          <Text style={s.screenTitle} accessibilityRole="header">{t('body_card_labs_title')}</Text>
         </View>
         <View style={s.bookActions}>
           <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
             <Text style={s.addBtnText}>{t('blood_upload')}</Text>
           </TouchableOpacity>
-          {canExportLabs && (
-            <TouchableOpacity style={s.txtBtn} onPress={handleExport} disabled={exporting} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              {exporting ? (
-                <ActivityIndicator size="small" color={colors.ink} />
-              ) : (
-                <>
-                  <FeatureIcon name="arrow_up" size={16} color={colors.ink} />
-                  <Text style={s.txtBtnText}>{t('export_records')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+          {canExportLabs && renderExportButton()}
         </View>
         {renderJournalBody(true)}
-
-        <View style={s.bookSection}>
-          <VaccinesSection
-            inline
-            draftRef={vaxDraft}
-            onSheetChange={setVaxSheetOpen}
-            onSelect={selectVaccine}
-            selectedId={rightPage?.type === 'vaccine' ? rightPage.key : null}
-            onListChange={onVaxList}
-            controlRef={vaxControl}
-          />
-        </View>
-
-        <View style={s.bookSection}>
-          {renderDoseCard(rightPage?.type === 'curve')}
-          <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
-        </View>
       </ScrollView>
     );
   }
 
   function renderBookRight() {
-    if (rightPage?.type === 'curve') return <SerumCurveScreen embedded />;
-    if (bookVaccine) return <VaccinePage vaccine={bookVaccine} onEdit={() => editVaccine(bookVaccine)} />;
-    if (bookReport) return renderReportDetail(bookReport, true);
-    if (bookMarker) return renderMarkerDetail(bookMarker, bookChartWidth, true);
-    if (loading || rows.length > 0) return null;
-    // No test yet: the right page shows what the upload reads (the left page has the upload).
-    return (
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
-        {renderTips()}
-      </ScrollView>
-    );
+    if (rightPage.type === 'curve') return <SerumCurveScreen embedded />;
+    if (rightPage.group === 'vaccines') {
+      // The vaccine journal stays mounted under its read page, so the read page's Edit opens
+      // the journal's own add/edit sheet (BK-18); hidden from the screen reader while covered.
+      return (
+        <View style={s.scroll}>
+          <View
+            style={s.scroll}
+            accessibilityElementsHidden={!!bookVaccine}
+            importantForAccessibility={bookVaccine ? 'no-hide-descendants' : 'auto'}
+          >
+            <VaccinesSection
+              draftRef={vaxDraft}
+              onSheetChange={setVaxSheetOpen}
+              onSelect={selectVaccine}
+              onListChange={onVaxList}
+              controlRef={vaxControl}
+            />
+          </View>
+          {bookVaccine ? (
+            <View style={[StyleSheet.absoluteFill, s.pageCover]}>
+              {renderPageBack(t('body_card_vax_title'), () => select('vaccines'))}
+              <VaccinePage vaccine={bookVaccine} onEdit={() => editVaccine(bookVaccine)} />
+            </View>
+          ) : null}
+        </View>
+      );
+    }
+    if (bookReport) {
+      return (
+        <View style={s.scroll}>
+          {renderPageBack(t('body_card_labs_title'), () => select('labs'))}
+          {renderReportDetail(bookReport, true)}
+        </View>
+      );
+    }
+    if (bookMarker) {
+      return (
+        <View style={s.scroll}>
+          {renderPageBack(t('body_card_labs_title'), () => select('labs'))}
+          {renderMarkerDetail(bookMarker, bookChartWidth, true)}
+        </View>
+      );
+    }
+    return renderBookJournal();
   }
 
   const monthLabels = MONTHS_SHORT[language] || MONTHS_SHORT.en;
@@ -1344,7 +1354,7 @@ export default function BodyScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container}>
       {book ? (
-        <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage ? rightPage.id : 'none'} />
+        <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage.group === 'vaccines' ? 'vaccines' : rightPage.id} />
       ) : section === null ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           <View style={s.hubHero}>
@@ -1352,11 +1362,7 @@ export default function BodyScreen({ navigation, route }) {
             <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
           </View>
           <View style={s.hubBody}>
-            {renderLabCard()}
-            {renderVaxCard()}
-            {/* Dose-accumulation / serum-curve model (educational estimate). Premium-only. */}
-            {renderDoseCard(false)}
-            <Text style={s.hubFootnote}>{t('body_hub_footnote')}</Text>
+            {renderHubItems(false)}
           </View>
         </ScrollView>
       ) : (
@@ -1599,28 +1605,27 @@ export default function BodyScreen({ navigation, route }) {
 
 const makeStyles = (c) => StyleSheet.create({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  // A-125: Evolução's tile content (num, big, unit, desc, …); My Body's own roles below win.
+  ...dashTileStyles(c),
   ...bodyGraduated(c),
   ...labsGraduated(c),
 });
 
-// Redesign (Graduated, My Body approved 2026-10-03, prototype bodyHub): large title on the
-// ground; the Lab test and Vaccine journals as hero cards (radius 26, padding 20, 24-pt icon
-// beside the title, a big light count, the description last); Dose accumulation as a card
-// with the Est. level in data blue. No border, shadow or tint.
+// Redesign (Graduated, My Body approved 2026-10-03, prototype bodyHub; A-125 2026-10-15): large
+// title on the ground; the Lab test and Vaccine journals as Evolução's tiles side by side
+// (screens/components/DashTile); Dose accumulation as a card with the Est. level in data blue.
+// No border, shadow or tint.
 const bodyGraduated = (c) => ({
   container: { flex: 1, backgroundColor: c.ground },
   hubHero: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, backgroundColor: c.ground },
   hubGreeting: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
   hubHeroSub: { fontSize: 15, color: c.ink2, marginTop: 4 },
   hubBody: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 30, gap: 14 },
-  hero: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14 },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  duo: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  duoStack: { flexDirection: 'column' }, // as on Evolução, from ~130% text size
+  tileName: { fontSize: 15, lineHeight: 20, color: c.ink },
+  descInk: { color: c.ink },
   doseTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  countRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
-  count: { fontSize: 56, fontWeight: '300', color: c.ink, letterSpacing: -1.7, lineHeight: 60, fontVariant: ['tabular-nums'] },
-  countLabel: { fontSize: 17, lineHeight: 22, color: c.ink2 },
-  starRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   levelRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12 },
   levelName: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   levelNum: { alignItems: 'flex-end', gap: 2 },
@@ -1649,13 +1654,15 @@ const labsGraduated = (c) => ({
   addBtnText: { color: c.onAct, fontSize: 15, fontWeight: '700' },
   starBtnLg: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // book layout (S-26): the left page's hero, actions and sections; the open item outlined
+  // book layout (S-26): the left page's hero, the right page's journal actions; the open item outlined
   // in ink, 2 pt (BK-8). Padding drops by the border so nothing shifts.
   bookHero: { paddingHorizontal: 4, paddingTop: 8, paddingBottom: 6 },
   bookActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
-  bookSection: { marginTop: 18 },
   selCard: { borderWidth: 2, borderColor: c.ink, padding: 16 },
-  selLi: { borderWidth: 2, borderColor: c.ink, borderTopWidth: 2, borderTopColor: c.ink, borderRadius: 14, marginHorizontal: -10, paddingHorizontal: 8 },
+  // the right page (A-125): the journal's title sits a little lower (picture Afold); a read
+  // page covers the vaccine journal kept mounted under it.
+  pageTop: { paddingTop: 12 },
+  pageCover: { backgroundColor: c.ground },
   scroll: { flex: 1 },
   scrollPad: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
   titleBlock: { paddingHorizontal: 4, paddingBottom: 2, gap: 4 },
@@ -1665,7 +1672,6 @@ const labsGraduated = (c) => ({
   title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28, letterSpacing: -0.2 },
   head: { fontSize: 17, fontWeight: '600', color: c.ink, lineHeight: 22 },
   body: { fontSize: 17, color: c.ink, lineHeight: 22 },
-  bodyMuted: { fontSize: 17, color: c.ink2, lineHeight: 22 },
   sec: { fontSize: 15, color: c.ink2, lineHeight: 20 },
   secInk: { fontSize: 15, color: c.ink, lineHeight: 20 },
   foot: { fontSize: 13, color: c.ink2, lineHeight: 18 },

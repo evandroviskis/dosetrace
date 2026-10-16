@@ -99,7 +99,10 @@ test('A-73: the curve "now" marker is sentence case in every language', () => {
 test('A-74: the My Body lab count uses the same key as the journal cards', () => {
   const src = read('screens/BodyScreen.js');
   assert.doesNotMatch(src, /new Set\(rows\.map\(r => r\.report_date\)\)\.size/);
-  assert.match(src, /const testCount = new Set\(rows\.map\(r => r\.report_date \+ '\|' \+ \(r\.created_at \|\| ''\)\)\)\.size/);
+  // A-125 (MB2-5): the count IS the journal's cards (lib/labReports), so one upload pulled with
+  // one created_at per value counts once.
+  assert.match(src, /const cards = useMemo\(\(\) => reportCards\(rows\), \[rows\]\);/);
+  assert.match(src, /const testCount = cards\.length;/);
 });
 
 // A-75: wide screens (unfolded Z Fold, landscape). Your progress capped its cards at

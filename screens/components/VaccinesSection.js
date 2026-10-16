@@ -48,18 +48,17 @@ const TOAST_MS = 4000; // the prototype toast()
 const GIVEN_RANGE = { back: 80, ahead: 0 };
 const DUE_RANGE = { back: 10, ahead: 15 };
 
-// S-26 book layout (docs/specs/book-layout.md):
-//   inline: the list renders without its own ScrollView, inside the My Body left page (BK-6).
+// S-26 book layout (docs/specs/book-layout.md; A-125 docs/specs/my-body-tiles.md: on a book
+// the journal is the My Body right page, with its own scroll as on a phone):
 //   draftRef: a ref owned by BodyScreen that holds the open add/edit sheet's values. When a
 //     fold or unfold re-lays My Body out, the next VaccinesSection reopens the sheet with
 //     them (BK-10: never lose anything typed).
 //   onSheetChange: tells BodyScreen whether the add/edit sheet is open.
 //   Book only (BK-18, founder decision 6): onSelect(v) replaces the tap-to-edit, so a tapped
-//     vaccine opens its read page on the right; selectedId gets the 2 pt ink outline (BK-8) and
-//     reports itself as selected (BK-21); onListChange(list) hands every fresh list to
-//     BodyScreen (the right page reads it, and a deleted vaccine falls back); controlRef lets
-//     the right page's Edit open this instance's add/edit sheet. On a phone none is passed.
-export default function VaccinesSection({ inline = false, draftRef = null, onSheetChange = null, onSelect = null, selectedId = null, onListChange = null, controlRef = null } = {}) {
+//     vaccine opens its read page over this journal; controlRef lets the read page's Edit open
+//     this instance's add/edit sheet. onListChange(list) hands every fresh list to BodyScreen
+//     (the hub tile, Export, the read page; a deleted vaccine falls back) — on a phone too.
+export default function VaccinesSection({ draftRef = null, onSheetChange = null, onSelect = null, onListChange = null, controlRef = null } = {}) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -350,10 +349,10 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   const filtered = q ? list.filter(v => (v.name || '').toLowerCase().includes(q)) : list;
 
   return (
-    <View style={inline ? s.inlineWrap : s.wrap}>
-      {/* VACCINE JOURNAL (prototype vaxScreen). In the book layout it sits inside the My
-          Body left page, which brings the scroll (BK-6). */}
-      <JournalScroll inline={inline} s={s}>
+    <View style={s.wrap}>
+      {/* VACCINE JOURNAL (prototype vaxScreen): the phone screen, and the My Body right page
+          on a book (A-125). */}
+      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.screenTitle}>{t('body_card_vax_title')}</Text>
         </View>
@@ -412,14 +411,12 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
             v.manufacturer || null,
             v.batch_lot ? `${t('vax_lot_short')} ${v.batch_lot}` : null,
           ].filter(Boolean).join(' · ');
-          const selected = !!onSelect && selectedId != null && String(v.id) === String(selectedId);
           return (
             <TouchableOpacity
               key={v.id}
-              style={[s.card, selected && s.selCard]}
+              style={s.card}
               activeOpacity={0.7}
               onPress={() => (onSelect ? onSelect(v) : openEdit(v))}
-              accessibilityState={onSelect ? { selected } : undefined}
             >
               <View style={s.cardRow}>
                 <View style={[s.grow, s.col5]}>
@@ -439,7 +436,7 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
             </TouchableOpacity>
           );
         })}
-      </JournalScroll>
+      </ScrollView>
 
       {/* ADD / EDIT (prototype vaxForm): a bottom sheet that hugs its content. */}
       <BottomSheet visible={modalOpen} onClose={closeForm} overlay={<SheetToast text={toast} />}>
@@ -590,16 +587,6 @@ export default function VaccinesSection({ inline = false, draftRef = null, onShe
   );
 }
 
-// The journal's own scroll on a phone; a plain column inside the book's left page.
-function JournalScroll({ inline, s, children }) {
-  if (inline) return <View style={s.inlineList}>{children}</View>;
-  return (
-    <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
-      {children}
-    </ScrollView>
-  );
-}
-
 // Graduated chevron (prototype CHEV), drawn so it follows the theme.
 function Chevron({ color }) {
   return (
@@ -615,8 +602,6 @@ function Chevron({ color }) {
 // Theme tokens only; both palettes.
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1 },
-  inlineWrap: {},
-  inlineList: { gap: 12 },
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scroll: { flex: 1 },
   scrollPad: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
@@ -647,8 +632,6 @@ const makeStyles = (c) => StyleSheet.create({
 
   // cards
   card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
-  // book: the vaccine open on the right page, 2 pt ink (BK-8); padding drops by the border.
-  selCard: { borderWidth: 2, borderColor: c.ink, padding: 16 },
   rowCard: { flexDirection: 'row', alignItems: 'center' },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyCard: { alignItems: 'center', paddingTop: 28 },

@@ -26,7 +26,9 @@ test('part 2: the Dose accumulation tile icon is the prototype\'s loose curve (J
   assert.match(m[1], /M128 896h768/);
   assert.doesNotMatch(m[1], /V220|M170 800V/, 'no y-axis');
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'assets/feature-icons/curve_loose.svg')), 'source SVG in the set');
-  assert.match(read('screens/JourneyScreen.js'), /<FeatureIcon name="curve_loose" size=\{22\} color=\{colors\.data\} \/>/);
+  // A-125: drawn by the shared tile at 22 pt (screens/components/DashTile.js).
+  assert.match(read('screens/JourneyScreen.js'), /icon="curve_loose"\s+iconColor=\{colors\.data\}/);
+  assert.match(read('screens/components/DashTile.js'), /<FeatureIcon name=\{icon\} size=\{22\} color=\{iconColor \|\| colors\.ink2\} \/>/);
 });
 
 test('part 8: the Reality check title icon is the balance scale (prototype JX.scale), not three bars', () => {

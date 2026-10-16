@@ -16,7 +16,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, NavigationContext } from '@react-navigation/native';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
@@ -34,13 +34,12 @@ import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/d
 import { progressTile } from '../lib/progressTile';
 import { formatDate, formatNumber, formatInt } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
-import RowChevron from '../components/RowChevron';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
 import { loadCurveView } from '../lib/curveViewStore';
 import { MONO } from '../lib/fonts';
 import { displayColor } from '../lib/protocolColors';
 import FoodLogHero from './components/FoodLogHero';
-import FeatureIcon from '../components/FeatureIcon';
+import DashTile, { dashTileStyles } from './components/DashTile';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 
 // S-26 BK-19: the events that change what the Progress tile shows. A calculator change saved
@@ -160,20 +159,16 @@ export default function JourneyScreen() {
         </View>
 
         <View style={[s.duo, fontScale >= 1.3 && s.duoStack]}>
-          <TouchableOpacity
-            style={s.tile}
-            activeOpacity={0.75}
+          {/* Redesign part 2: "Progress"; the Progress hero's numbers, or the prompt sentence.
+              The tile itself is shared with My Body (A-125, screens/components/DashTile). */}
+          <DashTile
+            icon="calc_trend"
+            iconColor={colors.ink2}
+            title={t('cal_snap_title')}
             onPress={() => (book ? open('progress') : navigation.navigate('Progress'))}
-            accessibilityRole="button"
-            accessibilityState={book ? { selected: page === 'progress' } : undefined}
+            book={book}
+            selected={page === 'progress'}
           >
-            {book && page === 'progress' ? outline : null}
-            <View style={s.tileTop}>
-              <FeatureIcon name="calc_trend" size={22} color={colors.ink2} />
-              <RowChevron color={colors.tick} />
-            </View>
-            {/* Redesign part 2: "Progress"; the Progress hero's numbers, or the prompt sentence. */}
-            <Text style={s.tileTitle}>{t('cal_snap_title')}</Text>
             {tile ? (
               <>
                 <View style={s.num}>
@@ -196,25 +191,21 @@ export default function JourneyScreen() {
             ) : (
               <Text style={s.desc}>{t('cal_need_inputs')}</Text>
             )}
-          </TouchableOpacity>
+          </DashTile>
 
-          <TouchableOpacity
-            style={s.tile}
-            activeOpacity={0.75}
+          <DashTile
+            icon="curve_loose"
+            iconColor={colors.data}
+            title={t('body_card_dosing_title')}
+            tag={!premium ? t('paywall_premium') : null}
             onPress={() => {
               // Free users: the Paywall full screen, exactly as today, also on a book (BK-11).
               if (!premium) { navigation.navigate('Paywall', { source: 'journey_serum' }); return; }
               if (book) open('curve'); else navigation.navigate('SerumCurve');
             }}
-            accessibilityRole="button"
-            accessibilityState={book ? { selected: page === 'curve' } : undefined}
+            book={book}
+            selected={page === 'curve'}
           >
-            {book && page === 'curve' ? outline : null}
-            <View style={s.tileTop}>
-              <FeatureIcon name="curve_loose" size={22} color={colors.data} />
-              {!premium ? <Text style={s.tag}>{t('paywall_premium')}</Text> : <RowChevron color={colors.tick} />}
-            </View>
-            <Text style={s.tileTitle}>{t('body_card_dosing_title')}</Text>
             {premium && level ? (
               <>
                 <View style={s.nameRow}>
@@ -230,7 +221,7 @@ export default function JourneyScreen() {
             ) : (
               <Text style={s.desc}>{t('body_card_dosing_desc')}</Text>
             )}
-          </TouchableOpacity>
+          </DashTile>
         </View>
 
         {/* Redesign part 3: Understand the numbers + Sources & references under the tiles. */}
@@ -270,18 +261,8 @@ const makeStyles = (c) => StyleSheet.create({
   block: { paddingHorizontal: 16, marginBottom: 12 },
   duo: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, alignItems: 'stretch' },
   duoStack: { flexDirection: 'column' }, // prototype .duo.stack from ~130% text size
-  tile: { flex: 1, backgroundColor: c.raised, borderRadius: 24, padding: 16, gap: 8, minWidth: 0 },
-  tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: -2 },
-  tag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 12, minHeight: 24, lineHeight: 20, paddingHorizontal: 9, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
-  tileTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
-  // prototype .tile .num (gap 4); .sep adds 10 on top with a line; .end sits at the bottom.
-  num: { gap: 4 },
-  numSep: { paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line },
-  numEnd: { marginTop: 'auto' },
-  cap: { fontSize: 12, fontWeight: '500', color: c.ink2 },
-  big: { fontSize: 34, fontWeight: '500', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
-  unit: { fontSize: 13, fontWeight: '400', color: c.ink3, fontFamily: MONO['400'], letterSpacing: 0 },
-  desc: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  // The tile and its content (num, big, unit, cap, foot, desc, the BK-8 outline): shared with My Body.
+  ...dashTileStyles(c),
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
   name: { flex: 1, fontSize: 15, color: c.ink },
@@ -289,9 +270,6 @@ const makeStyles = (c) => StyleSheet.create({
   chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   chipMeas: { borderColor: c.data },
   chipMeasText: { color: c.data },
-  foot: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
   vin: { fontFamily: MONO['500'], color: c.ink, fontVariant: ['tabular-nums'] },
   learn: { marginHorizontal: 16, marginTop: 20 },
-  // BK-8: the card open on the right page has an ink outline (same radius as the cards).
-  selected: { borderWidth: 2, borderColor: c.ink, borderRadius: 24 },
 });
