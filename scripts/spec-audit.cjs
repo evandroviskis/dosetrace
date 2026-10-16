@@ -11,11 +11,16 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'docs', 'specs');
-const only = process.argv[2];
-const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.md') && f !== 'README.md' && (!only || f === `${only}.md`));
-if (!files.length) { console.error(only ? `No spec named ${only}` : 'No specs found'); process.exit(1); }
 
-let failures = 0, warnings = 0;
+// The founder's sign-off text on the "checklist-signed:" line ('' when absent or empty).
+// Same line only: \s* used to cross the line break, so an empty sign-off was read as
+// signed by the next line ("- committed-to: …") — DV-229.
+const readSignature = (text) => (text.match(/checklist-signed:[ \t]*([^\r\n]*)/) || [])[1] || '';
+const isUnsigned = (signed) => /pending|^$/i.test(signed.trim());
+// Every acceptance-checklist row: a table line whose first cell is a criterion id.
+// The prefix may carry digits after its first letter (MB2-1, BK2-3), not only letters.
+const criterionRows = (text) => text.split('\n').filter((l) => /^\|\s*[A-Z][A-Z0-9]*-\d+\s*\|/.test(l));
+
 const cells = (line) => line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map((c) => c.trim());
 
 // A cited test must really exist: __tests__/x.test.js: "name" (substring of the test title).
@@ -35,12 +40,17 @@ function testExists(ev) {
   return { any, all, todo };
 }
 
+function main() {
+const only = process.argv[2];
+const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.md') && f !== 'README.md' && (!only || f === `${only}.md`));
+if (!files.length) { console.error(only ? `No spec named ${only}` : 'No specs found'); process.exit(1); }
+let failures = 0, warnings = 0;
 for (const f of files) {
   const text = fs.readFileSync(path.join(DIR, f), 'utf8');
-  const signed = (text.match(/checklist-signed:\s*(.+)/) || [])[1] || '';
-  console.log(`\n${f}  ${/pending|^$/i.test(signed.trim()) ? '(checklist NOT signed by founder)' : `(signed ${signed.trim()})`}`);
-  if (/pending|^$/i.test(signed.trim())) warnings++;
-  const rows = text.split('\n').filter((l) => /^\|\s*[A-Z]+-\d+\s*\|/.test(l));
+  const signed = readSignature(text);
+  console.log(`\n${f}  ${isUnsigned(signed) ? '(checklist NOT signed by founder)' : `(signed ${signed.trim()})`}`);
+  if (isUnsigned(signed)) warnings++;
+  const rows = criterionRows(text);
   const counts = { built: 0, partial: 0, missing: 0 };
   for (const line of rows) {
     const [id, , status, evidence, deviation] = cells(line);
@@ -67,3 +77,7 @@ for (const f of files) {
 }
 console.log(`\n${failures ? `FAIL: ${failures} criterion(s) block the build` : 'PASS'}${warnings ? ` · ${warnings} warning(s)` : ''}`);
 process.exit(failures ? 1 : 0);
+}
+
+if (require.main === module) main();
+module.exports = { readSignature, isUnsigned, criterionRows };
