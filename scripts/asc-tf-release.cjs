@@ -44,7 +44,9 @@ const api = (method, p, body) => new Promise((res, rej) => {
   }
   const v = await api('GET', `/v1/builds/${build.id}/betaAppReviewSubmission`);
   const a = v.b && v.b.data && v.b.data.attributes;
-  const ok = !!(a && a.submittedDate && ['WAITING_FOR_REVIEW', 'IN_REVIEW', 'APPROVED'].includes(a.betaReviewState));
+  // APPROVED needs no submittedDate: Apple auto-approves a new build of an already-approved version
+  // (build 67, 2026-10-16: APPROVED with submittedDate null, live on the Early Birds link).
+  const ok = !!(a && ((a.betaReviewState === 'APPROVED') || (a.submittedDate && ['WAITING_FOR_REVIEW', 'IN_REVIEW'].includes(a.betaReviewState))));
   console.log('VERIFY beta review:', a ? `${a.betaReviewState} submitted ${a.submittedDate}` : 'none', ok ? '→ DELIVERED TO REVIEW' : '→ NOT DELIVERED');
   process.exit(ok ? 0 : 1);
 })();
