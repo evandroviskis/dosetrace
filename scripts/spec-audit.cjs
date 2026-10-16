@@ -25,14 +25,39 @@ const criterionRows = (text) => text.split('\n').filter((l) => /^\|\s*[A-Z][A-Z0
 // 2026-10-15: A-119, A-121, A-127 move to the release after 1.3.0). Deferred only when the
 // committed-to line names a release later than the app version AND cites the founder —
 // a silent deferral still blocks (CLAUDE.md "approved → the next build").
+// Council fix 6 (founder 2026-10-16): and only when the spec's own id — its file name, or the
+// registry id in its title (A-119) — appears in a DATED FOUNDER entry of docs/decisions.md that
+// moves it to a later release. A committed-to line alone can no longer defer anything.
+const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function specIds(text, file) {
+  const title = (text.match(/^#[ \t]+([^\r\n]*)/m) || [])[1] || '';
+  const ids = [...title.matchAll(/\b[A-Z]{1,3}-\d+\b/g)].map((m) => m[0]);
+  if (file) ids.push(String(file).replace(/\.md$/, ''));
+  return ids;
+}
+// One ledger entry = one top-level bullet (with its indented continuation lines).
+function ledgerEntries(ledger) {
+  const out = [];
+  for (const line of String(ledger || '').split('\n')) {
+    if (/^- /.test(line)) out.push(line);
+    else if (out.length && /^\s+\S/.test(line)) out[out.length - 1] += `\n${line}`;
+    else if (!line.trim() || /^#/.test(line)) out.push(null);
+  }
+  return out.filter(Boolean);
+}
+const MOVES_LATER = /\bmov(e|es|ed|ing)\b[^.\n]*\b(next|later)\s+release|\bmov(e|es|ed|ing)\b[^.\n]*\brelease\s+after\b|\bdefer(s|red|ral)?\b[^.\n]*\b(next|later)\s+release/i;
+function ledgerDefers(ledger, ids) {
+  return ledgerEntries(ledger).some((e) => /\b\d{4}-\d{2}-\d{2}\b/.test(e) && /\bfounder\b/i.test(e) && MOVES_LATER.test(e)
+    && ids.some((id) => new RegExp(`(?<![\\w-])${escapeRe(id)}(?![\\w-])`).test(e)));
+}
 const cmpVersion = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
-function isDeferred(text, version) {
+function isDeferred(text, version, { ledger = '', file = '' } = {}) {
   const line = (text.match(/committed-to:[ \t]*([^\r\n]*)/) || [])[1] || "";
   if (!/founder/i.test(line) || !version) return false;
   const after = line.match(/after\s+v?(\d+\.\d+\.\d+)/i);
-  if (after) return cmpVersion(version, after[1]) <= 0;
   const named = line.match(/(\d+\.\d+\.\d+)/);
-  return named ? cmpVersion(named[1], version) > 0 : false;
+  const later = after ? cmpVersion(version, after[1]) <= 0 : named ? cmpVersion(named[1], version) > 0 : false;
+  return later && ledgerDefers(ledger, specIds(text, file));
 }
 
 const cells = (line) => line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map((c) => c.trim());
@@ -59,13 +84,15 @@ const only = process.argv[2];
 const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.md') && f !== 'README.md' && (!only || f === `${only}.md`));
 if (!files.length) { console.error(only ? `No spec named ${only}` : 'No specs found'); process.exit(1); }
 const version = (JSON.parse(fs.readFileSync(path.join(ROOT, "app.json"), "utf8")).expo || {}).version || "";
+const ledgerFile = path.join(ROOT, 'docs', 'decisions.md');
+const ledger = fs.existsSync(ledgerFile) ? fs.readFileSync(ledgerFile, 'utf8') : '';
 let failures = 0, warnings = 0, deferredSpecs = 0;
 for (const f of files) {
   const text = fs.readFileSync(path.join(DIR, f), 'utf8');
   const signed = readSignature(text);
   console.log(`\n${f}  ${isUnsigned(signed) ? '(checklist NOT signed by founder)' : `(signed ${signed.trim()})`}`);
   if (isUnsigned(signed)) warnings++;
-  const deferred = isDeferred(text, version);
+  const deferred = isDeferred(text, version, { ledger, file: f });
   if (deferred) { deferredSpecs++; console.log(`  DEFERRED by the founder to a later release (${version} build not blocked)`); }
   const rows = criterionRows(text);
   const counts = { built: 0, partial: 0, missing: 0 };
@@ -98,4 +125,4 @@ process.exit(failures ? 1 : 0);
 }
 
 if (require.main === module) main();
-module.exports = { readSignature, isUnsigned, criterionRows, isDeferred };
+module.exports = { readSignature, isUnsigned, criterionRows, isDeferred, specIds, ledgerDefers };
