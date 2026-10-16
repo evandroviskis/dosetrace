@@ -200,7 +200,7 @@ test('new strings exist in all 6 languages', () => {
 test('FL-48 wording: "Informar minha média de calorias por dia" and the same line in all 6 languages', () => {
   const T2 = require('../i18n/translations.js').translations || require('../i18n/translations.js');
   const link = { pt: 'Informar minha média de calorias por dia', en: 'Enter my average calories per day', es: 'Indicar mi media de calorías por día',
-    fr: 'Indiquer ma moyenne de calories par jour', de: 'Meinen Kalorien-Durchschnitt pro Tag angeben', it: 'Indicare la mia media di calorie al giorno' };
+    fr: 'Indiquer ma moyenne de calories par jour', de: 'Meinen Kalorien-Durchschnitt pro Tag angeben', it: 'Indica la mia media di calorie al giorno' };
   for (const [l, v] of Object.entries(link)) assert.equal(T2[l].cal_rc_kcal_link, v, l);
   assert.equal(T2.pt.cal_rc_kcal_change, 'Mudar a média informada');
   assert.equal(T2.pt.cal_rc_kcal_clear, 'Apagar a média informada');

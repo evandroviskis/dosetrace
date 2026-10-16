@@ -1,7 +1,7 @@
 {
   "ios": {
     "CFBundleDisplayName": "DoseTrace",
-    "NSCameraUsageDescription": "DoseTrace ha bisogno della fotocamera per fotografare un referto, il libretto vaccinale o l'etichetta di un flacone.",
+    "NSCameraUsageDescription": "DoseTrace ha bisogno della fotocamera per permetterti di fotografare un referto, il libretto vaccinale o l'etichetta di un flacone.",
     "NSPhotoLibraryUsageDescription": "DoseTrace ha bisogno di accedere alle tue foto per caricare referti, il libretto vaccinale e le etichette dei flaconi.",
     "NSDocumentPickerUsageDescription": "DoseTrace ha bisogno di accedere ai tuoi file per caricare referti e libretto vaccinale in PDF.",
     "NSFaceIDUsageDescription": "Consenti a DoseTrace di usare Face ID."

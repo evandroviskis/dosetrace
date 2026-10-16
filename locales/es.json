@@ -1,9 +1,9 @@
 {
   "ios": {
     "CFBundleDisplayName": "DoseTrace",
-    "NSCameraUsageDescription": "DoseTrace necesita la cámara para que puedas hacer una foto de un análisis, de tu cartilla de vacunación o de la etiqueta de un vial.",
-    "NSPhotoLibraryUsageDescription": "DoseTrace necesita acceder a tus fotos para subir imágenes de tus análisis, de tu cartilla de vacunación y de las etiquetas de tus viales.",
-    "NSDocumentPickerUsageDescription": "DoseTrace necesita acceder a tus archivos para subir tus análisis y tu cartilla de vacunación en PDF.",
+    "NSCameraUsageDescription": "DoseTrace necesita la cámara para que puedas hacer una foto de un análisis, de tu cartilla de vacunas o de la etiqueta de un vial.",
+    "NSPhotoLibraryUsageDescription": "DoseTrace necesita acceder a tus fotos para subir imágenes de tus análisis, de tu cartilla de vacunas y de las etiquetas de tus viales.",
+    "NSDocumentPickerUsageDescription": "DoseTrace necesita acceder a tus archivos para subir tus análisis y tu cartilla de vacunas en PDF.",
     "NSFaceIDUsageDescription": "Permite que DoseTrace use Face ID."
   },
   "android": {

@@ -128,7 +128,7 @@ test('SP-7: deep sleep opens Samsung\'s Battery, falling back to the app\'s own 
   assert.match(fix, /APPLICATION_DETAILS_SETTINGS/);
   const start = { en: 'In Battery, tap Background usage limits › Deep sleeping apps.', pt: 'Em Bateria, toque em Limites de uso em segundo plano › Aplicativos em suspensão profunda.',
     es: 'En Batería, toca Límites de uso en segundo plano › Aplicaciones en suspensión profunda.', fr: 'Dans Batterie, touchez Limites utilisation arrière-plan › Applications en veille profonde.',
-    de: 'Tippe in Akku auf Grenzen der Hintergrundnutzung › Apps in tiefem Standby.', it: 'In Batteria, tocca Limiti per l’uso in background › App in sospensione avanzata.' };
+    de: 'Tippe unter Akku auf Grenzen der Hintergrundnutzung › Apps in tiefem Standby.', it: 'In Batteria, tocca Limiti per l’uso in background › App in sospensione avanzata.' };
   for (const l of LANGS) assert.ok(T[l].rc_deep_sleep_sub.startsWith(start[l]), `${l}: ${T[l].rc_deep_sleep_sub}`);
 });
 

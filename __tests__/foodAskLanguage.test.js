@@ -29,3 +29,40 @@ test('A-128: the language code is checked against the app languages before it re
   for (const code of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(src.includes(`'${code}'`), `allow-list names ${code}`);
   assert.match(src, /LANGS\.has\(/, 'an allow-list check exists');
 });
+
+// i18n review 2026-10-15 (section 8): the old line sent the Portuguese example ("cozido") to every
+// language, English included, and named pt only by code. Each user now sees an example only in their
+// own language, English gets none, and pt is named Brazilian Portuguese (the app is pt-BR).
+function mapFrom(name) {
+  const m = src.match(new RegExp(`const ${name}: Record<string, string> = (\\{[^\\n]*\\});`));
+  assert.ok(m, `${name} map is declared on one line`);
+  return new Function(`return ${m[1]};`)();
+}
+function languageLine(lang) {
+  const line = src.split('\n').find((l) => l.includes('The user writes in language code'));
+  const tpl = line.slice(line.indexOf('`'), line.lastIndexOf('`') + 1);
+  return new Function('lang', 'LANG_NAME', 'BOILED', `return ${tpl};`)(lang, mapFrom('LANG_NAME'), mapFrom('BOILED'));
+}
+const FOREIGN_EXAMPLES = ['cozido', 'hervido', 'bouilli', 'gekocht', 'bollito', 'cocido', 'cotto'];
+
+test('i18n review: the rendered language line names each app language', () => {
+  const names = { en: 'English', es: 'Spanish', pt: 'Brazilian Portuguese', fr: 'French', de: 'German', it: 'Italian' };
+  for (const [lang, name] of Object.entries(names)) {
+    const line = languageLine(lang);
+    assert.ok(line.includes(`language code "${lang}" (${name})`), `${lang}: named ${name}`);
+    assert.ok(line.includes(`option (preparations, sizes, amounts, units) in ${name}`), `${lang}: options in ${name}`);
+    assert.match(line, /even though the examples above are in English/, `${lang}: the English examples are marked as examples`);
+  }
+});
+
+test('i18n review: English gets no foreign example; es/pt/fr/de/it each get only their own', () => {
+  const en = languageLine('en');
+  for (const w of FOREIGN_EXAMPLES) assert.ok(!en.includes(`"${w}"`), `en: no "${w}"`);
+  assert.ok(!/for example/.test(en), 'en: no example at all');
+  const own = { es: 'hervido', pt: 'cozido', fr: 'bouilli', de: 'gekocht', it: 'bollito' };
+  for (const [lang, word] of Object.entries(own)) {
+    const line = languageLine(lang);
+    assert.ok(line.includes(`(for example "${word}", not "boiled")`), `${lang}: its own example "${word}"`);
+    for (const w of FOREIGN_EXAMPLES.filter((x) => x !== word)) assert.ok(!line.includes(`"${w}"`), `${lang}: no "${w}"`);
+  }
+});

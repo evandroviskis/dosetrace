@@ -37,5 +37,5 @@ test('new lines in all 6 languages (with the singular)', () => {
     for (const k of ['today_alert_rc_needs_food', 'today_alert_rc_needs_food_one', 'today_alert_rc_ready', 'nutri_hero_weighed']) assert.ok(T[l][k], `${l} ${k}`);
     assert.ok(T[l].today_alert_rc_needs_food.includes('{n}'), l);
   }
-  assert.equal(T.pt.today_alert_rc_needs_food, 'Peso registrado — faltam {n} dias seguidos de comida para o resultado');
+  assert.equal(T.pt.today_alert_rc_needs_food, 'Peso registrado — faltam {n} dias seguidos de registro de comida para o seu resultado');
 });

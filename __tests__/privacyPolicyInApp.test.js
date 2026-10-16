@@ -99,11 +99,11 @@ function checkTruth(sections, lang, where) {
 // processor role (decisions.md:330: Anthropic is named as the AI sub-processor).
 const AI = {
   en: { lab: /lab report/, vaccine: /vaccination card/, vial: /vial label/, food: /AI food log/, assistant: /protocol assistant/, role: /processor/ },
-  es: { lab: /análisis de laboratorio/, vaccine: /cartilla de vacunación/, vial: /etiqueta de un vial/, food: /registro de comidas con IA/, assistant: /asistente de protocolos/, role: /encargado del tratamiento/ },
-  pt: { lab: /exame de laboratório/, vaccine: /carteira de vacinação/, vial: /rótulo de um frasco/, food: /registro de comida com IA/, assistant: /assistente de protocolo/, role: /operadora/ },
-  fr: { lab: /rapport d'analyses/, vaccine: /carnet de vaccination/, vial: /étiquette d'un flacon/, food: /journal alimentaire avec IA/, assistant: /assistant de protocole/, role: /sous-traitant/ },
+  es: { lab: /análisis de laboratorio/, vaccine: /cartilla de vacunas/, vial: /etiqueta de un vial/, food: /registro de comida con IA/, assistant: /asistente de protocolos/, role: /encargado del tratamiento/ },
+  pt: { lab: /exame de laboratório/, vaccine: /carteira de vacinação/, vial: /rótulo de um frasco/, food: /registro de comida com IA/, assistant: /assistente de protocolos/, role: /operadora/ },
+  fr: { lab: /bilan sanguin/, vaccine: /carnet de vaccination/, vial: /étiquette d'un flacon/, food: /journal alimentaire avec IA/, assistant: /assistant de protocole/, role: /sous-traitant/ },
   de: { lab: /Laborbericht/, vaccine: /Impfpass/, vial: /Fläschchen-Etikett/, food: /KI-Essensprotokoll/, assistant: /Protokoll-Assistent/, role: /Auftragsverarbeiter/ },
-  it: { lab: /referto di laboratorio/, vaccine: /libretto vaccinale/, vial: /etichetta di un flacone/, food: /diario alimentare con IA/, assistant: /assistente per i protocolli/, role: /responsabile del trattamento/ },
+  it: { lab: /referto di laboratorio/, vaccine: /libretto vaccinale/, vial: /etichetta di un flacone/, food: /diario alimentare con IA/, assistant: /assistente dei protocolli/, role: /responsabile del trattamento/ },
 };
 
 test('the website policy itself has 14 numbered sections, a date, and the facts', () => {

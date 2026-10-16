@@ -89,7 +89,7 @@ test('A-130: every user-facing permission text in the final Info.plist is transl
 // PDFs. Each term is the app's own word for it in that language (i18n/translations.js).
 const USES = {
   en: { lab: /lab report|bloodwork/i, vax: /vaccine card/i, vial: /vial label/i },
-  es: { lab: /análisis/i, vax: /cartilla de vacunación/i, vial: /etiqueta/i },
+  es: { lab: /análisis/i, vax: /cartilla de vacunas/i, vial: /etiqueta/i },
   pt: { lab: /exame/i, vax: /carteira de vacinação/i, vial: /rótulo/i },
   fr: { lab: /bilan/i, vax: /carnet de vaccination/i, vial: /étiquette/i },
   de: { lab: /Laborbericht/i, vax: /Impfpass/i, vial: /Etikett/i },

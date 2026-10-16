@@ -4,7 +4,7 @@
 
 Pontos que o texto abaixo deixa como estão, porque só um advogado pode decidir a redação:
 
-1. **Retenção na Anthropic.** O texto diz que a Anthropic "guarda só por pouco tempo, para monitoramento de abuso". Confirmar o prazo real nos termos comerciais / DPA da Anthropic e se o DPA cobre texto livre (refeições descritas, respostas ao assistente de protocolo).
+1. **Retenção na Anthropic.** O texto diz que a Anthropic "guarda só por pouco tempo, para monitoramento de abuso". Confirmar o prazo real nos termos comerciais / DPA da Anthropic e se o DPA cobre texto livre (refeições descritas, respostas ao assistente de protocolos).
 2. **RevenueCat ao excluir a conta.** Excluir a conta apaga os dados sincronizados e o login dos nossos servidores, mas o cliente no RevenueCat (ID da conta + histórico de compras) não é apagado. Decidir se precisa ser apagado ou se basta dizer isso na política (DL-83).
 3. **Análises de uso ligadas por padrão.** Os eventos de uso vêm ativados (opt-out) com um ID aleatório da instalação. Confirmar se isso é aceitável pela diretiva ePrivacy, art. 5(3), na UE, ou se precisa de consentimento antes (DL-83).
 4. **Dados de saúde (GDPR art. 9 / LGPD dados sensíveis).** O perfil completo, inclusive "o que você acompanha" (peptídeos, hormônios / TRT, GLP-1, suplementos), é obrigatório para usar o app (decisão do build 49). Confirmar a base legal e se a obrigatoriedade é aceitável (decisions.md:388).
@@ -39,13 +39,13 @@ Apenas para fazer o DoseTrace funcionar para você: mostrar o seu diário, calcu
 
 ## 4. Lembretes e notificações
 
-Os lembretes de dose, de frasco, do registro de comida e de acompanhamento são agendados no seu celular. Para que os lembretes continuem chegando no Android mesmo quando você não abre o app (o Android pode pausar apps que não são abertos), nosso servidor envia ao seu celular Android uma mensagem silenciosa por dia. Ela não tem texto nem dados de saúde; só pede ao app que atualize os lembretes que já estão no seu celular.
+Os lembretes de dose, de frasco, do registro de comida e de check-in são agendados no seu celular. Para que os lembretes continuem chegando no Android mesmo quando você não abre o app (o Android pode pausar apps que não são abertos), nosso servidor envia ao seu celular Android uma mensagem silenciosa por dia. Ela não tem texto nem dados de saúde; só pede ao app que atualize os lembretes que já estão no seu celular.
 
 Para entregar as notificações, guardamos um token de notificação do aparelho junto com a sua conta. As notificações passam pelo **Expo** (nosso serviço de notificações push), pelo **Google Firebase Cloud Messaging** no Android e pelo **Apple Push Notification service** no iPhone. Você pode desativar os lembretes ou usar o Modo silencioso em Ajustes quando quiser.
 
 ## 5. Recursos de IA (opcionais, só com a sua permissão)
 
-Você pode usar a IA para não precisar digitar: escanear um exame de laboratório, uma carteira de vacinação ou o rótulo de um frasco, descrever suas refeições no registro de comida com IA ou responder às perguntas do assistente de protocolo. Só nesses casos, e só depois que você concordar no app (perguntamos de novo quando um novo tipo de dado for enviado), a foto, o PDF ou o texto que você escolheu é enviado à **Anthropic PBC** (Estados Unidos) para extrair ou estimar os valores. A Anthropic atua como nossa operadora de dados apenas nessa tarefa: trata o que você enviou somente para aquele pedido, não usa esse conteúdo para treinar os modelos dela e o guarda só por pouco tempo, para monitoramento de abuso. A IA nunca interpreta os seus resultados e nunca dá orientação médica, de doses ou de alimentação. Você sempre pode digitar as informações por conta própria. Guardamos quantos pedidos à IA você fez (para os limites mensais), não o conteúdo deles.
+Você pode usar a IA para não precisar digitar: escanear um exame de laboratório, uma carteira de vacinação ou o rótulo de um frasco, descrever suas refeições no registro de comida com IA ou responder às perguntas do assistente de protocolos. Só nesses casos, e só depois que você concordar no app (perguntamos de novo quando um novo tipo de dado for enviado), a foto, o PDF ou o texto que você escolheu é enviado à **Anthropic PBC** (Estados Unidos) para extrair ou estimar os valores. A Anthropic atua como nossa operadora de dados apenas nessa tarefa: trata o que você enviou somente para aquele pedido, não usa esse conteúdo para treinar os modelos dela e o guarda só por pouco tempo, para monitoramento de abuso. A IA nunca interpreta os seus resultados e nunca dá orientação médica, de doses ou de alimentação. Você sempre pode digitar as informações por conta própria. Guardamos quantos pedidos à IA você fez (para os limites mensais), não o conteúdo deles.
 
 ## 6. Compras
 

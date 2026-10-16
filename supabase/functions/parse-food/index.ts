@@ -30,6 +30,10 @@ const DAILY_FOLLOWUP_LIMIT = 25;   // follow-up answers are free of the parse li
 const HARD_24H_CEILING = 60;       // abuse ceiling across any clock games (rolling 24h, all kinds)
 const CATEGORIES = new Set(['meal', 'snack', 'drink', 'supplement']);
 const LANGS = new Set(['en', 'es', 'pt', 'fr', 'de', 'it']);
+// The language line names the language (pt is the app's Brazilian Portuguese) and gives a
+// "boiled" example only in the user's own language: English gets none, so no language pulls another.
+const LANG_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Brazilian Portuguese', fr: 'French', de: 'German', it: 'Italian' };
+const BOILED: Record<string, string> = { es: 'hervido', pt: 'cozido', fr: 'bouilli', de: 'gekocht', it: 'bollito' };
 const ASK_KINDS = new Set(['amount', 'brand', 'size', 'preparation', 'identity']);
 
 const FOOD_SYSTEM = `You convert a person's description of food, drink and supplements THEY consumed into structured nutrition estimates for a personal intake log. You are a parser, not an assistant.
@@ -185,7 +189,7 @@ Deno.serve(async (req) => {
     }
 
     const system = (followup ? FOLLOWUP_SYSTEM : FOOD_SYSTEM + recentContext(body?.recent))
-      + `\n\nThe user writes in language code "${lang}"; food names may stay in their language. Write every "ask" option (preparations, sizes, amounts, units) in that language ("cozido", not "boiled"); brand names stay as named.`
+      + `\n\nThe user writes in language code "${lang}" (${LANG_NAME[lang]}). Write every "ask" option (preparations, sizes, amounts, units) in ${LANG_NAME[lang]}, the way a native speaker says it${BOILED[lang] ? ` (for example "${BOILED[lang]}", not "boiled")` : ''}, even though the examples above are in English. Keep food names as the user wrote them and brand names exactly as named.`
       + (entryDate ? `\nThe entry date (the user's "today") is ${entryDate}, a ${weekdayOf(entryDate)}.` : '');
 
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
