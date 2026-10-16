@@ -54,7 +54,7 @@ test('PA-12 / PA-13 / PA-16: purchase, restore and already-Premium speak through
 });
 
 test('PA-11 / PA-15: Apple 3.1.2 — billing text names the store, Restore + Terms (EULA) + Privacy stay', () => {
-  assert.match(PAY, /t\(cta\.legalKey\)\.replace\(\/\\\{store\\\}\/g, storeName\(Platform\.OS\)\)/);
+  assert.match(PAY, /t\(cta\.legalKey\)\.replace\(\/\\\{store\\\}\/g, storeName\(Platform\.OS, t\)\)/); // council fix 5c: localized store account
   assert.match(PAY, /t\('paywall_restore'\)/);
   assert.match(PAY, /termsTarget\(Platform\.OS\)/);
   assert.match(PAY, /openURL\(PRIVACY_URL\)/);

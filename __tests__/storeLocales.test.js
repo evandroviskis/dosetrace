@@ -132,3 +132,30 @@ test('A-130: no microphone: iOS has no microphone text, Android blocks RECORD_AU
   const audio = perms.filter((p) => p.$['android:name'] === 'android.permission.RECORD_AUDIO');
   assert.ok(audio.length > 0 && audio.every((p) => p.$['tools:node'] === 'remove'), 'RECORD_AUDIO only as a tools:node="remove" block');
 });
+
+// Council fix 5g (founder 2026-10-16): DoseTrace never uses Face ID or any biometrics, so the final
+// Info.plist must not carry expo-secure-store's default Face ID text (Apple 5.1.1: never ask for
+// what the app never uses). The plugin's faceIDPermission: false deletes the key.
+test('5g: no Face ID text — the secure-store plugin is told false, and no locale carries one', async () => {
+  const plugin = app.plugins.find((p) => (Array.isArray(p) ? p[0] : p) === 'expo-secure-store');
+  assert.ok(Array.isArray(plugin), 'expo-secure-store configured with options');
+  assert.equal(plugin[1].faceIDPermission, false);
+  const plist = await finalInfoPlist();
+  assert.equal(plist.NSFaceIDUsageDescription, undefined, 'the final Info.plist has no Face ID text');
+  for (const lang of LANGS) assert.equal(readLocale(lang).ios.NSFaceIDUsageDescription, undefined, `${lang}: no Face ID text`);
+  // Nothing in the app asks SecureStore (or anything else) for biometrics.
+  for (const dir of ['lib', 'screens', 'components']) {
+    for (const f of fs.readdirSync(path.join(ROOT, dir))) {
+      if (!f.endsWith('.js')) continue;
+      assert.doesNotMatch(fs.readFileSync(path.join(ROOT, dir, f), 'utf8'), /requireAuthentication|LocalAuthentication/, `${dir}/${f}`);
+    }
+  }
+});
+
+// Council fix 5h: the English permission texts use the serial comma, like the rest of the English app.
+test('5h: English camera and photo texts use the serial comma (app.json = locales/en.json)', () => {
+  const en = readLocale('en').ios;
+  assert.equal(en.NSCameraUsageDescription, 'DoseTrace needs camera access so you can snap a photo of a lab report, vaccine card, or vial label.');
+  assert.equal(en.NSPhotoLibraryUsageDescription, 'DoseTrace needs photo library access to upload photos of lab reports, vaccine cards, and vial labels.');
+  for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription']) assert.equal(app.ios.infoPlist[k], en[k], `app.json ${k}`);
+});

@@ -3,8 +3,7 @@
     "CFBundleDisplayName": "DoseTrace",
     "NSCameraUsageDescription": "DoseTrace a besoin de l'appareil photo pour que vous puissiez photographier un bilan, votre carnet de vaccination ou l'étiquette d'un flacon.",
     "NSPhotoLibraryUsageDescription": "DoseTrace a besoin d'accéder à vos photos pour importer vos bilans, votre carnet de vaccination et les étiquettes de vos flacons.",
-    "NSDocumentPickerUsageDescription": "DoseTrace a besoin d'accéder à vos fichiers pour importer vos bilans sanguins et votre carnet de vaccination en PDF.",
-    "NSFaceIDUsageDescription": "Autorisez DoseTrace à utiliser Face ID."
+    "NSDocumentPickerUsageDescription": "DoseTrace a besoin d'accéder à vos fichiers pour importer vos bilans sanguins et votre carnet de vaccination en PDF."
   },
   "android": {
     "app_name": "DoseTrace"

@@ -183,9 +183,9 @@ test('German says "Fachperson" for a healthcare professional everywhere (one ter
   assert.deepEqual(offenders(['de'], /Apple ID/), []); // German writes Apple-ID
 });
 
-// {store} is "Apple ID" or "Google Play": no article may sit right before it, since it would
+// {store} is the store account ("Apple Account" / "Google Play account", localized; council fix 5c): no article may sit right before it, since it would
 // have to agree with whichever name comes in.
-test('no article right before {store} (it is "Apple ID" or "Google Play")', () => {
+test('no article right before {store} (the Apple or Google Play account)', () => {
   assert.deepEqual(offenders(['es', 'pt', 'fr', 'it'], /(^|[^\p{L}])(do|da|dos|das|no|na|o|a|el|la|del|al|le|du|au|il|lo|dello|della|nel|nella|sul) \{store\}/iu, { strip: false }), []);
 });
 

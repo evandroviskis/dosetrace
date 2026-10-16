@@ -3,8 +3,7 @@
     "CFBundleDisplayName": "DoseTrace",
     "NSCameraUsageDescription": "O DoseTrace precisa da câmera para você fotografar um exame, a carteira de vacinação ou o rótulo de um frasco.",
     "NSPhotoLibraryUsageDescription": "O DoseTrace precisa acessar suas fotos para você enviar imagens de exames, da carteira de vacinação e de rótulos de frascos.",
-    "NSDocumentPickerUsageDescription": "O DoseTrace precisa acessar seus arquivos para você enviar exames e a carteira de vacinação em PDF.",
-    "NSFaceIDUsageDescription": "Permita que o DoseTrace use o Face ID."
+    "NSDocumentPickerUsageDescription": "O DoseTrace precisa acessar seus arquivos para você enviar exames e a carteira de vacinação em PDF."
   },
   "android": {
     "app_name": "DoseTrace"

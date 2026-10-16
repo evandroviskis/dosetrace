@@ -3,8 +3,7 @@
     "CFBundleDisplayName": "DoseTrace",
     "NSCameraUsageDescription": "DoseTrace braucht Zugriff auf die Kamera, damit du Laborberichte, deinen Impfpass oder das Etikett eines Fläschchens fotografieren kannst.",
     "NSPhotoLibraryUsageDescription": "DoseTrace braucht Zugriff auf deine Fotos, damit du Laborberichte, deinen Impfpass und Etiketten deiner Fläschchen hochladen kannst.",
-    "NSDocumentPickerUsageDescription": "DoseTrace braucht Zugriff auf deine Dateien, damit du Laborberichte und deinen Impfpass als PDF hochladen kannst.",
-    "NSFaceIDUsageDescription": "Erlaube DoseTrace, Face ID zu verwenden."
+    "NSDocumentPickerUsageDescription": "DoseTrace braucht Zugriff auf deine Dateien, damit du Laborberichte und deinen Impfpass als PDF hochladen kannst."
   },
   "android": {
     "app_name": "DoseTrace"

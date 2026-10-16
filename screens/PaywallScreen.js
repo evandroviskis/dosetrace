@@ -364,7 +364,7 @@ export default function PaywallScreen({ navigation, route }) {
 
               {cta && (
                 <Text style={s.legalNote}>
-                  {t(cta.legalKey).replace(/\{store\}/g, storeName(Platform.OS))}
+                  {t(cta.legalKey).replace(/\{store\}/g, storeName(Platform.OS, t))}
                 </Text>
               )}
             </View>

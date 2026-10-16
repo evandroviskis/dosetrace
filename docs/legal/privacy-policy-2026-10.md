@@ -1,6 +1,6 @@
 # DoseTrace — Privacy Policy
 
-Last updated: October 8, 2026
+Last updated: October 16, 2026
 
 Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. This policy explains what information the app handles, where it goes, and what you can do about it. DoseTrace is a personal journal and a calculator. It does not give medical advice.
 
@@ -30,7 +30,7 @@ To deliver notifications we store a device notification token with your account.
 
 ## 5. AI features (optional, only with your permission)
 
-You may choose to use AI to save typing: scanning a lab report, a vaccination card, or a vial label, describing your meals in the AI food log, or answering the protocol assistant's questions. Only then, and only after you agree in the app (we ask again when a new kind of data would be sent), the photo, PDF, or text you chose is sent to **Anthropic PBC** (United States) to extract or estimate the values. Anthropic acts as our processor for this task only: it processes what you sent only for that request, does not use it to train its models, and keeps it only briefly for abuse monitoring. The AI never interprets your results and never gives medical, dosing, or dietary advice. You can always type the information yourself instead. We keep a count of how many AI requests you made (for the monthly limits), not the content.
+You may choose to use AI to save typing: scanning a lab report, a vaccination card, or a vial label, describing your meals in the AI food log, or answering the protocol assistant's questions. Only then, and only after you agree in the app (we ask again when a new kind of data would be sent), the photo, PDF, or text you chose is sent to **Anthropic PBC** (United States) to extract or estimate the values. Anthropic acts as our processor for this task only: it processes what you sent only for that request, does not use it to train its models, and deletes it within 30 days, keeping it longer only where needed to enforce its usage policy or the law. The AI never interprets your results and never gives medical, dosing, or dietary advice. You can always type the information yourself instead. We keep a count of how many AI requests you made (for the monthly limits), not the content.
 
 ## 6. Purchases
 
