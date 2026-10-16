@@ -41,7 +41,7 @@ function loadEsm(file) {
   // eslint-disable-next-line no-new-func
   return new Function(`${src}\nreturn { ${names.join(', ')} };`)();
 }
-const { createFirstSyncGate } = loadEsm('lib/stillGoingGate.js');
+const { createFirstSyncGate, isForegroundStale, FOREGROUND_CAP_MS } = loadEsm('lib/stillGoingGate.js');
 
 // A stand-in for lib/sync's listener bus, NetInfo state, AppState 'active' and the gate's clock.
 function fakeSync(online = null) {
@@ -56,6 +56,16 @@ function fakeSync(online = null) {
     now: () => bus.clock,
     emit: (e) => { for (const fn of listeners) fn(e); },
     foreground: () => { for (const fn of fg) fn(); },
+    // lib/sync requestSync (debounced) and the gate's timers, on the fake clock.
+    requests: 0,
+    requestSync: () => { bus.requests += 1; },
+    timers: [],
+    setTimer: (fn, ms) => { const t = { fn, at: bus.clock + ms, done: false }; bus.timers.push(t); return t; },
+    clearTimer: (t) => { if (t) t.done = true; },
+    advance: (ms) => {
+      bus.clock += ms;
+      for (const t of bus.timers) if (!t.done && t.at <= bus.clock) { t.done = true; t.fn(); }
+    },
   };
   return bus;
 }
@@ -286,9 +296,9 @@ test('A-123 (3): a Missed row the schedule does not explain (a slot not in the s
 // ── (4) one shared gate, every caller through it ───────────────────────────────────────────────
 test('A-123 (4): one gate for the session in lib/firstSyncGate.js, shared by Today and the Missed scan', () => {
   const mod = read('lib/firstSyncGate.js');
-  assert.match(mod, /import \{ addSyncListener, isOnlineNow \} from '\.\/sync';/);
+  assert.match(mod, /import \{ addSyncListener, isOnlineNow, requestSync \} from '\.\/sync';/);
   assert.match(mod, /import \{ createFirstSyncGate \} from '\.\/stillGoingGate';/);
-  assert.match(mod, /export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow, addForegroundListener \}\);/);
+  assert.match(mod, /export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow, addForegroundListener, requestSync \}\);/);
   // Nobody else makes a second gate (a second one would miss the first pass's result).
   const roots = ['lib', 'screens', 'components'];
   const makers = [];
@@ -506,5 +516,95 @@ test('A-123 F4: the app\'s gate listens to AppState, with the same minute as App
   const gate = read('lib/stillGoingGate.js');
   const m = gate.match(/const FOREGROUND_FRESH_MS = (\d+);/);
   assert.ok(m, 'FOREGROUND_FRESH_MS');
-  assert.match(read('App.js'), new RegExp(`nowTs - lastFgSync < ${m[1]}\\)`), 'App.js asks for the foreground sync once that minute has passed');
+  // App.js decides with the gate's own rule (isForegroundStale, same minute), so the two never drift.
+  const app = read('App.js');
+  assert.match(app, /import \{ isForegroundStale \} from '\.\/lib\/stillGoingGate';/);
+  assert.match(app, /if \(!isForegroundStale\(nowTs, lastFgSync\)\) return;/, 'App.js asks for the foreground sync with the shared rule');
+  assert.doesNotMatch(app, /nowTs - lastFgSync < \d+/, 'no second copy of the minute in App.js');
+});
+
+// ── Council fix 1 (founder 2026-10-16): the gate never stays closed ─────────────────────────────
+// App.js asked for the foreground sync only when getSession() had a session AND nowTs - lastFgSync
+// reached a minute: after the clock moved BACK the difference was negative (no sync asked), and with
+// no session no sync ran — the gate, closed on foreground, waited for a result that never came, so
+// the Missed scan and "Still going?" waited forever.
+test('council fix 1: isForegroundStale — a minute or more, or a clock that moved back, is stale', () => {
+  assert.equal(isForegroundStale(1000000, 1000000 - 30000), false, '30 s: fresh');
+  assert.equal(isForegroundStale(1000000, 1000000 - 60000), true, 'a minute: stale');
+  assert.equal(isForegroundStale(1000000, 1000000 + 3 * 3600000), true, 'clock moved back 3 h: stale, not "fresh"');
+  assert.equal(isForegroundStale(1000000, 0), true, 'never synced: stale');
+});
+
+test('council fix 1: clock moved back -> the gate closes, asks for a sync itself, and opens on its result', async () => {
+  const s = fakeSync(true);
+  const g = createFirstSyncGate(s);
+  s.emit({ type: 'sync_complete' });
+  s.clock -= 3 * 3600000; // the user (or the test) moves the clock back 3 h
+  s.foreground();
+  assert.equal(g.isOpen(), false, 'a result "from the future" is not fresh: closed');
+  assert.equal(s.requests, 1, 'the gate asked lib/sync for the sync it waits on');
+  let opened = false;
+  g.whenOpen().then(() => { opened = true; });
+  s.emit({ type: 'sync_start' });
+  s.advance(60000); // a slow pass: past the cap, but a sync IS running
+  await ticks();
+  assert.equal(opened, false, 'A-123: never open before a real sync result that is coming');
+  s.emit({ type: 'sync_complete' });
+  await ticks();
+  assert.equal(opened, true, 'the result opens it');
+});
+
+test('council fix 1: no session (App.js asks no sync) -> the gate asks itself; if no pass starts it reopens after the cap', async () => {
+  const s = fakeSync(true);
+  const g = createFirstSyncGate(s);
+  s.emit({ type: 'sync_complete' });
+  s.advance(2 * 60000);
+  s.foreground();
+  assert.equal(g.isOpen(), false);
+  assert.equal(s.requests, 1, 'asked for a sync even though App.js had no session');
+  let opened = false;
+  g.whenOpen().then(() => { opened = true; });
+  s.advance(FOREGROUND_CAP_MS - 1000);
+  await ticks();
+  assert.equal(opened, false, 'still waiting inside the cap');
+  s.advance(1000); // no sync_start ever came (no pass will run)
+  await ticks();
+  assert.equal(opened, true, 'the cap opens it: the scan and "Still going?" never wait forever');
+  assert.equal(g.isOpen(), true);
+  assert.ok(FOREGROUND_CAP_MS > 0 && FOREGROUND_CAP_MS <= 20000, 'about 15 s');
+});
+
+test('council fix 1: a pass that starts inside the cap keeps the gate closed until its result; an import does too', async () => {
+  for (const start of ['sync_start', 'import_start']) {
+    const s = fakeSync(true);
+    const g = createFirstSyncGate(s);
+    s.emit({ type: 'sync_complete' });
+    s.advance(2 * 60000);
+    s.foreground();
+    s.advance(2000);
+    s.emit({ type: start });
+    s.advance(FOREGROUND_CAP_MS * 3);
+    assert.equal(g.isOpen(), false, `${start}: the cap is off once a pass runs`);
+    s.emit({ type: start === 'sync_start' ? 'sync_error' : 'import_complete' });
+    assert.equal(g.isOpen(), true, `${start}: its result opens it`);
+  }
+});
+
+test('council fix 1: before the session\'s first sync result the foreground neither asks a sync nor arms the cap', async () => {
+  // At launch the startup sync is still coming (App.js, after the session is restored): an early
+  // pass with no user yet would "settle" the gate before the real download (A-123).
+  const s = fakeSync(true);
+  const g = createFirstSyncGate(s);
+  s.foreground();
+  assert.equal(s.requests, 0);
+  s.advance(FOREGROUND_CAP_MS * 4);
+  assert.equal(g.isOpen(), false, 'still waits for the startup result');
+  s.emit({ type: 'sync_complete' });
+  assert.equal(g.isOpen(), true);
+});
+
+test('council fix 1: the app\'s gate is given lib/sync requestSync', () => {
+  const mod = read('lib/firstSyncGate.js');
+  assert.match(mod, /import \{ addSyncListener, isOnlineNow, requestSync \} from '\.\/sync';/);
+  assert.match(mod, /createFirstSyncGate\(\{ addSyncListener, isOnlineNow, addForegroundListener, requestSync \}\)/);
 });

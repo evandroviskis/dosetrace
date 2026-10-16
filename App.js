@@ -39,6 +39,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
+import { isForegroundStale } from './lib/stillGoingGate';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -566,7 +567,9 @@ export default function App() {
       if (state === 'active') supabase.auth.startAutoRefresh(); else supabase.auth.stopAutoRefresh();
       if (state !== 'active') return;
       const nowTs = Date.now();
-      if (nowTs - lastFgSync < 60000) return; // at most once/min
+      // At most once a minute, with the first-sync gate's own rule: a clock moved back is stale too
+      // (a negative difference never asked for a sync again — council fix 1, 2026-10-16).
+      if (!isForegroundStale(nowTs, lastFgSync)) return;
       lastFgSync = nowTs;
       supabase.auth.getSession().then(({ data: { session } }) => {
         // A-47: also pull, so a change made on another device (e.g. a reality-check Stop)

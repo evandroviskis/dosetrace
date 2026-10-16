@@ -235,7 +235,7 @@ test('A-122 (4): Today runs "Still going?" only through the first-sync gate', ()
   // lib/firstSyncGate.js, shared with the Missed scan (missedScanGate.test.js).
   assert.match(today, /import \{ firstSyncGate \} from '\.\.\/lib\/firstSyncGate';/);
   // A-123 F4: the same gate also closes on return to the foreground (missedScanGate.test.js F4).
-  assert.match(read('lib/firstSyncGate.js'), /^export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow, addForegroundListener \}\);/m, 'module-scope gate');
+  assert.match(read('lib/firstSyncGate.js'), /^export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow, addForegroundListener, requestSync \}\);/m, 'module-scope gate');
   assert.doesNotMatch(today, /createFirstSyncGate\(/, 'Today makes no gate of its own');
   // checkTreatmentStillActive( is called in exactly one place: inside the gate wrapper.
   const calls = [...today.matchAll(/(?<!function )checkTreatmentStillActive\(/g)].map((m) => m.index);
