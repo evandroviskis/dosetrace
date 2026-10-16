@@ -1,0 +1,13 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "DoseTrace",
+    "NSCameraUsageDescription": "DoseTrace braucht Zugriff auf die Kamera, damit du deinen Laborbericht fotografieren kannst.",
+    "NSPhotoLibraryUsageDescription": "DoseTrace braucht Zugriff auf deine Fotos, damit du Laborberichte hochladen kannst.",
+    "NSDocumentPickerUsageDescription": "DoseTrace braucht Zugriff auf deine Dateien, damit du Laborberichte als PDF hochladen kannst.",
+    "NSFaceIDUsageDescription": "Erlaube DoseTrace, Face ID zu verwenden.",
+    "NSMicrophoneUsageDescription": "Erlaube DoseTrace den Zugriff auf das Mikrofon."
+  },
+  "android": {
+    "app_name": "DoseTrace"
+  }
+}

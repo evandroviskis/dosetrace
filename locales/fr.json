@@ -1,0 +1,13 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "DoseTrace",
+    "NSCameraUsageDescription": "DoseTrace a besoin de l'appareil photo pour que vous puissiez photographier votre bilan.",
+    "NSPhotoLibraryUsageDescription": "DoseTrace a besoin d'accéder à vos photos pour importer vos bilans sanguins.",
+    "NSDocumentPickerUsageDescription": "DoseTrace a besoin d'accéder à vos fichiers pour importer vos bilans sanguins en PDF.",
+    "NSFaceIDUsageDescription": "Autorisez DoseTrace à utiliser Face ID.",
+    "NSMicrophoneUsageDescription": "Autorisez DoseTrace à accéder au micro."
+  },
+  "android": {
+    "app_name": "DoseTrace"
+  }
+}

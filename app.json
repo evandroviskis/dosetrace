@@ -7,6 +7,14 @@
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "locales": {
+      "en": "./locales/en.json",
+      "es": "./locales/es.json",
+      "pt": "./locales/pt.json",
+      "fr": "./locales/fr.json",
+      "de": "./locales/de.json",
+      "it": "./locales/it.json"
+    },
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",

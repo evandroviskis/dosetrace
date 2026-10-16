@@ -1,0 +1,13 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "DoseTrace",
+    "NSCameraUsageDescription": "DoseTrace ha bisogno della fotocamera per scattare una foto del tuo referto.",
+    "NSPhotoLibraryUsageDescription": "DoseTrace ha bisogno di accedere alle tue foto per caricare i tuoi referti.",
+    "NSDocumentPickerUsageDescription": "DoseTrace ha bisogno di accedere ai tuoi file per caricare i referti in PDF.",
+    "NSFaceIDUsageDescription": "Consenti a DoseTrace di usare Face ID.",
+    "NSMicrophoneUsageDescription": "Consenti a DoseTrace di accedere al microfono."
+  },
+  "android": {
+    "app_name": "DoseTrace"
+  }
+}
