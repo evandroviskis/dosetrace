@@ -72,7 +72,7 @@ test('AP-12: the "?" on the dose field, the red warning and the red syringe open
   assert.match(SCREEN, /<TouchableOpacity style=\{s\.qBtn\} onPress=\{\(\) => setExplainerOpen\(true\)\}/);
   assert.match(SCREEN, /<Pressable style=\{\[s\.warnbox, s\.warnboxRisk\]\} onPress=\{\(\) => setExplainerOpen\(true\)\}/);
   assert.match(SCREEN, /<Pressable disabled=\{!drawOver\} onPress=\{\(\) => setExplainerOpen\(true\)\}/);
-  assert.match(FX, /t\('fx_key_medicine'\)\.replace\('\{unit\}', model\.keyUnit\)/, 'the key is always shown');
+  assert.match(FX, /t\('fx_key_medicine'\)\.replace\('\{unit\}', unitText\(model\.keyUnit, language\)\)/, 'the key is always shown');
   assert.match(FX, /t\('fx_key_liquid'\)/);
   assert.match(FX, /onPress=\{\(\) => onSplit\(sp\.each, sp\.n\)\}/);
   assert.match(SCREEN, /function chooseSplit\(each, n\) \{\s*setDose\(inputNumber\(each, language\)\);/, 'a split fills the user\'s own number divided (and asks the spacing)');

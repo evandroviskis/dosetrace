@@ -33,7 +33,7 @@ import { addSyncListener } from '../lib/sync';
 import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
-import { formatDate, formatNumber, formatInt } from '../lib/localeFormat';
+import { formatDate, formatNumber, formatInt, unitText } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
 import { loadCurveView } from '../lib/curveViewStore';
@@ -215,7 +215,7 @@ export default function JourneyScreen() {
                 </View>
                 <View style={[s.num, s.numEnd]}>
                   <Text style={s.cap}>{t('curve_current_level')}</Text>
-                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value, language)}<Text style={s.unit}> {level.unit}</Text></Text>
+                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value, language)}<Text style={s.unit}> {unitText(level.unit, language)}</Text></Text>
                   <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
                 </View>
               </>

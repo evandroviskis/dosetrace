@@ -13,6 +13,7 @@ import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import SyringeScale from './SyringeScale';
 import { renderText } from '../../lib/assistantText';
+import { unitText } from '../../lib/localeFormat';
 
 // A number that climbs to its target (one strong moment, ~0.9 s); Reduce Motion: the target.
 function useClimb(target, run, reduced) {
@@ -46,7 +47,7 @@ function Vial({ pct, c, amountLabel, waterLabel }) {
   );
 }
 
-export default function FitExplainer({ visible, model, t, onClose, onSplit, onAskAI }) {
+export default function FitExplainer({ visible, model, t, language, onClose, onSplit, onAskAI }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const reduced = useReducedMotion();
@@ -60,13 +61,14 @@ export default function FitExplainer({ visible, model, t, onClose, onSplit, onAs
   const over = useClimb(needUnits, visible && step === 2, reduced);
   const vialPct = useClimb(1, visible && step === 0, reduced);
   if (!model) return null;
-  const tr = (key, extra) => renderText(t, key, { ...p, ...(extra || {}) });
+  // A-134: IU reads UI / IE in the app language (display only)
+  const tr = (key, extra) => unitText(renderText(t, key, { ...p, ...(extra || {}) }), language);
 
   let stage = null;
   if (step === 0) {
     stage = (
       <>
-        <Vial pct={vialPct * 0.8} c={c} amountLabel={model.type === 'recon' ? `${p.amount}\u00A0${p.unit}` : ''} waterLabel={model.type === 'recon' ? `${p.water} ml` : ''} />
+        <Vial pct={vialPct * 0.8} c={c} amountLabel={model.type === 'recon' ? `${p.amount}\u00A0${unitText(p.unit, language)}` : ''} waterLabel={model.type === 'recon' ? `${p.water} ml` : ''} />
         <Text style={s.big}>{t('fx_s1_title')}</Text>
         <Text style={s.sub}>{tr(model.type === 'recon' ? 'fx_s1_powder' : 'fx_s1_ready')}</Text>
       </>
@@ -137,7 +139,7 @@ export default function FitExplainer({ visible, model, t, onClose, onSplit, onAs
           </View>
           <ScrollView contentContainerStyle={s.stage} showsVerticalScrollIndicator={false}>{stage}</ScrollView>
           <View style={s.key}>
-            <Text style={s.keyChip}>{t('fx_key_medicine').replace('{unit}', model.keyUnit)}</Text>
+            <Text style={s.keyChip}>{t('fx_key_medicine').replace('{unit}', unitText(model.keyUnit, language))}</Text>
             <Text style={s.keyChip}>{t('fx_key_liquid')}</Text>
           </View>
           {step < 3 && (

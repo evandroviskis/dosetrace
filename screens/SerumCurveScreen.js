@@ -33,7 +33,7 @@ import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
 } from '../lib/serumModel';
-import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols } from '../lib/localeFormat';
+import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
@@ -639,7 +639,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   }, [singleDoseIdx, mNow, mN]);
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
-  const unitLbl = model ? model.unit : 'mg';
+  const unitLbl = unitText(model ? model.unit : 'mg', language); // A-134: UI / IE in the app language
   const numFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1).replace('.', decSep) : String(Math.round(v)); };
   const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
@@ -1111,7 +1111,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                     <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
                       <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}{isEnded(p) ? ` · ${t('curve_ended_marker')}` : ''}</Text>
-                      <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours, language, du)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ' · IU' : ''}</Text>
+                      <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours, language, du)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ` · ${unitText('IU', language)}` : ''}</Text>
                     </View>
                     {on ? <CheckMark size={22} color={colors.ink} /> : <View style={{ width: 22 }} />}
                   </TouchableOpacity>

@@ -17,7 +17,7 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import FeatureIcon from '../../components/FeatureIcon';
 import { DTPickerSheet, DTWheel, DTActionSheet } from './ProtocolParts';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
-import { MONTHS_SHORT, formatDate } from '../../lib/localeFormat';
+import { MONTHS_SHORT, formatDate, unitText } from '../../lib/localeFormat';
 import * as A from '../../lib/protocolAssistant';
 import { renderText, renderParam } from '../../lib/assistantText';
 import { assistantErrorNotice } from '../../lib/assistantErrors';
@@ -31,7 +31,8 @@ import { createSession } from '../../lib/assistantSession';
 export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel, registerClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
-  const tr = (key, params) => renderText(t, key, params);
+  // A-134: the app's lines write IU as the language does (UI / IE); display only, never the draft.
+  const tr = (key, params) => unitText(renderText(t, key, params), language);
   const baseForm = useRef(form).current;
   const convId = useRef(null);
   const [conv, setConv] = useState(null);       // the conversation (lib/protocolAssistant)
@@ -160,7 +161,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
           {(m.rows || []).map((r, i) => (
             <View key={i} style={s.kv}>
               <Text style={s.kvLabel}>{t(r.key)}</Text>
-              <Text style={s.kvValue}>{typeof r.value === 'string' ? r.value : renderParam(t, r.value)}</Text>
+              <Text style={s.kvValue}>{unitText(typeof r.value === 'string' ? r.value : renderParam(t, r.value), language)}</Text>
             </View>
           ))}
         </View>

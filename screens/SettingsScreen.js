@@ -24,7 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText } from '../lib/storeText';
-import { formatDate, decimalText } from '../lib/localeFormat';
+import { formatDate, decimalText, unitText } from '../lib/localeFormat';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import RowChevron from '../components/RowChevron';
@@ -412,7 +412,7 @@ export default function SettingsScreen({ navigation }) {
         return {
           // An ended protocol says so ("BPC-157 · Ended 20 Sep").
           name: isEnded(p) ? `${p.name} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : p.name,
-          dose: `${p.dose ? decimalText(p.dose, language) : '—'}\u00A0${p.dose_unit || ''}`,
+          dose: `${p.dose ? decimalText(p.dose, language) : '—'}\u00A0${unitText(p.dose_unit || '', language)}`,
           frequency: p.frequency || '—',
           taken,
           skipped,

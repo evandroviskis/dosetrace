@@ -21,6 +21,6 @@ test('the review shows what the app will save', () => {
 });
 
 test('the wizard review rows for amount and dose use the read value', () => {
-  assert.match(SCREEN, /\{ label: t\('protocols_amount_label'\), value: amount \? `\$\{decimalText\(parseDecimal\(amount, language\), language\)\}\\u00A0\$\{unit\}` : '—' \}/);
-  assert.match(SCREEN, /\{ label: t\('protocols_dose_label'\), value: dose \? `\$\{decimalText\(parseDecimal\(dose, language\), language\)\}\\u00A0\$\{doseUnit\}` : '—' \}/);
+  assert.match(SCREEN, /\{ label: t\('protocols_amount_label'\), value: amount \? `\$\{decimalText\(parseDecimal\(amount, language\), language\)\}\\u00A0\$\{unitText\(unit, language\)\}` : '—' \}/);
+  assert.match(SCREEN, /\{ label: t\('protocols_dose_label'\), value: dose \? `\$\{decimalText\(parseDecimal\(dose, language\), language\)\}\\u00A0\$\{unitText\(doseUnit, language\)\}` : '—' \}/);
 });

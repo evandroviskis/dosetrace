@@ -38,6 +38,7 @@ function load(N, { persistent = false, scheduleReq } = {}) {
     showNamesInNotifications: async () => true,
     protocolDisplayName: require('../lib/protocolName').protocolDisplayName, // A-134
     decimalText: (x) => String(x),
+    unitText: require('../lib/localeFormat').unitText, // A-134
     ymd: plan.ymd, parseYmd: plan.parseYmd, dueDateKeys: plan.dueDateKeys,
     getTodayLogs: () => [],
     needsSiteQuestion,

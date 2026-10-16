@@ -26,5 +26,5 @@ test('the protocol page readings (volume, dose, syringe) keep each number with i
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
   assert.match(src, /sizeLabelNoBreak as syringeSizeLabel/);
   assert.match(src, /\$\{decimalText\(trimZeros\(draw\.drawML\), language\)\}\\u00A0ml/);
-  assert.match(src, /\$\{decimalText\(p\.dose, language\)\}\\u00A0\$\{p\.dose_unit\}/);
+  assert.match(src, /\$\{decimalText\(p\.dose, language\)\}\\u00A0\$\{unitText\(p\.dose_unit, language\)\}/);
 });
