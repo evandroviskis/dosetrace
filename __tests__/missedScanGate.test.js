@@ -10,8 +10,14 @@
 //   2. the Settings report export never hangs: it waits for the gate at most a short cap, then
 //      makes the report without scanning (no Missed rows from a half-synced phone);
 //   3. the scan is idempotent against a Taken / Skipped that arrives later for a slot that already
-//      has the app's Missed row: that Missed row is removed (a deletion everywhere); a row the user
-//      entered (Taken / Skipped) is never touched, and a Missed row whose slot nothing covers stays.
+//      has the app's Missed row: that Missed row is removed (a deletion pushed to the cloud; other
+//      phones re-derive it — tombstones everywhere are OPEN-16 b / A-119); a row the user entered
+//      (Taken / Skipped) is never touched, and a Missed row whose slot nothing covers stays.
+//   6. (journey review 2026-10-15, F1–F6) the removal is certain or it does not happen: the covering
+//      row is on the slot's own day, that slot is the one of the day nearest to it (a tie removes
+//      nothing), the protocol's schedule is known unchanged since that day, and ended protocols are
+//      cleaned up to (not on) their end day; coming back from the background the gate closes again
+//      until the foreground sync's result (F4).
 // Behaviour runs the REAL scanMissedDoses and the REAL lib/database.js reads/writes over the sync
 // harness (in-memory SQLite + fake cloud, real lib/syncCore push/pull).
 const test = require('node:test');
@@ -37,14 +43,19 @@ function loadEsm(file) {
 }
 const { createFirstSyncGate } = loadEsm('lib/stillGoingGate.js');
 
-// A stand-in for lib/sync's listener bus and NetInfo state.
+// A stand-in for lib/sync's listener bus, NetInfo state, AppState 'active' and the gate's clock.
 function fakeSync(online = null) {
   let listeners = [];
+  let fg = [];
   const bus = {
     online,
+    clock: 1000000,
     addSyncListener: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((l) => l !== fn); }; },
     isOnlineNow: () => bus.online,
+    addForegroundListener: (fn) => { fg.push(fn); },
+    now: () => bus.clock,
     emit: (e) => { for (const fn of listeners) fn(e); },
+    foreground: () => { for (const fn of fg) fn(); },
   };
   return bus;
 }
@@ -74,14 +85,19 @@ async function syncedRow(db, cloud, p, outcome, when) {
 const liveRows = (db, outcome) => db.getAllSync(`SELECT * FROM dose_logs WHERE outcome = ? AND sync_status != 'deleted' ORDER BY logged_at`, [outcome]);
 
 // The real scanMissedDoses, with the real lib/database.js functions over this phone's db.
-function phone(db, sync, { sinceMs = at(1, 0).getTime() } = {}) {
+// scheduleSince (F1): since when this phone knows each protocol's schedule unchanged (what the scan's
+// schedule ledger, observeSchedules, answers). Default: since the protocol was set up 30 days ago —
+// the scenarios above never edit the schedule. null: nothing is known (an edit, or never observed).
+function phone(db, sync, { sinceMs = at(1, 0).getTime(), scheduleSince = at(30, 7).getTime() } = {}) {
   const dbDeps = { getDB: () => db, PE };
   const fromDb = (name) => loadFn('lib/database.js', `export function ${name}(`, name, dbDeps);
   const firstSyncGate = createFirstSyncGate(sync);
   const scan = loadFn('lib/doseActions.js', 'export async function scanMissedDoses(', 'scanMissedDoses', {
     ...MD,
     getActiveProtocols: fromDb('getActiveProtocols'),
+    getEndedProtocols: fromDb('getEndedProtocols'),
     getLogsSince: fromDb('getLogsSince'),
+    observeSchedules: async (userId, protocols) => Object.fromEntries(scheduleSince == null ? [] : protocols.map((p) => [p.id, scheduleSince])),
     insertDoseLog: fromDb('insertDoseLog'),
     deleteDoseLog: fromDb('deleteDoseLog'),
     getCachedUser: async () => ({ id: USER }),
@@ -272,7 +288,7 @@ test('A-123 (4): one gate for the session in lib/firstSyncGate.js, shared by Tod
   const mod = read('lib/firstSyncGate.js');
   assert.match(mod, /import \{ addSyncListener, isOnlineNow \} from '\.\/sync';/);
   assert.match(mod, /import \{ createFirstSyncGate \} from '\.\/stillGoingGate';/);
-  assert.match(mod, /export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow \}\);/);
+  assert.match(mod, /export const firstSyncGate = createFirstSyncGate\(\{ addSyncListener, isOnlineNow, addForegroundListener \}\);/);
   // Nobody else makes a second gate (a second one would miss the first pass's result).
   const roots = ['lib', 'screens', 'components'];
   const makers = [];
@@ -322,4 +338,173 @@ test('A-123 (5): the Dose log loads its list at once, not after the waiting Miss
   const today = read('screens/TodayScreen.js');
   const reads = today.slice(today.indexOf('const firstReads = ['), today.indexOf('];', today.indexOf('const firstReads = [')));
   assert.doesNotMatch(reads, /scanMissedDoses/);
+});
+
+// ── (6) journey review 2026-10-15: the cleanup removes a Missed row only when it is certain ─────
+// Founder rule (CLAUDE.md): never destroy on a maybe. Leaving a Missed row next to a Taken is the
+// status quo before A-123 and is safe; removing a TRUE Missed row is not. Fixed dates, the real
+// matcher; scanOnce = what scanMissedDoses does (cleanup, then the scan over what is left).
+const D = (d, h, m = 0) => new Date(2026, 9, d, h, m).getTime();
+const isoMs = (ms) => new Date(ms).toISOString();
+const NOW = D(13, 12);
+const proto = (over = {}) => ({ id: 1, user_id: USER, created_at: isoMs(D(1, 7)), updated_at: isoMs(D(1, 7)), start_date: '2026-10-01', interval_days: 1, active: 1, doses_per_day: 1, reminder_time: '20:00', ...over });
+const row = (id, outcome, ms) => ({ id, protocol_id: 1, outcome, logged_at: isoMs(ms) });
+function scanOnce(protocols, logs, opts = {}, sinceMs = D(10, 0)) {
+  const o = { lookbackDays: 14, ...opts };
+  const gone = MD.coveredMissedRows(protocols, logs, NOW, o);
+  const ids = new Set(gone.map((r) => r.id));
+  const kept = logs.filter((l) => !ids.has(l.id));
+  return { deleted: gone.map((r) => r.id).sort(), added: MD.computeMissedDoses(protocols.filter((p) => p.active !== 0), kept, NOW, sinceMs, o).map((a) => a.scheduledAtMs) };
+}
+const deviceTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+test('A-123 F1: twice daily 08:00+20:00 edited to once daily 20:00 -> the true evening Missed stays', () => {
+  // Day 10 under the OLD schedule: 08:00 taken at 08:05, 20:00 really missed. Edited on day 11.
+  const logs = [row('T', 'Taken', D(10, 8, 5)), row('M', 'Missed', D(10, 20))];
+  const edited = proto({ updated_at: isoMs(D(11, 9)) });
+  assert.deepEqual(scanOnce([edited], logs).deleted, [], 'edited after that day, nothing on the phone says otherwise: kept');
+  for (const zoneHistory of [[{ tz: deviceTz(), sinceMs: NOW }], [{ tz: deviceTz(), sinceMs: D(1, 0) - 20 * DAY }]]) {
+    assert.deepEqual(scanOnce([edited], logs, { zoneHistory }).deleted, [], 'zone-aware path too');
+  }
+  // The schedule ledger saw the old schedule and then the new one: the change is known -> kept,
+  // even when updated_at (another phone's clock, a clock change) looks older than that day.
+  const seen = MD.noteSchedules({}, [proto({ doses_per_day: 2, reminder_time: '08:00,20:00' })], { userId: USER, nowMs: D(2, 9) });
+  const after = MD.noteSchedules(seen.next, [proto({ updated_at: isoMs(D(1, 7)) })], { userId: USER, nowMs: D(11, 10) });
+  assert.equal(after.sinceById[1], D(11, 10), 'the change is dated when this phone first saw it');
+  assert.deepEqual(scanOnce([proto()], logs, { scheduleSince: after.sinceById }).deleted, [], 'ledger knows of the edit: kept');
+  // Control: the schedule really was once daily 20:00 all along (taken early, A-43) -> the Missed
+  // row is the duplicate it looks like and goes.
+  assert.deepEqual(scanOnce([proto()], logs).deleted, ['M'], 'unchanged schedule: the duplicate goes');
+});
+
+test('A-123 F2: daily 20:00, day 10 Missed, day 11 dose Taken at 07:00 -> day 10 stays Missed and day 11 gets no false Missed', () => {
+  const logs = [row('M10', 'Missed', D(10, 20)), row('T11', 'Taken', D(11, 7)), row('T12', 'Taken', D(12, 20))];
+  const r = scanOnce([proto()], logs);
+  assert.deepEqual(r.deleted, [], 'a row on another calendar day never removes a Missed row');
+  assert.deepEqual(r.added, [], 'and no Missed row is written for day 11');
+});
+
+test('A-123 F3: twice daily, both Missed, a Taken at 19:00 -> the 20:00 Missed goes, the 08:00 one stays', () => {
+  const p = proto({ doses_per_day: 2, reminder_time: '08:00,20:00' });
+  // Day 9 was logged (otherwise its open 20:00 slot, as in the real scan, would take day 10's 08:00 row).
+  const d9 = [row('T9a', 'Taken', D(9, 8, 5)), row('T9b', 'Taken', D(9, 20, 5))];
+  const logs = [...d9, row('M8', 'Missed', D(10, 8)), row('M20', 'Missed', D(10, 20)), row('T', 'Taken', D(10, 19))];
+  const r = scanOnce([p], logs);
+  assert.deepEqual(r.deleted, ['M20'], 'the slot nearest to the Taken');
+  assert.deepEqual(r.added.filter((ms) => ms >= D(10, 0) && ms < D(11, 0)), [], 'nothing written back for day 10');
+  // A tie (14:00 is 6 h from both) cannot say which slot it was: nothing is removed.
+  const tie = scanOnce([p], [...d9, row('M8', 'Missed', D(10, 8)), row('M20', 'Missed', D(10, 20)), row('T', 'Taken', D(10, 14))]);
+  assert.deepEqual(tie.deleted, [], 'tie: both kept');
+  // One Taken removes at most one slot's Missed row; the morning one taken at 08:10 -> only 08:00.
+  assert.deepEqual(scanOnce([p], [...d9, row('M8', 'Missed', D(10, 8)), row('M20', 'Missed', D(10, 20)), row('T', 'Taken', D(10, 8, 10))]).deleted, ['M8']);
+  // A Taken at 15:00 is nearer 20:00, but the matcher counts it for 08:00 (the 20:00 slot stays
+  // open, so the scan would write the Missed row straight back): nothing is removed.
+  assert.deepEqual(scanOnce([p], [...d9, row('M20', 'Missed', D(10, 20)), row('T', 'Taken', D(10, 15))]).deleted, []);
+});
+
+test('A-123 F6: an ended protocol is cleaned up up to its end; its end day is left alone', () => {
+  const ended = proto({ active: 0, ended_at: isoMs(D(11, 12)), updated_at: isoMs(D(11, 12)), reminder_time: '08:00' });
+  const logs = [row('M9', 'Missed', D(9, 8)), row('T9', 'Taken', D(9, 8, 20)), row('M11', 'Missed', D(11, 8)), row('T11', 'Taken', D(11, 8, 20))];
+  // The ledger has seen this schedule since day 2 (ending the protocol does not change its slots before the end).
+  const scheduleSince = MD.noteSchedules(MD.noteSchedules({}, [proto({ reminder_time: '08:00' })], { userId: USER, nowMs: D(2, 9) }).next, [ended], { userId: USER, nowMs: NOW }).sinceById;
+  assert.equal(scheduleSince[1], D(2, 9), 'ending is not a schedule change');
+  assert.deepEqual(scanOnce([ended], logs, { scheduleSince }).deleted, ['M9'], 'before the end day: the duplicate goes; on the end day: kept');
+});
+
+test('A-123 F1: the schedule ledger (lib/missedDoses noteSchedules)', () => {
+  const a = proto({ updated_at: isoMs(D(12, 9)) }); // an oral dose bumps updated_at every day (units_taken)
+  const first = MD.noteSchedules(null, [a], { userId: USER, nowMs: D(3, 9) });
+  assert.equal(first.sinceById[1], D(3, 9), 'first seen: since now (updated_at is later)');
+  assert.equal(MD.noteSchedules(null, [proto()], { userId: USER, nowMs: D(3, 9) }).sinceById[1], D(1, 7), 'first seen, never written since day 1: updated_at says so');
+  const again = MD.noteSchedules(first.next, [a], { userId: USER, nowMs: D(12, 10) });
+  assert.equal(again.sinceById[1], D(3, 9), 'same schedule seen again: still since day 3 although updated_at moved');
+  const moved = MD.noteSchedules(again.next, [{ ...a, reminder_time: '21:00' }], { userId: USER, nowMs: D(12, 11) });
+  assert.equal(moved.sinceById[1], D(12, 11), 'time edited: since now');
+  const later = MD.noteSchedules(moved.next, [{ ...a, reminder_time: '21:00', updated_at: isoMs(D(1, 7)) }], { userId: USER, nowMs: D(13, 9) });
+  assert.equal(later.sinceById[1], D(12, 11), 'after a seen change an old-looking updated_at never certifies more');
+  assert.equal(MD.noteSchedules(again.next, [a], { userId: 'other', nowMs: D(12, 10) }).sinceById[1], D(12, 9), 'another account: nothing carried over (first sight: its updated_at)');
+  assert.equal(MD.noteSchedules(again.next, [a], { userId: USER, nowMs: D(2, 10) }).sinceById[1], D(2, 10), 'clock set back before the entry: since now');
+  assert.equal(MD.noteSchedules({}, [proto({ updated_at: isoMs(NOW + DAY) })], { userId: USER, nowMs: NOW }).sinceById[1], NOW, 'a future updated_at certifies nothing');
+});
+
+test('A-123 F1 through the real scan: nothing known about the schedule -> the Missed row next to a Taken stays', async () => {
+  const cloud = makeCloud();
+  const B = makeDb();
+  const p = await seedProtocol(B, cloud, { times: '20:00' });
+  await syncedRow(B, cloud, p, 'Taken', at(2, 8, 5));
+  const miss = await syncedRow(B, cloud, p, 'Missed', at(2, 20));
+  const sync = fakeSync(true);
+  const { scan } = phone(B, sync, { sinceMs: Date.now(), scheduleSince: at(1, 9).getTime() }); // edit seen yesterday
+  sync.emit({ type: 'sync_complete' });
+  await scan();
+  assert.deepEqual(liveRows(B, 'Missed').map((r) => r.id), [miss], 'kept');
+});
+
+test('A-123 F6 through the real scan: an ended protocol\'s duplicate Missed row goes', async () => {
+  const cloud = makeCloud();
+  const B = makeDb();
+  const p = await seedProtocol(B, cloud);
+  B.runSync(`UPDATE protocols SET active = 0, ended_at = ? WHERE id = ?`, [iso(at(0, 6)), p.pid]);
+  const miss = await syncedRow(B, cloud, p, 'Missed', at(2, 8));
+  await otherPhoneLogs(cloud, p.remote, 'Taken', at(2, 8, 20));
+  const sync = fakeSync(true);
+  const { scan } = phone(B, sync, { sinceMs: at(3, 0).getTime() });
+  await pullChanges(B, cloud, USER);
+  B.runSync(`UPDATE protocols SET active = 0, ended_at = ? WHERE id = ?`, [iso(at(0, 6)), p.pid]); // the pull kept the end
+  sync.emit({ type: 'sync_complete' });
+  await scan();
+  assert.equal(B.getFirstSync('SELECT sync_status FROM dose_logs WHERE id = ?', [miss]).sync_status, 'deleted');
+  assert.equal(liveRows(B, 'Missed').length, 0, 'and no new Missed rows for an ended protocol');
+});
+
+test('A-123 F4: back from the background on a new day, the other phone\'s dose only in the cloud -> no Missed before the sync', async () => {
+  const cloud = makeCloud();
+  const B = makeDb();
+  const p = await seedProtocol(B, cloud);
+  const sync = fakeSync(true);
+  const { scan, firstSyncGate } = phone(B, sync);
+  sync.emit({ type: 'sync_complete' }); // the session's first sync, the evening before
+  sync.clock += 14 * 3600000; // a night in the background
+  await otherPhoneLogs(cloud, p.remote, 'Taken', at(1, 8, 10)); // phone A logged yesterday's dose meanwhile
+  sync.foreground(); // AppState 'active': Today's refreshIfNewDay starts the scan
+  assert.equal(firstSyncGate.isOpen(), false, 'closed again: "Still going?" waits on the same gate');
+  const run = scan();
+  await ticks();
+  assert.equal(liveRows(B, 'Missed').length, 0, 'nothing written before the foreground sync');
+  await pullChanges(B, cloud, USER);
+  sync.emit({ type: 'sync_complete' });
+  assert.equal(await run, 0);
+  assert.equal(liveRows(B, 'Missed').length, 0, 'the dose arrived: no Missed row');
+});
+
+test('A-123 F4: the foreground close — fresh sync result, offline, a sync error', async () => {
+  const s = fakeSync(true);
+  const g = createFirstSyncGate(s);
+  s.emit({ type: 'sync_complete' });
+  s.clock += 30000;
+  s.foreground();
+  assert.equal(g.isOpen(), true, 'a result under a minute old (App.js syncs at most once a minute): stays open');
+  s.clock += 60000;
+  s.foreground();
+  assert.equal(g.isOpen(), false, 'older: closed until the next result');
+  s.emit({ type: 'sync_error' });
+  assert.equal(g.isOpen(), true, 'an error is a result too');
+  s.clock += 120000;
+  s.online = false;
+  s.foreground();
+  assert.equal(g.isOpen(), true, 'known offline: no download is coming');
+  // Without a foreground listener (older callers) the gate behaves as before.
+  const g2 = createFirstSyncGate({ addSyncListener: s.addSyncListener, isOnlineNow: () => true });
+  s.emit({ type: 'sync_complete' });
+  assert.equal(g2.isOpen(), true);
+});
+
+test('A-123 F4: the app\'s gate listens to AppState, with the same minute as App.js\'s foreground sync', () => {
+  const mod = read('lib/firstSyncGate.js');
+  assert.match(mod, /import \{ AppState \} from 'react-native';/);
+  assert.match(mod, /AppState\.addEventListener\('change'/);
+  const gate = read('lib/stillGoingGate.js');
+  const m = gate.match(/const FOREGROUND_FRESH_MS = (\d+);/);
+  assert.ok(m, 'FOREGROUND_FRESH_MS');
+  assert.match(read('App.js'), new RegExp(`nowTs - lastFgSync < ${m[1]}\\)`), 'App.js asks for the foreground sync once that minute has passed');
 });
