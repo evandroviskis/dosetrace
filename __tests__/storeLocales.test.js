@@ -14,16 +14,18 @@ const ROOT = path.join(__dirname, '..');
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 const app = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8')).expo;
 
-// The final Info.plist as prebuild/EAS compiles it (app.json + every plugin's defaults, e.g.
-// expo-image-picker's microphone text, expo-secure-store's Face ID text). Introspection only:
+// The final Info.plist / AndroidManifest as prebuild/EAS compiles them (app.json + every plugin's
+// defaults, e.g. expo-secure-store's Face ID text). Introspection only:
 // it reads the config and writes nothing.
-async function finalInfoPlist() {
+async function introspect(platform) {
   const cliPkg = require.resolve('expo/node_modules/@expo/cli/package.json', { paths: [ROOT] });
   const { getPrebuildConfigAsync } = require(require.resolve('@expo/prebuild-config', { paths: [cliPkg] }));
   const { compileModsAsync } = require(require.resolve('@expo/config-plugins', { paths: [ROOT] }));
-  const { exp } = await getPrebuildConfigAsync(ROOT, { platforms: ['ios'] });
-  const out = await compileModsAsync(exp, { projectRoot: ROOT, introspect: true, platforms: ['ios'], assertMissingModProviders: false });
-  return out.ios.infoPlist;
+  const { exp } = await getPrebuildConfigAsync(ROOT, { platforms: [platform] });
+  return compileModsAsync(exp, { projectRoot: ROOT, introspect: true, platforms: [platform], assertMissingModProviders: false });
+}
+async function finalInfoPlist() {
+  return (await introspect('ios')).ios.infoPlist;
 }
 const userFacingKeys = (plist) => Object.keys(plist).filter((k) => /UsageDescription$/.test(k)).sort();
 const readLocale = (lang) => JSON.parse(fs.readFileSync(path.join(ROOT, app.locales[lang]), 'utf8'));
@@ -79,4 +81,54 @@ test('A-130: every user-facing permission text in the final Info.plist is transl
       if (/UsageDescription$/.test(k)) assert.ok(v.includes('DoseTrace'), `${lang} ${k} names the app`);
     }
   }
+});
+
+// A-130 follow-up (Apple 5.1.1: a purpose text must match every real use; never ask for what the
+// app never uses). Camera and photo library serve lab reports (BodyScreen), vaccine cards
+// (VaccinesSection) and vial labels (ProtocolsScreen); the file picker serves lab and vaccine-card
+// PDFs. Each term is the app's own word for it in that language (i18n/translations.js).
+const USES = {
+  en: { lab: /lab report|bloodwork/i, vax: /vaccine card/i, vial: /vial label/i },
+  es: { lab: /análisis/i, vax: /cartilla de vacunación/i, vial: /etiqueta/i },
+  pt: { lab: /exame/i, vax: /carteira de vacinação/i, vial: /rótulo/i },
+  fr: { lab: /bilan/i, vax: /carnet de vaccination/i, vial: /étiquette/i },
+  de: { lab: /Laborbericht/i, vax: /Impfpass/i, vial: /Etikett/i },
+  it: { lab: /referto|referti/i, vax: /libretto vaccinale/i, vial: /etichett/i },
+};
+
+test('A-130: every camera, photo and file picker call is one the purpose texts cover', () => {
+  const callers = (re) => ['screens', 'components', 'lib'].flatMap(function walk(dir) {
+    return fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+      const rel = path.join(dir, e.name);
+      if (e.isDirectory()) return walk(rel);
+      return /\.js$/.test(e.name) && re.test(fs.readFileSync(path.join(ROOT, rel), 'utf8')) ? [rel] : [];
+    });
+  }).sort();
+  // A new caller means the camera / photos / files texts must be re-checked for the new use.
+  assert.deepEqual(callers(/ImagePicker\.launch(Camera|ImageLibrary)Async/), ['screens/BodyScreen.js', 'screens/ProtocolsScreen.js', 'screens/components/VaccinesSection.js']);
+  assert.deepEqual(callers(/DocumentPicker\.getDocumentAsync/), ['screens/BodyScreen.js', 'screens/components/VaccinesSection.js']);
+  assert.deepEqual(callers(/mediaTypes:\s*\[(?![^\]]*'images'\s*\])/), [], 'images only: no video, so no microphone');
+  assert.deepEqual(callers(/MediaTypeOptions\.(All|Videos)|['"]videos['"]/), [], 'no video picking anywhere');
+});
+
+test('A-130: camera and photo texts name lab reports, vaccine cards and vial labels; files text names labs and vaccine cards', () => {
+  for (const lang of LANGS) {
+    const ios = readLocale(lang).ios;
+    for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription']) {
+      for (const use of ['lab', 'vax', 'vial']) assert.match(ios[k], USES[lang][use], `${lang} ${k} covers ${use}`);
+    }
+    for (const use of ['lab', 'vax']) assert.match(ios.NSDocumentPickerUsageDescription, USES[lang][use], `${lang} files text covers ${use}`);
+  }
+});
+
+test('A-130: no microphone: iOS has no microphone text, Android blocks RECORD_AUDIO', async () => {
+  const plist = await finalInfoPlist();
+  assert.equal(plist.NSMicrophoneUsageDescription, undefined, 'iOS Info.plist has no microphone text');
+  const plugin = app.plugins.find((p) => Array.isArray(p) && p[0] === 'expo-image-picker');
+  assert.ok(plugin, 'expo-image-picker configured in app.json');
+  assert.equal(plugin[1].microphonePermission, false);
+  const out = await introspect('android');
+  const perms = out._internal.modResults.android.manifest.manifest['uses-permission'] || [];
+  const audio = perms.filter((p) => p.$['android:name'] === 'android.permission.RECORD_AUDIO');
+  assert.ok(audio.length > 0 && audio.every((p) => p.$['tools:node'] === 'remove'), 'RECORD_AUDIO only as a tools:node="remove" block');
 });

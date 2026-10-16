@@ -26,9 +26,9 @@
       "bundleIdentifier": "io.outcom.dosetrace",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSDocumentPickerUsageDescription": "DoseTrace needs access to your files to upload bloodwork PDFs.",
-        "NSPhotoLibraryUsageDescription": "DoseTrace needs photo library access to upload bloodwork documents.",
-        "NSCameraUsageDescription": "DoseTrace needs camera access so you can snap a photo of a lab report.",
+        "NSDocumentPickerUsageDescription": "DoseTrace needs access to your files to upload bloodwork and vaccine card PDFs.",
+        "NSPhotoLibraryUsageDescription": "DoseTrace needs photo library access to upload photos of lab reports, vaccine cards and vial labels.",
+        "NSCameraUsageDescription": "DoseTrace needs camera access so you can snap a photo of a lab report, vaccine card or vial label.",
         "UIFileSharingEnabled": false,
         "LSSupportsOpeningDocumentsInPlace": false,
         "ITSAppUsesNonExemptEncryption": false,
@@ -71,6 +71,12 @@
       "expo-sqlite",
       "expo-web-browser",
       "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "microphonePermission": false
+        }
+      ],
       [
         "@react-native-google-signin/google-signin",
         {

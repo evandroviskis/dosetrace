@@ -1,11 +1,10 @@
 {
   "ios": {
     "CFBundleDisplayName": "DoseTrace",
-    "NSCameraUsageDescription": "DoseTrace needs camera access so you can snap a photo of a lab report.",
-    "NSPhotoLibraryUsageDescription": "DoseTrace needs photo library access to upload bloodwork documents.",
-    "NSDocumentPickerUsageDescription": "DoseTrace needs access to your files to upload bloodwork PDFs.",
-    "NSFaceIDUsageDescription": "Allow DoseTrace to access your Face ID biometric data.",
-    "NSMicrophoneUsageDescription": "Allow DoseTrace to access your microphone"
+    "NSCameraUsageDescription": "DoseTrace needs camera access so you can snap a photo of a lab report, vaccine card or vial label.",
+    "NSPhotoLibraryUsageDescription": "DoseTrace needs photo library access to upload photos of lab reports, vaccine cards and vial labels.",
+    "NSDocumentPickerUsageDescription": "DoseTrace needs access to your files to upload bloodwork and vaccine card PDFs.",
+    "NSFaceIDUsageDescription": "Allow DoseTrace to access your Face ID biometric data."
   },
   "android": {
     "app_name": "DoseTrace"
