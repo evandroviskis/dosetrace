@@ -1,0 +1,114 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roteiro de teste 1.3.0</title>
+<style>
+/* Layout: uma coluna; cada bloco é uma área do app com passos marcáveis; o que falhou vira anotação. */
+:root{--bg:#F3F3F0;--card:#FFFFFF;--ink:#16181C;--ink2:#5B606A;--line:#DCDDD8;--accent:#2350D8;--soft:#E8ECFA;--ok:#1F7A4D;--warn:#A45A00;
+--font:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1114;--card:#191C21;--ink:#ECEDEF;--ink2:#A3A8B2;--line:#2C3038;--accent:#8AA8FF;--soft:#1E2433;--ok:#5FD39A;--warn:#F2B35C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1114;--card:#191C21;--ink:#ECEDEF;--ink2:#A3A8B2;--line:#2C3038;--accent:#8AA8FF;--soft:#1E2433;--ok:#5FD39A;--warn:#F2B35C;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:20px 64px;display:flex;flex-direction:column;gap:18px}
+h1{font-size:26px;margin:0}h2{font-size:18px;margin:0}p{margin:0;max-width:65ch}.muted{color:var(--ink2)}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.tag{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2)}
+label.step{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+label.step input{margin-top:4px;accent-color:var(--ok);width:18px;height:18px;flex:none}
+.step span{min-width:0}.step b{font-weight:600}
+.expect{display:block;color:var(--ink2);font-size:14px}
+.note{width:100%;box-sizing:border-box;font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:40px;resize:vertical}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;justify-content:space-between;gap:10px;font-weight:600;z-index:1}
+.bar .n{color:var(--ok);font-variant-numeric:tabular-nums}
+input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<main>
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="tag">DoseTrace 1.3.0 · teste no seu aparelho</span>
+<h1>Roteiro de teste</h1>
+<p class="muted">Faça na ordem, com o aplicativo que está em revisão (TestFlight no iPhone, teste interno no Fold). Marque cada passo que deu certo. Se algo der errado, escreva no campo do bloco o que você viu; o texto fica salvo nesta página. Quando quiser, conecte o Fold no computador e eu acompanho os testes por lá.</p>
+<p class="muted">Use a conta de teste para criar, apagar e sair da conta. Nunca a sua conta principal para apagar coisas.</p>
+</header>
+<div class="bar" aria-live="polite"><span>Passos feitos</span><span class="n" id="count">0</span></div>
+
+<section data-block="atualizacao"><span class="tag">1 · Antes de abrir o app</span><h2>Atualização e lembretes (Android)</h2>
+<label class="step"><input type="checkbox" id="s1-1"><span><b>Atualize pelo Play (teste interno) e NÃO abra o app.</b><span class="expect">Os lembretes do dia continuam chegando na hora, sem abrir o app.</span></span></label>
+<label class="step"><input type="checkbox" id="s1-2"><span><b>Reinicie o Fold e não abra o app.</b><span class="expect">Os lembretes continuam chegando depois de reiniciar.</span></span></label>
+<textarea class="note" id="n1" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="abertura"><span class="tag">2 · Abertura</span><h2>Abrir o app</h2>
+<label class="step"><input type="checkbox" id="s2-1"><span><b>Abra o app com ele fechado de vez.</b><span class="expect">Aparece o círculo de carregamento e depois Hoje inteiro de uma vez, sem pular e sem "Nenhum registro ainda" piscando.</span></span></label>
+<label class="step"><input type="checkbox" id="s2-2"><span><b>Faça o mesmo no tema escuro (Ajustes › Aparência).</b><span class="expect">Mesma coisa. (Um clarão branco rápido na abertura já é conhecido e fica para a próxima.)</span></span></label>
+<textarea class="note" id="n2" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="fold"><span class="tag">3 · Fold</span><h2>Fechar e abrir em cada tela</h2>
+<label class="step"><input type="checkbox" id="s3-1"><span><b>Hoje: abra o Fold, feche, abra de novo.</b><span class="expect">Aberto: duas páginas. Fechado: uma página normal, nada espremido.</span></span></label>
+<label class="step"><input type="checkbox" id="s3-2"><span><b>Repita em Protocolos, Evolução, Meu corpo e Ajustes.</b><span class="expect">Sempre se rearruma; o app nunca reinicia.</span></span></label>
+<label class="step"><input type="checkbox" id="s3-3"><span><b>Abra a curva (Acúmulo de doses) e a calculadora; feche e abra.</b><span class="expect">O gráfico cabe na tela nos dois tamanhos.</span></span></label>
+<label class="step"><input type="checkbox" id="s3-4"><span><b>Com uma janela aberta por cima (por exemplo, uma explicação ou o mapa do corpo), feche e abra.</b><span class="expect">A janela se ajusta ao tamanho novo.</span></span></label>
+<textarea class="note" id="n3" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="direita"><span class="tag">4 · Fold aberto</span><h2>Página da direita</h2>
+<label class="step"><input type="checkbox" id="s4-1"><span><b>Em Hoje, toque numa dose.</b><span class="expect">A página da direita mostra o protocolo dessa dose, com a seringa padrão do app, sem repetir o que já está na esquerda.</span></span></label>
+<label class="step"><input type="checkbox" id="s4-2"><span><b>Toque numa dose de um protocolo sem frasco.</b><span class="expect">Aparece o aviso de que falta o frasco e o botão "+ Adicionar frasco". Sem seringa e sem estoque.</span></span></label>
+<label class="step"><input type="checkbox" id="s4-3"><span><b>Escreva uma nota nessa página, feche e abra o Fold, e salve.</b><span class="expect">A nota não se perde.</span></span></label>
+<textarea class="note" id="n4" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="doses"><span class="tag">5 · Hoje e doses</span><h2>Marcar, pular, desfazer</h2>
+<label class="step"><input type="checkbox" id="s5-1"><span><b>Marque uma dose como concluída e toque em "Desfazer".</b><span class="expect">Volta como estava; o anel e a contagem acompanham.</span></span></label>
+<label class="step"><input type="checkbox" id="s5-2"><span><b>Pule uma dose.</b><span class="expect">Pede confirmação ("Pular dose?") e o lembrete daquela dose não toca mais.</span></span></label>
+<label class="step"><input type="checkbox" id="s5-3"><span><b>Toque "Tomei" direto na notificação, com o app fechado.</b><span class="expect">A dose aparece concluída quando você abre o app.</span></span></label>
+<textarea class="note" id="n5" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="doiscelulares"><span class="tag">6 · Dois aparelhos (mesma conta de teste)</span><h2>Doses perdidas que não foram perdidas</h2>
+<label class="step"><input type="checkbox" id="s6-1"><span><b>Marque uma dose no iPhone. Depois abra o Fold (que estava fechado há um tempo).</b><span class="expect">No Registro de doses do Fold a dose aparece como concluída, sem uma "perdida" ao lado. "Ainda em andamento?" não aparece para esse protocolo.</span></span></label>
+<label class="step"><input type="checkbox" id="s6-2"><span><b>Com o Fold no modo avião, abra o app.</b><span class="expect">Funciona normalmente; nada some.</span></span></label>
+<textarea class="note" id="n6" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="protocolo"><span class="tag">7 · Protocolos (conta de teste)</span><h2>Criar, editar, encerrar, apagar</h2>
+<label class="step"><input type="checkbox" id="s7-1"><span><b>Crie um protocolo novo (pó com frasco) e um de cápsulas.</b><span class="expect">Aparecem em Hoje e em Protocolos com o horário certo; a seringa mostra quanto aspirar.</span></span></label>
+<label class="step"><input type="checkbox" id="s7-2"><span><b>Edite o horário e a dose.</b><span class="expect">Hoje e o lembrete seguem o novo horário.</span></span></label>
+<label class="step"><input type="checkbox" id="s7-3"><span><b>Apague um protocolo e restaure em Excluídos recentemente.</b><span class="expect">Volta com o histórico de doses.</span></span></label>
+<textarea class="note" id="n7" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="comida"><span class="tag">8 · Registro de comida com IA</span><h2>Comida e "Seus números reais"</h2>
+<label class="step"><input type="checkbox" id="s8-1"><span><b>Com "Seus números reais" em andamento, olhe Hoje e Evolução.</b><span class="expect">O cartão de comida tem borda azul e o botão "Registrar comida", nos dois temas.</span></span></label>
+<label class="step"><input type="checkbox" id="s8-2"><span><b>Toque no botão e registre uma comida (por exemplo, "6 raviolis").</b><span class="expect">Abre o chat de comida. As opções de resposta ainda podem vir em inglês até eu publicar a correção no servidor.</span></span></label>
+<label class="step"><input type="checkbox" id="s8-3"><span><b>Registre uma pesagem.</b><span class="expect">O alerta de pesagem em Hoje some ou passa a dizer o que falta.</span></span></label>
+<textarea class="note" id="n8" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="corpo"><span class="tag">9 · Meu corpo</span><h2>Exames e vacinas</h2>
+<label class="step"><input type="checkbox" id="s9-1"><span><b>Abra Meu corpo.</b><span class="expect">Dois retângulos lado a lado (exames e vacinas) e o Acúmulo de doses embaixo.</span></span></label>
+<label class="step"><input type="checkbox" id="s9-2"><span><b>Toque em exames.</b><span class="expect">O seu exame de 26/02 aparece em UM cartão só, com 41 marcadores.</span></span></label>
+<label class="step"><input type="checkbox" id="s9-3"><span><b>Toque em vacinas.</b><span class="expect">As suas 2 vacinas aparecem.</span></span></label>
+<textarea class="note" id="n9" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="curva"><span class="tag">10 · Curva</span><h2>Acúmulo de doses</h2>
+<label class="step"><input type="checkbox" id="s10-1"><span><b>Abra a curva com um protocolo que passa por 25/10 ou 01/11.</b><span class="expect">Nenhum pico estranho nesses dias.</span></span></label>
+<label class="step"><input type="checkbox" id="s10-2"><span><b>Feche e abra a curva.</b><span class="expect">Reabre com a mesma seleção que você deixou.</span></span></label>
+<textarea class="note" id="n10" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="lembretes"><span class="tag">11 · Lembretes (Android)</span><h2>Garanta que seus lembretes cheguem</h2>
+<label class="step"><input type="checkbox" id="s11-1"><span><b>Ajustes › "Garanta que seus lembretes cheguem".</b><span class="expect">Todos os itens ok, ou cada um diz o que fazer; o botão de teste envia um lembrete em 10 segundos.</span></span></label>
+<textarea class="note" id="n11" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="conta"><span class="tag">12 · Conta (conta de teste)</span><h2>Sair e entrar</h2>
+<label class="step"><input type="checkbox" id="s12-1"><span><b>Saia da conta com tudo enviado.</b><span class="expect">Pede confirmação e volta para a tela de entrar.</span></span></label>
+<label class="step"><input type="checkbox" id="s12-2"><span><b>Entre de novo (Google ou Apple).</b><span class="expect">Todos os dados voltam: protocolos, doses, comida, pesagens, exames.</span></span></label>
+<textarea class="note" id="n12" placeholder="O que deu errado neste bloco?"></textarea></section>
+
+<section data-block="idiomas"><span class="tag">13 · Idiomas</span><h2>Português e outro idioma</h2>
+<label class="step"><input type="checkbox" id="s13-1"><span><b>Percorra as telas em português.</b><span class="expect">Nenhum texto em inglês, nenhum texto traduzido de forma estranha.</span></span></label>
+<label class="step"><input type="checkbox" id="s13-2"><span><b>Troque para espanhol, abra Hoje e Meu corpo, e volte para português.</b><span class="expect">Tudo troca e volta.</span></span></label>
+<textarea class="note" id="n13" placeholder="O que deu errado neste bloco?"></textarea></section>
+</main>
+<script>
+(function(){
+ var KEY='dt-teste-1.3.0';var st={};try{st=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){st={}}
+ function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+ function count(){document.getElementById('count').textContent=document.querySelectorAll('input[type=checkbox]:checked').length+' de '+document.querySelectorAll('input[type=checkbox]').length}
+ document.querySelectorAll('input[type=checkbox]').forEach(function(el){if(st[el.id])el.checked=true;el.addEventListener('change',function(){st[el.id]=el.checked;save();count()})});
+ document.querySelectorAll('textarea').forEach(function(el){if(st[el.id])el.value=st[el.id];el.addEventListener('input',function(){st[el.id]=el.value;save()})});
+ count();
+})();
+</script>
