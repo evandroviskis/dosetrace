@@ -54,16 +54,19 @@ async function fetchSupabase() {
   const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   try {
     // admin_activity is no longer called: analytics have no user_id since 2026-10-04.
-    const [mr, fr, acr] = await Promise.all([
+    const [mr, fr, acr, alr] = await Promise.all([
       fetch(`${base}/rest/v1/rpc/admin_metrics`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_feature_adoption`, { method: 'POST', headers, body: '{}' }),
       fetch(`${base}/rest/v1/rpc/admin_accounts`, { method: 'POST', headers, body: '{}' }),
+      fetch(`${base}/rest/v1/rpc/admin_accounts_list`, { method: 'POST', headers, body: '{}' }),
     ]);
     if (!mr.ok) return { status: 'error', message: `Supabase ${mr.status}: ${(await mr.text()).slice(0, 200)}` };
     const data = await mr.json();
     if (fr.ok) { try { data.feature_adoption = await fr.json(); } catch (e) { /* optional */ } }
     // Management view rows (admin_accounts). Missing until the Phase 2 SQL is applied.
     if (acr && acr.ok) { try { const j = await acr.json(); data.accounts = j.accounts; data.protocols_live = j.protocols_live; } catch (e) { /* optional */ } }
+    // Contas tab rows (admin_accounts_list): real accounts only, for the admin's eyes.
+    if (alr && alr.ok) { try { const j = await alr.json(); if (j && Array.isArray(j.rows)) data.accounts_list = { rows: j.rows, test_excluded: j.test_excluded, summary: accountsSummary(j.rows) }; } catch (e) { /* optional */ } }
     return { status: 'ok', data };
   } catch (e) {
     return { status: 'error', message: String(e && e.message || e) };
@@ -377,6 +380,21 @@ function activationRate(accounts, nowMs) {
   return { window, num, den, rate: den ? Math.round((num / den) * 1000) / 10 : null, filtered: true };
 }
 
+// Contas tab summary (Panel #013): counts measured from the rows; the platform uses the MV-0 rule.
+function accountsSummary(rows) {
+  const by_provider = {}, by_platform = { ios: 0, android: 0, unknown: 0, mixed: 0 };
+  let onboarded = 0;
+  for (const r of rows || []) {
+    const p = String(r.provider || '(none)');
+    by_provider[p] = (by_provider[p] || 0) + 1;
+    if (r.onboarded) onboarded++;
+    const pf = platformOf({ apple: r.apple, pu: r.pu, ua: r.ua });
+    if (pf === 'ios' || pf === 'android') by_platform[pf]++; else { by_platform.unknown++; if (pf === 'mixed') by_platform.mixed++; }
+  }
+  const total = (rows || []).length;
+  return { total, by_provider, by_onboarding: { onboarded, not_onboarded: total - onboarded }, by_platform };
+}
+
 function buildManagement(sb, rc, nowMs) {
   const accounts = Array.isArray(sb.accounts) ? sb.accounts : [];
   const windows = {};
@@ -488,6 +506,6 @@ module.exports = async (req, res) => {
 };
 
 Object.assign(module.exports, {
-  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate,
+  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, accountsSummary,
   isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
 });

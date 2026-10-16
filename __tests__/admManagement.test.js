@@ -371,3 +371,48 @@ test('Step 3 page: removed metrics are gone from DEFS, kept ones say test accoun
   for (const ext of ['V1', 'S1', 'S4']) assert.match(html.match(new RegExp(`\\{id:"${ext}",[^\\n]*`))[0], /includes test/i, `${ext} says it includes test purchases/IDs/installs`);
   assert.match(html, /excluded_n:/, 'label for the excluded count exists');
 });
+
+// ---------------------------------------------------------------- Panel #013: honest labels, aligned funnel, Contas tab
+function pageT() {
+  const html = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+  return { html, T: (0, eval)('(' + html.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')') };
+}
+test('#013 labels: event-based numbers (usage events, scans per day) say they include test accounts, in 6 languages, and the label is used by the adoption card and the Compare scans row', () => {
+  const { html, T } = pageT();
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].incl_test_ev, `${l} incl_test_ev`);
+  assert.equal(T.pt.incl_test_ev, 'Inclui contas de teste (não dá para separar)');
+  assert.ok((html.match(/t\('incl_test_ev'\)/g) || []).length >= 2, 'used at least twice (adoption card, scans row)');
+});
+test('#013 alignment: W4 and the funnel count only live (not deleted) protocols, like the totals', () => {
+  const acc = sqlFn('admin_accounts');
+  assert.match(acc, /'pr', exists \(select 1 from public\.protocols pr where pr\.user_id = u\.id and pr\.deleted_at is null\)/);
+  const met = sqlFn('admin_metrics');
+  assert.match(met, /count\(distinct p\.user_id\) from public\.protocols p join real r on r\.id = p\.user_id where p\.deleted_at is null\) created_protocol/);
+});
+test('#013 Contas SQL: admin_accounts_list returns only non-test accounts, newest first, service_role only, no analytics', () => {
+  const fn = sqlFn('admin_accounts_list');
+  assert.match(fn, /security definer/i);
+  assert.match(fn, /not public\.admin_is_test\(u\.email\)/);
+  assert.match(fn, /order by u\.created_at desc/);
+  assert.ok(!/analytics_events/.test(fn), 'no event-based fields');
+  assert.match(SQL, /revoke execute on function public\.admin_accounts_list\(\) from public, anon, authenticated;/i);
+  assert.match(SQL, /grant execute on function public\.admin_accounts_list\(\) to service_role;/i);
+});
+test('#013 Contas summary: counts by sign-in method, onboarding and platform are measured from the rows; nothing is guessed', () => {
+  const rows = [
+    { email: 'a@x.y', created: '2026-10-10', provider: 'google', onboarded: true, apple: false, pu: ['android'], ua: ['android'], protocols_live: 2, last_sign_in: '2026-10-11' },
+    { email: 'b@x.y', created: '2026-10-09', provider: 'apple', onboarded: false, apple: true, pu: [], ua: [], protocols_live: 0, last_sign_in: null },
+    { email: 'c@x.y', created: '2026-10-08', provider: 'email', onboarded: false, apple: false, pu: [], ua: [], protocols_live: 0, last_sign_in: null },
+  ];
+  const s = adm.accountsSummary(rows);
+  assert.deepEqual(s.by_provider, { google: 1, apple: 1, email: 1 });
+  assert.deepEqual(s.by_onboarding, { onboarded: 1, not_onboarded: 2 });
+  assert.deepEqual(s.by_platform, { ios: 1, android: 1, unknown: 1, mixed: 0 });
+  assert.equal(s.total, 3);
+});
+test('#013 Contas tab: a third tab exists with its labels in 6 languages', () => {
+  const { html, T } = pageT();
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['tab_accounts', 'acc_email', 'acc_created', 'acc_method', 'acc_platform', 'acc_onboarding', 'acc_protocols', 'acc_last_sign_in', 'acc_yes', 'acc_no']) assert.ok(T[l][k], `${l} ${k}`);
+  assert.match(html, /\['accounts','tab_accounts'\]/);
+  assert.match(html, /function secAccounts\(\)/);
+});

@@ -85,7 +85,7 @@ as $$
                     (select count(*) from auth.users u join real r on r.id = u.id
                       where nullif(u.raw_user_meta_data->>'display_name', '') is not null and nullif(u.raw_user_meta_data->>'country', '') is not null
                         and nullif(u.raw_user_meta_data->>'primary_goal', '') is not null and nullif(u.raw_user_meta_data->>'activity_level', '') is not null) profile_complete,
-                    (select count(distinct p.user_id) from public.protocols p join real r on r.id = p.user_id) created_protocol,
+                    (select count(distinct p.user_id) from public.protocols p join real r on r.id = p.user_id where p.deleted_at is null) created_protocol,
                     (select count(distinct l.user_id) from public.dose_logs l join real r on r.id = l.user_id) logged_dose),
   totals as (select (select count(*) from real) users,
                     (select count(*) from public.protocols p join real r on r.id = p.user_id where p.deleted_at is null) protocols,
@@ -202,7 +202,7 @@ as $$
                          where x.k is not null), '[]'::jsonb),
         'e', (u.email_confirmed_at is not null or u.last_sign_in_at is not null),
         'o', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
-        'pr', exists (select 1 from public.protocols pr where pr.user_id = u.id),
+        'pr', exists (select 1 from public.protocols pr where pr.user_id = u.id and pr.deleted_at is null),
         'd', exists (select 1 from public.dose_logs dl where dl.user_id = u.id),
         'w', coalesce((select jsonb_agg(distinct ((date_trunc('week', e.created_at at time zone 'UTC')::date
                                                   - date_trunc('week', u.created_at at time zone 'UTC')::date) / 7))
@@ -232,9 +232,42 @@ as $$
   left join auth.users u on u.id::text = i.id;
 $$;
 
+-- Contas tab (Panel #012/#013, view-only): one row per REAL account for the admin only.
+-- Emails are shown to the admin; no analytics fields (anonymous since 2026-10-04).
+-- last_sign_in is display only (spec MV-0: never used for churn).
+create or replace function public.admin_accounts_list()
+ returns jsonb
+ language sql
+ security definer
+ set search_path to 'public', 'auth'
+as $$
+  select jsonb_build_object(
+    'test_excluded', (select count(*) from auth.users where public.admin_is_test(email)),
+    'rows', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'email', u.email,
+        'created', to_char(u.created_at at time zone 'UTC', 'YYYY-MM-DD'),
+        'provider', coalesce(u.raw_app_meta_data->>'provider', ''),
+        'apple', coalesce(u.raw_app_meta_data->>'provider', '') = 'apple',
+        'pu', coalesce((select jsonb_agg(distinct lower(p.platform)) from public.push_tokens p where p.user_id = u.id and p.platform is not null), '[]'::jsonb),
+        'ua', coalesce((select jsonb_agg(distinct x.k) from (
+                 select case when s.user_agent ~* '(okhttp|android)' then 'android'
+                             when s.user_agent ~* '(cfnetwork|darwin)' then 'ios' end as k
+                   from auth.sessions s where s.user_id = u.id) x where x.k is not null), '[]'::jsonb),
+        'onboarded', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
+        'confirmed', u.email_confirmed_at is not null,
+        'protocols_live', (select count(*) from public.protocols p where p.user_id = u.id and p.deleted_at is null),
+        'last_sign_in', case when u.last_sign_in_at is null then null else to_char(u.last_sign_in_at at time zone 'UTC', 'YYYY-MM-DD') end
+      ) order by u.created_at desc)
+      from auth.users u where not public.admin_is_test(u.email)), '[]'::jsonb)
+  );
+$$;
+
 revoke execute on function public.admin_is_test(text) from public, anon, authenticated;
+revoke execute on function public.admin_accounts_list() from public, anon, authenticated;
 revoke execute on function public.admin_accounts() from public, anon, authenticated;
 revoke execute on function public.admin_match_ids(text[]) from public, anon, authenticated;
 grant execute on function public.admin_is_test(text) to service_role;
+grant execute on function public.admin_accounts_list() to service_role;
 grant execute on function public.admin_accounts() to service_role;
 grant execute on function public.admin_match_ids(text[]) to service_role;
