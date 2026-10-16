@@ -82,7 +82,7 @@ test('a sentence never starts with a {day} that can be a lowercase date', () => 
 
 // Counts found by the pass that can be 1 (or 0 in French) and had no singular.
 const NEW_ONE = ['nutri_echo_more', 'nutri_free_ending_note_nocheck', 'nutri_free_ending_note', 'nutri_grace_note_premium',
-  'cal_tgt_eta', 'cal_rc_sofar_run', 'today_alert_vial_expiry_one', 'paywall_start_trial_months', 'today_doses_taken',
+  'cal_tgt_eta', 'cal_rc_sofar_run', 'today_alert_vial_expiry_days', 'paywall_start_trial_months', 'today_doses_taken',
   'rc_setup_progress', 'blood_dropped_sub'];
 const ph = (s) => (String(s).match(/\{[a-zA-Z0-9_]+\}/g) || []).sort().join(',');
 
@@ -103,7 +103,7 @@ test('the new count strings read right with 1 (and French with 0)', () => {
   assert.equal(fill('en', 'blood_dropped_sub', 3, { count: 3 }), "3 values couldn't be read as numbers and were skipped.");
   assert.match(fill('en', 'cal_tgt_eta', 1, { weeks: 1, when: 'Nov 12' }), /^~1 week to go/);
   assert.match(fill('fr', 'nutri_free_ending_note', 0, { logged: 0, day: 2, until: 'x', weighin: 'y' }), /sur 0 jour\./);
-  assert.match(fill('pt', 'today_alert_vial_expiry_one', 1, { n: 1, name: 'BPC' }), /vence em 1 dia$/);
+  assert.match(fill('pt', 'today_alert_vial_expiry_days', 1, { n: 1, name: 'BPC' }), /vence em 1 dia$/);
   assert.equal(fill('fr', 'today_doses_taken', 0, { x: 0, y: 3 }), '0 sur 3 effectuée');
   assert.equal(fill('es', 'rc_setup_progress', 1, { n: 1, total: 4 }), '1 de 4 listo');
 });
@@ -112,8 +112,8 @@ test('the screens pick the new singulars with pluralKey', () => {
   const uses = {
     'screens/FoodChatScreen.js': ['nutri_echo_more'],
     'screens/components/CalculatorSection.js': ['cal_tgt_eta', 'cal_rc_sofar_run'],
-    'screens/TodayScreen.js': ['today_alert_vial_expiry_one'],
-    'lib/notifications.js': ['today_alert_vial_expiry_one'],
+    'screens/TodayScreen.js': ['today_alert_vial_expiry_days'],
+    'lib/notifications.js': ['today_alert_vial_expiry_days'],
     'lib/paywallPlans.js': ['paywall_start_trial_months'],
     'lib/todayFormat.js': ['today_doses_taken'],
     'components/ReminderSetupList.js': ['rc_setup_progress'],

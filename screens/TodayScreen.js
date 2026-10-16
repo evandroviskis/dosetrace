@@ -1610,7 +1610,7 @@ export default function TodayScreen() {
         const body = exp.length === 1
           ? (soonest.daysLeft <= 0
               ? t('today_alert_vial_expired_one').replace('{name}', soonest.name)
-              : t(pluralKey('today_alert_vial_expiry_one', soonest.daysLeft, language)).replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
+              : t(pluralKey('today_alert_vial_expiry_days', soonest.daysLeft, language)).replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
           : t('today_alert_vial_expiry_many').replace('{count}', String(exp.length));
         list.push({
           id: 'vial_expiry', iconName: 'clock', due: true,
