@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     }
 
     const system = (followup ? FOLLOWUP_SYSTEM : FOOD_SYSTEM + recentContext(body?.recent))
-      + `\n\nThe user writes in language code "${lang}"; food names may stay in their language.`
+      + `\n\nThe user writes in language code "${lang}"; food names may stay in their language. Write every "ask" option (preparations, sizes, amounts, units) in that language ("cozido", not "boiled"); brand names stay as named.`
       + (entryDate ? `\nThe entry date (the user's "today") is ${entryDate}, a ${weekdayOf(entryDate)}.` : '');
 
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
