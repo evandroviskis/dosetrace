@@ -31,9 +31,9 @@ import { requestSync, isOnlineNow } from '../lib/sync';
 import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
-  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse, isMarker,
+  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker,
 } from '../lib/nutrition';
-import { buildThread, withNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
+import { buildThread, withNotice, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
@@ -145,10 +145,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (keep) setQuestion(keep);
     setLoaded(true);
     // Offline rows and offline follow-up answers catch up now (FL-19/28).
-    const { changed, updatedItems } = await catchUpFood(uid, language);
+    const { changed, updatedItems, updatedRowIds } = await catchUpFood(uid, language);
     if (changed) refresh(uid);
-    const e = echoFor(updatedItems);
-    if (e) setNotice({ kind: 'updated', text: e });
+    const e = echoFor(updatedItems, rawOfRows(updatedRowIds));
+    if (e) setNotice({ kind: 'updated', text: e, rowIds: updatedRowIds || [] });
   }
 
   // Retry what waited for the network (offline rows, offline follow-up answers).
@@ -159,10 +159,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     retryTimer.current = setTimeout(async () => {
       const uid = userIdRef.current;
       if (!uid) return;
-      const { changed, updatedItems } = await catchUpFood(uid, language);
+      const { changed, updatedItems, updatedRowIds } = await catchUpFood(uid, language);
       if (changed) refresh(uid);
-      const e = echoFor(updatedItems);
-      if (e) setNotice({ kind: 'updated', text: e });
+      const e = echoFor(updatedItems, rawOfRows(updatedRowIds));
+      if (e) setNotice({ kind: 'updated', text: e, rowIds: updatedRowIds || [] });
     }, ms);
   }
   useEffect(() => {
@@ -289,11 +289,17 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   }
 
   // ── Echo (FL-7/8) ──────────────────────────────────────────────
-  function echoFor(items) {
+  // rawText: the user's own words for those items, so a generic food reads as they typed it (A-133).
+  function echoFor(items, rawText) {
     const { shown, more } = echoParts(items, 3);
     if (!shown.length) return null;
-    const list = shown.map((it) => `${itemLabel(it, language)} · ~${Math.round(Number(it.kcal) || 0)} ${t('cal_kcal')}`).join(', ');
+    const list = shown.map((it) => `${itemLabel(it, language, rawText)} · ~${Math.round(Number(it.kcal) || 0)} ${t('cal_kcal')}`).join(', ');
     return more ? `${list} ${t(pluralKey('nutri_echo_more', more, language)).replace('{n}', String(more))}` : list;
+  }
+
+  // The user's own text of these rows (A-133 foodCase), for notices built outside the thread.
+  function rawOfRows(ids) {
+    return (ids || []).map((id) => (getFoodLogById(id) || {}).raw_text || '').filter(Boolean).join(' · ');
   }
 
   // ── Day label / naming (FL-40) ─────────────────────────────────
@@ -441,8 +447,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true }));
       if (outcome === 'refused') setNotice({ kind: 'deflect' });
     } else {
-      const e = echoFor([storedItem(open.rowId, open.index) || res.items[0]]);
-      if (e) setNotice({ kind: 'updated', text: e });
+      const e = echoFor([storedItem(open.rowId, open.index) || res.items[0]], open.raw || rawOfRows([open.rowId]));
+      if (e) setNotice({ kind: 'updated', text: e, rowIds: [open.rowId] });
     }
     requestSync?.();
     setFuText('');
@@ -483,7 +489,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const lastDiv = th.map((x) => x.type).lastIndexOf('divider');
     if (lastDiv >= 0 && th[lastDiv].day === today && !th.slice(lastDiv).some((x) => x.type === 'user')) th.splice(lastDiv + 1, 0, { type: 'intro', key: 'intro:' + today });
     // A-133: the notice goes before the next prompt (live order = the order on reopen).
-    const live = withNotice(th, notice ? { type: 'notice', key: 'notice', ...notice } : null);
+    // A-133: an Updated notice whose row was removed is stale and goes (liveNotice).
+    const live = withNotice(th, liveNotice(notice ? { type: 'notice', key: 'notice', ...notice } : null, rows));
     if (busy || fuBusy) live.push({ type: 'typing', key: 'typing' });
     return live;
   }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
@@ -568,7 +575,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             {x.items.map((it, i) => (
               <View key={i} style={s.entryItem}>
                 <View style={s.entryRow}>
-                  <Text style={s.entryFood}>{itemLabel(it, language)} · <Text style={s.mono}>~{Math.round(it.kcal || 0)}</Text> {t('cal_kcal')}</Text>
+                  <Text style={s.entryFood}>{itemLabel(it, language, x.raw)} · <Text style={s.mono}>~{Math.round(it.kcal || 0)}</Text> {t('cal_kcal')}</Text>
                   {CATEGORIES.includes(it.category) && <Text style={s.catTag}>{t(`nutri_cat_${it.category}`)}</Text>}
                 </View>
                 {needsEstimateFlag(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}
@@ -581,7 +588,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           </TouchableOpacity>
         );
       case 'echo': {
-        const e = echoFor(x.items);
+        const e = echoFor(x.items, x.raw);
         return e ? <AppBubble><Text style={s.appText}>{t('nutri_echo').replace('{items}', e)}</Text></AppBubble> : null;
       }
       case 'asked':
@@ -589,7 +596,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
         // so a fragment showed the answer above the question.
         return (
           <View>
-            <AppBubble><Text style={s.appText}>{t(`nutri_ask_${x.kind}`).replace('{food}', String(x.food || '').slice(0, 60))}</Text></AppBubble>
+            <AppBubble><Text style={s.appText}>{t(`nutri_ask_${x.kind}`).replace('{food}', foodCase(x.food, x.raw, language).slice(0, 60))}</Text></AppBubble>
             <View style={s.userWrap}><View style={s.user}><Text style={s.userText}>{x.answer}</Text></View></View>
           </View>
         );
@@ -609,7 +616,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       case 'followup':
         return (
           <AppBubble style={s.fu}>
-            <Text style={s.appText}>{t(`nutri_ask_${x.kind}`).replace('{food}', String(x.item.food || '').slice(0, 60))}</Text>
+            <Text style={s.appText}>{t(`nutri_ask_${x.kind}`).replace('{food}', foodCase(x.item.food, x.raw, language).slice(0, 60))}</Text>
             {x.options.length > 0 && (
               <View style={s.chips}>
                 {x.options.map((o, i) => (
