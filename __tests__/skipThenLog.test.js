@@ -19,7 +19,7 @@ process.env.TZ = 'America/New_York';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { planMarkTaken, planSkipToday, planUndoTake, notificationTakeTarget } = require('../lib/markTaken');
-const { cardPlan, planDosePage } = require('../lib/dosePageState');
+const { cardPlan } = require('../lib/dosePageState');
 
 const local = (y, m, d, h = 0, min = 0) => new Date(y, m - 1, d, h, min, 0, 0).getTime();
 const iso = (ms) => new Date(ms).toISOString();
@@ -248,22 +248,19 @@ test('A-78: flipRowId of another protocol or another day is ignored (falls back 
   assert.equal(q.update, null);
 });
 
-test('A-78 S-26: the dose page of a skipped slot today offers Mark taken (that row), Undo, and no Skip; a Taken slot never offers Mark taken', () => {
+// A-115 replaced the S-26 dose page (Mark taken / Skip moved back to the left card only), so this
+// scenario is read from the card: the skipped 08:00 line logs that very row, 20:00 is the next open
+// slot, and once 08:00 is Taken it never offers a second Mark taken.
+test('A-78 S-26: a skipped slot today keeps its loggable line (that row), 20:00 is next; a Taken slot never offers Mark taken', () => {
   const t = table(twice());
   const id = t.skip(t.card(at(8, 5)).next, at(8, 5));
-  const a = planDosePage({ protocol: twice(), logs: t.rows().map((r) => ({ ...r, protocol_id: 7 })), dayKey: DAY, slotMs: at(8, 0), nowMs: at(8, 30) });
-  assert.equal(a.kind, 'skipped');
-  assert.equal(a.canTake, true);
-  assert.equal(a.canSkip, false);
-  assert.equal(a.canUndo, true);
-  assert.deepEqual(a.write, { path: 'today', dayKey: DAY, slotMs: at(8, 0), flipRowId: id, ti: 0 });
-  // 20:00 is now the earliest open slot (the skip filled 08:00).
-  const b = planDosePage({ protocol: twice(), logs: t.rows().map((r) => ({ ...r, protocol_id: 7 })), dayKey: DAY, slotMs: at(20, 0), nowMs: at(19, 58) });
-  assert.equal(b.kind, 'due');
-  assert.equal(b.canTake, true);
-  assert.deepEqual(b.write, { path: 'today', dayKey: DAY, slotMs: at(20, 0), flipRowId: null, ti: 1 });
-  t.take({ dayKey: DAY, slotMs: a.write.slotMs, flipRowId: a.write.flipRowId }, at(8, 30));
-  const c = planDosePage({ protocol: twice(), logs: t.rows().map((r) => ({ ...r, protocol_id: 7 })), dayKey: DAY, slotMs: at(8, 0), nowMs: at(8, 31) });
-  assert.equal(c.kind, 'taken');
-  assert.equal(c.canTake, false, 'never a second Mark taken');
+  const a = t.card(at(8, 30));
+  assert.deepEqual(a.skipped, [{ dayKey: DAY, slotMs: at(8, 0), ti: 0, flipRowId: id, canTake: true }]);
+  assert.deepEqual(a.next, { dayKey: DAY, slotMs: at(20, 0), ti: 1, flipRowId: null }, 'the skip filled 08:00');
+  assert.equal(t.card(at(19, 58)).due, true);
+  t.take({ dayKey: DAY, slotMs: at(8, 0), flipRowId: id }, at(8, 30));
+  const c = t.card(at(8, 31));
+  assert.deepEqual(c.skipped, [], 'never a second Mark taken for 08:00');
+  assert.equal(c.slots[0].row.outcome, 'Taken');
+  assert.equal(c.next.slotMs, at(20, 0));
 });

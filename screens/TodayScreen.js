@@ -75,6 +75,7 @@ import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells } from './components/ProtocolParts';
 import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
+import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
 import { undoBarRuns } from '../lib/undoBar';
 import LogScreen from './LogScreen';
@@ -1724,12 +1725,11 @@ export default function TodayScreen() {
     return { current: capped, total: p.schedule_total };
   }
 
-  // ── Book layout: the dose page (S-26 BK-3, BK-16) ─────────────
+  // ── Book layout: a tapped dose on the right page (S-26 BK-16, A-115) ─────────────
   // A tapped dose is ONE slot: its protocol, its day and its scheduled time (dosePageKey), so
   // a twice-daily protocol's 08:00 and 20:00, and yesterday's pending 20:00, are different
-  // items. What the page offers comes from lib/dosePageState.js planDosePage: due and pending
-  // doses get Skip / Mark taken through Today's own paths, upcoming doses their info only, a
-  // logged dose its state and Undo (never a second Mark taken).
+  // items. The right page shows that protocol's own page (renderRightPage); Skip / Mark taken
+  // / Undo stay on the left card.
   const pickedDose = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams && bookParams.protocolId != null
     ? bookParams : null;
   const todayKey = localDayKey(Date.now());
@@ -1807,8 +1807,10 @@ export default function TodayScreen() {
 
   // A-115 (founder 2026-10-07, picture a115): the right page ADDS to the left, never repeats. A tapped
   // dose opens its protocol's page — everything My Protocols shows, with the app's own syringe; with no
-  // mixed vial it says why and offers + Add vial. Skip / Mark taken stay on the left card; Delete is
-  // not offered here; Edit and the refill sheets open in My Protocols. Nothing tapped: the Dose log.
+  // mixed vial it says why under the name, draws no syringe and no vial block, and offers + Add vial;
+  // tablets / capsules with no bottle size get the bottle wording and + Add bottle (the dose step in
+  // My Protocols). Skip / Mark taken stay on the left card; Delete is not offered here; Edit and the
+  // refill sheets open in My Protocols. Nothing tapped: the Dose log.
   function renderRightPage() {
     const p = pickedDose ? protocols.find(x => String(x.id) === String(pickedDose.protocolId)) : null;
     if (!p) {
@@ -1818,6 +1820,23 @@ export default function TodayScreen() {
     }
     const vial = vials[p.id];
     const toProtocol = () => navigation.navigate('Protocols', { openProtocolId: p.id });
+    const sn = supplyNotice(p, vial);
+    // FR-3: why the supply is missing, under the name and tags, with the fix (lib/supplyNotice.js).
+    const nt = sn === 'vial'
+      ? { title: t('today_novial_title'), body: t('today_novial_body'), add: t('today_add_vial'), onAdd: () => showVialPromptFor(p) }
+      : sn === 'bottle'
+        // The bottle size lives on the dose step of the protocol's edit sheet in My Protocols.
+        ? { title: t('today_nobottle_title'), body: t('today_nobottle_body'), add: t('today_add_bottle'), onAdd: () => navigation.navigate('Protocols', { openProtocolId: p.id, editStep: 3 }) }
+        : null;
+    const noticeEl = nt ? (
+      <View style={s.noVial}>
+        <Text style={s.noVialTitle}>{nt.title}</Text>
+        <Text style={s.noVialBody}>{nt.body}</Text>
+        <TouchableOpacity style={s.noVialBtn} onPress={nt.onAdd} accessibilityRole="button">
+          <Text style={s.noVialBtnText}>{nt.add}</Text>
+        </TouchableOpacity>
+      </View>
+    ) : null;
     return (
       <>
         <View style={s.pageHead}>
@@ -1826,18 +1845,11 @@ export default function TodayScreen() {
           </TouchableOpacity>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.pageScroll}>
-          {p.type === 'recon' && !vial ? (
-            <View style={s.noVial}>
-              <Text style={s.noVialTitle}>{t('today_novial_title')}</Text>
-              <Text style={s.noVialBody}>{t('today_novial_body')}</Text>
-              <TouchableOpacity style={s.noVialBtn} onPress={() => showVialPromptFor(p)} accessibilityRole="button">
-                <Text style={s.noVialBtnText}>{t('today_add_vial')}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
           <ProtocolDetail
             key={p.id}
             p={p} vial={vial}
+            withoutVial={sn === 'vial'}
+            notice={noticeEl}
             openEdit={toProtocol}
             deleteProtocol={null}
             onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={toProtocol} onZoom={toProtocol}
@@ -2712,7 +2724,8 @@ const todayV21Styles = (c) => ({
   pageEdit: { minHeight: 36, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
   pageEditText: { fontSize: 15, fontWeight: '600', color: c.ink },
   pageScroll: { paddingBottom: 32 },
-  noVial: { marginHorizontal: 16, marginTop: 8, marginBottom: 4, padding: 16, borderRadius: 22, backgroundColor: c.well, gap: 6 },
+  // A-115 FR-3: the why-no-supply box sits inside the protocol page (its gap spaces it), as wide as its blocks.
+  noVial: { padding: 16, borderRadius: 22, backgroundColor: c.well, gap: 6 },
   noVialTitle: { fontSize: 16, fontWeight: '600', color: c.ink },
   noVialBody: { fontSize: 14, lineHeight: 20, color: c.ink2 },
   noVialBtn: { alignSelf: 'flex-start', marginTop: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },

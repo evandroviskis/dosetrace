@@ -53,6 +53,7 @@ import ProtocolAssistant from './components/ProtocolAssistant';
 import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
 import { supplyState } from '../lib/supplyLow';
+import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { frequencyLabelFor } from '../lib/schedule';
@@ -694,8 +695,10 @@ export function noteDraftKey(id) {
 // The typed note lives outside this view (`draft` / `onDraft`, kept per protocol in
 // lib/draftStore), so it survives this view moving between the phone column and the book's
 // right page (S-26 BK-10), opening another protocol and leaving the tab (BK-14, A-77).
-// Also Today's right page on the Fold (A-115), with deleteProtocol null (no Delete next to the doses).
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t }) {
+// Also Today's right page on the Fold (A-115), with deleteProtocol null (no Delete next to the doses);
+// there `notice` (the why-no-supply box) sits under the name and tags, and withoutVial (a lyophilized
+// protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -720,8 +723,9 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   };
 
   const goals = p.goal ? p.goal.split(',').filter(Boolean) : [];
+  const blocks = detailBlocks(p, withoutVial);
   // The vial block draws only when there is something to count (ProtocolVialBlock's rule).
-  const vialShown = isInjectable && (supplyState(vial, p).capacity != null
+  const vialShown = blocks.vialBlock && (supplyState(vial, p).capacity != null
     || dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }) != null
     || vialDaysLeftFor(p, vial) != null);
   const scheduleRows = [
@@ -776,8 +780,9 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
           ))}
         </View>
       </View>
+      {notice || null}
 
-      {isInjectable && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} />}
+      {blocks.draw && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} />}
       {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} />}
       <ProtocolServingHero p={p} t={t} onRefill={onRefill} />
 
@@ -1144,6 +1149,17 @@ export default function ProtocolsScreen() {
       navigation.setParams({ openProtocolId: undefined });
     }
   }, [route.params?.openProtocolId]);
+  // A-115 FR-3: Today's "+ Add bottle" (an oral protocol with no bottle size) opens the protocol's
+  // edit sheet at the dose step, once the protocol is loaded; the param is then cleared.
+  useEffect(() => {
+    const step = route.params?.editStep;
+    const id = route.params?.openProtocolId ?? openId;
+    if (step == null) return;
+    const ep = (protocols || []).find((x) => String(x.id) === String(id));
+    if (!ep) return;
+    navigation.setParams({ editStep: undefined });
+    openEdit(ep, route.params.editStep);
+  }, [route.params?.editStep, protocols]); // eslint-disable-line react-hooks/exhaustive-deps
   // A-44: an older "Vial running low" alert names only its vial — open the vial's protocol.
   useEffect(() => {
     const vialId = route.params?.openVialId;
