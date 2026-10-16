@@ -150,7 +150,17 @@ insert into public.admin_test_accounts (email, reason) values
   ('evandro1985@gmail.com', 'test account (spec MV-0)')
 on conflict (email) do nothing;
 
--- MV-0: is this email a test account? The table, plus the @dosetrace.io domain rule.
+-- Founder decision 2026-10-16 (Panel #011 step 2): store reviewer + Google Play robots.
+-- One more account on a company domain was marked test the same day; it is in the live
+-- table only (its address stays out of the repo: product guardrail). Applied 2026-10-16.
+insert into public.admin_test_accounts (email, reason) values
+  ('testreviewer123@gmail.com', 'founder decision 2026-10-16: store reviewer account'),
+  ('6swua43q6ycihps7hd4ahf-lvl-02@cloudtestlabaccounts.com', 'founder decision 2026-10-16: Google Play pre-launch robot'),
+  ('6swua43q6ycihps7hd4ahf-lvl-01@cloudtestlabaccounts.com', 'founder decision 2026-10-16: Google Play pre-launch robot')
+on conflict (email) do nothing;
+
+-- MV-0: is this email a test account? The table, plus two domain rules: @dosetrace.io and
+-- the Google Play pre-launch robots (@cloudtestlabaccounts.com, founder 2026-10-16).
 create or replace function public.admin_is_test(p_email text)
  returns boolean
  language sql
@@ -158,6 +168,7 @@ create or replace function public.admin_is_test(p_email text)
  set search_path to 'public'
 as $$
   select coalesce(lower(p_email) like '%@dosetrace.io', false)
+      or coalesce(lower(p_email) like '%@cloudtestlabaccounts.com', false)
       or exists (select 1 from public.admin_test_accounts t where t.email = lower(p_email));
 $$;
 

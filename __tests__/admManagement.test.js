@@ -18,9 +18,10 @@ const NOW = Date.parse('2026-09-28T16:00:00Z'); // "today" = 2026-09-28 (UTC); f
 
 // ---------------------------------------------------------------- test list (MV-0)
 function seedEmails() {
-  const block = SQL.match(/^insert into public\.admin_test_accounts[\s\S]*?;$/im); // line-anchored: skips the example in the SQL comment
-  assert.ok(block, 'seed insert for admin_test_accounts exists');
-  return [...block[0].matchAll(/\('([^']+)'/g)].map((m) => m[1]);
+  // Every line-anchored insert block (the first seed + later founder decisions); skips the example in the SQL comment.
+  const blocks = [...SQL.matchAll(/^insert into public\.admin_test_accounts[\s\S]*?;$/gim)];
+  assert.ok(blocks.length >= 1, 'seed insert for admin_test_accounts exists');
+  return blocks.flatMap((b) => [...b[0].matchAll(/\('([^']+)'/g)].map((m) => m[1]));
 }
 
 test('MV-0 test list: every DEVELOPER_EMAILS entry (lib/purchases.js) is in the admin_test_accounts seed', () => {
@@ -33,11 +34,19 @@ test('MV-0 test list: every DEVELOPER_EMAILS entry (lib/purchases.js) is in the 
   for (const e of dev) assert.ok(seed.includes(e), `seed is missing ${e}`);
 });
 
-test('MV-0 test list: seed includes the test account and keeps the 3 candidates real', () => {
+test('MV-0 test list: seed includes the test account and the founder-marked test accounts (2026-10-16)', () => {
   const seed = seedEmails();
   assert.ok(seed.includes('evandro1985@gmail.com'));
+  assert.ok(seed.includes('testreviewer123@gmail.com'), 'store reviewer marked test by the founder');
+  assert.equal(seed.filter((e) => e.endsWith('@cloudtestlabaccounts.com')).length, 2, 'the two Play robots');
   assert.ok(seed.every((e) => e === e.toLowerCase()), 'seed emails are lower-case');
-  assert.ok(!seed.some((e) => /testreviewer|cloudtestlabaccounts|evoxbiolabs/.test(e)), 'candidates stay real until the founder decides');
+  // The company-domain account is marked test too, but its address stays out of the repo (product guardrail);
+  // it lives only in the live table. The repo seed must never name that domain.
+  assert.ok(!seed.some((e) => /evoxbiolabs/.test(e)));
+});
+test('MV-0 test list: admin_is_test also treats the Google Play robot domain as test (founder 2026-10-16)', () => {
+  const fn = SQL.match(/create or replace function public\.admin_is_test[\s\S]*?\$\$;/i)[0];
+  assert.match(fn, /like '%@cloudtestlabaccounts\.com'/);
 });
 
 test('MV-0 test list: admin_is_test applies the @dosetrace.io rule and the one table', () => {
