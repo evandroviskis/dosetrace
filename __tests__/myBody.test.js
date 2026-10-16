@@ -63,24 +63,27 @@ test('MB-1 (A-125): the hub is Lab test journal, Vaccine journal, Dose accumulat
   assert.equal(hubLib.nextDueVaccine, undefined);
 });
 
-test('MB-4: Dose accumulation shows the Curve\'s compound and Est. level for Premium (remembered view, palette B); free shows Premium + lock, no number', () => {
-  const fetch = fnCode(BODY, 'fetchReports');
-  assert.match(fetch, /const savedView = await loadCurveView\(user\.id\);/);
-  assert.match(fetch, /setLevel\(defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView\)\);/);
-  assert.match(fetch, /if \(!pro\) \{ setLevel\(null\); return; \}/);
+// MB-4 amended 2026-10-15 by the founder (A-125 picture A, docs/design/a125-telas/A-resumo-curto.jpg):
+// the card is icon, title, description and the chevron (Premium) or the Premium tag + lock (free).
+// The line with the protocol dot, the compound name and "Est. level" + level is gone, and My Body
+// no longer computes a level at all (rebuild = replace). The Curve and Journey's card are unchanged.
+test('MB-4 (amended 2026-10-15): Dose accumulation is icon, title, description and chevron — no level line, no level computed; free shows Premium + lock', () => {
   const card = fnCode(BODY, 'renderDoseCard');
-  assert.match(card, /\{premium && level \? \(/);
-  assert.match(card, /displayColor\(level\.protocol\.color\) \|\| colors\.data/);
-  assert.match(card, /t\('curve_current_level'\)/);
-  assert.match(card, /levelLabel\(level\.value, language\)/);
+  assert.match(card, /<FeatureIcon name="curve_loose" size=\{22\} color=\{colors\.data\} \/>/);
+  assert.match(card, /t\('body_card_dosing_title'\)/);
+  assert.match(card, /t\('body_card_dosing_desc'\)/);
+  assert.match(card, /\{premium \? \(\s*<Chevron color=\{colors\.tick\} \/>/);
   assert.match(card, /<View style=\{s\.otag\}><Text style=\{s\.otagText\}>\{t\('paywall_premium'\)\}<\/Text><\/View>\s*<FeatureIcon name="lock" size=\{18\} color=\{colors\.ink3\} \/>/);
-  const lv = styleOf(BODY, 'level');
-  assert.match(lv, /fontSize: 34/);
-  assert.match(lv, /fontWeight: '300'/);
-  assert.match(lv, /color: c\.data/);
-  assert.match(styleOf(BODY, 'levelRow'), /borderTopWidth: 1/);
-  // the same number Journey shows: the same lib call with the same remembered view
+  assert.doesNotMatch(card, /level|curve_current_level|displayColor|levelLabel/i, 'no level line on the card');
+  // No level computation runs for My Body.
+  const code = strip(BODY);
+  assert.doesNotMatch(code, /\bdefaultCurveLevel\b|\bloadCurveView\b|\blevelLabel\b|\bsetLevel\b|\blevelName\b/, 'no level state or computation');
+  assert.doesNotMatch(code, /\n\s+(levelRow|levelName|levelNum|level|dot|secInk): \{/, 'the level-line styles are gone');
+  assert.doesNotMatch(fnCode(BODY, 'fetchReports'), /getActiveProtocols|curveView/);
+  // Journey's card and the Curve keep their level (unchanged).
   assert.match(read('screens', 'JourneyScreen.js'), /defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView\)/);
+  assert.match(read('screens', 'JourneyScreen.js'), /t\('curve_current_level'\)/);
+  assert.match(read('screens', 'SerumCurveScreen.js'), /t\('curve_current_level'\)/);
 });
 
 test('MB-5: the prototype icons — lab frame with a drop, the syringe tilted −45°, the loose curve in data blue — from the monoline set', () => {

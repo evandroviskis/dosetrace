@@ -20,7 +20,7 @@ import { formatDate as localeDate, decimalText, inputNumber, MONTHS_SHORT } from
 import { parseMeasure } from '../lib/doseMath';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines, getActiveProtocols } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
@@ -46,9 +46,6 @@ import DashTile, { dashTileStyles } from './components/DashTile';
 import { reportCards, buildReport, orderCards, labTileSummary, markerCount } from '../lib/labReports';
 import SerumCurveScreen from './SerumCurveScreen';
 import { pluralKey } from '../lib/plural';
-import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
-import { loadCurveView } from '../lib/curveViewStore';
-import { displayColor } from '../lib/protocolColors';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
@@ -172,8 +169,6 @@ export default function BodyScreen({ navigation, route }) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showSerumPreview, setShowSerumPreview] = useState(false);
   const [premium, setPremium] = useState(false);
-  // Dose accumulation card (MB-4): the compound the Curve opens on and its Est. level now.
-  const [level, setLevel] = useState(null);
   // DoseTrace sheets (MB-12, MB-13, MB-15, MB-25): `sheet` over the screen; `sourceChoice` the
   // bottom action sheet; `valueSheet` over Edit value; `exportSheet` over Choose what to export.
   const [sheet, setSheet] = useState(null);
@@ -362,13 +357,6 @@ export default function BodyScreen({ navigation, route }) {
     setRows(data || []);
     setVaccineList(getVaccines(user.id) || []);
     setLoading(false);
-    // MB-4: the same compound and number as Journey — the first compound the user left
-    // selected on the Curve (lib/curveView), else the first charted; Premium only.
-    if (!pro) { setLevel(null); return; }
-    try {
-      const savedView = await loadCurveView(user.id);
-      setLevel(defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView));
-    } catch { setLevel(null); }
   }
 
   // Distinct markers available to include in an export (canonical-merged).
@@ -794,12 +782,6 @@ export default function BodyScreen({ navigation, route }) {
   const labTile = useMemo(() => labTileSummary(cards), [cards]);
   const canExportLabs = exportVisible('labs', { tests: testCount, vaccines: vaccineList.length });
   const canExportVax = exportVisible('vaccines', { tests: testCount, vaccines: vaccineList.length });
-  // The level line names the compound as the Curve names its line (a blend component:
-  // "Blend · Component (est.)"), as Journey does.
-  const lp = level ? level.protocol : null;
-  const levelName = !lp ? null
-    : lp.__blend ? `${t(lp.__blend)} · ${t(lp.compound_id)} ${t('blend_est_marker')}`
-      : (lp.compound_id ? t(lp.compound_id) : lp.name);
 
   // A tile opens its journal: on a phone the journal screen, as today; on a book the right
   // page (MB2-4).
@@ -904,8 +886,9 @@ export default function BodyScreen({ navigation, route }) {
     );
   }
 
-  // MB-4: the Dose accumulation card. `selected`: the book's left page outlines the open item
-  // in ink (BK-8).
+  // MB-4 (amended 2026-10-15, A-125 picture A): the Dose accumulation card is the icon, the
+  // title, the description and the chevron (Premium) or the Premium tag + lock (free) — no level
+  // line. `selected`: the book's left page outlines the open item in ink (BK-8).
   function renderDoseCard(selected) {
     return (
       <TouchableOpacity
@@ -928,21 +911,6 @@ export default function BodyScreen({ navigation, route }) {
           )}
         </View>
         <Text style={s.sec}>{t('body_card_dosing_desc')}</Text>
-        {premium && level ? (
-          <View style={s.levelRow}>
-            <View style={[s.levelName, s.grow]}>
-              <View style={[s.dot, { backgroundColor: displayColor(level.protocol.color) || colors.data }]} />
-              <Text style={[s.secInk, s.grow]} numberOfLines={2}>{levelName}</Text>
-            </View>
-            <View style={s.levelNum}>
-              <Text style={s.cap}>{t('curve_current_level')}</Text>
-              <View style={s.numRow}>
-                <Text style={s.level}>{levelLabel(level.value, language)}</Text>
-                <Text style={s.unitAfter}>{level.unit}</Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
       </TouchableOpacity>
     );
   }
@@ -1613,7 +1581,7 @@ const makeStyles = (c) => StyleSheet.create({
 
 // Redesign (Graduated, My Body approved 2026-10-03, prototype bodyHub; A-125 2026-10-15): large
 // title on the ground; the Lab test and Vaccine journals as Evolução's tiles side by side
-// (screens/components/DashTile); Dose accumulation as a card with the Est. level in data blue.
+// (screens/components/DashTile); Dose accumulation as a card (icon, title, description, chevron).
 // No border, shadow or tint.
 const bodyGraduated = (c) => ({
   container: { flex: 1, backgroundColor: c.ground },
@@ -1626,12 +1594,7 @@ const bodyGraduated = (c) => ({
   tileName: { fontSize: 15, lineHeight: 20, color: c.ink },
   descInk: { color: c.ink },
   doseTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  levelRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12 },
-  levelName: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  levelNum: { alignItems: 'flex-end', gap: 2 },
-  dot: { width: 9, height: 9, borderRadius: 5 },
   numRow: { flexDirection: 'row', alignItems: 'baseline' },
-  level: { fontSize: 34, fontWeight: '300', color: c.data, letterSpacing: -1, lineHeight: 38, fontVariant: ['tabular-nums'] },
   unitAfter: { fontFamily: MONO['400'], fontSize: 13, color: c.ink3, marginLeft: 3 },
   cap: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
   hubFootnote: { fontSize: 13, color: c.ink2, lineHeight: 18, paddingHorizontal: 4 },
@@ -1673,7 +1636,6 @@ const labsGraduated = (c) => ({
   head: { fontSize: 17, fontWeight: '600', color: c.ink, lineHeight: 22 },
   body: { fontSize: 17, color: c.ink, lineHeight: 22 },
   sec: { fontSize: 15, color: c.ink2, lineHeight: 20 },
-  secInk: { fontSize: 15, color: c.ink, lineHeight: 20 },
   foot: { fontSize: 13, color: c.ink2, lineHeight: 18 },
   value: { fontFamily: MONO['500'], fontSize: 15, color: c.ink, fontVariant: ['tabular-nums'] },
   // the marker's latest value (DESIGN.md big number: Geist 300)
