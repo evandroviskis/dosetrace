@@ -17,15 +17,15 @@ Pontos que o texto abaixo deixa como estão, porque só um advogado pode decidir
 
 Última atualização: 16 de outubro de 2026
 
-A Outcom ("nós") opera o aplicativo DoseTrace para iPhone e Android. Esta política explica quais informações o app trata, para onde elas vão e o que você pode fazer a respeito. O DoseTrace é um diário pessoal e uma calculadora. Ele não dá orientação médica.
+A Outcom (“nós”) opera o aplicativo DoseTrace para iPhone e Android. Esta política explica quais informações o app trata, para onde elas vão e o que você pode fazer a respeito. O DoseTrace é um diário pessoal e uma calculadora. Ele não dá orientação médica.
 
 ## 1. As informações que você nos dá
 
-**Conta.** Seu endereço de e-mail ou os dados da conta que a Apple ou o Google compartilham quando você escolhe "Continuar com a Apple" ou "Continuar com o Google" (seu e-mail, ou um endereço de retransmissão privado da Apple, e o nome que você permitir). Esse login é feito pela Apple e pelo Google. Se você entra com a Apple, guardamos no nosso servidor um token da Apple para poder encerrar o seu login com a Apple quando você excluir a sua conta. Se você usa e-mail, sua senha fica com o nosso provedor de autenticação e nunca é guardada em formato legível.
+**Conta.** Seu endereço de e-mail ou os dados da conta que a Apple ou o Google compartilham quando você escolhe “Continuar com a Apple” ou “Continuar com o Google” (seu e-mail, ou um endereço de retransmissão privado da Apple, e o nome que você permitir). Esse login é feito pela Apple e pelo Google. Se você entra com a Apple, guardamos no nosso servidor um token da Apple para poder encerrar o seu login com a Apple quando você excluir a sua conta. Se você usa e-mail, sua senha fica com o nosso provedor de autenticação e nunca é guardada em formato legível.
 
 **Perfil (necessário para usar o app).** Nome, mês e ano de nascimento, país, sexo atribuído no nascimento, seus objetivos, nível de atividade, o que você acompanha (peptídeos, hormônios / TRT, GLP-1 / emagrecimento, suplementos orais) e se você é acompanhado por um profissional de saúde. O app pede todos esses dados antes que você possa usá-lo e os usa para personalizar as telas e fazer as contas das calculadoras. Nas calculadoras, você também pode informar sua altura, seu peso, seu percentual de gordura corporal e suas medidas.
 
-**Dados de saúde e do diário.** Os protocolos que você cria (compostos, doses, frequências, horários dos lembretes), as doses que você registra (tomadas, puladas, locais de aplicação), frascos, resultados de exames, registros de vacinação, as refeições do registro de comida com os valores nutricionais estimados, as pesagens, os resultados de "Seus números reais" e as anotações que você escreve.
+**Dados de saúde e do diário.** Os protocolos que você cria (compostos, doses, frequências, horários dos lembretes), as doses que você registra (tomadas, puladas, locais de aplicação), frascos, resultados de exames, registros de vacinação, as refeições do registro de comida com os valores nutricionais estimados, as pesagens, os resultados de “Seus números reais” e as anotações que você escreve.
 
 ## 2. Onde suas informações ficam
 
@@ -45,7 +45,7 @@ Para entregar as notificações, guardamos um token de notificação do aparelho
 
 ## 5. Recursos de IA (opcionais, só com a sua permissão)
 
-Você pode usar a IA para não precisar digitar: escanear um exame de laboratório, uma carteira de vacinação ou o rótulo de um frasco, descrever suas refeições no registro de comida com IA ou responder às perguntas do assistente de protocolos. Só nesses casos, e só depois que você concordar no app (perguntamos de novo quando um novo tipo de dado for enviado), a foto, o PDF ou o texto que você escolheu é enviado à **Anthropic PBC** (Estados Unidos) para extrair ou estimar os valores. A Anthropic atua como nossa operadora de dados apenas nessa tarefa: trata o que você enviou somente para aquele pedido, não usa esse conteúdo para treinar os modelos dela e o apaga em até 30 dias, guardando por mais tempo apenas quando necessário para fazer cumprir a política de uso dela ou a lei. A IA nunca interpreta os seus resultados e nunca dá orientação médica, de doses ou de alimentação. Você sempre pode digitar as informações por conta própria. Guardamos quantos pedidos à IA você fez (para os limites mensais), não o conteúdo deles.
+Você pode usar a IA para não precisar digitar: escanear um exame de laboratório, uma carteira de vacinação ou o rótulo de um frasco, descrever suas refeições no registro de comida com IA ou responder às perguntas do assistente de protocolos. Só nesses casos, e só depois que você concordar no app (perguntamos de novo quando um novo tipo de dado for enviado), a foto, o PDF ou o texto que você escolheu é enviado à **Anthropic PBC** (Estados Unidos) para extrair ou estimar os valores. A Anthropic atua como nossa operadora de dados apenas nessa tarefa: trata o que você enviou somente para aquele pedido, não usa esse conteúdo para treinar os modelos dela e o apaga em até 30 dias, guardando por mais tempo apenas quando necessário para fazer cumprir a política de uso dela ou a lei. A IA nunca interpreta os seus resultados e nunca dá orientação médica, de doses ou de alimentação. Você sempre pode digitar as informações por conta própria. Guardamos quantos pedidos à IA você fez (para os limites: leituras por mês, registro de comida com IA por dia e assistente de protocolos por semana), não o conteúdo deles.
 
 ## 6. Compras
 
@@ -53,15 +53,15 @@ As assinaturas são pagas pela **Apple App Store** ou pelo **Google Play**; nunc
 
 ## 7. Dados de uso do app (você pode desativar)
 
-Para melhorar o app, registramos eventos de uso (por exemplo, que uma tela foi aberta ou que uma dose foi registrada) no nosso próprio banco de dados na **Supabase**, com um ID aleatório da instalação. Esses eventos não ficam ligados à sua conta: nunca levam o ID da sua conta nem detalhes de saúde, como nomes de compostos, doses ou o que você pesquisou. Isso vem ativado até você desativar: você pode desligar "Análises de uso" quando quiser em Ajustes › Dados e privacidade.
+Para melhorar o app, registramos eventos de uso (por exemplo, que uma tela foi aberta ou que uma dose foi registrada) no nosso próprio banco de dados na **Supabase**, com um ID aleatório da instalação. Esses eventos não ficam ligados à sua conta: nunca levam o ID da sua conta nem detalhes de saúde, como nomes de compostos, doses ou o que você pesquisou. Isso vem ativado até você desativar: você pode desligar “Análises de uso” quando quiser em Ajustes › Dados e privacidade.
 
 ## 8. Por quanto tempo guardamos
 
-Enquanto a sua conta existir. Um protocolo que você exclui vai para "Excluídos recentemente" e fica lá, para você poder restaurá-lo, até você escolher "Excluir para sempre". Excluir para sempre apaga o conteúdo dele (nome, doses, frequência, anotações) e também os registros de dose e os frascos; fica só uma marca mínima (um ID, o tipo, a cor e as datas) para que os seus outros celulares saibam que ele foi excluído. Excluir a sua conta em Ajustes apaga de forma definitiva dos nossos servidores os seus dados sincronizados e o seu login; os dados no seu celular são apagados quando você desinstala o app ou sai da conta.
+Enquanto a sua conta existir. Um protocolo que você exclui vai para “Excluídos recentemente” e fica lá, para você poder restaurá-lo, até você escolher “Excluir para sempre”. Excluir para sempre apaga o conteúdo dele (nome, doses, frequência, anotações) e também os registros de dose e os frascos; fica só uma marca mínima (um ID, o tipo, a cor e as datas) para que os seus outros celulares saibam que ele foi excluído. Excluir a sua conta em Ajustes apaga de forma definitiva dos nossos servidores os seus dados sincronizados e o seu login; os dados no seu celular são apagados quando você desinstala o app ou sai da conta.
 
 ## 9. Suas escolhas e seus direitos
 
-Você pode ver, alterar e excluir seus dados no app, e excluir a sua conta inteira em Ajustes. "Baixar meus dados", em Ajustes, exporta os seus registros; para qualquer dado que não esteja ali, ou para pedir a exclusão, escreva para hello@dosetrace.io. Dependendo de onde você mora (por exemplo, na União Europeia, no Reino Unido, no Brasil ou na Califórnia), você tem o direito de acessar, corrigir, excluir e levar seus dados para outro serviço, e de se opor ao uso deles; atendemos a esses pedidos de todas as pessoas.
+Você pode ver, alterar e excluir seus dados no app, e excluir a sua conta inteira em Ajustes. “Baixar meus dados”, em Ajustes, exporta os seus registros; para qualquer dado que não esteja ali, ou para pedir a exclusão, escreva para hello@dosetrace.io. Dependendo de onde você mora (por exemplo, na União Europeia, no Reino Unido, no Brasil ou na Califórnia), você tem o direito de acessar, corrigir, excluir e levar seus dados para outro serviço, e de se opor ao uso deles; atendemos a esses pedidos de todas as pessoas.
 
 ## 10. Transferência internacional
 
