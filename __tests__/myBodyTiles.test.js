@@ -228,8 +228,8 @@ test('MB2-2: the Labs tile shows the number of tests, the latest test\'s day and
     ...upload('2026-06-15', '2026-07-03T18:12:00.000Z', 20, { idFrom: 200, repeat: 2 }),
     ...upload('2026-04-15', '2026-05-02T09:30:00.000Z', 18, { idFrom: 100 }),
   ];
-  assert.deepEqual(labTileSummary(reportCards(rows)), { tests: 3, latestDate: '2026-06-15', latestMarkers: 20 });
-  assert.deepEqual(labTileSummary(reportCards(upload('2026-02-26', '2026-07-25T14:03:11.000Z', 46, { repeat: 5 }))), { tests: 1, latestDate: '2026-02-26', latestMarkers: 46 });
+  assert.deepEqual(labTileSummary(reportCards(rows)), { tests: 3, latestDate: '2026-06-15', latestMarkers: 18 }); // 20 values, 2 repeated → 18 distinct markers (picture A counts markers)
+  assert.deepEqual(labTileSummary(reportCards(upload('2026-02-26', '2026-07-25T14:03:11.000Z', 46, { repeat: 5 }))), { tests: 1, latestDate: '2026-02-26', latestMarkers: 41 });
   assert.deepEqual(labTileSummary([]), { tests: 0, latestDate: null, latestMarkers: 0 });
   const code = fnCode(BODY, 'renderLabTile');
   assert.match(code, /\{labTile\.tests > 0 \? \(/);
@@ -403,4 +403,12 @@ test('MB2-6: Premium gating unchanged — the tiles are not charts; theme tokens
   }
   assert.match(BODY, /tileName: \{ fontSize: 15, lineHeight: 20, color: c\.ink \}/);
   assert.match(BODY, /descInk: \{ color: c\.ink \}/);
+});
+
+test('MB2-2: "{n} marcadores" counts distinct markers (picture A: 41 for 46 values with 5 repeated), on the tile and the journal cards', () => {
+  const { reportCards, markerCount } = require('../lib/labReports');
+  const card = reportCards(upload('2026-02-26', '2026-07-25T14:03:11.000Z', 46, { repeat: 5 }))[0];
+  assert.equal(markerCount(card.markers), 41);
+  const body = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'BodyScreen.js'), 'utf8');
+  assert.doesNotMatch(body, /\{(?:card|reportDetail|labTile)?\.?markers\.length\} \{t\(pluralKey\('blood_markers'/, 'no screen shows the raw value count as markers');
 });

@@ -43,7 +43,7 @@ import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
 import { defaultSelection, paneWidths } from '../lib/bookLayout';
 import { setSelection } from '../lib/bookSelection';
 import DashTile, { dashTileStyles } from './components/DashTile';
-import { reportCards, buildReport, orderCards, labTileSummary } from '../lib/labReports';
+import { reportCards, buildReport, orderCards, labTileSummary, markerCount } from '../lib/labReports';
 import SerumCurveScreen from './SerumCurveScreen';
 import { pluralKey } from '../lib/plural';
 import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
@@ -673,7 +673,7 @@ export default function BodyScreen({ navigation, route }) {
   // one created_at per value (A-125 MB2-5): Delete removes every batch of the card.
   function deleteReport(card) {
     const { date } = card;
-    const count = card.markers.length;
+    const count = markerCount(card.markers);
     setSheet({
       title: t('blood_report_delete'),
       body: `${formatDate(date)} · ${count} ${t(pluralKey('blood_markers', count, language))}\n\n${t('blood_report_delete_msg')}`,
@@ -956,7 +956,7 @@ export default function BodyScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.screenTitle} accessibilityRole={inBook ? 'header' : undefined}>{formatDate(reportDetail.date)}</Text>
-          <Text style={[s.sec, s.tnum]}>{reportDetail.markers.length} {t(pluralKey('blood_markers', reportDetail.markers.length, language))}</Text>
+          <Text style={[s.sec, s.tnum]}>{markerCount(reportDetail.markers)} {t(pluralKey('blood_markers', markerCount(reportDetail.markers), language))}</Text>
         </View>
 
         <View style={s.card}>
@@ -1164,7 +1164,7 @@ export default function BodyScreen({ navigation, route }) {
                 <View style={s.cardRow}>
                   <View style={[s.grow, s.col6]}>
                     <Text style={s.title}>{formatDate(date)}</Text>
-                    <Text style={[s.sec, s.tnum]}>{markers.length} {t(pluralKey('blood_markers', markers.length, language))}</Text>
+                    <Text style={[s.sec, s.tnum]}>{markerCount(markers)} {t(pluralKey('blood_markers', markerCount(markers), language))}</Text>
                     {(reportTags[date] || []).length > 0 && (
                       <View style={s.chips}>
                         {(reportTags[date] || []).map((tg, k) => (

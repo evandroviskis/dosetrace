@@ -51,7 +51,7 @@ test('A-101d: the list, the right page keys and Delete all use the cards (Delete
   assert.ok(i > 0, "deleteReport takes the card");
   const del = BODY.slice(i, BODY.indexOf("\n  }\n", i));
   assert.match(del, /for \(const c of card\.batches\) deleteBiomarkerReport\(user\.id, card\.date, c\)/);
-  assert.match(del, /const count = card\.markers\.length;/);
+  assert.match(del, /const count = markerCount\(card\.markers\);/); // A-125 MB2-2: distinct markers
   assert.match(BODY, /deleteReport\(reportDetail\)/);
 });
 
