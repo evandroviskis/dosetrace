@@ -20,7 +20,7 @@
     {
       "file": "04_progress",
       "h": "Your *real* numbers",
-      "s": "Weigh-ins plus a daily energy and protein estimate, measured from 7 days of your own data."
+      "s": "Weigh-ins plus a daily energy and protein estimate, calculated from 7 days of your own data."
     },
     {
       "file": "05_labs",
@@ -57,7 +57,7 @@
     {
       "file": "04_progress",
       "h": "Seus números *reais*",
-      "s": "Pesagens e uma estimativa diária de energia e proteína, medida com 7 dias dos seus próprios dados."
+      "s": "Pesagens e uma estimativa diária de energia e proteína, calculada com 7 dias dos seus próprios dados."
     },
     {
       "file": "05_labs",
@@ -94,7 +94,7 @@
     {
       "file": "04_progress",
       "h": "Tus cifras *reales*",
-      "s": "Pesajes y una estimación diaria de energía y proteína, medida con 7 días de tus propios datos."
+      "s": "Pesajes y una estimación diaria de energía y proteína, calculada con 7 días de tus propios datos."
     },
     {
       "file": "05_labs",
@@ -131,7 +131,7 @@
     {
       "file": "04_progress",
       "h": "Vos *vrais* chiffres",
-      "s": "Pesées et une estimation de l'énergie et des protéines du jour, mesurée sur 7 jours de vos propres données."
+      "s": "Pesées et une estimation de l'énergie et des protéines du jour, calculée sur 7 jours de vos propres données."
     },
     {
       "file": "05_labs",
@@ -168,7 +168,7 @@
     {
       "file": "04_progress",
       "h": "Deine *echten* Zahlen",
-      "s": "Wägungen und eine Schätzung von Tagesenergie und Protein, gemessen an 7 Tagen deiner eigenen Daten."
+      "s": "Wägungen und eine Schätzung von Tagesenergie und Protein, berechnet aus 7 Tagen deiner eigenen Daten."
     },
     {
       "file": "05_labs",
@@ -205,7 +205,7 @@
     {
       "file": "04_progress",
       "h": "I tuoi numeri *reali*",
-      "s": "Pesate e una stima giornaliera di energia e proteine, misurata su 7 giorni dei tuoi dati."
+      "s": "Pesate e una stima giornaliera di energia e proteine, calcolata su 7 giorni dei tuoi dati."
     },
     {
       "file": "05_labs",
