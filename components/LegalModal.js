@@ -22,10 +22,12 @@ export default function LegalModal({ visible, onClose, title, content, doneLabel
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={s.modal}>
         <View style={s.modalNav}>
-          <View style={{ width: 60 }} />
-          <Text style={s.modalTitle} numberOfLines={1}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={{ minWidth: 60, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' }}>
-            <Text style={s.modalClose}>{doneLabel}</Text>
+          {/* A-134: two equal sides share the room the title leaves, so the title stays centred
+              and Done is never cut (it shrinks a little before that). */}
+          <View style={s.navSide} />
+          <Text style={s.modalTitle} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{title}</Text>
+          <TouchableOpacity onPress={onClose} style={[s.navSide, s.navRight]} accessibilityRole="button">
+            <Text style={s.modalClose} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{doneLabel}</Text>
           </TouchableOpacity>
         </View>
         <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
@@ -44,7 +46,9 @@ export default function LegalModal({ visible, onClose, title, content, doneLabel
 const makeStyles = (c) => StyleSheet.create({
   modal: { flex: 1, backgroundColor: c.raised },
   modalNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingHorizontal: 20, minHeight: 56, paddingVertical: 6 },
-  modalTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
+  navSide: { flex: 1, minWidth: 70, minHeight: 44, justifyContent: 'center' },
+  navRight: { alignItems: 'flex-end' },
+  modalTitle: { flexShrink: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
   modalClose: { fontSize: 17, fontWeight: '600', color: c.ink },
   modalBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 8 },
   legalHeading: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, marginTop: 20, marginBottom: 6 },

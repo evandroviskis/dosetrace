@@ -263,9 +263,9 @@ export default function PaywallScreen({ navigation, route }) {
       <View style={s.nav}>
         <TouchableOpacity onPress={leave} disabled={purchasing || restoring} style={[s.navSide, s.navBack, (purchasing || restoring) && s.busy]} accessibilityRole="button" accessibilityLabel={t('back')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <BackChevron color={colors.ink} />
-          <Text style={s.navBackText} numberOfLines={1}>{t('back')}</Text>
+          <Text style={s.navBackText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={s.navTitle} numberOfLines={1}>{t('paywall_title')}</Text>
+        <Text style={s.navTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('paywall_title')}</Text>
         <View style={s.navSide} />
       </View>
 
@@ -459,10 +459,10 @@ export default function PaywallScreen({ navigation, route }) {
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 16, gap: 8 },
-  navSide: { width: 76, minHeight: 44, justifyContent: 'center' },
+  navSide: { flex: 1, minWidth: 64, minHeight: 44, justifyContent: 'center' }, // A-134: shares the room the title leaves
   navBack: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6 },
   navBackText: { fontSize: 17, color: c.ink },
-  navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
+  navTitle: { flexShrink: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.ink },
   content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 24 },
 
   hero: { gap: 10, alignItems: 'center' },

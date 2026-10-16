@@ -2595,12 +2595,13 @@ export default function ProtocolsScreen() {
           {/* Cancel top-left, the title, Save top-right while editing (approved 2026-09-29). */}
           <View style={s.wnav}>
             <TouchableOpacity style={s.wnavSide} onPress={cancelWizard} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
-              <Text style={s.wnavCancel}>{t('cancel')}</Text>
+              <Text style={s.wnavCancel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <Text style={s.wnavTitle} numberOfLines={1}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
+            <Text style={s.wnavTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{editingId ? t('protocols_edit_protocol') : t('protocols_new_protocol')}</Text>
             {editingId ? (
-              <TouchableOpacity style={[s.wnavSide, s.wnavRight]} onPress={saveProtocol} disabled={saving} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
-                <Text style={s.wnavSave} numberOfLines={1}>{saving ? t('protocols_saving') : t('save')}</Text>
+              <TouchableOpacity style={[s.wnavSide, s.wnavRight]} onPress={saveProtocol} disabled={saving} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityState={{ disabled: saving, busy: saving }}>
+                {/* A-134: Save keeps its own word while saving and dims (the long "Wird gespeichert..." could not fit). */}
+                <Text style={[s.wnavSave, saving && s.wnavSaveOff]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('save')}</Text>
               </TouchableOpacity>
             ) : <View style={s.wnavSide} />}
           </View>
@@ -3551,12 +3552,15 @@ const protocolsGraduated = (c) => ({
 
   // Add / edit steps (prototype wizard() / wizStep())
   modal: { flex: 1, backgroundColor: c.ground },
-  wnav: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 16 },
-  wnavSide: { width: 70, minHeight: 44, justifyContent: 'center' },
+  // A-134: the two sides share the room the title leaves (the title stays centred); a fixed
+  // 70 pt side cut "Speichern" / "Enregistrer" and wrapped "Abbrechen".
+  wnav: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 16, gap: 8 },
+  wnavSide: { flex: 1, minWidth: 64, minHeight: 44, justifyContent: 'center' },
   wnavRight: { alignItems: 'flex-end' },
   wnavCancel: { fontSize: 17, color: c.ink },
   wnavSave: { fontSize: 17, fontWeight: '600', color: c.ink },
-  wnavTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
+  wnavSaveOff: { color: c.ink3 },
+  wnavTitle: { flexShrink: 1, fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
   prog: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 },
   progSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.line },
   progSegOn: { backgroundColor: c.ink },
