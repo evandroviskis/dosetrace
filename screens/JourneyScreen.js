@@ -16,7 +16,8 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, NavigationContext } from '@react-navigation/native';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
@@ -54,7 +55,7 @@ function tilesNeedRefresh(e) {
 
 export default function JourneyScreen() {
   const { t, language } = useLanguage();
-  const { fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowSize(); // A-129: every window read goes through the measured root
   // Tile text helpers in the app language (lib/localeFormat): "Aug 31" / "31 de ago." (the
   // year only when it is not this year), "−3.4" / "−3,4", "2,810" / "2.810".
   const shortDate = (iso) => formatDate(String(iso).slice(0, 10), language, 'dayMonthAuto') || iso;

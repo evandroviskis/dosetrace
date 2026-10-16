@@ -7,7 +7,8 @@
 // Theme tokens only; the body image marks use the fixed light figure palette (the image is a
 // fixed light surface in both themes, as in the site picker).
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { SlideInDown, useAnimatedProps, useDerivedValue } from 'react-native-reanimated';
 import Svg, { Line, Circle, Path, Ellipse } from 'react-native-svg';
@@ -466,7 +467,7 @@ export function FeatureExplainerSheet({ featureKey, onClose, onTry }) {
   const { t, language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const { width: winW } = useWindowDimensions();
+  const { width: winW } = useWindowSize(); // the measured window: the sheet fits the closed Fold (A-129)
   const [shown, setShown] = useState(featureKey); // keeps the content during the fade-out
   useEffect(() => { if (featureKey) setShown(featureKey); }, [featureKey]);
   const xp = EXPLAINERS.find((x) => x.key === shown);

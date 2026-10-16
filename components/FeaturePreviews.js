@@ -6,7 +6,8 @@
 // Apple 1.4.1 line). Reduce Motion shows the last frame. Theme tokens only.
 // Engine: components/previewFx.js (one UI-thread clock per preview).
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { SlideInDown, useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Line, Circle, Path } from 'react-native-svg';
@@ -440,7 +441,7 @@ export function FeaturePreviewSheet({ featureKey, onClose, onUnlock }) {
   const { t } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const { width: winW } = useWindowDimensions();
+  const { width: winW } = useWindowSize(); // the measured window: the sheet fits the closed Fold (A-129)
   const [shown, setShown] = useState(featureKey); // keeps the content during the fade-out
   useEffect(() => { if (featureKey) setShown(featureKey); }, [featureKey]);
   const feature = PREVIEW_FEATURES.find((f) => f.key === shown);

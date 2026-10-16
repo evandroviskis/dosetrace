@@ -29,7 +29,8 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { numbersWeight } from '../../lib/numbersWeight';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
@@ -98,7 +99,7 @@ const daysBetween = (fromISO, toISO) => {
 };
 // History is no longer capped: the synced tables hold full history (capping would
 // delete a user's older entries — a data-loss the "never lose data" rule forbids).
-// Chart width tracks the live window (fold/unfold, rotation) — see useWindowDimensions in the component.
+// Chart width tracks the measured window (fold/unfold, rotation) — see useWindowSize in the component.
 
 
 const BF_SOURCES = ['dexa', 'gym', 'calipers', 'scale', 'unknown'];
@@ -114,7 +115,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const num = v => { const n = parseMeasure(v, language); return Number.isFinite(n) ? n : null; }; // body numbers: in English a comma stays the decimal
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const { width: windowWidth, fontScale } = useWindowSize(); // the measured window (A-129)
   const CHART_WIDTH = Math.min(paneWidth || windowWidth, CONTENT_MAX_WIDTH) - 68; // screen gutter 16 + card padding 18, both sides
   const s = useMemo(() => makeStyles(colors), [colors]);
   // Your reality check so far: the date column fits its widest date in this language (founder

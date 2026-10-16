@@ -45,8 +45,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
+import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Ellipse, Circle, Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
@@ -120,7 +120,7 @@ export default function BodyMapModal({
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const { width: winW } = useWindowDimensions();
+  const { width: winW } = useWindowSize(); // the measured window: a fold re-sizes the map (A-129)
   // An older typed-in site ("left glute") has no spot: show the saved text itself so the
   // user sees what is stored; it is kept unless they pick a spot (A-55).
   const freeText = parseStored(initialStored).freeText;
