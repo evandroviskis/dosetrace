@@ -584,11 +584,13 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
         return e ? <AppBubble><Text style={s.appText}>{t('nutri_echo').replace('{items}', e)}</Text></AppBubble> : null;
       }
       case 'asked':
+        // One root view: an inverted list lays out a cell's children in reverse,
+        // so a fragment showed the answer above the question.
         return (
-          <>
+          <View>
             <AppBubble><Text style={s.appText}>{t(`nutri_ask_${x.kind}`).replace('{food}', String(x.food || '').slice(0, 60))}</Text></AppBubble>
             <View style={s.userWrap}><View style={s.user}><Text style={s.userText}>{x.answer}</Text></View></View>
-          </>
+          </View>
         );
       case 'answer_pending':
         return (

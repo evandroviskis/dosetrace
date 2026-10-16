@@ -7124,7 +7124,7 @@ export const translations = {
     nutri_run_working: "{total} kcal sur {d} jours d'affilée ({from} – {to})",
     nutri_run_rule: "Un jour compte s'il contient des repas notés ou si vous l'avez clôturé avec « C'est tout pour aujourd'hui ». Un jour sans rien de noté relance le compte.",
     nutri_run_summary: "Ce que vous avez mangé : ≈ {avg}/jour sur {d} jours d'affilée",
-    nutri_hero_run: "{n} jours d'affilée sur 7",
+    nutri_hero_run: "{n} sur 7 jours d'affilée",
     nutri_hero_run_today: "{n} sur 7 d'affilée", // Today's line (day of the check + run) fits one line (founder 2026-10-02)
     nutri_hero_run_ready: '{d} jours complets',
     nutri_hero_locked_premium: 'Votre Premium a pris fin — le journal continue avec Premium.',

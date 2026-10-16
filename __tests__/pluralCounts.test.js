@@ -80,3 +80,13 @@ test('the screens pick the singular with pluralKey', () => {
     }
   }
 });
+
+// Bug 2026-10-15 (store capture): the Journey food card read "1 jours d'affilée sur 7" (fr).
+// The run line counts 0..7, so a noun right after the count must not be plural at 0 or 1.
+test('the food run line never puts a plural noun right after a count of 0 or 1, in 6 languages', () => {
+  const PLURAL_AFTER = /^[01] (days|días|dias|jours|Tage|Tagen|giorni)\b/;
+  for (const k of ['nutri_hero_run', 'nutri_hero_run_today']) for (const l of LANGS) for (const n of [0, 1]) {
+    const s = String(tr[l][k]).replace('{n}', String(n));
+    assert.doesNotMatch(s, PLURAL_AFTER, `${l}.${k} with n=${n}: "${s}"`);
+  }
+});
