@@ -897,3 +897,4 @@ Pending — founder question (not decided by logic):
 - Caption 02 subline: founder's own text ×6 ("Confira o que você já tomou, o que ainda falta tomar, seu histórico dos últimos 7 e 30 dias e as refeições de hoje."); fr adapted to "vous" to match the other French captions.
 - Every screenshot must look like the app in real use: doses already taken today, a 7/30-day history, no expired-vial alert, a food-log conversation typed in each language (with a follow-up question answered), and the same for every feature. Data goes on the review account appreview@dosetrace.io through the app.
 - Redone files replace the old ones in place (no extra copies).
+- French register: the app keeps "vous" everywhere, captions included (founder 2026-10-15: "Pode deixar vous").
