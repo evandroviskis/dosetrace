@@ -11758,7 +11758,7 @@ export const translations = {
     nutri_evening_done_day: "Nient'altro quel giorno",
     nutri_logging_for: 'Registrazione: {day}',
     nutri_typing: 'Sto leggendo il tuo messaggio',
-    nutri_hero_cta: 'Registra cibo',
+    nutri_hero_cta: 'Registra un pasto',
     nutri_hero_empty: 'Ancora niente registrato oggi',
     nutri_hero_today: 'Oggi: {n} voci · ~{kcal} kcal',
     nutri_hero_today_one: 'Oggi: {n} voce · ~{kcal} kcal', // singular (lib/plural.js)
