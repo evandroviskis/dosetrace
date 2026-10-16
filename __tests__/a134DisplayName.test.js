@@ -52,3 +52,33 @@ test('A-134 (4): the reminders themselves use the display name (dose title, vial
   assert.match(lib, /protocolNames\[p\.id\] = protocolDisplayName\(p, t\);/);
   assert.match(lib, /morningSummaryPlan\(protocols\.map\(\(p\) => \(\{ \.\.\.p, name: protocolDisplayName\(p, t\) \}\)\), todayKey/);
 });
+
+// A-134 (4b) — coordinator 2026-10-16, same bug class: every other place the app shows a
+// protocol's name (on screen, the provider report) used the stored p.name where Today shows the
+// translated compound. All of them now go through protocolDisplayName. (The server's
+// send-reminders function is not deployed; listed as a follow-up in the registry.)
+test('A-134 (4b): the provider report names each protocol as Today does', () => {
+  const s = read('screens/SettingsScreen.js');
+  assert.match(s, /import \{ protocolDisplayName \} from '\.\.\/lib\/protocolName';/);
+  assert.match(s, /name: isEnded\(p\) \? `\$\{protocolDisplayName\(p, t\)\} · \$\{t\('protocols_ended_on'\)/);
+  assert.match(s, /` : protocolDisplayName\(p, t\),/);
+  assert.doesNotMatch(s, /\$\{p\.name\} · /);
+});
+
+test('A-134 (4b): Today — skip sheet, vial-done prompt and site sheet use the display name', () => {
+  const s = read('screens/TodayScreen.js');
+  assert.match(s, /setSkipAsk\(\{ name: protocolDisplayName\(protocol, t\), onSkip: write \}\);/);
+  assert.match(s, /<Text style=\{s\.promptProtocolName\}>\{protocolDisplayName\(continuationProtocol, t\)\}<\/Text>/);
+  assert.match(s, /protocolName=\{protocolDisplayName\(protocols\.find\(p => p\.id === bodyMapTarget\?\.protocolId\), t\) \|\| null\}/);
+});
+
+test('A-134 (4b): the Dose log and My Protocols "Last:" line translate the compound from the log join', () => {
+  const { SQL_ALL_LOGS } = require('../lib/protocolEnd');
+  assert.match(SQL_ALL_LOGS, /p\.compound_id as protocol_compound_id/);
+  const log = read('screens/LogScreen.js');
+  assert.match(log, /protocols: row\.protocol_name \? \{ name: row\.protocol_name, compound_id: row\.protocol_compound_id \|\| null,/);
+  assert.match(log, /const logName = \(log\) => \(log && log\.protocols \? protocolDisplayName\(log\.protocols, t\) : t\('log_protocol_deleted'\)\);/);
+  assert.doesNotMatch(log, /protocols\?\.name/, 'never the stored name on screen');
+  const pr = read('screens/ProtocolsScreen.js');
+  assert.match(pr, /\(lastLog && protocolDisplayName\(\{ compound_id: lastLog\.protocol_compound_id, name: lastLog\.protocol_name \}, t\)\) \|\| ''/);
+});

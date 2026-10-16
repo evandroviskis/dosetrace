@@ -56,6 +56,7 @@ import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
 import { orphanedSheet } from '../lib/orphanedPending';
+import { protocolDisplayName } from '../lib/protocolName';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
 // the report is made from the rows already on the phone (no scan from a half-synced phone). The
@@ -411,7 +412,7 @@ export default function SettingsScreen({ navigation }) {
 
         return {
           // An ended protocol says so ("BPC-157 · Ended 20 Sep").
-          name: isEnded(p) ? `${p.name} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : p.name,
+          name: isEnded(p) ? `${protocolDisplayName(p, t)} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : protocolDisplayName(p, t), // A-134: as on Today
           dose: `${p.dose ? decimalText(p.dose, language) : '—'}\u00A0${unitText(p.dose_unit || '', language)}`,
           frequency: p.frequency || '—',
           taken,

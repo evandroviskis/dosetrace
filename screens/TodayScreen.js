@@ -142,6 +142,7 @@ import {
 } from '../lib/schedule';
 import CheckMark from '../components/CheckMark';
 import { pluralKey } from '../lib/plural';
+import { protocolDisplayName } from '../lib/protocolName';
 
 const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
 const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
@@ -1220,7 +1221,7 @@ export default function TodayScreen() {
       }
     };
     skipSheetOpenRef.current = true;
-    setSkipAsk({ name: protocol.name, onSkip: write });
+    setSkipAsk({ name: protocolDisplayName(protocol, t), onSkip: write });
   }
 
   // The Skip sheet closed (Cancel, Skip or a tap outside): a site question that waited opens.
@@ -2362,7 +2363,7 @@ export default function TodayScreen() {
         onSkip={bodyMapTarget?.mode === 'ask' ? handleBodyMapSkip : null}
         onSave={handleBodyMapSave}
         initialStored={bodyMapTarget?.initialStored || null}
-        protocolName={protocols.find(p => p.id === bodyMapTarget?.protocolId)?.name || null}
+        protocolName={protocolDisplayName(protocols.find(p => p.id === bodyMapTarget?.protocolId), t) || null}
         whenLabel={siteWhen}
         protocolId={bodyMapTarget?.protocolId ?? null}
         recentLogs={bodyMapTarget?.recentLogs || []}
@@ -2376,7 +2377,7 @@ export default function TodayScreen() {
           <View style={s.promptCard}>
             <Text style={s.promptTitle}>{t('today_vial_done_title')}</Text>
             {continuationProtocol && (
-              <Text style={s.promptProtocolName}>{continuationProtocol.name}</Text>
+              <Text style={s.promptProtocolName}>{protocolDisplayName(continuationProtocol, t)}</Text>
             )}
             <Text style={s.promptSub}>{t('today_vial_done_sub')}</Text>
 

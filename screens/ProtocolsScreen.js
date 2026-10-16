@@ -29,6 +29,7 @@ import { Analytics } from '../lib/analytics';
 import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
+import { protocolDisplayName } from '../lib/protocolName';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -2470,7 +2471,7 @@ export default function ProtocolsScreen() {
           const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
           // Part 1: the last completed dose under the counts (prototype "Last: TB-500 · Mon 7:42 PM").
           const lastP = lastLog ? protocols.find(p => p.id === lastLog.protocol_id) : null;
-          const lastName = lastP ? protocolName(lastP) : (lastLog && lastLog.protocol_name) || '';
+          const lastName = lastP ? protocolName(lastP) : (lastLog && protocolDisplayName({ compound_id: lastLog.protocol_compound_id, name: lastLog.protocol_name }, t)) || '';
           const lastLine = lastLog && lastName
             ? t('protocols_log_last').replace('{name}', lastName).replace('{when}', lastLogWhen(lastLog.logged_at, new Date(), language, (hm) => formatTime(hm, language, timeFormat)))
             : null;

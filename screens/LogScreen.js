@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
+import { protocolDisplayName } from '../lib/protocolName';
 import { getAllLogs, getLogsSince, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
 import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
@@ -63,6 +64,8 @@ function logExplainers(userId) {
 
 export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate } = {}) {
   const { t, language, timeFormat } = useLanguage();
+  // A-134: a dose row names its protocol as Today does (translated compound, else the typed name).
+  const logName = (log) => (log && log.protocols ? protocolDisplayName(log.protocols, t) : t('log_protocol_deleted'));
   const { colors } = useTheme();
   const navigation = useNavigation();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -206,7 +209,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     setBodyMapTarget({
       logId: log.id,
       loggedAt: log.logged_at,
-      protocolName: log.protocols?.name || null,
+      protocolName: log.protocols ? logName(log) : null,
       protocolId: log.protocol_id ?? null,
       initialStored: mode === 'ask' ? null : (log.injection_site || null),
       recentLogs: recent,
@@ -367,7 +370,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       // Map local join fields to match expected shape: { protocols: { name, color, type } }
       const mapped = (data || []).map(row => ({
         ...row,
-        protocols: row.protocol_name ? { name: row.protocol_name, color: row.protocol_color, type: row.protocol_type } : null,
+        protocols: row.protocol_name ? { name: row.protocol_name, compound_id: row.protocol_compound_id || null, color: row.protocol_color, type: row.protocol_type } : null,
       }));
       setLogs(mapped);
     } finally { setLoaded(true); }
@@ -479,7 +482,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   const deleteSheet = deleteAsk ? {
     title: t('log_delete_title'),
     body: t(DELETE_BODY[deleteAsk.supply] || DELETE_BODY.none)
-      .replace('{name}', deleteAsk.log.protocols?.name || t('log_protocol_deleted'))
+      .replace('{name}', logName(deleteAsk.log))
       .replace('{when}', doseWhen(deleteAsk.log)),
     buttons: [
       { label: t('cancel'), kind: 'secondary' },
@@ -582,14 +585,14 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
               onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openDoseSheet(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`${log.protocols?.name || t('log_protocol_deleted')}, ${statusWord(log.outcome)}`}
+              accessibilityLabel={`${logName(log)}, ${statusWord(log.outcome)}`}
               accessibilityHint={log.outcome === 'Missed' ? t('log_missed_edit_title') : undefined}
             >
               <View style={[s.rowInner, !first && s.rowSep]}>
                 <View style={s.logInfo}>
                   <View style={s.logNameRow}>
                     <FeatureIcon name={typeIcon(log.protocols?.type)} size={15} color={colors.ink2} />
-                    <Text style={s.logName}>{log.protocols?.name || t('log_protocol_deleted')}</Text>
+                    <Text style={s.logName}>{logName(log)}</Text>
                   </View>
                   {log.injection_site ? (
                     <View style={s.detailRow}>
@@ -647,7 +650,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
             <Pressable style={[s.doseSheet, { paddingBottom: 22 + insets.bottom }]} onPress={() => {}} accessibilityViewIsModal>
               <View style={s.sheetHead}>
                 <Text style={s.sheetTitle} accessibilityRole="header" numberOfLines={2}>
-                  {shownSheet.protocols?.name || t('log_protocol_deleted')}
+                  {logName(shownSheet)}
                 </Text>
                 <TouchableOpacity onPress={closeDoseSheet} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
                   <Text style={s.sheetDone}>{t('done')}</Text>
