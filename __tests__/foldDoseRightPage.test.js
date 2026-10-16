@@ -120,3 +120,17 @@ test('A-115: a note typed on the right page saves like My Protocols (same draft 
   assert.match(right, /draft=\{getDraft\(noteDraftKey\(p\.id\)\)\}/);
   assert.match(TODAY, /updateProtocol\(id, \{ note: trimmed \? trimmed : null \}\)/);
 });
+
+// Council 2026-10-16 (picture a115-notice-contrast): Today's right page had no side margin —
+// pageScroll set only paddingBottom, so the protocol page touched the gutter and the screen edge,
+// while its own header (pageHead) and My Protocols' right page use 16.
+test('A-115: the dose right page keeps the 16 pt side margin of its header and of My Protocols', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const today = fs.readFileSync(path.join(__dirname, '..', 'screens', 'TodayScreen.js'), 'utf8');
+  const m = today.match(/\n  pageScroll: \{([^}]*)\}/);
+  assert.ok(m, 'pageScroll style found');
+  assert.match(m[1], /paddingHorizontal: 16/);
+  assert.match(m[1], /paddingBottom: 32/);
+  assert.match(today, /\n  pageHead: \{[^}]*paddingHorizontal: 16/);
+});

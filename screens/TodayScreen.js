@@ -2724,7 +2724,7 @@ const todayV21Styles = (c) => ({
   pageHead: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 8, minHeight: 44 },
   pageEdit: { minHeight: 36, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
   pageEditText: { fontSize: 15, fontWeight: '600', color: c.ink },
-  pageScroll: { paddingBottom: 32 },
+  pageScroll: { paddingHorizontal: 16, paddingBottom: 32 },
   // A-115 FR-3: the why-no-supply box sits inside the protocol page (its gap spaces it), as wide as its blocks.
   // A-115 "1 sim" (founder 2026-10-16, picture a115-notice-contrast): the app's type scale and a 1 pt line border
   // so the notice holds its edge in dark (well alone nearly vanished on ground); same style in light.
