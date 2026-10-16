@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { forwardRef, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -78,7 +78,7 @@ import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 import { pluralKey } from '../lib/plural';
-import { editStepLinkAction } from '../lib/editStepLink';
+import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
@@ -226,11 +226,13 @@ function altMass(dose, unit, language = 'en') {
 
 // ── Small Graduated controls (prototype .winp / .segw / .pill / .fld) ──
 
-// Input: raised, 1 px line inset; 2 px ink while focused.
-function WInput({ s, c, style, onFocus, onBlur, ...props }) {
+// Input: raised, 1 px line inset; 2 px ink while focused. The ref reaches the TextInput (A-115 "A":
+// "+ Add bottle size" focuses the bottle size field).
+const WInput = forwardRef(function WInput({ s, c, style, onFocus, onBlur, ...props }, ref) {
   const [focus, setFocus] = useState(false);
   return (
     <TextInput
+      ref={ref}
       placeholderTextColor={c.ink3}
       {...props}
       style={[s.winp, focus && s.winpOn, style]}
@@ -238,7 +240,7 @@ function WInput({ s, c, style, onFocus, onBlur, ...props }) {
       onBlur={(e) => { setFocus(false); if (onBlur) onBlur(e); }}
     />
   );
-}
+});
 
 // Selection pill: 1 px line outline; chosen = 1.5 px ink outline on raised.
 function Pill({ s, label, on, onPress, short }) {
@@ -249,9 +251,9 @@ function Pill({ s, label, on, onPress, short }) {
   );
 }
 
-function Fld({ s, label, hint, children, labelExtra }) {
+function Fld({ s, label, hint, children, labelExtra, onLayout }) {
   return (
-    <View style={s.fld}>
+    <View style={s.fld} onLayout={onLayout}>
       {label && labelExtra ? (
         <View style={s.fldLabelRow}><Text style={s.fldLabel}>{label}</Text>{labelExtra}</View>
       ) : label ? <Text style={s.fldLabel}>{label}</Text> : null}
@@ -891,6 +893,11 @@ export default function ProtocolsScreen() {
   // Council fix 2: counts finished protocol fetches, so a deep link knows the list was loaded after it arrived.
   const [fetchGen, setFetchGen] = useState(0);
   const editStepGenRef = useRef(null);
+  // A-115 "A": the field the link asked to land on ({ field, id }), the form's scroll view and the
+  // bottle size input — the sheet scrolls to that field and focuses it once it lays out.
+  const pendingFocusRef = useRef(null);
+  const modalScrollRef = useRef(null);
+  const containerInputRef = useRef(null);
   const [sortBy, setSortBy] = useState('due');
   const [todayLogs, setTodayLogs] = useState([]); // today's rows: "Due next" skips a dose already complete (m12)
   const [pendingYest, setPendingYest] = useState([]); // A-42: yesterday's open slots (A-40), as Today shows them
@@ -1162,11 +1169,11 @@ export default function ProtocolsScreen() {
     if (step == null) { editStepGenRef.current = null; return; }
     if (editStepGenRef.current == null) editStepGenRef.current = fetchGen;
     const id = route.params?.openProtocolId ?? openId;
-    const decision = editStepLinkAction({ step, id, protocols, loaded: fetchGen > editStepGenRef.current });
+    const decision = editStepLinkAction({ step, id, protocols, loaded: fetchGen > editStepGenRef.current, focus: route.params?.focusField });
     if (decision.action === 'wait') return;
     editStepGenRef.current = null;
-    navigation.setParams({ editStep: undefined });
-    if (decision.action === 'open') openEdit(decision.protocol, step);
+    navigation.setParams({ editStep: undefined, focusField: undefined });
+    if (decision.action === 'open') openEdit(decision.protocol, step, decision.focus);
   }, [route.params?.editStep, protocols, fetchGen]); // eslint-disable-line react-hooks/exhaustive-deps
   // A-44: an older "Vial running low" alert names only its vial — open the vial's protocol.
   useEffect(() => {
@@ -1501,7 +1508,9 @@ export default function ProtocolsScreen() {
   // Edit: the form starts as the stored row (lib/protocolForm formFromProtocol, the same
   // mapping as before) and Save writes only what the user changes (founder decision 2,
   // 2026-10-02): no preselected first dose, no rewritten field, no vial nobody touched.
-  function openEdit(p, goToStep) {
+  function openEdit(p, goToStep, focusField) {
+    // A-115 "A": a link that names a field lands on it (focusContainerField); any other Edit clears it.
+    pendingFocusRef.current = focusField ? { field: focusField, id: p.id } : null;
     const f = formFromProtocol(p, vialsByProtocol[p.id], new Date(), language);
     applyForm(f);
     editStartRef.current = f;
@@ -1511,6 +1520,22 @@ export default function ProtocolsScreen() {
     setIuInput(''); setIuOpen(false);
     compositionForRef.current = p.compound_id || null;
     setSkipVial(true); setStep(goToStep || 1); setShowModal(true);
+  }
+
+  // A-115 "A" (founder 2026-10-16): Today's "+ Add bottle size" opened this sheet at the dose step.
+  // Once the bottle size field lays out (its y in the form's scroll content), scroll it to the top and
+  // focus it; scroll again when the keyboard is up, so the shrunken form never hides the field.
+  function focusContainerField(e) {
+    if (!takeEditFocus(pendingFocusRef.current, 'container', editingId)) return;
+    pendingFocusRef.current = null;
+    const y = Math.max(0, e.nativeEvent.layout.y - 12);
+    const scrollToField = () => { if (modalScrollRef.current) modalScrollRef.current.scrollTo({ y, animated: true }); };
+    setTimeout(() => {
+      scrollToField();
+      let sub = Keyboard.addListener('keyboardDidShow', () => { if (sub) { sub.remove(); sub = null; } scrollToField(); });
+      setTimeout(() => { if (sub) { sub.remove(); sub = null; } }, 2000);
+      if (containerInputRef.current) containerInputRef.current.focus();
+    }, 350); // after the sheet's slide-in, so the scroll and the keyboard land on a settled form
   }
 
   // Resolve month+day to a real date. Clamps impossible days (Feb 31),
@@ -2586,7 +2611,7 @@ export default function ProtocolsScreen() {
             ))}
           </View>
 
-          <ScrollView style={s.modalBody} contentContainerStyle={s.wiz} showsVerticalScrollIndicator={false}>
+          <ScrollView ref={modalScrollRef} style={s.modalBody} contentContainerStyle={s.wiz} showsVerticalScrollIndicator={false}>
 
             {step === 1 && (
               <>
@@ -2835,8 +2860,8 @@ export default function ProtocolsScreen() {
                     <Fld s={s} label={t('protocols_serving_units')} hint={t('protocols_serving_units_hint')}>
                       <WInput s={s} c={colors} placeholder="1" keyboardType="numeric" value={servingUnits} onChangeText={setServingUnits} />
                     </Fld>
-                    <Fld s={s} label={t('protocols_container_units')} hint={t('protocols_container_units_hint')}>
-                      <WInput s={s} c={colors} placeholder={`${t('protocols_eg')} 60`} keyboardType="numeric" value={containerUnits} onChangeText={setContainerUnits} />
+                    <Fld s={s} label={t('protocols_container_units')} hint={t('protocols_container_units_hint')} onLayout={focusContainerField}>
+                      <WInput ref={containerInputRef} s={s} c={colors} placeholder={`${t('protocols_eg')} 60`} keyboardType="numeric" value={containerUnits} onChangeText={setContainerUnits} />
                     </Fld>
                   </>
                 )}

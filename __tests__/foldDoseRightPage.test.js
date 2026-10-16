@@ -98,11 +98,11 @@ test('A-115 FR-3: the vial notice offers + Add vial (Today\'s own prompt); the b
   assert.match(right, /t\('today_nobottle_title'\)/);
   assert.match(right, /t\('today_nobottle_body'\)/);
   assert.match(right, /t\('today_add_bottle'\)/);
-  assert.match(right, /navigation\.navigate\('Protocols', \{ openProtocolId: p\.id, editStep: 3 \}\)/, 'the bottle size lives on the dose step');
+  assert.match(right, /navigation\.navigate\('Protocols', \{ openProtocolId: p\.id, editStep: 3, focusField: 'container' \}\)/, 'the bottle size lives on the dose step (A-115 "A": and the sheet lands on it)');
   // My Protocols opens the edit sheet at that step once the protocol is loaded, then clears the param.
   assert.match(PROT, /route\.params\?\.editStep/);
-  assert.match(PROT, /openEdit\(decision\.protocol, step\)/); // council fix 2: __tests__/editStepLink.test.js
-  assert.match(PROT, /navigation\.setParams\(\{ editStep: undefined \}\)/);
+  assert.match(PROT, /openEdit\(decision\.protocol, step, decision\.focus\)/); // council fix 2: __tests__/editStepLink.test.js
+  assert.match(PROT, /navigation\.setParams\(\{ editStep: undefined, focusField: undefined \}\)/);
 });
 
 test('A-115 FR-3: both notices in 6 languages, natural, never the English left in', () => {

@@ -41,13 +41,15 @@ test('council fix 2: no step -> nothing to do', () => {
 
 test('council fix 2: My Protocols decides with editStepLinkAction and clears the param on open AND on a missing protocol', () => {
   const PROT = read('screens/ProtocolsScreen.js');
-  assert.match(PROT, /import \{ editStepLinkAction \} from '\.\.\/lib\/editStepLink';/);
+  assert.match(PROT, /import \{ editStepLinkAction, takeEditFocus \} from '\.\.\/lib\/editStepLink';/);
   const i = PROT.indexOf('const decision = editStepLinkAction(');
   assert.ok(i > 0, 'the effect uses the pure decision');
   const block = PROT.slice(i, PROT.indexOf('}, [route.params?.editStep', i));
   assert.match(block, /decision\.action === 'wait'/);
-  assert.match(block, /navigation\.setParams\(\{ editStep: undefined \}\)/);
-  assert.match(block, /if \(decision\.action === 'open'\) openEdit\(decision\.protocol, step\);/);
+  // A-115 "A" (2026-10-16): the focus target is cleared with the step and handed to openEdit
+  // (__tests__/a115NoticeContrast.test.js).
+  assert.match(block, /navigation\.setParams\(\{ editStep: undefined, focusField: undefined \}\)/);
+  assert.match(block, /if \(decision\.action === 'open'\) openEdit\(decision\.protocol, step, decision\.focus\);/);
   // "loaded" = a protocols fetch finished after the link arrived (fetchGen past the generation seen).
   assert.match(PROT, /setFetchGen\(\(g\) => g \+ 1\)/);
   assert.match(PROT, /\}, \[route\.params\?\.editStep, protocols, fetchGen\]\);/);

@@ -1825,8 +1825,9 @@ export default function TodayScreen() {
     const nt = sn === 'vial'
       ? { title: t('today_novial_title'), body: t('today_novial_body'), add: t('today_add_vial'), onAdd: () => showVialPromptFor(p) }
       : sn === 'bottle'
-        // The bottle size lives on the dose step of the protocol's edit sheet in My Protocols.
-        ? { title: t('today_nobottle_title'), body: t('today_nobottle_body'), add: t('today_add_bottle'), onAdd: () => navigation.navigate('Protocols', { openProtocolId: p.id, editStep: 3 }) }
+        // The bottle size lives on the dose step of the protocol's edit sheet in My Protocols; the sheet
+        // scrolls to that field and focuses it (A-115 "A", founder 2026-10-16).
+        ? { title: t('today_nobottle_title'), body: t('today_nobottle_body'), add: t('today_add_bottle'), onAdd: () => navigation.navigate('Protocols', { openProtocolId: p.id, editStep: 3, focusField: 'container' }) }
         : null;
     const noticeEl = nt ? (
       <View style={s.noVial}>
@@ -2725,11 +2726,13 @@ const todayV21Styles = (c) => ({
   pageEditText: { fontSize: 15, fontWeight: '600', color: c.ink },
   pageScroll: { paddingBottom: 32 },
   // A-115 FR-3: the why-no-supply box sits inside the protocol page (its gap spaces it), as wide as its blocks.
-  noVial: { padding: 16, borderRadius: 22, backgroundColor: c.well, gap: 6 },
-  noVialTitle: { fontSize: 16, fontWeight: '600', color: c.ink },
-  noVialBody: { fontSize: 14, lineHeight: 20, color: c.ink2 },
+  // A-115 "1 sim" (founder 2026-10-16, picture a115-notice-contrast): the app's type scale and a 1 pt line border
+  // so the notice holds its edge in dark (well alone nearly vanished on ground); same style in light.
+  noVial: { padding: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line, backgroundColor: c.well, gap: 6 },
+  noVialTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+  noVialBody: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   noVialBtn: { alignSelf: 'flex-start', marginTop: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
-  noVialBtnText: { fontSize: 14, fontWeight: '600', color: c.onAct },
+  noVialBtnText: { fontSize: 15, fontWeight: '600', color: c.onAct },
   addVialText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, minHeight: 32, textAlignVertical: 'center' },
   acts: { flexDirection: 'row', gap: 10 },
   // A-78: a skipped slot's "you can still log it" line and its Mark taken.
