@@ -60,6 +60,7 @@ const FOLLOWUP_SYSTEM = `You update ONE item in a personal food intake log after
 
 Return ONLY a single JSON object: {"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high","category":"meal"|"snack"|"drink"|"supplement","days_ago":null}],"ask":null,"refusal":false,"days_ago":null}
 - Exactly one item: the given item corrected with the user's answer (brand, size, amount, preparation or what it actually was). Keep brand names as named. Numbers are TOTALS for the whole qty.
+- ALWAYS return all four numbers (kcal, protein_g, carb_g, fat_g), re-estimated for the corrected item and its whole qty; the logged item's numbers are a starting point, not a limit. Never 0 for a nutrient the food contains, and never leave one out.
 - If the answer is advice-seeking, return {"items":[],"ask":null,"refusal":true,"days_ago":null}.
 - Never recommend, evaluate or judge food. No prose.`;
 
@@ -76,6 +77,8 @@ const weekdayOf = (iso: string) => {
 const daysAgoOf = (v: unknown) => (typeof v === 'number' && isFinite(v) && v >= 1 ? Math.min(365, Math.round(v)) : null);
 const isoDay = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.slice(0, 10)) ? v.slice(0, 10) : null);
 const shortText = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+// A stored macro for the follow-up text (A-133): "25 g", or "unknown" when not a number.
+const grams = (v: unknown) => { const n = numOrNull(v); return n == null ? 'unknown' : `${Math.round(n * 10) / 10} g`; };
 
 // Only names/quantities of the user's own earlier items go to the model as context.
 function recentContext(v: unknown): string {
@@ -148,7 +151,7 @@ Deno.serve(async (req) => {
       const askKind = typeof followup.kind === 'string' && ASK_KINDS.has(followup.kind) ? followup.kind : 'identity';
       const food = shortText(it.food, 60);
       if (!food || !answer) return jsonResponse({ error: 'Missing follow-up item or answer', code: 'bad_request' }, 400);
-      text = `Item logged: ${numOrNull(it.qty) ?? ''} ${shortText(it.unit, 16)} ${food} (${Math.round(numOrNull(it.kcal) ?? 0)} kcal total).\nQuestion asked: ${askKind}.\nUser's answer: ${answer}`;
+      text = `Item logged: ${numOrNull(it.qty) ?? ''} ${shortText(it.unit, 16)} ${food} (totals: ${Math.round(numOrNull(it.kcal) ?? 0)} kcal, ${grams(it.protein_g)} protein, ${grams(it.carb_g)} carbs, ${grams(it.fat_g)} fat).\nQuestion asked: ${askKind}.\nUser's answer: ${answer}`;
     } else {
       text = typeof body?.text === 'string' ? body.text.trim() : '';
       if (!text) return jsonResponse({ error: 'Missing text', code: 'bad_request' }, 400);

@@ -34,7 +34,7 @@ import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, needsEstimateFlag, echoParts, recentForParse, isMarker,
 } from '../lib/nutrition';
 import { buildThread, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
-import { saveParsed, updateItem, applyAnswer, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
+import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
@@ -441,7 +441,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true }));
       if (outcome === 'refused') setNotice({ kind: 'deflect' });
     } else {
-      const e = echoFor([res.items[0]]);
+      const e = echoFor([storedItem(open.rowId, open.index) || res.items[0]]);
       if (e) setNotice({ kind: 'updated', text: e });
     }
     requestSync?.();
