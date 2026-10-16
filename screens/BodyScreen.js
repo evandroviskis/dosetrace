@@ -571,7 +571,7 @@ export default function BodyScreen({ navigation, route }) {
         t(pluralKey('blood_imported_body', saved, language)).replace('{count}', String(saved)).replace('{date}', formatDate(parsedDate)),
       ];
       if (dateFallback) lines.push(t('blood_imported_date_fallback'));
-      if (droppedCount > 0) lines.push(`${droppedCount} ${t('blood_dropped_sub')}`);
+      if (droppedCount > 0) lines.push(t(pluralKey('blood_dropped_sub', droppedCount, language)).replace('{count}', String(droppedCount)));
       lines.push(t('blood_imported_hint'));
       notice({ icon: null, title: t('blood_imported_title'), body: lines.join('\n\n') });
     } catch (err) {

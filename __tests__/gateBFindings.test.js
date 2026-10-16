@@ -83,7 +83,7 @@ test('GB-7 (minor): one purchase / restore at a time, Back waits, the purchase i
 
 test('GB-8 (minor): a month-long trial is disclosed too, and the trial billing text says when payment happens', () => {
   const P = require('../lib/paywallPlans');
-  const t = (k) => ({ paywall_per_year: 'per year', paywall_per_month: 'per month', paywall_start_trial_days: 'Start {days}-day free trial', paywall_start_trial_months: 'Start {n}-month free trial', paywall_then_price: 'Then {price} · Cancel anytime', paywall_price_cancel: '{price} · Cancel anytime', paywall_subscribe_now: 'Subscribe' }[k] || k);
+  const t = (k) => ({ paywall_per_year: 'per year', paywall_per_month: 'per month', paywall_start_trial_days: 'Start {days}-day free trial', paywall_start_trial_months: 'Start {n}-month free trial', paywall_start_trial_months_one: 'Start {n}-month free trial', paywall_then_price: 'Then {price} · Cancel anytime', paywall_price_cancel: '{price} · Cancel anytime', paywall_subscribe_now: 'Subscribe' }[k] || k);
   const monthTrial = { packageType: 'ANNUAL', product: { identifier: 'yearly', price: 28.99, priceString: '$28.99', introPrice: { price: 0, cycles: 1, periodUnit: 'MONTH', periodNumberOfUnits: 1 } } };
   const c = P.ctaModel({ selected: 'annual', pkgs: [monthTrial], eligibility: { yearly: true }, platform: 'ios', t });
   assert.equal(c.title, 'Start 1-month free trial');

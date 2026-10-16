@@ -5,6 +5,7 @@
 import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
+import { pluralKey } from '../lib/plural';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from './FeatureIcon';
 import { openReminderFix, markDeepSleepChecked } from '../lib/notifications';
@@ -33,7 +34,7 @@ export default function ReminderSetupList({ health, setup = true, withRefresh = 
   if (!health) return null;
   const steps = setup ? setupSteps(health, { withRefresh }) : null;
   const checks = setup ? steps.rows : reminderChecks(health);
-  const progress = steps ? t('rc_setup_progress').replace('{n}', String(steps.ready)).replace('{total}', String(steps.total)) : null;
+  const progress = steps ? t(pluralKey('rc_setup_progress', steps.ready, language)).replace('{n}', String(steps.ready)).replace('{total}', String(steps.total)) : null;
 
   function stateText(c) {
     const r = ROW[c.id];

@@ -161,7 +161,7 @@ export default function PaywallScreen({ navigation, route }) {
 
   const view = paywallView({ loading, premium, pkgs: packages });
   const { annual: annualPkg, monthly: monthlyPkg, lifetime: lifetimePkg } = pickPackages(packages);
-  const cta = selected ? ctaModel({ selected, pkgs: packages, eligibility, platform: Platform.OS, t }) : null;
+  const cta = selected ? ctaModel({ selected, pkgs: packages, eligibility, platform: Platform.OS, t, language }) : null;
   const save = savingsPct(annualPkg, monthlyPkg);
   const perMonth = perMonthString(annualPkg, language);
 

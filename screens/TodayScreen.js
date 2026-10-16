@@ -1610,7 +1610,7 @@ export default function TodayScreen() {
         const body = exp.length === 1
           ? (soonest.daysLeft <= 0
               ? t('today_alert_vial_expired_one').replace('{name}', soonest.name)
-              : t('today_alert_vial_expiry_one').replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
+              : t(pluralKey('today_alert_vial_expiry_one', soonest.daysLeft, language)).replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
           : t('today_alert_vial_expiry_many').replace('{count}', String(exp.length));
         list.push({
           id: 'vial_expiry', iconName: 'clock', due: true,
@@ -2251,7 +2251,7 @@ export default function TodayScreen() {
           <View style={s.block}>
             <View style={s.lab}>
               <Text style={s.sectionTitle}>{t('today_doses').charAt(0).toUpperCase() + t('today_doses').slice(1)}</Text>
-              {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t)}</Text>}
+              {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t, language)}</Text>}
             </View>
             {todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))}
             {todayCards.length === 0 && allDoneToday && (

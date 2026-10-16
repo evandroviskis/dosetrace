@@ -293,7 +293,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const { shown, more } = echoParts(items, 3);
     if (!shown.length) return null;
     const list = shown.map((it) => `${itemLabel(it, language)} · ~${Math.round(Number(it.kcal) || 0)} ${t('cal_kcal')}`).join(', ');
-    return more ? `${list} ${t('nutri_echo_more').replace('{n}', String(more))}` : list;
+    return more ? `${list} ${t(pluralKey('nutri_echo_more', more, language)).replace('{n}', String(more))}` : list;
   }
 
   // ── Day label / naming (FL-40) ─────────────────────────────────

@@ -9,6 +9,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { pluralKey } from '../../lib/plural';
 import { useTheme } from '../../lib/theme';
 import { periodTotals } from '../../lib/nutrition';
 import { weighInDay } from '../../lib/foodThread';
@@ -34,7 +35,8 @@ export default function FoodGraceNote({ rcStart, until, reason, freeFrom, rows, 
   const key = reason === 'premium_ended'
     ? (hasCheck ? 'nutri_grace_note_premium' : 'nutri_grace_note_premium_nocheck')
     : (hasCheck ? 'nutri_free_ending_note' : 'nutri_free_ending_note_nocheck');
-  const text = t(key)
+  // The three notes that count logged days have a singular ("food logged on 1 day"; French 0 too).
+  const text = t(key === 'nutri_grace_note_premium_nocheck' ? key : pluralKey(key, logged, language))
     .replace('{day}', String(day))
     .replace('{logged}', String(logged))
     .replace(/\{until\}/g, fmt(until))

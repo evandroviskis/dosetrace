@@ -248,7 +248,7 @@ export default function SettingsScreen({ navigation }) {
     if (!setupRow) return '';
     if (setupRow.kind === 'block') return t('settings_rc_sub_block');
     if (setupRow.kind === 'warn' && setupRow.ready === setupRow.total && setupRow.staleDays) return t('today_alert_stale_title').replace('{n}', String(setupRow.staleDays));
-    if (setupRow.kind === 'warn') return t('rc_setup_progress').replace('{n}', String(setupRow.ready)).replace('{total}', String(setupRow.total));
+    if (setupRow.kind === 'warn') return t(pluralKey('rc_setup_progress', setupRow.ready, language)).replace('{n}', String(setupRow.ready)).replace('{total}', String(setupRow.total));
     if (!setupRow.nextAtMs) return t('settings_setup_all');
     const d = new Date(setupRow.nextAtMs);
     return t('settings_setup_all_next').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);

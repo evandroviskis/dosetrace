@@ -93,7 +93,7 @@ test('part 4: food card — drawn chevron, ink2 icon at 22 (current sparkle, Q15
 
 // ── part 5: Doses header + card top ───────────────────────────────
 test('part 5: "4 of 5 taken", mono amount + ink2 frequency, drawn arrow after the time, reminder / Due tag', () => {
-  assert.match(TODAY, /dosesTakenLabel\(doneDoses, totalDoses, t\)/);
+  assert.match(TODAY, /dosesTakenLabel\(doneDoses, totalDoses, t, language\)/);
   assert.match(style(TODAY, 'damt'), /fontFamily: MONO\['500'\], fontSize: 16/);
   assert.match(style(TODAY, 'dfreq'), /fontSize: 15, color: c\.ink2/);
   assert.match(style(TODAY, 'dtimeRow'), /gap: 8/);

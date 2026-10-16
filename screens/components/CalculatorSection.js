@@ -39,6 +39,7 @@ import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
 import { profileBodyInputs } from '../../lib/bodyProfile';
 import { activitySource, activityKeyForMultiplier, legacyActivity } from '../../lib/activityLevels';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { pluralKey } from '../../lib/plural';
 import { useTheme } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { MONO } from '../../lib/fonts';
@@ -1138,7 +1139,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         ) : belowRange ? null /* status line suppressed; the range note below carries it */
         : showEta ? (
           proj.state === 'eta' && eta ? (
-            <Text style={[s.body, s.tnum]}>{t('cal_tgt_eta').replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
+            <Text style={[s.body, s.tnum]}>{t(pluralKey('cal_tgt_eta', eta.weeks, language)).replace('{weeks}', String(eta.weeks)).replace('{when}', eta.when)}</Text>
           ) : proj.state === 'away' ? (
             <Text style={s.body}>{t('cal_tgt_away')}</Text>
           ) : (
@@ -1502,7 +1503,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
                   </View>
                 ))}
                 {soFar.run.days > 0 ? (
-                  <Text style={[s.foot2, s.tnum, s.runLine]}>{t('cal_rc_sofar_run').replace('{d}', String(soFar.run.days)).replace('{kcal}', fmtInt(soFar.run.avgKcal))}</Text>
+                  <Text style={[s.foot2, s.tnum, s.runLine]}>{t(pluralKey('cal_rc_sofar_run', soFar.run.days, language)).replace('{d}', String(soFar.run.days)).replace('{kcal}', fmtInt(soFar.run.avgKcal))}</Text>
                 ) : null}
               </View>
             )
