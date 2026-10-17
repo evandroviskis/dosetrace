@@ -61,6 +61,7 @@ const FOLLOWUP_SYSTEM = `You update ONE item in a personal food intake log after
 
 Return ONLY a single JSON object: {"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high","category":"meal"|"snack"|"drink"|"supplement","days_ago":null}],"ask":null,"refusal":false,"days_ago":null}
 - Exactly one item: the given item corrected with the user's answer (brand, size, amount, preparation or what it actually was). Keep brand names as named, with the brand's normal capitalization; write generic food names in lowercase as written mid-sentence (German nouns keep their capital). Numbers are TOTALS for the whole qty.
+- "food" is the name only: it never repeats the quantity or the unit, which go in "qty" and "unit" (logged "6 un ravioli" answered "tomato sauce" -> food "ravioli with tomato sauce", qty 6; "1 bowl pasta with chicken" -> food "pasta with chicken", qty 1, unit "bowl").
 - ALWAYS return all four numbers (kcal, protein_g, carb_g, fat_g), re-estimated for the corrected item and its whole qty; the logged item's numbers are a starting point, not a limit. Never 0 for a nutrient the food contains, and never leave one out.
 - If the answer is advice-seeking, return {"items":[],"ask":null,"refusal":true,"days_ago":null}.
 - Never recommend, evaluate or judge food. No prose.`;
