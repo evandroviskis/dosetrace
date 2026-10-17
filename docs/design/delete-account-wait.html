@@ -1,0 +1,118 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excluir conta: espera</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Roboto:wght@400;500;600;700&display=swap">
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--pcard:#FFFFFF;--pacc:#2350D8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B;--pacc:#8AA8FF}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B;--pacc:#8AA8FF}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Roboto,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1500px;margin:0 auto;padding:24px 16px 56px}
+h1{font:700 26px/1.2 Geist,Roboto,sans-serif;letter-spacing:-.4px;margin:0 0 8px}
+h2{font:700 19px/1.3 Geist,Roboto,sans-serif;margin:40px 0 6px}
+.lead{color:var(--pink2);max-width:90ch;margin:0 0 14px}.lead b{color:var(--pink)}
+.box{background:var(--pcard);border:1px solid var(--pline);border-radius:16px;padding:14px 16px;margin:14px 0;max-width:90ch}
+.box ol{margin:6px 0;padding-left:20px}.box li{margin:4px 0}
+.scrollx{overflow-x:auto;padding-bottom:6px}
+.grid{display:grid;grid-auto-flow:column;grid-auto-columns:340px;gap:18px;width:max-content}
+.clab{font-size:14px;font-weight:600;margin:0 0 8px;display:flex;align-items:center;gap:8px;min-height:26px}
+.letter{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:13px;background:var(--pacc);color:var(--page);font-size:14px;font-weight:700;flex:none}
+.rec{font-size:12px;font-weight:700;color:var(--pacc)}
+.cap{font-size:13px;line-height:18px;color:var(--pink2);margin-top:8px}
+/* lib/theme.js LIGHT / DARK */
+.dev.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--onInk:#FFFFFF;--act:#111315;--onAct:#FFFFFF;--risk:#9E1F19}
+.dev.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--onInk:#121416;--act:#EEEFEB;--onAct:#121416;--risk:#F08A80}
+.phone{width:340px;height:600px;background:var(--ground);color:var(--ink);border-radius:28px;border:1px solid var(--pline);position:relative;overflow:hidden;padding:52px 16px 16px}
+.stitle{font:700 30px/36px Geist,Roboto,sans-serif;letter-spacing:-.6px;margin:0 4px 16px}
+.card{background:var(--raised);border-radius:22px;padding:0 16px}
+.row{display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.rl{display:flex;align-items:center;gap:12px;font-size:17px}
+.ic{width:28px;height:28px;display:grid;place-items:center}
+.chev{width:9px;height:9px;border-right:2px solid var(--tick);border-top:2px solid var(--tick);transform:rotate(45deg);margin-right:4px}
+.risk{color:var(--risk)}.chev.risk{border-color:var(--risk)}
+.ver{font-size:13px;color:var(--ink3);text-align:center;margin-top:18px}
+.ghost{height:120px;border-radius:22px;background:var(--raised);margin-bottom:14px;opacity:.55}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;flex-direction:column;justify-content:center;padding:16px}
+.sheet{background:var(--raised);border-radius:26px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.sic{width:48px;height:48px;border-radius:24px;background:var(--well);display:grid;place-items:center}
+.st{font:700 22px/28px Roboto,sans-serif;color:var(--ink)}
+.sb{font-size:17px;line-height:22px;color:var(--ink2)}
+.sb + .sb{margin-top:-4px}
+.link{font-size:17px;color:var(--ink);text-decoration:underline;text-decoration-color:var(--tick);min-height:36px;display:flex;align-items:center}
+.btns{display:flex;gap:10px}
+.btn{flex:1;min-height:44px;border-radius:26px;display:grid;place-items:center;font-size:15px;font-weight:700;text-align:center;padding:0 12px}
+.b-sec{background:var(--well);color:var(--ink)}.b-dan{background:var(--risk);color:var(--onInk)}.b-pri{background:var(--act);color:var(--onAct)}
+.spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--ink);animation:r 0.9s linear infinite}
+.spin.risk{border-top-color:var(--risk)}
+.spin.big{width:28px;height:28px}
+@keyframes r{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+.tag{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink2);margin:18px 0 8px}
+</style></head><body><div class="wrap">
+
+<h1>Excluir conta: a espera e a assinatura</h1>
+<p class="lead">O conselho do build de teste 3 achou três coisas na exclusão de conta. <b>1.</b> Depois do "Sim, excluir tudo" a janela fecha e a tela não mostra que algo está acontecendo. Agora isso pode levar <b>20 s ou mais</b>, e a pessoa toca de novo ou fecha o app. <b>2.</b> Se o app ainda está sincronizando, aparece "Você precisa estar conectado à internet", o que é falso. <b>3.</b> Quem paga o Premium não fica sabendo que <b>excluir a conta não cancela a assinatura</b>: a Apple e o Google continuam cobrando. A Apple pede esse aviso (regra 5.1.1(v)). Cada desenho aparece no tema claro e no escuro.</p>
+
+<div class="box"><b>Minha recomendação: 1 B, 2 (só há uma proposta), 3 C.</b> Tudo usa a janela que o app já tem, sem cores novas e sem tela nova. Os textos são escritos nos 6 idiomas, em linguagem natural. Pode entrar no build de teste 3, junto com as 6 correções que já estão em andamento.</div>
+
+<h2>1. Enquanto a conta é excluída</h2>
+<p class="lead">Hoje: a janela fecha e a tela de Ajustes fica como estava até terminar. <b>A</b>: uma rodinha na linha "Excluir conta", como já aparece em "Sair". <b>B</b>: uma janela fixa "Excluindo sua conta…", sem botões, até terminar.</p>
+<div class="scrollx"><div class="grid" id="g1"></div></div>
+
+<h2>2. Quando o app ainda está sincronizando</h2>
+<p class="lead">Hoje o app mostra a mensagem de "sem internet" mesmo com internet. A proposta é uma mensagem própria para esse caso. A mensagem de "sem internet" continua só para quando não há internet de verdade.</p>
+<div class="scrollx"><div class="grid" id="g2"></div></div>
+
+<h2>3. Quem assina o Premium</h2>
+<p class="lead">É a primeira janela da exclusão. Quem não assina o Premium vê a janela exatamente como hoje. <b>C</b>: um parágrafo a mais e o link "Gerenciar assinatura", que abre a página de assinaturas da loja. <b>D</b>: só o parágrafo. No Android o texto diz "Google Play › Pagamentos e assinaturas".</p>
+<div class="scrollx"><div class="grid" id="g3"></div></div>
+
+<div class="box"><b>O que não muda:</b> as duas confirmações ("Excluir minha conta" e "Sim, excluir tudo"), o aviso da Apple no fim e a mensagem de "sem internet" quando o celular está mesmo sem internet.</div>
+</div>
+
+<script>
+const trash = (cls) => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="${cls||''}"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`;
+const door = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9v18H6zM15 12h5M18 9l3 3-3 3"/></svg>`;
+const warn = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg>`;
+const sync = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12a8 8 0 0 1-14 5M4 12a8 8 0 0 1 14-5M18 3v4h-4M6 21v-4h4"/></svg>`;
+
+function settings(deleteRight){
+  return `<div class="stitle">Ajustes</div><div class="ghost"></div><div class="ghost" style="height:90px"></div>
+  <div class="card">
+   <div class="row"><div class="rl"><span class="ic">${door}</span>Sair</div><span class="chev"></span></div>
+   <div class="row"><div class="rl risk"><span class="ic">${trash()}</span>Excluir conta</div>${deleteRight||'<span class="chev risk"></span>'}</div>
+  </div><div class="ver">Versão 1.3.0</div>`;
+}
+function sheet(inner){ return `<div class="scrim"><div class="sheet">${inner}</div></div>`; }
+function phone(theme, body){ return `<div class="dev ${theme}"><div class="phone">${body}</div></div>`; }
+function cell(letter, label, rec, theme, body, cap){
+  return `<div><div class="clab">${letter?`<span class="letter">${letter}</span>`:''}${label} · ${theme==='light'?'claro':'escuro'} ${rec?'<span class="rec">recomendado</span>':''}</div>${phone(theme, body)}${cap?`<div class="cap">${cap}</div>`:''}</div>`;
+}
+
+const g1 = [];
+for (const th of ['light','dark']) {
+  g1.push(cell('', 'Hoje', false, th, settings(), 'Nada indica que a exclusão começou (até 20 s ou mais).'));
+  g1.push(cell('A', 'Rodinha na linha', false, th, settings('<span class="spin risk"></span>'), 'Igual a "Sair". Pequena; a linha não aceita outro toque.'));
+  g1.push(cell('B', 'Janela fixa', th==='light', th, settings() + sheet(`<div class="sic"><span class="spin big risk"></span></div><div class="st">Excluindo sua conta…</div><div class="sb">Isso pode levar até um minuto. Mantenha o app aberto.</div>`), 'Não fecha com toque fora. Some sozinha quando termina: vem "Conta excluída" ou o erro.'));
+}
+document.getElementById('g1').innerHTML = g1.join('');
+
+const g2 = [];
+for (const th of ['light','dark']) {
+  g2.push(cell('', 'Hoje', false, th, settings() + sheet(`<div class="sic">${warn}</div><div class="st">Erro</div><div class="sb">Você precisa estar conectado à internet para excluir sua conta.</div><div class="btns"><div class="btn b-pri">OK</div></div>`), 'Aparece mesmo com internet quando a sincronização demora.'));
+  g2.push(cell('', 'Proposta', false, th, settings() + sheet(`<div class="sic">${sync}</div><div class="st">Ainda salvando seus dados</div><div class="sb">O app ainda está enviando seus registros para a nuvem. Tente excluir de novo em um minuto.</div><div class="btns"><div class="btn b-pri">OK</div></div>`), 'Só para esse caso. Nada foi excluído; a sincronização continua.'));
+}
+document.getElementById('g2').innerHTML = g2.join('');
+
+const first = (extra) => sheet(`<div class="st">Excluir conta</div><div class="sb">Isso vai excluir permanentemente sua conta. Todos os seus dados serão perdidos e isso não pode ser desfeito.</div>${extra||''}<div class="btns"><div class="btn b-sec">Cancelar</div><div class="btn b-dan">Excluir minha conta</div></div>`);
+const para = `<div class="sb">Excluir a conta não cancela sua assinatura Premium. A cobrança é da App Store: cancele em Ajustes › seu nome › Assinaturas.</div>`;
+const g3 = [];
+for (const th of ['light','dark']) {
+  g3.push(cell('', 'Hoje', false, th, settings() + first(), 'Nada sobre a assinatura.'));
+  g3.push(cell('C', 'Parágrafo + link', th==='light', th, settings() + first(para + `<div class="link">Gerenciar assinatura</div>`), 'O link abre a página de assinaturas da loja. Só para quem tem Premium.'));
+  g3.push(cell('D', 'Só o parágrafo', false, th, settings() + first(para), 'Sem link; a pessoa procura o caminho sozinha.'));
+}
+document.getElementById('g3').innerHTML = g3.join('');
+</script>
+</body></html>
