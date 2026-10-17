@@ -994,6 +994,9 @@ export default function TodayScreen() {
       Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Taken' });
       // Cancel today's reminder(s) for the slots now taken, so no "dose pending" fires later.
       cancelTodaysDoseReminders(protocol.id, Math.max(newTakenToday, opts.cancelUpTo || 0)).catch(() => {});
+      // Review of ed5d8bf item 2: the cancel runs outside the reminder lock; a run that read the rows
+      // before this take could re-arm the slot after it. The lock's next run reads the take.
+      syncAllDoseReminders().catch(() => {});
 
       // Vial and oral supply already moved (once) inside recordDoseTaken.
       // The vial prompt FOLLOWS the write (S-25), after the site picker has closed — and after
