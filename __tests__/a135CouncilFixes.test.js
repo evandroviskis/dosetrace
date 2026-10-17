@@ -32,3 +32,30 @@ test('council (1): App passes forgetTodayLayout in wipeDeps; onAuthStateChange i
   const cb = app.slice(cbStart, cbStart + 6000);
   assert.ok(!cb.includes('forgetTodayLayout'), 'nothing new inside onAuthStateChange');
 });
+
+// (2) UX: during the opening the tab bar is real but the app is not up yet, so a tap cannot
+// navigate. The last tapped tab is remembered and the real app opens on it when the start ends.
+test('council (2): the opening remembers the last tapped tab and the app opens on it', () => {
+  const { bootTabTarget } = require('../lib/todaySkeleton');
+  const tabs = ['Today', 'Protocols', 'Journey', 'Body', 'Settings'];
+  const main = ['Main'];
+  assert.deepEqual(bootTabTarget({ tapped: 'Settings', routeNames: main, tabNames: tabs }), { screen: 'MainTabs', params: { screen: 'Settings' } });
+  assert.deepEqual(bootTabTarget({ tapped: 'Body', routeNames: main, tabNames: tabs }), { screen: 'MainTabs', params: { screen: 'Body' } });
+  assert.equal(bootTabTarget({ tapped: null, routeNames: main, tabNames: tabs }), null, 'no tap: Today');
+  assert.equal(bootTabTarget({ tapped: 'Today', routeNames: main, tabNames: tabs }), null, 'Today is already open');
+  assert.equal(bootTabTarget({ tapped: 'Nope', routeNames: main, tabNames: tabs }), null, 'only a real tab');
+  assert.equal(bootTabTarget({ tapped: 'Settings', routeNames: ['Auth'], tabNames: tabs }), null, 'signed out / profile to complete: no tab');
+  assert.equal(bootTabTarget({ tapped: 'Settings', routeNames: main, tabNames: tabs, pendingNav: true }), null, 'a notification tap wins');
+});
+
+test('council (2): BootTabs still prevents navigation but records the tap; the app applies it once on ready', () => {
+  const app = read('App.js');
+  const i = app.indexOf('function BootTabs(');
+  const boot = app.slice(i, app.indexOf('\n}\n', i));
+  assert.match(boot, /screenListeners=\{\(\{ route \}\) => \(\{ tabPress: \(e\) => \{ e\.preventDefault\(\); if \(onTabTap\) onTabTap\(route\.name\); \} \}\)\}/);
+  assert.match(app, /<BootTabs onTabTap=\{onTabTap\} \/>/);
+  assert.match(app, /<BootScreen lastUser=\{bootUser\} fontsLoaded=\{fontsLoaded\} onTabTap=\{rememberBootTab\} \/>/);
+  assert.match(app, /const bootTabRef = useRef\(null\);/);
+  assert.match(app, /const target = bootTabTarget\(\{ tapped: tab, routeNames: names, tabNames: TAB_NAMES, pendingNav: !!pendingNavRef\.current \}\);/);
+  assert.match(app, /onNavReady=\{onRootNavReady\}/);
+});

@@ -147,10 +147,10 @@ test('SK-1/SK-2: App.js — the loading gate opens on Today\'s skeleton after a 
   const boot = app.slice(app.indexOf('function BootScreen('), app.indexOf('\n}\n', app.indexOf('function BootScreen(')));
   assert.match(boot, /const view = bootView\(\{ lastUser, fontsLoaded, langReady, themeReady \}\);/);
   assert.match(boot, /if \(view === 'spinner'\) return <ThemedLoading \/>;/);
-  assert.match(boot, /if \(view === 'today'\) return <BootTabs \/>;/);
+  assert.match(boot, /if \(view === 'today'\) return <BootTabs onTabTap=\{onTabTap\} \/>;/);
   // One app root: the language, theme and measured window are not re-created when the gate opens.
   const gate = app.slice(app.indexOf('const booting = '), app.indexOf('\n}\n', app.indexOf('const booting = ')));
-  assert.match(gate, /\{booting \? \(\s*<BootScreen lastUser=\{bootUser\} fontsLoaded=\{fontsLoaded\} \/>\s*\) : \(\s*<ThemedRoot/);
+  assert.match(gate, /\{booting \? \(\s*<BootScreen lastUser=\{bootUser\} fontsLoaded=\{fontsLoaded\} onTabTap=\{rememberBootTab\} \/>\s*\) : \(\s*<ThemedRoot/);
   // The mould is read at the start; a session that ends forgets it (the next cold start is signed out).
   assert.match(app, /loadTodayLayout\(\)\.then\(\(st\) => setBootUser\(lastSignedInUser\(st\)\)\)\.catch\(\(\) => setBootUser\(null\)\);/);
   assert.match(app, /useEffect\(\(\) => \{ if \(!booting && !session\) forgetTodayLayout\(\); \}, \[booting, session\]\);/);
@@ -160,7 +160,7 @@ test('SK-1/SK-2: App.js — the loading gate opens on Today\'s skeleton after a 
   // The opening's tab bar is the real tab navigator with the same options; taps wait for the app.
   const tabs = app.slice(app.indexOf('function BootTabs('), app.indexOf('\n}\n', app.indexOf('function BootTabs(')));
   assert.match(tabs, /screenOptions=\{tabScreenOptions\(colors, insets\)\}/);
-  assert.match(tabs, /screenListeners=\{\{ tabPress: \(e\) => e\.preventDefault\(\) \}\}/);
+  assert.match(tabs, /tabPress: \(e\) => \{ e\.preventDefault\(\);/); // council (2): the tap is remembered (a135CouncilFixes)
   assert.match(tabs, /component=\{tab\.name === 'Today' \? TodayOpening : BootEmpty\}/);
   const main = app.slice(app.indexOf('function MainTabs('), app.indexOf('\n}\n', app.indexOf('function MainTabs(')));
   assert.match(main, /screenOptions=\{tabScreenOptions\(colors, insets\)\}/, 'the real tab bar uses the same options');

@@ -40,7 +40,7 @@ installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 import { isForegroundStale } from './lib/stillGoingGate';
-import { bootView, lastSignedInUser } from './lib/todaySkeleton';
+import { bootView, bootTabTarget, lastSignedInUser } from './lib/todaySkeleton';
 import { loadTodayLayout, forgetTodayLayout } from './lib/todayLayoutStore';
 import { TodayOpening } from './screens/components/TodaySkeleton';
 
@@ -187,6 +187,7 @@ const tabDefs = (t) => [
   { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
   { name: 'Settings', label: t('tabbar_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
 ];
+const TAB_NAMES = tabDefs(() => '').map((tab) => tab.name);
 
 // Graduated tab bar (DESIGN.md §5): flat on the ground, hairline on top, active = ink + 600,
 // inactive = ink3. Never blue. The bar sits above the system's bottom bar (Android).
@@ -362,14 +363,16 @@ function BootEmpty() {
   return <View style={{ flex: 1, backgroundColor: colors.ground }} />;
 }
 
-function BootTabs() {
+// A-135 council (2): a tab tapped here does not navigate (the app is not up yet) but is remembered
+// (onTabTap); the real app opens on the last one when the start ends (App onRootNavReady).
+function BootTabs({ onTabTap }) {
   const { t } = useLanguage();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <NavigationContainer theme={navThemeFor(colors, isDark)}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Tab.Navigator screenOptions={tabScreenOptions(colors, insets)} screenListeners={{ tabPress: (e) => e.preventDefault() }}>
+      <Tab.Navigator screenOptions={tabScreenOptions(colors, insets)} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
         {tabDefs(t).map((tab) => (
           <Tab.Screen
             key={tab.name}
@@ -387,12 +390,12 @@ function BootTabs() {
 // session; the full-screen spinner when the last session was not signed in (welcome / sign in
 // keep what they had); a plain ground for the few ms before the mould, fonts, language and theme
 // are read (never English or the wrong theme first).
-function BootScreen({ lastUser, fontsLoaded }) {
+function BootScreen({ lastUser, fontsLoaded, onTabTap }) {
   const { ready: langReady } = useLanguage();
   const { ready: themeReady, colors } = useTheme();
   const view = bootView({ lastUser, fontsLoaded, langReady, themeReady });
   if (view === 'spinner') return <ThemedLoading />;
-  if (view === 'today') return <BootTabs />;
+  if (view === 'today') return <BootTabs onTabTap={onTabTap} />;
   return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 }
 
@@ -472,6 +475,21 @@ export default function App() {
     pendingNavRef.current = null;
     nav.navigate('Main', { screen: target.screen, params: target.params });
   }, []);
+  // A-135 council (2): the last tab tapped on the opening; applied once, when the real navigator is
+  // ready (a notification tap waiting to be routed wins; signed out / a profile to complete drops it).
+  const bootTabRef = useRef(null);
+  const rememberBootTab = useCallback((name) => { bootTabRef.current = name; }, []);
+  const onRootNavReady = useCallback(() => {
+    const nav = navigationRef.current;
+    const tab = bootTabRef.current;
+    if (tab && nav && (!nav.isReady || nav.isReady())) {
+      bootTabRef.current = null;
+      const names = (nav.getRootState && nav.getRootState()?.routeNames) || [];
+      const target = bootTabTarget({ tapped: tab, routeNames: names, tabNames: TAB_NAMES, pendingNav: !!pendingNavRef.current });
+      if (target) nav.navigate('Main', target);
+    }
+    flushPendingNav();
+  }, [flushPendingNav]);
   // Each tap is routed once, whether it comes from the running listener or the
   // launch path (persisted, so a relaunch never replays an old tap).
   const routedRef = useRef(new Set());
@@ -862,12 +880,12 @@ export default function App() {
         <LanguageProvider>
           <ThemeProvider>
             {booting ? (
-              <BootScreen lastUser={bootUser} fontsLoaded={fontsLoaded} />
+              <BootScreen lastUser={bootUser} fontsLoaded={fontsLoaded} onTabTap={rememberBootTab} />
             ) : (
             <ThemedRoot
               session={session}
               navigationRef={navigationRef}
-              onNavReady={flushPendingNav}
+              onNavReady={onRootNavReady}
               recovery={recovery}
               onRecoveryDone={() => setRecovery(null)}
               switchAsk={switchAsk}
