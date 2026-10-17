@@ -26,22 +26,19 @@ It also does not mention:
 
 The app already shows the new policy, dated October 16, 2026. The website must show the same text and date.
 
-## Task 1: replace the website policy (GoDaddy, Classic Builder)
+## Task 1: website policy (Vercel). Claude Code prepared it; do not edit it in GoDaddy or by hand
 
-Page: https://dosetrace.io/privacy-policy. This exact URL is the one in App Store Connect and Google Play. **Do not change the URL.**
+The site dosetrace.io is hosted on **Vercel**, built from the GitHub repo evandroviskis/dosetrace (folder `web/`). It is **not** GoDaddy, and Vercel has no page editor. The new page is already written and pushed to the branch **site/privacy-2026-10** (one file, `web/privacy-policy.html`). It goes live when that branch is merged into `main`.
 
-1. Open the GoDaddy Website Builder for dosetrace.io, page "Privacy Policy".
-2. Replace the whole text with the attached `privacy-policy-2026-10.md` (repo `docs/legal/privacy-policy-2026-10.md`, version of 2026-10-16).
-   - The `##` lines are the headings. Keep the order and keep the bold service names.
-   - If the builder limits block size, paste one numbered section per text block (the intro plus 14 sections).
-3. Keep the date line exactly as in the file: "Last updated: October 16, 2026".
-4. Publish.
-5. Open the page in a **private** browser window and check:
+**The founder decides that merge.** Claude Code does it once the founder says go, or the founder can merge the pull request himself on GitHub.
+
+Your part:
+1. After it is live, open https://dosetrace.io/privacy-policy in a **private** window and check:
    - the date is October 16, 2026;
    - section 4 "Reminders and notifications" and section 6 "Purchases" are there;
    - none of the old text remains ("mainly on your device", "if you enable cloud sync");
    - section 8 says protocols stay in "Recently deleted" until "Delete forever" (no number of days).
-6. Send the founder screenshots of the top of the page and of sections 4 and 8.
+2. Send the founder screenshots of the top of the page and of sections 4 and 8.
 
 ## Task 2: App Store Connect › DoseTrace › App Privacy
 
@@ -93,7 +90,7 @@ If this is missed, Apple's purchase sheet keeps saying "DoseTrace Pro" while the
 
 ## Done when
 
-- The website shows the new text and the date October 16, 2026 (screenshots sent).
+- The live website shows the new text and the date October 16, 2026 (checked in a private window, screenshots sent).
 - App Privacy is published and Data safety is submitted, both matching the tables above item by item (screenshots of the summary pages sent).
 - The subscription items are "Ready for Review" / added for review (screenshot sent).
 
