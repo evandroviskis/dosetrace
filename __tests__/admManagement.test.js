@@ -682,7 +682,7 @@ test('MV-6 fetchApple: asks one daily SALES SUMMARY per day for the last 91 full
   } finally { done(); }
 });
 
-test('MV-6 fetchGooglePlay: reads only the monthly *_overview.csv files that overlap the last 91 days (UTF-16), builds the per-day list across months, and keeps the Details fields from the latest file', async () => {
+test('MV-6 fetchGooglePlay: reads every monthly *_overview.csv (UTF-16, never the country/device files), builds the per-day list across months, sums the all-time totals, and keeps the Details fields from the latest file', async () => {
   const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
   process.env.GOOGLE_PLAY_SA_JSON = JSON.stringify({ client_email: 'dummy@example.test', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) });
   process.env.GOOGLE_PLAY_BUCKET = 'dummy_bucket';
@@ -713,9 +713,11 @@ test('MV-6 fetchGooglePlay: reads only the monthly *_overview.csv files that ove
   try {
     const r = await adm.fetchGooglePlay();
     assert.equal(r.status, 'ok', JSON.stringify(r));
-    assert.deepEqual(fetched.sort(), [`stats/installs/installs_${pkg}_${cur}_overview.csv`, `stats/installs/installs_${pkg}_${prev}_overview.csv`].sort(), 'only overview files of the months in range');
-    assert.deepEqual(r.data.days, [{ date: dPrev, user_installs: 3, device_installs: 3 }, { date: yday, user_installs: 1, device_installs: 2 }]);
-    assert.equal(r.data.active_device_installs, 18); assert.equal(r.data.installs_this_month, 2); assert.equal(r.data.month, cur); assert.equal(r.data.total_user_installs, 0);
+    assert.deepEqual(fetched.sort(), [old, prev, cur].map((m) => `stats/installs/installs_${pkg}_${m}_overview.csv`).sort(), 'every overview file, nothing else');
+    assert.deepEqual(r.data.days, [{ date: '2020-01-01', user_installs: 99, device_installs: 99 }, { date: dPrev, user_installs: 3, device_installs: 3 }, { date: yday, user_installs: 1, device_installs: 2 }]);
+    assert.equal(r.data.active_device_installs, 18); assert.equal(r.data.installs_this_month, 2); assert.equal(r.data.month, cur);
+    // S4 (founder 2026-10-17: "I need the numbers"): Google retired the Total User Installs column (always 0), so the total is the sum of every day's user installs
+    assert.equal(r.data.total_user_installs, 103); assert.equal(r.data.total_device_installs, 104); assert.equal(r.data.total_since, '2020-01-01');
     assert.equal(r.data.total_average_rating, undefined);
   } finally { done(); }
 });
@@ -731,4 +733,14 @@ test('MV-6 page: W0 and X1 render the store sums per window (no hard-coded "not 
   assert.match(html, /id">W0<\/td>[^\n]*storeNote\(/, 'W0 uses it'); assert.match(html, /id">X1<\/td>[^\n]*storeNote\(/, 'X1 uses it');
   const defs = html.match(/var DEFS=\[([\s\S]*?)\];/)[1];
   assert.ok(!/id:"W0"[^\n]*Not measured yet/.test(defs) && !/id:"X1"[^\n]*Not measured yet/.test(defs), 'DEFS W0/X1 describe the measurement');
+});
+
+test('S4 (founder 2026-10-17): the card shows the all-time total of user installs summed from the daily files, says since when, and the DEFS row explains the retired column', () => {
+  const { html, T } = pageT();
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) { assert.ok(T[l].k_total_installs, l); assert.ok(T[l].k_since && T[l].k_since.includes('{d}'), l + ' k_since'); }
+  assert.equal(T.en.k_total_installs, 'Total user installs'); assert.equal(T.pt.k_total_installs, 'Instalações totais de usuários');
+  assert.equal(T.pt.k_since, 'desde {d} · soma das instalações diárias de usuários');
+  assert.match(html, /kpiCard\(t\('k_total_installs'\),fmt\(g\.total_user_installs\),g\.total_since\?t\('k_since',\{d:g\.total_since\}\):null/);
+  const s4 = html.match(/\{id:"S4"[^\n]*\}/)[0];
+  assert.ok(s4.includes("Sum of \\\"Daily User Installs\\\" over every monthly overview file"), "S4 def"); assert.match(s4, /retired/);
 });

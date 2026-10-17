@@ -144,12 +144,10 @@ async function fetchGooglePlay() {
       return names.length ? readCsv(names[names.length - 1]) : null;
     }
     const data = {};
-    // MV-6: every monthly overview file that overlaps the last STORE_DAYS full days (today's month included).
-    const fromMonth = utcDay(Date.now() - STORE_DAYS * DAY_MS).slice(0, 7).replace('-', '');
-    const overview = (await listNames('stats/installs/installs_' + pkg + '_')).filter(n => {
-      const m = n.match(/_(\d{6})_overview\.csv$/);
-      return m && m[1] >= fromMonth;
-    });
+    // MV-6 + S4: every monthly overview file (one per month since the app exists). The window rows
+    // use the last STORE_DAYS days; the all-time total needs them all, since Google retired the
+    // "Total User Installs" column (it reports 0 on every row, checked 2026-10-17).
+    const overview = (await listNames('stats/installs/installs_' + pkg + '_')).filter(n => /_\d{6}_overview\.csv$/.test(n));
     const byDay = {};
     let installs = null;
     for (const name of overview) {
@@ -167,7 +165,9 @@ async function fetchGooglePlay() {
     if (installs && installs.rows.length) {
       const last = installs.rows[installs.rows.length - 1];
       const gi = n => { const i = col(installs.header, n); return i >= 0 ? num(last[i]) : null; };
-      data.total_user_installs = gi('Total User Installs'); // Google reports 0 here since the column was retired (S4)
+      data.total_user_installs = data.days.reduce((s, d) => s + d.user_installs, 0);     // S4: all-time sum of daily user installs
+      data.total_device_installs = data.days.reduce((s, d) => s + d.device_installs, 0);
+      data.total_since = data.days.length ? data.days[0].date : null;
       data.active_device_installs = gi('Active Device Installs');
       const di = col(installs.header, 'Daily Device Installs');
       if (di >= 0) data.installs_this_month = installs.rows.reduce((s, r) => s + (num(r[di]) || 0), 0);
