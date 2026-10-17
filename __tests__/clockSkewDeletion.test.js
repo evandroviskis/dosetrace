@@ -20,11 +20,11 @@ const refreshReq = (rt) => [`${URL_}/auth/v1/token?grant_type=refresh_token`, { 
 function syncEngine(onSessionRecovered) {
   const src = read('lib/sync.js');
   const fns = ['export function startSyncEngine(', 'export function stopSyncEngine(', 'export function requestSync(',
-    'async function syncPass(', 'export function pauseSyncForDeletion(', 'export function resumeSyncAfterDeletion('];
-  const body = `let _isOnline = true; let _knownOnline = null; let _syncTimer = null; let _unsubNetInfo = null; let _unsubRecovered = null; let _deletionPaused = false;
+    'async function syncPass(', 'export function pauseSyncForDeletion(', 'export function resumeSyncAfterDeletion(', 'export function deletionRequestSettled('];
+  const body = `let _isOnline = true; let _knownOnline = null; let _syncTimer = null; let _unsubNetInfo = null; let _unsubRecovered = null; let _deletionPaused = false; let _deletionInFlight = false;
 ${fns.map((h) => (src.includes(h) ? sliceBlock(src, h).replace(/^export\s+/, '') : `function ${h.match(/function (\w+)/)[1]}() {}`)).join('\n')}
 function doSync() { return syncPass(); }
-return { startSyncEngine, stopSyncEngine, requestSync, pauseSyncForDeletion, resumeSyncAfterDeletion };`;
+return { startSyncEngine, stopSyncEngine, requestSync, pauseSyncForDeletion, resumeSyncAfterDeletion, deletionRequestSettled };`;
   const counts = { pushes: 0 };
   const deps = {
     NetInfo: { addEventListener: () => () => {} },
@@ -75,7 +75,7 @@ function rig({ deleteStatus = 200, refreshOk = true, sameToken = false } = {}) {
   };
   const del = loadFn('lib/accountActions.js', 'export async function requestAccountDeletion(', 'requestAccountDeletion', {
     supabase, fetch, process: { env: { EXPO_PUBLIC_SUPABASE_URL: URL_ } },
-    pauseSyncForDeletion: m.pauseSyncForDeletion, resumeSyncAfterDeletion: m.resumeSyncAfterDeletion,
+    pauseSyncForDeletion: m.pauseSyncForDeletion, resumeSyncAfterDeletion: m.resumeSyncAfterDeletion, deletionRequestSettled: m.deletionRequestSettled,
     waitForSyncIdle: async () => {},
   });
   return { del, m, counts, posts, drain, during: () => pushesDuringDelete };
@@ -113,6 +113,7 @@ test('CS-24: a new engine start (the next sign-in) is never left paused', () => 
   const { m, counts } = syncEngine(() => () => {});
   m.startSyncEngine();
   m.pauseSyncForDeletion();
+  m.deletionRequestSettled(); // the server deleted the account (test build 3 item 4: a start while it is out keeps the pause)
   m.stopSyncEngine();
   m.startSyncEngine();
   m.requestSync();

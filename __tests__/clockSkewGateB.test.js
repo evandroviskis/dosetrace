@@ -175,7 +175,7 @@ test('CS-18 (Gate B 2): auth 401/403 bad_jwt or "token is expired" and a functio
 function loadDeletion(fakes) {
   return loadFn('lib/accountActions.js', 'export async function requestAccountDeletion(', 'requestAccountDeletion', {
     supabase: fakes.supabase, fetch: fakes.fetch, process: { env: { EXPO_PUBLIC_SUPABASE_URL: URL_ } },
-    pauseSyncForDeletion: () => {}, resumeSyncAfterDeletion: () => {}, waitForSyncIdle: async () => {}, // clockSkewDeletion tests these
+    pauseSyncForDeletion: () => {}, resumeSyncAfterDeletion: () => {}, deletionRequestSettled: () => {}, waitForSyncIdle: async () => {}, // clockSkewDeletion tests these
   });
 }
 
@@ -285,7 +285,7 @@ test('CS-21 (Gate B 3): a recovery that ended in a network stand-in does not loc
 // ── 4: the recovered hook does not outlive stopSyncEngine ──
 test('CS-22 (Gate B 4): stopSyncEngine unsubscribes the recovered hook; a late recovery never asks for a sync', () => {
   const src = read('lib/sync.js');
-  const body = `let _isOnline = true; let _knownOnline = null; let _syncTimer = null; let _unsubNetInfo = null; let _unsubRecovered = null;
+  const body = `let _isOnline = true; let _knownOnline = null; let _syncTimer = null; let _unsubNetInfo = null; let _unsubRecovered = null; let _deletionPaused = false; let _deletionInFlight = false;
 ${sliceBlock(src, 'export function startSyncEngine(').replace(/^export\s+/, '')}
 ${sliceBlock(src, 'export function stopSyncEngine(').replace(/^export\s+/, '')}
 return { startSyncEngine, stopSyncEngine };`;
