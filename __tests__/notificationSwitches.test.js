@@ -35,7 +35,7 @@ const left = (N) => [...N.scheduled.keys()].sort();
 test('A-109: dose reminders OFF cancels the dose reminders already scheduled', async () => {
   const N = fakeN(IDS);
   const cancelAllDoseReminders = loadFn('lib/notifications.js', 'export async function cancelAllDoseReminders(', 'cancelAllDoseReminders', { getNotifications: () => N });
-  const fn = loadFn('lib/notifications.js', 'export async function syncAllDoseReminders(', 'syncAllDoseReminders', { ...common(N, { dose_reminders: false }), cancelAllDoseReminders });
+  const fn = loadFn('lib/notifications.js', 'async function syncAllDoseRemindersNow(', 'syncAllDoseRemindersNow', { ...common(N, { dose_reminders: false }), cancelAllDoseReminders });
   await fn();
   assert.ok(!left(N).some((id) => id.startsWith('dose-')), left(N).join(','));
   assert.ok(left(N).includes('vial-7'), 'other kinds untouched');

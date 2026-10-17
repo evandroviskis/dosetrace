@@ -140,7 +140,7 @@ test('F7: reminders of a protocol that is no longer active are found and cancell
   assert.deepEqual(orphanDoseIds(ids, [1]), ['dose-2-2026-10-03-t0', 'dose-2-2026-10-04-t1-f1']);
   assert.deepEqual(orphanDoseIds(ids, []), ['dose-1-2026-10-03-t0', 'dose-2-2026-10-03-t0', 'dose-2-2026-10-04-t1-f1'], 'also when nothing is active');
   const n = read('lib/notifications.js');
-  const i = n.indexOf('export async function syncAllDoseReminders');
+  const i = n.indexOf('async function syncAllDoseRemindersNow(');
   const body = n.slice(i, n.indexOf('\n}\n', i));
   assert.ok(body.indexOf('orphanDoseIds(') > 0 && body.indexOf('orphanDoseIds(') < body.indexOf('if (!protocols || protocols.length === 0) return;'), 'before the early return');
 });
