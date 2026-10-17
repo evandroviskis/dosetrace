@@ -58,7 +58,7 @@ test('A-141 (5): Today never opens the vial prompt straight from a take', () => 
 
 test('A-141 (5): the queued prompt is released when the Undo bar closes or Today comes back', () => {
   const release = fnCode('releasePendingVial');
-  assert.match(release, /vialPromptRelease\(/);
+  assert.match(release, /nextVialPrompt\(/); // test build 3 item 5: a queue built on vialPromptRelease (tb3VialQueue)
   assert.match(release, /showVialPromptFor\(/);
   assert.match(src, /useEffect\(\(\) => \{ if \(!undoData\) releasePendingVial\(\); \}, \[undoData\]\);/);
   assert.match(src, /focusedRef\.current = true;[\s\S]{0,200}releasePendingVial\(\);/, 'on focus');

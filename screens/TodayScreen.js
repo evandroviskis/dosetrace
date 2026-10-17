@@ -80,7 +80,7 @@ import { DTSheet, VialCells } from './components/ProtocolParts';
 import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
-import { undoBarRuns, vialPromptRelease } from '../lib/undoBar';
+import { undoBarRuns, enqueueVialPrompt, nextVialPrompt } from '../lib/undoBar';
 import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -380,7 +380,10 @@ export default function TodayScreen() {
   const logPopupOpenRef = useRef(false); // the embedded Dose log's site editor is open
   const logPopupWaiterRef = useRef(null); // the embedded Log's editor, waiting for Today's popup
   const vialDeferredRef = useRef(false); // the vial prompt waits for the embedded Log's editor
-  const pendingVialRef = useRef(null); // A-141 (5): { protocol, logId } — the vial prompt waits for the take's Undo bar
+  // A-141 (5): [{ protocol, logId }] — the vial prompts wait for the take's Undo bar; a queue, so two
+  // vials finishing inside one Undo window each get their prompt (test build 3 council item 5).
+  const pendingVialsRef = useRef([]);
+  const vialPromptShownRef = useRef(false); // a vial prompt is on screen (the next one waits for it)
   const undoDataRef = useRef(null); // the Undo bar's record, for callbacks that outlive a render
 
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
@@ -1329,6 +1332,9 @@ export default function TodayScreen() {
     vialDeferredRef.current = false;
     setShowVialPrompt(false);
     setContinuationProtocol(null);
+    vialPromptShownRef.current = false;
+    // Another vial finished in the same Undo window: its prompt next, after this one has faded out.
+    if (pendingVialsRef.current.length) { setTimeout(releasePendingVial, 450); return; }
     vialPromptOpenRef.current = false;
     setTimeout(openNextQuestion, 450); // a site question waiting behind the prompt
   }
@@ -1340,26 +1346,33 @@ export default function TodayScreen() {
   function queueVialPrompt(protocol, logId) {
     vialPromptOpenRef.current = true;
     vialPromptPendingRef.current = true;
-    pendingVialRef.current = { protocol, logId };
+    pendingVialsRef.current = enqueueVialPrompt(pendingVialsRef.current, { protocol, logId });
     // No release here: the take sets its Undo bar right after, and the bar closing releases it.
   }
   function releasePendingVial() {
-    const pv = pendingVialRef.current;
-    const next = vialPromptRelease({
-      pending: pv, undoShowing: !!undoDataRef.current, focused: focusedRef.current,
-      undone: !!pv && undoneIdsRef.current.has(pv.logId), deleted: !!pv && wasDeleted(pv.logId),
+    const next = nextVialPrompt({
+      queue: pendingVialsRef.current, undoShowing: !!undoDataRef.current, focused: focusedRef.current,
+      promptShowing: vialPromptShownRef.current,
+      undone: (id) => undoneIdsRef.current.has(id), deleted: (id) => wasDeleted(id),
     });
-    if (next === 'drop') { dropPendingVial(pv.logId); return; }
-    if (next !== 'show') return;
-    pendingVialRef.current = null;
-    showVialPromptFor(pv.protocol, 0);
+    pendingVialsRef.current = next.queue;
+    if (next.action === 'drop') { freeVialQueue(); return; }
+    if (next.action !== 'show') return;
+    showVialPromptFor(next.item.protocol, 0);
+  }
+  // Nothing waits any more and no prompt is open: the questions that waited behind go on.
+  function freeVialQueue() {
+    if (pendingVialsRef.current.length || vialPromptShownRef.current) return;
+    vialPromptOpenRef.current = false;
+    vialPromptPendingRef.current = false;
+    setTimeout(openNextQuestion, 450);
   }
   // Undo of the take (or a delete) before its prompt opened: the prompt never opens, and the
   // questions that waited behind it go on.
   function dropPendingVial(logId) {
-    const pv = pendingVialRef.current;
-    if (!pv || pv.logId !== logId) return;
-    pendingVialRef.current = null;
+    if (!pendingVialsRef.current.some((p) => p.logId === logId)) return;
+    pendingVialsRef.current = pendingVialsRef.current.filter((p) => p.logId !== logId);
+    if (pendingVialsRef.current.length || vialPromptShownRef.current) return; // another vial still waits / is open
     vialPromptOpenRef.current = false;
     vialPromptPendingRef.current = false;
     setTimeout(openNextQuestion, 450);
@@ -1367,6 +1380,7 @@ export default function TodayScreen() {
 
   // delayMs: after a site picker, wait for it to fade out (iOS shows one modal at a time).
   function showVialPromptFor(protocol, delayMs) {
+    vialPromptShownRef.current = true;
     vialPromptOpenRef.current = true;
     vialPromptPendingRef.current = true;
     setContinuationProtocol(protocol);
