@@ -157,7 +157,7 @@ test('T4 CS-3: without the device-clock expiry, the breaker still caps the storm
   const server = fakeServer('ok');
   const st = memStorage({ [KEY]: JSON.stringify(serverSession(1)) });
   const mono = monoClock();
-  const af = createAuthFetch({ fetch: server.fetch, readStoredSession: () => st.getItem(KEY), now: mono.now, deviceExpiry: false });
+  const af = createAuthFetch({ fetch: server.fetch, readStoredSession: () => st.getItem(KEY), now: mono.now, __testNoDeviceExpiry: true });
   const c = new GoTrueClient({ url: `${URL_}/auth/v1`, storageKey: KEY, storage: st, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false, fetch: af.fetch });
   await c.initialize();
   assert.equal(await burst(c), 0);
@@ -291,12 +291,12 @@ test('T7 CS-5: a database "JWT expired" asks for ONE refresh, deferred, then the
   assert.equal(recovers, 0, 'never inside the request');
   await af.fetch(`${URL_}/rest/v1/doses?select=*`);
   assert.equal(queued.length, 1, 'once per 60 s');
-  await queued[0]();
+  while (queued.length) await queued.shift()(); // the recovery, then the deferred recovered hooks
   assert.equal(recovers, 1);
   assert.equal(recovered, 1);
   mono.add(61 * 1000);
   await af.fetch(`${URL_}/rest/v1/doses?select=*`);
-  assert.equal(queued.length, 2, 'again after 60 s');
+  assert.equal(queued.length, 1, 'again after 60 s');
 });
 
 test('T7 CS-6: never while backgrounded / headless; other 401s do not ask', async () => {
@@ -309,8 +309,8 @@ test('T7 CS-6: never while backgrounded / headless; other 401s do not ask', asyn
   fg = true;
   await af.fetch(`${URL_}/rest/v1/perm`);
   assert.equal(queued.length, 0, 'not a JWT expiry');
-  await af.fetch(`${URL_}/functions/v1/delete-account`, { method: 'POST' });
-  assert.equal(queued.length, 0, 'a function\'s 401 (e.g. during delete account) never asks for a refresh');
+  await af.fetch(`${URL_}/functions/v1/perm`, { method: 'POST' });
+  assert.equal(queued.length, 0, 'a function\'s permission 401 never asks for a refresh (Gate B 2: only an expired JWT does)');
   await af.fetch(`${URL_}/rest/v1/doses`);
   assert.equal(queued.length, 1);
   fg = false; // went to the background before the deferred call ran
@@ -343,7 +343,7 @@ test('T7 CS-5 (real client): clock moved back after a +19 h session → one 401 
   assert.ok(r.error, 'first call fails (JWT expired)');
   assert.equal(queued.length, 1);
   tokenExpired = false;
-  await queued[0]();
+  while (queued.length) await queued.shift()(); // the recovery, then the deferred recovered hooks
   assert.equal(server.refreshPosts, 2, 'exactly one more refresh');
   assert.equal(syncs, 1, 'the recovered hook asks for a sync');
   const r2 = await sb.from('doses').select('*');
@@ -407,7 +407,7 @@ test('CS-12 A-140: the network returns → exactly one refresh; a second report 
   server.mode = 'ok';
   assert.equal(af.networkBack(), true);
   assert.equal(queued.length, 1);
-  await queued[0]();
+  while (queued.length) await queued.shift()(); // the recovery, then the deferred recovered hooks
   assert.equal(server.refreshPosts, 1, 'one refresh when the network came back');
   assert.equal(JSON.parse(st.mem[KEY]).refresh_token, 'rt2', 'a real session again');
   assert.equal(syncs, 1, 'and the sync runs after it');
@@ -417,9 +417,9 @@ test('CS-12 A-140: the network returns → exactly one refresh; a second report 
 
 test('CS-12: the network returning while the app is in the background does not refresh', () => {
   const queued = [];
-  const af = createAuthFetch({ fetch: async () => { throw new TypeError('x'); }, readStoredSession: async () => null, now: monoClock().now, schedule: (fn) => queued.push(fn) });
+  const af = createAuthFetch({ fetch: async () => { throw new TypeError('x'); }, readStoredSession: async () => null, now: monoClock().now, schedule: (fn) => queued.push(fn), __test: true });
   af.setRecovery({ canRecover: () => false, recover: async () => ({}) });
-  af._markStale();
+  af.__test.markStale();
   assert.equal(af.networkBack(), false);
   assert.equal(queued.length, 0);
 });
