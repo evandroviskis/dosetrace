@@ -12,13 +12,14 @@
  * No shadow. Otherwise (no check, or locked) the card is exactly as before.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../../lib/supabase';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { getFoodLogsSince } from '../../lib/database';
+import { addSyncListener } from '../../lib/sync';
 import { todayFoodHeroPolicy, todaySummary } from '../../lib/foodThread';
 import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { catchUpFood, loadFoodAccess } from '../../lib/foodLogActions';
@@ -32,6 +33,34 @@ import { pluralKey } from '../../lib/plural';
 
 const CHECK_DAYS = 21;
 
+// The card's data: today's food rows (from the earliest of today, the reality check's start and
+// the first free day), the access answer and the check's state. Read on focus and, A-146, again
+// when a sync brings data.
+async function readFoodCard() {
+  const user = await getCachedUser();
+  const uid = user?.id || null;
+  const today = localISO();
+  const { access, rcStart } = await loadFoodAccess(uid);
+  const since = [today, rcStart && rcStart.date ? String(rcStart.date).slice(0, 10) : null, access.freeFrom].filter(Boolean).sort()[0];
+  const rows = uid ? (getFoodLogsSince(uid, since) || []) : [];
+  // Founder 2026-10-09: after the weigh-in the line says so (never "time to weigh in" again).
+  const now = await readCheckNow().catch(() => null);
+  return { uid, state: { access, rcStart, today, rows, sum: todaySummary(rows, today), checkState: now ? now.outcome.state : null } };
+}
+
+// A-146: reload on the sync events that bring data (the ones Today's dose lists use). A burst
+// (import_complete, then sync_complete, then data_changed) reloads once, waitMs after the last.
+// Returns the unsubscribe, which also drops a reload still waiting.
+function reloadOnSync(addListener, reload, waitMs = 300) {
+  let timer = null;
+  const off = addListener((e) => {
+    if (!e || (e.type !== 'import_complete' && e.type !== 'sync_complete' && e.type !== 'data_changed')) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; reload(); }, waitMs);
+  });
+  return () => { if (timer) clearTimeout(timer); timer = null; off(); };
+}
+
 // onReady (A-120, Today): called once the card's first read is done (also when it fails), so Today
 // shows its first screen complete, with this card already in place.
 export default function FoodLogHero({ variant = 'journey', onChanged, onReady }) {
@@ -40,21 +69,19 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
   const navigation = useNavigation();
   const s = makeStyles(colors);
   const [state, setState] = useState(null);
+  // A-146: the read of the focused card, for the sync listener below (null while blurred).
+  const readRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
     (async () => {
-      const user = await getCachedUser();
-      const uid = user?.id || null;
-      const today = localISO();
+      let uid = null;
       const read = async () => {
-        const { access, rcStart } = await loadFoodAccess(uid);
-        const since = [today, rcStart && rcStart.date ? String(rcStart.date).slice(0, 10) : null, access.freeFrom].filter(Boolean).sort()[0];
-        const rows = uid ? (getFoodLogsSince(uid, since) || []) : [];
-        // Founder 2026-10-09: after the weigh-in the line says so (never "time to weigh in" again).
-        const now = await readCheckNow().catch(() => null);
-        if (alive) setState({ access, rcStart, today, rows, sum: todaySummary(rows, today), checkState: now ? now.outcome.state : null });
+        const r = await readFoodCard();
+        uid = r.uid;
+        if (alive) setState(r.state);
       };
+      readRef.current = read;
       try { await read(); } finally { if (onReady) onReady(); }
       // Offline entries / follow-up answers are parsed once back online, even if
       // the chat is never opened (FL-19/28).
@@ -63,8 +90,13 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
         if (changed) { await read(); onChanged && onChanged(); }
       }
     })();
-    return () => { alive = false; };
+    return () => { alive = false; readRef.current = null; };
   }, [language]));
+
+  // A-146: after signing back in the cloud import fills food_logs AFTER the focus read, so the
+  // card also reads again when an import / sync finishes or data changes (as Today's dose lists
+  // do), debounced; the listener goes away on unmount.
+  useEffect(() => reloadOnSync(addSyncListener, () => { if (readRef.current) readRef.current().catch(() => {}); }), []);
 
   if (!state) return null;
   const policy = todayFoodHeroPolicy({ rcStart: state.rcStart, todayISO: state.today, access: state.access, checkDays: CHECK_DAYS });
