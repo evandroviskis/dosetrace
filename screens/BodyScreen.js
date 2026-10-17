@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -1320,7 +1321,7 @@ export default function BodyScreen({ navigation, route }) {
   const nothingSelected = selMarkers.size + selVaccines.size === 0;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       {book ? (
         <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage.group === 'vaccines' ? 'vaccines' : rightPage.id} />
       ) : section === null ? (

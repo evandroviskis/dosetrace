@@ -186,7 +186,7 @@ test('BK-5: embedded Progress has no back row and no top safe-area edge', () => 
 
 test('BK-5: embedded Curve has no back row, no top edge, and is sized to the page', () => {
   const src = read('screens/SerumCurveScreen.js');
-  assert.match(src, /edges=\{embedded \? \['left', 'right', 'bottom'\] : undefined\}/);
+  assert.match(src, /edges=\{embedded \? \['left', 'right'\] : undefined\}/); // A-136 (1): no bottom on a page
   assert.match(src, /\{embedded \? <View style=\{s\.navEmbedded\} \/> : \(\s*<View style=\{s\.nav\}>/);
   assert.match(src, /const windowWidth = embedded \? paneWidths\(rawWindowWidth\)\.right : rawWindowWidth;/);
   assert.match(src, /if \(embedded\) navigation\.navigate\('Paywall'[^\n]*\n\s*else navigation\.replace\('Paywall'/, 'a tab page has no replace(); the stack screen keeps its guard');

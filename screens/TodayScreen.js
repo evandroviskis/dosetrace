@@ -17,6 +17,7 @@ import { firstSyncGate } from '../lib/firstSyncGate';
 import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
@@ -2331,7 +2332,7 @@ export default function TodayScreen() {
   );
 
   return (
-    <SafeAreaView style={s.container} ref={rootRef} collapsable={false}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES} ref={rootRef} collapsable={false}>
       {book ? <BookPanes left={leftPage} right={renderRightPage()} rightKey={bookSel} /> : leftPage}
 
       {/* Undo toast — pinned above the tab bar, outside the ScrollView, so it is

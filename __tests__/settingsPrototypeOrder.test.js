@@ -47,7 +47,7 @@ const rules = (() => {
 })();
 
 const PHONE = region(SET, 'function renderPhone()', 'function renderBook()');
-const BOOK = region(SET, 'function renderBook()', '  return (\n    <SafeAreaView style={s.container}>');
+const BOOK = region(SET, 'function renderBook()', '  return (\n    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>');
 
 test('Settings groups: Preferences, Notifications, Data & privacy, Support — each with its one-line summary', () => {
   assert.deepEqual(rules.SETTINGS_GROUPS.map((g) => g.key), ['account', 'notifications', 'privacy', 'support']);

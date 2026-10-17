@@ -41,7 +41,7 @@ import {
 } from '../lib/database';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import T from '../lib/trashSelection';
-import { tabBarStyle } from '../lib/tabBarStyle';
+import { tabBarStyle, TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { dueNextOrder } from '../lib/protocolSort';
 import { protocolTakeAction } from '../lib/protocolTake';
 import { pendingFromYesterday } from '../lib/pendingYesterday';
@@ -2341,7 +2341,7 @@ export default function ProtocolsScreen() {
   // both off with nothing chosen.
   const bar = T.bar(trashSel);
   const trashBar = trashSel ? (
-    <View style={s.trashBar}>
+    <View style={[s.trashBar, { paddingBottom: 12 + insets.bottom }]}>
       <TouchableOpacity style={[s.trashBtn, s.trashBtnRestore, !bar.enabled && s.trashBtnOff]} disabled={!bar.enabled} onPress={() => restoreSelected(trashSel)} accessibilityRole="button" accessibilityState={{ disabled: !bar.enabled }}>
         <Text style={s.trashBtnRestoreText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('protocols_restore_n').replace('{n}', String(bar.n))}</Text>
       </TouchableOpacity>
@@ -2404,7 +2404,7 @@ export default function ProtocolsScreen() {
   ];
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       {/* S-26 book layout: two pages when the window is wide (BK-4). The sheets below sit
           outside this switch, so a fold or unfold never closes them (BK-10, BK-11). */}
       {book ? (

@@ -683,7 +683,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 
   return (
-    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right', 'bottom'] : undefined}>
+    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : undefined}>
       {embedded ? <View style={s.navEmbedded} /> : (
         <View style={s.nav}>
           <TouchableOpacity

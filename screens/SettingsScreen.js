@@ -20,6 +20,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -1107,7 +1108,7 @@ export default function SettingsScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       {/* The sheets below sit outside both layouts, so a fold or unfold never closes
           one or drops what was typed in it (BK-10). */}
       {book ? renderBook() : renderPhone()}

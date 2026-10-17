@@ -260,7 +260,7 @@ test('BK-21: the selected dose card, pending row and upcoming row report themsel
 
 test('BK-3: LogScreen embedded has no back row and no top safe-area edge', () => {
   assert.match(LOG, /export default function LogScreen\(\{ embedded = false, refreshKey, onChanged, popupGate \} = \{\}\)/);
-  assert.match(LOG, /<SafeAreaView style=\{s\.container\} edges=\{embedded \? \['left', 'right', 'bottom'\] : undefined\}>/,
+  assert.match(LOG, /<SafeAreaView style=\{s\.container\} edges=\{embedded \? \['left', 'right'\] : undefined\}>/, // A-136 (1): the tab bar owns the bottom
     'embedded: no top edge; not embedded: the default edges, as before');
   // navigation.goBack only inside {!embedded && …}
   let back = null;

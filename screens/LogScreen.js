@@ -517,7 +517,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   );
 
   return (
-    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right', 'bottom'] : undefined}>
+    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : undefined}>
       <View style={[s.nav, embedded && s.navEmbedded]}>
         {!embedded && (
           <TouchableOpacity

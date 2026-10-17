@@ -19,6 +19,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useNavigation, useFocusEffect, NavigationContext } from '@react-navigation/native';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { setSelection, clearSelection } from '../lib/bookSelection';
@@ -234,7 +235,7 @@ export default function JourneyScreen() {
 
   if (!book) {
     return (
-      <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
         {dashboard}
       </SafeAreaView>
     );
@@ -246,7 +247,7 @@ export default function JourneyScreen() {
         : <ProgressScreen embedded />;
 
   return (
-    <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       <BookPanes left={dashboard} right={right} rightKey={page} />
     </SafeAreaView>
   );

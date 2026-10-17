@@ -35,8 +35,8 @@ const rules = (() => {
 })();
 
 const PHONE = region('function renderPhone()', 'function renderBook()');
-const BOOK = region('function renderBook()', '  return (\n    <SafeAreaView style={s.container}>');
-const MAIN = region('  return (\n    <SafeAreaView style={s.container}>', 'const makeStyles');
+const BOOK = region('function renderBook()', '  return (\n    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>');
+const MAIN = region('  return (\n    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>', 'const makeStyles');
 const GRAD = SRC.slice(SRC.indexOf('const settingsGraduated = (c) => ({'));
 
 test('BK-1/BK-2: BookPanes renders only under `book`; one column renders the phone list', () => {
