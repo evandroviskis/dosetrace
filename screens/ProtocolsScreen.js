@@ -489,7 +489,8 @@ function ProtocolServingHero({ p, t, onRefill }) {
     return null; // not enough info yet — stay quiet
   }
 
-  const unitLabel = t(r.unitKey);
+  // A-136 (7): the serving word agrees with its count (1 cápsula, 2 cápsulas; French 0 and 1).
+  const unitWord = (n) => t(pluralKey(r.unitKey, n, language));
   // Show the amount when it's achievable (continuous, whole, or a clean half on
   // a scored unit). Otherwise the unit can't hit the target, so explain instead.
   const canShowAmount = !r.discrete || r.isAchievable;
@@ -503,7 +504,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
   const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
   const reads = [
     { label: t('protocols_serving_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}` },
-    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)}\u00A0${unitLabel}` } : null,
+    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)}\u00A0${unitWord(unitsLeft)}` } : null,
     daysLeft != null ? { label: t('protocols_serving_days_left'), value: String(daysLeft) } : null,
   ].filter(Boolean);
   while (reads.length < 3) reads.push(null);
@@ -514,9 +515,9 @@ function ProtocolServingHero({ p, t, onRefill }) {
       {canShowAmount ? (
         <View style={[s.drawWell, s.drawWellServing]}>
           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
-          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded, language)}\u00A0${unitLabel}`}>
+          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded, language)}\u00A0${unitWord(r.unitsNeeded)}`}>
             <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
-            <Text style={s.drawBigUnit}>{unitLabel}</Text>
+            <Text style={s.drawBigUnit}>{unitWord(r.unitsNeeded)}</Text>
           </View>
         </View>
       ) : (
@@ -524,7 +525,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
       )}
       {r.nearest && (
         <Text style={s.nearest}>
-          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)}
+          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitWord(r.nearest.lowUnits)} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitWord(r.nearest.highUnits)} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)}
         </Text>
       )}
       <View style={s.reads}>
@@ -3057,7 +3058,7 @@ export default function ProtocolsScreen() {
                 {wizServing && wizServing.unitMismatch && <View style={s.live}><WarnBox s={s} text={t('protocols_serving_unit_mismatch')} /></View>}
                 {wizServing && wizServing.valid && (() => {
                   const r = wizServing;
-                  const unitLabel = t(r.unitKey);
+                  const unitWord = (n) => t(pluralKey(r.unitKey, n, language));
                   const canShowAmount = !r.discrete || r.isAchievable;
                   return (
                     <View style={s.live}>
@@ -3066,7 +3067,7 @@ export default function ProtocolsScreen() {
                           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
                           <View style={s.bigRow}>
                             <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
-                            <Text style={s.drawBigUnit}>{unitLabel}</Text>
+                            <Text style={s.drawBigUnit}>{unitWord(r.unitsNeeded)}</Text>
                           </View>
                         </>
                       ) : (
@@ -3079,7 +3080,7 @@ export default function ProtocolsScreen() {
                       )}
                       {r.nearest && (
                         <Text style={s.nearest}>
-                          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(doseUnit, language)} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitLabel} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(doseUnit, language)}
+                          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitWord(r.nearest.lowUnits)} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(doseUnit, language)} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitWord(r.nearest.highUnits)} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(doseUnit, language)}
                         </Text>
                       )}
                     </View>

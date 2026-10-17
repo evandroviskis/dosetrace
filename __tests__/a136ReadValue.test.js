@@ -40,7 +40,10 @@ test('A-136 (4): every serving word, in every language, fits the column at the s
       // a half only where the form can be split (tablet, powder scoop, liquid ml: lib/oralMath)
       const counts = ['oral_unit_tablet', 'oral_unit_scoop', 'oral_unit_ml'].includes(k) ? ['1', '58', '120', '12,5'] : ['1', '58', '120'];
       for (const n of counts) {
-        for (const piece of readPieces(`${n}${NB}${tr[l][k]}`)) {
+        // the singular word for 1 (A-136 (7)), the plural otherwise
+        const word = n === '1' ? tr[l][`${k}_one`] : tr[l][k];
+        assert.ok(word, `${l} ${k} ${n}`);
+        for (const piece of readPieces(`${n}${NB}${word}`)) {
           assert.ok(est(piece) * MIN_SCALE <= COLUMN, `${l} ${k} "${piece}" ${Math.round(est(piece) * MIN_SCALE)}`);
         }
       }
