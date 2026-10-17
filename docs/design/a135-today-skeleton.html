@@ -1,0 +1,369 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Hoje com esqueleto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap">
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--pcard:#FFFFFF;--pacc:#2350D8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B;--pacc:#8AA8FF}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B;--pacc:#8AA8FF}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Geist,-apple-system,BlinkMacSystemFont,Roboto,sans-serif}
+header,section,.notes{max-width:1120px;margin:0 auto;padding:0 16px}
+header{padding-top:28px}
+h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+header p{margin:0 0 10px;color:var(--pink2);max-width:80ch}
+.box{background:var(--pcard);border:1px solid var(--pline);border-radius:16px;padding:14px 16px;margin:14px 0 4px}
+.box h3{margin:0 0 6px;font-size:15px}
+.box ol,.box ul,.notes ul{margin:6px 0 4px;padding-left:20px;max-width:84ch}
+.box li,.notes li{margin:5px 0}
+.rec{color:var(--pink2)}
+h2{font-size:19px;margin:44px 0 2px}
+h3.grp{font-size:15px;margin:22px 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h3.grp span{font-weight:400;color:var(--pink2);font-size:13px}
+.lead{color:var(--pink2);margin:0 0 6px;max-width:80ch}
+.row{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;justify-items:center}
+@media (max-width:900px){.row{grid-template-columns:minmax(0,1fr)}}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;min-width:0;width:100%;position:relative;z-index:1}
+figcaption{font-size:13px;font-weight:600;color:var(--pink);margin:0 0 8px}
+.when{font-size:12.5px;line-height:1.45;color:var(--pink2);margin-top:9px;max-width:270px;width:100%}
+.when b{color:var(--pink);font-variant-numeric:tabular-nums}
+.pz{zoom:var(--z,.62)}
+@media (max-width:900px){.pz{--z:.72}}
+@media (max-width:360px){.pz{--z:.66}}
+.guide{position:absolute;left:0;right:0;border-top:1px dashed var(--pacc);opacity:.55;z-index:2;pointer-events:none}
+.guide i{position:absolute;right:0;top:-15px;font:600 10px/1 Geist,sans-serif;font-style:normal;color:var(--pacc);background:var(--page);padding:1px 4px;border-radius:4px}
+.proof{font-size:13px;color:var(--pink);margin:12px 0 0;padding:8px 12px;border:1px solid var(--pline);border-radius:10px;background:var(--pcard);display:inline-block}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+.tools button{font:600 13px/1 Geist,sans-serif;padding:9px 14px;border-radius:18px;border:1px solid var(--pline);background:var(--pcard);color:var(--pink);cursor:pointer}
+.tools button[aria-pressed="true"]{background:var(--pink);color:var(--page);border-color:var(--pink)}
+.tones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;max-width:900px}
+@media (max-width:700px){.tones{grid-template-columns:minmax(0,1fr)}}
+.tone{border-radius:14px;padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.tone p{margin:0;font-size:12.5px;color:var(--pink2);text-align:center;padding:0 10px}
+.fold{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:1120px}
+@media (max-width:700px){.fold{grid-template-columns:minmax(0,1fr)}}
+.fold figure img{width:100%;max-width:360px;border-radius:10px;border:1px solid var(--pline);display:block}
+.fold figcaption{font-weight:500;color:var(--pink2);margin:6px 0 0}
+.notes{margin-top:40px;margin-bottom:56px}
+.notes h2{margin-top:0}
+
+/* ---------- the phone: app tokens from lib/theme.js (LIGHT / DARK), nothing else ---------- */
+.t-light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--data:#2350D8;--emph:#2350D8;--onEmph:#FFFFFF;--act:#111315;--onAct:#FFFFFF;--attention:#7E4A00;--accent:#2350D8;--tabInactive:#53585D;
+  --slab:#383C41;--si-ink:#F2F3EF;--si-ink2:#C4C8C3;--si-ink3:#A9AEA9;--si-tick:#8A9095;--si-line:#4B5056;--si-data:#8AA8FF;--si-attention:#E3A54E}
+.t-dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--data:#8AA8FF;--emph:#8AA8FF;--onEmph:#0F1114;--act:#EEEFEB;--onAct:#121416;--attention:#E3A54E;--accent:#8AA8FF;--tabInactive:#9A9F9A;
+  --slab:#EEEFEB;--si-ink:#111315;--si-ink2:#454A4F;--si-ink3:#5D6267;--si-tick:#A5AAA3;--si-line:#D6D9D2;--si-data:#2350D8;--si-attention:#7E4A00}
+.phone{width:428px;height:976px;padding:8px;border-radius:46px;background:#050606;flex:none}
+.screen{position:relative;width:412px;height:960px;border-radius:38px;overflow:hidden;background:var(--ground);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Roboto,Arial,sans-serif;font-size:17px;line-height:22px;-webkit-font-smoothing:antialiased}
+.sb{height:36px;display:flex;align-items:center;justify-content:space-between;padding:4px 26px 0;font-size:14px;font-weight:600;color:var(--ink)}
+.bat{width:24px;height:12px;border-radius:4px;border:1.5px solid var(--ink);position:relative}
+.bat::after{content:'';position:absolute;inset:1.5px 4px 1.5px 1.5px;background:var(--ink);border-radius:1.5px}
+.scroll{position:absolute;top:36px;left:0;right:0;bottom:0;overflow:hidden;--ph:var(--line)}
+.hdr{padding:8px 20px 18px;display:flex;flex-direction:column;gap:2px}
+.date{font-size:15px;line-height:20px;color:var(--ink2)}
+.title{font-family:Geist,-apple-system,sans-serif;font-size:34px;line-height:41px;font-weight:700;letter-spacing:-.8px}
+.block{padding:0 16px;margin-bottom:26px;display:flex;flex-direction:column;gap:10px}
+.lab{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px;gap:8px}
+.labT{font-size:17px;line-height:22px;font-weight:600}
+.labC{font-size:15px;line-height:20px;font-weight:500;color:var(--ink3)}
+.secT{font-size:22px;line-height:28px;font-weight:700}
+.card{--ph:var(--well)}
+.alist{background:var(--raised);border-radius:22px;padding:0 8px 0 16px}
+.aitem+.aitem{border-top:1px solid var(--line)}
+.arow{display:flex;align-items:center;min-height:64px;gap:12px}
+.amain{flex:1;display:flex;align-items:center;gap:12px;padding:10px 0;min-width:0}
+.atext{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.atr{display:flex;align-items:center;gap:7px;min-width:0}
+.atitle{font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.25px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abody{font-size:15px;line-height:20px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adot{width:7px;height:7px;border-radius:4px;background:var(--attention);flex:none}
+.ic{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.round{width:44px;height:44px;border-radius:22px;background:var(--well);display:flex;align-items:center;justify-content:center;flex:none}
+.slab{--ph:var(--si-line);background:var(--slab);color:var(--si-ink);border-radius:28px;padding:20px 20px 16px;margin:0 16px 26px;display:flex;flex-direction:column;gap:18px}
+.gauges{display:flex;align-items:center;gap:18px}
+.big{width:132px;height:132px;position:relative;flex:none}
+.big svg,.mini svg{position:absolute;inset:0}
+.bigIn{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.bigNum{font-size:32px;line-height:38px;font-weight:500;letter-spacing:-1.28px;font-variant-numeric:tabular-nums}
+.bigNum small,.sidePct small{font-size:16px;color:var(--si-ink2);letter-spacing:0}
+.bigCap{font-size:12px;line-height:14.4px;font-weight:600;color:var(--si-ink2);text-align:center}
+.side{flex:1;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sideRow{display:flex;align-items:center;gap:12px}
+.mini{width:44px;height:44px;position:relative;flex:none}
+.sideText{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sideLabel{font-size:15px;line-height:20px;font-weight:600}
+.sideSub{font-size:13px;line-height:17px;color:var(--si-ink2)}
+.sidePct{font-size:26px;line-height:31px;font-weight:500;letter-spacing:-.8px}
+.sidePct small{font-size:14px}
+.week{display:flex;justify-content:space-between;gap:4px}
+.wd{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.wdc{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--si-line)}
+.wdl{font-size:12px;line-height:15px;font-weight:500;color:var(--si-ink3)}
+.wdl.on{color:var(--si-ink);font-weight:700}
+.streak{display:flex;align-items:center;gap:10px;padding-top:14px;border-top:1px solid var(--si-line)}
+.streakT{flex:1;font-size:17px;line-height:22px;font-weight:600}
+.hist{font-size:15px;line-height:20px;color:var(--si-ink2);display:flex;align-items:center;gap:6px}
+.food{position:relative;background:var(--raised);border-radius:24px;padding:16px 18px;margin:0 16px 26px;display:flex;flex-direction:column;gap:8px}
+.emphRing{position:absolute;inset:0;border:2px solid var(--emph);border-radius:24px;pointer-events:none}
+.fhead{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.ficon{width:40px;height:40px;border-radius:20px;background:var(--well);display:flex;align-items:center;justify-content:center;flex:none}
+.fheadT{flex:1;font-size:17px;line-height:22px;font-weight:600}
+.ftitle{font-size:17px;line-height:22px;font-weight:700}
+.fsub{font-size:15px;line-height:20px;color:var(--ink2)}
+.cta{min-height:48px;border-radius:24px;background:var(--emph);color:var(--onEmph);font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:6px}
+.dose{background:var(--raised);border-radius:24px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px}
+.dtop{display:flex;align-items:flex-start;gap:12px}
+.ddot{width:10px;height:10px;border-radius:5px;margin-top:8px;flex:none}
+.dinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.dname{font-size:20px;line-height:25px;font-weight:700;letter-spacing:-.2px}
+.dfreq{font-size:15px;line-height:20px;color:var(--ink2)}
+.damt{font-family:"Geist Mono",ui-monospace,monospace;font-size:16px;color:var(--ink);letter-spacing:-.32px}
+.dright{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.dtr{display:flex;align-items:center;gap:8px}
+.dtime{font-size:17px;line-height:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.tag{display:flex;align-items:center;gap:6px;min-height:24px;padding:0 9px;border-radius:12px;border:1px solid var(--attention)}
+.tag i{width:6px;height:6px;border-radius:3px;background:var(--attention)}
+.tag span{font-size:12px;line-height:15px;font-weight:700;color:var(--attention)}
+.tag.later{border-color:var(--line)}
+.tag.later span{color:var(--ink3);font-weight:500}
+.dmeta{font-size:13px;line-height:18px;color:var(--ink2)}
+.acts{display:flex;gap:10px}
+.bSkip,.bAct{min-height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700}
+.bSkip{flex:1;background:var(--well);color:var(--ink)}
+.bAct{flex:2;background:var(--act);color:var(--onAct)}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:94px;padding:8px 0 32px;background:var(--ground);border-top:.5px solid var(--line);display:flex}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--tabInactive);font-size:11px;line-height:14px;font-weight:600}
+.tab.on{color:var(--ink)}
+.tab svg{width:24px;height:24px;margin-bottom:2px}
+.handle{position:absolute;left:50%;bottom:10px;width:120px;height:4px;margin-left:-60px;border-radius:2px;background:var(--ink2);opacity:.7}
+.spinFull{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.spinBox{padding-top:96px;display:flex;justify-content:center}
+.spin{width:36px;height:36px;animation:rot .9s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ---------- skeleton: the same elements, text made invisible, a bar in the placeholder tone ---------- */
+.t{display:block;position:relative}
+.sk .t{color:transparent!important}
+.sk .t *{color:transparent!important;visibility:hidden}
+.sk .t::after{content:'';position:absolute;left:0;top:50%;height:var(--bh,12px);margin-top:calc(var(--bh,12px) / -2);width:var(--w,60%);background:var(--ph);border-radius:6px}
+.sk .tc::after{left:50%;margin-left:calc(var(--w) / -2)}
+.sk .tr::after{left:auto;right:0}
+.sk .ic,.sk .ficon,.sk .ddot{background:var(--ph)!important}
+.sk .ic svg,.sk .ficon svg,.sk .round svg,.sk .chev,.sk .arc,.sk .tk,.sk .adot,.sk .fire{visibility:hidden}
+.sk .emphRing{display:none}
+.sk .cta,.sk .bSkip,.sk .bAct{background:var(--ph);color:transparent}
+.sk .tag{border-color:transparent;background:var(--ph)}
+.sk .tag *{visibility:hidden}
+.sk .trk{stroke:var(--ph)}
+.sk .wdc{border-color:var(--ph)}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.5}}
+body:not(.still) .sk .t::after,body:not(.still) .sk .ic,body:not(.still) .sk .ficon,body:not(.still) .sk .ddot,body:not(.still) .sk .cta,body:not(.still) .sk .bSkip,body:not(.still) .sk .bAct,body:not(.still) .sk .tag{animation:pl 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.sk *,.sk .t::after{animation:none!important}.spin{animation-duration:3s}}
+</style></head>
+<body>
+<header>
+  <h1>A-135 · O Hoje abre na hora, com o esqueleto</h1>
+  <p>Você pediu no Fold7 (16/10): "abrir a tela e deixar como se não tivesse informação nenhuma até que carregue". Hoje o app mostra um círculo girando na tela vazia, depois o título com outro círculo, e só então o Hoje inteiro. A proposta: o Hoje aparece na hora, com data, "Hoje", a barra de abas e os cartões já no tamanho final, num tom apagado, sem número e sem texto. Cada cartão se preenche quando o seu dado chega, no mesmo lugar.</p>
+  <div class="box">
+    <h3>O que você decide</h3>
+    <ol>
+      <li><b>Aprovar o desenho do esqueleto</b> (linhas "Proposta" abaixo, claro e escuro).</li>
+      <li><b>Pulso suave nas barras: ligado ou parado?</b> <span class="rec">Recomendo ligado: um pulso lento (1,6 s) que mostra que está carregando. Com "Remover animações" (Android) ou "Reduzir movimento" (iPhone) ligado, fica sempre parado. Use o botão abaixo para ver as duas formas.</span></li>
+    </ol>
+    <h3 style="margin-top:12px">Já decidido (segue da lógica, não precisa responder)</h3>
+    <ul>
+      <li><b>Sem token novo.</b> As barras usam tokens que já existem nas duas paletas: <code>c.well</code> dentro dos cartões brancos/cinza, <code>c.slabInv.line</code> dentro do bloco do anel, <code>c.line</code> sobre o fundo. Os cartões ficam na cor real (<code>c.raised</code>, <code>c.slab</code>), para não piscar de cor quando o dado chega.</li>
+      <li><b>O esqueleto usa o "molde" da última abertura.</b> Para nada pular, o app precisa saber quais cartões existem (alertas, anel, registro de comida, quantas doses) e a altura de cada um. Ele guarda só isso no aparelho, nenhum dado. Primeira abertura (ou depois de reinstalar): o molde padrão (anel, comida, 2 doses, sem alertas).</li>
+      <li><b>Único movimento possível:</b> se o dia mudou desde a última abertura (ex.: um alerta sumiu ou apareceu), aquele bloco se ajusta uma vez, no lugar dele. Nunca aparece "Nenhum registro ainda" nem "Adicione um protocolo" antes da leitura terminar.</li>
+      <li><b>O círculo de tela cheia também sai:</b> se a última sessão estava conectada, o app já abre no esqueleto do Hoje. Sem sessão, continua como hoje (entrada / login).</li>
+    </ul>
+  </div>
+  <div class="tools">
+    <button type="button" id="bPulse" aria-pressed="true">Pulso: ligado</button>
+    <button type="button" id="bStill" aria-pressed="false">Pulso: parado</button>
+  </div>
+</header>
+
+<section id="s-light"></section>
+<section id="s-dark"></section>
+
+<section>
+  <h2>Tom das barras: o escolhido e a alternativa</h2>
+  <p class="lead">O cartão de alertas em esqueleto. Esquerda: <code>c.well</code> (escolhido, bem quieto). Direita: <code>c.line</code> (mais visível). Os dois existem nas duas paletas.</p>
+  <div class="tones" id="tones"></div>
+</section>
+
+<section>
+  <h2>O que o Fold7 mostrou hoje (capturas reais, tela externa deitada, escuro)</h2>
+  <p class="lead">Os três quadros do "App hoje" acima, como apareceram no aparelho.</p>
+  <div class="fold">
+    <figure><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAABaKADAAQAAAABAAAAgQAAAAD/wAARCACBAWgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9sAQwAEBAQEBAQGBAQGCQYGBgkMCQkJCQwPDAwMDAwPEg8PDw8PDxISEhISEhISFRUVFRUVGRkZGRkcHBwcHBwcHBwc/9sAQwEEBQUHBwcMBwcMHRQQFB0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0d/90ABAAX/9oADAMBAAIRAxEAPwD4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigCe3/1o+hq/VC3/ANaPoav13UPhMKm5/9D4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigCe3/1o/Gr9ZIJHIp29/wC8fzrenV5VaxnKF3c//9H4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9L4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKtWV3JYXcV7Equ8Lbgrjcp9iD1BqzrTadJqlxLpClLSRg8anqu4AlfopJA9hVWXLe4r62MyiiipGFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH/0/ieiiiqJCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/1PieiiiqJCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/1fieiiiqJCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/1vieiiiqJCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/1/ieiiiqJCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==" alt="Círculo girando na tela vazia"><figcaption>1 · círculo na tela cheia</figcaption></figure>
+    <figure><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAABaKADAAQAAAABAAAAgQAAAAD/wAARCACBAWgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9sAQwAEBAQEBAQGBAQGCQYGBgkMCQkJCQwPDAwMDAwPEg8PDw8PDxISEhISEhISFRUVFRUVGRkZGRkcHBwcHBwcHBwc/9sAQwEEBQUHBwcMBwcMHRQQFB0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0d/90ABAAX/9oADAMBAAIRAxEAPwD4noooqiQooooAKKKKACiiigArd0u70S3hK6naNcSeZuBU4+XbjB59ef61hV6l4O+HVx4y8GeIdX0mOW41XS7i0jghQqFZJt/mFs9wFGOaAOX/ALR8NGMxnT2GEbGDyXKqAc7ugYEgds96dHq2gGGMXGnFpI1VMg4BVVA55HJbJJ6nPavU/EfwQn07VGhgvodOsYINPSSfUJNoN7eRbzAu0HODn2A6mqMXwW165sLazWAW+qJqF/a3kksg8qOOyRXdiAMgAMOQTuyMCkB5ZNeaQt1bXNnblUWMpNE4BDNgjcMk+v4YzVuLVNBW7WeSxJjFusewYxvAIJHPUj+I555xUnjDwdqfgy+trXUHjmjvbdbq2niJKSxMSMjIBBBBBBAIrkqYHR/bPDxmuCbJxHIw8oA5KDAH97scnHOc9Rirq6p4ZWQyDT2HyNGBjIwRgMfm6j+vtXH0UAbWoXejzwbbC0NvJvBBJJ+UA5ycnJPHbtnvisWiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAnt/9aPoav1Qt/wDWj6Gr9d1D4TCpuf/Q+J6KKKokKKKKACiiigAooooAK6ew8VX2neFNX8JwIv2fWJreeSXJDqbYsVC47Hcc1zFFAHs7fGjU7sG31nSLTUrLbZFLeUuAs1hH5UcoZTnJXhh0NdDcfHS5tbPTrnTle61SW6vrzVDOvlxSfb0RHhj2NuCqEG1uCMCvneilYDrPGHi258YahDezwLax20KwRRLJJLhQScl5CzFiTyePpXJ0UUwCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAJ7f8A1o/Gr9ZIJHIp29/7x/Ot6dXlVrGcoXdz/9H4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9L4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9P4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKsxyW6200ckO+V9vlybsbMH5uO+R+VVqKadgCiiikAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/9T4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9X4nop2fajPtVEjaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UANop2fajPtQA2inZ9qM+1ADaKdn2oz7UAf/1vieiiiqJCiiigDo/Ceh2fiPXrfR7/UodIgnDlrqcExptUsAQP7xGBU+teHrDStD0vV7bV7e+m1Bp1ltYgQ9uIm2qXJ6hxyKr+FPE194P1238QabHDLcWwcKs6CSM71KnKnrweKn1rxdqOu6HpmgXcVulvpTTNE0UYV2M7bm3sOoB6egoArDwp4kbbs02dt6hl2qTkHoRisAggkHgit628VeIrNGjttQmRWG37x4Ht6dO1YJJJJPU0AJRRRQAUUUUAb9hoxls31K6V2iUDZFER5smTt3AHOEB4JweePeoLjSJv7Un06wBnaIbscbgMAkHtlSdpx3qWLXZreKNoIlS7ih+zrOCciPkcDOA2DjOP1rHjmmiYvG5Vm4JB5POf5igC4dI1QAMbWTBz/D6df50NpOpogka1kC4Jzt7DqT9KBq+qAYF1Jjp940HV9UZShupCpBBG49CMH9KAM6iiigAooooAvaZZHUtQt7BXEZuHCbjzjPftVvVtJGlrA4mEonDHGACu3HXDMOc8c9qz7O6ksrqK7iALxNuAPSq3bB5xQBpLo+qOYwls7eYFZSBkYbkc+4NC6PqjI0i2smExnj16cUxNV1KMKqXMihQFADHgAYH5AVMdc1grtN3J0x16jrzQBlUUUUAFFFFAAeBmtrWNGfSBblpRJ9oTcMDHTHI5OVOeDx0PFZUEpgmjnUBjGwYBhkEg55HpVu41S+u4WgupTMrOJAX5KkAjg9gc8j2FADl0jU3gW6jtpHiYAhlGQQc88fSmJpeoycpbSN9F9OP6UsWq6lBGsMNzIiKMBQxwBSx6vqcZBS5kGDu68Zzn+dAFWe2uLZglxG0bEZAYY4qCrFxdXN2we5laVlGAWOcDrVegAooooAK6DRdDOqgyvJtjV9mE5cnGR14A+p56CufrZ0vWrjS8oirJEWLFTwd2MZDDkdOcdRQBBc6XcQX6adHiaWTZsCZ53jKjB6HmhdG1Vs7bSU4xnC+vIqK41G7uLoXjvtlVQqlBt2gDAAx04qy+vaw7bjdydjwcdKAM+e3ntn8q4jaN8A7WGDg9Khqae5nunElxI0jgBcscnA6CoaACiiigAooooA/9f4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9k=" alt="Título Hoje, barra de abas e círculo pequeno"><figcaption>2 · título + abas + círculo</figcaption></figure>
+    <figure><img src="data:image/jpeg;base64,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S7ih+zrOCciPkcDOA2DjOP1rHjmmiYvG5Vm4JB5POf5igC4dI1QAMbWTBz/D6df50NpOpogka1kC4Jzt7DqT9KBq+qAYF1Jjp940HV9UZShupCpBBG49CMH9KAM6iiigAooooAvaZZHUtQt7BXEZuHCbjzjPftVvVtJGlrA4mEonDHGACu3HXDMOc8c9qz7O6ksrqK7iALxNuAPSq3bB5xQBpLo+qOYwls7eYFZSBkYbkc+4NC6PqjI0i2smExnj16cUxNV1KMKqXMihQFADHgAYH5AVMdc1grtN3J0x16jrzQBlUUUUAFFFFAAeBmtrWNGfSBblpRJ9oTcMDHTHI5OVOeDx0PFZUEpgmjnUBjGwYBhkEg55HpVu41S+u4WgupTMrOJAX5KkAjg9gc8j2FADl0jU3gW6jtpHiYAhlGQQc88fSmJpeoycpbSN9F9OP6UsWq6lBGsMNzIiKMBQxwBSx6vqcZBS5kGDu68Zzn+dAFWe2uLZglxG0bEZAYY4qCrFxdXN2we5laVlGAWOcDrVegAooooAK6DRdDOqgyvJtjV9mE5cnGR14A+p56CufrZ0vWrjS8oirJEWLFTwd2MZDDkdOcdRQBBc6XcQX6adHiaWTZsCZ53jKjB6HmhdG1Vs7bSU4xnC+vIqK41G7uLoXjvtlVQqlBt2gDAAx04qy+vaw7bjdydjwcdKAM+e3ntn8q4jaN8A7WGDg9Khqae5nunElxI0jgBcscnA6CoaACiiigAooooA/9f4noooqiQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9k=" alt="Hoje carregado com dois alertas"><figcaption>3 · Hoje completo</figcaption></figure>
+  </div>
+</section>
+
+<div class="notes">
+  <h2>Detalhes para a construção</h2>
+  <ul>
+    <li><b>Tempos.</b> Medidos no Fold7 (build 48, uma captura a cada ~0,3 s; anotação grok/300): início nativo 0,11 a 0,15 s, logo do sistema até ~0,65 s, círculo de tela cheia até ~0,9 s, título com conteúdo escondido até ~1,5 a 2 s. Não medimos de novo no build de teste de hoje; medir no próximo.</li>
+    <li><b>O esqueleto não deixa os dados chegarem mais rápido.</b> Ele troca os dois círculos por uma tela que já é o app. O Hoje fica completo no mesmo momento de hoje.</li>
+    <li><b>Leitor de tela:</b> diz "Carregando" uma vez; as barras ficam escondidas dele.</li>
+    <li><b>Leitura que trava:</b> o limite de 4 s que já existe (A-120) continua; depois dele o cartão mostra o estado real, nunca fica no esqueleto para sempre.</li>
+    <li><b>Tela externa deitada e tela interna (livro):</b> o mesmo esqueleto, na coluna centralizada do Hoje.</li>
+    <li><b>Desenho fiel ao app:</b> medidas e cores tiradas de TodayScreen.js, TodayTracker.js, FoodLogHero.js e lib/theme.js (412 pt de largura, a tela externa do Fold7).</li>
+  </ul>
+</div>
+
+<script>
+const ICON = {
+  today:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>',
+  pill:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="8" width="19" height="8" rx="4" transform="rotate(-45 12 12)"/><path d="M8.5 8.5l7 7" /></svg>',
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/></svg>',
+  person:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c1-4 4-6 7.5-6s6.5 2 7.5 6" stroke-linecap="round"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.3 2.7-.7.6 2.7 2.6 1-1 2.6 1.7 2.2-2.3 1.6.3 2.8-2.8.2-1.2 2.5-2.5-1.3-2.5 1.3-1.2-2.5-2.8-.2.3-2.8-2.3-1.6 1.7-2.2-1-2.6 2.6-1 .6-2.7 2.7.7z" stroke-linejoin="round"/></svg>',
+  scale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4v16M7 20h10M5 7h14M5 7l-2.5 6h5zM19 7l-2.5 6h5z"/></svg>',
+  vial:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 12h4M17 12h4M7 9h10v6H7z"/></svg>',
+  snooze:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.2 1.6M5 4.5l2.5-1.5M19 4.5L16.5 3"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  fire:'<svg class="fire" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 21c-3.6 0-6-2.4-6-5.6 0-3.2 2.6-5 3.6-8.4 1.6 1.4 2 3 2 4.4 1-.6 1.8-1.8 2-3 2 1.8 4.4 4 4.4 7 0 3.2-2.4 5.6-6 5.6z"/></svg>'
+};
+const T = (txt, w, bh, cls) => `<span class="t ${cls||''}" style="--w:${w};--bh:${bh}px">${txt}</span>`;
+
+function bigRing(){
+  let ticks='';
+  for(let i=0;i<24;i++){const a=i*15*Math.PI/180;const x1=66+61*Math.sin(a),y1=66-61*Math.cos(a),x2=66+65*Math.sin(a),y2=66-65*Math.cos(a);ticks+=`<line class="tk" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="var(--si-tick)" stroke-width="1.5" stroke-linecap="round"/>`;}
+  return `<svg viewBox="0 0 132 132" width="132" height="132">${ticks}<circle class="trk" cx="66" cy="66" r="48" fill="none" stroke="var(--si-line)" stroke-width="11"/></svg>`;
+}
+function miniRing(pct){
+  const r=17,C=2*Math.PI*r,len=C*pct/100;
+  return `<svg viewBox="0 0 44 44" width="44" height="44"><circle class="trk" cx="22" cy="22" r="${r}" fill="none" stroke="var(--si-line)" stroke-width="5"/>${pct?`<circle class="arc" cx="22" cy="22" r="${r}" fill="none" stroke="var(--si-data)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 22 22)"/>`:''}</svg>`;
+}
+function spinner(){
+  return `<svg class="spin" viewBox="0 0 36 36"><circle cx="18" cy="18" r="14" fill="none" stroke="var(--accent)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="26 88"/></svg>`;
+}
+function statusBar(){ return `<div class="sb"><span>11:48</span><span class="bat"></span></div>`; }
+function tabBar(){
+  const tabs=[['today','Hoje',1],['pill','Protocolos'],['flag','Evolução'],['person','Meu corpo'],['gear','Ajustes']];
+  return `<div class="tabbar">${tabs.map(([i,l,on])=>`<div class="tab${on?' on':''}">${ICON[i]}<span>${l}</span></div>`).join('')}<div class="handle"></div></div>`;
+}
+function header(){ return `<div class="hdr"><span class="date">sexta-feira, 16 de outubro</span><span class="title">Hoje</span></div>`; }
+
+function alerts(sk){
+  const item=(icon,title,body,dot)=>`<div class="aitem"><div class="arow"><div class="amain"><span class="ic" style="color:var(--ink2)">${ICON[icon]}</span><div class="atext"><div class="atr">${T(title,'78%',12,'atitle')}${dot?'<span class="adot"></span>':''}</div>${T(body,'52%',10,'abody')}</div></div><span class="round" style="color:var(--ink2)">${ICON.snooze}</span></div></div>`;
+  return `<div class="block${sk?' sk':''}" data-g="Alertas"><div class="lab">${T('Alertas','72px',12,'labT')}${T('2','12px',10,'labC tr')}</div>
+  <div class="alist card">${item('scale','Pesagem para seus números reais','Pesagem em 6 de nov.')}${item('vial','Estoque baixo','TB-500, BPC-157 com estoque baixo',1)}</div></div>`;
+}
+function tracker(sk){
+  const days=['Sáb','Dom','Seg','Ter','Qua','Qui','Sex'];
+  return `<div class="slab${sk?' sk':''}" data-g="Anel">
+    <div class="gauges"><div class="big">${bigRing()}<div class="bigIn">${T('0<small>%</small>','44px',20,'bigNum tc')}${T('0 de 5','38px',8,'bigCap tc')}${T('hoje','30px',8,'bigCap tc')}</div></div>
+      <div class="side">
+        <div class="sideRow"><div class="mini">${miniRing(0)}</div><div class="sideText">${T('7 dias','56px',10,'sideLabel')}${T('0 de 35','48px',9,'sideSub')}</div>${T('0<small>%</small>','30px',16,'sidePct tr')}</div>
+        <div class="sideRow"><div class="mini">${miniRing(12)}</div><div class="sideText">${T('30 dias','56px',10,'sideLabel')}${T('12 de 98','48px',9,'sideSub')}</div>${T('12<small>%</small>','44px',16,'sidePct tr')}</div>
+      </div></div>
+    <div class="week">${days.map((d,i)=>`<div class="wd"><span class="wdc"></span>${T(d,'22px',8,'wdl tc'+(i===6?' on':''))}</div>`).join('')}</div>
+    <div class="streak"><span style="color:var(--si-attention);display:flex">${ICON.fire}</span>${T('Comece hoje','104px',12,'streakT')}<span class="hist">${T('Ver histórico','92px',10,'tr')}<span style="display:flex">${ICON.chev}</span></span></div>
+  </div>`;
+}
+function food(sk){
+  return `<div class="food card${sk?' sk':''}" data-g="Comida"><span class="emphRing"></span>
+    <div class="fhead"><span class="ficon" style="color:var(--emph)">${ICON.spark}</span>${T('Registro de comida com IA','62%',12,'fheadT')}<span style="color:var(--tick);display:flex">${ICON.chev}</span></div>
+    ${T('Nada registrado hoje ainda','58%',12,'ftitle')}
+    ${T('Seus números reais · dia 1 de 21 · 0 de 7 seguidos','84%',10,'fsub')}
+    <div class="cta">Registrar comida</div></div>`;
+}
+function doses(sk){
+  const card=(color,name,amt,freq,time,tag,meta)=>`<div class="dose card"><div class="dtop"><span class="ddot" style="background:${color}"></span>
+    <div class="dinfo">${T(name,'96px',14,'dname')}${T(`<span class="damt">${amt}</span> · ${freq}`,'150px',10,'dfreq')}</div>
+    <div class="dright"><div class="dtr">${T(time,'46px',12,'dtime tr')}<span style="color:var(--tick);display:flex">${ICON.chev}</span></div>${tag}</div></div>
+    ${T(meta,'70%',9,'dmeta')}
+    <div class="acts"><div class="bSkip">Pular</div><div class="bAct">Concluir</div></div></div>`;
+  return `<div class="block${sk?' sk':''}" data-g="Doses"><div class="lab">${T('Doses','78px',15,'secT')}${T('0 de 5 concluídas','118px',10,'labC tr')}</div>
+    ${card('#2350D8','TB-500','2,5 mg','2x por semana','08:00','<span class="tag"><i></i><span>Agora</span></span>','Dia 12 de 56 · Último: abdômen esq. · há 3d')}
+    ${card('#17623F','BPC-157','250 mcg','a cada 3 dias','20:00','<span class="tag later"><span>lembrete</span></span>','Dia 4 de 30 · Último: coxa dir. · há 3d')}
+  </div>`;
+}
+// state: spinFull | spinHead | loaded | skel | partial
+function phone(theme, state, sy){
+  let inner;
+  if(state==='spinFull') inner = statusBar()+`<div class="spinFull">${spinner()}</div>`;
+  else if(state==='spinHead') inner = statusBar()+`<div class="scroll">${header()}<div class="spinBox">${spinner()}</div></div>`+tabBar();
+  else {
+    const all = state==='skel', part = state==='partial';
+    inner = statusBar()+`<div class="scroll"><div style="transform:translateY(-${sy||0}px)">${header()}${alerts(all)}${tracker(all)}${food(all||part)}${doses(all||part)}</div></div>`+tabBar();
+  }
+  return `<div class="pz"><div class="phone"><div class="screen t-${theme}">${inner}</div></div></div>`;
+}
+const FRAMES = {
+  now:[
+    ['1 · Círculo na tela cheia','spinFull','<b>~0,65 → ~0,9 s.</b> Depois do logo do sistema (início nativo medido: 0,11 a 0,15 s). Tela vazia, sem abas.'],
+    ['2 · Título + abas + círculo','spinHead','<b>~0,9 → ~1,5–2 s.</b> Data, "Hoje" e as abas; o conteúdo carrega escondido.'],
+    ['3 · Hoje completo','loaded','<b>A partir de ~1,5–2 s.</b> Tudo aparece de uma vez (correção A-120).']
+  ],
+  new:[
+    ['1 · Esqueleto, na hora','skel','<b>A partir de ~0,65 s</b> (o primeiro quadro que o app desenha, no lugar dos dois círculos). Data, "Hoje", abas e os cartões no tamanho final, sem nenhum número.'],
+    ['2 · Preenchendo','partial','<b>~1 → ~2 s.</b> Cada cartão se preenche quando o seu dado chega. Aqui: alertas e anel prontos, comida e doses ainda no esqueleto. Nada sai do lugar.'],
+    ['3 · Completo','loaded','<b>Mesmo momento de hoje (~1,5–2 s).</b> Idêntico ao quadro 3 do app hoje: as linhas tracejadas mostram as mesmas bordas nos três quadros.']
+  ]
+};
+function section(theme){
+  const name = theme==='light'?'Claro':'Escuro';
+  const fig = ([cap,state,when])=>`<figure><figcaption>${cap}</figcaption>${phone(theme,state)}<div class="when">${when}</div></figure>`;
+  const figS = ([cap,state])=>`<figure><figcaption>${cap}</figcaption>${phone(theme,state,470)}</figure>`;
+  return `<h2>Tema ${name}</h2>
+  <h3 class="grp">App hoje <span>o que o build de teste mostra</span></h3>
+  <div class="row">${FRAMES.now.map(fig).join('')}</div>
+  <h3 class="grp">Proposta (esqueleto) <span>barras em c.well nos cartões, c.slabInv.line no anel, c.line no fundo</span></h3>
+  <div class="row prow" id="prow-${theme}">${FRAMES.new.map(fig).join('')}</div>
+  <h3 class="grp">Os mesmos três quadros, rolados até as doses <span>as primeiras doses ficam abaixo da dobra na tela de 412 pt</span></h3>
+  <div class="row prow" id="prow-${theme}-s">${FRAMES.new.map(figS).join('')}</div>
+  <div class="proof" id="proof-${theme}">Conferindo posições…</div>`;
+}
+document.getElementById('s-light').innerHTML = section('light');
+document.getElementById('s-dark').innerHTML = section('dark');
+
+// tone comparison: the alerts card skeleton, c.well vs c.line, both themes
+(function(){
+  const tile=(theme,tok,label)=>`<div class="tone t-${theme}" style="background:var(--ground)"><div class="screen t-${theme}" style="width:412px;height:auto;border-radius:0;background:transparent;overflow:visible;zoom:.7"><div style="--ph:var(--line)">${alerts(true).replace('class="alist card"',`class="alist card" style="--ph:var(--${tok})"`)}</div></div><p style="color:var(--ink2)">${label}</p></div>`;
+  document.getElementById('tones').innerHTML =
+    tile('light','well','Claro · c.well (escolhido)')+tile('light','line','Claro · c.line')+
+    tile('dark','well','Escuro · c.well (escolhido)')+tile('dark','line','Escuro · c.line');
+})();
+
+// guides + proof: the top edge of every card, measured in each proposal frame
+function guides(){
+  window.__proof={};
+  document.querySelectorAll('.prow').forEach(row=>{
+    row.querySelectorAll('.guide').forEach(g=>g.remove());
+    const theme=row.id.replace('prow-','').replace('-s','');
+    const figs=[...row.querySelectorAll('figure')];
+    const rr=row.getBoundingClientRect();
+    const stacked = figs.length>1 && Math.abs(figs[0].getBoundingClientRect().top-figs[1].getBoundingClientRect().top)>5;
+    let maxDiff=0, n=0;
+    const names=[...figs[0].querySelectorAll('[data-g]')].map(e=>e.dataset.g);
+    names.forEach(nm=>{
+      const ys=figs.map(f=>{const s=f.querySelector('.screen').getBoundingClientRect();const e=f.querySelector(`[data-g="${nm}"]`).getBoundingClientRect();return {top:e.top-s.top,bot:e.bottom-s.top,abs:e.top-rr.top,vis:e.top>=s.top+36&&e.top<=s.bottom-94};});
+      ys.forEach(y=>{maxDiff=Math.max(maxDiff,Math.abs(y.top-ys[0].top),Math.abs(y.bot-ys[0].bot));});
+      n++;
+      if(!stacked&&ys[0].vis){const g=document.createElement('div');g.className='guide';g.style.top=ys[0].abs+'px';g.innerHTML=`<i>${nm}</i>`;row.appendChild(g);}
+    });
+    const z=parseFloat(getComputedStyle(figs[0].querySelector('.pz')).zoom)||1;
+    const px=(maxDiff/z);
+    const P=window.__proof||(window.__proof={});P[theme]=Math.max(P[theme]||0,px);const el=document.getElementById('proof-'+theme);el.textContent = `Conferido nesta página (medido no navegador): as bordas de cima e de baixo dos ${n} blocos (alertas, anel, comida, doses) ficam no mesmo lugar nos 3 quadros da proposta. Maior diferença: ${P[theme]<0.5?'0':P[theme].toFixed(1)} pt.`;
+  });
+}
+function setPulse(on){
+  document.body.classList.toggle('still',!on);
+  document.getElementById('bPulse').setAttribute('aria-pressed',String(on));
+  document.getElementById('bStill').setAttribute('aria-pressed',String(!on));
+}
+document.getElementById('bPulse').onclick=()=>setPulse(true);
+document.getElementById('bStill').onclick=()=>setPulse(false);
+if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) setPulse(false);
+window.addEventListener('load',guides);
+const __ro=()=>{clearTimeout(window.__g);window.__g=setTimeout(guides,150);};window.addEventListener('resize',__ro);if(window.ResizeObserver)new ResizeObserver(__ro).observe(document.body);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(guides);
+</script>
+</body></html>
