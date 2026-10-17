@@ -45,7 +45,9 @@ test('Part 22: See how it works — the typing bubble grows with its text, the c
 
 test('Part 23: Fix this entry slides up from the bottom and a tap outside cancels', () => {
   const ed = read('screens/components/FoodEntryEditor.js');
-  assert.match(ed, /entering=\{SlideInDown\.duration\(280\)\}/);
+  // iPhone slides up; Android fades in with the scrim (foodEditorAndroidSheet.test.js, Fold 2026-10-17)
+  assert.match(ed, /Platform\.OS === 'ios' \? SlideInDown\.duration\(280\) : undefined/);
+  assert.match(ed, /entering=\{SHEET_ENTERING\}/);
   assert.match(ed, /<Pressable style=\{StyleSheet\.absoluteFill\} onPress=\{cancel\}/);
 });
 

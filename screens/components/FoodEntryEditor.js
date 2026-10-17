@@ -39,6 +39,12 @@ import SegmentedBar from '../../components/SegmentedBar';
 
 import { formatDate } from '../../lib/localeFormat';
 
+// iPhone keeps the approved slide-up (part 23). On Android a Reanimated entering animation inside
+// the Modal froze the sheet at its first layout, which is empty (items and date arrive in the next
+// render): only the header and the day bar showed, the rest was clipped below the edge (Fold,
+// 2026-10-17, foodEditorAndroidSheet.test.js). Android fades in with the scrim and lays out normally.
+const SHEET_ENTERING = Platform.OS === 'ios' ? SlideInDown.duration(280) : undefined;
+
 export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
@@ -102,7 +108,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
       <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[s.scrim, { paddingBottom: gap }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={cancel} accessibilityRole="button" accessibilityLabel={t('cancel')} />
-        <Animated.View entering={SlideInDown.duration(280)} style={s.sheet}>
+        <Animated.View entering={SHEET_ENTERING} style={s.sheet}>
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
             <View style={s.head}>
               <TouchableOpacity onPress={cancel} style={s.side} accessibilityRole="button">
