@@ -27,7 +27,7 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, syncAllDoseReminders, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
@@ -1245,6 +1245,9 @@ export default function TodayScreen() {
         updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
         fetchProtocols();
       }
+      // A-141 (6) (DL-09): the reminders follow the outcome the Undo restored — back to Skipped
+      // stays silent, back to nothing is reminded again (the take had cancelled it).
+      syncAllDoseReminders().catch(() => {});
       // The "start a new vial?" prompt of the undone dose must not stay up.
       if (plan.closeVialPrompt) {
         if (continuationProtocol && continuationProtocol.id === record.protocolId) closeVialPrompt();
@@ -1277,6 +1280,7 @@ export default function TodayScreen() {
         fetchPageLogs();
         setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
         fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
+        syncAllDoseReminders().catch(() => {}); // A-141 (6) (DL-08): a skipped slot is never reminded
         Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
         requestSync();
       } catch (err) {
