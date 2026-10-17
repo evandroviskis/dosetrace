@@ -92,7 +92,7 @@ test('Settings: after a deletion the Apple note clears the phone however it is c
   const src = read('screens/SettingsScreen.js');
   assert.match(src, /teardown: true,\s*buttons: \[\{ label: t\('done'\), kind: 'primary', onPress: runTeardown \}\]/);
   assert.match(src, /if \(closing && closing\.teardown\) runTeardown\(\);/);
-  assert.match(src, /if \(tornDown\.current\) return;/);
+  assert.match(src, /if \(tornDown\.current\) \{ setSheet\(unlockSheet\); return; \}/); // Gate B of 5cb065f: never a locked sheet left
 });
 
 test('Settings: Edit profile errors are shown from inside the Edit profile sheet', () => {

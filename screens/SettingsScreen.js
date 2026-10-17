@@ -35,7 +35,7 @@ import {
   getHistoryProtocols,
   getLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
-import { hasPremium } from '../lib/entitlement';
+import { hasPremium, getBillingStore } from '../lib/entitlement';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -75,10 +75,12 @@ function manageSubscriptionsUrl(os) {
     : 'https://apps.apple.com/account/subscriptions';
 }
 
-// 3 C: the first delete sheet. Premium users also read that deleting does not cancel the store
-// subscription (where to cancel, per platform) and get "Manage subscription", which opens the
-// store's page and leaves the sheet up; free users see the sheet as before.
-function deleteAccountSheet({ t, premium, os, onConfirm, openUrl }) {
+// 3 C: the first delete sheet. A store subscription that will renew (store: lib/entitlement
+// getBillingStore — APP_STORE | PLAY_STORE, Gate B of 5cb065f) adds that deleting does not cancel
+// it, where to cancel in THAT store, and "Manage subscription", which opens its page and leaves
+// the sheet up. No store subscription (free, promotional, Lifetime, cancelled, unknown): as before.
+function deleteAccountSheet({ t, store, onConfirm, openUrl }) {
+  const os = store === 'APP_STORE' ? 'ios' : store === 'PLAY_STORE' ? 'android' : null;
   const sheet = {
     title: t('settings_delete'),
     body: t('settings_delete_permanent_msg'),
@@ -87,7 +89,7 @@ function deleteAccountSheet({ t, premium, os, onConfirm, openUrl }) {
       { label: t('settings_delete_confirm'), kind: 'danger', onPress: onConfirm },
     ],
   };
-  if (!premium) return sheet;
+  if (!os) return sheet;
   return {
     ...sheet,
     body2: t(storeKey('settings_delete_premium', os)),
@@ -99,6 +101,24 @@ function deleteAccountSheet({ t, premium, os, onConfirm, openUrl }) {
       },
     },
   };
+}
+
+// Gate B of 5cb065f, 2: Delete tapped before the store answer arrived → wait for it, ms at most
+// (then no paragraph). A known answer (null included) is used at once. Never throws.
+async function resolveBillingStore(known, load, ms = 2000) {
+  if (known !== undefined) return known;
+  let timer = null;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(load).then((v) => v ?? null, () => null),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(null), ms); }),
+    ]);
+  } finally { clearTimeout(timer); }
+}
+
+// Gate B of 5cb065f, 1: a locked sheet (the progress) is cleared; any other sheet is kept.
+function unlockSheet(cur) {
+  return cur && cur.locked ? null : cur;
 }
 
 // 1 B: while the server deletes (up to a minute) a fixed sheet: spinner, no buttons, not closed by
@@ -175,6 +195,10 @@ export default function SettingsScreen({ navigation }) {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [premium, setPremium] = useState(false);
+  // Which store bills the Premium (undefined = not answered yet), for the delete sheet (3 C).
+  const [billingStore, setBillingStore] = useState(undefined);
+  const billingLoad = useRef(null);
+  const deleteOpening = useRef(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -207,11 +231,14 @@ export default function SettingsScreen({ navigation }) {
   // After the server deleted the account, the phone is cleared and signed out exactly once,
   // however the Apple note is closed (Done, the scrim or Android back), as on the 18+ sheet.
   const runTeardown = () => {
-    if (tornDown.current) return;
+    // Already running (the Apple note closed twice): that run settles it; never leave a locked sheet.
+    if (tornDown.current) { setSheet(unlockSheet); return; }
     tornDown.current = true;
-    // The phone could not sign out (no SIGNED_OUT ran): say so with the sign-out failure sheet.
+    // The phone could not sign out (no SIGNED_OUT ran): say so with the sign-out failure sheet, and
+    // re-arm so Delete again tears down again (Gate B of 5cb065f, 1: the locked sheet had no exit).
     // The progress sheet (1 B) stays up during the teardown; a locked sheet never stays behind.
-    finishAccountDeletion().then((r) => { if (r && r.failed) showSignOutFailed(); else setSheet((cur) => (cur && cur.locked ? null : cur)); }).catch(() => showSignOutFailed());
+    const failed = () => { tornDown.current = false; showSignOutFailed(); };
+    finishAccountDeletion().then((r) => { if (r && r.failed) failed(); else setSheet(unlockSheet); }).catch(failed);
   };
   const closeSheet = () => {
     const closing = sheet;
@@ -304,6 +331,10 @@ export default function SettingsScreen({ navigation }) {
   }
 
   async function fetchUser() {
+    // Asked first, so a fast tap on Delete account rarely waits (resolveBillingStore).
+    const bl = getBillingStore();
+    billingLoad.current = bl;
+    bl.then(setBillingStore, () => setBillingStore(null));
     const user = await getCachedUser();
     setUser(user);
     // Real subscription status (non-throwing; defaults to false on failure)
@@ -575,8 +606,12 @@ export default function SettingsScreen({ navigation }) {
     });
   }
 
-  function handleDeleteAccount() {
-    setSheet(deleteAccountSheet({ t, premium, os: Platform.OS,
+  async function handleDeleteAccount() {
+    if (deleteOpening.current) return;
+    deleteOpening.current = true;
+    let store = null;
+    try { store = await resolveBillingStore(billingStore, () => billingLoad.current || getBillingStore()); } finally { deleteOpening.current = false; }
+    setSheet(deleteAccountSheet({ t, store,
       openUrl: (u) => Linking.openURL(u),
       // Second confirmation — this is irreversible. The sheet runs a button's action
       // after it has closed, so the second sheet opens on its own.

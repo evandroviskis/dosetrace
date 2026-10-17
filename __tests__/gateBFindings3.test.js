@@ -25,7 +25,8 @@ test('GB3-2: after a deletion, closing the Apple note any way still runs the loc
   const scr = read('screens', 'AgeConfirmScreen.js');
   assert.match(scr, /teardown: true/);
   assert.match(scr, /if \(closing && closing\.teardown\) runTeardown\(\);/);
-  assert.match(scr, /if \(tornDown\.current\) return;\n\s+tornDown\.current = true;/);
+  // Gate B of 5cb065f: the early return also frees the buttons (behaviour: deleteAccountGateB.test.js).
+  assert.match(scr, /if \(tornDown\.current\) \{ setBusy\(null\); return; \}\n\s+tornDown\.current = true;/);
 });
 
 test('GB3-3: Sign out on the 18+ sheet asks first and never wipes changes that are not backed up', () => {

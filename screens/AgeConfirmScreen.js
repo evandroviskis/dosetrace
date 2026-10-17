@@ -36,11 +36,13 @@ export default function AgeConfirmScreen({ session }) {
   // After the server deleted the account, the phone is cleared and signed out exactly once —
   // whether the note is closed with OK, the scrim or Android back (Gate B).
   const runTeardown = () => {
-    if (tornDown.current) return;
+    // Already running: that run settles it; the buttons are never left disabled.
+    if (tornDown.current) { setBusy(null); return; }
     tornDown.current = true;
-    // The phone could not sign out (no SIGNED_OUT ran): the existing "Couldn't sign out" copy.
-    const failed = () => ok(t('settings_signout_failed_title'), t('settings_signout_failed_body'));
-    finishAccountDeletion().then((r) => { if (r && r.failed) failed(); }).catch(failed);
+    // The phone could not sign out (no SIGNED_OUT ran): the existing "Couldn't sign out" copy; the
+    // buttons work again and Delete again tears down again (Gate B of 5cb065f, 1).
+    const failed = () => { tornDown.current = false; setBusy(null); ok(t('settings_signout_failed_title'), t('settings_signout_failed_body')); };
+    finishAccountDeletion().then((r) => { if (r && r.failed) failed(); else setBusy(null); }).catch(failed);
   };
   const closeSheet = () => {
     const closing = sheet;

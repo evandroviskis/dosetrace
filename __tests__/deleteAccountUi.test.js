@@ -121,8 +121,8 @@ test('(3 C) the store subscriptions page per platform (Android: the package from
   assert.equal(manageSubscriptionsUrl('android'), `https://play.google.com/store/account/subscriptions?package=${pkg}`);
 });
 
-test('(3 C) free users: the first delete sheet exactly as before (no paragraph, no link)', () => {
-  const sh = deleteAccountSheet({ t: tEn, premium: false, os: 'ios', onConfirm: () => {}, openUrl: () => {} });
+test('(3 C) no store subscription: the first delete sheet exactly as before (no paragraph, no link)', () => {
+  const sh = deleteAccountSheet({ t: tEn, store: null, onConfirm: () => {}, openUrl: () => {} });
   assert.equal(sh.title, 'Delete account');
   assert.equal(sh.body, translations.en.settings_delete_permanent_msg);
   assert.equal(sh.body2, undefined);
@@ -131,11 +131,11 @@ test('(3 C) free users: the first delete sheet exactly as before (no paragraph, 
   assert.deepEqual(sh.buttons.map((b) => [b.label, b.kind]), [['Cancel', 'secondary'], [translations.en.settings_delete_confirm, 'danger']]);
 });
 
-test('(3 C) Premium users: the platform paragraph + "Manage subscription", which opens the store and keeps the sheet', () => {
-  for (const os of ['ios', 'android']) {
+test('(3 C) a store subscription: that store\'s paragraph + "Manage subscription", which opens the store and keeps the sheet (Gate B of 5cb065f: by the billing store)', () => {
+  for (const [store, os] of [['APP_STORE', 'ios'], ['PLAY_STORE', 'android']]) {
     const opened = [];
     let confirmed = 0;
-    const sh = deleteAccountSheet({ t: tEn, premium: true, os, onConfirm: () => { confirmed++; }, openUrl: async (u) => { opened.push(u); } });
+    const sh = deleteAccountSheet({ t: tEn, store, onConfirm: () => { confirmed++; }, openUrl: async (u) => { opened.push(u); } });
     assert.equal(sh.body, translations.en.settings_delete_permanent_msg);
     assert.equal(sh.body2, translations.en[`settings_delete_premium_${os}`]);
     assert.equal(sh.link.label, 'Manage subscription');
@@ -147,15 +147,15 @@ test('(3 C) Premium users: the platform paragraph + "Manage subscription", which
     assert.equal(confirmed, 1);
   }
   // A store page that cannot open is ignored (no crash, the sheet stays).
-  const sh = deleteAccountSheet({ t: tEn, premium: true, os: 'ios', onConfirm: () => {}, openUrl: () => Promise.reject(new Error('no')) });
+  const sh = deleteAccountSheet({ t: tEn, store: 'APP_STORE', onConfirm: () => {}, openUrl: () => Promise.reject(new Error('no')) });
   assert.doesNotThrow(() => sh.link.onPress());
-  const sync = deleteAccountSheet({ t: tEn, premium: true, os: 'ios', onConfirm: () => {}, openUrl: () => { throw new Error('no'); } });
+  const sync = deleteAccountSheet({ t: tEn, store: 'APP_STORE', onConfirm: () => {}, openUrl: () => { throw new Error('no'); } });
   assert.doesNotThrow(() => sync.link.onPress());
 });
 
-test('(3 C) handleDeleteAccount builds the first sheet from the screen premium state and Platform.OS', () => {
-  const h = sliceBlock(settingsSrc, 'function handleDeleteAccount(');
-  assert.match(h, /deleteAccountSheet\(\{ t, premium, os: Platform\.OS,/);
+test('(3 C) handleDeleteAccount builds the first sheet from the billing store (deleteAccountGateB.test.js)', () => {
+  const h = sliceBlock(settingsSrc, 'async function handleDeleteAccount(');
+  assert.match(h, /deleteAccountSheet\(\{ t, store,/);
   assert.match(h, /openUrl: \(u\) => Linking\.openURL\(u\)/);
 });
 
@@ -231,7 +231,7 @@ test('(1 B) the progress sheet shows first; the result replaces it (still syncin
 
 test('(1 B) after the teardown a locked sheet never stays behind; a failed sign-out replaces it', () => {
   const rt = settingsSrc.slice(settingsSrc.indexOf('const runTeardown = () => {'), settingsSrc.indexOf('const closeSheet = () => {'));
-  assert.match(rt, /setSheet\(\(cur\) => \(cur && cur\.locked \? null : cur\)\)/);
+  assert.match(rt, /setSheet\(unlockSheet\)/); // behaviour: deleteAccountGateB.test.js
   assert.match(rt, /showSignOutFailed\(\)/);
 });
 
@@ -249,7 +249,9 @@ test('no hardcoded colors and no emoji in the new code', () => {
     deletingAccountSheet: sliceBlock(settingsSrc, 'function deletingAccountSheet('),
     deleteSyncBusySheet: sliceBlock(settingsSrc, 'function deleteSyncBusySheet('),
     executeAccountDeletion: sliceBlock(settingsSrc, 'async function executeAccountDeletion('),
-    handleDeleteAccount: sliceBlock(settingsSrc, 'function handleDeleteAccount('),
+    handleDeleteAccount: sliceBlock(settingsSrc, 'async function handleDeleteAccount('),
+    resolveBillingStore: sliceBlock(settingsSrc, 'async function resolveBillingStore('),
+    unlockSheet: sliceBlock(settingsSrc, 'function unlockSheet('),
   };
   for (const [name, src] of Object.entries(parts)) {
     assert.doesNotMatch(src, COLOR_LITERAL, `${name}: color literal`);
