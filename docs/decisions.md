@@ -934,3 +934,8 @@ Pending — founder question (not decided by logic):
 - **Test build 3 go** (after the delete UI + ship-check) — source: founder "pode seguir" (2026-10-17).
 - **Test account evandro1985@gmail.com may be deleted for the delete-account device test (plan step 16)** — source: founder "Essa conta é para testes mesmo" (2026-10-17), after being told it erases all its test data and the RevenueCat promo for good and that a throwaway account was recommended. Steps needing the account (reset link, vial, stalled network) run first; the deletion is last.
 - **Session revoke of the test account on the server (plan step 15)** — source: founder "pode cancelar" (2026-10-17). 3 sessions deleted from auth.sessions for that user only.
+
+## 2026-10-17 — founder: build 52 after the Fold device test
+- **A-145 (Today counts tomorrow-dated doses) and A-146 (food card empty after signing back in) go into build 52 (Android 52 / iOS 70), then a short device check, then store submit** — source: founder "pode fazer o build 52 com A-145 e A-146" (2026-10-17).
+- **A-147 (Forgot password on a Google/Apple-only account) proposal 1.3.1 stands** (not in build 52; the founder named only A-145 and A-146).
+- **The test account evandro1985@gmail.com is recreated by the founder** (Continue with Google on the device; Claude never creates accounts) — source: founder "Podemos criar a conta evandro1985 novamente" (2026-10-17).
