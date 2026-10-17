@@ -3556,7 +3556,9 @@ const protocolsGraduated = (c) => ({
   rw: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, minHeight: 50, paddingVertical: 13 },
   rwSep: { borderTopWidth: 1, borderTopColor: c.line },
   rwKey: { fontSize: 17, color: c.ink2, flexShrink: 1 },
-  rwVal: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'right', flexShrink: 1 },
+  // A-141 (1): the value keeps its own width (a short number never breaks) and is capped
+  // at 60% of the row, where a long value wraps at its spaces; the label takes the rest.
+  rwVal: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'right', flexShrink: 0, maxWidth: '60%' },
   rwValMono: { fontFamily: MONO['500'], fontWeight: undefined, fontSize: 17 },
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
   noteWellOn: { borderColor: c.ink },
