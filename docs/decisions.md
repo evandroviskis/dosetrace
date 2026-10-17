@@ -932,3 +932,5 @@ Pending — founder question (not decided by logic):
 - **A-141 (4) delete-protocol text approved** — source: founder "aprovo o texto" (2026-10-17).
 - **parse-food v14 may be published** — source: founder "pode publicar" (2026-10-17).
 - **Test build 3 go** (after the delete UI + ship-check) — source: founder "pode seguir" (2026-10-17).
+- **Test account evandro1985@gmail.com may be deleted for the delete-account device test (plan step 16)** — source: founder "Essa conta é para testes mesmo" (2026-10-17), after being told it erases all its test data and the RevenueCat promo for good and that a throwaway account was recommended. Steps needing the account (reset link, vial, stalled network) run first; the deletion is last.
+- **Session revoke of the test account on the server (plan step 15)** — source: founder "pode cancelar" (2026-10-17). 3 sessions deleted from auth.sessions for that user only.
