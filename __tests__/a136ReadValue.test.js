@@ -53,10 +53,11 @@ test('A-136 (4): every serving word, in every language, fits the column at the s
 
 test('A-136 (4): the serving and syringe readings use ReadValue (one line per piece, shrink, wrap at spaces)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/ProtocolsScreen.js'), 'utf8');
-  assert.match(src, /import \{ readPieces \} from '\.\.\/lib\/readPieces'/);
-  const fn = src.slice(src.indexOf('function ReadValue('), src.indexOf('function ReadValue(') + 700);
-  assert.match(fn, /readPieces\(text\)\.map/);
-  assert.match(fn, /<Text key=\{i\} style=\{\[s\.readVal, s\.readPiece\]\} numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.55\}>/);
+  assert.match(src, /import \{ readPieces(, readScale, READ)? \} from '\.\.\/lib\/readPieces'/);
+  const fn = src.slice(src.indexOf('function ReadValue('), src.indexOf('function ReadValue(') + 900);
+  assert.match(fn, /const pieces = readPieces\(text\);/);
+  assert.match(fn, /pieces\.map/);
+  assert.match(fn, /<Text key=\{i\} style=\{\[s\.readVal, s\.readPiece, size\]\} numberOfLines=\{1\}>/); // one scale for every piece, floor 0.55 (A-135 council (5), lib/readPieces readScale)
   assert.match(src, /\n\s+readValWrap: \{ flexDirection: 'row', flexWrap: 'wrap'/);
   assert.match(src, /\n\s+readPiece: \{ maxWidth: '100%' \}/);
   assert.doesNotMatch(src, /<Text style=\{s\.readVal\}>/, 'no reading renders as one breakable Text');

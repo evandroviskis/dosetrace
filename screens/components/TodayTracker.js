@@ -10,7 +10,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { ringPct } from '../../lib/adherenceRings';
-import { trackerFit } from '../../lib/trackerFit';
+import { trackerFit, sideTextSize } from '../../lib/trackerFit';
 import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
 
@@ -87,14 +87,29 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
   // A-136 (3): on a narrow slab (the Fold page) the small rings' text keeps one line (lib/trackerFit).
   const [inner, setInner] = useState(0);
   const fit = trackerFit(inner, [ringPct(rings && rings.week), ringPct(rings && rings.month)]);
-  const side = (label, r) => {
+  // A-135 council (5): the two rows share one label size and one count size — the narrower
+  // measured text column and the longer text decide for both (lib/trackerFit sideTextSize).
+  const [cols, setCols] = useState([0, 0]);
+  const measureCol = (i, w) => {
+    const v = Math.round(w);
+    setCols((prev) => (prev[i] === v ? prev : prev.map((x, j) => (j === i ? v : x))));
+  };
+  const col = cols[0] && cols[1] ? Math.min(cols[0], cols[1]) : 0;
+  const label7 = t('today_ring_7d');
+  const label30 = t('today_ring_30d');
+  const subOf = (r) => (r && r.due ? ofText(r) : '—');
+  const sub7 = subOf(rings && rings.week);
+  const sub30 = subOf(rings && rings.month);
+  const labelSize = sideTextSize(col, [label7, label30], 15);
+  const subSize = sideTextSize(col, [sub7, sub30], 13, 0.5);
+  const side = (i, label, r, sub) => {
     const p = ringPct(r);
     return (
       <View style={s.sideRow}>
         <Gauge size={44} pct={p} inv={inv} />
-        <View style={s.sideText}>
-          <Text style={s.sideLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{label}</Text>
-          <Text style={s.sideSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{r && r.due ? ofText(r) : '—'}</Text>
+        <View style={s.sideText} onLayout={(e) => measureCol(i, e.nativeEvent.layout.width)}>
+          <Text style={[s.sideLabel, { fontSize: labelSize }]} numberOfLines={1}>{label}</Text>
+          <Text style={[s.sideSub, { fontSize: subSize }]} numberOfLines={1}>{sub}</Text>
         </View>
         <Text style={[s.sidePct, fit.pctMax != null && { maxWidth: fit.pctMax }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>{p == null ? '—' : p}<Text style={s.sidePctSign}>{p == null ? '' : '%'}</Text></Text>
       </View>
@@ -121,8 +136,8 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
           </View>
         </View>
         <View style={s.side}>
-          {side(t('today_ring_7d'), rings && rings.week)}
-          {side(t('today_ring_30d'), rings && rings.month)}
+          {side(0, label7, rings && rings.week, sub7)}
+          {side(1, label30, rings && rings.month, sub30)}
         </View>
       </View>
       {weekDots.length > 0 && (

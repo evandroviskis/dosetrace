@@ -55,14 +55,15 @@ test('A-136 (3): every language fits the text column on one line at the shrink f
 
 test('A-136 (3): the tracker uses the fit and keeps each line on one line', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/components/TodayTracker.js'), 'utf8');
-  assert.match(src, /import \{ trackerFit \} from '\.\.\/\.\.\/lib\/trackerFit'/);
+  assert.match(src, /import \{ trackerFit(, sideTextSize)? \} from '\.\.\/\.\.\/lib\/trackerFit'/);
   assert.match(src, /<View style=\{s\.slab\} onLayout=\{/);
   assert.match(src, /<Gauge size=\{fit\.big\}/);
   assert.match(src, /<View style=\{\[s\.bigIn, \{ paddingHorizontal: Math\.round\(22 \* fit\.big \/ 132\) \}\]\}/, 'the opening padding scales with the gauge');
   assert.match(src, /<Text style=\{s\.bigNum\} numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.8\}>/);
   assert.match(src, /style=\{\[s\.sidePct, fit\.pctMax != null && \{ maxWidth: fit\.pctMax \}\]\}/);
   assert.match(src, /<View style=\{\[s\.gauges, \{ gap: fit\.gap \}\]\}>/);
+  // A-135 council (5): both rows share one label size and one count size (sideTextSize, floor 0.75).
   for (const st of ['sideLabel', 'sideSub']) {
-    assert.match(src, new RegExp(`style=\\{s\\.${st}\\} numberOfLines=\\{1\\} adjustsFontSizeToFit minimumFontScale=\\{${MIN_SCALE}\\}`), st);
+    assert.match(src, new RegExp(`style=\\{\\[s\\.${st}, \\{ fontSize: (label|sub)Size \\}\\]\\} numberOfLines=\\{1\\}>`), st);
   }
 });

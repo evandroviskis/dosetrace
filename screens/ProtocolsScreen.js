@@ -30,7 +30,7 @@ import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
 import { protocolDisplayName } from '../lib/protocolName';
-import { readPieces } from '../lib/readPieces';
+import { readPieces, readScale, READ } from '../lib/readPieces';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { doseUnitCheck } from '../lib/doseUnitCheck';
 import { friendlyError } from '../lib/friendlyError';
@@ -286,12 +286,17 @@ function InfoBox({ s, text }) {
 // Rows block (prototype .rows/.rw): section title, then label left / value right.
 // A reading under a small label (Volume / Dose / Left …), a third of the card wide. It never
 // breaks inside a word (A-136 (4): "58 cápsula / s" on the Fold): it wraps only at an ordinary
-// space (lib/readPieces) and each piece shrinks on one line when the column is too narrow.
+// space (lib/readPieces). One size per value (A-135 council (5)): the column is measured and every
+// piece takes the same scale (lib/readPieces readScale), never each its own.
 function ReadValue({ s, text }) {
+  const [col, setCol] = useState(0);
+  const pieces = readPieces(text);
+  const k = readScale(pieces, col);
+  const size = { fontSize: READ.SIZE * k, letterSpacing: -0.3 * k };
   return (
-    <View style={s.readValWrap} accessible accessibilityLabel={String(text || '')}>
-      {readPieces(text).map((w, i) => (
-        <Text key={i} style={[s.readVal, s.readPiece]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}>{w}</Text>
+    <View style={s.readValWrap} accessible accessibilityLabel={String(text || '')} onLayout={(e) => setCol(Math.round(e.nativeEvent.layout.width))}>
+      {pieces.map((w, i) => (
+        <Text key={i} style={[s.readVal, s.readPiece, size]} numberOfLines={1}>{w}</Text>
       ))}
     </View>
   );

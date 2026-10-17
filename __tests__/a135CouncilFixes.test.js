@@ -127,3 +127,59 @@ test('council (4c): only the placeholder bars pulse in the ring block, not the r
   assert.match(src, /function Bar\(\{ w, h = 12, lh, color, style, ps \}\)/);
   assert.match(src, /const Box = ps \? Animated\.View : View;/);
 });
+
+// (5) One size per value: the pieces of a reading, and the two matching rows of the tracker, never
+// shrink each on its own ("58" at 17 pt next to "cápsulas" at ~9 pt; "7 dias" and "30 dias" in two
+// sizes on the Fold).
+test('council (5): a reading takes one scale for all its pieces', () => {
+  const { readPieces, readScale, READ } = require('../lib/readPieces');
+  const w = (p) => p.length * (0.6 * READ.SIZE - 0.3); // Geist Mono: 0.6 em less the letter spacing
+  // Room for everything: full size.
+  assert.equal(readScale(['58', 'cápsulas'], 200), 1);
+  assert.equal(readScale(['58', 'cápsulas'], 0), 1, 'not measured yet');
+  assert.equal(readScale([], 50), 1);
+  // A little short: one line, every piece at the same smaller scale (never below the floor).
+  const pieces = ['58', 'cápsulas'];
+  const oneLine = w('58') + w('cápsulas') + READ.GAP;
+  const sOne = readScale(pieces, oneLine - 8);
+  assert.ok(sOne < 1 && sOne >= READ.FLOOR, String(sOne));
+  assert.ok((w('58') + w('cápsulas')) * sOne + READ.GAP <= oneLine - 8 + 0.01, 'fits one line');
+  // Too short for one line at the floor: it wraps at the space, at full size while the longest piece fits.
+  assert.equal(readScale(pieces, w('cápsulas') + 1), 1);
+  // A single piece wider than the column: all shrink together, as far as the old floor (never a break in a word).
+  const long = readPieces('120 cápsulas em gel');
+  const sLong = readScale(long, 90);
+  assert.ok(sLong < 1 && sLong >= READ.MIN, String(sLong));
+  assert.ok(w(long[0]) * sLong <= 90 + 0.01);
+  assert.equal(READ.FLOOR, 0.85);
+  assert.equal(READ.MIN, 0.55);
+});
+
+test('council (5): ReadValue measures its column and gives every piece the same size', () => {
+  const src = read('screens/ProtocolsScreen.js');
+  assert.match(src, /import \{ readPieces, readScale, READ \} from '\.\.\/lib\/readPieces';/);
+  const fn = src.slice(src.indexOf('function ReadValue('), src.indexOf('\n}\n', src.indexOf('function ReadValue(')));
+  assert.match(fn, /const \[col, setCol\] = useState\(0\);/);
+  assert.match(fn, /onLayout=\{\(e\) => setCol\(Math\.round\(e\.nativeEvent\.layout\.width\)\)\}/);
+  assert.match(fn, /const k = readScale\(pieces, col\);/);
+  assert.match(fn, /const size = \{ fontSize: READ\.SIZE \* k, letterSpacing: -0\.3 \* k \};/);
+  assert.match(fn, /<Text key=\{i\} style=\{\[s\.readVal, s\.readPiece, size\]\} numberOfLines=\{1\}>/);
+  assert.ok(!fn.includes('adjustsFontSizeToFit'), 'no piece shrinks on its own');
+});
+
+test('council (5): the tracker\'s two side rows share one label size and one count size', () => {
+  const { sideTextSize } = require('../lib/trackerFit');
+  assert.equal(sideTextSize(0, ['7 dias', '30 dias'], 15), 15, 'not measured yet');
+  assert.equal(sideTextSize(200, ['7 dias', '30 dias'], 15), 15);
+  const narrow = sideTextSize(40, ['7 dias', '30 dias'], 15);
+  assert.ok(narrow < 15 && narrow >= 15 * 0.75, String(narrow));
+  assert.equal(sideTextSize(40, ['30 dias', '7 dias'], 15), narrow, 'the longest decides, in any order');
+  assert.ok(sideTextSize(10, ['30 giorni'], 15) >= 15 * 0.75, 'floor');
+  const src = read('screens/components/TodayTracker.js');
+  assert.match(src, /import \{ trackerFit, sideTextSize \} from '\.\.\/\.\.\/lib\/trackerFit';/);
+  assert.match(src, /const labelSize = sideTextSize\(col, \[label7, label30\], 15\);/);
+  assert.match(src, /const subSize = sideTextSize\(col, \[sub7, sub30\], 13, 0\.5\);/);
+  assert.match(src, /<Text style=\{\[s\.sideLabel, \{ fontSize: labelSize \}\]\} numberOfLines=\{1\}>\{label\}<\/Text>/);
+  assert.match(src, /<Text style=\{\[s\.sideSub, \{ fontSize: subSize \}\]\} numberOfLines=\{1\}>\{sub\}<\/Text>/);
+  assert.match(src, /onLayout=\{\(e\) => measureCol\(i, e\.nativeEvent\.layout\.width\)\}/);
+});
