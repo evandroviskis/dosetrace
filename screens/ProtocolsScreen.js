@@ -61,6 +61,7 @@ import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { frequencyLabelFor } from '../lib/schedule';
+import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry } from '../lib/vialExpiry';
@@ -2294,7 +2295,8 @@ export default function ProtocolsScreen() {
   // deleted. Each row: the protocol color as a 9 pt dot, the name, "Deleted Nd ago", a
   // Restore pill and the risk-colored delete-forever trash (with its confirm).
   const deletedIds = deletedProtocols.map((p) => p.id);
-  const deletedAgo = (p) => t('protocols_deleted_ago').replace('{days}', Math.ceil((Date.now() - new Date(p.deleted_at).getTime()) / 86400000));
+  // A-141 (3): local calendar days; "Deleted today" on the day itself (a ceil of 24-hour blocks said "1d" seconds after).
+  const deletedAgo = (p) => deletedAgoText(p.deleted_at, t);
   // Recently deleted multi-select (picture page approved 2026-10-03): "Select" beside the title
   // (only with items); while selecting each row is a checkbox (the prototype's round check), the
   // header offers Select all / Deselect all and Cancel, and the bottom bar replaces the tab bar.
