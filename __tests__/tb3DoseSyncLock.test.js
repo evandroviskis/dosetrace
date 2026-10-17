@@ -11,7 +11,7 @@ const { sliceBlock, read } = require('./helpers/extractFn');
 function loadSync(fakes) {
   const src = read('lib/notifications.js');
   const parts = [];
-  if (/let doseSyncLock = Promise\.resolve\(\);/.test(src)) parts.push('let doseSyncLock = Promise.resolve();');
+  for (const decl of ['let doseSyncLock = Promise.resolve();', 'let doseSyncRunning = null;', 'let doseSyncNext = null;']) if (src.includes(decl)) parts.push(decl);
   const outer = src.includes('export function syncAllDoseReminders(') ? 'export function syncAllDoseReminders(' : 'export async function syncAllDoseReminders(';
   parts.push(sliceBlock(src, outer).replace(/^export\s+/, ''));
   if (src.includes('async function syncAllDoseRemindersNow(')) parts.push(sliceBlock(src, 'async function syncAllDoseRemindersNow('));
@@ -68,8 +68,9 @@ test('TB3-1: a run that throws does not block the next one', async () => {
   assert.equal(n, 2);
 });
 
-test('TB3-1: the runs are chained like withSnoozeLock', () => {
+test('TB3-1: the runs go one at a time; calls during a run share one follow-up (tb3DoseSyncCoalesce)', () => {
   const src = read('lib/notifications.js');
-  assert.match(src, /let doseSyncLock = Promise\.resolve\(\);/);
-  assert.match(src, /export function syncAllDoseReminders\(\) \{\s*const run = doseSyncLock\.then\(syncAllDoseRemindersNow, syncAllDoseRemindersNow\);\s*doseSyncLock = run\.catch\(\(\) => \{\}\);\s*return run;\s*\}/);
+  assert.match(src, /let doseSyncRunning = null;\s*let doseSyncNext = null;/);
+  assert.match(src, /if \(doseSyncRunning\) \{\s*if \(!doseSyncNext\) \{/);
+  assert.match(src, /const run = Promise\.resolve\(\)\.then\(syncAllDoseRemindersNow\);/);
 });
