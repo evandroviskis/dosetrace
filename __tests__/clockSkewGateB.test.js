@@ -245,7 +245,7 @@ test('CS-20 (Gate B 3): the auto-refresh tick turns a stand-in into a real sessi
   assert.equal(r.af.networkBack(), false, 'nothing stale any more');
 });
 
-test('CS-20: the hook waits for the foreground; a recovery that refreshes fires it once, not twice', async () => {
+test('CS-20: in the background the hook is dropped, not kept for later; a recovery that refreshes fires it once, not twice', async () => {
   let fg = false;
   const r = standInRig({ canRecover: () => fg });
   r.g.mode = 'throw';
@@ -253,7 +253,11 @@ test('CS-20: the hook waits for the foreground; a recovery that refreshes fires 
   r.g.mode = 'ok'; r.setOffline(false);
   await r.refresh();
   await r.drain();
-  assert.equal(r.hooks(), 0, 'background: no sync from here');
+  assert.equal(r.hooks(), 0, 'background: dropped (nothing queued for the foreground)');
+  fg = true;
+  await r.drain();
+  assert.equal(r.hooks(), 0, 'coming back does not replay it: the App.js resume sync covers it (next test)');
+  fg = false;
   // Again with a recovery doing the refresh.
   fg = true;
   const q = standInRig();
@@ -362,4 +366,32 @@ test('F3: isStale / _markStale / the device-expiry switch are test-only', () => 
   assert.ok(createAuthFetch({ __test: true }).__test.markStale);
   const s = read('lib/authFetch.js');
   assert.ok(!/opts\.deviceExpiry\b/.test(s), 'the switch is named as a test hook');
+});
+
+// The chain after a dropped hook (DT Council test build 3, item 6): the pending rows go with App.js's
+// own foreground resume sync (AppState 'active' → isForegroundStale → getSession → requestSync), which
+// runs at most once a minute (lib/stillGoingGate FOREGROUND_FRESH_MS); a NetInfo reconnect or the next
+// local write also asks for a sync. Nothing else replays the dropped hook.
+test('CS-20 chain: a hook dropped in the background, then the foreground resume sync pushes the pending rows (at most once a minute)', async () => {
+  let fg = false;
+  const r = standInRig({ canRecover: () => fg });
+  let pushes = 0;
+  const requestSync = () => { pushes += 1; }; // lib/sync requestSync → syncPass → pushPending
+  r.af.onRecovered(requestSync);
+  r.g.mode = 'throw';
+  await r.refresh(); // stand-in
+  r.g.mode = 'ok'; r.setOffline(false);
+  await r.refresh(); // a real session while the app is in the background
+  await r.drain();
+  assert.equal(pushes, 0, 'the hook was dropped');
+  // App.js's resume handler, with the real isForegroundStale.
+  const app = read('App.js');
+  assert.match(app, /if \(!isForegroundStale\(nowTs, lastFgSync\)\) return;\s*lastFgSync = nowTs;\s*supabase\.auth\.getSession\(\)\.then\(\(\{ data: \{ session \} \}\) => \{[\s\S]{0,200}if \(session\?\.user\?\.id\) \{ requestSync\(\);/);
+  const isForegroundStale = loadFn('lib/stillGoingGate.js', 'export function isForegroundStale(', 'isForegroundStale', { FOREGROUND_FRESH_MS: 60000 });
+  let lastFgSync = 0;
+  const onActive = (nowTs) => { fg = true; if (!isForegroundStale(nowTs, lastFgSync)) return; lastFgSync = nowTs; requestSync(); };
+  onActive(10 * 60 * 1000);
+  assert.equal(pushes, 1, 'the resume sync pushes the pending rows');
+  onActive(10 * 60 * 1000 + 30 * 1000);
+  assert.equal(pushes, 1, 'a second resume within a minute does not ask again');
 });
