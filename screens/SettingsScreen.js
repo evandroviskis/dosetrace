@@ -79,8 +79,9 @@ function manageSubscriptionsUrl(os) {
 // getBillingStore — APP_STORE | PLAY_STORE, Gate B of 5cb065f) adds that deleting does not cancel
 // it, where to cancel in THAT store, and "Manage subscription", which opens its page and leaves
 // the sheet up. No store subscription (free, promotional, Lifetime, cancelled, unknown): as before.
-function deleteAccountSheet({ t, store, onConfirm, openUrl }) {
-  const os = store === 'APP_STORE' ? 'ios' : store === 'PLAY_STORE' ? 'android' : null;
+// Guideline 2.3.10: the iOS app never names Google Play, so on iOS a Play subscription shows nothing.
+function deleteAccountSheet({ t, store, platform, onConfirm, openUrl }) {
+  const os = store === 'APP_STORE' ? 'ios' : store === 'PLAY_STORE' && platform !== 'ios' ? 'android' : null;
   const sheet = {
     title: t('settings_delete'),
     body: t('settings_delete_permanent_msg'),
@@ -611,7 +612,7 @@ export default function SettingsScreen({ navigation }) {
     deleteOpening.current = true;
     let store = null;
     try { store = await resolveBillingStore(billingStore, () => billingLoad.current || getBillingStore()); } finally { deleteOpening.current = false; }
-    setSheet(deleteAccountSheet({ t, store,
+    setSheet(deleteAccountSheet({ t, store, platform: Platform.OS,
       openUrl: (u) => Linking.openURL(u),
       // Second confirmation — this is irreversible. The sheet runs a button's action
       // after it has closed, so the second sheet opens on its own.

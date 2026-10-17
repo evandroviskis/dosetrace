@@ -205,3 +205,18 @@ test('(3) the link never throws and never closes the sheet when the store page c
     assert.equal(sh.link.keepOpen, true);
   }
 });
+
+// ---------- 2.3.10 follow-up: the iOS app never names Google Play ----------
+test('(2.3.10) on iOS a PLAY_STORE subscription shows no paragraph; Android keeps both stores', () => {
+  const sheetOn = (store, platform) => deleteAccountSheet({ t: tEn, store, platform, onConfirm: () => {}, openUrl: () => {} });
+  const ios = sheetOn('PLAY_STORE', 'ios');
+  assert.equal(ios.body2, undefined, 'iOS: no Google Play text');
+  assert.equal(ios.link, undefined, 'iOS: no Play link');
+  assert.equal(sheetOn('APP_STORE', 'ios').body2, translations.en.settings_delete_premium_ios);
+  assert.equal(sheetOn('APP_STORE', 'android').body2, translations.en.settings_delete_premium_ios, 'Android: the Apple text for an App Store subscription');
+  assert.equal(sheetOn('APP_STORE', 'android').link.label, 'Manage subscription');
+  assert.equal(sheetOn('PLAY_STORE', 'android').body2, translations.en.settings_delete_premium_android);
+  const src = read(S);
+  const h = src.slice(src.indexOf('async function handleDeleteAccount('), src.indexOf('async function executeAccountDeletion('));
+  assert.match(h, /deleteAccountSheet\(\{ t, store, platform: Platform\.OS,/);
+});
