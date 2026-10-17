@@ -458,6 +458,7 @@ export default function App() {
     removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
     resetAllSelections, // S-26: the next account starts with no open right-page items
     clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
+    forgetTodayLayout, // A-135 council: Today's layout memory (keyed by the user id) goes with the account
   });
 
   registerWipe(wipeDeps); // account deletion wipes at once with the same steps (lib/accountActions)
