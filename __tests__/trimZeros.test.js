@@ -56,7 +56,7 @@ test('Protocols volume and concentration render sites go through trimZeros', () 
   // (founder 2026-10-02: every shown number also takes the app language's decimal —
   // decimalText(trimZeros(x), language) — "0,5 ml" in Portuguese; the trim is unchanged.)
   // protocol page syringe calculator: the Volume read
-  assert.match(PROTOCOLS, /<Text style=\{s\.readVal\}>\{`\$\{decimalText\(trimZeros\(draw\.drawML\), language\)\}\\u00A0ml`\}<\/Text>/); // no-break before the unit (m2)
+  assert.match(PROTOCOLS, /<ReadValue s=\{s\} text=\{`\$\{decimalText\(trimZeros\(draw\.drawML\), language\)\}\\u00A0ml`\} \/>/); // no-break before the unit (m2); A-136 (4) ReadValue
   // zoomed syringe sheet readout: units untouched, ml trimmed
   assert.match(PROTOCOLS, /\{decimalText\(draw\.drawUnits, language\)\}u<\/Text> · \{decimalText\(trimZeros\(draw\.drawML\), language\)\} ml/);
   // dose details (recon): diluent amount and concentration

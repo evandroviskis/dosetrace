@@ -30,6 +30,7 @@ import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
 import { protocolDisplayName } from '../lib/protocolName';
+import { readPieces } from '../lib/readPieces';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -281,6 +282,19 @@ function InfoBox({ s, text }) {
 }
 
 // Rows block (prototype .rows/.rw): section title, then label left / value right.
+// A reading under a small label (Volume / Dose / Left …), a third of the card wide. It never
+// breaks inside a word (A-136 (4): "58 cápsula / s" on the Fold): it wraps only at an ordinary
+// space (lib/readPieces) and each piece shrinks on one line when the column is too narrow.
+function ReadValue({ s, text }) {
+  return (
+    <View style={s.readValWrap} accessible accessibilityLabel={String(text || '')}>
+      {readPieces(text).map((w, i) => (
+        <Text key={i} style={[s.readVal, s.readPiece]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}>{w}</Text>
+      ))}
+    </View>
+  );
+}
+
 function RowsBlock({ s, title, rows, style }) {
   const shown = rows.filter(Boolean);
   if (!shown.length) return null;
@@ -374,16 +388,16 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       <View style={s.reads}>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
-          <Text style={s.readVal}>{`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`}</Text>
+          <ReadValue s={s} text={`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`} />
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
-          <Text style={s.readVal}>{`${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`}</Text>
+          <ReadValue s={s} text={`${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`} />
           {alt ? <Text style={s.readAlt}>= {alt}</Text> : null}
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_size')}</Text>
-          <Text style={s.readVal}>{syringeSizeLabel(syringeMax, language)}</Text>
+          <ReadValue s={s} text={syringeSizeLabel(syringeMax, language)} />
         </View>
       </View>
       <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
@@ -516,7 +530,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
         {reads.map((rd, i) => (
           <View key={i} style={s.readCell}>
             {rd ? <Text style={s.readLabel}>{rd.label}</Text> : null}
-            {rd ? <Text style={s.readVal}>{rd.value}</Text> : null}
+            {rd ? <ReadValue s={s} text={rd.value} /> : null}
           </View>
         ))}
       </View>
@@ -3512,6 +3526,9 @@ const protocolsGraduated = (c) => ({
   readCell: { flex: 1, minWidth: 0, gap: 3 },
   readLabel: { fontSize: 12, fontWeight: '500', color: c.ink2 },
   readVal: { fontSize: 17, fontFamily: MONO['500'], color: c.ink, letterSpacing: -0.3 },
+  // A-136 (4): a reading wraps only at a space; a piece shrinks rather than breaking a word.
+  readValWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 10 },
+  readPiece: { maxWidth: '100%' },
   readAlt: { fontSize: 12, fontWeight: '500', color: c.ink3, fontVariant: ['tabular-nums'] },
   disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3 },
   nearest: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
