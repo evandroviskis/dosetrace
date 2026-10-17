@@ -395,6 +395,52 @@ function accountsSummary(rows) {
   return { total, by_provider, by_onboarding: { onboarded, not_onboarded: total - onboarded }, by_platform };
 }
 
+// Panel #016: the Gmail name.number rule, mirrored from admin_is_test for the page filter only.
+const TEST_RULE = /^[a-z]+\.[0-9]{5,6}@gmail\.com$/;
+function matchesTestRule(email) { return TEST_RULE.test(String(email || '').trim().toLowerCase()); }
+
+// Panel #016: the panel's only write. Validates the body, then calls admin_mark_test (all or
+// nothing, audit row per email, never touches auth.users). Returns [status, body].
+const MARK_ACTIONS = { mark_test: true, unmark_test: false };
+function parseMarkBody(body) {
+  let b = body;
+  if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { return { error: 'invalid json' }; } }
+  if (!b || typeof b !== 'object' || !(b.action in MARK_ACTIONS)) return { error: 'invalid action' };
+  if (!Array.isArray(b.emails) || !b.emails.length) return { error: 'emails must be a non-empty array' };
+  if (b.emails.length > 200) return { error: 'max 200 emails per call' };
+  const emails = [];
+  for (const e of b.emails) {
+    if (typeof e !== 'string') return { error: 'emails must be strings' };
+    const v = e.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+$/.test(v)) return { error: 'invalid email' };
+    if (!emails.includes(v)) emails.push(v);
+  }
+  return { emails, mark: MARK_ACTIONS[b.action] };
+}
+async function markTests(body) {
+  const parsed = parseMarkBody(body);
+  if (parsed.error) return [400, { error: parsed.error }];
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [503, { error: 'Supabase not configured' }];
+  try {
+    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/rpc/admin_mark_test`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_emails: parsed.emails, p_mark: parsed.mark }),
+    });
+    const text = await r.text();
+    if (!r.ok) {
+      let msg = text.slice(0, 300);
+      try { const jj = JSON.parse(text); msg = String(jj.message || jj.error || msg); } catch (e) { /* keep text */ }
+      return [r.status >= 500 ? 502 : 400, { error: msg }];
+    }
+    return [200, JSON.parse(text)];
+  } catch (e) {
+    return [502, { error: String(e && e.message || e) }];
+  }
+}
+
 function buildManagement(sb, rc, nowMs) {
   const accounts = Array.isArray(sb.accounts) ? sb.accounts : [];
   const windows = {};
@@ -486,6 +532,13 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // Panel #016: the only write. Same header-only auth as above; everything else is a GET.
+  if (String(req.method || 'GET').toUpperCase() === 'POST') {
+    const [code, out] = await markTests(req.body);
+    res.status(code).json(out);
+    return;
+  }
+
   const [supabase, revenuecat, google_play, apple, rcCustomers] = await Promise.all([
     fetchSupabase(), fetchRevenueCat(), fetchGooglePlay(), fetchApple(), fetchRevenueCatCustomers(),
   ]);
@@ -506,6 +559,6 @@ module.exports = async (req, res) => {
 };
 
 Object.assign(module.exports, {
-  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, accountsSummary,
+  fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, accountsSummary, matchesTestRule, parseMarkBody,
   isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
 });

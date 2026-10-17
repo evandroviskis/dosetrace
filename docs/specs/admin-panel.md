@@ -88,6 +88,25 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
   - **Removed because analytics are anonymous since 2026-10-04 (founder regulatory decision; user_id is null on every event):** O5–O7 DAU/WAU/MAU, C2 active users, F1 and the Users/Reach columns of F2, P1–P3 compounds/searches/types, G2 cohorts, `admin_activity` is no longer called. Event counts (F2 Uses, C5 scans, E3 doses chart) stay and are labelled events, not people.
   - Before/after numbers (with tests / without) go in note 013 only, never on the page.
 
+### Phase 2d — Marking test accounts from the panel (Panel #016, founder GO 2026-10-17; first panel write)
+
+**Founder exception:** this is the only write the panel may do before a real login exists. It runs behind the current header-only ADMIN_TOKEN. Premium grant/revoke stays out of scope.
+
+| ID | Criterion | Status | Evidence |
+|---|---|---|---|
+| TM1 | One POST endpoint in `api/adm.js`; token from the Authorization header only; a token-like query parameter → 401 before anything; GET behaviour unchanged | [~] | tests "TM1…" in admManagement.test.js |
+| TM2 | Body validated: `action` ∈ {mark_test, unmark_test}; `emails` = array of 1–200 strings, trimmed, lower-cased, de-duplicated; anything else → 400 and no database call | [~] | tests "TM2…" |
+| TM3 | Every email must exist in `auth.users`, otherwise the whole call is refused (no partial writes); enforced in SQL `admin_mark_test` | [~] | SQL + test "TM3…" |
+| TM4 | Marking inserts into `admin_test_accounts` and removes any exception; unmarking removes the list row and, if the account is still test by a rule, inserts an exception ("não é teste") so the founder's word wins over the rule | [~] | SQL + static test |
+| TM5 | `admin_audit_log` (at, action, email, before, after): one row per email, written in the same transaction as the change; RLS on; service_role only | [~] | SQL + static test |
+| TM6 | Rule in `admin_is_test`: lower(email) ~ `^[a-z]+\.[0-9]{5,6}@gmail\.com$` counts as test; `admin_test_exceptions` wins over every rule and over the list; `admin_test_kind(email)` returns exception / list / domain / rule / null for badges | [~] | SQL + tests |
+| TM7 | Contas tab: search by email; filters all / not onboarded / no live protocol / Google sign-in / rule match; row checkboxes + select all filtered; "Marcar como teste" / "Desmarcar teste"; confirmation listing the exact emails; "Contas de teste" view (emails + kind) to undo; badge "teste (regra)"; counter "N contas pela regra" | [~] | render, both themes |
+| TM8 | Test accounts still appear in no number and not in the Resumo (count only) | [~] | existing tests + SQL |
+| TM9 | No account is deleted or created by the panel | [~] | SQL contains no DELETE/INSERT on auth.users |
+| TM10 | Rule impact on today's real accounts reported as counts only, before apply | [~] | note 015 |
+
+**Not applied until the founder's go:** the SQL (two tables, `admin_is_test` v3, `admin_test_kind`, `admin_mark_test`, `admin_accounts_list` v2). No push, no deploy.
+
 ### Phase 3 — not specced yet (founder specs first)
 
 - [ ] 3.1 Login/password for the panel.

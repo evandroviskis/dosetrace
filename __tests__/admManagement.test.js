@@ -416,3 +416,123 @@ test('#013 Contas tab: a third tab exists with its labels in 6 languages', () =>
   assert.match(html, /\['accounts','tab_accounts'\]/);
   assert.match(html, /function secAccounts\(\)/);
 });
+
+
+// ---------------------------------------------------------------- Panel #016: marking test accounts (first panel write)
+async function post(body, headers, url) {
+  const realFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (u, opt) => { calls.push({ url: String(u), body: opt && opt.body ? JSON.parse(opt.body) : null }); return new Response(JSON.stringify({ ok: true, changed: 1 }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
+  try {
+    await adm({ method: 'POST', url: url || '/api/adm', headers: Object.assign({ 'content-type': 'application/json' }, headers || {}), query: {}, body }, res);
+    return { res, calls };
+  } finally { global.fetch = realFetch; }
+}
+const VALID = { authorization: 'Bearer dummy-admin-token-0123456789' };
+function envOn() { process.env.SUPABASE_URL = 'https://dummy.supabase.test'; process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-key'; }
+function envOff() { delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SERVICE_ROLE_KEY; }
+
+test('TM1 POST: token in the query string is refused even with a valid header; no database call', async () => {
+  envOn(); try {
+    const { res, calls } = await post({ action: 'mark_test', emails: ['a@x.y'] }, VALID, '/api/adm?t=x');
+    assert.equal(res.code, 401); assert.equal(res.body, '{"error":"Unauthorized"}'); assert.equal(calls.length, 0);
+  } finally { envOff(); }
+});
+test('TM1 POST: no header or wrong header is refused; no database call', async () => {
+  envOn(); try {
+    for (const h of [{}, { authorization: 'Bearer nope' }]) { const { res, calls } = await post({ action: 'mark_test', emails: ['a@x.y'] }, h); assert.equal(res.code, 401); assert.equal(calls.length, 0); }
+  } finally { envOff(); }
+});
+test('TM2 POST: invalid bodies → 400 and no database call (bad action, not an array, empty, non-string, more than 200)', async () => {
+  envOn(); try {
+    const bad = [
+      { action: 'delete_user', emails: ['a@x.y'] },
+      { action: 'mark_test', emails: 'a@x.y' },
+      { action: 'mark_test', emails: [] },
+      { action: 'mark_test', emails: [42] },
+      { action: 'mark_test', emails: Array.from({ length: 201 }, (_, i) => `u${i}@x.y`) },
+      null,
+    ];
+    for (const b of bad) { const { res, calls } = await post(b, VALID); assert.equal(res.code, 400, JSON.stringify(b).slice(0, 40)); assert.equal(calls.length, 0); }
+  } finally { envOff(); }
+});
+test('TM2 POST: a valid body calls admin_mark_test once with trimmed, lower-cased, de-duplicated emails and the mark flag', async () => {
+  envOn(); try {
+    const { res, calls } = await post({ action: 'unmark_test', emails: ['  A@X.Y ', 'a@x.y', 'B@x.y'] }, VALID);
+    assert.equal(res.code, 200);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /\/rest\/v1\/rpc\/admin_mark_test$/);
+    assert.deepEqual(calls[0].body, { p_emails: ['a@x.y', 'b@x.y'], p_mark: false });
+  } finally { envOff(); }
+});
+test('TM3 POST: when the database refuses (unknown email), the error is passed through as 400 and nothing is retried', async () => {
+  envOn();
+  const realFetch = global.fetch; let n = 0;
+  global.fetch = async () => { n++; return new Response(JSON.stringify({ message: 'unknown email: nobody@x.y' }), { status: 400 }); };
+  const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
+  try {
+    await adm({ method: 'POST', url: '/api/adm', headers: Object.assign({ 'content-type': 'application/json' }, VALID), query: {}, body: { action: 'mark_test', emails: ['nobody@x.y'] } }, res);
+    assert.equal(res.code, 400); assert.equal(n, 1); assert.match(res.body, /unknown email/);
+  } finally { global.fetch = realFetch; envOff(); }
+});
+test('TM1 GET behaviour unchanged: a GET with a valid header still serves the dashboard payload', async () => {
+  envOn();
+  const realFetch = global.fetch;
+  global.fetch = async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
+  try { await adm({ method: 'GET', url: '/api/adm', headers: VALID, query: {} }, res); assert.equal(res.code, 200); assert.ok(JSON.parse(res.body).sources); }
+  finally { global.fetch = realFetch; envOff(); }
+});
+test('TM3/TM4/TM5 SQL: admin_mark_test refuses unknown emails and >200, writes the audit row per email in the same function, never touches auth.users', () => {
+  const fn = sqlFn('admin_mark_test');
+  assert.match(fn, /security definer/i);
+  assert.match(fn, /array_length\(p_emails, 1\) > 200/);
+  assert.match(fn, /raise exception 'unknown email: %'/);
+  assert.match(fn, /insert into public\.admin_audit_log \(action, email, before, after\)/);
+  assert.match(fn, /insert into public\.admin_test_accounts/);
+  assert.match(fn, /insert into public\.admin_test_exceptions/);
+  assert.ok(!/(delete from|insert into|update) auth\.users/i.test(fn), 'never writes auth.users');
+  assert.match(SQL, /revoke execute on function public\.admin_mark_test\(text\[\], boolean\) from public, anon, authenticated;/i);
+  assert.match(SQL, /grant execute on function public\.admin_mark_test\(text\[\], boolean\) to service_role;/i);
+});
+test('TM5 SQL: admin_audit_log and admin_test_exceptions exist with RLS on and service_role-only grants', () => {
+  for (const t of ['admin_audit_log', 'admin_test_exceptions']) {
+    assert.match(SQL, new RegExp(`create table if not exists public\\.${t} \\(`));
+    assert.match(SQL, new RegExp(`alter table public\\.${t} enable row level security;`));
+    assert.match(SQL, new RegExp(`revoke all on table public\\.${t} from public, anon, authenticated;`));
+    assert.match(SQL, new RegExp(`grant [a-z, ]+ on table public\\.${t} to service_role;`));
+  }
+  assert.match(SQL, /create table if not exists public\.admin_audit_log \([\s\S]*?at timestamptz[\s\S]*?action text[\s\S]*?email text[\s\S]*?before boolean[\s\S]*?after boolean/);
+});
+test('TM6 SQL: admin_is_test v3 — exception wins first, then list, then domain rules, then the Gmail name.number rule (case-insensitive)', () => {
+  const fn = sqlFn('admin_is_test');
+  const iEx = fn.indexOf('admin_test_exceptions'), iList = fn.indexOf('admin_test_accounts'), iRule = fn.indexOf("'^[a-z]+\\.[0-9]{5,6}@gmail\\.com$'");
+  assert.ok(iEx > 0 && iList > iEx && iRule > iList, 'exception checked before list and rule');
+  assert.match(fn, /case when exists \(select 1 from public\.admin_test_exceptions x where x\.email = lower\(p_email\)\) then false/);
+  assert.match(fn, /lower\(p_email\) ~ '\^\[a-z\]\+\\\.\[0-9\]\{5,6\}@gmail\\\.com\$'/);
+  const kind = sqlFn('admin_test_kind');
+  for (const k of ["'exception'", "'list'", "'domain'", "'rule'"]) assert.ok(kind.includes(k), `kind ${k}`);
+});
+test('TM6 JS: the rule helper mirrors the SQL pattern (used only for the filter in the page)', () => {
+  assert.equal(adm.matchesTestRule('AnnRuiz.51171@gmail.com'), true);
+  assert.equal(adm.matchesTestRule('annruiz.5117@gmail.com'), false);
+  assert.equal(adm.matchesTestRule('ann.ruiz.51171@gmail.com'), false);
+  assert.equal(adm.matchesTestRule('annruiz.51171@hotmail.com'), false);
+  assert.equal(adm.matchesTestRule('annruiz.511710@gmail.com'), true);
+});
+test('TM7 page: Contas tab has search, filters, checkboxes, mark/unmark, confirmation and the test view, with labels in 6 languages', () => {
+  const { html, T } = pageT();
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['acc_search', 'f_all', 'f_not_onboarded', 'f_no_protocol', 'f_google', 'f_rule', 'btn_mark', 'btn_unmark', 'confirm_mark', 'confirm_unmark', 'btn_confirm', 'btn_cancel', 'view_real', 'view_tests', 'badge_rule', 'badge_list', 'badge_domain', 'by_rule_n', 'select_all', 'write_ok', 'write_err']) assert.ok(T[l][k], `${l} ${k}`);
+  assert.equal(T.pt.btn_mark, 'Marcar como teste'); assert.equal(T.pt.btn_unmark, 'Desmarcar teste'); assert.equal(T.pt.view_tests, 'Contas de teste'); assert.equal(T.pt.badge_rule, 'teste (regra)');
+  assert.match(html, /id="acc-search"/); assert.match(html, /window\.markTests=function/); assert.match(html, /method:'POST'/);
+  assert.ok(!/fetch\('\/api\/adm\?/.test(html), 'no token in any request URL');
+});
+test('TM8: test accounts stay out of every number after marking (fixture with a heavy test account) and the Resumo shows only the count', () => {
+  const base = adm.buildManagement({ accounts: FIX, protocols_live: 1 }, { status: 'not_configured' }, NOW);
+  const marked = adm.buildManagement({ accounts: FIX.concat([HEAVY_TEST]), protocols_live: 1 }, { status: 'not_configured' }, NOW);
+  assert.deepEqual(marked.headline, base.headline); assert.deepEqual(marked.activation, base.activation); assert.equal(marked.test_count, base.test_count + 1);
+  const list = sqlFn('admin_accounts_list');
+  assert.match(list, /where not public\.admin_is_test\(u\.email\)/);
+  assert.match(list, /'tests'/); assert.match(list, /'by_rule'/);
+});

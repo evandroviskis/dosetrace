@@ -160,17 +160,106 @@ insert into public.admin_test_accounts (email, reason) values
   ('6swua43q6ycihps7hd4ahf-lvl-01@cloudtestlabaccounts.com', 'founder decision 2026-10-16: Google Play pre-launch robot')
 on conflict (email) do nothing;
 
--- MV-0: is this email a test account? The table, plus two domain rules: @dosetrace.io and
--- the Google Play pre-launch robots (@cloudtestlabaccounts.com, founder 2026-10-16).
+-- Panel #016 (founder GO 2026-10-17): accounts the founder marked "não é teste". An exception
+-- wins over the list and over every rule. Written only by admin_mark_test.
+create table if not exists public.admin_test_exceptions (
+  email text primary key check (email = lower(email)),
+  reason text not null,
+  added_at timestamptz not null default now()
+);
+alter table public.admin_test_exceptions enable row level security;
+revoke all on table public.admin_test_exceptions from public, anon, authenticated;
+grant select, insert, update, delete on table public.admin_test_exceptions to service_role;
+
+-- Panel #016: every mark/unmark from the panel writes one row per email, in the same
+-- transaction as the change (admin_mark_test). Never deleted by the panel.
+create table if not exists public.admin_audit_log (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  action text not null,
+  email text not null,
+  before boolean,
+  after boolean
+);
+alter table public.admin_audit_log enable row level security;
+revoke all on table public.admin_audit_log from public, anon, authenticated;
+grant select, insert on table public.admin_audit_log to service_role;
+
+-- MV-0 v3 (Panel #016): is this email a test account? Order of precedence:
+--   1. founder exception ("não é teste")          -> false
+--   2. the list admin_test_accounts                -> true
+--   3. domain rules @dosetrace.io, @cloudtestlabaccounts.com -> true
+--   4. Gmail name.number rule ^[a-z]+\.[0-9]{5,6}@gmail\.com (case-insensitive) -> true
 create or replace function public.admin_is_test(p_email text)
  returns boolean
  language sql
  stable
  set search_path to 'public'
 as $$
-  select coalesce(lower(p_email) like '%@dosetrace.io', false)
-      or coalesce(lower(p_email) like '%@cloudtestlabaccounts.com', false)
-      or exists (select 1 from public.admin_test_accounts t where t.email = lower(p_email));
+  select case when exists (select 1 from public.admin_test_exceptions x where x.email = lower(p_email)) then false
+              when exists (select 1 from public.admin_test_accounts t where t.email = lower(p_email)) then true
+              when coalesce(lower(p_email) like '%@dosetrace.io', false) then true
+              when coalesce(lower(p_email) like '%@cloudtestlabaccounts.com', false) then true
+              when lower(p_email) ~ '^[a-z]+\.[0-9]{5,6}@gmail\.com$' then true
+              else false end;
+$$;
+
+-- Why an email is (or is not) test, for badges: 'exception' | 'list' | 'domain' | 'rule' | null.
+create or replace function public.admin_test_kind(p_email text)
+ returns text
+ language sql
+ stable
+ set search_path to 'public'
+as $$
+  select case when exists (select 1 from public.admin_test_exceptions x where x.email = lower(p_email)) then 'exception'
+              when exists (select 1 from public.admin_test_accounts t where t.email = lower(p_email)) then 'list'
+              when coalesce(lower(p_email) like '%@dosetrace.io', false) or coalesce(lower(p_email) like '%@cloudtestlabaccounts.com', false) then 'domain'
+              when lower(p_email) ~ '^[a-z]+\.[0-9]{5,6}@gmail\.com$' then 'rule'
+              else null end;
+$$;
+
+-- The panel's ONLY write (Panel #016). Marks or unmarks up to 200 existing accounts, all or
+-- nothing. Mark = insert into the list and drop any exception. Unmark = drop the list row and,
+-- when a rule still makes it test, insert an exception so the founder's word wins. One audit
+-- row per email in the same transaction. Never touches auth.users.
+create or replace function public.admin_mark_test(p_emails text[], p_mark boolean)
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to 'public', 'auth'
+as $$
+declare
+  e text;
+  b boolean;
+  a boolean;
+  n int := 0;
+begin
+  if p_emails is null or array_length(p_emails, 1) is null then raise exception 'no emails'; end if;
+  if array_length(p_emails, 1) > 200 then raise exception 'too many emails (max 200)'; end if;
+  foreach e in array p_emails loop
+    e := lower(trim(e));
+    if not exists (select 1 from auth.users u where lower(u.email) = e) then raise exception 'unknown email: %', e; end if;
+  end loop;
+  foreach e in array p_emails loop
+    e := lower(trim(e));
+    b := public.admin_is_test(e);
+    if p_mark then
+      delete from public.admin_test_exceptions where email = e;
+      insert into public.admin_test_accounts (email, reason) values (e, 'admin panel ' || to_char(now() at time zone 'UTC', 'YYYY-MM-DD'))
+        on conflict (email) do nothing;
+    else
+      delete from public.admin_test_accounts where email = e;
+      if public.admin_is_test(e) then
+        insert into public.admin_test_exceptions (email, reason) values (e, 'admin panel ' || to_char(now() at time zone 'UTC', 'YYYY-MM-DD'))
+          on conflict (email) do nothing;
+      end if;
+    end if;
+    a := public.admin_is_test(e);
+    insert into public.admin_audit_log (action, email, before, after) values (case when p_mark then 'mark_test' else 'unmark_test' end, e, b, a);
+    if a is distinct from b then n := n + 1; end if;
+  end loop;
+  return jsonb_build_object('ok', true, 'changed', n, 'count', array_length(p_emails, 1));
+end;
 $$;
 
 -- One row per account, no ids and no emails: the created UTC day, the test flag, the
@@ -243,6 +332,9 @@ create or replace function public.admin_accounts_list()
 as $$
   select jsonb_build_object(
     'test_excluded', (select count(*) from auth.users where public.admin_is_test(email)),
+    'by_rule', (select count(*) from auth.users where public.admin_test_kind(email) = 'rule'),
+    'tests', coalesce((select jsonb_agg(jsonb_build_object('email', lower(u.email), 'kind', public.admin_test_kind(u.email)) order by u.created_at desc)
+                         from auth.users u where public.admin_is_test(u.email)), '[]'::jsonb),
     'rows', coalesce((
       select jsonb_agg(jsonb_build_object(
         'email', u.email,
@@ -257,17 +349,22 @@ as $$
         'onboarded', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
         'confirmed', u.email_confirmed_at is not null,
         'protocols_live', (select count(*) from public.protocols p where p.user_id = u.id and p.deleted_at is null),
-        'last_sign_in', case when u.last_sign_in_at is null then null else to_char(u.last_sign_in_at at time zone 'UTC', 'YYYY-MM-DD') end
+        'last_sign_in', case when u.last_sign_in_at is null then null else to_char(u.last_sign_in_at at time zone 'UTC', 'YYYY-MM-DD') end,
+        'excepted', exists (select 1 from public.admin_test_exceptions x where x.email = lower(u.email))
       ) order by u.created_at desc)
       from auth.users u where not public.admin_is_test(u.email)), '[]'::jsonb)
   );
 $$;
 
 revoke execute on function public.admin_is_test(text) from public, anon, authenticated;
+revoke execute on function public.admin_test_kind(text) from public, anon, authenticated;
+revoke execute on function public.admin_mark_test(text[], boolean) from public, anon, authenticated;
 revoke execute on function public.admin_accounts_list() from public, anon, authenticated;
 revoke execute on function public.admin_accounts() from public, anon, authenticated;
 revoke execute on function public.admin_match_ids(text[]) from public, anon, authenticated;
 grant execute on function public.admin_is_test(text) to service_role;
+grant execute on function public.admin_test_kind(text) to service_role;
+grant execute on function public.admin_mark_test(text[], boolean) to service_role;
 grant execute on function public.admin_accounts_list() to service_role;
 grant execute on function public.admin_accounts() to service_role;
 grant execute on function public.admin_match_ids(text[]) to service_role;
