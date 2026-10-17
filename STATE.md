@@ -3,8 +3,7 @@
 **PAUSED 2026-10-17 ~18:45 EDT (founder left with the Fold). RESUME HERE:**
 
 **Build 53 / 72**
-- iOS 72 FINISHED; not yet submitted or on TestFlight.
-- Android 53 was still IN_PROGRESS at pause.
+- DONE 2026-10-17 ~19:00: Android 53 on the internal track (play-track-status: internal 1.3.0 vc53, production still 1.2.4 vc45); iOS 72 VALID and live on Early Birds (asc-tf-status); ASC version 1.3.0 re-pointed to build 72 (AFTER_APPROVAL, no phased release, not submitted).
 - EAS build ids: android 30540a95-9e35-4d09-9145-2159acf6ff23, ios 523995ba-8aa7-4fd5-9957-c878589839fb.
 - Next steps, in order:
   1. `eas submit -p android --profile internal --id <android id>`
