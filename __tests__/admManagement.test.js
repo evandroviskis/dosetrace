@@ -608,3 +608,127 @@ test('Bug (founder 2026-10-17): the "Contas de teste" view was empty live — th
     assert.deepEqual(al.tests, [{ email: 'a.1@gmail.com', kind: 'rule' }, { email: 'b@x.y', kind: 'list' }]);
   } finally { global.fetch = realFetch; delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SERVICE_ROLE_KEY; }
 });
+
+// ---------------------------------------------------------------- MV-6 store rows (W0 / X1): founder GO 2026-10-17, test first
+const crypto = require('crypto');
+const zlib = require('zlib');
+function fakeRes(status, body, type) {
+  return new Response(body == null ? null : body, { status, headers: { 'Content-Type': type || 'application/json' } });
+}
+function restoreFetch(f, env) { return () => { global.fetch = f; for (const k of env) delete process.env[k]; }; }
+
+test('MV-6 storeWindow: sums only the full UTC days of the window, lists days without a report, keeps the latest reported day, passes non-ok statuses through', () => {
+  const w = adm.fullDayWindow(NOW, 7); // 2026-09-21 .. 2026-09-27
+  const apple = { status: 'ok', data: { days: [
+    { date: '2026-09-20', downloads: 9, redownloads: 9, updates: 9 }, // before
+    { date: '2026-09-21', downloads: 2, redownloads: 1, updates: 3 },
+    { date: '2026-09-24', downloads: 1, redownloads: 0, updates: 5 },
+    { date: '2026-09-27', downloads: 1, redownloads: 0, updates: 0 },
+    { date: '2026-09-28', downloads: 9, redownloads: 9, updates: 9 }, // today, excluded
+  ] } };
+  const google = { status: 'ok', data: { days: [
+    { date: '2026-09-19', user_installs: 9, device_installs: 9 },
+    { date: '2026-09-21', user_installs: 1, device_installs: 2 },
+    { date: '2026-09-22', user_installs: 0, device_installs: 0 },
+    { date: '2026-09-23', user_installs: 2, device_installs: 2 },
+  ] } };
+  const s = adm.storeWindow(apple, google, w);
+  assert.deepEqual(s.apple, { status: 'ok', downloads: 4, redownloads: 1, updates: 8, days_reported: 3, days_total: 7, missing: ['2026-09-22', '2026-09-23', '2026-09-25', '2026-09-26'], latest: '2026-09-27' });
+  assert.deepEqual(s.google, { status: 'ok', user_installs: 3, device_installs: 4, days_reported: 3, days_total: 7, missing: ['2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27'], latest: '2026-09-23' });
+  const none = adm.storeWindow({ status: 'not_configured' }, { status: 'error', message: 'list 403: x' }, w);
+  assert.deepEqual(none.apple, { status: 'not_configured' });
+  assert.deepEqual(none.google, { status: 'error', message: 'list 403: x' });
+  const empty = adm.storeWindow({ status: 'ok', data: {} }, undefined, w);
+  assert.equal(empty.apple.days_reported, 0); assert.equal(empty.apple.latest, null); assert.equal(empty.apple.missing.length, 7);
+  assert.deepEqual(empty.google, { status: 'not_configured' });
+});
+
+test('MV-6 buildManagement: without stores every window says not_configured (old callers unchanged); with stores each window carries its own store sums', () => {
+  const old = adm.buildManagement({ accounts: FIX }, { status: 'not_configured' }, NOW);
+  for (const d of [7, 30, 90]) assert.deepEqual(old.windows[d].store, { apple: { status: 'not_configured' }, google: { status: 'not_configured' } });
+  const apple = { status: 'ok', data: { days: [{ date: '2026-09-27', downloads: 1, redownloads: 0, updates: 0 }, { date: '2026-09-01', downloads: 5, redownloads: 0, updates: 0 }] } };
+  const m = adm.buildManagement({ accounts: FIX }, { status: 'not_configured' }, NOW, { apple, google_play: { status: 'not_configured' } });
+  assert.equal(m.windows[7].store.apple.downloads, 1);
+  assert.equal(m.windows[30].store.apple.downloads, 6);
+  assert.equal(m.windows[90].store.apple.downloads, 6);
+  assert.deepEqual(m.windows[7].store.google, { status: 'not_configured' });
+});
+
+test('MV-6 fetchApple: asks one daily SALES SUMMARY per day for the last 91 full days (vendor number in the URL), parses 1*/F1* = downloads, 3* = redownloads, 7* = updates, treats 404 as no report, and still derives the 30-day Details fields', async () => {
+  const { privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  process.env.ASC_PRIVATE_KEY = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  process.env.ASC_ISSUER_ID = 'dummy-issuer'; process.env.ASC_KEY_ID = 'DUMMYKEY'; process.env.ASC_VENDOR_NUMBER = '12345678';
+  const day = (b) => new Date(Date.now() - b * 86400000).toISOString().slice(0, 10);
+  const tsv = (rows) => zlib.gzipSync('Provider\tProduct Type Identifier\tUnits\tDevice\n' + rows.map((r) => 'APPLE\t' + r[0] + '\t' + r[1] + '\tiPhone').join('\n'));
+  const urls = [];
+  const done = restoreFetch(global.fetch, ['ASC_PRIVATE_KEY', 'ASC_ISSUER_ID', 'ASC_KEY_ID', 'ASC_VENDOR_NUMBER']);
+  global.fetch = async (u) => {
+    urls.push(String(u));
+    const d = (String(u).match(/reportDate\]=(\d{4}-\d{2}-\d{2})/) || [])[1];
+    if (d === day(1)) return fakeRes(200, tsv([['1', 2], ['3', 1], ['7', 5], ['F1', 1]]), 'application/a-gzip');
+    if (d === day(40)) return fakeRes(200, tsv([['1', 3], ['7', 2]]), 'application/a-gzip');
+    return fakeRes(404, '{"errors":[]}');
+  };
+  try {
+    const r = await adm.fetchApple();
+    assert.equal(r.status, 'ok');
+    assert.equal(urls.length, 91);
+    assert.ok(urls.every((u) => u.includes('filter[vendorNumber]=12345678') && u.includes('filter[reportSubType]=SUMMARY')));
+    const dates = new Set(urls.map((u) => (u.match(/reportDate\]=(\S+)/) || [])[1]));
+    assert.equal(dates.size, 91); assert.ok(dates.has(day(1)) && dates.has(day(91)) && !dates.has(day(0)));
+    assert.deepEqual(r.data.days, [{ date: day(40), downloads: 3, redownloads: 0, updates: 2 }, { date: day(1), downloads: 3, redownloads: 1, updates: 5 }]);
+    assert.equal(r.data.downloads_30d, 3); assert.equal(r.data.updates_30d, 5); assert.equal(r.data.redownloads_30d, 1);
+    assert.equal(r.data.days_with_sales, 1); assert.equal(r.data.latest_day, day(1)); assert.equal(r.data.latest_day_downloads, 3);
+  } finally { done(); }
+});
+
+test('MV-6 fetchGooglePlay: reads only the monthly *_overview.csv files that overlap the last 91 days (UTF-16), builds the per-day list across months, and keeps the Details fields from the latest file', async () => {
+  const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  process.env.GOOGLE_PLAY_SA_JSON = JSON.stringify({ client_email: 'dummy@example.test', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) });
+  process.env.GOOGLE_PLAY_BUCKET = 'dummy_bucket';
+  const ym = (d) => d.toISOString().slice(0, 7).replace('-', '');
+  const now = new Date(); const cur = ym(now); const prev = ym(new Date(now.getTime() - 31 * 86400000)); const old = '202001';
+  const pkg = 'io.outcom.dosetrace';
+  const csv = (rows) => Buffer.from('﻿Date,Package name,Daily Device Installs,Daily Device Uninstalls,Daily Device Upgrades,Total User Installs,Daily User Installs,Daily User Uninstalls,Active Device Installs,Install events,Update events,Uninstall events\n' + rows.map((r) => r.join(',')).join('\n'), 'utf16le');
+  const yday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const dPrev = prev.slice(0, 4) + '-' + prev.slice(4) + '-15';
+  const fetched = [];
+  const done = restoreFetch(global.fetch, ['GOOGLE_PLAY_SA_JSON', 'GOOGLE_PLAY_BUCKET']);
+  global.fetch = async (u) => {
+    const s = String(u);
+    if (s.startsWith('https://oauth2.googleapis.com/token')) return fakeRes(200, '{"access_token":"dummy-at"}');
+    if (s.includes('/o?prefix=')) {
+      const p = decodeURIComponent(s.split('prefix=')[1]);
+      if (p.startsWith('stats/installs/')) return fakeRes(200, JSON.stringify({ items: [old, prev, cur].flatMap((m) => ['overview', 'country', 'device'].map((k) => ({ name: `stats/installs/installs_${pkg}_${m}_${k}.csv` }))) }));
+      return fakeRes(200, '{}'); // no ratings files
+    }
+    if (s.includes('?alt=media')) {
+      const name = decodeURIComponent(s.split('/o/')[1].split('?')[0]); fetched.push(name);
+      if (name.includes(`_${cur}_overview`)) return fakeRes(200, csv([[yday, pkg, 2, 0, 0, 0, 1, 0, 18, 0, 0, 0]]), 'text/csv');
+      if (name.includes(`_${prev}_overview`)) return fakeRes(200, csv([[dPrev, pkg, 3, 0, 0, 0, 3, 0, 10, 0, 0, 0]]), 'text/csv');
+      return fakeRes(200, csv([['2020-01-01', pkg, 99, 0, 0, 0, 99, 0, 99, 0, 0, 0]]), 'text/csv');
+    }
+    return fakeRes(500, 'unexpected ' + s);
+  };
+  try {
+    const r = await adm.fetchGooglePlay();
+    assert.equal(r.status, 'ok', JSON.stringify(r));
+    assert.deepEqual(fetched.sort(), [`stats/installs/installs_${pkg}_${cur}_overview.csv`, `stats/installs/installs_${pkg}_${prev}_overview.csv`].sort(), 'only overview files of the months in range');
+    assert.deepEqual(r.data.days, [{ date: dPrev, user_installs: 3, device_installs: 3 }, { date: yday, user_installs: 1, device_installs: 2 }]);
+    assert.equal(r.data.active_device_installs, 18); assert.equal(r.data.installs_this_month, 2); assert.equal(r.data.month, cur); assert.equal(r.data.total_user_installs, 0);
+    assert.equal(r.data.total_average_rating, undefined);
+  } finally { done(); }
+});
+
+test('MV-6 page: W0 and X1 render the store sums per window (no hard-coded "not measured"), label that stores include test installs, and carry the labels in 6 languages', () => {
+  const { html, T } = pageT();
+  assert.ok(!/id">W0<\/td>[^\n]*nmCell\(t\('nm_stores'\)\)/.test(html), 'W0 is no longer always not-measured');
+  assert.ok(!/id">X1<\/td>[^\n]*nmCell\(t\('nm_stores'\)\)/.test(html), 'X1 is no longer always not-measured');
+  assert.match(html, /W\.store/);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['st_apple', 'st_google', 'st_redl', 'st_dev', 'st_days', 'st_nodays', 'nm_apple', 'nm_google', 'st_err', 'st_test']) assert.ok(T[l][k], `${l} ${k}`);
+  assert.equal(T.pt.st_test, 'As lojas incluem instalações de teste');
+  assert.match(html, /function storeNote\([^\n]*\n[\s\S]*?t\('st_test'\)/, 'the note helper carries the test-install label');
+  assert.match(html, /id">W0<\/td>[^\n]*storeNote\(/, 'W0 uses it'); assert.match(html, /id">X1<\/td>[^\n]*storeNote\(/, 'X1 uses it');
+  const defs = html.match(/var DEFS=\[([\s\S]*?)\];/)[1];
+  assert.ok(!/id:"W0"[^\n]*Not measured yet/.test(defs) && !/id:"X1"[^\n]*Not measured yet/.test(defs), 'DEFS W0/X1 describe the measurement');
+});

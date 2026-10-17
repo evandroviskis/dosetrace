@@ -310,7 +310,7 @@ Unknown (mixed) and unknown (no signal) are always shown as their own number, ne
 
 | ID | Step | Source | Definition | Window (UTC) | How it is proven | Proven |
 |---|---|---|---|---|---|---|
-| W0 | Store downloads | ASC Sales Reports / Google Play stats | Apple: first-time units (product type 1*/F1), redownloads (3*) shown separately. Google: sum of "Daily User Installs" (and device installs) from the daily CSV rows. **Shown as its own bar, not as a funnel base, and never divided into the account steps** (different entities) | the same full UTC days as the cohort window | ASC Trends / Play Console → Statistics for the same dates | **not measured** until MV-6 is unblocked |
+| W0 | Store downloads | ASC Sales Reports / Google Play stats | Apple: first-time units (product type 1*/F1), redownloads (3*) shown separately. Google: sum of "Daily User Installs" (and device installs) from the daily CSV rows. **Shown as its own bar, not as a funnel base, and never divided into the account steps** (different entities) | the same full UTC days as the cohort window | ASC Trends / Play Console → Statistics for the same dates | **built 2026-10-17 (MV-6, test first)**: own row W0 with iOS = Apple first installs (redownloads beside), Android = Google daily user installs (device installs beside), Total; days with a report and latest report per store; label "stores include test installs"; a missing source shows its own reason. Tests MV-6 (5); renders `Admin Panel Files/018-screens/` both themes. Live: not yet deployed |
 | W1 | Accounts created | Supabase `auth.users` | the cohort (= H2 when the window is 30 days) | window | = H card for the same window | not yet proven |
 | W2 | Email confirmed or signed in | Supabase `auth.users` | `email_confirmed_at is not null OR last_sign_in_at is not null` (OAuth accounts are confirmed at creation) | cohort; status at page load | SQL | not yet proven |
 | W3 | Onboarded | Supabase `raw_user_meta_data.onboarded_at` | the `onboarded_at` key is present. Email sign-up writes it at sign-up (screens/AuthScreen.js:144); OAuth writes it when onboarding finishes (screens/OnboardingFlowScreen.js:259, lib/onboardingStore.js:100) | cohort; status at page load | SQL | not yet proven |
@@ -326,7 +326,7 @@ Unknown (mixed) and unknown (no signal) are always shown as their own number, ne
 
 | ID | Row | Source | Definition | Window (UTC) | How it is proven | Proven |
 |---|---|---|---|---|---|---|
-| X1 | Store downloads (Apple / Google) | ASC / Play | as W0 | window | as W0 | **not measured** |
+| X1 | Store downloads (Apple / Google) | ASC / Play | as W0 | window | as W0 | **built 2026-10-17** (as W0: "Apple N · Google Play N" + the same note line). Live: not yet deployed |
 | X2 | Supabase accounts: all / test / real | Supabase | all `auth.users` created in the window; test = `admin_is_test`; real = the rest | window | SQL | not yet proven |
 | X3 | **RevenueCat IDs** (never labelled "customers"): total first seen | RevenueCat v2 customers list | RC customers with `first_seen_at` in the window | window | the RC dashboard filter `firstSeenAt afterOrOn … before …` (note 008) | **verified live 2026-10-17** (30-day window: X3 119 = X4 80 + X5 33 (real 7 · test 26) + X6 6; check green; real accounts without RC id: 0) after the RevenueCat key got customer_information:customers:read (Panel #019 redeploy) |
 | X4 | … of which anonymous | RevenueCat | app_user_id starts with `$RCAnonymousID`. **Cause:** `Purchases.logOut()` on sign-out (lib/purchases.js:114, App.js:536) | window | RC filter `customerId contains RCAnonymousID` | **verified live 2026-10-17** (30-day window: X3 119 = X4 80 + X5 33 (real 7 · test 26) + X6 6; check green; real accounts without RC id: 0) after the RevenueCat key got customer_information:customers:read (Panel #019 redeploy) |
@@ -376,7 +376,7 @@ Unknown (mixed) and unknown (no signal) are always shown as their own number, ne
 - Sum "Daily User Installs" (and "Daily Device Installs") over the exact window days. This replaces today's "latest monthly file".
 - **Lag is shown as the latest available date.**
 
-**Until then:** W0, X1 and G-store show **"not measured — needs vendor number / bucket"**, never an estimate.
+**Built 2026-10-17 (founder GO, test first):** `fetchApple` reads 91 daily reports in batches of 16 (`STORE_DAYS`, `ASC_BATCH`) and keeps `days[{date, downloads, redownloads, updates}]`; `fetchGooglePlay` reads only the `*_overview.csv` files of the months overlapping the last 91 days and keeps `days[{date, user_installs, device_installs}]`; `storeWindow(apple, google, window)` sums the window's full UTC days, counts days with a report and lists the missing ones; `buildManagement` takes the two sources as a 4th argument → `windows[7|30|90].store`. The Details cards S1–S7 keep their old meaning. Known Google quirk: "Total User Installs" (S4) is 0 on every row because Google retired the column — founder to decide whether to drop or relabel S4. **Until a source is configured** its cell shows "not measured — needs the Apple vendor number" / "needs the Play bucket", never an estimate.
 
 ### MV-7 Map of the existing metric rows
 

@@ -126,24 +126,48 @@ async function fetchGooglePlay() {
     const at = await googleAccessToken(sa, 'https://www.googleapis.com/auth/devstorage.read_only');
     const col = (hdr, name) => hdr.findIndex(h => h.replace(/"/g, '').trim().toLowerCase() === name.toLowerCase());
     const num = v => { const n = Number(String(v == null ? '' : v).replace(/"/g, '').trim()); return isFinite(n) ? n : null; };
-    async function latestCsv(prefix) {
+    async function listNames(prefix) {
       const listUrl = `https://storage.googleapis.com/storage/v1/b/${bucket}/o?prefix=${encodeURIComponent(prefix)}`;
       const lr = await fetch(listUrl, { headers: { Authorization: 'Bearer ' + at } });
       if (!lr.ok) throw new Error('list ' + lr.status + ': ' + (await lr.text()).slice(0, 140));
       const lj = await lr.json();
-      if (!lj.items || !lj.items.length) return null;
-      const name = lj.items.map(i => i.name).sort().pop();
+      return (lj.items || []).map(i => i.name).sort();
+    }
+    async function readCsv(name) {
       const dr = await fetch(`https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(name)}?alt=media`, { headers: { Authorization: 'Bearer ' + at } });
-      const text = Buffer.from(await dr.arrayBuffer()).toString('utf16le').replace(/^﻿/, '');
+      const text = Buffer.from(await dr.arrayBuffer()).toString('utf16le').replace(/^\uFEFF/, '');
       const rows = text.split(/\r?\n/).filter(x => x.length).map(l => l.split(','));
       return { name, header: rows[0] || [], rows: rows.slice(1) };
     }
+    async function latestCsv(prefix) {
+      const names = await listNames(prefix);
+      return names.length ? readCsv(names[names.length - 1]) : null;
+    }
     const data = {};
-    const installs = await latestCsv('stats/installs/installs_' + pkg);
+    // MV-6: every monthly overview file that overlaps the last STORE_DAYS full days (today's month included).
+    const fromMonth = utcDay(Date.now() - STORE_DAYS * DAY_MS).slice(0, 7).replace('-', '');
+    const overview = (await listNames('stats/installs/installs_' + pkg + '_')).filter(n => {
+      const m = n.match(/_(\d{6})_overview\.csv$/);
+      return m && m[1] >= fromMonth;
+    });
+    const byDay = {};
+    let installs = null;
+    for (const name of overview) {
+      const file = await readCsv(name);
+      installs = file; // files are sorted, so the last one is the latest month
+      const iD = col(file.header, 'Date'), iU = col(file.header, 'Daily User Installs'), iDev = col(file.header, 'Daily Device Installs');
+      if (iD < 0) continue;
+      for (const r of file.rows) {
+        const date = String(r[iD] || '').replace(/"/g, '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+        byDay[date] = { date, user_installs: iU >= 0 ? (num(r[iU]) || 0) : 0, device_installs: iDev >= 0 ? (num(r[iDev]) || 0) : 0 };
+      }
+    }
+    data.days = Object.keys(byDay).sort().map(d => byDay[d]);
     if (installs && installs.rows.length) {
       const last = installs.rows[installs.rows.length - 1];
       const gi = n => { const i = col(installs.header, n); return i >= 0 ? num(last[i]) : null; };
-      data.total_user_installs = gi('Total User Installs');
+      data.total_user_installs = gi('Total User Installs'); // Google reports 0 here since the column was retired (S4)
       data.active_device_installs = gi('Active Device Installs');
       const di = col(installs.header, 'Daily Device Installs');
       if (di >= 0) data.installs_this_month = installs.rows.reduce((s, r) => s + (num(r[di]) || 0), 0);
@@ -184,15 +208,19 @@ async function fetchApple() {
       .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const token = input + '.' + sig;
     const ymd = d => d.toISOString().slice(0, 10);
+    // MV-6: one daily report per full UTC day of the last STORE_DAYS days, in batches (ASC rate limit).
     const days = [];
-    for (let b = 1; b <= 30; b++) days.push(ymd(new Date(Date.now() - b * 86400000)));
-    const reports = await Promise.all(days.map(async date => {
-      const url = 'https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=' + vendor + '&filter[reportDate]=' + date;
-      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/a-gzip' } });
-      if (r.status !== 200) return { date, tsv: null };
-      try { return { date, tsv: zlib.gunzipSync(Buffer.from(await r.arrayBuffer())).toString('utf8') }; }
-      catch (e) { return { date, tsv: null }; }
-    }));
+    for (let b = 1; b <= STORE_DAYS; b++) days.push(ymd(new Date(Date.now() - b * 86400000)));
+    const reports = [];
+    for (let i = 0; i < days.length; i += ASC_BATCH) {
+      reports.push(...await Promise.all(days.slice(i, i + ASC_BATCH).map(async date => {
+        const url = 'https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=' + vendor + '&filter[reportDate]=' + date;
+        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/a-gzip' } });
+        if (r.status !== 200) return { date, tsv: null }; // 404 = Apple wrote no report for that day
+        try { return { date, tsv: zlib.gunzipSync(Buffer.from(await r.arrayBuffer())).toString('utf8') }; }
+        catch (e) { return { date, tsv: null }; }
+      })));
+    }
     const perDay = [];
     for (const { date, tsv } of reports) {
       if (!tsv) continue;
@@ -201,24 +229,28 @@ async function fetchApple() {
       const hdr = lines[0].split('\t');
       const iType = hdr.indexOf('Product Type Identifier');
       const iUnits = hdr.indexOf('Units');
-      let dl = 0, up = 0;
+      let dl = 0, re = 0, up = 0;
       for (const line of lines.slice(1)) {
         const c = line.split('\t');
         const t = (c[iType] || '').trim();
         const u = parseInt((c[iUnits] || '0').trim(), 10) || 0;
         if (/^7/.test(t)) up += u;              // 7* = updates
+        else if (/^3/.test(t)) re += u;         // 3* = redownloads
         else if (/^(1|F1)/.test(t)) dl += u;    // 1* / F1 = first installs (downloads)
       }
-      perDay.push({ date, downloads: dl, updates: up });
+      perDay.push({ date, downloads: dl, redownloads: re, updates: up });
     }
     perDay.sort((a, b) => (a.date < b.date ? -1 : 1));
-    const latest = perDay[perDay.length - 1] || null;
+    const last30 = perDay.filter(d => days.slice(0, 30).includes(d.date)); // the Details cards keep their 30-day window
+    const latest = last30[last30.length - 1] || null;
     return {
       status: 'ok',
       data: {
-        downloads_30d: perDay.reduce((s, d) => s + d.downloads, 0),
-        updates_30d: perDay.reduce((s, d) => s + d.updates, 0),
-        days_with_sales: perDay.length,
+        days: perDay,
+        downloads_30d: last30.reduce((s, d) => s + d.downloads, 0),
+        redownloads_30d: last30.reduce((s, d) => s + d.redownloads, 0),
+        updates_30d: last30.reduce((s, d) => s + d.updates, 0),
+        days_with_sales: last30.length,
         latest_day: latest ? latest.date : null,
         latest_day_downloads: latest ? latest.downloads : null,
       },
@@ -236,6 +268,8 @@ async function fetchApple() {
 const DAY_MS = 86400000;
 const RC_ANON_PREFIX = '$RCAnonymousID';
 const MV_WINDOWS = [7, 30, 90];
+const STORE_DAYS = 91;   // MV-6: store reports fetched for the last 91 full days (covers the 90-day window)
+const ASC_BATCH = 16;    // concurrent ASC sales-report requests per batch
 
 function utcDay(ms) { return new Date(ms).toISOString().slice(0, 10); }
 function addDaysStr(day, n) { return utcDay(Date.parse(day + 'T00:00:00Z') + n * DAY_MS); }
@@ -441,12 +475,36 @@ async function markTests(body) {
   }
 }
 
-function buildManagement(sb, rc, nowMs) {
+// MV-6 W0 / X1: store downloads on the same full UTC days as the cohort window. Apple:
+// first installs (1*/F1*), redownloads (3*) and updates (7*) summed per day; Google: the
+// overview CSV's "Daily User Installs" and "Daily Device Installs". A day without a report
+// is listed in `missing` (Apple writes no report on a day without activity; Google lags
+// a few days) — shown, never estimated. Non-ok source statuses pass through untouched.
+function storeWindow(apple, google, w) {
+  const days = [];
+  for (let d = w.start; d < w.end; d = addDaysStr(d, 1)) days.push(d);
+  function sum(src, fields) {
+    if (!src || src.status !== 'ok') return src && src.status ? { status: src.status, ...(src.message ? { message: src.message } : {}) } : { status: 'not_configured' };
+    const rows = (src.data && Array.isArray(src.data.days) ? src.data.days : []).filter((r) => inWindow(r.date, w));
+    const have = new Set(rows.map((r) => r.date));
+    const out = { status: 'ok' };
+    for (const f of fields) out[f] = rows.reduce((s, r) => s + (Number(r[f]) || 0), 0);
+    out.days_reported = have.size;
+    out.days_total = days.length;
+    out.missing = days.filter((d) => !have.has(d));
+    out.latest = rows.length ? rows.map((r) => r.date).sort().pop() : null;
+    return out;
+  }
+  return { apple: sum(apple, ['downloads', 'redownloads', 'updates']), google: sum(google, ['user_installs', 'device_installs']) };
+}
+
+function buildManagement(sb, rc, nowMs, stores) {
   const accounts = Array.isArray(sb.accounts) ? sb.accounts : [];
+  const st = stores || {};
   const windows = {};
   for (const days of MV_WINDOWS) {
     const w = fullDayWindow(nowMs, days);
-    windows[days] = { window: w, funnel: funnel(accounts, w), recon: reconciliation(accounts, rc, w) };
+    windows[days] = { window: w, funnel: funnel(accounts, w), recon: reconciliation(accounts, rc, w), store: storeWindow(st.apple, st.google_play, w) };
   }
   return {
     headline: headlineCards(accounts, nowMs),
@@ -547,7 +605,7 @@ module.exports = async (req, res) => {
   let management = null;
   if (supabase.status === 'ok' && supabase.data && Array.isArray(supabase.data.accounts)) {
     const now = Date.now();
-    management = buildManagement(supabase.data, await withRcMatch(rcCustomers, now), now);
+    management = buildManagement(supabase.data, await withRcMatch(rcCustomers, now), now, { apple, google_play });
     delete supabase.data.accounts; // per-account rows stay server-side
   }
 
@@ -561,4 +619,5 @@ module.exports = async (req, res) => {
 Object.assign(module.exports, {
   fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, accountsSummary, matchesTestRule, parseMarkBody,
   isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
+  storeWindow, fetchApple, fetchGooglePlay,
 });
