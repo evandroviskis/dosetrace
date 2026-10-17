@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy Policy — DoseTrace</title>
-<meta name="description" content="How DoseTrace collects, uses, and protects your data. Offline-first, no ads, never sold." />
+<meta name="description" content="How DoseTrace collects, uses, and protects your data. No ads, never sold." />
 <meta name="theme-color" content="#F4F7FB" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0C1B2E" media="(prefers-color-scheme: dark)" />
 <meta name="robots" content="index,follow" />
@@ -35,48 +35,54 @@
 <main class="article">
   <a class="back" href="/"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg> Back to home</a>
   <h1>DoseTrace Privacy Policy</h1>
-  <p class="updated">Last updated: September 10, 2026</p>
+  <p class="updated">Last updated: October 16, 2026</p>
+  <p>Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. This policy explains what information the app handles, where it goes, and what you can do about it. DoseTrace is a personal journal and a calculator. It does not give medical advice.</p>
 
-  <h2>Introduction</h2>
-  <p>DoseTrace ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use the DoseTrace mobile application.</p>
+  <h2>1. Information you give us</h2>
+  <p><strong>Account.</strong> Your email address, or the account details Apple or Google share when you choose "Continue with Apple" or "Continue with Google" (your email, or an Apple private relay address, and the name you allow). Apple and Google run that sign-in for us. If you sign in with Apple, we keep a token from Apple on our server so that we can end your Apple sign-in when you delete your account. If you use email, your password is handled by our authentication provider and never stored in readable form.</p>
+  <p><strong>Profile (needed to use the app).</strong> Name, birth month and year, country, sex assigned at birth, your goals, activity level, what you track (peptides, hormones / TRT, GLP-1 / weight loss, oral supplements), and whether you work with a healthcare provider. The app asks for all of these before you can use it, and uses them to personalize the screens and to run its calculators. In the calculators you can also enter your height, weight, body-fat percentage, and body measurements.</p>
+  <p><strong>Health and journal data.</strong> The protocols you create (compounds, doses, schedules, reminder times), the doses you log (taken, skipped, injection sites), vials and bottles, lab results, vaccination records, food-log entries with their estimated nutrition values, weigh-ins, "Reality check" results, and the notes you write.</p>
 
-  <h2>Information We Collect</h2>
-  <p>DoseTrace collects the following information that you voluntarily provide:</p>
-  <p><strong>Account Information:</strong> Email address and password when you create an account.</p>
-  <p><strong>Profile Information:</strong> Name, birth month and year, country, weight, height, biological sex, activity level, and health goals that you provide to personalize your experience and to power the app's calculators.</p>
-  <p><strong>Health Data:</strong> Medication and supplement protocols, dosing schedules, dose logs, vial tracking information, biomarker data, vaccination records, and — if you use the optional food log — the meal descriptions you enter and their estimated nutrition values.</p>
+  <h2>2. Where your information is kept</h2>
+  <p>Your data is saved in a database on your phone. When you have an account, it is also synced to our cloud database hosted by <strong>Supabase</strong> (United States), so it is backed up and available on your other devices. Data is encrypted in transit (TLS) and encrypted at rest by our hosting provider. Sign-in tokens are kept in your phone's secure storage.</p>
+  <p>Signing out removes your DoseTrace records from the app on that phone; they stay in your account and come back when you sign in again. Files you exported stay where they were saved.</p>
 
-  <h2>How We Use Your Information</h2>
-  <p>We use your information solely to provide and improve the DoseTrace service, including:</p>
-  <p>Storing your protocols, dose logs, and health tracking data so you can access them across sessions. Sending you push notifications for dose reminders you have configured. Syncing your data across devices when you opt into cloud sync.</p>
+  <h2>3. How we use it</h2>
+  <p>Only to run DoseTrace for you: show your journal, calculate your numbers, schedule your reminders, sync your devices, and keep your account working. We do not sell your information, we do not show ads, and we do not share your health data with insurers, employers, advertisers, or data brokers.</p>
 
-  <h2>Data Storage</h2>
-  <p>DoseTrace uses an offline-first architecture. Your data is primarily stored locally on your device using SQLite. If you create an account, your data is also synced to our cloud servers (powered by Supabase) for backup and multi-device access. Cloud data is encrypted in transit using TLS.</p>
+  <h2>4. Reminders and notifications</h2>
+  <p>Dose, vial, food-log, and check-in reminders are scheduled on your phone. To keep reminders arriving on Android even when you do not open the app (Android can pause apps that are not opened), our server sends your Android phone one silent message a day. It contains no text and no health data; it only asks the app to refresh the reminders already on your phone.</p>
+  <p>To deliver notifications we store a device notification token with your account. Notifications pass through <strong>Expo</strong> (our push service), <strong>Google Firebase Cloud Messaging</strong> on Android and <strong>Apple Push Notification service</strong> on iPhone. You can turn reminders off, or use Silent mode, in Settings at any time.</p>
 
-  <h2>Data Sharing</h2>
-  <p>We do not sell or rent your personal information, and we do not display advertisements. Your health data is never shared with insurance companies, employers, advertisers, or data brokers. We share your data only with the service providers that operate DoseTrace on our behalf — our cloud host, and, only when you choose to use an optional AI scan feature, our AI processor — as described below. These providers act as our processors under contract and handle your data solely to provide the service.</p>
+  <h2>5. AI features (optional, only with your permission)</h2>
+  <p>You may choose to use AI to save typing: scanning a lab report, a vaccination card, or a vial label, describing your meals in the AI food log, or answering the protocol assistant's questions. Only then, and only after you agree in the app (we ask again when a new kind of data would be sent), the photo, PDF, or text you chose is sent to <strong>Anthropic PBC</strong> (United States) to extract or estimate the values. Anthropic acts as our processor for this task only: it processes what you sent only for that request, does not use it to train its models, and deletes it within 30 days, keeping it longer only where needed to enforce its usage policy or the law. The AI never interprets your results and never gives medical, dosing, or dietary advice. You can always type the information yourself instead. We keep a count of how many AI requests you made (for the limits: scans per month, the AI food log per day, and the protocol assistant per week), not the content.</p>
 
-  <h2>AI-Assisted Data Entry (Optional)</h2>
-  <p>DoseTrace offers optional features that let you scan a document — a lab report, a vaccination record, or a vial label — describe a meal in the food log, or answer the protocol assistant's questions in your own words (such as a compound, a dose and a schedule), so you don't have to type the values into the form by hand. If, and only if, you choose to use one of these features and grant consent when prompted, the image, PDF, meal description, or answer you provide is sent to our AI processor, <strong>Anthropic PBC (United States)</strong>, whose Claude model reads the text and returns the values — for the food log, an estimate of the calories, carbohydrates, and protein; for the protocol assistant, the numbers and words you typed, which the app then uses for its own arithmetic — to your device.</p>
-  <p>This processing takes place on servers in the United States. Anthropic acts as our data processor for this single task: it processes what you send only to extract or estimate the information you requested, does not use your data to train its models, and retains it only transiently as permitted under our data-processing agreement. The AI reads or estimates what you provide — it never interprets your results, recommends what to eat, suggests a compound, dose or schedule, or offers medical or dietary advice. We never send your data to any AI service without your explicit consent, asked before your first use of an AI feature and again whenever we add a new kind of data, and these features are always optional: you can enter the same information manually instead.</p>
+  <h2>6. Purchases</h2>
+  <p>Subscriptions are paid through the <strong>Apple App Store</strong> or <strong>Google Play</strong>; we never see your card. <strong>RevenueCat</strong> tells the app whether your subscription is active; it receives your DoseTrace account ID and your purchase history from the store. Our server also asks <strong>RevenueCat</strong> whether you have Premium, to apply your plan's monthly AI limits.</p>
 
-  <h2>Data Retention</h2>
-  <p>Your data is retained for as long as your account is active. You can delete your account at any time from the app's Settings screen. When you delete your account, we permanently delete your synced data — your protocols, dose logs, vial records, biomarker entries, vaccination records, and food-log entries — together with your authentication credentials from our servers. Data held locally on your device is removed when you delete the app.</p>
+  <h2>7. App usage information (you can turn it off)</h2>
+  <p>To improve the app we record usage events (for example, that a screen was opened or a dose was logged) in our own <strong>Supabase</strong> database, with a random ID of the installation. They are not linked to your account: never your account ID, and never health details such as compound names, doses, or search text. This is on until you turn it off: you can switch off "Usage analytics" at any time in Settings › Data &amp; privacy.</p>
 
-  <h2>Your Rights</h2>
-  <p>You have the right to access, update, or delete your personal data at any time through the app's Settings screen. You can delete your account entirely from within the app, which permanently deletes your account and all associated data — your protocols, dose logs, vial records, biomarker entries, vaccination records, and food-log entries — along with your authentication credentials (see Data Retention). We do not retain your data after deletion.</p>
+  <h2>8. How long we keep it</h2>
+  <p>As long as your account exists. A protocol you delete goes to "Recently deleted" and stays there, so you can restore it, until you choose "Delete forever". Delete forever erases its content (name, doses, schedule, notes) and its dose logs and vials; only a small marker remains (an ID, its type, its colour and its dates) so that your other phones know it was deleted. Deleting your account in Settings permanently removes your synced data and your sign-in from our servers; data on your phone is removed when you uninstall the app or sign out.</p>
 
-  <h2>Children's Privacy</h2>
-  <p>DoseTrace is not intended for use by children under the age of 18. We do not knowingly collect personal information from children under 18. If we become aware that we have collected data from a child under 18, we will take steps to delete that information.</p>
+  <h2>9. Your choices and rights</h2>
+  <p>You can see, change, and delete your data in the app, and delete your whole account from Settings. "Download my data" in Settings exports your records; for anything it does not include, or to ask for deletion, write to us at <a href="mailto:hello@dosetrace.io">hello@dosetrace.io</a>. Depending on where you live (for example the EU, the UK, Brazil, or California) you have rights to access, correct, delete, and port your data and to object to its use; we honor these requests for everyone.</p>
 
-  <h2>Security</h2>
-  <p>We implement appropriate technical and organizational security measures to protect your personal information. Authentication tokens are stored securely using device-level secure storage. However, no method of electronic transmission or storage is 100% secure.</p>
+  <h2>10. International transfer</h2>
+  <p>Our providers process data in the United States. When you use DoseTrace from another country, your data is transferred there with the protections described in this policy.</p>
 
-  <h2>Changes to This Policy</h2>
-  <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy within the app and updating the "Last updated" date.</p>
+  <h2>11. Children</h2>
+  <p>DoseTrace is for adults only: you must be 18 or older to use it. If we learn that a minor's data was collected, we delete it.</p>
 
-  <h2>Contact Us</h2>
-  <p>If you have any questions about this Privacy Policy, please contact us at: <a href="mailto:hello@dosetrace.io">hello@dosetrace.io</a></p>
+  <h2>12. Security</h2>
+  <p>We use technical and organizational safeguards (encryption, row-level access rules so each account can read only its own data, secure token storage). No system is completely secure; tell us at <a href="mailto:hello@dosetrace.io">hello@dosetrace.io</a> if you notice a problem.</p>
+
+  <h2>13. Changes</h2>
+  <p>When this policy changes, we update this text and the date above.</p>
+
+  <h2>14. Contact</h2>
+  <p>Outcom — <a href="mailto:hello@dosetrace.io">hello@dosetrace.io</a></p>
 </main>
 
 <footer class="footer">
