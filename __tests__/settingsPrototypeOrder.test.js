@@ -239,13 +239,13 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
   assert.match(PRO, /\bpermanentlyDeleteProtocol\b/);
 });
 
-test('protocol delete confirmation: recoverable for 7 days from Recently deleted, at the bottom of the list (not "from Settings")', () => {
+// A-141 (4): no day count while the purge is paused (Copy must be true); a141DeleteCopy checks the rest.
+test('protocol delete confirmation: Recently deleted, at the bottom of the list (not "from Settings")', () => {
   assert.match(innerFn('deleteProtocol'), /body: t\('protocols_delete_confirm_settings'\)/);
-  assert.equal(translations.en.protocols_delete_confirm_settings,
-    'This protocol will be recoverable for 7 days from Recently deleted, at the bottom of your list.');
+  assert.match(translations.en.protocols_delete_confirm_settings, /^This protocol moves to Recently deleted, at the bottom of your list/);
   for (const lang of Object.keys(translations)) {
     const v = translations[lang].protocols_delete_confirm_settings;
-    assert.ok(v && /7/.test(v), `${lang}: keeps the 7 days`);
+    assert.ok(v && !/\d/.test(v), `${lang}: no day count while the purge is paused`);
     assert.ok(!v.includes(translations[lang].settings_title), `${lang}: no longer sends the user to Settings`);
     assert.ok(v.includes(translations[lang].protocols_recently_deleted), `${lang}: names the section heading`);
   }
