@@ -29,23 +29,23 @@ function load(fetch, tm, calls) {
   });
 }
 
-test('TB3-3: a delete-user request that never answers is aborted → offline, sync resumed, no timer left', async () => {
+test('TB3-3: a delete-user request that never answers is aborted → offline; no timer left (sync stays paused while the account state is unknown: tb3DeleteGone)', async () => {
   const tm = timers();
   const calls = [];
   let signal = null;
-  const fetch = (u, init) => { signal = init.signal; return new Promise(() => {}); };
+  const fetch = (u, init) => { if (String(u).includes('delete-user')) signal = init.signal; return new Promise(() => {}); };
   const t0 = Date.now();
-  const out = await load(fetch, tm, calls)({ timeoutMs: 80 });
+  const out = await load(fetch, tm, calls)({ timeoutMs: 80, checkTimeoutMs: 80 });
   assert.deepEqual(out, { offline: true });
   assert.ok(Date.now() - t0 < 2000, 'answered at the timeout');
   assert.ok(signal && signal.aborted, 'the request itself was aborted');
-  assert.deepEqual(calls, ['pause', 'resume']);
+  assert.deepEqual(calls, ['pause', 'settled'], 'the check timed out too: paused, request settled');
   assert.equal(tm.live.size, 0, 'no timer left behind');
 });
 
-test('TB3-3: the default timeout is 20 s', () => {
+test('TB3-3: the default timeouts are 20 s (request, idle wait) and 8 s (the account check)', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'accountActions.js'), 'utf8');
-  assert.match(src, /export async function requestAccountDeletion\(\{ timeoutMs = 20000, idleWaitMs = 20000 \} = \{\}\)/);
+  assert.match(src, /export async function requestAccountDeletion\(\{ timeoutMs = 20000, idleWaitMs = 20000, checkTimeoutMs = 8000 \} = \{\}\)/);
 });
 
 test('TB3-3: a deletion that answers clears both timers (the idle race and the request)', async () => {
