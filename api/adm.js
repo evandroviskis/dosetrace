@@ -66,7 +66,7 @@ async function fetchSupabase() {
     // Management view rows (admin_accounts). Missing until the Phase 2 SQL is applied.
     if (acr && acr.ok) { try { const j = await acr.json(); data.accounts = j.accounts; data.protocols_live = j.protocols_live; } catch (e) { /* optional */ } }
     // Contas tab rows (admin_accounts_list): real accounts only, for the admin's eyes.
-    if (alr && alr.ok) { try { const j = await alr.json(); if (j && Array.isArray(j.rows)) data.accounts_list = { rows: j.rows, test_excluded: j.test_excluded, summary: accountsSummary(j.rows) }; } catch (e) { /* optional */ } }
+    if (alr && alr.ok) { try { const j = await alr.json(); if (j && Array.isArray(j.rows)) data.accounts_list = { rows: j.rows, tests: Array.isArray(j.tests) ? j.tests : [], by_rule: j.by_rule == null ? null : Number(j.by_rule), test_excluded: j.test_excluded, summary: accountsSummary(j.rows) }; } catch (e) { /* optional */ } }
     return { status: 'ok', data };
   } catch (e) {
     return { status: 'error', message: String(e && e.message || e) };
